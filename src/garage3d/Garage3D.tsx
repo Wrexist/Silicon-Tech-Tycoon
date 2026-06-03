@@ -115,10 +115,10 @@ function CameraRig({ build = false }: { build?: boolean }) {
     if (ks.has("e") || ks.has("f")) o.lift = Math.max(-3, o.lift - liftSpd); // lower
 
     const k = Math.min(1, dt * 2.5);
-    const px = build ? 6.4 : 14.5;
-    const py = build ? 10.6 : 12.0;
-    const pz = build ? 8.4 : 16.5;
-    const ty = build ? 0.4 : 0.6;
+    const px = build ? 6.4 : 15.5;
+    const py = build ? 10.6 : 13.0;
+    const pz = build ? 8.4 : 17.5;
+    const ty = build ? 0.4 : 0.7;
 
     // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
     // and W/S dollies in/out, while pointer parallax + smoothing are preserved.
@@ -554,7 +554,7 @@ function RobotCharacter({ colorIdx, seed, moodColor }: { colorIdx: number; seed:
   });
 
   return (
-    <group ref={root}>
+    <group ref={root} scale={1.3}>
       {/* body — rounded capsule */}
       <mesh position={[0, 0.54, 0]}>
         <capsuleGeometry args={[0.27, 0.44, 8, 18]} />
@@ -946,6 +946,27 @@ function VisibilityPause() {
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [setFrameloop]);
+  return null;
+}
+
+// Turns on cast/receive shadows for every mesh in the scene so the key light grounds objects
+// with soft contact shadows (the floor slab receives them). Re-runs on a short delay to catch
+// lazily-mounted pieces. Cheap one-shot traversal.
+function EnableShadows() {
+  const scene = useThree((s) => s.scene);
+  useEffect(() => {
+    const apply = () =>
+      scene.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if ((m as THREE.Mesh).isMesh) {
+          m.castShadow = true;
+          m.receiveShadow = true;
+        }
+      });
+    apply();
+    const t = setTimeout(apply, 600);
+    return () => clearTimeout(t);
+  }, [scene]);
   return null;
 }
 
@@ -1422,12 +1443,31 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
   return (
     <>
       <VisibilityPause />
+      {!dark && <EnableShadows />}
       <CameraRig build={!!builder?.build} />
-      <ambientLight intensity={dark ? 0.55 : 1.05} color={dark ? "#ffffff" : "#f8f9ff"} />
-      <directionalLight position={[7, 10, 6]} intensity={dark ? 0.7 : 1.1} color={dark ? "#fff4e0" : "#ffffff"} castShadow={false} />
-      <directionalLight position={[-5, 8, 4]} intensity={dark ? 0.15 : 0.45} color={dark ? "#c0d4ff" : "#e8f0ff"} />
-      <pointLight position={[0, 3.4, 0]} intensity={dark ? 14 : 6} distance={12} decay={2} color={p.lamp} />
-      <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.5} distance={7} decay={2} color={p.screen} />
+      <ambientLight intensity={dark ? 0.55 : 0.62} color={dark ? "#ffffff" : "#f6f8ff"} />
+      {/* soft sky/ground fill — gives the clean diorama an ambient-occlusion-like gradient */}
+      {!dark && <hemisphereLight args={["#ffffff", "#dfe4ec", 0.85]} />}
+      {/* key light — casts soft shadows in the open diorama for that premium grounded look */}
+      <directionalLight
+        position={[8, 13, 7]}
+        intensity={dark ? 0.7 : 1.15}
+        color={dark ? "#fff4e0" : "#ffffff"}
+        castShadow={!dark}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-left={-7}
+        shadow-camera-right={7}
+        shadow-camera-top={7}
+        shadow-camera-bottom={-7}
+        shadow-camera-near={0.5}
+        shadow-camera-far={40}
+        shadow-radius={5}
+        shadow-bias={-0.0006}
+      />
+      <directionalLight position={[-5, 8, 4]} intensity={dark ? 0.15 : 0.4} color={dark ? "#c0d4ff" : "#e8f0ff"} />
+      <pointLight position={[0, 3.4, 0]} intensity={dark ? 14 : 4} distance={12} decay={2} color={p.lamp} />
+      <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.2} distance={7} decay={2} color={p.screen} />
 
       <Room p={p} dark={dark} finish={finish} wall={wall} />
       {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
@@ -1507,17 +1547,17 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
       {/* Floating zone labels */}
       {!builder?.build && (
         <>
-          <OfficeLabel pos={[-1.2, 2.55, -3.88]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
-          <OfficeLabel pos={[2.5, 2.75, -3.55]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
-          <OfficeLabel pos={[-3.5, 2.0, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
-          <OfficeLabel pos={[0.8, 2.1, 3.55]} label="Security Gate" sub="Access Control" dot="#10b981" />
-          {staff[0] && <OfficeLabel pos={[-2.6, 2.0, 2.4]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
+          <OfficeLabel pos={[-2.2, 2.35, -3.2]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
+          <OfficeLabel pos={[1.2, 3.05, -2.6]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
+          <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
+          <OfficeLabel pos={[0.8, 2.0, 3.0]} label="Security Gate" sub="Access Control" dot="#10b981" />
+          {staff[0] && <OfficeLabel pos={[-1.9, 1.95, 2.2]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
         </>
       )}
 
       {/* Bake the shadow pass once (frames={1}) — the scene is mostly static, so re-rendering the
           depth pass every frame is wasted GPU. Re-bakes when the layout key below changes. */}
-      <ContactShadows key={builder?.layout.length ?? 0} position={[0, 0.02, 0]} scale={16} blur={2.6} far={6} opacity={dark ? 0.5 : 0.35} color={p.shadow} resolution={512} frames={1} />
+      <ContactShadows key={builder?.layout.length ?? 0} position={[0, 0.02, 0]} scale={16} blur={3.0} far={6} opacity={dark ? 0.5 : 0.45} color={p.shadow} resolution={1024} frames={1} />
     </>
   );
 }
@@ -1554,8 +1594,9 @@ export function Garage3D({
         role="img"
         aria-label="Company office, 3D view"
         dpr={[1, 1.75]}
+        shadows={dark ? false : { type: THREE.VSMShadowMap }}
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-        camera={{ position: [14.5, 12.0, 16.5], fov: 26 }}
+        camera={{ position: [15.5, 13.0, 17.5], fov: 25 }}
         style={{ touchAction: builder?.build ? "none" : "pan-y" }}
         onCreated={({ gl }) => {
           // Context-loss recovery: downgrade to the 2D IsoScene instead of going black.
