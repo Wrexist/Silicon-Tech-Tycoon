@@ -1,0 +1,229 @@
+.set {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+}
+.set__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}
+.set__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
+  padding: var(--sp-12);
+}
+.set__group-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  padding: 0 var(--sp-4) var(--sp-4);
+}
+.set__seg {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-elevated);
+  padding: 4px;
+  border-radius: var(--r-button);
+}
+.set__seg-opt {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  padding: 9px 4px;
+  border-radius: 9px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  transition: all var(--spring-snappy);
+}
+.set__seg-opt--on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-subtle);
+}
+.set__seg-opt:active {
+  transform: scale(0.96);
+}
+.set__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-8) var(--sp-4);
+}
+.set__row-icon {
+  color: var(--ink-2);
+  display: inline-flex;
+}
+.set__row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.set__row-label {
+  font-weight: 600;
+}
+.set__row-sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.set__switch {
+  width: 48px;
+  height: 29px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  padding: 3px;
+  flex-shrink: 0;
+  transition: background var(--spring-snappy);
+}
+.set__switch--on {
+  background: var(--positive);
+}
+.set__switch-knob {
+  display: block;
+  width: 23px;
+  height: 23px;
+  border-radius: var(--r-pill);
+  background: var(--knob);
+  box-shadow: var(--shadow-subtle);
+  transition: transform var(--spring-snappy);
+}
+.set__switch--on .set__switch-knob {
+  transform: translateX(19px);
+}
+.set__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.set__confirm-text {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-align: center;
+}
+.set__confirm-row {
+  display: flex;
+  gap: var(--sp-8);
+}
+.set__confirm-row .ds-btn {
+  flex: 1;
+}
+.set__about {
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+}
+
+.set__group-note {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  line-height: 1.4;
+  margin: 0 0 var(--sp-8);
+  padding: 0 var(--sp-4);
+}
+
+.set__pair {
+  display: flex;
+  gap: var(--sp-8);
+}
+
+.set__pair > * {
+  flex: 1;
+}
+
+.set__import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+}
+
+.set__import-title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.set__import-text {
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.set__textarea {
+  width: 100%;
+  resize: none;
+  box-sizing: border-box;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  word-break: break-all;
+  outline: none;
+  transition: border-color var(--spring-snappy);
+}
+
+.set__textarea:focus {
+  border-color: var(--accent);
+}
+
+.set__textarea::placeholder {
+  color: var(--ink-3);
+}
+
+/* Screen-level ErrorBoundary inline fallback (rendered from App.tsx; defined here because
+   settings.css is always in the bundle via Settings' static import). */
+.app__screen-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-12);
+  padding: var(--sp-32) var(--sp-16);
+  margin-top: var(--sp-16);
+}
+
+.app__screen-error-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-button);
+  background: var(--negative-soft);
+  color: var(--negative);
+}
+
+.app__screen-error-title {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.app__screen-error-text {
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+  line-height: 1.45;
+  margin: 0;
+  max-width: 32ch;
+}
+
+.app__screen-error-actions {
+  display: flex;
+  gap: var(--sp-8);
+  margin-top: var(--sp-4);
+}

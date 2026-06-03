@@ -1,0 +1,70 @@
+.device-wrap {
+  display: inline-block;
+  line-height: 0;
+}
+
+/* 3D flip card (front <-> back) */
+.device3d {
+  display: inline-block;
+  perspective: 1400px;
+  line-height: 0;
+}
+.device3d__inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.device3d__inner--back {
+  transform: rotateY(180deg);
+}
+.device3d__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.device3d__face--front {
+  position: relative;
+}
+.device3d__face--back {
+  transform: rotateY(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .device3d__inner {
+    transition: none;
+  }
+}
+.device-float {
+  animation: device-float 5.5s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes device-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.4deg);
+  }
+  50% {
+    transform: translateY(-2.2%) rotate(0.4deg);
+  }
+}
+.device-screen-shimmer {
+  animation: device-shimmer 4s ease-in-out infinite;
+}
+@keyframes device-shimmer {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .device-float,
+  .device-screen-shimmer {
+    animation: none;
+  }
+}

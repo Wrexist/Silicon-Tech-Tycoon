@@ -1,0 +1,50 @@
+.gainfx {
+  position: fixed;
+  top: calc(58px + env(safe-area-inset-top));
+  right: var(--edge);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  pointer-events: none;
+}
+.gainfx__tok {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  animation: gainfx-rise 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+.gainfx__tok--cash {
+  color: var(--positive);
+}
+.gainfx__tok--rp {
+  color: var(--accent);
+}
+@keyframes gainfx-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+  }
+  35% {
+    transform: translateY(-2px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gainfx__tok {
+    animation: gainfx-fade 1.5s ease forwards;
+  }
+  @keyframes gainfx-fade {
+    0%, 70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}

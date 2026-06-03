@@ -1,0 +1,98 @@
+{
+  "source": "https://kenney.nl/media/pages/assets/furniture-kit/440e0608a4-1677580847/kenney_furniture-kit.zip",
+  "placed": [
+    {
+      "id": "desk",
+      "source": "desk.glb"
+    },
+    {
+      "id": "deskL",
+      "source": "deskCorner.glb"
+    },
+    {
+      "id": "chair",
+      "source": "chairDesk.glb"
+    },
+    {
+      "id": "armchair",
+      "source": "loungeDesignChair.glb"
+    },
+    {
+      "id": "loungeChair",
+      "source": "loungeChair.glb"
+    },
+    {
+      "id": "sofa",
+      "source": "loungeSofa.glb"
+    },
+    {
+      "id": "sofaL",
+      "source": "loungeSofaCorner.glb"
+    },
+    {
+      "id": "stool",
+      "source": "stoolBar.glb"
+    },
+    {
+      "id": "coffeeTable",
+      "source": "tableCoffee.glb"
+    },
+    {
+      "id": "meetingTable",
+      "source": "table.glb"
+    },
+    {
+      "id": "sideTable",
+      "source": "sideTable.glb"
+    },
+    {
+      "id": "bookshelf",
+      "source": "bookcaseOpen.glb"
+    },
+    {
+      "id": "cabinet",
+      "source": "bookcaseClosedWide.glb"
+    },
+    {
+      "id": "shelfUnit",
+      "source": "bookcaseOpenLow.glb"
+    },
+    {
+      "id": "crates",
+      "source": "cardboardBoxClosed.glb"
+    },
+    {
+      "id": "plantTall",
+      "source": "pottedPlant.glb"
+    },
+    {
+      "id": "plantPot",
+      "source": "plantSmall1.glb"
+    },
+    {
+      "id": "rug",
+      "source": "rugRectangle.glb"
+    },
+    {
+      "id": "rugRound",
+      "source": "rugRounded.glb"
+    },
+    {
+      "id": "tvStand",
+      "source": "cabinetTelevision.glb"
+    },
+    {
+      "id": "floorLamp",
+      "source": "lampSquareFloor.glb"
+    },
+    {
+      "id": "arcLamp",
+      "source": "lampRoundFloor.glb"
+    },
+    {
+      "id": "lantern",
+      "source": "lampRoundTable.glb"
+    }
+  ],
+  "missing": []
+}

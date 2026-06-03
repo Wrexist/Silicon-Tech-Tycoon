@@ -1,0 +1,445 @@
+// The HQ garage — a detailed isometric vector scene. Pure SVG (zero image assets).
+// Each employee is a distinct, characterful figure (hair, skin, shirt, accessory, mood)
+// seated at a laptop that faces THEM. Ambient life: typing, sways, a 3D printer that runs
+// while products sell, a swaying pendant lamp. The workspace grows with staff + facility tier.
+//
+// Drop in your own artwork? Put an SVG/PNG in `public/hq/` and set HQ_CUSTOM_ASSET below.
+import { useId, type ReactNode } from "react";
+import {
+  DEFAULT_APPEARANCE,
+  HAIR_COLORS,
+  MOOD_COLOR,
+  moodBand,
+  SHIRT_COLORS,
+  SKIN_TONES,
+} from "../engine/staff.ts";
+import type { Staff } from "../engine/types.ts";
+import "./garage.css";
+
+const HQ_CUSTOM_ASSET: string | null = null;
+
+const OX = 170;
+const OY = 116;
+const HW = 32;
+const TH = 16;
+const WH = 92;
+const G = 4;
+
+type P = [number, number];
+const iso = (c: number, r: number): P => [OX + (c - r) * HW, OY + (c + r) * TH];
+const pts = (...ps: P[]) => ps.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+
+const A = iso(0, 0);
+const B = iso(G, 0);
+const C = iso(0, G);
+const D = iso(G, G);
+const ATOP: P = [A[0], A[1] - WH];
+const rw = (t: number, u: number): P => [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t - u * WH];
+const lw = (t: number, u: number): P => [A[0] + (C[0] - A[0]) * t, A[1] + (C[1] - A[1]) * t - u * WH];
+
+function hashNum(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function IsoBox({
+  c, r, sc, sr, h, top, left, right,
+}: { c: number; r: number; sc: number; sr: number; h: number; top: string; left: string; right: string }) {
+  const p1 = iso(c - sc, r - sr);
+  const p2 = iso(c + sc, r - sr);
+  const p3 = iso(c + sc, r + sr);
+  const p4 = iso(c - sc, r + sr);
+  const up = (p: P): P => [p[0], p[1] - h];
+  return (
+    <g>
+      <polygon points={pts(p4, p3, up(p3), up(p4))} fill={left} />
+      <polygon points={pts(p2, p3, up(p3), up(p2))} fill={right} />
+      <polygon points={pts(up(p1), up(p2), up(p3), up(p4))} fill={top} />
+    </g>
+  );
+}
+
+// ---- Workspace pod ----
+const DESK_DC = 0.56; // wide but…
+const DESK_DR = 0.3; // …shallow + low, so seated people stay visible
+const DESK_H = 6;
+const SIT = 6;
+const DESKS: { c: number; r: number }[] = [
+  { c: 1.45, r: 1.2 }, // founder
+  { c: 3.0, r: 1.2 },
+  { c: 1.45, r: 2.65 },
+  { c: 3.0, r: 2.65 },
+];
+
+function Chair({ c, r, hue }: { c: number; r: number; hue: string }) {
+  const [x, y] = iso(c, r);
+  return (
+    <g>
+      <ellipse cx={x} cy={y + 1} rx={5.4} ry={2.2} fill="rgba(0,0,0,0.1)" />
+      {/* back (kept below head height so it frames the shoulders, not the head) */}
+      <rect x={x - 5} y={y - 18} width={10} height={11} rx={3} fill="var(--g-chair-d)" />
+      <rect x={x - 5} y={y - 12} width={10} height={3} rx={1.5} fill={hue} opacity={0.4} />
+      <rect x={x - 5.4} y={y - 8} width={10.8} height={4.5} rx={2} fill="var(--g-chair)" />
+    </g>
+  );
+}
+
+// A distinct seated employee, facing the viewer, drawn from their appearance + mood.
+function Person({ s, c, r }: { s: Staff; c: number; r: number }) {
+  const [x, y] = iso(c, r);
+  const ap = s.appearance ?? DEFAULT_APPEARANCE;
+  const skin = SKIN_TONES[ap.skin % SKIN_TONES.length];
+  const hair = HAIR_COLORS[ap.hairColor % HAIR_COLORS.length];
+  const shirt = SHIRT_COLORS[ap.shirt % SHIRT_COLORS.length];
+  const band = moodBand(s.mood);
+  const hn = hashNum(s.id);
+  const dSway = `${(hn % 7) * 0.3}s`;
+  const dArm = `${(hn % 5) * 0.22 + 0.1}s`;
+  const dHead = `${(hn % 9) * 0.5}s`;
+
+  const shoulderY = y - SIT - 14;
+  const hr = 5; // head radius
+  const hcy = shoulderY - hr - 1.5; // head center y
+  const eyeY = hcy + 0.3;
+  const darks = "#2a2623";
+
+  return (
+    <g>
+      <ellipse cx={x} cy={y + 1} rx={7} ry={2.6} fill="rgba(0,0,0,0.16)" />
+      <g className="g-person-sway" style={{ animationDelay: dSway }}>
+        {/* arms (behind torso, reaching toward the desk) */}
+        <g className="g-person-arms" style={{ animationDelay: dArm }}>
+          <rect x={x - 8.4} y={shoulderY + 1} width={3.4} height={9} rx={1.7} fill={shirt} transform={`rotate(13 ${x - 6.7} ${shoulderY + 1})`} />
+          <rect x={x + 5} y={shoulderY + 1} width={3.4} height={9} rx={1.7} fill={shirt} transform={`rotate(-13 ${x + 6.7} ${shoulderY + 1})`} />
+        </g>
+        {/* torso */}
+        <rect x={x - 6.6} y={shoulderY} width={13.2} height={14} rx={4} fill={shirt} />
+        <rect x={x - 6.6} y={shoulderY} width={13.2} height={4.5} rx={3} fill="#ffffff" opacity={0.12} />
+        {/* neck */}
+        <rect x={x - 2.2} y={shoulderY - 3.5} width={4.4} height={5} rx={1.6} fill={skin} />
+        {/* head */}
+        <g className="g-person-head" style={{ animationDelay: dHead }}>
+          <HairBack style={ap.hair} x={x} cy={hcy} hr={hr} hair={hair} />
+          <circle cx={x} cy={hcy} r={hr} fill={skin} />
+          <Fringe style={ap.hair} x={x} cy={hcy} hr={hr} hair={hair} />
+          <HairSide style={ap.hair} x={x} cy={hcy} hr={hr} shoulderY={shoulderY} hair={hair} />
+          {/* eyes */}
+          <circle cx={x - 1.9} cy={eyeY} r={0.75} fill={darks} />
+          <circle cx={x + 1.9} cy={eyeY} r={0.75} fill={darks} />
+          {/* mouth by mood */}
+          <Mouth band={band} x={x} y={hcy + 2.6} />
+          <Accessory accessory={ap.accessory} x={x} cy={hcy} hr={hr} eyeY={eyeY} shirt={shirt} />
+        </g>
+      </g>
+      {/* mood status dot */}
+      <circle cx={x + hr - 0.5} cy={hcy - hr + 0.5} r={2} fill={MOOD_COLOR[band]} stroke="var(--surface)" strokeWidth={0.8} />
+    </g>
+  );
+}
+
+function HairBack({ style, x, cy, hr, hair }: { style: number; x: number; cy: number; hr: number; hair: string }) {
+  if (style === 5) return null; // bald
+  const grow = style === 1 ? 0.4 : 0.9; // buzz vs full
+  return <circle cx={x} cy={cy - 0.8} r={hr + grow} fill={hair} />;
+}
+
+function Fringe({ style, x, cy, hr, hair }: { style: number; x: number; cy: number; hr: number; hair: string }) {
+  if (style === 5 || style === 1) return null;
+  if (style === 2) return <circle cx={x} cy={cy - hr - 1.5} r={2.1} fill={hair} />; // bun
+  if (style === 4) {
+    // curly
+    return (
+      <g>
+        {[-1, 0, 1].map((i) => (
+          <circle key={i} cx={x + i * 3} cy={cy - hr + 0.5} r={2} fill={hair} />
+        ))}
+      </g>
+    );
+  }
+  // short / long: a fringe sweep across the upper forehead
+  return <path d={`M ${x - hr} ${cy - 1.5} Q ${x - 1} ${cy - hr - 1} ${x + hr} ${cy - 2.5} L ${x + hr} ${cy - hr} L ${x - hr} ${cy - hr} Z`} fill={hair} />;
+}
+
+function HairSide({ style, x, cy, hr, shoulderY, hair }: { style: number; x: number; cy: number; hr: number; shoulderY: number; hair: string }) {
+  if (style !== 3) return null; // long hair side panels
+  const top = cy - 1;
+  const h = shoulderY + 3 - top;
+  return (
+    <g>
+      <rect x={x - hr - 0.6} y={top} width={2.4} height={h} rx={1.2} fill={hair} />
+      <rect x={x + hr - 1.8} y={top} width={2.4} height={h} rx={1.2} fill={hair} />
+    </g>
+  );
+}
+
+function Mouth({ band, x, y }: { band: ReturnType<typeof moodBand>; x: number; y: number }) {
+  const dark = "#7a4a3a";
+  let d: string;
+  if (band === "thriving" || band === "happy") d = `M ${x - 2} ${y} Q ${x} ${y + 1.8} ${x + 2} ${y}`;
+  else if (band === "neutral") d = `M ${x - 1.6} ${y + 0.6} L ${x + 1.6} ${y + 0.6}`;
+  else if (band === "tired") d = `M ${x - 1.6} ${y + 0.8} Q ${x} ${y + 0.2} ${x + 1.6} ${y + 0.8}`;
+  else d = `M ${x - 2} ${y + 1.4} Q ${x} ${y - 0.4} ${x + 2} ${y + 1.4}`; // frown
+  return <path d={d} stroke={dark} strokeWidth={0.8} strokeLinecap="round" fill="none" />;
+}
+
+function Accessory({ accessory, x, cy, hr, eyeY, shirt }: { accessory: Staff["appearance"]["accessory"]; x: number; cy: number; hr: number; eyeY: number; shirt: string }) {
+  const dark = "#2a2623";
+  if (accessory === "glasses")
+    return (
+      <g stroke={dark} strokeWidth={0.6} fill="rgba(255,255,255,0.12)">
+        <circle cx={x - 1.9} cy={eyeY} r={1.6} />
+        <circle cx={x + 1.9} cy={eyeY} r={1.6} />
+        <line x1={x - 0.4} y1={eyeY} x2={x + 0.4} y2={eyeY} />
+      </g>
+    );
+  if (accessory === "headphones")
+    return (
+      <g>
+        <path d={`M ${x - hr - 1} ${cy} Q ${x} ${cy - hr - 3.5} ${x + hr + 1} ${cy}`} stroke={dark} strokeWidth={1.4} fill="none" />
+        <rect x={x - hr - 2} y={cy - 1.5} width={2.4} height={4} rx={1} fill={dark} />
+        <rect x={x + hr - 0.4} y={cy - 1.5} width={2.4} height={4} rx={1} fill={dark} />
+      </g>
+    );
+  if (accessory === "cap")
+    return (
+      <g>
+        <path d={`M ${x - hr - 0.5} ${cy - hr + 1} Q ${x} ${cy - hr - 3} ${x + hr + 0.5} ${cy - hr + 1} Z`} fill={shirt} />
+        <rect x={x - hr - 3} y={cy - hr + 0.5} width={4} height={1.6} rx={0.8} fill={shirt} />
+      </g>
+    );
+  if (accessory === "beanie")
+    return (
+      <g>
+        <path d={`M ${x - hr - 0.5} ${cy - 0.5} Q ${x} ${cy - hr - 3.5} ${x + hr + 0.5} ${cy - 0.5} Z`} fill={shirt} />
+        <rect x={x - hr - 0.5} y={cy - 1.5} width={hr * 2 + 1} height={2} rx={1} fill="#ffffff" opacity={0.18} />
+      </g>
+    );
+  if (accessory === "earrings")
+    return (
+      <g fill="#d4af37">
+        <circle cx={x - hr + 0.3} cy={eyeY + 1.6} r={0.7} />
+        <circle cx={x + hr - 0.3} cy={eyeY + 1.6} r={0.7} />
+      </g>
+    );
+  return null;
+}
+
+// A laptop that faces the seated person (we see the lid's back + a glow spill when on).
+function Laptop({ x, topY, on }: { x: number; topY: number; on: boolean }) {
+  const baseW = 17;
+  const baseH = 2.6;
+  const lidW = 16;
+  const lidH = 9;
+  return (
+    <g>
+      {on && <ellipse cx={x} cy={topY - lidH - baseH - 1} rx={12} ry={6} fill="var(--g-screen)" opacity={0.16} />}
+      <rect x={x - baseW / 2} y={topY - baseH} width={baseW} height={baseH} rx={1} fill="var(--g-monitor-stand)" />
+      <path
+        d={`M ${x - lidW / 2} ${topY - baseH} L ${x + lidW / 2} ${topY - baseH} L ${x + lidW / 2 - 1.8} ${topY - baseH - lidH} L ${x - lidW / 2 + 1.8} ${topY - baseH - lidH} Z`}
+        fill="var(--g-monitor)"
+      />
+      {on && <circle className="g-screen" cx={x} cy={topY - baseH - lidH / 2} r={1.7} fill="var(--g-screen)" />}
+    </g>
+  );
+}
+
+function Desk({ c, r }: { c: number; r: number }) {
+  return <IsoBox c={c} r={r} sc={DESK_DC} sr={DESK_DR} h={DESK_H} top="var(--g-bench-top)" left="var(--g-bench-side)" right="var(--g-bench)" />;
+}
+
+interface Ent {
+  d: number;
+  k: string;
+  n: ReactNode;
+}
+
+export function IsoScene({
+  staff,
+  staffCount,
+  facilityTier,
+  hasProduction,
+  height = 250,
+}: {
+  staff?: Staff[];
+  staffCount: number;
+  facilityTier: number;
+  hasProduction: boolean;
+  height?: number;
+}) {
+  const uid = useId().replace(/:/g, "");
+  const team = staff ?? [];
+
+  if (HQ_CUSTOM_ASSET) {
+    return <img src={HQ_CUSTOM_ASSET} alt="Company headquarters" style={{ display: "block", width: "100%", height, objectFit: "contain" }} />;
+  }
+
+  // Garage sectional door (right-back wall)
+  const doorPanels = [];
+  const dT0 = 0.07;
+  const dT1 = 0.96;
+  for (let k = 0; k < 5; k++) {
+    const u0 = 0.05 + k * 0.176;
+    const u1 = u0 + 0.158;
+    doorPanels.push(
+      <polygon key={`dp${k}`} points={pts(rw(dT0, u0), rw(dT1, u0), rw(dT1, u1), rw(dT0, u1))} fill={k % 2 === 0 ? "var(--g-door)" : "var(--g-door-2)"} stroke="var(--g-door-line)" strokeWidth={0.6} />,
+    );
+  }
+  const doorWindows = [0.18, 0.42, 0.66].map((t, i) => (
+    <polygon key={`dw${i}`} points={pts(rw(t, 0.74), rw(t + 0.14, 0.74), rw(t + 0.14, 0.86), rw(t, 0.86))} fill={`url(#sky-${uid})`} stroke="var(--g-door-line)" strokeWidth={0.6} />
+  ));
+
+  // Pegboard (left-back wall)
+  const pegDots = [];
+  for (let i = 0; i < 5; i++)
+    for (let j = 0; j < 4; j++) {
+      const [px, py] = lw(0.17 + i * 0.07, 0.5 + j * 0.08);
+      pegDots.push(<circle key={`pd${i}-${j}`} cx={px} cy={py} r={0.7} fill="var(--g-peg-hole)" />);
+    }
+
+  const occupants = Math.max(1, Math.min(DESKS.length, staffCount));
+  const ents: Ent[] = [];
+
+  // Boxes (back-left)
+  ents.push({
+    d: 0.6 + 0.6,
+    k: "boxes",
+    n: (
+      <>
+        <IsoBox c={0.6} r={0.6} sc={0.4} sr={0.4} h={18} top="var(--g-box-top)" left="var(--g-box-side)" right="var(--g-box)" />
+        <IsoBox c={0.6} r={0.6} sc={0.32} sr={0.32} h={33} top="var(--g-box-top)" left="var(--g-box-side)" right="var(--g-box)" />
+      </>
+    ),
+  });
+
+  // Tool chest (back-right, storage)
+  ents.push({
+    d: 3.6 + 0.55,
+    k: "chest",
+    n: <IsoBox c={3.6} r={0.55} sc={0.4} sr={0.4} h={28} top="var(--g-chest-top)" left="var(--g-chest-side)" right="var(--g-chest)" />,
+  });
+
+  // 3D printer (front-left)
+  {
+    const [pcx, pcy] = iso(0.6, 3.5);
+    ents.push({
+      d: 0.6 + 3.5,
+      k: "printer",
+      n: (
+        <>
+          <IsoBox c={0.6} r={3.5} sc={0.34} sr={0.34} h={25} top="var(--g-metal)" left="var(--g-metal-d)" right="var(--g-metal)" />
+          {hasProduction && (
+            <>
+              <rect className="g-print-head" x={pcx - 10} y={pcy - 21} width={6} height={3} rx={1} fill="var(--accent)" />
+              <circle className="g-spark" cx={pcx} cy={pcy - 25} r={1.6} fill="var(--positive)" />
+            </>
+          )}
+        </>
+      ),
+    });
+  }
+
+  // Plant (front-right)
+  {
+    const [plx, ply] = iso(3.5, 3.6);
+    ents.push({
+      d: 3.5 + 3.6,
+      k: "plant",
+      n: (
+        <>
+          <IsoBox c={3.5} r={3.6} sc={0.18} sr={0.18} h={9} top="var(--g-box-top)" left="var(--g-box-side)" right="var(--g-box)" />
+          <circle cx={plx} cy={ply - 16} r={7} fill="var(--g-plant)" />
+          <circle cx={plx - 5} cy={ply - 12} r={5} fill="var(--g-plant)" />
+          <circle cx={plx + 5} cy={ply - 12} r={5} fill="var(--g-plant)" />
+        </>
+      ),
+    });
+  }
+
+  // Desks: chair (back) → person (back) → desk → laptop (front)
+  DESKS.forEach((dk, i) => {
+    const occupied = i < occupants;
+    const member = team[i];
+    const personR = dk.r - DESK_DR + 0.12;
+    const chairR = dk.r - DESK_DR - 0.18;
+    const hue = member ? SHIRT_COLORS[member.appearance.shirt % SHIRT_COLORS.length] : "var(--g-chair-d)";
+    ents.push({ d: dk.c + chairR, k: `chair${i}`, n: <Chair c={dk.c} r={chairR} hue={hue} /> });
+    if (occupied && member) ents.push({ d: dk.c + personR, k: `person${i}`, n: <Person s={member} c={dk.c} r={personR} /> });
+    ents.push({ d: dk.c + dk.r, k: `desk${i}`, n: <Desk c={dk.c} r={dk.r} /> });
+    const [lx, lyBase] = iso(dk.c, dk.r + DESK_DR * 0.42);
+    ents.push({ d: dk.c + dk.r + DESK_DR, k: `laptop${i}`, n: <Laptop x={lx} topY={lyBase - DESK_H} on={occupied} /> });
+  });
+
+  ents.sort((a, b) => a.d - b.d);
+
+  return (
+    <svg className="garage" viewBox="0 0 340 300" height={height} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Company workspace with ${staffCount} ${staffCount === 1 ? "person" : "people"}`}>
+      <defs>
+        <linearGradient id={`sky-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#bfe0ff" />
+          <stop offset="1" stopColor="#7fb6f0" />
+        </linearGradient>
+        <radialGradient id={`pool-${uid}`} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stopColor="var(--g-glow)" />
+          <stop offset="1" stopColor="var(--g-glow)" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={`lamp-${uid}`} cx="0.5" cy="0.3" r="0.7">
+          <stop offset="0" stopColor="#fff6df" />
+          <stop offset="1" stopColor="#ffd98a" />
+        </radialGradient>
+      </defs>
+
+      {/* Floor */}
+      <polygon points={pts(A, B, D, C)} fill="var(--g-floor)" />
+      <polygon points={pts(iso(0, 0), iso(2, 0), iso(2, 2), iso(0, 2))} fill="var(--g-floor-2)" opacity="0.5" />
+      {[1, 2, 3].map((i) => (
+        <g key={`fl${i}`}>
+          <line x1={iso(i, 0)[0]} y1={iso(i, 0)[1]} x2={iso(i, G)[0]} y2={iso(i, G)[1]} stroke="var(--g-floor-line)" strokeWidth={0.6} />
+          <line x1={iso(0, i)[0]} y1={iso(0, i)[1]} x2={iso(G, i)[0]} y2={iso(G, i)[1]} stroke="var(--g-floor-line)" strokeWidth={0.6} />
+        </g>
+      ))}
+
+      {/* Walls */}
+      <polygon points={pts(A, B, [B[0], B[1] - WH], ATOP)} fill="var(--g-wall-r)" />
+      <polygon points={pts(A, C, [C[0], C[1] - WH], ATOP)} fill="var(--g-wall-l)" />
+      <polygon points={pts(ATOP, [B[0], B[1] - WH], [B[0], B[1] - WH - 4], [ATOP[0], ATOP[1] - 4])} fill="var(--g-wall-trim)" />
+      <polygon points={pts(ATOP, [C[0], C[1] - WH], [C[0], C[1] - WH - 4], [ATOP[0], ATOP[1] - 4])} fill="var(--g-wall-trim)" />
+
+      {/* Garage door (right wall) */}
+      <polygon points={pts(rw(dT0, 0.04), rw(dT1, 0.04), rw(dT1, 0.94), rw(dT0, 0.94))} fill="var(--g-door-2)" stroke="var(--g-door-line)" strokeWidth={1} />
+      {doorPanels}
+      {doorWindows}
+
+      {/* Window (left wall) */}
+      <polygon points={pts(lw(0.64, 0.5), lw(0.9, 0.5), lw(0.9, 0.86), lw(0.64, 0.86))} fill={`url(#sky-${uid})`} stroke="var(--g-wall-trim)" strokeWidth={1.4} />
+      <line x1={lw(0.77, 0.5)[0]} y1={lw(0.77, 0.5)[1]} x2={lw(0.77, 0.86)[0]} y2={lw(0.77, 0.86)[1]} stroke="var(--g-wall-trim)" strokeWidth={1} />
+      <line x1={lw(0.64, 0.68)[0]} y1={lw(0.64, 0.68)[1]} x2={lw(0.9, 0.68)[0]} y2={lw(0.9, 0.68)[1]} stroke="var(--g-wall-trim)" strokeWidth={1} />
+
+      {/* Pegboard (left wall) */}
+      <polygon points={pts(lw(0.14, 0.46), lw(0.5, 0.46), lw(0.5, 0.86), lw(0.14, 0.86))} fill="var(--g-peg)" />
+      {pegDots}
+      <line x1={lw(0.2, 0.82)[0]} y1={lw(0.2, 0.82)[1]} x2={lw(0.2, 0.62)[0]} y2={lw(0.2, 0.62)[1]} stroke="var(--g-tool)" strokeWidth={2.4} strokeLinecap="round" />
+      <circle cx={lw(0.2, 0.62)[0]} cy={lw(0.2, 0.62)[1]} r={2} fill="var(--g-tool)" />
+      <rect x={lw(0.31, 0.8)[0] - 1.4} y={lw(0.31, 0.8)[1] - 14} width={2.8} height={14} rx={1} fill="var(--g-tool)" />
+      <rect x={lw(0.31, 0.82)[0] - 4} y={lw(0.31, 0.82)[1] - 16} width={8} height={3} rx={1} fill="var(--g-tool)" />
+
+      {/* Warm light pool */}
+      <ellipse cx={150} cy={188} rx={88} ry={44} fill={`url(#pool-${uid})`} />
+
+      {/* Pod rug (Studio+) */}
+      {facilityTier > 1 && <ellipse cx={iso(2.2, 1.9)[0]} cy={iso(2.2, 1.9)[1] + 2} rx={72} ry={36} fill="var(--accent)" opacity="0.09" />}
+
+      {/* Depth-sorted floor objects */}
+      {ents.map((e) => (
+        <g key={e.k}>{e.n}</g>
+      ))}
+
+      {/* Pendant lamp (ceiling) */}
+      <line x1={170} y1={6} x2={158} y2={52} stroke="var(--g-metal-d)" strokeWidth={1.4} />
+      <g className="g-lamp">
+        <path d={`M148 52 L168 52 L164 64 L152 64 Z`} fill={`url(#lamp-${uid})`} />
+        <ellipse cx={158} cy={64} rx={6} ry={2} fill="#fff6df" opacity="0.9" />
+      </g>
+    </svg>
+  );
+}

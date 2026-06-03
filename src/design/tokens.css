@@ -1,0 +1,149 @@
+/* Silicon DesignSystem — tokens. Light is primary; dark via media query + [data-theme]. */
+:root {
+  /* Color — semantic (light theme) */
+  --bg: #f4f5f7;
+  --bg-elevated: #eceef1;
+  --surface: #ffffff;
+  --surface-2: #fbfbfc;
+  --ink: #1a1d23;
+  --ink-2: #6b7280;
+  --ink-3: #9ca3af;
+  --hairline: #e5e7eb;
+  --knob: #ffffff; /* toggle/switch knob — sits on a coloured track, stays white in both themes */
+  --glass: color-mix(in srgb, var(--surface) 88%, transparent); /* one cohesive frosted material */
+  --accent: #3b82f6;
+  --accent-ink: #ffffff;
+  --accent-soft: #eaf1fe;
+  --positive: #10b981;
+  --positive-soft: #e7f7f1;
+  --negative: #ef4444;
+  --negative-soft: #fdecec;
+  --warning: #f59e0b;
+  --warning-soft: #fdf3e3;
+
+  /* Function colours — engineering=orange, design=green, marketing=blue, team=violet
+     (theme-stable hues; used to colour-code every screen + upgrade by its function) */
+  --fn-eng: #f97316;
+  --fn-eng-soft: #fdead7;
+  --fn-design: #1eb877;
+  --fn-design-soft: #def5ea;
+  --fn-mkt: #3b82f6;
+  --fn-mkt-soft: #eaf1fe;
+  --fn-team: #8b5cf6;
+  --fn-team-soft: #ece7fd;
+
+  /* Device material shades (used by render layer) */
+  --mat-plastic: #9ca3af;
+  --mat-alu-1: #d1d5db;
+  --mat-alu-2: #9ca3af;
+  --mat-ti-1: #a8a29e;
+  --mat-ti-2: #78716c;
+  --mat-gold: #d4af37;
+
+  /* Spacing — strict 8pt scale (with 2/6 half-steps for fine details) */
+  --sp-2: 2px;
+  --sp-4: 4px;
+  --sp-6: 6px;
+  --sp-8: 8px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-24: 24px;
+  --sp-32: 32px;
+  --sp-48: 48px;
+  --edge: 20px; /* screen edge margin */
+
+  /* Radius */
+  --r-button: 12px;
+  --r-card: 16px;
+  --r-sheet: 24px;
+  --r-pill: 999px;
+
+  /* Shadow — soft, layered, low-opacity */
+  --shadow-subtle: 0 1px 2px rgba(16, 19, 28, 0.05);
+  --shadow-card: 0 1px 2px rgba(16, 19, 28, 0.06), 0 8px 24px rgba(16, 19, 28, 0.06);
+  --shadow-floating: 0 4px 12px rgba(16, 19, 28, 0.1), 0 16px 40px rgba(16, 19, 28, 0.12);
+
+  /* Type */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-rounded: -apple-system, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+  --fs-large-title: 34px;
+  --fs-title: 28px;
+  --fs-headline: 20px;
+  --fs-body: 17px;
+  --fs-caption: 13px;
+  --fs-micro: 11px;
+  --fs-nano: 10px;
+
+  /* Motion */
+  --spring-standard: 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  --spring-snappy: 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  --spring-gentle: 500ms cubic-bezier(0.25, 1, 0.4, 1);
+  --count-up: 600ms;
+
+  color-scheme: light dark;
+}
+
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  /* default fallthrough handled below by media query */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115;
+    --bg-elevated: #15181d;
+    --surface: #1a1d23;
+    --surface-2: #1f232a;
+    --ink: #f4f5f7;
+    --ink-2: #9ca3af;
+    --ink-3: #6b7280;
+    --hairline: #2a2f37;
+    --accent: #3b82f6;
+    --accent-ink: #ffffff;
+    --accent-soft: #16233d;
+    --positive: #10b981;
+    --positive-soft: #11241d;
+    --negative: #ef4444;
+    --negative-soft: #2a1718;
+    --warning: #f59e0b;
+    --warning-soft: #2a2113;
+    --fn-eng-soft: #2a1d10;
+    --fn-design-soft: #0f2a1d;
+    --fn-mkt-soft: #16233d;
+    --fn-team-soft: #1f1638;
+    --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Explicit dark override (settings toggle) */
+:root[data-theme="dark"] {
+  --bg: #0f1115;
+  --bg-elevated: #15181d;
+  --surface: #1a1d23;
+  --surface-2: #1f232a;
+  --ink: #f4f5f7;
+  --ink-2: #9ca3af;
+  --ink-3: #6b7280;
+  --hairline: #2a2f37;
+  --accent-soft: #16233d;
+  --positive-soft: #11241d;
+  --negative-soft: #2a1718;
+  --warning-soft: #2a2113;
+  --fn-eng-soft: #2a1d10;
+  --fn-design-soft: #0f2a1d;
+  --fn-mkt-soft: #16233d;
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --spring-standard: 1ms linear;
+    --spring-snappy: 1ms linear;
+    --spring-gentle: 1ms linear;
+    --count-up: 1ms;
+  }
+}

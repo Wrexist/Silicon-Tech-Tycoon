@@ -1,0 +1,90 @@
+.coach {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  z-index: 28;
+  width: min(calc(100% - 2 * var(--edge)), 500px);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-12) var(--sp-12) var(--sp-16);
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-floating);
+  animation: coach-in var(--spring-standard) both;
+}
+
+@keyframes coach-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.coach__glyph {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--coach-accent);
+  background: color-mix(in srgb, var(--coach-accent) 14%, transparent);
+}
+
+.coach__body {
+  flex: 1;
+  min-width: 0;
+}
+.coach__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.coach__text {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.coach__cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--coach-accent);
+  border-radius: var(--r-pill);
+  transition: transform var(--spring-snappy), opacity var(--spring-snappy);
+}
+.coach__cta:active {
+  transform: scale(0.94);
+}
+
+.coach__skip {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  border-radius: 50%;
+  transition: color var(--spring-snappy), background var(--spring-snappy);
+}
+.coach__skip:active {
+  background: var(--bg-elevated);
+  color: var(--ink-2);
+}

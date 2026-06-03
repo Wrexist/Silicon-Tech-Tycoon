@@ -1,0 +1,319 @@
+// React store: composes gameState reducers, owns the sim tick, persists. The ONLY
+// bridge between the pure engine/state layer and the UI. Views never touch the engine directly.
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { BALANCE } from "../engine/balance.ts";
+import type { Money } from "../engine/money.ts";
+import type { ComponentKind, Product, StaffRole } from "../engine/types.ts";
+import {
+  advanceEraAction,
+  advanceOneWeek,
+  assignStaff,
+  buyProject,
+  buyShares,
+  buyUpgrade,
+  catchUpOffline,
+  duplicateFurniture,
+  fireStaff,
+  goPublic,
+  hireStaff,
+  launchReady,
+  listCompany,
+  moveFurniture,
+  newGame,
+  placeFurniture,
+  removeFurniture,
+  researchNext,
+  resetFurniture,
+  rotateFurniture,
+  sellOwnStake,
+  sellShares,
+  setCompanyName,
+  setFloorStyle,
+  setLayout,
+  setWallStyle,
+  startBuild,
+  trainStaff,
+  upgradeFacility,
+  seedFeedSeq,
+  type GameState,
+} from "./gameState.ts";
+import { getLegacy, setLegacy } from "./legacy.ts";
+import type { Assignment } from "../engine/types.ts";
+import type { ProjectId } from "../engine/research.ts";
+import type { UpgradeId } from "../engine/upgrades.ts";
+import type { ChannelId } from "../engine/marketing.ts";
+import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
+import { clearSave, exportSaveString, importSaveString, loadResult, save } from "./persistence.ts";
+
+export interface OfflineSummary {
+  weeks: number;
+  gain: Money;
+}
+
+interface GameContextValue {
+  state: GameState;
+  paused: boolean;
+  setPaused: (p: boolean) => void;
+  fast: boolean;
+  setFast: (f: boolean) => void;
+  offline: OfflineSummary | null;
+  clearOffline: () => void;
+  // actions
+  build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
+  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number };
+  research: (kind: ComponentKind) => void;
+  buyProject: (id: ProjectId) => void;
+  buyUpgrade: (id: UpgradeId) => void;
+  assign: (id: string, assignment: Assignment) => void;
+  train: (id: string) => void;
+  hire: (role: StaffRole, skill: number, name: string) => void;
+  fire: (id: string) => void;
+  upgradeHQ: () => void;
+  advanceEra: () => void;
+  goPublic: () => void;
+  prestige: () => void;
+  restart: () => void;
+  markOnboarded: () => void;
+  dismissTutorial: () => void;
+  // save export / import (offline backup)
+  exportSave: () => string;
+  importSave: (str: string) => boolean;
+  setCompanyName: (name: string) => void;
+  unlockSandbox: () => void;
+  // office builder
+  placeFurniture: (type: FurnitureId, c: number, r: number, rot: Rot) => void;
+  moveFurniture: (iid: string, c: number, r: number) => void;
+  rotateFurniture: (iid: string) => void;
+  removeFurniture: (iid: string) => void;
+  duplicateFurniture: (iid: string) => void;
+  resetFurniture: () => void;
+  setLayout: (layout: PlacedItem[]) => void;
+  setFloorStyle: (i: number) => void;
+  setWallStyle: (i: number) => void;
+  // equity / stock market
+  buyShares: (id: string, qty: number) => void;
+  sellShares: (id: string, qty: number) => void;
+  listCompany: (stake: number) => void;
+  sellOwnStake: (pct: number) => void;
+}
+
+const GameContext = createContext<GameContextValue | null>(null);
+
+export function GameProvider({ children }: { children: ReactNode }) {
+  // F1 — perform offline catch-up EXACTLY ONCE, here in the lazy initializer, and capture the
+  // {state, weeks, gain} from that single run. The old code ALSO re-ran load()+catchUpOffline in a
+  // mount effect against the still-stale on-disk lastActive, so offline gains applied twice (x4
+  // under StrictMode), corrupting cash + determinism. We compute the summary here and save()
+  // immediately so lastActive persists and can never be re-applied by a later load.
+  const boot = useMemo(() => {
+    const res = loadResult();
+    if (res.status !== "ok") {
+      // ABSENT or UNREADABLE → start fresh. On UNREADABLE the raw save was already copied to a
+      // backup key inside loadResult(), so the player's data is preserved, not destroyed.
+      return { state: newGame(undefined, getLegacy()), offline: null as OfflineSummary | null };
+    }
+    // F4 — seed the feed-id counter above restored ids BEFORE any new feed item is generated.
+    seedFeedSeq(res.state);
+    const fansBefore = res.state.fans;
+    const { state: caught, weeks, gain } = catchUpOffline(res.state);
+    // F7 — don't punish a player for being away: pure weekly fan decay over the offline window
+    // (up to 8 weeks of erosion they couldn't react to) is floored at the pre-catchup value.
+    // Online weekly decay in advanceOneWeek is untouched.
+    const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
+    // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
+    save({ ...floored, lastActive: Date.now() });
+    return { state: floored, offline: weeks > 0 ? { weeks, gain } : null };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [state, setState] = useState<GameState>(boot.state);
+  const [paused, setPaused] = useState(false);
+  const [fast, setFast] = useState(false);
+  const [offline, setOffline] = useState<OfflineSummary | null>(boot.offline);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // F1 — offline catch-up already ran exactly once in the initializer above; do NOT re-run it in
+  // a mount effect (that re-applied gains against the stale on-disk lastActive, x4 under StrictMode).
+
+  // Sim tick. One week per tick; the interval shrinks by fastMultiplier in Fast mode.
+  useEffect(() => {
+    if (paused || state.bankrupt) return;
+    const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
+    const id = setInterval(() => {
+      setState((s) => advanceOneWeek(s));
+    }, ms);
+    return () => clearInterval(id);
+  }, [paused, fast, state.bankrupt]);
+
+  // Persist on a fixed cadence (reads the latest via ref so it actually fires during play),
+  // always stamping lastActive so offline catch-up measures time since the last save.
+  useEffect(() => {
+    const id = setInterval(() => save({ ...stateRef.current, lastActive: Date.now() }), 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Persist on background/exit too — but only when actually hidden, so returning to a visible
+  // tab doesn't reset lastActive and swallow elapsed time.
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") save({ ...stateRef.current, lastActive: Date.now() });
+    };
+    const onHide = () => save({ ...stateRef.current, lastActive: Date.now() });
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onHide);
+    };
+  }, []);
+
+  const build = useCallback((product: Product, plannedUnits?: number, channelId?: ChannelId) => {
+    const result = startBuild(stateRef.current, product, plannedUnits, channelId);
+    if (result.ok) setState(result.state);
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+
+  const launchReadyCb = useCallback((productId: string) => {
+    const result = launchReady(stateRef.current, productId);
+    if (result.ok) setState(result.state);
+    return { ok: result.ok, reason: result.reason, launchScore: result.launchScore };
+  }, []);
+
+  const research = useCallback((kind: ComponentKind) => {
+    setState((s) => researchNext(s, kind));
+  }, []);
+
+  const buyProjectCb = useCallback((id: ProjectId) => setState((s) => buyProject(s, id)), []);
+  const buyUpgradeCb = useCallback((id: UpgradeId) => setState((s) => buyUpgrade(s, id)), []);
+  const assign = useCallback((id: string, a: Assignment) => setState((s) => assignStaff(s, id, a)), []);
+  const train = useCallback((id: string) => setState((s) => trainStaff(s, id)), []);
+
+  const hire = useCallback((role: StaffRole, skill: number, name: string) => {
+    setState((s) => hireStaff(s, role, skill, name));
+  }, []);
+
+  const fire = useCallback((id: string) => setState((s) => fireStaff(s, id)), []);
+  const upgradeHQ = useCallback(() => setState((s) => upgradeFacility(s)), []);
+  const advanceEra = useCallback(() => setState((s) => advanceEraAction(s)), []);
+  const goPublicCb = useCallback(() => setState((s) => goPublic(s)), []);
+  const prestige = useCallback(() => {
+    const next = getLegacy() + 1;
+    setLegacy(next);
+    clearSave();
+    // New Game+ players already know the ropes — skip onboarding + the first-build coach.
+    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true });
+    setOffline(null);
+    setPaused(false);
+    setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
+  }, []);
+  // Serialize the live state for a downloadable / copyable backup (works pre-first-autosave).
+  const exportSave = useCallback(() => exportSaveString(stateRef.current), []);
+
+  // Validate + apply an imported backup. Returns false (and changes nothing) on a bad string, so
+  // the caller can surface a clear error. On success we set the migrated state immutably, stamp
+  // lastActive (so offline catch-up doesn't fire on a fresh paste), and persist immediately.
+  const importSave = useCallback((str: string) => {
+    const migrated = importSaveString(str);
+    if (!migrated) return false;
+    const next: GameState = { ...migrated, lastActive: Date.now() };
+    seedFeedSeq(next); // keep feed-id counter above the imported ids
+    save(next);
+    setState(next);
+    setOffline(null);
+    setPaused(false);
+    setFast(false);
+    return true;
+  }, []);
+
+  const markOnboarded = useCallback(() => setState((s) => ({ ...s, onboarded: true })), []);
+  const dismissTutorial = useCallback(() => setState((s) => ({ ...s, tutorialDone: true })), []);
+  const setCompanyNameCb = useCallback((name: string) => setState((s) => setCompanyName(s, name)), []);
+  const unlockSandbox = useCallback(() => setState((s) => ({ ...s, sandboxUnlocked: true })), []);
+  const placeFurnitureCb = useCallback((type: FurnitureId, c: number, r: number, rot: Rot) => setState((s) => placeFurniture(s, type, c, r, rot)), []);
+  const moveFurnitureCb = useCallback((iid: string, c: number, r: number) => setState((s) => moveFurniture(s, iid, c, r)), []);
+  const rotateFurnitureCb = useCallback((iid: string) => setState((s) => rotateFurniture(s, iid)), []);
+  const removeFurnitureCb = useCallback((iid: string) => setState((s) => removeFurniture(s, iid)), []);
+  const duplicateFurnitureCb = useCallback((iid: string) => setState((s) => duplicateFurniture(s, iid)), []);
+  const resetFurnitureCb = useCallback(() => setState((s) => resetFurniture(s)), []);
+  const setLayoutCb = useCallback((layout: PlacedItem[]) => setState((s) => setLayout(s, layout)), []);
+  const setFloorStyleCb = useCallback((i: number) => setState((s) => setFloorStyle(s, i)), []);
+  const setWallStyleCb = useCallback((i: number) => setState((s) => setWallStyle(s, i)), []);
+  const buySharesCb = useCallback((id: string, qty: number) => setState((s) => buyShares(s, id, qty)), []);
+  const sellSharesCb = useCallback((id: string, qty: number) => setState((s) => sellShares(s, id, qty)), []);
+  const listCompanyCb = useCallback((stake: number) => setState((s) => listCompany(s, stake)), []);
+  const sellOwnStakeCb = useCallback((pct: number) => setState((s) => sellOwnStake(s, pct)), []);
+
+  const restart = useCallback(() => {
+    clearSave();
+    setState(newGame(undefined, getLegacy()));
+    setOffline(null);
+    setPaused(false);
+    setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
+  }, []);
+
+  const clearOffline = useCallback(() => setOffline(null), []);
+
+  const value = useMemo<GameContextValue>(
+    () => ({
+      state,
+      paused,
+      setPaused,
+      fast,
+      setFast,
+      offline,
+      clearOffline,
+      build,
+      launchReady: launchReadyCb,
+      research,
+      buyProject: buyProjectCb,
+      buyUpgrade: buyUpgradeCb,
+      assign,
+      train,
+      hire,
+      fire,
+      upgradeHQ,
+      advanceEra,
+      goPublic: goPublicCb,
+      prestige,
+      restart,
+      markOnboarded,
+      dismissTutorial,
+      exportSave,
+      importSave,
+      setCompanyName: setCompanyNameCb,
+      unlockSandbox,
+      placeFurniture: placeFurnitureCb,
+      moveFurniture: moveFurnitureCb,
+      rotateFurniture: rotateFurnitureCb,
+      removeFurniture: removeFurnitureCb,
+      duplicateFurniture: duplicateFurnitureCb,
+      resetFurniture: resetFurnitureCb,
+      setLayout: setLayoutCb,
+      setFloorStyle: setFloorStyleCb,
+      setWallStyle: setWallStyleCb,
+      buyShares: buySharesCb,
+      sellShares: sellSharesCb,
+      listCompany: listCompanyCb,
+      sellOwnStake: sellOwnStakeCb,
+    }),
+    [state, paused, fast, offline, clearOffline, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, assign, train, hire, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, unlockSandbox, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb],
+  );
+
+  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+}
+
+export function useGame(): GameContextValue {
+  const ctx = useContext(GameContext);
+  if (!ctx) throw new Error("useGame must be used within GameProvider");
+  return ctx;
+}

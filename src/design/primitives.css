@@ -1,0 +1,306 @@
+/* DesignSystem primitives — every screen is assembled from these. */
+
+.ds-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--sp-16);
+}
+.ds-card--flush {
+  padding: 0;
+  overflow: hidden;
+}
+.ds-card--inset {
+  background: var(--surface-2);
+  box-shadow: var(--shadow-subtle);
+}
+
+/* Buttons */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  min-height: 44px;
+  padding: 0 var(--sp-16);
+  border-radius: var(--r-button);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    transform var(--spring-snappy),
+    background var(--spring-snappy),
+    opacity var(--spring-snappy);
+  will-change: transform;
+}
+.ds-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.ds-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.ds-btn--block {
+  width: 100%;
+}
+.ds-btn--primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.ds-btn--secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ds-btn--tertiary {
+  background: transparent;
+  color: var(--ink-2);
+}
+.ds-btn--destructive {
+  background: var(--negative-soft);
+  color: var(--negative);
+}
+.ds-btn--sm {
+  min-height: 32px;
+  padding: 0 var(--sp-12);
+  font-size: var(--fs-caption);
+  border-radius: 10px;
+}
+
+/* Stat pill */
+.ds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px var(--sp-12);
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ds-pill__label {
+  color: var(--ink-2);
+}
+.ds-pill__value {
+  color: var(--ink);
+}
+.ds-pill--accent {
+  background: var(--accent-soft);
+}
+.ds-pill--accent .ds-pill__value {
+  color: var(--accent);
+}
+.ds-pill--positive {
+  background: var(--positive-soft);
+}
+.ds-pill--positive .ds-pill__value {
+  color: var(--positive);
+}
+.ds-pill--negative {
+  background: var(--negative-soft);
+}
+.ds-pill--negative .ds-pill__value {
+  color: var(--negative);
+}
+
+/* Stat (label + value + optional hint) */
+.ds-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.ds-stat__label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.ds-stat__value {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+}
+.ds-stat__hint {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+/* Section header */
+.ds-section {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 var(--sp-12);
+  padding: 0 var(--sp-4);
+}
+.ds-section__title {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.ds-section__accessory {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+/* Empty state */
+.ds-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-12);
+  padding: var(--sp-48) var(--sp-24);
+  color: var(--ink-2);
+}
+.ds-empty__glyph {
+  font-size: 40px;
+  line-height: 1;
+  opacity: 0.5;
+}
+.ds-empty__title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-empty__sub {
+  font-size: var(--fs-caption);
+  max-width: 28ch;
+}
+
+/* Slider */
+.ds-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+.ds-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(
+    to right,
+    var(--accent-local, var(--accent)) 0%,
+    var(--accent-local, var(--accent)) var(--pct),
+    var(--bg-elevated) var(--pct),
+    var(--bg-elevated) 100%
+  );
+}
+.ds-slider::-moz-range-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+}
+.ds-slider::-moz-range-progress {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent-local, var(--accent));
+}
+.ds-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  margin-top: -8px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 2px solid var(--accent-local, var(--accent));
+  box-shadow: var(--shadow-card);
+  transition: transform var(--spring-snappy);
+}
+.ds-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 2px solid var(--accent-local, var(--accent));
+  box-shadow: var(--shadow-card);
+}
+.ds-slider:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+/* Sheet / modal */
+.ds-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 16, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+  animation: ds-fade var(--spring-snappy);
+}
+.ds-sheet {
+  width: 100%;
+  max-width: 540px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  box-shadow: var(--shadow-floating);
+  padding: var(--sp-24) var(--edge) calc(var(--sp-32) + env(safe-area-inset-bottom));
+  animation: ds-rise var(--spring-standard);
+}
+.ds-sheet__grab {
+  width: 36px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--hairline);
+  margin: 0 auto var(--sp-16);
+}
+
+/* Toast */
+.ds-toast-host {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-8);
+  z-index: 60;
+  pointer-events: none;
+}
+.ds-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  max-width: 90%;
+  padding: var(--sp-12) var(--sp-16);
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-align: left;
+  box-shadow: var(--shadow-floating);
+  animation: ds-rise var(--spring-standard);
+  pointer-events: auto; /* host is pass-through; the toast itself is tappable to dismiss */
+  transition: transform var(--spring-snappy);
+}
+.ds-toast:active {
+  transform: scale(0.96);
+}
+.ds-toast--positive {
+  background: var(--positive);
+  color: #fff;
+}
+.ds-toast--negative {
+  background: var(--negative);
+  color: #fff;
+}
+
+@keyframes ds-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ds-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}

@@ -1,0 +1,106 @@
+.rd {
+  /* R&D is the engineering function — orange accent across the whole screen. */
+  --accent: var(--fn-eng);
+  --accent-soft: var(--fn-eng-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.rd__bank {
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface));
+  border-color: var(--accent);
+}
+.rd__bank-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  color: var(--accent);
+}
+.rd__bank-value {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.rd__bank-sub {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--positive);
+}
+.rd__bank-hint {
+  margin-top: var(--sp-12);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.rd__project {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+}
+.rd__project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.rd__contrib--muted {
+  color: var(--ink-2);
+}
+.rd__intro {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.rd__tier {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.rd__current {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-12);
+}
+.rd__contrib {
+  font-size: var(--fs-caption);
+  color: var(--positive);
+  font-weight: 600;
+}
+.rd__next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.rd__next-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rd__next-name {
+  font-weight: 600;
+}
+.rd__maxed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--positive);
+}
+.rd__locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}

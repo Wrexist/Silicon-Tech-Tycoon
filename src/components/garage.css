@@ -1,0 +1,171 @@
+.garage {
+  --g-floor: #d8dae0;
+  --g-floor-2: #cdd0d7;
+  --g-floor-line: rgba(90, 100, 120, 0.14);
+  --g-wall-l: #c7cbd3;
+  --g-wall-r: #b9bdc6;
+  --g-wall-trim: #aeb2bb;
+  --g-door: #e9ebef;
+  --g-door-2: #dde0e6;
+  --g-door-line: rgba(80, 90, 110, 0.22);
+  --g-peg: #c98b5a;
+  --g-peg-hole: rgba(60, 40, 20, 0.28);
+  --g-bench: #b08458;
+  --g-bench-top: #caa074;
+  --g-bench-side: #8f6840;
+  --g-metal: #8a9099;
+  --g-metal-d: #6b7178;
+  --g-chest: #d2483f;
+  --g-chest-top: #e7665c;
+  --g-chest-side: #a8362f;
+  --g-box: #c8a36b;
+  --g-box-top: #ddbd8a;
+  --g-box-side: #a37f48;
+  --g-plant: #4e9d6b;
+  --g-skin: #e8b48c;
+  --g-hair: #3d3733;
+  --g-tool: #5a6270;
+  --g-glow: rgba(255, 214, 150, 0.55);
+  --g-screen: #3b82f6;
+  --g-screen-off: #3a4150;
+  --g-monitor: #2a2f38;
+  --g-monitor-stand: #4a505a;
+  --g-chair: #7b828c;
+  --g-chair-d: #565d66;
+  --g-p1: #3b82f6;
+  --g-p2: #10b981;
+  --g-p3: #f59e0b;
+  --g-p4: #8b5cf6;
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .garage {
+    --g-floor: #20242c;
+    --g-floor-2: #1b1f26;
+    --g-floor-line: rgba(150, 160, 180, 0.1);
+    --g-wall-l: #232830;
+    --g-wall-r: #1d212a;
+    --g-wall-trim: #2c323c;
+    --g-door: #2a2f38;
+    --g-door-2: #232831;
+    --g-door-line: rgba(150, 160, 180, 0.16);
+    --g-peg: #8a5e3a;
+    --g-bench: #6e5238;
+    --g-bench-top: #8a6c49;
+    --g-bench-side: #4f3a26;
+    --g-metal: #555b64;
+    --g-metal-d: #3c4149;
+    --g-chest: #b03a32;
+    --g-chest-top: #c84e45;
+    --g-chest-side: #872a24;
+    --g-box: #9c7c4c;
+    --g-box-top: #b1925f;
+    --g-box-side: #75592f;
+    --g-skin: #c98f68;
+    --g-hair: #2a2623;
+    --g-glow: rgba(255, 200, 120, 0.4);
+    --g-screen-off: #2a313c;
+    --g-monitor: #1b1f26;
+    --g-monitor-stand: #3c4149;
+    --g-chair: #565d66;
+    --g-chair-d: #3c4149;
+  }
+}
+:root[data-theme="dark"] .garage {
+  --g-floor: #20242c;
+  --g-floor-2: #1b1f26;
+  --g-floor-line: rgba(150, 160, 180, 0.1);
+  --g-wall-l: #232830;
+  --g-wall-r: #1d212a;
+  --g-wall-trim: #2c323c;
+  --g-door: #2a2f38;
+  --g-door-2: #232831;
+  --g-door-line: rgba(150, 160, 180, 0.16);
+  --g-peg: #8a5e3a;
+  --g-bench: #6e5238;
+  --g-bench-top: #8a6c49;
+  --g-bench-side: #4f3a26;
+  --g-metal: #555b64;
+  --g-metal-d: #3c4149;
+  --g-chest: #b03a32;
+  --g-chest-top: #c84e45;
+  --g-chest-side: #872a24;
+  --g-box: #9c7c4c;
+  --g-box-top: #b1925f;
+  --g-box-side: #75592f;
+  --g-skin: #c98f68;
+  --g-hair: #2a2623;
+  --g-glow: rgba(255, 200, 120, 0.4);
+  --g-screen-off: #2a313c;
+  --g-monitor: #1b1f26;
+  --g-monitor-stand: #3c4149;
+  --g-chair: #565d66;
+  --g-chair-d: #3c4149;
+}
+
+.g-screen {
+  animation: g-blink 3.4s ease-in-out infinite;
+}
+.g-lamp {
+  animation: g-flicker 6s ease-in-out infinite;
+  transform-origin: center;
+}
+.g-print-head {
+  animation: g-print 2.4s ease-in-out infinite;
+}
+.g-spark {
+  animation: g-spark 2.8s ease-in-out infinite;
+}
+@keyframes g-blink {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+@keyframes g-flicker {
+  0%, 100% { opacity: 0.9; }
+  48% { opacity: 0.92; }
+  50% { opacity: 0.7; }
+  52% { opacity: 0.92; }
+}
+@keyframes g-print {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(9px); }
+}
+@keyframes g-spark {
+  0%, 100% { opacity: 0; transform: translateY(0); }
+  50% { opacity: 0.8; transform: translateY(-3px); }
+}
+
+/* People — subtle, staggered office life (delay set per-person inline) */
+.g-person-sway {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: g-sway 3.8s ease-in-out infinite;
+}
+.g-person-arms {
+  transform-box: fill-box;
+  transform-origin: top center;
+  animation: g-type 0.8s ease-in-out infinite;
+}
+.g-person-head {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: g-headturn 6.5s ease-in-out infinite;
+}
+@keyframes g-sway {
+  0%, 100% { transform: rotate(-1.1deg); }
+  50% { transform: rotate(1.1deg); }
+}
+@keyframes g-type {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(1.4px); }
+}
+@keyframes g-headturn {
+  0%, 36%, 100% { transform: rotate(0deg); }
+  48%, 60% { transform: rotate(9deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .g-screen, .g-lamp, .g-print-head, .g-spark,
+  .g-person-sway, .g-person-arms, .g-person-head { animation: none; }
+}

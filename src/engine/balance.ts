@@ -1,0 +1,209 @@
+// BalanceConfig — ALL tunable constants in ONE place. Logic reads from here so the
+// balancing pass never touches behaviour. First-pass values; tuned in P6.
+import { dollars, type Money } from "./money.ts";
+
+export const BALANCE = {
+  // --- Company start ---
+  // Tighter early economy: a leaner runway + real manufacturing investment per product, so a
+  // flop actually costs you (see build.toolingUnits + sales.floorUnits).
+  startingCash: dollars(24_000) as Money,
+  startingReputation: 8, // 0..100
+
+  // --- Time ---
+  // The sim advances one week per tick. Base pace is deliberately slow so each decision
+  // (design → production run → launch) has weight; the Fast button divides the interval.
+  secondsPerTick: 8,
+  fastMultiplier: 8, // Fast mode → 8/8 = 1s per week for catching up
+  weeksPerTick: 1,
+  quartersWeeks: 13,
+
+  // --- Stats ---
+  statMax: 100,
+
+  // --- Device design ---
+  design: {
+    // multiplier on the camera component's stat contribution by lens count (index = count-1)
+    cameraCountFactor: [0.7, 1.0, 1.22, 1.42],
+    extraLensCost: dollars(12), // per lens beyond the first
+  },
+
+  // --- Market ---
+  market: {
+    // demandScore is Σ weight*stat (0..100). Converted to base units via this scale.
+    baseUnitsAtScore: 1200, // units of volume per demandScore point at marketSize 1.0
+    hype: {
+      reputationWeight: 0.012, // per reputation point
+      marketerWeight: 0.05, // per effective marketer skill point
+      base: 0.9,
+      max: 2.4,
+    },
+    price: {
+      // priceFit peaks when price ≈ perceivedValue*idealMargin; falls off both sides.
+      idealMarkup: 2.2, // price ≈ unitCost * markup feels "fair" at mid value
+      valueToPrice: dollars(9), // each perceived-value point ~ this much fair price
+      tolerance: 0.55, // how forgiving the price curve is
+      minFit: 0.15,
+      maxFit: 1.35,
+    },
+    competition: {
+      // Competition is a *share multiplier* (never erases a viable product):
+      // factor = 1 / (1 + competitorStrength * factorK).
+      factorK: 0.012,
+      // Production planner splits the market by how many rivals match/beat your product.
+      matchPenalty: 0.18, // a rival roughly as good as you
+      beatPenalty: 0.42, // a rival clearly better than you
+      beatMargin: 12, // rival strength must exceed your overall by this to "beat" you
+    },
+    trendDrift: {
+      easing: 0.06, // how fast current weights ease toward target each week
+      retargetEveryWeeks: 14,
+      retargetJitter: 6,
+    },
+  },
+
+  // --- Sales curve (ramp -> peak -> decline) ---
+  sales: {
+    totalWeeks: 16,
+    peakWeek: 4,
+    rampPow: 1.6,
+    declinePow: 1.25,
+    // map launchScore (0..~250) to lifetime unit multiplier
+    scoreToVolume: 36,
+    // even a weak product that ships should sell *something* (× marketSize), but small enough
+    // that a flop can't recoup its tooling — so launch quality genuinely matters.
+    floorUnits: 70,
+  },
+
+  // --- Fans / loyal customer base ---
+  // Fans are guaranteed buyers: they pre-order in proportion to how well your product fits
+  // current demand. Hits grow your fanbase; it slowly decays as attention fades.
+  fans: {
+    starting: 250,
+    preOrderConversion: 0.62, // fraction of fans who pre-order a well-fitting product
+    gainPerHitUnitsK: 90, // fans gained per 1,000 units of a hit sold
+    gainOnHitFlat: 120, // flat fan bump for any hit launch
+    lossPerFlop: 140, // fans lost on a flop
+    decayPerWeek: 0.992, // gentle weekly erosion of attention
+    selloutFanBonus: 0.04, // extra fan growth when a run sells out (demand > supply)
+  },
+
+  // --- Reputation dynamics (forgiving early; hits matter) ---
+  reputation: {
+    hitThreshold: 76, // launchScore above this raises rep
+    flopThreshold: 22, // below this lowers rep
+    gainPerHit: 6,
+    lossPerFlop: 3,
+    overpricePenalty: 2,
+    max: 100,
+    min: 0,
+  },
+
+  // --- Research Points (RP): the tech currency ---
+  research: {
+    rpPerEngineerSkill: 0.5, // weekly RP per point of engineer skill (assigned to R&D)
+    rpPerAssignedResearcher: 0.5, // bonus weekly RP per skill point of any staff assigned to R&D
+    rpFounderBase: 1.2, // the founder always trickles a little RP
+    eraMultiplier: [1, 1.4, 1.9, 2.6], // RP scales up by era (index = era-1)
+    // tech unlocks now cost RP (a fraction of the old cash R&D cost, converted)
+    rdCashToRp: 1 / 1400, // dollars of old rdCost -> RP cost
+    minTechRp: 4,
+  },
+
+  // --- Employees: XP & leveling ---
+  staff: {
+    baseSalary: { engineer: dollars(900), designer: dollars(850), marketer: dollars(800) },
+    salaryPerSkill: dollars(140),
+    engineerRdSpeedPerSkill: 0.06,
+    designerCeilingPerSkill: 1.6,
+    marketerHypePerSkill: 1.0,
+    // XP: staff gain XP weekly from their assignment; level (=skill) up at thresholds.
+    xpPerWeekOnTask: 1.0, // base weekly XP when assigned to a matching task
+    xpPerWeekIdle: 0.25,
+    xpToLevel: 12, // XP needed per skill level-up (scales with current skill)
+    xpLevelScaling: 1.35, // each level costs this much more
+    maxSkill: 10,
+    // Paid training: instant +1 skill.
+    trainCostPerSkill: dollars(1800),
+  },
+
+  // --- Build / manufacturing ---
+  build: {
+    baseWeeks: 3, // weeks to manufacture a product before it can launch
+    minWeeks: 1,
+    // assembly speedup from the "Assembly Line" project + engineer skill
+    weeksPerEngineerSkill: 0.05,
+    // Upfront tooling = unit cost × this (a fixed first-run setup), floored at minTooling.
+    toolingUnits: 40,
+    minTooling: dollars(4_000) as Money,
+    // Production-run planning: bounds for the "how many to manufacture" decision.
+    minRun: 50,
+    maxRun: 5_000_000,
+    defaultRun: 600, // sensible auto-plan if the player doesn't customize
+  },
+
+  // --- Facilities ---
+  facilities: [
+    { tier: 1, name: "Garage", staffCapacity: 3, weeklyRent: dollars(200), upgradeCost: dollars(0) },
+    { tier: 2, name: "Studio", staffCapacity: 7, weeklyRent: dollars(1_200), upgradeCost: dollars(120_000) },
+    { tier: 3, name: "Campus", staffCapacity: 16, weeklyRent: dollars(6_000), upgradeCost: dollars(1_500_000) },
+  ],
+
+  // --- Tech eras: thresholds to advance (reputation OR cumulative revenue) ---
+  eras: [
+    { era: 1, name: "Garage Era", repToAdvance: 35, revToAdvance: dollars(500_000) },
+    { era: 2, name: "Growth Era", repToAdvance: 60, revToAdvance: dollars(8_000_000) },
+    { era: 3, name: "Platform Era", repToAdvance: 80, revToAdvance: dollars(80_000_000) },
+    { era: 4, name: "AI Era", repToAdvance: Infinity, revToAdvance: Infinity },
+  ],
+
+  // --- Competitors ---
+  competitors: {
+    launchEveryWeeks: 9,
+    launchJitter: 5,
+    strengthDecayPerWeek: 0.85, // existing strength multiplies down each week
+    baseStrength: 28,
+  },
+
+  // --- IPO / prestige ---
+  ipo: {
+    minReputation: 85, // plus reaching the final era — the "win" / New Game+ trigger
+    valuationPerRevenueDollar: 5, // valuation = cumulativeRevenue × this + reputation bonus
+    valuationPerRepPoint: dollars(60_000),
+    // Going public to RAISE CAPITAL (separate from the endgame win): available once established.
+    minRevenueToList: dollars(750_000) as Money,
+    baseValuation: dollars(400_000) as Money, // floor so an early IPO is still worth something
+    defaultStake: 0.2, // 20% sold by default at IPO
+    maxStakePerSale: 0.49, // never sell majority control in one go
+    valuationGrowthPerWeek: 0.004, // company value drifts up with momentum
+  },
+
+  // --- Stock market (rival equities the player can trade) ---
+  stocks: {
+    tradeFeePct: 0.008, // 0.8% brokerage on buys + sells
+    dividendYieldPerWeek: 0.0011, // weekly dividend ≈ 0.11% of share price for profitable rivals
+    drift: 0.0016, // baseline weekly upward drift
+    volatility: 0.05, // weekly random swing (±)
+    launchPop: 0.06, // share bump when a rival ships a strong product
+    historyLength: 24,
+  },
+  legacy: {
+    cashPerLevel: dollars(20_000),
+    repPerLevel: 3,
+    rpPerLevel: 14,
+  },
+
+  // --- Market events ---
+  events: {
+    firstWeek: 8,
+    everyWeeks: 11,
+    jitter: 6,
+  },
+
+  // --- Offline catch-up ---
+  offline: {
+    maxCatchUpWeeks: 8, // cap how much offline time is simulated
+    rate: 0.5, // at reduced effectiveness
+  },
+} as const;
+
+export type Balance = typeof BALANCE;
