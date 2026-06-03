@@ -586,7 +586,7 @@ function OfficeRobot({ colorIdx, seed, moodColor, clip }: { colorIdx: number; se
   return (
     <RobotBoundary fallback={parametric}>
       <Suspense fallback={parametric}>
-        <LazyGltfRobot asset={model} clip={clip} />
+        <LazyGltfRobot asset={model} clip={clip} seed={seed} />
         {/* blob shadow under the loaded model */}
         <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]}>
           <circleGeometry args={[0.3, 18]} />

@@ -7,6 +7,7 @@
 // still fine; rig it in Mixamo later to bring it to life. Any load failure is caught upstream by
 // the boundary in Garage3D.tsx, which falls back to the parametric robot.
 import { useEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
@@ -16,7 +17,7 @@ import type { RobotAsset } from "./robotModels.ts";
 // model in doesn't change its scale relative to desks/labels.
 const TARGET_HEIGHT = 1.5;
 
-export default function GltfRobot({ asset, clip }: { asset: RobotAsset; clip?: string }) {
+export default function GltfRobot({ asset, clip, seed = 0 }: { asset: RobotAsset; clip?: string; seed?: number }) {
   const { scene, animations } = useGLTF(asset.url);
 
   // Per-instance deep clone (skeleton-aware) so multiple placements don't share one rig.
@@ -40,13 +41,24 @@ export default function GltfRobot({ asset, clip }: { asset: RobotAsset; clip?: s
   // Animation: play the requested clip by name, else the first available clip, looping.
   const ref = useRef<THREE.Group>(null);
   const { actions, names } = useAnimations(animations, ref);
+  const hasClip = useRef(false);
   useEffect(() => {
     const chosen = (clip && actions[clip]) || (names.length ? actions[names[0]] : null);
+    hasClip.current = !!chosen;
     chosen?.reset().fadeIn(0.3).play();
     return () => {
       chosen?.fadeOut(0.2);
     };
   }, [actions, names, clip]);
+
+  // If the model ships no animation clip (e.g. an un-rigged Meshy export), apply a gentle
+  // procedural idle — breathing bob + slow sway — so static models still feel alive without Mixamo.
+  useFrame((st) => {
+    if (hasClip.current || !ref.current) return;
+    const t = st.clock.elapsedTime + seed;
+    ref.current.position.y = Math.sin(t * 1.4) * 0.04;
+    ref.current.rotation.z = Math.sin(t * 0.6) * 0.025;
+  });
 
   return (
     <group ref={ref}>
