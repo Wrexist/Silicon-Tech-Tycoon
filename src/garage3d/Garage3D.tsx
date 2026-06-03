@@ -1,6 +1,6 @@
 // Procedural real-time 3D HQ (react-three-fiber). Zero image assets — everything is built
 // from primitives + materials + real lights. Scoped to the garage only; devices stay SVG.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -21,6 +21,7 @@ import {
 import { FurniturePiece } from "./furniture3d.tsx";
 import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
+import { robotModelFor } from "./robotModels.ts";
 
 type Upgrades = Partial<Record<UpgradeId, number>>;
 const tierOf = (u: Upgrades, id: UpgradeId) => u[id] ?? 0;
@@ -560,6 +561,42 @@ function RobotCharacter({ colorIdx, seed, moodColor }: { colorIdx: number; seed:
   );
 }
 
+// ---- AI-model robot pipeline: render a registered .glb (Meshy/Mixamo export) when present,
+// otherwise fall back to the parametric RobotCharacter above. Mirrors the furniture pattern. ----
+const LazyGltfRobot = lazy(() => import("./gltfRobot.tsx"));
+
+/** Falls back to the parametric robot if a registered .glb fails to load. */
+class RobotBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+/** A robot by colour index: uses a dropped-in .glb model when one exists (see robotModels.ts),
+ *  otherwise the hand-built parametric robot. `clip` requests an animation by name (e.g. "Idle",
+ *  "Sitting") — ignored if the model doesn't ship that clip. A blob shadow grounds the model. */
+function OfficeRobot({ colorIdx, seed, moodColor, clip }: { colorIdx: number; seed: number; moodColor?: string; clip?: string }) {
+  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} />;
+  const model = robotModelFor(colorIdx);
+  if (!model) return parametric;
+  return (
+    <RobotBoundary fallback={parametric}>
+      <Suspense fallback={parametric}>
+        <LazyGltfRobot asset={model} clip={clip} />
+        {/* blob shadow under the loaded model */}
+        <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]}>
+          <circleGeometry args={[0.3, 18]} />
+          <meshBasicMaterial color="#8090a8" transparent opacity={0.28} depthWrite={false} />
+        </mesh>
+      </Suspense>
+    </RobotBoundary>
+  );
+}
+
 // A desktop monitor on a stand. The panel's screen faces the person (−z); we see the back.
 // `bright` (high Workstation tiers) gives crisper, more saturated screens.
 function Monitor({ p, on, bright }: { p: RoomPalette; on: boolean; bright: boolean }) {
@@ -643,7 +680,7 @@ function Workstation({ p, pos, staff, seed, monitors }: { p: RoomPalette; pos: [
         <Chair p={p} hue={hue} />
         {staff && (
           <group position={[0, -0.05, 0.18]} rotation-x={-0.12}>
-            <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} />
+            <OfficeRobot colorIdx={colorIdx} seed={seed} moodColor={moodColor} clip="Sitting" />
           </group>
         )}
       </group>
@@ -1403,19 +1440,19 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
       {/* Ambient robots — positions match reference image layout */}
       {/* orange: near whiteboard on left wall */}
       <group position={[-1.8, 0, 0.4]} rotation-y={0.5}>
-        <RobotCharacter colorIdx={1} seed={7.3} />
+        <OfficeRobot colorIdx={1} seed={7.3} clip="Idle" />
       </group>
       {/* green: center of room */}
       <group position={[0.2, 0, 0.6]} rotation-y={-0.3}>
-        <RobotCharacter colorIdx={2} seed={9.7} />
+        <OfficeRobot colorIdx={2} seed={9.7} clip="Idle" />
       </group>
       {/* purple: facing kanban wall on right side */}
       <group position={[2.8, 0, -0.4]} rotation-y={-1.4}>
-        <RobotCharacter colorIdx={3} seed={11.1} />
+        <OfficeRobot colorIdx={3} seed={11.1} clip="Idle" />
       </group>
       {/* yellow: near security gate at front */}
       <group position={[2.4, 0, 2.8]} rotation-y={-2.0}>
-        <RobotCharacter colorIdx={4} seed={15.6} />
+        <OfficeRobot colorIdx={4} seed={15.6} clip="Idle" />
       </group>
 
       {/* Floating zone labels */}
