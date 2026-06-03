@@ -17,6 +17,7 @@ import {
   advanceEraAction,
   advanceOneWeek,
   assignStaff,
+  evaluateAndUnlock,
   buyProject,
   buyShares,
   buyUpgrade,
@@ -53,10 +54,38 @@ import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
 import { clearSave, exportSaveString, importSaveString, loadResult, save } from "./persistence.ts";
+import { achievementById } from "../engine/achievements.ts";
+import { achievementIcon } from "../design/achievementIcons.tsx";
+import { showToast } from "../design/toast.tsx";
+import { createElement } from "react";
 
 export interface OfflineSummary {
   weeks: number;
   gain: Money;
+}
+
+/**
+ * Fold achievement evaluation into a state transition during LIVE play. Marks newly-satisfied
+ * milestones unlocked AND fires one celebratory toast per new unlock (Lucide glyph, positive tone).
+ * Only ever called from the live tick / live actions — never the boot or offline-catch-up paths,
+ * which fold unlocks in SILENTLY (evaluateAndUnlock without toasts) so a returning/away player is
+ * never spammed with a backlog of celebrations.
+ */
+function withLiveAchievements(next: GameState): GameState {
+  const { state: out, unlocked } = evaluateAndUnlock(next);
+  for (const id of unlocked) {
+    const a = achievementById(id);
+    if (!a) continue;
+    try {
+      showToast(`Achievement unlocked — ${a.title}`, {
+        tone: "positive",
+        glyph: createElement(achievementIcon(a.icon), { size: 15 }),
+      });
+    } catch {
+      /* toast host not mounted (e.g. tests) */
+    }
+  }
+  return out;
 }
 
 interface GameContextValue {
@@ -129,9 +158,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // (up to 8 weeks of erosion they couldn't react to) is floored at the pre-catchup value.
     // Online weekly decay in advanceOneWeek is untouched.
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
+    // Fold in any achievements earned while away SILENTLY (no toast backlog on return). migrate()
+    // already backfilled the on-disk earned set; this catches milestones crossed during catch-up.
+    const withAch = evaluateAndUnlock(floored).state;
     // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
-    save({ ...floored, lastActive: Date.now() });
-    return { state: floored, offline: weeks > 0 ? { weeks, gain } : null };
+    save({ ...withAch, lastActive: Date.now() });
+    return { state: withAch, offline: weeks > 0 ? { weeks, gain } : null };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -150,7 +182,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (paused || state.bankrupt) return;
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
-      setState((s) => advanceOneWeek(s));
+      setState((s) => withLiveAchievements(advanceOneWeek(s)));
     }, ms);
     return () => clearInterval(id);
   }, [paused, fast, state.bankrupt]);
@@ -185,7 +217,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const launchReadyCb = useCallback((productId: string) => {
     const result = launchReady(stateRef.current, productId);
-    if (result.ok) setState(result.state);
+    // A launch can immediately cross a milestone (first ship, a hit, a hit streak, a sellout) — so
+    // evaluate + celebrate right here, not only on the next weekly tick.
+    if (result.ok) setState(withLiveAchievements(result.state));
     return { ok: result.ok, reason: result.reason, launchScore: result.launchScore };
   }, []);
 
@@ -204,8 +238,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const fire = useCallback((id: string) => setState((s) => fireStaff(s, id)), []);
   const upgradeHQ = useCallback(() => setState((s) => upgradeFacility(s)), []);
-  const advanceEra = useCallback(() => setState((s) => advanceEraAction(s)), []);
-  const goPublicCb = useCallback(() => setState((s) => goPublic(s)), []);
+  // These actions can immediately satisfy a milestone (reach the final era, IPO, the pinnacle), so
+  // fold + celebrate achievements here rather than waiting for the next tick.
+  const advanceEra = useCallback(() => setState((s) => withLiveAchievements(advanceEraAction(s))), []);
+  const goPublicCb = useCallback(() => setState((s) => withLiveAchievements(goPublic(s))), []);
   const prestige = useCallback(() => {
     const next = getLegacy() + 1;
     setLegacy(next);
@@ -248,9 +284,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const setLayoutCb = useCallback((layout: PlacedItem[]) => setState((s) => setLayout(s, layout)), []);
   const setFloorStyleCb = useCallback((i: number) => setState((s) => setFloorStyle(s, i)), []);
   const setWallStyleCb = useCallback((i: number) => setState((s) => setWallStyle(s, i)), []);
-  const buySharesCb = useCallback((id: string, qty: number) => setState((s) => buyShares(s, id, qty)), []);
+  const buySharesCb = useCallback((id: string, qty: number) => setState((s) => withLiveAchievements(buyShares(s, id, qty))), []);
   const sellSharesCb = useCallback((id: string, qty: number) => setState((s) => sellShares(s, id, qty)), []);
-  const listCompanyCb = useCallback((stake: number) => setState((s) => listCompany(s, stake)), []);
+  const listCompanyCb = useCallback((stake: number) => setState((s) => withLiveAchievements(listCompany(s, stake))), []);
   const sellOwnStakeCb = useCallback((pct: number) => setState((s) => sellOwnStake(s, pct)), []);
 
   const restart = useCallback(() => {

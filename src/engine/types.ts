@@ -95,6 +95,20 @@ export function defaultCameraDesign(): CameraDesign {
   return { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true };
 }
 
+/** A snapshot of the launch-moment drivers behind a product's outcome.
+ *  These depend on the market state at the instant of launch (trends drift, rivals come and go),
+ *  so they're recorded here to let the post-launch detail screen explain WHY it won or flopped
+ *  (pillar #5). All optional/additive — saves written before this existed simply lack it, and the
+ *  UI derives a qualitative read from verdict + launchScore + stats instead. */
+export interface LaunchInsight {
+  demandFit: number; // 0..100 — how well stats matched what consumers wanted at launch
+  priceFit: number; // 0.15..1.35 — how fair the price felt vs. perceived value (1 = on the money)
+  hype: number; // total launch hype multiplier (reputation + marketing)
+  matchingRivals: number; // rivals roughly as good as you, splitting the market
+  betterRivals: number; // rivals clearly better than you
+  competitionFactor: number; // 0..1 — share of demand kept after competition
+}
+
 /** A product that has been launched into the market. */
 export interface LaunchedProduct {
   product: Product;
@@ -108,6 +122,10 @@ export interface LaunchedProduct {
   weeksElapsed: number;
   revenueToDate: Money;
   plannedUnits?: number; // production run size this product was built with
+  /** Launch outcome the player saw — the competition-adjusted verdict, recorded for history. */
+  verdict?: "hit" | "flop" | "steady";
+  /** Launch-moment drivers behind the verdict (added later; absent on older saves). */
+  insight?: LaunchInsight;
 }
 
 export type StaffRole = "engineer" | "designer" | "marketer";

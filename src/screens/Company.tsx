@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { ArrowUp, Minus, Plus, Users, X } from "lucide-react";
-import { Button, Card, EmptyState, SectionHeader, Stat } from "../design/primitives.tsx";
+import { ArrowUp, Award, BarChart3, Minus, Plus, Rocket, Trophy, Users, X } from "lucide-react";
+import { Button, Card, EmptyState, SectionHeader, Sheet, Stat } from "../design/primitives.tsx";
+import { AchievementsSheet } from "./Achievements.tsx";
+import { ACHIEVEMENT_COUNT } from "../engine/achievements.ts";
 import { Avatar } from "../components/Avatar.tsx";
 import { RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
@@ -14,7 +16,7 @@ import {
   SPECIALTY_TITLE,
   TRAIT_INFO,
 } from "../engine/staff.ts";
-import type { Assignment, Staff, StaffRole } from "../engine/types.ts";
+import type { Assignment, LaunchedProduct, Staff, StaffRole } from "../engine/types.ts";
 import {
   burn,
   facility,
@@ -65,6 +67,9 @@ const ROLE_COLOR: Record<StaffRole, string> = {
 
 export function Company() {
   const { state, hire, fire, assign, train } = useGame();
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const achievementCount = state.unlockedAchievements.length;
   const fac = facility(state);
   const wkBurn = burn(state);
   const wkRev = nextWeekRevenue(state);
@@ -75,7 +80,14 @@ export function Company() {
     <div className="co">
       {/* Financials */}
       <Card>
-        <SectionHeader title="Financials" />
+        <SectionHeader
+          title="Financials"
+          accessory={
+            <button className="co__stats-link" onClick={() => setStatsOpen(true)} aria-label="View company stats">
+              <BarChart3 size={14} /> Stats
+            </button>
+          }
+        />
         <div className="co__fin-grid">
           <Stat label="Cash" value={<AnimatedMoney value={state.cash} />} />
           <Stat label="Weekly burn" value={format(wkBurn)} tone="negative" />
@@ -92,6 +104,16 @@ export function Company() {
         </div>
         <p className="co__hint">Lifetime revenue {format(state.cumulativeRevenue)}.</p>
       </Card>
+
+      {/* Achievements entry */}
+      <button className="co__ach-row" onClick={() => setAchievementsOpen(true)} aria-label="View achievements">
+        <span className="co__ach-glyph" aria-hidden><Award size={20} /></span>
+        <span className="co__ach-info">
+          <span className="co__ach-title">Achievements</span>
+          <span className="co__ach-sub">Milestones on the road to an empire</span>
+        </span>
+        <span className="co__ach-count tnum">{achievementCount}<span className="co__ach-count-total">/{ACHIEVEMENT_COUNT}</span></span>
+      </button>
 
       {/* Staff roster */}
       <Card>
@@ -112,6 +134,85 @@ export function Company() {
       {(["engineer", "designer", "marketer"] as StaffRole[]).map((role) => (
         <HireCard key={role} role={role} state={state} onHire={hire} capacity={fac.staffCapacity} />
       ))}
+
+      <Sheet open={statsOpen} onClose={() => setStatsOpen(false)}>
+        <StatsSheet state={state} onClose={() => setStatsOpen(false)} />
+      </Sheet>
+
+      <Sheet open={achievementsOpen} onClose={() => setAchievementsOpen(false)}>
+        <AchievementsSheet unlocked={state.unlockedAchievements} onClose={() => setAchievementsOpen(false)} />
+      </Sheet>
+    </div>
+  );
+}
+
+/* ---------- Company stats / history ---------- */
+
+function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void }) {
+  const launched = state.launched;
+  const cashData = state.cashHistory.map((h) => h.cash);
+  const netWorth = state.cash;
+
+  // Aggregates derived from existing tracked data (no invented engine state).
+  const productsShipped = launched.length;
+  const unitsSold = launched.reduce((sum, lp) => sum + lp.unitsSold, 0);
+  const hits = launched.filter((lp) => lp.verdict === "hit").length;
+  const flops = launched.filter((lp) => lp.verdict === "flop").length;
+  const best = launched.reduce<LaunchedProduct | null>(
+    (top, lp) => (top == null || lp.unitsSold > top.unitsSold ? lp : top),
+    null,
+  );
+
+  if (launched.length === 0) {
+    return (
+      <div className="co__stats">
+        <h2 className="co__stats-title">Company stats</h2>
+        <EmptyState
+          glyph={<Rocket size={36} strokeWidth={1.6} />}
+          title="No history yet"
+          sub="Launch your first product to start building a track record."
+          action={<Button variant="secondary" onClick={onClose}>Close</Button>}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="co__stats">
+      <h2 className="co__stats-title">Company stats</h2>
+      <p className="co__stats-sub">{state.companyName} · week {state.week}</p>
+
+      <div className="co__stats-spark">
+        <div className="co__stats-spark-cap">
+          <span className="co__stats-spark-label">Cash over time</span>
+          <span className="ds-stat__value tnum" style={{ color: netWorth >= 0 ? "var(--positive)" : "var(--negative)" }}>
+            {format(netWorth)}
+          </span>
+        </div>
+        <Sparkline data={cashData} stroke={netWorth >= 0 ? "var(--accent)" : "var(--negative)"} />
+      </div>
+
+      {best && (
+        <div className="co__stats-best">
+          <span className="co__stats-best-glyph" aria-hidden><Trophy size={20} /></span>
+          <div className="co__stats-best-info">
+            <span className="co__stats-best-label">Best seller</span>
+            <span className="co__stats-best-name">{best.product.name}</span>
+            <span className="co__stats-best-sub">{best.unitsSold.toLocaleString()} units · {format(best.revenueToDate)}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="co__stats-grid">
+        <Stat label="Lifetime revenue" value={format(state.cumulativeRevenue)} tone="positive" />
+        <Stat label="Units sold" value={unitsSold.toLocaleString()} />
+        <Stat label="Products shipped" value={productsShipped} />
+        <Stat label="Hits / flops" value={`${hits} / ${flops}`} tone={hits >= flops ? "positive" : "negative"} />
+        <Stat label="Reputation" value={`${Math.round(state.reputation)}`} hint="out of 100" tone="accent" />
+        <Stat label="Fans" value={state.fans.toLocaleString()} />
+      </div>
+
+      <Button block onClick={onClose}>Done</Button>
     </div>
   );
 }

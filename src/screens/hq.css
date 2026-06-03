@@ -548,7 +548,7 @@
   gap: 5px;
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: var(--positive);
+  color: var(--positive-text);
 }
 
 /* Marketing sheet */
@@ -636,5 +636,5 @@
 .mkts__opt-hype {
   font-size: var(--fs-micro);
   font-weight: 600;
-  color: var(--fn-mkt);
+  color: var(--fn-mkt-text);
 }

@@ -57,8 +57,10 @@ import {
   type UpgradeId,
 } from "../engine/upgrades.ts";
 import { canAdvanceEra, eraName, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
+import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import {
   advanceTrends,
+  demandVarianceMultiplier,
   initialTrends,
   randomTrendTarget,
   scoreLaunch,
@@ -147,6 +149,9 @@ export interface GameState {
   listed: boolean; // the player's company has IPO'd (is publicly traded)
   ownership: number; // founder's fraction of the company (1 = fully private)
   holdings: Holdings; // shares owned in rival companies, by id
+  // --- Achievements ---
+  /** ids of celebratory milestones the player has earned (monotonic — only ever grows). */
+  unlockedAchievements: string[];
 }
 
 let feedSeq = 0;
@@ -236,6 +241,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     listed: false,
     ownership: 1,
     holdings: {},
+    unlockedAchievements: [],
   };
 }
 
@@ -325,6 +331,8 @@ export interface ProductionPlan {
   totalUpfront: Money;
   launchScore: number;
   demandFit: number; // 0..100 — how well the product matches current demand
+  priceFit: number; // 0.15..1.35 — price fairness vs. perceived value (1 = on the money)
+  hype: number; // total launch hype multiplier (reputation + marketing)
   overall: number; // product's overall quality score
   matchingRivals: number; // rivals roughly as good as you, splitting the market
   betterRivals: number; // rivals clearly better than you
@@ -384,9 +392,17 @@ export function planProduction(
     1 / (1 + matchingRivals * BALANCE.market.competition.matchPenalty + betterRivals * BALANCE.market.competition.beatPenalty);
 
   const demandFit = breakdown.demand;
-  const preOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
+  const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
   const organic = forecast(breakdown.launchScore, marketSize).totalUnits;
   const marketDemand = Math.round(organic * competitionFactor);
+  // B4 — cap fan pre-orders to a share of TOTAL demand so a huge fanbase can't single-handedly
+  // satisfy (and guarantee a sellout of) a token run. Pre-orders may cover at most preOrderCap of
+  // (preOrders + organic market); the rest must come from the open market. Keeps fans meaningful
+  // without letting them trivialise the production bet.
+  const cap = BALANCE.fans.preOrderCap;
+  // Solve preOrders ≤ cap × (preOrders + marketDemand) → preOrders ≤ cap/(1-cap) × marketDemand.
+  const preOrderCeil = cap < 1 ? Math.round((cap / (1 - cap)) * marketDemand) : rawPreOrders;
+  const preOrders = Math.min(rawPreOrders, preOrderCeil);
   const totalDemand = preOrders + marketDemand;
 
   const planned = Math.max(0, Math.round(plannedUnits));
@@ -410,6 +426,8 @@ export function planProduction(
     totalUpfront,
     launchScore: breakdown.launchScore,
     demandFit,
+    priceFit: breakdown.priceFit,
+    hype: breakdown.hype,
     overall,
     matchingRivals,
     betterRivals,
@@ -425,11 +443,37 @@ export function planProduction(
   };
 }
 
-/** A sensible default production run: the projected demand, capped by what you can afford. */
+/** Safety reserve the recommended run must leave untouched so the player stays solvent THROUGH
+ *  the build (rent/payroll burn for buildWeeks, no revenue yet) + a small flat margin. B1: without
+ *  this, recommending a run that spends nearly all cash on tooling+units bankrupts a fresh save
+ *  before its first product ever launches. */
+export function buildSafetyReserve(s: GameState): Money {
+  const weeks = buildWeeksFor(s);
+  return add(scale(burn(s), weeks), BALANCE.build.safetyReserveMargin) as Money;
+}
+
+/** Units you can afford while still leaving the build-through safety reserve intact. B1. */
+export function affordableRun(s: GameState, product: Product, channelId: ChannelId = "none"): number {
+  const probe = planProduction(s, product, BALANCE.build.minRun, channelId);
+  const reserve = buildSafetyReserve(s);
+  // Cash left for tooling+units after holding back the reserve, then after paying fixed costs
+  // (tooling + channel) the rest funds units.
+  const spendable = sub(sub(s.cash, reserve), add(probe.tooling, probe.channelCost));
+  if (toDollars(probe.unitCost) <= 0) return BALANCE.build.maxRun;
+  const units = Math.floor(toDollars(spendable) / toDollars(probe.unitCost));
+  return Math.max(0, units);
+}
+
+/** A sensible default production run: the projected demand, capped by what you can afford WHILE
+ *  keeping the build-through safety reserve (B1). Never recommends a run that bankrupts you mid-build. */
 export function recommendedRun(s: GameState, product: Product, channelId: ChannelId = "none"): number {
   const probe = planProduction(s, product, BALANCE.build.defaultRun, channelId);
   const target = Math.max(BALANCE.build.minRun, Math.round(probe.totalDemand));
-  return Math.max(BALANCE.build.minRun, Math.min(target, probe.maxAffordableUnits || BALANCE.build.minRun));
+  const safeMax = affordableRun(s, product, channelId);
+  // If even the floor run breaches the reserve, still allow the minimum so the wizard stays usable
+  // (the wizard surfaces the runway warning) — but prefer the safe, demand-matched run.
+  const capped = Math.min(target, Math.max(BALANCE.build.minRun, safeMax));
+  return Math.max(BALANCE.build.minRun, capped);
 }
 export const counts = (s: GameState) => ({ assigned: s.staff.filter((x) => x.assignment !== "idle").length });
 
@@ -729,7 +773,17 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const plannedUnits = product.plannedUnits ?? recommendedRun(state, product, channelId);
   const plan = planProduction(state, product, plannedUnits, channelId);
 
-  const totalUnits = plan.projectedSales; // capped by the run AND by real demand
+  // B9 — apply seeded demand variance to the ACTUAL realized demand at launch. planProduction
+  // gives the deterministic forecast the wizard showed; the real market lands within ±demandVariance
+  // of it. This makes over/under-producing a true bet: a too-small run can leave demand unmet, a
+  // too-large run can strand stock. Driven by the persisted RNG (deterministic per seed, NOT
+  // Math.random) and we save the advanced rngState below so the outcome is reproducible.
+  const rng = rngFrom(state);
+  const variance = demandVarianceMultiplier(rng);
+  const realizedDemand = Math.max(0, Math.round(plan.totalDemand * variance));
+  // Sales are still capped by the production run — you can never sell more than you built.
+  const totalUnits = Math.min(plannedUnits, realizedDemand);
+  const sellsOut = realizedDemand > plannedUnits && plannedUnits > 0;
   const weeklyUnits = distributeOverCurve(totalUnits);
 
   const lp: LaunchedProduct = {
@@ -744,6 +798,16 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     unitsSold: 0,
     weeksElapsed: 0,
     revenueToDate: ZERO,
+    // Snapshot the launch-moment drivers so the post-launch detail screen can explain the outcome
+    // (pillar #5: readable simulation). These reflect the market the instant this product shipped.
+    insight: {
+      demandFit: plan.demandFit,
+      priceFit: plan.priceFit,
+      hype: plan.hype,
+      matchingRivals: plan.matchingRivals,
+      betterRivals: plan.betterRivals,
+      competitionFactor: plan.competitionFactor,
+    },
   };
 
   // Reputation response (QA Lab softens flops, boosts hits).
@@ -767,23 +831,42 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   let fans = state.fans;
   if (isHit) fans += fb.gainOnHitFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK;
   else if (isFlop) fans = Math.max(0, fans - fb.lossPerFlop);
-  if (plan.sellsOut) fans *= 1 + fb.selloutFanBonus;
+  // B4 — the sellout buzz is only earned if the run actually met a reasonable share of demand.
+  // A deliberately tiny run that sells out while ignoring most of the market no longer farms fans;
+  // instead chronic severe undersupply costs you fans ("couldn't meet demand"). This kills the
+  // free fan-grind exploit while keeping the genuine "slightly under-produce a hot product" reward.
+  const metShare = realizedDemand > 0 ? plannedUnits / realizedDemand : 1;
+  if (sellsOut) {
+    if (metShare >= fb.selloutMinDemandShare) fans *= 1 + fb.selloutFanBonus;
+    else fans = Math.max(0, fans * (1 - fb.undersupplyFanPenalty));
+  }
   fans = Math.round(fans);
 
   // The whole team feels the result.
   const moodSwing = isHit ? 12 : isFlop ? -12 : 3;
   const staff = state.staff.map((s) => ({ ...s, mood: clampMood(s.mood + moodSwing) }));
 
+  // Record the verdict the player saw on the launched product, so the history screen can report it.
+  lp.verdict = isHit ? "hit" : isFlop ? "flop" : "steady";
+
+  // B8 — surface the deltas the player otherwise can't see: how this launch moved fans + reputation.
+  const fanDelta = fans - state.fans;
+  const repDelta = Math.round(reputation - state.reputation);
+  const part = (n: number, unit: string) =>
+    n === 0 ? null : `${n > 0 ? "+" : "−"}${Math.abs(n).toLocaleString()} ${unit}`;
+  const deltaBits = [part(fanDelta, "fans"), part(repDelta, "reputation")].filter(Boolean);
+  const deltaStr = deltaBits.length ? ` ${deltaBits.join(" · ")}.` : "";
+
   const feed = [...state.feed];
   const verdict = isHit ? "a hit" : isFlop ? "a flop" : "a steady seller";
   feed.push(
     feedItem(
       state.week,
-      `Launched “${product.name}” — ${verdict} (~${totalUnits.toLocaleString()} of ${plannedUnits.toLocaleString()} units forecast).`,
+      `Launched “${product.name}” — ${verdict} (~${totalUnits.toLocaleString()} of ${plannedUnits.toLocaleString()} units forecast).${deltaStr}`,
       isHit ? "positive" : isFlop ? "negative" : "accent",
     ),
   );
-  if (plan.sellsOut) {
+  if (sellsOut) {
     feed.push(feedItem(state.week, `“${product.name}” is selling out — demand outstrips your run.`, "positive"));
   } else if (plannedUnits - totalUnits > plannedUnits * 0.35) {
     feed.push(feedItem(state.week, `Overproduced “${product.name}” — unsold stock is a write-off.`, "negative"));
@@ -798,6 +881,9 @@ export function launchReady(state: GameState, productId: string): ActionResult {
       fans,
       staff,
       feed: trimFeed(feed),
+      // Persist the RNG advance from the demand-variance roll so the launch outcome is deterministic
+      // per seed and the next tick continues from the correct RNG state.
+      rngState: rng.state(),
     },
     ok: true,
     launchScore: plan.launchScore,
@@ -1057,6 +1143,21 @@ export function sellShares(state: GameState, id: string, qty: number): GameState
   const holdings = { ...state.holdings, [id]: held - q };
   if (holdings[id] === 0) delete holdings[id];
   return { ...state, cash: add(state.cash, sellProceeds(comp.sharePrice, q)), holdings };
+}
+
+/**
+ * Evaluate achievements against the current state and add any newly-satisfied ids to the unlocked
+ * set (union — monotonic, never un-unlocks). PURE. Returns the same state object when nothing new
+ * unlocked (referential stability), plus the list of ids that flipped this evaluation so the UI
+ * layer can fire celebratory toasts for live-play unlocks only. Never mutates input.
+ */
+export function evaluateAndUnlock(state: GameState): { state: GameState; unlocked: string[] } {
+  const prev = state.unlockedAchievements ?? [];
+  const satisfied = evaluateAchievements(deriveFacts(state));
+  const had = new Set(prev);
+  const unlocked = satisfied.filter((id) => !had.has(id));
+  if (unlocked.length === 0) return { state, unlocked: [] };
+  return { state: { ...state, unlockedAchievements: [...prev, ...unlocked] }, unlocked };
 }
 
 export function advanceEraAction(state: GameState): GameState {

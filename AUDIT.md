@@ -188,3 +188,143 @@ instancing — perf, larger refactor), F33-F36/F41-F43 (features + safeStorage +
 - [ ] 7.2 "Why won/flopped" readability after launch
 - [ ] F34 screen-level ErrorBoundary; F35 autosave debounce; F36 context split
 - [ ] Deeper content/balance + a11y/perf passes
+
+---
+## SWEEP 2 — COMPLETE (verified)
+Build GREEN (tsc 0, vite ok), vitest 94 passing (+5). Adversarial re-audit of all Sweep-1 changes
+found NO material regressions (removed dead negate() nit). Features shipped:
+- Save export/import (base64, migrate-validated, clipboard+download, Import sheet w/ confirm + inline error).
+- Company "Stats" sheet: cash sparkline + net worth, best-seller, lifetime revenue/units/products/hits/flops/rep/fans.
+- LaunchedProduct.verdict recorded at launch (competition-adjusted) + migrate backfill for old saves.
+
+## SWEEP 3 — focus: content/balance, deep a11y+perf, iOS/PWA, more premium features
+- [ ] Content/balance audit: economy curve garage→empire, winnability, dead-ends, exploit-checks (7.1-7.5)
+- [ ] Deep a11y audit: contrast AA, focus order, keyboard nav, ARIA on sliders/sheets (6.1-6.3)
+- [ ] iOS/Capacitor/PWA: safe-area, status bar, haptics native path, manifest, touch-only flows (9.x)
+- [ ] Post-launch product detail w/ sales chart + sequel button (8.1)
+- [ ] Marketing depth: campaign outcome feedback (8.2)
+- [x] Achievements/milestones, premium no-FOMO (8.3) — 20-milestone PURE catalog + evaluator
+  (engine/achievements.ts, unit-tested: every predicate, no double-unlock, monotonic, silent
+  backfill). State: GameState.unlockedAchievements (migrate default [] + silent earned-backfill at
+  end of migrate). Live tick + launch/era/IPO/buyShares fire ONE celebratory toast per NEW unlock;
+  boot + offline catch-up fold unlocks in silently (no toast backlog). UI: Achievements sheet from
+  Company (count "N/total", earned full-colour Lucide cards, locked muted Lock placeholders with a
+  tasteful hint — no exact thresholds). Tokens + 8pt grid, dark/light parity. Dropped none — all
+  proposed milestones backed by existing tracked data (sellout derived from totalUnits===plannedUnits).
+
+---
+## SWEEP 3 — progress
+Build GREEN (tsc 0, vite ok), vitest 95. Done: balance/content audit (found early-game runway
+BLOCKER + fan-grind exploit + readability gaps); post-launch Product Detail sheet (tap a launched
+product → device render, sales curve, "why it won/flopped" drivers from new LaunchInsight snapshot,
+"Design a successor" → seeds DesignLab w/ next series name). 
+Balance findings queued for fix pass (B1-B9 below).
+
+### Balance fix queue (from content audit)
+- [x] B1 BLOCKER: recommendedRun could bankrupt during the build. FIXED — recommendedRun now reserves
+      buildSafetyReserve = buildWeeks×weeklyBurn + safetyReserveMargin ($1k) before funding units
+      (gameState.affordableRun/buildSafetyReserve; BALANCE.build.safetyReserveMargin). Tests: a fresh
+      save's recommended run leaves ≥ the reserve and survives the whole build without bankruptcy.
+- [x] B2 defaultRun 600 unaffordable. FIXED — BuildWizard opens on recommendedRun (always affordable);
+      defaultRun kept only as the demand-probe size/ceiling hint, documented in balance.ts.
+- [ ] B3 Era advance OR-revenue skip makes reputation a sudden endgame grind → require rep AND softer revenue, or rep-gated. (DEFERRED — larger design change.)
+- [x] B4 Fan-grind sellout exploit. FIXED — (a) pre-orders capped to BALANCE.fans.preOrderCap (0.6) of
+      total demand in planProduction so a giant fanbase can't self-fulfil a token run; (b) the sellout
+      fan-bonus only fires when the run met ≥ selloutMinDemandShare (0.5) of demand, else a small
+      undersupplyFanPenalty (0.05) for chronic undersupply (launchReady). Tests: token sellout isn't
+      rewarded, gain is analytically bounded, pre-orders < total demand under the cap.
+- [ ] B5 Pricing solved by one Suggest button → show a range not the peak. (DEFERRED — larger design change.)
+- [ ] B6 Stock drift +EV passive income printer → mean-reverting/zero-EV drift. (DEFERRED — larger design change.)
+- [x] B7 Readability: DesignLab verdict disagreed with launch gate. FIXED — DesignLab now derives its
+      projected verdict from the SAME effectiveScore (planProduction.launchScore × competitionFactor)
+      and the SAME BALANCE.reputation.hit/flopThreshold the launch uses. Test: lab verdict == recorded
+      launch verdict across hit/flop/steady cases.
+- [x] B8 Readability: price-fit + deltas now surfaced. FIXED — launch feed appends "+N fans · +M
+      reputation" (losses for flops); BuildWizard review shows a Price fit indicator (Overpriced −X% /
+      On the money / Value buy) alongside demand fit, plus "Cash after build starts" + "Runway: N wk"
+      with a premium risk warning when runway < build weeks (B1b).
+- [ ] B9 Depth (later): choice-driven market events, reactive/specialized rivals, demand variance at launch, component sidegrades.
+
+---
+## SWEEP 3 — audits done (a11y deep + iOS/PWA), fix queue
+Runtime smoke: Company renders Achievements + Stats, 0 console errors. Achievements (20) + balance
+fixes + post-launch detail all live. tsc 0 / vitest 135 / build ok.
+
+### a11y blockers/serious (queued)
+- [ ] A1 index.html: remove maximum-scale=1.0,user-scalable=no (zoom blocker — WCAG 1.4.4).
+- [ ] A2 Light-theme contrast: darken --ink-3 (#9ca3af 2.3:1 → ~#6b7280); add on-light text variants for
+      function colors/positive/negative (bright hues fail as text); darken --accent to #2563eb for white-on-accent sm buttons; nudge --ink-2.
+- [ ] A3 Sheet primitive: focus into dialog on open, trap Tab, restore focus on close. Apply to IPO/Bankrupt/Offline overlays too (add role=dialog/aria-modal/Escape).
+- [ ] A4 3D <Canvas> aria-label/role=img (mirror IsoScene); WASD hint not the only doc.
+- [ ] A5 HUD cash/RP/rep as aria-live polite + meaningful aria-label ("$24.0K cash","Reputation 47 of 100").
+- [ ] A6 AnimatedNumber/GainFX honor prefers-reduced-motion (JS rAF ignores CSS query) → snap.
+- [ ] A7 (known exception) 3D build-mode placement pointer-only; keep auto-place fallback + document.
+
+### iOS/PWA blockers/serious (queued)
+- [x] I1 Safe-area the 3 full-screen overlays (.ipo .bankrupt .onboard button): padding max(--edge, env(safe-area-inset-*)).
+- [x] I2 Service worker via vite-plugin-pwa (precache shell+assets, runtime-cache furniture/*.glb) → offline PWA.
+      `registerType:autoUpdate`, `manifest:false` (we keep public/manifest.webmanifest), globs js/css/html/svg/png/webmanifest,
+      glb served by a CacheFirst runtime route. Registered in src/main.tsx via `virtual:pwa-register` (guarded; no-op when unsupported).
+- [x] I3 Real PNG icons: generated 180/192/512 + 512-maskable from public/icon.svg via `sharp` (scripts/gen-icons.mjs).
+      Wired into manifest.icons[] (maskable purpose) + index.html apple-touch-icon → /apple-touch-icon-180.png.
+- [x] I4 @capacitor/status-bar + splash-screen: SplashScreen #0f1115 / no spinner / hidden from JS on mount; StatusBar DARK style.
+      Config in capacitor.config.ts plugins{}; runtime init in src/native.ts (guarded by Capacitor.isNativePlatform(), never throws).
+- [~] I5 Scaffold ios/ — needs macOS/Xcode, can't run here. See "Native iOS build (run on a Mac)" below.
+- [x] I6 haptics branch on isNativePlatform (native Haptics on device, Web Vibration on web — removes double-buzz).
+
+---
+
+## Native iOS build (run on a Mac — required, not possible in this environment)
+The web build, PWA service worker, icons, and Capacitor config are all ready. The native
+iOS project (`ios/`) is intentionally **not** committed because `npx cap add ios` requires
+macOS + Xcode (CocoaPods, native toolchain). On a Mac, run:
+
+```bash
+npm install
+npm run build          # emits dist/ + dist/sw.js + precache manifest
+npx cap add ios        # one-time: scaffolds ios/App + installs pods
+npx cap sync           # copies dist/ into the native shell + syncs plugins
+npx cap open ios       # opens ios/App/App.xcworkspace in Xcode to run/archive
+```
+
+`capacitor.config.ts` is already correct for this: appId `com.wrexist.silicon`, webDir `dist`,
+SplashScreen (#0f1115, no spinner, JS-hidden) + StatusBar (DARK) plugin config. After any web
+change, re-run `npm run build && npx cap sync`. Re-run `node scripts/gen-icons.mjs` only if
+`public/icon.svg` changes (regenerates the PNGs).
+
+---
+## SWEEP 3 — COMPLETE (verified)
+Build GREEN (tsc 0, vitest 135, vite build emits sw.js + workbox + PNG icons). Fresh-server runtime
+smoke: 0 console errors, HQ renders, cash/HUD live. (Earlier "format is not defined" was stale HMR
+buffer — gone on clean reload; code imports format correctly + production build clean.)
+Done this sweep:
+- Content/balance audit + FIXES: early-game runway BLOCKER (recommendedRun reserves build burn),
+  defaultRun affordability, fan-grind exploit tamed (pre-order cap, sellout volume bar, undersupply
+  penalty), DesignLab verdict now matches launch (competition-adjusted), launch feed shows +fans/+rep,
+  price-fit indicator + "cash after build/runway" warning in wizard.
+- Post-launch Product Detail sheet ("why it won/flopped" from LaunchInsight) + Design-a-successor.
+- Achievements (20, pure engine + evaluator, silent backfill, one celebratory toast per live unlock).
+- Deep a11y FIXES: zoom unblocked, light-theme contrast (ink-3/accent/on-light text tokens), Sheet
+  focus trap+restore + dialog semantics on IPO/Bankrupt/Offline, Canvas aria-label, HUD aria-live +
+  labels, AnimatedNumber/GainFX honor reduced-motion.
+- iOS/PWA FIXES: safe-area on 3 overlays, vite-plugin-pwa service worker (offline shell + glb runtime
+  cache), real PNG icons (192/512/maskable/apple-touch-180 via sharp), @capacitor/status-bar+splash
+  native init, haptics native/web branch. (ios/ scaffold = documented Mac-only step.)
+
+## SWEEP 4 — depth + perf + re-audit
+- [ ] Adversarial re-audit of Sweep 3 changes (focus traps, token contrast, SW offline correctness, balance).
+- [ ] B3 era gating tie to reputation; B5 pricing variance/range; B6 stock drift mean-reverting (design changes).
+- [ ] B9 depth: choice-driven market events, reactive/specialized rivals, launch demand variance, component sidegrades.
+- [ ] F13 furniture instancing (perf); dpr cap low-power.
+- [ ] Deeper per-screen premium polish pass + microinteractions.
+
+---
+## SWEEP 4 — interrupted by session limit, build RECOVERED
+A depth agent landed B9 LAUNCH DEMAND VARIANCE (market.ts demandVarianceMultiplier, ±12% seeded,
+RNG-persisted, bounded) but was cut off before adding its import to gameState.ts → I fixed the
+missing import. Build verified GREEN: tsc 0, vitest 135, vite build ok (SW + icons), runtime smoke
+0 console errors. The rivals/events agent made no committed changes (cut off early).
+STILL TODO (Sweep 4 remainder): adversarial re-audit of Sweep 3; reactive/specialized rivals;
+choice-driven market events; B3 era-rep gating; B5 pricing range; B6 stock mean-reversion;
+furniture instancing perf; deeper polish. Demand-variance UI readability ("forecast/band") not yet
+surfaced in the wizard — engine applies variance but wizard still shows point estimate (follow-up).

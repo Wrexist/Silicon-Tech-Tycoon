@@ -25,7 +25,7 @@
 .rd__bank-sub {
   font-size: var(--fs-caption);
   font-weight: 600;
-  color: var(--positive);
+  color: var(--positive-text);
 }
 .rd__bank-hint {
   margin-top: var(--sp-12);
@@ -66,7 +66,7 @@
 }
 .rd__contrib {
   font-size: var(--fs-caption);
-  color: var(--positive);
+  color: var(--positive-text);
   font-weight: 600;
 }
 .rd__next {
@@ -93,7 +93,7 @@
   gap: 5px;
   font-size: var(--fs-caption);
   font-weight: 600;
-  color: var(--positive);
+  color: var(--positive-text);
 }
 .rd__locked {
   display: inline-flex;

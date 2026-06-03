@@ -21,7 +21,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--edge);
+  padding: max(var(--edge), env(safe-area-inset-top)) max(var(--edge), env(safe-area-inset-right))
+    max(var(--edge), env(safe-area-inset-bottom)) max(var(--edge), env(safe-area-inset-left));
   background: radial-gradient(120% 60% at 50% 0%, var(--accent-soft), var(--bg) 60%);
 }
 .onboard__inner {
@@ -139,7 +140,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--edge);
+  padding: max(var(--edge), env(safe-area-inset-top)) max(var(--edge), env(safe-area-inset-right))
+    max(var(--edge), env(safe-area-inset-bottom)) max(var(--edge), env(safe-area-inset-left));
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(8px);
 }
@@ -216,7 +218,7 @@
   font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
   font-size: var(--fs-caption);
   font-weight: 600;
-  color: var(--negative);
+  color: var(--negative-text);
   background: var(--negative-soft);
   border-radius: var(--r-button);
   padding: var(--sp-12);
@@ -249,7 +251,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--edge);
+  padding: max(var(--edge), env(safe-area-inset-top)) max(var(--edge), env(safe-area-inset-right))
+    max(var(--edge), env(safe-area-inset-bottom)) max(var(--edge), env(safe-area-inset-left));
   background: radial-gradient(120% 80% at 50% 0%, var(--positive-soft), var(--bg) 60%);
   backdrop-filter: blur(8px);
 }

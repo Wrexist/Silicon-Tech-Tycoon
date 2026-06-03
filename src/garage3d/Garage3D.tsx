@@ -1311,6 +1311,8 @@ export function Garage3D({
   return (
     <div style={{ height, width: "100%" }}>
       <Canvas
+        role="img"
+        aria-label="Company office, 3D view"
         dpr={[1, 1.75]}
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
         camera={{ position: [8.6, 6.6, 9.4], fov: 30 }}

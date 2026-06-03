@@ -231,6 +231,77 @@ describe("Save export / import — round-trips through migrate, rejects garbage"
   });
 });
 
+describe("launched verdict — recorded on launch, backfilled for old saves", () => {
+  it("a launched product carries a verdict, and it survives an export/import round-trip", async () => {
+    const { exportSaveString, importSaveString } = await freshPersistence();
+    let s: GameState = { ...newGame(31), cash: dollars(2_000_000) };
+    const res = startBuild(s, goodPhone(), 5000, "none");
+    expect(res.ok).toBe(true);
+    s = res.state;
+    for (let i = 0; i < buildWeeksFor(s) + 1; i++) s = advanceOneWeek(s);
+    const lr = launchReady(s, s.ready[0].id);
+    expect(lr.ok).toBe(true);
+    s = lr.state;
+    const v = s.launched[0].verdict;
+    expect(v === "hit" || v === "flop" || v === "steady").toBe(true);
+
+    const back = importSaveString(exportSaveString(s));
+    expect(back).not.toBeNull();
+    expect(back!.launched[0].verdict).toBe(v);
+  });
+
+  it("migrate backfills a verdict from launchScore on a pre-verdict save", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const base = newGame(7);
+    const legacy: GameState = {
+      ...base,
+      launched: [
+        // no `verdict` field — as written by an older build
+        { product: goodPhone(), stats: { performance: 50, quality: 50, battery: 50, design: 50, ecosystem: 50 }, unitCost: dollars(80), launchScore: 88, launchedWeek: 2, totalUnits: 9000, weeklyUnits: [1000], unitsSold: 9000, weeksElapsed: 5, revenueToDate: dollars(120000) },
+      ] as unknown as GameState["launched"],
+    };
+    const back = importSaveString(exportSaveString(legacy));
+    expect(back).not.toBeNull();
+    expect(back!.launched[0].verdict).toBe("hit"); // 88 >= 76 threshold
+  });
+});
+
+describe("achievements — migrate backfills earned milestones SILENTLY on an old save", () => {
+  it("a pre-achievements save (no unlockedAchievements field) has earned milestones backfilled", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const base = newGame(11);
+    // An old save: strong stats that clearly cross several thresholds, but no achievements field.
+    const legacy = {
+      ...base,
+      reputation: 90, // rep-50 + rep-85
+      fans: 150_000, // fans-10k + fans-100k
+      cumulativeRevenue: dollars(20_000_000), // rev-1m + rev-10m
+      launched: [
+        { product: goodPhone(), stats: { performance: 50, quality: 50, battery: 50, design: 50, ecosystem: 50 }, unitCost: dollars(80), launchScore: 88, launchedWeek: 2, totalUnits: 9000, plannedUnits: 9000, weeklyUnits: [9000], unitsSold: 9000, weeksElapsed: 5, revenueToDate: dollars(120000), verdict: "hit" },
+      ],
+    };
+    delete (legacy as { unlockedAchievements?: unknown }).unlockedAchievements;
+
+    const back = importSaveString(exportSaveString(legacy as unknown as GameState));
+    expect(back).not.toBeNull();
+    const earned = back!.unlockedAchievements;
+    // Already-earned milestones are present (marked unlocked, ready to display) ...
+    expect(earned).toEqual(expect.arrayContaining(["first-ship", "first-hit", "sold-out", "rep-50", "rep-85", "fans-10k", "fans-100k", "rev-1m", "rev-10m"]));
+    // ... but not ones genuinely not reached.
+    expect(earned).not.toContain("fans-1m");
+    expect(earned).not.toContain("rev-100m");
+  });
+
+  it("a fresh new game backfills to an empty set (nothing earned yet)", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const fresh = newGame(12);
+    delete (fresh as { unlockedAchievements?: unknown }).unlockedAchievements;
+    const back = importSaveString(exportSaveString(fresh as unknown as GameState));
+    expect(back).not.toBeNull();
+    expect(back!.unlockedAchievements).toEqual([]);
+  });
+});
+
 describe("F8 — hit/flop tracks actual (competition-adjusted) outcome", () => {
   it("a product launched into a crowded category is not over-rewarded vs. a clear field", () => {
     // Build + launch the same product in two worlds: one with no rivals, one heavily contested.

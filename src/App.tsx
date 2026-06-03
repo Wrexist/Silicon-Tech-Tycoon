@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CircuitBoard, CircleX, RotateCcw, TrendingUp } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
@@ -8,11 +8,12 @@ import { Coach } from "./components/Coach.tsx";
 import { ToastHost } from "./design/toast.tsx";
 import { GainFX } from "./design/GainFX.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
-import { Sheet } from "./design/primitives.tsx";
+import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { Settings } from "./screens/Settings.tsx";
 import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, type Money } from "./engine/money.ts";
+import type { Product } from "./engine/types.ts";
 import { canAdvance, ipoValuation } from "./state/gameState.ts";
 import { HQ } from "./screens/HQ.tsx";
 import { DesignLab } from "./screens/DesignLab.tsx";
@@ -49,6 +50,14 @@ function AppShell() {
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
+  // Transient "design a successor" seed — set from a launched product's detail sheet, consumed by
+  // the Design Lab on the next render, then cleared. Lives in React (never persisted) so it's a
+  // pure UI hand-off and survives no reloads.
+  const [successorSeed, setSuccessorSeed] = useState<Product | null>(null);
+  const designSuccessor = (p: Product) => {
+    setSuccessorSeed(p);
+    setTab("design");
+  };
   // Allow the IPO celebration to show again after a New Game+ (wentPublic resets to false).
   useEffect(() => {
     if (!state.wentPublic) setIpoSeen(false);
@@ -66,9 +75,9 @@ function AppShell() {
             top-level boundary in App() remains the last resort. */}
         <ErrorBoundary key={tab} fallback={<ScreenError onHome={() => setTab("hq")} />}>
           {tab === "hq" && <HQ onNavigate={setTab} />}
-          {tab === "design" && <DesignLab />}
+          {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
           {tab === "research" && <Research />}
-          {tab === "market" && <Market />}
+          {tab === "market" && <Market onDesignSuccessor={designSuccessor} />}
           {tab === "company" && <Company />}
         </ErrorBoundary>
         <div className="app__spacer" />
@@ -119,11 +128,25 @@ function ScreenError({ onHome }: { onHome: () => void }) {
 
 function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const { state, prestige } = useGame();
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref, true);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onDismiss]);
   return (
     <div className="ipo">
-      <div className="ipo__inner">
-        <div className="ipo__glyph"><TrendingUp size={30} strokeWidth={2.2} /></div>
-        <h2 className="ipo__title">You went public</h2>
+      <div
+        ref={ref}
+        className="ipo__inner"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ipo-title"
+        tabIndex={-1}
+      >
+        <div className="ipo__glyph" aria-hidden><TrendingUp size={30} strokeWidth={2.2} /></div>
+        <h2 className="ipo__title" id="ipo-title">You went public</h2>
         <p className="ipo__text">
           {state.legacy > 0 ? `Empire #${state.legacy + 1} ` : "Your company "}reached the top.
         </p>
@@ -194,11 +217,26 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
 }
 
 function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref, true);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
     <div className="ds-sheet-scrim" onClick={onClose}>
-      <div className="ds-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="ds-sheet__grab" />
-        <h2 className="app__sheet-title">While you were away</h2>
+      <div
+        ref={ref}
+        className="ds-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="offline-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="ds-sheet__grab" aria-hidden />
+        <h2 className="app__sheet-title" id="offline-title">While you were away</h2>
         <p className="app__sheet-text">
           {weeks} {weeks === 1 ? "week" : "weeks"} passed. Your products kept selling.
         </p>
@@ -214,11 +252,20 @@ function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; on
 
 function BankruptOverlay() {
   const { state, restart } = useGame();
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref, true);
   return (
     <div className="bankrupt">
-      <div className="bankrupt__inner">
-        <div className="bankrupt__glyph"><CircleX size={30} strokeWidth={2} /></div>
-        <h2 className="bankrupt__title">Out of cash</h2>
+      <div
+        ref={ref}
+        className="bankrupt__inner"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="bankrupt-title"
+        tabIndex={-1}
+      >
+        <div className="bankrupt__glyph" aria-hidden><CircleX size={30} strokeWidth={2} /></div>
+        <h2 className="bankrupt__title" id="bankrupt-title">Out of cash</h2>
         <p className="bankrupt__text">
           The company ran out of money in week {state.week}. Every empire starts somewhere — try again.
         </p>

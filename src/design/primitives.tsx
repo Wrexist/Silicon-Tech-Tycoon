@@ -2,6 +2,7 @@ import {
   type ButtonHTMLAttributes,
   type ReactNode,
   useEffect,
+  useRef,
 } from "react";
 import { Sparkles } from "lucide-react";
 import { haptic } from "./haptics.ts";
@@ -69,9 +70,11 @@ export function Button({
    Shared across Market / Company / Design Lab. Pass `className` so each screen keeps
    its own layout class (e.g. mkt__stat, co__stat, wiz__stat) for grid placement. */
 export type StatTone = "positive" | "negative" | "accent" | "neutral";
+// Stat values render as TEXT, so use the on-light text variants (legible in light theme; they
+// fall back to the bright hues on dark surfaces). --accent is already AA as text in light theme.
 const STAT_TONE_COLOR: Record<StatTone, string> = {
-  positive: "var(--positive)",
-  negative: "var(--negative)",
+  positive: "var(--positive-text)",
+  negative: "var(--negative-text)",
   accent: "var(--accent)",
   neutral: "var(--ink)",
 };
@@ -193,6 +196,54 @@ export function Slider({
   );
 }
 
+/* ---------- focus-trap helper ----------
+   Shared a11y plumbing for modal dialogs. On mount it captures the element that had focus, moves
+   focus into the dialog (first focusable child, else the dialog itself), and traps Tab/Shift+Tab so
+   focus wraps within the dialog. On unmount it restores focus to the original opener. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+export function useDialogFocus(ref: React.RefObject<HTMLElement | null>, active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const dialog = ref.current;
+    if (!dialog) return;
+    const opener = document.activeElement as HTMLElement | null;
+
+    const focusables = () =>
+      Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null || el === dialog,
+      );
+    const first = focusables()[0];
+    (first ?? dialog).focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      if (items.length === 0) {
+        e.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      const activeEl = document.activeElement;
+      if (e.shiftKey && (activeEl === firstEl || activeEl === dialog)) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && activeEl === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    };
+    dialog.addEventListener("keydown", onKey);
+    return () => {
+      dialog.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+  }, [active, ref]);
+}
+
 /* ---------- Sheet ---------- */
 export function Sheet({
   open,
@@ -203,17 +254,26 @@ export function Sheet({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+  useDialogFocus(dialogRef, open);
 
   if (!open) return null;
   return (
     <div className="ds-sheet-scrim" onClick={onClose}>
-      <div className="ds-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="ds-sheet"
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="ds-sheet__grab" aria-hidden />
         {children}
       </div>

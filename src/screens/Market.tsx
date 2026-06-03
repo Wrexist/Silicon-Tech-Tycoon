@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Building2, Minus, Newspaper, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { Building2, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2 } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
+import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
@@ -15,10 +16,27 @@ import {
   netWorth,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
-import type { CompetitorState, Stats } from "../engine/types.ts";
+import type { CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { Sparkline } from "../components/charts.tsx";
+import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
+import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import "./market.css";
+
+const CATEGORY_LABEL: Record<string, string> = {
+  phone: "Phone", tablet: "Tablet", laptop: "Laptop", desktop: "Desktop",
+  monitor: "Monitor", console: "Console", wearable: "Wearable", experimental: "AR/VR",
+};
+
+type Verdict = "hit" | "steady" | "flop";
+const VERDICT_LABEL: Record<Verdict, string> = { hit: "Hit", steady: "Steady", flop: "Flop" };
+const VERDICT_TONE: Record<Verdict, "positive" | "accent" | "negative"> = {
+  hit: "positive", steady: "accent", flop: "negative",
+};
+/** Verdict for a launched product — stored if present, else derived from the launch score. */
+function verdictOf(lp: LaunchedProduct): Verdict {
+  if (lp.verdict) return lp.verdict;
+  return lp.launchScore >= 76 ? "hit" : lp.launchScore <= 22 ? "flop" : "steady";
+}
 
 const STAT_LABEL: Record<keyof Stats, string> = {
   performance: "Performance",
@@ -35,7 +53,7 @@ function changePct(history: number[]): number {
   return a > 0 ? ((b - a) / a) * 100 : 0;
 }
 
-export function Market() {
+export function Market({ onDesignSuccessor }: { onDesignSuccessor?: (p: Product) => void } = {}) {
   const { state } = useGame();
   const trends = state.trends;
   const comps = state.competitors;
@@ -44,6 +62,8 @@ export function Market() {
   const [trade, setTrade] = useState<CompetitorState | null>(null);
   const [ipo, setIpo] = useState(false);
   const [sellStake, setSellStake] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
 
   const valuation = companyValuation(state);
   const stake = founderStakeValue(state);
@@ -86,6 +106,45 @@ export function Market() {
           <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }} disabled={state.ownership <= 0.06}>
             Sell more shares
           </Button>
+        )}
+      </Card>
+
+      {/* Your launched products — tap one to see why it performed + design a successor */}
+      <Card>
+        <SectionHeader title="Your products" accessory={state.launched.length > 0 ? `${state.launched.length} launched` : undefined} />
+        {state.launched.length === 0 ? (
+          <EmptyState
+            glyph={<Package size={36} strokeWidth={1.6} />}
+            title="Nothing launched yet"
+            sub="Design and launch a product to see how it performs in the market."
+          />
+        ) : (
+          <div className="mkt__products">
+            {state.launched.map((lp) => {
+              const v = verdictOf(lp);
+              const live = lp.weeksElapsed < lp.weeklyUnits.length;
+              return (
+                <button
+                  key={lp.product.id}
+                  className="mkt__product"
+                  onClick={() => { setDetailId(lp.product.id); haptic.light(); }}
+                  aria-label={`View ${lp.product.name} performance`}
+                >
+                  <span className="mkt__product-thumb"><DeviceRenderer product={lp.product} size={44} /></span>
+                  <span className="mkt__product-info">
+                    <span className="mkt__product-name">{lp.product.name}</span>
+                    <span className="mkt__product-sub">
+                      <CategoryIcon id={lp.product.category} size={12} /> {lp.unitsSold.toLocaleString()} sold · {format(lp.revenueToDate)}
+                    </span>
+                  </span>
+                  <span className="mkt__product-end">
+                    <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
+                    {live && <span className="mkt__product-live">selling</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         )}
       </Card>
 
@@ -156,6 +215,16 @@ export function Market() {
         )}
       </Card>
 
+      <Sheet open={!!detail} onClose={() => setDetailId(null)}>
+        {detail && (
+          <ProductDetailSheet
+            lp={detail}
+            onClose={() => setDetailId(null)}
+            onDesignSuccessor={onDesignSuccessor ? (p) => { setDetailId(null); onDesignSuccessor(p); } : undefined}
+          />
+        )}
+      </Sheet>
+
       <Sheet open={!!trade} onClose={() => setTrade(null)}>
         {trade && <TradeSheet comp={comps.find((c) => c.id === trade.id) ?? trade} onClose={() => setTrade(null)} />}
       </Sheet>
@@ -165,6 +234,172 @@ export function Market() {
       <Sheet open={sellStake} onClose={() => setSellStake(false)}>
         {sellStake && <SellStakeSheet onClose={() => setSellStake(false)} />}
       </Sheet>
+    </div>
+  );
+}
+
+/* ---------- Post-launch product detail ---------- */
+
+type DriverTone = "positive" | "accent" | "negative" | "neutral";
+interface Driver {
+  label: string;
+  value: string;
+  detail: string;
+  tone: DriverTone;
+}
+
+/** Build the "why it performed" drivers in plain language. Prefers the launch-moment snapshot
+ *  (insight) recorded on the product; falls back to a qualitative read from the launch score for
+ *  saves written before insight existed — never fabricating numbers we don't have. */
+function performanceDrivers(lp: LaunchedProduct): Driver[] {
+  const ins = lp.insight;
+  const drivers: Driver[] = [];
+
+  // 1) Demand fit — how well the stats matched what consumers wanted at launch.
+  if (ins) {
+    const f = Math.round(ins.demandFit);
+    drivers.push({
+      label: "Demand fit",
+      value: `${f}/100`,
+      detail: f >= 60 ? "Closely matched what the market wanted." : f >= 35 ? "A decent match for the trend." : "Out of step with what buyers wanted.",
+      tone: f >= 60 ? "positive" : f >= 35 ? "accent" : "negative",
+    });
+  } else {
+    const hi = lp.launchScore >= 76;
+    const lo = lp.launchScore <= 22;
+    drivers.push({
+      label: "Demand fit",
+      value: hi ? "Strong" : lo ? "Weak" : "Fair",
+      detail: hi ? "Read the market well at launch." : lo ? "Mistimed the market." : "An average read on the trend.",
+      tone: hi ? "positive" : lo ? "negative" : "accent",
+    });
+  }
+
+  // 2) Price positioning — value buy vs. on-the-money vs. overpriced.
+  if (ins) {
+    const pf = ins.priceFit;
+    const over = pf < 0.8;
+    const under = pf > 1.12;
+    drivers.push({
+      label: "Price",
+      value: over ? "Overpriced" : under ? "Value buy" : "On the money",
+      detail: over ? "Buyers felt it cost too much for the spec." : under ? "Priced below its perceived value — drove volume." : "Priced fairly for what it delivered.",
+      tone: over ? "negative" : under ? "positive" : "accent",
+    });
+  }
+
+  // 3) Competition pressure — rivals splitting or beating the market.
+  if (ins) {
+    const beats = ins.betterRivals;
+    const matches = ins.matchingRivals;
+    const kept = Math.round(ins.competitionFactor * 100);
+    drivers.push({
+      label: "Competition",
+      value: beats > 0 ? `${beats} ahead` : matches > 0 ? `${matches} matched` : "Clear field",
+      detail: beats > 0
+        ? `Rivals outclassed you — you kept ~${kept}% of demand.`
+        : matches > 0
+          ? `Rivals split the market — you kept ~${kept}% of demand.`
+          : "No rival came close — you owned the category.",
+      tone: beats > 0 ? "negative" : matches > 0 ? "accent" : "positive",
+    });
+  }
+
+  // 4) Hype — reputation + marketing reach at launch.
+  if (ins) {
+    const h = ins.hype;
+    const strong = h >= 1.6;
+    const weak = h < 1.1;
+    drivers.push({
+      label: "Hype",
+      value: strong ? "High" : weak ? "Low" : "Moderate",
+      detail: strong ? "Reputation and marketing gave a big launch boost." : weak ? "Little buzz — few buyers knew it existed." : "A steady amount of launch buzz.",
+      tone: strong ? "positive" : weak ? "negative" : "accent",
+    });
+  }
+
+  return drivers;
+}
+
+function ProductDetailSheet({
+  lp,
+  onClose,
+  onDesignSuccessor,
+}: {
+  lp: LaunchedProduct;
+  onClose: () => void;
+  onDesignSuccessor?: (p: Product) => void;
+}) {
+  const v = verdictOf(lp);
+  const drivers = performanceDrivers(lp);
+  const sellThrough = lp.plannedUnits && lp.plannedUnits > 0
+    ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
+    : null;
+  const live = lp.weeksElapsed < lp.weeklyUnits.length;
+
+  return (
+    <div className="pd">
+      <div className="pd__head">
+        <span className="pd__cat" aria-hidden><CategoryIcon id={lp.product.category} size={18} /></span>
+        <div className="pd__head-text">
+          <h2 className="pd__title">{lp.product.name}</h2>
+          <p className="pd__sub">{CATEGORY_LABEL[lp.product.category] ?? lp.product.category} · launched week {lp.launchedWeek}</p>
+        </div>
+        <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
+      </div>
+
+      <div className="pd__hero">
+        <DeviceRenderer product={lp.product} size={150} idle />
+      </div>
+
+      {/* Sales curve */}
+      <div className="pd__curve">
+        <div className="pd__curve-cap">
+          <span className="pd__curve-label">Sales by week{live ? " · still selling" : ""}</span>
+          <span className="pd__curve-week tnum">wk {Math.min(lp.weeksElapsed, lp.weeklyUnits.length)}/{lp.weeklyUnits.length}</span>
+        </div>
+        <SalesCurveChart weekly={lp.weeklyUnits} elapsed={lp.weeksElapsed} />
+      </div>
+
+      <div className="pd__stats">
+        <Stat label="Units sold" value={lp.unitsSold.toLocaleString()} hint={`of ${lp.totalUnits.toLocaleString()} forecast`} />
+        <Stat label="Revenue" value={format(lp.revenueToDate)} tone="positive" />
+        <Stat
+          label="Sell-through"
+          value={sellThrough != null ? `${sellThrough}%` : "—"}
+          tone={sellThrough != null && sellThrough >= 90 ? "positive" : "neutral"}
+          hint={lp.plannedUnits != null ? `${lp.plannedUnits.toLocaleString()} made` : undefined}
+        />
+      </div>
+
+      {/* Why it performed */}
+      <div className="pd__why">
+        <div className="pd__why-head">
+          <Sparkles size={15} aria-hidden />
+          <span>Why it {v === "hit" ? "won" : v === "flop" ? "flopped" : "performed"}</span>
+        </div>
+        <ul className="pd__drivers">
+          {drivers.map((d) => (
+            <li className="pd__driver" key={d.label}>
+              <div className="pd__driver-top">
+                <span className="pd__driver-label">{d.label}</span>
+                <span className={`pd__driver-value pd__driver-value--${d.tone} tnum`}>{d.value}</span>
+              </div>
+              <p className="pd__driver-detail">{d.detail}</p>
+            </li>
+          ))}
+        </ul>
+        {!lp.insight && (
+          <p className="pd__why-note">Detailed launch metrics weren't recorded for this older product — shown as an overall read.</p>
+        )}
+      </div>
+
+      {onDesignSuccessor && (
+        <Button block onClick={() => { onDesignSuccessor(lp.product); haptic.success(); }}>
+          <Wand2 size={16} /> Design a successor
+        </Button>
+      )}
+      <Button block variant="tertiary" onClick={onClose}>Close</Button>
     </div>
   );
 }

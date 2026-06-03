@@ -6,12 +6,17 @@
   --surface: #ffffff;
   --surface-2: #fbfbfc;
   --ink: #1a1d23;
-  --ink-2: #6b7280;
-  --ink-3: #9ca3af;
+  /* a11y (WCAG 1.4.3): light-theme muted/function text darkened so it clears AA (4.5:1) on
+     white surfaces. --ink-2 #5b6270 (~5.5:1) and --ink-3 #6b7280 (~4.6:1) stay distinct.
+     Dark theme keeps its lighter greys (they already pass on dark surfaces). */
+  --ink-2: #5b6270;
+  --ink-3: #6b7280;
   --hairline: #e5e7eb;
   --knob: #ffffff; /* toggle/switch knob — sits on a coloured track, stays white in both themes */
   --glass: color-mix(in srgb, var(--surface) 88%, transparent); /* one cohesive frosted material */
-  --accent: #3b82f6;
+  /* --accent darkened to #2563eb in light theme so white text on accent (incl. 13px .ds-btn--sm)
+     meets 4.5:1. --accent-ink stays #fff. Dark theme overrides --accent back to #3b82f6. */
+  --accent: #2563eb;
   --accent-ink: #ffffff;
   --accent-soft: #eaf1fe;
   --positive: #10b981;
@@ -31,6 +36,17 @@
   --fn-mkt-soft: #eaf1fe;
   --fn-team: #8b5cf6;
   --fn-team-soft: #ece7fd;
+
+  /* a11y "on-light" TEXT variants. The bright fills above stay for bars/icons/fills; these are
+     the legible shades to use when the SAME colour is rendered as TEXT on a surface. In light
+     theme they're darkened to clear 4.5:1; in dark theme (below) they fall back to the bright
+     hues, which already pass on dark surfaces. Keeps the function colour-coding intact. */
+  --positive-text: #047857;
+  --negative-text: #dc2626;
+  --fn-eng-text: #c2570c;
+  --fn-design-text: #0f8a57;
+  --fn-mkt-text: #2563eb;
+  --fn-team-text: #7c3aed;
 
   /* Device material shades (used by render layer) */
   --mat-plastic: #9ca3af;
@@ -105,6 +121,13 @@
     --positive-soft: #11241d;
     --negative: #ef4444;
     --negative-soft: #2a1718;
+    /* on-light text variants fall back to the bright hues on dark surfaces */
+    --positive-text: #10b981;
+    --negative-text: #ef4444;
+    --fn-eng-text: #f97316;
+    --fn-design-text: #1eb877;
+    --fn-mkt-text: #3b82f6;
+    --fn-team-text: #8b5cf6;
     --warning: #f59e0b;
     --warning-soft: #2a2113;
     --fn-eng-soft: #2a1d10;
@@ -127,9 +150,17 @@
   --ink-2: #9ca3af;
   --ink-3: #6b7280;
   --hairline: #2a2f37;
+  --accent: #3b82f6;
   --accent-soft: #16233d;
   --positive-soft: #11241d;
   --negative-soft: #2a1718;
+  /* on-light text variants fall back to the bright hues on dark surfaces */
+  --positive-text: #10b981;
+  --negative-text: #ef4444;
+  --fn-eng-text: #f97316;
+  --fn-design-text: #1eb877;
+  --fn-mkt-text: #3b82f6;
+  --fn-team-text: #8b5cf6;
   --warning-soft: #2a2113;
   --fn-eng-soft: #2a1d10;
   --fn-design-soft: #0f2a1d;

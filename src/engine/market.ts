@@ -81,6 +81,24 @@ export function priceFit(price: Money, stats: Stats, category: CategoryId): numb
   return Math.min(p.maxFit, Math.max(p.minFit, fit + underBoost));
 }
 
+/**
+ * B9 — seeded demand variance multiplier for an ACTUAL launch. The forecast shown in the wizard is
+ * a deterministic point estimate; this jitters the realized volume by up to ±demandVariance so that
+ * over/under-producing is a genuine bet (pillar #3). It is SEED-DETERMINISTIC (driven by the passed
+ * Rng — never Math.random) and BOUNDED to [1-v, 1+v]. Returns exactly 1 when demandVariance is 0.
+ *
+ * Used only at launch (launchReady), never in the planning preview, so the wizard keeps showing the
+ * honest forecast/band while the real outcome can land anywhere inside it.
+ */
+export function demandVarianceMultiplier(rng: Rng): number {
+  const v = BALANCE.market.demandVariance;
+  if (v <= 0) return 1;
+  // rng.range(-v, v) is already bounded to (−v, v); clamp defensively so the result is provably in
+  // [1−v, 1+v] regardless of future RNG changes, and never produces a negative volume multiplier.
+  const delta = Math.max(-v, Math.min(v, rng.range(-v, v)));
+  return 1 + delta;
+}
+
 export interface LaunchBreakdown {
   demand: number;
   hype: number;

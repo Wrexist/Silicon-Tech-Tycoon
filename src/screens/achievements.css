@@ -1,0 +1,108 @@
+.ach {
+  display: flex;
+  flex-direction: column;
+}
+.ach__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-12);
+}
+.ach__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}
+.ach__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin-top: var(--sp-2);
+  line-height: 1.4;
+}
+.ach__count {
+  flex-shrink: 0;
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  color: var(--accent);
+}
+.ach__count-total {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.ach__progress {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+  margin-bottom: var(--sp-16);
+}
+.ach__progress-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-standard);
+}
+.ach__grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-16);
+}
+.ach__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding: var(--sp-16) var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  /* Locked cards read as quiet placeholders, not blanks — muted but still polished. */
+  opacity: 0.62;
+  transition: opacity var(--spring-standard), transform var(--spring-snappy);
+}
+.ach__card--earned {
+  opacity: 1;
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--hairline));
+  box-shadow: var(--shadow-card);
+}
+.ach__glyph {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+  color: var(--ink-3);
+  margin-bottom: var(--sp-2);
+}
+.ach__card--earned .ach__glyph {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ach__card-name {
+  font-weight: 700;
+  font-size: var(--fs-body);
+  line-height: 1.2;
+}
+.ach__card--earned .ach__card-name {
+  color: var(--ink);
+}
+.ach__card:not(.ach__card--earned) .ach__card-name {
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.ach__card-desc {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.ach__card:not(.ach__card--earned) .ach__card-desc {
+  color: var(--ink-3);
+}

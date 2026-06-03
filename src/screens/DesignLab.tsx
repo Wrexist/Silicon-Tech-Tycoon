@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Ban, FlipHorizontal2, Hammer, Megaphone, Minus, Plus, Search, Share2, Sparkles, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, tierDef } from "../engine/catalogs.ts";
-import { competitorStrengthFor } from "../engine/competitors.ts";
 import { isCategoryUnlocked } from "../engine/eras.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
@@ -27,6 +26,7 @@ import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import {
   buildWeeksFor,
+  burn,
   designTierCeiling,
   hypeBonus,
   marketerSkill,
@@ -36,6 +36,7 @@ import {
   researchedTier,
   type GameState,
 } from "../state/gameState.ts";
+import { runwayWeeks } from "../engine/economy.ts";
 import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
 import "./designLab.css";
@@ -73,11 +74,40 @@ function freshDraft(state: GameState): Product {
   };
 }
 
-export function DesignLab() {
+/** Seed a brand-new draft from an already-launched product: keep its whole design (category,
+ *  components, finish, camera, price…) but give it the next name in the series and a clean id, so
+ *  "Design successor" lets the player iterate on a proven (or failed) product without rebuilding it
+ *  from scratch. Non-destructive — the original launched product is untouched. */
+function successorDraft(prev: Product): Product {
+  return {
+    ...prev,
+    id: "draft",
+    name: suggestNextName(prev.name),
+    plannedUnits: undefined,
+    channelId: undefined,
+  };
+}
+
+export function DesignLab({
+  seed,
+  onSeedConsumed,
+}: {
+  seed?: Product | null;
+  onSeedConsumed?: () => void;
+} = {}) {
   const { state, build } = useGame();
-  const [draft, setDraft] = useState<Product>(() => freshDraft(state));
+  const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
+
+  // A successor seed handed in from a launched product's detail sheet: adopt it as the draft, then
+  // tell the parent to clear it so re-renders don't keep overwriting the player's edits.
+  useEffect(() => {
+    if (!seed) return;
+    setDraft(successorDraft(seed));
+    setFace("front");
+    onSeedConsumed?.();
+  }, [seed, onSeedConsumed]);
 
   const cat = CATEGORIES[draft.category];
   const hasCamera = cat.slots.includes("camera");
@@ -94,7 +124,6 @@ export function DesignLab() {
   const overall = overallScore(stats, draft.category);
   const weights = effectiveWeights(state.trends, draft.category);
 
-  const compStrength = competitorStrengthFor(state.competitors, draft.category);
   const breakdown = scoreLaunch({
     stats,
     category: draft.category,
@@ -102,16 +131,23 @@ export function DesignLab() {
     trends: state.trends,
     reputation: state.reputation,
     marketerSkill: marketerSkill(state),
-    competitorStrength: compStrength,
+    competitorStrength: 0,
     hypeBonus: hypeBonus(state),
   });
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
   const ceiling = designTierCeiling(state);
 
+  // B7 — the lab's projected verdict must use the SAME gate the launch actually applies:
+  // effectiveScore = launchScore × competitionFactor, compared to reputation.hit/flopThreshold.
+  // planProduction supplies the count-based competitionFactor (rivals matching/beating you) that
+  // launchReady uses, so "Projected hit" here matches what happens at launch.
+  const preview = missing.length === 0 ? planProduction(state, draft, BALANCE.build.minRun, "none") : null;
+  const effectiveScore = preview ? preview.launchScore * preview.competitionFactor : breakdown.launchScore;
+  const rep = BALANCE.reputation;
   const verdict =
-    breakdown.launchScore >= 90 ? { label: "Projected hit", tone: "positive" as const }
-      : breakdown.launchScore <= 35 ? { label: "Likely flop", tone: "negative" as const }
+    effectiveScore >= rep.hitThreshold ? { label: "Projected hit", tone: "positive" as const }
+      : effectiveScore <= rep.flopThreshold ? { label: "Likely flop", tone: "negative" as const }
         : { label: "Steady seller", tone: "accent" as const };
 
   function set(partial: Partial<Product>) {
@@ -409,6 +445,24 @@ function BuildWizard({
   const recommended = useMemo(() => recommendedRun(state, draft, channel), [state, draft, channel]);
   const affordable = state.cash >= plan.totalUpfront;
 
+  // B1b — readable build-risk: cash left the instant the run is paid for, the runway that buys at
+  // current burn (no revenue arrives until launch), and the build duration. If the runway can't
+  // outlast the build, the run may bankrupt the player mid-manufacture — surface it, don't block it.
+  const buildWks = buildWeeksFor(state);
+  const cashAfter = sub(state.cash, plan.totalUpfront);
+  const weeklyBurnAfter = burn(state);
+  const runway = runwayWeeks(cashAfter, weeklyBurnAfter);
+  const runwayRisky = affordable && runway < buildWks;
+
+  // B8 — price-fit indicator (Overpriced / On the money / Value buy) alongside demand-fit. Derived
+  // from price vs the fair value the market expects (same valueToPrice scale market.ts uses).
+  const fairDollars = Math.max(1, plan.overall * toDollars(BALANCE.market.price.valueToPrice));
+  const priceRatio = toDollars(draft.price) / fairDollars;
+  const priceFit =
+    priceRatio > 1.18 ? { label: `Overpriced −${Math.round((priceRatio - 1) * 100)}%`, tone: "negative" as const }
+      : priceRatio < 0.82 ? { label: "Value buy", tone: "positive" as const }
+        : { label: "On the money", tone: "accent" as const };
+
   const fitLabel = plan.demandFit >= 60 ? "Strong fit" : plan.demandFit >= 35 ? "Decent fit" : "Weak fit";
   const fitTone = plan.demandFit >= 60 ? "positive" : plan.demandFit >= 35 ? "accent" : "negative";
   const compLabel =
@@ -478,17 +532,34 @@ function BuildWizard({
         <div className="wiz__body">
           <div className="wiz__review">
             <Stat label="Demand fit" value={`${Math.round(plan.demandFit)}`} tone={fitTone} hint={fitLabel} />
+            <Stat label="Price fit" value={priceFit.label} tone={priceFit.tone} />
             <Stat label="Competition" value={compLabel} tone={compTone} />
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
             <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "sells out" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
             <Stat label="Projected profit" value={format(plan.projectedProfit)} tone={plan.projectedProfit >= 0 ? "positive" : "negative"} />
+            <Stat
+              label="Cash after build starts"
+              value={format(cashAfter)}
+              tone={cashAfter < 0 ? "negative" : undefined}
+            />
+            <Stat
+              label="Runway"
+              value={runway === Infinity ? "∞" : `${runway} wk`}
+              tone={runwayRisky ? "negative" : undefined}
+              hint={`build takes ${buildWks} wk`}
+            />
           </div>
           <div className="wiz__total">
             <span>Upfront cost</span>
             <span className={`rounded tnum${affordable ? "" : " wiz__total--bad"}`}>{format(plan.totalUpfront)}</span>
           </div>
           {!affordable && <p className="wiz__warn">Not enough cash — lower the run size or pick a cheaper campaign.</p>}
+          {affordable && runwayRisky && (
+            <p className="wiz__warn wiz__warn--risk">
+              <AlertTriangle size={14} /> Tight runway: at {format(weeklyBurnAfter)}/wk you have {runway} wk of cash but the build takes {buildWks} wk. No revenue arrives until launch — this run may bankrupt you mid-build. Consider a smaller run.
+            </p>
+          )}
         </div>
       )}
 

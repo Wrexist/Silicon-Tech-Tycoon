@@ -58,7 +58,7 @@
 }
 .ds-btn--destructive {
   background: var(--negative-soft);
-  color: var(--negative);
+  color: var(--negative-text);
 }
 .ds-btn--sm {
   min-height: 32px;
@@ -95,13 +95,13 @@
   background: var(--positive-soft);
 }
 .ds-pill--positive .ds-pill__value {
-  color: var(--positive);
+  color: var(--positive-text);
 }
 .ds-pill--negative {
   background: var(--negative-soft);
 }
 .ds-pill--negative .ds-pill__value {
-  color: var(--negative);
+  color: var(--negative-text);
 }
 
 /* Stat (label + value + optional hint) */

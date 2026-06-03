@@ -5,6 +5,12 @@ import { format, type Money } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./gainFX.css";
 
+// Live read of reduced-motion. The floating "+$X" tokens are a purely decorative rising/fading
+// animation, so when the user prefers reduced motion we suppress them entirely (WCAG 2.3.3).
+function reducedMotion(): boolean {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+
 interface Token {
   id: number;
   text: string;
@@ -23,6 +29,7 @@ export function GainFX() {
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const spawn = (text: string, kind: Token["kind"]) => {
+    if (reducedMotion()) return; // suppress the floating gain animation under reduced motion
     const id = seq++;
     setTokens((t) => [...t.slice(-5), { id, text, kind }]);
     timers.current.push(setTimeout(() => setTokens((t) => t.filter((x) => x.id !== id)), 1500));

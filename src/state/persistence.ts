@@ -5,6 +5,7 @@ import { defaultLayout } from "../engine/furniture.ts";
 import { makeIdentity } from "../engine/staff.ts";
 import { defaultCameraDesign, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, type GameState } from "./gameState.ts";
+import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { showToast } from "../design/toast.tsx";
 
 function hashId(id: string): number {
@@ -231,6 +232,10 @@ function migrate(state: GameState): GameState | null {
   if (s.listed == null) s.listed = false;
   if (!Number.isFinite(s.ownership)) s.ownership = 1;
   if (!s.holdings || typeof s.holdings !== "object") s.holdings = {};
+  // Achievements (added later): default to an empty set. Already-earned milestones are then
+  // backfilled SILENTLY at the end of migrate (after all fields are valid) so a returning player
+  // isn't dumped a dozen toasts on first load — they're marked unlocked without a celebration.
+  if (!Array.isArray(s.unlockedAchievements)) s.unlockedAchievements = [];
   if (Array.isArray(s.competitors)) {
     s.competitors = s.competitors.map((c: any) => ({
       ...c,
@@ -271,8 +276,25 @@ function migrate(state: GameState): GameState | null {
   if (Array.isArray(s.launched)) {
     s.launched = s.launched.map((lp: any) => {
       if (lp.product) lp.product = fixProduct(lp.product);
+      // Backfill the launch verdict for saves written before it was recorded. competitionFactor
+      // wasn't stored, so approximate from the (stored) launchScore against the same thresholds —
+      // a reasonable design-quality read for old history rather than crashing or showing blanks.
+      if (lp.verdict == null && Number.isFinite(lp.launchScore)) {
+        lp.verdict = lp.launchScore >= 76 ? "hit" : lp.launchScore <= 22 ? "flop" : "steady";
+      }
       return lp;
     });
+  }
+  // Silent achievement backfill — now that every field is valid, mark milestones the player has
+  // ALREADY earned as unlocked WITHOUT firing toasts. Only fill when empty (first migrate of an old
+  // save); never overwrite a set the player has been accumulating. The live evaluator then finds
+  // nothing new on the next tick, so a returning player is never spammed with a dozen celebrations.
+  if (Array.isArray(s.unlockedAchievements) && s.unlockedAchievements.length === 0) {
+    try {
+      s.unlockedAchievements = evaluateAchievements(deriveFacts(state));
+    } catch {
+      s.unlockedAchievements = [];
+    }
   }
   /* eslint-enable @typescript-eslint/no-explicit-any */
   return state;

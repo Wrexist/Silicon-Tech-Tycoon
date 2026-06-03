@@ -1,7 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { dollars, toDollars } from "./money.ts";
+import { BALANCE } from "./balance.ts";
 import type { Product, CompetitorState } from "./types.ts";
-import { newGame, planProduction, recommendedRun, startBuild, type GameState } from "../state/gameState.ts";
+import {
+  advanceOneWeek,
+  buildWeeksFor,
+  launchReady,
+  newGame,
+  planProduction,
+  recommendedRun,
+  startBuild,
+  type GameState,
+} from "../state/gameState.ts";
+
+/** Mirror of DesignLab's projected verdict (B7): the lab uses the SAME competition-adjusted
+ *  effectiveScore + the SAME reputation thresholds the launch gate uses. */
+function labVerdict(s: GameState, product: Product): "hit" | "flop" | "steady" {
+  const plan = planProduction(s, product, BALANCE.build.minRun, "none");
+  const eff = plan.launchScore * plan.competitionFactor;
+  const rep = BALANCE.reputation;
+  return eff >= rep.hitThreshold ? "hit" : eff <= rep.flopThreshold ? "flop" : "steady";
+}
 
 function phone(): Product {
   return {
@@ -73,5 +92,25 @@ describe("production planning + smart demand", () => {
     const plan = planProduction(s, phone(), run, "none");
     expect(run).toBeGreaterThan(0);
     expect(toDollars(plan.totalUpfront)).toBeLessThanOrEqual(toDollars(s.cash) + 1);
+  });
+
+  // B7 — the lab's projected verdict must agree with the verdict the launch actually records.
+  it("DesignLab projected verdict matches the launch verdict (competition-adjusted, same thresholds)", () => {
+    // A spread of seeds + competitive conditions so we exercise hits, flops and steady sellers.
+    const cases: GameState[] = [
+      newGame(101),
+      { ...newGame(202), competitors: [rival("a", 999), rival("b", 999), rival("c", 999)] }, // crushed → flop-ward
+      { ...newGame(303), reputation: 90, fans: 6000 }, // strong → hit-ward
+    ];
+    for (const base of cases) {
+      const s0 = { ...base, cash: dollars(50_000_000) };
+      const predicted = labVerdict(s0, phone());
+      // Build + launch the same product and read back the verdict the engine actually assigned.
+      let s = startBuild(s0, phone(), recommendedRun(s0, phone(), "none"), "none").state;
+      const weeks = buildWeeksFor(s) + 1;
+      for (let i = 0; i < weeks; i++) s = advanceOneWeek(s);
+      const launched = launchReady(s, s.ready[0].id).state.launched[0];
+      expect(launched.verdict).toBe(predicted);
+    }
   });
 });

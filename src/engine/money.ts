@@ -30,9 +30,6 @@ export function scale(a: Money, factor: number): Money {
   const v = Math.round(a * factor);
   return (Number.isFinite(v) ? v : 0) as Money;
 }
-export function negate(a: Money): Money {
-  return -a as Money;
-}
 export function gte(a: Money, b: Money): boolean {
   return a >= b;
 }

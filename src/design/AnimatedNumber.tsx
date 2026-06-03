@@ -1,7 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { format, type Money } from "../engine/money.ts";
 
-/** Count-up tween between values; brief color flash up(green)/down(red). Never snaps. */
+/** Reactive read of the user's reduced-motion preference. When true, count-up tweens snap to the
+ *  final value instead of animating (WCAG 2.3.3 / respects the OS "Reduce Motion" setting). */
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(
+    () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mq) return;
+    const onChange = () => setReduced(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
+/** Count-up tween between values; brief color flash up(green)/down(red). Snaps when reduced-motion. */
 export function AnimatedMoney({
   value,
   className = "",
@@ -15,11 +31,20 @@ export function AnimatedMoney({
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const fromRef = useRef(value);
   const rafRef = useRef(0);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     const from = fromRef.current;
     const to = value;
     if (from === to) return;
+    // Reduced motion: snap to the final value, no tween (a single brief colour flash is fine).
+    if (reduced) {
+      setFlash(to > from ? "up" : "down");
+      setDisplay(to);
+      fromRef.current = to;
+      const id = setTimeout(() => setFlash(null), 320);
+      return () => clearTimeout(id);
+    }
     setFlash(to > from ? "up" : "down");
     const start = performance.now();
     const dur = 600;
@@ -36,7 +61,7 @@ export function AnimatedMoney({
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [value]);
+  }, [value, reduced]);
 
   const color = flash === "up" ? "var(--positive)" : flash === "down" ? "var(--negative)" : undefined;
   return (
@@ -54,10 +79,17 @@ export function AnimatedInt({ value, className = "" }: { value: number; classNam
   const [display, setDisplay] = useState(value);
   const fromRef = useRef(value);
   const rafRef = useRef(0);
+  const reduced = useReducedMotion();
   useEffect(() => {
     const from = fromRef.current;
     const to = value;
     if (from === to) return;
+    // Reduced motion: snap straight to the value, no count-up tween.
+    if (reduced) {
+      setDisplay(to);
+      fromRef.current = to;
+      return;
+    }
     const start = performance.now();
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / 500);
@@ -68,6 +100,6 @@ export function AnimatedInt({ value, className = "" }: { value: number; classNam
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [value]);
+  }, [value, reduced]);
   return <span className={`tnum ${className}`}>{display.toLocaleString()}</span>;
 }

@@ -31,6 +31,11 @@ export const BALANCE = {
   market: {
     // demandScore is Σ weight*stat (0..100). Converted to base units via this scale.
     baseUnitsAtScore: 1200, // units of volume per demandScore point at marketSize 1.0
+    // B9 — launch demand variance. The wizard's forecast is a deterministic point estimate; real
+    // demand at launch is a BET, so the actual realized volume is jittered by up to ±this fraction
+    // (seeded, NOT Math.random — reproducible per save). Turns run-sizing/pricing from solved
+    // arithmetic into a genuine over/under-production risk. The wizard surfaces the band ("±12%").
+    demandVariance: 0.12,
     hype: {
       reputationWeight: 0.012, // per reputation point
       marketerWeight: 0.05, // per effective marketer skill point
@@ -85,6 +90,16 @@ export const BALANCE = {
     lossPerFlop: 140, // fans lost on a flop
     decayPerWeek: 0.992, // gentle weekly erosion of attention
     selloutFanBonus: 0.04, // extra fan growth when a run sells out (demand > supply)
+    // B4 — tame the "deliberately under-produce → guaranteed sellout → free fan farming" exploit
+    // WITHOUT killing the real over/under-production bet:
+    //  (a) preOrderCap bounds how much of demand fans alone can supply, so a giant fanbase can't
+    //      self-fulfil a token run and guarantee a sellout forever; AND
+    //  (b) the sellout fan-bonus only fires if the run actually met a meaningful share of demand
+    //      (selloutMinDemandShare) — a token run that ignores most of the market no longer farms
+    //      fans; instead chronic severe undersupply costs you fans ("couldn't meet demand").
+    preOrderCap: 0.6, // pre-orders can satisfy at most this fraction of total demand
+    selloutMinDemandShare: 0.5, // run must cover ≥ this share of demand to earn the sellout buzz
+    undersupplyFanPenalty: 0.05, // fans lost when a sellout met < selloutMinDemandShare of demand
   },
 
   // --- Reputation dynamics (forgiving early; hits matter) ---
@@ -138,7 +153,14 @@ export const BALANCE = {
     // Production-run planning: bounds for the "how many to manufacture" decision.
     minRun: 50,
     maxRun: 5_000_000,
-    defaultRun: 600, // sensible auto-plan if the player doesn't customize
+    // Typical/ceiling hint used as a probe size when forecasting demand. NOT shown as the
+    // wizard's opening run — the wizard always opens on the affordable `recommendedRun`, which
+    // can never bankrupt the player during the build (see safetyReserveMarginUnits below).
+    defaultRun: 600,
+    // B1 — the recommended/affordable run must leave the player solvent through the build.
+    // recommendedRun reserves (buildWeeks × weeklyBurn) + this flat margin before spending cash
+    // on units, so a fresh save can't accidentally brick itself manufacturing its first product.
+    safetyReserveMargin: dollars(1_000) as Money,
   },
 
   // --- Facilities ---
@@ -157,11 +179,28 @@ export const BALANCE = {
   ],
 
   // --- Competitors ---
+  // B9 — rivals are now SPECIALIZED + REACTIVE, so "which category and price to contest" is a real
+  // decision instead of noise. Each rival has a posture (set per-rival in competitors.ts RIVALS):
+  //  • preferred categories it contests far more often + with bonus strength (its identity);
+  //  • a strength bias (premium = fewer, stronger launches; value = frequent, weaker volume).
+  // The strongest rival also REACTS to the player: when the player has recent hits in a category,
+  // it bumps the strength of (and shortens its cadence into) that hot category. All bounded so the
+  // game stays winnable — see reactivity caps below.
   competitors: {
     launchEveryWeeks: 9,
     launchJitter: 5,
     strengthDecayPerWeek: 0.85, // existing strength multiplies down each week
     baseStrength: 28,
+    // Specialization: a launch in a rival's PREFERRED category is this much likelier to be chosen,
+    // and lands with this flat strength bonus (its home turf is genuinely tougher to contest).
+    preferredCategoryWeight: 3, // weighting vs. 1 for a non-preferred category when picking
+    preferredStrengthBonus: 10, // extra strength when shipping in a preferred category
+    // Reactivity: the lead rival defends a category the player is winning. Bounded so it presses
+    // but never snowballs into an unbeatable wall.
+    reactHitWindowWeeks: 10, // a player hit counts as "recent" for this many weeks
+    reactStrengthBonus: 14, // extra strength the reacting rival brings to the player's hot category
+    reactMaxStrength: 95, // hard ceiling on any single rival launch strength (keeps it winnable)
+    reactCadenceCut: 3, // weeks shaved off the reacting rival's next launch (faster counter-punch)
   },
 
   // --- IPO / prestige ---

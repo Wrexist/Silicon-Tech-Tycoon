@@ -7,3 +7,7 @@ dist-ssr
 coverage
 ios/App/Pods
 ios/App/App/public
+
+# build artifacts
+*.tsbuildinfo
+.furniture-tmp
