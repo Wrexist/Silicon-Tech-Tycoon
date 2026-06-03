@@ -2,9 +2,9 @@
 // from primitives + materials + real lights. Scoped to the garage only; devices stay SVG.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { ContactShadows, RoundedBox } from "@react-three/drei";
+import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
 import * as THREE from "three";
-import { DEFAULT_APPEARANCE, HAIR_COLORS, moodBand, SHIRT_COLORS, SKIN_TONES, type MoodBand } from "../engine/staff.ts";
+import { moodBand, type MoodBand } from "../engine/staff.ts";
 import type { Staff } from "../engine/types.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import {
@@ -63,6 +63,8 @@ const MOOD_HEX: Record<MoodBand, string> = {
   tired: "#f59e0b",
   burnedout: "#ef4444",
 };
+
+const ROBOT_COLORS = ["#4a9af5", "#ff7a35", "#40c870", "#9060e8", "#f5c840"];
 
 // Build mode lifts the camera to a higher, more overhead angle so the whole floor grid is
 // readable; otherwise it's the cozy parallax view. WASD lets the player drive the view:
@@ -412,9 +414,21 @@ function Room({ p, dark, finish, wall }: { p: RoomPalette; dark: boolean; finish
         <meshStandardMaterial color={p.trim} roughness={0.9} />
       </mesh>
 
-      <GarageDoor p={p} z={wzA + 0.24} />
-      <Beams p={p} backZ={-3.2} />
+      {dark && <GarageDoor p={p} z={wzA + 0.24} />}
+      {dark && <Beams p={p} backZ={-3.2} />}
       {dark && <StringLights />}
+      {/* clean-mode ceiling (light mode): flush white soffit instead of beams */}
+      {!dark && (
+        <mesh position={[0, 5.2, 0]}>
+          <boxGeometry args={[8.4, 0.2, 8.6]} />
+          <meshStandardMaterial color="#f0f1f4" roughness={0.9} />
+        </mesh>
+      )}
+      {/* right-side wall for KanbanWall mount */}
+      <mesh position={[4.2, 2.6, 0]}>
+        <boxGeometry args={[0.3, 5.2, 8.4]} />
+        <meshStandardMaterial color={dark ? "#272d37" : "#e8e9ec"} roughness={0.85} />
+      </mesh>
       <Whiteboard p={p} />
 
       {/* daylight window (wall B), framed */}
@@ -479,95 +493,68 @@ function Chair({ p, hue }: { p: RoomPalette; hue: string }) {
   );
 }
 
-function Character({ s, seed }: { s: Staff; seed: number }) {
-  const ap = s.appearance ?? DEFAULT_APPEARANCE;
-  const skin = SKIN_TONES[ap.skin % SKIN_TONES.length];
-  const hair = HAIR_COLORS[ap.hairColor % HAIR_COLORS.length];
-  const shirt = SHIRT_COLORS[ap.shirt % SHIRT_COLORS.length];
-  const mood = MOOD_HEX[moodBand(s.mood ?? 60)];
+function RobotCharacter({ colorIdx, seed, moodColor }: { colorIdx: number; seed: number; moodColor?: string }) {
+  const color = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const root = useRef<THREE.Group>(null);
-  const armL = useRef<THREE.Group>(null);
-  const armR = useRef<THREE.Group>(null);
-  const head = useRef<THREE.Group>(null);
-  const bald = ap.hair === 5;
+  const headRef = useRef<THREE.Group>(null);
+  const armLRef = useRef<THREE.Mesh>(null);
+  const armRRef = useRef<THREE.Mesh>(null);
 
   useFrame((st) => {
     const t = st.clock.elapsedTime + seed;
-    const type = Math.sin(t * 6) * 0.06;
-    if (armL.current) armL.current.rotation.x = -0.5 + type;
-    if (armR.current) armR.current.rotation.x = -0.5 - type;
-    if (head.current) {
-      head.current.rotation.y = Math.sin(t * 0.6) * 0.25;
-      head.current.rotation.z = Math.sin(t * 0.9) * 0.05;
+    if (root.current) root.current.position.y = Math.sin(t * 1.4) * 0.04;
+    if (headRef.current) {
+      headRef.current.rotation.y = Math.sin(t * 0.7) * 0.18;
+      headRef.current.rotation.z = Math.sin(t * 1.0) * 0.04;
     }
-    if (root.current) {
-      root.current.position.y = 0.72 + Math.sin(t * 1.6) * 0.012; // breathing
-      root.current.rotation.z = Math.sin(t * 0.5) * 0.02; // idle sway
-    }
+    if (armLRef.current) armLRef.current.rotation.x = -0.3 + Math.sin(t * 4.5) * 0.18;
+    if (armRRef.current) armRRef.current.rotation.x = -0.3 - Math.sin(t * 4.5) * 0.18;
   });
 
   return (
-    <group ref={root} position={[0, 0.72, 0]}>
-      {/* torso */}
-      <RoundedBox args={[0.74, 0.74, 0.5]} radius={0.18} smoothness={3} position={[0, 0.2, 0]}>
-        <meshStandardMaterial color={shirt} roughness={0.75} />
-      </RoundedBox>
-      {/* arms (reach forward, animated typing) */}
-      <group ref={armL} position={[-0.4, 0.34, 0.06]}>
-        <mesh position={[0, -0.2, 0.16]} rotation-x={0.4}>
-          <capsuleGeometry args={[0.095, 0.34, 4, 8]} />
-          <meshStandardMaterial color={shirt} roughness={0.75} />
-        </mesh>
-      </group>
-      <group ref={armR} position={[0.4, 0.34, 0.06]}>
-        <mesh position={[0, -0.2, 0.16]} rotation-x={0.4}>
-          <capsuleGeometry args={[0.095, 0.34, 4, 8]} />
-          <meshStandardMaterial color={shirt} roughness={0.75} />
-        </mesh>
-      </group>
-      {/* neck */}
-      <mesh position={[0, 0.62, 0]}>
-        <cylinderGeometry args={[0.1, 0.12, 0.16, 10]} />
-        <meshStandardMaterial color={skin} roughness={0.55} />
+    <group ref={root}>
+      {/* body — rounded capsule */}
+      <mesh position={[0, 0.5, 0]}>
+        <capsuleGeometry args={[0.24, 0.38, 8, 18]} />
+        <meshStandardMaterial color={color} roughness={0.42} />
       </mesh>
-      {/* head */}
-      <group ref={head} position={[0, 0.86, 0]}>
+      {/* left arm */}
+      <mesh ref={armLRef} position={[-0.32, 0.56, 0.08]}>
+        <capsuleGeometry args={[0.1, 0.3, 6, 12]} />
+        <meshStandardMaterial color={color} roughness={0.42} />
+      </mesh>
+      {/* right arm */}
+      <mesh ref={armRRef} position={[0.32, 0.56, 0.08]}>
+        <capsuleGeometry args={[0.1, 0.3, 6, 12]} />
+        <meshStandardMaterial color={color} roughness={0.42} />
+      </mesh>
+      {/* head — large sphere */}
+      <group ref={headRef} position={[0, 1.04, 0]}>
         <mesh>
-          <sphereGeometry args={[0.28, 22, 22]} />
-          <meshStandardMaterial color={skin} roughness={0.55} />
+          <sphereGeometry args={[0.3, 22, 22]} />
+          <meshStandardMaterial color={color} roughness={0.42} />
         </mesh>
-        {!bald && (
-          <mesh position={[0, 0.07, -0.02]} scale={[1.07, 1.0, 1.07]}>
-            <sphereGeometry args={[0.28, 20, 20, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
-            <meshStandardMaterial color={hair} roughness={0.7} />
-          </mesh>
-        )}
-        {/* eyes */}
-        <mesh position={[-0.1, 0.02, 0.26]}>
-          <sphereGeometry args={[0.035, 8, 8]} />
-          <meshStandardMaterial color="#2a2623" />
+        {/* eyes — glowing white dots */}
+        <mesh position={[-0.11, 0.06, 0.27]}>
+          <sphereGeometry args={[0.055, 12, 12]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.5} toneMapped={false} />
         </mesh>
-        <mesh position={[0.1, 0.02, 0.26]}>
-          <sphereGeometry args={[0.035, 8, 8]} />
-          <meshStandardMaterial color="#2a2623" />
+        <mesh position={[0.11, 0.06, 0.27]}>
+          <sphereGeometry args={[0.055, 12, 12]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.5} toneMapped={false} />
         </mesh>
-        {ap.accessory === "glasses" && (
-          <mesh position={[0, 0.02, 0.27]} rotation-x={Math.PI / 2}>
-            <torusGeometry args={[0.18, 0.014, 6, 22]} />
-            <meshStandardMaterial color="#2a2623" />
-          </mesh>
-        )}
-        {(ap.accessory === "cap" || ap.accessory === "beanie") && (
-          <mesh position={[0, 0.16, 0]}>
-            <sphereGeometry args={[0.3, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
-            <meshStandardMaterial color={shirt} roughness={0.6} />
+        {/* mood dot */}
+        {moodColor && (
+          <mesh position={[0.25, 0.24, 0.12]}>
+            <sphereGeometry args={[0.065, 10, 10]} />
+            <meshStandardMaterial color={moodColor} emissive={moodColor} emissiveIntensity={0.7} toneMapped={false} />
           </mesh>
         )}
       </group>
-      {/* mood dot */}
-      <mesh position={[0.26, 1.18, 0.05]}>
-        <sphereGeometry args={[0.08, 12, 12]} />
-        <meshStandardMaterial color={mood} emissive={mood} emissiveIntensity={0.6} toneMapped={false} />
+      {/* blob shadow */}
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]}>
+        <circleGeometry args={[0.26, 18]} />
+        <meshBasicMaterial color="#8090a8" transparent opacity={0.28} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -607,9 +594,11 @@ function Monitor({ p, on, bright }: { p: RoomPalette; on: boolean; bright: boole
 
 function Workstation({ p, pos, staff, seed, monitors }: { p: RoomPalette; pos: [number, number]; staff?: Staff; seed: number; monitors: number }) {
   const [x, z] = pos;
-  const hue = staff ? SHIRT_COLORS[(staff.appearance ?? DEFAULT_APPEARANCE).shirt % SHIRT_COLORS.length] : p.metalDark;
+  const colorIdx = Math.round(seed / 2.1) % ROBOT_COLORS.length;
+  const hue = ROBOT_COLORS[colorIdx];
   const on = !!staff;
   const bright = monitors >= 2;
+  const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   // 1 or 2 monitors clustered on the RIGHT side of the desk, angled toward the person.
   const monX = monitors >= 2 ? [0.2, 0.64] : [0.42];
   return (
@@ -649,10 +638,10 @@ function Workstation({ p, pos, staff, seed, monitors }: { p: RoomPalette; pos: [
           <Mug hue={hue} />
         </group>
       )}
-      {/* chair + person behind desk (facing camera, +z) */}
+      {/* chair + robot standing at desk */}
       <group position={[0, 0, -0.5]}>
         <Chair p={p} hue={hue} />
-        {staff && <Character s={staff} seed={seed} />}
+        {staff && <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} />}
       </group>
     </group>
   );
@@ -674,6 +663,132 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
           <meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={0.8} toneMapped={false} />
         </mesh>
       )}
+    </group>
+  );
+}
+
+// Floating label overlay — white pill badge with a coloured dot indicator.
+function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; label: string; sub: string; dot: string }) {
+  return (
+    <Html position={pos} distanceFactor={9} occlude style={{ pointerEvents: "none", userSelect: "none" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 7, padding: "7px 11px", background: "rgba(255,255,255,0.96)", borderRadius: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.10)", minWidth: 110, backdropFilter: "blur(6px)" }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: dot, marginTop: 3, flexShrink: 0 }} />
+        <div>
+          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 12, fontWeight: 700, color: "#1a1d23", lineHeight: 1.3 }}>{label}</div>
+          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 11, color: "#6b7280", lineHeight: 1.3 }}>{sub}</div>
+        </div>
+      </div>
+    </Html>
+  );
+}
+
+// Kanban board with three swim-lane columns and coloured sticky cards.
+function KanbanWall() {
+  const W = 2.6, H = 1.9;
+  const colW = (W - 0.16) / 3;
+  const cols: { label: string; hdr: string; cards: string[] }[] = [
+    { label: "Backlog", hdr: "#9aa0a8", cards: ["#f0f1f4", "#e8e9ec", "#f0f1f4"] },
+    { label: "In Progress", hdr: "#f97316", cards: ["#fff0e6", "#ffe8d0"] },
+    { label: "Done", hdr: "#10b981", cards: ["#e6f5ef", "#d0eddf", "#e6f5ef"] },
+  ];
+  return (
+    <group position={[4.06, 2.3, 0.6]} rotation-y={-Math.PI / 2}>
+      {/* frame */}
+      <RoundedBox args={[W + 0.14, H + 0.14, 0.06]} radius={0.03} smoothness={2}>
+        <meshStandardMaterial color="#1a1d23" roughness={0.5} metalness={0.3} />
+      </RoundedBox>
+      {/* surface */}
+      <mesh position={[0, 0, 0.036]}>
+        <planeGeometry args={[W, H]} />
+        <meshStandardMaterial color="#f4f5f7" roughness={0.7} />
+      </mesh>
+      {/* columns */}
+      {cols.map((col, ci) => {
+        const cx = -W / 2 + colW / 2 + ci * (colW + 0.04) + 0.04;
+        return (
+          <group key={ci} position={[cx, 0, 0.042]}>
+            {/* column header stripe */}
+            <mesh position={[0, H / 2 - 0.18, 0]}>
+              <planeGeometry args={[colW - 0.04, 0.24]} />
+              <meshBasicMaterial color={col.hdr} />
+            </mesh>
+            {/* cards */}
+            {col.cards.map((c, ki) => (
+              <mesh key={ki} position={[0, H / 2 - 0.52 - ki * 0.34, 0.002]}>
+                <planeGeometry args={[colW - 0.06, 0.26]} />
+                <meshBasicMaterial color={c} />
+              </mesh>
+            ))}
+          </group>
+        );
+      })}
+      {/* active-column blue glow */}
+      <mesh position={[colW / 2, 0, 0.058]}>
+        <planeGeometry args={[colW + 0.02, H + 0.04]} />
+        <meshBasicMaterial color="#3b82f6" transparent opacity={0.07} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+// Glass-panel security gate — two posts + retractable panels + card reader.
+function SecurityGate() {
+  return (
+    <group position={[0.8, 0, 3.55]}>
+      {/* upright posts */}
+      {([-0.52, 0.52] as const).map((x, i) => (
+        <mesh key={i} position={[x, 0.9, 0]}>
+          <boxGeometry args={[0.13, 1.8, 0.13]} />
+          <meshStandardMaterial color="#b8bdc4" metalness={0.65} roughness={0.25} />
+        </mesh>
+      ))}
+      {/* glass panels */}
+      {([-0.26, 0.26] as const).map((x, i) => (
+        <mesh key={i} position={[x, 0.58, 0]}>
+          <boxGeometry args={[0.04, 0.96, 0.78]} />
+          <meshStandardMaterial color="#a8d8f8" transparent opacity={0.38} roughness={0.04} />
+        </mesh>
+      ))}
+      {/* card reader on right post */}
+      <group position={[0.6, 1.02, 0]}>
+        <RoundedBox args={[0.1, 0.22, 0.14]} radius={0.02} smoothness={2}>
+          <meshStandardMaterial color="#1e2128" roughness={0.4} />
+        </RoundedBox>
+        <mesh position={[0.06, 0.04, 0]}>
+          <sphereGeometry args={[0.025, 8, 8]} />
+          <meshStandardMaterial color="#10b981" emissive="#10b981" emissiveIntensity={1.5} toneMapped={false} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// Steel vault / document safe — heavy door with dial and bar handle.
+function Vault() {
+  return (
+    <group position={[-3.5, 0, -2.6]}>
+      <RoundedBox args={[0.95, 1.45, 0.65]} radius={0.04} smoothness={3} position={[0, 0.72, 0]}>
+        <meshStandardMaterial color="#b4b9c0" metalness={0.62} roughness={0.28} />
+      </RoundedBox>
+      {/* door seam */}
+      <mesh position={[0, 0.72, 0.335]}>
+        <boxGeometry args={[0.74, 1.12, 0.01]} />
+        <meshStandardMaterial color="#9298a0" metalness={0.5} roughness={0.38} />
+      </mesh>
+      {/* bar handle */}
+      <mesh position={[0.28, 0.72, 0.345]} rotation-z={Math.PI / 2}>
+        <capsuleGeometry args={[0.04, 0.22, 6, 12]} />
+        <meshStandardMaterial color="#7c8290" metalness={0.82} roughness={0.14} />
+      </mesh>
+      {/* combination dial */}
+      <mesh position={[-0.17, 0.95, 0.345]} rotation-x={Math.PI / 2}>
+        <cylinderGeometry args={[0.085, 0.085, 0.04, 22]} />
+        <meshStandardMaterial color="#7c8290" metalness={0.8} roughness={0.12} />
+      </mesh>
+      <mesh position={[-0.17, 0.95, 0.375]} rotation-x={-Math.PI / 2}>
+        <planeGeometry args={[0.01, 0.09]} />
+        <meshBasicMaterial color="#ffffff" />
+      </mesh>
     </group>
   );
 }
@@ -1221,10 +1336,11 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
     <>
       <VisibilityPause />
       <CameraRig build={!!builder?.build} />
-      <ambientLight intensity={dark ? 0.55 : 0.75} />
-      <directionalLight position={[7, 10, 6]} intensity={dark ? 0.7 : 0.95} color="#fff4e0" />
-      <pointLight position={[0, 3.4, 0]} intensity={dark ? 14 : 9} distance={12} decay={2} color={p.lamp} />
-      <pointLight position={[0, 1.3, 0.5]} intensity={3} distance={7} decay={2} color={p.screen} />
+      <ambientLight intensity={dark ? 0.55 : 1.05} color={dark ? "#ffffff" : "#f8f9ff"} />
+      <directionalLight position={[7, 10, 6]} intensity={dark ? 0.7 : 1.1} color={dark ? "#fff4e0" : "#ffffff"} castShadow={false} />
+      <directionalLight position={[-5, 8, 4]} intensity={dark ? 0.15 : 0.45} color={dark ? "#c0d4ff" : "#e8f0ff"} />
+      <pointLight position={[0, 3.4, 0]} intensity={dark ? 14 : 6} distance={12} decay={2} color={p.lamp} />
+      <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.5} distance={7} decay={2} color={p.screen} />
 
       <Room p={p} dark={dark} finish={finish} wall={wall} />
       {/* distant skyline behind the windows (boxes outside each wall) */}
@@ -1275,9 +1391,36 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
       {/* Test Lab → a glass test chamber */}
       {tierOf(upgrades, "testLab") >= 1 && <TestChamber p={p} />}
 
+      {/* Always-present office fixtures: kanban board, vault, security gate */}
+      <KanbanWall />
+      <Vault />
+      <SecurityGate />
+
+      {/* Ambient robots roaming the office (not tied to workstations) */}
+      <group position={[-2.6, 0, 2.4]} rotation-y={0.4}>
+        <RobotCharacter colorIdx={1} seed={7.3} />
+      </group>
+      <group position={[2.2, 0, 0.8]} rotation-y={-0.6}>
+        <RobotCharacter colorIdx={3} seed={11.1} />
+      </group>
+      <group position={[1.4, 0, 3.1]} rotation-y={-1.2}>
+        <RobotCharacter colorIdx={4} seed={15.6} />
+      </group>
+
+      {/* Floating zone labels */}
+      {!builder?.build && (
+        <>
+          <OfficeLabel pos={[-3.1, 3.55, 2.9]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
+          <OfficeLabel pos={[3.5, 3.55, 0.6]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
+          <OfficeLabel pos={[-2.8, 2.0, -2.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
+          <OfficeLabel pos={[1.6, 1.7, 3.55]} label="Security Gate" sub="Access Control" dot="#10b981" />
+          {staff[0] && <OfficeLabel pos={[-1.2, 2.05, 2.2]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
+        </>
+      )}
+
       {/* Bake the shadow pass once (frames={1}) — the scene is mostly static, so re-rendering the
           depth pass every frame is wasted GPU. Re-bakes when the layout key below changes. */}
-      <ContactShadows key={builder?.layout.length ?? 0} position={[0, 0.02, 0]} scale={16} blur={2.6} far={6} opacity={dark ? 0.5 : 0.42} color={p.shadow} resolution={512} frames={1} />
+      <ContactShadows key={builder?.layout.length ?? 0} position={[0, 0.02, 0]} scale={16} blur={2.6} far={6} opacity={dark ? 0.5 : 0.35} color={p.shadow} resolution={512} frames={1} />
     </>
   );
 }
