@@ -20,8 +20,29 @@ const TARGET_HEIGHT = 1.5;
 export default function GltfRobot({ asset, clip, seed = 0 }: { asset: RobotAsset; clip?: string; seed?: number }) {
   const { scene, animations } = useGLTF(asset.url);
 
-  // Per-instance deep clone (skeleton-aware) so multiple placements don't share one rig.
-  const cloned = useMemo(() => SkeletonUtils.clone(scene) as THREE.Object3D, [scene]);
+  // Per-instance deep clone (skeleton-aware) so multiple placements don't share one rig. When a
+  // tint is set (shared base model), recolour ONLY the "Main" body material — cloning it per
+  // instance first so other robots keep their own colour, and leaving Grey/Black (face, joints).
+  const cloned = useMemo(() => {
+    const c = SkeletonUtils.clone(scene) as THREE.Object3D;
+    if (asset.tint) {
+      const tintMat = (m: THREE.Material): THREE.Material => {
+        if (m.name === "Main") {
+          const mm = m.clone() as THREE.MeshStandardMaterial;
+          mm.color?.set(asset.tint!);
+          return mm;
+        }
+        return m;
+      };
+      c.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh && mesh.material) {
+          mesh.material = Array.isArray(mesh.material) ? mesh.material.map(tintMat) : tintMat(mesh.material);
+        }
+      });
+    }
+    return c;
+  }, [scene, asset.tint]);
 
   // Uniform fit to TARGET_HEIGHT + ground so min.y rests at y=0, centred in x/z.
   const fitted = useMemo(() => {
