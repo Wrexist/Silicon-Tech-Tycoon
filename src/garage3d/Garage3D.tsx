@@ -114,9 +114,9 @@ function CameraRig({ build = false }: { build?: boolean }) {
     if (ks.has("e") || ks.has("f")) o.lift = Math.max(-3, o.lift - liftSpd); // lower
 
     const k = Math.min(1, dt * 2.5);
-    const px = build ? 6.4 : 8.6;
-    const py = build ? 10.6 : 6.6;
-    const pz = build ? 8.4 : 9.4;
+    const px = build ? 6.4 : 11.5;
+    const py = build ? 10.6 : 9.0;
+    const pz = build ? 8.4 : 12.5;
     const ty = build ? 0.4 : 1.5;
 
     // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
@@ -514,46 +514,46 @@ function RobotCharacter({ colorIdx, seed, moodColor }: { colorIdx: number; seed:
   return (
     <group ref={root}>
       {/* body — rounded capsule */}
-      <mesh position={[0, 0.5, 0]}>
-        <capsuleGeometry args={[0.24, 0.38, 8, 18]} />
-        <meshStandardMaterial color={color} roughness={0.42} />
+      <mesh position={[0, 0.54, 0]}>
+        <capsuleGeometry args={[0.27, 0.44, 8, 18]} />
+        <meshStandardMaterial color={color} roughness={0.38} />
       </mesh>
       {/* left arm */}
-      <mesh ref={armLRef} position={[-0.32, 0.56, 0.08]}>
-        <capsuleGeometry args={[0.1, 0.3, 6, 12]} />
-        <meshStandardMaterial color={color} roughness={0.42} />
+      <mesh ref={armLRef} position={[-0.37, 0.62, 0.1]}>
+        <capsuleGeometry args={[0.115, 0.34, 6, 12]} />
+        <meshStandardMaterial color={color} roughness={0.38} />
       </mesh>
       {/* right arm */}
-      <mesh ref={armRRef} position={[0.32, 0.56, 0.08]}>
-        <capsuleGeometry args={[0.1, 0.3, 6, 12]} />
-        <meshStandardMaterial color={color} roughness={0.42} />
+      <mesh ref={armRRef} position={[0.37, 0.62, 0.1]}>
+        <capsuleGeometry args={[0.115, 0.34, 6, 12]} />
+        <meshStandardMaterial color={color} roughness={0.38} />
       </mesh>
       {/* head — large sphere */}
-      <group ref={headRef} position={[0, 1.04, 0]}>
+      <group ref={headRef} position={[0, 1.16, 0]}>
         <mesh>
-          <sphereGeometry args={[0.3, 22, 22]} />
-          <meshStandardMaterial color={color} roughness={0.42} />
+          <sphereGeometry args={[0.34, 24, 24]} />
+          <meshStandardMaterial color={color} roughness={0.38} />
         </mesh>
         {/* eyes — glowing white dots */}
-        <mesh position={[-0.11, 0.06, 0.27]}>
-          <sphereGeometry args={[0.055, 12, 12]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.5} toneMapped={false} />
+        <mesh position={[-0.13, 0.07, 0.3]}>
+          <sphereGeometry args={[0.065, 12, 12]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.8} toneMapped={false} />
         </mesh>
-        <mesh position={[0.11, 0.06, 0.27]}>
-          <sphereGeometry args={[0.055, 12, 12]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.5} toneMapped={false} />
+        <mesh position={[0.13, 0.07, 0.3]}>
+          <sphereGeometry args={[0.065, 12, 12]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.8} toneMapped={false} />
         </mesh>
         {/* mood dot */}
         {moodColor && (
-          <mesh position={[0.25, 0.24, 0.12]}>
-            <sphereGeometry args={[0.065, 10, 10]} />
+          <mesh position={[0.29, 0.28, 0.14]}>
+            <sphereGeometry args={[0.075, 10, 10]} />
             <meshStandardMaterial color={moodColor} emissive={moodColor} emissiveIntensity={0.7} toneMapped={false} />
           </mesh>
         )}
       </group>
       {/* blob shadow */}
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]}>
-        <circleGeometry args={[0.26, 18]} />
+        <circleGeometry args={[0.3, 18]} />
         <meshBasicMaterial color="#8090a8" transparent opacity={0.28} depthWrite={false} />
       </mesh>
     </group>
@@ -638,10 +638,14 @@ function Workstation({ p, pos, staff, seed, monitors }: { p: RoomPalette; pos: [
           <Mug hue={hue} />
         </group>
       )}
-      {/* chair + robot standing at desk */}
+      {/* chair + robot leaning toward desk */}
       <group position={[0, 0, -0.5]}>
         <Chair p={p} hue={hue} />
-        {staff && <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} />}
+        {staff && (
+          <group position={[0, -0.05, 0.18]} rotation-x={-0.12}>
+            <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} />
+          </group>
+        )}
       </group>
     </group>
   );
@@ -684,7 +688,7 @@ function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; 
 
 // Kanban board with three swim-lane columns and coloured sticky cards.
 function KanbanWall() {
-  const W = 2.6, H = 1.9;
+  const W = 3.2, H = 2.4;
   const colW = (W - 0.16) / 3;
   const cols: { label: string; hdr: string; cards: string[] }[] = [
     { label: "Backlog", hdr: "#9aa0a8", cards: ["#f0f1f4", "#e8e9ec", "#f0f1f4"] },
@@ -692,7 +696,7 @@ function KanbanWall() {
     { label: "Done", hdr: "#10b981", cards: ["#e6f5ef", "#d0eddf", "#e6f5ef"] },
   ];
   return (
-    <group position={[4.06, 2.3, 0.6]} rotation-y={-Math.PI / 2}>
+    <group position={[4.06, 2.6, 0.2]} rotation-y={-Math.PI / 2}>
       {/* frame */}
       <RoundedBox args={[W + 0.14, H + 0.14, 0.06]} radius={0.03} smoothness={2}>
         <meshStandardMaterial color="#1a1d23" roughness={0.5} metalness={0.3} />
@@ -766,7 +770,7 @@ function SecurityGate() {
 // Steel vault / document safe — heavy door with dial and bar handle.
 function Vault() {
   return (
-    <group position={[-3.5, 0, -2.6]}>
+    <group position={[-3.5, 0, 1.6]}>
       <RoundedBox args={[0.95, 1.45, 0.65]} radius={0.04} smoothness={3} position={[0, 0.72, 0]}>
         <meshStandardMaterial color="#b4b9c0" metalness={0.62} roughness={0.28} />
       </RoundedBox>
@@ -1396,14 +1400,21 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
       <Vault />
       <SecurityGate />
 
-      {/* Ambient robots roaming the office (not tied to workstations) */}
-      <group position={[-2.6, 0, 2.4]} rotation-y={0.4}>
+      {/* Ambient robots — positions match reference image layout */}
+      {/* orange: near whiteboard on left wall */}
+      <group position={[-1.8, 0, 0.4]} rotation-y={0.5}>
         <RobotCharacter colorIdx={1} seed={7.3} />
       </group>
-      <group position={[2.2, 0, 0.8]} rotation-y={-0.6}>
+      {/* green: center of room */}
+      <group position={[0.2, 0, 0.6]} rotation-y={-0.3}>
+        <RobotCharacter colorIdx={2} seed={9.7} />
+      </group>
+      {/* purple: facing kanban wall on right side */}
+      <group position={[2.8, 0, -0.4]} rotation-y={-1.4}>
         <RobotCharacter colorIdx={3} seed={11.1} />
       </group>
-      <group position={[1.4, 0, 3.1]} rotation-y={-1.2}>
+      {/* yellow: near security gate at front */}
+      <group position={[2.4, 0, 2.8]} rotation-y={-2.0}>
         <RobotCharacter colorIdx={4} seed={15.6} />
       </group>
 
@@ -1411,8 +1422,8 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
       {!builder?.build && (
         <>
           <OfficeLabel pos={[-3.1, 3.55, 2.9]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
-          <OfficeLabel pos={[3.5, 3.55, 0.6]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
-          <OfficeLabel pos={[-2.8, 2.0, -2.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
+          <OfficeLabel pos={[3.4, 3.9, 0.2]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
+          <OfficeLabel pos={[-2.8, 2.1, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
           <OfficeLabel pos={[1.6, 1.7, 3.55]} label="Security Gate" sub="Access Control" dot="#10b981" />
           {staff[0] && <OfficeLabel pos={[-1.2, 2.05, 2.2]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
         </>
@@ -1458,7 +1469,7 @@ export function Garage3D({
         aria-label="Company office, 3D view"
         dpr={[1, 1.75]}
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-        camera={{ position: [8.6, 6.6, 9.4], fov: 30 }}
+        camera={{ position: [11.5, 9.0, 12.5], fov: 28 }}
         style={{ touchAction: builder?.build ? "none" : "pan-y" }}
         onCreated={({ gl }) => {
           // Context-loss recovery: downgrade to the 2D IsoScene instead of going black.

@@ -302,7 +302,7 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
                 onContextLost={() => setGlLost(true)}
                 builder={builder}
                 roomStyle={state.roomStyle}
-                height={build ? 400 : 250}
+                height={build ? 460 : 390}
               />
             </Suspense>
           </ErrorBoundary>

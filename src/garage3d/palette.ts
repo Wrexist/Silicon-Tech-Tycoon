@@ -59,12 +59,12 @@ export function roomPalette(dark: boolean): RoomPalette {
         board: "#dfe5ec",
       }
     : {
-        floor: "#f2f3f6",
+        floor: "#f6f7f9",
         wallA: "#ebebee",
-        wallB: "#e8e9ec",
+        wallB: "#e5e6ea",
         trim: "#d5d6da",
-        desk: "#d4d6da",
-        deskDark: "#adb2b8",
+        desk: "#bb9067",
+        deskDark: "#90694a",
         metal: "#c4c9d0",
         metalDark: "#9095a0",
         chest: "#b0b5bc",
