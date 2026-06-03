@@ -15,7 +15,7 @@ import type { RobotAsset } from "./robotModels.ts";
 
 // Overall height in metres — matches the parametric robot (~1.5m: body + head) so swapping a
 // model in doesn't change its scale relative to desks/labels.
-const TARGET_HEIGHT = 1.5;
+const TARGET_HEIGHT = 1.7;
 
 export default function GltfRobot({ asset, clip, seed = 0 }: { asset: RobotAsset; clip?: string; seed?: number }) {
   const { scene, animations } = useGLTF(asset.url);

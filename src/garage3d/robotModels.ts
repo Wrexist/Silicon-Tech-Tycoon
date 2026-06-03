@@ -20,30 +20,16 @@ export interface RobotAsset {
   tint?: string;
 }
 
-// Per-colour overrides (none committed by default).
+// Per-colour overrides — auto-discovered, none committed by default (so nothing is bundled
+// until you add a file). models/base.glb is a CC0 sample you can rename to robot_blue.glb etc.
 const colorFiles = import.meta.glob("./models/robot_*.glb", {
   eager: true,
   query: "?url",
   import: "default",
 }) as Record<string, string>;
 
-// Shared CC0 base model (committed).
-const baseFiles = import.meta.glob("./models/base.glb", {
-  eager: true,
-  query: "?url",
-  import: "default",
-}) as Record<string, string>;
-const BASE_URL: string | undefined = Object.values(baseFiles)[0];
-
 // Colour index order must match ROBOT_COLORS in Garage3D.tsx.
 const COLOR_ORDER = ["blue", "orange", "green", "purple", "yellow"] as const;
-const TINTS: Record<(typeof COLOR_ORDER)[number], string> = {
-  blue: "#4a9af5",
-  orange: "#ff7a35",
-  green: "#40c870",
-  purple: "#9060e8",
-  yellow: "#f5c840",
-};
 
 const byColor: Record<string, string> = {};
 for (const [path, url] of Object.entries(colorFiles)) {
@@ -51,15 +37,16 @@ for (const [path, url] of Object.entries(colorFiles)) {
   if (m) byColor[m[1].toLowerCase()] = url;
 }
 
-/** Resolve a colour index to a model: a dropped-in per-colour .glb if present, else the shared
- *  CC0 base tinted to that colour, else undefined (→ parametric fallback). */
+/** Resolve a colour index to a model: a dropped-in per-colour .glb if present, else undefined.
+ *  Undefined → the hand-built parametric robot (rounded body + glowing eyes), which matches the
+ *  clean mascot aesthetic. Drop in robot_<colour>.glb (or rename the bundled base.glb sample)
+ *  to override a colour with your own model. */
 export function robotModelFor(colorIdx: number): RobotAsset | undefined {
   const n = COLOR_ORDER.length;
   const name = COLOR_ORDER[((colorIdx % n) + n) % n];
-  if (byColor[name]) return { url: byColor[name] }; // distinct model keeps its own colours
-  if (BASE_URL) return { url: BASE_URL, tint: TINTS[name] }; // shared base, tinted per colour
+  if (byColor[name]) return { url: byColor[name] };
   return undefined;
 }
 
-/** True when at least one robot model (base or per-colour) is available. */
-export const HAS_ROBOT_MODELS = !!BASE_URL || Object.keys(byColor).length > 0;
+/** True when at least one per-colour robot model has been dropped in. */
+export const HAS_ROBOT_MODELS = Object.keys(byColor).length > 0;

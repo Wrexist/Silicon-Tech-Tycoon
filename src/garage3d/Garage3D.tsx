@@ -115,10 +115,10 @@ function CameraRig({ build = false }: { build?: boolean }) {
     if (ks.has("e") || ks.has("f")) o.lift = Math.max(-3, o.lift - liftSpd); // lower
 
     const k = Math.min(1, dt * 2.5);
-    const px = build ? 6.4 : 11.5;
-    const py = build ? 10.6 : 9.0;
-    const pz = build ? 8.4 : 12.5;
-    const ty = build ? 0.4 : 1.5;
+    const px = build ? 6.4 : 14.5;
+    const py = build ? 10.6 : 12.0;
+    const pz = build ? 8.4 : 16.5;
+    const ty = build ? 0.4 : 0.6;
 
     // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
     // and W/S dollies in/out, while pointer parallax + smoothing are preserved.
@@ -347,10 +347,11 @@ function StringLights() {
   );
 }
 
-// A whiteboard with a scrappy product-roadmap sketch (mounted on the brick wall B).
-function Whiteboard({ p }: { p: RoomPalette }) {
+// A whiteboard with a scrappy product-roadmap sketch. Default mount = brick wall B (garage);
+// callers can override placement for the open diorama (lower back wall).
+function Whiteboard({ p, pos = [-3.92, 2.6, 3.0], rotY = Math.PI / 2 }: { p: RoomPalette; pos?: [number, number, number]; rotY?: number }) {
   return (
-    <group position={[-3.92, 2.6, 3.0]} rotation-y={Math.PI / 2}>
+    <group position={pos} rotation-y={rotY}>
       <RoundedBox args={[1.25, 0.95, 0.05]} radius={0.02} smoothness={2}>
         <meshStandardMaterial color={p.metal} metalness={0.3} roughness={0.45} />
       </RoundedBox>
@@ -386,6 +387,46 @@ function Room({ p, dark, finish, wall }: { p: RoomPalette; dark: boolean; finish
   const wzA = -4.2;
   const isBrick = wall.kind === "brick";
   const wallColor = dark ? wall.dark : wall.light;
+
+  // LIGHT MODE = open "floating diorama": a rounded white floor slab sitting in the white void,
+  // with two low L-shaped back walls (no ceiling, no front/right walls) — like the reference.
+  if (!dark) {
+    return (
+      <group>
+        {/* floating rounded floor slab (the diorama plate) */}
+        <RoundedBox args={[9.4, 0.5, 9.4]} radius={0.22} smoothness={4} position={[0, -0.25, 0]}>
+          <meshStandardMaterial color="#fbfcfe" roughness={0.92} />
+        </RoundedBox>
+        {/* faint top inlay so the floor reads as a surface, not a blank slab */}
+        <mesh rotation-x={-Math.PI / 2} position={[0, 0.002, 0]}>
+          <planeGeometry args={[9.0, 9.0]} />
+          <meshStandardMaterial color="#f4f5f8" roughness={0.95} />
+        </mesh>
+        {/* low back wall (−z) */}
+        <mesh position={[0, 1.25, -4.0]}>
+          <boxGeometry args={[8.8, 2.7, 0.16]} />
+          <meshStandardMaterial color="#eef0f3" roughness={0.96} />
+        </mesh>
+        {/* low side wall (−x) */}
+        <mesh position={[-4.0, 1.25, 0]}>
+          <boxGeometry args={[0.16, 2.7, 8.8]} />
+          <meshStandardMaterial color="#e8eaee" roughness={0.96} />
+        </mesh>
+        {/* soft skirting where walls meet the slab */}
+        <mesh position={[0, 0.07, -3.95]}>
+          <boxGeometry args={[8.8, 0.14, 0.06]} />
+          <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
+        </mesh>
+        <mesh position={[-3.95, 0.07, 0]}>
+          <boxGeometry args={[0.06, 0.14, 8.8]} />
+          <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
+        </mesh>
+        {/* whiteboard on the low back wall (−z), facing the room */}
+        <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />
+      </group>
+    );
+  }
+
   return (
     <group>
       <Floor p={p} finish={finish} dark={dark} />
@@ -710,13 +751,14 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
 
 // Floating label overlay — white pill badge with a coloured dot indicator.
 function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; label: string; sub: string; dot: string }) {
+  // Fixed screen-size UI chip (no distanceFactor → constant size), always rendered on top.
   return (
-    <Html position={pos} distanceFactor={9} occlude style={{ pointerEvents: "none", userSelect: "none" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 7, padding: "7px 11px", background: "rgba(255,255,255,0.96)", borderRadius: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.10)", minWidth: 110, backdropFilter: "blur(6px)" }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: dot, marginTop: 3, flexShrink: 0 }} />
+    <Html position={pos} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 8px", background: "rgba(255,255,255,0.94)", borderRadius: 7, boxShadow: "0 1px 7px rgba(40,60,90,0.16)", whiteSpace: "nowrap", backdropFilter: "blur(4px)", transform: "translateY(-150%)" }}>
+        <div style={{ width: 7, height: 7, borderRadius: "50%", background: dot, flexShrink: 0 }} />
         <div>
-          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 12, fontWeight: 700, color: "#1a1d23", lineHeight: 1.3 }}>{label}</div>
-          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 11, color: "#6b7280", lineHeight: 1.3 }}>{sub}</div>
+          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 10.5, fontWeight: 700, color: "#1a1d23", lineHeight: 1.25 }}>{label}</div>
+          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 9.5, color: "#6b7280", lineHeight: 1.25 }}>{sub}</div>
         </div>
       </div>
     </Html>
@@ -733,7 +775,7 @@ function KanbanWall() {
     { label: "Done", hdr: "#10b981", cards: ["#e6f5ef", "#d0eddf", "#e6f5ef"] },
   ];
   return (
-    <group position={[4.06, 2.6, 0.2]} rotation-y={-Math.PI / 2}>
+    <group position={[2.5, 1.3, -3.55]} rotation-y={0}>
       {/* frame */}
       <RoundedBox args={[W + 0.14, H + 0.14, 0.06]} radius={0.03} smoothness={2}>
         <meshStandardMaterial color="#1a1d23" roughness={0.5} metalness={0.3} />
@@ -834,20 +876,23 @@ function Vault() {
   );
 }
 
-function Props({ p, hasProduction, back = 0 }: { p: RoomPalette; hasProduction: boolean; back?: number }) {
+function Props({ p, hasProduction, back = 0, dark = true }: { p: RoomPalette; hasProduction: boolean; back?: number; dark?: boolean }) {
   return (
     <group>
-      {/* boxes (back-left corner — follow the back wall as the bay deepens) */}
-      <RoundedBox args={[0.9, 0.9, 0.9]} radius={0.04} smoothness={2} position={[-3.2, 0.45, -3.0 - back]}>
-        <meshStandardMaterial color={p.box} roughness={0.85} />
-      </RoundedBox>
-      <RoundedBox args={[0.7, 0.7, 0.7]} radius={0.04} smoothness={2} position={[-3.2, 1.25, -3.0 - back]}>
-        <meshStandardMaterial color={p.box} roughness={0.85} />
-      </RoundedBox>
-      {/* tool chest (back-right) */}
-      <RoundedBox args={[1.0, 1.3, 0.9]} radius={0.05} smoothness={3} position={[3.1, 0.65, -3.0 - back]}>
-        <meshStandardMaterial color={p.chest} roughness={0.5} metalness={0.1} />
-      </RoundedBox>
+      {/* garage clutter (boxes + tool chest) — dark/garage mode only; the clean diorama stays tidy */}
+      {dark && (
+        <>
+          <RoundedBox args={[0.9, 0.9, 0.9]} radius={0.04} smoothness={2} position={[-3.2, 0.45, -3.0 - back]}>
+            <meshStandardMaterial color={p.box} roughness={0.85} />
+          </RoundedBox>
+          <RoundedBox args={[0.7, 0.7, 0.7]} radius={0.04} smoothness={2} position={[-3.2, 1.25, -3.0 - back]}>
+            <meshStandardMaterial color={p.box} roughness={0.85} />
+          </RoundedBox>
+          <RoundedBox args={[1.0, 1.3, 0.9]} radius={0.05} smoothness={3} position={[3.1, 0.65, -3.0 - back]}>
+            <meshStandardMaterial color={p.chest} roughness={0.5} metalness={0.1} />
+          </RoundedBox>
+        </>
+      )}
       {/* plant (front-right) */}
       <group position={[3.1, 0, 3.0]}>
         <mesh position={[0, 0.25, 0]}>
@@ -860,7 +905,8 @@ function Props({ p, hasProduction, back = 0 }: { p: RoomPalette; hasProduction: 
         </mesh>
       </group>
       <Printer p={p} active={hasProduction} />
-      <PendantLamp p={p} />
+      {/* pendant lamp hangs from the ceiling — only in the enclosed garage (dark), not the open diorama */}
+      {dark && <PendantLamp p={p} />}
     </group>
   );
 }
@@ -1384,34 +1430,37 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
       <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.5} distance={7} decay={2} color={p.screen} />
 
       <Room p={p} dark={dark} finish={finish} wall={wall} />
-      {/* distant skyline behind the windows (boxes outside each wall) */}
-      <group>
-        {/* outside wall B (−x), seen through the side window */}
-        {[[-1.8, 2.6], [-0.9, 4.0], [0.0, 2.0], [0.9, 3.2]].map((b, i) => (
-          <mesh key={`bx${i}`} position={[-5.3, b[1] / 2, b[0]]}>
-            <boxGeometry args={[0.7, b[1], 0.9]} />
-            <meshStandardMaterial color={dark ? "#2a3550" : "#9fb6d6"} roughness={0.9} />
-          </mesh>
-        ))}
-        {/* outside wall A (−z), seen through the door windows */}
-        {[[-1.6, 3.0], [0.2, 4.4], [1.8, 2.4], [3.0, 3.6]].map((b, i) => (
-          <mesh key={`bz${i}`} position={[b[0], b[1] / 2, -5.3]}>
-            <boxGeometry args={[0.9, b[1], 0.7]} />
-            <meshStandardMaterial color={dark ? "#2a3550" : "#9fb6d6"} roughness={0.9} />
-          </mesh>
-        ))}
-      </group>
+      {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
+          a clean white void, so no exterior scenery. */}
+      {dark && (
+        <group>
+          {/* outside wall B (−x), seen through the side window */}
+          {[[-1.8, 2.6], [-0.9, 4.0], [0.0, 2.0], [0.9, 3.2]].map((b, i) => (
+            <mesh key={`bx${i}`} position={[-5.3, b[1] / 2, b[0]]}>
+              <boxGeometry args={[0.7, b[1], 0.9]} />
+              <meshStandardMaterial color="#2a3550" roughness={0.9} />
+            </mesh>
+          ))}
+          {/* outside wall A (−z), seen through the door windows */}
+          {[[-1.6, 3.0], [0.2, 4.4], [1.8, 2.4], [3.0, 3.6]].map((b, i) => (
+            <mesh key={`bz${i}`} position={[b[0], b[1] / 2, -5.3]}>
+              <boxGeometry args={[0.9, b[1], 0.7]} />
+              <meshStandardMaterial color="#2a3550" roughness={0.9} />
+            </mesh>
+          ))}
+        </group>
+      )}
       {/* rug under the pod */}
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, 0.3]}>
-        <circleGeometry args={[3.5, 40]} />
-        <meshStandardMaterial color={p.screen} transparent opacity={facilityTier > 1 ? 0.12 : 0.06} roughness={1} />
+        <circleGeometry args={[3.2, 40]} />
+        <meshStandardMaterial color={p.screen} transparent opacity={facilityTier > 1 ? 0.1 : 0.05} roughness={1} />
       </mesh>
 
       {/* desks grow with the team — one per person, starting from a single desk */}
       {desks.map((pos, i) => (
         <Workstation key={i} p={p} pos={pos} staff={staff[i]} seed={i * 2.1} monitors={monitors} />
       ))}
-      <Props p={p} hasProduction={hasProduction} />
+      <Props p={p} hasProduction={hasProduction} dark={dark} />
       {!builder?.build && <Robot p={p} />}
       <Dust />
       <BallBin p={p} pos={[3.1, 1.31, -3.0]} />
@@ -1458,11 +1507,11 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
       {/* Floating zone labels */}
       {!builder?.build && (
         <>
-          <OfficeLabel pos={[-3.1, 3.55, 2.9]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
-          <OfficeLabel pos={[3.4, 3.9, 0.2]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
-          <OfficeLabel pos={[-2.8, 2.1, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
-          <OfficeLabel pos={[1.6, 1.7, 3.55]} label="Security Gate" sub="Access Control" dot="#10b981" />
-          {staff[0] && <OfficeLabel pos={[-1.2, 2.05, 2.2]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
+          <OfficeLabel pos={[-1.2, 2.55, -3.88]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
+          <OfficeLabel pos={[2.5, 2.75, -3.55]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
+          <OfficeLabel pos={[-3.5, 2.0, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
+          <OfficeLabel pos={[0.8, 2.1, 3.55]} label="Security Gate" sub="Access Control" dot="#10b981" />
+          {staff[0] && <OfficeLabel pos={[-2.6, 2.0, 2.4]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
         </>
       )}
 
@@ -1506,7 +1555,7 @@ export function Garage3D({
         aria-label="Company office, 3D view"
         dpr={[1, 1.75]}
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-        camera={{ position: [11.5, 9.0, 12.5], fov: 28 }}
+        camera={{ position: [14.5, 12.0, 16.5], fov: 26 }}
         style={{ touchAction: builder?.build ? "none" : "pan-y" }}
         onCreated={({ gl }) => {
           // Context-loss recovery: downgrade to the 2D IsoScene instead of going black.
