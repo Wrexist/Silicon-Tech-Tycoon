@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Rocket, Search, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, FlaskConical, PencilRuler, Megaphone, Rocket, Search, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ACHIEVEMENT_COUNT, deriveFacts } from "../engine/achievements.ts";
@@ -7,9 +7,10 @@ import { Avatar } from "../components/Avatar.tsx";
 import { RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
-import { xpMult } from "../engine/staff.ts";
+import { assignedSkill, designCeiling, runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
+import { xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
 import { cents, format } from "../engine/money.ts";
+import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
   type Discipline,
@@ -30,6 +31,7 @@ import {
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
+import type { CSSProperties } from "react";
 import "./company.css";
 
 const ROLE_LABEL: Record<StaffRole, string> = {
@@ -172,6 +174,9 @@ export function Company() {
         <span className="co__ach-count tnum">{achievementCount}<span className="co__ach-count-total">/{ACHIEVEMENT_COUNT}</span></span>
       </button>
 
+      {/* Team output summary */}
+      <TeamOutputCard state={state} />
+
       {/* Staff roster */}
       <Card>
         <SectionHeader title="Team" accessory={`${state.staff.length} people`} />
@@ -291,6 +296,47 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
 
       <Button block onClick={onClose}>Done</Button>
     </div>
+  );
+}
+
+/* ---------- Team output summary ---------- */
+
+function TeamOutputCard({ state }: { state: GameState }) {
+  if (state.staff.length === 0) return null;
+  const rndCount = state.staff.filter((s) => s.assignment === "rnd").length;
+  const designCount = state.staff.filter((s) => s.assignment === "design").length;
+  const mktCount = state.staff.filter((s) => s.assignment === "marketing").length;
+  const idleCount = state.staff.filter((s) => s.assignment === "idle").length;
+  const rpPerWk = weeklyRpGen(state);
+  const mktSkill = assignedSkill(state.staff, "marketing");
+  const ceil =
+    designCeiling(assignedSkill(state.staff, "design")) +
+    designCeilingBonus(state.upgrades) +
+    perfectionistCeilingBonus(state.staff);
+  const hypeBonus = Math.round(mktSkill * 5 + visionaryHype(state.staff) * 100 + marketingHype(state.upgrades) * 100);
+  type FnRow = { label: string; count: number; metric: string; color: string; Icon: typeof FlaskConical };
+  const rows: FnRow[] = [
+    { label: "R&D", count: rndCount, metric: rndCount > 0 ? `+${rpPerWk.toFixed(1)} RP/wk` : "no output", color: "var(--fn-eng)", Icon: FlaskConical },
+    { label: "Design", count: designCount, metric: `tier ${ceil} ceiling`, color: "var(--fn-design)", Icon: PencilRuler },
+    { label: "Marketing", count: mktCount, metric: mktCount > 0 ? `+${hypeBonus}% hype` : "no output", color: "var(--fn-mkt)", Icon: Megaphone },
+  ];
+  return (
+    <Card>
+      <SectionHeader title="Team output" accessory={idleCount > 0 ? `${idleCount} idle` : `${state.staff.length} active`} />
+      <div className="co__output-grid">
+        {rows.map((r) => (
+          <div key={r.label} className="co__output-fn" style={{ "--co-fn-color": r.color } as CSSProperties}>
+            <span className="co__output-fn-icon"><r.Icon size={14} /></span>
+            <span className="co__output-fn-label">{r.label}</span>
+            <span className="co__output-fn-count tnum">{r.count}</span>
+            <span className="co__output-fn-metric">{r.metric}</span>
+          </div>
+        ))}
+      </div>
+      {idleCount > 0 && (
+        <p className="co__output-idle">{idleCount} staff idle — assign them to a function to generate output.</p>
+      )}
+    </Card>
   );
 }
 

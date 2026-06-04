@@ -630,3 +630,58 @@
   margin-top: var(--sp-8);
   line-height: 1.4;
 }
+
+/* "View all" link on the Activity card header */
+.mkt__feed-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 32px;
+  padding: 0 var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.mkt__feed-all:active {
+  transform: scale(0.94);
+}
+
+/* Full activity feed sheet */
+.mkt__feed-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.mkt__feed-sheet-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mkt__feed-sheet-title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}
+.mkt__feed-sheet-x {
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  color: var(--ink-3);
+}
+.mkt__feed-sheet-x:active {
+  transform: scale(0.9);
+}
+.mkt__feed-sheet-sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin-top: -4px;
+}
+.mkt__feed--full {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: var(--sp-4);
+}

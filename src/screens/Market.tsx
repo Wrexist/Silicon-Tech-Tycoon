@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2, type LucideIcon } from "lucide-react";
+import { Building2, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -15,6 +15,7 @@ import {
   companyValuation,
   founderStakeValue,
   netWorth,
+  type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
@@ -64,6 +65,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const [ipo, setIpo] = useState(false);
   const [sellStake, setSellStake] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [feedOpen, setFeedOpen] = useState(false);
   const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
 
   const valuation = companyValuation(state);
@@ -321,7 +323,16 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
 
       {/* Activity feed */}
       <Card>
-        <SectionHeader title="Activity" accessory="latest" />
+        <SectionHeader
+          title="Activity"
+          accessory={
+            state.feed.length > 12 ? (
+              <button className="mkt__feed-all" onClick={() => setFeedOpen(true)}>
+                View all {state.feed.length}
+              </button>
+            ) : "latest"
+          }
+        />
         {feedItems.length === 0 ? (
           <EmptyState
             glyph={<Newspaper size={36} strokeWidth={1.6} />}
@@ -367,6 +378,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       </Sheet>
       <Sheet open={sellStake} onClose={() => setSellStake(false)}>
         {sellStake && <SellStakeSheet onClose={() => setSellStake(false)} />}
+      </Sheet>
+      <Sheet open={feedOpen} onClose={() => setFeedOpen(false)}>
+        <FeedSheet feed={state.feed} onClose={() => setFeedOpen(false)} />
       </Sheet>
     </div>
   );
@@ -667,6 +681,32 @@ function SellStakeSheet({ onClose }: { onClose: () => void }) {
       <Button block onClick={() => { sellOwnStake(pct / 100); haptic.success(); showToast(`Sold ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); }}>
         Confirm sale
       </Button>
+    </div>
+  );
+}
+
+function FeedSheet({ feed, onClose }: { feed: FeedItem[]; onClose: () => void }) {
+  const sorted = [...feed].reverse();
+  return (
+    <div className="mkt__feed-sheet">
+      <div className="mkt__feed-sheet-hdr">
+        <h2 className="mkt__feed-sheet-title">Activity log</h2>
+        <button className="mkt__feed-sheet-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+      </div>
+      <p className="mkt__feed-sheet-sub">{feed.length} events recorded</p>
+      <ul className="mkt__feed mkt__feed--full">
+        {sorted.map((f) => {
+          const Icon: LucideIcon = f.tone === "positive" ? TrendingUp : f.tone === "negative" ? TrendingDown : f.tone === "accent" ? Sparkles : Newspaper;
+          return (
+            <li key={f.id} className={`mkt__feed-item mkt__feed-item--${f.tone}`}>
+              <span className="mkt__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
+              <span className="mkt__feed-week">wk {f.week}</span>
+              {f.text}
+            </li>
+          );
+        })}
+      </ul>
+      <Button block variant="secondary" onClick={onClose}>Close</Button>
     </div>
   );
 }
