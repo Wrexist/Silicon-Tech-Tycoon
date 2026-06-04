@@ -202,24 +202,27 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
         </Card>
       ) : (
-        recentFeed.length > 0 && (
-          <Card>
-            <SectionHeader title="News" accessory={`week ${state.week}`} />
-            <ul className="hq__feed-list">
-              {recentFeed.map((item) => {
-                const Icon = item.tone === "positive" ? TrendingUp : item.tone === "negative" ? TrendingDown : item.tone === "accent" ? Sparkles : Newspaper;
-                return (
-                  <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
-                    <span className="hq__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
-                    <span className="hq__feed-week">wk {item.week}</span>
-                    {item.text}
-                  </li>
-                );
-              })}
-            </ul>
-            <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
-          </Card>
-        )
+        <>
+          <PerformanceCard state={state} onNavigate={onNavigate} />
+          {recentFeed.length > 0 && (
+            <Card>
+              <SectionHeader title="News" accessory={`week ${state.week}`} />
+              <ul className="hq__feed-list">
+                {recentFeed.map((item) => {
+                  const Icon = item.tone === "positive" ? TrendingUp : item.tone === "negative" ? TrendingDown : item.tone === "accent" ? Sparkles : Newspaper;
+                  return (
+                    <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
+                      <span className="hq__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
+                      <span className="hq__feed-week">wk {item.week}</span>
+                      {item.text}
+                    </li>
+                  );
+                })}
+              </ul>
+              <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );
@@ -627,5 +630,52 @@ function EraGoalCard({ state }: { state: GameState }) {
       )}
       <p className="hq__goal-or">Either threshold unlocks the next era.</p>
     </div>
+  );
+}
+
+function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
+  if (state.launched.length === 0) return null;
+  const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const flops = state.launched.filter((lp) => lp.verdict === "flop").length;
+  const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
+  const weeklyRevenue = active.reduce((s, lp) => s + lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price), 0);
+  const best = state.launched.reduce<(typeof state.launched)[0] | null>(
+    (top, lp) => (top === null || lp.revenueToDate > top.revenueToDate ? lp : top),
+    null,
+  );
+  return (
+    <Card>
+      <SectionHeader title="Performance" accessory={`wk ${state.week}`} />
+      <div className="hq__perf-grid">
+        <div className="hq__perf-item">
+          <span className="hq__perf-val tnum">{state.launched.length}</span>
+          <span className="hq__perf-label">Products</span>
+        </div>
+        <div className="hq__perf-item">
+          <span className="hq__perf-val tnum hq__perf-val--positive">{hits}</span>
+          <span className="hq__perf-label">Hits</span>
+        </div>
+        <div className="hq__perf-item">
+          <span className="hq__perf-val tnum hq__perf-val--negative">{flops}</span>
+          <span className="hq__perf-label">Flops</span>
+        </div>
+        <div className="hq__perf-item">
+          <span className="hq__perf-val tnum">{active.length}</span>
+          <span className="hq__perf-label">Active</span>
+        </div>
+      </div>
+      {weeklyRevenue > 0 && (
+        <p className="hq__perf-revenue">
+          <TrendingUp size={12} aria-hidden /> {fmtRevShort(weeklyRevenue)}/wk from {active.length} active product{active.length > 1 ? "s" : ""}
+        </p>
+      )}
+      {best && (
+        <button className="hq__perf-best" onClick={() => onNavigate("market")}>
+          <span className="hq__perf-best-label">Best performer</span>
+          <span className="hq__perf-best-name">{best.product.name}</span>
+          <span className="hq__perf-best-rev tnum">{format(best.revenueToDate)}</span>
+        </button>
+      )}
+    </Card>
   );
 }

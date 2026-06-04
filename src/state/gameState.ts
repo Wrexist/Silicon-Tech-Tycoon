@@ -706,19 +706,32 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   const cashHistory = [...state.cashHistory, { week, cash: toDollars(cash) }];
   if (cashHistory.length > 260) cashHistory.shift();
 
+  const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
+    ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
+    : BALANCE.fans.decayPerWeek;
+  const newFans = Math.round(
+    state.fans * Math.pow(loyaltyDecay, rate)
+    + (hasProject(state.completedProjects, "contentMarketing") ? 100 * rate : 0)
+  );
+
+  // Quarterly checkpoint: a snapshot feed item every BALANCE.quartersWeeks weeks to mark
+  // the end of a "fiscal quarter" — gives the player a regular moment of reflection.
+  if (!bankrupt && week > 0 && week % BALANCE.quartersWeeks === 0) {
+    const qNum = Math.floor(week / BALANCE.quartersWeeks);
+    const fansStr = newFans >= 1000 ? `${(newFans / 1000).toFixed(1)}k` : String(newFans);
+    feed.push(feedItem(
+      week,
+      `Q${qNum} complete — ${format(cash)} cash · Rep ${Math.round(state.reputation)} · ${fansStr} fans.`,
+      "accent",
+    ));
+  }
+
   const base: GameState = {
     ...state,
     week,
     cash,
     cumulativeRevenue,
-    fans: Math.round(
-      state.fans * Math.pow(
-        hasProject(state.completedProjects, "loyaltyProgram")
-          ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
-          : BALANCE.fans.decayPerWeek,
-        rate,
-      ) + (hasProject(state.completedProjects, "contentMarketing") ? 100 * rate : 0)
-    ),
+    fans: newFans,
     researchPoints,
     building,
     ready,
