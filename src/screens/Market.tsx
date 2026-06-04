@@ -383,7 +383,7 @@ function ProductDetailSheet({
       <div className="pd__why">
         <div className="pd__why-head">
           <Sparkles size={15} aria-hidden />
-          <span>Why it {v === "hit" ? "won" : v === "flop" ? "flopped" : "performed"}</span>
+          <span>Why it {v === "hit" ? "won" : v === "flop" ? "flopped" : v === "solid" ? "delivered" : "performed"}</span>
         </div>
         <ul className="pd__drivers">
           {drivers.map((d) => (

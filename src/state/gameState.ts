@@ -549,6 +549,7 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   // Sales + revenue
   let cash = state.cash;
   let cumulativeRevenue = state.cumulativeRevenue;
+  const productsFeed: FeedItem[] = [];
   const launched = state.launched.map((lp) => {
     if (lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
     const units = lp.weeklyUnits[lp.weeksElapsed];
@@ -556,13 +557,27 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     const gross = scale(lp.product.price, units * rate);
     cash = add(cash, gross);
     cumulativeRevenue = add(cumulativeRevenue, gross);
+    const newElapsed = lp.weeksElapsed + 1;
+    const newUnitsSold = Math.min(lp.totalUnits, lp.unitsSold + Math.round(units * rate));
+    const newRevenue = add(lp.revenueToDate, gross);
+    // When the last sales week completes, surface a lifecycle summary in the feed.
+    if (newElapsed >= lp.weeklyUnits.length) {
+      const sellThrough = lp.plannedUnits && lp.plannedUnits > 0
+        ? Math.round((lp.totalUnits / lp.plannedUnits) * 100)
+        : 100;
+      productsFeed.push(feedItem(
+        week,
+        `"${lp.product.name}" lifecycle complete — ${newUnitsSold.toLocaleString()} sold (${sellThrough}% sell-through), ${format(newRevenue)} total.`,
+        sellThrough >= 85 ? "positive" : "neutral",
+      ));
+    }
     return {
       ...lp,
-      weeksElapsed: lp.weeksElapsed + 1,
+      weeksElapsed: newElapsed,
       // Cap at the run's total so "X of Y sold" can never exceed Y on a partial (offline,
       // rate=0.5) tick where rounding could otherwise push the cumulative count over.
-      unitsSold: Math.min(lp.totalUnits, lp.unitsSold + Math.round(units * rate)),
-      revenueToDate: add(lp.revenueToDate, gross),
+      unitsSold: newUnitsSold,
+      revenueToDate: newRevenue,
     };
   });
 
@@ -577,6 +592,7 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
 
   // Feed events
   const feed = [...state.feed];
+  for (const item of productsFeed) feed.push(item);
   for (const l of launches) pushRivalFeed(feed, l);
 
   // Research points generated this week
@@ -699,6 +715,7 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
   let trends = s.trends;
   let competitors = s.competitors;
   let staff = s.staff;
+  let fans = s.fans;
 
   switch (eff.kind) {
     case "viralTrend": {
@@ -727,6 +744,15 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
     case "pressFeature":
       reputation = Math.min(BALANCE.reputation.max, reputation + eff.reputation);
       break;
+    case "fansBonus":
+      fans = Math.round(fans + eff.fans);
+      break;
+    case "repBoost":
+      reputation = Math.min(BALANCE.reputation.max, reputation + eff.rep);
+      break;
+    case "cashWindfall":
+      cash = add(cash, dollars(eff.cash)) as Money;
+      break;
   }
 
   feed.push(feedItem(week, ev.title, ev.tone));
@@ -739,6 +765,7 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
     trends,
     competitors,
     staff,
+    fans,
     feed: trimFeed(feed),
     nextEventWeek,
     lastEvent: { text: ev.title, tone: ev.tone, week },
