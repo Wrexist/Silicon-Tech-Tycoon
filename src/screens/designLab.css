@@ -648,6 +648,50 @@
   color: var(--ink-3);
 }
 
+/* ---------- Personal best comparison ---------- */
+.lab__prev-best {
+  margin-top: var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.lab__prev-best-label {
+  display: block;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--sp-4);
+}
+.lab__prev-best-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.lab__prev-best-name {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lab__prev-best-score {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.lab__prev-best-beat {
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  color: var(--positive-text, var(--positive));
+  white-space: nowrap;
+}
+
 /* ---------- Production wizard ---------- */
 .wiz { display: flex; flex-direction: column; gap: var(--sp-16); }
 .wiz__head { display: flex; align-items: center; gap: var(--sp-12); }

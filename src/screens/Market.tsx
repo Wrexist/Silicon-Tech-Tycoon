@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Clock, Lightbulb, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { Building2, Clock, Lightbulb, Minus, Newspaper, Package, Plus, Rocket, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -335,6 +335,16 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                   ))}
                 </div>
               )}
+              {(() => {
+                const wks = c.nextLaunchWeek - state.week;
+                if (wks < 0 || wks > 5) return null;
+                return (
+                  <div className="mkt__stock-upcoming">
+                    <Rocket size={9} aria-hidden />
+                    {wks === 0 ? "Launching this week" : `Launching in ${wks} wk`}
+                  </div>
+                );
+              })()}
             </button>
           </Card>
         );
@@ -857,6 +867,24 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         </div>
       )}
 
+      {/* Investment context */}
+      <div className="trade__invest">
+        {(() => {
+          const wks = comp.nextLaunchWeek - state.week;
+          if (wks >= 0 && wks <= 6) {
+            return (
+              <span className="trade__invest-row trade__invest-row--launch">
+                <Rocket size={11} aria-hidden />
+                {wks === 0 ? "Launching this week — share price may spike" : `Launching in ${wks} week${wks !== 1 ? "s" : ""} — watch for a price bump`}
+              </span>
+            );
+          }
+          return null;
+        })()}
+        <span className="trade__invest-row">
+          ~{format(cents(Math.round(comp.sharePrice * 100 * BALANCE.stocks.dividendYieldPerWeek)))}/wk per 100 shares · {(BALANCE.stocks.dividendYieldPerWeek * 52 * 100).toFixed(1)}% annual yield
+        </span>
+      </div>
       <div className="trade__qty">
         <span className="trade__qty-label">Shares</span>
         <div className="trade__stepper">

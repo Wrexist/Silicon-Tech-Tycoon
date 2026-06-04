@@ -675,6 +675,24 @@ export function DesignLab({
             </div>
           );
         })()}
+        {/* Personal best in this category */}
+        {state.launched.length > 0 && (() => {
+          const sameCat = state.launched.filter((lp) => lp.product.category === draft.category);
+          if (sameCat.length === 0) return null;
+          const best = sameCat.reduce((a, b) => b.launchScore > a.launchScore ? b : a);
+          const bestOverall = overallScore(best.stats, best.product.category);
+          const ahead = missing.length === 0 && overall > bestOverall + 2;
+          return (
+            <div className="lab__prev-best">
+              <span className="lab__prev-best-label">Your best {CATEGORIES[draft.category].displayName}</span>
+              <div className="lab__prev-best-row">
+                <span className="lab__prev-best-name">{best.product.name}</span>
+                <span className="lab__prev-best-score tnum">score {Math.round(bestOverall)}</span>
+                {ahead && <span className="lab__prev-best-beat">+{Math.round(overall - bestOverall)} pts</span>}
+              </div>
+            </div>
+          );
+        })()}
       </Card>
 
       <Sheet open={wizard} onClose={() => setWizard(false)}>

@@ -282,6 +282,15 @@
   border-radius: var(--r-pill);
   padding: 2px 7px;
 }
+.mkt__stock-upcoming {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 4px;
+}
 
 /* Trade / IPO sheet */
 .trade {
@@ -377,6 +386,26 @@
 .trade__row {
   display: flex;
   gap: var(--sp-8);
+}
+.trade__invest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--bg-elevated);
+  border-radius: var(--r-button);
+}
+.trade__invest-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.trade__invest-row--launch {
+  color: var(--accent);
+  font-weight: 700;
 }
 .trade__qty {
   display: flex;
