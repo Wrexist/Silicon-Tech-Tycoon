@@ -65,6 +65,7 @@ import {
   advanceTrends,
   demandVarianceMultiplier,
   initialTrends,
+  priceFit,
   randomTrendTarget,
   scoreLaunch,
 } from "../engine/market.ts";
@@ -87,6 +88,7 @@ import type {
   Assignment,
   BuildJob,
   Candidate,
+  CategoryId,
   ComponentKind,
   ConsumerTrends,
   CompetitorState,
@@ -583,8 +585,12 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   }
   trends = advanceTrends(trends, newTarget);
 
-  // Competitors
-  const { competitors, launches } = advanceCompetitors(state.competitors, week, state.era, rng);
+  // Competitors — pass the player's recent hit categories so the lead rival can react.
+  const hitWindow = BALANCE.competitors.reactHitWindowWeeks;
+  const recentPlayerHitCats = state.launched
+    .filter((lp) => lp.launchedWeek >= week - hitWindow && (lp.verdict === "hit" || lp.verdict === "solid"))
+    .map((lp) => lp.product.category);
+  const { competitors, launches } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
 
   // Sales + revenue
   let cash = state.cash;
@@ -638,7 +644,13 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   // Feed events
   const feed = [...state.feed];
   for (const item of productsFeed) feed.push(item);
-  for (const l of launches) pushRivalFeed(feed, l);
+  // Rival launches: flag when a rival enters a category where the player has an active product.
+  const activePlayerCats = new Set<CategoryId>(
+    state.launched
+      .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
+      .map((lp) => lp.product.category),
+  );
+  for (const l of launches) pushRivalFeed(feed, l, activePlayerCats);
 
   // Research points generated this week
   // Must match the weeklyRpGen selector (incl. the Workstations upgrade), else the UI lies.
@@ -833,12 +845,16 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
   };
 }
 
-function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch) {
+function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>) {
+  const catName = CATEGORIES[l.category]?.displayName ?? l.category;
+  const threat = activePlayerCats?.has(l.category);
   feed.push(
     feedItem(
       l.week,
-      `${l.competitor} launched a new ${CATEGORIES[l.category].displayName}.`,
-      "neutral",
+      threat
+        ? `${l.competitor} launched a new ${catName} — your active product faces new competition.`
+        : `${l.competitor} entered the ${catName} market.`,
+      threat ? "negative" : "neutral",
     ),
   );
 }
@@ -1049,6 +1065,48 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     },
     ok: true,
     launchScore: plan.launchScore,
+  };
+}
+
+/** Mid-lifecycle price cut: reduces price on an active product, scaling up demand for remaining
+ *  weeks proportionally to the improved priceFit. Limited to one cut per product — used when rivals
+ *  enter your category and you want to defend market share at the cost of margin. */
+export function cutProductPrice(state: GameState, productId: string, newPrice: Money): ActionResult {
+  const lp = state.launched.find((l) => l.product.id === productId);
+  if (!lp) return { state, ok: false, reason: "Product not found." };
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };
+  if (newPrice >= lp.product.price) return { state, ok: false, reason: "New price must be lower than current price." };
+  if (newPrice < lp.unitCost) return { state, ok: false, reason: "Price can't go below unit cost." };
+  if ((lp.priceCuts ?? 0) >= 1) return { state, ok: false, reason: "Price has already been adjusted on this product." };
+
+  // Compute the priceFit improvement ratio — this scales remaining weekly demand proportionally.
+  const oldFit = priceFit(lp.product.price, lp.stats, lp.product.category);
+  const newFit = priceFit(newPrice, lp.stats, lp.product.category);
+  const boost = oldFit > 0 ? Math.max(1, newFit / oldFit) : 1;
+
+  const newWeeklyUnits = lp.weeklyUnits.map((u, i) =>
+    i < lp.weeksElapsed ? u : Math.round(u * boost),
+  );
+  // totalUnits must not exceed the production run.
+  const newTotalUnits = Math.min(
+    lp.plannedUnits ?? lp.totalUnits,
+    newWeeklyUnits.reduce((a, b) => a + b, 0),
+  );
+
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Price cut on "${lp.product.name}" — ${format(lp.product.price)} → ${format(newPrice)}.`, "accent"));
+
+  return {
+    state: {
+      ...state,
+      launched: state.launched.map((l) =>
+        l.product.id === productId
+          ? { ...l, product: { ...l.product, price: newPrice }, weeklyUnits: newWeeklyUnits, totalUnits: newTotalUnits, priceCuts: (l.priceCuts ?? 0) + 1 }
+          : l,
+      ),
+      feed: trimFeed(feed),
+    },
+    ok: true,
   };
 }
 

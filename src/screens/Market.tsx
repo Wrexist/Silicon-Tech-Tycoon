@@ -6,10 +6,12 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
+import { rivalDef } from "../engine/competitors.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
 import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
+import { priceFit } from "../engine/market.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
   burn,
@@ -302,11 +304,23 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       {comps.map((c) => {
         const ch = changePct(c.priceHistory);
         const owned = state.holdings[c.id] ?? 0;
+        const def = rivalDef(c.id);
         const activeCats = Object.entries(c.strengthByCategory)
           .filter(([, s]) => (s as number) > 20)
           .sort(([, a], [, b]) => (b as number) - (a as number))
           .slice(0, 3)
           .map(([cat]) => cat as CategoryId);
+        // Show preferred categories as "home turf" tags when the rival isn't currently active.
+        const homeTurf: CategoryId[] = activeCats.length === 0 && def
+          ? (def.preferredCategories as CategoryId[]).slice(0, 2)
+          : [];
+        // Highlight if a preferred category overlaps with player's active products.
+        const playerActiveCats = new Set(
+          state.launched
+            .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
+            .map((lp) => lp.product.category),
+        );
+        const threatCats = activeCats.filter((cat) => playerActiveCats.has(cat));
         return (
           <Card key={c.id} className="mkt__stock">
             <button className="mkt__stock-btn" onClick={() => { setTrade(c); haptic.light(); }} aria-label={`Trade ${c.name}`}>
@@ -326,10 +340,15 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 <div className="mkt__stock-spark"><Sparkline data={c.priceHistory} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} /></div>
                 {owned > 0 && <span className="mkt__stock-owned">{owned} sh · {format(cents(owned * c.sharePrice))}</span>}
               </div>
-              {activeCats.length > 0 && (
+              {(activeCats.length > 0 || homeTurf.length > 0) && (
                 <div className="mkt__stock-cats">
                   {activeCats.map((cat) => (
-                    <span key={cat} className="mkt__stock-cat">
+                    <span key={cat} className={`mkt__stock-cat${threatCats.includes(cat) ? " mkt__stock-cat--threat" : ""}`}>
+                      <CategoryIcon id={cat} size={10} />{CATEGORY_LABEL[cat] ?? cat}
+                    </span>
+                  ))}
+                  {homeTurf.map((cat) => (
+                    <span key={cat} className="mkt__stock-cat mkt__stock-cat--home">
                       <CategoryIcon id={cat} size={10} />{CATEGORY_LABEL[cat] ?? cat}
                     </span>
                   ))}
@@ -697,6 +716,8 @@ function ProductDetailSheet({
   onClose: () => void;
   onDesignSuccessor?: (p: Product) => void;
 }) {
+  const { cutProductPrice } = useGame();
+  const [priceCutOpen, setPriceCutOpen] = useState(false);
   const v = verdictOf(lp);
   const drivers = performanceDrivers(lp);
   const tips = generateTips(lp);
@@ -704,6 +725,8 @@ function ProductDetailSheet({
     ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
     : null;
   const live = lp.weeksElapsed < lp.weeklyUnits.length;
+  // Suggest cutting to ~85% of current price (or to unit cost if higher)
+  const suggestedCut = dollars(Math.max(toDollars(lp.unitCost) + 1, Math.round(toDollars(lp.product.price) * 0.85 / 10) * 10));
 
   return (
     <div className="pd">
@@ -794,6 +817,65 @@ function ProductDetailSheet({
           </div>
         ))}
       </div>
+
+      {/* Mid-lifecycle price cut — only for live products */}
+      {live && (
+        <div className="pd__pricecut">
+          {(lp.priceCuts ?? 0) >= 1 ? (
+            <div className="pd__pricecut-done">
+              <TrendingDown size={13} aria-hidden />
+              <span>Price reduced to <strong className="tnum">{format(lp.product.price)}</strong></span>
+            </div>
+          ) : !priceCutOpen ? (
+            <button className="pd__pricecut-trigger" onClick={() => { setPriceCutOpen(true); haptic.light(); }}>
+              <TrendingDown size={13} aria-hidden />
+              <span>Reduce price · <span className="tnum">{format(lp.product.price)}</span> now</span>
+              <span className="pd__pricecut-caret" aria-hidden>›</span>
+            </button>
+          ) : (
+            <div className="pd__pricecut-panel">
+              <div className="pd__pricecut-title">
+                <TrendingDown size={14} aria-hidden />
+                <span>Reduce price</span>
+              </div>
+              <div className="pd__pricecut-row">
+                <span className="pd__pricecut-from tnum">{format(lp.product.price)}</span>
+                <span className="pd__pricecut-arrow" aria-hidden>→</span>
+                <span className="pd__pricecut-to tnum">{format(suggestedCut)}</span>
+              </div>
+              {(() => {
+                const oldFit = priceFit(lp.product.price, lp.stats, lp.product.category);
+                const newFit = priceFit(suggestedCut, lp.stats, lp.product.category);
+                const boostPct = oldFit > 0 ? Math.round(((newFit / oldFit) - 1) * 100) : 0;
+                return (
+                  <p className="pd__pricecut-hint">
+                    {boostPct > 0 ? `~+${boostPct}% estimated demand uplift · ` : ""}One adjustment per product.
+                  </p>
+                );
+              })()}
+              <div className="pd__pricecut-actions">
+                <Button
+                  block
+                  onClick={() => {
+                    const result = cutProductPrice(lp.product.id, suggestedCut);
+                    if (result.ok) {
+                      haptic.success();
+                      showToast("Price reduced", { tone: "positive" });
+                      setPriceCutOpen(false);
+                    } else {
+                      haptic.medium();
+                      showToast(result.reason ?? "Can't adjust price", { tone: "negative" });
+                    }
+                  }}
+                >
+                  Confirm · {format(suggestedCut)}
+                </Button>
+                <Button block variant="tertiary" onClick={() => { setPriceCutOpen(false); haptic.light(); }}>Cancel</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Why it performed */}
       <div className="pd__why">

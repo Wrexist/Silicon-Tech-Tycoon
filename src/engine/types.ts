@@ -126,6 +126,8 @@ export interface LaunchedProduct {
   verdict?: "hit" | "solid" | "flop" | "steady";
   /** Launch-moment drivers behind the verdict (added later; absent on older saves). */
   insight?: LaunchInsight;
+  /** Number of mid-lifecycle price adjustments made (max 1). Old saves: undefined → treated as 0. */
+  priceCuts?: number;
 }
 
 export type StaffRole = "engineer" | "designer" | "marketer";

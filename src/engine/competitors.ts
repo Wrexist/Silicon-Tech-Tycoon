@@ -16,15 +16,19 @@ interface RivalDef {
   reputation: number;
   share: number; // starting share price in dollars
   vol: number; // volatility multiplier (premium = steady, value = swingy)
+  /** Categories this rival launches into far more often + with a strength bonus (their identity). */
+  preferredCategories: readonly CategoryId[];
+  /** When true, this rival watches the player's recent hits and counter-punches in those categories. */
+  isLead: boolean;
 }
 
 export const RIVALS: RivalDef[] = [
-  { id: "pomelo", name: "Pomelo", blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7 },
-  { id: "tristar", name: "Tristar", blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9 },
-  { id: "googol", name: "Googol", blurb: "Search, services and a platform play.", reputation: 67, share: 142, vol: 1.0 },
-  { id: "novaplus", name: "NovaPlus", blurb: "Flagship specs at a fraction of the price.", reputation: 46, share: 34, vol: 1.3 },
-  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.", reputation: 41, share: 22, vol: 1.4 },
-  { id: "quantyx", name: "Quantyx", blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6 },
+  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, preferredCategories: ["phone", "wearable"],               isLead: true  },
+  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, preferredCategories: ["phone", "tablet", "laptop"],   isLead: false },
+  { id: "googol",    name: "Googol",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, preferredCategories: ["tablet", "laptop", "experimental"], isLead: false },
+  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, preferredCategories: ["phone"],                           isLead: false },
+  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, preferredCategories: ["phone", "tablet", "desktop"],       isLead: false },
+  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, preferredCategories: ["experimental", "wearable"],      isLead: false },
 ];
 
 export function rivalDef(id: string): RivalDef | undefined {
@@ -67,16 +71,21 @@ function evolveShare(c: CompetitorState, launched: boolean, rng: Rng): { sharePr
   return { sharePrice, priceHistory };
 }
 
-/** Advance one week: decay strengths, fire due rival launches, and move every share price. */
+/** Advance one week: decay strengths, fire due rival launches (with specialization + reactivity),
+ *  and move every share price.
+ *  @param recentPlayerHitCats - categories where the player scored a hit recently; the lead rival
+ *    (Pomelo) reacts by boosting strength in those categories and shortening its next launch interval. */
 export function advanceCompetitors(
   comps: readonly CompetitorState[],
   week: number,
   era: number,
   rng: Rng,
+  recentPlayerHitCats?: readonly CategoryId[],
 ): { competitors: CompetitorState[]; launches: CompetitorLaunch[] } {
   const launches: CompetitorLaunch[] = [];
   const decay = BALANCE.competitors.strengthDecayPerWeek;
   const cats = unlockedCategories(era);
+  const bal = BALANCE.competitors;
 
   const competitors = comps.map((c) => {
     const strengthByCategory: CompetitorState["strengthByCategory"] = {};
@@ -88,12 +97,37 @@ export function advanceCompetitors(
     let nextLaunchWeek = c.nextLaunchWeek;
     let launchedNow = false;
     if (week >= c.nextLaunchWeek && cats.length) {
-      const cat = cats[rng.int(cats.length)];
-      const strength = BALANCE.competitors.baseStrength + c.reputation * 0.4 + rng.range(-6, 10);
+      const def = rivalDef(c.id);
+
+      // Weighted category selection: preferred categories appear preferredCategoryWeight times, others once.
+      const weightedCats: CategoryId[] = [];
+      for (const cat of cats) {
+        const w = def && (def.preferredCategories as readonly string[]).includes(cat) ? bal.preferredCategoryWeight : 1;
+        for (let i = 0; i < w; i++) weightedCats.push(cat);
+      }
+      const cat = weightedCats[rng.int(weightedCats.length)];
+
+      // Strength: base + reputation factor + jitter
+      let strength = bal.baseStrength + c.reputation * 0.4 + rng.range(-6, 10);
+
+      // Home-turf bonus: preferred categories are genuinely harder to contest.
+      if (def && (def.preferredCategories as readonly string[]).includes(cat)) {
+        strength += bal.preferredStrengthBonus;
+      }
+
+      // Reactivity: the lead rival counter-punches when the player has been winning here.
+      const isReacting = !!(def?.isLead && recentPlayerHitCats?.includes(cat));
+      if (isReacting) {
+        strength = Math.min(bal.reactMaxStrength, strength + bal.reactStrengthBonus);
+      }
+
       strengthByCategory[cat] = Math.max(strengthByCategory[cat] ?? 0, strength);
-      launches.push({ competitor: c.name, category: cat, strength, week });
+      launches.push({ competitor: c.name, category: cat, strength: Math.round(strength), week });
       launchedNow = true;
-      nextLaunchWeek = week + BALANCE.competitors.launchEveryWeeks + rng.int(BALANCE.competitors.launchJitter);
+
+      // Schedule next launch; cut the interval if reacting to player hits.
+      const baseInterval = bal.launchEveryWeeks + rng.int(bal.launchJitter);
+      nextLaunchWeek = week + Math.max(1, baseInterval - (isReacting ? bal.reactCadenceCut : 0));
     }
 
     const { sharePrice, priceHistory } = evolveShare(c, launchedNow, rng);
