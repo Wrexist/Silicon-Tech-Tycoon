@@ -57,10 +57,10 @@ export const BALANCE = {
     competition: {
       // Competition is a *share multiplier* (never erases a viable product):
       // factor = 1 / (1 + competitorStrength * factorK).
-      factorK: 0.012,
+      factorK: 0.025,
       // Production planner splits the market by how many rivals match/beat your product.
-      matchPenalty: 0.18, // a rival roughly as good as you
-      beatPenalty: 0.42, // a rival clearly better than you
+      matchPenalty: 0.25, // a rival roughly as good as you
+      beatPenalty: 0.60, // a rival clearly better than you
       beatMargin: 12, // rival strength must exceed your overall by this to "beat" you
     },
     trendDrift: {
@@ -80,7 +80,7 @@ export const BALANCE = {
     scoreToVolume: 36,
     // even a weak product that ships should sell *something* (× marketSize), but small enough
     // that a flop can't recoup its tooling — so launch quality genuinely matters.
-    floorUnits: 70,
+    floorUnits: 40,
   },
 
   // --- Fans / loyal customer base ---
@@ -251,6 +251,23 @@ export const BALANCE = {
     cashPerLevel: dollars(20_000),
     repPerLevel: 3,
     rpPerLevel: 14,
+  },
+
+  // --- Ecosystem services: high-ecosystem products generate recurring income from their installed
+  // base (apps, cloud, subscriptions). Incentivises building ecosystem-focused products.
+  // Revenue = unitsSold × ecosystemStat × weeklyServiceRate cents per week.
+  ecosystem: {
+    weeklyServiceRate: 0.0008, // per unit sold per ecosystem-stat point
+    minEcosystemStat: 20,      // ecosystem below this threshold earns nothing — the platform is too weak
+  },
+
+  // --- Staff churn: underpaid or burnt-out staff eventually quit ---
+  churn: {
+    moodQuitThreshold: 22,    // mood below this counts as "danger zone"
+    weeksUntilQuitRisk: 5,    // consecutive danger-zone weeks before churn is possible
+    quitChancePerWeek: 0.15,  // per-week probability of quitting once at risk
+    underpaidMoodPenalty: 10, // extra target reduction each week when salary lags skill level
+    raiseMoodBoost: 15,       // mood bump when player gives a raise
   },
 
   // --- Market events ---

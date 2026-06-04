@@ -33,7 +33,7 @@ import {
   ROLE_DISCIPLINE,
   visionaryHype,
 } from "../engine/staff.ts";
-import { pickEvent, type MarketEvent } from "../engine/events.ts";
+import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
   addItem as addFurniture,
@@ -165,6 +165,10 @@ export interface GameState {
   // --- Achievements ---
   /** ids of celebratory milestones the player has earned (monotonic — only ever grows). */
   unlockedAchievements: string[];
+  /** A market event requiring a player decision — resolved via resolveChoice. */
+  pendingChoice: { event: ChoiceEvent; week: number } | null;
+  /** IDs of choice events already resolved — prevents repeats. */
+  resolvedChoices: string[];
 }
 
 export const REV_MILESTONES = [
@@ -294,6 +298,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     ownership: 1,
     holdings: {},
     unlockedAchievements: [],
+    pendingChoice: null,
+    resolvedChoices: [],
   };
 }
 
@@ -538,6 +544,18 @@ export function recommendedRun(s: GameState, product: Product, channelId: Channe
 }
 export const counts = (s: GameState) => ({ assigned: s.staff.filter((x) => x.assignment !== "idle").length });
 
+/** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
+export function weeklyEcosystemRevenue(s: GameState): Money {
+  const rate = BALANCE.ecosystem.weeklyServiceRate;
+  const minStat = BALANCE.ecosystem.minEcosystemStat;
+  let acc = 0;
+  for (const lp of s.launched) {
+    const eco = lp.stats.ecosystem;
+    if (eco > minStat) acc += lp.unitsSold * eco * rate;
+  }
+  return cents(Math.round(acc));
+}
+
 export function nextWeekRevenue(s: GameState): Money {
   let acc = 0;
   for (const lp of s.launched) {
@@ -546,7 +564,7 @@ export function nextWeekRevenue(s: GameState): Money {
       acc += units * (lp.product.price - lp.unitCost);
     }
   }
-  return cents(acc);
+  return add(cents(acc), weeklyEcosystemRevenue(s));
 }
 
 export function researchedTier(s: GameState, kind: ComponentKind): number {
@@ -567,7 +585,7 @@ export function rdRpCostFor(s: GameState, kind: ComponentKind): number | null {
 
 // ---------- Reducers (pure: return a NEW state) ----------
 
-export function advanceOneWeek(state: GameState, rate = 1): GameState {
+export function advanceOneWeek(state: GameState, rate = 1, offline = false): GameState {
   if (state.bankrupt) return state;
   const rng = rngFrom(state);
   const week = state.week + 1;
@@ -632,6 +650,16 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     productsFeed.push(item);
   }
 
+  // Ecosystem service revenue — recurring income from the installed base of high-ecosystem products.
+  const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate;
+  const ecoMinStat = BALANCE.ecosystem.minEcosystemStat;
+  for (const lp of state.launched) {
+    const eco = lp.stats.ecosystem;
+    if (eco > ecoMinStat) {
+      cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * rate)));
+    }
+  }
+
   // Burn
   cash = sub(cash, scale(burn(state), rate));
 
@@ -673,24 +701,49 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     }
   }
 
-  // Staff XP / leveling + mood drift
+  // Staff XP / leveling + mood drift + churn
   const cashDropping = cash < state.cash;
   const teamPlayers = state.staff.filter((s) => s.trait === "teamPlayer").length;
+  const churnCfg = BALANCE.churn;
+  const quitIds: string[] = [];
   const staff = state.staff.map((s) => {
-    const { staff: next, leveledUp } = gainWeeklyXp(s);
-    if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${next.skill}.`, "positive"));
-    // keep the 0..100 primary discipline in step with the headline level on a level-up
+    const { staff: levelResult, leveledUp } = gainWeeklyXp(s);
+    if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${levelResult.skill}.`, "positive"));
+    // Salary is NOT auto-updated on level-up — player must give a raise manually.
+    // Underpaid staff drift unhappy over time and may eventually quit.
+    const next = leveledUp ? { ...levelResult, salary: s.salary } : levelResult;
+    // Keep primary discipline score in sync with the headline skill level on a level-up.
     const skills = leveledUp
       ? { ...next.skills, [ROLE_DISCIPLINE[next.role]]: Math.min(100, Math.max(next.skills[ROLE_DISCIPLINE[next.role]], next.skill * 10)) }
       : next.skills;
     let target = 60 + moodBonus(state.upgrades);
-    if (s.trait === "hustler") target -= 12; // always grinding
+    if (s.trait === "hustler") target -= 12;
     if (cashDropping) target -= 12;
-    else target += 6; // company doing fine
-    const lift = teamPlayers * 1.5; // every team player lifts the whole team, including themselves
+    else target += 6;
+    const lift = teamPlayers * 1.5;
+    // Underpaid penalty: salary lagging behind skill level pulls mood target down.
+    const marketSalary = salaryFor(next.role, next.skill);
+    const isUnderpaid = next.id !== "s0" && toDollars(next.salary) < toDollars(marketSalary);
+    if (isUnderpaid) target -= churnCfg.underpaidMoodPenalty;
     const mood = clampMood(next.mood + (target - next.mood) * 0.12 + lift + rng.range(-1.5, 1.5));
-    return { ...next, skills, mood };
+    // Track consecutive weeks in the danger zone.
+    const newLowWeeks = mood < churnCfg.moodQuitThreshold
+      ? (s.moodLowWeeks ?? 0) + 1
+      : 0;
+    // After enough consecutive low weeks, a weekly chance of quitting (founder never quits).
+    if (next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && rng.next() < churnCfg.quitChancePerWeek) {
+      quitIds.push(next.id);
+    }
+    return { ...next, skills, mood, moodLowWeeks: newLowWeeks };
   });
+  // Remove quitters and log them (can't splice inside map).
+  let finalStaff = staff;
+  for (const qid of quitIds) {
+    const q = finalStaff.find((m) => m.id === qid);
+    if (!q) continue;
+    finalStaff = finalStaff.filter((m) => m.id !== qid);
+    feed.push(feedItem(week, `${q.name} quit — sustained burnout pushed them to leave.`, "negative"));
+  }
 
   // Recruitment search progress — resolves into a candidate shortlist when the timer runs out,
   // and the shortlist lapses if it sits unsigned for too long.
@@ -753,7 +806,7 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     researchPoints,
     building,
     ready,
-    staff,
+    staff: finalStaff,
     recruitment,
     candidates,
     candidateCounter,
@@ -769,8 +822,22 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
 
-  // Market event (skipped while bankrupt)
+  // Market event (skipped while bankrupt or a choice is already pending)
   if (!bankrupt && week >= state.nextEventWeek) {
+    // Choice events only surface during live play — skipped offline since the player can't interact.
+    if (!offline && !state.pendingChoice) {
+      const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices);
+      if (choice) {
+        const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
+        return {
+          ...base,
+          pendingChoice: { event: choice, week },
+          nextEventWeek,
+          feed: trimFeed([...base.feed, feedItem(week, `Decision required: ${choice.title}`, choice.tone as FeedTone)]),
+          rngState: rng.state(),
+        };
+      }
+    }
     const ev = pickEvent(rng, state.era);
     return applyMarketEvent(base, ev, week, rng);
   }
@@ -778,9 +845,15 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   return base;
 }
 
-function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: ReturnType<typeof rngFrom>): GameState {
+/** Apply a single EventEffect to the state and push a feed item. Shared by market events and choice resolutions. */
+function applyEventEffect(
+  s: GameState,
+  eff: MarketEvent["effect"],
+  week: number,
+  feedText: string,
+  feedTone: FeedTone,
+): GameState {
   const feed = [...s.feed];
-  const eff = ev.effect;
   let cash = s.cash;
   let reputation = s.reputation;
   let researchPoints = s.researchPoints;
@@ -817,7 +890,7 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
       reputation = Math.min(BALANCE.reputation.max, reputation + eff.reputation);
       break;
     case "fansBonus":
-      fans = Math.round(fans + eff.fans);
+      fans = Math.max(0, Math.round(fans + eff.fans));
       break;
     case "repBoost":
       reputation = Math.min(BALANCE.reputation.max, reputation + eff.rep);
@@ -827,22 +900,14 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
       break;
   }
 
-  feed.push(feedItem(week, ev.title, ev.tone));
+  feed.push(feedItem(week, feedText, feedTone));
+  return { ...s, cash, reputation, researchPoints, trends, competitors, staff, fans, feed: trimFeed(feed) };
+}
+
+function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: ReturnType<typeof rngFrom>): GameState {
+  const applied = applyEventEffect(s, ev.effect, week, ev.title, ev.tone as FeedTone);
   const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
-  return {
-    ...s,
-    cash,
-    reputation,
-    researchPoints,
-    trends,
-    competitors,
-    staff,
-    fans,
-    feed: trimFeed(feed),
-    nextEventWeek,
-    lastEvent: { text: ev.title, tone: ev.tone, week },
-    rngState: rng.state(),
-  };
+  return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
 }
 
 function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>) {
@@ -1112,6 +1177,38 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
 
 function clampMood(m: number): number {
   return Math.max(0, Math.min(100, m));
+}
+
+/** Give a staff member a salary raise to match their current skill level. */
+export function giveRaise(state: GameState, id: string): GameState {
+  const member = state.staff.find((s) => s.id === id);
+  if (!member || member.id === "s0") return state;
+  const marketSalary = salaryFor(member.role, member.skill);
+  if (toDollars(member.salary) >= toDollars(marketSalary)) return state;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${member.name}'s salary raised to ${format(marketSalary)}/wk.`, "positive"));
+  return {
+    ...state,
+    staff: state.staff.map((s) =>
+      s.id === id ? { ...s, salary: marketSalary, mood: clampMood(s.mood + BALANCE.churn.raiseMoodBoost), moodLowWeeks: 0 } : s
+    ),
+    feed: trimFeed(feed),
+  };
+}
+
+/** Resolve a pending player-choice event by picking one of the options. */
+export function resolveChoice(state: GameState, optionId: string): GameState {
+  const pc = state.pendingChoice;
+  if (!pc) return state;
+  const option = (pc.event.options as readonly ChoiceOption[]).find((o) => o.id === optionId);
+  if (!option) return state;
+  const feedText = `${pc.event.title} — you chose: "${option.label}".`;
+  const applied = applyEventEffect(state, option.effect, state.week, feedText, pc.event.tone as FeedTone);
+  return {
+    ...applied,
+    pendingChoice: null,
+    resolvedChoices: [...state.resolvedChoices, pc.event.id],
+  };
 }
 
 export function researchNext(state: GameState, kind: ComponentKind): GameState {
@@ -1487,7 +1584,7 @@ export function catchUpOffline(state: GameState): { state: GameState; weeks: num
   if (weeks <= 0) return { state: { ...state, lastActive: now }, weeks: 0, gain: ZERO };
   const cashBefore = state.cash;
   let s = state;
-  for (let i = 0; i < weeks; i++) s = advanceOneWeek(s, BALANCE.offline.rate);
+  for (let i = 0; i < weeks; i++) s = advanceOneWeek(s, BALANCE.offline.rate, true);
   return { state: { ...s, lastActive: now }, weeks, gain: sub(s.cash, cashBefore) };
 }
 

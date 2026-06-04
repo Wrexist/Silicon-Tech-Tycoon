@@ -236,6 +236,8 @@ function migrate(state: GameState): GameState | null {
   // backfilled SILENTLY at the end of migrate (after all fields are valid) so a returning player
   // isn't dumped a dozen toasts on first load — they're marked unlocked without a celebration.
   if (!Array.isArray(s.unlockedAchievements)) s.unlockedAchievements = [];
+  if (s.pendingChoice === undefined) s.pendingChoice = null;
+  if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
   if (Array.isArray(s.competitors)) {
     s.competitors = s.competitors.map((c: any) => ({
       ...c,
@@ -274,6 +276,7 @@ function migrate(state: GameState): GameState | null {
       if (m.skills == null) {
         m.skills = makeSkills(makeRng(hashId((m.id ?? "s0") + "k")), (m.role as StaffRole) ?? "engineer", Math.max(1, Math.min(10, Math.round(m.skill ?? 3))));
       }
+      if (m.moodLowWeeks == null) m.moodLowWeeks = 0;
       return m;
     });
   }

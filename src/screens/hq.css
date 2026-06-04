@@ -987,3 +987,66 @@
   background: var(--bg-elevated);
   transform: scale(0.98);
 }
+
+/* ---------- Player-choice event card ---------- */
+.hq__choice {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.hq__choice-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-8);
+}
+.hq__choice-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.hq__choice-title {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+.hq__choice-body {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin-bottom: var(--sp-12);
+}
+.hq__choice-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.hq__choice-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  text-align: left;
+  transition: all var(--spring-snappy);
+  width: 100%;
+}
+.hq__choice-opt:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+.hq__choice-opt:active {
+  transform: scale(0.98);
+  border-color: var(--accent);
+}
+.hq__choice-opt-label {
+  font-weight: 700;
+  font-size: var(--fs-body);
+  color: var(--ink);
+}
+.hq__choice-opt-desc {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}

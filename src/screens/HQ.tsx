@@ -66,7 +66,7 @@ const UPGRADE_FN: Record<UpgradeId, { accent: string; soft: string }> = {
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
 
 export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
-  const { state, advanceEra, launchReady, goPublic } = useGame();
+  const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
   const onLaunch = (id: string) => {
     const res = launchReady(id);
@@ -159,6 +159,29 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         );
       })()}
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
+
+      {/* Player-choice event card — requires a decision before advancing */}
+      {state.pendingChoice && (
+        <Card className="hq__choice">
+          <div className="hq__choice-head">
+            <Zap size={14} className="hq__choice-icon" aria-hidden />
+            <span className="hq__choice-title">{state.pendingChoice.event.title}</span>
+          </div>
+          <p className="hq__choice-body">{state.pendingChoice.event.body}</p>
+          <div className="hq__choice-options">
+            {state.pendingChoice.event.options.map((opt) => (
+              <button
+                key={opt.id}
+                className="hq__choice-opt"
+                onClick={() => { resolveChoice(opt.id); haptic.success(); }}
+              >
+                <span className="hq__choice-opt-label">{opt.label}</span>
+                <span className="hq__choice-opt-desc">{opt.description}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Ready to launch */}
       {state.ready.length > 0 && (

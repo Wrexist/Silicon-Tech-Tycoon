@@ -3,6 +3,23 @@
 import type { Rng } from "./rng.ts";
 import { STAT_KEYS, type StatKey } from "./types.ts";
 
+// ---------- Player-choice events ----------
+export interface ChoiceOption {
+  id: string;
+  label: string;
+  description: string;
+  effect: EventEffect;
+}
+
+export interface ChoiceEvent {
+  id: string;
+  title: string;
+  body: string;
+  minEra: number;
+  tone: "positive" | "negative" | "neutral" | "accent";
+  options: readonly [ChoiceOption, ChoiceOption];
+}
+
 export type EventEffect =
   | { kind: "viralTrend"; stat: StatKey }
   | { kind: "rpBonus"; amount: number }
@@ -80,6 +97,60 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: "vc-interview", title: "VC interest has driven a spike in industry attention around your sector.", minEra: 3, weight: 1, effect: { kind: "repBoost", rep: 5 }, tone: "positive" },
   // viral trends are generated dynamically per stat below
 ];
+
+export const CHOICE_EVENTS: ChoiceEvent[] = [
+  {
+    id: "ip_licensing",
+    title: "IP Licensing Offer",
+    body: "A larger company wants to license your IP portfolio for a flat fee. Quick cash — or hold out for the long game?",
+    minEra: 1,
+    tone: "accent",
+    options: [
+      { id: "accept", label: "Accept the deal", description: "Cash injection now — but you hand over leverage on your IP.", effect: { kind: "cashWindfall", cash: 60_000 } },
+      { id: "decline", label: "Keep it in-house", description: "Stay independent and build your own platform value.", effect: { kind: "repBoost", rep: 5 } },
+    ],
+  },
+  {
+    id: "pr_crisis",
+    title: "Viral Criticism",
+    body: "A popular tech influencer published a harsh critique of your product quality. Respond publicly, or let it blow over?",
+    minEra: 1,
+    tone: "negative",
+    options: [
+      { id: "respond", label: "Respond publicly", description: "A measured, public response costs effort but earns lasting trust.", effect: { kind: "repBoost", rep: 7 } },
+      { id: "ignore", label: "Stay silent", description: "Say nothing and ride it out. The internet forgets quickly — usually.", effect: { kind: "fansBonus", fans: -900 } },
+    ],
+  },
+  {
+    id: "rnd_partnership",
+    title: "University Research Partnership",
+    body: "A university lab wants to co-develop technology with you — they share findings in exchange for early access to results.",
+    minEra: 2,
+    tone: "accent",
+    options: [
+      { id: "partner", label: "Partner up", description: "A significant research boost — the collaboration pays dividends fast.", effect: { kind: "rpBonus", amount: 60 } },
+      { id: "selffund", label: "Go it alone", description: "Keep research fully internal. Slower, but entirely your IP.", effect: { kind: "pressFeature", reputation: 4 } },
+    ],
+  },
+  {
+    id: "platform_deal",
+    title: "Exclusive Distribution Deal",
+    body: "A major distributor offers a lucrative exclusive partnership — your products sold only through their channel for a year.",
+    minEra: 3,
+    tone: "accent",
+    options: [
+      { id: "exclusive", label: "Take the deal", description: "Huge upfront payment — but fans may not love the exclusivity.", effect: { kind: "cashWindfall", cash: 220_000 } },
+      { id: "open", label: "Stay open", description: "Keep selling everywhere. Your community respects the independence.", effect: { kind: "fansBonus", fans: 3_000 } },
+    ],
+  },
+];
+
+/** Pick a choice event if one is available and hasn't been resolved yet. ~30% chance per event window. */
+export function pickChoiceEvent(rng: Rng, era: number, resolvedIds: readonly string[]): ChoiceEvent | null {
+  const pool = CHOICE_EVENTS.filter((e) => e.minEra <= era && !resolvedIds.includes(e.id));
+  if (pool.length === 0 || rng.next() > 0.30) return null;
+  return pool[rng.int(pool.length)];
+}
 
 export function pickEvent(rng: Rng, era: number): MarketEvent {
   // 35% of the time, a viral demand trend toward a random stat.

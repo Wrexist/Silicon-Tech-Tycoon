@@ -912,3 +912,33 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------- Staff raise / burnout alerts ---------- */
+.co__tag--warn {
+  color: #d97706;
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+}
+.co__tag--burnout {
+  color: var(--negative-text, var(--negative));
+  background: color-mix(in srgb, var(--negative) 12%, transparent);
+}
+.co__raise-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: #d97706;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1.5px solid color-mix(in srgb, #f59e0b 28%, transparent);
+  width: 100%;
+  justify-content: center;
+  transition: all var(--spring-snappy);
+}
+.co__raise-btn:active {
+  transform: scale(0.97);
+  background: color-mix(in srgb, #f59e0b 20%, transparent);
+}

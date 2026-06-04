@@ -9,7 +9,7 @@ import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
-import { assignedSkill, designCeiling, runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
+import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
 import { cents, dollars, format, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
@@ -28,6 +28,7 @@ import {
   facilityRent,
   facility,
   nextWeekRevenue,
+  weeklyEcosystemRevenue,
   weeklyRpGen,
   type GameState,
 } from "../state/gameState.ts";
@@ -85,7 +86,7 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 };
 
 export function Company() {
-  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates } = useGame();
+  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise } = useGame();
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const achievementCount = state.unlockedAchievements.length;
@@ -94,6 +95,7 @@ export function Company() {
   const wkPayroll = weeklyPayroll(state.staff);
   const wkRent = facilityRent(state);
   const wkRev = nextWeekRevenue(state);
+  const ecoRev = weeklyEcosystemRevenue(state);
   const runway = runwayWeeks(state.cash, wkBurn, wkRev);
   const cashData = state.cashHistory.map((h) => h.cash);
   const activeSales = state.launched
@@ -121,6 +123,9 @@ export function Company() {
           <Stat label="Weekly burn" value={format(wkBurn)} tone="negative" />
           <Stat label="Weekly income" value={format(wkRev)} tone="positive" />
           <Stat label="Research" value={`+${weeklyRpGen(state).toFixed(1)} RP`} tone="neutral" />
+          {toDollars(ecoRev) > 0 && (
+            <Stat label="Services" value={format(ecoRev)} tone="positive" hint="/wk" />
+          )}
           <Stat
             label="Runway"
             value={runway === Infinity ? "Profitable" : `${runway} wk`}
@@ -263,7 +268,7 @@ export function Company() {
         ) : (
           <ul className="co__roster">
             {state.staff.map((s) => (
-              <Member key={s.id} s={s} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} />
+              <Member key={s.id} s={s} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} />
             ))}
           </ul>
         )}
@@ -702,6 +707,7 @@ function Member({
   onAssign,
   onTrain,
   onFire,
+  onRaise,
 }: {
   s: Staff;
   cash: number;
@@ -709,6 +715,7 @@ function Member({
   onAssign: (id: string, a: Assignment) => void;
   onTrain: (id: string) => void;
   onFire: (id: string) => void;
+  onRaise: (id: string) => void;
 }) {
   const maxed = s.skill >= BALANCE.staff.maxSkill;
   const cost = trainCost(s.skill);
@@ -727,6 +734,9 @@ function Member({
   const bestFitAssign = DISCIPLINE_TO_ASSIGN[bestFitDisc];
   const isMisfit =
     s.assignment !== "idle" && fitScore < 40 && bestFitAssign !== s.assignment && s.skills[bestFitDisc] > fitScore + 4;
+  const marketSalary = s.id !== "s0" ? salaryFor(s.role, s.skill) : s.salary;
+  const isUnderpaid = s.id !== "s0" && toDollars(s.salary) < toDollars(marketSalary);
+  const isLowMood = (s.moodLowWeeks ?? 0) >= 3;
   return (
     <li className="co__member-card">
       <div className="co__member-top">
@@ -750,6 +760,14 @@ function Member({
         <span className="co__tag" style={{ color: MOOD_COLOR[band] }}>
           <span className="co__tag-dot" style={{ background: MOOD_COLOR[band] }} /> {MOOD_LABEL[band]}
         </span>
+        {isUnderpaid && (
+          <span className="co__tag co__tag--warn" title={`Market rate: ${format(marketSalary)}/wk`}>
+            <TrendingDown size={11} aria-hidden /> Wants raise
+          </span>
+        )}
+        {isLowMood && (
+          <span className="co__tag co__tag--burnout">Burnout risk</span>
+        )}
       </div>
       <div className="co__mood-bar" aria-label={`Morale ${Math.round(s.mood)}%`}>
         <div className="co__mood-bar-fill" style={{ width: `${s.mood}%`, background: MOOD_COLOR[band] }} />
@@ -821,6 +839,11 @@ function Member({
         }
         return label ? <p className="co__member-contrib">{label}</p> : null;
       })()}
+      {isUnderpaid && (
+        <button className="co__raise-btn" onClick={() => onRaise(s.id)}>
+          <ArrowUp size={12} aria-hidden /> Raise to {format(marketSalary)}/wk
+        </button>
+      )}
     </li>
   );
 }

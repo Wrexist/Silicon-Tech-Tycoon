@@ -176,6 +176,7 @@ export interface Staff {
   specialty: Specialty;
   trait: Trait;
   mood: number; // 0..100, drifts over time
+  moodLowWeeks?: number; // consecutive weeks below the churn threshold — resets to 0 when mood recovers
   appearance: Appearance;
 }
 
