@@ -8,6 +8,7 @@ import { RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
+import { xpMult } from "../engine/staff.ts";
 import { cents, format } from "../engine/money.ts";
 import {
   DISCIPLINE_LABEL,
@@ -311,6 +312,8 @@ function Member({
   const maxed = s.skill >= BALANCE.staff.maxSkill;
   const cost = trainCost(s.skill);
   const xpPct = maxed ? 100 : Math.min(100, Math.round((s.xp / xpToNext(s.skill)) * 100));
+  const weeklyXpRate = maxed ? 0 : (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait);
+  const weeksToLevel = !maxed && weeklyXpRate > 0 ? Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate) : null;
   const band = moodBand(s.mood);
   // Best-fit: find the discipline this person scores highest in, then check if their current
   // assignment uses a different (weaker) discipline — flag it if the fit score is below 40.
@@ -363,7 +366,11 @@ function Member({
       <div className="co__xp">
         <div className="co__xp-head">
           <span>Skill {s.skill}{maxed ? " (max)" : ""}</span>
-          {!maxed && <span className="co__xp-next tnum">{xpPct}%</span>}
+          {!maxed && (
+            <span className="co__xp-next tnum">
+              {xpPct}%{weeksToLevel !== null ? <span className="co__xp-eta"> · ~{weeksToLevel}wk</span> : null}
+            </span>
+          )}
         </div>
         <div className="co__xp-track"><div className="co__xp-fill" style={{ width: `${xpPct}%` }} /></div>
       </div>

@@ -325,6 +325,10 @@
 .co__xp-next {
   color: var(--accent);
 }
+.co__xp-eta {
+  color: var(--ink-3);
+  font-weight: 500;
+}
 .co__xp-track {
   height: 6px;
   border-radius: var(--r-pill);

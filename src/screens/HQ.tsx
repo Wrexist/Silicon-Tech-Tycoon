@@ -1,9 +1,9 @@
 import {
   Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, CircleDot, Clock, Coffee,
   Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
-  Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Megaphone, Monitor, Music, PaintbrushVertical, PencilRuler, Presentation, Printer,
+  Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
   Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
-  Table2, Target, Trash2, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
+  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -206,12 +206,16 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           <Card>
             <SectionHeader title="News" accessory={`week ${state.week}`} />
             <ul className="hq__feed-list">
-              {recentFeed.map((item) => (
-                <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
-                  <span className="hq__feed-week">wk {item.week}</span>
-                  {item.text}
-                </li>
-              ))}
+              {recentFeed.map((item) => {
+                const Icon = item.tone === "positive" ? TrendingUp : item.tone === "negative" ? TrendingDown : item.tone === "accent" ? Sparkles : Newspaper;
+                return (
+                  <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
+                    <span className="hq__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
+                    <span className="hq__feed-week">wk {item.week}</span>
+                    {item.text}
+                  </li>
+                );
+              })}
             </ul>
             <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
           </Card>
