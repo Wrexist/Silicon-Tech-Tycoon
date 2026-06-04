@@ -184,7 +184,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                       </span>
                     </div>
                     <div className="hq__build-track">
-                      <div className="hq__build-fill" style={{ width: `${pct}%` }} />
+                      <div className="hq__build-fill" style={{ width: `${pct}%`, background: pct >= 80 ? "var(--positive)" : undefined }} />
                     </div>
                     {job.plannedUnits != null && <span className="hq__build-units">{job.plannedUnits.toLocaleString()} units</span>}
                   </div>

@@ -75,6 +75,25 @@ function fmtMilestone(d: number): string {
   return format(dollars(d));
 }
 
+const FAN_TOAST_THRESHOLDS = [1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 1_000_000];
+
+function fmtFans(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+  return String(n);
+}
+
+/** Fire a celebratory toast when the fan count crosses a milestone. */
+function withFanToasts(prev: GameState, next: GameState): void {
+  for (const m of FAN_TOAST_THRESHOLDS) {
+    if (prev.fans < m && next.fans >= m) {
+      try {
+        showToast(`${fmtFans(m)} fans — your brand is growing!`, { tone: "positive" });
+      } catch { /* toast host not mounted */ }
+    }
+  }
+}
+
 /** Fire a toast when any staff member gains a skill level during the live tick. */
 function withStaffLevelToasts(prev: GameState, next: GameState): void {
   for (const ns of next.staff) {
@@ -224,6 +243,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setState((s) => {
         const next = advanceOneWeek(s);
         withRevToasts(s, next);
+        withFanToasts(s, next);
         withStaffLevelToasts(s, next);
         return withLiveAchievements(next);
       });

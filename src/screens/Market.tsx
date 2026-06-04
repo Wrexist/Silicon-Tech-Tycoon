@@ -7,14 +7,16 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName } from "../engine/eras.ts";
-import { dollars, format, toDollars, cents } from "../engine/money.ts";
+import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { buyCost, sellProceeds } from "../engine/stocks.ts";
 import {
+  burn,
   canList,
   companyValuation,
   founderStakeValue,
   netWorth,
+  nextWeekRevenue,
   type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -80,6 +82,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const valuation = companyValuation(state);
   const stake = founderStakeValue(state);
   const net = netWorth(state);
+  const wkFlow = sub(nextWeekRevenue(state), burn(state));
+  const wkFlowD = toDollars(wkFlow);
   const listable = canList(state);
 
   // Market opportunity synthesis
@@ -110,6 +114,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           <StatPill label="Cash" value={format(state.cash)} />
           <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans > 0 ? "positive" : "neutral"} />
           <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
+          <StatPill label="Weekly" value={`${wkFlowD >= 0 ? "+" : ""}${format(wkFlow)}`} tone={wkFlowD >= 0 ? "positive" : "negative"} />
         </div>
       </Card>
 
