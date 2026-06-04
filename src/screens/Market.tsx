@@ -16,7 +16,7 @@ import {
   netWorth,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
-import type { CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
+import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
@@ -155,6 +155,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       {comps.map((c) => {
         const ch = changePct(c.priceHistory);
         const owned = state.holdings[c.id] ?? 0;
+        const activeCats = Object.entries(c.strengthByCategory)
+          .filter(([, s]) => (s as number) > 20)
+          .sort(([, a], [, b]) => (b as number) - (a as number))
+          .slice(0, 3)
+          .map(([cat]) => cat as CategoryId);
         return (
           <Card key={c.id} className="mkt__stock">
             <button className="mkt__stock-btn" onClick={() => { setTrade(c); haptic.light(); }} aria-label={`Trade ${c.name}`}>
@@ -174,6 +179,15 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 <div className="mkt__stock-spark"><Sparkline data={c.priceHistory} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} /></div>
                 {owned > 0 && <span className="mkt__stock-owned">{owned} sh · {format(cents(owned * c.sharePrice))}</span>}
               </div>
+              {activeCats.length > 0 && (
+                <div className="mkt__stock-cats">
+                  {activeCats.map((cat) => (
+                    <span key={cat} className="mkt__stock-cat">
+                      <CategoryIcon id={cat} size={10} />{CATEGORY_LABEL[cat] ?? cat}
+                    </span>
+                  ))}
+                </div>
+              )}
             </button>
           </Card>
         );
@@ -216,7 +230,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         ) : (
           <ul className="mkt__feed">
             {feedItems.map((f) => (
-              <li key={f.id} className={`mkt__feed-item mkt__feed-item--${f.tone}`}>{f.text}</li>
+              <li key={f.id} className={`mkt__feed-item mkt__feed-item--${f.tone}`}>
+                <span className="mkt__feed-week">wk {f.week}</span>
+                {f.text}
+              </li>
             ))}
           </ul>
         )}
@@ -379,6 +396,19 @@ function ProductDetailSheet({
         />
       </div>
 
+      {/* Product specs */}
+      <div className="pd__specs">
+        {STAT_KEYS.map((k) => (
+          <div key={k} className="pd__spec">
+            <span className="pd__spec-label">{STAT_LABEL[k]}</span>
+            <div className="pd__spec-track">
+              <div className="pd__spec-fill" style={{ width: `${Math.min(100, lp.stats[k])}%` }} />
+            </div>
+            <span className="pd__spec-val tnum">{Math.round(lp.stats[k])}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Why it performed */}
       <div className="pd__why">
         <div className="pd__why-head">
@@ -432,6 +462,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
       <div className="trade__row">
         <StatPill label="You own" value={`${owned} sh`} />
         <StatPill label="Value" value={format(cents(owned * comp.sharePrice))} tone={owned > 0 ? "positive" : "neutral"} />
+        <StatPill label="Rep" value={Math.round(comp.reputation)} tone={comp.reputation >= 60 ? "positive" : "neutral"} />
       </div>
 
       <div className="trade__qty">

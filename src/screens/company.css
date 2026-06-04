@@ -13,6 +13,47 @@
   margin: var(--sp-8) 0;
 }
 
+/* ---------- Active sales list ---------- */
+.co__active-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.co__active-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+}
+.co__active-name {
+  font-weight: 600;
+  font-size: var(--fs-caption);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.co__active-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex-shrink: 0;
+}
+.co__active-rev {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--positive-text);
+}
+.co__active-eta {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
 /* ---------- Achievements entry row ---------- */
 .co__ach-row {
   display: flex;

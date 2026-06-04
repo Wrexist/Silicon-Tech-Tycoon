@@ -2,13 +2,13 @@ import { useState } from "react";
 import { ArrowUp, Award, BarChart3, Rocket, Search, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
-import { ACHIEVEMENT_COUNT } from "../engine/achievements.ts";
+import { ACHIEVEMENT_COUNT, deriveFacts } from "../engine/achievements.ts";
 import { Avatar } from "../components/Avatar.tsx";
 import { RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { runwayWeeks, trainCost, xpToNext } from "../engine/economy.ts";
-import { format } from "../engine/money.ts";
+import { cents, format } from "../engine/money.ts";
 import {
   DISCIPLINE_LABEL,
   type Discipline,
@@ -83,6 +83,13 @@ export function Company() {
   const wkRev = nextWeekRevenue(state);
   const runway = runwayWeeks(state.cash, wkBurn, wkRev);
   const cashData = state.cashHistory.map((h) => h.cash);
+  const activeSales = state.launched
+    .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
+    .map((lp) => ({
+      lp,
+      weeklyRevenue: cents(lp.weeklyUnits[lp.weeksElapsed] * (lp.product.price - lp.unitCost)),
+    }))
+    .sort((a, b) => b.weeklyRevenue - a.weeklyRevenue);
 
   return (
     <div className="co">
@@ -112,6 +119,27 @@ export function Company() {
         </div>
         <p className="co__hint">Lifetime revenue {format(state.cumulativeRevenue)}.</p>
       </Card>
+
+      {/* Selling now */}
+      {activeSales.length > 0 && (
+        <Card>
+          <SectionHeader title="Selling now" accessory={`${activeSales.length} active`} />
+          <div className="co__active-list">
+            {activeSales.map(({ lp, weeklyRevenue }) => {
+              const weeksLeft = lp.weeklyUnits.length - lp.weeksElapsed;
+              return (
+                <div key={lp.product.id} className="co__active-row">
+                  <span className="co__active-name">{lp.product.name}</span>
+                  <span className="co__active-meta">
+                    <span className="co__active-rev">{format(weeklyRevenue)}/wk</span>
+                    <span className="co__active-eta">{weeksLeft} wk left</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Achievements entry */}
       <button className="co__ach-row" onClick={() => setAchievementsOpen(true)} aria-label="View achievements">
@@ -160,6 +188,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
   const netWorth = state.cash;
 
   // Aggregates derived from existing tracked data (no invented engine state).
+  const facts = deriveFacts(state);
   const productsShipped = launched.length;
   const unitsSold = launched.reduce((sum, lp) => sum + lp.unitsSold, 0);
   const hitsStrict = launched.filter((lp) => lp.verdict === "hit").length;
@@ -235,6 +264,8 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
         <Stat label="Hits / solid / flops" value={`${hitsStrict} / ${solids} / ${flops}`} tone={hits >= flops ? "positive" : "negative"} />
         <Stat label="Reputation" value={`${Math.round(state.reputation)}`} hint="out of 100" tone="accent" />
         <Stat label="Fans" value={state.fans.toLocaleString()} />
+        {facts.hitStreak >= 2 && <Stat label="Hit streak" value={String(facts.hitStreak)} tone="positive" hint="consecutive hits" />}
+        <Stat label="Research projects" value={`${state.completedProjects.length}/12`} tone={state.completedProjects.length >= 6 ? "positive" : "neutral"} />
       </div>
 
       <Button block onClick={onClose}>Done</Button>

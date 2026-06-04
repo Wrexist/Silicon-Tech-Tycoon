@@ -137,6 +137,18 @@
   background: var(--surface-2);
   border: 1px solid var(--hairline);
 }
+.hq__goal--card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-16);
+}
+.hq__goal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
 .hq__goal-label {
   font-size: var(--fs-micro);
   font-weight: 700;
@@ -145,10 +157,56 @@
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
+.hq__goal-era {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
 .hq__goal-text {
   font-size: var(--fs-caption);
   color: var(--ink-2);
   line-height: 1.4;
+}
+.hq__goal-or {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  text-align: center;
+  margin-top: 2px;
+}
+
+/* Era goal progress bars */
+.hq__goalbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hq__goalbar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.hq__goalbar-label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.hq__goalbar-val {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+}
+.hq__goalbar-track {
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.hq__goalbar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), var(--positive));
+  transition: width var(--spring-standard);
 }
 
 /* ---------- Office builder (Decorate mode) ---------- */

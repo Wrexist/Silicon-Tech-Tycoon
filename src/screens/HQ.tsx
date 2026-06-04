@@ -540,6 +540,28 @@ function Upgrades() {
   );
 }
 
+function fmtRevShort(dollars: number): string {
+  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1)}M`;
+  if (dollars >= 1_000) return `$${Math.round(dollars / 1_000)}k`;
+  return `$${Math.round(dollars)}`;
+}
+
+/** Progress bar strip used inside the era goal card. */
+function GoalBar({ label, value, target }: { label: string; value: number; target: number }) {
+  const pct = Math.min(100, target > 0 ? Math.round((value / target) * 100) : 0);
+  return (
+    <div className="hq__goalbar">
+      <div className="hq__goalbar-head">
+        <span className="hq__goalbar-label">{label}</span>
+        <span className="hq__goalbar-val tnum">{pct}%</span>
+      </div>
+      <div className="hq__goalbar-track">
+        <div className="hq__goalbar-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 /** Compact card showing what's needed to advance to the next era (or reach IPO). */
 function EraGoalCard({ state }: { state: GameState }) {
   if (state.era >= maxEra()) {
@@ -547,32 +569,36 @@ function EraGoalCard({ state }: { state: GameState }) {
     const repNeeded = BALANCE.ipo.minReputation - state.reputation;
     if (repNeeded <= 0) return null;
     return (
-      <div className="hq__goal">
-        <span className="hq__goal-label">IPO goal</span>
-        <span className="hq__goal-text">Reach {BALANCE.ipo.minReputation} reputation to go public — {Math.round(repNeeded)} more needed.</span>
+      <div className="hq__goal hq__goal--card">
+        <div className="hq__goal-head">
+          <span className="hq__goal-label">IPO goal</span>
+          <span className="hq__goal-era">{BALANCE.ipo.minReputation} reputation</span>
+        </div>
+        <GoalBar label="Reputation" value={state.reputation} target={BALANCE.ipo.minReputation} />
       </div>
     );
   }
   const eraDef = BALANCE.eras.find((e) => e.era === state.era);
   if (!eraDef) return null;
   const repNeeded = eraDef.repToAdvance - state.reputation;
-  const revThresholdDollars = toDollars(state.cumulativeRevenue); // use cumRev for comparison
-  const revThresholdTarget = eraDef.revToAdvance as unknown as number; // cents (Infinity-safe)
-  const revNeeded = Number.isFinite(revThresholdTarget) ? revThresholdTarget / 100 - revThresholdDollars : Infinity;
+  const revThresholdTarget = eraDef.revToAdvance as unknown as number;
+  const revDollars = toDollars(state.cumulativeRevenue);
+  const revTargetDollars = Number.isFinite(revThresholdTarget) ? revThresholdTarget / 100 : Infinity;
+  const revNeeded = Number.isFinite(revTargetDollars) ? revTargetDollars - revDollars : Infinity;
   if (repNeeded <= 0 || revNeeded <= 0) return null;
-  const parts: string[] = [];
-  if (Number.isFinite(eraDef.repToAdvance) && repNeeded > 0) parts.push(`${Math.round(repNeeded)} reputation`);
-  if (Number.isFinite(revNeeded) && revNeeded > 0) {
-    const m = revNeeded >= 1_000_000 ? `$${(revNeeded / 1_000_000).toFixed(1)}M` : revNeeded >= 1_000 ? `$${(revNeeded / 1_000).toFixed(0)}k` : `$${Math.round(revNeeded)}`;
-    parts.push(`${m} more revenue`);
-  }
-  if (parts.length === 0) return null;
   return (
-    <div className="hq__goal">
-      <span className="hq__goal-label">Next era</span>
-      <span className="hq__goal-text">
-        Advance to the {eraName(state.era + 1)}: earn {parts.join(" or ")} to unlock new tech.
-      </span>
+    <div className="hq__goal hq__goal--card">
+      <div className="hq__goal-head">
+        <span className="hq__goal-label">Next era</span>
+        <span className="hq__goal-era">{eraName(state.era + 1)}</span>
+      </div>
+      {Number.isFinite(eraDef.repToAdvance) && (
+        <GoalBar label={`Reputation (need ${Math.round(eraDef.repToAdvance)})`} value={state.reputation} target={eraDef.repToAdvance} />
+      )}
+      {Number.isFinite(revTargetDollars) && (
+        <GoalBar label={`Revenue (need ${fmtRevShort(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
+      )}
+      <p className="hq__goal-or">Either threshold unlocks the next era.</p>
     </div>
   );
 }

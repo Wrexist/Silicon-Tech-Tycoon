@@ -148,7 +148,8 @@ export function DesignLab({
   const verdict =
     effectiveScore >= rep.hitThreshold ? { label: "Projected hit", tone: "positive" as const }
       : effectiveScore <= rep.flopThreshold ? { label: "Likely flop", tone: "negative" as const }
-        : { label: "Steady seller", tone: "accent" as const };
+        : effectiveScore >= 45 ? { label: "Solid performer", tone: "positive" as const }
+          : { label: "Steady seller", tone: "accent" as const };
 
   function set(partial: Partial<Product>) {
     setDraft((d) => ({ ...d, ...partial }));
@@ -242,6 +243,19 @@ export function DesignLab({
             </button>
           ))}
         </div>
+        <p className="lab__hint">
+          {cat.displayName} — {
+            cat.marketSize >= 0.8 ? "large market" :
+            cat.marketSize >= 0.55 ? "mid-size market" : "niche market"
+          } · rewards {
+            Object.entries(cat.statEmphasis)
+              .filter(([, v]) => (v as number) >= 1.0)
+              .sort(([, a], [, b]) => (b as number) - (a as number))
+              .map(([k]) => k)
+              .slice(0, 2)
+              .join(" & ")
+          }
+        </p>
       </Card>
 
       {/* Components */}
