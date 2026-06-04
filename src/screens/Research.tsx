@@ -221,11 +221,12 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               {picks.map(({ kind, next, cost, weeksAway }) => {
                 const line = COMPONENT_LINES[kind];
                 const affordable = rp >= cost;
+                const contrib = contributesLabel(next.contributes);
                 return (
                   <div key={kind} className="rd__sprint-row">
                     <div className="rd__sprint-info">
                       <span className="rd__sprint-name">{next.name}</span>
-                      <span className="rd__sprint-line">{line.displayName}</span>
+                      <span className="rd__sprint-line">{contrib ? `${line.displayName} · ${contrib}` : line.displayName}</span>
                     </div>
                     <div className="rd__sprint-action">
                       <Button

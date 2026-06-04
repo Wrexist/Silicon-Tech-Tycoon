@@ -540,6 +540,7 @@ function Upgrades() {
                 <div className="hqu__info">
                   <span className="hqu__name">{line.name}</span>
                   <span className="hqu__effect">{cur > 0 ? line.effectAt(cur) : line.blurb}</span>
+                  {!maxed && <span className="hqu__effect-next">→ {line.effectAt(cur + 1)}</span>}
                 </div>
                 <span className="hqu__lv tnum">{maxed ? "MAX" : `Lv ${cur}`}</span>
               </div>
@@ -702,6 +703,24 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     }
   }
 
+  // 3d. Affordable HQ upgrade
+  if (insights.length < 3) {
+    const affordableUpgrade = UPGRADE_LINES.find((line) => {
+      const cur = state.upgrades[line.id] ?? 0;
+      if (cur >= line.maxTier) return false;
+      const cost = upgradeCost(state, line.id);
+      return cost !== null && state.cash >= cost;
+    });
+    if (affordableUpgrade) {
+      const cur = state.upgrades[affordableUpgrade.id] ?? 0;
+      const cost = upgradeCost(state, affordableUpgrade.id)!;
+      insights.push({
+        icon: ArrowUp,
+        text: `Your ${affordableUpgrade.name} can be upgraded to "${affordableUpgrade.tierNames[cur]}" for ${format(cost)} — unlocks ${affordableUpgrade.effectAt(cur + 1)}.`,
+      });
+    }
+  }
+
   // 4. Rising market trend worth exploiting
   if (insights.length < 3) {
     const top = [...STAT_KEYS].sort((a, b) => {
@@ -793,6 +812,7 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
   if (state.launched.length === 0) return null;
   const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
   const flops = state.launched.filter((lp) => lp.verdict === "flop").length;
+  const hitRate = Math.round((hits / state.launched.length) * 100);
   const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
   const weeklyRevenue = active.reduce((s, lp) => s + lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price), 0);
   // 4-week revenue forecast (wk 0 = this week, 1–3 = ahead)
@@ -826,6 +846,12 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
         <div className="hq__perf-item">
           <span className="hq__perf-val tnum">{active.length}</span>
           <span className="hq__perf-label">Active</span>
+        </div>
+        <div className="hq__perf-item">
+          <span className={`hq__perf-val tnum${hitRate >= 60 ? " hq__perf-val--positive" : hitRate <= 30 && state.launched.length >= 3 ? " hq__perf-val--negative" : ""}`}>
+            {hitRate}%
+          </span>
+          <span className="hq__perf-label">Hit rate</span>
         </div>
       </div>
       {weeklyRevenue > 0 && (

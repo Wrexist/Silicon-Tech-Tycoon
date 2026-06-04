@@ -617,6 +617,28 @@ function TeamOutputCard({ state }: { state: GameState }) {
           </div>
         ))}
       </div>
+      {/* Staff allocation bar — proportional coloured strip */}
+      {(() => {
+        const segs = [
+          { label: "R&D", count: rndCount, color: "var(--fn-eng)" },
+          { label: "Design", count: designCount, color: "var(--fn-design)" },
+          { label: "Mkt", count: mktCount, color: "var(--fn-mkt)" },
+          { label: "Idle", count: idleCount, color: "var(--ink-3)" },
+        ].filter((s) => s.count > 0);
+        if (segs.length === 0) return null;
+        return (
+          <div className="co__alloc-bar" aria-label="Staff allocation">
+            {segs.map((seg) => (
+              <div
+                key={seg.label}
+                className="co__alloc-seg"
+                style={{ flex: seg.count, background: seg.color }}
+                title={`${seg.label}: ${seg.count}`}
+              />
+            ))}
+          </div>
+        );
+      })()}
       {idleCount > 0 && (
         <p className="co__output-idle">{idleCount} staff idle — assign them to a function to generate output.</p>
       )}
