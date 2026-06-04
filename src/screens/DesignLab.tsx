@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, FlipHorizontal2, Hammer, Megaphone, Minus, Plus, Search, Share2, Sparkles, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Ban, Check, FlipHorizontal2, Hammer, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -446,6 +446,17 @@ export function DesignLab({
         <SectionHeader title="Stats" accessory={`Overall ${overall}`} />
         <StatBars stats={stats} weights={weights} />
         <p className="lab__hint">Green bars are what the market wants most right now.</p>
+        {preview != null && (
+          <div className={`lab__vs${preview.betterRivals > 0 ? " lab__vs--behind" : preview.matchingRivals > 0 ? " lab__vs--even" : " lab__vs--ahead"}`}>
+            {preview.betterRivals > 0 ? (
+              <><TrendingDown size={12} aria-hidden /> {preview.betterRivals} rival{preview.betterRivals > 1 ? "s are" : " is"} stronger in {cat.displayName} — upgrade components to compete.</>
+            ) : preview.matchingRivals > 0 ? (
+              <><TrendingUp size={12} aria-hidden /> Matched by {preview.matchingRivals} rival{preview.matchingRivals > 1 ? "s" : ""} in {cat.displayName} — a small edge could win the market.</>
+            ) : (
+              <><Check size={12} aria-hidden /> Clear field in {cat.displayName} — no strong rival competition right now.</>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Price */}

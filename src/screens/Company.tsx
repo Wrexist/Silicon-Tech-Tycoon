@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { ArrowUp, Award, BarChart3, FlaskConical, PencilRuler, Megaphone, Rocket, Search, Trophy, Users, X } from "lucide-react";
-import { Button, Card, EmptyState, SectionHeader, Sheet, Stat } from "../design/primitives.tsx";
+import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ACHIEVEMENT_COUNT, deriveFacts } from "../engine/achievements.ts";
 import { Avatar } from "../components/Avatar.tsx";
-import { RoleIcon } from "../design/icons.tsx";
+import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
@@ -165,6 +165,9 @@ export function Company() {
         </Card>
       )}
 
+      {/* All-time top products */}
+      {state.launched.length >= 2 && <TopProductsCard launched={state.launched} />}
+
       {/* Achievements entry */}
       <button className="co__ach-row" onClick={() => setAchievementsOpen(true)} aria-label="View achievements">
         <span className="co__ach-glyph" aria-hidden><Award size={20} /></span>
@@ -204,6 +207,41 @@ export function Company() {
         <AchievementsSheet unlocked={state.unlockedAchievements} onClose={() => setAchievementsOpen(false)} />
       </Sheet>
     </div>
+  );
+}
+
+/* ---------- Top products (all-time revenue leaderboard) ---------- */
+
+type VerdictLabel = "Hit" | "Solid" | "Steady" | "Flop";
+const VERDICT_LABEL: Record<string, VerdictLabel> = {
+  hit: "Hit", solid: "Solid", steady: "Steady", flop: "Flop",
+};
+const VERDICT_TONE: Record<string, "positive" | "accent" | "negative"> = {
+  hit: "positive", solid: "positive", steady: "accent", flop: "negative",
+};
+
+function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
+  const top = [...launched].sort((a, b) => b.revenueToDate - a.revenueToDate).slice(0, 5);
+  return (
+    <Card>
+      <SectionHeader title="All-time leaders" accessory="by revenue" />
+      <div className="co__top-list">
+        {top.map((lp, i) => {
+          const v = lp.verdict as string ?? "steady";
+          return (
+            <div key={lp.product.id} className="co__top-row">
+              <span className="co__top-rank tnum">#{i + 1}</span>
+              <span className="co__top-cat"><CategoryIcon id={lp.product.category} size={13} /></span>
+              <span className="co__top-name">{lp.product.name}</span>
+              <span className="co__top-meta">
+                <StatPill value={VERDICT_LABEL[v] ?? "Steady"} tone={VERDICT_TONE[v] ?? "accent"} />
+                <span className="co__top-rev tnum">{format(lp.revenueToDate)}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 

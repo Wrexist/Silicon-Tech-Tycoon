@@ -268,6 +268,29 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+/* Competitive position indicator — shown below StatBars in the Stats card */
+.lab__vs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+.lab__vs--ahead {
+  background: color-mix(in srgb, var(--positive) 10%, transparent);
+  color: var(--positive-text);
+}
+.lab__vs--even {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+}
+.lab__vs--behind {
+  background: color-mix(in srgb, var(--negative) 10%, transparent);
+  color: var(--negative-text, var(--negative));
+}
 .lab__warn {
   margin: var(--sp-8) 0 var(--sp-12);
   font-size: var(--fs-caption);
