@@ -410,10 +410,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
 
       {/* Trends */}
       <Card>
-        <SectionHeader
-          title="What the market wants"
-          accessory={`${eraName(state.era)} · shift ~wk ${state.trendRetargetWeek}`}
-        />
+        <SectionHeader title="What buyers want" accessory={eraName(state.era)} />
         <div className="mkt__trends">
           {STAT_KEYS.map((k) => {
             const cur = trends.weights[k];

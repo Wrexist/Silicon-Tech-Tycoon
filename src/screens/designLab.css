@@ -581,7 +581,8 @@
 }
 .lab__price-meta {
   display: flex;
-  gap: var(--sp-8);
+  flex-wrap: wrap;
+  gap: var(--sp-6);
 }
 
 /* BOM cost breakdown */

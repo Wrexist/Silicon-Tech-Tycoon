@@ -685,7 +685,7 @@ export function DesignLab({
         />
         {missing.length > 0 && <p className="lab__warn">Pick every component before building.</p>}
         <Button block onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none">
-          <Hammer size={17} /> Plan production of "{draft.name || "Untitled"}"
+          <Hammer size={17} /> Plan production
         </Button>
         <p className="lab__hint">Next you'll choose how many units to manufacture and how to market it.</p>
         {missing.length === 0 && (() => {

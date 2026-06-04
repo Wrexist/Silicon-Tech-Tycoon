@@ -252,7 +252,7 @@ export function Company() {
 
       {/* Staff roster */}
       <Card>
-        <SectionHeader title="Team" accessory={`${state.staff.length} people`} />
+        <SectionHeader title="Team" accessory={`${state.staff.length} ${state.staff.length === 1 ? "bot" : "bots"}`} />
         {state.staff.length === 0 ? (
           <EmptyState glyph={<Users size={36} strokeWidth={1.6} />} title="No staff" sub="Hire your first team member below." />
         ) : (

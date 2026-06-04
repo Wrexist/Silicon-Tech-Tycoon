@@ -225,6 +225,8 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 ## Backlog
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
+- Engine (PROTECTED): early-game `companyValuation` starts at ~$880K (baseValuation $400K + rep 8 × $60K) so a fresh garage shows an $881K "net worth" while IPO is gated at $750K *lifetime revenue* ($0). Confusing juxtaposition + undercuts "garage → empire" arc. Consider scaling baseValuation/rep contribution from a low floor, or framing the Market hero around cash early. Needs a deliberate balance pass.
+- Engine (PROTECTED): `makeSkills` doesn't guarantee the role's headline discipline is the *highest* — a level-3 "Engineer" can roll engineering 23 but marketing 43, so the role label + "Skill 3" + the misfit hint ("try Mkt") all disagree. Clamp the off-disciplines below the primary, or pick role from the strongest skill.
 - Balance: first-launch flop can yield 0 units sold — soften floor so even a weak product sells *some* (teachable, not brutal). Do in P6.
 - Renderer: laptop/desktop/monitor/console/wearable currently reuse the phone "slab" silhouette via the ASPECT map — give them distinct parametric silhouettes (hinge, stand, strap) in the post-core renderer pass (plan Prompt 9).
 - Design Lab: gate higher tiers visibly with a "Research in R&D" hint when a component is maxed at current research.

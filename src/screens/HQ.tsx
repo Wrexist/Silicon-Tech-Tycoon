@@ -148,7 +148,8 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         const wkBurn = burn(state);
         const wkRev = nextWeekRevenue(state);
         const runway = runwayWeeks(state.cash, wkBurn, wkRev);
-        const runwayLabel = runway === Infinity ? "Profitable" : runway > 52 ? `${Math.round(runway / 52)}y runway` : `${runway}wk runway`;
+        // The pill is already labelled "Runway" — keep the value short so it doesn't read "Runway 7wk runway".
+        const runwayLabel = runway === Infinity ? "Profitable" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
         const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
         return (
           <div className="hq__fin-pills">
@@ -482,7 +483,7 @@ function Upgrades() {
 
   return (
     <>
-      <SectionHeader title="Grow your company" accessory="upgrades & facility" />
+      <SectionHeader title="Grow your company" accessory="upgrades" />
 
       <Card className="hqu__power">
         <div className="hqu__power-head">
