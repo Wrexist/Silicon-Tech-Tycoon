@@ -49,17 +49,27 @@ const MOOD_HEX: Record<MoodBand, string> = {
 
 const ROBOT_COLORS = ["#4a9af5", "#ff7a35", "#40c870", "#9060e8", "#f5c840"];
 
-// Open-floor spots for non-founder employees, spread around the room like the reference (near the
-// whiteboard, kanban, gate, centre…). All clear of furniture footprints; `roam: true` ones gently
-// wander with obstacle-avoidance. Robots are assigned to these in hire order.
-const ROBOT_STATIONS: { pos: [number, number]; rotY: number; roam: boolean }[] = [
-  { pos: [-1.6, -0.4], rotY: 0.4, roam: false }, // by the whiteboard (back-left)
-  { pos: [1.3, -1.1], rotY: -0.5, roam: false }, // by the kanban wall (back-right)
-  { pos: [0.5, 0.9], rotY: -0.2, roam: true }, // centre (roams)
-  { pos: [1.9, 1.7], rotY: -1.3, roam: false }, // toward the security gate (front-right)
-  { pos: [-2.3, 0.7], rotY: 0.9, roam: true }, // left side (roams)
-  { pos: [2.5, -0.2], rotY: -1.1, roam: false }, // right side
-  { pos: [-0.3, 1.9], rotY: 2.9, roam: false }, // front-centre
+// Desk slots — every hired employee gets one workstation (desk + computer + robot). Two columns
+// that fill front-to-back as the team grows, all facing the camera (+z) and clear of the vault /
+// gate / kanban / whiteboard / corner plants. Founder takes slot 0 (front-left).
+const DESK_SLOTS: { pos: [number, number]; rotY: number }[] = [
+  { pos: [-1.25, 2.35], rotY: 0 },
+  { pos: [1.25, 2.35], rotY: 0 },
+  { pos: [-1.25, 0.55], rotY: 0 },
+  { pos: [1.25, 0.55], rotY: 0 },
+  { pos: [-1.25, -1.25], rotY: 0 },
+  { pos: [1.25, -1.25], rotY: 0 },
+  { pos: [-3.05, -0.4], rotY: Math.PI / 2 }, // left wall, facing in
+  { pos: [3.05, -1.2], rotY: -Math.PI / 2 }, // right wall, facing in
+];
+
+// Overflow (team larger than desk slots, e.g. a packed Campus) — these employees roam the open
+// floor with obstacle-avoidance instead of getting a desk. Rare; keeps very large teams alive.
+const ROAM_HOMES: [number, number][] = [
+  [0.4, 1.4],
+  [-0.6, -0.2],
+  [0.8, -0.6],
+  [-0.2, 0.6],
 ];
 
 // Build mode lifts the camera to a higher, more overhead angle so the whole floor grid is
@@ -751,17 +761,17 @@ function Monitor({ p, on, bright }: { p: RoomPalette; on: boolean; bright: boole
   );
 }
 
-function Workstation({ p, pos, staff, seed, monitors }: { p: RoomPalette; pos: [number, number]; staff?: Staff; seed: number; monitors: number }) {
-  const [x, z] = pos;
-  const colorIdx = Math.round(seed / 2.1) % ROBOT_COLORS.length;
-  const hue = ROBOT_COLORS[colorIdx];
+// A workstation = desk + computer (monitor/keyboard/mouse) + the employee's robot, rendered at
+// the local origin facing +z. Callers position/rotate it. Each hired employee gets exactly one.
+function Workstation({ p, staff, seed, monitors, colorIdx }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number }) {
+  const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const on = !!staff;
   const bright = monitors >= 2;
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   // 1 or 2 monitors clustered on the RIGHT side of the desk, angled toward the person.
   const monX = monitors >= 2 ? [0.2, 0.64] : [0.42];
   return (
-    <group position={[x, 0, z]}>
+    <group>
       {/* desk */}
       <RoundedBox args={[1.7, 0.12, 1.0]} radius={0.05} smoothness={3} position={[0, 0.9, 0]}>
         <meshStandardMaterial color={p.desk} roughness={0.7} />
@@ -1494,7 +1504,7 @@ function BuildLayer({ p, b }: { p: RoomPalette; b: BuildProps }) {
   );
 }
 
-function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle }: { staff: Staff[]; staffCount: number; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number } }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number } }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
@@ -1556,23 +1566,20 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
         <meshStandardMaterial color={p.screen} transparent opacity={facilityTier > 1 ? 0.1 : 0.05} roughness={1} />
       </mesh>
 
-      {/* The team, rendered as robots — EXACTLY one per employee. The founder works at the main
-          desk; everyone else is spread around the office (standing at a station or roaming with
-          obstacle-avoidance), so the headcount you hired is the headcount you see. */}
-      {staff[0] && <Workstation p={p} pos={[-1.3, 2.3]} staff={staff[0]} seed={0} monitors={monitors} />}
-      {staff.slice(1, Math.min(8, Math.max(staff.length, staffCount))).map((s, i) => {
-        const st = ROBOT_STATIONS[i % ROBOT_STATIONS.length];
-        const colorIdx = (i + 1) % ROBOT_COLORS.length;
-        const seed = (i + 1) * 3.7;
-        const mood = MOOD_HEX[moodBand(s.mood ?? 60)];
-        return st.roam ? (
-          <RoamingRobot key={s.id ?? i} colorIdx={colorIdx} seed={seed} home={st.pos} />
-        ) : (
-          <group key={s.id ?? i} position={[st.pos[0], 0, st.pos[1]]} rotation-y={st.rotY}>
-            <OfficeRobot colorIdx={colorIdx} seed={seed} moodColor={mood} clip="Idle" />
+      {/* The team — EXACTLY one workstation (desk + computer + robot) per employee. Desks fill
+          front-to-back as you hire; only a packed late-game team (more than the desk slots)
+          overflows into roaming robots. The headcount you hired is the headcount you see. */}
+      {staff.slice(0, DESK_SLOTS.length).map((s, i) => {
+        const slot = DESK_SLOTS[i];
+        return (
+          <group key={s.id ?? i} position={[slot.pos[0], 0, slot.pos[1]]} rotation-y={slot.rotY}>
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} />
           </group>
         );
       })}
+      {staff.slice(DESK_SLOTS.length, 16).map((s, i) => (
+        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(DESK_SLOTS.length + i) % ROBOT_COLORS.length} seed={(DESK_SLOTS.length + i) * 3.7} home={ROAM_HOMES[i % ROAM_HOMES.length]} />
+      ))}
       <Props p={p} hasProduction={hasProduction} dark={dark} />
       <Dust />
       {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
@@ -1605,7 +1612,7 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
           <OfficeLabel pos={[1.2, 3.05, -2.6]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
           <OfficeLabel pos={[0.8, 2.0, 3.0]} label="Security Gate" sub="Access Control" dot="#10b981" />
-          {staff[0] && <OfficeLabel pos={[-1.9, 1.95, 2.2]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
+          {staff[0] && <OfficeLabel pos={[-1.25, 2.05, 2.35]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
         </>
       )}
 
@@ -1618,7 +1625,6 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
 
 export function Garage3D({
   staff = [],
-  staffCount,
   facilityTier,
   hasProduction,
   upgrades = {},
@@ -1664,7 +1670,7 @@ export function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} staffCount={staffCount} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} />
       </Canvas>
     </div>
   );
