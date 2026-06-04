@@ -18,7 +18,11 @@ export type ProjectId =
   | "hitFactory"
   | "contentMarketing"
   | "quickPrototype"
-  | "megaLaunch";
+  | "megaLaunch"
+  | "componentStandards"
+  | "pressKit"
+  | "brandManual"
+  | "crisisComms";
 
 export interface ResearchProject {
   id: ProjectId;
@@ -47,6 +51,11 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   { id: "verticalIntegration",name: "Vertical Integration", blurb: "Manufacturing costs 20% lower.",             rpCost: 115, era: 3 },
   { id: "hitFactory",         name: "Hit Factory",          blurb: "Hit threshold lowers — more products qualify.", rpCost: 130, era: 3 },
   { id: "megaLaunch",         name: "Mega Launch",          blurb: "+0.3 hype multiplier stacked on every launch.", rpCost: 140, era: 3 },
+  // Expansion projects — new unlocks across all eras
+  { id: "componentStandards", name: "Component Standards",  blurb: "Component tier R&D costs 15% less RP.",      rpCost: 30,  era: 1 },
+  { id: "pressKit",           name: "Press Kit",            blurb: "Every product launch earns +1 reputation.",  rpCost: 20,  era: 1 },
+  { id: "brandManual",        name: "Brand Manual",         blurb: "+4 Design stat on every product you ship.",  rpCost: 58,  era: 2 },
+  { id: "crisisComms",        name: "Crisis Comms",         blurb: "Flop reputation penalty halved.",            rpCost: 76,  era: 3 },
 ];
 
 export function projectById(id: ProjectId): ResearchProject {

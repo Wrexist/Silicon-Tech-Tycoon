@@ -8,6 +8,7 @@
 import type { GameState } from "../state/gameState.ts";
 import { netWorth } from "../state/gameState.ts";
 import { toDollars } from "./money.ts";
+import { RESEARCH_PROJECTS } from "./research.ts";
 import { maxEra } from "./eras.ts";
 
 /** A Lucide icon NAME (resolved to a component in the UI layer — engine stays DOM-free). */
@@ -331,7 +332,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     description: "Every available research project completed. No stone unturned.",
     icon: "FlaskConical",
     hint: "Research your way to the frontier.",
-    predicate: (f) => f.completedProjects >= 12,
+    predicate: (f) => f.completedProjects >= RESEARCH_PROJECTS.length,
   },
   {
     id: "big-run",

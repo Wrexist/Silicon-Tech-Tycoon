@@ -329,6 +329,7 @@ export function productStats(s: GameState, product: Product): Stats {
   const bonus = designSpecialtyBonus(s.staff);
   bonus.design = (bonus.design ?? 0) + designStatBonus(s.upgrades);
   bonus.quality = (bonus.quality ?? 0) + qualityStatBonus(s.upgrades);
+  if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
     out[k] = Math.min(BALANCE.statMax, Math.round(out[k] + (bonus[k] ?? 0)));
@@ -553,8 +554,10 @@ export function rdRpCostFor(s: GameState, kind: ComponentKind): number | null {
   const def = tierDef(kind, next);
   if (!def) return null;
   if (def.era > s.era) return null; // gated by era
-  const base = techRpCost(toDollars(def.rdCost));
-  return hasProject(s.completedProjects, "prototypeBench") ? Math.max(1, Math.round(base * 0.8)) : base;
+  let base = techRpCost(toDollars(def.rdCost));
+  if (hasProject(s.completedProjects, "prototypeBench")) base = Math.max(1, Math.round(base * 0.8));
+  if (hasProject(s.completedProjects, "componentStandards")) base = Math.max(1, Math.round(base * 0.85));
+  return base;
 }
 
 // ---------- Reducers (pure: return a NEW state) ----------
@@ -970,9 +973,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     : rep.hitThreshold;
   const isHit = effectiveScore >= hitThreshold;
   const isFlop = effectiveScore <= rep.flopThreshold;
+  const hasCrisisComms = hasProject(state.completedProjects, "crisisComms");
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
-  else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1));
+  else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
+  if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);
 
   // Fanbase response — hits win fans (more for bigger sellers), flops lose them, sellouts add buzz.
   const fb = BALANCE.fans;
