@@ -6,6 +6,7 @@ import { haptic } from "../design/haptics.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { isCategoryUnlocked } from "../engine/eras.ts";
+import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
 import { effectiveWeights, scoreLaunch } from "../engine/market.ts";
@@ -21,6 +22,7 @@ import type {
   FinishId,
   NotchStyle,
   Product,
+  Stats,
 } from "../engine/types.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
@@ -40,6 +42,14 @@ import { runwayWeeks } from "../engine/economy.ts";
 import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
 import "./designLab.css";
+
+const STAT_ABBR: Record<keyof Stats, string> = {
+  performance: "Perf", quality: "Qual", battery: "Bat", design: "Dsn", ecosystem: "Eco",
+};
+
+function contribLabel(c: Partial<Stats>): string {
+  return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_ABBR[k]}`).join(" · ");
+}
 
 const FINISHES: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
 const FINISH_LABEL: Record<FinishId, string> = {
@@ -272,6 +282,9 @@ export function DesignLab({
                 <div className="lab__comp-info">
                   <span className="lab__comp-name">{COMPONENT_LINES[kind].displayName}</span>
                   <span className="lab__comp-tier">{def?.name ?? "—"}</span>
+                  {def && contribLabel(def.contributes) && (
+                    <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
+                  )}
                   {atMax && maxTier(kind) > maxT && (
                     <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
                   )}

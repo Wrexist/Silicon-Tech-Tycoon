@@ -9,87 +9,6 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
-.mkt__rep-track {
-  height: 12px;
-  border-radius: var(--r-pill);
-  background: var(--bg-elevated);
-  overflow: hidden;
-}
-.mkt__rep-fill {
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: linear-gradient(90deg, var(--accent), var(--positive));
-  transition: width var(--spring-standard);
-}
-.mkt__prod {
-  display: flex;
-  gap: var(--sp-12);
-}
-.mkt__prod-thumb {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-.mkt__prod-body {
-  flex: 1;
-  min-width: 0;
-}
-.mkt__prod-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-8);
-  margin-bottom: 4px;
-}
-.mkt__prod-name {
-  font-weight: 700;
-  font-size: var(--fs-body);
-}
-.mkt__prod-stats {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  font-weight: 600;
-  margin-bottom: var(--sp-8);
-}
-.mkt__comp {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-}
-.mkt__comp-row {
-  display: grid;
-  grid-template-columns: 96px 1fr 28px;
-  align-items: center;
-  gap: var(--sp-8);
-}
-.mkt__comp-cat {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--ink-2);
-}
-.mkt__comp-track {
-  height: 8px;
-  border-radius: var(--r-pill);
-  background: var(--bg-elevated);
-  overflow: hidden;
-}
-.mkt__comp-fill {
-  height: 100%;
-  background: var(--negative);
-  border-radius: var(--r-pill);
-  transition: width var(--spring-standard);
-}
-.mkt__comp-val {
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  text-align: right;
-  color: var(--ink-2);
-}
 .mkt__feed {
   list-style: none;
   display: flex;
@@ -130,6 +49,55 @@
   color: var(--ink-3);
   font-weight: 600;
   min-width: 44px;
+}
+
+/* ---------- Market trends ---------- */
+.mkt__trends {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.mkt__trend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.mkt__trend-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  min-width: 84px;
+  flex-shrink: 0;
+}
+.mkt__trend-arrow {
+  flex-shrink: 0;
+}
+.mkt__trend-arrow--up { color: var(--positive-text); }
+.mkt__trend-arrow--down { color: var(--negative-text); }
+.mkt__trend-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+  position: relative;
+}
+.mkt__trend-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-standard);
+}
+.mkt__trend-val {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  min-width: 24px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 /* ---------- Net worth + equity + stock exchange ---------- */

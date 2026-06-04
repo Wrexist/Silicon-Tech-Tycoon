@@ -198,14 +198,22 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         <SectionHeader title="What the market wants" accessory={eraName(state.era)} />
         <div className="mkt__trends">
           {STAT_KEYS.map((k) => {
-            const v = trends.targetWeights[k];
-            const pct = maxTrend > 0 ? Math.round((v / maxTrend) * 100) : 0;
+            const cur = trends.weights[k];
+            const target = trends.targetWeights[k];
+            const pct = maxTrend > 0 ? Math.round((target / maxTrend) * 100) : 0;
+            const delta = target - cur;
+            const rising = delta > 0.008;
+            const falling = delta < -0.008;
             return (
               <div key={k} className="mkt__trend">
-                <span className="mkt__trend-label">{STAT_LABEL[k]}</span>
+                <span className="mkt__trend-label">
+                  {STAT_LABEL[k]}
+                  {rising && <TrendingUp size={11} className="mkt__trend-arrow mkt__trend-arrow--up" aria-label="rising" />}
+                  {falling && <TrendingDown size={11} className="mkt__trend-arrow mkt__trend-arrow--down" aria-label="falling" />}
+                </span>
                 <div className="mkt__trend-bar">
                   <div className="mkt__trend-fill" style={{ width: `${pct}%` }} />
-                  <span className="mkt__trend-val tnum">{Math.round(v * 100)}</span>
+                  <span className="mkt__trend-val tnum">{Math.round(target * 100)}</span>
                 </div>
               </div>
             );

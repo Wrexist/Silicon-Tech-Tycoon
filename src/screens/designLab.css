@@ -161,6 +161,12 @@
   font-size: var(--fs-body);
   font-weight: 600;
 }
+.lab__comp-contrib {
+  margin-top: 2px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--positive-text);
+}
 .lab__comp-locked {
   margin-top: 1px;
   font-size: var(--fs-micro);
