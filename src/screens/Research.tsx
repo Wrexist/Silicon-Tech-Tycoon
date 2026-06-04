@@ -156,9 +156,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       {/* RP banner */}
       <Card className="rd__bank">
         <div className="rd__bank-main">
-          <FlaskConical size={22} />
+          <FlaskConical size={22} style={{ color: "var(--fn-eng)", flexShrink: 0 }} />
           <div>
-            <div className="rd__bank-value tnum"><AnimatedInt value={rp} /> RP</div>
+            <div className="rd__bank-value tnum" style={{ color: "var(--fn-eng)" }}><AnimatedInt value={rp} /> RP</div>
             <div className="rd__bank-sub">+{perWeek.toFixed(1)} / week</div>
           </div>
           {(() => {

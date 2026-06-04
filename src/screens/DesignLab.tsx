@@ -495,7 +495,7 @@ export function DesignLab({
         <SectionHeader title="Design effort" accessory={`ceiling T${ceiling}`} />
         <div className="lab__stepper lab__stepper--wide">
           <button onClick={() => { haptic.light(); set({ designTier: Math.max(1, draft.designTier - 1) }); }} disabled={draft.designTier <= 1} aria-label="Lower design tier"><Minus size={16} /></button>
-          <span className="lab__stepper-val tnum">Tier {draft.designTier}</span>
+          <span className="lab__stepper-val tnum" style={{ color: "var(--fn-design)" }}>Tier {draft.designTier}</span>
           <button onClick={() => { haptic.light(); set({ designTier: Math.min(ceiling, draft.designTier + 1) }); }} disabled={draft.designTier >= ceiling} aria-label="Higher design tier"><Plus size={16} /></button>
         </div>
         <p className="lab__hint">Higher design effort raises the Design stat ceiling. Hire designers to lift the cap.</p>

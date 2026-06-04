@@ -78,6 +78,11 @@ const ROLE_COLOR: Record<StaffRole, string> = {
   designer: "var(--fn-design)",
   marketer: "var(--fn-mkt)",
 };
+const DISCIPLINE_COLOR: Record<Discipline, string> = {
+  engineering: "var(--fn-eng)",
+  design: "var(--fn-design)",
+  marketing: "var(--fn-mkt)",
+};
 
 export function Company() {
   const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates } = useGame();
@@ -757,7 +762,7 @@ function Member({
           return (
             <div key={d} className="co__cand-skill" style={active ? undefined : { opacity: 0.5 }}>
               <span className="co__cand-skill-label">{DISCIPLINE_LABEL[d]}</span>
-              <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${s.skills[d]}%`, background: active ? ROLE_COLOR[s.role] : "var(--ink-3)" }} /></span>
+              <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${s.skills[d]}%`, background: DISCIPLINE_COLOR[d] }} /></span>
               <span className="co__cand-skill-num tnum">{s.skills[d]}</span>
             </div>
           );
@@ -944,7 +949,7 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
         {disciplines.map((d) => (
           <div key={d} className="co__cand-skill">
             <span className="co__cand-skill-label">{DISCIPLINE_LABEL[d]}</span>
-            <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${c.skills[d]}%`, background: ROLE_COLOR[c.role] }} /></span>
+            <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${c.skills[d]}%`, background: DISCIPLINE_COLOR[d] }} /></span>
             <span className="co__cand-skill-num tnum">{c.skills[d]}</span>
           </div>
         ))}
