@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { BALANCE } from "../engine/balance.ts";
-import type { Money } from "../engine/money.ts";
+import { dollars, format, toDollars, type Money } from "../engine/money.ts";
 import type { ComponentKind, Product, RecruitTier, StaffRole } from "../engine/types.ts";
 import {
   advanceEraAction,
@@ -19,6 +19,7 @@ import {
   assignStaff,
   evaluateAndUnlock,
   buyProject,
+  REV_MILESTONES,
   buyShares,
   buyUpgrade,
   catchUpOffline,
@@ -65,6 +66,26 @@ import { createElement } from "react";
 export interface OfflineSummary {
   weeks: number;
   gain: Money;
+}
+
+function fmtMilestone(d: number): string {
+  if (d >= 1_000_000_000) return `$${(d / 1_000_000_000).toFixed(1)}B`;
+  if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(1)}M`;
+  if (d >= 1_000) return `$${Math.round(d / 1_000)}k`;
+  return format(dollars(d));
+}
+
+/** Fire celebratory toasts for any revenue milestones crossed between prev and next. */
+function withRevToasts(prev: GameState, next: GameState): void {
+  const prevD = toDollars(prev.cumulativeRevenue);
+  const nextD = toDollars(next.cumulativeRevenue);
+  for (const m of REV_MILESTONES) {
+    if (prevD < m && nextD >= m) {
+      try {
+        showToast(`Revenue milestone — ${fmtMilestone(m)} earned lifetime!`, { tone: "positive" });
+      } catch { /* toast host not mounted */ }
+    }
+  }
 }
 
 /**
@@ -188,7 +209,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (paused || state.bankrupt) return;
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
-      setState((s) => withLiveAchievements(advanceOneWeek(s)));
+      setState((s) => {
+        const next = advanceOneWeek(s);
+        withRevToasts(s, next);
+        return withLiveAchievements(next);
+      });
     }, ms);
     return () => clearInterval(id);
   }, [paused, fast, state.bankrupt]);
