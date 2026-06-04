@@ -302,6 +302,27 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       })}
 
       {/* Component tech */}
+      {(() => {
+        const eraKinds = kinds.filter((kind) => {
+          const next = tierDef(kind, researchedTier(state, kind) + 1);
+          return !next || next.era <= state.era;
+        });
+        const maxed = eraKinds.filter((kind) => researchedTier(state, kind) >= maxTier(kind)).length;
+        const total = eraKinds.length;
+        if (total === 0) return null;
+        const pct = Math.round((maxed / total) * 100);
+        return (
+          <div className="rd__comp-coverage">
+            <div className="rd__comp-coverage-head">
+              <span className="rd__comp-coverage-label">Component tech coverage</span>
+              <span className="rd__comp-coverage-pct tnum">{maxed}/{total}</span>
+            </div>
+            <div className="rd__comp-coverage-track">
+              <div className="rd__comp-coverage-fill" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })()}
       <SectionHeader title="Component tech" accessory="unlock higher tiers" />
       {sortedKinds.map((kind) => {
         const line = COMPONENT_LINES[kind];

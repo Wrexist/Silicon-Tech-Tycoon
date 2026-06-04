@@ -418,6 +418,16 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             );
           })}
         </div>
+        {(() => {
+          const wks = state.trendRetargetWeek - state.week;
+          if (wks > 8 || wks < 0) return null;
+          return (
+            <div className="mkt__trend-footer">
+              <Clock size={11} />
+              <span>Consumer preference shifts in <strong>{wks} week{wks !== 1 ? "s" : ""}</strong> — products launched now ride the current demand curve.</span>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Market opportunity */}

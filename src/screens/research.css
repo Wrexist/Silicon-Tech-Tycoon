@@ -370,6 +370,41 @@
   padding: 2px 7px;
 }
 
+/* Component tech era coverage bar */
+.rd__comp-coverage {
+  margin-bottom: var(--sp-8);
+}
+.rd__comp-coverage-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--sp-6);
+}
+.rd__comp-coverage-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.rd__comp-coverage-pct {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+}
+.rd__comp-coverage-track {
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.rd__comp-coverage-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-standard);
+}
+
 /* R&D sprint / top picks panel */
 .rd__sprint { }
 .rd__sprint-list {

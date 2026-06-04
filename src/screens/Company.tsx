@@ -11,7 +11,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
-import { cents, format, sub, toDollars } from "../engine/money.ts";
+import { cents, dollars, format, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
@@ -132,6 +132,14 @@ export function Company() {
               />
             );
           })()}
+          {state.staff.length > 0 && toDollars(wkRev) > 0 && (
+            <Stat
+              label="Rev / headcount"
+              value={format(dollars(Math.round(toDollars(wkRev) / state.staff.length)))}
+              tone="accent"
+              hint="/wk"
+            />
+          )}
         </div>
         <div className="co__spark">
           <Sparkline data={cashData} stroke={state.cash >= 0 ? "var(--accent)" : "var(--negative)"} />
