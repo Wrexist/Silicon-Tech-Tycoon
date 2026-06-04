@@ -105,7 +105,7 @@ export const BALANCE = {
   // --- Reputation dynamics (forgiving early; hits matter) ---
   reputation: {
     hitThreshold: 76, // launchScore above this raises rep
-    flopThreshold: 22, // below this lowers rep
+    flopThreshold: 15, // below this lowers rep — T1 products score ~20, keeping them above this floor
     gainPerHit: 6,
     lossPerFlop: 3,
     overpricePenalty: 2,

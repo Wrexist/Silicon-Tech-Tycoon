@@ -104,11 +104,14 @@ describe("production planning + smart demand", () => {
     ];
     for (const base of cases) {
       const s0 = { ...base, cash: dollars(50_000_000) };
-      const predicted = labVerdict(s0, phone());
-      // Build + launch the same product and read back the verdict the engine actually assigned.
+      // Build + advance to launch-ready state, then compute labVerdict from the SAME state the
+      // engine uses — this tests that the lab formula and the launch formula agree at the same
+      // moment (B7), not that the forecast is stable over time (the competitive landscape can
+      // shift during production, which is intentional gameplay).
       let s = startBuild(s0, phone(), recommendedRun(s0, phone(), "none"), "none").state;
       const weeks = buildWeeksFor(s) + 1;
       for (let i = 0; i < weeks; i++) s = advanceOneWeek(s);
+      const predicted = labVerdict(s, phone());
       const launched = launchReady(s, s.ready[0].id).state.launched[0];
       expect(launched.verdict).toBe(predicted);
     }
