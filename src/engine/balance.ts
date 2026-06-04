@@ -218,11 +218,15 @@ export const BALANCE = {
   // --- IPO / prestige ---
   ipo: {
     minReputation: 85, // plus reaching the final era — the "win" / New Game+ trigger
-    valuationPerRevenueDollar: 5, // valuation = cumulativeRevenue × this + reputation bonus
-    valuationPerRepPoint: dollars(60_000),
+    // Valuation = baseValuation + cumulativeRevenue × valuationPerRevenueDollar + a CUBIC reputation
+    // term (repValuationMax × (rep/100)³). The cubic is deliberate: a garage brand (rep ~8) adds
+    // almost nothing (~$4K), so early net worth ≈ your cash and the company genuinely "grows from
+    // the garage", while a dominant reputation (rep 85+) compounds into millions of enterprise value.
+    valuationPerRevenueDollar: 4,
+    repValuationMax: dollars(8_000_000) as Money, // reputation's contribution at a perfect rep 100
     // Going public to RAISE CAPITAL (separate from the endgame win): available once established.
     minRevenueToList: dollars(750_000) as Money,
-    baseValuation: dollars(400_000) as Money, // floor so an early IPO is still worth something
+    baseValuation: dollars(8_000) as Money, // nominal worth of the garage + tools before any traction
     defaultStake: 0.2, // 20% sold by default at IPO
     maxStakePerSale: 0.49, // never sell majority control in one go
     valuationGrowthPerWeek: 0.004, // company value drifts up with momentum

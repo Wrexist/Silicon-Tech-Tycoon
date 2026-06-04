@@ -1311,10 +1311,12 @@ export function canIPO(state: GameState): boolean {
   return !state.wentPublic && state.era >= maxEra() && state.reputation >= BALANCE.ipo.minReputation;
 }
 
-/** A headline valuation for the IPO celebration. */
+/** A headline valuation for the IPO celebration: lifetime revenue × a multiple, plus a CUBIC
+ *  reputation term so a fledgling brand is worth almost nothing and a dominant one compounds. */
 export function ipoValuation(state: GameState): Money {
   const fromRevenue = scale(state.cumulativeRevenue, BALANCE.ipo.valuationPerRevenueDollar);
-  const fromRep = scale(BALANCE.ipo.valuationPerRepPoint, state.reputation);
+  const repFrac = Math.max(0, Math.min(100, state.reputation)) / 100;
+  const fromRep = scale(BALANCE.ipo.repValuationMax, repFrac * repFrac * repFrac);
   return add(fromRevenue, fromRep);
 }
 
