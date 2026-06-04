@@ -172,7 +172,10 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
   if (launched.length === 0) {
     return (
       <div className="co__stats">
-        <h2 className="co__stats-title">Company stats</h2>
+        <div className="co__stats-hdr">
+          <h2 className="co__stats-title">Company stats</h2>
+          <button className="co__stats-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        </div>
         <EmptyState
           glyph={<Rocket size={36} strokeWidth={1.6} />}
           title="No history yet"
@@ -185,7 +188,10 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
 
   return (
     <div className="co__stats">
-      <h2 className="co__stats-title">Company stats</h2>
+      <div className="co__stats-hdr">
+        <h2 className="co__stats-title">Company stats</h2>
+        <button className="co__stats-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+      </div>
       <p className="co__stats-sub">{state.companyName} · week {state.week}</p>
 
       <div className="co__stats-spark">

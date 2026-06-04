@@ -110,6 +110,10 @@
   font-weight: 600;
   color: var(--accent);
 }
+.hq__build-eta {
+  color: var(--ink-3);
+  font-weight: 500;
+}
 .hq__build-track {
   height: 8px;
   border-radius: var(--r-pill);

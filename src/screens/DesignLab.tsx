@@ -4,7 +4,7 @@ import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../d
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { showToast } from "../design/toast.tsx";
-import { CATEGORIES, COMPONENT_LINES, tierDef } from "../engine/catalogs.ts";
+import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { isCategoryUnlocked } from "../engine/eras.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
@@ -169,7 +169,12 @@ export function DesignLab({
   function suggestPrice() {
     const fair = dollars(Math.max(50, overall * toDollars(dollars(9))));
     haptic.light();
-    set({ price: fair });
+    if (fair === draft.price) {
+      showToast("Price looks about right already", { tone: "neutral" });
+    } else {
+      set({ price: fair });
+      showToast(`Price set to ${format(fair)}`, { tone: "positive" });
+    }
   }
 
   function openWizard() {
@@ -253,6 +258,9 @@ export function DesignLab({
                 <div className="lab__comp-info">
                   <span className="lab__comp-name">{COMPONENT_LINES[kind].displayName}</span>
                   <span className="lab__comp-tier">{def?.name ?? "—"}</span>
+                  {atMax && maxTier(kind) > maxT && (
+                    <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
+                  )}
                 </div>
                 <div className="lab__stepper">
                   <button onClick={() => setTier(kind, -1)} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>

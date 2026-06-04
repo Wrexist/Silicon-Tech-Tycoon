@@ -28,9 +28,14 @@
   color: var(--positive-text);
 }
 .rd__bank-hint {
-  margin-top: var(--sp-12);
   font-size: var(--fs-caption);
   color: var(--ink-2);
+}
+.rd__bank-cta {
+  margin-top: var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
 }
 .rd__project {
   display: flex;

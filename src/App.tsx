@@ -76,8 +76,8 @@ function AppShell() {
         <ErrorBoundary key={tab} fallback={<ScreenError onHome={() => setTab("hq")} />}>
           {tab === "hq" && <HQ onNavigate={setTab} />}
           {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
-          {tab === "research" && <Research />}
-          {tab === "market" && <Market onDesignSuccessor={designSuccessor} />}
+          {tab === "research" && <Research onNavigate={setTab} />}
+          {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
           {tab === "company" && <Company />}
         </ErrorBoundary>
         <div className="app__spacer" />

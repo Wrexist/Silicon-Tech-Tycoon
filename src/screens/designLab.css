@@ -161,6 +161,12 @@
   font-size: var(--fs-body);
   font-weight: 600;
 }
+.lab__comp-locked {
+  margin-top: 1px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
 .lab__stepper {
   display: inline-flex;
   align-items: center;

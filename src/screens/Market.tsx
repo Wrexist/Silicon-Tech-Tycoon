@@ -53,7 +53,7 @@ function changePct(history: number[]): number {
   return a > 0 ? ((b - a) / a) * 100 : 0;
 }
 
-export function Market({ onDesignSuccessor }: { onDesignSuccessor?: (p: Product) => void } = {}) {
+export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccessor?: (p: Product) => void; onOpenDesignLab?: () => void } = {}) {
   const { state } = useGame();
   const trends = state.trends;
   const comps = state.competitors;
@@ -80,6 +80,7 @@ export function Market({ onDesignSuccessor }: { onDesignSuccessor?: (p: Product)
         </div>
         <div className="mkt__nw-row">
           <StatPill label="Cash" value={format(state.cash)} />
+          <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans > 0 ? "positive" : "neutral"} />
           <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
         </div>
       </Card>
@@ -116,7 +117,8 @@ export function Market({ onDesignSuccessor }: { onDesignSuccessor?: (p: Product)
           <EmptyState
             glyph={<Package size={36} strokeWidth={1.6} />}
             title="Nothing launched yet"
-            sub="Design and launch a product to see how it performs in the market."
+            sub="Design a product, build it, and launch it to see how the market responds."
+            action={onOpenDesignLab && <Button variant="secondary" onClick={onOpenDesignLab}>Open Design Lab</Button>}
           />
         ) : (
           <div className="mkt__products">
@@ -203,8 +205,13 @@ export function Market({ onDesignSuccessor }: { onDesignSuccessor?: (p: Product)
         {feedItems.length === 0 ? (
           <EmptyState
             glyph={<Newspaper size={36} strokeWidth={1.6} />}
-            title="No activity yet"
-            sub="Design and launch a product to start making headlines."
+            title={state.launched.length > 0 ? "Activity will appear soon" : "No activity yet"}
+            sub={state.launched.length > 0
+              ? "Market events and product milestones appear here as the weeks advance."
+              : "Launch your first product to start seeing market headlines."}
+            action={state.launched.length === 0 && onOpenDesignLab
+              ? <Button variant="secondary" onClick={onOpenDesignLab}>Open Design Lab</Button>
+              : undefined}
           />
         ) : (
           <ul className="mkt__feed">

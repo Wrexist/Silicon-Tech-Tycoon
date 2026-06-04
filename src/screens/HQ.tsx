@@ -158,11 +158,14 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           <SectionHeader title="In production" accessory="manufacturing" />
           {state.building.map((job) => {
             const pct = Math.min(100, Math.round((job.weeksElapsed / job.totalWeeks) * 100));
+            const weeksLeft = Math.max(0, job.totalWeeks - job.weeksElapsed);
             return (
               <div className="hq__build" key={job.product.id}>
                 <div className="hq__build-head">
                   <span className="hq__ready-name">{job.product.name}</span>
-                  <span className="hq__build-pct tnum">{pct}%</span>
+                  <span className="hq__build-pct tnum">
+                    {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft} wk{weeksLeft === 1 ? "" : "s"}</span>}
+                  </span>
                 </div>
                 <div className="hq__build-track">
                   <div className="hq__build-fill" style={{ width: `${pct}%` }} />

@@ -1,5 +1,6 @@
-import { Check, FlaskConical, Lock } from "lucide-react";
+import { Check, FlaskConical, Lock, Users } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
+import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { eraName } from "../engine/eras.ts";
@@ -21,7 +22,7 @@ function contributesLabel(c: Partial<Stats>): string {
   return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_SHORT[k]}`).join("  ");
 }
 
-export function Research() {
+export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const { state, research, buyProject } = useGame();
   const kinds = Object.keys(COMPONENT_LINES) as ComponentKind[];
   const rp = Math.floor(state.researchPoints);
@@ -38,7 +39,18 @@ export function Research() {
             <div className="rd__bank-sub">+{perWeek.toFixed(1)} / week</div>
           </div>
         </div>
-        <p className="rd__bank-hint">Assign staff to R&D (Company tab) to earn more Research Points.</p>
+        {perWeek === 0 ? (
+          <div className="rd__bank-cta">
+            <p className="rd__bank-hint">No R&amp;D output yet — assign staff to the R&amp;D task to start earning Research Points.</p>
+            {onNavigate && (
+              <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>
+                <Users size={14} /> Manage team
+              </Button>
+            )}
+          </div>
+        ) : (
+          <p className="rd__bank-hint">Assign staff to R&amp;D (Company tab) to earn more Research Points.</p>
+        )}
       </Card>
 
       {/* Research projects */}
