@@ -16,28 +16,22 @@
   gap: var(--sp-8);
 }
 .mkt__feed-item {
-  position: relative;
   display: flex;
+  align-items: center;
   gap: var(--sp-8);
   font-size: var(--fs-caption);
   line-height: 1.4;
-  padding-left: var(--sp-12);
   color: var(--ink-2);
 }
-/* a soft rounded accent rail (rounded ends, never clips a corner) */
-.mkt__feed-item::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 3px;
-  bottom: 3px;
-  width: 3px;
-  border-radius: var(--r-pill);
-  background: var(--hairline);
+.mkt__feed-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: var(--ink-3);
 }
-.mkt__feed-item--positive::before { background: var(--positive); }
-.mkt__feed-item--negative::before { background: var(--negative); }
-.mkt__feed-item--accent::before { background: var(--accent); }
+.mkt__feed-item--positive .mkt__feed-icon { color: var(--positive); }
+.mkt__feed-item--negative .mkt__feed-icon { color: var(--negative); }
+.mkt__feed-item--accent .mkt__feed-icon { color: var(--accent); }
 .mkt__feed-empty {
   font-size: var(--fs-caption);
   color: var(--ink-2);

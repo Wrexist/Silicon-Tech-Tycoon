@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2 } from "lucide-react";
+import { Building2, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -223,7 +223,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
 
       {/* Trends */}
       <Card>
-        <SectionHeader title="What the market wants" accessory={eraName(state.era)} />
+        <SectionHeader
+          title="What the market wants"
+          accessory={`${eraName(state.era)} · shift ~wk ${state.trendRetargetWeek}`}
+        />
         <div className="mkt__trends">
           {STAT_KEYS.map((k) => {
             const cur = trends.weights[k];
@@ -298,12 +301,16 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           />
         ) : (
           <ul className="mkt__feed">
-            {feedItems.map((f) => (
-              <li key={f.id} className={`mkt__feed-item mkt__feed-item--${f.tone}`}>
-                <span className="mkt__feed-week">wk {f.week}</span>
-                {f.text}
-              </li>
-            ))}
+            {feedItems.map((f) => {
+              const Icon: LucideIcon = f.tone === "positive" ? TrendingUp : f.tone === "negative" ? TrendingDown : f.tone === "accent" ? Sparkles : Newspaper;
+              return (
+                <li key={f.id} className={`mkt__feed-item mkt__feed-item--${f.tone}`}>
+                  <span className="mkt__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
+                  <span className="mkt__feed-week">wk {f.week}</span>
+                  {f.text}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>
