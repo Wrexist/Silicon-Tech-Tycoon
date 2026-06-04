@@ -179,6 +179,24 @@ function revMilestoneItems(prev: Money, next: Money, week: number): FeedItem[] {
     .map((m) => feedItem(week, `Revenue milestone: ${format(dollars(m))} earned lifetime.`, "positive"));
 }
 
+const FAN_MILESTONES: { fans: number; text: string; repBonus: number }[] = [
+  { fans:     1_000, text: "1,000 fans — your brand is gaining recognition.", repBonus: 1 },
+  { fans:     5_000, text: "5,000 fans — a real community is forming.", repBonus: 1 },
+  { fans:    10_000, text: "10,000 fans! You're becoming a household name.", repBonus: 2 },
+  { fans:    50_000, text: "50,000 fans — a major following. Brands take notice.", repBonus: 2 },
+  { fans:   100_000, text: "100,000 fans! You're a leader in the market.", repBonus: 3 },
+  { fans:   500_000, text: "500,000 fans — half a million people follow you.", repBonus: 3 },
+  { fans: 1_000_000, text: "One million fans! Your brand is iconic.", repBonus: 5 },
+];
+
+function fanMilestoneResult(prevFans: number, newFans: number, week: number): { feed: FeedItem[]; repBonus: number } {
+  const crossed = FAN_MILESTONES.filter((m) => prevFans < m.fans && newFans >= m.fans);
+  return {
+    feed: crossed.map((m) => feedItem(week, m.text, "positive")),
+    repBonus: crossed.reduce((s, m) => s + m.repBonus, 0),
+  };
+}
+
 let feedSeq = 0;
 function feedItem(week: number, text: string, tone: FeedTone): FeedItem {
   return { id: `f${week}-${feedSeq++}`, week, text, tone };
@@ -292,6 +310,7 @@ export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultip
 export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
+  (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
   visionaryHype(s.staff) + marketingHype(s.upgrades);
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
@@ -340,7 +359,8 @@ export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects
 export const buildWeeksFor = (s: GameState) =>
   Math.max(
     BALANCE.build.minWeeks,
-    Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)),
+    Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades))
+      - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0),
   );
 
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
@@ -691,12 +711,14 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     week,
     cash,
     cumulativeRevenue,
-    fans: Math.round(state.fans * Math.pow(
-      hasProject(state.completedProjects, "loyaltyProgram")
-        ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
-        : BALANCE.fans.decayPerWeek,
-      rate,
-    )),
+    fans: Math.round(
+      state.fans * Math.pow(
+        hasProject(state.completedProjects, "loyaltyProgram")
+          ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
+          : BALANCE.fans.decayPerWeek,
+        rate,
+      ) + (hasProject(state.completedProjects, "contentMarketing") ? 100 * rate : 0)
+    ),
     researchPoints,
     building,
     ready,
@@ -955,6 +977,10 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   }
   fans = Math.round(fans);
 
+  // Fan milestones — surface crossing big numbers as celebratory feed items + rep bonus.
+  const fanMilestones = fanMilestoneResult(state.fans, fans, state.week);
+  reputation = Math.min(rep.max, reputation + fanMilestones.repBonus);
+
   // The whole team feels the result.
   const isSolid = !isHit && !isFlop && effectiveScore >= 45;
   const moodSwing = isHit ? 12 : isFlop ? -12 : 3;
@@ -981,10 +1007,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     ),
   );
   if (sellsOut) {
-    feed.push(feedItem(state.week, `“${product.name}” is selling out — demand outstrips your run.`, "positive"));
+    feed.push(feedItem(state.week, `”${product.name}” is selling out — demand outstrips your run.`, "positive"));
   } else if (plannedUnits - totalUnits > plannedUnits * 0.35) {
     feed.push(feedItem(state.week, `Overproduced “${product.name}” — unsold stock is a write-off.`, "negative"));
   }
+  for (const item of fanMilestones.feed) feed.push(item);
 
   return {
     state: {

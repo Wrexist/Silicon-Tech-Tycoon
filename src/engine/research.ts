@@ -15,7 +15,10 @@ export type ProjectId =
   | "loyaltyProgram"
   | "marketingAutomation"
   | "verticalIntegration"
-  | "hitFactory";
+  | "hitFactory"
+  | "contentMarketing"
+  | "quickPrototype"
+  | "megaLaunch";
 
 export interface ResearchProject {
   id: ProjectId;
@@ -36,11 +39,14 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   { id: "brandStudio",        name: "Brand Studio",         blurb: "Every launch gets more hype.",               rpCost: 66,  era: 2 },
   { id: "demandSensing",      name: "Demand Sensing",       blurb: "Demand forecasts are 35% more accurate.",    rpCost: 62,  era: 2 },
   { id: "loyaltyProgram",     name: "Loyalty Program",      blurb: "Fan base decays 50% more slowly.",           rpCost: 80,  era: 2 },
+  { id: "contentMarketing",   name: "Content Marketing",    blurb: "+100 fans per week from organic social presence.", rpCost: 72, era: 2 },
+  { id: "quickPrototype",     name: "Quick Prototype",      blurb: "Production runs complete 1 week faster.",    rpCost: 55,  era: 2 },
   // Era 3 — Platform Era
   { id: "globalDistribution", name: "Global Distribution",  blurb: "Reach 25% more customers.",                  rpCost: 96,  era: 3 },
   { id: "marketingAutomation",name: "Marketing Automation", blurb: "All launches get a free +20% hype boost.",   rpCost: 90,  era: 3 },
   { id: "verticalIntegration",name: "Vertical Integration", blurb: "Manufacturing costs 20% lower.",             rpCost: 115, era: 3 },
   { id: "hitFactory",         name: "Hit Factory",          blurb: "Hit threshold lowers — more products qualify.", rpCost: 130, era: 3 },
+  { id: "megaLaunch",         name: "Mega Launch",          blurb: "+0.3 hype multiplier stacked on every launch.", rpCost: 140, era: 3 },
 ];
 
 export function projectById(id: ProjectId): ResearchProject {
