@@ -576,3 +576,57 @@
   color: var(--ink-3);
   line-height: 1.4;
 }
+
+/* Competition landscape */
+.mkt__compmap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+.mkt__compmap-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.mkt__compmap-cat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 72px;
+  flex-shrink: 0;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.mkt__compmap-track {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.mkt__compmap-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  min-width: 2px;
+  transition: width 0.5s ease;
+}
+.mkt__compmap-fill--positive { background: var(--positive); }
+.mkt__compmap-fill--accent   { background: var(--accent); }
+.mkt__compmap-fill--negative { background: var(--negative); }
+.mkt__compmap-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  min-width: 46px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.mkt__compmap-label--positive { color: var(--positive-text, var(--positive)); }
+.mkt__compmap-label--accent   { color: var(--accent); }
+.mkt__compmap-label--negative { color: var(--negative-text, var(--negative)); }
+.mkt__compmap-hint {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  margin-top: var(--sp-8);
+  line-height: 1.4;
+}

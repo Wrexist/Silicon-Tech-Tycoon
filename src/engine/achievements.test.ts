@@ -17,13 +17,17 @@ function emptyFacts(): AchievementFacts {
   return {
     productsShipped: 0,
     hits: 0,
+    flops: 0,
     hitStreak: 0,
     soldOut: false,
+    comebackFromFlop: false,
     cumulativeRevenue: 0,
     netWorth: 0,
     reputation: 0,
     fans: 0,
     era: 1,
+    era2reached: false,
+    era3reached: false,
     atFinalEra: false,
     listed: false,
     wentPublic: false,
@@ -31,6 +35,7 @@ function emptyFacts(): AchievementFacts {
     staffCount: 0,
     completedProjects: 0,
     biggestRun: 0,
+    categoriesShipped: 0,
   };
 }
 
@@ -118,6 +123,14 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "research-all", facts: { completedProjects: 12 } },
     { id: "big-run", facts: { biggestRun: 50_000 } },
     { id: "gg", facts: { wentPublic: true } },
+    { id: "first-research", facts: { completedProjects: 1 } },
+    { id: "era-2", facts: { era2reached: true } },
+    { id: "era-3", facts: { era3reached: true } },
+    { id: "comeback-kid", facts: { comebackFromFlop: true } },
+    { id: "diversified-mfg", facts: { categoriesShipped: 3 } },
+    { id: "rev-1b", facts: { cumulativeRevenue: 1_000_000_000 } },
+    { id: "team-10", facts: { staffCount: 10 } },
+    { id: "all-rivals", facts: { rivalsInvested: 6 } },
   ];
 
   it("covers the whole catalog", () => {
@@ -171,6 +184,38 @@ describe("deriveFacts reads only real tracked state", () => {
     const s = newGame(3);
     const invested: GameState = { ...s, holdings: { a: 5, b: 2, c: 0, d: 10 } };
     expect(deriveFacts(invested).rivalsInvested).toBe(3);
+  });
+
+  it("detects comebackFromFlop when a hit follows a flop in history", () => {
+    const s = newGame(7);
+    // launched is newest-first: index 0 = most recent
+    // [hit, flop] = hit is newest (index 0), flop is older (index 1) → comeback
+    const withComeback: GameState = {
+      ...s,
+      launched: [launched("hit"), launched("flop")],
+    };
+    expect(deriveFacts(withComeback).comebackFromFlop).toBe(true);
+    // [flop, hit] = flop is newest, hit is older → NOT a comeback (no hit after the flop)
+    const noComeback: GameState = {
+      ...s,
+      launched: [launched("flop"), launched("hit")],
+    };
+    expect(deriveFacts(noComeback).comebackFromFlop).toBe(false);
+    // only a hit, no flop → no comeback
+    expect(deriveFacts({ ...s, launched: [launched("hit")] }).comebackFromFlop).toBe(false);
+  });
+
+  it("counts distinct categories shipped", () => {
+    const s = newGame(8);
+    const multi: GameState = {
+      ...s,
+      launched: [
+        launched("hit", { product: { ...product(), id: "p1", category: "phone" } }),
+        launched("hit", { product: { ...product(), id: "p2", category: "tablet" } }),
+        launched("hit", { product: { ...product(), id: "p3", category: "phone" } }),
+      ],
+    };
+    expect(deriveFacts(multi).categoriesShipped).toBe(2);
   });
 });
 

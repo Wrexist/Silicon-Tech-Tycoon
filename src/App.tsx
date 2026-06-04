@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CircuitBoard, CircleX, RotateCcw, TrendingUp } from "lucide-react";
+import { AlertTriangle, CircuitBoard, CircleX, Cpu, Layers, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
@@ -15,6 +15,9 @@ import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, type Money } from "./engine/money.ts";
 import type { Product } from "./engine/types.ts";
 import { canAdvance, ipoValuation } from "./state/gameState.ts";
+import { CATEGORY_LIST } from "./engine/catalogs.ts";
+import { eraName } from "./engine/eras.ts";
+import { RESEARCH_PROJECTS } from "./engine/research.ts";
 import { HQ } from "./screens/HQ.tsx";
 import { DesignLab } from "./screens/DesignLab.tsx";
 import { Research } from "./screens/Research.tsx";
@@ -50,6 +53,9 @@ function AppShell() {
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
+  // seenEraModal is initialized to the current era so loading an existing save never re-shows
+  // modals for eras already reached. When era advances during play it becomes > seenEraModal.
+  const [seenEraModal, setSeenEraModal] = useState(state.era);
   // Transient "design a successor" seed — set from a launched product's detail sheet, consumed by
   // the Design Lab on the next render, then cleared. Lives in React (never persisted) so it's a
   // pure UI hand-off and survives no reloads.
@@ -98,6 +104,9 @@ function AppShell() {
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
       {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} onClose={clearOffline} />}
+      {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (
+        <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
+      )}
       {state.wentPublic && !ipoSeen && <IpoOverlay onDismiss={() => setIpoSeen(true)} />}
       {state.bankrupt && <BankruptOverlay />}
     </div>
@@ -123,6 +132,77 @@ function ScreenError({ onHome }: { onHome: () => void }) {
         </Button>
       </div>
     </Card>
+  );
+}
+
+const ERA_TAGLINES: Record<number, string> = {
+  2: "You've outgrown the garage. Now build the team.",
+  3: "The whole industry is watching. Shape the platform.",
+  4: "The frontier of silicon. Lead the AI revolution.",
+};
+const ERA_ICONS: Partial<Record<number, ReturnType<typeof TrendingUp>>> = {
+  2: <TrendingUp size={28} strokeWidth={2.2} />,
+  3: <Layers size={28} strokeWidth={2.2} />,
+  4: <Cpu size={28} strokeWidth={2.2} />,
+};
+
+function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref, true);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onDismiss]);
+
+  const newCats = CATEGORY_LIST.filter((c) => c.unlockEra === era);
+  const newProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
+
+  return (
+    <div className="era-modal">
+      <div
+        ref={ref}
+        className="era-modal__inner"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="era-modal-title"
+        tabIndex={-1}
+      >
+        <div className="era-modal__glyph" aria-hidden>
+          {ERA_ICONS[era] ?? <Sparkles size={28} strokeWidth={2.2} />}
+        </div>
+        <div className="era-modal__badge">Era {era}</div>
+        <h2 className="era-modal__title" id="era-modal-title">{eraName(era)}</h2>
+        <p className="era-modal__tag">{ERA_TAGLINES[era] ?? "A new chapter begins."}</p>
+
+        {newCats.length > 0 && (
+          <Card variant="inset" className="era-modal__section">
+            <p className="era-modal__section-label">New product categories</p>
+            <div className="era-modal__chips">
+              {newCats.map((c) => (
+                <span key={c.id} className="era-modal__chip">{c.displayName}</span>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {newProjects.length > 0 && (
+          <Card variant="inset" className="era-modal__section">
+            <p className="era-modal__section-label">New R&D projects unlocked</p>
+            <div className="era-modal__projects">
+              {newProjects.map((p) => (
+                <div key={p.id} className="era-modal__project">
+                  <span className="era-modal__project-name">{p.name}</span>
+                  <span className="era-modal__project-blurb">{p.blurb}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <Button block onClick={onDismiss}>Let's go →</Button>
+      </div>
+    </div>
   );
 }
 

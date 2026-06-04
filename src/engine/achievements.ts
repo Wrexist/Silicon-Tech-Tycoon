@@ -40,13 +40,17 @@ export type AchievementIconName =
 export interface AchievementFacts {
   productsShipped: number; // launched products (lifetime)
   hits: number; // launched products with a "hit" verdict
+  flops: number; // launched products with a "flop" verdict
   hitStreak: number; // current run of consecutive hits among the most recent launches
   soldOut: boolean; // any launched product whose run sold out (demand met the whole run)
+  comebackFromFlop: boolean; // shipped a hit more recently than a flop
   cumulativeRevenue: number; // dollars (lifetime)
   netWorth: number; // dollars (cash + rival portfolio + own stake)
   reputation: number; // 0..100
   fans: number;
   era: number;
+  era2reached: boolean;
+  era3reached: boolean;
   atFinalEra: boolean;
   listed: boolean; // company has IPO'd on the exchange
   wentPublic: boolean; // reached the industry pinnacle (endgame flag)
@@ -54,6 +58,7 @@ export interface AchievementFacts {
   staffCount: number; // current headcount
   completedProjects: number; // research projects completed
   biggestRun: number; // largest single production run (units) ever ordered
+  categoriesShipped: number; // distinct product categories ever shipped
 }
 
 export interface Achievement {
@@ -87,17 +92,34 @@ export function deriveFacts(state: GameState): AchievementFacts {
 
   const rivalsInvested = Object.values(state.holdings).filter((q) => (q ?? 0) > 0).length;
   const biggestRun = launched.reduce((max, lp) => Math.max(max, lp.plannedUnits ?? 0), 0);
+  const flops = launched.filter((lp) => lp.verdict === "flop").length;
+
+  // comebackFromFlop: a hit was shipped more recently than a flop (iterate old→new).
+  // launched[] is newest-first, so we scan from the end (oldest) toward index 0 (newest).
+  let _sawFlop = false;
+  let comebackFromFlop = false;
+  for (let i = launched.length - 1; i >= 0; i--) {
+    const v = launched[i].verdict;
+    if (v === "flop") _sawFlop = true;
+    else if (_sawFlop && v === "hit") { comebackFromFlop = true; break; }
+  }
+
+  const categoriesShipped = new Set(launched.map((lp) => lp.product.category)).size;
 
   return {
     productsShipped: launched.length,
     hits,
+    flops,
     hitStreak,
     soldOut,
+    comebackFromFlop,
     cumulativeRevenue: toDollars(state.cumulativeRevenue),
     netWorth: toDollars(netWorth(state)),
     reputation: state.reputation,
     fans: state.fans,
     era: state.era,
+    era2reached: state.era >= 2,
+    era3reached: state.era >= 3,
     atFinalEra: state.era >= maxEra(),
     listed: state.listed,
     wentPublic: state.wentPublic,
@@ -105,6 +127,7 @@ export function deriveFacts(state: GameState): AchievementFacts {
     staffCount: state.staff.length,
     completedProjects: state.completedProjects.length,
     biggestRun,
+    categoriesShipped,
   };
 }
 
@@ -325,6 +348,71 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Trophy",
     hint: "Complete the full journey — from garage to public icon.",
     predicate: (f) => f.wentPublic,
+  },
+  // --- New milestones ---
+  {
+    id: "first-research",
+    title: "Eureka",
+    description: "The lab is open — you've completed your first research project.",
+    icon: "FlaskConical",
+    hint: "Invest RP and complete a research project.",
+    predicate: (f) => f.completedProjects >= 1,
+  },
+  {
+    id: "era-2",
+    title: "Growth Mode",
+    description: "Graduated from the garage into the Growth Era.",
+    icon: "TrendingUp",
+    hint: "Build reputation or revenue to advance past the Garage Era.",
+    predicate: (f) => f.era2reached,
+  },
+  {
+    id: "era-3",
+    title: "Platform Play",
+    description: "The industry is watching — you've entered the Platform Era.",
+    icon: "Layers",
+    hint: "Push beyond the Growth Era.",
+    predicate: (f) => f.era3reached,
+  },
+  {
+    id: "comeback-kid",
+    title: "Comeback Kid",
+    description: "Bounced back from a flop and shipped a hit. Resilience wins.",
+    icon: "Zap",
+    hint: "Launch a hit after suffering a flop.",
+    predicate: (f) => f.comebackFromFlop,
+  },
+  {
+    id: "diversified-mfg",
+    title: "Full Portfolio",
+    description: "Products in three different categories — you're no one-trick company.",
+    icon: "Boxes",
+    hint: "Ship products across multiple categories.",
+    predicate: (f) => f.categoriesShipped >= 3,
+  },
+  {
+    id: "rev-1b",
+    title: "Billion Club",
+    description: "One billion in lifetime revenue. The industry bows.",
+    icon: "Crown",
+    hint: "Scale to a billion dollars in lifetime sales.",
+    predicate: (f) => f.cumulativeRevenue >= 1_000_000_000,
+  },
+  {
+    id: "team-10",
+    title: "Growing Fast",
+    description: "Ten people on the payroll — a company, not a crew.",
+    icon: "Users",
+    hint: "Grow your headcount to ten or more.",
+    predicate: (f) => f.staffCount >= 10,
+  },
+  {
+    id: "all-rivals",
+    title: "Market Maker",
+    description: "Shares in every rival on the exchange. You own the whole industry.",
+    icon: "Globe",
+    hint: "Invest in every competitor on the stock exchange.",
+    predicate: (f) => f.rivalsInvested >= 6,
   },
 ];
 
