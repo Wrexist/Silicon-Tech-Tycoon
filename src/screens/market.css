@@ -412,6 +412,32 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+.mkt__product-ending {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: #f59e0b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Successor nudge — shown below the product list when finished hits exist */
+.mkt__successor-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  margin-top: var(--sp-8);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.mkt__successor-text {
+  flex: 1;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
 
 /* ---------- Post-launch product detail sheet ---------- */
 .pd {

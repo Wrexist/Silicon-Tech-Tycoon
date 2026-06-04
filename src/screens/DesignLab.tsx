@@ -226,8 +226,27 @@ export function DesignLab({
     setDraft({ ...freshDraft(state), name: suggestNextName(draft.name) });
   }
 
+  // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)
+  const topWanted = STAT_KEYS.reduce((best, k) => {
+    const d = state.trends.targetWeights[k] - state.trends.weights[k];
+    const bestD = state.trends.targetWeights[best] - state.trends.weights[best];
+    return d > bestD ? k : best;
+  }, STAT_KEYS[0]);
+  const topWantedDelta = state.trends.targetWeights[topWanted] - state.trends.weights[topWanted];
+  const STAT_LABEL_FULL: Record<keyof Stats, string> = { performance: "Performance", quality: "Quality", battery: "Battery life", design: "Design", ecosystem: "Ecosystem" };
+
   return (
     <div className="lab">
+      {/* Market hint */}
+      {topWantedDelta > 0.02 && (
+        <div className="lab__market-hint">
+          <span className="lab__market-hint-dot" />
+          <span>
+            <strong>{STAT_LABEL_FULL[topWanted]}</strong> is trending up — build it into your next product for a demand boost.
+          </span>
+        </div>
+      )}
+
       {/* Hero device */}
       <div className="lab__hero">
         <DeviceRenderer product={draft} size={236} idle shimmer flip={flippable} face={face} />

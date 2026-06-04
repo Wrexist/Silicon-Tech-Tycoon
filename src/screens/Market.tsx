@@ -64,6 +64,15 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const [trade, setTrade] = useState<CompetitorState | null>(null);
   const [ipo, setIpo] = useState(false);
   const [sellStake, setSellStake] = useState(false);
+  const sortedProducts = [...state.launched].sort((a, b) => {
+    const aLive = a.weeksElapsed < a.weeklyUnits.length ? 1 : 0;
+    const bLive = b.weeksElapsed < b.weeklyUnits.length ? 1 : 0;
+    if (aLive !== bLive) return bLive - aLive;
+    return b.revenueToDate - a.revenueToDate;
+  });
+  const expiredHits = sortedProducts.filter(
+    (lp) => lp.weeksElapsed >= lp.weeklyUnits.length && (lp.verdict === "hit" || lp.verdict === "solid"),
+  );
   const [detailId, setDetailId] = useState<string | null>(null);
   const [feedOpen, setFeedOpen] = useState(false);
   const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
@@ -140,17 +149,12 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             action={onOpenDesignLab && <Button variant="secondary" onClick={onOpenDesignLab}>Open Design Lab</Button>}
           />
         ) : (
-          <div className="mkt__products">
-            {[...state.launched]
-              .sort((a, b) => {
-                const aLive = a.weeksElapsed < a.weeklyUnits.length ? 1 : 0;
-                const bLive = b.weeksElapsed < b.weeklyUnits.length ? 1 : 0;
-                if (aLive !== bLive) return bLive - aLive;
-                return b.revenueToDate - a.revenueToDate;
-              })
-              .map((lp) => {
+          <>
+            <div className="mkt__products">
+              {sortedProducts.map((lp) => {
                 const v = verdictOf(lp);
                 const live = lp.weeksElapsed < lp.weeklyUnits.length;
+                const endingSoon = live && (lp.weeklyUnits.length - lp.weeksElapsed) <= 3;
                 return (
                   <button
                     key={lp.product.id}
@@ -171,12 +175,26 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                     </span>
                     <span className="mkt__product-end">
                       <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
-                      {live && <span className="mkt__product-live">selling</span>}
+                      {live && !endingSoon && <span className="mkt__product-live">selling</span>}
+                      {endingSoon && <span className="mkt__product-ending">last {lp.weeklyUnits.length - lp.weeksElapsed}wk</span>}
                     </span>
                   </button>
                 );
               })}
-          </div>
+            </div>
+            {expiredHits.length > 0 && onDesignSuccessor && (
+              <div className="mkt__successor-nudge">
+                <span className="mkt__successor-text">
+                  {expiredHits.length === 1
+                    ? `${expiredHits[0].product.name} has run its course — time for a follow-up.`
+                    : `${expiredHits.length} products have run their cycle — design successors to keep revenue flowing.`}
+                </span>
+                <Button size="sm" variant="secondary" onClick={() => { onDesignSuccessor(expiredHits[0].product); haptic.light(); }}>
+                  <Wand2 size={13} /> Redesign
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </Card>
 

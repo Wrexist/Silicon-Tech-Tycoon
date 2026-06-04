@@ -7,6 +7,7 @@ import { Avatar } from "../components/Avatar.tsx";
 import { RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
+import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
 import { cents, format } from "../engine/money.ts";
@@ -291,7 +292,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
         <Stat label="Reputation" value={`${Math.round(state.reputation)}`} hint="out of 100" tone="accent" />
         <Stat label="Fans" value={state.fans.toLocaleString()} />
         {facts.hitStreak >= 2 && <Stat label="Hit streak" value={String(facts.hitStreak)} tone="positive" hint="consecutive hits" />}
-        <Stat label="Research projects" value={`${state.completedProjects.length}/12`} tone={state.completedProjects.length >= 6 ? "positive" : "neutral"} />
+        <Stat label="Research projects" value={`${state.completedProjects.length}/${RESEARCH_PROJECTS.length}`} tone={state.completedProjects.length >= 6 ? "positive" : "neutral"} />
       </div>
 
       <Button block onClick={onClose}>Done</Button>
@@ -320,9 +321,23 @@ function TeamOutputCard({ state }: { state: GameState }) {
     { label: "Design", count: designCount, metric: `tier ${ceil} ceiling`, color: "var(--fn-design)", Icon: PencilRuler },
     { label: "Marketing", count: mktCount, metric: mktCount > 0 ? `+${hypeBonus}% hype` : "no output", color: "var(--fn-mkt)", Icon: Megaphone },
   ];
+  const avgMood = state.staff.length > 0
+    ? Math.round(state.staff.reduce((s, p) => s + p.mood, 0) / state.staff.length)
+    : 0;
+  const moodBandVal = moodBand(avgMood);
+  const moodColor = MOOD_COLOR[moodBandVal];
+
   return (
     <Card>
-      <SectionHeader title="Team output" accessory={idleCount > 0 ? `${idleCount} idle` : `${state.staff.length} active`} />
+      <SectionHeader
+        title="Team output"
+        accessory={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "var(--fs-caption)", fontWeight: 600, color: moodColor }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: moodColor, display: "inline-block", flexShrink: 0 }} />
+            {MOOD_LABEL[moodBandVal]} morale
+          </span>
+        }
+      />
       <div className="co__output-grid">
         {rows.map((r) => (
           <div key={r.label} className="co__output-fn" style={{ "--co-fn-color": r.color } as CSSProperties}>
