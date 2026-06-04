@@ -27,15 +27,15 @@ const CATEGORY_LABEL: Record<string, string> = {
   monitor: "Monitor", console: "Console", wearable: "Wearable", experimental: "AR/VR",
 };
 
-type Verdict = "hit" | "steady" | "flop";
-const VERDICT_LABEL: Record<Verdict, string> = { hit: "Hit", steady: "Steady", flop: "Flop" };
+type Verdict = "hit" | "solid" | "steady" | "flop";
+const VERDICT_LABEL: Record<Verdict, string> = { hit: "Hit", solid: "Solid", steady: "Steady", flop: "Flop" };
 const VERDICT_TONE: Record<Verdict, "positive" | "accent" | "negative"> = {
-  hit: "positive", steady: "accent", flop: "negative",
+  hit: "positive", solid: "positive", steady: "accent", flop: "negative",
 };
 /** Verdict for a launched product — stored if present, else derived from the launch score. */
 function verdictOf(lp: LaunchedProduct): Verdict {
-  if (lp.verdict) return lp.verdict;
-  return lp.launchScore >= 76 ? "hit" : lp.launchScore <= 22 ? "flop" : "steady";
+  if (lp.verdict) return lp.verdict as Verdict;
+  return lp.launchScore >= 76 ? "hit" : lp.launchScore <= 22 ? "flop" : lp.launchScore >= 45 ? "solid" : "steady";
 }
 
 const STAT_LABEL: Record<keyof Stats, string> = {

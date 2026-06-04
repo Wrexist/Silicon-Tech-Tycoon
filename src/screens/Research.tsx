@@ -53,28 +53,41 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         )}
       </Card>
 
-      {/* Research projects */}
+      {/* Research projects — grouped by era */}
       <SectionHeader title="Research projects" accessory="evolve the company" />
-      {RESEARCH_PROJECTS.map((p) => {
-        const done = state.completedProjects.includes(p.id);
-        const locked = p.era > state.era;
-        const affordable = rp >= p.rpCost && !locked;
+      {[1, 2, 3].map((era) => {
+        const eraProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
+        if (eraProjects.length === 0) return null;
+        const eraLocked = era > state.era;
         return (
-          <Card key={p.id} className="rd__project">
-            <div className="rd__project-info">
-              <span className="rd__next-name">{p.name}</span>
-              <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
-            </div>
-            {done ? (
-              <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Done</span>
-            ) : locked ? (
-              <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
-            ) : (
-              <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => buyProject(p.id)}>
-                {p.rpCost} RP
-              </Button>
-            )}
-          </Card>
+          <div key={era} className="rd__era-group">
+            <span className={`rd__era-label${eraLocked ? " rd__era-label--locked" : ""}`}>
+              {eraLocked ? <Lock size={11} /> : null}
+              {eraName(era)}
+            </span>
+            {eraProjects.map((p) => {
+              const done = state.completedProjects.includes(p.id);
+              const locked = p.era > state.era;
+              const affordable = rp >= p.rpCost && !locked;
+              return (
+                <Card key={p.id} className="rd__project">
+                  <div className="rd__project-info">
+                    <span className="rd__next-name">{p.name}</span>
+                    <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
+                  </div>
+                  {done ? (
+                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Done</span>
+                  ) : locked ? (
+                    <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
+                  ) : (
+                    <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => buyProject(p.id)}>
+                      {p.rpCost} RP
+                    </Button>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
         );
       })}
 

@@ -109,3 +109,24 @@
   color: var(--ink-3);
   white-space: nowrap;
 }
+
+/* Era grouping for research projects */
+.rd__era-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.rd__era-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.rd__era-label--locked {
+  color: var(--ink-3);
+}

@@ -123,7 +123,7 @@ export interface LaunchedProduct {
   revenueToDate: Money;
   plannedUnits?: number; // production run size this product was built with
   /** Launch outcome the player saw — the competition-adjusted verdict, recorded for history. */
-  verdict?: "hit" | "flop" | "steady";
+  verdict?: "hit" | "solid" | "flop" | "steady";
   /** Launch-moment drivers behind the verdict (added later; absent on older saves). */
   insight?: LaunchInsight;
 }

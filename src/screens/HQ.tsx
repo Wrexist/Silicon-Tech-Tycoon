@@ -72,7 +72,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       sfx("launch");
       if (sc >= 76) setTimeout(() => sfx("hit"), 380);
       showToast(
-        sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : "Launched into the market.",
+        sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : sc >= 45 ? "Launched — solid performance." : "Launched into the market.",
         { tone: sc <= 22 ? "negative" : "positive", glyph: <Rocket size={15} /> },
       );
     }

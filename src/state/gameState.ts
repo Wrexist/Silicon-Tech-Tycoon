@@ -276,7 +276,9 @@ export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades);
 export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades);
 export const hypeBonus = (s: GameState) =>
-  (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) + visionaryHype(s.staff) + marketingHype(s.upgrades);
+  (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
+  (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
+  visionaryHype(s.staff) + marketingHype(s.upgrades);
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
  * upgrade + channel). scoreLaunch clamps total hype too; this caps the bonus side so
@@ -337,6 +339,7 @@ export function toolingCost(s: GameState, product: Product): Money {
 export function effectiveUnitCost(s: GameState, product: Product): Money {
   let unitCost = buildCost(product);
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
+  if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   return scale(unitCost, buildCostMult(s.upgrades));
 }
 
@@ -516,7 +519,8 @@ export function rdRpCostFor(s: GameState, kind: ComponentKind): number | null {
   const def = tierDef(kind, next);
   if (!def) return null;
   if (def.era > s.era) return null; // gated by era
-  return techRpCost(toDollars(def.rdCost));
+  const base = techRpCost(toDollars(def.rdCost));
+  return hasProject(s.completedProjects, "prototypeBench") ? Math.max(1, Math.round(base * 0.8)) : base;
 }
 
 // ---------- Reducers (pure: return a NEW state) ----------
@@ -610,7 +614,7 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     if (s.trait === "hustler") target -= 12; // always grinding
     if (cashDropping) target -= 12;
     else target += 6; // company doing fine
-    const lift = teamPlayers * 1.5 - (s.trait === "teamPlayer" ? 1.5 : 0); // others, not self
+    const lift = teamPlayers * 1.5; // every team player lifts the whole team, including themselves
     const mood = clampMood(next.mood + (target - next.mood) * 0.12 + lift + rng.range(-1.5, 1.5));
     return { ...next, skills, mood };
   });
@@ -652,7 +656,12 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     week,
     cash,
     cumulativeRevenue,
-    fans: Math.round(state.fans * Math.pow(BALANCE.fans.decayPerWeek, rate)),
+    fans: Math.round(state.fans * Math.pow(
+      hasProject(state.completedProjects, "loyaltyProgram")
+        ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
+        : BALANCE.fans.decayPerWeek,
+      rate,
+    )),
     researchPoints,
     building,
     ready,
@@ -829,7 +838,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // too-large run can strand stock. Driven by the persisted RNG (deterministic per seed, NOT
   // Math.random) and we save the advanced rngState below so the outcome is reproducible.
   const rng = rngFrom(state);
-  const variance = demandVarianceMultiplier(rng);
+  const rawVariance = demandVarianceMultiplier(rng);
+  // demandSensing narrows variance by 35% (forecasts become more reliable)
+  const variance = hasProject(state.completedProjects, "demandSensing")
+    ? 1 + (rawVariance - 1) * 0.65
+    : rawVariance;
   const realizedDemand = Math.max(0, Math.round(plan.totalDemand * variance));
   // Sales are still capped by the production run — you can never sell more than you built.
   const totalUnits = Math.min(plannedUnits, realizedDemand);
@@ -870,7 +883,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // scaled by the same competitionFactor that already discounts real demand. The thresholds in
   // BALANCE.reputation keep their meaning (they're applied to the same score scale).
   const effectiveScore = plan.launchScore * plan.competitionFactor;
-  const isHit = effectiveScore >= rep.hitThreshold;
+  // hitFactory lowers the hit threshold, so more polished products qualify as hits
+  const hitThreshold = hasProject(state.completedProjects, "hitFactory")
+    ? Math.round(rep.hitThreshold * 0.88)
+    : rep.hitThreshold;
+  const isHit = effectiveScore >= hitThreshold;
   const isFlop = effectiveScore <= rep.flopThreshold;
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
   else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1));
@@ -893,11 +910,12 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   fans = Math.round(fans);
 
   // The whole team feels the result.
+  const isSolid = !isHit && !isFlop && effectiveScore >= 45;
   const moodSwing = isHit ? 12 : isFlop ? -12 : 3;
   const staff = state.staff.map((s) => ({ ...s, mood: clampMood(s.mood + moodSwing) }));
 
   // Record the verdict the player saw on the launched product, so the history screen can report it.
-  lp.verdict = isHit ? "hit" : isFlop ? "flop" : "steady";
+  lp.verdict = isHit ? "hit" : isFlop ? "flop" : isSolid ? "solid" : "steady";
 
   // B8 — surface the deltas the player otherwise can't see: how this launch moved fans + reputation.
   const fanDelta = fans - state.fans;
@@ -908,12 +926,12 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const deltaStr = deltaBits.length ? ` ${deltaBits.join(" · ")}.` : "";
 
   const feed = [...state.feed];
-  const verdict = isHit ? "a hit" : isFlop ? "a flop" : "a steady seller";
+  const verdict = isHit ? 'a hit' : isFlop ? 'a flop' : isSolid ? 'a solid performer' : 'a steady seller';
   feed.push(
     feedItem(
       state.week,
       `Launched “${product.name}” — ${verdict} (~${totalUnits.toLocaleString()} of ${plannedUnits.toLocaleString()} units forecast).${deltaStr}`,
-      isHit ? "positive" : isFlop ? "negative" : "accent",
+      isHit ? 'positive' : isFlop ? 'negative' : isSolid ? 'positive' : 'accent',
     ),
   );
   if (sellsOut) {

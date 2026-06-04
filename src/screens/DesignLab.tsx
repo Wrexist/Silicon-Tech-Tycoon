@@ -494,9 +494,9 @@ function BuildWizard({
         <div className="wiz__body">
           <p className="wiz__lead">How many <b>{draft.name}</b> should the factory produce? You pay for the whole run upfront, so match it to demand.</p>
           <div className="wiz__units rounded tnum">{units.toLocaleString()} <span className="wiz__units-label">units</span></div>
-          <Slider value={units} min={BALANCE.build.minRun} max={Math.max(BALANCE.build.minRun * 2, Math.min(plan.maxAffordableUnits || BALANCE.build.minRun, 50000))} step={50} ariaLabel="Units to produce" accent="var(--fn-design)" onChange={setUnits} />
+          <Slider value={units} min={BALANCE.build.minRun} max={Math.max(BALANCE.build.minRun * 2, plan.maxAffordableUnits || BALANCE.build.minRun * 2)} step={50} ariaLabel="Units to produce" accent="var(--fn-design)" onChange={setUnits} />
           <div className="wiz__chips">
-            {[plan.preOrders || BALANCE.build.minRun, recommended, Math.min(plan.maxAffordableUnits, 50000)].map((n, i) => (
+            {[plan.preOrders || BALANCE.build.minRun, recommended, plan.maxAffordableUnits].map((n, i) => (
               <button key={i} className="wiz__chip" onClick={() => { setUnits(Math.max(BALANCE.build.minRun, Math.round(n))); haptic.light(); }}>
                 {i === 0 ? "Fans only" : i === 1 ? "Recommended" : "Max"}
               </button>
@@ -504,7 +504,7 @@ function BuildWizard({
           </div>
           <div className="wiz__grid">
             <Stat label="Pre-orders (fans)" value={plan.preOrders.toLocaleString()} hint={`${state.fans.toLocaleString()} fans`} />
-            <Stat label="Projected demand" value={plan.totalDemand.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "would sell out" : undefined} />
+            <Stat label="Projected demand" value={plan.totalDemand.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "would sell out" : state.completedProjects.includes("demandSensing") ? "±8% variance" : "±12% variance"} />
             <Stat label="Unit cost" value={format(plan.unitCost)} />
             <Stat label="Run cost" value={format(plan.productionCost)} tone="negative" />
           </div>
@@ -562,7 +562,11 @@ function BuildWizard({
             <span>Upfront cost</span>
             <span className={`rounded tnum${affordable ? "" : " wiz__total--bad"}`}>{format(plan.totalUpfront)}</span>
           </div>
-          {!affordable && <p className="wiz__warn">Not enough cash — lower the run size or pick a cheaper campaign.</p>}
+          {!affordable && (
+            <p className="wiz__warn">
+              Need {format(sub(plan.totalUpfront, state.cash))} more — reduce the run size or pick a cheaper campaign.
+            </p>
+          )}
           {affordable && runwayRisky && (
             <p className="wiz__warn wiz__warn--risk">
               <AlertTriangle size={14} /> Tight runway: at {format(weeklyBurnAfter)}/wk you have {runway} wk of cash but the build takes {buildWks} wk. No revenue arrives until launch — this run may bankrupt you mid-build. Consider a smaller run.

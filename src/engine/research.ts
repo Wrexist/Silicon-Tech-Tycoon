@@ -9,7 +9,13 @@ export type ProjectId =
   | "brandStudio"
   | "talentNetwork"
   | "globalDistribution"
-  | "qaLab";
+  | "qaLab"
+  | "prototypeBench"
+  | "demandSensing"
+  | "loyaltyProgram"
+  | "marketingAutomation"
+  | "verticalIntegration"
+  | "hitFactory";
 
 export interface ResearchProject {
   id: ProjectId;
@@ -20,12 +26,21 @@ export interface ResearchProject {
 }
 
 export const RESEARCH_PROJECTS: ResearchProject[] = [
-  { id: "assemblyLine", name: "Assembly Line", blurb: "Manufacture products faster.", rpCost: 28, era: 1 },
-  { id: "leanSupply", name: "Lean Supply Chain", blurb: "Cut per-unit build cost by 15%.", rpCost: 44, era: 1 },
-  { id: "qaLab", name: "QA Lab", blurb: "Bigger reputation gains, softer flops.", rpCost: 38, era: 1 },
-  { id: "talentNetwork", name: "Talent Network", blurb: "Hiring fees 40% cheaper.", rpCost: 52, era: 2 },
-  { id: "brandStudio", name: "Brand Studio", blurb: "Every launch gets more hype.", rpCost: 66, era: 2 },
-  { id: "globalDistribution", name: "Global Distribution", blurb: "Reach 25% more customers.", rpCost: 96, era: 3 },
+  // Era 1 — Garage Era
+  { id: "assemblyLine",       name: "Assembly Line",        blurb: "Manufacture products faster.",               rpCost: 28,  era: 1 },
+  { id: "leanSupply",         name: "Lean Supply Chain",    blurb: "Cut per-unit build cost by 15%.",            rpCost: 44,  era: 1 },
+  { id: "qaLab",              name: "QA Lab",               blurb: "Bigger reputation gains, softer flops.",     rpCost: 38,  era: 1 },
+  { id: "prototypeBench",     name: "Prototype Bench",      blurb: "Component tier unlocks cost 20% fewer RP.",  rpCost: 32,  era: 1 },
+  // Era 2 — Growth Era
+  { id: "talentNetwork",      name: "Talent Network",       blurb: "Hiring fees 40% cheaper.",                   rpCost: 52,  era: 2 },
+  { id: "brandStudio",        name: "Brand Studio",         blurb: "Every launch gets more hype.",               rpCost: 66,  era: 2 },
+  { id: "demandSensing",      name: "Demand Sensing",       blurb: "Demand forecasts are 35% more accurate.",    rpCost: 62,  era: 2 },
+  { id: "loyaltyProgram",     name: "Loyalty Program",      blurb: "Fan base decays 50% more slowly.",           rpCost: 80,  era: 2 },
+  // Era 3 — Platform Era
+  { id: "globalDistribution", name: "Global Distribution",  blurb: "Reach 25% more customers.",                  rpCost: 96,  era: 3 },
+  { id: "marketingAutomation",name: "Marketing Automation", blurb: "All launches get a free +20% hype boost.",   rpCost: 90,  era: 3 },
+  { id: "verticalIntegration",name: "Vertical Integration", blurb: "Manufacturing costs 20% lower.",             rpCost: 115, era: 3 },
+  { id: "hitFactory",         name: "Hit Factory",          blurb: "Hit threshold lowers — more products qualify.", rpCost: 130, era: 3 },
 ];
 
 export function projectById(id: ProjectId): ResearchProject {
