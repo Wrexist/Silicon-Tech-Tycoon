@@ -16,6 +16,8 @@ import { Button, Sheet } from "../design/primitives.tsx";
 import { showToast } from "../design/toast.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { format, toDollars } from "../engine/money.ts";
+import { netWorth } from "../state/gameState.ts";
 import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./settings.css";
@@ -32,9 +34,26 @@ export function Settings({ onClose }: { onClose: () => void }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
+  const net = netWorth(state);
+  const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const hitRate = state.launched.length > 0 ? Math.round((hits / state.launched.length) * 100) : 0;
+
   return (
     <div className="set">
       <h2 className="set__title">Settings</h2>
+
+      {state.companyName && (
+        <div className="set__company">
+          <span className="set__company-name">{state.companyName}</span>
+          <div className="set__company-stats">
+            <span className="set__company-stat"><span className="set__company-stat-label">Week</span>{state.week}</span>
+            <span className="set__company-stat"><span className="set__company-stat-label">Products</span>{state.launched.length}</span>
+            <span className="set__company-stat"><span className="set__company-stat-label">Hit rate</span>{state.launched.length > 0 ? `${hitRate}%` : "—"}</span>
+            <span className="set__company-stat"><span className="set__company-stat-label">Revenue</span>{format(state.cumulativeRevenue)}</span>
+            <span className="set__company-stat"><span className="set__company-stat-label">Net worth</span>{toDollars(net) > 0 ? format(net) : "—"}</span>
+          </div>
+        </div>
+      )}
 
       <div className="set__group">
         <span className="set__group-label">Appearance</span>

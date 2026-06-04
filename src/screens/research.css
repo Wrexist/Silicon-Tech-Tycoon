@@ -384,6 +384,17 @@
   padding: 2px 7px;
 }
 
+.rd__active-hint {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: var(--sp-8);
+  line-height: 1.35;
+}
+.rd__active-hint strong {
+  font-weight: 800;
+}
+
 /* Component tech era coverage bar */
 .rd__comp-coverage {
   margin-bottom: var(--sp-8);

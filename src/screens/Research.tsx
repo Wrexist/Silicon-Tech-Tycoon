@@ -394,6 +394,21 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 </div>
               );
             })()}
+            {!maxed && !eraLocked && (() => {
+              const active = state.launched.filter(
+                (lp) =>
+                  lp.weeksElapsed < lp.weeklyUnits.length &&
+                  CATEGORY_LIST.some((c) => c.id === lp.product.category && c.slots.includes(kind)),
+              );
+              if (active.length === 0) return null;
+              const prod = active[0];
+              const prodTier = prod.product.tiers[kind] ?? 0;
+              return (
+                <p className="rd__active-hint">
+                  Active: <strong>{prod.product.name}</strong> using T{prodTier} — upgrade to unlock T{cur + 1} for your next design.
+                </p>
+              );
+            })()}
             <div className="rd__current">
               <StatPill label="Current" value={curDef?.name ?? "—"} />
               {curDef && <span className="rd__contrib">{contributesLabel(curDef.contributes)}</span>}
