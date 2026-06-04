@@ -37,6 +37,57 @@
   flex-direction: column;
   gap: var(--sp-8);
 }
+.rd__bank-goal {
+  margin-top: var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.rd__bank-goal-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-8);
+}
+.rd__bank-goal-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.rd__bank-goal-name {
+  flex: 1;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.rd__bank-goal-eta {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.rd__bank-goal-track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.rd__bank-goal-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width 0.6s ease;
+  min-width: 4px;
+}
+.rd__bank-goal-nums {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
 .rd__project {
   display: flex;
   align-items: center;

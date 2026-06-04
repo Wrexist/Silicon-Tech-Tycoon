@@ -28,6 +28,13 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   const rp = Math.floor(state.researchPoints);
   const perWeek = weeklyRpGen(state);
 
+  // Find the cheapest unaffordable project the player could save toward
+  const nextGoal = RESEARCH_PROJECTS
+    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost)
+    .sort((a, b) => a.rpCost - b.rpCost)[0] ?? null;
+  const goalPct = nextGoal ? Math.min(100, Math.round((rp / nextGoal.rpCost) * 100)) : 0;
+  const goalWeeks = nextGoal && perWeek > 0 ? Math.ceil((nextGoal.rpCost - rp) / perWeek) : null;
+
   return (
     <div className="rd">
       {/* RP banner */}
@@ -47,6 +54,21 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 <Users size={14} /> Manage team
               </Button>
             )}
+          </div>
+        ) : nextGoal ? (
+          <div className="rd__bank-goal">
+            <div className="rd__bank-goal-head">
+              <span className="rd__bank-goal-label">Saving toward</span>
+              <span className="rd__bank-goal-name">{nextGoal.name}</span>
+              {goalWeeks !== null && <span className="rd__bank-goal-eta">~{goalWeeks}wk</span>}
+            </div>
+            <div className="rd__bank-goal-track">
+              <div className="rd__bank-goal-fill" style={{ width: `${goalPct}%` }} />
+            </div>
+            <div className="rd__bank-goal-nums">
+              <span className="tnum">{rp} / {nextGoal.rpCost} RP</span>
+              <span className="tnum">{goalPct}%</span>
+            </div>
           </div>
         ) : (
           <p className="rd__bank-hint">Assign staff to R&amp;D (Company tab) to earn more Research Points.</p>
