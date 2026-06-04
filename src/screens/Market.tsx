@@ -260,33 +260,44 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       {unlockedCats.length > 1 && (
         <Card>
           <SectionHeader title="Competition landscape" accessory="rival presence by category" />
-          <div className="mkt__compmap">
-            {unlockedCats.map((cat) => {
-              const totalStr = comps.reduce(
-                (s, c) => s + ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0), 0,
-              );
-              const activeRivals = comps.filter(
-                (c) => ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0) > 5,
-              ).length;
-              const pct = Math.min(100, Math.round((totalStr / 220) * 100));
-              const heat: "positive" | "accent" | "negative" =
-                pct >= 65 ? "negative" : pct >= 30 ? "accent" : "positive";
-              return (
-                <div key={cat.id} className="mkt__compmap-row">
-                  <span className="mkt__compmap-cat">
-                    <CategoryIcon id={cat.id} size={11} />{cat.displayName}
-                  </span>
-                  <div className="mkt__compmap-track">
-                    <div className={`mkt__compmap-fill mkt__compmap-fill--${heat}`} style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className={`mkt__compmap-label mkt__compmap-label--${heat}`}>
-                    {activeRivals > 0 ? `${activeRivals} rival${activeRivals > 1 ? "s" : ""}` : "Open"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mkt__compmap-hint">Green = weak competition. Build there to dominate.</p>
+          {(() => {
+            const activeCats = new Set(
+              state.launched
+                .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
+                .map((lp) => lp.product.category),
+            );
+            return (
+              <div className="mkt__compmap">
+                {unlockedCats.map((cat) => {
+                  const totalStr = comps.reduce(
+                    (s, c) => s + ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0), 0,
+                  );
+                  const activeRivals = comps.filter(
+                    (c) => ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0) > 5,
+                  ).length;
+                  const pct = Math.min(100, Math.round((totalStr / 220) * 100));
+                  const heat: "positive" | "accent" | "negative" =
+                    pct >= 65 ? "negative" : pct >= 30 ? "accent" : "positive";
+                  const youHere = activeCats.has(cat.id);
+                  return (
+                    <div key={cat.id} className="mkt__compmap-row">
+                      <span className="mkt__compmap-cat">
+                        <span className={`mkt__compmap-dot${youHere ? " mkt__compmap-dot--on" : ""}`} aria-hidden />
+                        <CategoryIcon id={cat.id} size={11} />{cat.displayName}
+                      </span>
+                      <div className="mkt__compmap-track">
+                        <div className={`mkt__compmap-fill mkt__compmap-fill--${heat}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className={`mkt__compmap-label mkt__compmap-label--${heat}`}>
+                        {activeRivals > 0 ? `${activeRivals} rival${activeRivals > 1 ? "s" : ""}` : "Open"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          <p className="mkt__compmap-hint">● = you're selling there · Green = weak competition.</p>
         </Card>
       )}
 

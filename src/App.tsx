@@ -14,7 +14,7 @@ import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, type Money } from "./engine/money.ts";
 import type { Product } from "./engine/types.ts";
-import { canAdvance, ipoValuation } from "./state/gameState.ts";
+import { canAdvance, ipoValuation, type GameState } from "./state/gameState.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
 import { RESEARCH_PROJECTS } from "./engine/research.ts";
@@ -330,6 +330,28 @@ function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; on
   );
 }
 
+function diagnoseFailure(state: GameState): string[] {
+  const { launched, staff } = state;
+  const hits = launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const totalMade = launched.reduce((s, lp) => s + (lp.plannedUnits ?? 0), 0);
+  const totalSold = launched.reduce((s, lp) => s + lp.unitsSold, 0);
+  const tips: string[] = [];
+
+  if (launched.length === 0) {
+    tips.push("No product launched before cash ran out — fixed costs burn even without a team. Get to market in the first 10 weeks.");
+  } else if (hits === 0 && launched.length >= 2) {
+    tips.push("All launches flopped. Check the Market tab for rising trends and watch the competition landscape before designing.");
+  }
+
+  if (totalMade > 150 && totalSold < totalMade * 0.45 && tips.length < 2) {
+    tips.push("More than half of manufactured units went unsold — that's cash locked in inventory. Use 'Recommended' run sizes and plan small early.");
+  } else if (staff.length >= 4 && launched.length <= 1 && tips.length < 2) {
+    tips.push("Payroll grew faster than revenue. Keep the team lean (1–2 people) until at least one product is generating consistent income.");
+  }
+
+  return tips;
+}
+
 function BankruptOverlay() {
   const { state, restart } = useGame();
   const ref = useRef<HTMLDivElement>(null);
@@ -339,6 +361,7 @@ function BankruptOverlay() {
     null,
   );
   const hitsCount = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const diagnosis = diagnoseFailure(state);
   return (
     <div className="bankrupt">
       <div
@@ -376,6 +399,14 @@ function BankruptOverlay() {
             </div>
           )}
         </div>
+        {diagnosis.length > 0 && (
+          <div className="bankrupt__diagnosis">
+            <p className="bankrupt__diag-label">What went wrong</p>
+            {diagnosis.map((d, i) => (
+              <p key={i} className="bankrupt__diag-tip">{d}</p>
+            ))}
+          </div>
+        )}
         <Button block onClick={restart}>Start a new company</Button>
       </div>
     </div>
