@@ -62,7 +62,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const trends = state.trends;
   const comps = state.competitors;
   const feedItems = [...state.feed].slice(-12).reverse();
-  const maxTrend = Math.max(...STAT_KEYS.map((k) => trends.targetWeights[k]));
+  const maxTrend = Math.max(...STAT_KEYS.map((k) => Math.max(trends.weights[k], trends.targetWeights[k])));
   const [trade, setTrade] = useState<CompetitorState | null>(null);
   const [ipo, setIpo] = useState(false);
   const [sellStake, setSellStake] = useState(false);
@@ -192,10 +192,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                     </span>
                     {live && lp.weeklyUnits.length > 0 && (
                       <span className="mkt__product-lc" aria-hidden>
-                        <span
-                          className={`mkt__product-lc-fill mkt__product-lc-fill--${lp.weeksElapsed < 4 ? "ramp" : lp.weeksElapsed < 10 ? "mid" : "decline"}`}
-                          style={{ width: `${Math.round((lp.weeksElapsed / lp.weeklyUnits.length) * 100)}%` }}
-                        />
+                        <SalesCurveChart weekly={lp.weeklyUnits} elapsed={lp.weeksElapsed} height={16} />
                       </span>
                     )}
                   </button>
@@ -316,7 +313,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           {STAT_KEYS.map((k) => {
             const cur = trends.weights[k];
             const target = trends.targetWeights[k];
-            const pct = maxTrend > 0 ? Math.round((target / maxTrend) * 100) : 0;
+            const curPct = maxTrend > 0 ? Math.round((cur / maxTrend) * 100) : 0;
+            const targetPct = maxTrend > 0 ? Math.round((target / maxTrend) * 100) : 0;
             const delta = target - cur;
             const rising = delta > 0.008;
             const falling = delta < -0.008;
@@ -328,9 +326,12 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                   {falling && <TrendingDown size={11} className="mkt__trend-arrow mkt__trend-arrow--down" aria-label="falling" />}
                 </span>
                 <div className="mkt__trend-bar">
-                  <div className="mkt__trend-fill" style={{ width: `${pct}%` }} />
-                  <span className="mkt__trend-val tnum">{Math.round(target * 100)}</span>
+                  {/* ghost = target weight (where market is heading) */}
+                  <div className="mkt__trend-fill mkt__trend-fill--target" style={{ width: `${targetPct}%` }} />
+                  {/* solid = current weight (what affects launch scores today) */}
+                  <div className="mkt__trend-fill" style={{ width: `${curPct}%` }} />
                 </div>
+                <span className="mkt__trend-val tnum">{Math.round(cur * 100)}</span>
               </div>
             );
           })}

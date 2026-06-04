@@ -106,6 +106,23 @@ function withStaffLevelToasts(prev: GameState, next: GameState): void {
   }
 }
 
+/** Fire a summary toast when a product finishes its sales run this tick. */
+function withProductFinishToasts(prev: GameState, next: GameState): void {
+  for (const nlp of next.launched) {
+    if (nlp.weeksElapsed < nlp.weeklyUnits.length) continue; // still selling
+    const plp = prev.launched.find((lp) => lp.product.id === nlp.product.id);
+    if (!plp || plp.weeksElapsed >= plp.weeklyUnits.length) continue; // wasn't selling last tick either
+    const v = nlp.verdict ?? "steady";
+    const tone = v === "hit" || v === "solid" ? "positive" : v === "flop" ? "negative" : "neutral";
+    try {
+      showToast(
+        `${nlp.product.name} finished its run — ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
+        { tone },
+      );
+    } catch { /* toast host not mounted */ }
+  }
+}
+
 /** Fire celebratory toasts for any revenue milestones crossed between prev and next. */
 function withRevToasts(prev: GameState, next: GameState): void {
   const prevD = toDollars(prev.cumulativeRevenue);
@@ -245,6 +262,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         withRevToasts(s, next);
         withFanToasts(s, next);
         withStaffLevelToasts(s, next);
+        withProductFinishToasts(s, next);
         return withLiveAchievements(next);
       });
     }, ms);

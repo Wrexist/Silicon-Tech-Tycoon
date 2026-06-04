@@ -362,6 +362,19 @@
   height: 7px;
   border-radius: 50%;
 }
+.co__mood-bar {
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+  margin-top: -8px;
+  margin-bottom: var(--sp-12);
+}
+.co__mood-bar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width 0.5s ease;
+}
 .co__xp {
   margin-bottom: var(--sp-12);
 }

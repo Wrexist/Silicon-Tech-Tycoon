@@ -488,6 +488,9 @@ function Member({
           <span className="co__tag-dot" style={{ background: MOOD_COLOR[band] }} /> {MOOD_LABEL[band]}
         </span>
       </div>
+      <div className="co__mood-bar" aria-label={`Morale ${Math.round(s.mood)}%`}>
+        <div className="co__mood-bar-fill" style={{ width: `${s.mood}%`, background: MOOD_COLOR[band] }} />
+      </div>
 
       {/* per-discipline skills (0..100) — the active one (matching their assignment) is highlighted */}
       <div className="co__cand-skills">

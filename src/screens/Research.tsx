@@ -28,6 +28,22 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   const rp = Math.floor(state.researchPoints);
   const perWeek = weeklyRpGen(state);
 
+  // Sort component tech by actionability: affordable → saveable (≤10wk) → needs time → locked → maxed
+  const sortedKinds = [...kinds].sort((a, b) => {
+    const priority = (kind: ComponentKind) => {
+      const cur = researchedTier(state, kind);
+      if (cur >= maxTier(kind)) return 4;
+      const nextD = tierDef(kind, cur + 1);
+      if (nextD && nextD.era > state.era) return 3;
+      const c = rdRpCostFor(state, kind);
+      if (c === null) return 4;
+      if (rp >= c) return 0;
+      if (perWeek > 0 && (c - rp) / perWeek <= 10) return 1;
+      return 2;
+    };
+    return priority(a) - priority(b);
+  });
+
   // Find the cheapest unaffordable project the player could save toward
   const nextGoal = RESEARCH_PROJECTS
     .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost)
@@ -140,7 +156,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
 
       {/* Component tech */}
       <SectionHeader title="Component tech" accessory="unlock higher tiers" />
-      {kinds.map((kind) => {
+      {sortedKinds.map((kind) => {
         const line = COMPONENT_LINES[kind];
         const cur = researchedTier(state, kind);
         const max = maxTier(kind);

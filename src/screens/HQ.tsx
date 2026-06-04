@@ -669,14 +669,39 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   }
 
   // 3. Product drought — no active products and nothing in the pipeline
+  const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
+  const inPipeline = state.building.length > 0 || state.ready.length > 0;
   if (insights.length < 3) {
-    const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
-    const inPipeline = state.building.length > 0 || state.ready.length > 0;
     if (active.length === 0 && !inPipeline) {
       insights.push({
         icon: Rocket,
         text: "All products have finished their run — design and launch a new one to keep revenue flowing.",
         tab: "design",
+      });
+    }
+  }
+
+  // 3b. Products ending soon — warn the player to start designing a successor
+  if (insights.length < 3 && !inPipeline) {
+    const endingSoon = active.filter((lp) => (lp.weeklyUnits.length - lp.weeksElapsed) <= 4);
+    if (endingSoon.length > 0) {
+      const name = endingSoon.length === 1 ? endingSoon[0].product.name : `${endingSoon.length} products`;
+      insights.push({
+        icon: Clock,
+        text: `${name} ${endingSoon.length === 1 ? "finishes" : "finish"} selling in ≤4 weeks — start a successor now to keep revenue continuous.`,
+        tab: "design",
+      });
+    }
+  }
+
+  // 3c. Low staff morale
+  if (insights.length < 3 && state.staff.length > 0) {
+    const unhappy = state.staff.filter((s) => s.mood < 28);
+    if (unhappy.length > 0) {
+      insights.push({
+        icon: Users,
+        text: `${unhappy[0].name} has very low morale (${Math.round(unhappy[0].mood)}%) — upgrade Amenities or reduce workload to prevent an output slump.`,
+        tab: "company",
       });
     }
   }
@@ -743,6 +768,14 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
   const flops = state.launched.filter((lp) => lp.verdict === "flop").length;
   const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
   const weeklyRevenue = active.reduce((s, lp) => s + lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price), 0);
+  // 4-week revenue forecast (wk 0 = this week, 1–3 = ahead)
+  const forecast = Array.from({ length: 4 }, (_, i) =>
+    active.reduce((sum, lp) => {
+      const idx = lp.weeksElapsed + i;
+      return sum + (idx < lp.weeklyUnits.length ? lp.weeklyUnits[idx] * toDollars(lp.product.price) : 0);
+    }, 0),
+  );
+  const forecastPeak = Math.max(...forecast, 1);
   const best = state.launched.reduce<(typeof state.launched)[0] | null>(
     (top, lp) => (top === null || lp.revenueToDate > top.revenueToDate ? lp : top),
     null,
@@ -772,6 +805,21 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
         <p className="hq__perf-revenue">
           <TrendingUp size={12} aria-hidden /> {fmtRevShort(weeklyRevenue)}/wk from {active.length} active product{active.length > 1 ? "s" : ""}
         </p>
+      )}
+      {active.length > 0 && (
+        <div className="hq__forecast" aria-label="4-week revenue forecast">
+          {forecast.map((rev, i) => (
+            <div key={i} className="hq__forecast-col">
+              <div className="hq__forecast-bar-wrap">
+                <div
+                  className="hq__forecast-bar"
+                  style={{ height: `${Math.round((rev / forecastPeak) * 100)}%`, opacity: i === 0 ? 1 : 0.6 + i * 0.0 }}
+                />
+              </div>
+              <span className="hq__forecast-label tnum">{i === 0 ? "Now" : `+${i}`}</span>
+            </div>
+          ))}
+        </div>
       )}
       {best && (
         <button className="hq__perf-best" onClick={() => onNavigate("market")}>

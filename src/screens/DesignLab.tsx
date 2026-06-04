@@ -148,6 +148,11 @@ export function DesignLab({
     : priceRatio < 1.3 ? ["Fair", "positive" as const]
     : priceRatio < 1.8 ? ["Premium", "neutral" as const]
     : ["Overpriced", "negative" as const];
+  const priceSliderAccent =
+    priceRatio < 0.65 ? "var(--accent)"
+    : priceRatio < 1.3 ? "var(--positive)"
+    : priceRatio < 1.8 ? "#f59e0b"
+    : "var(--negative)";
 
   const breakdown = scoreLaunch({
     stats,
@@ -490,7 +495,7 @@ export function DesignLab({
           max={5000}
           step={10}
           ariaLabel="Price"
-          accent="var(--fn-design)"
+          accent={priceSliderAccent}
           onChange={(v) => set({ price: dollars(v) })}
         />
         <div className="lab__price-meta">
