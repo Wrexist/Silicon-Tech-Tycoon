@@ -254,6 +254,11 @@ function BankruptOverlay() {
   const { state, restart } = useGame();
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
+  const bestRevProduct = state.launched.reduce<{ product: { name: string }; revenueToDate: number } | null>(
+    (top, lp) => (top == null || lp.revenueToDate > top.revenueToDate ? lp : top),
+    null,
+  );
+  const hitsCount = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
   return (
     <div className="bankrupt">
       <div
@@ -267,8 +272,30 @@ function BankruptOverlay() {
         <div className="bankrupt__glyph" aria-hidden><CircleX size={30} strokeWidth={2} /></div>
         <h2 className="bankrupt__title" id="bankrupt-title">Out of cash</h2>
         <p className="bankrupt__text">
-          The company ran out of money in week {state.week}. Every empire starts somewhere — try again.
+          {state.companyName} ran out of money. Every empire starts somewhere.
         </p>
+        <div className="bankrupt__postmortem">
+          <div className="bankrupt__pm-row">
+            <span className="bankrupt__pm-label">Survived</span>
+            <span className="bankrupt__pm-val tnum">{state.week} weeks</span>
+          </div>
+          <div className="bankrupt__pm-row">
+            <span className="bankrupt__pm-label">Revenue earned</span>
+            <span className="bankrupt__pm-val tnum">{format(state.cumulativeRevenue)}</span>
+          </div>
+          {state.launched.length > 0 && (
+            <div className="bankrupt__pm-row">
+              <span className="bankrupt__pm-label">Products shipped</span>
+              <span className="bankrupt__pm-val tnum">{state.launched.length} ({hitsCount} hits)</span>
+            </div>
+          )}
+          {bestRevProduct && (
+            <div className="bankrupt__pm-row">
+              <span className="bankrupt__pm-label">Best product</span>
+              <span className="bankrupt__pm-val">{bestRevProduct.product.name}</span>
+            </div>
+          )}
+        </div>
         <Button block onClick={restart}>Start a new company</Button>
       </div>
     </div>

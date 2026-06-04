@@ -110,6 +110,23 @@
   white-space: nowrap;
 }
 
+/* Tier progress pips for component tech cards */
+.rd__tier-pips {
+  display: flex;
+  gap: 3px;
+  margin-bottom: var(--sp-12);
+}
+.rd__tier-pip {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  transition: background var(--spring-standard);
+}
+.rd__tier-pip--on {
+  background: var(--accent);
+}
+
 /* Era grouping for research projects */
 .rd__era-group {
   display: flex;

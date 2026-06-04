@@ -10,6 +10,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { BALANCE } from "../engine/balance.ts";
+import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
 import { format, toDollars } from "../engine/money.ts";
 import {
@@ -82,7 +83,10 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const hasProduction =
     state.building.length > 0 || state.launched.some((l) => l.weeksElapsed < l.weeklyUnits.length);
   const advanceReady = canAdvance(state);
-  const latest = state.feed[state.feed.length - 1];
+  const recentFeed = state.feed.slice(-4).reverse();
+  const nextEraUnlocks = advanceReady
+    ? CATEGORY_LIST.filter((c) => c.unlockEra === state.era + 1).map((c) => c.displayName)
+    : [];
 
   return (
     <div className="hq">
@@ -111,7 +115,11 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <Card className="hq__era">
           <div className="hq__era-body">
             <span className="hq__era-title">New era unlocked</span>
-            <span className="hq__era-sub">Advance to the {eraName(state.era + 1)} for new tech & categories.</span>
+            <span className="hq__era-sub">
+              {nextEraUnlocks.length > 0
+                ? `Unlocks: ${nextEraUnlocks.join(", ")} + new component tiers`
+                : `New tech & components for the ${eraName(state.era + 1)}`}
+            </span>
           </div>
           <Button
             size="sm"
@@ -130,7 +138,9 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <StatPill label="Products" value={state.launched.length} />
         <StatPill label="Team" value={state.staff.length} />
         <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-        {state.era < maxEra() && <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />}
+        {state.era < maxEra()
+          ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
+          : <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
       </div>
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
 
@@ -168,7 +178,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                     <div className="hq__build-head">
                       <span className="hq__ready-name">{job.product.name}</span>
                       <span className="hq__build-pct tnum">
-                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft} wk{weeksLeft === 1 ? "" : "s"}</span>}
+                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · wk {state.week + weeksLeft}</span>}
                       </span>
                     </div>
                     <div className="hq__build-track">
@@ -192,10 +202,17 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
         </Card>
       ) : (
-        latest && (
+        recentFeed.length > 0 && (
           <Card>
-            <SectionHeader title="Latest" />
-            <p className="hq__latest">{latest.text}</p>
+            <SectionHeader title="News" accessory={`week ${state.week}`} />
+            <ul className="hq__feed-list">
+              {recentFeed.map((item) => (
+                <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
+                  <span className="hq__feed-week">wk {item.week}</span>
+                  {item.text}
+                </li>
+              ))}
+            </ul>
             <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
           </Card>
         )

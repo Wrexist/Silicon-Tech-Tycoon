@@ -13,6 +13,32 @@
   margin: var(--sp-8) 0;
 }
 
+/* ---------- Product track record strip ---------- */
+.co__track {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: var(--sp-4) 0 var(--sp-8);
+}
+.co__track-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  flex-shrink: 0;
+}
+.co__track-dot--hit { background: var(--positive); }
+.co__track-dot--solid { background: var(--positive); opacity: 0.55; }
+.co__track-dot--flop { background: var(--negative); }
+.co__track-dot--steady { background: var(--ink-3); }
+.co__track-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-left: var(--sp-4);
+}
+
 /* ---------- Active sales list ---------- */
 .co__active-list {
   display: flex;

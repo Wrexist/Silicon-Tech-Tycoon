@@ -117,6 +117,18 @@ export function Company() {
         <div className="co__spark">
           <Sparkline data={cashData} stroke={state.cash >= 0 ? "var(--accent)" : "var(--negative)"} />
         </div>
+        {state.launched.length > 0 && (
+          <div className="co__track">
+            {state.launched.slice(-16).map((lp) => (
+              <span
+                key={lp.product.id}
+                className={`co__track-dot co__track-dot--${lp.verdict}`}
+                title={`${lp.product.name}: ${lp.verdict}`}
+              />
+            ))}
+            <span className="co__track-label">{state.launched.length} shipped</span>
+          </div>
+        )}
         <p className="co__hint">Lifetime revenue {format(state.cumulativeRevenue)}.</p>
       </Card>
 

@@ -109,6 +109,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         return (
           <Card key={kind}>
             <SectionHeader title={line.displayName} accessory={<span className="rd__tier">T{cur}/{max}</span>} />
+            <div className="rd__tier-pips">
+              {Array.from({ length: max }).map((_, i) => (
+                <span key={i} className={`rd__tier-pip${i < cur ? " rd__tier-pip--on" : ""}`} />
+              ))}
+            </div>
             <div className="rd__current">
               <StatPill label="Current" value={curDef?.name ?? "—"} />
               {curDef && <span className="rd__contrib">{contributesLabel(curDef.contributes)}</span>}

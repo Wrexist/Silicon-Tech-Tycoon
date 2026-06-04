@@ -122,30 +122,37 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           />
         ) : (
           <div className="mkt__products">
-            {state.launched.map((lp) => {
-              const v = verdictOf(lp);
-              const live = lp.weeksElapsed < lp.weeklyUnits.length;
-              return (
-                <button
-                  key={lp.product.id}
-                  className="mkt__product"
-                  onClick={() => { setDetailId(lp.product.id); haptic.light(); }}
-                  aria-label={`View ${lp.product.name} performance`}
-                >
-                  <span className="mkt__product-thumb"><DeviceRenderer product={lp.product} size={44} /></span>
-                  <span className="mkt__product-info">
-                    <span className="mkt__product-name">{lp.product.name}</span>
-                    <span className="mkt__product-sub">
-                      <CategoryIcon id={lp.product.category} size={12} /> {lp.unitsSold.toLocaleString()} sold · {format(lp.revenueToDate)}
+            {[...state.launched]
+              .sort((a, b) => {
+                const aLive = a.weeksElapsed < a.weeklyUnits.length ? 1 : 0;
+                const bLive = b.weeksElapsed < b.weeklyUnits.length ? 1 : 0;
+                if (aLive !== bLive) return bLive - aLive;
+                return b.revenueToDate - a.revenueToDate;
+              })
+              .map((lp) => {
+                const v = verdictOf(lp);
+                const live = lp.weeksElapsed < lp.weeklyUnits.length;
+                return (
+                  <button
+                    key={lp.product.id}
+                    className="mkt__product"
+                    onClick={() => { setDetailId(lp.product.id); haptic.light(); }}
+                    aria-label={`View ${lp.product.name} performance`}
+                  >
+                    <span className="mkt__product-thumb"><DeviceRenderer product={lp.product} size={44} /></span>
+                    <span className="mkt__product-info">
+                      <span className="mkt__product-name">{lp.product.name}</span>
+                      <span className="mkt__product-sub">
+                        <CategoryIcon id={lp.product.category} size={12} /> {lp.unitsSold.toLocaleString()} sold · {format(lp.revenueToDate)}
+                      </span>
                     </span>
-                  </span>
-                  <span className="mkt__product-end">
-                    <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
-                    {live && <span className="mkt__product-live">selling</span>}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="mkt__product-end">
+                      <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
+                      {live && <span className="mkt__product-live">selling</span>}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
         )}
       </Card>
