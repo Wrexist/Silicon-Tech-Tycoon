@@ -933,7 +933,7 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
   return (
     <Card>
       <div className="co__hire-head">
-        <span className="co__member-glyph" aria-hidden style={{ background: "color-mix(in srgb, " + ROLE_COLOR[c.role] + " 16%, transparent)", color: ROLE_COLOR[c.role] }}><RoleIcon role={c.role} /></span>
+        <Avatar appearance={c.appearance} mood={c.mood} size={46} />
         <div className="co__member-info">
           <span className="co__member-name">{c.name} · {ROLE_LABEL[c.role]}</span>
           <span className="co__member-role">{SPECIALTY_TITLE[c.specialty]} · {TRAIT_INFO[c.trait].label}</span>

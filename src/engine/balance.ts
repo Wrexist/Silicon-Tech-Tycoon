@@ -31,6 +31,10 @@ export const BALANCE = {
   market: {
     // demandScore is Σ weight*stat (0..100). Converted to base units via this scale.
     baseUnitsAtScore: 1200, // units of volume per demandScore point at marketSize 1.0
+    // Era-scaled market volume: the Garage era is a tiny market you slowly grow into; each later
+    // era opens it up. Multiplies demand (→ recommended run size → revenue) by era, so the early
+    // game is deliberately slow + hand-built while the end-game still scales. Index = era - 1.
+    eraVolumeScale: [0.62, 0.82, 1.0, 1.18],
     // B9 — launch demand variance. The wizard's forecast is a deterministic point estimate; real
     // demand at launch is a BET, so the actual realized volume is jittered by up to ±this fraction
     // (seeded, NOT Math.random — reproducible per save). Turns run-sizing/pricing from solved
@@ -172,7 +176,9 @@ export const BALANCE = {
     // B1 — the recommended/affordable run must leave the player solvent through the build.
     // recommendedRun reserves (buildWeeks × weeklyBurn) + this flat margin before spending cash
     // on units, so a fresh save can't accidentally brick itself manufacturing its first product.
-    safetyReserveMargin: dollars(1_000) as Money,
+    // A healthy reserve also keeps early runs modest (you grow into bigger runs as cash builds),
+    // so the garage phase is deliberately slow + hand-built rather than one giant first bet.
+    safetyReserveMargin: dollars(5_000) as Money,
   },
 
   // --- Facilities ---
@@ -222,7 +228,7 @@ export const BALANCE = {
     // term (repValuationMax × (rep/100)³). The cubic is deliberate: a garage brand (rep ~8) adds
     // almost nothing (~$4K), so early net worth ≈ your cash and the company genuinely "grows from
     // the garage", while a dominant reputation (rep 85+) compounds into millions of enterprise value.
-    valuationPerRevenueDollar: 4,
+    valuationPerRevenueDollar: 3,
     repValuationMax: dollars(8_000_000) as Money, // reputation's contribution at a perfect rep 100
     // Going public to RAISE CAPITAL (separate from the endgame win): available once established.
     minRevenueToList: dollars(750_000) as Money,

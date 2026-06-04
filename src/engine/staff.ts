@@ -104,17 +104,23 @@ export const ROLE_DISCIPLINE: Record<StaffRole, Discipline> = {
 
 const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 
-/** A 0..100 skill profile centred on `level` (1..10): the role's discipline is strongest, the
- *  others scatter lower. Produces visibly different people — a 90/30/50 vs a 40/40/70. */
+/** A 0..100 skill profile centred on `level` (1..10): the role's discipline is ALWAYS their
+ *  strongest, the others scatter strictly below it. So an "Engineer" is genuinely best at
+ *  engineering (role label, headline level, and best-fit advice all agree), while people still
+ *  vary in their secondary strengths — a 90/30/50 vs a 40/35/20. */
 export function makeSkills(rng: Rng, role: StaffRole, level: number): Skills {
   const primary = ROLE_DISCIPLINE[role];
   const base = level * 10; // 1..10 -> ~10..100
+  const primaryScore = clamp100(base + rng.range(-8, 10)); // strongest, near the headline level
+  // Off-disciplines are a fraction (35–85%) of the primary, so they vary per person yet can never
+  // eclipse the role's headline skill — the primary is always strictly the strongest.
+  const off = () => clamp100(Math.round(primaryScore * rng.range(0.35, 0.85)));
   const out: Skills = {
-    engineering: clamp100(rng.range(15, 55)),
-    design: clamp100(rng.range(15, 55)),
-    marketing: clamp100(rng.range(15, 55)),
+    engineering: off(),
+    design: off(),
+    marketing: off(),
   };
-  out[primary] = clamp100(base + rng.range(-8, 10)); // strongest, near the headline level
+  out[primary] = primaryScore;
   return out;
 }
 

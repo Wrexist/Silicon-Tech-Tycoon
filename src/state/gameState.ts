@@ -418,6 +418,9 @@ export function planProduction(
 
   let marketSize = CATEGORIES[product.category].marketSize;
   if (hasProject(s.completedProjects, "globalDistribution")) marketSize *= 1.25;
+  // Era-scaled volume — small early market (slow garage phase), grows each era.
+  const eraScales = BALANCE.market.eraVolumeScale;
+  marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
 
   // Score WITHOUT the strength-based competition term — competition is modelled below as a
   // count of rivals that match/beat you, which is clearer and is what the player sees.
