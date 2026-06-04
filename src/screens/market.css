@@ -100,6 +100,39 @@
   flex-shrink: 0;
 }
 
+/* ---------- Market opportunity / intel ---------- */
+.mkt__intel-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.mkt__intel-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+}
+.mkt__intel-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  margin-top: 1px;
+}
+.mkt__intel-icon--up { color: var(--positive-text); }
+.mkt__intel-icon--opp { color: var(--accent); }
+.mkt__intel-icon--rep { color: var(--warning); }
+.mkt__intel-text {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.mkt__intel-text strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 /* ---------- Net worth + equity + stock exchange ---------- */
 .mkt__networth {
   background: linear-gradient(135deg, var(--accent-soft), var(--surface) 75%);

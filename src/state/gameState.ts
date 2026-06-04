@@ -165,6 +165,20 @@ export interface GameState {
   unlockedAchievements: string[];
 }
 
+const REV_MILESTONES = [
+  10_000, 25_000, 50_000, 100_000, 250_000, 500_000,
+  1_000_000, 2_500_000, 5_000_000, 10_000_000,
+  25_000_000, 50_000_000, 100_000_000,
+];
+
+function revMilestoneItems(prev: Money, next: Money, week: number): FeedItem[] {
+  const prevD = toDollars(prev);
+  const nextD = toDollars(next);
+  return REV_MILESTONES
+    .filter((m) => prevD < m && nextD >= m)
+    .map((m) => feedItem(week, `Revenue milestone: ${format(dollars(m))} earned lifetime.`, "positive"));
+}
+
 let feedSeq = 0;
 function feedItem(week: number, text: string, tone: FeedTone): FeedItem {
   return { id: `f${week}-${feedSeq++}`, week, text, tone };
@@ -580,6 +594,11 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
       revenueToDate: newRevenue,
     };
   });
+
+  // Revenue milestones
+  for (const item of revMilestoneItems(state.cumulativeRevenue, cumulativeRevenue, week)) {
+    productsFeed.push(item);
+  }
 
   // Burn
   cash = sub(cash, scale(burn(state), rate));

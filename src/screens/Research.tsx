@@ -53,6 +53,25 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         )}
       </Card>
 
+      {/* Active project boosts */}
+      {state.completedProjects.length > 0 && (
+        <Card>
+          <SectionHeader title="Active boosts" accessory={`${state.completedProjects.length} projects`} />
+          <div className="rd__boosts">
+            {state.completedProjects.map((id) => {
+              const p = RESEARCH_PROJECTS.find((rp) => rp.id === id);
+              if (!p) return null;
+              return (
+                <div key={id} className="rd__boost">
+                  <span className="rd__boost-name"><Check size={11} strokeWidth={2.5} /> {p.name}</span>
+                  <span className="rd__boost-blurb">{p.blurb}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       {/* Research projects — grouped by era */}
       <SectionHeader title="Research projects" accessory="evolve the company" />
       {[1, 2, 3].map((era) => {

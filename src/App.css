@@ -132,6 +132,41 @@
   font-weight: 700;
 }
 
+/* Screen-level error boundary card */
+.app__screen-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-8);
+  padding: var(--sp-32) var(--sp-16);
+}
+.app__screen-error-glyph {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-pill);
+  background: var(--warning-soft, color-mix(in srgb, var(--warning) 12%, transparent));
+  color: var(--warning, #f59e0b);
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--sp-4);
+}
+.app__screen-error-title {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+}
+.app__screen-error-text {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
+  max-width: 300px;
+}
+.app__screen-error-actions {
+  display: flex;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+}
+
 /* Bankruptcy */
 .bankrupt {
   position: fixed;

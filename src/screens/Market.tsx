@@ -5,6 +5,7 @@ import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
+import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName } from "../engine/eras.ts";
 import { dollars, format, toDollars, cents } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -69,6 +70,22 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const stake = founderStakeValue(state);
   const net = netWorth(state);
   const listable = canList(state);
+
+  // Market opportunity synthesis
+  const hotStat = STAT_KEYS.reduce((best, k) => {
+    const delta = trends.targetWeights[k] - trends.weights[k];
+    const bestDelta = trends.targetWeights[best] - trends.weights[best];
+    return delta > bestDelta ? k : best;
+  }, STAT_KEYS[0]);
+  const hotStatDelta = trends.targetWeights[hotStat] - trends.weights[hotStat];
+  const unlockedCats = CATEGORY_LIST.filter((c) => c.unlockEra <= state.era && c.unlockEra > 0);
+  const weakestCat = unlockedCats.length > 0
+    ? unlockedCats.reduce((best, cat) => {
+        const bestStr = comps.reduce((s, c) => s + ((c.strengthByCategory as Record<string, number>)[best.id] ?? 0), 0);
+        const catStr = comps.reduce((s, c) => s + ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0), 0);
+        return catStr < bestStr ? cat : best;
+      })
+    : null;
 
   return (
     <div className="mkt">
@@ -227,6 +244,39 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           })}
         </div>
       </Card>
+
+      {/* Market opportunity */}
+      {(hotStatDelta > 0.005 || weakestCat != null) && (
+        <Card className="mkt__intel">
+          <SectionHeader title="Market opportunity" accessory="based on current data" />
+          <div className="mkt__intel-list">
+            {hotStatDelta > 0.005 && (
+              <div className="mkt__intel-row">
+                <TrendingUp size={14} className="mkt__intel-icon mkt__intel-icon--up" />
+                <span className="mkt__intel-text">
+                  <strong>{STAT_LABEL[hotStat]}</strong> demand is rising — lead with it in your next product.
+                </span>
+              </div>
+            )}
+            {weakestCat != null && (
+              <div className="mkt__intel-row">
+                <span className="mkt__intel-icon mkt__intel-icon--opp" aria-hidden>◎</span>
+                <span className="mkt__intel-text">
+                  <strong>{weakestCat.displayName}</strong> has the least rival competition right now.
+                </span>
+              </div>
+            )}
+            {state.reputation >= 65 && (
+              <div className="mkt__intel-row">
+                <span className="mkt__intel-icon mkt__intel-icon--rep" aria-hidden>★</span>
+                <span className="mkt__intel-text">
+                  Your reputation ({Math.round(state.reputation)}) supports premium pricing on your next launch.
+                </span>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Activity feed */}
       <Card>
