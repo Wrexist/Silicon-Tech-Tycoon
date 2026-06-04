@@ -192,8 +192,12 @@ export interface Candidate {
   appearance: Appearance;
 }
 
+/** Recruitment channel: a cheaper/slower board vs. a pricey headhunter that finds stronger people. */
+export type RecruitTier = "board" | "headhunter";
+
 /** An in-progress recruitment search. Resolves into `candidates` when weeksLeft hits 0. */
 export interface Recruitment {
+  tier: RecruitTier;
   weeksLeft: number;
   startedWeek: number;
 }

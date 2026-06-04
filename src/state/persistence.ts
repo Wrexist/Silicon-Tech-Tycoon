@@ -281,6 +281,9 @@ function migrate(state: GameState): GameState | null {
   if (s.recruitment === undefined) s.recruitment = null;
   if (!Array.isArray(s.candidates)) s.candidates = [];
   if (s.candidateCounter == null) s.candidateCounter = 0;
+  if (s.candidatesExpire == null) s.candidatesExpire = 0;
+  // a search saved under the pre-tier shape gets the cheapest channel
+  if (s.recruitment && s.recruitment.tier == null) s.recruitment.tier = "board";
   if (Array.isArray(s.launched)) {
     s.launched = s.launched.map((lp: any) => {
       if (lp.product) lp.product = fixProduct(lp.product);

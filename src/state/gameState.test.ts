@@ -39,13 +39,13 @@ function goodPhone(): Product {
 describe("recruitment", () => {
   it("runs a search, produces candidates, and signing adds exactly one employee", () => {
     let s = newGame(42);
-    const cost = BALANCE.recruitment.searchCost;
+    const cost = BALANCE.recruitment.tiers.board.cost;
     const before = s.cash;
-    s = startRecruitment(s);
+    s = startRecruitment(s, "board");
     expect(s.recruitment).not.toBeNull();
     expect(s.cash).toBe(before - cost);
     // candidates arrive after the search duration
-    for (let i = 0; i < BALANCE.recruitment.weeks; i++) s = advanceOneWeek(s);
+    for (let i = 0; i < BALANCE.recruitment.tiers.board.weeks; i++) s = advanceOneWeek(s);
     expect(s.recruitment).toBeNull();
     expect(s.candidates.length).toBe(BALANCE.recruitment.candidates);
     // every candidate has a 0..100 profile and a derived 1..10 level
@@ -64,10 +64,28 @@ describe("recruitment", () => {
   });
 
   it("cannot start a second search while one is running", () => {
-    let s = startRecruitment(newGame(7));
+    let s = startRecruitment(newGame(7), "board");
     const running = s.recruitment;
-    s = startRecruitment(s);
+    s = startRecruitment(s, "headhunter");
     expect(s.recruitment).toBe(running);
+  });
+
+  it("the headhunter channel returns stronger candidates than the job board", () => {
+    const avg = (tier: "board" | "headhunter") => {
+      let s = newGame(99);
+      s = startRecruitment(s, tier);
+      for (let i = 0; i < BALANCE.recruitment.tiers[tier].weeks; i++) s = advanceOneWeek(s);
+      return s.candidates.reduce((a, c) => a + c.skill, 0) / s.candidates.length;
+    };
+    expect(avg("headhunter")).toBeGreaterThan(avg("board"));
+  });
+
+  it("an unsigned shortlist expires after the window", () => {
+    let s = startRecruitment(newGame(3), "board");
+    for (let i = 0; i < BALANCE.recruitment.tiers.board.weeks; i++) s = advanceOneWeek(s);
+    expect(s.candidates.length).toBeGreaterThan(0);
+    for (let i = 0; i < BALANCE.recruitment.expireWeeks; i++) s = advanceOneWeek(s);
+    expect(s.candidates.length).toBe(0);
   });
 
   it("respects the garage capacity of 4", () => {

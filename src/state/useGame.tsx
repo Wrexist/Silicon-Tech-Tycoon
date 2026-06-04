@@ -12,7 +12,7 @@ import {
 } from "react";
 import { BALANCE } from "../engine/balance.ts";
 import type { Money } from "../engine/money.ts";
-import type { ComponentKind, Product, StaffRole } from "../engine/types.ts";
+import type { ComponentKind, Product, RecruitTier, StaffRole } from "../engine/types.ts";
 import {
   advanceEraAction,
   advanceOneWeek,
@@ -108,7 +108,7 @@ interface GameContextValue {
   assign: (id: string, assignment: Assignment) => void;
   train: (id: string) => void;
   hire: (role: StaffRole, skill: number, name: string) => void;
-  recruit: () => void;
+  recruit: (tier: RecruitTier) => void;
   hireCandidate: (candidateId: string) => void;
   dismissCandidates: () => void;
   fire: (id: string) => void;
@@ -241,7 +241,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const hire = useCallback((role: StaffRole, skill: number, name: string) => {
     setState((s) => hireStaff(s, role, skill, name));
   }, []);
-  const recruit = useCallback(() => setState((s) => startRecruitment(s)), []);
+  const recruit = useCallback((tier: RecruitTier) => setState((s) => startRecruitment(s, tier)), []);
   const hireCandidateCb = useCallback((candidateId: string) => setState((s) => hireCandidate(s, candidateId)), []);
   const dismissCandidates = useCallback(() => setState((s) => clearCandidates(s)), []);
 

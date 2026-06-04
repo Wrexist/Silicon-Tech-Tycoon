@@ -1,6 +1,6 @@
 // Research Points economy + company Research Projects. PURE.
 import { BALANCE } from "./balance.ts";
-import { output } from "./staff.ts";
+import { disciplineOutput } from "./staff.ts";
 import type { Staff } from "./types.ts";
 
 export type ProjectId =
@@ -37,11 +37,13 @@ export function weeklyRp(staff: readonly Staff[], era: number): number {
   let rp = BALANCE.research.rpFounderBase;
   for (const s of staff) {
     if (s.assignment !== "rnd") continue;
+    // R&D draws on the person's Engineering discipline (0..100). Engineers naturally score high
+    // here; a non-engineer with decent Engineering still contributes.
     const per =
       s.role === "engineer"
         ? BALANCE.research.rpPerEngineerSkill
         : BALANCE.research.rpPerAssignedResearcher;
-    rp += output(s) * per;
+    rp += disciplineOutput(s, "engineering") * per;
   }
   const len = BALANCE.research.eraMultiplier.length;
   const mult = BALANCE.research.eraMultiplier[Math.max(1, Math.min(era, len)) - 1];

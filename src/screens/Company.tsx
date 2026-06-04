@@ -18,7 +18,7 @@ import {
   SPECIALTY_TITLE,
   TRAIT_INFO,
 } from "../engine/staff.ts";
-import type { Assignment, Candidate, LaunchedProduct, Staff, StaffRole } from "../engine/types.ts";
+import type { Assignment, Candidate, LaunchedProduct, RecruitTier, Staff, StaffRole } from "../engine/types.ts";
 import {
   burn,
   facility,
@@ -47,6 +47,13 @@ const ASSIGN_LABEL: Record<Assignment, string> = {
   design: "Design",
   marketing: "Mkt",
   idle: "Idle",
+};
+// Which 0..100 discipline each assignment draws on (idle → none). Mirrors the engine mapping.
+const ACTIVE_DISCIPLINE: Record<Assignment, Discipline | null> = {
+  rnd: "engineering",
+  design: "design",
+  marketing: "marketing",
+  idle: null,
 };
 const ASSIGN_COLOR: Record<Assignment, string> = {
   rnd: "var(--fn-eng)",
@@ -254,6 +261,20 @@ function Member({
         </span>
       </div>
 
+      {/* per-discipline skills (0..100) — the active one (matching their assignment) is highlighted */}
+      <div className="co__cand-skills">
+        {(["engineering", "design", "marketing"] as Discipline[]).map((d) => {
+          const active = ACTIVE_DISCIPLINE[s.assignment] === d;
+          return (
+            <div key={d} className="co__cand-skill" style={active ? undefined : { opacity: 0.5 }}>
+              <span className="co__cand-skill-label">{DISCIPLINE_LABEL[d]}</span>
+              <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${s.skills[d]}%`, background: active ? ROLE_COLOR[s.role] : "var(--ink-3)" }} /></span>
+              <span className="co__cand-skill-num tnum">{s.skills[d]}</span>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="co__xp">
         <div className="co__xp-head">
           <span>Skill {s.skill}{maxed ? " (max)" : ""}</span>
@@ -296,33 +317,39 @@ function RecruitPanel({
 }: {
   state: GameState;
   capacity: number;
-  onRecruit: () => void;
+  onRecruit: (tier: RecruitTier) => void;
   onHire: (id: string) => void;
   onDismiss: () => void;
 }) {
   const full = state.staff.length >= capacity;
-  const cost = BALANCE.recruitment.searchCost;
 
+  // Searching…
   if (state.recruitment) {
     const wl = state.recruitment.weeksLeft;
+    const label = BALANCE.recruitment.tiers[state.recruitment.tier].label;
     return (
       <Card>
         <div className="co__hire-head">
           <span className="co__member-glyph" aria-hidden style={{ background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)" }}><Search size={18} /></span>
           <div className="co__member-info">
-            <span className="co__member-name">Searching for candidates…</span>
-            <span className="co__member-role">{wl} week{wl === 1 ? "" : "s"} left</span>
+            <span className="co__member-name">{label} search…</span>
+            <span className="co__member-role">{wl} week{wl === 1 ? "" : "s"} until the shortlist arrives</span>
           </div>
         </div>
-        <p className="co__hint">Your recruiter is sourcing applicants — advance the weeks to get a shortlist.</p>
+        <p className="co__hint">Advance the weeks to interview candidates.</p>
       </Card>
     );
   }
 
+  // Shortlist ready
   if (state.candidates.length) {
+    const weeksLeft = Math.max(0, state.candidatesExpire - state.week);
     return (
       <>
-        {full && <p className="co__hint">At capacity — upgrade your facility to free up a desk before signing.</p>}
+        <p className="co__hint">
+          {full ? "At capacity — free up a desk to sign someone. " : ""}
+          Shortlist available for {weeksLeft} more week{weeksLeft === 1 ? "" : "s"}.
+        </p>
         {state.candidates.map((c) => (
           <CandidateCard key={c.id} c={c} canHire={!full && state.cash >= c.hireFee} onHire={() => onHire(c.id)} />
         ))}
@@ -331,19 +358,33 @@ function RecruitPanel({
     );
   }
 
-  const affordable = state.cash >= cost;
+  // Idle — pick a channel
   return (
     <Card>
       <div className="co__hire-head">
         <span className="co__member-glyph" aria-hidden style={{ background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)" }}><Search size={18} /></span>
         <div className="co__member-info">
-          <span className="co__member-name">Open a search</span>
-          <span className="co__member-role">{BALANCE.recruitment.weeks} weeks · {BALANCE.recruitment.candidates} candidates</span>
+          <span className="co__member-name">Find new talent</span>
+          <span className="co__member-role">Run a search · {BALANCE.recruitment.candidates} candidates each</span>
         </div>
       </div>
-      <div className="co__hire-controls">
-        <span className="co__hint">Finds applicants with varied skills &amp; traits.</span>
-        <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={onRecruit}>Search · {format(cost)}</Button>
+      <div className="co__recruit-tiers">
+        {(["board", "headhunter"] as RecruitTier[]).map((tier) => {
+          const t = BALANCE.recruitment.tiers[tier];
+          const affordable = state.cash >= t.cost;
+          return (
+            <button
+              key={tier}
+              className="co__recruit-tier"
+              disabled={!affordable}
+              onClick={() => onRecruit(tier)}
+            >
+              <span className="co__recruit-tier-name">{t.label}</span>
+              <span className="co__recruit-tier-meta">{t.weeks} wks · skill {t.minLevel}–{t.maxLevel}</span>
+              <span className="co__recruit-tier-cost">{format(t.cost)}</span>
+            </button>
+          );
+        })}
       </div>
     </Card>
   );

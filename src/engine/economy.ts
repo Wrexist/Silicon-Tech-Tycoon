@@ -1,8 +1,8 @@
 // Company economy — payroll, rent, runway, bankruptcy, staff XP, build time. PURE.
 import { BALANCE } from "./balance.ts";
 import { add, sum, gte, scale, type Money, ZERO, dollars } from "./money.ts";
-import { output, xpMult } from "./staff.ts";
-import type { Assignment, Staff, StaffRole } from "./types.ts";
+import { ASSIGNMENT_DISCIPLINE, disciplineOutput, xpMult } from "./staff.ts";
+import type { Assignment, Staff } from "./types.ts";
 
 export function weeklyPayroll(staff: readonly Staff[]): Money {
   return staff.length ? sum(staff.map((s) => s.salary)) : ZERO;
@@ -34,19 +34,14 @@ export function totalSkill(staff: readonly Staff[], role: Staff["role"]): number
   return staff.filter((s) => s.role === role).reduce((a, s) => a + s.skill, 0);
 }
 
-const FN_ROLE: Record<Exclude<Assignment, "idle">, StaffRole> = {
-  rnd: "engineer",
-  design: "designer",
-  marketing: "marketer",
-};
-
-/** Effective skill contributing to a function: staff assigned to it, full if their role
- *  matches, half if not (so you can flexibly redeploy people). */
+/** Effective skill contributing to a function: each person assigned to it contributes their
+ *  0..100 score in THAT discipline (scaled to the 1..10 output range). So a designer with strong
+ *  Engineering still helps R&D — put people where their high scores are. */
 export function assignedSkill(staff: readonly Staff[], assignment: Exclude<Assignment, "idle">): number {
-  const preferred = FN_ROLE[assignment];
+  const discipline = ASSIGNMENT_DISCIPLINE[assignment];
   return staff
     .filter((s) => s.assignment === assignment)
-    .reduce((a, s) => a + output(s) * (s.role === preferred ? 1 : 0.5), 0);
+    .reduce((a, s) => a + disciplineOutput(s, discipline), 0);
 }
 
 /** XP needed to reach the next skill level from the current skill. */

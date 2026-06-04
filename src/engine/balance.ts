@@ -142,15 +142,15 @@ export const BALANCE = {
   },
 
   // --- Recruitment: pay to run a search; after `weeks` it returns `candidates` applicants with
-  // varied 0..100 discipline skills + a trait. You then sign whoever you want (if you have room).
+  // varied 0..100 discipline skills + a trait. Two tiers trade cost/time for candidate quality.
+  // The shortlist lapses after `expireWeeks` if you don't sign anyone.
   recruitment: {
-    searchCost: dollars(2_500), // up-front cost to open a search
-    weeks: 2, // weeks until candidates arrive
     candidates: 3, // applicants produced per search
-    // headline-skill spread of applicants (the derived 1..10); occasionally a star
-    minLevel: 2,
-    maxLevel: 7,
-    starChance: 0.18, // chance an applicant rolls above maxLevel (up to 9)
+    expireWeeks: 4, // weeks a shortlist stays available before it moves on
+    tiers: {
+      board: { label: "Job Board", cost: dollars(1_500), weeks: 2, minLevel: 2, maxLevel: 5, starChance: 0.08 },
+      headhunter: { label: "Headhunter", cost: dollars(6_500), weeks: 3, minLevel: 5, maxLevel: 8, starChance: 0.3 },
+    },
   },
 
   // --- Build / manufacturing ---

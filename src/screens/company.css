@@ -409,3 +409,44 @@
   font-weight: 600;
   color: var(--ink-2);
 }
+
+/* --- Recruitment channel buttons --- */
+.co__recruit-tiers {
+  display: flex;
+  gap: var(--sp-8);
+}
+.co__recruit-tier {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--bg-elevated);
+  border: 1.5px solid transparent;
+  text-align: left;
+  transition: border-color var(--spring-snappy), background var(--spring-snappy);
+}
+.co__recruit-tier:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.co__recruit-tier:disabled {
+  opacity: 0.5;
+}
+.co__recruit-tier-name {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+.co__recruit-tier-meta {
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+}
+.co__recruit-tier-cost {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+}

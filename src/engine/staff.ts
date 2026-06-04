@@ -4,6 +4,7 @@ import { STAT_KEYS } from "./types.ts";
 import type {
   Accessory,
   Appearance,
+  Assignment,
   Skills,
   Specialty,
   Staff,
@@ -164,18 +165,39 @@ export function isPerfectionist(s: Staff): boolean {
   return s.trait === "perfectionist";
 }
 
-/** A person's effective contribution to whatever they're assigned to. */
+/** A person's headline effectiveness (uses their 1..10 level). Kept for any generic use. */
 export function output(s: Staff): number {
   const skill = Number.isFinite(s.skill) ? Math.max(0, s.skill) : 0; // immunize the sim from a corrupt skill
   return skill * moodMult(s.mood) * traitOutputMult(s.trait);
 }
 
-/** Build-time stat bonus from designers (assigned to Design) whose specialty matches a stat. */
+/** Which 0..100 discipline a given task draws on. This is what makes people "good at different
+ *  things" actually matter: put someone on the work their high score covers. */
+export const ASSIGNMENT_DISCIPLINE: Record<Exclude<Assignment, "idle">, Discipline> = {
+  rnd: "engineering",
+  design: "design",
+  marketing: "marketing",
+};
+
+/** Read a 0..100 discipline safely (corrupt/old saves → 0). */
+function disciplineScore(s: Staff, d: Discipline): number {
+  const v = s.skills?.[d];
+  return Number.isFinite(v) ? Math.max(0, v) : 0;
+}
+
+/** A person's effective contribution to a specific discipline of work, on the SAME 1..10-ish
+ *  scale as `output()` (so existing balance holds when people work their primary discipline). */
+export function disciplineOutput(s: Staff, d: Discipline): number {
+  return (disciplineScore(s, d) / 10) * moodMult(s.mood) * traitOutputMult(s.trait);
+}
+
+/** Build-time stat bonus from designers (assigned to Design) whose specialty matches a stat —
+ *  scaled by their Design discipline. */
 export function designSpecialtyBonus(staff: readonly Staff[]): Partial<Record<StatKey, number>> {
   const bonus: Partial<Record<StatKey, number>> = {};
   for (const s of staff) {
     if (s.assignment !== "design") continue;
-    const amt = 1.2 * Math.sqrt(Math.max(0, s.skill || 0)) * moodMult(s.mood);
+    const amt = 1.2 * Math.sqrt(disciplineScore(s, "design") / 10) * moodMult(s.mood);
     bonus[s.specialty] = (bonus[s.specialty] ?? 0) + amt;
   }
   return bonus;

@@ -93,6 +93,7 @@ import type {
   LaunchedProduct,
   Product,
   Recruitment,
+  RecruitTier,
   Staff,
   StaffRole,
   Stats,
@@ -129,6 +130,7 @@ export interface GameState {
   recruitment: Recruitment | null;
   candidates: Candidate[];
   candidateCounter: number;
+  candidatesExpire: number; // week the current shortlist lapses (0 when none)
   facilityTier: number;
   upgrades: Partial<Record<UpgradeId, number>>;
   researchPoints: number;
@@ -230,6 +232,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     recruitment: null,
     candidates: [],
     candidateCounter: 0,
+    candidatesExpire: 0,
     facilityTier: 1,
     upgrades: {},
     researchPoints: legacy * BALANCE.legacy.rpPerLevel,
@@ -612,21 +615,28 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     return { ...next, skills, mood };
   });
 
-  // Recruitment search progress — resolves into a candidate shortlist when the timer runs out.
+  // Recruitment search progress — resolves into a candidate shortlist when the timer runs out,
+  // and the shortlist lapses if it sits unsigned for too long.
   let recruitment = state.recruitment;
   let candidates = state.candidates;
   let candidateCounter = state.candidateCounter;
+  let candidatesExpire = state.candidatesExpire;
   if (recruitment) {
     const weeksLeft = recruitment.weeksLeft - rate;
     if (weeksLeft <= 0) {
-      const gen = generateCandidates(state, rng);
+      const gen = generateCandidates(state, recruitment.tier, rng);
       candidates = gen.candidates;
       candidateCounter = gen.counter;
+      candidatesExpire = week + BALANCE.recruitment.expireWeeks;
       recruitment = null;
       feed.push(feedItem(week, `${candidates.length} candidates ready to interview.`, "accent"));
     } else {
       recruitment = { ...recruitment, weeksLeft };
     }
+  } else if (candidates.length && candidatesExpire && week >= candidatesExpire) {
+    candidates = [];
+    candidatesExpire = 0;
+    feed.push(feedItem(week, "The candidate shortlist moved on to other offers.", "neutral"));
   }
 
   const bankrupt = cash < 0;
@@ -650,6 +660,7 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     recruitment,
     candidates,
     candidateCounter,
+    candidatesExpire,
     trends,
     trendRetargetWeek,
     competitors,
@@ -1079,30 +1090,32 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
 
 // ---------- Recruitment: search → candidates → sign ----------
 
-/** Open a recruitment search (costs a flat fee, resolves after BALANCE.recruitment.weeks). */
-export function startRecruitment(state: GameState): GameState {
+/** Open a recruitment search on a channel (Job Board / Headhunter). Costs the tier's fee and
+ *  resolves after the tier's lead time. */
+export function startRecruitment(state: GameState, tier: RecruitTier): GameState {
   if (state.recruitment) return state; // a search is already running
-  const cost = BALANCE.recruitment.searchCost;
-  if (state.cash < cost) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, "Opened a recruitment search.", "accent")]);
+  const t = BALANCE.recruitment.tiers[tier];
+  if (state.cash < t.cost) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Opened a ${t.label} search.`, "accent")]);
   return {
     ...state,
-    cash: sub(state.cash, cost),
-    recruitment: { weeksLeft: BALANCE.recruitment.weeks, startedWeek: state.week },
+    cash: sub(state.cash, t.cost),
+    recruitment: { tier, weeksLeft: t.weeks, startedWeek: state.week },
     feed,
   };
 }
 
-/** Generate the applicant pool when a search completes. Varied roles, 0..100 skill profiles,
- *  traits, and an occasional star. Advances + returns the rng so results stay deterministic. */
-function generateCandidates(state: GameState, rng: Rng): { candidates: Candidate[]; counter: number } {
+/** Generate the applicant pool when a search completes. The tier sets the skill spread + star
+ *  odds. Varied roles, 0..100 profiles, traits. Advances + returns the rng (deterministic). */
+function generateCandidates(state: GameState, tier: RecruitTier, rng: Rng): { candidates: Candidate[]; counter: number } {
+  const t = BALANCE.recruitment.tiers[tier];
   const roles: StaffRole[] = ["engineer", "designer", "marketer"];
   const out: Candidate[] = [];
   let counter = state.candidateCounter;
   for (let i = 0; i < BALANCE.recruitment.candidates; i++) {
     const role = roles[rng.int(roles.length)];
-    let level = Math.round(rng.range(BALANCE.recruitment.minLevel, BALANCE.recruitment.maxLevel));
-    if (rng.next() < BALANCE.recruitment.starChance) level = Math.min(9, level + 2 + rng.int(2));
+    let level = Math.round(rng.range(t.minLevel, t.maxLevel));
+    if (rng.next() < t.starChance) level = Math.min(9, level + 2 + rng.int(2));
     const skills = makeSkills(rng, role, level);
     const headline = levelFromSkills(skills, role);
     const identity = makeIdentity(rng, role);
@@ -1148,6 +1161,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     staff: [...state.staff, member],
     staffCounter: state.staffCounter + 1,
     candidates: [], // the rest of the shortlist moves on
+    candidatesExpire: 0,
     feed,
   };
 }
@@ -1155,7 +1169,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
 /** Dismiss the current candidate shortlist without hiring. */
 export function clearCandidates(state: GameState): GameState {
   if (state.candidates.length === 0) return state;
-  return { ...state, candidates: [] };
+  return { ...state, candidates: [], candidatesExpire: 0 };
 }
 
 export function fireStaff(state: GameState, id: string): GameState {
