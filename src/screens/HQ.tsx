@@ -1,5 +1,5 @@
 import {
-  Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, CircleDot, Clock, Coffee,
+  Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, ChevronRight, CircleDot, Clock, Coffee,
   Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
   Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
   Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
@@ -29,6 +29,8 @@ import {
 } from "../engine/furniture.ts";
 import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
+import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { STAT_KEYS } from "../engine/types.ts";
 import { canAdvance, canIPO, facility, upgradeCost, type GameState } from "../state/gameState.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -204,6 +206,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       ) : (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />
+          <StrategicInsightsCard state={state} onNavigate={onNavigate} />
           {recentFeed.length > 0 && (
             <Card>
               <SectionHeader title="News" accessory={`week ${state.week}`} />
@@ -630,6 +633,107 @@ function EraGoalCard({ state }: { state: GameState }) {
       )}
       <p className="hq__goal-or">Either threshold unlocks the next era.</p>
     </div>
+  );
+}
+
+const INSIGHT_STAT_LABEL: Record<string, string> = {
+  performance: "Performance", quality: "Quality", battery: "Battery",
+  design: "Design", ecosystem: "Ecosystem",
+};
+
+function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
+  type Insight = { icon: LucideIcon; text: string; tab?: Tab };
+  const insights: Insight[] = [];
+
+  // 1. Idle staff — most immediately actionable
+  const idleCount = state.staff.filter((s) => s.assignment === "idle").length;
+  if (idleCount > 0) {
+    insights.push({
+      icon: Users,
+      text: `${idleCount} staff member${idleCount > 1 ? "s are" : " is"} unassigned — assign them to R&D or Marketing to compound output.`,
+      tab: "company",
+    });
+  }
+
+  // 2. Affordable research project
+  const rp = Math.floor(state.researchPoints);
+  const nextProject = RESEARCH_PROJECTS
+    .filter((p) => !state.completedProjects.includes(p.id) && p.era <= state.era && p.rpCost <= rp)
+    .sort((a, b) => a.rpCost - b.rpCost)[0];
+  if (nextProject) {
+    insights.push({
+      icon: FlaskConical,
+      text: `You have ${rp} RP — enough to unlock "${nextProject.name}". Head to Research to claim it.`,
+      tab: "research",
+    });
+  }
+
+  // 3. Product drought — no active products and nothing in the pipeline
+  if (insights.length < 3) {
+    const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
+    const inPipeline = state.building.length > 0 || state.ready.length > 0;
+    if (active.length === 0 && !inPipeline) {
+      insights.push({
+        icon: Rocket,
+        text: "All products have finished their run — design and launch a new one to keep revenue flowing.",
+        tab: "design",
+      });
+    }
+  }
+
+  // 4. Rising market trend worth exploiting
+  if (insights.length < 3) {
+    const top = [...STAT_KEYS].sort((a, b) => {
+      const da = (state.trends.targetWeights[a] ?? 0) - (state.trends.weights[a] ?? 0);
+      const db = (state.trends.targetWeights[b] ?? 0) - (state.trends.weights[b] ?? 0);
+      return db - da;
+    })[0];
+    const topDelta = top ? (state.trends.targetWeights[top] ?? 0) - (state.trends.weights[top] ?? 0) : 0;
+    if (top && topDelta > 0.025) {
+      insights.push({
+        icon: TrendingUp,
+        text: `${INSIGHT_STAT_LABEL[top]} demand is climbing — your next product should prioritize it to ride the wave.`,
+        tab: "design",
+      });
+    }
+  }
+
+  // 5. Untapped category (blue-ocean opportunity)
+  if (insights.length < 3) {
+    const shippedCats = new Set(state.launched.map((lp) => lp.product.category));
+    const unshipped = CATEGORY_LIST.filter((c) => c.unlockEra <= state.era && !shippedCats.has(c.id));
+    if (unshipped.length > 0) {
+      insights.push({
+        icon: Shapes,
+        text: `You haven't shipped a ${unshipped[0].displayName} yet — an open market segment with no competition from you.`,
+        tab: "design",
+      });
+    }
+  }
+
+  if (insights.length === 0) return null;
+
+  return (
+    <Card className="hq__insights">
+      <SectionHeader title="Strategic insights" accessory={`${insights.length} hint${insights.length > 1 ? "s" : ""}`} />
+      <div className="hq__insights-list">
+        {insights.slice(0, 3).map((ins, i) => {
+          const Icon = ins.icon;
+          return (
+            <button
+              key={i}
+              className={`hq__insight${ins.tab ? "" : " hq__insight--static"}`}
+              onClick={() => ins.tab && onNavigate(ins.tab)}
+              disabled={!ins.tab}
+            >
+              <span className="hq__insight-icon"><Icon size={14} strokeWidth={2.5} /></span>
+              <span className="hq__insight-text">{ins.text}</span>
+              {ins.tab && <ChevronRight size={13} className="hq__insight-chevron" aria-hidden />}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
