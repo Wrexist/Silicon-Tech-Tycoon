@@ -754,6 +754,36 @@ function ProductDetailSheet({
           );
         })()}
       </div>
+      {/* Lifecycle phase breakdown — only for finished products with a full sales curve */}
+      {!live && lp.weeklyUnits.length > 0 && (() => {
+        const peakWk = BALANCE.sales.peakWeek;
+        const priceD = toDollars(lp.product.price);
+        const rushUnits = lp.weeklyUnits.slice(0, peakWk).reduce((s, u) => s + u, 0);
+        const peakUnits = lp.weeklyUnits[peakWk] ?? 0;
+        const declineUnits = lp.weeklyUnits.slice(peakWk + 1).reduce((s, u) => s + u, 0);
+        const totalForecast = rushUnits + peakUnits + declineUnits;
+        if (totalForecast <= 0) return null;
+        const phases = [
+          { label: "Launch rush", units: rushUnits },
+          { label: "Peak week", units: peakUnits },
+          { label: "Long tail", units: declineUnits },
+        ];
+        const maxUnits = Math.max(...phases.map((p) => p.units), 1);
+        return (
+          <div className="pd__phases">
+            <span className="pd__phases-title">Sales by phase</span>
+            {phases.map(({ label, units }) => (
+              <div key={label} className="pd__phase-row">
+                <span className="pd__phase-label">{label}</span>
+                <div className="pd__phase-track">
+                  <div className="pd__phase-fill" style={{ width: `${Math.round((units / maxUnits) * 100)}%` }} />
+                </div>
+                <span className="pd__phase-rev tnum">{format(dollars(Math.round(units * priceD)))}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Product specs */}
       <div className="pd__specs">

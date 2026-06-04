@@ -694,6 +694,51 @@
   text-align: right;
 }
 
+.pd__phases {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-16);
+  background: var(--bg-elevated);
+  border-radius: var(--r-button);
+}
+.pd__phases-title {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.pd__phase-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 72px;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.pd__phase-label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.pd__phase-track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  overflow: hidden;
+}
+.pd__phase-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-standard);
+}
+.pd__phase-rev {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink);
+  text-align: right;
+}
+
 .pd__why {
   display: flex;
   flex-direction: column;

@@ -762,6 +762,7 @@
 .wiz__channel-blurb { font-size: var(--fs-caption); color: var(--ink-2); }
 .wiz__channel-meta { display: flex; flex-direction: column; align-items: flex-end; font-weight: 700; font-size: var(--fs-caption); }
 .wiz__channel-hype { font-size: var(--fs-micro); color: var(--fn-mkt-text); }
+.wiz__channel-demand { font-size: var(--fs-micro); font-weight: 800; color: var(--positive-text, var(--positive)); }
 .wiz__total { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-12); border-radius: var(--r-button); background: var(--bg-elevated); font-weight: 700; font-size: var(--fs-headline); }
 .wiz__total--bad { color: var(--negative-text); }
 .wiz__warn { font-size: var(--fs-caption); color: var(--negative-text); text-align: center; }

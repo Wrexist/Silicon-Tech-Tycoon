@@ -755,6 +755,7 @@ function BuildWizard({
 
   const plan = useMemo(() => planProduction(state, draft, units, channel), [state, draft, units, channel]);
   const recommended = useMemo(() => recommendedRun(state, draft, channel), [state, draft, channel]);
+  const baseDemand = useMemo(() => planProduction(state, draft, units, "none").totalDemand, [state, draft, units]);
   const affordable = state.cash >= plan.totalUpfront;
   const variancePct = state.completedProjects.includes("demandSensing") ? 0.08 : 0.12;
   const demandLow = Math.round(plan.totalDemand * (1 - variancePct));
@@ -825,6 +826,8 @@ function BuildWizard({
             {MARKETING_CHANNELS.map((c) => {
               const Icon = WIZARD_CHANNEL_ICONS[c.icon] ?? Ban;
               const aff = state.cash >= c.cost;
+              const chanDemand = planProduction(state, draft, units, c.id).totalDemand;
+              const demandDelta = chanDemand - baseDemand;
               return (
                 <button key={c.id} className={`wiz__channel${channel === c.id ? " wiz__channel--on" : ""}`} disabled={!aff && c.id !== "none"} aria-pressed={channel === c.id} onClick={() => { setChannel(c.id); haptic.light(); }}>
                   <span className="wiz__channel-icon"><Icon size={18} /></span>
@@ -834,7 +837,9 @@ function BuildWizard({
                   </div>
                   <div className="wiz__channel-meta">
                     <span>{c.cost > 0 ? format(c.cost) : "Free"}</span>
-                    {c.hype > 0 && <span className="wiz__channel-hype">+{Math.round(c.hype * 100)}%</span>}
+                    {demandDelta > 0 && (
+                      <span className="wiz__channel-demand">+{demandDelta.toLocaleString()} units</span>
+                    )}
                   </div>
                 </button>
               );
