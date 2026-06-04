@@ -31,7 +31,7 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type GameState } from "../state/gameState.ts";
+import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -86,7 +86,6 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const hasProduction =
     state.building.length > 0 || state.launched.some((l) => l.weeksElapsed < l.weeklyUnits.length);
   const advanceReady = canAdvance(state);
-  const recentFeed = state.feed.slice(-4).reverse();
   const nextEraUnlocks = advanceReady
     ? CATEGORY_LIST.filter((c) => c.unlockEra === state.era + 1).map((c) => c.displayName)
     : [];
@@ -221,24 +220,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />
           <StrategicInsightsCard state={state} onNavigate={onNavigate} />
-          {recentFeed.length > 0 && (
-            <Card>
-              <SectionHeader title="News" accessory={`week ${state.week}`} />
-              <ul className="hq__feed-list">
-                {recentFeed.map((item) => {
-                  const Icon = item.tone === "positive" ? TrendingUp : item.tone === "negative" ? TrendingDown : item.tone === "accent" ? Sparkles : Newspaper;
-                  return (
-                    <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
-                      <span className="hq__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
-                      <span className="hq__feed-week">wk {item.week}</span>
-                      {item.text}
-                    </li>
-                  );
-                })}
-              </ul>
-              <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
-            </Card>
-          )}
+          {state.feed.length > 0 && <FeedCard feed={state.feed} week={state.week} onNavigate={onNavigate} />}
         </>
       )}
     </div>
@@ -772,6 +754,37 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
           );
         })}
       </div>
+    </Card>
+  );
+}
+
+function FeedCard({ feed, week, onNavigate }: { feed: FeedItem[]; week: number; onNavigate: (t: Tab) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const all = [...feed].reverse();
+  const limit = 4;
+  const shown = expanded ? all : all.slice(0, limit);
+  const hasMore = all.length > limit;
+  return (
+    <Card>
+      <SectionHeader title="News" accessory={`week ${week}`} />
+      <ul className="hq__feed-list">
+        {shown.map((item) => {
+          const Icon = item.tone === "positive" ? TrendingUp : item.tone === "negative" ? TrendingDown : item.tone === "accent" ? Sparkles : Newspaper;
+          return (
+            <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
+              <span className="hq__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
+              <span className="hq__feed-week">wk {item.week}</span>
+              {item.text}
+            </li>
+          );
+        })}
+      </ul>
+      {hasMore && (
+        <button className="hq__feed-toggle" onClick={() => setExpanded((x) => !x)}>
+          {expanded ? "Show recent" : `+${all.length - limit} older events`}
+        </button>
+      )}
+      <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
     </Card>
   );
 }

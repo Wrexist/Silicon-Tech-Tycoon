@@ -37,6 +37,32 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* Trend shift countdown — shown when a retarget is within 5 weeks */
+.lab__trend-shift {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-14);
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.lab__trend-shift-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+  flex-shrink: 0;
+  animation: mkt-pulse 1.2s ease-in-out infinite;
+}
+.lab__trend-shift strong {
+  color: var(--warning);
+  font-weight: 700;
+}
 .lab__hero {
   display: flex;
   flex-direction: column;

@@ -204,7 +204,12 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                           if (bestRival >= score - 10) return <span className="mkt__product-rival mkt__product-rival--match">≈ rival</span>;
                           return null;
                         })()}
-                        {live && !endingSoon && <span className="mkt__product-live">selling</span>}
+                        {live && !endingSoon && (() => {
+                          const peakWk = BALANCE.sales.peakWeek;
+                          if (lp.weeksElapsed < peakWk) return <span className="mkt__product-stage mkt__product-stage--ramp">rising</span>;
+                          if (lp.weeksElapsed === peakWk) return <span className="mkt__product-stage mkt__product-stage--peak">peak</span>;
+                          return <span className="mkt__product-stage mkt__product-stage--decline">fading</span>;
+                        })()}
                         {endingSoon && <span className="mkt__product-ending">last {lp.weeklyUnits.length - lp.weeksElapsed}wk</span>}
                         {!live && lp.plannedUnits && lp.plannedUnits > 0 && (
                           <span className={`mkt__product-thru tnum${Math.round((lp.unitsSold / lp.plannedUnits) * 100) >= 90 ? " mkt__product-thru--full" : ""}`}>

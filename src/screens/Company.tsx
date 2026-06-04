@@ -392,6 +392,12 @@ function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
   );
 }
 
+function fmtRevShort(d: number): string {
+  if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(1)}M`;
+  if (d >= 1_000) return `$${Math.round(d / 1_000)}k`;
+  return `$${Math.round(d)}`;
+}
+
 /* ---------- Company stats / history ---------- */
 
 function buildRevenueHistory(launched: LaunchedProduct[], cashHistory: { week: number; cash: number }[]): number[] {
@@ -498,6 +504,46 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
           )}
         </div>
       )}
+
+      {launched.length >= 2 && (() => {
+        let bestLaunchScore = 0;
+        let bestScoreName = "";
+        for (const lp of launched) {
+          if (lp.launchScore > bestLaunchScore) {
+            bestLaunchScore = lp.launchScore;
+            bestScoreName = lp.product.name;
+          }
+        }
+        let peakWkRev = 0;
+        let peakWkName = "";
+        for (const lp of launched) {
+          for (const units of lp.weeklyUnits) {
+            const rev = units * toDollars(lp.product.price);
+            if (rev > peakWkRev) { peakWkRev = rev; peakWkName = lp.product.name; }
+          }
+        }
+        return (
+          <div className="co__stats-bests">
+            <p className="co__stats-bests-title">Personal bests</p>
+            <div className="co__stats-bests-grid">
+              {bestLaunchScore > 0 && (
+                <div className="co__stats-best-item">
+                  <span className="co__stats-best-item-val tnum">{Math.round(bestLaunchScore)}</span>
+                  <span className="co__stats-best-item-label">Best launch score</span>
+                  <span className="co__stats-best-item-sub">{bestScoreName}</span>
+                </div>
+              )}
+              {peakWkRev > 0 && (
+                <div className="co__stats-best-item">
+                  <span className="co__stats-best-item-val tnum">{fmtRevShort(peakWkRev)}</span>
+                  <span className="co__stats-best-item-label">Peak weekly rev</span>
+                  <span className="co__stats-best-item-sub">{peakWkName}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="co__stats-grid">
         <Stat label="Lifetime revenue" value={format(state.cumulativeRevenue)} tone="positive" />

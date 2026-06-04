@@ -820,3 +820,50 @@
   color: var(--ink-3);
   line-height: 1.35;
 }
+
+/* ---------- Stats sheet personal bests ---------- */
+.co__stats-bests {
+  margin-bottom: var(--sp-16);
+}
+.co__stats-bests-title {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--sp-10);
+}
+.co__stats-bests-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-10);
+}
+.co__stats-best-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.co__stats-best-item-val {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.co__stats-best-item-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.co__stats-best-item-sub {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

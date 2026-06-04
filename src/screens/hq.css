@@ -944,3 +944,26 @@
   margin-top: 4px;
   color: var(--ink-3);
 }
+
+/* ---------- Feed card expand/collapse toggle ---------- */
+.hq__feed-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--sp-8);
+  margin-bottom: var(--sp-8);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--accent);
+  border-radius: var(--r-button);
+  background: transparent;
+  transition: background var(--spring-snappy);
+}
+.hq__feed-toggle:hover {
+  background: var(--bg-elevated);
+}
+.hq__feed-toggle:active {
+  background: var(--bg-elevated);
+  transform: scale(0.98);
+}

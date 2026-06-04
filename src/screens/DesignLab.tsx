@@ -251,6 +251,18 @@ export function DesignLab({
           </span>
         </div>
       )}
+      {(() => {
+        const weeksToShift = state.trendRetargetWeek - state.week;
+        if (weeksToShift > 5 || weeksToShift < 0) return null;
+        return (
+          <div className="lab__trend-shift">
+            <span className="lab__trend-shift-dot" />
+            <span>
+              Trends shift in <strong>{weeksToShift} week{weeksToShift !== 1 ? "s" : ""}</strong> — launch before the shift to ride current demand, or hold for the next cycle.
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Hero device */}
       <div className="lab__hero">

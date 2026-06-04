@@ -963,3 +963,27 @@
   overflow-y: auto;
   padding-right: var(--sp-4);
 }
+
+/* Product lifecycle stage badges — shown on live products instead of generic "selling" */
+.mkt__product-stage {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mkt__product-stage--ramp {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.mkt__product-stage--peak {
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+  color: var(--positive-text, var(--positive));
+}
+.mkt__product-stage--decline {
+  background: color-mix(in srgb, var(--ink-3) 12%, transparent);
+  color: var(--ink-2);
+}
