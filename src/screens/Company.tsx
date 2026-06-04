@@ -2,7 +2,8 @@ import { useState } from "react";
 import { ArrowUp, Award, BarChart3, Building2, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
-import { ACHIEVEMENT_COUNT, deriveFacts } from "../engine/achievements.ts";
+import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
+import { AchievementIcon } from "../design/achievementIcons.tsx";
 import { Avatar } from "../components/Avatar.tsx";
 import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
@@ -135,6 +136,36 @@ export function Company() {
         <div className="co__spark">
           <Sparkline data={cashData} stroke={state.cash >= 0 ? "var(--accent)" : "var(--negative)"} />
         </div>
+        {wkBurn > 0 && (() => {
+          const weeklyNet = toDollars(sub(wkRev, wkBurn));
+          const weeks = 8;
+          const bars: number[] = [];
+          let cash = toDollars(state.cash);
+          for (let i = 1; i <= weeks; i++) {
+            cash += weeklyNet;
+            bars.push(cash);
+          }
+          const peak = Math.max(...bars.map(Math.abs), 1);
+          return (
+            <div className="co__proj" aria-label="Projected cash over next 8 weeks">
+              <span className="co__proj-label">Projected · 8 weeks</span>
+              <div className="co__proj-bars">
+                {bars.map((v, i) => {
+                  const pos = v >= 0;
+                  const h = Math.round((Math.abs(v) / peak) * 100);
+                  return (
+                    <div key={i} className="co__proj-col">
+                      <div className="co__proj-bar-wrap">
+                        <div className={`co__proj-bar${pos ? "" : " co__proj-bar--neg"}`} style={{ height: `${Math.max(4, h)}%` }} />
+                      </div>
+                      <span className="co__proj-wk tnum">+{i + 1}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
         {state.staff.length > 0 && (
           <p className="co__burn-breakdown">
             Payroll {format(wkPayroll)} · Rent {format(wkRent)} weekly
@@ -200,6 +231,9 @@ export function Company() {
         <span className="co__ach-count tnum">{achievementCount}<span className="co__ach-count-total">/{ACHIEVEMENT_COUNT}</span></span>
       </button>
 
+      {/* Near-achievement progress */}
+      <NearMilestonesCard state={state} />
+
       {/* Team output summary */}
       <TeamOutputCard state={state} />
 
@@ -241,6 +275,85 @@ export function Company() {
         <AchievementsSheet unlocked={state.unlockedAchievements} onClose={() => setAchievementsOpen(false)} />
       </Sheet>
     </div>
+  );
+}
+
+/* ---------- Near-milestone progress tracker ---------- */
+
+function NearMilestonesCard({ state }: { state: GameState }) {
+  const facts = deriveFacts(state);
+  const unlocked = new Set(state.unlockedAchievements);
+
+  // Map achievement id → [current, target] for achievements with numeric progress
+  const prog: Partial<Record<string, [number, number]>> = {
+    "first-ship": [facts.productsShipped, 1],
+    "ship-5": [facts.productsShipped, 5],
+    "ship-10": [facts.productsShipped, 10],
+    "ship-25": [facts.productsShipped, 25],
+    "ship-100": [facts.productsShipped, 100],
+    "first-hit": [facts.hits, 1],
+    "hat-trick": [facts.hitStreak, 3],
+    "hit-streak-5": [facts.hitStreak, 5],
+    "rev-1m": [facts.cumulativeRevenue, 1_000_000],
+    "rev-10m": [facts.cumulativeRevenue, 10_000_000],
+    "rev-100m": [facts.cumulativeRevenue, 100_000_000],
+    "rev-500m": [facts.cumulativeRevenue, 500_000_000],
+    "rev-1b": [facts.cumulativeRevenue, 1_000_000_000],
+    "fans-10k": [facts.fans, 10_000],
+    "fans-100k": [facts.fans, 100_000],
+    "fans-1m": [facts.fans, 1_000_000],
+    "rep-50": [facts.reputation, 50],
+    "rep-75": [facts.reputation, 75],
+    "rep-85": [facts.reputation, 85],
+    "first-hire": [facts.staffCount, 2],
+    "team-5": [facts.staffCount, 5],
+    "team-10": [facts.staffCount, 10],
+    "investor": [facts.rivalsInvested, 3],
+    "all-rivals": [facts.rivalsInvested, 6],
+    "first-research": [facts.completedProjects, 1],
+    "research-4": [facts.completedProjects, 4],
+    "big-run": [facts.biggestRun, 50_000],
+    "mega-run": [facts.biggestRun, 200_000],
+    "networth-1m": [facts.netWorth, 1_000_000],
+    "networth-10m": [facts.netWorth, 10_000_000],
+    "networth-100m": [facts.netWorth, 100_000_000],
+    "dual-category": [facts.categoriesShipped, 2],
+    "diversified-mfg": [facts.categoriesShipped, 3],
+    "flop-proof": [facts.productsShipped >= 10 && facts.flops === 0 ? 10 : facts.productsShipped, 10],
+  };
+
+  const candidates = ACHIEVEMENTS
+    .filter((a) => !unlocked.has(a.id) && prog[a.id] !== undefined)
+    .map((a) => {
+      const [cur, target] = prog[a.id]!;
+      const pct = Math.min(99, Math.round((cur / target) * 100));
+      return { a, pct };
+    })
+    .filter(({ pct }) => pct >= 20)
+    .sort((x, y) => y.pct - x.pct)
+    .slice(0, 3);
+
+  if (candidates.length === 0) return null;
+
+  return (
+    <Card className="co__near-ach">
+      <SectionHeader title="Milestones within reach" />
+      <div className="co__near-list">
+        {candidates.map(({ a, pct }) => (
+          <div key={a.id} className="co__near-row">
+            <div className="co__near-head">
+              <span className="co__near-icon" aria-hidden><AchievementIcon name={a.icon} size={14} strokeWidth={2.2} /></span>
+              <span className="co__near-title">{a.title}</span>
+              <span className="co__near-pct tnum">{pct}%</span>
+            </div>
+            <div className="co__near-track">
+              <div className="co__near-fill" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="co__near-hint">{a.hint}</p>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 

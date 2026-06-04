@@ -342,11 +342,22 @@ export function DesignLab({
             const tier = draft.tiers[kind] ?? 1;
             const def = tierDef(kind, tier);
             const maxT = researchedTier(state, kind);
+            const totalT = maxTier(kind);
             const atMax = tier >= maxT;
             return (
               <div className="lab__comp" key={kind}>
                 <div className="lab__comp-info">
-                  <span className="lab__comp-name">{COMPONENT_LINES[kind].displayName}</span>
+                  <span className="lab__comp-name">
+                    {COMPONENT_LINES[kind].displayName}
+                    <span className="lab__comp-pips" aria-hidden>
+                      {Array.from({ length: totalT }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={`lab__comp-pip${i < tier ? " lab__comp-pip--on" : i < maxT ? " lab__comp-pip--unlocked" : ""}`}
+                        />
+                      ))}
+                    </span>
+                  </span>
                   <span className="lab__comp-tier">
                     {def?.name ?? "—"}
                     {def && toDollars(def.unitCost) > 0 && (
@@ -522,6 +533,33 @@ export function DesignLab({
               <div className="lab__score-target-track">
                 <div className="lab__score-target-fill" style={{ width: `${pct}%` }} />
               </div>
+            </div>
+          );
+        })()}
+        {(() => {
+          // Find the single component upgrade that would improve the overall score the most.
+          let best: { kind: ComponentKind; tierName: string; gain: number } | null = null;
+          for (const kind of cat.slots) {
+            const cur = draft.tiers[kind] ?? 1;
+            const maxR = researchedTier(state, kind);
+            if (cur >= maxR) continue;
+            const nextTier = cur + 1;
+            const nextDef = tierDef(kind, nextTier);
+            if (!nextDef) continue;
+            const newStats = productStats(state, { ...draft, tiers: { ...draft.tiers, [kind]: nextTier } });
+            const gain = overallScore(newStats, draft.category) - overall;
+            if (gain > 0 && (best === null || gain > best.gain)) {
+              best = { kind, tierName: nextDef.name, gain };
+            }
+          }
+          if (!best || best.gain < 2) return null;
+          return (
+            <div className="lab__upgrade-hint">
+              <TrendingUp size={11} aria-hidden />
+              <span>
+                <strong>{COMPONENT_LINES[best.kind].displayName} T{(draft.tiers[best.kind] ?? 1) + 1}</strong>
+                {" "}would add <strong>+{best.gain}</strong> Overall
+              </span>
             </div>
           );
         })()}

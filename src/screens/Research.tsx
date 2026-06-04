@@ -182,6 +182,58 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         )}
       </Card>
 
+      {/* R&D sprint: top picks — up to 3 actionable component upgrades */}
+      {perWeek > 0 && (() => {
+        const picks = kinds
+          .map((kind) => {
+            const cur = researchedTier(state, kind);
+            if (cur >= maxTier(kind)) return null;
+            const next = tierDef(kind, cur + 1);
+            if (!next || next.era > state.era) return null;
+            const cost = rdRpCostFor(state, kind);
+            if (cost === null) return null;
+            const weeksAway = rp >= cost ? 0 : perWeek > 0 ? Math.ceil((cost - rp) / perWeek) : Infinity;
+            if (weeksAway > 12) return null; // only show near-term picks
+            const statGain = Object.values(next.contributes).reduce((a, v) => a + (v ?? 0), 0);
+            return { kind, next, cost, weeksAway, statGain };
+          })
+          .filter(Boolean)
+          .sort((a, b) => (a!.weeksAway - b!.weeksAway) || (b!.statGain - a!.statGain))
+          .slice(0, 3) as { kind: ComponentKind; next: ReturnType<typeof tierDef> & NonNullable<unknown>; cost: number; weeksAway: number; statGain: number }[];
+
+        if (picks.length === 0) return null;
+        return (
+          <Card className="rd__sprint">
+            <SectionHeader title="Top picks" accessory="next 12 weeks" />
+            <div className="rd__sprint-list">
+              {picks.map(({ kind, next, cost, weeksAway }) => {
+                const line = COMPONENT_LINES[kind];
+                const affordable = rp >= cost;
+                return (
+                  <div key={kind} className="rd__sprint-row">
+                    <div className="rd__sprint-info">
+                      <span className="rd__sprint-name">{next.name}</span>
+                      <span className="rd__sprint-line">{line.displayName}</span>
+                    </div>
+                    <div className="rd__sprint-action">
+                      <Button
+                        size="sm"
+                        variant={affordable ? "primary" : "tertiary"}
+                        disabled={!affordable}
+                        onClick={() => research(kind)}
+                      >
+                        {cost} RP
+                      </Button>
+                      {!affordable && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })()}
+
       {/* Active project boosts */}
       {state.completedProjects.length > 0 && (
         <Card>

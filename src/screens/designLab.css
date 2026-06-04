@@ -208,6 +208,27 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+}
+.lab__comp-pips {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.lab__comp-pip {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink-3) 25%, transparent);
+  transition: background 0.15s;
+}
+.lab__comp-pip--on {
+  background: var(--accent);
+}
+.lab__comp-pip--unlocked {
+  background: color-mix(in srgb, var(--ink-3) 55%, transparent);
 }
 .lab__comp-tier {
   font-size: var(--fs-body);
@@ -415,6 +436,25 @@
 }
 .lab__score-target--met .lab__score-target-fill {
   background: var(--positive);
+}
+
+/* Best upgrade hint — single-line suggestion for biggest stat gain */
+.lab__upgrade-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.lab__upgrade-hint strong {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 /* Competitive position indicator — shown below StatBars in the Stats card */
