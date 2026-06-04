@@ -331,7 +331,12 @@ export function DesignLab({
               <div className="lab__comp" key={kind}>
                 <div className="lab__comp-info">
                   <span className="lab__comp-name">{COMPONENT_LINES[kind].displayName}</span>
-                  <span className="lab__comp-tier">{def?.name ?? "—"}</span>
+                  <span className="lab__comp-tier">
+                    {def?.name ?? "—"}
+                    {def && toDollars(def.unitCost) > 0 && (
+                      <span className="lab__comp-cost"> · {format(def.unitCost)}</span>
+                    )}
+                  </span>
                   {def && contribLabel(def.contributes) && (
                     <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
                   )}
@@ -542,6 +547,9 @@ function BuildWizard({
   const plan = useMemo(() => planProduction(state, draft, units, channel), [state, draft, units, channel]);
   const recommended = useMemo(() => recommendedRun(state, draft, channel), [state, draft, channel]);
   const affordable = state.cash >= plan.totalUpfront;
+  const variancePct = state.completedProjects.includes("demandSensing") ? 0.08 : 0.12;
+  const demandLow = Math.round(plan.totalDemand * (1 - variancePct));
+  const demandHigh = Math.round(plan.totalDemand * (1 + variancePct));
 
   // B1b — readable build-risk: cash left the instant the run is paid for, the runway that buys at
   // current burn (no revenue arrives until launch), and the build duration. If the runway can't
@@ -594,7 +602,7 @@ function BuildWizard({
           </div>
           <div className="wiz__grid">
             <Stat label="Pre-orders (fans)" value={plan.preOrders.toLocaleString()} hint={`${state.fans.toLocaleString()} fans`} />
-            <Stat label="Projected demand" value={plan.totalDemand.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "would sell out" : state.completedProjects.includes("demandSensing") ? "±8% variance" : "±12% variance"} />
+            <Stat label="Projected demand" value={plan.totalDemand.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "would sell out" : `${demandLow.toLocaleString()}–${demandHigh.toLocaleString()} range`} />
             <Stat label="Unit cost" value={format(plan.unitCost)} />
             <Stat label="Run cost" value={format(plan.productionCost)} tone="negative" />
           </div>

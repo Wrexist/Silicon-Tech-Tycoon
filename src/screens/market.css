@@ -439,6 +439,14 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.mkt__product-thru {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.mkt__product-thru--full {
+  color: var(--positive-text);
+}
 
 /* Successor nudge — shown below the product list when finished hits exist */
 .mkt__successor-nudge {

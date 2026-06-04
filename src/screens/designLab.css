@@ -203,6 +203,11 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+.lab__comp-cost {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+}
 .lab__stepper {
   display: inline-flex;
   align-items: center;

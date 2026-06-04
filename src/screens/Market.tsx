@@ -178,6 +178,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                         <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
                         {live && !endingSoon && <span className="mkt__product-live">selling</span>}
                         {endingSoon && <span className="mkt__product-ending">last {lp.weeklyUnits.length - lp.weeksElapsed}wk</span>}
+                        {!live && lp.plannedUnits && lp.plannedUnits > 0 && (
+                          <span className={`mkt__product-thru tnum${Math.round((lp.unitsSold / lp.plannedUnits) * 100) >= 90 ? " mkt__product-thru--full" : ""}`}>
+                            {Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))}% sold
+                          </span>
+                        )}
                       </span>
                     </span>
                     {live && lp.weeklyUnits.length > 0 && (
