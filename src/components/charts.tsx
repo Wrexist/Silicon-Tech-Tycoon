@@ -85,7 +85,12 @@ export function Sparkline({
   height?: number;
   stroke?: string;
 }) {
-  if (data.length < 2) return <div className="spark-empty" style={{ height }} />;
+  if (data.length < 2)
+    return (
+      <div className="spark-empty" style={{ height }}>
+        <span className="spark-empty__hint">Chart fills in as weeks pass</span>
+      </div>
+    );
   const min = Math.min(...data, 0);
   const max = Math.max(...data, 1);
   const span = max - min || 1;

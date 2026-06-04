@@ -28,7 +28,7 @@ import "./App.css";
 const TAB_TITLE: Record<Tab, string> = {
   hq: "Silicon",
   design: "Design Lab",
-  research: "Research & Development",
+  research: "Research",
   market: "Market",
   company: "Company",
 };

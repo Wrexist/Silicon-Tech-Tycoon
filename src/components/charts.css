@@ -52,6 +52,15 @@
 }
 .spark-empty {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--r-button);
-  background: var(--bg-elevated);
+  background: var(--surface-2);
+  border: 1px dashed var(--hairline);
+}
+.spark-empty__hint {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
 }
