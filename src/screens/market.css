@@ -767,6 +767,7 @@
 }
 .mkt__compmap-track {
   flex: 1;
+  position: relative;
   height: 6px;
   border-radius: var(--r-pill);
   background: var(--surface-2);
@@ -781,16 +782,44 @@
 .mkt__compmap-fill--positive { background: var(--positive); }
 .mkt__compmap-fill--accent   { background: var(--accent); }
 .mkt__compmap-fill--negative { background: var(--negative); }
+.mkt__compmap-fill--you {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+  transition: width 0.5s ease;
+}
+.mkt__compmap-fill--rival {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: color-mix(in srgb, var(--ink-3) 40%, transparent);
+  border-radius: var(--r-pill);
+  transition: width 0.5s ease;
+}
+.mkt__compmap-bars { flex: 1; }
+.mkt__compmap-barrow { display: flex; align-items: center; gap: var(--sp-4); }
 .mkt__compmap-label {
   font-size: var(--fs-micro);
   font-weight: 700;
-  min-width: 46px;
+  min-width: 52px;
   text-align: right;
   flex-shrink: 0;
 }
 .mkt__compmap-label--positive { color: var(--positive-text, var(--positive)); }
 .mkt__compmap-label--accent   { color: var(--accent); }
 .mkt__compmap-label--negative { color: var(--negative-text, var(--negative)); }
+.mkt__compmap-legend {
+  display: flex;
+  gap: var(--sp-12);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-bottom: var(--sp-8);
+}
+.mkt__compmap-legend span { display: flex; align-items: center; gap: var(--sp-4); }
+.mkt__compmap-legend-swatch {
+  width: 10px; height: 4px; border-radius: 2px;
+}
+.mkt__compmap-legend-swatch--you { background: var(--accent); }
+.mkt__compmap-legend-swatch--rival { background: color-mix(in srgb, var(--ink-3) 40%, transparent); }
 .mkt__compmap-hint {
   font-size: var(--fs-micro);
   color: var(--ink-3);

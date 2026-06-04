@@ -488,6 +488,32 @@ export function DesignLab({
             </div>
           );
         })()}
+        {(() => {
+          const rivalMaxStr = state.competitors.reduce((max, c) => {
+            return Math.max(max, ((c.strengthByCategory ?? {}) as Record<string, number>)[draft.category] ?? 0);
+          }, 0);
+          const lastInCat = state.launched.find((lp) => lp.product.category === draft.category);
+          const baseTarget = Math.max(
+            lastInCat ? Math.round(overallScore(lastInCat.stats, lastInCat.product.category) * 1.1) : 0,
+            Math.round(rivalMaxStr * 1.05),
+            45,
+          );
+          const target = Math.min(baseTarget, 85);
+          if (overall >= 85) return null;
+          const pct = Math.min(100, Math.round((overall / target) * 100));
+          const met = overall >= target;
+          return (
+            <div className={`lab__score-target${met ? " lab__score-target--met" : ""}`}>
+              <div className="lab__score-target-head">
+                <span>{met ? "✓ Competitive" : `Target: ${target}+ Overall`}</span>
+                <span className="tnum">{overall} / {target}</span>
+              </div>
+              <div className="lab__score-target-track">
+                <div className="lab__score-target-fill" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })()}
         {preview != null && (
           <div className={`lab__vs${preview.betterRivals > 0 ? " lab__vs--behind" : preview.matchingRivals > 0 ? " lab__vs--even" : " lab__vs--ahead"}`}>
             {preview.betterRivals > 0 ? (

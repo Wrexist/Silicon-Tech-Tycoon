@@ -70,6 +70,12 @@
   flex-wrap: wrap;
   gap: var(--sp-8);
 }
+.hq__fin-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin-top: calc(var(--sp-8) * -1);
+}
 .hq__cta-text,
 .hq__latest {
   font-size: var(--fs-body);

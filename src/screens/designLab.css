@@ -346,6 +346,55 @@
   margin-left: 2px;
 }
 
+/* Score target indicator */
+.lab__score-target {
+  margin-top: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  transition: background 0.2s, border-color 0.2s;
+}
+.lab__score-target--met {
+  background: color-mix(in srgb, var(--positive) 10%, transparent);
+  border-color: color-mix(in srgb, var(--positive) 22%, transparent);
+}
+.lab__score-target-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: var(--sp-6);
+}
+.lab__score-target--met .lab__score-target-head {
+  color: var(--positive-text, var(--positive));
+}
+.lab__score-target-head .tnum {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: 700;
+}
+.lab__score-target-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  overflow: hidden;
+}
+.lab__score-target--met .lab__score-target-track {
+  background: color-mix(in srgb, var(--positive) 15%, transparent);
+}
+.lab__score-target-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.lab__score-target--met .lab__score-target-fill {
+  background: var(--positive);
+}
+
 /* Competitive position indicator — shown below StatBars in the Stats card */
 .lab__vs {
   display: flex;

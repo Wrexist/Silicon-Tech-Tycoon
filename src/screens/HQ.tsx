@@ -31,7 +31,8 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { canAdvance, canIPO, facility, upgradeCost, type GameState } from "../state/gameState.ts";
+import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type GameState } from "../state/gameState.ts";
+import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
 import { useSettings } from "../state/settings.ts";
@@ -144,6 +145,19 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
           : <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
       </div>
+      {(() => {
+        const wkBurn = burn(state);
+        const wkRev = nextWeekRevenue(state);
+        const runway = runwayWeeks(state.cash, wkBurn, wkRev);
+        const runwayLabel = runway === Infinity ? "Profitable" : runway > 52 ? `${Math.round(runway / 52)}y runway` : `${runway}wk runway`;
+        const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
+        return (
+          <div className="hq__fin-pills">
+            <StatPill label="Cash" value={format(state.cash)} tone={state.cash >= 0 ? "neutral" : "negative"} />
+            <StatPill label="Runway" value={runwayLabel} tone={runwayTone as "positive" | "negative" | "neutral"} />
+          </div>
+        );
+      })()}
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
 
       {/* Ready to launch */}

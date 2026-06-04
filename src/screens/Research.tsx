@@ -1,9 +1,11 @@
-import { Check, FlaskConical, Lock, Users } from "lucide-react";
+import { Check, ChevronRight, FlaskConical, Lock, MapPin, Users } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
-import { COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { eraName } from "../engine/eras.ts";
+import { BALANCE } from "../engine/balance.ts";
+import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
+import { eraName, maxEra } from "../engine/eras.ts";
+import { toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
 import { rdRpCostFor, researchedTier, weeklyRpGen } from "../state/gameState.ts";
@@ -20,6 +22,95 @@ const STAT_SHORT: Record<keyof Stats, string> = {
 
 function contributesLabel(c: Partial<Stats>): string {
   return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_SHORT[k]}`).join("  ");
+}
+
+function fmtRevGoal(dollars: number): string {
+  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(0)}M`;
+  if (dollars >= 1_000) return `$${(dollars / 1_000).toFixed(0)}k`;
+  return `$${dollars}`;
+}
+
+function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
+  currentEra: number;
+  reputation: number;
+  cumulativeRevenueDollars: number;
+}) {
+  const eraMax = maxEra();
+  const eras = BALANCE.eras;
+
+  return (
+    <Card className="rd__roadmap">
+      <SectionHeader title="Era roadmap" accessory={<span className="rd__era-badge">{eraName(currentEra)}</span>} />
+      <div className="rd__roadmap-list">
+        {eras.map((eraDef, idx) => {
+          const done = currentEra > eraDef.era;
+          const active = currentEra === eraDef.era;
+          const future = currentEra < eraDef.era;
+          const nextLocked = future && eraDef.era > currentEra + 1;
+
+          const newCats = CATEGORY_LIST.filter((c) => c.unlockEra === eraDef.era);
+          const newCompTiers = Object.values(COMPONENT_LINES).reduce((count, line) => {
+            return count + line.tiers.filter((t) => t.era === eraDef.era).length;
+          }, 0);
+
+          const revGoalD = eraDef.revToAdvance === Infinity ? null : toDollars(eraDef.revToAdvance as Money);
+          const repGoal = Number.isFinite(eraDef.repToAdvance) ? eraDef.repToAdvance : null;
+
+          let progressLabel = "";
+          if (active && eraDef.era < eraMax) {
+            const repPct = repGoal ? Math.min(100, Math.round((reputation / repGoal) * 100)) : 0;
+            const revPct = revGoalD ? Math.min(100, Math.round((cumulativeRevenueDollars / revGoalD) * 100)) : 0;
+            const bestPct = Math.max(repPct, revPct);
+            const label = repPct >= revPct
+              ? `${Math.round(reputation)} / ${repGoal} rep`
+              : `${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD!)} rev`;
+            progressLabel = `${bestPct}% — ${label}`;
+          }
+
+          return (
+            <div
+              key={eraDef.era}
+              className={`rd__roadmap-row${done ? " rd__roadmap-row--done" : active ? " rd__roadmap-row--active" : " rd__roadmap-row--future"}`}
+            >
+              <div className="rd__roadmap-marker">
+                {done ? <Check size={11} strokeWidth={3} /> : active ? <MapPin size={11} strokeWidth={2.5} /> : <ChevronRight size={11} strokeWidth={2.5} />}
+                {idx < eras.length - 1 && <div className="rd__roadmap-line" />}
+              </div>
+              <div className="rd__roadmap-body">
+                <div className="rd__roadmap-head">
+                  <span className="rd__roadmap-name">{eraDef.name}</span>
+                  {future && eraDef.era < eraMax && (
+                    <span className="rd__roadmap-req">
+                      {repGoal ? `${repGoal} rep` : ""}
+                      {repGoal && revGoalD ? " or " : ""}
+                      {revGoalD ? `${fmtRevGoal(revGoalD)} rev` : ""}
+                    </span>
+                  )}
+                </div>
+                {active && progressLabel && (
+                  <p className="rd__roadmap-progress">{progressLabel}</p>
+                )}
+                {(newCats.length > 0 || newCompTiers > 0) && (
+                  <div className="rd__roadmap-unlocks">
+                    {newCats.map((c) => (
+                      <span key={c.id} className={`rd__roadmap-tag${future && nextLocked ? " rd__roadmap-tag--locked" : done ? " rd__roadmap-tag--done" : ""}`}>
+                        {c.displayName}
+                      </span>
+                    ))}
+                    {newCompTiers > 0 && (
+                      <span className={`rd__roadmap-tag rd__roadmap-tag--comp${done ? " rd__roadmap-tag--done" : future && nextLocked ? " rd__roadmap-tag--locked" : ""}`}>
+                        +{newCompTiers} comp tiers
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
 }
 
 export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
@@ -109,6 +200,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </div>
         </Card>
       )}
+
+      {/* Era roadmap */}
+      <EraRoadmap currentEra={state.era} reputation={state.reputation} cumulativeRevenueDollars={toDollars(state.cumulativeRevenue)} />
 
       {/* Research projects — grouped by era */}
       <SectionHeader title="Research projects" accessory="evolve the company" />

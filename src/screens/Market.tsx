@@ -7,6 +7,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName } from "../engine/eras.ts";
+import { overallScore } from "../engine/product.ts";
 import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { buyCost, sellProceeds } from "../engine/stocks.ts";
@@ -258,48 +259,61 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         );
       })}
 
-      {/* Competition landscape — which categories rivals are currently contesting */}
+      {/* Competition landscape — your position vs. rivals by category */}
       {unlockedCats.length > 1 && (
         <Card>
-          <SectionHeader title="Competition landscape" accessory="rival presence by category" />
+          <SectionHeader title="Market position" accessory="you vs. rivals" />
           {(() => {
             const activeCats = new Set(
               state.launched
                 .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
                 .map((lp) => lp.product.category),
             );
+            const MAX_SCORE = 100;
             return (
               <div className="mkt__compmap">
+                <div className="mkt__compmap-legend">
+                  <span><span className="mkt__compmap-legend-swatch mkt__compmap-legend-swatch--you" /> You</span>
+                  <span><span className="mkt__compmap-legend-swatch mkt__compmap-legend-swatch--rival" /> Best rival</span>
+                </div>
                 {unlockedCats.map((cat) => {
-                  const totalStr = comps.reduce(
-                    (s, c) => s + ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0), 0,
+                  const maxRivalStr = comps.reduce(
+                    (m, c) => Math.max(m, ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0)), 0,
                   );
                   const activeRivals = comps.filter(
                     (c) => ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0) > 5,
                   ).length;
-                  const pct = Math.min(100, Math.round((totalStr / 220) * 100));
-                  const heat: "positive" | "accent" | "negative" =
-                    pct >= 65 ? "negative" : pct >= 30 ? "accent" : "positive";
+                  const bestYours = state.launched
+                    .filter((lp) => lp.product.category === cat.id)
+                    .reduce<number>((m, lp) => Math.max(m, overallScore(lp.stats, cat.id)), 0);
+                  const youPct = Math.round((bestYours / MAX_SCORE) * 100);
+                  const rivalPct = Math.round((maxRivalStr / MAX_SCORE) * 100);
                   const youHere = activeCats.has(cat.id);
+                  const youWinning = bestYours > 0 && bestYours >= maxRivalStr;
+                  const statusLabel = bestYours === 0 ? (activeRivals === 0 ? "Open" : `${activeRivals} rival${activeRivals > 1 ? "s" : ""}`) : youWinning ? "Leading" : "Trailing";
+                  const statusTone = bestYours === 0 ? (activeRivals === 0 ? "positive" : "accent") : youWinning ? "positive" : "negative";
                   return (
                     <div key={cat.id} className="mkt__compmap-row">
                       <span className="mkt__compmap-cat">
                         <span className={`mkt__compmap-dot${youHere ? " mkt__compmap-dot--on" : ""}`} aria-hidden />
                         <CategoryIcon id={cat.id} size={11} />{cat.displayName}
                       </span>
-                      <div className="mkt__compmap-track">
-                        <div className={`mkt__compmap-fill mkt__compmap-fill--${heat}`} style={{ width: `${pct}%` }} />
+                      <div className="mkt__compmap-bars">
+                        <div className="mkt__compmap-barrow">
+                          <div className="mkt__compmap-track">
+                            {rivalPct > 0 && <div className="mkt__compmap-fill mkt__compmap-fill--rival" style={{ width: `${rivalPct}%` }} />}
+                            {youPct > 0 && <div className="mkt__compmap-fill mkt__compmap-fill--you" style={{ width: `${youPct}%` }} />}
+                          </div>
+                        </div>
                       </div>
-                      <span className={`mkt__compmap-label mkt__compmap-label--${heat}`}>
-                        {activeRivals > 0 ? `${activeRivals} rival${activeRivals > 1 ? "s" : ""}` : "Open"}
-                      </span>
+                      <span className={`mkt__compmap-label mkt__compmap-label--${statusTone}`}>{statusLabel}</span>
                     </div>
                   );
                 })}
               </div>
             );
           })()}
-          <p className="mkt__compmap-hint">● = you're selling there · Green = weak competition.</p>
+          <p className="mkt__compmap-hint">● = you have a product selling there · score out of 100.</p>
         </Card>
       )}
 

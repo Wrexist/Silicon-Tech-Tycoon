@@ -253,3 +253,100 @@
   color: var(--ink-3);
   white-space: nowrap;
 }
+
+/* Era roadmap card */
+.rd__roadmap { gap: var(--sp-12); }
+.rd__era-badge {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.rd__roadmap-list { display: flex; flex-direction: column; gap: 0; }
+.rd__roadmap-row {
+  display: flex;
+  gap: var(--sp-10);
+  align-items: flex-start;
+}
+.rd__roadmap-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  padding-top: 1px;
+  color: var(--ink-3);
+}
+.rd__roadmap-row--done .rd__roadmap-marker { color: var(--positive); }
+.rd__roadmap-row--active .rd__roadmap-marker { color: var(--accent); }
+.rd__roadmap-line {
+  width: 1.5px;
+  flex: 1;
+  min-height: 16px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.rd__roadmap-body {
+  flex: 1;
+  padding-bottom: var(--sp-12);
+}
+.rd__roadmap-row:last-child .rd__roadmap-body { padding-bottom: 0; }
+.rd__roadmap-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-4);
+}
+.rd__roadmap-name {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+.rd__roadmap-row--done .rd__roadmap-name { color: var(--ink-3); text-decoration: line-through; }
+.rd__roadmap-row--future .rd__roadmap-name { color: var(--ink-2); }
+.rd__roadmap-req {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.rd__roadmap-progress {
+  font-size: var(--fs-caption);
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0 0 var(--sp-6);
+}
+.rd__roadmap-unlocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+.rd__roadmap-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.rd__roadmap-tag--comp {
+  background: color-mix(in srgb, var(--ink-3) 10%, transparent);
+  color: var(--ink-2);
+  border-color: color-mix(in srgb, var(--ink-3) 18%, transparent);
+}
+.rd__roadmap-tag--done {
+  background: color-mix(in srgb, var(--positive) 10%, transparent);
+  color: var(--positive-text, var(--positive));
+  border-color: color-mix(in srgb, var(--positive) 20%, transparent);
+}
+.rd__roadmap-tag--locked {
+  background: color-mix(in srgb, var(--ink-3) 7%, transparent);
+  color: var(--ink-3);
+  border-color: var(--border);
+}
