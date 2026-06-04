@@ -300,6 +300,22 @@ export function DesignLab({
               .join(" & ")
           }
         </p>
+        {(() => {
+          const prev = state.launched.find((lp) => lp.product.category === draft.category);
+          if (!prev) return null;
+          const prevScore = overallScore(prev.stats, prev.product.category);
+          const scoreImproved = overall > prevScore;
+          return (
+            <div className="lab__prev-product">
+              <span className="lab__prev-label">Last in category:</span>
+              <span className="lab__prev-name">{prev.product.name}</span>
+              <span className={`lab__prev-score${scoreImproved ? " lab__prev-score--up" : ""}`}>
+                {scoreImproved ? <TrendingUp size={11} aria-hidden /> : null}
+                Overall {prevScore}
+              </span>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Components */}
