@@ -162,10 +162,16 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
   // Aggregates derived from existing tracked data (no invented engine state).
   const productsShipped = launched.length;
   const unitsSold = launched.reduce((sum, lp) => sum + lp.unitsSold, 0);
-  const hits = launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const hitsStrict = launched.filter((lp) => lp.verdict === "hit").length;
+  const solids = launched.filter((lp) => lp.verdict === "solid").length;
+  const hits = hitsStrict + solids;
   const flops = launched.filter((lp) => lp.verdict === "flop").length;
   const best = launched.reduce<LaunchedProduct | null>(
     (top, lp) => (top == null || lp.unitsSold > top.unitsSold ? lp : top),
+    null,
+  );
+  const bestRevenue = launched.reduce<LaunchedProduct | null>(
+    (top, lp) => (top == null || lp.revenueToDate > top.revenueToDate ? lp : top),
     null,
   );
 
@@ -208,10 +214,17 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
         <div className="co__stats-best">
           <span className="co__stats-best-glyph" aria-hidden><Trophy size={20} /></span>
           <div className="co__stats-best-info">
-            <span className="co__stats-best-label">Best seller</span>
+            <span className="co__stats-best-label">Top seller</span>
             <span className="co__stats-best-name">{best.product.name}</span>
-            <span className="co__stats-best-sub">{best.unitsSold.toLocaleString()} units · {format(best.revenueToDate)}</span>
+            <span className="co__stats-best-sub">{best.unitsSold.toLocaleString()} units</span>
           </div>
+          {bestRevenue && bestRevenue.product.id !== best.product.id && (
+            <div className="co__stats-best-info">
+              <span className="co__stats-best-label">Top revenue</span>
+              <span className="co__stats-best-name">{bestRevenue.product.name}</span>
+              <span className="co__stats-best-sub">{format(bestRevenue.revenueToDate)}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -219,7 +232,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
         <Stat label="Lifetime revenue" value={format(state.cumulativeRevenue)} tone="positive" />
         <Stat label="Units sold" value={unitsSold.toLocaleString()} />
         <Stat label="Products shipped" value={productsShipped} />
-        <Stat label="Hits & solid / flops" value={`${hits} / ${flops}`} tone={hits >= flops ? "positive" : "negative"} />
+        <Stat label="Hits / solid / flops" value={`${hitsStrict} / ${solids} / ${flops}`} tone={hits >= flops ? "positive" : "negative"} />
         <Stat label="Reputation" value={`${Math.round(state.reputation)}`} hint="out of 100" tone="accent" />
         <Stat label="Fans" value={state.fans.toLocaleString()} />
       </div>

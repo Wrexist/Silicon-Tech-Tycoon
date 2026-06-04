@@ -59,11 +59,13 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         const eraProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
         if (eraProjects.length === 0) return null;
         const eraLocked = era > state.era;
+        const eraDone = eraProjects.filter((p) => state.completedProjects.includes(p.id)).length;
         return (
           <div key={era} className="rd__era-group">
             <span className={`rd__era-label${eraLocked ? " rd__era-label--locked" : ""}`}>
               {eraLocked ? <Lock size={11} /> : null}
               {eraName(era)}
+              {!eraLocked && <span className="rd__era-progress">{eraDone}/{eraProjects.length}</span>}
             </span>
             {eraProjects.map((p) => {
               const done = state.completedProjects.includes(p.id);

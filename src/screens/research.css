@@ -117,9 +117,10 @@
   gap: var(--sp-8);
 }
 .rd__era-label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 5px;
+  width: 100%;
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--accent);
@@ -129,4 +130,12 @@
 }
 .rd__era-label--locked {
   color: var(--ink-3);
+}
+.rd__era-progress {
+  margin-left: auto;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0;
+  text-transform: none;
 }
