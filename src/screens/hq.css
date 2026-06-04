@@ -229,6 +229,12 @@
   text-align: center;
   margin-top: 2px;
 }
+.hq__goal-eta {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+}
 
 /* Era goal progress bars */
 .hq__goalbar {

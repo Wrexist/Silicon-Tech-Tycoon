@@ -675,6 +675,12 @@
 .co__output-levelup strong {
   color: var(--accent);
 }
+.co__member-contrib {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: var(--sp-4);
+}
 
 /* --- Recruitment channel buttons --- */
 .co__recruit-tiers {

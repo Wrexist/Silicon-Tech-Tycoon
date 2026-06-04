@@ -10,7 +10,7 @@ import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
 import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { buyCost, sellProceeds } from "../engine/stocks.ts";
+import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
   burn,
   canList,
@@ -286,6 +286,19 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
 
       {/* Stock exchange */}
       <SectionHeader title="Stock Exchange" accessory="trade rival shares" />
+      {Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
+        const portfolioVal = holdingsValue(state.holdings, comps);
+        const divPerWk = weeklyDividends(state.holdings, comps);
+        return (
+          <div className="mkt__portfolio-summary">
+            <span className="mkt__portfolio-summary-label">Portfolio value</span>
+            <span className="mkt__portfolio-summary-val tnum">{format(portfolioVal)}</span>
+            {toDollars(divPerWk) >= 1 && (
+              <span className="mkt__portfolio-summary-div">+{format(divPerWk)}/wk</span>
+            )}
+          </div>
+        );
+      })()}
       {comps.map((c) => {
         const ch = changePct(c.priceHistory);
         const owned = state.holdings[c.id] ?? 0;

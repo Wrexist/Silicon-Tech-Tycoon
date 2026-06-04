@@ -253,7 +253,7 @@ export function Company() {
         ) : (
           <ul className="co__roster">
             {state.staff.map((s) => (
-              <Member key={s.id} s={s} cash={state.cash} onAssign={assign} onTrain={train} onFire={fire} />
+              <Member key={s.id} s={s} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} />
             ))}
           </ul>
         )}
@@ -669,12 +669,14 @@ const ASSIGNMENTS: Assignment[] = ["rnd", "design", "marketing", "idle"];
 function Member({
   s,
   cash,
+  era,
   onAssign,
   onTrain,
   onFire,
 }: {
   s: Staff;
   cash: number;
+  era: number;
   onAssign: (id: string, a: Assignment) => void;
   onTrain: (id: string) => void;
   onFire: (id: string) => void;
@@ -747,6 +749,20 @@ function Member({
         </div>
         <div className="co__xp-track"><div className="co__xp-fill" style={{ width: `${xpPct}%` }} /></div>
       </div>
+      {s.assignment !== "idle" && (() => {
+        const eraLen = BALANCE.research.eraMultiplier.length;
+        const eraMult = BALANCE.research.eraMultiplier[Math.max(1, Math.min(era, eraLen)) - 1];
+        if (s.assignment === "rnd") {
+          const per = s.role === "engineer" ? BALANCE.research.rpPerEngineerSkill : BALANCE.research.rpPerAssignedResearcher;
+          const rpContrib = disciplineOutput(s, "engineering") * per * eraMult;
+          return <p className="co__member-contrib">+{rpContrib.toFixed(1)} RP/wk</p>;
+        }
+        if (s.assignment === "marketing") {
+          const hypeContrib = Math.round(disciplineOutput(s, "marketing") * 5);
+          return <p className="co__member-contrib">+{hypeContrib}% hype per launch</p>;
+        }
+        return null;
+      })()}
 
       <div className="co__member-actions">
         <div className="co__assign">

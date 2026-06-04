@@ -168,6 +168,37 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+/* Portfolio summary strip */
+.mkt__portfolio-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  margin-bottom: var(--sp-4);
+}
+.mkt__portfolio-summary-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.mkt__portfolio-summary-val {
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--ink);
+  flex: 1;
+}
+.mkt__portfolio-summary-div {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--positive-text, var(--positive));
+  flex-shrink: 0;
+}
 .mkt__stock {
   padding: 0;
   overflow: hidden;

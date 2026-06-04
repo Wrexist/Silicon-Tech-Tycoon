@@ -629,6 +629,13 @@ function EraGoalCard({ state }: { state: GameState }) {
         <GoalBar label={`Revenue (need ${fmtRevShort(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
       )}
       <p className="hq__goal-or">Either threshold unlocks the next era.</p>
+      {Number.isFinite(revTargetDollars) && (() => {
+        const wkRev = toDollars(nextWeekRevenue(state));
+        if (wkRev <= 0 || revDollars >= revTargetDollars) return null;
+        const weeksLeft = Math.ceil((revTargetDollars - revDollars) / wkRev);
+        if (weeksLeft > 200) return null;
+        return <p className="hq__goal-eta">~{weeksLeft} week{weeksLeft !== 1 ? "s" : ""} at current revenue</p>;
+      })()}
     </div>
   );
 }

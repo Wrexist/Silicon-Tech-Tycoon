@@ -652,9 +652,29 @@ export function DesignLab({
         />
         {missing.length > 0 && <p className="lab__warn">Pick every component before building.</p>}
         <Button block onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none">
-          <Hammer size={17} /> Plan production of “{draft.name || "Untitled"}”
+          <Hammer size={17} /> Plan production of "{draft.name || "Untitled"}"
         </Button>
         <p className="lab__hint">Next you'll choose how many units to manufacture and how to market it.</p>
+        {missing.length === 0 && (() => {
+          const rec = recommendedRun(state, draft, "none");
+          const plan = planProduction(state, draft, rec, "none");
+          const revD = toDollars(plan.projectedRevenue);
+          const profD = toDollars(plan.projectedProfit);
+          if (revD <= 0) return null;
+          return (
+            <div className="lab__rev-estimate">
+              <div className="lab__rev-row">
+                <span className="lab__rev-label">Est. revenue</span>
+                <span className="lab__rev-val tnum">{format(plan.projectedRevenue)}</span>
+              </div>
+              <div className="lab__rev-row">
+                <span className="lab__rev-label">Est. profit</span>
+                <span className={`lab__rev-val tnum${profD >= 0 ? " lab__rev-val--pos" : " lab__rev-val--neg"}`}>{format(plan.projectedProfit)}</span>
+              </div>
+              <p className="lab__rev-note">{rec.toLocaleString()} units, no campaign</p>
+            </div>
+          );
+        })()}
       </Card>
 
       <Sheet open={wizard} onClose={() => setWizard(false)}>
