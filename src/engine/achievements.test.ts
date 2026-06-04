@@ -75,7 +75,7 @@ function launched(verdict: "hit" | "flop" | "steady", opts: Partial<LaunchedProd
 describe("achievements catalog", () => {
   it("has a healthy number of milestones with unique ids", () => {
     expect(ACHIEVEMENT_COUNT).toBeGreaterThanOrEqual(12);
-    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(36);
+    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(52);
     const ids = ACHIEVEMENTS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -131,6 +131,13 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "rev-1b", facts: { cumulativeRevenue: 1_000_000_000 } },
     { id: "team-10", facts: { staffCount: 10 } },
     { id: "all-rivals", facts: { rivalsInvested: 6 } },
+    { id: "ship-10", facts: { productsShipped: 10 } },
+    { id: "dual-category", facts: { categoriesShipped: 2 } },
+    { id: "mega-run", facts: { biggestRun: 200_000 } },
+    { id: "rev-500m", facts: { cumulativeRevenue: 500_000_000 } },
+    { id: "networth-10m", facts: { netWorth: 10_000_000 } },
+    { id: "flop-proof", facts: { productsShipped: 10, flops: 0 } },
+    { id: "rep-75", facts: { reputation: 75 } },
   ];
 
   it("covers the whole catalog", () => {

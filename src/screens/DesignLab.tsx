@@ -276,21 +276,32 @@ export function DesignLab({
       <Card>
         <SectionHeader title="Category" accessory={`${unlockedCats.length} unlocked`} />
         <div className="lab__chips">
-          {unlockedCats.map((c) => (
-            <button
-              key={c.id}
-              className={`lab__chip${draft.category === c.id ? " lab__chip--on" : ""}`}
-              aria-pressed={draft.category === c.id}
-              onClick={() => {
-                haptic.light();
-                const tiers: Product["tiers"] = {};
-                for (const k of c.slots) tiers[k] = Math.min(draft.tiers[k] ?? 1, researchedTier(state, k)) || 1;
-                set({ category: c.id, tiers });
-              }}
-            >
-              <CategoryIcon id={c.id} size={15} /> {c.displayName}
-            </button>
-          ))}
+          {unlockedCats.map((c) => {
+            const genCount = state.launched.filter((lp) => lp.product.category === c.id).length;
+            const activeSelling = state.launched.some(
+              (lp) => lp.product.category === c.id && lp.weeksElapsed < lp.weeklyUnits.length,
+            );
+            return (
+              <button
+                key={c.id}
+                className={`lab__chip${draft.category === c.id ? " lab__chip--on" : ""}`}
+                aria-pressed={draft.category === c.id}
+                onClick={() => {
+                  haptic.light();
+                  const tiers: Product["tiers"] = {};
+                  for (const k of c.slots) tiers[k] = Math.min(draft.tiers[k] ?? 1, researchedTier(state, k)) || 1;
+                  set({ category: c.id, tiers });
+                }}
+              >
+                <CategoryIcon id={c.id} size={15} /> {c.displayName}
+                {genCount > 0 && (
+                  <span className={`lab__chip-gen${activeSelling ? " lab__chip-gen--live" : ""}`}>
+                    G{genCount + 1}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
         <p className="lab__hint">
           {cat.displayName} — {

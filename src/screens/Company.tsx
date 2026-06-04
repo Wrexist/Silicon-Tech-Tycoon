@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Building2, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ACHIEVEMENT_COUNT, deriveFacts } from "../engine/achievements.ts";
@@ -219,6 +219,18 @@ export function Company() {
 
       {/* Recruitment */}
       <SectionHeader title="Recruitment" accessory={`${state.staff.length}/${fac.staffCapacity} desks`} />
+      {(() => {
+        const nextFac = BALANCE.facilities[state.facilityTier]; // index = facilityTier (0-based array, tier is 1-based)
+        if (!nextFac || state.staff.length < fac.staffCapacity) return null;
+        return (
+          <div className="co__fac-nudge">
+            <Building2 size={15} className="co__fac-nudge-icon" aria-hidden />
+            <span className="co__fac-nudge-text">
+              <strong>At capacity</strong> — move to {nextFac.name} from HQ Upgrades to unlock {nextFac.staffCapacity} desks ({format(nextFac.upgradeCost)}).
+            </span>
+          </div>
+        );
+      })()}
       <RecruitPanel state={state} capacity={fac.staffCapacity} onRecruit={recruit} onHire={hireCandidate} onDismiss={dismissCandidates} />
 
       <Sheet open={statsOpen} onClose={() => setStatsOpen(false)}>

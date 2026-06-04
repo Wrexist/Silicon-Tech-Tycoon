@@ -163,6 +163,28 @@
 .lab__chip:active {
   transform: scale(0.95);
 }
+.lab__chip-gen {
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink-3) 18%, transparent);
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.lab__chip--on .lab__chip-gen {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  color: inherit;
+}
+.lab__chip-gen--live {
+  background: color-mix(in srgb, var(--positive) 20%, transparent);
+  color: var(--positive-text, var(--positive));
+}
+.lab__chip--on .lab__chip-gen--live {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  color: inherit;
+}
 .lab__components {
   display: flex;
   flex-direction: column;
