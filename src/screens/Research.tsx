@@ -25,6 +25,14 @@ function contributesLabel(c: Partial<Stats>): string {
   return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_SHORT[k]}`).join("  ");
 }
 
+/** Show the improvement from upgrading (delta) rather than the tier's total contribution. */
+function deltaLabel(cur: Partial<Stats>, next: Partial<Stats>): string {
+  const parts = STAT_KEYS
+    .filter((k) => (next[k] ?? 0) > (cur[k] ?? 0))
+    .map((k) => `+${Math.round((next[k] ?? 0) - (cur[k] ?? 0))} ${STAT_SHORT[k]}`);
+  return parts.length > 0 ? parts.join("  ") : contributesLabel(next);
+}
+
 function fmtRevGoal(dollars: number): string {
   if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(0)}M`;
   if (dollars >= 1_000) return `$${(dollars / 1_000).toFixed(0)}k`;
@@ -196,6 +204,15 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
 
       {/* R&D sprint: top picks — up to 3 actionable component upgrades */}
       {perWeek > 0 && (() => {
+        const trendStat = [...STAT_KEYS].sort((a, b) => {
+          const da = (state.trends.targetWeights[a] ?? 0) - (state.trends.weights[a] ?? 0);
+          const db = (state.trends.targetWeights[b] ?? 0) - (state.trends.weights[b] ?? 0);
+          return db - da;
+        })[0];
+        const trendDelta = trendStat
+          ? (state.trends.targetWeights[trendStat] ?? 0) - (state.trends.weights[trendStat] ?? 0)
+          : 0;
+
         const picks = kinds
           .map((kind) => {
             const cur = researchedTier(state, kind);
@@ -221,11 +238,18 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               {picks.map(({ kind, next, cost, weeksAway }) => {
                 const line = COMPONENT_LINES[kind];
                 const affordable = rp >= cost;
-                const contrib = contributesLabel(next.contributes);
+                const curTierDef = tierDef(kind, researchedTier(state, kind));
+                const contrib = curTierDef
+                  ? deltaLabel(curTierDef.contributes, next.contributes)
+                  : contributesLabel(next.contributes);
+                const isTrending = trendDelta > 0.02 && trendStat && (next.contributes[trendStat] ?? 0) > 0;
                 return (
                   <div key={kind} className="rd__sprint-row">
                     <div className="rd__sprint-info">
-                      <span className="rd__sprint-name">{next.name}</span>
+                      <div className="rd__sprint-name-row">
+                        <span className="rd__sprint-name">{next.name}</span>
+                        {isTrending && <span className="rd__trend-badge">Trending</span>}
+                      </div>
                       <span className="rd__sprint-line">{contrib ? `${line.displayName} · ${contrib}` : line.displayName}</span>
                     </div>
                     <div className="rd__sprint-action">
@@ -383,7 +407,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               <div className="rd__next">
                 <div className="rd__next-info">
                   <span className="rd__next-name">{nextDef?.name}</span>
-                  <span className="rd__contrib">{nextDef && contributesLabel(nextDef.contributes)}</span>
+                  <span className="rd__contrib">{nextDef && (curDef ? deltaLabel(curDef.contributes, nextDef.contributes) : contributesLabel(nextDef.contributes))}</span>
                 </div>
                 <div className="rd__project-action">
                   <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => research(kind)}>

@@ -318,6 +318,14 @@
   margin-top: var(--sp-4);
   margin-bottom: var(--sp-4);
 }
+.co__hire-hint {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--positive-text, var(--positive));
+  margin-top: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.co__output-mood-warn { color: var(--negative-text, var(--negative)); }
 .co__fac {
   display: flex;
   gap: var(--sp-8);

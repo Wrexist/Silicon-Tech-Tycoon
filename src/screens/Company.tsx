@@ -179,6 +179,11 @@ export function Company() {
             Payroll {format(wkPayroll)} · Rent {format(wkRent)} weekly
           </p>
         )}
+        {runway > 20 && fac.staffCapacity > state.staff.length && (
+          <p className="co__hire-hint">
+            {fac.staffCapacity - state.staff.length} open desk{fac.staffCapacity - state.staff.length > 1 ? "s" : ""} — runway supports a new hire
+          </p>
+        )}
         {state.launched.length > 0 && (
           <div className="co__track">
             {state.launched.slice(-16).map((lp) => (
@@ -660,6 +665,25 @@ function TeamOutputCard({ state }: { state: GameState }) {
           </p>
         );
       })()}
+      {avgMood < 55 && (() => {
+        const amenitiesLvl = state.upgrades.amenities ?? 0;
+        const recentFlops = state.launched.slice(-3).filter((lp) => lp.verdict === "flop").length;
+        if (amenitiesLvl === 0) {
+          return (
+            <p className="co__output-levelup co__output-mood-warn">
+              {avgMood < 30 ? "Morale critically low" : "Morale is low"} — upgrading <strong>Amenities</strong> in HQ will help.
+            </p>
+          );
+        }
+        if (recentFlops >= 2) {
+          return (
+            <p className="co__output-levelup co__output-mood-warn">
+              Recent flops are weighing on the team — landing a hit will bounce morale back.
+            </p>
+          );
+        }
+        return null;
+      })()}
     </Card>
   );
 }
@@ -749,20 +773,6 @@ function Member({
         </div>
         <div className="co__xp-track"><div className="co__xp-fill" style={{ width: `${xpPct}%` }} /></div>
       </div>
-      {s.assignment !== "idle" && (() => {
-        const eraLen = BALANCE.research.eraMultiplier.length;
-        const eraMult = BALANCE.research.eraMultiplier[Math.max(1, Math.min(era, eraLen)) - 1];
-        if (s.assignment === "rnd") {
-          const per = s.role === "engineer" ? BALANCE.research.rpPerEngineerSkill : BALANCE.research.rpPerAssignedResearcher;
-          const rpContrib = disciplineOutput(s, "engineering") * per * eraMult;
-          return <p className="co__member-contrib">+{rpContrib.toFixed(1)} RP/wk</p>;
-        }
-        if (s.assignment === "marketing") {
-          const hypeContrib = Math.round(disciplineOutput(s, "marketing") * 5);
-          return <p className="co__member-contrib">+{hypeContrib}% hype per launch</p>;
-        }
-        return null;
-      })()}
 
       <div className="co__member-actions">
         <div className="co__assign">
@@ -793,14 +803,16 @@ function Member({
         const dOut = disciplineOutput(s, disc);
         let label = "";
         if (s.assignment === "rnd") {
+          const eraLen = BALANCE.research.eraMultiplier.length;
+          const eraMult = BALANCE.research.eraMultiplier[Math.max(1, Math.min(era, eraLen)) - 1];
           const per = s.role === "engineer" ? BALANCE.research.rpPerEngineerSkill : BALANCE.research.rpPerAssignedResearcher;
-          label = `+${(dOut * per).toFixed(1)} RP/wk`;
+          label = `+${(dOut * per * eraMult).toFixed(1)} RP/wk`;
         } else if (s.assignment === "design") {
-          label = `+${dOut.toFixed(1)} design output`;
+          label = `+${dOut.toFixed(1)} design pts`;
         } else if (s.assignment === "marketing") {
           label = `+${Math.round(dOut * 5)}% launch hype`;
         }
-        return <p className="co__member-contrib">{label}</p>;
+        return label ? <p className="co__member-contrib">{label}</p> : null;
       })()}
     </li>
   );

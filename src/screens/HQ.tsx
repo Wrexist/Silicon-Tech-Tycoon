@@ -30,7 +30,7 @@ import {
 import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
-import { STAT_KEYS } from "../engine/types.ts";
+import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
@@ -754,6 +754,47 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
         icon: Shapes,
         text: `You haven't shipped a ${unshipped[0].displayName} yet — an open market segment with no competition from you.`,
         tab: "design",
+      });
+    }
+  }
+
+  // 6. Rival gaining strength in a category you're actively selling in
+  if (insights.length < 3) {
+    let threatComp: (typeof state.competitors)[0] | null = null;
+    let threatCat: CategoryId | null = null;
+    for (const comp of state.competitors) {
+      for (const [cat, str] of Object.entries(comp.strengthByCategory)) {
+        if (active.some((lp) => lp.product.category === cat) && (str ?? 0) >= 45) {
+          threatComp = comp;
+          threatCat = cat as CategoryId;
+          break;
+        }
+      }
+      if (threatComp) break;
+    }
+    if (threatComp && threatCat) {
+      const catDef = CATEGORY_LIST.find((c) => c.id === threatCat);
+      const strength = Math.round(threatComp.strengthByCategory[threatCat] ?? 0);
+      insights.push({
+        icon: TrendingDown,
+        text: `${threatComp.name} (strength ${strength}) is a strong rival in ${catDef?.displayName ?? threatCat}s — spec up your next launch to stay ahead.`,
+        tab: "market",
+      });
+    }
+  }
+
+  // 7. Open desks + healthy runway = good time to hire
+  if (insights.length < 3 && state.staff.length >= 1) {
+    const facH = facility(state);
+    const openDesks = facH.staffCapacity - state.staff.length;
+    const wkBurnH = burn(state);
+    const wkRevH = nextWeekRevenue(state);
+    const runwayH = runwayWeeks(state.cash, wkBurnH, wkRevH);
+    if (openDesks >= 1 && runwayH > 30) {
+      insights.push({
+        icon: Users,
+        text: `${openDesks} desk${openDesks > 1 ? "s" : ""} open and ${runwayH === Infinity ? "you are profitable" : `${runwayH}+ weeks of runway`} — a strong time to recruit.`,
+        tab: "company",
       });
     }
   }

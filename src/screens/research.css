@@ -433,14 +433,34 @@
   gap: var(--sp-8);
 }
 .rd__sprint-info { flex: 1; min-width: 0; }
+.rd__sprint-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
 .rd__sprint-name {
-  display: block;
   font-size: var(--fs-body);
   font-weight: 700;
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.rd__trend-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: var(--r-pill);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--positive-text, var(--positive));
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .rd__sprint-line {
   display: block;
