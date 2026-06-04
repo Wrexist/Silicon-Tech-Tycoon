@@ -162,7 +162,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
   // Aggregates derived from existing tracked data (no invented engine state).
   const productsShipped = launched.length;
   const unitsSold = launched.reduce((sum, lp) => sum + lp.unitsSold, 0);
-  const hits = launched.filter((lp) => lp.verdict === "hit").length;
+  const hits = launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
   const flops = launched.filter((lp) => lp.verdict === "flop").length;
   const best = launched.reduce<LaunchedProduct | null>(
     (top, lp) => (top == null || lp.unitsSold > top.unitsSold ? lp : top),
@@ -219,7 +219,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
         <Stat label="Lifetime revenue" value={format(state.cumulativeRevenue)} tone="positive" />
         <Stat label="Units sold" value={unitsSold.toLocaleString()} />
         <Stat label="Products shipped" value={productsShipped} />
-        <Stat label="Hits / flops" value={`${hits} / ${flops}`} tone={hits >= flops ? "positive" : "negative"} />
+        <Stat label="Hits & solid / flops" value={`${hits} / ${flops}`} tone={hits >= flops ? "positive" : "negative"} />
         <Stat label="Reputation" value={`${Math.round(state.reputation)}`} hint="out of 100" tone="accent" />
         <Stat label="Fans" value={state.fans.toLocaleString()} />
       </div>

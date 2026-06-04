@@ -11,7 +11,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { format } from "../engine/money.ts";
+import { format, toDollars } from "../engine/money.ts";
 import {
   canPlace,
   CATEGORY_LABEL,
@@ -28,7 +28,7 @@ import {
 } from "../engine/furniture.ts";
 import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
-import { canAdvance, canIPO, facility, upgradeCost } from "../state/gameState.ts";
+import { canAdvance, canIPO, facility, upgradeCost, type GameState } from "../state/gameState.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
 import { useSettings } from "../state/settings.ts";
@@ -132,6 +132,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
         {state.era < maxEra() && <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />}
       </div>
+      {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
 
       {/* Ready to launch */}
       {state.ready.length > 0 && (
@@ -536,5 +537,42 @@ function Upgrades() {
         })}
       </div>
     </>
+  );
+}
+
+/** Compact card showing what's needed to advance to the next era (or reach IPO). */
+function EraGoalCard({ state }: { state: GameState }) {
+  if (state.era >= maxEra()) {
+    if (state.wentPublic) return null;
+    const repNeeded = BALANCE.ipo.minReputation - state.reputation;
+    if (repNeeded <= 0) return null;
+    return (
+      <div className="hq__goal">
+        <span className="hq__goal-label">IPO goal</span>
+        <span className="hq__goal-text">Reach {BALANCE.ipo.minReputation} reputation to go public — {Math.round(repNeeded)} more needed.</span>
+      </div>
+    );
+  }
+  const eraDef = BALANCE.eras.find((e) => e.era === state.era);
+  if (!eraDef) return null;
+  const repNeeded = eraDef.repToAdvance - state.reputation;
+  const revThresholdDollars = toDollars(state.cumulativeRevenue); // use cumRev for comparison
+  const revThresholdTarget = eraDef.revToAdvance as unknown as number; // cents (Infinity-safe)
+  const revNeeded = Number.isFinite(revThresholdTarget) ? revThresholdTarget / 100 - revThresholdDollars : Infinity;
+  if (repNeeded <= 0 || revNeeded <= 0) return null;
+  const parts: string[] = [];
+  if (Number.isFinite(eraDef.repToAdvance) && repNeeded > 0) parts.push(`${Math.round(repNeeded)} reputation`);
+  if (Number.isFinite(revNeeded) && revNeeded > 0) {
+    const m = revNeeded >= 1_000_000 ? `$${(revNeeded / 1_000_000).toFixed(1)}M` : revNeeded >= 1_000 ? `$${(revNeeded / 1_000).toFixed(0)}k` : `$${Math.round(revNeeded)}`;
+    parts.push(`${m} more revenue`);
+  }
+  if (parts.length === 0) return null;
+  return (
+    <div className="hq__goal">
+      <span className="hq__goal-label">Next era</span>
+      <span className="hq__goal-text">
+        Advance to the {eraName(state.era + 1)}: earn {parts.join(" or ")} to unlock new tech.
+      </span>
+    </div>
   );
 }

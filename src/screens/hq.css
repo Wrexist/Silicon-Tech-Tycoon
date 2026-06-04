@@ -127,6 +127,30 @@
   transition: width var(--spring-standard);
 }
 
+/* Era goal strip — compact hint below the stats row */
+.hq__goal {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.hq__goal-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.hq__goal-text {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
 /* ---------- Office builder (Decorate mode) ---------- */
 .hq__scene--build {
   background: radial-gradient(120% 90% at 50% 20%, var(--accent-soft), var(--surface) 75%);

@@ -29,7 +29,12 @@ export type AchievementIconName =
   | "Crown"
   | "Flame"
   | "PiggyBank"
-  | "LineChart";
+  | "LineChart"
+  | "FlaskConical"
+  | "UserPlus"
+  | "Package"
+  | "Zap"
+  | "Trophy";
 
 /** The facts an achievement predicate may read — derived once from GameState, all already tracked. */
 export interface AchievementFacts {
@@ -46,6 +51,9 @@ export interface AchievementFacts {
   listed: boolean; // company has IPO'd on the exchange
   wentPublic: boolean; // reached the industry pinnacle (endgame flag)
   rivalsInvested: number; // number of distinct rivals the player holds shares in
+  staffCount: number; // current headcount
+  completedProjects: number; // research projects completed
+  biggestRun: number; // largest single production run (units) ever ordered
 }
 
 export interface Achievement {
@@ -78,6 +86,7 @@ export function deriveFacts(state: GameState): AchievementFacts {
   );
 
   const rivalsInvested = Object.values(state.holdings).filter((q) => (q ?? 0) > 0).length;
+  const biggestRun = launched.reduce((max, lp) => Math.max(max, lp.plannedUnits ?? 0), 0);
 
   return {
     productsShipped: launched.length,
@@ -93,6 +102,9 @@ export function deriveFacts(state: GameState): AchievementFacts {
     listed: state.listed,
     wentPublic: state.wentPublic,
     rivalsInvested,
+    staffCount: state.staff.length,
+    completedProjects: state.completedProjects.length,
+    biggestRun,
   };
 }
 
@@ -257,6 +269,62 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Crown",
     hint: "Reach the heights of the industry.",
     predicate: (f) => f.netWorth >= 100_000_000,
+  },
+  {
+    id: "first-hire",
+    title: "Team of Two",
+    description: "Recruited your first employee — the founding team grows.",
+    icon: "UserPlus",
+    hint: "Hire someone beyond the founder.",
+    predicate: (f) => f.staffCount >= 2,
+  },
+  {
+    id: "team-5",
+    title: "Small Studio",
+    description: "Five people on the payroll — a real team.",
+    icon: "Users",
+    hint: "Build a crew of five or more.",
+    predicate: (f) => f.staffCount >= 5,
+  },
+  {
+    id: "hit-streak-5",
+    title: "On Fire",
+    description: "Five consecutive hits. The market can't get enough.",
+    icon: "Zap",
+    hint: "Launch five hits in a row.",
+    predicate: (f) => f.hitStreak >= 5,
+  },
+  {
+    id: "research-4",
+    title: "Research Lab",
+    description: "Four research projects completed — the R&D engine is running.",
+    icon: "FlaskConical",
+    hint: "Complete multiple research projects.",
+    predicate: (f) => f.completedProjects >= 4,
+  },
+  {
+    id: "research-all",
+    title: "Full R&D",
+    description: "Every available research project completed. No stone unturned.",
+    icon: "FlaskConical",
+    hint: "Research your way to the frontier.",
+    predicate: (f) => f.completedProjects >= 12,
+  },
+  {
+    id: "big-run",
+    title: "Mass Production",
+    description: "A single production run of 50,000 units or more.",
+    icon: "Package",
+    hint: "Bet big on a major launch.",
+    predicate: (f) => f.biggestRun >= 50_000,
+  },
+  {
+    id: "gg",
+    title: "Legend",
+    description: "Reached the industry pinnacle. A legacy in silicon.",
+    icon: "Trophy",
+    hint: "Complete the full journey — from garage to public icon.",
+    predicate: (f) => f.wentPublic,
   },
 ];
 

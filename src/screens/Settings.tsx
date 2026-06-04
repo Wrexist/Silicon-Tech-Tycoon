@@ -71,7 +71,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
 
       <div className="set__group">
         <span className="set__group-label">Creative mode</span>
-        <Row icon={<Sparkles size={18} />} label="Unlimited cash (sandbox)" sub="Experiment freely — no bankruptcy.">
+        <Row icon={<Sparkles size={18} />} label="Sandbox mode" sub={state.sandboxUnlocked ? "Active — cash floor prevents bankruptcy. Design freely." : "Unlock to experiment without financial limits."}>
           <Switch
             on={state.sandboxUnlocked}
             onChange={(v) => {

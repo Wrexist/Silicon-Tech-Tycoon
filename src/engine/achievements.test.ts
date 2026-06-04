@@ -28,6 +28,9 @@ function emptyFacts(): AchievementFacts {
     listed: false,
     wentPublic: false,
     rivalsInvested: 0,
+    staffCount: 0,
+    completedProjects: 0,
+    biggestRun: 0,
   };
 }
 
@@ -67,7 +70,7 @@ function launched(verdict: "hit" | "flop" | "steady", opts: Partial<LaunchedProd
 describe("achievements catalog", () => {
   it("has a healthy number of milestones with unique ids", () => {
     expect(ACHIEVEMENT_COUNT).toBeGreaterThanOrEqual(12);
-    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(24);
+    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(36);
     const ids = ACHIEVEMENTS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -108,6 +111,13 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "ipo", facts: { listed: true } },
     { id: "networth-1m", facts: { netWorth: 1_000_000 } },
     { id: "networth-100m", facts: { netWorth: 100_000_000 } },
+    { id: "first-hire", facts: { staffCount: 2 } },
+    { id: "team-5", facts: { staffCount: 5 } },
+    { id: "hit-streak-5", facts: { hitStreak: 5 } },
+    { id: "research-4", facts: { completedProjects: 4 } },
+    { id: "research-all", facts: { completedProjects: 12 } },
+    { id: "big-run", facts: { biggestRun: 50_000 } },
+    { id: "gg", facts: { wentPublic: true } },
   ];
 
   it("covers the whole catalog", () => {
