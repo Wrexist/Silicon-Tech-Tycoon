@@ -39,24 +39,6 @@ export interface BuildProps {
   onSelectItem: (iid: string | null) => void;
 }
 
-/** Desk pod positions for `n` workstations — fills a front row (closest to camera) then a
- *  back row, spread evenly. Starts with a single centered desk and grows as the team hires. */
-function deskPositions(n: number): [number, number][] {
-  const cap = Math.max(1, Math.min(6, n));
-  const front = Math.min(cap, 3);
-  const back = cap - front;
-  const out: [number, number][] = [];
-  const row = (k: number, z: number) => {
-    for (let i = 0; i < k; i++) {
-      const x = k === 1 ? 0 : -2.6 + 5.2 * (i / (k - 1));
-      out.push([x, z]);
-    }
-  };
-  row(front, 1.7);
-  row(back, -1.1);
-  return out;
-}
-
 const MOOD_HEX: Record<MoodBand, string> = {
   thriving: "#10b981",
   happy: "#10b981",
@@ -66,6 +48,19 @@ const MOOD_HEX: Record<MoodBand, string> = {
 };
 
 const ROBOT_COLORS = ["#4a9af5", "#ff7a35", "#40c870", "#9060e8", "#f5c840"];
+
+// Open-floor spots for non-founder employees, spread around the room like the reference (near the
+// whiteboard, kanban, gate, centre…). All clear of furniture footprints; `roam: true` ones gently
+// wander with obstacle-avoidance. Robots are assigned to these in hire order.
+const ROBOT_STATIONS: { pos: [number, number]; rotY: number; roam: boolean }[] = [
+  { pos: [-1.6, -0.4], rotY: 0.4, roam: false }, // by the whiteboard (back-left)
+  { pos: [1.3, -1.1], rotY: -0.5, roam: false }, // by the kanban wall (back-right)
+  { pos: [0.5, 0.9], rotY: -0.2, roam: true }, // centre (roams)
+  { pos: [1.9, 1.7], rotY: -1.3, roam: false }, // toward the security gate (front-right)
+  { pos: [-2.3, 0.7], rotY: 0.9, roam: true }, // left side (roams)
+  { pos: [2.5, -0.2], rotY: -1.1, roam: false }, // right side
+  { pos: [-0.3, 1.9], rotY: 2.9, roam: false }, // front-centre
+];
 
 // Build mode lifts the camera to a higher, more overhead angle so the whole floor grid is
 // readable; otherwise it's the cozy parallax view. WASD lets the player drive the view:
@@ -535,68 +530,94 @@ function Chair({ p, hue }: { p: RoomPalette; hue: string }) {
   );
 }
 
-function RobotCharacter({ colorIdx, seed, moodColor }: { colorIdx: number; seed: number; moodColor?: string }) {
+// Lighten/darken a hex colour for two-tone shading (belly highlight, dark visor, etc.).
+function shade(hex: string, amt: number): string {
+  const c = new THREE.Color(hex);
+  if (amt >= 0) c.lerp(new THREE.Color("#ffffff"), amt);
+  else c.lerp(new THREE.Color("#000000"), -amt);
+  return `#${c.getHexString()}`;
+}
+
+// Premium mascot robot: rounded two-tone shell, dark eye-visor with glowing eyes, antenna with a
+// lit tip, little arms + hands, rounded feet, metallic neck ring. ~1.45m tall, grounded at y=0.
+// `walking` toggles a stride swing; otherwise it does a gentle idle (breathe + look around).
+function RobotCharacter({ colorIdx, seed, moodColor, walking = false }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean }) {
   const color = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
+  const belly = useMemo(() => shade(color, 0.32), [color]);
+  const dark = useMemo(() => shade(color, -0.5), [color]);
+  const metal = "#c7cdd6";
   const root = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
-  const armLRef = useRef<THREE.Mesh>(null);
-  const armRRef = useRef<THREE.Mesh>(null);
+  const antRef = useRef<THREE.Group>(null);
+  const armLRef = useRef<THREE.Group>(null);
+  const armRRef = useRef<THREE.Group>(null);
+  const legLRef = useRef<THREE.Group>(null);
+  const legRRef = useRef<THREE.Group>(null);
 
   useFrame((st) => {
     const t = st.clock.elapsedTime + seed;
-    if (root.current) root.current.position.y = Math.sin(t * 1.4) * 0.04;
+    if (root.current) root.current.position.y = (walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035);
     if (headRef.current) {
-      headRef.current.rotation.y = Math.sin(t * 0.7) * 0.18;
-      headRef.current.rotation.z = Math.sin(t * 1.0) * 0.04;
+      headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22);
+      headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04;
     }
-    if (armLRef.current) armLRef.current.rotation.x = -0.3 + Math.sin(t * 4.5) * 0.18;
-    if (armRRef.current) armRRef.current.rotation.x = -0.3 - Math.sin(t * 4.5) * 0.18;
+    if (antRef.current) antRef.current.rotation.z = Math.sin(t * 2.2) * 0.18;
+    // arms + legs: brisk swing while walking, soft sway when idle
+    const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
+    if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm;
+    if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm;
+    const leg = walking ? Math.sin(t * 6) * 0.5 : 0;
+    if (legLRef.current) legLRef.current.rotation.x = -leg;
+    if (legRRef.current) legRRef.current.rotation.x = leg;
   });
 
   return (
-    <group ref={root} scale={1.3}>
-      {/* body — rounded capsule */}
-      <mesh position={[0, 0.54, 0]}>
-        <capsuleGeometry args={[0.27, 0.44, 8, 18]} />
-        <meshStandardMaterial color={color} roughness={0.38} />
-      </mesh>
-      {/* left arm */}
-      <mesh ref={armLRef} position={[-0.37, 0.62, 0.1]}>
-        <capsuleGeometry args={[0.115, 0.34, 6, 12]} />
-        <meshStandardMaterial color={color} roughness={0.38} />
-      </mesh>
-      {/* right arm */}
-      <mesh ref={armRRef} position={[0.37, 0.62, 0.1]}>
-        <capsuleGeometry args={[0.115, 0.34, 6, 12]} />
-        <meshStandardMaterial color={color} roughness={0.38} />
-      </mesh>
-      {/* head — large sphere */}
-      <group ref={headRef} position={[0, 1.16, 0]}>
-        <mesh>
-          <sphereGeometry args={[0.34, 24, 24]} />
-          <meshStandardMaterial color={color} roughness={0.38} />
-        </mesh>
-        {/* eyes — glowing white dots */}
-        <mesh position={[-0.13, 0.07, 0.3]}>
-          <sphereGeometry args={[0.065, 12, 12]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.8} toneMapped={false} />
-        </mesh>
-        <mesh position={[0.13, 0.07, 0.3]}>
-          <sphereGeometry args={[0.065, 12, 12]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.8} toneMapped={false} />
-        </mesh>
-        {/* mood dot */}
-        {moodColor && (
-          <mesh position={[0.29, 0.28, 0.14]}>
-            <sphereGeometry args={[0.075, 10, 10]} />
-            <meshStandardMaterial color={moodColor} emissive={moodColor} emissiveIntensity={0.7} toneMapped={false} />
-          </mesh>
-        )}
+    <group ref={root} scale={1.25}>
+      {/* legs + rounded feet */}
+      <group ref={legLRef} position={[-0.13, 0.3, 0]}>
+        <mesh position={[0, -0.13, 0]}><capsuleGeometry args={[0.075, 0.16, 6, 10]} /><meshStandardMaterial color={dark} roughness={0.5} /></mesh>
+        <mesh position={[0, -0.26, 0.05]}><sphereGeometry args={[0.11, 14, 12]} /><meshStandardMaterial color={dark} roughness={0.45} /></mesh>
       </group>
+      <group ref={legRRef} position={[0.13, 0.3, 0]}>
+        <mesh position={[0, -0.13, 0]}><capsuleGeometry args={[0.075, 0.16, 6, 10]} /><meshStandardMaterial color={dark} roughness={0.5} /></mesh>
+        <mesh position={[0, -0.26, 0.05]}><sphereGeometry args={[0.11, 14, 12]} /><meshStandardMaterial color={dark} roughness={0.45} /></mesh>
+      </group>
+
+      {/* body — rounded shell with a lighter belly panel */}
+      <mesh position={[0, 0.6, 0]}><capsuleGeometry args={[0.28, 0.36, 10, 20]} /><meshStandardMaterial color={color} roughness={0.32} metalness={0.05} /></mesh>
+      <mesh position={[0, 0.55, 0.2]} scale={[0.7, 0.85, 0.45]}><sphereGeometry args={[0.26, 18, 18]} /><meshStandardMaterial color={belly} roughness={0.4} /></mesh>
+      {/* metallic neck ring */}
+      <mesh position={[0, 0.92, 0]}><cylinderGeometry args={[0.16, 0.18, 0.07, 18]} /><meshStandardMaterial color={metal} metalness={0.7} roughness={0.3} /></mesh>
+
+      {/* arms with rounded hands */}
+      <group ref={armLRef} position={[-0.32, 0.72, 0]}>
+        <mesh position={[0, -0.16, 0]}><capsuleGeometry args={[0.085, 0.24, 6, 12]} /><meshStandardMaterial color={color} roughness={0.32} /></mesh>
+        <mesh position={[0, -0.32, 0]}><sphereGeometry args={[0.1, 14, 12]} /><meshStandardMaterial color={belly} roughness={0.4} /></mesh>
+      </group>
+      <group ref={armRRef} position={[0.32, 0.72, 0]}>
+        <mesh position={[0, -0.16, 0]}><capsuleGeometry args={[0.085, 0.24, 6, 12]} /><meshStandardMaterial color={color} roughness={0.32} /></mesh>
+        <mesh position={[0, -0.32, 0]}><sphereGeometry args={[0.1, 14, 12]} /><meshStandardMaterial color={belly} roughness={0.4} /></mesh>
+      </group>
+
+      {/* head */}
+      <group ref={headRef} position={[0, 1.2, 0]}>
+        <mesh><sphereGeometry args={[0.33, 26, 26]} /><meshStandardMaterial color={color} roughness={0.3} metalness={0.05} /></mesh>
+        {/* dark wrap-around visor */}
+        <mesh position={[0, 0.04, 0.04]} scale={[1.02, 0.62, 1.02]}><sphereGeometry args={[0.32, 24, 24, 0, Math.PI * 2, Math.PI * 0.18, Math.PI * 0.4]} /><meshStandardMaterial color={dark} roughness={0.25} metalness={0.2} /></mesh>
+        {/* glowing eyes */}
+        <mesh position={[-0.12, 0.05, 0.3]}><sphereGeometry args={[0.055, 14, 14]} /><meshStandardMaterial color="#ffffff" emissive="#cfeaff" emissiveIntensity={2.2} toneMapped={false} /></mesh>
+        <mesh position={[0.12, 0.05, 0.3]}><sphereGeometry args={[0.055, 14, 14]} /><meshStandardMaterial color="#ffffff" emissive="#cfeaff" emissiveIntensity={2.2} toneMapped={false} /></mesh>
+        {/* antenna with a lit tip */}
+        <group ref={antRef} position={[0, 0.3, 0]}>
+          <mesh position={[0, 0.1, 0]}><cylinderGeometry args={[0.018, 0.018, 0.22, 8]} /><meshStandardMaterial color={metal} metalness={0.6} roughness={0.3} /></mesh>
+          <mesh position={[0, 0.24, 0]}><sphereGeometry args={[0.05, 12, 12]} /><meshStandardMaterial color={moodColor ?? "#ff5a5a"} emissive={moodColor ?? "#ff5a5a"} emissiveIntensity={1.4} toneMapped={false} /></mesh>
+        </group>
+      </group>
+
       {/* blob shadow */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]}>
-        <circleGeometry args={[0.3, 18]} />
-        <meshBasicMaterial color="#8090a8" transparent opacity={0.28} depthWrite={false} />
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.005, 0.03]}>
+        <circleGeometry args={[0.32, 20]} />
+        <meshBasicMaterial color="#8090a8" transparent opacity={0.26} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -620,8 +641,8 @@ class RobotBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 /** A robot by colour index: uses a dropped-in .glb model when one exists (see robotModels.ts),
  *  otherwise the hand-built parametric robot. `clip` requests an animation by name (e.g. "Idle",
  *  "Sitting") — ignored if the model doesn't ship that clip. A blob shadow grounds the model. */
-function OfficeRobot({ colorIdx, seed, moodColor, clip }: { colorIdx: number; seed: number; moodColor?: string; clip?: string }) {
-  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} />;
+function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean }) {
+  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} />;
   const model = robotModelFor(colorIdx);
   if (!model) return parametric;
   return (
@@ -635,6 +656,66 @@ function OfficeRobot({ colorIdx, seed, moodColor, clip }: { colorIdx: number; se
         </mesh>
       </Suspense>
     </RobotBoundary>
+  );
+}
+
+// Furniture/fixture keep-out circles (x,z,radius) so roaming robots never walk into the desk,
+// vault, gate, kanban, or corner plants. Kept in module scope — shared by every roamer.
+const ROAM_OBSTACLES: { x: number; z: number; r: number }[] = [
+  { x: -1.3, z: 2.3, r: 1.2 }, // founder desk
+  { x: -3.5, z: 1.6, r: 0.95 }, // vault
+  { x: 0.8, z: 3.55, r: 1.05 }, // security gate
+  { x: 2.5, z: -3.55, r: 1.1 }, // kanban wall
+  { x: -3.44, z: -3.44, r: 0.7 }, // corner plant
+  { x: 3.44, z: -3.44, r: 0.7 }, // corner plant
+];
+const ROAM_BOUND = 3.4; // stay on the floor slab
+
+// A robot that gently wanders within `radius` of its home, steering around furniture (simple
+// repulsion — the "physics" that keeps it out of the table) and facing its direction of travel.
+function RoamingRobot({ colorIdx, seed, home, radius = 1.1 }: { colorIdx: number; seed: number; home: [number, number]; radius?: number }) {
+  const grp = useRef<THREE.Group>(null);
+  const s = useRef({ x: home[0], z: home[1], tx: home[0], tz: home[1], next: 0, face: 0 });
+  useFrame((st, dt) => {
+    const t = st.clock.elapsedTime + seed;
+    const cur = s.current;
+    if (t > cur.next) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * radius;
+      cur.tx = home[0] + Math.cos(a) * r;
+      cur.tz = home[1] + Math.sin(a) * r;
+      cur.next = t + 2.5 + Math.random() * 3.5;
+    }
+    const dx = cur.tx - cur.x;
+    const dz = cur.tz - cur.z;
+    const d = Math.hypot(dx, dz);
+    if (d > 0.03) {
+      const step = Math.min(d, 0.55 * dt);
+      cur.x += (dx / d) * step;
+      cur.z += (dz / d) * step;
+      cur.face = Math.atan2(dx, dz);
+    }
+    // repel out of furniture footprints
+    for (const o of ROAM_OBSTACLES) {
+      const ox = cur.x - o.x;
+      const oz = cur.z - o.z;
+      const od = Math.hypot(ox, oz);
+      if (od < o.r && od > 1e-3) {
+        cur.x += (ox / od) * (o.r - od);
+        cur.z += (oz / od) * (o.r - od);
+      }
+    }
+    cur.x = Math.max(-ROAM_BOUND, Math.min(ROAM_BOUND, cur.x));
+    cur.z = Math.max(-ROAM_BOUND, Math.min(ROAM_BOUND, cur.z));
+    if (grp.current) {
+      grp.current.position.set(cur.x, 0, cur.z);
+      grp.current.rotation.y += ((cur.face - grp.current.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI) * Math.min(1, dt * 6);
+    }
+  });
+  return (
+    <group ref={grp}>
+      <OfficeRobot colorIdx={colorIdx} seed={seed} clip="Walking" walking />
+    </group>
   );
 }
 
@@ -716,11 +797,11 @@ function Workstation({ p, pos, staff, seed, monitors }: { p: RoomPalette; pos: [
           <Mug hue={hue} />
         </group>
       )}
-      {/* chair + robot leaning toward desk */}
-      <group position={[0, 0, -0.5]}>
+      {/* chair + robot standing clear behind the desk (no clipping into the tabletop) */}
+      <group position={[0, 0, -0.78]}>
         <Chair p={p} hue={hue} />
         {staff && (
-          <group position={[0, -0.05, 0.18]} rotation-x={-0.12}>
+          <group position={[0, 0, -0.05]}>
             <OfficeRobot colorIdx={colorIdx} seed={seed} moodColor={moodColor} clip="Sitting" />
           </group>
         )}
@@ -805,10 +886,22 @@ function KanbanWall() {
           </group>
         );
       })}
-      {/* active-column blue glow */}
+      {/* active-column blue glow (the "In Progress" lane) */}
       <mesh position={[colW / 2, 0, 0.058]}>
-        <planeGeometry args={[colW + 0.02, H + 0.04]} />
-        <meshBasicMaterial color="#3b82f6" transparent opacity={0.07} depthWrite={false} />
+        <planeGeometry args={[colW + 0.04, H + 0.04]} />
+        <meshBasicMaterial color="#3b82f6" transparent opacity={0.16} depthWrite={false} />
+      </mesh>
+      {/* soft "active zone" aura radiating out around the whole board (matches the reference) */}
+      {[0, 1, 2].map((i) => (
+        <mesh key={i} position={[0, 0, -0.04 - i * 0.06]}>
+          <planeGeometry args={[W + 0.5 + i * 0.55, H + 0.5 + i * 0.55]} />
+          <meshBasicMaterial color="#5aa0ff" transparent opacity={0.1 - i * 0.03} depthWrite={false} />
+        </mesh>
+      ))}
+      {/* a thin emissive frame edge so the board reads as "powered/active" */}
+      <mesh position={[0, 0, 0.066]}>
+        <planeGeometry args={[W + 0.06, H + 0.06]} />
+        <meshBasicMaterial color="#3b82f6" transparent opacity={0.06} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -1000,37 +1093,6 @@ function Dust() {
       <sphereGeometry args={[0.014, 6, 6]} />
       <meshBasicMaterial color="#fff3d6" transparent opacity={0.45} depthWrite={false} />
     </instancedMesh>
-  );
-}
-
-// A little robot vacuum roaming the open floor.
-function Robot({ p }: { p: RoomPalette }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((st) => {
-    if (!ref.current) return;
-    const t = st.clock.elapsedTime * 0.4;
-    const x = Math.sin(t) * 2.1;
-    const z = 2.7 + Math.cos(t * 1.3) * 0.75;
-    const dx = Math.cos(t) * 2.1;
-    const dz = -Math.sin(t * 1.3) * 1.3 * 0.75;
-    ref.current.position.set(x, 0.09, z);
-    ref.current.rotation.y = Math.atan2(dx, dz);
-  });
-  return (
-    <group ref={ref}>
-      <mesh castShadow>
-        <cylinderGeometry args={[0.27, 0.29, 0.13, 22]} />
-        <meshStandardMaterial color={p.metal} metalness={0.4} roughness={0.4} />
-      </mesh>
-      <mesh position={[0, 0.09, 0]}>
-        <sphereGeometry args={[0.15, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
-        <meshStandardMaterial color={p.metalDark} roughness={0.5} />
-      </mesh>
-      <mesh position={[0.04, 0.11, 0.13]}>
-        <sphereGeometry args={[0.035, 8, 8]} />
-        <meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.1} toneMapped={false} />
-      </mesh>
-    </group>
   );
 }
 
@@ -1434,8 +1496,6 @@ function BuildLayer({ p, b }: { p: RoomPalette; b: BuildProps }) {
 
 function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle }: { staff: Staff[]; staffCount: number; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number } }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
-  const occupants = Math.max(1, Math.min(6, staffCount, staff.length));
-  const desks = useMemo(() => deskPositions(occupants), [occupants]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
   const finish = floorFinish(roomStyle.floor);
@@ -1496,14 +1556,26 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
         <meshStandardMaterial color={p.screen} transparent opacity={facilityTier > 1 ? 0.1 : 0.05} roughness={1} />
       </mesh>
 
-      {/* desks grow with the team — one per person, starting from a single desk */}
-      {desks.map((pos, i) => (
-        <Workstation key={i} p={p} pos={pos} staff={staff[i]} seed={i * 2.1} monitors={monitors} />
-      ))}
+      {/* The team, rendered as robots — EXACTLY one per employee. The founder works at the main
+          desk; everyone else is spread around the office (standing at a station or roaming with
+          obstacle-avoidance), so the headcount you hired is the headcount you see. */}
+      {staff[0] && <Workstation p={p} pos={[-1.3, 2.3]} staff={staff[0]} seed={0} monitors={monitors} />}
+      {staff.slice(1, Math.min(8, Math.max(staff.length, staffCount))).map((s, i) => {
+        const st = ROBOT_STATIONS[i % ROBOT_STATIONS.length];
+        const colorIdx = (i + 1) % ROBOT_COLORS.length;
+        const seed = (i + 1) * 3.7;
+        const mood = MOOD_HEX[moodBand(s.mood ?? 60)];
+        return st.roam ? (
+          <RoamingRobot key={s.id ?? i} colorIdx={colorIdx} seed={seed} home={st.pos} />
+        ) : (
+          <group key={s.id ?? i} position={[st.pos[0], 0, st.pos[1]]} rotation-y={st.rotY}>
+            <OfficeRobot colorIdx={colorIdx} seed={seed} moodColor={mood} clip="Idle" />
+          </group>
+        );
+      })}
       <Props p={p} hasProduction={hasProduction} dark={dark} />
-      {!builder?.build && <Robot p={p} />}
       <Dust />
-      <BallBin p={p} pos={[3.1, 1.31, -3.0]} />
+      {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
 
       {/* player-arranged furniture + the drag-to-move builder */}
       {builder && <BuildLayer p={p} b={builder} />}
@@ -1525,24 +1597,6 @@ function Scene({ staff, staffCount, facilityTier, hasProduction, upgrades, compa
       <KanbanWall />
       <Vault />
       <SecurityGate />
-
-      {/* Ambient robots — positions match reference image layout */}
-      {/* orange: near whiteboard on left wall */}
-      <group position={[-1.8, 0, 0.4]} rotation-y={0.5}>
-        <OfficeRobot colorIdx={1} seed={7.3} clip="Idle" />
-      </group>
-      {/* green: center of room */}
-      <group position={[0.2, 0, 0.6]} rotation-y={-0.3}>
-        <OfficeRobot colorIdx={2} seed={9.7} clip="Idle" />
-      </group>
-      {/* purple: facing kanban wall on right side */}
-      <group position={[2.8, 0, -0.4]} rotation-y={-1.4}>
-        <OfficeRobot colorIdx={3} seed={11.1} clip="Idle" />
-      </group>
-      {/* yellow: near security gate at front */}
-      <group position={[2.4, 0, 2.8]} rotation-y={-2.0}>
-        <OfficeRobot colorIdx={4} seed={15.6} clip="Idle" />
-      </group>
 
       {/* Floating zone labels */}
       {!builder?.build && (
