@@ -75,6 +75,18 @@ function fmtMilestone(d: number): string {
   return format(dollars(d));
 }
 
+/** Fire a toast when any staff member gains a skill level during the live tick. */
+function withStaffLevelToasts(prev: GameState, next: GameState): void {
+  for (const ns of next.staff) {
+    const ps = prev.staff.find((s) => s.id === ns.id);
+    if (ps && ns.skill > ps.skill) {
+      try {
+        showToast(`${ns.name} reached Skill ${ns.skill}`, { tone: "positive" });
+      } catch { /* toast host not mounted */ }
+    }
+  }
+}
+
 /** Fire celebratory toasts for any revenue milestones crossed between prev and next. */
 function withRevToasts(prev: GameState, next: GameState): void {
   const prevD = toDollars(prev.cumulativeRevenue);
@@ -212,6 +224,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setState((s) => {
         const next = advanceOneWeek(s);
         withRevToasts(s, next);
+        withStaffLevelToasts(s, next);
         return withLiveAchievements(next);
       });
     }, ms);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { Building2, Lightbulb, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -162,22 +162,32 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                     onClick={() => { setDetailId(lp.product.id); haptic.light(); }}
                     aria-label={`View ${lp.product.name} performance`}
                   >
-                    <span className="mkt__product-thumb"><DeviceRenderer product={lp.product} size={44} /></span>
-                    <span className="mkt__product-info">
-                      <span className="mkt__product-name">{lp.product.name}</span>
-                      <span className="mkt__product-sub">
-                        <CategoryIcon id={lp.product.category} size={12} />
-                        {live
-                          ? <>{format(cents(lp.weeklyUnits[lp.weeksElapsed] * lp.product.price))}<span className="mkt__product-period">/wk</span> · {format(lp.revenueToDate)} total</>
-                          : <>{lp.unitsSold.toLocaleString()} sold · {format(lp.revenueToDate)}</>
-                        }
+                    <span className="mkt__product-row">
+                      <span className="mkt__product-thumb"><DeviceRenderer product={lp.product} size={44} /></span>
+                      <span className="mkt__product-info">
+                        <span className="mkt__product-name">{lp.product.name}</span>
+                        <span className="mkt__product-sub">
+                          <CategoryIcon id={lp.product.category} size={12} />
+                          {live
+                            ? <>{format(cents(lp.weeklyUnits[lp.weeksElapsed] * lp.product.price))}<span className="mkt__product-period">/wk</span> · {format(lp.revenueToDate)} total</>
+                            : <>{lp.unitsSold.toLocaleString()} sold · {format(lp.revenueToDate)}</>
+                          }
+                        </span>
+                      </span>
+                      <span className="mkt__product-end">
+                        <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
+                        {live && !endingSoon && <span className="mkt__product-live">selling</span>}
+                        {endingSoon && <span className="mkt__product-ending">last {lp.weeklyUnits.length - lp.weeksElapsed}wk</span>}
                       </span>
                     </span>
-                    <span className="mkt__product-end">
-                      <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
-                      {live && !endingSoon && <span className="mkt__product-live">selling</span>}
-                      {endingSoon && <span className="mkt__product-ending">last {lp.weeklyUnits.length - lp.weeksElapsed}wk</span>}
-                    </span>
+                    {live && lp.weeklyUnits.length > 0 && (
+                      <span className="mkt__product-lc" aria-hidden>
+                        <span
+                          className={`mkt__product-lc-fill mkt__product-lc-fill--${lp.weeksElapsed < 4 ? "ramp" : lp.weeksElapsed < 10 ? "mid" : "decline"}`}
+                          style={{ width: `${Math.round((lp.weeksElapsed / lp.weeklyUnits.length) * 100)}%` }}
+                        />
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -487,6 +497,34 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
   return drivers;
 }
 
+/** Derive up to 3 actionable post-launch tips from the recorded launch insight. */
+function generateTips(lp: LaunchedProduct): string[] {
+  const ins = lp.insight;
+  if (!ins) return [];
+  const v = verdictOf(lp);
+  const tips: string[] = [];
+  if (ins.demandFit < 40) {
+    tips.push("Poor trend match — check the Market tab before designing and build toward what consumers are currently demanding.");
+  }
+  if (ins.priceFit < 0.8) {
+    tips.push("Buyers found this overpriced. Try the 'Suggest' button in the Design Lab to dial in a fairer price next time.");
+  } else if (ins.priceFit > 1.12 && v !== "hit") {
+    tips.push("Underpriced — the quality supported a higher price. Charging a bit more improves margins without hurting demand.");
+  }
+  if (ins.betterRivals >= 2) {
+    tips.push("Multiple rivals outclassed this product — upgrade components to higher tiers and invest in R&D to unlock better tech.");
+  } else if (ins.betterRivals === 1) {
+    tips.push("One rival edged you out — a single component upgrade or a tighter price could swing the category your way.");
+  }
+  if (ins.hype < 1.05 && tips.length < 3) {
+    tips.push("Very little launch buzz. A paid marketing channel (Social, Search, or TV) can multiply demand at launch.");
+  }
+  if (tips.length === 0 && v === "hit") {
+    tips.push("Strong launch — maintain momentum by designing a successor before this product finishes its run.");
+  }
+  return tips.slice(0, 3);
+}
+
 function ProductDetailSheet({
   lp,
   onClose,
@@ -498,6 +536,7 @@ function ProductDetailSheet({
 }) {
   const v = verdictOf(lp);
   const drivers = performanceDrivers(lp);
+  const tips = generateTips(lp);
   const sellThrough = lp.plannedUnits && lp.plannedUnits > 0
     ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
     : null;
@@ -572,6 +611,18 @@ function ProductDetailSheet({
           <p className="pd__why-note">Detailed launch metrics weren't recorded for this older product — shown as an overall read.</p>
         )}
       </div>
+
+      {tips.length > 0 && (
+        <div className="pd__tips">
+          <div className="pd__tips-head">
+            <Lightbulb size={15} aria-hidden />
+            <span>Tips for next time</span>
+          </div>
+          <ul className="pd__tips-list">
+            {tips.map((t, i) => <li key={i} className="pd__tip">{t}</li>)}
+          </ul>
+        </div>
+      )}
 
       {onDesignSuccessor && (
         <Button block onClick={() => { onDesignSuccessor(lp.product); haptic.success(); }}>
