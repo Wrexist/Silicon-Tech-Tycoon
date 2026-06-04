@@ -26,8 +26,11 @@ import {
 } from "../engine/research.ts";
 import {
   designSpecialtyBonus,
+  levelFromSkills,
   makeIdentity,
+  makeSkills,
   perfectionistCeilingBonus,
+  ROLE_DISCIPLINE,
   visionaryHype,
 } from "../engine/staff.ts";
 import { pickEvent, type MarketEvent } from "../engine/events.ts";
@@ -83,11 +86,13 @@ import { makeRng, type Rng } from "../engine/rng.ts";
 import type {
   Assignment,
   BuildJob,
+  Candidate,
   ComponentKind,
   ConsumerTrends,
   CompetitorState,
   LaunchedProduct,
   Product,
+  Recruitment,
   Staff,
   StaffRole,
   Stats,
@@ -120,6 +125,10 @@ export interface GameState {
   /** highest unlocked tier per component line (>=1 means researched up to that tier) */
   researched: Partial<Record<ComponentKind, number>>;
   staff: Staff[];
+  /** in-progress recruitment search (null when idle), and the candidates it produced */
+  recruitment: Recruitment | null;
+  candidates: Candidate[];
+  candidateCounter: number;
   facilityTier: number;
   upgrades: Partial<Record<UpgradeId, number>>;
   researchPoints: number;
@@ -182,6 +191,8 @@ function rngFrom(state: GameState): Rng {
 }
 
 const STARTER_NAMES = ["You (Founder)"];
+// Applicant name pool for recruitment (no real people / brands).
+const NAMES = ["Riley", "Sam", "Jordan", "Casey", "Ari", "Noa", "Quinn", "Devin", "Max", "Robin", "Sky", "Frankie", "Ellis", "Rowan", "Tatum", "Wren"];
 
 export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameState {
   const rng = makeRng(seed);
@@ -193,6 +204,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     role: "engineer",
     name: STARTER_NAMES[0],
     skill: 3,
+    skills: makeSkills(rng, "engineer", 3),
     salary: ZERO, // the founder works for free
     assignment: "rnd",
     xp: 0,
@@ -215,6 +227,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     competitors,
     researched: { chip: 1, display: 1, battery: 1, materials: 1, software: 1, camera: 1 },
     staff: [founder],
+    recruitment: null,
+    candidates: [],
+    candidateCounter: 0,
     facilityTier: 1,
     upgrades: {},
     researchPoints: legacy * BALANCE.legacy.rpPerLevel,
@@ -584,14 +599,35 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   const staff = state.staff.map((s) => {
     const { staff: next, leveledUp } = gainWeeklyXp(s);
     if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${next.skill}.`, "positive"));
+    // keep the 0..100 primary discipline in step with the headline level on a level-up
+    const skills = leveledUp
+      ? { ...next.skills, [ROLE_DISCIPLINE[next.role]]: Math.min(100, Math.max(next.skills[ROLE_DISCIPLINE[next.role]], next.skill * 10)) }
+      : next.skills;
     let target = 60 + moodBonus(state.upgrades);
     if (s.trait === "hustler") target -= 12; // always grinding
     if (cashDropping) target -= 12;
     else target += 6; // company doing fine
     const lift = teamPlayers * 1.5 - (s.trait === "teamPlayer" ? 1.5 : 0); // others, not self
     const mood = clampMood(next.mood + (target - next.mood) * 0.12 + lift + rng.range(-1.5, 1.5));
-    return { ...next, mood };
+    return { ...next, skills, mood };
   });
+
+  // Recruitment search progress — resolves into a candidate shortlist when the timer runs out.
+  let recruitment = state.recruitment;
+  let candidates = state.candidates;
+  let candidateCounter = state.candidateCounter;
+  if (recruitment) {
+    const weeksLeft = recruitment.weeksLeft - rate;
+    if (weeksLeft <= 0) {
+      const gen = generateCandidates(state, rng);
+      candidates = gen.candidates;
+      candidateCounter = gen.counter;
+      recruitment = null;
+      feed.push(feedItem(week, `${candidates.length} candidates ready to interview.`, "accent"));
+    } else {
+      recruitment = { ...recruitment, weeksLeft };
+    }
+  }
 
   const bankrupt = cash < 0;
   if (bankrupt) {
@@ -611,6 +647,9 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     building,
     ready,
     staff,
+    recruitment,
+    candidates,
+    candidateCounter,
     trends,
     trendRetargetWeek,
     competitors,
@@ -1020,6 +1059,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     role,
     name,
     skill: finalSkill,
+    skills: makeSkills(rng, role, finalSkill),
     salary: salaryFor(role, finalSkill),
     assignment: ROLE_ASSIGNMENT[role],
     xp: 0,
@@ -1035,6 +1075,87 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     staffCounter: state.staffCounter + 1,
     feed: trimFeed(feed),
   };
+}
+
+// ---------- Recruitment: search → candidates → sign ----------
+
+/** Open a recruitment search (costs a flat fee, resolves after BALANCE.recruitment.weeks). */
+export function startRecruitment(state: GameState): GameState {
+  if (state.recruitment) return state; // a search is already running
+  const cost = BALANCE.recruitment.searchCost;
+  if (state.cash < cost) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, "Opened a recruitment search.", "accent")]);
+  return {
+    ...state,
+    cash: sub(state.cash, cost),
+    recruitment: { weeksLeft: BALANCE.recruitment.weeks, startedWeek: state.week },
+    feed,
+  };
+}
+
+/** Generate the applicant pool when a search completes. Varied roles, 0..100 skill profiles,
+ *  traits, and an occasional star. Advances + returns the rng so results stay deterministic. */
+function generateCandidates(state: GameState, rng: Rng): { candidates: Candidate[]; counter: number } {
+  const roles: StaffRole[] = ["engineer", "designer", "marketer"];
+  const out: Candidate[] = [];
+  let counter = state.candidateCounter;
+  for (let i = 0; i < BALANCE.recruitment.candidates; i++) {
+    const role = roles[rng.int(roles.length)];
+    let level = Math.round(rng.range(BALANCE.recruitment.minLevel, BALANCE.recruitment.maxLevel));
+    if (rng.next() < BALANCE.recruitment.starChance) level = Math.min(9, level + 2 + rng.int(2));
+    const skills = makeSkills(rng, role, level);
+    const headline = levelFromSkills(skills, role);
+    const identity = makeIdentity(rng, role);
+    out.push({
+      id: `c${counter++}`,
+      role,
+      name: NAMES[(counter * 7 + level) % NAMES.length],
+      skill: headline,
+      skills,
+      salary: salaryFor(role, headline),
+      hireFee: hireCostFor(role, headline, hasProject(state.completedProjects, "talentNetwork")),
+      ...identity,
+    });
+  }
+  return { candidates: out, counter };
+}
+
+/** Sign a candidate from the pool onto the team (respects capacity + cash). Removes them + clears
+ *  the rest of that pool (the others "take other offers"). */
+export function hireCandidate(state: GameState, candidateId: string): GameState {
+  const cand = state.candidates.find((c) => c.id === candidateId);
+  if (!cand) return state;
+  if (state.staff.length >= facility(state).staffCapacity) return state;
+  if (state.cash < cand.hireFee) return state;
+  const member: Staff = {
+    id: `s${state.staffCounter}`,
+    role: cand.role,
+    name: cand.name,
+    skill: cand.skill,
+    skills: cand.skills,
+    salary: cand.salary,
+    assignment: ROLE_ASSIGNMENT[cand.role],
+    xp: 0,
+    specialty: cand.specialty,
+    trait: cand.trait,
+    mood: cand.mood,
+    appearance: cand.appearance,
+  };
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name} — ${cand.role}.`, "positive")]);
+  return {
+    ...state,
+    cash: sub(state.cash, cand.hireFee),
+    staff: [...state.staff, member],
+    staffCounter: state.staffCounter + 1,
+    candidates: [], // the rest of the shortlist moves on
+    feed,
+  };
+}
+
+/** Dismiss the current candidate shortlist without hiring. */
+export function clearCandidates(state: GameState): GameState {
+  if (state.candidates.length === 0) return state;
+  return { ...state, candidates: [] };
 }
 
 export function fireStaff(state: GameState, id: string): GameState {

@@ -141,6 +141,18 @@ export const BALANCE = {
     trainCostPerSkill: dollars(1800),
   },
 
+  // --- Recruitment: pay to run a search; after `weeks` it returns `candidates` applicants with
+  // varied 0..100 discipline skills + a trait. You then sign whoever you want (if you have room).
+  recruitment: {
+    searchCost: dollars(2_500), // up-front cost to open a search
+    weeks: 2, // weeks until candidates arrive
+    candidates: 3, // applicants produced per search
+    // headline-skill spread of applicants (the derived 1..10); occasionally a star
+    minLevel: 2,
+    maxLevel: 7,
+    starChance: 0.18, // chance an applicant rolls above maxLevel (up to 9)
+  },
+
   // --- Build / manufacturing ---
   build: {
     baseWeeks: 3, // weeks to manufacture a product before it can launch
@@ -165,7 +177,7 @@ export const BALANCE = {
 
   // --- Facilities ---
   facilities: [
-    { tier: 1, name: "Garage", staffCapacity: 3, weeklyRent: dollars(200), upgradeCost: dollars(0) },
+    { tier: 1, name: "Garage", staffCapacity: 4, weeklyRent: dollars(200), upgradeCost: dollars(0) },
     { tier: 2, name: "Studio", staffCapacity: 7, weeklyRent: dollars(1_200), upgradeCost: dollars(120_000) },
     { tier: 3, name: "Campus", staffCapacity: 16, weeklyRent: dollars(6_000), upgradeCost: dollars(1_500_000) },
   ],

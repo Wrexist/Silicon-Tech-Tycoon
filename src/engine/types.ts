@@ -154,11 +154,20 @@ export interface Appearance {
   accessory: Accessory;
 }
 
+/** Per-discipline proficiency, 0..100. Everyone has all three; their role's discipline is their
+ *  headline. Drives variety ("good at different things") + the derived skill level. */
+export interface Skills {
+  engineering: number;
+  design: number;
+  marketing: number;
+}
+
 export interface Staff {
   id: string;
   role: StaffRole;
   name: string;
-  skill: number; // 1..10
+  skill: number; // 1..10 — headline competence used by the sim/economy (derived from `skills`)
+  skills: Skills; // 0..100 per discipline
   salary: Money; // weekly
   assignment: Assignment;
   xp: number; // accumulates toward the next skill level-up
@@ -166,6 +175,27 @@ export interface Staff {
   trait: Trait;
   mood: number; // 0..100, drifts over time
   appearance: Appearance;
+}
+
+/** A potential hire produced by a recruitment search — not yet on the team. */
+export interface Candidate {
+  id: string;
+  role: StaffRole;
+  name: string;
+  skill: number; // 1..10 derived headline
+  skills: Skills; // 0..100 per discipline
+  salary: Money; // weekly salary if hired
+  hireFee: Money; // one-time signing cost
+  specialty: Specialty;
+  trait: Trait;
+  mood: number;
+  appearance: Appearance;
+}
+
+/** An in-progress recruitment search. Resolves into `candidates` when weeksLeft hits 0. */
+export interface Recruitment {
+  weeksLeft: number;
+  startedWeek: number;
 }
 
 /** A product being manufactured before it can launch. */

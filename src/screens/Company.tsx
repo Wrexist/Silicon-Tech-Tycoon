@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Minus, Plus, Rocket, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Rocket, Search, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ACHIEVEMENT_COUNT } from "../engine/achievements.ts";
@@ -7,20 +7,21 @@ import { Avatar } from "../components/Avatar.tsx";
 import { RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { runwayWeeks, salaryFor, trainCost, xpToNext } from "../engine/economy.ts";
+import { runwayWeeks, trainCost, xpToNext } from "../engine/economy.ts";
 import { format } from "../engine/money.ts";
 import {
+  DISCIPLINE_LABEL,
+  type Discipline,
   MOOD_LABEL,
   moodBand,
   MOOD_COLOR,
   SPECIALTY_TITLE,
   TRAIT_INFO,
 } from "../engine/staff.ts";
-import type { Assignment, LaunchedProduct, Staff, StaffRole } from "../engine/types.ts";
+import type { Assignment, Candidate, LaunchedProduct, Staff, StaffRole } from "../engine/types.ts";
 import {
   burn,
   facility,
-  hireCostFor,
   nextWeekRevenue,
   weeklyRpGen,
   type GameState,
@@ -34,12 +35,6 @@ const ROLE_LABEL: Record<StaffRole, string> = {
   designer: "Designer",
   marketer: "Marketer",
 };
-const ROLE_EFFECT: Record<StaffRole, string> = {
-  engineer: "Cheaper, faster R&D",
-  designer: "Raises Design ceiling",
-  marketer: "More launch hype",
-};
-const NAMES = ["Riley", "Sam", "Jordan", "Casey", "Ari", "Noa", "Quinn", "Devin", "Max", "Robin"];
 
 function runwayTone(weeks: number): "positive" | "negative" | "neutral" {
   if (weeks === Infinity) return "positive";
@@ -66,7 +61,7 @@ const ROLE_COLOR: Record<StaffRole, string> = {
 };
 
 export function Company() {
-  const { state, hire, fire, assign, train } = useGame();
+  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates } = useGame();
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const achievementCount = state.unlockedAchievements.length;
@@ -129,11 +124,9 @@ export function Company() {
         )}
       </Card>
 
-      {/* Hiring */}
-      <SectionHeader title="Hire" accessory={state.staff.length >= fac.staffCapacity ? "at capacity" : undefined} />
-      {(["engineer", "designer", "marketer"] as StaffRole[]).map((role) => (
-        <HireCard key={role} role={role} state={state} onHire={hire} capacity={fac.staffCapacity} />
-      ))}
+      {/* Recruitment */}
+      <SectionHeader title="Recruitment" accessory={`${state.staff.length}/${fac.staffCapacity} desks`} />
+      <RecruitPanel state={state} capacity={fac.staffCapacity} onRecruit={recruit} onHire={hireCandidate} onDismiss={dismissCandidates} />
 
       <Sheet open={statsOpen} onClose={() => setStatsOpen(false)}>
         <StatsSheet state={state} onClose={() => setStatsOpen(false)} />
@@ -292,48 +285,95 @@ function Member({
   );
 }
 
-function HireCard({
-  role,
+// Recruitment: open a paid search → after a couple of weeks a shortlist of varied applicants
+// arrives → sign whoever fits (if there's a free desk + cash).
+function RecruitPanel({
   state,
-  onHire,
   capacity,
+  onRecruit,
+  onHire,
+  onDismiss,
 }: {
-  role: StaffRole;
   state: GameState;
-  onHire: (role: StaffRole, skill: number, name: string) => void;
   capacity: number;
+  onRecruit: () => void;
+  onHire: (id: string) => void;
+  onDismiss: () => void;
 }) {
-  const [skill, setSkill] = useState(3);
-  const fee = hireCostFor(role, skill);
-  const salary = salaryFor(role, skill);
   const full = state.staff.length >= capacity;
-  const affordable = state.cash >= fee && !full;
+  const cost = BALANCE.recruitment.searchCost;
 
+  if (state.recruitment) {
+    const wl = state.recruitment.weeksLeft;
+    return (
+      <Card>
+        <div className="co__hire-head">
+          <span className="co__member-glyph" aria-hidden style={{ background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)" }}><Search size={18} /></span>
+          <div className="co__member-info">
+            <span className="co__member-name">Searching for candidates…</span>
+            <span className="co__member-role">{wl} week{wl === 1 ? "" : "s"} left</span>
+          </div>
+        </div>
+        <p className="co__hint">Your recruiter is sourcing applicants — advance the weeks to get a shortlist.</p>
+      </Card>
+    );
+  }
+
+  if (state.candidates.length) {
+    return (
+      <>
+        {full && <p className="co__hint">At capacity — upgrade your facility to free up a desk before signing.</p>}
+        {state.candidates.map((c) => (
+          <CandidateCard key={c.id} c={c} canHire={!full && state.cash >= c.hireFee} onHire={() => onHire(c.id)} />
+        ))}
+        <Button size="sm" variant="tertiary" onClick={onDismiss}>Dismiss shortlist</Button>
+      </>
+    );
+  }
+
+  const affordable = state.cash >= cost;
   return (
     <Card>
       <div className="co__hire-head">
-        <span className="co__member-glyph" aria-hidden style={{ background: "color-mix(in srgb, " + ROLE_COLOR[role] + " 16%, transparent)", color: ROLE_COLOR[role] }}><RoleIcon role={role} /></span>
+        <span className="co__member-glyph" aria-hidden style={{ background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)" }}><Search size={18} /></span>
         <div className="co__member-info">
-          <span className="co__member-name">{ROLE_LABEL[role]}</span>
-          <span className="co__member-role">{ROLE_EFFECT[role]}</span>
+          <span className="co__member-name">Open a search</span>
+          <span className="co__member-role">{BALANCE.recruitment.weeks} weeks · {BALANCE.recruitment.candidates} candidates</span>
         </div>
       </div>
       <div className="co__hire-controls">
-        <div className="co__skill">
-          <button onClick={() => setSkill((s) => Math.max(1, s - 1))} disabled={skill <= 1} aria-label="Lower skill"><Minus size={15} /></button>
-          <span className="tnum">Skill {skill}</span>
-          <button onClick={() => setSkill((s) => Math.min(10, s + 1))} disabled={skill >= 10} aria-label="Higher skill"><Plus size={15} /></button>
-        </div>
-        <Button
-          size="sm"
-          variant={affordable ? "primary" : "tertiary"}
-          disabled={!affordable}
-          onClick={() => onHire(role, skill, NAMES[(state.staffCounter + skill) % NAMES.length])}
-        >
-          Hire · {format(fee)}
-        </Button>
+        <span className="co__hint">Finds applicants with varied skills &amp; traits.</span>
+        <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={onRecruit}>Search · {format(cost)}</Button>
       </div>
-      <p className="co__hint">Then {format(salary)}/wk salary.</p>
+    </Card>
+  );
+}
+
+function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean; onHire: () => void }) {
+  const disciplines: Discipline[] = ["engineering", "design", "marketing"];
+  return (
+    <Card>
+      <div className="co__hire-head">
+        <span className="co__member-glyph" aria-hidden style={{ background: "color-mix(in srgb, " + ROLE_COLOR[c.role] + " 16%, transparent)", color: ROLE_COLOR[c.role] }}><RoleIcon role={c.role} /></span>
+        <div className="co__member-info">
+          <span className="co__member-name">{c.name} · {ROLE_LABEL[c.role]}</span>
+          <span className="co__member-role">{SPECIALTY_TITLE[c.specialty]} · {TRAIT_INFO[c.trait].label}</span>
+        </div>
+        <span className="co__cand-level tnum">Lv {c.skill}</span>
+      </div>
+      <div className="co__cand-skills">
+        {disciplines.map((d) => (
+          <div key={d} className="co__cand-skill">
+            <span className="co__cand-skill-label">{DISCIPLINE_LABEL[d]}</span>
+            <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${c.skills[d]}%`, background: ROLE_COLOR[c.role] }} /></span>
+            <span className="co__cand-skill-num tnum">{c.skills[d]}</span>
+          </div>
+        ))}
+      </div>
+      <div className="co__hire-controls">
+        <span className="co__hint">{format(c.salary)}/wk salary · {TRAIT_INFO[c.trait].blurb}</span>
+        <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={onHire}>Sign · {format(c.hireFee)}</Button>
+      </div>
     </Card>
   );
 }

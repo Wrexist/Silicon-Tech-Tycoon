@@ -2,7 +2,7 @@
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
 import { defaultLayout } from "../engine/furniture.ts";
-import { makeIdentity } from "../engine/staff.ts";
+import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, type GameState } from "./gameState.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
@@ -270,9 +270,17 @@ function migrate(state: GameState): GameState | null {
         if (m.mood == null) m.mood = id.mood;
         if (m.appearance == null) m.appearance = id.appearance;
       }
+      // v2.2: per-discipline 0..100 skills — backfill deterministically from id + headline skill.
+      if (m.skills == null) {
+        m.skills = makeSkills(makeRng(hashId((m.id ?? "s0") + "k")), (m.role as StaffRole) ?? "engineer", Math.max(1, Math.min(10, Math.round(m.skill ?? 3))));
+      }
       return m;
     });
   }
+  // v2.2: recruitment system fields
+  if (s.recruitment === undefined) s.recruitment = null;
+  if (!Array.isArray(s.candidates)) s.candidates = [];
+  if (s.candidateCounter == null) s.candidateCounter = 0;
   if (Array.isArray(s.launched)) {
     s.launched = s.launched.map((lp: any) => {
       if (lp.product) lp.product = fixProduct(lp.product);

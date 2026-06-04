@@ -360,3 +360,52 @@
 .co__skill button:active:not(:disabled) {
   transform: scale(0.9);
 }
+
+/* --- Recruitment candidate cards --- */
+.co__cand-level {
+  flex-shrink: 0;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+  background: var(--bg-elevated);
+  border-radius: var(--r-pill);
+  padding: 2px var(--sp-8);
+}
+.co__cand-skills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  margin: var(--sp-12) 0;
+}
+.co__cand-skill {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.co__cand-skill-label {
+  width: 76px;
+  flex-shrink: 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.co__cand-bar {
+  flex: 1;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.co__cand-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--spring-standard);
+}
+.co__cand-skill-num {
+  width: 26px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+}

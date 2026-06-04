@@ -4,6 +4,7 @@ import { STAT_KEYS } from "./types.ts";
 import type {
   Accessory,
   Appearance,
+  Skills,
   Specialty,
   Staff,
   StaffRole,
@@ -84,6 +85,41 @@ export function makeIdentity(rng: Rng, role: StaffRole): Identity {
     mood: Math.round(rng.range(58, 78)),
     appearance: makeAppearance(rng),
   };
+}
+
+// ---------- Per-discipline skills (0..100) — the "good at different things" model ----------
+export type Discipline = "engineering" | "design" | "marketing";
+export const DISCIPLINE_LABEL: Record<Discipline, string> = {
+  engineering: "Engineering",
+  design: "Design",
+  marketing: "Marketing",
+};
+/** Which discipline a role headlines. */
+export const ROLE_DISCIPLINE: Record<StaffRole, Discipline> = {
+  engineer: "engineering",
+  designer: "design",
+  marketer: "marketing",
+};
+
+const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+
+/** A 0..100 skill profile centred on `level` (1..10): the role's discipline is strongest, the
+ *  others scatter lower. Produces visibly different people — a 90/30/50 vs a 40/40/70. */
+export function makeSkills(rng: Rng, role: StaffRole, level: number): Skills {
+  const primary = ROLE_DISCIPLINE[role];
+  const base = level * 10; // 1..10 -> ~10..100
+  const out: Skills = {
+    engineering: clamp100(rng.range(15, 55)),
+    design: clamp100(rng.range(15, 55)),
+    marketing: clamp100(rng.range(15, 55)),
+  };
+  out[primary] = clamp100(base + rng.range(-8, 10)); // strongest, near the headline level
+  return out;
+}
+
+/** Headline skill level (1..10) derived from a 0..100 profile for a role (its primary discipline). */
+export function levelFromSkills(skills: Skills, role: StaffRole): number {
+  return Math.max(1, Math.min(10, Math.round(skills[ROLE_DISCIPLINE[role]] / 10)));
 }
 
 // ---------- Mood ----------
