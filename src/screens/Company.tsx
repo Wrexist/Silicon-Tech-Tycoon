@@ -612,6 +612,24 @@ function TeamOutputCard({ state }: { state: GameState }) {
       {idleCount > 0 && (
         <p className="co__output-idle">{idleCount} staff idle — assign them to a function to generate output.</p>
       )}
+      {(() => {
+        const soonest = state.staff
+          .filter((s) => s.skill < BALANCE.staff.maxSkill)
+          .map((s) => {
+            const weeklyXpRate = (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait);
+            if (weeklyXpRate <= 0) return null;
+            const weeksToLevel = Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate);
+            return { name: s.name, weeksToLevel, skill: s.skill };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a!.weeksToLevel - b!.weeksToLevel)[0];
+        if (!soonest) return null;
+        return (
+          <p className="co__output-levelup">
+            Next level-up: <strong>{soonest.name}</strong> reaches skill {soonest.skill + 1} in ~{soonest.weeksToLevel} week{soonest.weeksToLevel !== 1 ? "s" : ""}.
+          </p>
+        );
+      })()}
     </Card>
   );
 }

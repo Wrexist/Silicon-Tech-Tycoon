@@ -908,6 +908,7 @@
 
 /* Intel card: competitive pressure down arrow */
 .mkt__intel-icon--down { color: var(--negative-text, var(--negative)); }
+.mkt__intel-icon--warn { color: var(--warning); }
 
 /* "View all" link on the Activity card header */
 .mkt__feed-all {

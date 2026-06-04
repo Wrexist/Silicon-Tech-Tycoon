@@ -651,6 +651,16 @@
   font-weight: 600;
   margin-top: var(--sp-4);
 }
+.co__output-levelup {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: var(--sp-6);
+  line-height: 1.35;
+}
+.co__output-levelup strong {
+  color: var(--accent);
+}
 
 /* --- Recruitment channel buttons --- */
 .co__recruit-tiers {

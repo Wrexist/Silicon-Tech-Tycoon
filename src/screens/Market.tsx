@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Lightbulb, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { Building2, Clock, Lightbulb, Minus, Newspaper, Package, Plus, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -421,10 +421,29 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       </Card>
 
       {/* Market opportunity */}
-      {(hotStatDelta > 0.005 || weakestCat != null || pressuredProducts.length > 0) && (
+      {(() => {
+        const upcomingLaunches = comps.filter((c) => {
+          const wks = c.nextLaunchWeek - state.week;
+          return wks >= 0 && wks <= 3;
+        }).sort((a, b) => (a.nextLaunchWeek - state.week) - (b.nextLaunchWeek - state.week));
+        const showIntel = hotStatDelta > 0.005 || weakestCat != null || pressuredProducts.length > 0 || upcomingLaunches.length > 0;
+        if (!showIntel) return null;
+        return (
         <Card className="mkt__intel">
           <SectionHeader title="Market opportunity" accessory="based on current data" />
           <div className="mkt__intel-list">
+            {upcomingLaunches.length > 0 && (() => {
+              const c = upcomingLaunches[0];
+              const wks = c.nextLaunchWeek - state.week;
+              return (
+                <div className="mkt__intel-row">
+                  <Clock size={14} className="mkt__intel-icon mkt__intel-icon--warn" />
+                  <span className="mkt__intel-text">
+                    <strong>{c.name}</strong> launches in <strong>{wks}</strong> week{wks !== 1 ? "s" : ""} — launch first to capture demand before their arrival.
+                  </span>
+                </div>
+              );
+            })()}
             {hotStatDelta > 0.005 && (
               <div className="mkt__intel-row">
                 <TrendingUp size={14} className="mkt__intel-icon mkt__intel-icon--up" />
@@ -460,7 +479,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             )}
           </div>
         </Card>
-      )}
+        );
+      })()}
 
       {/* Activity feed */}
       <Card>
