@@ -586,6 +586,13 @@
   color: var(--ink-2);
 }
 
+.co__cand-contrib {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--positive-text, var(--positive));
+  margin: var(--sp-4) 0 var(--sp-8);
+}
+
 /* --- Best-fit assignment hint --- */
 .co__fit-hint {
   margin-top: var(--sp-6);

@@ -799,6 +799,32 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     }
   }
 
+  // 8. No marketer on team while launching products — missing hype boost
+  if (insights.length < 3 && state.staff.length >= 2) {
+    const hasAnyMarketer = state.staff.some((s) => s.assignment === "marketing");
+    const hasLaunched = state.launched.length > 0;
+    if (!hasAnyMarketer && hasLaunched) {
+      insights.push({
+        icon: Megaphone,
+        text: "No one is assigned to Marketing — each launch is missing a hype bonus that boosts sales velocity. Assign a team member or hire a marketer.",
+        tab: "company",
+      });
+    }
+  }
+
+  // 9. All launched products are in decline — prompt a new launch
+  if (insights.length < 3 && active.length > 0 && !inPipeline) {
+    const peakWk = BALANCE.sales.peakWeek;
+    const allDecline = active.every((lp) => lp.weeksElapsed > peakWk);
+    if (allDecline) {
+      insights.push({
+        icon: Rocket,
+        text: `All ${active.length === 1 ? "your active product has" : `${active.length} active products have`} passed their sales peak — launch something new now to capture fresh demand before revenue fades.`,
+        tab: "design",
+      });
+    }
+  }
+
   if (insights.length === 0) return null;
 
   return (

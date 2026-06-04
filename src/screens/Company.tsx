@@ -903,7 +903,31 @@ function RecruitPanel({
 }
 
 function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean; onHire: () => void }) {
+  const { state } = useGame();
   const disciplines: Discipline[] = ["engineering", "design", "marketing"];
+
+  // Projected contribution in natural role (engineer→R&D, designer→Design, marketer→Marketing)
+  const moodM = 0.82 + (Math.max(0, Math.min(100, c.mood)) / 100) * 0.36;
+  const traitM = c.trait === "hustler" ? 1.2 : c.trait === "veteran" ? 1.05 : 1;
+  const projContrib = (() => {
+    if (c.role === "engineer") {
+      const dOut = (c.skills.engineering / 10) * moodM * traitM;
+      const eraIdx = Math.max(1, Math.min(state.era, BALANCE.research.eraMultiplier.length)) - 1;
+      const eraMult = BALANCE.research.eraMultiplier[eraIdx];
+      const per = BALANCE.research.rpPerEngineerSkill;
+      return `+${(dOut * per * eraMult).toFixed(1)} RP/wk in R&D`;
+    }
+    if (c.role === "designer") {
+      const dOut = (c.skills.design / 10) * moodM * traitM;
+      return `+${dOut.toFixed(1)} design pts in Design`;
+    }
+    if (c.role === "marketer") {
+      const dOut = (c.skills.marketing / 10) * moodM * traitM;
+      return `+${Math.round(dOut * 5)}% launch hype in Marketing`;
+    }
+    return null;
+  })();
+
   return (
     <Card>
       <div className="co__hire-head">
@@ -923,6 +947,7 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
           </div>
         ))}
       </div>
+      {projContrib && <p className="co__cand-contrib">{projContrib}</p>}
       <div className="co__hire-controls">
         <span className="co__hint">{format(c.salary)}/wk salary · {TRAIT_INFO[c.trait].blurb}</span>
         <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={onHire}>Sign · {format(c.hireFee)}</Button>
