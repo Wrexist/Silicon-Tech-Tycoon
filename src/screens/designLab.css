@@ -506,6 +506,49 @@
   background: color-mix(in srgb, var(--negative) 10%, transparent);
   color: var(--negative-text, var(--negative));
 }
+.lab__cat-focus {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-10);
+  flex-wrap: wrap;
+}
+.lab__cat-focus-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.lab__cat-focus-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  background: var(--bg-elevated);
+  color: var(--ink-2);
+}
+.lab__cat-focus-stat--good {
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
+  color: var(--positive-text, var(--positive));
+}
+.lab__cat-focus-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+}
+.lab__cat-focus-arrow--up {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 5px solid currentColor;
+}
+.lab__cat-focus-arrow--down {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
 .lab__warn {
   margin: var(--sp-8) 0 var(--sp-12);
   font-size: var(--fs-caption);

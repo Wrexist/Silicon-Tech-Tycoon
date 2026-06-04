@@ -504,8 +504,14 @@ export function DesignLab({
       {/* Stats */}
       <Card>
         <SectionHeader title="Stats" accessory={`Overall ${overall}`} />
-        <StatBars stats={stats} weights={weights} />
-        <p className="lab__hint">Green bars are what the market wants most right now.</p>
+        <StatBars
+          stats={stats}
+          weights={weights}
+          trendDeltas={Object.fromEntries(
+            STAT_KEYS.map((k) => [k, state.trends.targetWeights[k] - state.trends.weights[k]])
+          ) as Record<keyof typeof stats, number>}
+        />
+        <p className="lab__hint">Green = what market wants most · ↑↓ = shifting demand</p>
         {(() => {
           const prev = state.launched.find((lp) => lp.product.category === draft.category);
           if (!prev) return null;
@@ -586,6 +592,33 @@ export function DesignLab({
             )}
           </div>
         )}
+        {(() => {
+          // Category focus: show the top 2 stats this category rewards and player's alignment
+          const STAT_FULL: Record<keyof Stats, string> = { performance: "Perf", quality: "Quality", battery: "Battery", design: "Design", ecosystem: "Ecosys" };
+          const top2 = STAT_KEYS
+            .filter((k) => (cat.statEmphasis[k] ?? 0) >= 1.0)
+            .sort((a, b) => ((cat.statEmphasis[b] ?? 0) - (cat.statEmphasis[a] ?? 0)))
+            .slice(0, 2);
+          if (top2.length === 0) return null;
+          return (
+            <div className="lab__cat-focus">
+              <span className="lab__cat-focus-label">{cat.displayName} buyers want:</span>
+              {top2.map((k) => {
+                const delta = state.trends.targetWeights[k] - state.trends.weights[k];
+                const trend = delta > 0.03 ? "up" : delta < -0.03 ? "down" : "flat";
+                const statVal = stats[k];
+                const good = statVal >= 50;
+                return (
+                  <span key={k} className={`lab__cat-focus-stat${good ? " lab__cat-focus-stat--good" : ""}`}>
+                    {STAT_FULL[k]}
+                    {trend === "up" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--up" aria-label="rising" />}
+                    {trend === "down" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--down" aria-label="falling" />}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Price */}

@@ -827,12 +827,20 @@
 .hq__perf-revenue {
   display: flex;
   align-items: center;
-  gap: var(--sp-4);
+  gap: var(--sp-6);
   font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--positive);
+  font-weight: 700;
+  color: var(--ink);
   margin-bottom: var(--sp-8);
+  flex-wrap: wrap;
 }
+.hq__rev-arrow--up { color: var(--positive); flex-shrink: 0; }
+.hq__rev-arrow--down { color: var(--negative); flex-shrink: 0; }
+.hq__rev-flat { color: var(--ink-3); font-size: var(--fs-micro); flex-shrink: 0; }
+.hq__rev-delta { font-size: var(--fs-micro); font-weight: 700; padding: 1px 5px; border-radius: var(--r-pill); }
+.hq__rev-delta--up { color: var(--positive-text, var(--positive)); background: color-mix(in srgb, var(--positive) 12%, transparent); }
+.hq__rev-delta--down { color: var(--negative-text, var(--negative)); background: color-mix(in srgb, var(--negative) 12%, transparent); }
+.hq__rev-sub { font-size: var(--fs-micro); font-weight: 500; color: var(--ink-3); }
 .hq__forecast {
   display: flex;
   gap: 6px;

@@ -871,6 +871,9 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
     }, 0),
   );
   const forecastPeak = Math.max(...forecast, 1);
+  const nextWeekRev = forecast[1] ?? 0;
+  const revDeltaPct = weeklyRevenue > 0 ? Math.round(((nextWeekRev - weeklyRevenue) / weeklyRevenue) * 100) : 0;
+  const revTrending = revDeltaPct > 2 ? "up" : revDeltaPct < -2 ? "down" : "flat";
   const best = state.launched.reduce<(typeof state.launched)[0] | null>(
     (top, lp) => (top === null || lp.revenueToDate > top.revenueToDate ? lp : top),
     null,
@@ -903,9 +906,16 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
         </div>
       </div>
       {weeklyRevenue > 0 && (
-        <p className="hq__perf-revenue">
-          <TrendingUp size={12} aria-hidden /> {fmtRevShort(weeklyRevenue)}/wk from {active.length} active product{active.length > 1 ? "s" : ""}
-        </p>
+        <div className="hq__perf-revenue">
+          {revTrending === "up" ? <TrendingUp size={12} aria-hidden className="hq__rev-arrow hq__rev-arrow--up" /> : revTrending === "down" ? <TrendingDown size={12} aria-hidden className="hq__rev-arrow hq__rev-arrow--down" /> : <span className="hq__rev-flat" aria-hidden>—</span>}
+          <span>{fmtRevShort(weeklyRevenue)}/wk</span>
+          {revDeltaPct !== 0 && (
+            <span className={`hq__rev-delta tnum${revTrending === "up" ? " hq__rev-delta--up" : revTrending === "down" ? " hq__rev-delta--down" : ""}`}>
+              {revDeltaPct > 0 ? "+" : ""}{revDeltaPct}% next wk
+            </span>
+          )}
+          <span className="hq__rev-sub">{active.length} active product{active.length > 1 ? "s" : ""}</span>
+        </div>
       )}
       {active.length > 0 && (
         <div className="hq__forecast" aria-label="4-week revenue forecast">
