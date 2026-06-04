@@ -31,6 +31,20 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
 }
+.rd__bank-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--positive-text, var(--positive));
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .rd__bank-cta {
   margin-top: var(--sp-12);
   display: flex;

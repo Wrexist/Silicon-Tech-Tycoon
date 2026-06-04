@@ -592,7 +592,7 @@
 }
 .pd__stats {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   gap: var(--sp-8);
 }
 /* Product specs (stat bars in the detail sheet) */

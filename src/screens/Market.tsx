@@ -718,6 +718,18 @@ function ProductDetailSheet({
           tone={sellThrough != null && sellThrough >= 90 ? "positive" : "neutral"}
           hint={lp.plannedUnits != null ? `${lp.plannedUnits.toLocaleString()} made` : undefined}
         />
+        {(() => {
+          const grossProfitD = lp.unitsSold * (toDollars(lp.product.price) - toDollars(lp.unitCost));
+          const gp = dollars(Math.round(grossProfitD));
+          return (
+            <Stat
+              label="Gross profit"
+              value={format(gp)}
+              tone={grossProfitD >= 0 ? "positive" : "negative"}
+              hint="excl. campaign"
+            />
+          );
+        })()}
       </div>
 
       {/* Product specs */}

@@ -153,6 +153,17 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             <div className="rd__bank-value tnum"><AnimatedInt value={rp} /> RP</div>
             <div className="rd__bank-sub">+{perWeek.toFixed(1)} / week</div>
           </div>
+          {(() => {
+            const buyableNow = RESEARCH_PROJECTS.filter(
+              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost,
+            ).length;
+            if (buyableNow === 0) return null;
+            return (
+              <span className="rd__bank-ready">
+                <Check size={10} strokeWidth={3} /> {buyableNow} unlock{buyableNow > 1 ? "s" : ""} ready
+              </span>
+            );
+          })()}
         </div>
         {perWeek === 0 ? (
           <div className="rd__bank-cta">
