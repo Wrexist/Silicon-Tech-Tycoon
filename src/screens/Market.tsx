@@ -103,6 +103,17 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       })
     : null;
 
+  // Active products where a rival is clearly stronger in their category
+  const pressuredProducts = state.launched
+    .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
+    .filter((lp) => {
+      const bestRival = comps.reduce(
+        (m, c) => Math.max(m, ((c.strengthByCategory as Record<string, number>)[lp.product.category] ?? 0)),
+        0,
+      );
+      return bestRival > overallScore(lp.stats, lp.product.category) + 5;
+    });
+
   return (
     <div className="mkt">
       {/* Net worth banner */}
@@ -182,6 +193,17 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                       </span>
                       <span className="mkt__product-end">
                         <StatPill value={VERDICT_LABEL[v]} tone={VERDICT_TONE[v]} />
+                        {live && (() => {
+                          const bestRival = comps.reduce(
+                            (m, c) => Math.max(m, ((c.strengthByCategory as Record<string, number>)[lp.product.category] ?? 0)),
+                            0,
+                          );
+                          if (bestRival < 15) return null;
+                          const score = overallScore(lp.stats, lp.product.category);
+                          if (bestRival > score + 5) return <span className="mkt__product-rival mkt__product-rival--threat">rival ahead</span>;
+                          if (bestRival >= score - 10) return <span className="mkt__product-rival mkt__product-rival--match">≈ rival</span>;
+                          return null;
+                        })()}
                         {live && !endingSoon && <span className="mkt__product-live">selling</span>}
                         {endingSoon && <span className="mkt__product-ending">last {lp.weeklyUnits.length - lp.weeksElapsed}wk</span>}
                         {!live && lp.plannedUnits && lp.plannedUnits > 0 && (
@@ -215,6 +237,47 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           </>
         )}
       </Card>
+
+      {/* Portfolio revenue breakdown by category */}
+      {(() => {
+        type CatData = { rev: number; count: number };
+        const byCat = new Map<string, CatData>();
+        for (const lp of state.launched) {
+          const e = byCat.get(lp.product.category);
+          if (e) { e.rev += lp.revenueToDate; e.count += 1; }
+          else byCat.set(lp.product.category, { rev: lp.revenueToDate, count: 1 });
+        }
+        if (byCat.size < 2) return null;
+        const sorted = [...byCat.entries()].sort((a, b) => b[1].rev - a[1].rev);
+        const totalRev = sorted.reduce((s, [, e]) => s + e.rev, 0);
+        if (totalRev <= 0) return null;
+        const peakRev = sorted[0][1].rev;
+        return (
+          <Card>
+            <SectionHeader title="Revenue by category" accessory={`${sorted.length} segments`} />
+            <div className="mkt__portfolio">
+              {sorted.map(([cat, { rev, count }]) => {
+                const share = Math.round((rev / totalRev) * 100);
+                const barW = Math.round((rev / peakRev) * 100);
+                return (
+                  <div key={cat} className="mkt__portfolio-row">
+                    <span className="mkt__portfolio-cat">
+                      <CategoryIcon id={cat as CategoryId} size={11} />
+                      {CATEGORY_LABEL[cat] ?? cat}
+                    </span>
+                    <div className="mkt__portfolio-track">
+                      <div className="mkt__portfolio-fill" style={{ width: `${barW}%` }} />
+                    </div>
+                    <span className="mkt__portfolio-rev tnum">{format(cents(rev))}</span>
+                    <span className="mkt__portfolio-share tnum">{share}%</span>
+                    <span className="mkt__portfolio-cnt tnum">{count}×</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Stock exchange */}
       <SectionHeader title="Stock Exchange" accessory="trade rival shares" />
@@ -353,7 +416,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       </Card>
 
       {/* Market opportunity */}
-      {(hotStatDelta > 0.005 || weakestCat != null) && (
+      {(hotStatDelta > 0.005 || weakestCat != null || pressuredProducts.length > 0) && (
         <Card className="mkt__intel">
           <SectionHeader title="Market opportunity" accessory="based on current data" />
           <div className="mkt__intel-list">
@@ -370,6 +433,15 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 <span className="mkt__intel-icon mkt__intel-icon--opp" aria-hidden>◎</span>
                 <span className="mkt__intel-text">
                   <strong>{weakestCat.displayName}</strong> has the least rival competition right now.
+                </span>
+              </div>
+            )}
+            {pressuredProducts.length > 0 && (
+              <div className="mkt__intel-row">
+                <TrendingDown size={14} className="mkt__intel-icon mkt__intel-icon--down" />
+                <span className="mkt__intel-text">
+                  <strong>{pressuredProducts[0].product.name}</strong> is under pressure in{" "}
+                  {CATEGORY_LABEL[pressuredProducts[0].product.category]} — rivals are outspeccing it. Plan a successor with higher-tier components.
                 </span>
               </div>
             )}

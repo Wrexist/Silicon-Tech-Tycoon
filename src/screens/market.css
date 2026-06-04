@@ -827,6 +827,88 @@
   line-height: 1.4;
 }
 
+/* Rival threat badges on active product rows */
+.mkt__product-rival {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+.mkt__product-rival--threat {
+  background: color-mix(in srgb, var(--negative) 12%, transparent);
+  color: var(--negative-text, var(--negative));
+}
+.mkt__product-rival--match {
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  color: #b45309;
+}
+
+/* Portfolio revenue breakdown by category */
+.mkt__portfolio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.mkt__portfolio-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.mkt__portfolio-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  min-width: 76px;
+  flex-shrink: 0;
+}
+.mkt__portfolio-track {
+  flex: 1;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.mkt__portfolio-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width 0.5s ease;
+  min-width: 4px;
+}
+.mkt__portfolio-rev {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  min-width: 48px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.mkt__portfolio-share {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  min-width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.mkt__portfolio-cnt {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  min-width: 16px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Intel card: competitive pressure down arrow */
+.mkt__intel-icon--down { color: var(--negative-text, var(--negative)); }
+
 /* "View all" link on the Activity card header */
 .mkt__feed-all {
   display: inline-flex;
