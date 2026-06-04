@@ -1,5 +1,6 @@
 import { Check, ChevronRight, FlaskConical, Lock, MapPin, Users } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
+import { CategoryIcon } from "../design/icons.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
@@ -321,6 +322,21 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 <span key={i} className={`rd__tier-pip${i < cur ? " rd__tier-pip--on" : ""}`} />
               ))}
             </div>
+            {(() => {
+              const usedIn = CATEGORY_LIST.filter(
+                (c) => c.unlockEra <= state.era && c.slots.includes(kind),
+              );
+              if (usedIn.length === 0) return null;
+              return (
+                <div className="rd__used-in">
+                  {usedIn.map((c) => (
+                    <span key={c.id} className="rd__used-cat">
+                      <CategoryIcon id={c.id} size={10} />{c.displayName}
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="rd__current">
               <StatPill label="Current" value={curDef?.name ?? "—"} />
               {curDef && <span className="rd__contrib">{contributesLabel(curDef.contributes)}</span>}

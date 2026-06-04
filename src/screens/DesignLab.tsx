@@ -595,6 +595,36 @@ export function DesignLab({
           <StatPill label="Fair ~" value={`$${Math.round(fairPriceDollars / 10) * 10}`} />
           <StatPill value={priceZone} tone={priceZoneTone} />
         </div>
+        {(() => {
+          const rows = cat.slots
+            .map((kind) => {
+              const tier = draft.tiers[kind] ?? 1;
+              const def = tierDef(kind, tier);
+              return def && toDollars(def.unitCost) > 0
+                ? { name: def.name, cost: toDollars(def.unitCost) }
+                : null;
+            })
+            .filter(Boolean) as { name: string; cost: number }[];
+          if (rows.length === 0) return null;
+          const total = rows.reduce((s, r) => s + r.cost, 0);
+          return (
+            <div className="lab__bom">
+              {rows.map((r) => (
+                <div key={r.name} className="lab__bom-row">
+                  <span className="lab__bom-name">{r.name}</span>
+                  <span className="lab__bom-bar-wrap">
+                    <span className="lab__bom-bar" style={{ width: `${Math.round((r.cost / total) * 100)}%` }} />
+                  </span>
+                  <span className="lab__bom-val tnum">${r.cost}</span>
+                </div>
+              ))}
+              <div className="lab__bom-total">
+                <span>BOM total</span>
+                <span className="tnum">${total.toFixed(0)}</span>
+              </div>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Name + build */}

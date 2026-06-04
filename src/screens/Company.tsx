@@ -10,7 +10,7 @@ import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
-import { xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
+import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
 import { cents, format, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
@@ -678,6 +678,20 @@ function Member({
           Low {DISCIPLINE_LABEL[activeDisc!]} fit · try <strong>{ASSIGN_LABEL[bestFitAssign]}</strong> for better output
         </p>
       )}
+      {s.assignment !== "idle" && (() => {
+        const disc = ACTIVE_DISCIPLINE[s.assignment]!;
+        const dOut = disciplineOutput(s, disc);
+        let label = "";
+        if (s.assignment === "rnd") {
+          const per = s.role === "engineer" ? BALANCE.research.rpPerEngineerSkill : BALANCE.research.rpPerAssignedResearcher;
+          label = `+${(dOut * per).toFixed(1)} RP/wk`;
+        } else if (s.assignment === "design") {
+          label = `+${dOut.toFixed(1)} design output`;
+        } else if (s.assignment === "marketing") {
+          label = `+${Math.round(dOut * 5)}% launch hype`;
+        }
+        return <p className="co__member-contrib">{label}</p>;
+      })()}
     </li>
   );
 }

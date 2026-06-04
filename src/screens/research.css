@@ -351,6 +351,25 @@
   border-color: var(--border);
 }
 
+/* "Used in" category tags on component tech cards */
+.rd__used-in {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-10);
+}
+.rd__used-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--bg-elevated);
+  border-radius: var(--r-pill);
+  padding: 2px 7px;
+}
+
 /* R&D sprint / top picks panel */
 .rd__sprint { }
 .rd__sprint-list {

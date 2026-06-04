@@ -595,6 +595,16 @@
   outline-offset: -1.5px;
 }
 
+/* Individual staff weekly output contribution */
+.co__member-contrib {
+  margin-top: var(--sp-6);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  text-align: right;
+  letter-spacing: 0.01em;
+}
+
 /* ---------- Team output summary card ---------- */
 .co__output-grid {
   display: grid;

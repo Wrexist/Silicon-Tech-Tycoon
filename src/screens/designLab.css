@@ -514,6 +514,64 @@
   display: flex;
   gap: var(--sp-8);
 }
+
+/* BOM cost breakdown */
+.lab__bom {
+  margin-top: var(--sp-12);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.lab__bom-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.lab__bom-name {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+  min-width: 96px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lab__bom-bar-wrap {
+  flex: 1;
+  height: 4px;
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.lab__bom-bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.lab__bom-val {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  min-width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.lab__bom-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  border-top: 1px solid var(--hairline);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-6);
+}
 .lab__name {
   width: 100%;
   padding: var(--sp-12) var(--sp-16);
