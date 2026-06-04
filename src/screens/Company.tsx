@@ -10,7 +10,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
-import { cents, format } from "../engine/money.ts";
+import { cents, format, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
@@ -247,9 +247,27 @@ function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
 
 /* ---------- Company stats / history ---------- */
 
+function buildRevenueHistory(launched: LaunchedProduct[], cashHistory: { week: number; cash: number }[]): number[] {
+  if (cashHistory.length < 2 || launched.length === 0) return [];
+  const minWeek = cashHistory[0].week;
+  const maxWeek = cashHistory[cashHistory.length - 1].week;
+  const weeks = maxWeek - minWeek + 1;
+  const history = new Array(weeks).fill(0);
+  for (const lp of launched) {
+    for (let i = 0; i < lp.weeklyUnits.length; i++) {
+      const histIdx = lp.launchedWeek + i - minWeek;
+      if (histIdx >= 0 && histIdx < weeks) {
+        history[histIdx] += lp.weeklyUnits[i] * toDollars(lp.product.price);
+      }
+    }
+  }
+  return history;
+}
+
 function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void }) {
   const launched = state.launched;
   const cashData = state.cashHistory.map((h) => h.cash);
+  const revData = buildRevenueHistory(launched, state.cashHistory);
   const netWorth = state.cash;
 
   // Aggregates derived from existing tracked data (no invented engine state).
@@ -303,6 +321,18 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
         </div>
         <Sparkline data={cashData} stroke={netWorth >= 0 ? "var(--accent)" : "var(--negative)"} />
       </div>
+
+      {revData.length >= 2 && (
+        <div className="co__stats-spark">
+          <div className="co__stats-spark-cap">
+            <span className="co__stats-spark-label">Weekly revenue</span>
+            <span className="ds-stat__value tnum" style={{ color: "var(--positive)" }}>
+              {format(state.cumulativeRevenue)}
+            </span>
+          </div>
+          <Sparkline data={revData} stroke="var(--positive)" />
+        </div>
+      )}
 
       {best && (
         <div className="co__stats-best">
