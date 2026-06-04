@@ -1612,7 +1612,23 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           <OfficeLabel pos={[1.2, 3.05, -2.6]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
           <OfficeLabel pos={[0.8, 2.0, 3.0]} label="Security Gate" sub="Access Control" dot="#10b981" />
-          {staff[0] && <OfficeLabel pos={[-1.25, 2.05, 2.35]} label={`Desk 01`} sub={staff[0].name ?? "Engineer"} dot={ROBOT_COLORS[0]} />}
+          {/* Per-desk name + primary-discipline label for every occupied workstation */}
+          {staff.slice(0, DESK_SLOTS.length).map((s, i) => {
+            const slot = DESK_SLOTS[i];
+            const best = (["engineering", "design", "marketing"] as const).reduce<"engineering" | "design" | "marketing">(
+              (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering",
+            );
+            const abbr = { engineering: "Eng", design: "Des", marketing: "Mkt" }[best];
+            return (
+              <OfficeLabel
+                key={s.id ?? i}
+                pos={[slot.pos[0], 2.2, slot.pos[1]]}
+                label={s.name.split(" ")[0]}
+                sub={`${abbr} · ${s.skills[best]}`}
+                dot={ROBOT_COLORS[i % ROBOT_COLORS.length]}
+              />
+            );
+          })}
         </>
       )}
 

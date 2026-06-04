@@ -61,6 +61,12 @@ const ASSIGN_COLOR: Record<Assignment, string> = {
   marketing: "var(--fn-mkt)",
   idle: "var(--ink-3)",
 };
+// Maps a discipline back to the assignment that draws on it — used for best-fit suggestions.
+const DISCIPLINE_TO_ASSIGN: Record<Discipline, Exclude<Assignment, "idle">> = {
+  engineering: "rnd",
+  design: "design",
+  marketing: "marketing",
+};
 const ROLE_COLOR: Record<StaffRole, string> = {
   engineer: "var(--fn-eng)",
   designer: "var(--fn-design)",
@@ -236,6 +242,15 @@ function Member({
   const cost = trainCost(s.skill);
   const xpPct = maxed ? 100 : Math.min(100, Math.round((s.xp / xpToNext(s.skill)) * 100));
   const band = moodBand(s.mood);
+  // Best-fit: find the discipline this person scores highest in, then check if their current
+  // assignment uses a different (weaker) discipline — flag it if the fit score is below 40.
+  const activeDisc = ACTIVE_DISCIPLINE[s.assignment];
+  const fitScore = activeDisc !== null ? s.skills[activeDisc] : 100;
+  const isMisfit = s.assignment !== "idle" && fitScore < 40;
+  const bestFitDisc = (["engineering", "design", "marketing"] as Discipline[]).reduce(
+    (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering" as Discipline,
+  );
+  const bestFitAssign = DISCIPLINE_TO_ASSIGN[bestFitDisc];
   return (
     <li className="co__member-card">
       <div className="co__member-top">
@@ -288,7 +303,7 @@ function Member({
           {ASSIGNMENTS.map((a) => (
             <button
               key={a}
-              className={`co__assign-opt${s.assignment === a ? " co__assign-opt--on" : ""}`}
+              className={`co__assign-opt${s.assignment === a ? " co__assign-opt--on" : ""}${isMisfit && s.assignment === a ? " co__assign-opt--misfit" : ""}`}
               style={s.assignment === a ? { background: ASSIGN_COLOR[a] } : undefined}
               aria-pressed={s.assignment === a}
               aria-label={`Assign ${s.name} to ${ASSIGN_LABEL[a]}`}
@@ -302,6 +317,11 @@ function Member({
           <ArrowUp size={13} /> {maxed ? "Max" : format(cost)}
         </Button>
       </div>
+      {isMisfit && (
+        <p className="co__fit-hint">
+          Low {DISCIPLINE_LABEL[activeDisc!]} fit · try <strong>{ASSIGN_LABEL[bestFitAssign]}</strong> for better output
+        </p>
+      )}
     </li>
   );
 }

@@ -410,6 +410,23 @@
   color: var(--ink-2);
 }
 
+/* --- Best-fit assignment hint --- */
+.co__fit-hint {
+  margin-top: var(--sp-6);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: #f59e0b;
+  line-height: 1.35;
+}
+.co__fit-hint strong {
+  font-weight: 700;
+}
+/* Subtle amber ring on the active assignment button when there's a skill mismatch */
+.co__assign-opt--misfit {
+  outline: 1.5px solid #f59e0b;
+  outline-offset: -1.5px;
+}
+
 /* --- Recruitment channel buttons --- */
 .co__recruit-tiers {
   display: flex;
