@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, FlaskConical, PencilRuler, Megaphone, Rocket, Search, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ACHIEVEMENT_COUNT, deriveFacts } from "../engine/achievements.ts";
@@ -162,11 +162,22 @@ export function Company() {
           <div className="co__active-list">
             {activeSales.map(({ lp, weeklyRevenue }) => {
               const weeksLeft = lp.weeklyUnits.length - lp.weeksElapsed;
+              const nextIdx = lp.weeksElapsed + 1;
+              const nextWkRevenue = nextIdx < lp.weeklyUnits.length
+                ? cents(lp.weeklyUnits[nextIdx] * (lp.product.price - lp.unitCost))
+                : null;
+              const trend = nextWkRevenue !== null ? Math.sign(nextWkRevenue - weeklyRevenue) : 0;
               return (
                 <div key={lp.product.id} className="co__active-row">
                   <span className="co__active-name">{lp.product.name}</span>
                   <span className="co__active-meta">
                     <span className="co__active-rev">{format(weeklyRevenue)}/wk</span>
+                    {nextWkRevenue !== null && trend !== 0 && (
+                      <span className={`co__active-trend co__active-trend--${trend > 0 ? "up" : "down"}`}>
+                        {trend > 0 ? <ArrowUp size={10} aria-hidden /> : <TrendingDown size={10} aria-hidden />}
+                        {format(nextWkRevenue)}
+                      </span>
+                    )}
                     <span className="co__active-eta">{weeksLeft} wk left</span>
                   </span>
                 </div>

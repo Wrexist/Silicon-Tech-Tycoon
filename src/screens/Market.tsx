@@ -664,6 +664,10 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
   const proceeds = sellProceeds(comp.sharePrice, qty);
   const canBuy = state.cash >= cost;
   const maxBuy = Math.floor(toDollars(state.cash) / (toDollars(cost) / qty || 1));
+  const ch = changePct(comp.priceHistory);
+  const strongCats = Object.entries(comp.strengthByCategory as Record<string, number>)
+    .filter(([, s]) => s > 10)
+    .sort(([, a], [, b]) => b - a);
 
   return (
     <div className="trade">
@@ -672,13 +676,40 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
           <h2 className="trade__title">{comp.name}</h2>
           <p className="trade__sub">{comp.blurb}</p>
         </div>
-        <span className="trade__price rounded tnum">{format(cents(comp.sharePrice))}</span>
+        <div className="trade__head-right">
+          <span className="trade__price rounded tnum">{format(cents(comp.sharePrice))}</span>
+          <span className={`trade__ch tnum ${ch >= 0 ? "trade__ch--up" : "trade__ch--down"}`}>
+            {ch >= 0 ? <TrendingUp size={11} aria-hidden /> : <TrendingDown size={11} aria-hidden />}
+            {Math.abs(ch).toFixed(1)}%
+          </span>
+        </div>
+      </div>
+      <div className="trade__spark">
+        <Sparkline data={comp.priceHistory} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} height={44} />
       </div>
       <div className="trade__row">
         <StatPill label="You own" value={`${owned} sh`} />
         <StatPill label="Value" value={format(cents(owned * comp.sharePrice))} tone={owned > 0 ? "positive" : "neutral"} />
         <StatPill label="Rep" value={Math.round(comp.reputation)} tone={comp.reputation >= 60 ? "positive" : "neutral"} />
       </div>
+      {strongCats.length > 0 && (
+        <div className="trade__cats">
+          {strongCats.slice(0, 4).map(([cat, str]) => {
+            const pct = Math.min(100, Math.round((str / 100) * 100));
+            return (
+              <div key={cat} className="trade__cat-row">
+                <span className="trade__cat-name">
+                  <CategoryIcon id={cat as CategoryId} size={11} />{CATEGORY_LABEL[cat] ?? cat}
+                </span>
+                <div className="trade__cat-bar">
+                  <div className="trade__cat-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="trade__cat-pct tnum">{pct}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="trade__qty">
         <span className="trade__qty-label">Shares</span>

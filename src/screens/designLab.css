@@ -314,6 +314,38 @@
   color: var(--positive-text);
 }
 
+/* Stat delta pills — shown below StatBars when a previous product exists in the category */
+.lab__stat-deltas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+}
+.lab__delta-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.lab__delta-pill--up {
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+  color: var(--positive-text);
+}
+.lab__delta-pill--down {
+  background: color-mix(in srgb, var(--negative) 10%, transparent);
+  color: var(--negative-text, var(--negative));
+}
+.lab__delta-vs {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-left: 2px;
+}
+
 /* Competitive position indicator — shown below StatBars in the Stats card */
 .lab__vs {
   display: flex;

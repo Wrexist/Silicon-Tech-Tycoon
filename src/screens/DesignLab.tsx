@@ -472,6 +472,22 @@ export function DesignLab({
         <SectionHeader title="Stats" accessory={`Overall ${overall}`} />
         <StatBars stats={stats} weights={weights} />
         <p className="lab__hint">Green bars are what the market wants most right now.</p>
+        {(() => {
+          const prev = state.launched.find((lp) => lp.product.category === draft.category);
+          if (!prev) return null;
+          const deltas = STAT_KEYS.map((k) => ({ k, d: Math.round(stats[k] - prev.stats[k]) })).filter((x) => x.d !== 0);
+          if (deltas.length === 0) return null;
+          return (
+            <div className="lab__stat-deltas">
+              {deltas.map(({ k, d }) => (
+                <span key={k} className={`lab__delta-pill${d > 0 ? " lab__delta-pill--up" : " lab__delta-pill--down"}`}>
+                  {d > 0 ? "+" : ""}{d} {STAT_ABBR[k]}
+                </span>
+              ))}
+              <span className="lab__delta-vs">vs. {prev.product.name}</span>
+            </div>
+          );
+        })()}
         {preview != null && (
           <div className={`lab__vs${preview.betterRivals > 0 ? " lab__vs--behind" : preview.matchingRivals > 0 ? " lab__vs--even" : " lab__vs--ahead"}`}>
             {preview.betterRivals > 0 ? (

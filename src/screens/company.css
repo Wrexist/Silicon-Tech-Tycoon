@@ -79,6 +79,15 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+.co__active-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+.co__active-trend--up { color: var(--positive-text); }
+.co__active-trend--down { color: var(--negative-text, var(--negative)); }
 
 /* ---------- All-time top products leaderboard ---------- */
 .co__top-list {
