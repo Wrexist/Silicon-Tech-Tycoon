@@ -10,7 +10,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
-import { cents, format, toDollars } from "../engine/money.ts";
+import { cents, format, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
@@ -120,6 +120,17 @@ export function Company() {
             value={runway === Infinity ? "Profitable" : `${runway} wk`}
             tone={runwayTone(runway)}
           />
+          {(() => {
+            const net = sub(wkRev, wkBurn);
+            const netD = toDollars(net);
+            return (
+              <Stat
+                label="Weekly net"
+                value={`${netD >= 0 ? "+" : ""}${format(net)}`}
+                tone={netD >= 0 ? "positive" : "negative"}
+              />
+            );
+          })()}
         </div>
         <div className="co__spark">
           <Sparkline data={cashData} stroke={state.cash >= 0 ? "var(--accent)" : "var(--negative)"} />
