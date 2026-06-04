@@ -7,7 +7,7 @@ import { Avatar } from "../components/Avatar.tsx";
 import { RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { runwayWeeks, trainCost, xpToNext } from "../engine/economy.ts";
+import { runwayWeeks, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { cents, format } from "../engine/money.ts";
 import {
   DISCIPLINE_LABEL,
@@ -21,6 +21,7 @@ import {
 import type { Assignment, Candidate, LaunchedProduct, RecruitTier, Staff, StaffRole } from "../engine/types.ts";
 import {
   burn,
+  facilityRent,
   facility,
   nextWeekRevenue,
   weeklyRpGen,
@@ -80,6 +81,8 @@ export function Company() {
   const achievementCount = state.unlockedAchievements.length;
   const fac = facility(state);
   const wkBurn = burn(state);
+  const wkPayroll = weeklyPayroll(state.staff);
+  const wkRent = facilityRent(state);
   const wkRev = nextWeekRevenue(state);
   const runway = runwayWeeks(state.cash, wkBurn, wkRev);
   const cashData = state.cashHistory.map((h) => h.cash);
@@ -117,6 +120,11 @@ export function Company() {
         <div className="co__spark">
           <Sparkline data={cashData} stroke={state.cash >= 0 ? "var(--accent)" : "var(--negative)"} />
         </div>
+        {state.staff.length > 0 && (
+          <p className="co__burn-breakdown">
+            Payroll {format(wkPayroll)} · Rent {format(wkRent)} weekly
+          </p>
+        )}
         {state.launched.length > 0 && (
           <div className="co__track">
             {state.launched.slice(-16).map((lp) => (

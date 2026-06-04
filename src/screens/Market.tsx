@@ -160,7 +160,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                     <span className="mkt__product-info">
                       <span className="mkt__product-name">{lp.product.name}</span>
                       <span className="mkt__product-sub">
-                        <CategoryIcon id={lp.product.category} size={12} /> {lp.unitsSold.toLocaleString()} sold · {format(lp.revenueToDate)}
+                        <CategoryIcon id={lp.product.category} size={12} />
+                        {live
+                          ? <>{format(cents(lp.weeklyUnits[lp.weeksElapsed] * lp.product.price))}<span className="mkt__product-period">/wk</span> · {format(lp.revenueToDate)} total</>
+                          : <>{lp.unitsSold.toLocaleString()} sold · {format(lp.revenueToDate)}</>
+                        }
                       </span>
                     </span>
                     <span className="mkt__product-end">

@@ -11,7 +11,7 @@ import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
 import { effectiveWeights, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
-import { buildCost, missingSlots, overallScore } from "../engine/product.ts";
+import { buildCost, computeStats, missingSlots, overallScore } from "../engine/product.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
 import type {
@@ -70,7 +70,7 @@ function freshDraft(state: GameState): Product {
   const tiers: Product["tiers"] = {};
   for (const k of CATEGORIES.phone.slots) tiers[k] = Math.min(1, researchedTier(state, k));
   const prev = newestProductName(state);
-  return {
+  const base: Product = {
     id: "draft",
     name: prev ? suggestNextName(prev) : "Aurora One",
     category: "phone",
@@ -82,6 +82,12 @@ function freshDraft(state: GameState): Product {
     camera: defaultCameraDesign(),
     notch: "punch",
   };
+  // Auto-price: start at a fair market price based on actual component stats so new players
+  // aren't unknowingly launching severely overpriced T1 products.
+  const stats = computeStats(base);
+  const overall = overallScore(stats, "phone");
+  const fairPrice = Math.max(49, Math.round(overall * toDollars(BALANCE.market.price.valueToPrice) / 10) * 10);
+  return { ...base, price: dollars(fairPrice) };
 }
 
 /** Seed a brand-new draft from an already-launched product: keep its whole design (category,
@@ -133,6 +139,15 @@ export function DesignLab({
   const marginPct = toDollars(draft.price) > 0 ? Math.round((toDollars(margin) / toDollars(draft.price)) * 100) : 0;
   const overall = overallScore(stats, draft.category);
   const weights = effectiveWeights(state.trends, draft.category);
+
+  const fairPriceDollars = Math.max(1, overall * toDollars(BALANCE.market.price.valueToPrice));
+  const priceRatio = toDollars(draft.price) / fairPriceDollars;
+  const [priceZone, priceZoneTone] =
+    priceRatio < 0.65 ? ["Underpriced", "accent" as const]
+    : priceRatio < 0.95 ? ["Good value", "positive" as const]
+    : priceRatio < 1.3 ? ["Fair", "positive" as const]
+    : priceRatio < 1.8 ? ["Premium", "neutral" as const]
+    : ["Overpriced", "negative" as const];
 
   const breakdown = scoreLaunch({
     stats,
@@ -430,6 +445,8 @@ export function DesignLab({
         <div className="lab__price-meta">
           <StatPill label="Build" value={format(unitCost)} />
           <StatPill label="Margin" value={`${format(margin)} · ${marginPct}%`} tone={marginPct > 0 ? "positive" : "negative"} />
+          <StatPill label="Fair ~" value={`$${Math.round(fairPriceDollars / 10) * 10}`} />
+          <StatPill value={priceZone} tone={priceZoneTone} />
         </div>
       </Card>
 

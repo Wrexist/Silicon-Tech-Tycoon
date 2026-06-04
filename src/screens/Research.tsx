@@ -90,6 +90,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               const done = state.completedProjects.includes(p.id);
               const locked = p.era > state.era;
               const affordable = rp >= p.rpCost && !locked;
+              const weeksAway = !affordable && !locked && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
               return (
                 <Card key={p.id} className="rd__project">
                   <div className="rd__project-info">
@@ -101,9 +102,12 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                   ) : locked ? (
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
                   ) : (
-                    <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => buyProject(p.id)}>
-                      {p.rpCost} RP
-                    </Button>
+                    <div className="rd__project-action">
+                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => buyProject(p.id)}>
+                        {p.rpCost} RP
+                      </Button>
+                      {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+                    </div>
                   )}
                 </Card>
               );
@@ -148,9 +152,14 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                   <span className="rd__next-name">{nextDef?.name}</span>
                   <span className="rd__contrib">{nextDef && contributesLabel(nextDef.contributes)}</span>
                 </div>
-                <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => research(kind)}>
-                  {cost !== null ? `${cost} RP` : "—"}
-                </Button>
+                <div className="rd__project-action">
+                  <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => research(kind)}>
+                    {cost !== null ? `${cost} RP` : "—"}
+                  </Button>
+                  {!affordable && cost !== null && perWeek > 0 && (
+                    <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)}wk</span>
+                  )}
+                </div>
               </div>
             )}
           </Card>

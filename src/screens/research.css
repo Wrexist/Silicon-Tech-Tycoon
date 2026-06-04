@@ -187,3 +187,18 @@
   letter-spacing: 0;
   text-transform: none;
 }
+
+/* Weeks-to-afford + action wrapper */
+.rd__project-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.rd__weeks-away {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}

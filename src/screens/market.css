@@ -413,6 +413,11 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.mkt__product-period {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
 
 /* ---------- Post-launch product detail sheet ---------- */
 .pd {

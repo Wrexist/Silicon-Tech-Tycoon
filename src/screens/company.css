@@ -252,6 +252,12 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+.co__burn-breakdown {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  margin-top: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
 .co__fac {
   display: flex;
   gap: var(--sp-8);
