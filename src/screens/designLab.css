@@ -781,3 +781,40 @@
 .wiz__warn--risk svg { flex: 0 0 auto; margin-top: 1px; }
 .wiz__nav { display: flex; gap: var(--sp-8); }
 .wiz__cancel { padding: var(--sp-8); font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
+
+/* ---------- Design Lab section tabs ---------- */
+.lab__tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--bg-elevated);
+  padding: 4px;
+  border-radius: var(--r-pill);
+}
+.lab__tab {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: calc(var(--r-pill) - 2px);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  transition: all var(--spring-snappy);
+  white-space: nowrap;
+}
+.lab__tab--on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-subtle);
+}
+.lab__tab:active:not(.lab__tab--on) {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
+}
+.lab__pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  animation: lab-pane-in 0.18s ease;
+}
+@keyframes lab-pane-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

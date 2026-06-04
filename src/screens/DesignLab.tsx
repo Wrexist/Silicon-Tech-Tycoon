@@ -59,6 +59,14 @@ const FINISH_LABEL: Record<FinishId, string> = {
   gold: "Gold",
 };
 
+type LabTab = "components" | "style" | "camera" | "launch";
+const LAB_TABS: { id: LabTab; label: string }[] = [
+  { id: "components", label: "Components" },
+  { id: "style", label: "Style" },
+  { id: "camera", label: "Camera" },
+  { id: "launch", label: "Launch" },
+];
+
 function newestProductName(state: GameState): string | null {
   if (state.building.length) return state.building[state.building.length - 1].product.name;
   if (state.ready.length) return state.ready[state.ready.length - 1].name;
@@ -115,6 +123,12 @@ export function DesignLab({
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
+  const [labTab, setLabTab] = useState<LabTab>("components");
+
+  // Auto-switch device face when entering the Camera tab (shows back) or any other tab (shows front)
+  useEffect(() => {
+    setFace(labTab === "camera" ? "back" : "front");
+  }, [labTab]);
 
   // A successor seed handed in from a launched product's detail sheet: adopt it as the draft, then
   // tell the parent to clear it so re-renders don't keep overwriting the player's edits.
@@ -242,7 +256,7 @@ export function DesignLab({
 
   return (
     <div className="lab">
-      {/* Market hint */}
+      {/* Market hints — always visible */}
       {topWantedDelta > 0.02 && (
         <div className="lab__market-hint">
           <span className="lab__market-hint-dot" />
@@ -264,7 +278,7 @@ export function DesignLab({
         );
       })()}
 
-      {/* Hero device */}
+      {/* Hero device — always visible, updates live as you design */}
       <div className="lab__hero">
         <DeviceRenderer product={draft} size={236} idle shimmer flip={flippable} face={face} />
         {flippable && (
@@ -284,7 +298,7 @@ export function DesignLab({
         </div>
       </div>
 
-      {/* Category */}
+      {/* Category — always visible above the tab strip */}
       <Card>
         <SectionHeader title="Category" accessory={`${unlockedCats.length} unlocked`} />
         <div className="lab__chips">
@@ -346,387 +360,405 @@ export function DesignLab({
         })()}
       </Card>
 
-      {/* Components */}
-      <Card>
-        <SectionHeader title="Components" accessory="tier gated by R&D" />
-        <div className="lab__components">
-          {cat.slots.map((kind) => {
-            const tier = draft.tiers[kind] ?? 1;
-            const def = tierDef(kind, tier);
-            const maxT = researchedTier(state, kind);
-            const totalT = maxTier(kind);
-            const atMax = tier >= maxT;
-            return (
-              <div className="lab__comp" key={kind}>
-                <div className="lab__comp-info">
-                  <span className="lab__comp-name">
-                    {COMPONENT_LINES[kind].displayName}
-                    <span className="lab__comp-pips" aria-hidden>
-                      {Array.from({ length: totalT }).map((_, i) => (
-                        <span
-                          key={i}
-                          className={`lab__comp-pip${i < tier ? " lab__comp-pip--on" : i < maxT ? " lab__comp-pip--unlocked" : ""}`}
-                        />
-                      ))}
-                    </span>
-                  </span>
-                  <span className="lab__comp-tier">
-                    {def?.name ?? "—"}
-                    {def && toDollars(def.unitCost) > 0 && (
-                      <span className="lab__comp-cost"> · {format(def.unitCost)}</span>
-                    )}
-                  </span>
-                  {def && contribLabel(def.contributes) && (
-                    <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
-                  )}
-                  {atMax && maxTier(kind) > maxT && (
-                    <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
-                  )}
-                </div>
-                <div className="lab__stepper">
-                  <button onClick={() => setTier(kind, -1)} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
-                  <span className="lab__stepper-val tnum">T{tier}</span>
-                  <button onClick={() => setTier(kind, +1)} disabled={atMax} aria-label="Higher tier"><Plus size={16} /></button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
+      {/* ── Section tab strip ───────────────────────────────── */}
+      <div className="lab__tabs" role="tablist" aria-label="Design sections">
+        {LAB_TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={labTab === t.id}
+            className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
+            onClick={() => { haptic.light(); setLabTab(t.id); }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Finish + colour */}
-      <Card>
-        <SectionHeader title="Finish & colour" />
-        <div className="lab__chips">
-          {FINISHES.map((f) => (
-            <button
-              key={f}
-              className={`lab__chip${draft.finish === f ? " lab__chip--on" : ""}`}
-              aria-pressed={draft.finish === f}
-              onClick={() => {
-                haptic.light();
-                set({ finish: f, colorIndex: 0 });
-              }}
-            >
-              {FINISH_LABEL[f]}
-            </button>
-          ))}
-        </div>
-        <div className="lab__swatches">
-          {FINISH_SWATCHES[draft.finish].map((sw, i) => (
-            <button
-              key={sw.name}
-              className={`lab__swatch${draft.colorIndex === i ? " lab__swatch--on" : ""}`}
-              style={{ background: `linear-gradient(135deg, ${sw.bodyLight}, ${sw.bodyDark})` }}
-              title={sw.name}
-              aria-label={sw.name}
-              aria-pressed={draft.colorIndex === i}
-              onClick={() => {
-                haptic.light();
-                set({ colorIndex: i });
-              }}
-            />
-          ))}
-        </div>
-      </Card>
+      {/* Tab content — key forces remount → CSS fade-in on every tab switch */}
+      <div className="lab__pane" key={labTab}>
 
-      {/* Camera design (back) */}
-      {hasCamera && (
-        <Card>
-          <SectionHeader title="Camera" accessory="back of device" />
-          <div className="lab__comp">
-            <div className="lab__comp-info">
-              <span className="lab__comp-name">Lenses</span>
-              <span className="lab__comp-tier">{draft.camera.count} {draft.camera.count === 1 ? "lens" : "lenses"}</span>
-            </div>
-            <div className="lab__stepper">
-              <button aria-label="Fewer lenses" disabled={draft.camera.count <= 1} onClick={() => setCam({ count: draft.camera.count - 1 })}><Minus size={16} /></button>
-              <span className="lab__stepper-val tnum">{draft.camera.count}</span>
-              <button aria-label="More lenses" disabled={draft.camera.count >= 4} onClick={() => setCam({ count: draft.camera.count + 1 })}><Plus size={16} /></button>
-            </div>
-          </div>
-
-          <Seg<CameraLayout>
-            label="Layout"
-            value={draft.camera.layout}
-            disabled={draft.camera.count < 2}
-            options={[["vertical", "Vertical"], ["horizontal", "Row"], ["square", "Square"], ["triangle", "Triangle"]]}
-            onPick={(v) => setCam({ layout: v })}
-          />
-          <Seg<CameraPosition>
-            label="Position"
-            value={draft.camera.position}
-            options={[["topLeft", "Corner"], ["topCenter", "Top"], ["center", "Center"]]}
-            onPick={(v) => setCam({ position: v })}
-          />
-          <Seg<CameraModuleShape>
-            label="Module"
-            value={draft.camera.module}
-            options={[["squircle", "Bump"], ["circle", "Circle"], ["pill", "Pill"]]}
-            onPick={(v) => setCam({ module: v })}
-          />
-          <div className="lab__toggle-row">
-            <span className="lab__seg-label">Flash</span>
-            <button
-              className={`lab__toggle${draft.camera.flash ? " lab__toggle--on" : ""}`}
-              role="switch"
-              aria-checked={draft.camera.flash}
-              onClick={() => setCam({ flash: !draft.camera.flash })}
-            >
-              <span className="lab__toggle-knob" />
-            </button>
-          </div>
-        </Card>
-      )}
-
-      {/* Front design */}
-      <Card>
-        <SectionHeader title="Front" accessory="selfie camera" />
-        <Seg<NotchStyle>
-          label="Cutout"
-          value={draft.notch}
-          options={[["punch", "Punch-hole"], ["island", "Island"], ["notch", "Notch"], ["none", "None"]]}
-          onPick={(v) => { haptic.light(); setFace("front"); set({ notch: v }); }}
-        />
-      </Card>
-
-      {/* Design tier */}
-      <Card>
-        <SectionHeader title="Design effort" accessory={`ceiling T${ceiling}`} />
-        <div className="lab__stepper lab__stepper--wide">
-          <button onClick={() => { haptic.light(); set({ designTier: Math.max(1, draft.designTier - 1) }); }} disabled={draft.designTier <= 1} aria-label="Lower design tier"><Minus size={16} /></button>
-          <span className="lab__stepper-val tnum" style={{ color: "var(--fn-design)" }}>Tier {draft.designTier}</span>
-          <button onClick={() => { haptic.light(); set({ designTier: Math.min(ceiling, draft.designTier + 1) }); }} disabled={draft.designTier >= ceiling} aria-label="Higher design tier"><Plus size={16} /></button>
-        </div>
-        <p className="lab__hint">Higher design effort raises the Design stat ceiling. Hire designers to lift the cap.</p>
-      </Card>
-
-      {/* Stats */}
-      <Card>
-        <SectionHeader title="Stats" accessory={`Overall ${overall}`} />
-        <StatBars
-          stats={stats}
-          weights={weights}
-          trendDeltas={Object.fromEntries(
-            STAT_KEYS.map((k) => [k, state.trends.targetWeights[k] - state.trends.weights[k]])
-          ) as Record<keyof typeof stats, number>}
-        />
-        <p className="lab__hint">Green = what market wants most · ↑↓ = shifting demand</p>
-        {(() => {
-          const prev = state.launched.find((lp) => lp.product.category === draft.category);
-          if (!prev) return null;
-          const deltas = STAT_KEYS.map((k) => ({ k, d: Math.round(stats[k] - prev.stats[k]) })).filter((x) => x.d !== 0);
-          if (deltas.length === 0) return null;
-          return (
-            <div className="lab__stat-deltas">
-              {deltas.map(({ k, d }) => (
-                <span key={k} className={`lab__delta-pill${d > 0 ? " lab__delta-pill--up" : " lab__delta-pill--down"}`}>
-                  {d > 0 ? "+" : ""}{d} {STAT_ABBR[k]}
-                </span>
-              ))}
-              <span className="lab__delta-vs">vs. {prev.product.name}</span>
-            </div>
-          );
-        })()}
-        {(() => {
-          const rivalMaxStr = state.competitors.reduce((max, c) => {
-            return Math.max(max, ((c.strengthByCategory ?? {}) as Record<string, number>)[draft.category] ?? 0);
-          }, 0);
-          const lastInCat = state.launched.find((lp) => lp.product.category === draft.category);
-          const baseTarget = Math.max(
-            lastInCat ? Math.round(overallScore(lastInCat.stats, lastInCat.product.category) * 1.1) : 0,
-            Math.round(rivalMaxStr * 1.05),
-            45,
-          );
-          const target = Math.min(baseTarget, 85);
-          if (overall >= 85) return null;
-          const pct = Math.min(100, Math.round((overall / target) * 100));
-          const met = overall >= target;
-          return (
-            <div className={`lab__score-target${met ? " lab__score-target--met" : ""}`}>
-              <div className="lab__score-target-head">
-                <span>{met ? "✓ Competitive" : `Target: ${target}+ Overall`}</span>
-                <span className="tnum">{overall} / {target}</span>
-              </div>
-              <div className="lab__score-target-track">
-                <div className="lab__score-target-fill" style={{ width: `${pct}%` }} />
-              </div>
-            </div>
-          );
-        })()}
-        {(() => {
-          // Find the single component upgrade that would improve the overall score the most.
-          let best: { kind: ComponentKind; tierName: string; gain: number } | null = null;
-          for (const kind of cat.slots) {
-            const cur = draft.tiers[kind] ?? 1;
-            const maxR = researchedTier(state, kind);
-            if (cur >= maxR) continue;
-            const nextTier = cur + 1;
-            const nextDef = tierDef(kind, nextTier);
-            if (!nextDef) continue;
-            const newStats = productStats(state, { ...draft, tiers: { ...draft.tiers, [kind]: nextTier } });
-            const gain = overallScore(newStats, draft.category) - overall;
-            if (gain > 0 && (best === null || gain > best.gain)) {
-              best = { kind, tierName: nextDef.name, gain };
-            }
-          }
-          if (!best || best.gain < 2) return null;
-          return (
-            <div className="lab__upgrade-hint">
-              <TrendingUp size={11} aria-hidden />
-              <span>
-                <strong>{COMPONENT_LINES[best.kind].displayName} T{(draft.tiers[best.kind] ?? 1) + 1}</strong>
-                {" "}would add <strong>+{best.gain}</strong> Overall
-              </span>
-            </div>
-          );
-        })()}
-        {preview != null && (
-          <div className={`lab__vs${preview.betterRivals > 0 ? " lab__vs--behind" : preview.matchingRivals > 0 ? " lab__vs--even" : " lab__vs--ahead"}`}>
-            {preview.betterRivals > 0 ? (
-              <><TrendingDown size={12} aria-hidden /> {preview.betterRivals} rival{preview.betterRivals > 1 ? "s are" : " is"} stronger in {cat.displayName} — upgrade components to compete.</>
-            ) : preview.matchingRivals > 0 ? (
-              <><TrendingUp size={12} aria-hidden /> Matched by {preview.matchingRivals} rival{preview.matchingRivals > 1 ? "s" : ""} in {cat.displayName} — a small edge could win the market.</>
-            ) : (
-              <><Check size={12} aria-hidden /> Clear field in {cat.displayName} — no strong rival competition right now.</>
-            )}
-          </div>
-        )}
-        {(() => {
-          // Category focus: show the top 2 stats this category rewards and player's alignment
-          const STAT_FULL: Record<keyof Stats, string> = { performance: "Perf", quality: "Quality", battery: "Battery", design: "Design", ecosystem: "Ecosys" };
-          const top2 = STAT_KEYS
-            .filter((k) => (cat.statEmphasis[k] ?? 0) >= 1.0)
-            .sort((a, b) => ((cat.statEmphasis[b] ?? 0) - (cat.statEmphasis[a] ?? 0)))
-            .slice(0, 2);
-          if (top2.length === 0) return null;
-          return (
-            <div className="lab__cat-focus">
-              <span className="lab__cat-focus-label">{cat.displayName} buyers want:</span>
-              {top2.map((k) => {
-                const delta = state.trends.targetWeights[k] - state.trends.weights[k];
-                const trend = delta > 0.03 ? "up" : delta < -0.03 ? "down" : "flat";
-                const statVal = stats[k];
-                const good = statVal >= 50;
+        {/* ── 1: Components ───────────────────────────────── */}
+        {labTab === "components" && (
+          <Card>
+            <SectionHeader title="Components" accessory="tier gated by R&D" />
+            <div className="lab__components">
+              {cat.slots.map((kind) => {
+                const tier = draft.tiers[kind] ?? 1;
+                const def = tierDef(kind, tier);
+                const maxT = researchedTier(state, kind);
+                const totalT = maxTier(kind);
+                const atMax = tier >= maxT;
                 return (
-                  <span key={k} className={`lab__cat-focus-stat${good ? " lab__cat-focus-stat--good" : ""}`}>
-                    {STAT_FULL[k]}
-                    {trend === "up" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--up" aria-label="rising" />}
-                    {trend === "down" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--down" aria-label="falling" />}
-                  </span>
+                  <div className="lab__comp" key={kind}>
+                    <div className="lab__comp-info">
+                      <span className="lab__comp-name">
+                        {COMPONENT_LINES[kind].displayName}
+                        <span className="lab__comp-pips" aria-hidden>
+                          {Array.from({ length: totalT }).map((_, i) => (
+                            <span
+                              key={i}
+                              className={`lab__comp-pip${i < tier ? " lab__comp-pip--on" : i < maxT ? " lab__comp-pip--unlocked" : ""}`}
+                            />
+                          ))}
+                        </span>
+                      </span>
+                      <span className="lab__comp-tier">
+                        {def?.name ?? "—"}
+                        {def && toDollars(def.unitCost) > 0 && (
+                          <span className="lab__comp-cost"> · {format(def.unitCost)}</span>
+                        )}
+                      </span>
+                      {def && contribLabel(def.contributes) && (
+                        <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
+                      )}
+                      {atMax && maxTier(kind) > maxT && (
+                        <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
+                      )}
+                    </div>
+                    <div className="lab__stepper">
+                      <button onClick={() => setTier(kind, -1)} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
+                      <span className="lab__stepper-val tnum">T{tier}</span>
+                      <button onClick={() => setTier(kind, +1)} disabled={atMax} aria-label="Higher tier"><Plus size={16} /></button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          );
-        })()}
-      </Card>
+          </Card>
+        )}
 
-      {/* Price */}
-      <Card>
-        <SectionHeader title="Price" accessory={<Button size="sm" variant="secondary" onClick={suggestPrice}>Suggest</Button>} />
-        <div className="lab__price-display rounded tnum">{format(draft.price)}</div>
-        <Slider
-          value={toDollars(draft.price)}
-          min={0}
-          max={5000}
-          step={10}
-          ariaLabel="Price"
-          accent={priceSliderAccent}
-          onChange={(v) => set({ price: dollars(v) })}
-        />
-        <div className="lab__price-meta">
-          <StatPill label="Build" value={format(unitCost)} />
-          <StatPill label="Margin" value={`${format(margin)} · ${marginPct}%`} tone={marginPct > 0 ? "positive" : "negative"} />
-          <StatPill label="Fair ~" value={`$${Math.round(fairPriceDollars / 10) * 10}`} />
-          <StatPill value={priceZone} tone={priceZoneTone} />
-        </div>
-        {(() => {
-          const rows = cat.slots
-            .map((kind) => {
-              const tier = draft.tiers[kind] ?? 1;
-              const def = tierDef(kind, tier);
-              return def && toDollars(def.unitCost) > 0
-                ? { name: def.name, cost: toDollars(def.unitCost) }
-                : null;
-            })
-            .filter(Boolean) as { name: string; cost: number }[];
-          if (rows.length === 0) return null;
-          const total = rows.reduce((s, r) => s + r.cost, 0);
-          return (
-            <div className="lab__bom">
-              {rows.map((r) => (
-                <div key={r.name} className="lab__bom-row">
-                  <span className="lab__bom-name">{r.name}</span>
-                  <span className="lab__bom-bar-wrap">
-                    <span className="lab__bom-bar" style={{ width: `${Math.round((r.cost / total) * 100)}%` }} />
-                  </span>
-                  <span className="lab__bom-val tnum">${r.cost}</span>
+        {/* ── 2: Style (finish · colour · design effort) ─── */}
+        {labTab === "style" && (
+          <>
+            <Card>
+              <SectionHeader title="Finish & colour" />
+              <div className="lab__chips">
+                {FINISHES.map((f) => (
+                  <button
+                    key={f}
+                    className={`lab__chip${draft.finish === f ? " lab__chip--on" : ""}`}
+                    aria-pressed={draft.finish === f}
+                    onClick={() => { haptic.light(); set({ finish: f, colorIndex: 0 }); }}
+                  >
+                    {FINISH_LABEL[f]}
+                  </button>
+                ))}
+              </div>
+              <div className="lab__swatches">
+                {FINISH_SWATCHES[draft.finish].map((sw, i) => (
+                  <button
+                    key={sw.name}
+                    className={`lab__swatch${draft.colorIndex === i ? " lab__swatch--on" : ""}`}
+                    style={{ background: `linear-gradient(135deg, ${sw.bodyLight}, ${sw.bodyDark})` }}
+                    title={sw.name}
+                    aria-label={sw.name}
+                    aria-pressed={draft.colorIndex === i}
+                    onClick={() => { haptic.light(); set({ colorIndex: i }); }}
+                  />
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <SectionHeader title="Design effort" accessory={`ceiling T${ceiling}`} />
+              <div className="lab__stepper lab__stepper--wide">
+                <button onClick={() => { haptic.light(); set({ designTier: Math.max(1, draft.designTier - 1) }); }} disabled={draft.designTier <= 1} aria-label="Lower design tier"><Minus size={16} /></button>
+                <span className="lab__stepper-val tnum" style={{ color: "var(--fn-design)" }}>Tier {draft.designTier}</span>
+                <button onClick={() => { haptic.light(); set({ designTier: Math.min(ceiling, draft.designTier + 1) }); }} disabled={draft.designTier >= ceiling} aria-label="Higher design tier"><Plus size={16} /></button>
+              </div>
+              <p className="lab__hint">Higher design effort raises the Design stat ceiling. Hire designers to lift the cap.</p>
+            </Card>
+          </>
+        )}
+
+        {/* ── 3: Camera & Front ────────────────────────────── */}
+        {labTab === "camera" && (
+          <>
+            {hasCamera && (
+              <Card>
+                <SectionHeader title="Camera" accessory="back of device" />
+                <div className="lab__comp">
+                  <div className="lab__comp-info">
+                    <span className="lab__comp-name">Lenses</span>
+                    <span className="lab__comp-tier">{draft.camera.count} {draft.camera.count === 1 ? "lens" : "lenses"}</span>
+                  </div>
+                  <div className="lab__stepper">
+                    <button aria-label="Fewer lenses" disabled={draft.camera.count <= 1} onClick={() => setCam({ count: draft.camera.count - 1 })}><Minus size={16} /></button>
+                    <span className="lab__stepper-val tnum">{draft.camera.count}</span>
+                    <button aria-label="More lenses" disabled={draft.camera.count >= 4} onClick={() => setCam({ count: draft.camera.count + 1 })}><Plus size={16} /></button>
+                  </div>
                 </div>
-              ))}
-              <div className="lab__bom-total">
-                <span>BOM total</span>
-                <span className="tnum">${total.toFixed(0)}</span>
-              </div>
-            </div>
-          );
-        })()}
-      </Card>
+                <Seg<CameraLayout>
+                  label="Layout"
+                  value={draft.camera.layout}
+                  disabled={draft.camera.count < 2}
+                  options={[["vertical", "Vertical"], ["horizontal", "Row"], ["square", "Square"], ["triangle", "Triangle"]]}
+                  onPick={(v) => setCam({ layout: v })}
+                />
+                <Seg<CameraPosition>
+                  label="Position"
+                  value={draft.camera.position}
+                  options={[["topLeft", "Corner"], ["topCenter", "Top"], ["center", "Center"]]}
+                  onPick={(v) => setCam({ position: v })}
+                />
+                <Seg<CameraModuleShape>
+                  label="Module"
+                  value={draft.camera.module}
+                  options={[["squircle", "Bump"], ["circle", "Circle"], ["pill", "Pill"]]}
+                  onPick={(v) => setCam({ module: v })}
+                />
+                <div className="lab__toggle-row">
+                  <span className="lab__seg-label">Flash</span>
+                  <button
+                    className={`lab__toggle${draft.camera.flash ? " lab__toggle--on" : ""}`}
+                    role="switch"
+                    aria-checked={draft.camera.flash}
+                    onClick={() => setCam({ flash: !draft.camera.flash })}
+                  >
+                    <span className="lab__toggle-knob" />
+                  </button>
+                </div>
+              </Card>
+            )}
+            <Card>
+              <SectionHeader title="Front" accessory="selfie camera" />
+              <Seg<NotchStyle>
+                label="Cutout"
+                value={draft.notch}
+                options={[["punch", "Punch-hole"], ["island", "Island"], ["notch", "Notch"], ["none", "None"]]}
+                onPick={(v) => { haptic.light(); setFace("front"); set({ notch: v }); }}
+              />
+            </Card>
+          </>
+        )}
 
-      {/* Name + build */}
-      <Card>
-        <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state)} wk to make`} />
-        <input
-          className="lab__name"
-          value={draft.name}
-          maxLength={22}
-          onChange={(e) => set({ name: e.target.value })}
-          placeholder="Product name"
-          aria-label="Product name"
-        />
-        {missing.length > 0 && <p className="lab__warn">Pick every component before building.</p>}
-        <Button block onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none">
-          <Hammer size={17} /> Plan production
-        </Button>
-        <p className="lab__hint">Next you'll choose how many units to manufacture and how to market it.</p>
-        {missing.length === 0 && (() => {
-          const rec = recommendedRun(state, draft, "none");
-          const plan = planProduction(state, draft, rec, "none");
-          const revD = toDollars(plan.projectedRevenue);
-          const profD = toDollars(plan.projectedProfit);
-          if (revD <= 0) return null;
-          return (
-            <div className="lab__rev-estimate">
-              <div className="lab__rev-row">
-                <span className="lab__rev-label">Est. revenue</span>
-                <span className="lab__rev-val tnum">{format(plan.projectedRevenue)}</span>
+        {/* ── 4: Launch (stats · price · name · build) ─────── */}
+        {labTab === "launch" && (
+          <>
+            <Card>
+              <SectionHeader title="Stats" accessory={`Overall ${overall}`} />
+              <StatBars
+                stats={stats}
+                weights={weights}
+                trendDeltas={Object.fromEntries(
+                  STAT_KEYS.map((k) => [k, state.trends.targetWeights[k] - state.trends.weights[k]])
+                ) as Record<keyof typeof stats, number>}
+              />
+              <p className="lab__hint">Green = what market wants most · ↑↓ = shifting demand</p>
+              {(() => {
+                const prev = state.launched.find((lp) => lp.product.category === draft.category);
+                if (!prev) return null;
+                const deltas = STAT_KEYS.map((k) => ({ k, d: Math.round(stats[k] - prev.stats[k]) })).filter((x) => x.d !== 0);
+                if (deltas.length === 0) return null;
+                return (
+                  <div className="lab__stat-deltas">
+                    {deltas.map(({ k, d }) => (
+                      <span key={k} className={`lab__delta-pill${d > 0 ? " lab__delta-pill--up" : " lab__delta-pill--down"}`}>
+                        {d > 0 ? "+" : ""}{d} {STAT_ABBR[k]}
+                      </span>
+                    ))}
+                    <span className="lab__delta-vs">vs. {prev.product.name}</span>
+                  </div>
+                );
+              })()}
+              {(() => {
+                const rivalMaxStr = state.competitors.reduce((max, c) => {
+                  return Math.max(max, ((c.strengthByCategory ?? {}) as Record<string, number>)[draft.category] ?? 0);
+                }, 0);
+                const lastInCat = state.launched.find((lp) => lp.product.category === draft.category);
+                const baseTarget = Math.max(
+                  lastInCat ? Math.round(overallScore(lastInCat.stats, lastInCat.product.category) * 1.1) : 0,
+                  Math.round(rivalMaxStr * 1.05),
+                  45,
+                );
+                const target = Math.min(baseTarget, 85);
+                if (overall >= 85) return null;
+                const pct = Math.min(100, Math.round((overall / target) * 100));
+                const met = overall >= target;
+                return (
+                  <div className={`lab__score-target${met ? " lab__score-target--met" : ""}`}>
+                    <div className="lab__score-target-head">
+                      <span>{met ? "✓ Competitive" : `Target: ${target}+ Overall`}</span>
+                      <span className="tnum">{overall} / {target}</span>
+                    </div>
+                    <div className="lab__score-target-track">
+                      <div className="lab__score-target-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })()}
+              {(() => {
+                let best: { kind: ComponentKind; tierName: string; gain: number } | null = null;
+                for (const kind of cat.slots) {
+                  const cur = draft.tiers[kind] ?? 1;
+                  const maxR = researchedTier(state, kind);
+                  if (cur >= maxR) continue;
+                  const nextTier = cur + 1;
+                  const nextDef = tierDef(kind, nextTier);
+                  if (!nextDef) continue;
+                  const newStats = productStats(state, { ...draft, tiers: { ...draft.tiers, [kind]: nextTier } });
+                  const gain = overallScore(newStats, draft.category) - overall;
+                  if (gain > 0 && (best === null || gain > best.gain)) {
+                    best = { kind, tierName: nextDef.name, gain };
+                  }
+                }
+                if (!best || best.gain < 2) return null;
+                return (
+                  <div className="lab__upgrade-hint">
+                    <TrendingUp size={11} aria-hidden />
+                    <span>
+                      <strong>{COMPONENT_LINES[best.kind].displayName} T{(draft.tiers[best.kind] ?? 1) + 1}</strong>
+                      {" "}would add <strong>+{best.gain}</strong> Overall
+                    </span>
+                  </div>
+                );
+              })()}
+              {preview != null && (
+                <div className={`lab__vs${preview.betterRivals > 0 ? " lab__vs--behind" : preview.matchingRivals > 0 ? " lab__vs--even" : " lab__vs--ahead"}`}>
+                  {preview.betterRivals > 0 ? (
+                    <><TrendingDown size={12} aria-hidden /> {preview.betterRivals} rival{preview.betterRivals > 1 ? "s are" : " is"} stronger in {cat.displayName} — upgrade components to compete.</>
+                  ) : preview.matchingRivals > 0 ? (
+                    <><TrendingUp size={12} aria-hidden /> Matched by {preview.matchingRivals} rival{preview.matchingRivals > 1 ? "s" : ""} in {cat.displayName} — a small edge could win the market.</>
+                  ) : (
+                    <><Check size={12} aria-hidden /> Clear field in {cat.displayName} — no strong rival competition right now.</>
+                  )}
+                </div>
+              )}
+              {(() => {
+                const STAT_FULL: Record<keyof Stats, string> = { performance: "Perf", quality: "Quality", battery: "Battery", design: "Design", ecosystem: "Ecosys" };
+                const top2 = STAT_KEYS
+                  .filter((k) => (cat.statEmphasis[k] ?? 0) >= 1.0)
+                  .sort((a, b) => ((cat.statEmphasis[b] ?? 0) - (cat.statEmphasis[a] ?? 0)))
+                  .slice(0, 2);
+                if (top2.length === 0) return null;
+                return (
+                  <div className="lab__cat-focus">
+                    <span className="lab__cat-focus-label">{cat.displayName} buyers want:</span>
+                    {top2.map((k) => {
+                      const delta = state.trends.targetWeights[k] - state.trends.weights[k];
+                      const trend = delta > 0.03 ? "up" : delta < -0.03 ? "down" : "flat";
+                      const statVal = stats[k];
+                      const good = statVal >= 50;
+                      return (
+                        <span key={k} className={`lab__cat-focus-stat${good ? " lab__cat-focus-stat--good" : ""}`}>
+                          {STAT_FULL[k]}
+                          {trend === "up" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--up" aria-label="rising" />}
+                          {trend === "down" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--down" aria-label="falling" />}
+                        </span>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </Card>
+
+            <Card>
+              <SectionHeader title="Price" accessory={<Button size="sm" variant="secondary" onClick={suggestPrice}>Suggest</Button>} />
+              <div className="lab__price-display rounded tnum">{format(draft.price)}</div>
+              <Slider
+                value={toDollars(draft.price)}
+                min={0}
+                max={5000}
+                step={10}
+                ariaLabel="Price"
+                accent={priceSliderAccent}
+                onChange={(v) => set({ price: dollars(v) })}
+              />
+              <div className="lab__price-meta">
+                <StatPill label="Build" value={format(unitCost)} />
+                <StatPill label="Margin" value={`${format(margin)} · ${marginPct}%`} tone={marginPct > 0 ? "positive" : "negative"} />
+                <StatPill label="Fair ~" value={`$${Math.round(fairPriceDollars / 10) * 10}`} />
+                <StatPill value={priceZone} tone={priceZoneTone} />
               </div>
-              <div className="lab__rev-row">
-                <span className="lab__rev-label">Est. profit</span>
-                <span className={`lab__rev-val tnum${profD >= 0 ? " lab__rev-val--pos" : " lab__rev-val--neg"}`}>{format(plan.projectedProfit)}</span>
-              </div>
-              <p className="lab__rev-note">{rec.toLocaleString()} units, no campaign</p>
-            </div>
-          );
-        })()}
-        {/* Personal best in this category */}
-        {state.launched.length > 0 && (() => {
-          const sameCat = state.launched.filter((lp) => lp.product.category === draft.category);
-          if (sameCat.length === 0) return null;
-          const best = sameCat.reduce((a, b) => b.launchScore > a.launchScore ? b : a);
-          const bestOverall = overallScore(best.stats, best.product.category);
-          const ahead = missing.length === 0 && overall > bestOverall + 2;
-          return (
-            <div className="lab__prev-best">
-              <span className="lab__prev-best-label">Your best {CATEGORIES[draft.category].displayName}</span>
-              <div className="lab__prev-best-row">
-                <span className="lab__prev-best-name">{best.product.name}</span>
-                <span className="lab__prev-best-score tnum">score {Math.round(bestOverall)}</span>
-                {ahead && <span className="lab__prev-best-beat">+{Math.round(overall - bestOverall)} pts</span>}
-              </div>
-            </div>
-          );
-        })()}
-      </Card>
+              {(() => {
+                const rows = cat.slots
+                  .map((kind) => {
+                    const tier = draft.tiers[kind] ?? 1;
+                    const def = tierDef(kind, tier);
+                    return def && toDollars(def.unitCost) > 0
+                      ? { name: def.name, cost: toDollars(def.unitCost) }
+                      : null;
+                  })
+                  .filter(Boolean) as { name: string; cost: number }[];
+                if (rows.length === 0) return null;
+                const total = rows.reduce((s, r) => s + r.cost, 0);
+                return (
+                  <div className="lab__bom">
+                    {rows.map((r) => (
+                      <div key={r.name} className="lab__bom-row">
+                        <span className="lab__bom-name">{r.name}</span>
+                        <span className="lab__bom-bar-wrap">
+                          <span className="lab__bom-bar" style={{ width: `${Math.round((r.cost / total) * 100)}%` }} />
+                        </span>
+                        <span className="lab__bom-val tnum">${r.cost}</span>
+                      </div>
+                    ))}
+                    <div className="lab__bom-total">
+                      <span>BOM total</span>
+                      <span className="tnum">${total.toFixed(0)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </Card>
+
+            <Card>
+              <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state)} wk to make`} />
+              <input
+                className="lab__name"
+                value={draft.name}
+                maxLength={22}
+                onChange={(e) => set({ name: e.target.value })}
+                placeholder="Product name"
+                aria-label="Product name"
+              />
+              {missing.length > 0 && <p className="lab__warn">Pick every component before building.</p>}
+              <Button block onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none">
+                <Hammer size={17} /> Plan production
+              </Button>
+              <p className="lab__hint">Next you'll choose how many units to manufacture and how to market it.</p>
+              {missing.length === 0 && (() => {
+                const rec = recommendedRun(state, draft, "none");
+                const plan = planProduction(state, draft, rec, "none");
+                const revD = toDollars(plan.projectedRevenue);
+                const profD = toDollars(plan.projectedProfit);
+                if (revD <= 0) return null;
+                return (
+                  <div className="lab__rev-estimate">
+                    <div className="lab__rev-row">
+                      <span className="lab__rev-label">Est. revenue</span>
+                      <span className="lab__rev-val tnum">{format(plan.projectedRevenue)}</span>
+                    </div>
+                    <div className="lab__rev-row">
+                      <span className="lab__rev-label">Est. profit</span>
+                      <span className={`lab__rev-val tnum${profD >= 0 ? " lab__rev-val--pos" : " lab__rev-val--neg"}`}>{format(plan.projectedProfit)}</span>
+                    </div>
+                    <p className="lab__rev-note">{rec.toLocaleString()} units, no campaign</p>
+                  </div>
+                );
+              })()}
+              {state.launched.length > 0 && (() => {
+                const sameCat = state.launched.filter((lp) => lp.product.category === draft.category);
+                if (sameCat.length === 0) return null;
+                const best = sameCat.reduce((a, b) => b.launchScore > a.launchScore ? b : a);
+                const bestOverall = overallScore(best.stats, best.product.category);
+                const ahead = missing.length === 0 && overall > bestOverall + 2;
+                return (
+                  <div className="lab__prev-best">
+                    <span className="lab__prev-best-label">Your best {CATEGORIES[draft.category].displayName}</span>
+                    <div className="lab__prev-best-row">
+                      <span className="lab__prev-best-name">{best.product.name}</span>
+                      <span className="lab__prev-best-score tnum">score {Math.round(bestOverall)}</span>
+                      {ahead && <span className="lab__prev-best-beat">+{Math.round(overall - bestOverall)} pts</span>}
+                    </div>
+                  </div>
+                );
+              })()}
+            </Card>
+          </>
+        )}
+
+      </div>
 
       <Sheet open={wizard} onClose={() => setWizard(false)}>
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}
