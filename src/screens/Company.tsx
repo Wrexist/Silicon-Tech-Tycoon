@@ -711,15 +711,17 @@ function Member({
   const weeklyXpRate = maxed ? 0 : (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait);
   const weeksToLevel = !maxed && weeklyXpRate > 0 ? Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate) : null;
   const band = moodBand(s.mood);
-  // Best-fit: find the discipline this person scores highest in, then check if their current
-  // assignment uses a different (weaker) discipline — flag it if the fit score is below 40.
+  // Best-fit: find the discipline this person scores highest in. Only flag a misfit when their
+  // current assignment uses a different, weaker discipline AND a genuinely better slot exists —
+  // never suggest the assignment they're already on (e.g. an Engineer on R&D told to "try R&D").
   const activeDisc = ACTIVE_DISCIPLINE[s.assignment];
   const fitScore = activeDisc !== null ? s.skills[activeDisc] : 100;
-  const isMisfit = s.assignment !== "idle" && fitScore < 40;
   const bestFitDisc = (["engineering", "design", "marketing"] as Discipline[]).reduce(
     (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering" as Discipline,
   );
   const bestFitAssign = DISCIPLINE_TO_ASSIGN[bestFitDisc];
+  const isMisfit =
+    s.assignment !== "idle" && fitScore < 40 && bestFitAssign !== s.assignment && s.skills[bestFitDisc] > fitScore + 4;
   return (
     <li className="co__member-card">
       <div className="co__member-top">
