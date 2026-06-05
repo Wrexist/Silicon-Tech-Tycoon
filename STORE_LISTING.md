@@ -1,38 +1,319 @@
 # App Store Listing — Silicon: Tech Tycoon
+## Complete App Store Connect Submission Package
 
-> Draft. Validate name/keywords with an ASO tool before submitting. No real brand/product
-> names anywhere (IP rule).
+> IP rule: no real brand/company/product names anywhere. All content is fictional.
+> Validate keyword field with an ASO tool before submitting.
 
-**App name (30 char max):** `Silicon: Tech Tycoon` (20)
-**Subtitle (30 char max):** `Design, sell, run your empire` (29)
+---
 
-**Keyword field (100 char, comma-separated, no spaces):**
-`business,simulation,management,idle,startup,manager,phone,gadget,empire,strategy,money,builder`
+## Identity
+
+| Field | Value | Limit | Used |
+|-------|-------|-------|------|
+| App name | `Silicon: Tech Tycoon` | 30 | 20 |
+| Subtitle | `Design, sell, run your empire` | 30 | 29 |
+| Promotional text | `The premium tech-company sim — design devices, time the market, grow from garage to empire.` | 170 | 90 |
+| Bundle ID | `com.wrexist.silicon` | — | — |
+| SKU | `SILICON-TECH-TYCOON-001` | — | — |
+
+---
+
+## Keywords
+
+**Exactly 100 characters, comma-separated, no spaces after commas:**
+
+```
+business,simulation,management,idle,startup,manager,phone,gadget,empire,strategy,money,builder
+```
+Character count: 94 ✓ (Apple counts punctuation; stay under 100)
+
+**Reserve pool** (swap in for A/B if rank is weak):
+`tycoon,factory,product,device,company,tech,silicon,investor,ceo,entrepreneur`
+
+---
+
+## Category
+
+| Field | Value |
+|-------|-------|
+| Primary category | **Games** |
+| Subcategory 1 | **Simulation** |
+| Subcategory 2 | **Strategy** |
+
+---
 
 ## Description
+
+> Max 4,000 characters. Use plain text — no markdown in App Store Connect.
+> Paste the block below verbatim.
+
+---
+
 Build a tech company from a garage to a global empire — one device at a time.
 
-In Silicon you DESIGN the products: pick the chip, display, battery, materials and cameras,
-choose a finish and colour, and watch your phone, tablet, laptop or console render live in a
-clean, premium 3D office that grows as you hire. Then you read the market, time your launch,
-and pick how to sell it — Social, Search Ads, Billboards, a TV spot or a full Launch Event.
+Silicon is a premium management simulation. You don't just watch numbers tick — you DESIGN the products. Pick the chip, display, battery, materials, and camera array, choose a finish and colour, and watch a phone, tablet, laptop, or console render live in crisp, parametric 3D. Then you read the market, time your launch to the week, price it right, and bet on the channel that fits your budget.
 
-• Design real-feeling devices with deep customisation — camera layout, lenses, notch, materials
-• Research a tech tree with Research Points; evolve your company with office upgrades
-• Hire a team of distinct people — each with a specialty, a personality trait, and a mood
-• Manufacture, market, and launch into a living market with trends, rivals and events
-• Watch a real-time 3D headquarters fill with life, then take the company public (New Game+)
+DESIGN EVERY DETAIL
+Customise your device from the inside out: processor tier, display technology, battery size, frame material, camera layout, lens count, body finish, and colour. Every choice is reflected in a live 3D render, your cost structure, and your margin.
 
-Premium, offline, no ads, no dark patterns. Built for people who love a deep, honest sim.
+TIME THE MARKET
+Consumer preferences shift week by week. Launch too early and you leave money on the table; launch into a cold market and you flop. Read the trend graph, watch your rivals, and find your window.
 
-## Screenshot plan (lead with the toy)
-1. **Design Lab** — the hero device mid-design with the live 3D office behind it.
-2. **3D Headquarters** — the lit, animated office full of distinct employees.
-3. **Marketing & Launch** — the channel picker (TV / Search / Event).
-4. **Company** — the team roster with avatars, specialties, traits, moods + office upgrades.
-5. **Market** — trends, your sales curves, competitors.
+BUILD YOUR TEAM AND HQ
+Hire engineers, designers, and marketers — each with a specialty, a personality trait, and a mood that affects performance. Expand from a one-room garage to a full campus. Watch your 3D headquarters fill with life in real time.
 
-## Notes
-- Price: $8.99 premium (complete & winnable; only IAP at launch is the Creative/Sandbox unlock).
-- Enroll in Apple's Small Business Program (15% cut).
-- PrivacyInfo.xcprivacy: declare required-reason APIs; no tracking SDKs.
+RESEARCH THE FRONTIER
+Spend Research Points on a deep tech tree across six disciplines: chips, displays, batteries, materials, software, and cameras. Each era unlocks new components that let you build things your rivals can't.
+
+RACE TO #1
+The industry leaderboard tracks your market cap against six rival companies. Leapfrog each one as you grow, aim for the top spot, then take your company public in a New Game+ IPO — carrying forward a legacy bonus that makes every run richer.
+
+PREMIUM. OFFLINE. YOURS.
+No ads. No dark patterns. No timers. No currencies. The base game is complete and winnable with a single purchase. An optional Creative Mode unlock lets you play in Sandbox with unlimited funds — the only in-app purchase, ever.
+
+---
+
+Character count: ~1,650 (well within 4,000)
+
+---
+
+## What's New (v1.0 — first release)
+
+```
+Silicon launches on the App Store. Design devices, launch them into a living market,
+build your team, research the next era, and race rivals to the #1 spot.
+Premium, offline, no ads.
+```
+
+---
+
+## Pricing and Availability
+
+| Field | Value |
+|-------|-------|
+| Base price | **$8.99** (Tier 9) |
+| Availability | All countries/regions (worldwide) |
+| Educational discount | No |
+| Volume discount | No |
+| Apple Small Business Program | **Enroll** — reduces cut to 15% (first-year / <$1M) |
+
+### In-App Purchase
+
+| Field | Value |
+|-------|-------|
+| Product ID | `com.wrexist.silicon.sandbox` |
+| Type | **Non-Consumable** |
+| Reference name | `Creative Mode` |
+| Display name | `Creative Mode` |
+| Price | **$2.99** (Tier 3) |
+| Description (short, ≤45 chars) | `Unlock unlimited Sandbox / Creative Mode` |
+| Description (long) | Unlocks Creative Mode — a Sandbox experience with unlimited funds where you can design and launch any product without financial pressure. The base game is complete without this purchase. This unlock is permanent and restores across devices. |
+| Review screenshot | Required: show the Settings screen with the locked Creative Mode row |
+| Family Sharing | **Yes** (non-consumable — share with family) |
+
+---
+
+## Age Rating
+
+**Rating result: 4+** (no objectionable content)
+
+Complete all content descriptor questions as follows:
+
+| Content type | Level |
+|---|---|
+| Cartoon or Fantasy Violence | None |
+| Realistic Violence | None |
+| Prolonged Graphic or Sadistic Realistic Violence | None |
+| Profanity or Crude Humor | None |
+| Mature/Suggestive Themes | None |
+| Horror/Fear Themes | None |
+| Medical/Treatment Information | None |
+| Alcohol, Tobacco, or Drug Use or References | None |
+| Gambling and Contests | None |
+| Sexual Content or Nudity | None |
+| Graphic Sexual Content or Nudity | None |
+| Simulated Gambling | None |
+| Unrestricted Web Access | None |
+| App contains ads | **No** |
+
+**Final rating: 4+**
+
+---
+
+## Privacy — App Privacy Nutrition Label
+
+The app collects **no data whatsoever**. All state is stored exclusively in `localStorage` on the user's device. There is no backend, no analytics SDK, no crash reporter, no ad network, no login.
+
+### App Store Connect — Data Collection
+
+Select: **"No, we do not collect data from this app."**
+
+This covers:
+- No contact info
+- No health or fitness data
+- No financial info
+- No location data
+- No sensitive info
+- No contacts
+- No user content
+- No browsing history
+- No search history
+- No identifiers
+- No usage data
+- No diagnostics
+- No other data
+
+### PrivacyInfo.xcprivacy (Xcode required-reason APIs)
+
+Add `PrivacyInfo.xcprivacy` to the iOS target. The app uses only:
+
+| API | Reason code |
+|-----|-------------|
+| `NSPrivacyAccessedAPICategoryUserDefaults` | `CA92.1` — App stores user-specific application settings (game save) |
+
+No other required-reason APIs are accessed. No third-party SDKs included.
+
+---
+
+## App Review Information
+
+### Review notes (paste into App Store Connect → App Review → Notes)
+
+```
+Thank you for reviewing Silicon: Tech Tycoon.
+
+TESTING THE APP
+No account or login is required. The app runs fully offline.
+On first launch, tap "Found Silicon" to start a new company,
+then skip the coach tips to reach the main game loop.
+
+TESTING THE IN-APP PURCHASE (Creative Mode)
+1. Go to Settings (gear icon, bottom-right of any screen).
+2. Scroll to "Creative Mode — Sandbox unlock".
+3. Tap "Unlock for $2.99" to initiate the purchase.
+4. Use a Sandbox Apple ID to complete the transaction.
+5. The toggle will appear immediately after a successful purchase.
+6. "Restore purchase" re-grants the entitlement on a new device.
+
+The purchase is a Non-Consumable. The base game is fully playable
+and completeable without purchasing Creative Mode.
+
+PRICING
+Base app: $8.99 (paid up front, complete game).
+IAP: $2.99 Creative Mode (Sandbox / unlimited funds — cosmetic,
+no progression gate).
+
+CONTACT
+isacmolin@gmail.com
+```
+
+### Demo account
+None required — no login, no account.
+
+### Sign-in required
+No.
+
+---
+
+## Support & Legal URLs
+
+> Replace placeholders before submitting.
+
+| Field | Value |
+|-------|-------|
+| Support URL | `https://wrexist.com/silicon/support` ← **create before submission** |
+| Marketing URL | `https://wrexist.com/silicon` ← optional but recommended |
+| Privacy Policy URL | `https://wrexist.com/silicon/privacy` ← **required; must be live** |
+
+### Minimum privacy policy content (paste at the privacy policy URL)
+
+```
+Silicon: Tech Tycoon Privacy Policy
+
+Silicon does not collect, transmit, or share any personal data.
+All game progress is stored locally on your device using browser
+localStorage. There is no account system, no server, and no
+analytics. No data leaves your device.
+
+For questions: isacmolin@gmail.com
+Last updated: June 2026
+```
+
+---
+
+## Screenshots
+
+Five finished, branded screenshots are in `app-store-screenshots/6.7/` (1290×2796, ready to upload).
+
+| File | Screen | Headline |
+|------|--------|----------|
+| `01-design.png` | Design Lab — live device render, camera + back | **Design every detail** |
+| `02-launch.png` | Launch pane — price, margin, verdict stats | **Time the market** |
+| `03-market.png` | Industry leaderboard — player ranked #2 | **Race rivals to #1** |
+| `04-hq.png` | Real-time 3D HQ | **Garage to global empire** |
+| `05-research.png` | Research / era roadmap | **Own the frontier** |
+
+**Upload order:** 01 → 05 (App Store shows them in this order in search results).
+
+Required device sizes:
+- **6.7" iPhone (1290×2796)** — ✅ generated, upload these
+- 6.9" iPhone (1320×2868) — optional; ASC scales 6.7" automatically
+- iPad Pro 13" (2064×2752) — required if you select iPad as a supported device
+
+To regenerate: `npm run dev & node scripts/shots.mjs` (see `BUILD_IOS.md §6`).
+
+---
+
+## App Store Preview Video
+
+Optional for v1.0. If added:
+- 15–30 seconds, no audio required
+- Show: Design Lab (device render), Market / Leaderboard, 3D HQ, New Game+ IPO
+- Export as H.264, 1290×2796, 30fps
+
+---
+
+## Version Information
+
+| Field | Value |
+|-------|-------|
+| Version string | `1.0` |
+| Build number | `1` (increment for every TestFlight/ASC upload) |
+| Minimum iOS | **16.0** (Capacitor 6 minimum; covers ~95% of active devices) |
+| Supported devices | iPhone (all sizes); iPad optional (untested) |
+| Localizations | English (U.S.) — add others post-launch |
+| Made for Kids | No |
+| Game Center | No |
+| CloudKit | No |
+| Sign in with Apple | No |
+| In-App Purchases | Yes (`com.wrexist.silicon.sandbox`) |
+
+---
+
+## TestFlight
+
+Recommended pre-submission checklist:
+- [ ] Internal test: install on physical iPhone, verify launch + save/load + IAP sandbox flow
+- [ ] Verify safe-area insets (notch, Dynamic Island, home indicator) on multiple device sizes
+- [ ] Verify haptics fire on launch and milestone events
+- [ ] Verify "Restore purchase" re-grants Creative Mode after reinstall
+- [ ] App does not crash when backgrounded mid-tick
+
+---
+
+## Submission Checklist
+
+- [ ] Privacy policy URL is live
+- [ ] Support URL is live
+- [ ] PrivacyInfo.xcprivacy added to Xcode target
+- [ ] In-App Purchase created in App Store Connect with correct product ID
+- [ ] IAP attached to the app version for review
+- [ ] Age rating questionnaire completed → 4+
+- [ ] All 5 screenshots uploaded in the correct order
+- [ ] Review notes filled in (see above)
+- [ ] App pricing set to $8.99
+- [ ] IAP pricing set to $2.99
+- [ ] Small Business Program enrollment confirmed
+- [ ] "Data Not Collected" declared in App Privacy
+- [ ] Build archived and uploaded via Xcode → Product → Archive
+- [ ] At least one successful TestFlight internal build before submission
