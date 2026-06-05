@@ -12,3 +12,4 @@ ios/App/App/public
 *.tsbuildinfo
 .furniture-tmp
 store-shots
+.shots-raw

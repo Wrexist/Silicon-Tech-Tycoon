@@ -114,15 +114,17 @@ on/off toggle once owned.
 
 ## 6. Marketing screenshots
 
-`scripts/shots.mjs` drives a headless browser against the dev server and captures premium
-screenshots at App Store device sizes:
+A finished, branded set already lives in **`app-store-screenshots/6.7/`** (1290×2796) — headline +
+live capture + wordmark on the brand background. To regenerate (it auto-stages a rich late-game
+save, so the numbers always look good):
 
 ```bash
 npm run dev &                 # serve the app
-node scripts/shots.mjs        # writes store-shots/*.png at 6.7" + 6.5" sizes
+node scripts/shots.mjs        # rewrites app-store-screenshots/6.7/*.png
 ```
 
-Stage a representative game first (a few launches, some hits) for the richest shots.
+Needs Playwright once: `npm i -D playwright && npx playwright install chromium`. Change `SIZE` at
+the top of `scripts/shots.mjs` for other device sizes (6.9" 1320×2868, 6.5" 1242×2688).
 
 ---
 
