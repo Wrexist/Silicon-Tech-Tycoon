@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Boxes,
   Check,
   Download,
+  Lock,
   Monitor,
   Moon,
   RotateCcw,
@@ -19,6 +20,8 @@ import { sfx } from "../design/sound.ts";
 import { format, toDollars } from "../engine/money.ts";
 import { netWorth } from "../state/gameState.ts";
 import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
+import { hasSandboxEntitlement } from "../state/entitlements.ts";
+import { getSandboxProduct, purchaseSandbox, restoreSandbox, type ProductInfo } from "../state/iap.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./settings.css";
 
@@ -30,7 +33,7 @@ const THEMES: { id: ThemePref; label: string; Icon: typeof Sun }[] = [
 
 export function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettings();
-  const { state, restart, unlockSandbox } = useGame();
+  const { state, restart } = useGame();
   const [confirmReset, setConfirmReset] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -88,21 +91,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         </Row>
       </div>
 
-      <div className="set__group">
-        <span className="set__group-label">Creative mode</span>
-        <Row icon={<Sparkles size={18} />} label="Sandbox mode" sub={state.sandboxUnlocked ? "Active — cash floor prevents bankruptcy. Design freely." : "Unlock to experiment without financial limits."}>
-          <Switch
-            on={state.sandboxUnlocked}
-            onChange={(v) => {
-              if (v) {
-                unlockSandbox();
-                haptic.success();
-                sfx("confirm");
-              }
-            }}
-          />
-        </Row>
-      </div>
+      <CreativeModeGroup />
 
       <div className="set__group">
         <span className="set__group-label">Backup</span>
@@ -282,6 +271,77 @@ function downloadText(text: string, filename: string): void {
   } catch {
     /* download unsupported — the clipboard copy still gives the player their backup */
   }
+}
+
+/** Creative mode — the single v1 IAP. Locked behind a one-time purchase (the device-level
+ *  entitlement); once owned, a free toggle activates/deactivates it for the current game. */
+function CreativeModeGroup() {
+  const { state, setSandboxActive } = useGame();
+  const [owned, setOwned] = useState(() => hasSandboxEntitlement());
+  const [product, setProduct] = useState<ProductInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    getSandboxProduct().then((p) => { if (live) setProduct(p); });
+    return () => { live = false; };
+  }, []);
+
+  async function buy() {
+    if (busy) return;
+    setBusy(true);
+    const res = await purchaseSandbox();
+    setBusy(false);
+    if (res.status === "purchased") {
+      setOwned(true);
+      setSandboxActive(true);
+      haptic.success();
+      sfx("confirm");
+      showToast("Creative Mode unlocked", { tone: "positive" });
+    } else if (res.status !== "cancelled") {
+      haptic.error();
+      showToast(res.message ?? "Purchase unavailable right now.", { tone: "negative" });
+    }
+  }
+
+  async function restore() {
+    const res = await restoreSandbox();
+    if (res.restored) {
+      setOwned(true);
+      haptic.success();
+      showToast("Purchases restored — Creative Mode unlocked.", { tone: "positive" });
+    } else {
+      showToast("No previous purchases found.", { tone: "neutral" });
+    }
+  }
+
+  return (
+    <div className="set__group">
+      <span className="set__group-label">Creative mode</span>
+      {owned ? (
+        <Row
+          icon={<Sparkles size={18} />}
+          label="Sandbox mode"
+          sub={state.sandboxUnlocked ? "Active — cash floor prevents bankruptcy. Design freely." : "Owned. Toggle on to design without financial limits."}
+        >
+          <Switch on={state.sandboxUnlocked} onChange={(v) => { setSandboxActive(v); haptic.light(); sfx("toggle"); }} />
+        </Row>
+      ) : (
+        <>
+          <Row
+            icon={<Lock size={18} />}
+            label="Creative Mode"
+            sub="Design freely with no financial limits — an unlimited cash floor so you can never go bankrupt."
+          >
+            <Button onClick={buy} disabled={busy}>
+              {busy ? "…" : `Unlock · ${product?.price ?? "$2.99"}`}
+            </Button>
+          </Row>
+          <button className="set__restore" onClick={restore}>Restore purchase</button>
+        </>
+      )}
+    </div>
+  );
 }
 
 function Row({ icon, label, sub, children }: { icon: React.ReactNode; label: string; sub?: string; children: React.ReactNode }) {
