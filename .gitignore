@@ -11,3 +11,4 @@ ios/App/App/public
 # build artifacts
 *.tsbuildinfo
 .furniture-tmp
+store-shots

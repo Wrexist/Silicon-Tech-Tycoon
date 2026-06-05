@@ -1,7 +1,7 @@
 // One-off icon generator: rasterizes public/icon.svg into the PNG sizes iOS/PWA need.
 // iOS ignores SVG icons, so we ship real PNGs. Run: `node scripts/gen-icons.mjs`.
 // Prefers `sharp`; falls back to `@resvg/resvg-js` if sharp isn't installed.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -44,6 +44,17 @@ async function withSharp(svg) {
     }
     console.log("wrote", t.name);
   }
+
+  // App Store / native master: 1024×1024, FULL-BLEED, OPAQUE (no alpha, no rounded corners — iOS
+  // applies the mask). Flattening onto the app's own dark bg makes the icon's rounded corners read
+  // as a seamless square. `npx @capacitor/assets generate --ios` consumes this to emit the AppIcon set.
+  await mkdir(resolve(root, "resources"), { recursive: true });
+  await sharp(svg)
+    .resize(1024, 1024)
+    .flatten({ background: BG })
+    .png()
+    .toFile(resolve(root, "resources/icon.png"));
+  console.log("wrote resources/icon.png (1024, opaque master)");
 }
 
 async function withResvg(svg) {
