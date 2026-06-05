@@ -64,6 +64,7 @@ import { clearSave, exportSaveString, importSaveString, loadResult, save } from 
 import { achievementById } from "../engine/achievements.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
 import { showToast } from "../design/toast.tsx";
+import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { createElement } from "react";
 
 export interface OfflineSummary {
@@ -299,7 +300,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const build = useCallback((product: Product, plannedUnits?: number, channelId?: ChannelId) => {
     const result = startBuild(stateRef.current, product, plannedUnits, channelId);
-    if (result.ok) setState(result.state);
+    if (result.ok) {
+      const spent = (stateRef.current.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
     return { ok: result.ok, reason: result.reason };
   }, []);
 
@@ -315,20 +320,60 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState((s) => researchNext(s, kind));
   }, []);
 
-  const buyProjectCb = useCallback((id: ProjectId) => setState((s) => buyProject(s, id)), []);
-  const buyUpgradeCb = useCallback((id: UpgradeId) => setState((s) => buyUpgrade(s, id)), []);
+  const buyProjectCb = useCallback((id: ProjectId) => {
+    const prev = stateRef.current;
+    const next = buyProject(prev, id);
+    const rpSpent = prev.researchPoints - next.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    setState(next);
+  }, []);
+  const buyUpgradeCb = useCallback((id: UpgradeId) => {
+    const prev = stateRef.current;
+    const next = buyUpgrade(prev, id);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const assign = useCallback((id: string, a: Assignment) => setState((s) => assignStaff(s, id, a)), []);
-  const train = useCallback((id: string) => setState((s) => trainStaff(s, id)), []);
+  const train = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const next = trainStaff(prev, id);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
 
   const hire = useCallback((role: StaffRole, skill: number, name: string) => {
-    setState((s) => hireStaff(s, role, skill, name));
+    const prev = stateRef.current;
+    const next = hireStaff(prev, role, skill, name);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
   }, []);
-  const recruit = useCallback((tier: RecruitTier) => setState((s) => startRecruitment(s, tier)), []);
-  const hireCandidateCb = useCallback((candidateId: string) => setState((s) => hireCandidate(s, candidateId)), []);
+  const recruit = useCallback((tier: RecruitTier) => {
+    const prev = stateRef.current;
+    const next = startRecruitment(prev, tier);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
+  const hireCandidateCb = useCallback((candidateId: string) => {
+    const prev = stateRef.current;
+    const next = hireCandidate(prev, candidateId);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const dismissCandidates = useCallback(() => setState((s) => clearCandidates(s)), []);
 
   const fire = useCallback((id: string) => setState((s) => fireStaff(s, id)), []);
-  const upgradeHQ = useCallback(() => setState((s) => upgradeFacility(s)), []);
+  const upgradeHQ = useCallback(() => {
+    const prev = stateRef.current;
+    const next = upgradeFacility(prev);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   // These actions can immediately satisfy a milestone (reach the final era, IPO, the pinnacle), so
   // fold + celebrate achievements here rather than waiting for the next tick.
   const advanceEra = useCallback(() => setState((s) => withLiveAchievements(advanceEraAction(s))), []);
@@ -377,7 +422,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const setLayoutCb = useCallback((layout: PlacedItem[]) => setState((s) => setLayout(s, layout)), []);
   const setFloorStyleCb = useCallback((i: number) => setState((s) => setFloorStyle(s, i)), []);
   const setWallStyleCb = useCallback((i: number) => setState((s) => setWallStyle(s, i)), []);
-  const buySharesCb = useCallback((id: string, qty: number) => setState((s) => withLiveAchievements(buyShares(s, id, qty))), []);
+  const buySharesCb = useCallback((id: string, qty: number) => {
+    const prev = stateRef.current;
+    const next = withLiveAchievements(buyShares(prev, id, qty));
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const sellSharesCb = useCallback((id: string, qty: number) => setState((s) => sellShares(s, id, qty)), []);
   const listCompanyCb = useCallback((stake: number) => setState((s) => withLiveAchievements(listCompany(s, stake))), []);
   const sellOwnStakeCb = useCallback((pct: number) => setState((s) => sellOwnStake(s, pct)), []);

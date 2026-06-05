@@ -126,10 +126,14 @@ export function DesignLab({
   const [wizard, setWizard] = useState(false);
   const [labTab, setLabTab] = useState<LabTab>("components");
 
-  // Auto-switch device face when entering the Camera tab (shows back) or any other tab (shows front)
+  const cat = CATEGORIES[draft.category];
+  const hasCamera = cat.slots.includes("camera");
+
+  // Auto-switch device face when entering the Camera tab for a camera-capable category.
+  // Non-camera categories stay on front (no back to show).
   useEffect(() => {
-    setFace(labTab === "camera" ? "back" : "front");
-  }, [labTab]);
+    setFace(labTab === "camera" && hasCamera ? "back" : "front");
+  }, [labTab, hasCamera]);
 
   // A successor seed handed in from a launched product's detail sheet: adopt it as the draft, then
   // tell the parent to clear it so re-renders don't keep overwriting the player's edits.
@@ -139,9 +143,6 @@ export function DesignLab({
     setFace("front");
     onSeedConsumed?.();
   }, [seed, onSeedConsumed]);
-
-  const cat = CATEGORIES[draft.category];
-  const hasCamera = cat.slots.includes("camera");
   const flippable = draft.category === "phone" || draft.category === "tablet";
   const unlockedCats = useMemo(
     () => Object.values(CATEGORIES).filter((c) => isCategoryUnlocked(c.id, state.era)),
@@ -372,7 +373,7 @@ export function DesignLab({
             className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
             onClick={() => { haptic.light(); setLabTab(t.id); }}
           >
-            {t.label}
+            {t.id === "camera" && !hasCamera ? "Front" : t.label}
           </button>
         ))}
       </div>
