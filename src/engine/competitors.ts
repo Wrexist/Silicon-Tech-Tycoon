@@ -39,12 +39,18 @@ export function rivalDef(id: string): RivalDef | undefined {
   return RIVALS.find((r) => r.id === id);
 }
 
-/** A rival's live market capitalization = current share price × outstanding shares. The share
- *  price evolves weekly (drift + reputation momentum + launch pops), so the cap is always live —
- *  it's the number the player's own company valuation races to overtake on the leaderboard. */
+/** A rival's live market capitalization for the industry leaderboard. The cap is anchored to the
+ *  rival's fundamental size (starting share price × float) and nudged by its LIVE share price within
+ *  a bounded band. The band matters: rival share prices drift up geometrically every week, so an
+ *  un-clamped cap would compound out of reach over a long game and the player could never seize #1.
+ *  Clamping the share influence to [0.4×, 2.5×] keeps the giants worth ~$1-6B, so a dominant player
+ *  can climb to — and HOLD — the top of the industry through sustained revenue. */
 export function rivalMarketCap(c: CompetitorState): Money {
-  const shares = rivalDef(c.id)?.shares ?? 5_000_000;
-  return cents(Math.round(c.sharePrice * shares));
+  const def = rivalDef(c.id);
+  const shares = def?.shares ?? 5_000_000;
+  const baseShare = def?.share ?? 50; // starting share price in dollars
+  const ratio = Math.max(0.4, Math.min(2.5, c.sharePrice / 100 / baseShare));
+  return cents(Math.round(baseShare * 100 * shares * ratio));
 }
 
 export interface CompetitorLaunch {

@@ -10,16 +10,17 @@ import {
   planProduction,
   recommendedRun,
   startBuild,
+  verdictBands,
   type GameState,
 } from "../state/gameState.ts";
 
 /** Mirror of DesignLab's projected verdict (B7): the lab uses the SAME competition-adjusted
- *  effectiveScore + the SAME reputation thresholds the launch gate uses. */
+ *  effectiveScore + the SAME era-scaled verdict bands the launch gate uses. */
 function labVerdict(s: GameState, product: Product): "hit" | "flop" | "steady" {
   const plan = planProduction(s, product, BALANCE.build.minRun, "none");
   const eff = plan.launchScore * plan.competitionFactor;
-  const rep = BALANCE.reputation;
-  return eff >= rep.hitThreshold ? "hit" : eff <= rep.flopThreshold ? "flop" : "steady";
+  const bands = verdictBands(s.era);
+  return eff >= bands.hit ? "hit" : eff <= bands.flop ? "flop" : "steady";
 }
 
 function phone(): Product {

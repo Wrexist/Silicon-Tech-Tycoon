@@ -65,10 +65,11 @@ export const BALANCE = {
       beatMargin: 12, // rival strength must exceed your overall by this to "beat" you
       // Era-scaled competitive pressure. The Garage Era is a protected learning sandbox: rivals
       // barely contest you, so a new player's first products land as steady sellers and they climb
-      // toward their first hit instead of drowning in flops. Pressure ramps to full force from the
-      // Growth Era onward, where the player has the tools (research, staff, hype) to fight back —
-      // so the meat of the game is a real contest. Index = era - 1.
-      eraPressure: [0.25, 1.0, 1.0, 1.0] as const,
+      // toward their first hit instead of drowning in flops. Pressure ramps to full force in the
+      // Growth Era, then OVER-full in the Platform/AI eras: late-game rivals press harder, so a
+      // contested launch only lands "solid" while an uncontested, maxed product still triumphs —
+      // keeping the endgame a contest rather than a guaranteed-hit victory lap. Index = era - 1.
+      eraPressure: [0.25, 1.0, 1.2, 1.45] as const,
     },
     trendDrift: {
       easing: 0.06, // how fast current weights ease toward target each week
@@ -117,8 +118,17 @@ export const BALANCE = {
   // T1 phone scores ~19 uncontested — above flopThreshold (17) but any competition pushes it below.
   // This means: launch early/uncontested and survive; launch late/outclassed and lose reputation.
   reputation: {
-    hitThreshold: 70, // easier to achieve — T2+ with good hype qualifies
-    flopThreshold: 17, // T1 phone (score ~19) flops when competition cuts it below this
+    hitThreshold: 70, // era-1 base (see hitThresholdByEra for the scaled bar)
+    flopThreshold: 17, // era-1 base
+    // Era-scaled expectations: as the company grows, the bar for a "hit" / "solid" rises and the
+    // floor for a "flop" lifts. A maxed, well-timed, uncontested product still triumphs late-game,
+    // but a lazy or heavily-contested launch only lands "solid" — so the AI Era stays a contest,
+    // not a guaranteed-hit victory lap. The player reaches the win-reputation in eras 2-3 under the
+    // gentler early bars, so scaling the late bars keeps tension without blocking the endgame.
+    // Index = era - 1. effectiveScore = launchScore × competitionFactor is compared to these.
+    hitThresholdByEra: [70, 88, 112, 145],
+    solidThresholdByEra: [45, 56, 72, 92],
+    flopThresholdByEra: [17, 21, 27, 35],
     gainPerHit: 8,
     lossPerFlop: 5,
     overpricePenalty: 2,

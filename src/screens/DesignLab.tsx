@@ -36,6 +36,7 @@ import {
   productStats,
   recommendedRun,
   researchedTier,
+  verdictBands,
   type GameState,
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -183,16 +184,17 @@ export function DesignLab({
   const ceiling = designTierCeiling(state);
 
   // B7 — the lab's projected verdict must use the SAME gate the launch actually applies:
-  // effectiveScore = launchScore × competitionFactor, compared to reputation.hit/flopThreshold.
+  // effectiveScore = launchScore × competitionFactor, compared to the era-scaled verdict bands.
   // planProduction supplies the count-based competitionFactor (rivals matching/beating you) that
-  // launchReady uses, so "Projected hit" here matches what happens at launch.
+  // launchReady uses, and verdictBands(era) is the SAME helper launchReady applies, so "Projected
+  // hit" here matches what happens at launch — including the rising bar in later eras.
   const preview = missing.length === 0 ? planProduction(state, draft, BALANCE.build.minRun, "none") : null;
   const effectiveScore = preview ? preview.launchScore * preview.competitionFactor : breakdown.launchScore;
-  const rep = BALANCE.reputation;
+  const bands = verdictBands(state.era);
   const verdict =
-    effectiveScore >= rep.hitThreshold ? { label: "Projected hit", tone: "positive" as const }
-      : effectiveScore <= rep.flopThreshold ? { label: "Likely flop", tone: "negative" as const }
-        : effectiveScore >= 45 ? { label: "Solid performer", tone: "positive" as const }
+    effectiveScore >= bands.hit ? { label: "Projected hit", tone: "positive" as const }
+      : effectiveScore <= bands.flop ? { label: "Likely flop", tone: "negative" as const }
+        : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
           : { label: "Steady seller", tone: "accent" as const };
 
   function set(partial: Partial<Product>) {

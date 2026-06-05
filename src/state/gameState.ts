@@ -1085,12 +1085,14 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // scaled by the same competitionFactor that already discounts real demand. The thresholds in
   // BALANCE.reputation keep their meaning (they're applied to the same score scale).
   const effectiveScore = plan.launchScore * plan.competitionFactor;
+  // Era-scaled verdict bars (the bar for a "hit" rises as the company grows — see verdictBands).
+  const bands = verdictBands(state.era);
   // hitFactory lowers the hit threshold, so more polished products qualify as hits
   const hitThreshold = hasProject(state.completedProjects, "hitFactory")
-    ? Math.round(rep.hitThreshold * 0.88)
-    : rep.hitThreshold;
+    ? Math.round(bands.hit * 0.88)
+    : bands.hit;
   const isHit = effectiveScore >= hitThreshold;
-  const isFlop = effectiveScore <= rep.flopThreshold;
+  const isFlop = effectiveScore <= bands.flop;
   const hasCrisisComms = hasProject(state.completedProjects, "crisisComms");
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
   else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
@@ -1118,7 +1120,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   reputation = Math.min(rep.max, reputation + fanMilestones.repBonus);
 
   // The whole team feels the result.
-  const isSolid = !isHit && !isFlop && effectiveScore >= 45;
+  const isSolid = !isHit && !isFlop && effectiveScore >= bands.solid;
   const moodSwing = isHit ? 12 : isFlop ? -12 : 3;
   const staff = state.staff.map((s) => ({ ...s, mood: clampMood(s.mood + moodSwing) }));
 
@@ -1564,6 +1566,16 @@ export function industryRank(state: GameState): number {
   const board = industryLeaderboard(state);
   const idx = board.findIndex((e) => e.isPlayer);
   return idx < 0 ? board.length : idx + 1;
+}
+
+/** Era-scaled verdict score bands. effectiveScore (= launchScore × competitionFactor) at or above
+ *  `hit` is a hit, at/below `flop` is a flop, ≥ `solid` (but under hit) is a solid performer, else a
+ *  steady seller. The bars rise with the era so late-game hits must be earned (Phase-2 scaling). The
+ *  Design Lab preview and the launch use this SAME helper, so the projected verdict always matches. */
+export function verdictBands(era: number): { hit: number; flop: number; solid: number } {
+  const r = BALANCE.reputation;
+  const i = Math.max(0, Math.min(era - 1, r.hitThresholdByEra.length - 1));
+  return { hit: r.hitThresholdByEra[i], flop: r.flopThresholdByEra[i], solid: r.solidThresholdByEra[i] };
 }
 
 /** Can the company IPO to raise capital? (Established by revenue, not yet listed.) */

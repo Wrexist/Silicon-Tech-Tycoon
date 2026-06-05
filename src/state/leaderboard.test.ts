@@ -6,6 +6,7 @@ import {
   advanceOneWeek,
   industryLeaderboard,
   industryRank,
+  verdictBands,
   type GameState,
 } from "./gameState.ts";
 
@@ -59,5 +60,26 @@ describe("industry leaderboard", () => {
     // no new overtake lines on the quiet tick (feed may grow from other events, but not overtakes)
     const newOvertakes = s.feed.slice(feedLen).filter((f) => /overtook/.test(f.text));
     expect(newOvertakes).toHaveLength(0);
+  });
+});
+
+describe("era-scaled verdict bars (Phase-2 scaling challenge)", () => {
+  it("the hit / solid / flop bars all rise with each era — late hits must be earned", () => {
+    const bars = [1, 2, 3, 4].map(verdictBands);
+    for (let i = 1; i < bars.length; i++) {
+      expect(bars[i].hit).toBeGreaterThan(bars[i - 1].hit);
+      expect(bars[i].solid).toBeGreaterThan(bars[i - 1].solid);
+      expect(bars[i].flop).toBeGreaterThanOrEqual(bars[i - 1].flop);
+    }
+    // within an era the ordering is always flop < solid < hit
+    for (const b of bars) {
+      expect(b.flop).toBeLessThan(b.solid);
+      expect(b.solid).toBeLessThan(b.hit);
+    }
+  });
+
+  it("clamps out-of-range eras to the nearest defined band", () => {
+    expect(verdictBands(0)).toEqual(verdictBands(1));
+    expect(verdictBands(99)).toEqual(verdictBands(4));
   });
 });
