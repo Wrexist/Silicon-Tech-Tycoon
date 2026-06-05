@@ -822,10 +822,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
 
-  // Market event (skipped while bankrupt or a choice is already pending)
-  if (!bankrupt && week >= state.nextEventWeek) {
-    // Choice events only surface during live play — skipped offline since the player can't interact.
-    if (!offline && !state.pendingChoice) {
+  // Market events only during live play — offline catch-up skips all events so the state stays
+  // deterministic and the player isn't surprised by consequences they couldn't interact with.
+  if (!offline && !bankrupt && week >= state.nextEventWeek) {
+    // Choice events also require the player to be present to resolve them.
+    if (!state.pendingChoice) {
       const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices);
       if (choice) {
         const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);

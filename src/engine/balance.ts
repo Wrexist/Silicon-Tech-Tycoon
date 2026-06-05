@@ -6,7 +6,7 @@ export const BALANCE = {
   // --- Company start ---
   // Tighter early economy: a leaner runway + real manufacturing investment per product, so a
   // flop actually costs you (see build.toolingUnits + sales.floorUnits).
-  startingCash: dollars(24_000) as Money,
+  startingCash: dollars(20_000) as Money,
   startingReputation: 8, // 0..100
 
   // --- Time ---
@@ -59,8 +59,9 @@ export const BALANCE = {
       // factor = 1 / (1 + competitorStrength * factorK).
       factorK: 0.025,
       // Production planner splits the market by how many rivals match/beat your product.
-      matchPenalty: 0.25, // a rival roughly as good as you
-      beatPenalty: 0.60, // a rival clearly better than you
+      // Raised from 0.25/0.60 so rivals actually sting — a single better rival cuts demand by ~42%.
+      matchPenalty: 0.32, // a rival roughly as good as you
+      beatPenalty: 0.72, // a rival clearly better than you
       beatMargin: 12, // rival strength must exceed your overall by this to "beat" you
     },
     trendDrift: {
@@ -80,7 +81,7 @@ export const BALANCE = {
     scoreToVolume: 36,
     // even a weak product that ships should sell *something* (× marketSize), but small enough
     // that a flop can't recoup its tooling — so launch quality genuinely matters.
-    floorUnits: 40,
+    floorUnits: 18,
   },
 
   // --- Fans / loyal customer base ---
@@ -106,12 +107,14 @@ export const BALANCE = {
     undersupplyFanPenalty: 0.05, // fans lost when a sellout met < selloutMinDemandShare of demand
   },
 
-  // --- Reputation dynamics (forgiving early; hits matter) ---
+  // --- Reputation dynamics ---
+  // T1 phone scores ~19 uncontested — above flopThreshold (17) but any competition pushes it below.
+  // This means: launch early/uncontested and survive; launch late/outclassed and lose reputation.
   reputation: {
-    hitThreshold: 76, // launchScore above this raises rep
-    flopThreshold: 15, // below this lowers rep — T1 products score ~20, keeping them above this floor
-    gainPerHit: 6,
-    lossPerFlop: 3,
+    hitThreshold: 70, // easier to achieve — T2+ with good hype qualifies
+    flopThreshold: 17, // T1 phone (score ~19) flops when competition cuts it below this
+    gainPerHit: 8,
+    lossPerFlop: 5,
     overpricePenalty: 2,
     max: 100,
     min: 0,
@@ -205,9 +208,9 @@ export const BALANCE = {
   // it bumps the strength of (and shortens its cadence into) that hot category. All bounded so the
   // game stays winnable — see reactivity caps below.
   competitors: {
-    launchEveryWeeks: 9,
-    launchJitter: 5,
-    strengthDecayPerWeek: 0.85, // existing strength multiplies down each week
+    launchEveryWeeks: 7,  // rivals are more consistently present (was 9)
+    launchJitter: 3,      // less dead-air between competitor launches (was 5)
+    strengthDecayPerWeek: 0.88, // rivals persist ~25% longer — competition isn't instantly stale (was 0.85)
     baseStrength: 28,
     // Specialization: a launch in a rival's PREFERRED category is this much likelier to be chosen,
     // and lands with this flat strength bonus (its home turf is genuinely tougher to contest).
