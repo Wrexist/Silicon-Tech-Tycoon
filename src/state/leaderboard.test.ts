@@ -6,6 +6,7 @@ import {
   advanceOneWeek,
   industryLeaderboard,
   industryRank,
+  legacyBonus,
   verdictBands,
   type GameState,
 } from "./gameState.ts";
@@ -81,5 +82,34 @@ describe("era-scaled verdict bars (Phase-2 scaling challenge)", () => {
   it("clamps out-of-range eras to the nearest defined band", () => {
     expect(verdictBands(0)).toEqual(verdictBands(1));
     expect(verdictBands(99)).toEqual(verdictBands(4));
+  });
+});
+
+describe("escalating prestige legacy (Phase-3 polish)", () => {
+  it("level 0 grants nothing; bonuses escalate faster than linearly each prestige", () => {
+    const l0 = legacyBonus(0);
+    expect(toDollars(l0.cash)).toBe(0);
+    expect(l0.reputation).toBe(0);
+    expect(l0.fans).toBe(0);
+    expect(l0.rp).toBe(0);
+
+    const l1 = legacyBonus(1);
+    const l2 = legacyBonus(2);
+    const l3 = legacyBonus(3);
+    // triangular growth: each step's cash gain is larger than the previous step's
+    const d1 = toDollars(l2.cash) - toDollars(l1.cash);
+    const d2 = toDollars(l3.cash) - toDollars(l2.cash);
+    expect(d2).toBeGreaterThan(d1);
+    // level 2 cash is 3× level 1 (triangular 1 → 3), i.e. more than double
+    expect(toDollars(l2.cash)).toBeGreaterThan(toDollars(l1.cash) * 2);
+  });
+
+  it("a New Game+ founding inherits the escalating bonus", () => {
+    const fresh = newGame(1, 0);
+    const ng3 = newGame(1, 3);
+    expect(toDollars(ng3.cash)).toBeGreaterThan(toDollars(fresh.cash));
+    expect(ng3.reputation).toBeGreaterThan(fresh.reputation);
+    expect(ng3.fans).toBeGreaterThan(fresh.fans);
+    expect(ng3.researchPoints).toBeGreaterThan(fresh.researchPoints);
   });
 });

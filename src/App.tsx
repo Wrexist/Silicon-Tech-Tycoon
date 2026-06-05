@@ -14,7 +14,7 @@ import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, type Money } from "./engine/money.ts";
 import type { Product } from "./engine/types.ts";
-import { canAdvance, ipoValuation, type GameState } from "./state/gameState.ts";
+import { canAdvance, ipoValuation, legacyBonus, industryRank, type GameState } from "./state/gameState.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
 import { RESEARCH_PROJECTS } from "./engine/research.ts";
@@ -209,6 +209,8 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
 function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const { state, prestige } = useGame();
   const ref = useRef<HTMLDivElement>(null);
+  const rank = industryRank(state);
+  const nextBonus = legacyBonus(state.legacy + 1);
   useDialogFocus(ref, true);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
@@ -230,12 +232,27 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
         <p className="ipo__text">
           {state.legacy > 0 ? `Empire #${state.legacy + 1} ` : "Your company "}reached the top.
         </p>
-        <Card variant="inset" className="app__offline-card">
-          <span className="app__offline-label">IPO valuation</span>
-          <span className="app__offline-value rounded tnum">{format(ipoValuation(state))}</span>
+        <div className="ipo__stats">
+          <Card variant="inset" className="ipo__stat">
+            <span className="app__offline-label">IPO valuation</span>
+            <span className="app__offline-value rounded tnum">{format(ipoValuation(state))}</span>
+          </Card>
+          <Card variant="inset" className="ipo__stat">
+            <span className="app__offline-label">Industry rank</span>
+            <span className="app__offline-value rounded tnum">{rank === 1 ? "#1 🏆" : `#${rank}`}</span>
+          </Card>
+        </div>
+        <Card variant="inset" className="ipo__legacy">
+          <span className="ipo__legacy-head">New Game+ legacy bonus — your next company starts with</span>
+          <div className="ipo__legacy-grid">
+            <span className="ipo__legacy-item"><b>+{format(nextBonus.cash)}</b> cash</span>
+            <span className="ipo__legacy-item"><b>+{nextBonus.reputation}</b> reputation</span>
+            <span className="ipo__legacy-item"><b>+{nextBonus.fans.toLocaleString()}</b> fans</span>
+            <span className="ipo__legacy-item"><b>+{nextBonus.rp}</b> research</span>
+          </div>
         </Card>
         <p className="ipo__sub">
-          Start <b>New Game+</b> to found your next company with a permanent legacy bonus, or keep
+          Each empire you build leaves a bigger legacy — found your next one stronger, or keep
           building this one.
         </p>
         <Button block onClick={prestige}>Start New Game+ (Legacy {state.legacy + 1})</Button>

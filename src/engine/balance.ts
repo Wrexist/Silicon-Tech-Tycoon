@@ -266,10 +266,15 @@ export const BALANCE = {
     launchPop: 0.06, // share bump when a rival ships a strong product
     historyLength: 24,
   },
+  // Prestige legacy bonuses for New Game+. The resource bonuses ESCALATE (each prestige is worth
+  // more than the last — triangular growth) so founding empire #4 feels meaningfully mightier than
+  // empire #2, giving a real reason to go again. Reputation stays linear (it's powerful early, so a
+  // gentler curve keeps the garage era a climb, not a free pass). See legacyBonus() in gameState.
   legacy: {
     cashPerLevel: dollars(20_000),
     repPerLevel: 3,
     rpPerLevel: 14,
+    fansPerLevel: 400,
   },
 
   // --- Ecosystem services: high-ecosystem products generate recurring income from their installed

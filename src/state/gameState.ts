@@ -239,7 +239,30 @@ const STARTER_NAMES = ["You (Founder)"];
 // Applicant name pool for recruitment (no real people / brands).
 const NAMES = ["Riley", "Sam", "Jordan", "Casey", "Ari", "Noa", "Quinn", "Devin", "Max", "Robin", "Sky", "Frankie", "Ellis", "Rowan", "Tatum", "Wren"];
 
+export interface LegacyBonus {
+  cash: Money;
+  reputation: number;
+  fans: number;
+  rp: number;
+}
+
+/** The permanent head-start a New Game+ founding inherits at the given prestige `level`. Resource
+ *  bonuses escalate triangularly (level 1 → ×1, level 2 → ×3, level 3 → ×6, …) so each empire is
+ *  mightier than the last; reputation stays linear so the early game remains a climb. Pure — the
+ *  win overlay previews legacyBonus(level+1) to show the player exactly what going again earns. */
+export function legacyBonus(level: number): LegacyBonus {
+  const L = Math.max(0, Math.floor(level));
+  const tri = (L * (L + 1)) / 2; // 0,1,3,6,10,15,… — escalating reward per prestige
+  return {
+    cash: scale(BALANCE.legacy.cashPerLevel, tri),
+    reputation: L * BALANCE.legacy.repPerLevel,
+    fans: Math.round(BALANCE.legacy.fansPerLevel * tri),
+    rp: Math.round(BALANCE.legacy.rpPerLevel * tri),
+  };
+}
+
 export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameState {
+  const lb = legacyBonus(legacy);
   const rng = makeRng(seed);
   const trends = initialTrends(rng);
   const competitors = initCompetitors(rng);
@@ -262,9 +285,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     rngState: rng.state(),
     companyName: "Silicon",
     week: 0,
-    cash: add(BALANCE.startingCash, scale(BALANCE.legacy.cashPerLevel, legacy)),
-    reputation: BALANCE.startingReputation + legacy * BALANCE.legacy.repPerLevel,
-    fans: BALANCE.fans.starting + legacy * 400,
+    cash: add(BALANCE.startingCash, lb.cash),
+    reputation: BALANCE.startingReputation + lb.reputation,
+    fans: BALANCE.fans.starting + lb.fans,
     era: 1,
     cumulativeRevenue: ZERO,
     trends,
@@ -278,7 +301,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     candidatesExpire: 0,
     facilityTier: 1,
     upgrades: {},
-    researchPoints: legacy * BALANCE.legacy.rpPerLevel,
+    researchPoints: lb.rp,
     completedProjects: [],
     building: [],
     ready: [],

@@ -482,6 +482,46 @@
   line-height: 1.5;
   margin: var(--sp-4) 0;
 }
+.ipo__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+}
+.ipo__stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: center;
+}
+/* New Game+ legacy bonus preview — the pull to go again */
+.ipo__legacy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.ipo__legacy-head {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.ipo__legacy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+}
+.ipo__legacy-item {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.ipo__legacy-item b {
+  color: var(--ink);
+  font-weight: 800;
+}
 .app__offline-value.rounded {
   font-size: var(--fs-title);
   font-weight: 700;
