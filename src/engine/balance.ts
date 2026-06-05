@@ -63,6 +63,12 @@ export const BALANCE = {
       matchPenalty: 0.32, // a rival roughly as good as you
       beatPenalty: 0.72, // a rival clearly better than you
       beatMargin: 12, // rival strength must exceed your overall by this to "beat" you
+      // Era-scaled competitive pressure. The Garage Era is a protected learning sandbox: rivals
+      // barely contest you, so a new player's first products land as steady sellers and they climb
+      // toward their first hit instead of drowning in flops. Pressure ramps to full force from the
+      // Growth Era onward, where the player has the tools (research, staff, hype) to fight back —
+      // so the meat of the game is a real contest. Index = era - 1.
+      eraPressure: [0.25, 1.0, 1.0, 1.0] as const,
     },
     trendDrift: {
       easing: 0.06, // how fast current weights ease toward target each week

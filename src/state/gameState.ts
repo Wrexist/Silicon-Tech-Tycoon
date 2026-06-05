@@ -448,15 +448,19 @@ export function planProduction(
 
   const overall = overallScore(stats, product.category);
   const rivals = rivalStrengthsFor(s.competitors, product.category);
-  const margin = BALANCE.market.competition.beatMargin;
+  const comp = BALANCE.market.competition;
+  const margin = comp.beatMargin;
   let matchingRivals = 0;
   let betterRivals = 0;
   for (const r of rivals) {
     if (r > overall + margin) betterRivals++;
     else if (r >= overall - margin) matchingRivals++;
   }
+  // Era-scaled pressure: the Garage Era protects new players from being crushed before they've
+  // built up; full competitive pressure applies from the Growth Era on.
+  const pressure = comp.eraPressure[Math.max(0, Math.min(s.era - 1, comp.eraPressure.length - 1))];
   const competitionFactor =
-    1 / (1 + matchingRivals * BALANCE.market.competition.matchPenalty + betterRivals * BALANCE.market.competition.beatPenalty);
+    1 / (1 + (matchingRivals * comp.matchPenalty + betterRivals * comp.beatPenalty) * pressure);
 
   const demandFit = breakdown.demand;
   const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
