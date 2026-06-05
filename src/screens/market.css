@@ -168,6 +168,85 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+
+/* ---------- Industry leaderboard ---------- */
+.mkt__board-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--sp-4);
+}
+.mkt__board-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  transition: background var(--spring-snappy);
+}
+.mkt__board-row--me {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.mkt__board-rank {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  color: var(--ink-3);
+}
+.mkt__board-row--me .mkt__board-rank {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.mkt__board-rank--first {
+  background: color-mix(in srgb, #f5b301 24%, transparent);
+  color: #b8860b;
+}
+.mkt__board-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mkt__board-row--me .mkt__board-name {
+  color: var(--ink);
+  font-weight: 800;
+}
+.mkt__board-val {
+  flex-shrink: 0;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.mkt__board-nudge {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.mkt__board-nudge strong { color: var(--ink); font-weight: 700; }
+.mkt__board-nudge--top {
+  background: color-mix(in srgb, var(--positive) 10%, transparent);
+  color: var(--positive-text, var(--positive));
+}
+.mkt__board-nudge--top strong { color: inherit; }
 /* Portfolio summary strip */
 .mkt__portfolio-summary {
   display: flex;

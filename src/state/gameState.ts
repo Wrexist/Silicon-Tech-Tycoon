@@ -5,6 +5,7 @@ import { CATEGORIES, tierDef } from "../engine/catalogs.ts";
 import {
   advanceCompetitors,
   initCompetitors,
+  rivalMarketCap,
   rivalStrengthsFor,
   type CompetitorLaunch,
 } from "../engine/competitors.ts";
@@ -162,6 +163,10 @@ export interface GameState {
   listed: boolean; // the player's company has IPO'd (is publicly traded)
   ownership: number; // founder's fraction of the company (1 = fully private)
   holdings: Holdings; // shares owned in rival companies, by id
+  /** Best (lowest) industry-leaderboard rank ever reached (1 = biggest company in the industry).
+   *  Starts at 7 (a fresh garage is dead last behind the six rivals); each time the player climbs
+   *  to a new best, the tick celebrates overtaking the rival(s) they passed. Monotonic downward. */
+  bestIndustryRank: number;
   // --- Achievements ---
   /** ids of celebratory milestones the player has earned (monotonic — only ever grows). */
   unlockedAchievements: string[];
@@ -297,6 +302,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     listed: false,
     ownership: 1,
     holdings: {},
+    bestIndustryRank: 7, // a fresh garage is dead last behind the six public rivals
     unlockedAchievements: [],
     pendingChoice: null,
     resolvedChoices: [],
@@ -825,6 +831,29 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     bankrupt,
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
+
+  // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
+  // the player against the six public rivals. Climbing to a new best rank (overtaking a rival, all
+  // the way to #1) is the late-game chase — celebrate it. Rank is monotonic-best so a rival's share
+  // surge can never "demote" the milestone. Updated silently offline; celebrated only in live play.
+  {
+    const newRank = industryRank(base);
+    if (newRank < state.bestIndustryRank) {
+      if (!offline) {
+        const board = industryLeaderboard(base);
+        const overtaken = board
+          .slice(newRank, Math.min(state.bestIndustryRank, board.length))
+          .filter((e) => !e.isPlayer);
+        for (const r of overtaken) {
+          base.feed.push(feedItem(week, `${base.companyName} overtook ${r.name} — now #${newRank} in the industry.`, "positive"));
+        }
+        if (newRank === 1) {
+          base.feed.push(feedItem(week, `${base.companyName} is now the #1 company in the industry. The throne is yours.`, "positive"));
+        }
+      }
+      base.bestIndustryRank = newRank;
+    }
+  }
 
   // Market events only during live play — offline catch-up skips all events so the state stays
   // deterministic and the player isn't surprised by consequences they couldn't interact with.
@@ -1505,6 +1534,36 @@ export function founderStakeValue(state: GameState): Money {
 /** Net worth = cash + rival portfolio + the founder's stake in their own company. */
 export function netWorth(state: GameState): Money {
   return add(add(state.cash, holdingsValue(state.holdings, state.competitors)), founderStakeValue(state));
+}
+
+// ---------- Industry leaderboard: the player's company vs the six public rivals ----------
+
+export interface IndustryEntry {
+  id: string;
+  name: string;
+  valuation: Money;
+  isPlayer: boolean;
+}
+
+/** The industry ranked by live company valuation (the player + every rival), biggest first.
+ *  This is the late-game chase: climb from dead-last in the garage to #1 in the industry. */
+export function industryLeaderboard(state: GameState): IndustryEntry[] {
+  const board: IndustryEntry[] = state.competitors.map((c) => ({
+    id: c.id,
+    name: c.name,
+    valuation: rivalMarketCap(c),
+    isPlayer: false,
+  }));
+  board.push({ id: "player", name: state.companyName, valuation: companyValuation(state), isPlayer: true });
+  board.sort((a, b) => toDollars(b.valuation) - toDollars(a.valuation));
+  return board;
+}
+
+/** The player's 1-based rank in the industry (1 = the single biggest company). */
+export function industryRank(state: GameState): number {
+  const board = industryLeaderboard(state);
+  const idx = board.findIndex((e) => e.isPlayer);
+  return idx < 0 ? board.length : idx + 1;
 }
 
 /** Can the company IPO to raise capital? (Established by revenue, not yet listed.) */

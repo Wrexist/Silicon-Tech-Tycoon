@@ -4,7 +4,7 @@ import { makeRng } from "../engine/rng.ts";
 import { defaultLayout } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, type Product, type StaffRole } from "../engine/types.ts";
-import { SAVE_VERSION, type GameState } from "./gameState.ts";
+import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { showToast } from "../design/toast.tsx";
 
@@ -245,6 +245,12 @@ function migrate(state: GameState): GameState | null {
       sharePrice: Number.isFinite(c.sharePrice) ? c.sharePrice : 5000,
       priceHistory: Array.isArray(c.priceHistory) && c.priceHistory.length ? c.priceHistory : [Number.isFinite(c.sharePrice) ? c.sharePrice / 100 : 50],
     }));
+  }
+  // Industry leaderboard (added later): seed the best-rank to the player's CURRENT rank so a
+  // returning player isn't spammed with "overtook" celebrations for progress already behind them.
+  if (!Number.isFinite(s.bestIndustryRank)) {
+    try { s.bestIndustryRank = industryRank(s as GameState); }
+    catch { s.bestIndustryRank = 7; }
   }
   if (typeof s.companyName !== "string" || !s.companyName) s.companyName = "Silicon";
   if (!Array.isArray(s.layout)) s.layout = defaultLayout();

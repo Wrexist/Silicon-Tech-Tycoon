@@ -6,6 +6,7 @@
 // platform giant, NovaPlus ≈ the flagship-killer, Pandacore ≈ the aggressive value manufacturer.
 import { BALANCE } from "./balance.ts";
 import { unlockedCategories } from "./eras.ts";
+import { cents, type Money } from "./money.ts";
 import type { Rng } from "./rng.ts";
 import type { CategoryId, CompetitorState } from "./types.ts";
 
@@ -16,6 +17,9 @@ interface RivalDef {
   reputation: number;
   share: number; // starting share price in dollars
   vol: number; // volatility multiplier (premium = steady, value = swingy)
+  /** Outstanding shares — sets the rival's market cap (sharePrice × shares). Calibrated so the
+   *  six rivals span ~$45M (scrappy) to ~$2.4B (the giant), giving the player a ladder to climb. */
+  shares: number;
   /** Categories this rival launches into far more often + with a strength bonus (their identity). */
   preferredCategories: readonly CategoryId[];
   /** When true, this rival watches the player's recent hits and counter-punches in those categories. */
@@ -23,16 +27,24 @@ interface RivalDef {
 }
 
 export const RIVALS: RivalDef[] = [
-  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, preferredCategories: ["phone", "wearable"],               isLead: true  },
-  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, preferredCategories: ["phone", "tablet", "laptop"],   isLead: false },
-  { id: "googol",    name: "Googol",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, preferredCategories: ["tablet", "laptop", "experimental"], isLead: false },
-  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, preferredCategories: ["phone"],                           isLead: false },
-  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, preferredCategories: ["phone", "tablet", "desktop"],       isLead: false },
-  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, preferredCategories: ["experimental", "wearable"],      isLead: false },
+  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, shares: 13_000_000, preferredCategories: ["phone", "wearable"],               isLead: true  },
+  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, shares: 9_500_000, preferredCategories: ["phone", "tablet", "laptop"],   isLead: false },
+  { id: "googol",    name: "Googol",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], isLead: false },
+  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, shares: 3_500_000, preferredCategories: ["phone"],                           isLead: false },
+  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, shares: 9_000_000, preferredCategories: ["phone", "tablet", "desktop"],       isLead: false },
+  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      isLead: false },
 ];
 
 export function rivalDef(id: string): RivalDef | undefined {
   return RIVALS.find((r) => r.id === id);
+}
+
+/** A rival's live market capitalization = current share price × outstanding shares. The share
+ *  price evolves weekly (drift + reputation momentum + launch pops), so the cap is always live —
+ *  it's the number the player's own company valuation races to overtake on the leaderboard. */
+export function rivalMarketCap(c: CompetitorState): Money {
+  const shares = rivalDef(c.id)?.shares ?? 5_000_000;
+  return cents(Math.round(c.sharePrice * shares));
 }
 
 export interface CompetitorLaunch {

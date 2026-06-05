@@ -18,6 +18,8 @@ import {
   canList,
   companyValuation,
   founderStakeValue,
+  industryLeaderboard,
+  industryRank,
   netWorth,
   nextWeekRevenue,
   type FeedItem,
@@ -156,6 +158,38 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           </Button>
         )}
       </Card>
+
+      {/* Industry leaderboard — the climb from a garage to the #1 company in the industry */}
+      {(() => {
+        const board = industryLeaderboard(state);
+        const myRank = industryRank(state);
+        const me = board.find((e) => e.isPlayer)!;
+        const above = myRank > 1 ? board[myRank - 2] : null;
+        const gap = above ? sub(above.valuation, me.valuation) : null;
+        return (
+          <Card className="mkt__board">
+            <SectionHeader title="Industry leaderboard" accessory={`#${myRank} of ${board.length}`} />
+            <div className="mkt__board-list">
+              {board.map((e, i) => (
+                <div key={e.id} className={`mkt__board-row${e.isPlayer ? " mkt__board-row--me" : ""}`}>
+                  <span className={`mkt__board-rank${i === 0 ? " mkt__board-rank--first" : ""}`}>{i + 1}</span>
+                  <span className="mkt__board-name">{e.name}{e.isPlayer ? " · you" : ""}</span>
+                  <span className="mkt__board-val tnum">{format(e.valuation)}</span>
+                </div>
+              ))}
+            </div>
+            {above && gap ? (
+              <p className="mkt__board-nudge">
+                <TrendingUp size={12} aria-hidden /> {format(gap)} to overtake <strong>{above.name}</strong> for #{myRank - 1}.
+              </p>
+            ) : myRank === 1 ? (
+              <p className="mkt__board-nudge mkt__board-nudge--top">
+                <Sparkles size={12} aria-hidden /> You're the #1 company in the industry.
+              </p>
+            ) : null}
+          </Card>
+        );
+      })()}
 
       {/* Your launched products — tap one to see why it performed + design a successor */}
       <Card>
