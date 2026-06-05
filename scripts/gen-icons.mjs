@@ -1,13 +1,17 @@
-// One-off icon generator: rasterizes public/icon.svg into the PNG sizes iOS/PWA need.
-// iOS ignores SVG icons, so we ship real PNGs. Run: `node scripts/gen-icons.mjs`.
-// Prefers `sharp`; falls back to `@resvg/resvg-js` if sharp isn't installed.
+// Icon generator: rasterizes the source icon into the PNG sizes iOS/PWA need + the App Store master.
+// SOURCE PRIORITY: if `resources/icon-source.png` exists (a hand-made / AI-rendered 1024² artwork),
+// it is used for every output; otherwise it falls back to the parametric `public/icon.svg` mark.
+// To swap the app icon: drop your square PNG at resources/icon-source.png and run `npm run assets:icons`.
+// iOS ignores SVG icons, so we ship real PNGs. Prefers `sharp`; falls back to `@resvg/resvg-js`.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const svgPath = resolve(root, "public/icon.svg");
+const rasterSourcePath = resolve(root, "resources/icon-source.png");
 const pub = (name) => resolve(root, "public", name);
 
 // name, pixel size, whether to inset for a maskable safe area (10% padding on a solid bg)
@@ -20,36 +24,34 @@ const targets = [
 
 const BG = "#0f1115";
 
-async function withSharp(svg) {
+async function withSharp(src, isRaster) {
   const sharp = (await import("sharp")).default;
   for (const t of targets) {
     if (t.maskable) {
       // Render the art at 80% and center it on a solid bg so the safe zone is respected.
       const inner = Math.round(t.size * 0.8);
-      const art = await sharp(svg).resize(inner, inner).png().toBuffer();
+      const art = await sharp(src).resize(inner, inner).png().toBuffer();
       const pad = Math.round((t.size - inner) / 2);
       await sharp({
-        create: {
-          width: t.size,
-          height: t.size,
-          channels: 4,
-          background: BG,
-        },
+        create: { width: t.size, height: t.size, channels: 4, background: BG },
       })
         .composite([{ input: art, top: pad, left: pad }])
         .png()
         .toFile(pub(t.name));
     } else {
-      await sharp(svg).resize(t.size, t.size).png().toFile(pub(t.name));
+      // From a raster source, flatten onto the dark bg so PWA/touch icons are opaque (iOS shows
+      // black through transparency on home-screen icons). The SVG path keeps its transparent corners.
+      const base = sharp(src).resize(t.size, t.size);
+      await (isRaster ? base.flatten({ background: BG }) : base).png().toFile(pub(t.name));
     }
     console.log("wrote", t.name);
   }
 
   // App Store / native master: 1024×1024, FULL-BLEED, OPAQUE (no alpha, no rounded corners — iOS
-  // applies the mask). Flattening onto the app's own dark bg makes the icon's rounded corners read
-  // as a seamless square. `npx @capacitor/assets generate --ios` consumes this to emit the AppIcon set.
+  // applies the mask). Flattening onto the app's own dark bg makes rounded corners read as a
+  // seamless square. `npx @capacitor/assets generate --ios` consumes this to emit the AppIcon set.
   await mkdir(resolve(root, "resources"), { recursive: true });
-  await sharp(svg)
+  await sharp(src)
     .resize(1024, 1024)
     .flatten({ background: BG })
     .png()
@@ -72,11 +74,14 @@ async function withResvg(svg) {
   }
 }
 
-const svg = await readFile(svgPath);
+const useRaster = existsSync(rasterSourcePath);
+const src = await readFile(useRaster ? rasterSourcePath : svgPath);
+console.log(useRaster ? "source: resources/icon-source.png (raster)" : "source: public/icon.svg (parametric)");
 try {
-  await withSharp(svg);
+  await withSharp(src, useRaster);
 } catch (e) {
+  if (useRaster) throw e; // a raster source needs sharp; resvg only rasterizes SVG
   console.warn("sharp unavailable, trying @resvg/resvg-js:", e.message);
-  await withResvg(svg);
+  await withResvg(src);
 }
 console.log("done");
