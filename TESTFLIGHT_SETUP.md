@@ -1,91 +1,90 @@
-# Getting Silicon onto TestFlight — No Mac Required
+# Getting Silicon onto TestFlight — No Mac, No Match Password
 
-You don't need a Mac. GitHub Actions provides one.
-Everything below is done in a browser or on your Windows PC.
-
----
-
-## Overview
-
-| Step | Where | Time |
-|------|-------|------|
-| 1. Set 6 secrets in GitHub | Browser | 10 min |
-| 2. Create app in App Store Connect | Browser | 10 min |
-| 3. Run Match Setup workflow once | Browser (GitHub Actions) | 5 min |
-| 4. Run TestFlight workflow | Browser (GitHub Actions) | ~15 min |
+Everything is done in a browser. GitHub Actions provides the Mac.
 
 ---
 
-## Step 1 — Set the 6 secrets
+## The plan
 
-Go to:
-**github.com/Wrexist/silicon-tech-tycoon → Settings → Secrets and variables → Actions → New repository secret**
-
-Add each one:
-
----
-
-### `ASC_KEY_ID`
-**Where:** appstoreconnect.apple.com → Users and Access → Integrations → Keys
-
-The 10-character Key ID in the list. Looks like `AB12CD34EF`.
+The old Match password is locked inside the ios-certificates repo.
+You can't recover it — but you can **wipe it and start fresh with a
+password you choose**. This takes about 20 minutes total and fixes
+both dynasty-manager and Silicon at the same time.
 
 ---
 
-### `ASC_ISSUER_ID`
-**Where:** Same page, shown at the very top. Looks like a UUID: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+## Step 1 — Choose a new Match password
+
+Pick any password. Write it down somewhere safe (Notes app, password manager).
+You'll use it twice in this guide.
+
+Example: `Mango-Circuit-88` (just don't use this one)
 
 ---
 
-### `ASC_KEY_P8`
-**Where:** The `.p8` file you downloaded when you created the API key.
+## Step 2 — Clear the ios-certificates repo
 
-On Windows: right-click the `.p8` file → Open with → Notepad. Copy everything, including the lines:
-```
------BEGIN PRIVATE KEY-----
-...
------END PRIVATE KEY-----
-```
+This deletes the old encrypted certificates so Match can create fresh ones.
 
-> If you've lost the file: go back to App Store Connect → Keys → click the red ✕ next to the old key to revoke it → create a new one and download the new `.p8`.
+1. Go to **github.com/Wrexist/ios-certificates**
+2. Open each folder (`certs/`, `profiles/`) and delete all files inside them
+   - Click a file → click the trash icon → Commit changes
+   - Repeat for every file inside those folders
+3. Leave the repo itself — just empty the folders
 
----
-
-### `MATCH_GIT_URL`
-**Value:** `git@github.com:Wrexist/ios-certificates.git`
-
-Just paste that exactly.
+> If the repo only has one or two files at the root, delete those too.
+> Leave the repo existing — just empty it out.
 
 ---
 
-### `MATCH_PASSWORD`
-**Where:** This is the passphrase you chose when you first set up Fastlane Match for dynasty-manager. It's a password you know — same one dynasty-manager uses.
+## Step 3 — Set secrets in Silicon
+
+Go to **github.com/Wrexist/silicon-tech-tycoon →
+Settings → Secrets and variables → Actions → New repository secret**
+
+Add these 6 secrets:
+
+| Secret | Where to get it |
+|--------|-----------------|
+| `MATCH_PASSWORD` | The new password you chose in Step 1 |
+| `MATCH_GIT_URL` | `git@github.com:Wrexist/ios-certificates.git` |
+| `MATCH_SSH_PRIVATE_KEY` | See "Finding your SSH key" below |
+| `ASC_KEY_ID` | appstoreconnect.apple.com → Users → Keys → Key ID column |
+| `ASC_ISSUER_ID` | Same page, UUID shown at the top |
+| `ASC_KEY_P8` | Open your `.p8` file in Notepad, copy everything including the `-----BEGIN...` lines |
+
+### Finding your SSH key (Windows)
+
+Open **File Explorer** → go to `C:\Users\YourName\.ssh\`
+
+Look for a file with no extension — usually named `id_rsa`, `id_ed25519`,
+or something like `match_key`. Open it in Notepad and copy everything.
+
+**Can't find it?** Create a new one:
+1. Open **Git Bash** (installed with Git for Windows)
+2. Run: `ssh-keygen -t ed25519 -f match_key -N ""`
+3. Two files appear: `match_key` (private) and `match_key.pub` (public)
+4. Add the **public** key to ios-certificates:
+   github.com/Wrexist/ios-certificates → Settings → Deploy keys →
+   Add deploy key → paste contents of `match_key.pub` → tick **Allow write access** → Add key
+5. Use the **private** key (`match_key`, opened in Notepad) as the secret
+
+> No Git for Windows? Download it free from gitforwindows.org
 
 ---
 
-### `MATCH_SSH_PRIVATE_KEY`
-This is the SSH private key that has read/write access to your ios-certificates repo. It's the same key dynasty-manager uses.
+## Step 4 — Update dynasty-manager's MATCH_PASSWORD
 
-**Finding it on Windows:**
-Open File Explorer → navigate to `C:\Users\YourName\.ssh\`
-Look for a file without an extension (e.g. `id_rsa` or `id_ed25519` or a custom name like `match_key`).
-Right-click → Open with → Notepad. Copy everything including:
-```
------BEGIN OPENSSH PRIVATE KEY-----
-...
------END OPENSSH PRIVATE KEY-----
-```
+dynasty-manager uses the same ios-certificates repo. Now that you've reset
+it with a new password, update the secret there too.
 
-> **Can't find it?** You may have generated it on a different computer. In that case, create a new SSH key pair:
-> 1. Open Git Bash on Windows (or any terminal)
-> 2. Run: `ssh-keygen -t ed25519 -f match_key -N ""`
-> 3. This creates `match_key` (private) and `match_key.pub` (public)
-> 4. Copy `match_key.pub` content → github.com/Wrexist/ios-certificates → Settings → Deploy keys → Add deploy key → tick "Allow write access"
-> 5. Copy `match_key` content → paste as this secret
+1. Go to **github.com/Wrexist/dynasty-manager →
+   Settings → Secrets → Actions**
+2. Click **MATCH_PASSWORD** → Update → paste your new password → Save
 
 ---
 
-## Step 2 — Create the app in App Store Connect
+## Step 5 — Create the app in App Store Connect
 
 1. Go to **appstoreconnect.apple.com → My Apps → +**
 2. Fill in:
@@ -95,62 +94,71 @@ Right-click → Open with → Notepad. Copy everything including:
    - **SKU:** `SILICON-001`
 3. Click Create
 
-> If `com.wrexist.silicon` isn't in the dropdown: go to **developer.apple.com → Certificates, IDs & Profiles → Identifiers → +** → App IDs → enter bundle ID `com.wrexist.silicon` → enable **In-App Purchases** → Save. Then come back and create the app.
+> If `com.wrexist.silicon` isn't in the Bundle ID dropdown:
+> Go to developer.apple.com → Certificates, IDs & Profiles →
+> Identifiers → + → App IDs → Bundle ID: `com.wrexist.silicon` →
+> enable In-App Purchases → Continue → Register.
+> Then come back and create the app.
 
 ---
 
-## Step 3 — Run Match Setup (once, in browser)
+## Step 6 — Run Match Setup (browser, ~5 min)
 
-This tells Fastlane Match to create a certificate + provisioning profile for `com.wrexist.silicon` and store it in your ios-certificates repo. It runs on GitHub's Mac — you just click a button.
+This runs on GitHub's Mac and creates fresh certificates for both
+apps in your ios-certificates repo.
 
 1. Go to **github.com/Wrexist/silicon-tech-tycoon → Actions**
 2. Click **Match Setup (run once)** in the left sidebar
 3. Click **Run workflow → Run workflow**
-4. Wait ~5 minutes. ✓ Green = ready to build.
-
-> Only needs to run once. After this, the certificate lives in ios-certificates and every future build just downloads it.
+4. Wait for the green checkmark (~5 min)
 
 ---
 
-## Step 4 — Run your first TestFlight build
+## Step 7 — Rebuild dynasty-manager once
+
+dynasty-manager needs to pull the new certificates too.
+Trigger its TestFlight workflow once (or push a commit to main).
+It will detect the new certs automatically.
+
+---
+
+## Step 8 — Ship Silicon to TestFlight
 
 1. Go to **Actions → iOS TestFlight**
 2. Click **Run workflow → Run workflow**
-3. Watch the logs. First run takes ~15 minutes (installing gems + pods).
-4. When it goes green, your build appears in TestFlight within ~20 minutes.
-
-To install on your phone: open the **TestFlight app** → your build appears there.
+3. ~15 minutes → green checkmark
+4. Build appears in TestFlight on your phone within 20 minutes
 
 ---
 
-## After that — how to ship updates
+## After this — normal workflow
 
-**To push a new build:** just run the "iOS TestFlight" workflow again (click Run workflow).
+Every time you want a new build:
+**Actions → iOS TestFlight → Run workflow**
 
-**To bump the version number:**
-Push a git tag and the release workflow auto-updates `package.json`:
-```bash
+To bump the version number, push a git tag:
+```
 git tag v1.0.1
 git push origin v1.0.1
 ```
-Then run the TestFlight workflow.
+Then trigger the TestFlight workflow.
 
 ---
 
 ## Troubleshooting
 
-**Match Setup fails with "No profiles found"**
-→ The app might not exist in App Store Connect yet. Complete Step 2 first.
+**"Encrypted data seems to be tampered"**
+→ Some old encrypted files are still in ios-certificates. Go back and
+delete all files from `certs/` and `profiles/` folders, then re-run Match Setup.
 
-**"Authentication failed" or "Permission denied (publickey)"**
-→ The `MATCH_SSH_PRIVATE_KEY` doesn't match the deploy key on ios-certificates.
-Re-check: github.com/Wrexist/ios-certificates → Settings → Deploy keys — does the public key there match your private key?
+**"No certificate found" or signing error in TestFlight workflow**
+→ Match Setup didn't run yet, or it failed. Check its logs and re-run it.
 
-**"Invalid API key" or 403 from App Store Connect**
-→ Check `ASC_KEY_P8` — it must include the full `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines with no extra spaces.
+**"Permission denied (publickey)" in Match Setup**
+→ The SSH key in `MATCH_SSH_PRIVATE_KEY` doesn't have write access to
+ios-certificates. Check: github.com/Wrexist/ios-certificates → Settings →
+Deploy keys — make sure "Allow write access" is ticked.
 
-**Build uploads but doesn't appear in TestFlight**
-→ Normal — Apple takes up to 20 minutes to process. Check App Store Connect → TestFlight.
-
-**"CURRENT_PROJECT_VERSION" sed fails**
-→ The sed runs after `cap sync ios` so the file always exists. If it still fails, check the Actions log for the exact error.
+**dynasty-manager broke after Step 7**
+→ Check that `MATCH_PASSWORD` was updated in dynasty-manager (Step 4).
+If it was, trigger its build workflow once and it will re-sync the certs.

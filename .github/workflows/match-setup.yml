@@ -1,9 +1,9 @@
 name: Match Setup (run once)
-# Run this ONE TIME from the Actions tab to register com.wrexist.silicon
-# in your ios-certificates repo. After it succeeds, use the normal
-# "iOS TestFlight" workflow for every build.
+# Run this ONE TIME after clearing ios-certificates (see TESTFLIGHT_SETUP.md).
+# It creates a fresh Distribution certificate + provisioning profile for
+# com.wrexist.silicon and stores them in your ios-certificates repo.
 #
-# How to run:
+# How to trigger:
 #   Actions tab → "Match Setup (run once)" → Run workflow → Run workflow
 
 on:
@@ -32,7 +32,7 @@ jobs:
       - name: Trust GitHub SSH host key
         run: ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-      - name: Register com.wrexist.silicon in ios-certificates
+      - name: Create certificate + profile for com.wrexist.silicon
         env:
           ASC_KEY_ID:     ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID:  ${{ secrets.ASC_ISSUER_ID }}
@@ -45,4 +45,5 @@ jobs:
             app_identifier:com.wrexist.silicon \
             git_url:"$MATCH_GIT_URL" \
             readonly:false \
-            force:true
+            force:true \
+            skip_confirmation:true
