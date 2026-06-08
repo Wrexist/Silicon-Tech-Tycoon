@@ -1,123 +1,100 @@
-name: TestFlight
+name: iOS TestFlight
 
-# Runs automatically on push to main, or manually from the Actions tab.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      marketing_version:
+        description: 'Marketing version e.g. 1.0.2. Leave blank to use the version in package.json.'
+        required: false
+        type: string
+        default: ''
 
 concurrency:
-  group: testflight
-  cancel-in-progress: false
+  group: ios-testflight-${{ github.ref }}
+  cancel-in-progress: true
 
-# ─────────────────────────────────────────────────────────────────────────────
-# HOW TO RUN THIS THE FIRST TIME — pick ONE option:
-#
-#  OPTION A — Org secrets (easiest if Wrexist is an organisation account):
-#    github.com/organizations/Wrexist/settings/secrets/actions
-#    Set each secret there → "Selected repositories" → add silicon-tech-tycoon.
-#    The job below will just work with zero repo-level secrets.
-#
-#  OPTION B — Run the setup script on your Mac (one time):
-#    brew install gh && gh auth login
-#    bash setup-secrets.sh
-#    This asks you for each value interactively and saves them here.
-#
-#  OPTION C — Add this repo to dynasty-manager's reusable workflow (see below).
-#    If your dynasty-manager workflow uses `workflow_call`, uncomment the
-#    "call-dynasty" job and comment out the "deploy" job.
-#
-#  All three options end up with the same 10 secrets in this repo.
-#  See TESTFLIGHT_SETUP.md for where to find each value (most are 30-second lookups).
-# ─────────────────────────────────────────────────────────────────────────────
+permissions:
+  contents: read
 
 jobs:
-
-  # ── OPTION C: if dynasty-manager exposes a reusable workflow ─────────────
-  # Uncomment this block (and comment out the "deploy" block below) if
-  # dynasty-manager/.github/workflows/[something].yml has "on: workflow_call".
-  # You get all certs/secrets for free — nothing new to set up.
-  #
-  # call-dynasty:
-  #   uses: Wrexist/dynasty-manager/.github/workflows/testflight.yml@main
-  #   with:
-  #     bundle_id: com.wrexist.silicon
-  #     scheme: App
-  #     workspace: ios/App/App.xcworkspace
-  #   secrets: inherit      # passes ALL dynasty-manager secrets automatically
-
-  # ── Default: self-contained build (Options A or B) ───────────────────────
-  deploy:
-    name: Build & upload to TestFlight
+  build:
     runs-on: macos-latest
-
+    timeout-minutes: 45
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 22
+          cache: npm
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
+      - uses: maxim-lobanov/setup-xcode@v1
         with:
-          ruby-version: "3.2"
+          xcode-version: latest-stable
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
           bundler-cache: true
 
-      - name: Install npm dependencies
-        run: npm ci
+      # SSH key for Fastlane Match to pull certs from ios-certificates repo
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_SSH_PRIVATE_KEY }}
+
+      - name: Trust GitHub SSH host key
+        run: ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Override marketing version (only when input is set)
+        if: github.event.inputs.marketing_version != ''
+        run: npm version ${{ github.event.inputs.marketing_version }} --no-git-tag-version --allow-same-version
+
+      - run: npm ci
+
+      - name: Echo resolved version and build number
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "::notice::Shipping marketing_version=${PKG_VERSION} build=${{ github.run_number }}"
+          echo "Marketing version: ${PKG_VERSION}"
+          echo "Build number:      ${{ github.run_number }}"
 
       - name: Build web bundle
         run: npm run build
 
+      # Generate ios/ if it doesn't exist yet (first run before the directory is committed)
       - name: Add Capacitor iOS platform
         run: |
           if [ ! -d "ios" ]; then
             npx cap add ios
           fi
 
-      - name: Sync Capacitor
+      - name: Sync Capacitor (copies dist/ + native plugins into ios/)
         run: npx cap sync ios
 
-      - name: Copy Fastlane into iOS project
-        run: |
-          cp -r fastlane ios/App/fastlane
-          cp Gemfile      ios/App/Gemfile
-          cp Gemfile.lock ios/App/Gemfile.lock 2>/dev/null || true
+      - name: Sync marketing version from package.json into iOS project
+        run: npm run version:sync
 
-      - name: Install CocoaPods
-        working-directory: ios/App
-        run: pod install
-
-      - name: Generate app icons
+      # Stamp build number directly in the Xcode project (same sed approach as dynasty-manager)
+      - name: Stamp build number from run number
         run: |
-          npm run assets:icons
-          npx @capacitor/assets generate --ios 2>/dev/null || true
+          FILE=ios/App/App.xcodeproj/project.pbxproj
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = ${{ github.run_number }};/g" "$FILE"
+
+      # App Store requires fully opaque PNG — strip alpha channel if present
+      - name: Strip alpha channel from App Store icon
+        run: |
+          ICON=ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+          if [ -f "$ICON" ]; then
+            sips -s format jpeg -s formatOptions 100 "$ICON" --out "$ICON.jpg"
+            sips -s format png "$ICON.jpg" --out "$ICON"
+            rm -f "$ICON.jpg"
+          fi
 
       - name: Deploy to TestFlight
-        working-directory: ios/App
         env:
-          ASC_KEY_ID:        ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID:     ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_P8:        ${{ secrets.ASC_KEY_P8 }}
-          MATCH_GIT_URL:     ${{ secrets.MATCH_GIT_URL }}
-          MATCH_GIT_USER:    ${{ secrets.MATCH_GIT_USER }}
-          MATCH_GIT_TOKEN:   ${{ secrets.MATCH_GIT_TOKEN }}
-          MATCH_PASSWORD:    ${{ secrets.MATCH_PASSWORD }}
-          APPLE_ID:          ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID:     ${{ secrets.APPLE_TEAM_ID }}
-          ITC_TEAM_ID:       ${{ secrets.ITC_TEAM_ID }}
-          BUILD_NUMBER:      ${{ github.run_number }}
-        run: bundle exec fastlane beta
-
-      - name: Upload IPA artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Silicon-${{ github.run_number }}.ipa
-          path: ios/App/build/Silicon.ipa
-          retention-days: 14
-          if-no-files-found: ignore
+          ASC_KEY_ID:     ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID:  ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8:     ${{ secrets.ASC_KEY_P8 }}
+          MATCH_GIT_URL:  ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: bundle exec fastlane ios beta

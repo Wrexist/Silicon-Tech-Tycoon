@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
     "furniture:fetch": "node scripts/fetch-furniture.mjs",
-    "assets:icons": "node scripts/gen-icons.mjs"
+    "assets:icons": "node scripts/gen-icons.mjs",
+    "version:sync": "node scripts/sync-version.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^6.2.1",

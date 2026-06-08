@@ -1,7 +1,5 @@
-git_url ENV["MATCH_GIT_URL"]       # set in GitHub secret MATCH_GIT_URL
-                                   # e.g. "https://github.com/Wrexist/ios-certificates.git"
-
+git_url ENV["MATCH_GIT_URL"]   # SSH URL, e.g. git@github.com:Wrexist/ios-certificates.git
+                               # SSH auth is handled by the webfactory/ssh-agent workflow step
 storage_mode "git"
-type "appstore"                    # distribution profile for App Store / TestFlight
+type "appstore"
 app_identifier ["com.wrexist.silicon"]
-username ENV["APPLE_ID"]
