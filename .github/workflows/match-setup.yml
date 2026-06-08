@@ -1,0 +1,48 @@
+name: Match Setup (run once)
+# Run this ONE TIME from the Actions tab to register com.wrexist.silicon
+# in your ios-certificates repo. After it succeeds, use the normal
+# "iOS TestFlight" workflow for every build.
+#
+# How to run:
+#   Actions tab → "Match Setup (run once)" → Run workflow → Run workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_SSH_PRIVATE_KEY }}
+
+      - name: Trust GitHub SSH host key
+        run: ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Register com.wrexist.silicon in ios-certificates
+        env:
+          ASC_KEY_ID:     ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID:  ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8:     ${{ secrets.ASC_KEY_P8 }}
+          MATCH_GIT_URL:  ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: |
+          bundle exec fastlane run match \
+            type:appstore \
+            app_identifier:com.wrexist.silicon \
+            git_url:"$MATCH_GIT_URL" \
+            readonly:false \
+            force:true

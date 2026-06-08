@@ -1,115 +1,156 @@
-# TestFlight via GitHub Actions — Setup Guide
+# Getting Silicon onto TestFlight — No Mac Required
 
-The workflow at `.github/workflows/testflight.yml` builds the app and uploads
-to TestFlight automatically whenever you push to `main`, or manually via the
-"Run workflow" button in the Actions tab.
-
-It uses **Fastlane** + **Fastlane Match** (your `ios-certificates` repo for
-certificates) + **App Store Connect API key** (no 2FA issues).
+You don't need a Mac. GitHub Actions provides one.
+Everything below is done in a browser or on your Windows PC.
 
 ---
 
-## Step 1 — Create an App Store Connect API key (once)
+## Overview
 
-1. Go to **appstoreconnect.apple.com** → Users and Access → **Integrations** → Keys
-2. Click **+** → give it a name like "GitHub Actions" → Role: **App Manager**
-3. Download the `.p8` file — **you can only download it once**
-4. Note down:
-   - **Key ID** (10-char code shown on the list, e.g. `AB12CD34EF`)
-   - **Issuer ID** (UUID shown at the top of the Keys page)
-   - The `.p8` file contents (open it in a text editor — it starts with `-----BEGIN PRIVATE KEY-----`)
+| Step | Where | Time |
+|------|-------|------|
+| 1. Set 6 secrets in GitHub | Browser | 10 min |
+| 2. Create app in App Store Connect | Browser | 10 min |
+| 3. Run Match Setup workflow once | Browser (GitHub Actions) | 5 min |
+| 4. Run TestFlight workflow | Browser (GitHub Actions) | ~15 min |
 
 ---
 
-## Step 2 — Make sure your ios-certificates repo has the right profile
+## Step 1 — Set the 6 secrets
 
-If you already use Match for dynasty-manager, just add Silicon to it:
+Go to:
+**github.com/Wrexist/silicon-tech-tycoon → Settings → Secrets and variables → Actions → New repository secret**
 
+Add each one:
+
+---
+
+### `ASC_KEY_ID`
+**Where:** appstoreconnect.apple.com → Users and Access → Integrations → Keys
+
+The 10-character Key ID in the list. Looks like `AB12CD34EF`.
+
+---
+
+### `ASC_ISSUER_ID`
+**Where:** Same page, shown at the very top. Looks like a UUID: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+
+---
+
+### `ASC_KEY_P8`
+**Where:** The `.p8` file you downloaded when you created the API key.
+
+On Windows: right-click the `.p8` file → Open with → Notepad. Copy everything, including the lines:
+```
+-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----
+```
+
+> If you've lost the file: go back to App Store Connect → Keys → click the red ✕ next to the old key to revoke it → create a new one and download the new `.p8`.
+
+---
+
+### `MATCH_GIT_URL`
+**Value:** `git@github.com:Wrexist/ios-certificates.git`
+
+Just paste that exactly.
+
+---
+
+### `MATCH_PASSWORD`
+**Where:** This is the passphrase you chose when you first set up Fastlane Match for dynasty-manager. It's a password you know — same one dynasty-manager uses.
+
+---
+
+### `MATCH_SSH_PRIVATE_KEY`
+This is the SSH private key that has read/write access to your ios-certificates repo. It's the same key dynasty-manager uses.
+
+**Finding it on Windows:**
+Open File Explorer → navigate to `C:\Users\YourName\.ssh\`
+Look for a file without an extension (e.g. `id_rsa` or `id_ed25519` or a custom name like `match_key`).
+Right-click → Open with → Notepad. Copy everything including:
+```
+-----BEGIN OPENSSH PRIVATE KEY-----
+...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+> **Can't find it?** You may have generated it on a different computer. In that case, create a new SSH key pair:
+> 1. Open Git Bash on Windows (or any terminal)
+> 2. Run: `ssh-keygen -t ed25519 -f match_key -N ""`
+> 3. This creates `match_key` (private) and `match_key.pub` (public)
+> 4. Copy `match_key.pub` content → github.com/Wrexist/ios-certificates → Settings → Deploy keys → Add deploy key → tick "Allow write access"
+> 5. Copy `match_key` content → paste as this secret
+
+---
+
+## Step 2 — Create the app in App Store Connect
+
+1. Go to **appstoreconnect.apple.com → My Apps → +**
+2. Fill in:
+   - **Platform:** iOS
+   - **Name:** `Silicon: Tech Tycoon`
+   - **Bundle ID:** `com.wrexist.silicon`
+   - **SKU:** `SILICON-001`
+3. Click Create
+
+> If `com.wrexist.silicon` isn't in the dropdown: go to **developer.apple.com → Certificates, IDs & Profiles → Identifiers → +** → App IDs → enter bundle ID `com.wrexist.silicon` → enable **In-App Purchases** → Save. Then come back and create the app.
+
+---
+
+## Step 3 — Run Match Setup (once, in browser)
+
+This tells Fastlane Match to create a certificate + provisioning profile for `com.wrexist.silicon` and store it in your ios-certificates repo. It runs on GitHub's Mac — you just click a button.
+
+1. Go to **github.com/Wrexist/silicon-tech-tycoon → Actions**
+2. Click **Match Setup (run once)** in the left sidebar
+3. Click **Run workflow → Run workflow**
+4. Wait ~5 minutes. ✓ Green = ready to build.
+
+> Only needs to run once. After this, the certificate lives in ios-certificates and every future build just downloads it.
+
+---
+
+## Step 4 — Run your first TestFlight build
+
+1. Go to **Actions → iOS TestFlight**
+2. Click **Run workflow → Run workflow**
+3. Watch the logs. First run takes ~15 minutes (installing gems + pods).
+4. When it goes green, your build appears in TestFlight within ~20 minutes.
+
+To install on your phone: open the **TestFlight app** → your build appears there.
+
+---
+
+## After that — how to ship updates
+
+**To push a new build:** just run the "iOS TestFlight" workflow again (click Run workflow).
+
+**To bump the version number:**
+Push a git tag and the release workflow auto-updates `package.json`:
 ```bash
-# On your Mac, in the Silicon-Tech-Tycoon folder:
-bundle exec fastlane match appstore --app_identifier com.wrexist.silicon
+git tag v1.0.1
+git push origin v1.0.1
 ```
-
-This creates/uploads an App Store distribution certificate + provisioning profile
-for `com.wrexist.silicon` into your `ios-certificates` repo.
-
-If this is your first time using Match at all, run:
-```bash
-bundle exec fastlane match init    # sets up the Matchfile
-bundle exec fastlane match appstore
-```
-
----
-
-## Step 3 — Add GitHub Actions secrets
-
-Go to **github.com/Wrexist/silicon-tech-tycoon** → Settings → Secrets and variables
-→ Actions → **New repository secret**. Add each one below:
-
-| Secret name | Where to find the value |
-|-------------|------------------------|
-| `ASC_KEY_ID` | The 10-char Key ID from Step 1 |
-| `ASC_ISSUER_ID` | The UUID Issuer ID from Step 1 |
-| `ASC_KEY_P8` | The full contents of the `.p8` file (copy-paste everything including the `-----BEGIN...` and `-----END...` lines) |
-| `MATCH_GIT_URL` | `https://github.com/Wrexist/ios-certificates.git` |
-| `MATCH_GIT_USER` | `Wrexist` (your GitHub username) |
-| `MATCH_GIT_TOKEN` | A GitHub Personal Access Token with `repo` scope — create at github.com/settings/tokens → "Generate new token (classic)" → tick `repo` |
-| `MATCH_PASSWORD` | The passphrase you used when setting up Match (the one it asked for when you first ran `match appstore`) |
-| `APPLE_ID` | Your Apple ID email (e.g. `isacmolin@gmail.com`) |
-| `APPLE_TEAM_ID` | Your 10-char Apple Developer team ID — find it at developer.apple.com → Account → Membership Details |
-| `ITC_TEAM_ID` | Your App Store Connect team ID — usually the same as APPLE_TEAM_ID; if you're unsure, use the same value |
-
----
-
-## Step 4 — Trigger the first build
-
-**Option A — Automatic:** Push any commit to the `main` branch. The workflow
-starts immediately in the Actions tab.
-
-**Option B — Manual:**
-1. Go to **github.com/Wrexist/silicon-tech-tycoon** → Actions tab
-2. Click **TestFlight** in the left sidebar
-3. Click **Run workflow** → **Run workflow** (green button)
-
-Watch the logs live. First run takes ~15 minutes (gem + pod install cache is cold).
-Subsequent runs take ~8 minutes.
-
----
-
-## What the workflow does (in order)
-
-```
-1.  Checkout code
-2.  Install npm dependencies
-3.  Build the web bundle (npm run build → dist/)
-4.  Generate the ios/ Xcode project (npx cap add ios + npx cap sync ios)
-5.  Copy your committed fastlane/ files into ios/App/
-6.  Install CocoaPods (pod install)
-7.  Generate the app icon from resources/icon.png
-8.  Run: fastlane beta
-    a.  Authenticate with App Store Connect API key
-    b.  Pull certificates from ios-certificates repo (Match)
-    c.  Set build number = GitHub run number (auto-increments)
-    d.  Archive the app (xcodebuild)
-    e.  Upload to TestFlight
-9.  Save the .ipa as a build artifact (14-day retention)
-```
+Then run the TestFlight workflow.
 
 ---
 
 ## Troubleshooting
 
-**"No profiles found for com.wrexist.silicon"**
-→ Run `bundle exec fastlane match appstore` on your Mac first (Step 2).
+**Match Setup fails with "No profiles found"**
+→ The app might not exist in App Store Connect yet. Complete Step 2 first.
 
-**"Invalid API key"**
-→ Double-check `ASC_KEY_P8` contains the full `.p8` file including the header/footer lines.
+**"Authentication failed" or "Permission denied (publickey)"**
+→ The `MATCH_SSH_PRIVATE_KEY` doesn't match the deploy key on ios-certificates.
+Re-check: github.com/Wrexist/ios-certificates → Settings → Deploy keys — does the public key there match your private key?
 
-**"Authentication failed" for ios-certificates**
-→ Your `MATCH_GIT_TOKEN` may have expired or lacks `repo` scope. Regenerate it at github.com/settings/tokens.
+**"Invalid API key" or 403 from App Store Connect**
+→ Check `ASC_KEY_P8` — it must include the full `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines with no extra spaces.
 
-**"bundle exec: command not found"**
-→ The Gemfile.lock is missing. Run `bundle install` locally once and commit the `Gemfile.lock`.
+**Build uploads but doesn't appear in TestFlight**
+→ Normal — Apple takes up to 20 minutes to process. Check App Store Connect → TestFlight.
 
-**Build succeeds but app not in TestFlight**
-→ `skip_waiting_for_build_processing: true` means it uploads but doesn't wait. Check TestFlight in App Store Connect — the build appears within ~20 minutes of the upload.
+**"CURRENT_PROJECT_VERSION" sed fails**
+→ The sed runs after `cap sync ios` so the file always exists. If it still fails, check the Actions log for the exact error.
