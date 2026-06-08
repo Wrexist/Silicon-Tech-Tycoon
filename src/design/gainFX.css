@@ -22,6 +22,14 @@
 .gainfx__tok--rp {
   color: var(--accent);
 }
+.gainfx__tok--spend {
+  color: var(--negative);
+  opacity: 0.85;
+}
+.gainfx__tok--rp-spend {
+  color: color-mix(in srgb, var(--accent) 70%, var(--negative));
+  opacity: 0.85;
+}
 @keyframes gainfx-rise {
   0% {
     opacity: 0;

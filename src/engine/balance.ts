@@ -6,7 +6,7 @@ export const BALANCE = {
   // --- Company start ---
   // Tighter early economy: a leaner runway + real manufacturing investment per product, so a
   // flop actually costs you (see build.toolingUnits + sales.floorUnits).
-  startingCash: dollars(24_000) as Money,
+  startingCash: dollars(20_000) as Money,
   startingReputation: 8, // 0..100
 
   // --- Time ---
@@ -31,6 +31,10 @@ export const BALANCE = {
   market: {
     // demandScore is Σ weight*stat (0..100). Converted to base units via this scale.
     baseUnitsAtScore: 1200, // units of volume per demandScore point at marketSize 1.0
+    // Era-scaled market volume: the Garage era is a tiny market you slowly grow into; each later
+    // era opens it up. Multiplies demand (→ recommended run size → revenue) by era, so the early
+    // game is deliberately slow + hand-built while the end-game still scales. Index = era - 1.
+    eraVolumeScale: [0.62, 0.82, 1.0, 1.18],
     // B9 — launch demand variance. The wizard's forecast is a deterministic point estimate; real
     // demand at launch is a BET, so the actual realized volume is jittered by up to ±this fraction
     // (seeded, NOT Math.random — reproducible per save). Turns run-sizing/pricing from solved
@@ -53,11 +57,19 @@ export const BALANCE = {
     competition: {
       // Competition is a *share multiplier* (never erases a viable product):
       // factor = 1 / (1 + competitorStrength * factorK).
-      factorK: 0.012,
+      factorK: 0.025,
       // Production planner splits the market by how many rivals match/beat your product.
-      matchPenalty: 0.18, // a rival roughly as good as you
-      beatPenalty: 0.42, // a rival clearly better than you
+      // Raised from 0.25/0.60 so rivals actually sting — a single better rival cuts demand by ~42%.
+      matchPenalty: 0.32, // a rival roughly as good as you
+      beatPenalty: 0.72, // a rival clearly better than you
       beatMargin: 12, // rival strength must exceed your overall by this to "beat" you
+      // Era-scaled competitive pressure. The Garage Era is a protected learning sandbox: rivals
+      // barely contest you, so a new player's first products land as steady sellers and they climb
+      // toward their first hit instead of drowning in flops. Pressure ramps to full force in the
+      // Growth Era, then OVER-full in the Platform/AI eras: late-game rivals press harder, so a
+      // contested launch only lands "solid" while an uncontested, maxed product still triumphs —
+      // keeping the endgame a contest rather than a guaranteed-hit victory lap. Index = era - 1.
+      eraPressure: [0.25, 1.0, 1.2, 1.45] as const,
     },
     trendDrift: {
       easing: 0.06, // how fast current weights ease toward target each week
@@ -76,7 +88,7 @@ export const BALANCE = {
     scoreToVolume: 36,
     // even a weak product that ships should sell *something* (× marketSize), but small enough
     // that a flop can't recoup its tooling — so launch quality genuinely matters.
-    floorUnits: 70,
+    floorUnits: 18,
   },
 
   // --- Fans / loyal customer base ---
@@ -102,12 +114,23 @@ export const BALANCE = {
     undersupplyFanPenalty: 0.05, // fans lost when a sellout met < selloutMinDemandShare of demand
   },
 
-  // --- Reputation dynamics (forgiving early; hits matter) ---
+  // --- Reputation dynamics ---
+  // T1 phone scores ~19 uncontested — above flopThreshold (17) but any competition pushes it below.
+  // This means: launch early/uncontested and survive; launch late/outclassed and lose reputation.
   reputation: {
-    hitThreshold: 76, // launchScore above this raises rep
-    flopThreshold: 22, // below this lowers rep
-    gainPerHit: 6,
-    lossPerFlop: 3,
+    hitThreshold: 70, // era-1 base (see hitThresholdByEra for the scaled bar)
+    flopThreshold: 17, // era-1 base
+    // Era-scaled expectations: as the company grows, the bar for a "hit" / "solid" rises and the
+    // floor for a "flop" lifts. A maxed, well-timed, uncontested product still triumphs late-game,
+    // but a lazy or heavily-contested launch only lands "solid" — so the AI Era stays a contest,
+    // not a guaranteed-hit victory lap. The player reaches the win-reputation in eras 2-3 under the
+    // gentler early bars, so scaling the late bars keeps tension without blocking the endgame.
+    // Index = era - 1. effectiveScore = launchScore × competitionFactor is compared to these.
+    hitThresholdByEra: [70, 88, 112, 145],
+    solidThresholdByEra: [45, 56, 72, 92],
+    flopThresholdByEra: [17, 21, 27, 35],
+    gainPerHit: 8,
+    lossPerFlop: 5,
     overpricePenalty: 2,
     max: 100,
     min: 0,
@@ -141,6 +164,18 @@ export const BALANCE = {
     trainCostPerSkill: dollars(1800),
   },
 
+  // --- Recruitment: pay to run a search; after `weeks` it returns `candidates` applicants with
+  // varied 0..100 discipline skills + a trait. Two tiers trade cost/time for candidate quality.
+  // The shortlist lapses after `expireWeeks` if you don't sign anyone.
+  recruitment: {
+    candidates: 3, // applicants produced per search
+    expireWeeks: 4, // weeks a shortlist stays available before it moves on
+    tiers: {
+      board: { label: "Job Board", cost: dollars(1_500), weeks: 2, minLevel: 2, maxLevel: 5, starChance: 0.08 },
+      headhunter: { label: "Headhunter", cost: dollars(6_500), weeks: 3, minLevel: 5, maxLevel: 8, starChance: 0.3 },
+    },
+  },
+
   // --- Build / manufacturing ---
   build: {
     baseWeeks: 3, // weeks to manufacture a product before it can launch
@@ -160,12 +195,14 @@ export const BALANCE = {
     // B1 — the recommended/affordable run must leave the player solvent through the build.
     // recommendedRun reserves (buildWeeks × weeklyBurn) + this flat margin before spending cash
     // on units, so a fresh save can't accidentally brick itself manufacturing its first product.
-    safetyReserveMargin: dollars(1_000) as Money,
+    // A healthy reserve also keeps early runs modest (you grow into bigger runs as cash builds),
+    // so the garage phase is deliberately slow + hand-built rather than one giant first bet.
+    safetyReserveMargin: dollars(5_000) as Money,
   },
 
   // --- Facilities ---
   facilities: [
-    { tier: 1, name: "Garage", staffCapacity: 3, weeklyRent: dollars(200), upgradeCost: dollars(0) },
+    { tier: 1, name: "Garage", staffCapacity: 4, weeklyRent: dollars(200), upgradeCost: dollars(0) },
     { tier: 2, name: "Studio", staffCapacity: 7, weeklyRent: dollars(1_200), upgradeCost: dollars(120_000) },
     { tier: 3, name: "Campus", staffCapacity: 16, weeklyRent: dollars(6_000), upgradeCost: dollars(1_500_000) },
   ],
@@ -187,9 +224,9 @@ export const BALANCE = {
   // it bumps the strength of (and shortens its cadence into) that hot category. All bounded so the
   // game stays winnable — see reactivity caps below.
   competitors: {
-    launchEveryWeeks: 9,
-    launchJitter: 5,
-    strengthDecayPerWeek: 0.85, // existing strength multiplies down each week
+    launchEveryWeeks: 7,  // rivals are more consistently present (was 9)
+    launchJitter: 3,      // less dead-air between competitor launches (was 5)
+    strengthDecayPerWeek: 0.88, // rivals persist ~25% longer — competition isn't instantly stale (was 0.85)
     baseStrength: 28,
     // Specialization: a launch in a rival's PREFERRED category is this much likelier to be chosen,
     // and lands with this flat strength bonus (its home turf is genuinely tougher to contest).
@@ -206,11 +243,15 @@ export const BALANCE = {
   // --- IPO / prestige ---
   ipo: {
     minReputation: 85, // plus reaching the final era — the "win" / New Game+ trigger
-    valuationPerRevenueDollar: 5, // valuation = cumulativeRevenue × this + reputation bonus
-    valuationPerRepPoint: dollars(60_000),
+    // Valuation = baseValuation + cumulativeRevenue × valuationPerRevenueDollar + a CUBIC reputation
+    // term (repValuationMax × (rep/100)³). The cubic is deliberate: a garage brand (rep ~8) adds
+    // almost nothing (~$4K), so early net worth ≈ your cash and the company genuinely "grows from
+    // the garage", while a dominant reputation (rep 85+) compounds into millions of enterprise value.
+    valuationPerRevenueDollar: 3,
+    repValuationMax: dollars(8_000_000) as Money, // reputation's contribution at a perfect rep 100
     // Going public to RAISE CAPITAL (separate from the endgame win): available once established.
     minRevenueToList: dollars(750_000) as Money,
-    baseValuation: dollars(400_000) as Money, // floor so an early IPO is still worth something
+    baseValuation: dollars(8_000) as Money, // nominal worth of the garage + tools before any traction
     defaultStake: 0.2, // 20% sold by default at IPO
     maxStakePerSale: 0.49, // never sell majority control in one go
     valuationGrowthPerWeek: 0.004, // company value drifts up with momentum
@@ -225,10 +266,32 @@ export const BALANCE = {
     launchPop: 0.06, // share bump when a rival ships a strong product
     historyLength: 24,
   },
+  // Prestige legacy bonuses for New Game+. The resource bonuses ESCALATE (each prestige is worth
+  // more than the last — triangular growth) so founding empire #4 feels meaningfully mightier than
+  // empire #2, giving a real reason to go again. Reputation stays linear (it's powerful early, so a
+  // gentler curve keeps the garage era a climb, not a free pass). See legacyBonus() in gameState.
   legacy: {
     cashPerLevel: dollars(20_000),
     repPerLevel: 3,
     rpPerLevel: 14,
+    fansPerLevel: 400,
+  },
+
+  // --- Ecosystem services: high-ecosystem products generate recurring income from their installed
+  // base (apps, cloud, subscriptions). Incentivises building ecosystem-focused products.
+  // Revenue = unitsSold × ecosystemStat × weeklyServiceRate cents per week.
+  ecosystem: {
+    weeklyServiceRate: 0.0008, // per unit sold per ecosystem-stat point
+    minEcosystemStat: 20,      // ecosystem below this threshold earns nothing — the platform is too weak
+  },
+
+  // --- Staff churn: underpaid or burnt-out staff eventually quit ---
+  churn: {
+    moodQuitThreshold: 22,    // mood below this counts as "danger zone"
+    weeksUntilQuitRisk: 5,    // consecutive danger-zone weeks before churn is possible
+    quitChancePerWeek: 0.15,  // per-week probability of quitting once at risk
+    underpaidMoodPenalty: 10, // extra target reduction each week when salary lags skill level
+    raiseMoodBoost: 15,       // mood bump when player gives a raise
   },
 
   // --- Market events ---

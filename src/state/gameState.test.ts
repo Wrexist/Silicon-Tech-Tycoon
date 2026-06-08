@@ -16,6 +16,8 @@ import {
   researchedTier,
   hireStaff,
   rdRpCostFor,
+  startRecruitment,
+  hireCandidate,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
 
@@ -33,6 +35,63 @@ function goodPhone(): Product {
     notch: "punch",
   };
 }
+
+describe("recruitment", () => {
+  it("runs a search, produces candidates, and signing adds exactly one employee", () => {
+    let s = newGame(42);
+    const cost = BALANCE.recruitment.tiers.board.cost;
+    const before = s.cash;
+    s = startRecruitment(s, "board");
+    expect(s.recruitment).not.toBeNull();
+    expect(s.cash).toBe(before - cost);
+    // candidates arrive after the search duration
+    for (let i = 0; i < BALANCE.recruitment.tiers.board.weeks; i++) s = advanceOneWeek(s);
+    expect(s.recruitment).toBeNull();
+    expect(s.candidates.length).toBe(BALANCE.recruitment.candidates);
+    // every candidate has a 0..100 profile and a derived 1..10 level
+    for (const c of s.candidates) {
+      expect(c.skill).toBeGreaterThanOrEqual(1);
+      expect(c.skill).toBeLessThanOrEqual(10);
+      for (const d of ["engineering", "design", "marketing"] as const) {
+        expect(c.skills[d]).toBeGreaterThanOrEqual(0);
+        expect(c.skills[d]).toBeLessThanOrEqual(100);
+      }
+    }
+    const teamBefore = s.staff.length;
+    s = hireCandidate({ ...s, cash: dollars(999_999) }, s.candidates[0].id);
+    expect(s.staff.length).toBe(teamBefore + 1);
+    expect(s.candidates.length).toBe(0); // shortlist clears after a signing
+  });
+
+  it("cannot start a second search while one is running", () => {
+    let s = startRecruitment(newGame(7), "board");
+    const running = s.recruitment;
+    s = startRecruitment(s, "headhunter");
+    expect(s.recruitment).toBe(running);
+  });
+
+  it("the headhunter channel returns stronger candidates than the job board", () => {
+    const avg = (tier: "board" | "headhunter") => {
+      let s = newGame(99);
+      s = startRecruitment(s, tier);
+      for (let i = 0; i < BALANCE.recruitment.tiers[tier].weeks; i++) s = advanceOneWeek(s);
+      return s.candidates.reduce((a, c) => a + c.skill, 0) / s.candidates.length;
+    };
+    expect(avg("headhunter")).toBeGreaterThan(avg("board"));
+  });
+
+  it("an unsigned shortlist expires after the window", () => {
+    let s = startRecruitment(newGame(3), "board");
+    for (let i = 0; i < BALANCE.recruitment.tiers.board.weeks; i++) s = advanceOneWeek(s);
+    expect(s.candidates.length).toBeGreaterThan(0);
+    for (let i = 0; i < BALANCE.recruitment.expireWeeks; i++) s = advanceOneWeek(s);
+    expect(s.candidates.length).toBe(0);
+  });
+
+  it("respects the garage capacity of 4", () => {
+    expect(BALANCE.facilities[0].staffCapacity).toBe(4);
+  });
+});
 
 describe("game state reducers", () => {
   it("is deterministic from a seed", () => {

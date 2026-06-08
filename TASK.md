@@ -225,6 +225,9 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 ## Backlog
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
+- [DONE] Early-game valuation rebalanced (cubic reputation curve + $8K base + rev×4): net worth now
+  starts ~$13–36K (garage ≈ cash) and grows with real revenue instead of starting at $880K.
+- Engine (PROTECTED): `makeSkills` doesn't guarantee the role's headline discipline is the *highest* — a level-3 "Engineer" can roll engineering 23 but marketing 43, so the role label + "Skill 3" disagree. Clamp the off-disciplines below the primary, or pick role from the strongest skill. (The contradictory *misfit hint* is already fixed in the UI.)
 - Balance: first-launch flop can yield 0 units sold — soften floor so even a weak product sells *some* (teachable, not brutal). Do in P6.
 - Renderer: laptop/desktop/monitor/console/wearable currently reuse the phone "slab" silhouette via the ASPECT map — give them distinct parametric silhouettes (hinge, stand, strap) in the post-core renderer pass (plan Prompt 9).
 - Design Lab: gate higher tiers visibly with a "Research in R&D" hint when a component is maxed at current research.

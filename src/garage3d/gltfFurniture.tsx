@@ -19,6 +19,8 @@ function resolveUrl(url: string): string {
 
 // Fraction of the footprint the model's larger horizontal extent should occupy.
 const FIT_FRACTION = 0.92;
+// Hard cap on rendered height (metres) so tall/slender pieces don't over-scale into columns.
+const MAX_HEIGHT = 2.1;
 
 export default function GltfFurniture({
   asset,
@@ -44,10 +46,14 @@ export default function GltfFurniture({
     box.getSize(size);
     box.getCenter(center);
 
-    // Uniform fit: the model's larger horizontal extent fills FIT_FRACTION of the footprint.
+    // Uniform fit: the model's larger horizontal extent fills FIT_FRACTION of the footprint —
+    // BUT clamp by height so slender, tall pieces (floor lamps, tall plants) don't explode into
+    // giant columns. We cap the rendered height at MAX_HEIGHT metres and take the smaller scale.
     const horiz = Math.max(size.x, size.z);
     const footprint = Math.max(footprintW, footprintD);
-    const baseScale = horiz > 1e-4 ? (footprint * FIT_FRACTION) / horiz : 1;
+    const horizScale = horiz > 1e-4 ? (footprint * FIT_FRACTION) / horiz : 1;
+    const heightScale = size.y > 1e-4 ? MAX_HEIGHT / size.y : horizScale;
+    const baseScale = Math.min(horizScale, heightScale);
 
     // Wrap the clone so we can transform it without mutating shared geometry/material refs.
     const wrapper = new THREE.Group();

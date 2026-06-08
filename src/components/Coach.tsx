@@ -76,7 +76,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: engOrange,
       icon: Hammer,
       title: "Manufacturing started",
-      text: "It takes a few weeks to build. Watch progress on HQ — you'll launch it once it's ready.",
+      text: "Time advances automatically — watch the build progress on HQ. You'll launch once it's ready.",
       cta: tab === "hq" ? undefined : { label: "Go to HQ", tab: "hq" },
     };
   }

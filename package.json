@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
-    "furniture:fetch": "node scripts/fetch-furniture.mjs"
+    "furniture:fetch": "node scripts/fetch-furniture.mjs",
+    "assets:icons": "node scripts/gen-icons.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^6.2.1",

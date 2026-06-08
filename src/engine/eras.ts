@@ -13,10 +13,11 @@ export function canAdvanceEra(era: number, reputation: number, cumulativeRevenue
   if (era >= maxEra()) return false; // already at the final era — nothing to advance to
   const def = BALANCE.eras.find((e) => e.era === era);
   if (!def || !Number.isFinite(def.repToAdvance)) return false;
-  return (
-    reputation >= def.repToAdvance ||
-    toDollars(cumulativeRevenue) >= toDollars(def.revToAdvance as Money)
-  );
+  const repOk = reputation >= def.repToAdvance;
+  const revOk = toDollars(cumulativeRevenue) >= toDollars(def.revToAdvance as Money);
+  // Era 1→2: either reputation or revenue (early milestone — reward getting off the ground).
+  // Era 2+: both required — no shortcuts once you're in the growth phase.
+  return era === 1 ? (repOk || revOk) : (repOk && revOk);
 }
 
 export function maxEra(): number {

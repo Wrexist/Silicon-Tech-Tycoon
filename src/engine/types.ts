@@ -123,9 +123,11 @@ export interface LaunchedProduct {
   revenueToDate: Money;
   plannedUnits?: number; // production run size this product was built with
   /** Launch outcome the player saw — the competition-adjusted verdict, recorded for history. */
-  verdict?: "hit" | "flop" | "steady";
+  verdict?: "hit" | "solid" | "flop" | "steady";
   /** Launch-moment drivers behind the verdict (added later; absent on older saves). */
   insight?: LaunchInsight;
+  /** Number of mid-lifecycle price adjustments made (max 1). Old saves: undefined → treated as 0. */
+  priceCuts?: number;
 }
 
 export type StaffRole = "engineer" | "designer" | "marketer";
@@ -154,18 +156,53 @@ export interface Appearance {
   accessory: Accessory;
 }
 
+/** Per-discipline proficiency, 0..100. Everyone has all three; their role's discipline is their
+ *  headline. Drives variety ("good at different things") + the derived skill level. */
+export interface Skills {
+  engineering: number;
+  design: number;
+  marketing: number;
+}
+
 export interface Staff {
   id: string;
   role: StaffRole;
   name: string;
-  skill: number; // 1..10
+  skill: number; // 1..10 — headline competence used by the sim/economy (derived from `skills`)
+  skills: Skills; // 0..100 per discipline
   salary: Money; // weekly
   assignment: Assignment;
   xp: number; // accumulates toward the next skill level-up
   specialty: Specialty;
   trait: Trait;
   mood: number; // 0..100, drifts over time
+  moodLowWeeks?: number; // consecutive weeks below the churn threshold — resets to 0 when mood recovers
   appearance: Appearance;
+}
+
+/** A potential hire produced by a recruitment search — not yet on the team. */
+export interface Candidate {
+  id: string;
+  role: StaffRole;
+  name: string;
+  skill: number; // 1..10 derived headline
+  skills: Skills; // 0..100 per discipline
+  salary: Money; // weekly salary if hired
+  hireFee: Money; // one-time signing cost
+  specialty: Specialty;
+  trait: Trait;
+  mood: number;
+  appearance: Appearance;
+}
+
+/** Recruitment channel: a cheaper/slower board vs. a pricey headhunter that finds stronger people. */
+export type RecruitTier = "board" | "headhunter";
+
+/** An in-progress recruitment search. Resolves into `candidates` when weeksLeft hits 0. */
+export interface Recruitment {
+  tier: RecruitTier;
+  weeksLeft: number;
+  startedWeek: number;
 }
 
 /** A product being manufactured before it can launch. */

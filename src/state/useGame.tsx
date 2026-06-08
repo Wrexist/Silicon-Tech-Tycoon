@@ -11,21 +11,28 @@ import {
   type ReactNode,
 } from "react";
 import { BALANCE } from "../engine/balance.ts";
-import type { Money } from "../engine/money.ts";
-import type { ComponentKind, Product, StaffRole } from "../engine/types.ts";
+import { dollars, format, toDollars, type Money } from "../engine/money.ts";
+import type { ComponentKind, Product, RecruitTier, StaffRole } from "../engine/types.ts";
 import {
   advanceEraAction,
   advanceOneWeek,
   assignStaff,
   evaluateAndUnlock,
   buyProject,
+  REV_MILESTONES,
   buyShares,
   buyUpgrade,
+  cutProductPrice,
+  giveRaise,
+  resolveChoice,
   catchUpOffline,
+  clearCandidates,
   duplicateFurniture,
   fireStaff,
   goPublic,
+  hireCandidate,
   hireStaff,
+  startRecruitment,
   launchReady,
   listCompany,
   moveFurniture,
@@ -57,11 +64,80 @@ import { clearSave, exportSaveString, importSaveString, loadResult, save } from 
 import { achievementById } from "../engine/achievements.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
 import { showToast } from "../design/toast.tsx";
+import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { createElement } from "react";
 
 export interface OfflineSummary {
   weeks: number;
   gain: Money;
+}
+
+function fmtMilestone(d: number): string {
+  if (d >= 1_000_000_000) return `$${(d / 1_000_000_000).toFixed(1)}B`;
+  if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(1)}M`;
+  if (d >= 1_000) return `$${Math.round(d / 1_000)}k`;
+  return format(dollars(d));
+}
+
+const FAN_TOAST_THRESHOLDS = [1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 1_000_000];
+
+function fmtFans(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+  return String(n);
+}
+
+/** Fire a celebratory toast when the fan count crosses a milestone. */
+function withFanToasts(prev: GameState, next: GameState): void {
+  for (const m of FAN_TOAST_THRESHOLDS) {
+    if (prev.fans < m && next.fans >= m) {
+      try {
+        showToast(`${fmtFans(m)} fans — your brand is growing!`, { tone: "positive" });
+      } catch { /* toast host not mounted */ }
+    }
+  }
+}
+
+/** Fire a toast when any staff member gains a skill level during the live tick. */
+function withStaffLevelToasts(prev: GameState, next: GameState): void {
+  for (const ns of next.staff) {
+    const ps = prev.staff.find((s) => s.id === ns.id);
+    if (ps && ns.skill > ps.skill) {
+      try {
+        showToast(`${ns.name} reached Skill ${ns.skill}`, { tone: "positive" });
+      } catch { /* toast host not mounted */ }
+    }
+  }
+}
+
+/** Fire a summary toast when a product finishes its sales run this tick. */
+function withProductFinishToasts(prev: GameState, next: GameState): void {
+  for (const nlp of next.launched) {
+    if (nlp.weeksElapsed < nlp.weeklyUnits.length) continue; // still selling
+    const plp = prev.launched.find((lp) => lp.product.id === nlp.product.id);
+    if (!plp || plp.weeksElapsed >= plp.weeklyUnits.length) continue; // wasn't selling last tick either
+    const v = nlp.verdict ?? "steady";
+    const tone = v === "hit" || v === "solid" ? "positive" : v === "flop" ? "negative" : "neutral";
+    try {
+      showToast(
+        `${nlp.product.name} finished its run — ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
+        { tone },
+      );
+    } catch { /* toast host not mounted */ }
+  }
+}
+
+/** Fire celebratory toasts for any revenue milestones crossed between prev and next. */
+function withRevToasts(prev: GameState, next: GameState): void {
+  const prevD = toDollars(prev.cumulativeRevenue);
+  const nextD = toDollars(next.cumulativeRevenue);
+  for (const m of REV_MILESTONES) {
+    if (prevD < m && nextD >= m) {
+      try {
+        showToast(`Revenue milestone — ${fmtMilestone(m)} earned lifetime!`, { tone: "positive" });
+      } catch { /* toast host not mounted */ }
+    }
+  }
 }
 
 /**
@@ -105,6 +181,9 @@ interface GameContextValue {
   assign: (id: string, assignment: Assignment) => void;
   train: (id: string) => void;
   hire: (role: StaffRole, skill: number, name: string) => void;
+  recruit: (tier: RecruitTier) => void;
+  hireCandidate: (candidateId: string) => void;
+  dismissCandidates: () => void;
   fire: (id: string) => void;
   upgradeHQ: () => void;
   advanceEra: () => void;
@@ -117,7 +196,7 @@ interface GameContextValue {
   exportSave: () => string;
   importSave: (str: string) => boolean;
   setCompanyName: (name: string) => void;
-  unlockSandbox: () => void;
+  setSandboxActive: (on: boolean) => void;
   // office builder
   placeFurniture: (type: FurnitureId, c: number, r: number, rot: Rot) => void;
   moveFurniture: (iid: string, c: number, r: number) => void;
@@ -133,6 +212,9 @@ interface GameContextValue {
   sellShares: (id: string, qty: number) => void;
   listCompany: (stake: number) => void;
   sellOwnStake: (pct: number) => void;
+  cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
+  giveRaise: (id: string) => void;
+  resolveChoice: (optionId: string) => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -182,7 +264,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (paused || state.bankrupt) return;
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
-      setState((s) => withLiveAchievements(advanceOneWeek(s)));
+      setState((s) => {
+        const next = advanceOneWeek(s);
+        withRevToasts(s, next);
+        withFanToasts(s, next);
+        withStaffLevelToasts(s, next);
+        withProductFinishToasts(s, next);
+        return withLiveAchievements(next);
+      });
     }, ms);
     return () => clearInterval(id);
   }, [paused, fast, state.bankrupt]);
@@ -211,7 +300,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const build = useCallback((product: Product, plannedUnits?: number, channelId?: ChannelId) => {
     const result = startBuild(stateRef.current, product, plannedUnits, channelId);
-    if (result.ok) setState(result.state);
+    if (result.ok) {
+      const spent = (stateRef.current.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
     return { ok: result.ok, reason: result.reason };
   }, []);
 
@@ -227,17 +320,60 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState((s) => researchNext(s, kind));
   }, []);
 
-  const buyProjectCb = useCallback((id: ProjectId) => setState((s) => buyProject(s, id)), []);
-  const buyUpgradeCb = useCallback((id: UpgradeId) => setState((s) => buyUpgrade(s, id)), []);
+  const buyProjectCb = useCallback((id: ProjectId) => {
+    const prev = stateRef.current;
+    const next = buyProject(prev, id);
+    const rpSpent = prev.researchPoints - next.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    setState(next);
+  }, []);
+  const buyUpgradeCb = useCallback((id: UpgradeId) => {
+    const prev = stateRef.current;
+    const next = buyUpgrade(prev, id);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const assign = useCallback((id: string, a: Assignment) => setState((s) => assignStaff(s, id, a)), []);
-  const train = useCallback((id: string) => setState((s) => trainStaff(s, id)), []);
-
-  const hire = useCallback((role: StaffRole, skill: number, name: string) => {
-    setState((s) => hireStaff(s, role, skill, name));
+  const train = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const next = trainStaff(prev, id);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
   }, []);
 
+  const hire = useCallback((role: StaffRole, skill: number, name: string) => {
+    const prev = stateRef.current;
+    const next = hireStaff(prev, role, skill, name);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
+  const recruit = useCallback((tier: RecruitTier) => {
+    const prev = stateRef.current;
+    const next = startRecruitment(prev, tier);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
+  const hireCandidateCb = useCallback((candidateId: string) => {
+    const prev = stateRef.current;
+    const next = hireCandidate(prev, candidateId);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
+  const dismissCandidates = useCallback(() => setState((s) => clearCandidates(s)), []);
+
   const fire = useCallback((id: string) => setState((s) => fireStaff(s, id)), []);
-  const upgradeHQ = useCallback(() => setState((s) => upgradeFacility(s)), []);
+  const upgradeHQ = useCallback(() => {
+    const prev = stateRef.current;
+    const next = upgradeFacility(prev);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   // These actions can immediately satisfy a milestone (reach the final era, IPO, the pinnacle), so
   // fold + celebrate achievements here rather than waiting for the next tick.
   const advanceEra = useCallback(() => setState((s) => withLiveAchievements(advanceEraAction(s))), []);
@@ -274,7 +410,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const markOnboarded = useCallback(() => setState((s) => ({ ...s, onboarded: true })), []);
   const dismissTutorial = useCallback(() => setState((s) => ({ ...s, tutorialDone: true })), []);
   const setCompanyNameCb = useCallback((name: string) => setState((s) => setCompanyName(s, name)), []);
-  const unlockSandbox = useCallback(() => setState((s) => ({ ...s, sandboxUnlocked: true })), []);
+  // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
+  // caller (Settings only shows the toggle once the IAP entitlement is held).
+  const setSandboxActive = useCallback((on: boolean) => setState((s) => ({ ...s, sandboxUnlocked: on })), []);
   const placeFurnitureCb = useCallback((type: FurnitureId, c: number, r: number, rot: Rot) => setState((s) => placeFurniture(s, type, c, r, rot)), []);
   const moveFurnitureCb = useCallback((iid: string, c: number, r: number) => setState((s) => moveFurniture(s, iid, c, r)), []);
   const rotateFurnitureCb = useCallback((iid: string) => setState((s) => rotateFurniture(s, iid)), []);
@@ -284,10 +422,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const setLayoutCb = useCallback((layout: PlacedItem[]) => setState((s) => setLayout(s, layout)), []);
   const setFloorStyleCb = useCallback((i: number) => setState((s) => setFloorStyle(s, i)), []);
   const setWallStyleCb = useCallback((i: number) => setState((s) => setWallStyle(s, i)), []);
-  const buySharesCb = useCallback((id: string, qty: number) => setState((s) => withLiveAchievements(buyShares(s, id, qty))), []);
+  const buySharesCb = useCallback((id: string, qty: number) => {
+    const prev = stateRef.current;
+    const next = withLiveAchievements(buyShares(prev, id, qty));
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const sellSharesCb = useCallback((id: string, qty: number) => setState((s) => sellShares(s, id, qty)), []);
   const listCompanyCb = useCallback((stake: number) => setState((s) => withLiveAchievements(listCompany(s, stake))), []);
   const sellOwnStakeCb = useCallback((pct: number) => setState((s) => sellOwnStake(s, pct)), []);
+  const cutProductPriceCb = useCallback((productId: string, newPrice: Money) => {
+    const result = cutProductPrice(stateRef.current, productId, newPrice);
+    if (result.ok) setState(result.state);
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const giveRaiseCb = useCallback((id: string) => setState((s) => giveRaise(s, id)), []);
+  const resolveChoiceCb = useCallback((optionId: string) => setState((s) => resolveChoice(s, optionId)), []);
 
   const restart = useCallback(() => {
     clearSave();
@@ -316,6 +467,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       assign,
       train,
       hire,
+      recruit,
+      hireCandidate: hireCandidateCb,
+      dismissCandidates,
       fire,
       upgradeHQ,
       advanceEra,
@@ -327,7 +481,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       exportSave,
       importSave,
       setCompanyName: setCompanyNameCb,
-      unlockSandbox,
+      setSandboxActive,
       placeFurniture: placeFurnitureCb,
       moveFurniture: moveFurnitureCb,
       rotateFurniture: rotateFurnitureCb,
@@ -341,8 +495,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       sellShares: sellSharesCb,
       listCompany: listCompanyCb,
       sellOwnStake: sellOwnStakeCb,
+      cutProductPrice: cutProductPriceCb,
+      giveRaise: giveRaiseCb,
+      resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, assign, train, hire, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, unlockSandbox, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb],
+    [state, paused, fast, offline, clearOffline, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

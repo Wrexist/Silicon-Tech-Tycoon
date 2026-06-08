@@ -263,14 +263,10 @@ export function removeItem(layout: PlacedItem[], iid: string): PlacedItem[] {
 /** A tasteful starter layout so the office looks furnished out of the box. */
 export function defaultLayout(): PlacedItem[] {
   const mk = (i: number, type: FurnitureId, c: number, r: number, rot: Rot = 0): PlacedItem => ({ iid: `f${i}`, type, c, r, rot });
+  // Start clean: just a little greenery in the corners (matches the premium diorama look).
+  // Players add the rest via Decorate; everything they place still shows in the hero view.
   return [
-    mk(1, "rug", 3, 6, 0),
-    mk(2, "sofa", 3, 7, 0),
-    mk(3, "coffeeTable", 3, 6, 0),
     mk(4, "plantTall", 0, 0, 0),
     mk(5, "plantPot", 8, 0, 0),
-    mk(6, "bookshelf", 0, 4, 0),
-    mk(7, "floorLamp", 8, 7, 0),
-    mk(8, "arcade", 0, 7, 0),
   ];
 }

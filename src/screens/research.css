@@ -28,9 +28,79 @@
   color: var(--positive-text);
 }
 .rd__bank-hint {
-  margin-top: var(--sp-12);
   font-size: var(--fs-caption);
   color: var(--ink-2);
+}
+.rd__bank-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--positive-text, var(--positive));
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.rd__bank-cta {
+  margin-top: var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.rd__bank-goal {
+  margin-top: var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.rd__bank-goal-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-8);
+}
+.rd__bank-goal-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.rd__bank-goal-name {
+  flex: 1;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.rd__bank-goal-eta {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.rd__bank-goal-track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.rd__bank-goal-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width 0.6s ease;
+  min-width: 4px;
+}
+.rd__bank-goal-nums {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
 }
 .rd__project {
   display: flex;
@@ -103,4 +173,316 @@
   font-weight: 600;
   color: var(--ink-3);
   white-space: nowrap;
+}
+
+/* Active boosts summary */
+.rd__boosts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.rd__boost {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-8);
+  padding: var(--sp-6) var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.rd__boost-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rd__boost-blurb {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+/* Tier progress pips for component tech cards */
+.rd__tier-pips {
+  display: flex;
+  gap: 3px;
+  margin-bottom: var(--sp-12);
+}
+.rd__tier-pip {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  transition: background var(--spring-standard);
+}
+.rd__tier-pip--on {
+  background: var(--accent);
+}
+
+/* Era grouping for research projects */
+.rd__era-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.rd__era-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.rd__era-label--locked {
+  color: var(--ink-3);
+}
+.rd__era-progress {
+  margin-left: auto;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Weeks-to-afford + action wrapper */
+.rd__project-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.rd__weeks-away {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* Era roadmap card */
+.rd__roadmap { gap: var(--sp-12); }
+.rd__era-badge {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.rd__roadmap-list { display: flex; flex-direction: column; gap: 0; }
+.rd__roadmap-row {
+  display: flex;
+  gap: var(--sp-10);
+  align-items: flex-start;
+}
+.rd__roadmap-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  padding-top: 1px;
+  color: var(--ink-3);
+}
+.rd__roadmap-row--done .rd__roadmap-marker { color: var(--positive); }
+.rd__roadmap-row--active .rd__roadmap-marker { color: var(--accent); }
+.rd__roadmap-line {
+  width: 1.5px;
+  flex: 1;
+  min-height: 16px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.rd__roadmap-body {
+  flex: 1;
+  padding-bottom: var(--sp-12);
+}
+.rd__roadmap-row:last-child .rd__roadmap-body { padding-bottom: 0; }
+.rd__roadmap-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-4);
+}
+.rd__roadmap-name {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+.rd__roadmap-row--done .rd__roadmap-name { color: var(--ink-3); text-decoration: line-through; }
+.rd__roadmap-row--future .rd__roadmap-name { color: var(--ink-2); }
+.rd__roadmap-req {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.rd__roadmap-progress {
+  font-size: var(--fs-caption);
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0 0 var(--sp-6);
+}
+.rd__roadmap-unlocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+.rd__roadmap-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.rd__roadmap-tag--comp {
+  background: color-mix(in srgb, var(--ink-3) 10%, transparent);
+  color: var(--ink-2);
+  border-color: color-mix(in srgb, var(--ink-3) 18%, transparent);
+}
+.rd__roadmap-tag--done {
+  background: color-mix(in srgb, var(--positive) 10%, transparent);
+  color: var(--positive-text, var(--positive));
+  border-color: color-mix(in srgb, var(--positive) 20%, transparent);
+}
+.rd__roadmap-tag--locked {
+  background: color-mix(in srgb, var(--ink-3) 7%, transparent);
+  color: var(--ink-3);
+  border-color: var(--border);
+}
+
+/* "Used in" category tags on component tech cards */
+.rd__used-in {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-10);
+}
+.rd__used-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--bg-elevated);
+  border-radius: var(--r-pill);
+  padding: 2px 7px;
+}
+
+.rd__active-hint {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: var(--sp-8);
+  line-height: 1.35;
+}
+.rd__active-hint strong {
+  font-weight: 800;
+}
+
+/* Component tech era coverage bar */
+.rd__comp-coverage {
+  margin-bottom: var(--sp-8);
+}
+.rd__comp-coverage-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--sp-6);
+}
+.rd__comp-coverage-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.rd__comp-coverage-pct {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+}
+.rd__comp-coverage-track {
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.rd__comp-coverage-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-standard);
+}
+
+/* R&D sprint / top picks panel */
+.rd__sprint { }
+.rd__sprint-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.rd__sprint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.rd__sprint-info { flex: 1; min-width: 0; }
+.rd__sprint-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+.rd__sprint-name {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.rd__trend-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: var(--r-pill);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--positive-text, var(--positive));
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rd__sprint-line {
+  display: block;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.rd__sprint-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
 }

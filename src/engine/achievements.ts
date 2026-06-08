@@ -8,6 +8,7 @@
 import type { GameState } from "../state/gameState.ts";
 import { netWorth } from "../state/gameState.ts";
 import { toDollars } from "./money.ts";
+import { RESEARCH_PROJECTS } from "./research.ts";
 import { maxEra } from "./eras.ts";
 
 /** A Lucide icon NAME (resolved to a component in the UI layer — engine stays DOM-free). */
@@ -29,23 +30,36 @@ export type AchievementIconName =
   | "Crown"
   | "Flame"
   | "PiggyBank"
-  | "LineChart";
+  | "LineChart"
+  | "FlaskConical"
+  | "UserPlus"
+  | "Package"
+  | "Zap"
+  | "Trophy";
 
 /** The facts an achievement predicate may read — derived once from GameState, all already tracked. */
 export interface AchievementFacts {
   productsShipped: number; // launched products (lifetime)
   hits: number; // launched products with a "hit" verdict
+  flops: number; // launched products with a "flop" verdict
   hitStreak: number; // current run of consecutive hits among the most recent launches
   soldOut: boolean; // any launched product whose run sold out (demand met the whole run)
+  comebackFromFlop: boolean; // shipped a hit more recently than a flop
   cumulativeRevenue: number; // dollars (lifetime)
   netWorth: number; // dollars (cash + rival portfolio + own stake)
   reputation: number; // 0..100
   fans: number;
   era: number;
+  era2reached: boolean;
+  era3reached: boolean;
   atFinalEra: boolean;
   listed: boolean; // company has IPO'd on the exchange
   wentPublic: boolean; // reached the industry pinnacle (endgame flag)
   rivalsInvested: number; // number of distinct rivals the player holds shares in
+  staffCount: number; // current headcount
+  completedProjects: number; // research projects completed
+  biggestRun: number; // largest single production run (units) ever ordered
+  categoriesShipped: number; // distinct product categories ever shipped
 }
 
 export interface Achievement {
@@ -78,21 +92,43 @@ export function deriveFacts(state: GameState): AchievementFacts {
   );
 
   const rivalsInvested = Object.values(state.holdings).filter((q) => (q ?? 0) > 0).length;
+  const biggestRun = launched.reduce((max, lp) => Math.max(max, lp.plannedUnits ?? 0), 0);
+  const flops = launched.filter((lp) => lp.verdict === "flop").length;
+
+  // comebackFromFlop: a hit was shipped more recently than a flop (iterate old→new).
+  // launched[] is newest-first, so we scan from the end (oldest) toward index 0 (newest).
+  let _sawFlop = false;
+  let comebackFromFlop = false;
+  for (let i = launched.length - 1; i >= 0; i--) {
+    const v = launched[i].verdict;
+    if (v === "flop") _sawFlop = true;
+    else if (_sawFlop && v === "hit") { comebackFromFlop = true; break; }
+  }
+
+  const categoriesShipped = new Set(launched.map((lp) => lp.product.category)).size;
 
   return {
     productsShipped: launched.length,
     hits,
+    flops,
     hitStreak,
     soldOut,
+    comebackFromFlop,
     cumulativeRevenue: toDollars(state.cumulativeRevenue),
     netWorth: toDollars(netWorth(state)),
     reputation: state.reputation,
     fans: state.fans,
     era: state.era,
+    era2reached: state.era >= 2,
+    era3reached: state.era >= 3,
     atFinalEra: state.era >= maxEra(),
     listed: state.listed,
     wentPublic: state.wentPublic,
     rivalsInvested,
+    staffCount: state.staff.length,
+    completedProjects: state.completedProjects.length,
+    biggestRun,
+    categoriesShipped,
   };
 }
 
@@ -257,6 +293,183 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Crown",
     hint: "Reach the heights of the industry.",
     predicate: (f) => f.netWorth >= 100_000_000,
+  },
+  {
+    id: "first-hire",
+    title: "Team of Two",
+    description: "Recruited your first employee — the founding team grows.",
+    icon: "UserPlus",
+    hint: "Hire someone beyond the founder.",
+    predicate: (f) => f.staffCount >= 2,
+  },
+  {
+    id: "team-5",
+    title: "Small Studio",
+    description: "Five people on the payroll — a real team.",
+    icon: "Users",
+    hint: "Build a crew of five or more.",
+    predicate: (f) => f.staffCount >= 5,
+  },
+  {
+    id: "hit-streak-5",
+    title: "On Fire",
+    description: "Five consecutive hits. The market can't get enough.",
+    icon: "Zap",
+    hint: "Launch five hits in a row.",
+    predicate: (f) => f.hitStreak >= 5,
+  },
+  {
+    id: "research-4",
+    title: "Research Lab",
+    description: "Four research projects completed — the R&D engine is running.",
+    icon: "FlaskConical",
+    hint: "Complete multiple research projects.",
+    predicate: (f) => f.completedProjects >= 4,
+  },
+  {
+    id: "research-all",
+    title: "Full R&D",
+    description: "Every available research project completed. No stone unturned.",
+    icon: "FlaskConical",
+    hint: "Research your way to the frontier.",
+    predicate: (f) => f.completedProjects >= RESEARCH_PROJECTS.length,
+  },
+  {
+    id: "big-run",
+    title: "Mass Production",
+    description: "A single production run of 50,000 units or more.",
+    icon: "Package",
+    hint: "Bet big on a major launch.",
+    predicate: (f) => f.biggestRun >= 50_000,
+  },
+  {
+    id: "gg",
+    title: "Legend",
+    description: "Reached the industry pinnacle. A legacy in silicon.",
+    icon: "Trophy",
+    hint: "Complete the full journey — from garage to public icon.",
+    predicate: (f) => f.wentPublic,
+  },
+  // --- New milestones ---
+  {
+    id: "first-research",
+    title: "Eureka",
+    description: "The lab is open — you've completed your first research project.",
+    icon: "FlaskConical",
+    hint: "Invest RP and complete a research project.",
+    predicate: (f) => f.completedProjects >= 1,
+  },
+  {
+    id: "era-2",
+    title: "Growth Mode",
+    description: "Graduated from the garage into the Growth Era.",
+    icon: "TrendingUp",
+    hint: "Build reputation or revenue to advance past the Garage Era.",
+    predicate: (f) => f.era2reached,
+  },
+  {
+    id: "era-3",
+    title: "Platform Play",
+    description: "The industry is watching — you've entered the Platform Era.",
+    icon: "Layers",
+    hint: "Push beyond the Growth Era.",
+    predicate: (f) => f.era3reached,
+  },
+  {
+    id: "comeback-kid",
+    title: "Comeback Kid",
+    description: "Bounced back from a flop and shipped a hit. Resilience wins.",
+    icon: "Zap",
+    hint: "Launch a hit after suffering a flop.",
+    predicate: (f) => f.comebackFromFlop,
+  },
+  {
+    id: "diversified-mfg",
+    title: "Full Portfolio",
+    description: "Products in three different categories — you're no one-trick company.",
+    icon: "Boxes",
+    hint: "Ship products across multiple categories.",
+    predicate: (f) => f.categoriesShipped >= 3,
+  },
+  {
+    id: "rev-1b",
+    title: "Billion Club",
+    description: "One billion in lifetime revenue. The industry bows.",
+    icon: "Crown",
+    hint: "Scale to a billion dollars in lifetime sales.",
+    predicate: (f) => f.cumulativeRevenue >= 1_000_000_000,
+  },
+  {
+    id: "team-10",
+    title: "Growing Fast",
+    description: "Ten people on the payroll — a company, not a crew.",
+    icon: "Users",
+    hint: "Grow your headcount to ten or more.",
+    predicate: (f) => f.staffCount >= 10,
+  },
+  {
+    id: "all-rivals",
+    title: "Market Maker",
+    description: "Shares in every rival on the exchange. You own the whole industry.",
+    icon: "Globe",
+    hint: "Invest in every competitor on the stock exchange.",
+    predicate: (f) => f.rivalsInvested >= 6,
+  },
+  {
+    id: "ship-10",
+    title: "Serial Launcher",
+    description: "Ten products shipped. You've found your manufacturing cadence.",
+    icon: "Factory",
+    hint: "Keep the launch pipeline full.",
+    predicate: (f) => f.productsShipped >= 10,
+  },
+  {
+    id: "dual-category",
+    title: "Two-Front War",
+    description: "Products launched in two distinct categories — the portfolio expands.",
+    icon: "Layers",
+    hint: "Ship into more than one product category.",
+    predicate: (f) => f.categoriesShipped >= 2,
+  },
+  {
+    id: "mega-run",
+    title: "Mega Run",
+    description: "A single production run of 200,000 units. The factory ran at full tilt.",
+    icon: "Package",
+    hint: "Bet big on a breakout product.",
+    predicate: (f) => f.biggestRun >= 200_000,
+  },
+  {
+    id: "rev-500m",
+    title: "Half a Billion",
+    description: "Five hundred million in lifetime revenue. The next zero is close.",
+    icon: "TrendingUp",
+    hint: "Keep compounding revenue across product generations.",
+    predicate: (f) => f.cumulativeRevenue >= 500_000_000,
+  },
+  {
+    id: "networth-10m",
+    title: "Deep Pockets",
+    description: "Net worth crossed $10M. The runway is very comfortable.",
+    icon: "PiggyBank",
+    hint: "Build your personal wealth alongside the company.",
+    predicate: (f) => f.netWorth >= 10_000_000,
+  },
+  {
+    id: "flop-proof",
+    title: "Perfect Record",
+    description: "Ten or more products shipped with zero flops — pure consistency.",
+    icon: "Star",
+    hint: "Launch many products without a single flop.",
+    predicate: (f) => f.productsShipped >= 10 && f.flops === 0,
+  },
+  {
+    id: "rep-75",
+    title: "Celebrated",
+    description: "Reputation reached 75 — your brand is widely admired.",
+    icon: "Sparkles",
+    hint: "Keep delivering hits and the world notices.",
+    predicate: (f) => f.reputation >= 75,
   },
 ];
 

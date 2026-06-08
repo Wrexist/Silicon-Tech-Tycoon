@@ -132,6 +132,41 @@
   font-weight: 700;
 }
 
+/* Screen-level error boundary card */
+.app__screen-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-8);
+  padding: var(--sp-32) var(--sp-16);
+}
+.app__screen-error-glyph {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-pill);
+  background: var(--warning-soft, color-mix(in srgb, var(--warning) 12%, transparent));
+  color: var(--warning, #f59e0b);
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--sp-4);
+}
+.app__screen-error-title {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+}
+.app__screen-error-text {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
+  max-width: 300px;
+}
+.app__screen-error-actions {
+  display: flex;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+}
+
 /* Bankruptcy */
 .bankrupt {
   position: fixed;
@@ -172,6 +207,60 @@
   color: var(--ink-2);
   line-height: 1.5;
   margin-bottom: var(--sp-24);
+}
+
+/* Bankrupt post-mortem stats */
+.bankrupt__postmortem {
+  width: 100%;
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  padding: var(--sp-4) var(--sp-16);
+  margin-bottom: var(--sp-24);
+  text-align: left;
+}
+.bankrupt__pm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-8) 0;
+  border-bottom: 1px solid var(--hairline);
+  font-size: var(--fs-caption);
+  gap: var(--sp-12);
+}
+.bankrupt__pm-row:last-child { border-bottom: none; }
+.bankrupt__pm-label {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.bankrupt__pm-val {
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+}
+.bankrupt__diagnosis {
+  width: 100%;
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
+  padding: var(--sp-14) var(--sp-16);
+  margin-bottom: var(--sp-16);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.bankrupt__diag-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.bankrupt__diag-tip {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
 }
 
 /* Error boundary — scrollable so a long stack never traps the buttons off-screen */
@@ -243,6 +332,108 @@
   -webkit-user-select: text;
 }
 
+/* Era advancement modal */
+.era-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(var(--edge), env(safe-area-inset-top)) max(var(--edge), env(safe-area-inset-right))
+    max(var(--edge), env(safe-area-inset-bottom)) max(var(--edge), env(safe-area-inset-left));
+  background: radial-gradient(140% 80% at 50% -10%, var(--accent-soft), var(--bg) 55%);
+  backdrop-filter: blur(12px);
+  overflow-y: auto;
+}
+.era-modal__inner {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding: var(--sp-16) 0;
+}
+.era-modal__glyph {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  animation: ds-rise var(--spring-standard);
+}
+.era-modal__badge {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.era-modal__title {
+  font-size: var(--fs-large-title);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+.era-modal__tag {
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0 var(--sp-8);
+}
+.era-modal__section {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.era-modal__section-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.era-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+}
+.era-modal__chip {
+  padding: var(--sp-4) var(--sp-12);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+.era-modal__projects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.era-modal__project {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.era-modal__project-name {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.era-modal__project-blurb {
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
 /* IPO celebration */
 .ipo {
   position: fixed;
@@ -290,6 +481,46 @@
   color: var(--ink-2);
   line-height: 1.5;
   margin: var(--sp-4) 0;
+}
+.ipo__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+}
+.ipo__stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: center;
+}
+/* New Game+ legacy bonus preview — the pull to go again */
+.ipo__legacy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.ipo__legacy-head {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.ipo__legacy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+}
+.ipo__legacy-item {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.ipo__legacy-item b {
+  color: var(--ink);
+  font-weight: 800;
 }
 .app__offline-value.rounded {
   font-size: var(--fs-title);

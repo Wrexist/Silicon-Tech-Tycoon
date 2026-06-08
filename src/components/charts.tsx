@@ -9,15 +9,31 @@ const STAT_LABEL: Record<string, string> = {
   ecosystem: "Ecosys",
 };
 
-/** Horizontal stat bars 0..100 with optional demand-weight tint. */
-export function StatBars({ stats, weights }: { stats: Stats; weights?: Stats }) {
+/** Horizontal stat bars 0..100 with optional demand-weight tint and trend arrows.
+ *  trendDeltas: per-stat delta (targetWeight − currentWeight); positive = rising. */
+export function StatBars({
+  stats,
+  weights,
+  trendDeltas,
+}: {
+  stats: Stats;
+  weights?: Stats;
+  trendDeltas?: Partial<Record<keyof Stats, number>>;
+}) {
   return (
     <div className="stat-bars">
       {STAT_KEYS.map((k) => {
         const hot = weights ? weights[k] > 0.24 : false;
+        const delta = trendDeltas?.[k] ?? 0;
+        const rising = delta > 0.03;
+        const falling = delta < -0.03;
         return (
           <div className="stat-row" key={k}>
-            <span className="stat-row__label">{STAT_LABEL[k]}</span>
+            <span className="stat-row__label">
+              {STAT_LABEL[k]}
+              {rising && <span className="stat-row__arrow stat-row__arrow--up" aria-label="rising" />}
+              {falling && <span className="stat-row__arrow stat-row__arrow--down" aria-label="falling" />}
+            </span>
             <div className="stat-row__track">
               <div
                 className="stat-row__fill"
@@ -69,7 +85,12 @@ export function Sparkline({
   height?: number;
   stroke?: string;
 }) {
-  if (data.length < 2) return <div className="spark-empty" style={{ height }} />;
+  if (data.length < 2)
+    return (
+      <div className="spark-empty" style={{ height }}>
+        <span className="spark-empty__hint">Chart fills in as weeks pass</span>
+      </div>
+    );
   const min = Math.min(...data, 0);
   const max = Math.max(...data, 1);
   const span = max - min || 1;

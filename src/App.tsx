@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CircuitBoard, CircleX, RotateCcw, TrendingUp } from "lucide-react";
+import { AlertTriangle, CircuitBoard, CircleX, Cpu, Layers, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
@@ -14,7 +14,10 @@ import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, type Money } from "./engine/money.ts";
 import type { Product } from "./engine/types.ts";
-import { canAdvance, ipoValuation } from "./state/gameState.ts";
+import { canAdvance, ipoValuation, legacyBonus, industryRank, type GameState } from "./state/gameState.ts";
+import { CATEGORY_LIST } from "./engine/catalogs.ts";
+import { eraName } from "./engine/eras.ts";
+import { RESEARCH_PROJECTS } from "./engine/research.ts";
 import { HQ } from "./screens/HQ.tsx";
 import { DesignLab } from "./screens/DesignLab.tsx";
 import { Research } from "./screens/Research.tsx";
@@ -25,7 +28,7 @@ import "./App.css";
 const TAB_TITLE: Record<Tab, string> = {
   hq: "Silicon",
   design: "Design Lab",
-  research: "Research & Development",
+  research: "Research",
   market: "Market",
   company: "Company",
 };
@@ -50,6 +53,9 @@ function AppShell() {
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
+  // seenEraModal is initialized to the current era so loading an existing save never re-shows
+  // modals for eras already reached. When era advances during play it becomes > seenEraModal.
+  const [seenEraModal, setSeenEraModal] = useState(state.era);
   // Transient "design a successor" seed — set from a launched product's detail sheet, consumed by
   // the Design Lab on the next render, then cleared. Lives in React (never persisted) so it's a
   // pure UI hand-off and survives no reloads.
@@ -76,8 +82,8 @@ function AppShell() {
         <ErrorBoundary key={tab} fallback={<ScreenError onHome={() => setTab("hq")} />}>
           {tab === "hq" && <HQ onNavigate={setTab} />}
           {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
-          {tab === "research" && <Research />}
-          {tab === "market" && <Market onDesignSuccessor={designSuccessor} />}
+          {tab === "research" && <Research onNavigate={setTab} />}
+          {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
           {tab === "company" && <Company />}
         </ErrorBoundary>
         <div className="app__spacer" />
@@ -98,6 +104,9 @@ function AppShell() {
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
       {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} onClose={clearOffline} />}
+      {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (
+        <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
+      )}
       {state.wentPublic && !ipoSeen && <IpoOverlay onDismiss={() => setIpoSeen(true)} />}
       {state.bankrupt && <BankruptOverlay />}
     </div>
@@ -126,9 +135,82 @@ function ScreenError({ onHome }: { onHome: () => void }) {
   );
 }
 
+const ERA_TAGLINES: Record<number, string> = {
+  2: "You've outgrown the garage. Now build the team.",
+  3: "The whole industry is watching. Shape the platform.",
+  4: "The frontier of silicon. Lead the AI revolution.",
+};
+const ERA_ICONS: Partial<Record<number, ReturnType<typeof TrendingUp>>> = {
+  2: <TrendingUp size={28} strokeWidth={2.2} />,
+  3: <Layers size={28} strokeWidth={2.2} />,
+  4: <Cpu size={28} strokeWidth={2.2} />,
+};
+
+function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref, true);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onDismiss]);
+
+  const newCats = CATEGORY_LIST.filter((c) => c.unlockEra === era);
+  const newProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
+
+  return (
+    <div className="era-modal">
+      <div
+        ref={ref}
+        className="era-modal__inner"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="era-modal-title"
+        tabIndex={-1}
+      >
+        <div className="era-modal__glyph" aria-hidden>
+          {ERA_ICONS[era] ?? <Sparkles size={28} strokeWidth={2.2} />}
+        </div>
+        <div className="era-modal__badge">Era {era}</div>
+        <h2 className="era-modal__title" id="era-modal-title">{eraName(era)}</h2>
+        <p className="era-modal__tag">{ERA_TAGLINES[era] ?? "A new chapter begins."}</p>
+
+        {newCats.length > 0 && (
+          <Card variant="inset" className="era-modal__section">
+            <p className="era-modal__section-label">New product categories</p>
+            <div className="era-modal__chips">
+              {newCats.map((c) => (
+                <span key={c.id} className="era-modal__chip">{c.displayName}</span>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {newProjects.length > 0 && (
+          <Card variant="inset" className="era-modal__section">
+            <p className="era-modal__section-label">New R&D projects unlocked</p>
+            <div className="era-modal__projects">
+              {newProjects.map((p) => (
+                <div key={p.id} className="era-modal__project">
+                  <span className="era-modal__project-name">{p.name}</span>
+                  <span className="era-modal__project-blurb">{p.blurb}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <Button block onClick={onDismiss}>Let's go →</Button>
+      </div>
+    </div>
+  );
+}
+
 function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const { state, prestige } = useGame();
   const ref = useRef<HTMLDivElement>(null);
+  const rank = industryRank(state);
+  const nextBonus = legacyBonus(state.legacy + 1);
   useDialogFocus(ref, true);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
@@ -150,12 +232,27 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
         <p className="ipo__text">
           {state.legacy > 0 ? `Empire #${state.legacy + 1} ` : "Your company "}reached the top.
         </p>
-        <Card variant="inset" className="app__offline-card">
-          <span className="app__offline-label">IPO valuation</span>
-          <span className="app__offline-value rounded tnum">{format(ipoValuation(state))}</span>
+        <div className="ipo__stats">
+          <Card variant="inset" className="ipo__stat">
+            <span className="app__offline-label">IPO valuation</span>
+            <span className="app__offline-value rounded tnum">{format(ipoValuation(state))}</span>
+          </Card>
+          <Card variant="inset" className="ipo__stat">
+            <span className="app__offline-label">Industry rank</span>
+            <span className="app__offline-value rounded tnum">{rank === 1 ? "#1 🏆" : `#${rank}`}</span>
+          </Card>
+        </div>
+        <Card variant="inset" className="ipo__legacy">
+          <span className="ipo__legacy-head">New Game+ legacy bonus — your next company starts with</span>
+          <div className="ipo__legacy-grid">
+            <span className="ipo__legacy-item"><b>+{format(nextBonus.cash)}</b> cash</span>
+            <span className="ipo__legacy-item"><b>+{nextBonus.reputation}</b> reputation</span>
+            <span className="ipo__legacy-item"><b>+{nextBonus.fans.toLocaleString()}</b> fans</span>
+            <span className="ipo__legacy-item"><b>+{nextBonus.rp}</b> research</span>
+          </div>
         </Card>
         <p className="ipo__sub">
-          Start <b>New Game+</b> to found your next company with a permanent legacy bonus, or keep
+          Each empire you build leaves a bigger legacy — found your next one stronger, or keep
           building this one.
         </p>
         <Button block onClick={prestige}>Start New Game+ (Legacy {state.legacy + 1})</Button>
@@ -250,10 +347,38 @@ function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; on
   );
 }
 
+function diagnoseFailure(state: GameState): string[] {
+  const { launched, staff } = state;
+  const hits = launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const totalMade = launched.reduce((s, lp) => s + (lp.plannedUnits ?? 0), 0);
+  const totalSold = launched.reduce((s, lp) => s + lp.unitsSold, 0);
+  const tips: string[] = [];
+
+  if (launched.length === 0) {
+    tips.push("No product launched before cash ran out — fixed costs burn even without a team. Get to market in the first 10 weeks.");
+  } else if (hits === 0 && launched.length >= 2) {
+    tips.push("All launches flopped. Check the Market tab for rising trends and watch the competition landscape before designing.");
+  }
+
+  if (totalMade > 150 && totalSold < totalMade * 0.45 && tips.length < 2) {
+    tips.push("More than half of manufactured units went unsold — that's cash locked in inventory. Use 'Recommended' run sizes and plan small early.");
+  } else if (staff.length >= 4 && launched.length <= 1 && tips.length < 2) {
+    tips.push("Payroll grew faster than revenue. Keep the team lean (1–2 people) until at least one product is generating consistent income.");
+  }
+
+  return tips;
+}
+
 function BankruptOverlay() {
   const { state, restart } = useGame();
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
+  const bestRevProduct = state.launched.reduce<{ product: { name: string }; revenueToDate: number } | null>(
+    (top, lp) => (top == null || lp.revenueToDate > top.revenueToDate ? lp : top),
+    null,
+  );
+  const hitsCount = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const diagnosis = diagnoseFailure(state);
   return (
     <div className="bankrupt">
       <div
@@ -267,8 +392,38 @@ function BankruptOverlay() {
         <div className="bankrupt__glyph" aria-hidden><CircleX size={30} strokeWidth={2} /></div>
         <h2 className="bankrupt__title" id="bankrupt-title">Out of cash</h2>
         <p className="bankrupt__text">
-          The company ran out of money in week {state.week}. Every empire starts somewhere — try again.
+          {state.companyName} ran out of money. Every empire starts somewhere.
         </p>
+        <div className="bankrupt__postmortem">
+          <div className="bankrupt__pm-row">
+            <span className="bankrupt__pm-label">Survived</span>
+            <span className="bankrupt__pm-val tnum">{state.week} weeks</span>
+          </div>
+          <div className="bankrupt__pm-row">
+            <span className="bankrupt__pm-label">Revenue earned</span>
+            <span className="bankrupt__pm-val tnum">{format(state.cumulativeRevenue)}</span>
+          </div>
+          {state.launched.length > 0 && (
+            <div className="bankrupt__pm-row">
+              <span className="bankrupt__pm-label">Products shipped</span>
+              <span className="bankrupt__pm-val tnum">{state.launched.length} ({hitsCount} hits)</span>
+            </div>
+          )}
+          {bestRevProduct && (
+            <div className="bankrupt__pm-row">
+              <span className="bankrupt__pm-label">Best product</span>
+              <span className="bankrupt__pm-val">{bestRevProduct.product.name}</span>
+            </div>
+          )}
+        </div>
+        {diagnosis.length > 0 && (
+          <div className="bankrupt__diagnosis">
+            <p className="bankrupt__diag-label">What went wrong</p>
+            {diagnosis.map((d, i) => (
+              <p key={i} className="bankrupt__diag-tip">{d}</p>
+            ))}
+          </div>
+        )}
         <Button block onClick={restart}>Start a new company</Button>
       </div>
     </div>

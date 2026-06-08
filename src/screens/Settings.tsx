@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Boxes,
   Check,
   Download,
+  Lock,
   Monitor,
   Moon,
   RotateCcw,
@@ -16,7 +17,11 @@ import { Button, Sheet } from "../design/primitives.tsx";
 import { showToast } from "../design/toast.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { format, toDollars } from "../engine/money.ts";
+import { netWorth } from "../state/gameState.ts";
 import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
+import { hasSandboxEntitlement } from "../state/entitlements.ts";
+import { getSandboxProduct, purchaseSandbox, restoreSandbox, type ProductInfo } from "../state/iap.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./settings.css";
 
@@ -28,13 +33,30 @@ const THEMES: { id: ThemePref; label: string; Icon: typeof Sun }[] = [
 
 export function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettings();
-  const { state, restart, unlockSandbox } = useGame();
+  const { state, restart } = useGame();
   const [confirmReset, setConfirmReset] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+
+  const net = netWorth(state);
+  const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const hitRate = state.launched.length > 0 ? Math.round((hits / state.launched.length) * 100) : 0;
 
   return (
     <div className="set">
       <h2 className="set__title">Settings</h2>
+
+      {state.companyName && (
+        <div className="set__company">
+          <span className="set__company-name">{state.companyName}</span>
+          <div className="set__company-stats">
+            <span className="set__company-stat"><span className="set__company-stat-label">Week</span>{state.week}</span>
+            <span className="set__company-stat"><span className="set__company-stat-label">Products</span>{state.launched.length}</span>
+            <span className="set__company-stat"><span className="set__company-stat-label">Hit rate</span>{state.launched.length > 0 ? `${hitRate}%` : "—"}</span>
+            <span className="set__company-stat"><span className="set__company-stat-label">Revenue</span>{format(state.cumulativeRevenue)}</span>
+            <span className="set__company-stat"><span className="set__company-stat-label">Net worth</span>{toDollars(net) > 0 ? format(net) : "—"}</span>
+          </div>
+        </div>
+      )}
 
       <div className="set__group">
         <span className="set__group-label">Appearance</span>
@@ -69,21 +91,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         </Row>
       </div>
 
-      <div className="set__group">
-        <span className="set__group-label">Creative mode</span>
-        <Row icon={<Sparkles size={18} />} label="Unlimited cash (sandbox)" sub="Experiment freely — no bankruptcy.">
-          <Switch
-            on={state.sandboxUnlocked}
-            onChange={(v) => {
-              if (v) {
-                unlockSandbox();
-                haptic.success();
-                sfx("confirm");
-              }
-            }}
-          />
-        </Row>
-      </div>
+      <CreativeModeGroup />
 
       <div className="set__group">
         <span className="set__group-label">Backup</span>
@@ -115,7 +123,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      <p className="set__about">Silicon: Tech Tycoon · v0.1</p>
+      <p className="set__about">Silicon: Tech Tycoon · v0.1.0</p>
       <Button block onClick={onClose}>Done</Button>
 
       <Sheet open={importOpen} onClose={() => setImportOpen(false)}>
@@ -263,6 +271,77 @@ function downloadText(text: string, filename: string): void {
   } catch {
     /* download unsupported — the clipboard copy still gives the player their backup */
   }
+}
+
+/** Creative mode — the single v1 IAP. Locked behind a one-time purchase (the device-level
+ *  entitlement); once owned, a free toggle activates/deactivates it for the current game. */
+function CreativeModeGroup() {
+  const { state, setSandboxActive } = useGame();
+  const [owned, setOwned] = useState(() => hasSandboxEntitlement());
+  const [product, setProduct] = useState<ProductInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    getSandboxProduct().then((p) => { if (live) setProduct(p); });
+    return () => { live = false; };
+  }, []);
+
+  async function buy() {
+    if (busy) return;
+    setBusy(true);
+    const res = await purchaseSandbox();
+    setBusy(false);
+    if (res.status === "purchased") {
+      setOwned(true);
+      setSandboxActive(true);
+      haptic.success();
+      sfx("confirm");
+      showToast("Creative Mode unlocked", { tone: "positive" });
+    } else if (res.status !== "cancelled") {
+      haptic.error();
+      showToast(res.message ?? "Purchase unavailable right now.", { tone: "negative" });
+    }
+  }
+
+  async function restore() {
+    const res = await restoreSandbox();
+    if (res.restored) {
+      setOwned(true);
+      haptic.success();
+      showToast("Purchases restored — Creative Mode unlocked.", { tone: "positive" });
+    } else {
+      showToast("No previous purchases found.", { tone: "neutral" });
+    }
+  }
+
+  return (
+    <div className="set__group">
+      <span className="set__group-label">Creative mode</span>
+      {owned ? (
+        <Row
+          icon={<Sparkles size={18} />}
+          label="Sandbox mode"
+          sub={state.sandboxUnlocked ? "Active — cash floor prevents bankruptcy. Design freely." : "Owned. Toggle on to design without financial limits."}
+        >
+          <Switch on={state.sandboxUnlocked} onChange={(v) => { setSandboxActive(v); haptic.light(); sfx("toggle"); }} />
+        </Row>
+      ) : (
+        <>
+          <Row
+            icon={<Lock size={18} />}
+            label="Creative Mode"
+            sub="Design freely with no financial limits — an unlimited cash floor so you can never go bankrupt."
+          >
+            <Button onClick={buy} disabled={busy}>
+              {busy ? "…" : `Unlock · ${product?.price ?? "$2.99"}`}
+            </Button>
+          </Row>
+          <button className="set__restore" onClick={restore}>Restore purchase</button>
+        </>
+      )}
+    </div>
+  );
 }
 
 function Row({ icon, label, sub, children }: { icon: React.ReactNode; label: string; sub?: string; children: React.ReactNode }) {

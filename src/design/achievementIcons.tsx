@@ -19,6 +19,10 @@ import {
   Flame,
   PiggyBank,
   LineChart,
+  FlaskConical,
+  UserPlus,
+  Package,
+  Zap,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
@@ -43,6 +47,11 @@ const ICONS: Record<AchievementIconName, LucideIcon> = {
   Flame,
   PiggyBank,
   LineChart,
+  FlaskConical,
+  UserPlus,
+  Package,
+  Zap,
+  Trophy,
 };
 
 export function achievementIcon(name: AchievementIconName): LucideIcon {

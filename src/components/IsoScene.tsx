@@ -1,19 +1,13 @@
 // The HQ garage — a detailed isometric vector scene. Pure SVG (zero image assets).
-// Each employee is a distinct, characterful figure (hair, skin, shirt, accessory, mood)
-// seated at a laptop that faces THEM. Ambient life: typing, sways, a 3D printer that runs
-// while products sell, a swaying pendant lamp. The workspace grows with staff + facility tier.
+// Each employee is a distinct mascot robot (chassis colour, crest, module, mood) seated at a
+// laptop that faces THEM. Ambient life: typing, sways, a 3D printer that runs while products
+// sell, a swaying pendant lamp. The workspace grows with staff + facility tier.
 //
 // Drop in your own artwork? Put an SVG/PNG in `public/hq/` and set HQ_CUSTOM_ASSET below.
 import { useId, type ReactNode } from "react";
-import {
-  DEFAULT_APPEARANCE,
-  HAIR_COLORS,
-  MOOD_COLOR,
-  moodBand,
-  SHIRT_COLORS,
-  SKIN_TONES,
-} from "../engine/staff.ts";
+import { MOOD_COLOR, moodBand } from "../engine/staff.ts";
 import type { Staff } from "../engine/types.ts";
+import { eyeShapeFor, robotLook, ROBOT_BODY, type EyeShape } from "./robotKit.ts";
 import "./garage.css";
 
 const HQ_CUSTOM_ASSET: string | null = null;
@@ -85,24 +79,24 @@ function Chair({ c, r, hue }: { c: number; r: number; hue: string }) {
   );
 }
 
-// A distinct seated employee, facing the viewer, drawn from their appearance + mood.
+// A distinct seated robot, facing the viewer, drawn from their appearance + mood. The team are
+// mascot robots (never humans): a chassis torso with a glowing core, a metal neck ring, a rounded
+// head with a dark face-screen visor + glowing eyes that track mood, and a mood-lit antenna.
 function Person({ s, c, r }: { s: Staff; c: number; r: number }) {
   const [x, y] = iso(c, r);
-  const ap = s.appearance ?? DEFAULT_APPEARANCE;
-  const skin = SKIN_TONES[ap.skin % SKIN_TONES.length];
-  const hair = HAIR_COLORS[ap.hairColor % HAIR_COLORS.length];
-  const shirt = SHIRT_COLORS[ap.shirt % SHIRT_COLORS.length];
+  const look = robotLook(s.appearance);
   const band = moodBand(s.mood);
+  const moodCol = MOOD_COLOR[band];
+  const eyes = eyeShapeFor(band);
   const hn = hashNum(s.id);
   const dSway = `${(hn % 7) * 0.3}s`;
   const dArm = `${(hn % 5) * 0.22 + 0.1}s`;
   const dHead = `${(hn % 9) * 0.5}s`;
 
   const shoulderY = y - SIT - 14;
-  const hr = 5; // head radius
+  const hr = 5; // head half-size
   const hcy = shoulderY - hr - 1.5; // head center y
-  const eyeY = hcy + 0.3;
-  const darks = "#2a2623";
+  const eyeY = hcy + 0.4;
 
   return (
     <g>
@@ -110,116 +104,112 @@ function Person({ s, c, r }: { s: Staff; c: number; r: number }) {
       <g className="g-person-sway" style={{ animationDelay: dSway }}>
         {/* arms (behind torso, reaching toward the desk) */}
         <g className="g-person-arms" style={{ animationDelay: dArm }}>
-          <rect x={x - 8.4} y={shoulderY + 1} width={3.4} height={9} rx={1.7} fill={shirt} transform={`rotate(13 ${x - 6.7} ${shoulderY + 1})`} />
-          <rect x={x + 5} y={shoulderY + 1} width={3.4} height={9} rx={1.7} fill={shirt} transform={`rotate(-13 ${x + 6.7} ${shoulderY + 1})`} />
+          <rect x={x - 8.4} y={shoulderY + 1} width={3.4} height={9} rx={1.7} fill={look.body} transform={`rotate(13 ${x - 6.7} ${shoulderY + 1})`} />
+          <rect x={x + 5} y={shoulderY + 1} width={3.4} height={9} rx={1.7} fill={look.body} transform={`rotate(-13 ${x + 6.7} ${shoulderY + 1})`} />
         </g>
-        {/* torso */}
-        <rect x={x - 6.6} y={shoulderY} width={13.2} height={14} rx={4} fill={shirt} />
-        <rect x={x - 6.6} y={shoulderY} width={13.2} height={4.5} rx={3} fill="#ffffff" opacity={0.12} />
-        {/* neck */}
-        <rect x={x - 2.2} y={shoulderY - 3.5} width={4.4} height={5} rx={1.6} fill={skin} />
+        {/* torso chassis + belly panel + glowing core */}
+        <rect x={x - 6.6} y={shoulderY} width={13.2} height={14} rx={5} fill={look.body} />
+        <rect x={x - 4.2} y={shoulderY + 2} width={8.4} height={8} rx={3} fill={look.belly} />
+        <circle cx={x} cy={shoulderY + 6} r={1.5} fill={moodCol} opacity={0.9} />
+        {/* metal neck ring */}
+        <rect x={x - 2.4} y={shoulderY - 2.6} width={4.8} height={2.6} rx={1.3} fill={look.metal} />
         {/* head */}
         <g className="g-person-head" style={{ animationDelay: dHead }}>
-          <HairBack style={ap.hair} x={x} cy={hcy} hr={hr} hair={hair} />
-          <circle cx={x} cy={hcy} r={hr} fill={skin} />
-          <Fringe style={ap.hair} x={x} cy={hcy} hr={hr} hair={hair} />
-          <HairSide style={ap.hair} x={x} cy={hcy} hr={hr} shoulderY={shoulderY} hair={hair} />
-          {/* eyes */}
-          <circle cx={x - 1.9} cy={eyeY} r={0.75} fill={darks} />
-          <circle cx={x + 1.9} cy={eyeY} r={0.75} fill={darks} />
-          {/* mouth by mood */}
-          <Mouth band={band} x={x} y={hcy + 2.6} />
-          <Accessory accessory={ap.accessory} x={x} cy={hcy} hr={hr} eyeY={eyeY} shirt={shirt} />
+          <RobotCrestMini style={look.headStyle} x={x} topY={hcy - hr} metal={look.metal} tip={moodCol} />
+          <rect x={x - hr} y={hcy - hr + 0.5} width={hr * 2} height={hr * 2 - 0.5} rx={2.6} fill={look.body} />
+          <rect x={x - hr + 0.6} y={hcy - hr + 1} width={hr * 2 - 1.2} height={1.4} rx={0.7} fill="#ffffff" opacity={0.14} />
+          {/* face-screen visor */}
+          <rect x={x - 3.8} y={eyeY - 1.9} width={7.6} height={4} rx={1.8} fill={look.dark} />
+          <RobotSeatEyes shape={eyes} x={x} eyeY={eyeY} glow="#eaf6ff" accent={moodCol} />
+          <RobotSeatModule accessory={look.accessory} x={x} cy={hcy} hr={hr} eyeY={eyeY} metal={look.metal} trim={look.trim} />
         </g>
       </g>
       {/* mood status dot */}
-      <circle cx={x + hr - 0.5} cy={hcy - hr + 0.5} r={2} fill={MOOD_COLOR[band]} stroke="var(--surface)" strokeWidth={0.8} />
+      <circle cx={x + hr - 0.5} cy={hcy - hr + 0.5} r={2} fill={moodCol} stroke="var(--surface)" strokeWidth={0.8} />
     </g>
   );
 }
 
-function HairBack({ style, x, cy, hr, hair }: { style: number; x: number; cy: number; hr: number; hair: string }) {
-  if (style === 5) return null; // bald
-  const grow = style === 1 ? 0.4 : 0.9; // buzz vs full
-  return <circle cx={x} cy={cy - 0.8} r={hr + grow} fill={hair} />;
-}
-
-function Fringe({ style, x, cy, hr, hair }: { style: number; x: number; cy: number; hr: number; hair: string }) {
-  if (style === 5 || style === 1) return null;
-  if (style === 2) return <circle cx={x} cy={cy - hr - 1.5} r={2.1} fill={hair} />; // bun
-  if (style === 4) {
-    // curly
+/** Antenna / crest variants for the seated robot, keyed by head style. */
+function RobotCrestMini({ style, x, topY, metal, tip }: { style: number; x: number; topY: number; metal: string; tip: string }) {
+  if (style === 5) return <rect x={x - 2.5} y={topY + 0.4} width={5} height={1.4} rx={0.7} fill={metal} />; // flat sensor strip
+  if (style === 3) {
     return (
       <g>
-        {[-1, 0, 1].map((i) => (
-          <circle key={i} cx={x + i * 3} cy={cy - hr + 0.5} r={2} fill={hair} />
+        {[-2.6, 2.6].map((dx) => (
+          <g key={dx}>
+            <rect x={x + dx - 0.5} y={topY - 2.4} width={1} height={3.4} rx={0.5} fill={metal} />
+            <circle cx={x + dx} cy={topY - 2.8} r={1.2} fill={tip} />
+          </g>
         ))}
       </g>
     );
   }
-  // short / long: a fringe sweep across the upper forehead
-  return <path d={`M ${x - hr} ${cy - 1.5} Q ${x - 1} ${cy - hr - 1} ${x + hr} ${cy - 2.5} L ${x + hr} ${cy - hr} L ${x - hr} ${cy - hr} Z`} fill={hair} />;
-}
-
-function HairSide({ style, x, cy, hr, shoulderY, hair }: { style: number; x: number; cy: number; hr: number; shoulderY: number; hair: string }) {
-  if (style !== 3) return null; // long hair side panels
-  const top = cy - 1;
-  const h = shoulderY + 3 - top;
+  const stalkH = style === 1 ? 1.8 : 3.2;
   return (
     <g>
-      <rect x={x - hr - 0.6} y={top} width={2.4} height={h} rx={1.2} fill={hair} />
-      <rect x={x + hr - 1.8} y={top} width={2.4} height={h} rx={1.2} fill={hair} />
+      <rect x={x - 0.5} y={topY - stalkH} width={1} height={stalkH} rx={0.5} fill={metal} />
+      <circle cx={x} cy={topY - stalkH} r={1.4} fill={tip} />
     </g>
   );
 }
 
-function Mouth({ band, x, y }: { band: ReturnType<typeof moodBand>; x: number; y: number }) {
-  const dark = "#7a4a3a";
-  let d: string;
-  if (band === "thriving" || band === "happy") d = `M ${x - 2} ${y} Q ${x} ${y + 1.8} ${x + 2} ${y}`;
-  else if (band === "neutral") d = `M ${x - 1.6} ${y + 0.6} L ${x + 1.6} ${y + 0.6}`;
-  else if (band === "tired") d = `M ${x - 1.6} ${y + 0.8} Q ${x} ${y + 0.2} ${x + 1.6} ${y + 0.8}`;
-  else d = `M ${x - 2} ${y + 1.4} Q ${x} ${y - 0.4} ${x + 2} ${y + 1.4}`; // frown
-  return <path d={d} stroke={dark} strokeWidth={0.8} strokeLinecap="round" fill="none" />;
+/** Glowing eyes on the visor, shaped by mood. */
+function RobotSeatEyes({ shape, x, eyeY, glow, accent }: { shape: EyeShape; x: number; eyeY: number; glow: string; accent: string }) {
+  const dx = 1.9;
+  if (shape === "happy") {
+    const arc = (ex: number) => `M ${ex - 1} ${eyeY + 0.4} Q ${ex} ${eyeY - 1.1} ${ex + 1} ${eyeY + 0.4}`;
+    return (
+      <g stroke={glow} strokeWidth={0.9} strokeLinecap="round" fill="none">
+        <path d={arc(x - dx)} />
+        <path d={arc(x + dx)} />
+      </g>
+    );
+  }
+  if (shape === "tired" || shape === "off") {
+    const op = shape === "off" ? 0.5 : 0.85;
+    return (
+      <g stroke={shape === "off" ? accent : glow} strokeWidth={0.9} strokeLinecap="round" opacity={op}>
+        <line x1={x - dx - 0.8} y1={eyeY + 0.3} x2={x - dx + 0.8} y2={eyeY + 0.3} />
+        <line x1={x + dx - 0.8} y1={eyeY + 0.3} x2={x + dx + 0.8} y2={eyeY + 0.3} />
+      </g>
+    );
+  }
+  const ry = shape === "wide" ? 1.3 : 0.95;
+  return (
+    <g fill={glow}>
+      <ellipse cx={x - dx} cy={eyeY} rx={0.9} ry={ry} />
+      <ellipse cx={x + dx} cy={eyeY} rx={0.9} ry={ry} />
+    </g>
+  );
 }
 
-function Accessory({ accessory, x, cy, hr, eyeY, shirt }: { accessory: Staff["appearance"]["accessory"]; x: number; cy: number; hr: number; eyeY: number; shirt: string }) {
-  const dark = "#2a2623";
+/** Bolt-on modules for the seated robot, reinterpreting the stored accessory as hardware. */
+function RobotSeatModule({ accessory, x, cy, hr, eyeY, metal, trim }: { accessory: Staff["appearance"]["accessory"]; x: number; cy: number; hr: number; eyeY: number; metal: string; trim: string }) {
   if (accessory === "glasses")
     return (
-      <g stroke={dark} strokeWidth={0.6} fill="rgba(255,255,255,0.12)">
-        <circle cx={x - 1.9} cy={eyeY} r={1.6} />
-        <circle cx={x + 1.9} cy={eyeY} r={1.6} />
-        <line x1={x - 0.4} y1={eyeY} x2={x + 0.4} y2={eyeY} />
+      <g stroke={trim} strokeWidth={0.4} fill="none" opacity={0.9}>
+        <circle cx={x - 1.9} cy={eyeY} r={1.5} />
+        <circle cx={x + 1.9} cy={eyeY} r={1.5} />
       </g>
     );
   if (accessory === "headphones")
     return (
       <g>
-        <path d={`M ${x - hr - 1} ${cy} Q ${x} ${cy - hr - 3.5} ${x + hr + 1} ${cy}`} stroke={dark} strokeWidth={1.4} fill="none" />
-        <rect x={x - hr - 2} y={cy - 1.5} width={2.4} height={4} rx={1} fill={dark} />
-        <rect x={x + hr - 0.4} y={cy - 1.5} width={2.4} height={4} rx={1} fill={dark} />
+        <path d={`M ${x - hr - 0.6} ${cy} Q ${x} ${cy - hr - 3} ${x + hr + 0.6} ${cy}`} stroke={metal} strokeWidth={1.2} fill="none" />
+        <rect x={x - hr - 1.8} y={cy - 1.3} width={2.2} height={3.8} rx={1} fill={metal} />
+        <rect x={x + hr - 0.4} y={cy - 1.3} width={2.2} height={3.8} rx={1} fill={metal} />
       </g>
     );
   if (accessory === "cap")
-    return (
-      <g>
-        <path d={`M ${x - hr - 0.5} ${cy - hr + 1} Q ${x} ${cy - hr - 3} ${x + hr + 0.5} ${cy - hr + 1} Z`} fill={shirt} />
-        <rect x={x - hr - 3} y={cy - hr + 0.5} width={4} height={1.6} rx={0.8} fill={shirt} />
-      </g>
-    );
+    return <rect x={x - hr} y={cy - hr + 0.5} width={hr * 2} height={2} rx={1} fill={metal} opacity={0.9} />;
   if (accessory === "beanie")
-    return (
-      <g>
-        <path d={`M ${x - hr - 0.5} ${cy - 0.5} Q ${x} ${cy - hr - 3.5} ${x + hr + 0.5} ${cy - 0.5} Z`} fill={shirt} />
-        <rect x={x - hr - 0.5} y={cy - 1.5} width={hr * 2 + 1} height={2} rx={1} fill="#ffffff" opacity={0.18} />
-      </g>
-    );
+    return <path d={`M ${x - hr} ${cy - hr + 2.5} Q ${x} ${cy - hr - 2.5} ${x + hr} ${cy - hr + 2.5} Z`} fill={metal} opacity={0.9} />;
   if (accessory === "earrings")
     return (
-      <g fill="#d4af37">
-        <circle cx={x - hr + 0.3} cy={eyeY + 1.6} r={0.7} />
-        <circle cx={x + hr - 0.3} cy={eyeY + 1.6} r={0.7} />
+      <g fill={trim}>
+        <circle cx={x - hr + 0.2} cy={eyeY + 1.6} r={0.7} />
+        <circle cx={x + hr - 0.2} cy={eyeY + 1.6} r={0.7} />
       </g>
     );
   return null;
@@ -362,7 +352,7 @@ export function IsoScene({
     const member = team[i];
     const personR = dk.r - DESK_DR + 0.12;
     const chairR = dk.r - DESK_DR - 0.18;
-    const hue = member ? SHIRT_COLORS[member.appearance.shirt % SHIRT_COLORS.length] : "var(--g-chair-d)";
+    const hue = member ? ROBOT_BODY[member.appearance.shirt % ROBOT_BODY.length] : "var(--g-chair-d)";
     ents.push({ d: dk.c + chairR, k: `chair${i}`, n: <Chair c={dk.c} r={chairR} hue={hue} /> });
     if (occupied && member) ents.push({ d: dk.c + personR, k: `person${i}`, n: <Person s={member} c={dk.c} r={personR} /> });
     ents.push({ d: dk.c + dk.r, k: `desk${i}`, n: <Desk c={dk.c} r={dk.r} /> });
@@ -373,7 +363,7 @@ export function IsoScene({
   ents.sort((a, b) => a.d - b.d);
 
   return (
-    <svg className="garage" viewBox="0 0 340 300" height={height} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Company workspace with ${staffCount} ${staffCount === 1 ? "person" : "people"}`}>
+    <svg className="garage" viewBox="0 0 340 300" height={height} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`Company workspace with ${staffCount} ${staffCount === 1 ? "robot" : "robots"}`}>
       <defs>
         <linearGradient id={`sky-${uid}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#bfe0ff" />

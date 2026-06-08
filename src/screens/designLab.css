@@ -7,6 +7,62 @@
   flex-direction: column;
   gap: var(--sp-16);
 }
+
+/* Market hint banner — shown when a stat is trending up */
+.lab__market-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-14);
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.lab__market-hint-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: mkt-pulse 2s ease-in-out infinite;
+}
+.lab__market-hint strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+@keyframes mkt-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Trend shift countdown — shown when a retarget is within 5 weeks */
+.lab__trend-shift {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-14);
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.lab__trend-shift-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+  flex-shrink: 0;
+  animation: mkt-pulse 1.2s ease-in-out infinite;
+}
+.lab__trend-shift strong {
+  color: var(--warning);
+  font-weight: 700;
+}
 .lab__hero {
   display: flex;
   flex-direction: column;
@@ -133,6 +189,28 @@
 .lab__chip:active {
   transform: scale(0.95);
 }
+.lab__chip-gen {
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink-3) 18%, transparent);
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.lab__chip--on .lab__chip-gen {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  color: inherit;
+}
+.lab__chip-gen--live {
+  background: color-mix(in srgb, var(--positive) 20%, transparent);
+  color: var(--positive-text, var(--positive));
+}
+.lab__chip--on .lab__chip-gen--live {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  color: inherit;
+}
 .lab__components {
   display: flex;
   flex-direction: column;
@@ -156,10 +234,48 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+}
+.lab__comp-pips {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.lab__comp-pip {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink-3) 25%, transparent);
+  transition: background 0.15s;
+}
+.lab__comp-pip--on {
+  background: var(--accent);
+}
+.lab__comp-pip--unlocked {
+  background: color-mix(in srgb, var(--ink-3) 55%, transparent);
 }
 .lab__comp-tier {
   font-size: var(--fs-body);
   font-weight: 600;
+}
+.lab__comp-contrib {
+  margin-top: 2px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--positive-text);
+}
+.lab__comp-locked {
+  margin-top: 1px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.lab__comp-cost {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
 }
 .lab__stepper {
   display: inline-flex;
@@ -226,6 +342,213 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+/* Previous product in category — benchmark reference inside the Category card */
+.lab__prev-product {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  font-size: var(--fs-caption);
+}
+.lab__prev-label {
+  color: var(--ink-3);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.lab__prev-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-2);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lab__prev-score {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.lab__prev-score--up {
+  color: var(--positive-text);
+}
+
+/* Stat delta pills — shown below StatBars when a previous product exists in the category */
+.lab__stat-deltas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+}
+.lab__delta-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.lab__delta-pill--up {
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+  color: var(--positive-text);
+}
+.lab__delta-pill--down {
+  background: color-mix(in srgb, var(--negative) 10%, transparent);
+  color: var(--negative-text, var(--negative));
+}
+.lab__delta-vs {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+/* Score target indicator */
+.lab__score-target {
+  margin-top: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  transition: background 0.2s, border-color 0.2s;
+}
+.lab__score-target--met {
+  background: color-mix(in srgb, var(--positive) 10%, transparent);
+  border-color: color-mix(in srgb, var(--positive) 22%, transparent);
+}
+.lab__score-target-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: var(--sp-6);
+}
+.lab__score-target--met .lab__score-target-head {
+  color: var(--positive-text, var(--positive));
+}
+.lab__score-target-head .tnum {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: 700;
+}
+.lab__score-target-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  overflow: hidden;
+}
+.lab__score-target--met .lab__score-target-track {
+  background: color-mix(in srgb, var(--positive) 15%, transparent);
+}
+.lab__score-target-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.lab__score-target--met .lab__score-target-fill {
+  background: var(--positive);
+}
+
+/* Best upgrade hint — single-line suggestion for biggest stat gain */
+.lab__upgrade-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.lab__upgrade-hint strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Competitive position indicator — shown below StatBars in the Stats card */
+.lab__vs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+.lab__vs--ahead {
+  background: color-mix(in srgb, var(--positive) 10%, transparent);
+  color: var(--positive-text);
+}
+.lab__vs--even {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+}
+.lab__vs--behind {
+  background: color-mix(in srgb, var(--negative) 10%, transparent);
+  color: var(--negative-text, var(--negative));
+}
+.lab__cat-focus {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-10);
+  flex-wrap: wrap;
+}
+.lab__cat-focus-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.lab__cat-focus-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  background: var(--bg-elevated);
+  color: var(--ink-2);
+}
+.lab__cat-focus-stat--good {
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
+  color: var(--positive-text, var(--positive));
+}
+.lab__cat-focus-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+}
+.lab__cat-focus-arrow--up {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 5px solid currentColor;
+}
+.lab__cat-focus-arrow--down {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
 .lab__warn {
   margin: var(--sp-8) 0 var(--sp-12);
   font-size: var(--fs-caption);
@@ -258,7 +581,66 @@
 }
 .lab__price-meta {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+}
+
+/* BOM cost breakdown */
+.lab__bom {
+  margin-top: var(--sp-12);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.lab__bom-row {
+  display: flex;
+  align-items: center;
   gap: var(--sp-8);
+}
+.lab__bom-name {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+  min-width: 96px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lab__bom-bar-wrap {
+  flex: 1;
+  height: 4px;
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.lab__bom-bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.lab__bom-val {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  min-width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.lab__bom-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  border-top: 1px solid var(--hairline);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-6);
 }
 .lab__name {
   width: 100%;
@@ -274,6 +656,84 @@
 .lab__name:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
+}
+
+/* Revenue estimate in Name & Build card */
+.lab__rev-estimate {
+  margin-top: var(--sp-12);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.lab__rev-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.lab__rev-label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.lab__rev-val {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.lab__rev-val--pos { color: var(--positive-text, var(--positive)); }
+.lab__rev-val--neg { color: var(--negative-text, var(--negative)); }
+.lab__rev-note {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* ---------- Personal best comparison ---------- */
+.lab__prev-best {
+  margin-top: var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.lab__prev-best-label {
+  display: block;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--sp-4);
+}
+.lab__prev-best-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.lab__prev-best-name {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lab__prev-best-score {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.lab__prev-best-beat {
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  color: var(--positive-text, var(--positive));
+  white-space: nowrap;
 }
 
 /* ---------- Production wizard ---------- */
@@ -303,6 +763,7 @@
 .wiz__channel-blurb { font-size: var(--fs-caption); color: var(--ink-2); }
 .wiz__channel-meta { display: flex; flex-direction: column; align-items: flex-end; font-weight: 700; font-size: var(--fs-caption); }
 .wiz__channel-hype { font-size: var(--fs-micro); color: var(--fn-mkt-text); }
+.wiz__channel-demand { font-size: var(--fs-micro); font-weight: 800; color: var(--positive-text, var(--positive)); }
 .wiz__total { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-12); border-radius: var(--r-button); background: var(--bg-elevated); font-weight: 700; font-size: var(--fs-headline); }
 .wiz__total--bad { color: var(--negative-text); }
 .wiz__warn { font-size: var(--fs-caption); color: var(--negative-text); text-align: center; }
@@ -320,3 +781,40 @@
 .wiz__warn--risk svg { flex: 0 0 auto; margin-top: 1px; }
 .wiz__nav { display: flex; gap: var(--sp-8); }
 .wiz__cancel { padding: var(--sp-8); font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
+
+/* ---------- Design Lab section tabs ---------- */
+.lab__tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--bg-elevated);
+  padding: 4px;
+  border-radius: var(--r-pill);
+}
+.lab__tab {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: calc(var(--r-pill) - 2px);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  transition: all var(--spring-snappy);
+  white-space: nowrap;
+}
+.lab__tab--on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-subtle);
+}
+.lab__tab:active:not(.lab__tab--on) {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
+}
+.lab__pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  animation: lab-pane-in 0.18s ease;
+}
+@keyframes lab-pane-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

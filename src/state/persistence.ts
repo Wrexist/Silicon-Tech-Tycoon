@@ -2,9 +2,9 @@
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
 import { defaultLayout } from "../engine/furniture.ts";
-import { makeIdentity } from "../engine/staff.ts";
+import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, type Product, type StaffRole } from "../engine/types.ts";
-import { SAVE_VERSION, type GameState } from "./gameState.ts";
+import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { showToast } from "../design/toast.tsx";
 
@@ -236,6 +236,8 @@ function migrate(state: GameState): GameState | null {
   // backfilled SILENTLY at the end of migrate (after all fields are valid) so a returning player
   // isn't dumped a dozen toasts on first load — they're marked unlocked without a celebration.
   if (!Array.isArray(s.unlockedAchievements)) s.unlockedAchievements = [];
+  if (s.pendingChoice === undefined) s.pendingChoice = null;
+  if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
   if (Array.isArray(s.competitors)) {
     s.competitors = s.competitors.map((c: any) => ({
       ...c,
@@ -243,6 +245,12 @@ function migrate(state: GameState): GameState | null {
       sharePrice: Number.isFinite(c.sharePrice) ? c.sharePrice : 5000,
       priceHistory: Array.isArray(c.priceHistory) && c.priceHistory.length ? c.priceHistory : [Number.isFinite(c.sharePrice) ? c.sharePrice / 100 : 50],
     }));
+  }
+  // Industry leaderboard (added later): seed the best-rank to the player's CURRENT rank so a
+  // returning player isn't spammed with "overtook" celebrations for progress already behind them.
+  if (!Number.isFinite(s.bestIndustryRank)) {
+    try { s.bestIndustryRank = industryRank(s as GameState); }
+    catch { s.bestIndustryRank = 7; }
   }
   if (typeof s.companyName !== "string" || !s.companyName) s.companyName = "Silicon";
   if (!Array.isArray(s.layout)) s.layout = defaultLayout();
@@ -270,9 +278,21 @@ function migrate(state: GameState): GameState | null {
         if (m.mood == null) m.mood = id.mood;
         if (m.appearance == null) m.appearance = id.appearance;
       }
+      // v2.2: per-discipline 0..100 skills — backfill deterministically from id + headline skill.
+      if (m.skills == null) {
+        m.skills = makeSkills(makeRng(hashId((m.id ?? "s0") + "k")), (m.role as StaffRole) ?? "engineer", Math.max(1, Math.min(10, Math.round(m.skill ?? 3))));
+      }
+      if (m.moodLowWeeks == null) m.moodLowWeeks = 0;
       return m;
     });
   }
+  // v2.2: recruitment system fields
+  if (s.recruitment === undefined) s.recruitment = null;
+  if (!Array.isArray(s.candidates)) s.candidates = [];
+  if (s.candidateCounter == null) s.candidateCounter = 0;
+  if (s.candidatesExpire == null) s.candidatesExpire = 0;
+  // a search saved under the pre-tier shape gets the cheapest channel
+  if (s.recruitment && s.recruitment.tier == null) s.recruitment.tier = "board";
   if (Array.isArray(s.launched)) {
     s.launched = s.launched.map((lp: any) => {
       if (lp.product) lp.product = fixProduct(lp.product);

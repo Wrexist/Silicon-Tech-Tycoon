@@ -1,17 +1,18 @@
 import {
-  Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, CircleDot, Clock, Coffee,
+  Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, ChevronRight, CircleDot, Clock, Coffee,
   Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
-  Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Megaphone, Monitor, Music, PaintbrushVertical, PencilRuler, Presentation, Printer,
+  Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
   Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
-  Table2, Target, Trash2, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
+  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { BALANCE } from "../engine/balance.ts";
+import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { format } from "../engine/money.ts";
+import { format, toDollars } from "../engine/money.ts";
 import {
   canPlace,
   CATEGORY_LABEL,
@@ -28,7 +29,10 @@ import {
 } from "../engine/furniture.ts";
 import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
-import { canAdvance, canIPO, facility, upgradeCost } from "../state/gameState.ts";
+import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
+import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
+import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
 import { useSettings } from "../state/settings.ts";
@@ -62,7 +66,7 @@ const UPGRADE_FN: Record<UpgradeId, { accent: string; soft: string }> = {
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
 
 export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
-  const { state, advanceEra, launchReady, goPublic } = useGame();
+  const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
   const onLaunch = (id: string) => {
     const res = launchReady(id);
@@ -72,7 +76,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       sfx("launch");
       if (sc >= 76) setTimeout(() => sfx("hit"), 380);
       showToast(
-        sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : "Launched into the market.",
+        sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : sc >= 45 ? "Launched — solid performance." : "Launched into the market.",
         { tone: sc <= 22 ? "negative" : "positive", glyph: <Rocket size={15} /> },
       );
     }
@@ -82,7 +86,9 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const hasProduction =
     state.building.length > 0 || state.launched.some((l) => l.weeksElapsed < l.weeklyUnits.length);
   const advanceReady = canAdvance(state);
-  const latest = state.feed[state.feed.length - 1];
+  const nextEraUnlocks = advanceReady
+    ? CATEGORY_LIST.filter((c) => c.unlockEra === state.era + 1).map((c) => c.displayName)
+    : [];
 
   return (
     <div className="hq">
@@ -111,7 +117,11 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <Card className="hq__era">
           <div className="hq__era-body">
             <span className="hq__era-title">New era unlocked</span>
-            <span className="hq__era-sub">Advance to the {eraName(state.era + 1)} for new tech & categories.</span>
+            <span className="hq__era-sub">
+              {nextEraUnlocks.length > 0
+                ? `Unlocks: ${nextEraUnlocks.join(", ")} + new component tiers`
+                : `New tech & components for the ${eraName(state.era + 1)}`}
+            </span>
           </div>
           <Button
             size="sm"
@@ -130,8 +140,48 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <StatPill label="Products" value={state.launched.length} />
         <StatPill label="Team" value={state.staff.length} />
         <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-        {state.era < maxEra() && <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />}
+        {state.era < maxEra()
+          ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
+          : <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
       </div>
+      {(() => {
+        const wkBurn = burn(state);
+        const wkRev = nextWeekRevenue(state);
+        const runway = runwayWeeks(state.cash, wkBurn, wkRev);
+        // The pill is already labelled "Runway" — keep the value short so it doesn't read "Runway 7wk runway".
+        const runwayLabel = runway === Infinity ? "Profitable" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
+        const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
+        return (
+          <div className="hq__fin-pills">
+            <StatPill label="Cash" value={format(state.cash)} tone={state.cash >= 0 ? "neutral" : "negative"} />
+            <StatPill label="Runway" value={runwayLabel} tone={runwayTone as "positive" | "negative" | "neutral"} />
+          </div>
+        );
+      })()}
+      {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
+
+      {/* Player-choice event card — requires a decision before advancing */}
+      {state.pendingChoice && (
+        <Card className="hq__choice">
+          <div className="hq__choice-head">
+            <Zap size={14} className="hq__choice-icon" aria-hidden />
+            <span className="hq__choice-title">{state.pendingChoice.event.title}</span>
+          </div>
+          <p className="hq__choice-body">{state.pendingChoice.event.body}</p>
+          <div className="hq__choice-options">
+            {state.pendingChoice.event.options.map((opt) => (
+              <button
+                key={opt.id}
+                className="hq__choice-opt"
+                onClick={() => { resolveChoice(opt.id); haptic.success(); }}
+              >
+                <span className="hq__choice-opt-label">{opt.label}</span>
+                <span className="hq__choice-opt-desc">{opt.description}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Ready to launch */}
       {state.ready.length > 0 && (
@@ -158,14 +208,23 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           <SectionHeader title="In production" accessory="manufacturing" />
           {state.building.map((job) => {
             const pct = Math.min(100, Math.round((job.weeksElapsed / job.totalWeeks) * 100));
+            const weeksLeft = Math.max(0, job.totalWeeks - job.weeksElapsed);
             return (
               <div className="hq__build" key={job.product.id}>
-                <div className="hq__build-head">
-                  <span className="hq__ready-name">{job.product.name}</span>
-                  <span className="hq__build-pct tnum">{pct}%</span>
-                </div>
-                <div className="hq__build-track">
-                  <div className="hq__build-fill" style={{ width: `${pct}%` }} />
+                <div className="hq__build-row">
+                  <div className="hq__ready-thumb"><DeviceRenderer product={job.product} size={48} /></div>
+                  <div className="hq__build-body">
+                    <div className="hq__build-head">
+                      <span className="hq__ready-name">{job.product.name}</span>
+                      <span className="hq__build-pct tnum">
+                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · wk {state.week + weeksLeft}</span>}
+                      </span>
+                    </div>
+                    <div className="hq__build-track">
+                      <div className="hq__build-fill" style={{ width: `${pct}%`, background: pct >= 80 ? "var(--positive)" : undefined }} />
+                    </div>
+                    {job.plannedUnits != null && <span className="hq__build-units">{job.plannedUnits.toLocaleString()} units</span>}
+                  </div>
                 </div>
               </div>
             );
@@ -182,13 +241,11 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
         </Card>
       ) : (
-        latest && (
-          <Card>
-            <SectionHeader title="Latest" />
-            <p className="hq__latest">{latest.text}</p>
-            <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
-          </Card>
-        )
+        <>
+          <PerformanceCard state={state} onNavigate={onNavigate} />
+          <StrategicInsightsCard state={state} onNavigate={onNavigate} />
+          {state.feed.length > 0 && <FeedCard feed={state.feed} week={state.week} onNavigate={onNavigate} />}
+        </>
       )}
     </div>
   );
@@ -302,7 +359,7 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
                 onContextLost={() => setGlLost(true)}
                 builder={builder}
                 roomStyle={state.roomStyle}
-                height={build ? 400 : 250}
+                height={build ? 460 : 420}
               />
             </Suspense>
           </ErrorBoundary>
@@ -449,7 +506,7 @@ function Upgrades() {
 
   return (
     <>
-      <SectionHeader title="Grow your company" accessory="upgrades & facility" />
+      <SectionHeader title="Grow your company" accessory="upgrades" />
 
       <Card className="hqu__power">
         <div className="hqu__power-head">
@@ -507,6 +564,7 @@ function Upgrades() {
                 <div className="hqu__info">
                   <span className="hqu__name">{line.name}</span>
                   <span className="hqu__effect">{cur > 0 ? line.effectAt(cur) : line.blurb}</span>
+                  {!maxed && <span className="hqu__effect-next">→ {line.effectAt(cur + 1)}</span>}
                 </div>
                 <span className="hqu__lv tnum">{maxed ? "MAX" : `Lv ${cur}`}</span>
               </div>
@@ -533,5 +591,404 @@ function Upgrades() {
         })}
       </div>
     </>
+  );
+}
+
+function fmtRevShort(dollars: number): string {
+  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1)}M`;
+  if (dollars >= 1_000) return `$${Math.round(dollars / 1_000)}k`;
+  return `$${Math.round(dollars)}`;
+}
+
+/** Progress bar strip used inside the era goal card. */
+function GoalBar({ label, value, target }: { label: string; value: number; target: number }) {
+  const pct = Math.min(100, target > 0 ? Math.round((value / target) * 100) : 0);
+  return (
+    <div className="hq__goalbar">
+      <div className="hq__goalbar-head">
+        <span className="hq__goalbar-label">{label}</span>
+        <span className="hq__goalbar-val tnum">{pct}%</span>
+      </div>
+      <div className="hq__goalbar-track">
+        <div className="hq__goalbar-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/** Compact card showing what's needed to advance to the next era (or reach IPO). */
+function EraGoalCard({ state }: { state: GameState }) {
+  if (state.era >= maxEra()) {
+    if (state.wentPublic) return null;
+    const repNeeded = BALANCE.ipo.minReputation - state.reputation;
+    if (repNeeded <= 0) return null;
+    return (
+      <div className="hq__goal hq__goal--card">
+        <div className="hq__goal-head">
+          <span className="hq__goal-label">IPO goal</span>
+          <span className="hq__goal-era">{BALANCE.ipo.minReputation} reputation</span>
+        </div>
+        <GoalBar label="Reputation" value={state.reputation} target={BALANCE.ipo.minReputation} />
+      </div>
+    );
+  }
+  const eraDef = BALANCE.eras.find((e) => e.era === state.era);
+  if (!eraDef) return null;
+  const repNeeded = eraDef.repToAdvance - state.reputation;
+  const revThresholdTarget = eraDef.revToAdvance as unknown as number;
+  const revDollars = toDollars(state.cumulativeRevenue);
+  const revTargetDollars = Number.isFinite(revThresholdTarget) ? revThresholdTarget / 100 : Infinity;
+  const revNeeded = Number.isFinite(revTargetDollars) ? revTargetDollars - revDollars : Infinity;
+  if (repNeeded <= 0 || revNeeded <= 0) return null;
+  return (
+    <div className="hq__goal hq__goal--card">
+      <div className="hq__goal-head">
+        <span className="hq__goal-label">Next era</span>
+        <span className="hq__goal-era">{eraName(state.era + 1)}</span>
+      </div>
+      {Number.isFinite(eraDef.repToAdvance) && (
+        <GoalBar label={`Reputation (need ${Math.round(eraDef.repToAdvance)})`} value={state.reputation} target={eraDef.repToAdvance} />
+      )}
+      {Number.isFinite(revTargetDollars) && (
+        <GoalBar label={`Revenue (need ${fmtRevShort(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
+      )}
+      <p className="hq__goal-or">Either threshold unlocks the next era.</p>
+      {Number.isFinite(revTargetDollars) && (() => {
+        const wkRev = toDollars(nextWeekRevenue(state));
+        if (wkRev <= 0 || revDollars >= revTargetDollars) return null;
+        const weeksLeft = Math.ceil((revTargetDollars - revDollars) / wkRev);
+        if (weeksLeft > 200) return null;
+        return <p className="hq__goal-eta">~{weeksLeft} week{weeksLeft !== 1 ? "s" : ""} at current revenue</p>;
+      })()}
+    </div>
+  );
+}
+
+const INSIGHT_STAT_LABEL: Record<string, string> = {
+  performance: "Performance", quality: "Quality", battery: "Battery",
+  design: "Design", ecosystem: "Ecosystem",
+};
+
+function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
+  type Insight = { icon: LucideIcon; text: string; tab?: Tab };
+  const insights: Insight[] = [];
+
+  // 1. Idle staff — most immediately actionable
+  const idleCount = state.staff.filter((s) => s.assignment === "idle").length;
+  if (idleCount > 0) {
+    insights.push({
+      icon: Users,
+      text: `${idleCount} staff member${idleCount > 1 ? "s are" : " is"} unassigned — assign them to R&D or Marketing to compound output.`,
+      tab: "company",
+    });
+  }
+
+  // 2. Affordable research project
+  const rp = Math.floor(state.researchPoints);
+  const nextProject = RESEARCH_PROJECTS
+    .filter((p) => !state.completedProjects.includes(p.id) && p.era <= state.era && p.rpCost <= rp)
+    .sort((a, b) => a.rpCost - b.rpCost)[0];
+  if (nextProject) {
+    insights.push({
+      icon: FlaskConical,
+      text: `You have ${rp} RP — enough to unlock "${nextProject.name}". Head to Research to claim it.`,
+      tab: "research",
+    });
+  }
+
+  // 3. Product drought — no active products and nothing in the pipeline
+  const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
+  const inPipeline = state.building.length > 0 || state.ready.length > 0;
+  if (insights.length < 3) {
+    if (active.length === 0 && !inPipeline) {
+      insights.push({
+        icon: Rocket,
+        text: "All products have finished their run — design and launch a new one to keep revenue flowing.",
+        tab: "design",
+      });
+    }
+  }
+
+  // 3b. Products ending soon — warn the player to start designing a successor
+  if (insights.length < 3 && !inPipeline) {
+    const endingSoon = active.filter((lp) => (lp.weeklyUnits.length - lp.weeksElapsed) <= 4);
+    if (endingSoon.length > 0) {
+      const name = endingSoon.length === 1 ? endingSoon[0].product.name : `${endingSoon.length} products`;
+      insights.push({
+        icon: Clock,
+        text: `${name} ${endingSoon.length === 1 ? "finishes" : "finish"} selling in ≤4 weeks — start a successor now to keep revenue continuous.`,
+        tab: "design",
+      });
+    }
+  }
+
+  // 3c. Low staff morale
+  if (insights.length < 3 && state.staff.length > 0) {
+    const unhappy = state.staff.filter((s) => s.mood < 28);
+    if (unhappy.length > 0) {
+      insights.push({
+        icon: Users,
+        text: `${unhappy[0].name} has very low morale (${Math.round(unhappy[0].mood)}%) — upgrade Amenities or reduce workload to prevent an output slump.`,
+        tab: "company",
+      });
+    }
+  }
+
+  // 3d. Affordable HQ upgrade
+  if (insights.length < 3) {
+    const affordableUpgrade = UPGRADE_LINES.find((line) => {
+      const cur = state.upgrades[line.id] ?? 0;
+      if (cur >= line.maxTier) return false;
+      const cost = upgradeCost(state, line.id);
+      return cost !== null && state.cash >= cost;
+    });
+    if (affordableUpgrade) {
+      const cur = state.upgrades[affordableUpgrade.id] ?? 0;
+      const cost = upgradeCost(state, affordableUpgrade.id)!;
+      insights.push({
+        icon: ArrowUp,
+        text: `Your ${affordableUpgrade.name} can be upgraded to "${affordableUpgrade.tierNames[cur]}" for ${format(cost)} — unlocks ${affordableUpgrade.effectAt(cur + 1)}.`,
+      });
+    }
+  }
+
+  // 4. Rising market trend worth exploiting
+  if (insights.length < 3) {
+    const top = [...STAT_KEYS].sort((a, b) => {
+      const da = (state.trends.targetWeights[a] ?? 0) - (state.trends.weights[a] ?? 0);
+      const db = (state.trends.targetWeights[b] ?? 0) - (state.trends.weights[b] ?? 0);
+      return db - da;
+    })[0];
+    const topDelta = top ? (state.trends.targetWeights[top] ?? 0) - (state.trends.weights[top] ?? 0) : 0;
+    if (top && topDelta > 0.025) {
+      insights.push({
+        icon: TrendingUp,
+        text: `${INSIGHT_STAT_LABEL[top]} demand is climbing — your next product should prioritize it to ride the wave.`,
+        tab: "design",
+      });
+    }
+  }
+
+  // 5. Untapped category (blue-ocean opportunity)
+  if (insights.length < 3) {
+    const shippedCats = new Set(state.launched.map((lp) => lp.product.category));
+    const unshipped = CATEGORY_LIST.filter((c) => c.unlockEra <= state.era && !shippedCats.has(c.id));
+    if (unshipped.length > 0) {
+      insights.push({
+        icon: Shapes,
+        text: `You haven't shipped a ${unshipped[0].displayName} yet — an open market segment with no competition from you.`,
+        tab: "design",
+      });
+    }
+  }
+
+  // 6. Rival gaining strength in a category you're actively selling in
+  if (insights.length < 3) {
+    let threatComp: (typeof state.competitors)[0] | null = null;
+    let threatCat: CategoryId | null = null;
+    for (const comp of state.competitors) {
+      for (const [cat, str] of Object.entries(comp.strengthByCategory)) {
+        if (active.some((lp) => lp.product.category === cat) && (str ?? 0) >= 45) {
+          threatComp = comp;
+          threatCat = cat as CategoryId;
+          break;
+        }
+      }
+      if (threatComp) break;
+    }
+    if (threatComp && threatCat) {
+      const catDef = CATEGORY_LIST.find((c) => c.id === threatCat);
+      const strength = Math.round(threatComp.strengthByCategory[threatCat] ?? 0);
+      insights.push({
+        icon: TrendingDown,
+        text: `${threatComp.name} (strength ${strength}) is a strong rival in ${catDef?.displayName ?? threatCat}s — spec up your next launch to stay ahead.`,
+        tab: "market",
+      });
+    }
+  }
+
+  // 7. Open desks + healthy runway = good time to hire
+  if (insights.length < 3 && state.staff.length >= 1) {
+    const facH = facility(state);
+    const openDesks = facH.staffCapacity - state.staff.length;
+    const wkBurnH = burn(state);
+    const wkRevH = nextWeekRevenue(state);
+    const runwayH = runwayWeeks(state.cash, wkBurnH, wkRevH);
+    if (openDesks >= 1 && runwayH > 30) {
+      insights.push({
+        icon: Users,
+        text: `${openDesks} desk${openDesks > 1 ? "s" : ""} open and ${runwayH === Infinity ? "you are profitable" : `${runwayH}+ weeks of runway`} — a strong time to recruit.`,
+        tab: "company",
+      });
+    }
+  }
+
+  // 8. No marketer on team while launching products — missing hype boost
+  if (insights.length < 3 && state.staff.length >= 2) {
+    const hasAnyMarketer = state.staff.some((s) => s.assignment === "marketing");
+    const hasLaunched = state.launched.length > 0;
+    if (!hasAnyMarketer && hasLaunched) {
+      insights.push({
+        icon: Megaphone,
+        text: "No one is assigned to Marketing — each launch is missing a hype bonus that boosts sales velocity. Assign a team member or hire a marketer.",
+        tab: "company",
+      });
+    }
+  }
+
+  // 9. All launched products are in decline — prompt a new launch
+  if (insights.length < 3 && active.length > 0 && !inPipeline) {
+    const peakWk = BALANCE.sales.peakWeek;
+    const allDecline = active.every((lp) => lp.weeksElapsed > peakWk);
+    if (allDecline) {
+      insights.push({
+        icon: Rocket,
+        text: `All ${active.length === 1 ? "your active product has" : `${active.length} active products have`} passed their sales peak — launch something new now to capture fresh demand before revenue fades.`,
+        tab: "design",
+      });
+    }
+  }
+
+  if (insights.length === 0) return null;
+
+  return (
+    <Card className="hq__insights">
+      <SectionHeader title="Strategic insights" accessory={`${insights.length} hint${insights.length > 1 ? "s" : ""}`} />
+      <div className="hq__insights-list">
+        {insights.slice(0, 3).map((ins, i) => {
+          const Icon = ins.icon;
+          return (
+            <button
+              key={i}
+              className={`hq__insight${ins.tab ? "" : " hq__insight--static"}`}
+              onClick={() => ins.tab && onNavigate(ins.tab)}
+              disabled={!ins.tab}
+            >
+              <span className="hq__insight-icon"><Icon size={14} strokeWidth={2.5} /></span>
+              <span className="hq__insight-text">{ins.text}</span>
+              {ins.tab && <ChevronRight size={13} className="hq__insight-chevron" aria-hidden />}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function FeedCard({ feed, week, onNavigate }: { feed: FeedItem[]; week: number; onNavigate: (t: Tab) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const all = [...feed].reverse();
+  const limit = 4;
+  const shown = expanded ? all : all.slice(0, limit);
+  const hasMore = all.length > limit;
+  return (
+    <Card>
+      <SectionHeader title="News" accessory={`week ${week}`} />
+      <ul className="hq__feed-list">
+        {shown.map((item) => {
+          const Icon = item.tone === "positive" ? TrendingUp : item.tone === "negative" ? TrendingDown : item.tone === "accent" ? Sparkles : Newspaper;
+          return (
+            <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
+              <span className="hq__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
+              <span className="hq__feed-week">wk {item.week}</span>
+              {item.text}
+            </li>
+          );
+        })}
+      </ul>
+      {hasMore && (
+        <button className="hq__feed-toggle" onClick={() => setExpanded((x) => !x)}>
+          {expanded ? "Show recent" : `+${all.length - limit} older events`}
+        </button>
+      )}
+      <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
+    </Card>
+  );
+}
+
+function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
+  if (state.launched.length === 0) return null;
+  const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const flops = state.launched.filter((lp) => lp.verdict === "flop").length;
+  const hitRate = Math.round((hits / state.launched.length) * 100);
+  const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
+  const weeklyRevenue = active.reduce((s, lp) => s + lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price), 0);
+  // 4-week revenue forecast (wk 0 = this week, 1–3 = ahead)
+  const forecast = Array.from({ length: 4 }, (_, i) =>
+    active.reduce((sum, lp) => {
+      const idx = lp.weeksElapsed + i;
+      return sum + (idx < lp.weeklyUnits.length ? lp.weeklyUnits[idx] * toDollars(lp.product.price) : 0);
+    }, 0),
+  );
+  const forecastPeak = Math.max(...forecast, 1);
+  const nextWeekRev = forecast[1] ?? 0;
+  const revDeltaPct = weeklyRevenue > 0 ? Math.round(((nextWeekRev - weeklyRevenue) / weeklyRevenue) * 100) : 0;
+  const revTrending = revDeltaPct > 2 ? "up" : revDeltaPct < -2 ? "down" : "flat";
+  const best = state.launched.reduce<(typeof state.launched)[0] | null>(
+    (top, lp) => (top === null || lp.revenueToDate > top.revenueToDate ? lp : top),
+    null,
+  );
+  return (
+    <Card>
+      <SectionHeader title="Performance" accessory={`wk ${state.week}`} />
+      <div className="hq__perf-grid">
+        <div className="hq__perf-item">
+          <span className="hq__perf-val tnum">{state.launched.length}</span>
+          <span className="hq__perf-label">Products</span>
+        </div>
+        <div className="hq__perf-item">
+          <span className="hq__perf-val tnum hq__perf-val--positive">{hits}</span>
+          <span className="hq__perf-label">Hits</span>
+        </div>
+        <div className="hq__perf-item">
+          <span className="hq__perf-val tnum hq__perf-val--negative">{flops}</span>
+          <span className="hq__perf-label">Flops</span>
+        </div>
+        <div className="hq__perf-item">
+          <span className="hq__perf-val tnum">{active.length}</span>
+          <span className="hq__perf-label">Active</span>
+        </div>
+        <div className="hq__perf-item">
+          <span className={`hq__perf-val tnum${hitRate >= 60 ? " hq__perf-val--positive" : hitRate <= 30 && state.launched.length >= 3 ? " hq__perf-val--negative" : ""}`}>
+            {hitRate}%
+          </span>
+          <span className="hq__perf-label">Hit rate</span>
+        </div>
+      </div>
+      {weeklyRevenue > 0 && (
+        <div className="hq__perf-revenue">
+          {revTrending === "up" ? <TrendingUp size={12} aria-hidden className="hq__rev-arrow hq__rev-arrow--up" /> : revTrending === "down" ? <TrendingDown size={12} aria-hidden className="hq__rev-arrow hq__rev-arrow--down" /> : <span className="hq__rev-flat" aria-hidden>—</span>}
+          <span>{fmtRevShort(weeklyRevenue)}/wk</span>
+          {revDeltaPct !== 0 && (
+            <span className={`hq__rev-delta tnum${revTrending === "up" ? " hq__rev-delta--up" : revTrending === "down" ? " hq__rev-delta--down" : ""}`}>
+              {revDeltaPct > 0 ? "+" : ""}{revDeltaPct}% next wk
+            </span>
+          )}
+          <span className="hq__rev-sub">{active.length} active product{active.length > 1 ? "s" : ""}</span>
+        </div>
+      )}
+      {active.length > 0 && (
+        <div className="hq__forecast" aria-label="4-week revenue forecast">
+          {forecast.map((rev, i) => (
+            <div key={i} className="hq__forecast-col">
+              <div className="hq__forecast-bar-wrap">
+                <div
+                  className="hq__forecast-bar"
+                  style={{ height: `${Math.round((rev / forecastPeak) * 100)}%`, opacity: i === 0 ? 1 : 0.6 + i * 0.0 }}
+                />
+              </div>
+              <span className="hq__forecast-label tnum">{i === 0 ? "Now" : `+${i}`}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {best && (
+        <button className="hq__perf-best" onClick={() => onNavigate("market")}>
+          <span className="hq__perf-best-label">Best performer</span>
+          <span className="hq__perf-best-name">{best.product.name}</span>
+          <span className="hq__perf-best-rev tnum">{format(best.revenueToDate)}</span>
+        </button>
+      )}
+    </Card>
   );
 }

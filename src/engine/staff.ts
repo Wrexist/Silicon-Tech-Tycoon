@@ -4,6 +4,8 @@ import { STAT_KEYS } from "./types.ts";
 import type {
   Accessory,
   Appearance,
+  Assignment,
+  Skills,
   Specialty,
   Staff,
   StaffRole,
@@ -86,6 +88,47 @@ export function makeIdentity(rng: Rng, role: StaffRole): Identity {
   };
 }
 
+// ---------- Per-discipline skills (0..100) — the "good at different things" model ----------
+export type Discipline = "engineering" | "design" | "marketing";
+export const DISCIPLINE_LABEL: Record<Discipline, string> = {
+  engineering: "Engineering",
+  design: "Design",
+  marketing: "Marketing",
+};
+/** Which discipline a role headlines. */
+export const ROLE_DISCIPLINE: Record<StaffRole, Discipline> = {
+  engineer: "engineering",
+  designer: "design",
+  marketer: "marketing",
+};
+
+const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+
+/** A 0..100 skill profile centred on `level` (1..10): the role's discipline is ALWAYS their
+ *  strongest, the others scatter strictly below it. So an "Engineer" is genuinely best at
+ *  engineering (role label, headline level, and best-fit advice all agree), while people still
+ *  vary in their secondary strengths — a 90/30/50 vs a 40/35/20. */
+export function makeSkills(rng: Rng, role: StaffRole, level: number): Skills {
+  const primary = ROLE_DISCIPLINE[role];
+  const base = level * 10; // 1..10 -> ~10..100
+  const primaryScore = clamp100(base + rng.range(-8, 10)); // strongest, near the headline level
+  // Off-disciplines are a fraction (35–85%) of the primary, so they vary per person yet can never
+  // eclipse the role's headline skill — the primary is always strictly the strongest.
+  const off = () => clamp100(Math.round(primaryScore * rng.range(0.35, 0.85)));
+  const out: Skills = {
+    engineering: off(),
+    design: off(),
+    marketing: off(),
+  };
+  out[primary] = primaryScore;
+  return out;
+}
+
+/** Headline skill level (1..10) derived from a 0..100 profile for a role (its primary discipline). */
+export function levelFromSkills(skills: Skills, role: StaffRole): number {
+  return Math.max(1, Math.min(10, Math.round(skills[ROLE_DISCIPLINE[role]] / 10)));
+}
+
 // ---------- Mood ----------
 export type MoodBand = "thriving" | "happy" | "neutral" | "tired" | "burnedout";
 export function moodBand(mood: number): MoodBand {
@@ -128,18 +171,39 @@ export function isPerfectionist(s: Staff): boolean {
   return s.trait === "perfectionist";
 }
 
-/** A person's effective contribution to whatever they're assigned to. */
+/** A person's headline effectiveness (uses their 1..10 level). Kept for any generic use. */
 export function output(s: Staff): number {
   const skill = Number.isFinite(s.skill) ? Math.max(0, s.skill) : 0; // immunize the sim from a corrupt skill
   return skill * moodMult(s.mood) * traitOutputMult(s.trait);
 }
 
-/** Build-time stat bonus from designers (assigned to Design) whose specialty matches a stat. */
+/** Which 0..100 discipline a given task draws on. This is what makes people "good at different
+ *  things" actually matter: put someone on the work their high score covers. */
+export const ASSIGNMENT_DISCIPLINE: Record<Exclude<Assignment, "idle">, Discipline> = {
+  rnd: "engineering",
+  design: "design",
+  marketing: "marketing",
+};
+
+/** Read a 0..100 discipline safely (corrupt/old saves → 0). */
+function disciplineScore(s: Staff, d: Discipline): number {
+  const v = s.skills?.[d];
+  return Number.isFinite(v) ? Math.max(0, v) : 0;
+}
+
+/** A person's effective contribution to a specific discipline of work, on the SAME 1..10-ish
+ *  scale as `output()` (so existing balance holds when people work their primary discipline). */
+export function disciplineOutput(s: Staff, d: Discipline): number {
+  return (disciplineScore(s, d) / 10) * moodMult(s.mood) * traitOutputMult(s.trait);
+}
+
+/** Build-time stat bonus from designers (assigned to Design) whose specialty matches a stat —
+ *  scaled by their Design discipline. */
 export function designSpecialtyBonus(staff: readonly Staff[]): Partial<Record<StatKey, number>> {
   const bonus: Partial<Record<StatKey, number>> = {};
   for (const s of staff) {
     if (s.assignment !== "design") continue;
-    const amt = 1.2 * Math.sqrt(Math.max(0, s.skill || 0)) * moodMult(s.mood);
+    const amt = 1.2 * Math.sqrt(disciplineScore(s, "design") / 10) * moodMult(s.mood);
     bonus[s.specialty] = (bonus[s.specialty] ?? 0) + amt;
   }
   return bonus;

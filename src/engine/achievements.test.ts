@@ -17,17 +17,25 @@ function emptyFacts(): AchievementFacts {
   return {
     productsShipped: 0,
     hits: 0,
+    flops: 0,
     hitStreak: 0,
     soldOut: false,
+    comebackFromFlop: false,
     cumulativeRevenue: 0,
     netWorth: 0,
     reputation: 0,
     fans: 0,
     era: 1,
+    era2reached: false,
+    era3reached: false,
     atFinalEra: false,
     listed: false,
     wentPublic: false,
     rivalsInvested: 0,
+    staffCount: 0,
+    completedProjects: 0,
+    biggestRun: 0,
+    categoriesShipped: 0,
   };
 }
 
@@ -67,7 +75,7 @@ function launched(verdict: "hit" | "flop" | "steady", opts: Partial<LaunchedProd
 describe("achievements catalog", () => {
   it("has a healthy number of milestones with unique ids", () => {
     expect(ACHIEVEMENT_COUNT).toBeGreaterThanOrEqual(12);
-    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(24);
+    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(52);
     const ids = ACHIEVEMENTS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -108,6 +116,28 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "ipo", facts: { listed: true } },
     { id: "networth-1m", facts: { netWorth: 1_000_000 } },
     { id: "networth-100m", facts: { netWorth: 100_000_000 } },
+    { id: "first-hire", facts: { staffCount: 2 } },
+    { id: "team-5", facts: { staffCount: 5 } },
+    { id: "hit-streak-5", facts: { hitStreak: 5 } },
+    { id: "research-4", facts: { completedProjects: 4 } },
+    { id: "research-all", facts: { completedProjects: 19 } },
+    { id: "big-run", facts: { biggestRun: 50_000 } },
+    { id: "gg", facts: { wentPublic: true } },
+    { id: "first-research", facts: { completedProjects: 1 } },
+    { id: "era-2", facts: { era2reached: true } },
+    { id: "era-3", facts: { era3reached: true } },
+    { id: "comeback-kid", facts: { comebackFromFlop: true } },
+    { id: "diversified-mfg", facts: { categoriesShipped: 3 } },
+    { id: "rev-1b", facts: { cumulativeRevenue: 1_000_000_000 } },
+    { id: "team-10", facts: { staffCount: 10 } },
+    { id: "all-rivals", facts: { rivalsInvested: 6 } },
+    { id: "ship-10", facts: { productsShipped: 10 } },
+    { id: "dual-category", facts: { categoriesShipped: 2 } },
+    { id: "mega-run", facts: { biggestRun: 200_000 } },
+    { id: "rev-500m", facts: { cumulativeRevenue: 500_000_000 } },
+    { id: "networth-10m", facts: { netWorth: 10_000_000 } },
+    { id: "flop-proof", facts: { productsShipped: 10, flops: 0 } },
+    { id: "rep-75", facts: { reputation: 75 } },
   ];
 
   it("covers the whole catalog", () => {
@@ -161,6 +191,38 @@ describe("deriveFacts reads only real tracked state", () => {
     const s = newGame(3);
     const invested: GameState = { ...s, holdings: { a: 5, b: 2, c: 0, d: 10 } };
     expect(deriveFacts(invested).rivalsInvested).toBe(3);
+  });
+
+  it("detects comebackFromFlop when a hit follows a flop in history", () => {
+    const s = newGame(7);
+    // launched is newest-first: index 0 = most recent
+    // [hit, flop] = hit is newest (index 0), flop is older (index 1) → comeback
+    const withComeback: GameState = {
+      ...s,
+      launched: [launched("hit"), launched("flop")],
+    };
+    expect(deriveFacts(withComeback).comebackFromFlop).toBe(true);
+    // [flop, hit] = flop is newest, hit is older → NOT a comeback (no hit after the flop)
+    const noComeback: GameState = {
+      ...s,
+      launched: [launched("flop"), launched("hit")],
+    };
+    expect(deriveFacts(noComeback).comebackFromFlop).toBe(false);
+    // only a hit, no flop → no comeback
+    expect(deriveFacts({ ...s, launched: [launched("hit")] }).comebackFromFlop).toBe(false);
+  });
+
+  it("counts distinct categories shipped", () => {
+    const s = newGame(8);
+    const multi: GameState = {
+      ...s,
+      launched: [
+        launched("hit", { product: { ...product(), id: "p1", category: "phone" } }),
+        launched("hit", { product: { ...product(), id: "p2", category: "tablet" } }),
+        launched("hit", { product: { ...product(), id: "p3", category: "phone" } }),
+      ],
+    };
+    expect(deriveFacts(multi).categoriesShipped).toBe(2);
   });
 });
 

@@ -5,6 +5,7 @@ import { CATEGORIES, tierDef } from "../engine/catalogs.ts";
 import {
   advanceCompetitors,
   initCompetitors,
+  rivalMarketCap,
   rivalStrengthsFor,
   type CompetitorLaunch,
 } from "../engine/competitors.ts";
@@ -26,11 +27,14 @@ import {
 } from "../engine/research.ts";
 import {
   designSpecialtyBonus,
+  levelFromSkills,
   makeIdentity,
+  makeSkills,
   perfectionistCeilingBonus,
+  ROLE_DISCIPLINE,
   visionaryHype,
 } from "../engine/staff.ts";
-import { pickEvent, type MarketEvent } from "../engine/events.ts";
+import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
   addItem as addFurniture,
@@ -62,6 +66,7 @@ import {
   advanceTrends,
   demandVarianceMultiplier,
   initialTrends,
+  priceFit,
   randomTrendTarget,
   scoreLaunch,
 } from "../engine/market.ts";
@@ -83,11 +88,15 @@ import { makeRng, type Rng } from "../engine/rng.ts";
 import type {
   Assignment,
   BuildJob,
+  Candidate,
+  CategoryId,
   ComponentKind,
   ConsumerTrends,
   CompetitorState,
   LaunchedProduct,
   Product,
+  Recruitment,
+  RecruitTier,
   Staff,
   StaffRole,
   Stats,
@@ -120,6 +129,11 @@ export interface GameState {
   /** highest unlocked tier per component line (>=1 means researched up to that tier) */
   researched: Partial<Record<ComponentKind, number>>;
   staff: Staff[];
+  /** in-progress recruitment search (null when idle), and the candidates it produced */
+  recruitment: Recruitment | null;
+  candidates: Candidate[];
+  candidateCounter: number;
+  candidatesExpire: number; // week the current shortlist lapses (0 when none)
   facilityTier: number;
   upgrades: Partial<Record<UpgradeId, number>>;
   researchPoints: number;
@@ -149,9 +163,49 @@ export interface GameState {
   listed: boolean; // the player's company has IPO'd (is publicly traded)
   ownership: number; // founder's fraction of the company (1 = fully private)
   holdings: Holdings; // shares owned in rival companies, by id
+  /** Best (lowest) industry-leaderboard rank ever reached (1 = biggest company in the industry).
+   *  Starts at 7 (a fresh garage is dead last behind the six rivals); each time the player climbs
+   *  to a new best, the tick celebrates overtaking the rival(s) they passed. Monotonic downward. */
+  bestIndustryRank: number;
   // --- Achievements ---
   /** ids of celebratory milestones the player has earned (monotonic — only ever grows). */
   unlockedAchievements: string[];
+  /** A market event requiring a player decision — resolved via resolveChoice. */
+  pendingChoice: { event: ChoiceEvent; week: number } | null;
+  /** IDs of choice events already resolved — prevents repeats. */
+  resolvedChoices: string[];
+}
+
+export const REV_MILESTONES = [
+  10_000, 25_000, 50_000, 100_000, 250_000, 500_000,
+  1_000_000, 2_500_000, 5_000_000, 10_000_000,
+  25_000_000, 50_000_000, 100_000_000,
+];
+
+function revMilestoneItems(prev: Money, next: Money, week: number): FeedItem[] {
+  const prevD = toDollars(prev);
+  const nextD = toDollars(next);
+  return REV_MILESTONES
+    .filter((m) => prevD < m && nextD >= m)
+    .map((m) => feedItem(week, `Revenue milestone: ${format(dollars(m))} earned lifetime.`, "positive"));
+}
+
+const FAN_MILESTONES: { fans: number; text: string; repBonus: number }[] = [
+  { fans:     1_000, text: "1,000 fans — your brand is gaining recognition.", repBonus: 1 },
+  { fans:     5_000, text: "5,000 fans — a real community is forming.", repBonus: 1 },
+  { fans:    10_000, text: "10,000 fans! You're becoming a household name.", repBonus: 2 },
+  { fans:    50_000, text: "50,000 fans — a major following. Brands take notice.", repBonus: 2 },
+  { fans:   100_000, text: "100,000 fans! You're a leader in the market.", repBonus: 3 },
+  { fans:   500_000, text: "500,000 fans — half a million people follow you.", repBonus: 3 },
+  { fans: 1_000_000, text: "One million fans! Your brand is iconic.", repBonus: 5 },
+];
+
+function fanMilestoneResult(prevFans: number, newFans: number, week: number): { feed: FeedItem[]; repBonus: number } {
+  const crossed = FAN_MILESTONES.filter((m) => prevFans < m.fans && newFans >= m.fans);
+  return {
+    feed: crossed.map((m) => feedItem(week, m.text, "positive")),
+    repBonus: crossed.reduce((s, m) => s + m.repBonus, 0),
+  };
 }
 
 let feedSeq = 0;
@@ -182,8 +236,33 @@ function rngFrom(state: GameState): Rng {
 }
 
 const STARTER_NAMES = ["You (Founder)"];
+// Applicant name pool for recruitment (no real people / brands).
+const NAMES = ["Riley", "Sam", "Jordan", "Casey", "Ari", "Noa", "Quinn", "Devin", "Max", "Robin", "Sky", "Frankie", "Ellis", "Rowan", "Tatum", "Wren"];
+
+export interface LegacyBonus {
+  cash: Money;
+  reputation: number;
+  fans: number;
+  rp: number;
+}
+
+/** The permanent head-start a New Game+ founding inherits at the given prestige `level`. Resource
+ *  bonuses escalate triangularly (level 1 → ×1, level 2 → ×3, level 3 → ×6, …) so each empire is
+ *  mightier than the last; reputation stays linear so the early game remains a climb. Pure — the
+ *  win overlay previews legacyBonus(level+1) to show the player exactly what going again earns. */
+export function legacyBonus(level: number): LegacyBonus {
+  const L = Math.max(0, Math.floor(level));
+  const tri = (L * (L + 1)) / 2; // 0,1,3,6,10,15,… — escalating reward per prestige
+  return {
+    cash: scale(BALANCE.legacy.cashPerLevel, tri),
+    reputation: L * BALANCE.legacy.repPerLevel,
+    fans: Math.round(BALANCE.legacy.fansPerLevel * tri),
+    rp: Math.round(BALANCE.legacy.rpPerLevel * tri),
+  };
+}
 
 export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameState {
+  const lb = legacyBonus(legacy);
   const rng = makeRng(seed);
   const trends = initialTrends(rng);
   const competitors = initCompetitors(rng);
@@ -193,6 +272,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     role: "engineer",
     name: STARTER_NAMES[0],
     skill: 3,
+    skills: makeSkills(rng, "engineer", 3),
     salary: ZERO, // the founder works for free
     assignment: "rnd",
     xp: 0,
@@ -205,9 +285,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     rngState: rng.state(),
     companyName: "Silicon",
     week: 0,
-    cash: add(BALANCE.startingCash, scale(BALANCE.legacy.cashPerLevel, legacy)),
-    reputation: BALANCE.startingReputation + legacy * BALANCE.legacy.repPerLevel,
-    fans: BALANCE.fans.starting + legacy * 400,
+    cash: add(BALANCE.startingCash, lb.cash),
+    reputation: BALANCE.startingReputation + lb.reputation,
+    fans: BALANCE.fans.starting + lb.fans,
     era: 1,
     cumulativeRevenue: ZERO,
     trends,
@@ -215,9 +295,13 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     competitors,
     researched: { chip: 1, display: 1, battery: 1, materials: 1, software: 1, camera: 1 },
     staff: [founder],
+    recruitment: null,
+    candidates: [],
+    candidateCounter: 0,
+    candidatesExpire: 0,
     facilityTier: 1,
     upgrades: {},
-    researchPoints: legacy * BALANCE.legacy.rpPerLevel,
+    researchPoints: lb.rp,
     completedProjects: [],
     building: [],
     ready: [],
@@ -241,7 +325,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameS
     listed: false,
     ownership: 1,
     holdings: {},
+    bestIndustryRank: 7, // a fresh garage is dead last behind the six public rivals
     unlockedAchievements: [],
+    pendingChoice: null,
+    resolvedChoices: [],
   };
 }
 
@@ -258,7 +345,10 @@ export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades);
 export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades);
 export const hypeBonus = (s: GameState) =>
-  (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) + visionaryHype(s.staff) + marketingHype(s.upgrades);
+  (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
+  (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
+  (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
+  visionaryHype(s.staff) + marketingHype(s.upgrades);
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
  * upgrade + channel). scoreLaunch clamps total hype too; this caps the bonus side so
@@ -276,6 +366,7 @@ export function productStats(s: GameState, product: Product): Stats {
   const bonus = designSpecialtyBonus(s.staff);
   bonus.design = (bonus.design ?? 0) + designStatBonus(s.upgrades);
   bonus.quality = (bonus.quality ?? 0) + qualityStatBonus(s.upgrades);
+  if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
     out[k] = Math.min(BALANCE.statMax, Math.round(out[k] + (bonus[k] ?? 0)));
@@ -306,7 +397,8 @@ export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects
 export const buildWeeksFor = (s: GameState) =>
   Math.max(
     BALANCE.build.minWeeks,
-    Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)),
+    Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades))
+      - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0),
   );
 
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
@@ -319,6 +411,7 @@ export function toolingCost(s: GameState, product: Product): Money {
 export function effectiveUnitCost(s: GameState, product: Product): Money {
   let unitCost = buildCost(product);
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
+  if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   return scale(unitCost, buildCostMult(s.upgrades));
 }
 
@@ -362,6 +455,9 @@ export function planProduction(
 
   let marketSize = CATEGORIES[product.category].marketSize;
   if (hasProject(s.completedProjects, "globalDistribution")) marketSize *= 1.25;
+  // Era-scaled volume — small early market (slow garage phase), grows each era.
+  const eraScales = BALANCE.market.eraVolumeScale;
+  marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
 
   // Score WITHOUT the strength-based competition term — competition is modelled below as a
   // count of rivals that match/beat you, which is clearer and is what the player sees.
@@ -381,15 +477,19 @@ export function planProduction(
 
   const overall = overallScore(stats, product.category);
   const rivals = rivalStrengthsFor(s.competitors, product.category);
-  const margin = BALANCE.market.competition.beatMargin;
+  const comp = BALANCE.market.competition;
+  const margin = comp.beatMargin;
   let matchingRivals = 0;
   let betterRivals = 0;
   for (const r of rivals) {
     if (r > overall + margin) betterRivals++;
     else if (r >= overall - margin) matchingRivals++;
   }
+  // Era-scaled pressure: the Garage Era protects new players from being crushed before they've
+  // built up; full competitive pressure applies from the Growth Era on.
+  const pressure = comp.eraPressure[Math.max(0, Math.min(s.era - 1, comp.eraPressure.length - 1))];
   const competitionFactor =
-    1 / (1 + matchingRivals * BALANCE.market.competition.matchPenalty + betterRivals * BALANCE.market.competition.beatPenalty);
+    1 / (1 + (matchingRivals * comp.matchPenalty + betterRivals * comp.beatPenalty) * pressure);
 
   const demandFit = breakdown.demand;
   const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
@@ -477,6 +577,18 @@ export function recommendedRun(s: GameState, product: Product, channelId: Channe
 }
 export const counts = (s: GameState) => ({ assigned: s.staff.filter((x) => x.assignment !== "idle").length });
 
+/** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
+export function weeklyEcosystemRevenue(s: GameState): Money {
+  const rate = BALANCE.ecosystem.weeklyServiceRate;
+  const minStat = BALANCE.ecosystem.minEcosystemStat;
+  let acc = 0;
+  for (const lp of s.launched) {
+    const eco = lp.stats.ecosystem;
+    if (eco > minStat) acc += lp.unitsSold * eco * rate;
+  }
+  return cents(Math.round(acc));
+}
+
 export function nextWeekRevenue(s: GameState): Money {
   let acc = 0;
   for (const lp of s.launched) {
@@ -485,7 +597,7 @@ export function nextWeekRevenue(s: GameState): Money {
       acc += units * (lp.product.price - lp.unitCost);
     }
   }
-  return cents(acc);
+  return add(cents(acc), weeklyEcosystemRevenue(s));
 }
 
 export function researchedTier(s: GameState, kind: ComponentKind): number {
@@ -498,12 +610,15 @@ export function rdRpCostFor(s: GameState, kind: ComponentKind): number | null {
   const def = tierDef(kind, next);
   if (!def) return null;
   if (def.era > s.era) return null; // gated by era
-  return techRpCost(toDollars(def.rdCost));
+  let base = techRpCost(toDollars(def.rdCost));
+  if (hasProject(s.completedProjects, "prototypeBench")) base = Math.max(1, Math.round(base * 0.8));
+  if (hasProject(s.completedProjects, "componentStandards")) base = Math.max(1, Math.round(base * 0.85));
+  return base;
 }
 
 // ---------- Reducers (pure: return a NEW state) ----------
 
-export function advanceOneWeek(state: GameState, rate = 1): GameState {
+export function advanceOneWeek(state: GameState, rate = 1, offline = false): GameState {
   if (state.bankrupt) return state;
   const rng = rngFrom(state);
   const week = state.week + 1;
@@ -521,12 +636,17 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   }
   trends = advanceTrends(trends, newTarget);
 
-  // Competitors
-  const { competitors, launches } = advanceCompetitors(state.competitors, week, state.era, rng);
+  // Competitors — pass the player's recent hit categories so the lead rival can react.
+  const hitWindow = BALANCE.competitors.reactHitWindowWeeks;
+  const recentPlayerHitCats = state.launched
+    .filter((lp) => lp.launchedWeek >= week - hitWindow && (lp.verdict === "hit" || lp.verdict === "solid"))
+    .map((lp) => lp.product.category);
+  const { competitors, launches } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
 
   // Sales + revenue
   let cash = state.cash;
   let cumulativeRevenue = state.cumulativeRevenue;
+  const productsFeed: FeedItem[] = [];
   const launched = state.launched.map((lp) => {
     if (lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
     const units = lp.weeklyUnits[lp.weeksElapsed];
@@ -534,15 +654,44 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     const gross = scale(lp.product.price, units * rate);
     cash = add(cash, gross);
     cumulativeRevenue = add(cumulativeRevenue, gross);
+    const newElapsed = lp.weeksElapsed + 1;
+    const newUnitsSold = Math.min(lp.totalUnits, lp.unitsSold + Math.round(units * rate));
+    const newRevenue = add(lp.revenueToDate, gross);
+    // When the last sales week completes, surface a lifecycle summary in the feed.
+    if (newElapsed >= lp.weeklyUnits.length) {
+      const sellThrough = lp.plannedUnits && lp.plannedUnits > 0
+        ? Math.round((lp.totalUnits / lp.plannedUnits) * 100)
+        : 100;
+      productsFeed.push(feedItem(
+        week,
+        `"${lp.product.name}" lifecycle complete — ${newUnitsSold.toLocaleString()} sold (${sellThrough}% sell-through), ${format(newRevenue)} total.`,
+        sellThrough >= 85 ? "positive" : "neutral",
+      ));
+    }
     return {
       ...lp,
-      weeksElapsed: lp.weeksElapsed + 1,
+      weeksElapsed: newElapsed,
       // Cap at the run's total so "X of Y sold" can never exceed Y on a partial (offline,
       // rate=0.5) tick where rounding could otherwise push the cumulative count over.
-      unitsSold: Math.min(lp.totalUnits, lp.unitsSold + Math.round(units * rate)),
-      revenueToDate: add(lp.revenueToDate, gross),
+      unitsSold: newUnitsSold,
+      revenueToDate: newRevenue,
     };
   });
+
+  // Revenue milestones
+  for (const item of revMilestoneItems(state.cumulativeRevenue, cumulativeRevenue, week)) {
+    productsFeed.push(item);
+  }
+
+  // Ecosystem service revenue — recurring income from the installed base of high-ecosystem products.
+  const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate;
+  const ecoMinStat = BALANCE.ecosystem.minEcosystemStat;
+  for (const lp of state.launched) {
+    const eco = lp.stats.ecosystem;
+    if (eco > ecoMinStat) {
+      cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * rate)));
+    }
+  }
 
   // Burn
   cash = sub(cash, scale(burn(state), rate));
@@ -555,7 +704,14 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
 
   // Feed events
   const feed = [...state.feed];
-  for (const l of launches) pushRivalFeed(feed, l);
+  for (const item of productsFeed) feed.push(item);
+  // Rival launches: flag when a rival enters a category where the player has an active product.
+  const activePlayerCats = new Set<CategoryId>(
+    state.launched
+      .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
+      .map((lp) => lp.product.category),
+  );
+  for (const l of launches) pushRivalFeed(feed, l, activePlayerCats);
 
   // Research points generated this week
   // Must match the weeklyRpGen selector (incl. the Workstations upgrade), else the UI lies.
@@ -578,20 +734,73 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     }
   }
 
-  // Staff XP / leveling + mood drift
+  // Staff XP / leveling + mood drift + churn
   const cashDropping = cash < state.cash;
   const teamPlayers = state.staff.filter((s) => s.trait === "teamPlayer").length;
+  const churnCfg = BALANCE.churn;
+  const quitIds: string[] = [];
   const staff = state.staff.map((s) => {
-    const { staff: next, leveledUp } = gainWeeklyXp(s);
-    if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${next.skill}.`, "positive"));
+    const { staff: levelResult, leveledUp } = gainWeeklyXp(s);
+    if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${levelResult.skill}.`, "positive"));
+    // Salary is NOT auto-updated on level-up — player must give a raise manually.
+    // Underpaid staff drift unhappy over time and may eventually quit.
+    const next = leveledUp ? { ...levelResult, salary: s.salary } : levelResult;
+    // Keep primary discipline score in sync with the headline skill level on a level-up.
+    const skills = leveledUp
+      ? { ...next.skills, [ROLE_DISCIPLINE[next.role]]: Math.min(100, Math.max(next.skills[ROLE_DISCIPLINE[next.role]], next.skill * 10)) }
+      : next.skills;
     let target = 60 + moodBonus(state.upgrades);
-    if (s.trait === "hustler") target -= 12; // always grinding
+    if (s.trait === "hustler") target -= 12;
     if (cashDropping) target -= 12;
-    else target += 6; // company doing fine
-    const lift = teamPlayers * 1.5 - (s.trait === "teamPlayer" ? 1.5 : 0); // others, not self
+    else target += 6;
+    const lift = teamPlayers * 1.5;
+    // Underpaid penalty: salary lagging behind skill level pulls mood target down.
+    const marketSalary = salaryFor(next.role, next.skill);
+    const isUnderpaid = next.id !== "s0" && toDollars(next.salary) < toDollars(marketSalary);
+    if (isUnderpaid) target -= churnCfg.underpaidMoodPenalty;
     const mood = clampMood(next.mood + (target - next.mood) * 0.12 + lift + rng.range(-1.5, 1.5));
-    return { ...next, mood };
+    // Track consecutive weeks in the danger zone.
+    const newLowWeeks = mood < churnCfg.moodQuitThreshold
+      ? (s.moodLowWeeks ?? 0) + 1
+      : 0;
+    // After enough consecutive low weeks, a weekly chance of quitting (founder never quits).
+    if (next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && rng.next() < churnCfg.quitChancePerWeek) {
+      quitIds.push(next.id);
+    }
+    return { ...next, skills, mood, moodLowWeeks: newLowWeeks };
   });
+  // Remove quitters and log them (can't splice inside map).
+  let finalStaff = staff;
+  for (const qid of quitIds) {
+    const q = finalStaff.find((m) => m.id === qid);
+    if (!q) continue;
+    finalStaff = finalStaff.filter((m) => m.id !== qid);
+    feed.push(feedItem(week, `${q.name} quit — sustained burnout pushed them to leave.`, "negative"));
+  }
+
+  // Recruitment search progress — resolves into a candidate shortlist when the timer runs out,
+  // and the shortlist lapses if it sits unsigned for too long.
+  let recruitment = state.recruitment;
+  let candidates = state.candidates;
+  let candidateCounter = state.candidateCounter;
+  let candidatesExpire = state.candidatesExpire;
+  if (recruitment) {
+    const weeksLeft = recruitment.weeksLeft - rate;
+    if (weeksLeft <= 0) {
+      const gen = generateCandidates(state, recruitment.tier, rng);
+      candidates = gen.candidates;
+      candidateCounter = gen.counter;
+      candidatesExpire = week + BALANCE.recruitment.expireWeeks;
+      recruitment = null;
+      feed.push(feedItem(week, `${candidates.length} candidates ready to interview.`, "accent"));
+    } else {
+      recruitment = { ...recruitment, weeksLeft };
+    }
+  } else if (candidates.length && candidatesExpire && week >= candidatesExpire) {
+    candidates = [];
+    candidatesExpire = 0;
+    feed.push(feedItem(week, "The candidate shortlist moved on to other offers.", "neutral"));
+  }
 
   const bankrupt = cash < 0;
   if (bankrupt) {
@@ -601,16 +810,40 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   const cashHistory = [...state.cashHistory, { week, cash: toDollars(cash) }];
   if (cashHistory.length > 260) cashHistory.shift();
 
+  const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
+    ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
+    : BALANCE.fans.decayPerWeek;
+  const newFans = Math.round(
+    state.fans * Math.pow(loyaltyDecay, rate)
+    + (hasProject(state.completedProjects, "contentMarketing") ? 100 * rate : 0)
+  );
+
+  // Quarterly checkpoint: a snapshot feed item every BALANCE.quartersWeeks weeks to mark
+  // the end of a "fiscal quarter" — gives the player a regular moment of reflection.
+  if (!bankrupt && week > 0 && week % BALANCE.quartersWeeks === 0) {
+    const qNum = Math.floor(week / BALANCE.quartersWeeks);
+    const fansStr = newFans >= 1000 ? `${(newFans / 1000).toFixed(1)}k` : String(newFans);
+    feed.push(feedItem(
+      week,
+      `Q${qNum} complete — ${format(cash)} cash · Rep ${Math.round(state.reputation)} · ${fansStr} fans.`,
+      "accent",
+    ));
+  }
+
   const base: GameState = {
     ...state,
     week,
     cash,
     cumulativeRevenue,
-    fans: Math.round(state.fans * Math.pow(BALANCE.fans.decayPerWeek, rate)),
+    fans: newFans,
     researchPoints,
     building,
     ready,
-    staff,
+    staff: finalStaff,
+    recruitment,
+    candidates,
+    candidateCounter,
+    candidatesExpire,
     trends,
     trendRetargetWeek,
     competitors,
@@ -622,8 +855,46 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
 
-  // Market event (skipped while bankrupt)
-  if (!bankrupt && week >= state.nextEventWeek) {
+  // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
+  // the player against the six public rivals. Climbing to a new best rank (overtaking a rival, all
+  // the way to #1) is the late-game chase — celebrate it. Rank is monotonic-best so a rival's share
+  // surge can never "demote" the milestone. Updated silently offline; celebrated only in live play.
+  {
+    const newRank = industryRank(base);
+    if (newRank < state.bestIndustryRank) {
+      if (!offline) {
+        const board = industryLeaderboard(base);
+        const overtaken = board
+          .slice(newRank, Math.min(state.bestIndustryRank, board.length))
+          .filter((e) => !e.isPlayer);
+        for (const r of overtaken) {
+          base.feed.push(feedItem(week, `${base.companyName} overtook ${r.name} — now #${newRank} in the industry.`, "positive"));
+        }
+        if (newRank === 1) {
+          base.feed.push(feedItem(week, `${base.companyName} is now the #1 company in the industry. The throne is yours.`, "positive"));
+        }
+      }
+      base.bestIndustryRank = newRank;
+    }
+  }
+
+  // Market events only during live play — offline catch-up skips all events so the state stays
+  // deterministic and the player isn't surprised by consequences they couldn't interact with.
+  if (!offline && !bankrupt && week >= state.nextEventWeek) {
+    // Choice events also require the player to be present to resolve them.
+    if (!state.pendingChoice) {
+      const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices);
+      if (choice) {
+        const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
+        return {
+          ...base,
+          pendingChoice: { event: choice, week },
+          nextEventWeek,
+          feed: trimFeed([...base.feed, feedItem(week, `Decision required: ${choice.title}`, choice.tone as FeedTone)]),
+          rngState: rng.state(),
+        };
+      }
+    }
     const ev = pickEvent(rng, state.era);
     return applyMarketEvent(base, ev, week, rng);
   }
@@ -631,15 +902,22 @@ export function advanceOneWeek(state: GameState, rate = 1): GameState {
   return base;
 }
 
-function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: ReturnType<typeof rngFrom>): GameState {
+/** Apply a single EventEffect to the state and push a feed item. Shared by market events and choice resolutions. */
+function applyEventEffect(
+  s: GameState,
+  eff: MarketEvent["effect"],
+  week: number,
+  feedText: string,
+  feedTone: FeedTone,
+): GameState {
   const feed = [...s.feed];
-  const eff = ev.effect;
   let cash = s.cash;
   let reputation = s.reputation;
   let researchPoints = s.researchPoints;
   let trends = s.trends;
   let competitors = s.competitors;
   let staff = s.staff;
+  let fans = s.fans;
 
   switch (eff.kind) {
     case "viralTrend": {
@@ -668,31 +946,37 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
     case "pressFeature":
       reputation = Math.min(BALANCE.reputation.max, reputation + eff.reputation);
       break;
+    case "fansBonus":
+      fans = Math.max(0, Math.round(fans + eff.fans));
+      break;
+    case "repBoost":
+      reputation = Math.min(BALANCE.reputation.max, reputation + eff.rep);
+      break;
+    case "cashWindfall":
+      cash = add(cash, dollars(eff.cash)) as Money;
+      break;
   }
 
-  feed.push(feedItem(week, ev.title, ev.tone));
-  const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
-  return {
-    ...s,
-    cash,
-    reputation,
-    researchPoints,
-    trends,
-    competitors,
-    staff,
-    feed: trimFeed(feed),
-    nextEventWeek,
-    lastEvent: { text: ev.title, tone: ev.tone, week },
-    rngState: rng.state(),
-  };
+  feed.push(feedItem(week, feedText, feedTone));
+  return { ...s, cash, reputation, researchPoints, trends, competitors, staff, fans, feed: trimFeed(feed) };
 }
 
-function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch) {
+function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: ReturnType<typeof rngFrom>): GameState {
+  const applied = applyEventEffect(s, ev.effect, week, ev.title, ev.tone as FeedTone);
+  const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
+  return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
+}
+
+function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>) {
+  const catName = CATEGORIES[l.category]?.displayName ?? l.category;
+  const threat = activePlayerCats?.has(l.category);
   feed.push(
     feedItem(
       l.week,
-      `${l.competitor} launched a new ${CATEGORIES[l.category].displayName}.`,
-      "neutral",
+      threat
+        ? `${l.competitor} launched a new ${catName} — your active product faces new competition.`
+        : `${l.competitor} entered the ${catName} market.`,
+      threat ? "negative" : "neutral",
     ),
   );
 }
@@ -779,7 +1063,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // too-large run can strand stock. Driven by the persisted RNG (deterministic per seed, NOT
   // Math.random) and we save the advanced rngState below so the outcome is reproducible.
   const rng = rngFrom(state);
-  const variance = demandVarianceMultiplier(rng);
+  const rawVariance = demandVarianceMultiplier(rng);
+  // demandSensing narrows variance by 35% (forecasts become more reliable)
+  const variance = hasProject(state.completedProjects, "demandSensing")
+    ? 1 + (rawVariance - 1) * 0.65
+    : rawVariance;
   const realizedDemand = Math.max(0, Math.round(plan.totalDemand * variance));
   // Sales are still capped by the production run — you can never sell more than you built.
   const totalUnits = Math.min(plannedUnits, realizedDemand);
@@ -820,11 +1108,19 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // scaled by the same competitionFactor that already discounts real demand. The thresholds in
   // BALANCE.reputation keep their meaning (they're applied to the same score scale).
   const effectiveScore = plan.launchScore * plan.competitionFactor;
-  const isHit = effectiveScore >= rep.hitThreshold;
-  const isFlop = effectiveScore <= rep.flopThreshold;
+  // Era-scaled verdict bars (the bar for a "hit" rises as the company grows — see verdictBands).
+  const bands = verdictBands(state.era);
+  // hitFactory lowers the hit threshold, so more polished products qualify as hits
+  const hitThreshold = hasProject(state.completedProjects, "hitFactory")
+    ? Math.round(bands.hit * 0.88)
+    : bands.hit;
+  const isHit = effectiveScore >= hitThreshold;
+  const isFlop = effectiveScore <= bands.flop;
+  const hasCrisisComms = hasProject(state.completedProjects, "crisisComms");
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
-  else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1));
+  else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
+  if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);
 
   // Fanbase response — hits win fans (more for bigger sellers), flops lose them, sellouts add buzz.
   const fb = BALANCE.fans;
@@ -842,12 +1138,17 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   }
   fans = Math.round(fans);
 
+  // Fan milestones — surface crossing big numbers as celebratory feed items + rep bonus.
+  const fanMilestones = fanMilestoneResult(state.fans, fans, state.week);
+  reputation = Math.min(rep.max, reputation + fanMilestones.repBonus);
+
   // The whole team feels the result.
+  const isSolid = !isHit && !isFlop && effectiveScore >= bands.solid;
   const moodSwing = isHit ? 12 : isFlop ? -12 : 3;
   const staff = state.staff.map((s) => ({ ...s, mood: clampMood(s.mood + moodSwing) }));
 
   // Record the verdict the player saw on the launched product, so the history screen can report it.
-  lp.verdict = isHit ? "hit" : isFlop ? "flop" : "steady";
+  lp.verdict = isHit ? "hit" : isFlop ? "flop" : isSolid ? "solid" : "steady";
 
   // B8 — surface the deltas the player otherwise can't see: how this launch moved fans + reputation.
   const fanDelta = fans - state.fans;
@@ -858,19 +1159,20 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const deltaStr = deltaBits.length ? ` ${deltaBits.join(" · ")}.` : "";
 
   const feed = [...state.feed];
-  const verdict = isHit ? "a hit" : isFlop ? "a flop" : "a steady seller";
+  const verdict = isHit ? 'a hit' : isFlop ? 'a flop' : isSolid ? 'a solid performer' : 'a steady seller';
   feed.push(
     feedItem(
       state.week,
       `Launched “${product.name}” — ${verdict} (~${totalUnits.toLocaleString()} of ${plannedUnits.toLocaleString()} units forecast).${deltaStr}`,
-      isHit ? "positive" : isFlop ? "negative" : "accent",
+      isHit ? 'positive' : isFlop ? 'negative' : isSolid ? 'positive' : 'accent',
     ),
   );
   if (sellsOut) {
-    feed.push(feedItem(state.week, `“${product.name}” is selling out — demand outstrips your run.`, "positive"));
+    feed.push(feedItem(state.week, `”${product.name}” is selling out — demand outstrips your run.`, "positive"));
   } else if (plannedUnits - totalUnits > plannedUnits * 0.35) {
     feed.push(feedItem(state.week, `Overproduced “${product.name}” — unsold stock is a write-off.`, "negative"));
   }
+  for (const item of fanMilestones.feed) feed.push(item);
 
   return {
     state: {
@@ -890,8 +1192,82 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   };
 }
 
+/** Mid-lifecycle price cut: reduces price on an active product, scaling up demand for remaining
+ *  weeks proportionally to the improved priceFit. Limited to one cut per product — used when rivals
+ *  enter your category and you want to defend market share at the cost of margin. */
+export function cutProductPrice(state: GameState, productId: string, newPrice: Money): ActionResult {
+  const lp = state.launched.find((l) => l.product.id === productId);
+  if (!lp) return { state, ok: false, reason: "Product not found." };
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };
+  if (newPrice >= lp.product.price) return { state, ok: false, reason: "New price must be lower than current price." };
+  if (newPrice < lp.unitCost) return { state, ok: false, reason: "Price can't go below unit cost." };
+  if ((lp.priceCuts ?? 0) >= 1) return { state, ok: false, reason: "Price has already been adjusted on this product." };
+
+  // Compute the priceFit improvement ratio — this scales remaining weekly demand proportionally.
+  const oldFit = priceFit(lp.product.price, lp.stats, lp.product.category);
+  const newFit = priceFit(newPrice, lp.stats, lp.product.category);
+  const boost = oldFit > 0 ? Math.max(1, newFit / oldFit) : 1;
+
+  const newWeeklyUnits = lp.weeklyUnits.map((u, i) =>
+    i < lp.weeksElapsed ? u : Math.round(u * boost),
+  );
+  // totalUnits must not exceed the production run.
+  const newTotalUnits = Math.min(
+    lp.plannedUnits ?? lp.totalUnits,
+    newWeeklyUnits.reduce((a, b) => a + b, 0),
+  );
+
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Price cut on "${lp.product.name}" — ${format(lp.product.price)} → ${format(newPrice)}.`, "accent"));
+
+  return {
+    state: {
+      ...state,
+      launched: state.launched.map((l) =>
+        l.product.id === productId
+          ? { ...l, product: { ...l.product, price: newPrice }, weeklyUnits: newWeeklyUnits, totalUnits: newTotalUnits, priceCuts: (l.priceCuts ?? 0) + 1 }
+          : l,
+      ),
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
 function clampMood(m: number): number {
   return Math.max(0, Math.min(100, m));
+}
+
+/** Give a staff member a salary raise to match their current skill level. */
+export function giveRaise(state: GameState, id: string): GameState {
+  const member = state.staff.find((s) => s.id === id);
+  if (!member || member.id === "s0") return state;
+  const marketSalary = salaryFor(member.role, member.skill);
+  if (toDollars(member.salary) >= toDollars(marketSalary)) return state;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${member.name}'s salary raised to ${format(marketSalary)}/wk.`, "positive"));
+  return {
+    ...state,
+    staff: state.staff.map((s) =>
+      s.id === id ? { ...s, salary: marketSalary, mood: clampMood(s.mood + BALANCE.churn.raiseMoodBoost), moodLowWeeks: 0 } : s
+    ),
+    feed: trimFeed(feed),
+  };
+}
+
+/** Resolve a pending player-choice event by picking one of the options. */
+export function resolveChoice(state: GameState, optionId: string): GameState {
+  const pc = state.pendingChoice;
+  if (!pc) return state;
+  const option = (pc.event.options as readonly ChoiceOption[]).find((o) => o.id === optionId);
+  if (!option) return state;
+  const feedText = `${pc.event.title} — you chose: "${option.label}".`;
+  const applied = applyEventEffect(state, option.effect, state.week, feedText, pc.event.tone as FeedTone);
+  return {
+    ...applied,
+    pendingChoice: null,
+    resolvedChoices: [...state.resolvedChoices, pc.event.id],
+  };
 }
 
 export function researchNext(state: GameState, kind: ComponentKind): GameState {
@@ -1020,6 +1396,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     role,
     name,
     skill: finalSkill,
+    skills: makeSkills(rng, role, finalSkill),
     salary: salaryFor(role, finalSkill),
     assignment: ROLE_ASSIGNMENT[role],
     xp: 0,
@@ -1035,6 +1412,90 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     staffCounter: state.staffCounter + 1,
     feed: trimFeed(feed),
   };
+}
+
+// ---------- Recruitment: search → candidates → sign ----------
+
+/** Open a recruitment search on a channel (Job Board / Headhunter). Costs the tier's fee and
+ *  resolves after the tier's lead time. */
+export function startRecruitment(state: GameState, tier: RecruitTier): GameState {
+  if (state.recruitment) return state; // a search is already running
+  const t = BALANCE.recruitment.tiers[tier];
+  if (state.cash < t.cost) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Opened a ${t.label} search.`, "accent")]);
+  return {
+    ...state,
+    cash: sub(state.cash, t.cost),
+    recruitment: { tier, weeksLeft: t.weeks, startedWeek: state.week },
+    feed,
+  };
+}
+
+/** Generate the applicant pool when a search completes. The tier sets the skill spread + star
+ *  odds. Varied roles, 0..100 profiles, traits. Advances + returns the rng (deterministic). */
+function generateCandidates(state: GameState, tier: RecruitTier, rng: Rng): { candidates: Candidate[]; counter: number } {
+  const t = BALANCE.recruitment.tiers[tier];
+  const roles: StaffRole[] = ["engineer", "designer", "marketer"];
+  const out: Candidate[] = [];
+  let counter = state.candidateCounter;
+  for (let i = 0; i < BALANCE.recruitment.candidates; i++) {
+    const role = roles[rng.int(roles.length)];
+    let level = Math.round(rng.range(t.minLevel, t.maxLevel));
+    if (rng.next() < t.starChance) level = Math.min(9, level + 2 + rng.int(2));
+    const skills = makeSkills(rng, role, level);
+    const headline = levelFromSkills(skills, role);
+    const identity = makeIdentity(rng, role);
+    out.push({
+      id: `c${counter++}`,
+      role,
+      name: NAMES[(counter * 7 + level) % NAMES.length],
+      skill: headline,
+      skills,
+      salary: salaryFor(role, headline),
+      hireFee: hireCostFor(role, headline, hasProject(state.completedProjects, "talentNetwork")),
+      ...identity,
+    });
+  }
+  return { candidates: out, counter };
+}
+
+/** Sign a candidate from the pool onto the team (respects capacity + cash). Removes them + clears
+ *  the rest of that pool (the others "take other offers"). */
+export function hireCandidate(state: GameState, candidateId: string): GameState {
+  const cand = state.candidates.find((c) => c.id === candidateId);
+  if (!cand) return state;
+  if (state.staff.length >= facility(state).staffCapacity) return state;
+  if (state.cash < cand.hireFee) return state;
+  const member: Staff = {
+    id: `s${state.staffCounter}`,
+    role: cand.role,
+    name: cand.name,
+    skill: cand.skill,
+    skills: cand.skills,
+    salary: cand.salary,
+    assignment: ROLE_ASSIGNMENT[cand.role],
+    xp: 0,
+    specialty: cand.specialty,
+    trait: cand.trait,
+    mood: cand.mood,
+    appearance: cand.appearance,
+  };
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name} — ${cand.role}.`, "positive")]);
+  return {
+    ...state,
+    cash: sub(state.cash, cand.hireFee),
+    staff: [...state.staff, member],
+    staffCounter: state.staffCounter + 1,
+    candidates: [], // the rest of the shortlist moves on
+    candidatesExpire: 0,
+    feed,
+  };
+}
+
+/** Dismiss the current candidate shortlist without hiring. */
+export function clearCandidates(state: GameState): GameState {
+  if (state.candidates.length === 0) return state;
+  return { ...state, candidates: [], candidatesExpire: 0 };
 }
 
 export function fireStaff(state: GameState, id: string): GameState {
@@ -1067,10 +1528,12 @@ export function canIPO(state: GameState): boolean {
   return !state.wentPublic && state.era >= maxEra() && state.reputation >= BALANCE.ipo.minReputation;
 }
 
-/** A headline valuation for the IPO celebration. */
+/** A headline valuation for the IPO celebration: lifetime revenue × a multiple, plus a CUBIC
+ *  reputation term so a fledgling brand is worth almost nothing and a dominant one compounds. */
 export function ipoValuation(state: GameState): Money {
   const fromRevenue = scale(state.cumulativeRevenue, BALANCE.ipo.valuationPerRevenueDollar);
-  const fromRep = scale(BALANCE.ipo.valuationPerRepPoint, state.reputation);
+  const repFrac = Math.max(0, Math.min(100, state.reputation)) / 100;
+  const fromRep = scale(BALANCE.ipo.repValuationMax, repFrac * repFrac * repFrac);
   return add(fromRevenue, fromRep);
 }
 
@@ -1096,6 +1559,46 @@ export function founderStakeValue(state: GameState): Money {
 /** Net worth = cash + rival portfolio + the founder's stake in their own company. */
 export function netWorth(state: GameState): Money {
   return add(add(state.cash, holdingsValue(state.holdings, state.competitors)), founderStakeValue(state));
+}
+
+// ---------- Industry leaderboard: the player's company vs the six public rivals ----------
+
+export interface IndustryEntry {
+  id: string;
+  name: string;
+  valuation: Money;
+  isPlayer: boolean;
+}
+
+/** The industry ranked by live company valuation (the player + every rival), biggest first.
+ *  This is the late-game chase: climb from dead-last in the garage to #1 in the industry. */
+export function industryLeaderboard(state: GameState): IndustryEntry[] {
+  const board: IndustryEntry[] = state.competitors.map((c) => ({
+    id: c.id,
+    name: c.name,
+    valuation: rivalMarketCap(c),
+    isPlayer: false,
+  }));
+  board.push({ id: "player", name: state.companyName, valuation: companyValuation(state), isPlayer: true });
+  board.sort((a, b) => toDollars(b.valuation) - toDollars(a.valuation));
+  return board;
+}
+
+/** The player's 1-based rank in the industry (1 = the single biggest company). */
+export function industryRank(state: GameState): number {
+  const board = industryLeaderboard(state);
+  const idx = board.findIndex((e) => e.isPlayer);
+  return idx < 0 ? board.length : idx + 1;
+}
+
+/** Era-scaled verdict score bands. effectiveScore (= launchScore × competitionFactor) at or above
+ *  `hit` is a hit, at/below `flop` is a flop, ≥ `solid` (but under hit) is a solid performer, else a
+ *  steady seller. The bars rise with the era so late-game hits must be earned (Phase-2 scaling). The
+ *  Design Lab preview and the launch use this SAME helper, so the projected verdict always matches. */
+export function verdictBands(era: number): { hit: number; flop: number; solid: number } {
+  const r = BALANCE.reputation;
+  const i = Math.max(0, Math.min(era - 1, r.hitThresholdByEra.length - 1));
+  return { hit: r.hitThresholdByEra[i], flop: r.flopThresholdByEra[i], solid: r.solidThresholdByEra[i] };
 }
 
 /** Can the company IPO to raise capital? (Established by revenue, not yet listed.) */
@@ -1180,7 +1683,7 @@ export function catchUpOffline(state: GameState): { state: GameState; weeks: num
   if (weeks <= 0) return { state: { ...state, lastActive: now }, weeks: 0, gain: ZERO };
   const cashBefore = state.cash;
   let s = state;
-  for (let i = 0; i < weeks; i++) s = advanceOneWeek(s, BALANCE.offline.rate);
+  for (let i = 0; i < weeks; i++) s = advanceOneWeek(s, BALANCE.offline.rate, true);
   return { state: { ...s, lastActive: now }, weeks, gain: sub(s.cash, cashBefore) };
 }
 
