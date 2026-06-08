@@ -1,0 +1,107 @@
+name: TestFlight
+
+# Runs automatically when you push to main, or manually from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # "Run workflow" button in GitHub Actions
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false  # never cancel a build that's already uploading
+
+jobs:
+  deploy:
+    name: Build & upload to TestFlight
+    runs-on: macos-latest    # Xcode only runs on macOS
+
+    steps:
+      # ── 1. Source code ────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Node (for the web build + Capacitor CLI) ────────────────────
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # ── 3. Ruby (for Fastlane) ────────────────────────────────────────
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true     # caches gems so re-runs are faster
+
+      # ── 4. Web bundle ─────────────────────────────────────────────────
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        run: npm run build        # tsc -b && vite build → dist/
+
+      # ── 5. iOS project (generated, not committed) ─────────────────────
+      - name: Add Capacitor iOS platform
+        run: |
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
+
+      - name: Sync Capacitor (copies dist/ into ios/App/App/public/)
+        run: npx cap sync ios
+
+      # ── 6. Copy Fastlane into the generated iOS project ───────────────
+      # The ios/ directory is gitignored and re-generated each run, so we
+      # copy our committed fastlane/ + Gemfile into the Xcode project folder.
+      - name: Copy Fastlane files into iOS project
+        run: |
+          cp -r fastlane ios/App/fastlane
+          cp Gemfile      ios/App/Gemfile
+          cp Gemfile.lock ios/App/Gemfile.lock 2>/dev/null || true
+
+      # ── 7. CocoaPods (native dependencies) ────────────────────────────
+      - name: Install CocoaPods dependencies
+        working-directory: ios/App
+        run: pod install
+
+      # ── 8. App icon ───────────────────────────────────────────────────
+      - name: Generate app icons
+        run: |
+          npm run assets:icons
+          npx @capacitor/assets generate --ios 2>/dev/null || true
+
+      # ── 9. Fastlane beta lane ─────────────────────────────────────────
+      - name: Deploy to TestFlight
+        working-directory: ios/App
+        env:
+          # App Store Connect API key (create once at appstoreconnect.apple.com → Users → Keys)
+          ASC_KEY_ID:     ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID:  ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8:     ${{ secrets.ASC_KEY_P8 }}      # full contents of the .p8 file
+
+          # Fastlane Match — certificates stored in Wrexist/ios-certificates
+          MATCH_GIT_URL:    ${{ secrets.MATCH_GIT_URL }}     # https://github.com/Wrexist/ios-certificates.git
+          MATCH_GIT_USER:   ${{ secrets.MATCH_GIT_USER }}    # your GitHub username
+          MATCH_GIT_TOKEN:  ${{ secrets.MATCH_GIT_TOKEN }}   # GitHub PAT with repo read access
+          MATCH_PASSWORD:   ${{ secrets.MATCH_PASSWORD }}    # passphrase used when certs were encrypted
+
+          # Apple account info
+          APPLE_ID:         ${{ secrets.APPLE_ID }}          # your Apple ID email
+          APPLE_TEAM_ID:    ${{ secrets.APPLE_TEAM_ID }}     # 10-char team ID from developer.apple.com
+          ITC_TEAM_ID:      ${{ secrets.ITC_TEAM_ID }}       # App Store Connect team id (often same)
+
+          # Build number = GitHub run number (auto-increments on every push)
+          BUILD_NUMBER:     ${{ github.run_number }}
+
+        run: bundle exec fastlane beta
+
+      # ── 10. Upload the IPA as an artifact (optional, good for debugging) ──
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Silicon-${{ github.run_number }}.ipa
+          path: ios/App/build/Silicon.ipa
+          retention-days: 14
+          if-no-files-found: ignore

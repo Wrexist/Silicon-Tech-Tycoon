@@ -1,0 +1,7 @@
+git_url ENV["MATCH_GIT_URL"]       # set in GitHub secret MATCH_GIT_URL
+                                   # e.g. "https://github.com/Wrexist/ios-certificates.git"
+
+storage_mode "git"
+type "appstore"                    # distribution profile for App Store / TestFlight
+app_identifier ["com.wrexist.silicon"]
+username ENV["APPLE_ID"]

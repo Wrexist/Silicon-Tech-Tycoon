@@ -1,0 +1,60 @@
+default_platform(:ios)
+
+platform :ios do
+
+  # ── beta: build + upload to TestFlight ───────────────────────────────────
+  desc "Build and upload a new TestFlight beta"
+  lane :beta do
+    # Tell Fastlane it's running in a non-interactive CI environment.
+    setup_ci
+
+    # Authenticate with App Store Connect via API key (no 2FA headaches).
+    api_key = app_store_connect_api_key(
+      key_id:        ENV["ASC_KEY_ID"],
+      issuer_id:     ENV["ASC_ISSUER_ID"],
+      key_content:   ENV["ASC_KEY_P8"],   # the full .p8 file contents, including headers
+      is_key_content_base64: false,
+      in_house: false
+    )
+
+    # Sync certificates + provisioning profiles from the ios-certificates repo.
+    match(
+      type:          "appstore",
+      readonly:      true,            # CI never creates new certs, only uses existing ones
+      api_key:       api_key,
+      git_url:       ENV["MATCH_GIT_URL"],
+      git_basic_authorization: Base64.strict_encode64("#{ENV['MATCH_GIT_USER']}:#{ENV['MATCH_GIT_TOKEN']}"),
+    )
+
+    # Use the GitHub run number as the build number so it auto-increments.
+    increment_build_number(
+      build_number:  ENV["BUILD_NUMBER"] || Time.now.to_i.to_s,
+      xcodeproj:     "App.xcodeproj"
+    )
+
+    # Build the app for App Store distribution.
+    build_app(
+      workspace:       "App.xcworkspace",
+      scheme:          "App",
+      export_method:   "app-store",
+      export_options: {
+        provisioningProfiles: {
+          "com.wrexist.silicon" => "match AppStore com.wrexist.silicon"
+        }
+      },
+      output_directory: "./build",
+      output_name:      "Silicon.ipa",
+      clean:            true
+    )
+
+    # Upload to TestFlight. Skip waiting so the job finishes fast.
+    upload_to_testflight(
+      api_key:                          api_key,
+      skip_waiting_for_build_processing: true,
+      distribute_external:              false,
+    )
+
+    UI.success "✓ Silicon uploaded to TestFlight (build #{ENV['BUILD_NUMBER']})"
+  end
+
+end
