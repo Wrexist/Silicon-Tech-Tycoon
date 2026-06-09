@@ -82,6 +82,9 @@ function feedIcon(text: string, tone: string): LucideIcon {
   if (text.includes("Out of cash") || text.includes("quit —")) return AlertTriangle;
   if (text.startsWith("Entered the ") && text.includes("tech unlocked")) return Zap;
   if (/^Q\d+ complete/.test(text)) return BarChart3;
+  if (text.startsWith("Consumer preferences shifted")) return BarChart3;
+  if (text.startsWith("Price cut on ")) return TrendingDown;
+  if (text.startsWith("Revenue milestone")) return BarChart3;
   return tone === "positive" ? TrendingUp : tone === "negative" ? TrendingDown : tone === "accent" ? Sparkles : Newspaper;
 }
 
