@@ -243,7 +243,11 @@ Balance findings queued for fix pass (B1-B9 below).
       fan-bonus only fires when the run met ≥ selloutMinDemandShare (0.5) of demand, else a small
       undersupplyFanPenalty (0.05) for chronic undersupply (launchReady). Tests: token sellout isn't
       rewarded, gain is analytically bounded, pre-orders < total demand under the cap.
-- [ ] B5 Pricing solved by one Suggest button → show a range not the peak. (DEFERRED — larger design change.)
+- [x] B5 Pricing solved by one Suggest button → FIXED (v15.1): the lab now shows a price BAND
+      ("Buyers expect $lo–$hi" = where fit ≥ guidanceFitFloor 0.9), never the exact peak, and the
+      one-click Suggest setter is REMOVED. Band is asymmetric (overpriceHarshness) so it teaches
+      that overpricing hurts more; where to sit inside it is a margin-vs-volume call. New engine
+      `priceGuidance` + balance constants; hardcoded $9/pt in the old suggest deleted. 1 new test.
 - [x] B6 Stock drift +EV passive income printer → FIXED (post-Sweep-4): share prices now
       mean-revert around a reputation-anchored fairSharePrice (log-gap × meanReversion 0.06/wk);
       baseline drift + perpetual reputation momentum REMOVED (quality lives in the price LEVEL).

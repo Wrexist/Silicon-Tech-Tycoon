@@ -51,6 +51,10 @@ export const BALANCE = {
       idealMarkup: 2.2, // price ≈ unitCost * markup feels "fair" at mid value
       valueToPrice: dollars(9), // each perceived-value point ~ this much fair price
       tolerance: 0.55, // how forgiving the price curve is
+      overpriceHarshness: 1.45, // deviation above fair is penalised this much harder than below
+      // B5 — the lab shows a price RANGE (where fit stays ≥ this floor), never the exact peak,
+      // so pricing is a margin-vs-volume decision instead of a one-click answer.
+      guidanceFitFloor: 0.9,
       minFit: 0.15,
       maxFit: 1.35,
     },

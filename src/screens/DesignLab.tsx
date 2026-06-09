@@ -9,7 +9,7 @@ import { isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
-import { effectiveWeights, scoreLaunch } from "../engine/market.ts";
+import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
 import { buildCost, computeStats, missingSlots, overallScore } from "../engine/product.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -94,8 +94,7 @@ function freshDraft(state: GameState): Product {
   // Auto-price: start at a fair market price based on actual component stats so new players
   // aren't unknowingly launching severely overpriced T1 products.
   const stats = computeStats(base);
-  const overall = overallScore(stats, "phone");
-  const fairPrice = Math.max(49, Math.round(overall * toDollars(BALANCE.market.price.valueToPrice) / 10) * 10);
+  const fairPrice = Math.max(49, Math.round(toDollars(priceGuidance(stats, "phone").fair) / 10) * 10);
   return { ...base, price: dollars(fairPrice) };
 }
 
@@ -156,7 +155,10 @@ export function DesignLab({
   const overall = overallScore(stats, draft.category);
   const weights = effectiveWeights(state.trends, draft.category);
 
-  const fairPriceDollars = Math.max(1, overall * toDollars(BALANCE.market.price.valueToPrice));
+  // B5 — the player sees a price BAND (where fit stays healthy), never the exact peak; where to
+  // sit inside it (value play vs margin play) is their call. Zone/accent stay ratio-relative.
+  const guidance = priceGuidance(stats, draft.category);
+  const fairPriceDollars = Math.max(1, toDollars(guidance.fair));
   const priceRatio = toDollars(draft.price) / fairPriceDollars;
   const [priceZone, priceZoneTone] =
     priceRatio < 0.65 ? ["Underpriced", "accent" as const]
@@ -212,17 +214,6 @@ export function DesignLab({
     haptic.light();
     setFace("back");
     setDraft((d) => ({ ...d, camera: { ...d.camera, ...partial } }));
-  }
-
-  function suggestPrice() {
-    const fair = dollars(Math.max(50, overall * toDollars(dollars(9))));
-    haptic.light();
-    if (fair === draft.price) {
-      showToast("Price looks about right already", { tone: "neutral" });
-    } else {
-      set({ price: fair });
-      showToast(`Price set to ${format(fair)}`, { tone: "positive" });
-    }
   }
 
   function openWizard() {
@@ -656,7 +647,7 @@ export function DesignLab({
             </Card>
 
             <Card>
-              <SectionHeader title="Price" accessory={<Button size="sm" variant="secondary" onClick={suggestPrice}>Suggest</Button>} />
+              <SectionHeader title="Price" />
               <div className="lab__price-display rounded tnum">{format(draft.price)}</div>
               <Slider
                 value={toDollars(draft.price)}
@@ -670,7 +661,7 @@ export function DesignLab({
               <div className="lab__price-meta">
                 <StatPill label="Build" value={format(unitCost)} />
                 <StatPill label="Margin" value={`${format(margin)} · ${marginPct}%`} tone={marginPct > 0 ? "positive" : "negative"} />
-                <StatPill label="Fair ~" value={`$${Math.round(fairPriceDollars / 10) * 10}`} />
+                <StatPill label="Buyers expect" value={`$${Math.round(toDollars(guidance.lo) / 10) * 10}–$${Math.round(toDollars(guidance.hi) / 10) * 10}`} />
                 <StatPill value={priceZone} tone={priceZoneTone} />
               </div>
               {(() => {
