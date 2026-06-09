@@ -897,6 +897,9 @@ function Member({
           <ArrowUp size={13} /> {maxed ? "Maxed" : `Lv ${s.skill + 1} · ${format(cost)}`}
         </Button>
       </div>
+      {!maxed && cash < cost && (
+        <p className="co__recruit-hint">Need {format(cost)} to train</p>
+      )}
       {isMisfit && (
         <div className="co__fit-hint">
           <span>Low {DISCIPLINE_LABEL[activeDisc!]} fit · try <strong>{ASSIGN_LABEL[bestFitAssign]}</strong></span>
@@ -1013,6 +1016,11 @@ function RecruitPanel({
           );
         })}
       </div>
+      {state.cash < BALANCE.recruitment.tiers.board.cost && (
+        <p className="co__recruit-hint">
+          Save up {format(BALANCE.recruitment.tiers.board.cost)} to post a job board listing and find your first hire.
+        </p>
+      )}
     </Card>
   );
 }

@@ -840,6 +840,14 @@
   color: var(--accent);
 }
 
+.co__recruit-hint {
+  margin: var(--sp-8) 0 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  line-height: 1.4;
+  text-align: center;
+}
+
 /* Facility capacity nudge */
 .co__fac-nudge {
   display: flex;

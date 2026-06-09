@@ -13,7 +13,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, tierDef } from "../engine/catalogs.ts";
 import { overallScore } from "../engine/product.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { format, toDollars } from "../engine/money.ts";
+import { format, sub, toDollars } from "../engine/money.ts";
 import {
   canPlace,
   CATEGORY_LABEL,
@@ -625,15 +625,20 @@ function Upgrades() {
           <span className="hqu__lv tnum">Tier {state.facilityTier}</span>
         </div>
         {nextFac ? (
-          <Button
-            block
-            size="sm"
-            variant={state.cash >= nextFac.upgradeCost ? "primary" : "tertiary"}
-            disabled={state.cash < nextFac.upgradeCost}
-            onClick={() => { upgradeHQ(); haptic.success(); sfx("levelup"); showToast(`Moved to ${nextFac.name}`, { tone: "positive" }); }}
-          >
-            <ArrowUp size={14} /> Move to {nextFac.name} · {format(nextFac.upgradeCost)}
-          </Button>
+          <>
+            <Button
+              block
+              size="sm"
+              variant={state.cash >= nextFac.upgradeCost ? "primary" : "tertiary"}
+              disabled={state.cash < nextFac.upgradeCost}
+              onClick={() => { upgradeHQ(); haptic.success(); sfx("levelup"); showToast(`Moved to ${nextFac.name}`, { tone: "positive" }); }}
+            >
+              <ArrowUp size={14} /> Move to {nextFac.name} · {format(nextFac.upgradeCost)}
+            </Button>
+            {state.cash < nextFac.upgradeCost && (
+              <p className="hqu__upgrade-hint">Need {format(sub(nextFac.upgradeCost, state.cash))} more to upgrade · unlocks {nextFac.staffCapacity} desks</p>
+            )}
+          </>
         ) : (
           <div className="hqu__maxed"><Check size={14} strokeWidth={2.5} /> Largest facility</div>
         )}

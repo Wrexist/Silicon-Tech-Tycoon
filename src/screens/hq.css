@@ -806,6 +806,14 @@
   color: var(--positive-text);
 }
 
+.hqu__upgrade-hint {
+  margin: var(--sp-6) 0 0;
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  line-height: 1.4;
+  text-align: center;
+}
+
 /* Marketing sheet */
 .mkts {
   display: flex;
