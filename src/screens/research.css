@@ -206,6 +206,12 @@
   border-radius: var(--r-pill);
   white-space: nowrap;
 }
+.rd__locked-advance {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--positive);
+  flex-basis: 100%;
+}
 
 /* Active boosts summary */
 .rd__boosts {

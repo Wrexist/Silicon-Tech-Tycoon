@@ -12,7 +12,7 @@ import { eraName, maxEra } from "../engine/eras.ts";
 import { toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { rdRpCostFor, nextWeekRevenue, researchedTier, weeklyRpGen } from "../state/gameState.ts";
+import { canAdvance, rdRpCostFor, nextWeekRevenue, researchedTier, weeklyRpGen } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -252,7 +252,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       </Card>
 
       {/* R&D sprint: top picks — up to 3 actionable component upgrades */}
-      {perWeek > 0 && (() => {
+      {(perWeek > 0 || rp > 0) && (() => {
         const trendStat = [...STAT_KEYS].sort((a, b) => {
           const da = (state.trends.targetWeights[a] ?? 0) - (state.trends.weights[a] ?? 0);
           const db = (state.trends.targetWeights[b] ?? 0) - (state.trends.weights[b] ?? 0);
@@ -544,6 +544,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                         <div className="rd__locked">
                           <Lock size={12} /> Unlocks in {isNextEra ? "the next era" : eraName(targetEra)}
                           {eraProg && <span className="rd__locked-era-prog">{eraProg}</span>}
+                          {isNextEra && canAdvance(state) && onNavigate && (
+                            <button className="rd__bank-link rd__locked-advance" onClick={() => onNavigate("hq")}>
+                              Era ready — advance on HQ →
+                            </button>
+                          )}
                         </div>
                       );
                     })()
