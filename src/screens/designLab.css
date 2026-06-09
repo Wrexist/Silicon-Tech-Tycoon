@@ -862,6 +862,19 @@
   line-height: 1.45;
 }
 .wiz__warn--risk svg { flex: 0 0 auto; margin-top: 1px; }
+.wiz__warn--shift {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  text-align: left;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--accent);
+  line-height: 1.45;
+}
+.wiz__warn--shift svg { flex: 0 0 auto; margin-top: 1px; }
 .wiz__nav { display: flex; gap: var(--sp-8); }
 .wiz__cancel { padding: var(--sp-8); font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
 

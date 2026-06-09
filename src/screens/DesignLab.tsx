@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, Check, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Ban, Check, Clock, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -968,6 +968,15 @@ function BuildWizard({
               <AlertTriangle size={14} /> Tight runway: at {format(weeklyBurnAfter)}/wk you have {runway} wk of cash but the build takes {buildWks} wk. No revenue arrives until launch — this run may bankrupt you mid-build. Consider a smaller run.
             </p>
           )}
+          {(() => {
+            const weeksToShift = state.trendRetargetWeek - state.week;
+            if (weeksToShift <= 0 || buildWks < weeksToShift) return null;
+            return (
+              <p className="wiz__warn wiz__warn--shift">
+                <Clock size={14} /> Trends shift in {weeksToShift} wk but this build takes {buildWks} wk — demand fit shown reflects today's trends, not launch day.
+              </p>
+            );
+          })()}
         </div>
       )}
 
