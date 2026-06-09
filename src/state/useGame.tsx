@@ -344,7 +344,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const research = useCallback((kind: ComponentKind) => {
-    setState((s) => researchNext(s, kind));
+    const prev = stateRef.current;
+    const next = researchNext(prev, kind);
+    const rpSpent = prev.researchPoints - next.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    setState(next);
   }, []);
 
   const buyProjectCb = useCallback((id: ProjectId) => {

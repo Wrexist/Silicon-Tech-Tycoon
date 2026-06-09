@@ -472,7 +472,8 @@ export function DesignLab({
                         const etaWks = rpCost !== null && perWk > 0
                           ? Math.ceil(Math.max(0, rpCost - rp) / perWk)
                           : null;
-                        const etaSuffix = etaWks === 0 ? " · ready now" : etaWks !== null ? ` · ~${etaWks} wk` : "";
+                        const etaStr = etaWks === 0 ? "ready now" : etaWks !== null ? (etaWks > 52 ? "1y+" : `~${etaWks} wk`) : null;
+                        const etaSuffix = etaStr ? ` · ${etaStr}` : "";
                         return onNavigate ? (
                           <button className="lab__comp-locked lab__comp-locked--link" onClick={() => { haptic.light(); onNavigate("research"); }}>
                             <Lock size={9} strokeWidth={2.5} /> T{maxT + 1} in R&amp;D{etaSuffix}

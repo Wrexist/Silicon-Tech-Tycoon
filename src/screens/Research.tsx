@@ -94,7 +94,10 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars, weeklyRe
                   const revEtaWks = weeklyRevenueDollars > 0
                     ? Math.ceil((revGoalD - cumulativeRevenueDollars) / weeklyRevenueDollars)
                     : null;
-                  const etaSuffix = revEtaWks !== null && revEtaWks < 200 ? ` · ~${revEtaWks} wk` : "";
+                  const etaStr = revEtaWks !== null
+                    ? (revEtaWks > 104 ? `${Math.ceil(revEtaWks / 52)}y+` : revEtaWks > 52 ? "1y+" : `~${revEtaWks} wk`)
+                    : null;
+                  const etaSuffix = etaStr ? ` · ${etaStr}` : "";
                   progressLabel2 = `${revPct}% rev — ${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD)}${etaSuffix}`;
                 }
               }
@@ -215,7 +218,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             <div className="rd__bank-goal-head">
               <span className="rd__bank-goal-label">Saving toward</span>
               <span className="rd__bank-goal-name">{nextGoal.name}</span>
-              {goalWeeks !== null && <span className="rd__bank-goal-eta">~{goalWeeks} wk</span>}
+              {goalWeeks !== null && (
+                <span className="rd__bank-goal-eta">
+                  {goalWeeks > 52 ? "1y+" : goalWeeks > 26 ? "26+ wk" : `~${goalWeeks} wk`}
+                </span>
+              )}
             </div>
             <div className="rd__bank-goal-track">
               <div className="rd__bank-goal-fill" style={{ width: `${goalPct}%` }} />

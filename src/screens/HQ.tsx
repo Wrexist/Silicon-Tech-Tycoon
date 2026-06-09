@@ -245,7 +245,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                     </span>
                   )}
                 </div>
-                <StatPill value={readyVerdictLabel} tone={readyVerdictTone} />
+                <StatPill value={`${readyVerdictLabel} · ${Math.round(eff)}`} tone={readyVerdictTone} />
                 <Button size="sm" onClick={() => onLaunch(p.id)}>
                   <Rocket size={15} /> Launch
                 </Button>
@@ -842,8 +842,9 @@ function EraGoalCard({ state }: { state: GameState }) {
         const wkRev = toDollars(nextWeekRevenue(state));
         if (wkRev <= 0) return null;
         const weeksLeft = Math.ceil((revTargetDollars - revDollars) / wkRev);
-        if (weeksLeft > 200) return null;
-        return <p className="hq__goal-eta">~{weeksLeft} week{weeksLeft !== 1 ? "s" : ""} at current revenue</p>;
+        if (weeksLeft > 312) return null;
+        const etaStr = weeksLeft > 104 ? `${Math.ceil(weeksLeft / 52)}y+` : weeksLeft > 52 ? "1y+" : `~${weeksLeft} wk`;
+        return <p className="hq__goal-eta">{etaStr} at current revenue</p>;
       })()}
     </div>
   );

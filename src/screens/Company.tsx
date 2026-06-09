@@ -742,7 +742,7 @@ function TeamOutputCard({ state }: { state: GameState }) {
         if (!soonest) return null;
         return (
           <p className="co__output-levelup">
-            Next level-up: <strong>{soonest.name}</strong> reaches skill {soonest.skill + 1} in ~{soonest.weeksToLevel} week{soonest.weeksToLevel !== 1 ? "s" : ""}.
+            Next level-up: <strong>{soonest.name}</strong> reaches skill {soonest.skill + 1} in {soonest.weeksToLevel > 52 ? "1y+" : `~${soonest.weeksToLevel} wk`}.
           </p>
         );
       })()}
@@ -867,7 +867,7 @@ function Member({
           <span>Skill {s.skill}{maxed ? " (max)" : ""}</span>
           {!maxed && (
             <span className="co__xp-next tnum">
-              {xpPct}%{weeksToLevel !== null ? <span className="co__xp-eta"> · ~{weeksToLevel} wk</span> : null}
+              {xpPct}%{weeksToLevel !== null ? <span className="co__xp-eta"> · {weeksToLevel > 52 ? "1y+" : `~${weeksToLevel} wk`}</span> : null}
             </span>
           )}
         </div>
