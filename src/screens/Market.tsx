@@ -812,6 +812,26 @@ function ProductDetailSheet({
           hint={lp.plannedUnits != null ? `${lp.plannedUnits.toLocaleString()} made` : undefined}
         />
         {(() => {
+          // When a v9+ save has plannedUnits, show the true net P&L (all costs deducted
+          // including unsold inventory + tooling + campaign). Falls back to accounting
+          // gross profit for older saves without plannedUnits.
+          if (lp.plannedUnits != null && lp.plannedUnits > 0) {
+            const chanId = (lp.product.channelId ?? "none") as ChannelId;
+            const chan = channelById(chanId);
+            const tooling = Math.max(toDollars(BALANCE.build.minTooling), toDollars(lp.unitCost) * BALANCE.build.toolingUnits);
+            const allCosts = toDollars(lp.unitCost) * lp.plannedUnits + tooling + toDollars(chan.cost);
+            const netPL = toDollars(lp.revenueToDate) - allCosts;
+            const netMoney = dollars(Math.round(netPL));
+            const chanHint = chanId !== "none" ? `${chan.name} campaign + ` : "";
+            return (
+              <Stat
+                label="Net P&L"
+                value={`${netPL >= 0 ? "+" : ""}${format(netMoney)}`}
+                tone={netPL >= 0 ? "positive" : "negative"}
+                hint={`${chanHint}tooling incl.`}
+              />
+            );
+          }
           const grossProfitD = lp.unitsSold * (toDollars(lp.product.price) - toDollars(lp.unitCost));
           const gp = dollars(Math.round(grossProfitD));
           return (
