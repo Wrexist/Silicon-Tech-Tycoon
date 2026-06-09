@@ -284,6 +284,12 @@
   color: var(--positive-text);
   flex-shrink: 0;
 }
+.mkt__stocks-intro {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: 0 0 var(--sp-8);
+  line-height: 1.5;
+}
 .mkt__stock {
   padding: 0;
   overflow: hidden;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CircuitBoard, CircleX, Cpu, Layers, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
+import { AlertTriangle, CircuitBoard, CircleX, Cpu, Layers, RotateCcw, Sparkles, Trophy, TrendingUp } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
@@ -180,6 +180,10 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
 
   const newCats = CATEGORY_LIST.filter((c) => c.unlockEra === era);
   const newProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
+  const newCompTiers = Object.values(COMPONENT_LINES).reduce(
+    (n, line) => n + line.tiers.filter((t) => t.era === era).length,
+    0,
+  );
 
   return (
     <div className="era-modal">
@@ -223,6 +227,13 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
           </Card>
         )}
 
+        {newCompTiers > 0 && (
+          <Card variant="inset" className="era-modal__section">
+            <p className="era-modal__section-label">{newCompTiers} new component tier{newCompTiers !== 1 ? "s" : ""} available</p>
+            <p className="era-modal__comp-hint">Head to Research to unlock higher-spec parts and push your products to the next level.</p>
+          </Card>
+        )}
+
         <Button block onClick={() => { haptic.success(); sfx("era"); onDismiss(); }}>Let's go →</Button>
       </div>
     </div>
@@ -262,7 +273,9 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           </Card>
           <Card variant="inset" className="ipo__stat">
             <span className="app__offline-label">Industry rank</span>
-            <span className="app__offline-value rounded tnum">{rank === 1 ? "#1 🏆" : `#${rank}`}</span>
+            <span className="app__offline-value rounded tnum">
+              {rank === 1 ? <><Trophy size={16} style={{ verticalAlign: "middle" }} aria-hidden /> #1</> : `#${rank}`}
+            </span>
           </Card>
         </div>
         <Card variant="inset" className="ipo__legacy">

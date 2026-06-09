@@ -433,6 +433,12 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+.era-modal__comp-hint {
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  margin: 0;
+  line-height: 1.4;
+}
 
 /* IPO celebration */
 .ipo {

@@ -127,6 +127,19 @@
   font-weight: 700;
   color: var(--ink-2);
 }
+.rd__tier-new {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  white-space: nowrap;
+}
 .rd__current {
   display: flex;
   align-items: center;

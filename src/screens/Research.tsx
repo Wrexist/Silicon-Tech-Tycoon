@@ -426,9 +426,13 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               const eraLocked = !!nextDef && nextDef.era > state.era;
               const affordable = cost !== null && rp >= cost;
 
+              // A tier is "newly available" when the next tier to unlock belongs to the current
+              // era and the player is still on a tier from an earlier era — i.e. this era just
+              // opened the door to a meaningful spec jump they couldn't access before.
+              const isNewThisEra = !eraLocked && !!nextDef && nextDef.era === state.era && (curDef?.era ?? 0) < state.era;
               return (
                 <Card key={kind}>
-                  <SectionHeader title={line.displayName} accessory={<span className="rd__tier">T{cur}/{max}</span>} />
+                  <SectionHeader title={line.displayName} accessory={isNewThisEra ? <span className="rd__tier-new">New tier</span> : <span className="rd__tier">T{cur}/{max}</span>} />
                   <div className="rd__tier-pips">
                     {Array.from({ length: max }).map((_, i) => (
                       <span key={i} className={`rd__tier-pip${i < cur ? " rd__tier-pip--on" : ""}`} />

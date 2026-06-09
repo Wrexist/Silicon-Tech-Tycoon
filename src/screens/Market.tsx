@@ -349,6 +349,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
 
       {/* Stock exchange */}
       <SectionHeader title="Stock Exchange" accessory="trade rival shares" />
+      {!Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (
+        <p className="mkt__stocks-intro">
+          Buy shares in rival companies to earn weekly dividends and profit when their stock rises. Tap any card to trade.
+        </p>
+      )}
       {Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
         const portfolioVal = holdingsValue(state.holdings, comps);
         const divPerWk = weeklyDividends(state.holdings, comps);
