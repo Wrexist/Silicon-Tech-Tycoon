@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { STAT_KEYS, type Stats } from "../engine/types.ts";
 import "./charts.css";
 
@@ -85,6 +86,7 @@ export function Sparkline({
   height?: number;
   stroke?: string;
 }) {
+  const gradId = useId();
   if (data.length < 2)
     return (
       <div className="spark-empty" style={{ height }}>
@@ -102,13 +104,13 @@ export function Sparkline({
   return (
     <svg width="100%" viewBox={`0 0 ${width} ${height}`} height={height} preserveAspectRatio="none">
       <defs>
-        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={stroke} stopOpacity="0.18" />
           <stop offset="1" stopColor={stroke} stopOpacity="0" />
         </linearGradient>
       </defs>
       <line x1="0" y1={zeroY} x2={width} y2={zeroY} stroke="var(--hairline)" strokeWidth="1" strokeDasharray="3 3" />
-      <path d={area} fill="url(#spark-fill)" />
+      <path d={area} fill={`url(#${gradId})`} />
       <path d={line} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
