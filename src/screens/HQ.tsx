@@ -128,10 +128,22 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           <Button
             size="sm"
             onClick={() => {
+              const unlocks = nextEraUnlocks;
+              const nextEra = eraName(state.era + 1);
               advanceEra();
               haptic.success();
               sfx("era");
-              showToast(`Welcome to the ${eraName(state.era + 1)}`, { tone: "positive", glyph: <Sparkles size={15} /> });
+              showToast(
+                unlocks.length > 0
+                  ? `${nextEra} — ${unlocks.slice(0, 2).join(", ")} unlocked!`
+                  : `Welcome to the ${nextEra}`,
+                {
+                  tone: "positive",
+                  glyph: <Sparkles size={15} />,
+                  action: () => onNavigate("research"),
+                  actionLabel: "See unlocks",
+                },
+              );
             }}
           >
             Advance

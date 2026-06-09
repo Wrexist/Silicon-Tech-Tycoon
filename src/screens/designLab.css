@@ -833,6 +833,17 @@
 .wiz__chips { display: flex; gap: var(--sp-8); }
 .wiz__chip { flex: 1; padding: 8px 0; border-radius: var(--r-button); background: var(--bg-elevated); font-size: var(--fs-caption); font-weight: 600; }
 .wiz__chip:active { transform: scale(0.96); }
+.wiz__forecast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-14);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.wiz__forecast-label { font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2); flex: 1; }
+.wiz__forecast-score { font-size: var(--fs-micro); color: var(--ink-3); }
 .wiz__grid, .wiz__review { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); }
 .wiz__channels { display: flex; flex-direction: column; gap: var(--sp-8); }
 .wiz__channel { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); text-align: left; transition: all var(--spring-snappy); }

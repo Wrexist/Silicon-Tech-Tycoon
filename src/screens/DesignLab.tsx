@@ -934,6 +934,22 @@ function BuildWizard({
 
       {step === 2 && (
         <div className="wiz__body">
+          {(() => {
+            const eff = plan.launchScore * plan.competitionFactor;
+            const wizBands = verdictBands(state.era);
+            const [label, tone] =
+              eff >= wizBands.hit ? ["Projected hit", "positive" as const]
+                : eff <= wizBands.flop ? ["Likely flop", "negative" as const]
+                  : eff >= wizBands.solid ? ["Solid performer", "positive" as const]
+                    : ["Steady seller", "accent" as const];
+            return (
+              <div className="wiz__forecast">
+                <span className="wiz__forecast-label">Forecast</span>
+                <StatPill value={label} tone={tone} />
+                <span className="wiz__forecast-score tnum">{Math.round(eff)} pts</span>
+              </div>
+            );
+          })()}
           <div className="wiz__review">
             <Stat label="Demand fit" value={`${Math.round(plan.demandFit)}`} tone={fitTone} hint={fitLabel} />
             <Stat label="Price fit" value={priceFit.label} tone={priceFit.tone} />
@@ -941,6 +957,10 @@ function BuildWizard({
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
             <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "sells out" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
+            {channel !== "none" && (() => {
+              const chan = MARKETING_CHANNELS.find((c) => c.id === channel);
+              return chan ? <Stat label="Campaign" value={chan.name} hint={format(chan.cost)} /> : null;
+            })()}
             <Stat label="Projected profit" value={format(plan.projectedProfit)} tone={plan.projectedProfit >= 0 ? "positive" : "negative"} />
             <Stat
               label="Cash after build starts"
