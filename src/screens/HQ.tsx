@@ -639,23 +639,33 @@ function EraGoalCard({ state }: { state: GameState }) {
   const revDollars = toDollars(state.cumulativeRevenue);
   const revTargetDollars = Number.isFinite(revThresholdTarget) ? revThresholdTarget / 100 : Infinity;
   const revNeeded = Number.isFinite(revTargetDollars) ? revTargetDollars - revDollars : Infinity;
-  if (repNeeded <= 0 || revNeeded <= 0) return null;
+  // Era 1: OR logic — hide card if EITHER threshold is satisfied (advance is already ready).
+  // Era 2+: AND logic — hide only if BOTH are satisfied (otherwise still need one or both).
+  const isOrEra = state.era === 1;
+  const shouldHide = isOrEra ? (repNeeded <= 0 || revNeeded <= 0) : (repNeeded <= 0 && revNeeded <= 0);
+  if (shouldHide) return null;
   return (
     <div className="hq__goal hq__goal--card">
       <div className="hq__goal-head">
         <span className="hq__goal-label">Next era</span>
         <span className="hq__goal-era">{eraName(state.era + 1)}</span>
       </div>
-      {Number.isFinite(eraDef.repToAdvance) && (
+      {Number.isFinite(eraDef.repToAdvance) && repNeeded > 0 && (
         <GoalBar label={`Reputation (need ${Math.round(eraDef.repToAdvance)})`} value={state.reputation} target={eraDef.repToAdvance} />
       )}
-      {Number.isFinite(revTargetDollars) && (
+      {Number.isFinite(eraDef.repToAdvance) && repNeeded <= 0 && !isOrEra && (
+        <p className="hq__goal-done"><Check size={12} strokeWidth={2.5} /> Reputation — done</p>
+      )}
+      {Number.isFinite(revTargetDollars) && revNeeded > 0 && (
         <GoalBar label={`Revenue (need ${fmtRevShort(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
       )}
-      <p className="hq__goal-or">Either threshold unlocks the next era.</p>
-      {Number.isFinite(revTargetDollars) && (() => {
+      {Number.isFinite(revTargetDollars) && revNeeded <= 0 && !isOrEra && (
+        <p className="hq__goal-done"><Check size={12} strokeWidth={2.5} /> Revenue — done</p>
+      )}
+      {isOrEra && <p className="hq__goal-or">Either threshold unlocks the next era.</p>}
+      {Number.isFinite(revTargetDollars) && revNeeded > 0 && (() => {
         const wkRev = toDollars(nextWeekRevenue(state));
-        if (wkRev <= 0 || revDollars >= revTargetDollars) return null;
+        if (wkRev <= 0) return null;
         const weeksLeft = Math.ceil((revTargetDollars - revDollars) / wkRev);
         if (weeksLeft > 200) return null;
         return <p className="hq__goal-eta">~{weeksLeft} week{weeksLeft !== 1 ? "s" : ""} at current revenue</p>;
