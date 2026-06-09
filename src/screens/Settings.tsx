@@ -123,7 +123,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      <p className="set__about">Silicon: Tech Tycoon · v0.1.0</p>
+      <p className="set__about">Silicon: Tech Tycoon · v{__APP_VERSION__}</p>
       <Button block onClick={onClose}>Done</Button>
 
       <Sheet open={importOpen} onClose={() => setImportOpen(false)}>
@@ -334,7 +334,7 @@ function CreativeModeGroup() {
             sub="Design freely with no financial limits — an unlimited cash floor so you can never go bankrupt."
           >
             <Button onClick={buy} disabled={busy}>
-              {busy ? "…" : `Unlock · ${product?.price ?? "$2.99"}`}
+              {busy ? "Purchasing…" : `Unlock · ${product?.price ?? "$2.99"}`}
             </Button>
           </Row>
           <button className="set__restore" onClick={restore}>Restore purchase</button>

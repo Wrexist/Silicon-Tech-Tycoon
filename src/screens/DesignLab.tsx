@@ -297,7 +297,7 @@ export function DesignLab({
         )}
         <div className="lab__verdict">
           <StatPill label="Fit" value={`${fit}`} tone={fit >= 60 ? "positive" : "neutral"} />
-          <StatPill value={verdict.label} tone={verdict.tone} />
+          <StatPill value={missing.length === 0 ? `${verdict.label} · ${Math.round(effectiveScore)}` : verdict.label} tone={verdict.tone} />
         </div>
       </div>
 
@@ -392,8 +392,9 @@ export function DesignLab({
                 const maxT = researchedTier(state, kind);
                 const totalT = maxTier(kind);
                 const atMax = tier >= maxT;
+                const isMissing = missing.includes(kind);
                 return (
-                  <div className="lab__comp" key={kind}>
+                  <div className={`lab__comp${isMissing ? " lab__comp--missing" : ""}`} key={kind}>
                     <div className="lab__comp-info">
                       <span className="lab__comp-name">
                         {COMPONENT_LINES[kind].displayName}
@@ -539,7 +540,7 @@ export function DesignLab({
         {labTab === "launch" && (
           <>
             <Card>
-              <SectionHeader title="Stats" accessory={`Overall ${overall}`} />
+              <SectionHeader title="Stats" accessory={<span className="lab__stats-head">Overall {overall} · hit ≥{bands.hit}</span>} />
               <StatBars
                 stats={stats}
                 weights={weights}
@@ -715,7 +716,11 @@ export function DesignLab({
                 placeholder="Product name"
                 aria-label="Product name"
               />
-              {missing.length > 0 && <p className="lab__warn">Pick every component before building.</p>}
+              {missing.length > 0 && (
+                <p className="lab__warn">
+                  Missing: {missing.map((k) => COMPONENT_LINES[k].displayName).join(", ")} — go to the Components tab.
+                </p>
+              )}
               <Button block onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none">
                 <Hammer size={17} /> Plan production
               </Button>
@@ -864,7 +869,7 @@ function BuildWizard({
               const chanDemand = planProduction(state, draft, units, c.id).totalDemand;
               const demandDelta = chanDemand - baseDemand;
               return (
-                <button key={c.id} className={`wiz__channel${channel === c.id ? " wiz__channel--on" : ""}`} disabled={!aff && c.id !== "none"} aria-pressed={channel === c.id} onClick={() => { setChannel(c.id); haptic.light(); }}>
+                <button key={c.id} className={`wiz__channel${channel === c.id ? " wiz__channel--on" : ""}${!aff && c.id !== "none" ? " wiz__channel--locked" : ""}`} disabled={!aff && c.id !== "none"} aria-pressed={channel === c.id} onClick={() => { setChannel(c.id); haptic.light(); }}>
                   <span className="wiz__channel-icon"><Icon size={18} /></span>
                   <div className="wiz__channel-text">
                     <span className="wiz__channel-name">{c.name}</span>
@@ -872,7 +877,10 @@ function BuildWizard({
                   </div>
                   <div className="wiz__channel-meta">
                     <span>{c.cost > 0 ? format(c.cost) : "Free"}</span>
-                    {demandDelta > 0 && (
+                    {!aff && c.id !== "none" && (
+                      <span className="wiz__channel-need">Need {format(sub(c.cost, state.cash))} more</span>
+                    )}
+                    {aff && demandDelta > 0 && (
                       <span className="wiz__channel-demand">+{demandDelta.toLocaleString()} units</span>
                     )}
                   </div>

@@ -246,7 +246,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                           if (lp.weeksElapsed === peakWk) return <span className="mkt__product-stage mkt__product-stage--peak">peak</span>;
                           return <span className="mkt__product-stage mkt__product-stage--decline">fading</span>;
                         })()}
-                        {endingSoon && <span className="mkt__product-ending">last {lp.weeklyUnits.length - lp.weeksElapsed}wk</span>}
+                        {endingSoon && (() => {
+                          const wkLeft = lp.weeklyUnits.length - lp.weeksElapsed;
+                          return <span className={`mkt__product-ending${wkLeft <= 1 ? " mkt__product-ending--last" : ""}`}>last {wkLeft}wk</span>;
+                        })()}
                         {!live && lp.plannedUnits && lp.plannedUnits > 0 && (
                           <span className={`mkt__product-thru tnum${Math.round((lp.unitsSold / lp.plannedUnits) * 100) >= 90 ? " mkt__product-thru--full" : ""}`}>
                             {Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))}% sold

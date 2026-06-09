@@ -815,7 +815,7 @@ function Member({
           ))}
         </div>
         <Button size="sm" variant={cash >= cost && !maxed ? "secondary" : "tertiary"} disabled={maxed || cash < cost} onClick={() => onTrain(s.id)}>
-          <ArrowUp size={13} /> {maxed ? "Max" : format(cost)}
+          <ArrowUp size={13} /> {maxed ? "Maxed" : `Lv ${s.skill + 1} · ${format(cost)}`}
         </Button>
       </div>
       {isMisfit && (
@@ -886,11 +886,14 @@ function RecruitPanel({
   // Shortlist ready
   if (state.candidates.length) {
     const weeksLeft = Math.max(0, state.candidatesExpire - state.week);
+    const urgent = weeksLeft <= 2;
     return (
       <>
-        <p className="co__hint">
+        <p className={urgent ? "co__hint co__hint--urgent" : "co__hint"}>
           {full ? "At capacity — free up a desk to sign someone. " : ""}
-          Shortlist available for {weeksLeft} more week{weeksLeft === 1 ? "" : "s"}.
+          {urgent
+            ? `Shortlist expires in ${weeksLeft} week${weeksLeft === 1 ? "" : "s"} — decide now.`
+            : `Shortlist available for ${weeksLeft} more week${weeksLeft === 1 ? "" : "s"}.`}
         </p>
         {state.candidates.map((c) => (
           <CandidateCard key={c.id} c={c} canHire={!full && state.cash >= c.hireFee} onHire={() => onHire(c.id)} />

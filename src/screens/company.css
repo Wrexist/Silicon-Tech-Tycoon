@@ -312,6 +312,10 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+.co__hint--urgent {
+  color: var(--warning-text, #f59e0b);
+  font-weight: 600;
+}
 .co__burn-breakdown {
   font-size: var(--fs-caption);
   color: var(--ink-3);

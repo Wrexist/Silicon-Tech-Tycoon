@@ -197,9 +197,15 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               <span className="tnum">{goalPct}%</span>
             </div>
           </div>
-        ) : (
-          <p className="rd__bank-hint">Assign staff to R&amp;D (Company tab) to earn more Research Points.</p>
-        )}
+        ) : (() => {
+          const allCurrentEraDone = RESEARCH_PROJECTS
+            .filter((p) => p.era <= state.era)
+            .every((p) => state.completedProjects.includes(p.id) || rp >= p.rpCost);
+          if (allCurrentEraDone) {
+            return <p className="rd__bank-hint">All current-era projects are researched or affordable — check the lists below.</p>;
+          }
+          return <p className="rd__bank-hint">Saving up. Keep staff on R&amp;D to accumulate Research Points faster.</p>;
+        })()}
       </Card>
 
       {/* R&D sprint: top picks — up to 3 actionable component upgrades */}
@@ -230,7 +236,16 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           .sort((a, b) => (a!.weeksAway - b!.weeksAway) || (b!.statGain - a!.statGain))
           .slice(0, 3) as { kind: ComponentKind; next: ReturnType<typeof tierDef> & NonNullable<unknown>; cost: number; weeksAway: number; statGain: number }[];
 
-        if (picks.length === 0) return null;
+        if (picks.length === 0) {
+          const allMaxed = kinds.every((k) => researchedTier(state, k) >= maxTier(k) || (tierDef(k, researchedTier(state, k) + 1)?.era ?? 0) > state.era);
+          if (!allMaxed) return null;
+          return (
+            <Card className="rd__sprint">
+              <SectionHeader title="Top picks" accessory="next 12 weeks" />
+              <p className="rd__bank-hint">All component tech for this era is fully researched. Advance to the next era to unlock more.</p>
+            </Card>
+          );
+        }
         return (
           <Card className="rd__sprint">
             <SectionHeader title="Top picks" accessory="next 12 weeks" />

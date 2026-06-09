@@ -640,12 +640,20 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+@keyframes mkt-ending-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
 .mkt__product-ending {
   font-size: var(--fs-micro);
   font-weight: 700;
   color: #f59e0b;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.mkt__product-ending--last {
+  color: var(--negative-text, #f87171);
+  animation: mkt-ending-pulse 1.4s ease-in-out infinite;
 }
 .mkt__product-thru {
   font-size: var(--fs-micro);
