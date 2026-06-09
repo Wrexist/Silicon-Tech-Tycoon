@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ArrowUp, Award, BarChart3, Building2, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
+import { haptic } from "../design/haptics.ts";
+import { showToast } from "../design/toast.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
@@ -747,7 +749,7 @@ function Member({
           <span className="co__member-sub">{format(s.salary)}/wk</span>
         </div>
         {s.id !== "s0" && (
-          <button className="co__fire" onClick={() => onFire(s.id)} aria-label={`Let go ${s.name}`}>
+          <button className="co__fire" onClick={() => { haptic.medium(); showToast(`${s.name} let go`); onFire(s.id); }} aria-label={`Let go ${s.name}`}>
             <X size={15} />
           </button>
         )}
@@ -808,13 +810,13 @@ function Member({
               style={s.assignment === a ? { background: ASSIGN_COLOR[a] } : undefined}
               aria-pressed={s.assignment === a}
               aria-label={`Assign ${s.name} to ${ASSIGN_LABEL[a]}`}
-              onClick={() => onAssign(s.id, a)}
+              onClick={() => { haptic.light(); onAssign(s.id, a); }}
             >
               {ASSIGN_LABEL[a]}
             </button>
           ))}
         </div>
-        <Button size="sm" variant={cash >= cost && !maxed ? "secondary" : "tertiary"} disabled={maxed || cash < cost} onClick={() => onTrain(s.id)}>
+        <Button size="sm" variant={cash >= cost && !maxed ? "secondary" : "tertiary"} disabled={maxed || cash < cost} onClick={() => { haptic.success(); showToast(`${s.name} trained to level ${s.skill + 1}`, { tone: "positive" }); onTrain(s.id); }}>
           <ArrowUp size={13} /> {maxed ? "Maxed" : `Lv ${s.skill + 1} · ${format(cost)}`}
         </Button>
       </div>
@@ -840,7 +842,7 @@ function Member({
         return label ? <p className="co__member-contrib">{label}</p> : null;
       })()}
       {isUnderpaid && (
-        <button className="co__raise-btn" onClick={() => onRaise(s.id)}>
+        <button className="co__raise-btn" onClick={() => { haptic.success(); showToast(`${s.name}'s salary raised to ${format(marketSalary)}/wk`, { tone: "positive" }); onRaise(s.id); }}>
           <ArrowUp size={12} aria-hidden /> Raise to {format(marketSalary)}/wk
         </button>
       )}
@@ -898,7 +900,7 @@ function RecruitPanel({
         {state.candidates.map((c) => (
           <CandidateCard key={c.id} c={c} canHire={!full && state.cash >= c.hireFee} onHire={() => onHire(c.id)} />
         ))}
-        <Button size="sm" variant="tertiary" onClick={onDismiss}>Dismiss shortlist</Button>
+        <Button size="sm" variant="tertiary" onClick={() => { haptic.light(); onDismiss(); }}>Dismiss shortlist</Button>
       </>
     );
   }
@@ -922,7 +924,7 @@ function RecruitPanel({
               key={tier}
               className="co__recruit-tier"
               disabled={!affordable}
-              onClick={() => onRecruit(tier)}
+              onClick={() => { haptic.light(); onRecruit(tier); }}
             >
               <span className="co__recruit-tier-name">{t.label}</span>
               <span className="co__recruit-tier-meta">{t.weeks} wks · skill {t.minLevel}–{t.maxLevel}</span>
@@ -983,7 +985,7 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
       {projContrib && <p className="co__cand-contrib">{projContrib}</p>}
       <div className="co__hire-controls">
         <span className="co__hint">{format(c.salary)}/wk salary · {TRAIT_INFO[c.trait].blurb}</span>
-        <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={onHire}>Sign · {format(c.hireFee)}</Button>
+        <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={() => { haptic.success(); showToast(`${c.name} joined the team`, { tone: "positive" }); onHire(); }}>Sign · {format(c.hireFee)}</Button>
       </div>
     </Card>
   );

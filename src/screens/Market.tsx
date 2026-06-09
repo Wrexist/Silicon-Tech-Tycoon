@@ -11,6 +11,8 @@ import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
 import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
+import { channelById } from "../engine/marketing.ts";
+import type { ChannelId } from "../engine/marketing.ts";
 import { priceFit } from "../engine/market.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
@@ -812,6 +814,18 @@ function ProductDetailSheet({
               value={format(gp)}
               tone={grossProfitD >= 0 ? "positive" : "negative"}
               hint="excl. campaign"
+            />
+          );
+        })()}
+        {(() => {
+          const chanId = (lp.product.channelId ?? "none") as ChannelId;
+          if (chanId === "none") return null;
+          const chan = channelById(chanId);
+          return (
+            <Stat
+              label="Campaign"
+              value={chan.name}
+              hint={`+${Math.round(chan.hype * 100)}% hype`}
             />
           );
         })()}

@@ -602,7 +602,7 @@
   margin-top: var(--sp-6);
   font-size: var(--fs-micro);
   font-weight: 600;
-  color: #f59e0b;
+  color: var(--warning-text);
   line-height: 1.35;
 }
 .co__fit-hint strong {
@@ -610,7 +610,7 @@
 }
 /* Subtle amber ring on the active assignment button when there's a skill mismatch */
 .co__assign-opt--misfit {
-  outline: 1.5px solid #f59e0b;
+  outline: 1.5px solid var(--warning);
   outline-offset: -1.5px;
 }
 
@@ -680,7 +680,7 @@
 }
 .co__output-idle {
   font-size: var(--fs-caption);
-  color: #f59e0b;
+  color: var(--warning-text);
   font-weight: 600;
   margin-top: var(--sp-4);
 }
@@ -919,11 +919,11 @@
 
 /* ---------- Staff raise / burnout alerts ---------- */
 .co__tag--warn {
-  color: #d97706;
-  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  color: var(--warning-text);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
 }
 .co__tag--burnout {
-  color: var(--negative-text, var(--negative));
+  color: var(--negative-text);
   background: color-mix(in srgb, var(--negative) 12%, transparent);
 }
 .co__raise-btn {
@@ -935,14 +935,14 @@
   border-radius: var(--r-pill);
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: #d97706;
-  background: color-mix(in srgb, #f59e0b 12%, transparent);
-  border: 1.5px solid color-mix(in srgb, #f59e0b 28%, transparent);
+  color: var(--warning-text);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--warning) 28%, transparent);
   width: 100%;
   justify-content: center;
   transition: all var(--spring-snappy);
 }
 .co__raise-btn:active {
   transform: scale(0.97);
-  background: color-mix(in srgb, #f59e0b 20%, transparent);
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
 }

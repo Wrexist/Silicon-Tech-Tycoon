@@ -776,7 +776,7 @@
 .wiz__channel { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); text-align: left; transition: all var(--spring-snappy); }
 .wiz__channel:disabled { opacity: 0.55; }
 .wiz__channel--locked { border-style: dashed; }
-.wiz__channel-need { font-size: var(--fs-micro); font-weight: 700; color: var(--negative-text, #f87171); }
+.wiz__channel-need { font-size: var(--fs-micro); font-weight: 700; color: var(--negative-text); }
 .wiz__channel--on { border-color: var(--fn-mkt); background: var(--fn-mkt-soft); }
 .wiz__channel-icon { width: 36px; height: 36px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); background: var(--fn-mkt-soft); color: var(--fn-mkt); }
 .wiz__channel-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }

@@ -206,8 +206,8 @@
   color: var(--accent-ink);
 }
 .mkt__board-rank--first {
-  background: color-mix(in srgb, #f5b301 24%, transparent);
-  color: #b8860b;
+  background: color-mix(in srgb, var(--warning) 24%, transparent);
+  color: var(--warning-text);
 }
 .mkt__board-name {
   flex: 1;
@@ -244,7 +244,7 @@
 .mkt__board-nudge strong { color: var(--ink); font-weight: 700; }
 .mkt__board-nudge--top {
   background: color-mix(in srgb, var(--positive) 10%, transparent);
-  color: var(--positive-text, var(--positive));
+  color: var(--positive-text);
 }
 .mkt__board-nudge--top strong { color: inherit; }
 /* Portfolio summary strip */
@@ -275,7 +275,7 @@
 .mkt__portfolio-summary-div {
   font-size: var(--fs-micro);
   font-weight: 700;
-  color: var(--positive-text, var(--positive));
+  color: var(--positive-text);
   flex-shrink: 0;
 }
 .mkt__stock {
@@ -647,12 +647,12 @@
 .mkt__product-ending {
   font-size: var(--fs-micro);
   font-weight: 700;
-  color: #f59e0b;
+  color: var(--warning-text);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .mkt__product-ending--last {
-  color: var(--negative-text, #f87171);
+  color: var(--negative-text);
   animation: mkt-ending-pulse 1.4s ease-in-out infinite;
 }
 .mkt__product-thru {
@@ -962,7 +962,7 @@
 .pd__pricecut-to {
   font-size: var(--fs-headline);
   font-weight: 800;
-  color: var(--positive-text, var(--positive));
+  color: var(--positive-text);
 }
 .pd__pricecut-hint {
   font-size: var(--fs-caption);
@@ -1106,9 +1106,9 @@
   text-align: right;
   flex-shrink: 0;
 }
-.mkt__compmap-label--positive { color: var(--positive-text, var(--positive)); }
+.mkt__compmap-label--positive { color: var(--positive-text); }
 .mkt__compmap-label--accent   { color: var(--accent); }
-.mkt__compmap-label--negative { color: var(--negative-text, var(--negative)); }
+.mkt__compmap-label--negative { color: var(--negative-text); }
 .mkt__compmap-legend {
   display: flex;
   gap: var(--sp-12);
@@ -1142,11 +1142,11 @@
 }
 .mkt__product-rival--threat {
   background: color-mix(in srgb, var(--negative) 12%, transparent);
-  color: var(--negative-text, var(--negative));
+  color: var(--negative-text);
 }
 .mkt__product-rival--match {
-  background: color-mix(in srgb, #f59e0b 12%, transparent);
-  color: #b45309;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning-text);
 }
 
 /* Portfolio revenue breakdown by category */
@@ -1210,7 +1210,7 @@
 }
 
 /* Intel card: competitive pressure down arrow */
-.mkt__intel-icon--down { color: var(--negative-text, var(--negative)); }
+.mkt__intel-icon--down { color: var(--negative-text); }
 .mkt__intel-icon--warn { color: var(--warning); }
 
 /* "View all" link on the Activity card header */
@@ -1308,7 +1308,7 @@
 }
 .mkt__product-stage--peak {
   background: color-mix(in srgb, var(--positive) 14%, transparent);
-  color: var(--positive-text, var(--positive));
+  color: var(--positive-text);
 }
 .mkt__product-stage--decline {
   background: color-mix(in srgb, var(--ink-3) 12%, transparent);

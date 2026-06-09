@@ -1,5 +1,7 @@
 import { Check, ChevronRight, FlaskConical, Lock, MapPin, Users } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
+import { haptic } from "../design/haptics.ts";
+import { showToast } from "../design/toast.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
@@ -238,11 +240,14 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
 
         if (picks.length === 0) {
           const allMaxed = kinds.every((k) => researchedTier(state, k) >= maxTier(k) || (tierDef(k, researchedTier(state, k) + 1)?.era ?? 0) > state.era);
-          if (!allMaxed) return null;
           return (
             <Card className="rd__sprint">
               <SectionHeader title="Top picks" accessory="next 12 weeks" />
-              <p className="rd__bank-hint">All component tech for this era is fully researched. Advance to the next era to unlock more.</p>
+              <p className="rd__bank-hint">
+                {allMaxed
+                  ? "All component tech for this era is fully researched. Advance to the next era to unlock more."
+                  : "No research is affordable in the next 12 weeks. Keep accumulating RP — check back soon."}
+              </p>
             </Card>
           );
         }
@@ -272,7 +277,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                         size="sm"
                         variant={affordable ? "primary" : "tertiary"}
                         disabled={!affordable}
-                        onClick={() => research(kind)}
+                        onClick={() => { haptic.success(); showToast(`${next.name} unlocked`, { tone: "positive" }); research(kind); }}
                       >
                         {cost} RP
                       </Button>
@@ -339,7 +344,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
                   ) : (
                     <div className="rd__project-action">
-                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => buyProject(p.id)}>
+                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); showToast(`${p.name} complete`, { tone: "positive" }); buyProject(p.id); }}>
                         {p.rpCost} RP
                       </Button>
                       {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
@@ -440,7 +445,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                   <span className="rd__contrib">{nextDef && (curDef ? deltaLabel(curDef.contributes, nextDef.contributes) : contributesLabel(nextDef.contributes))}</span>
                 </div>
                 <div className="rd__project-action">
-                  <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => research(kind)}>
+                  <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); showToast(`${nextDef?.name ?? "Tech"} unlocked`, { tone: "positive" }); research(kind); }}>
                     {cost !== null ? `${cost} RP` : "—"}
                   </Button>
                   {!affordable && cost !== null && perWeek > 0 && (
