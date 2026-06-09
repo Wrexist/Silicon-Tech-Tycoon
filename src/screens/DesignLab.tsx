@@ -442,7 +442,10 @@ export function DesignLab({
             {missing.length === 0 ? (
               <div className="lab__comp-ready">
                 <Check size={13} strokeWidth={2.5} />
-                <span>All components selected — set a price on the Launch tab, then plan production.</span>
+                <span>All selected.</span>
+                <button className="lab__comp-ready-cta" onClick={() => { haptic.light(); setLabTab("launch"); }}>
+                  Set price & build →
+                </button>
               </div>
             ) : (
               <p className="lab__comp-missing-hint">{missing.length} component{missing.length > 1 ? "s" : ""} still needed.</p>

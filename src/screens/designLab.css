@@ -334,6 +334,19 @@
   font-size: var(--fs-caption);
   font-weight: 600;
 }
+.lab__comp-ready-cta {
+  margin-left: auto;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--fn-design-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--fn-design-text) 40%, transparent);
+  text-underline-offset: 2px;
+}
 .lab__comp-missing-hint {
   margin-top: var(--sp-8);
   font-size: var(--fs-caption);
