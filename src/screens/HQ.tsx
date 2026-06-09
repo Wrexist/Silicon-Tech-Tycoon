@@ -673,6 +673,20 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   type Insight = { icon: LucideIcon; text: string; tab?: Tab };
   const insights: Insight[] = [];
 
+  // 0. Critical low runway — surface immediately if cash is about to run out
+  {
+    const wkBurn = burn(state);
+    const wkRev = nextWeekRevenue(state);
+    const runway = runwayWeeks(state.cash, wkBurn, wkRev);
+    if (runway !== Infinity && runway <= 4 && wkBurn > 0) {
+      insights.push({
+        icon: TrendingDown,
+        text: `Only ${runway} week${runway !== 1 ? "s" : ""} of cash left — launch a product or cut costs immediately to avoid bankruptcy.`,
+        tab: "market",
+      });
+    }
+  }
+
   // 1. Idle staff — most immediately actionable
   const idleCount = state.staff.filter((s) => s.assignment === "idle").length;
   if (idleCount > 0) {
@@ -771,7 +785,11 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
 
   // 5. Untapped category (blue-ocean opportunity)
   if (insights.length < 3) {
-    const shippedCats = new Set(state.launched.map((lp) => lp.product.category));
+    const shippedCats = new Set([
+      ...state.launched.map((lp) => lp.product.category),
+      ...state.building.map((j) => j.product.category),
+      ...state.ready.map((p) => p.category),
+    ]);
     const unshipped = CATEGORY_LIST.filter((c) => c.unlockEra <= state.era && !shippedCats.has(c.id));
     if (unshipped.length > 0) {
       insights.push({
