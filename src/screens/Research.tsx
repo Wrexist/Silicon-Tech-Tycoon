@@ -203,7 +203,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             <div className="rd__bank-goal-head">
               <span className="rd__bank-goal-label">Saving toward</span>
               <span className="rd__bank-goal-name">{nextGoal.name}</span>
-              {goalWeeks !== null && <span className="rd__bank-goal-eta">~{goalWeeks}wk</span>}
+              {goalWeeks !== null && <span className="rd__bank-goal-eta">~{goalWeeks} wk</span>}
             </div>
             <div className="rd__bank-goal-track">
               <div className="rd__bank-goal-fill" style={{ width: `${goalPct}%` }} />
@@ -463,7 +463,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     {cost !== null ? `${cost} RP` : "—"}
                   </Button>
                   {!affordable && cost !== null && perWeek > 0 && (
-                    <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)}wk</span>
+                    <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)} wk</span>
                   )}
                 </div>
               </div>

@@ -757,7 +757,7 @@ function Member({
           <span className="co__member-sub">{format(s.salary)}/wk</span>
         </div>
         {s.id !== "s0" && (
-          <button className="co__fire" onClick={() => { haptic.medium(); showToast(`${s.name} let go`); onFire(s.id); }} aria-label={`Let go ${s.name}`}>
+          <button className="co__fire" onClick={() => { haptic.medium(); sfx("error"); showToast(`${s.name} let go`); onFire(s.id); }} aria-label={`Let go ${s.name}`}>
             <X size={15} />
           </button>
         )}
@@ -932,7 +932,7 @@ function RecruitPanel({
               key={tier}
               className="co__recruit-tier"
               disabled={!affordable}
-              onClick={() => { haptic.light(); showToast(`${t.label} search started — results in ${t.weeks} weeks`, { tone: "neutral" }); onRecruit(tier); }}
+              onClick={() => { haptic.light(); sfx("tap"); showToast(`${t.label} search started — results in ${t.weeks} weeks`, { tone: "neutral" }); onRecruit(tier); }}
             >
               <span className="co__recruit-tier-name">{t.label}</span>
               <span className="co__recruit-tier-meta">{t.weeks} wks · skill {t.minLevel}–{t.maxLevel}</span>
@@ -993,7 +993,7 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
       {projContrib && <p className="co__cand-contrib">{projContrib}</p>}
       <div className="co__hire-controls">
         <span className="co__hint">{format(c.salary)}/wk salary · {TRAIT_INFO[c.trait].blurb}</span>
-        <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={() => { haptic.success(); showToast(`${c.name} joined the team`, { tone: "positive" }); onHire(); }}>Sign · {format(c.hireFee)}</Button>
+        <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={() => { haptic.success(); sfx("levelup"); showToast(`${c.name} joined the team`, { tone: "positive" }); onHire(); }}>Sign · {format(c.hireFee)}</Button>
       </div>
     </Card>
   );

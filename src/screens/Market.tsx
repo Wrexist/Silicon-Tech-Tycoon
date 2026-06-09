@@ -165,9 +165,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       {(() => {
         const board = industryLeaderboard(state);
         const myRank = industryRank(state);
-        const me = board.find((e) => e.isPlayer)!;
+        const me = board.find((e) => e.isPlayer);
         const above = myRank > 1 ? board[myRank - 2] : null;
-        const gap = above ? sub(above.valuation, me.valuation) : null;
+        const gap = above && me ? sub(above.valuation, me.valuation) : null;
         return (
           <Card className="mkt__board">
             <SectionHeader title="Industry leaderboard" accessory={`#${myRank} of ${board.length}`} />
@@ -250,7 +250,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                         })()}
                         {endingSoon && (() => {
                           const wkLeft = lp.weeklyUnits.length - lp.weeksElapsed;
-                          return <span className={`mkt__product-ending${wkLeft <= 1 ? " mkt__product-ending--last" : ""}`}>last {wkLeft}wk</span>;
+                          return <span className={`mkt__product-ending${wkLeft <= 1 ? " mkt__product-ending--last" : ""}`}>last {wkLeft} wk</span>;
                         })()}
                         {!live && lp.plannedUnits && lp.plannedUnits > 0 && (
                           <span className={`mkt__product-thru tnum${Math.round((lp.unitsSold / lp.plannedUnits) * 100) >= 90 ? " mkt__product-thru--full" : ""}`}>
@@ -1069,7 +1069,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         <Button
           block
           disabled={!canBuy}
-          onClick={() => { buyShares(comp.id, qty); haptic.success(); sfx("tap"); showToast(`Bought ${qty} ${comp.name}`, { tone: "positive" }); }}
+          onClick={() => { buyShares(comp.id, qty); haptic.success(); sfx("cash"); showToast(`Bought ${qty} ${comp.name}`, { tone: "positive" }); }}
         >
           Buy · {format(cost)}
         </Button>
@@ -1077,13 +1077,13 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
           block
           variant="secondary"
           disabled={owned <= 0}
-          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); sfx("tap"); showToast(`Sold ${q} ${comp.name}`, { tone: "neutral" }); }}
+          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); sfx("cash"); showToast(`Sold ${q} ${comp.name}`, { tone: "neutral" }); }}
         >
           Sell · {format(proceeds)}
         </Button>
       </div>
       {owned > 0 && (
-        <Button block variant="tertiary" onClick={() => { sellShares(comp.id, owned); haptic.medium(); sfx("tap"); onClose(); }}>
+        <Button block variant="tertiary" onClick={() => { const all = owned; sellShares(comp.id, all); haptic.medium(); sfx("cash"); showToast(`Sold all ${all} ${comp.name}`, { tone: "neutral" }); onClose(); }}>
           Sell all {owned}
         </Button>
       )}
