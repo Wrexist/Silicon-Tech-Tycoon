@@ -12,7 +12,7 @@ import { eraName, maxEra } from "../engine/eras.ts";
 import { toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { rdRpCostFor, researchedTier, weeklyRpGen } from "../state/gameState.ts";
+import { rdRpCostFor, nextWeekRevenue, researchedTier, weeklyRpGen } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -42,10 +42,11 @@ function fmtRevGoal(dollars: number): string {
   return `$${dollars}`;
 }
 
-function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
+function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars, weeklyRevenueDollars }: {
   currentEra: number;
   reputation: number;
   cumulativeRevenueDollars: number;
+  weeklyRevenueDollars: number;
 }) {
   const eraMax = maxEra();
   const eras = BALANCE.eras;
@@ -85,7 +86,18 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
               progressLabel = `${bestPct}% — ${label}`;
             } else {
               if (repGoal) { progressLabel = repPct >= 100 ? `Rep ✓` : `${repPct}% rep — ${Math.round(reputation)} / ${repGoal}`; progressDone = repPct >= 100; }
-              if (revGoalD) { progressLabel2 = revPct >= 100 ? `Rev ✓` : `${revPct}% rev — ${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD)}`; progressDone2 = revPct >= 100; }
+              if (revGoalD) {
+                progressDone2 = revPct >= 100;
+                if (progressDone2) {
+                  progressLabel2 = `Rev ✓`;
+                } else {
+                  const revEtaWks = weeklyRevenueDollars > 0
+                    ? Math.ceil((revGoalD - cumulativeRevenueDollars) / weeklyRevenueDollars)
+                    : null;
+                  const etaSuffix = revEtaWks !== null && revEtaWks < 200 ? ` · ~${revEtaWks} wk` : "";
+                  progressLabel2 = `${revPct}% rev — ${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD)}${etaSuffix}`;
+                }
+              }
             }
           }
 
@@ -342,7 +354,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       )}
 
       {/* Era roadmap */}
-      <EraRoadmap currentEra={state.era} reputation={state.reputation} cumulativeRevenueDollars={toDollars(state.cumulativeRevenue)} />
+      <EraRoadmap currentEra={state.era} reputation={state.reputation} cumulativeRevenueDollars={toDollars(state.cumulativeRevenue)} weeklyRevenueDollars={toDollars(nextWeekRevenue(state))} />
 
       {/* Research projects — grouped by era */}
       <SectionHeader title="Research projects" accessory="evolve the company" />

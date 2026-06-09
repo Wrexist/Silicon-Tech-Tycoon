@@ -860,7 +860,13 @@ function ProductDetailSheet({
           label="Sell-through"
           value={sellThrough != null ? `${sellThrough}%` : "—"}
           tone={sellThrough == null ? "neutral" : sellThrough >= 90 ? "positive" : sellThrough < 50 ? "negative" : "neutral"}
-          hint={lp.plannedUnits != null ? `${lp.plannedUnits.toLocaleString()} made` : undefined}
+          hint={
+            live && lp.plannedUnits != null
+              ? `${Math.max(0, lp.plannedUnits - lp.unitsSold).toLocaleString()} in stock · ${lp.plannedUnits.toLocaleString()} made`
+              : lp.plannedUnits != null
+                ? `${lp.plannedUnits.toLocaleString()} made`
+                : undefined
+          }
         />
         {(() => {
           // When a v9+ save has plannedUnits, show the true net P&L (all costs deducted

@@ -116,7 +116,8 @@ function AppShell() {
         badge={{
           hq: canAdvance(state) || !!state.pendingChoice || state.ready.length > 0,
           research: hasAffordableResearch(state),
-          company: state.candidates.length > 0 && (state.candidatesExpire - state.week) <= 3,
+          company: (state.candidates.length > 0 && (state.candidatesExpire - state.week) <= 3)
+            || state.staff.some((s) => (s.moodLowWeeks ?? 0) >= 4),
         }}
       />
 

@@ -1047,6 +1047,28 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     }
   }
 
+  // 8c. Mid-lifecycle price cut opportunity — a live product past peak with low sell-through
+  // surfaces the one-time price cut feature, which many players never discover.
+  if (insights.length < 3) {
+    const peakWk = BALANCE.sales.peakWeek;
+    const priceCutCandidate = active.find((lp) => {
+      if (lp.weeksElapsed <= peakWk) return false;
+      if ((lp.priceCuts ?? 0) >= 1) return false;
+      if (!lp.plannedUnits || lp.plannedUnits <= 0) return false;
+      const wkLeft = lp.weeklyUnits.length - lp.weeksElapsed;
+      if (wkLeft < 3) return false;
+      return lp.unitsSold / lp.plannedUnits <= 0.35;
+    });
+    if (priceCutCandidate) {
+      const sellThruPct = Math.round((priceCutCandidate.unitsSold / priceCutCandidate.plannedUnits!) * 100);
+      insights.push({
+        icon: TrendingDown,
+        text: `${priceCutCandidate.product.name} has sold ${sellThruPct}% of its run past peak — a one-time mid-run price cut on the Market tab can boost remaining sales.`,
+        tab: "market",
+      });
+    }
+  }
+
   // 9. All launched products are in decline — prompt a new launch
   if (insights.length < 3 && active.length > 0 && !inPipeline) {
     const peakWk = BALANCE.sales.peakWeek;

@@ -335,6 +335,20 @@
   color: var(--ink-3);
   margin-top: var(--sp-4);
   margin-bottom: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.co__payroll-split {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+.co__payroll-sep {
+  color: var(--ink-4);
 }
 .co__hire-hint {
   font-size: var(--fs-caption);

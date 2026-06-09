@@ -189,11 +189,29 @@ export function Company({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
             </div>
           );
         })()}
-        {state.staff.length > 0 && (
-          <p className="co__burn-breakdown">
-            Payroll {format(wkPayroll)} · Rent {format(wkRent)} weekly
-          </p>
-        )}
+        {state.staff.length > 0 && (() => {
+          const byRole: { label: string; pay: number; color: string }[] = [
+            { label: "Eng", pay: state.staff.filter(s => s.role === "engineer").reduce((a, s) => a + toDollars(s.salary), 0), color: "var(--fn-eng)" },
+            { label: "Design", pay: state.staff.filter(s => s.role === "designer").reduce((a, s) => a + toDollars(s.salary), 0), color: "var(--fn-design)" },
+            { label: "Mkt", pay: state.staff.filter(s => s.role === "marketer").reduce((a, s) => a + toDollars(s.salary), 0), color: "var(--fn-mkt)" },
+          ].filter(r => r.pay > 0);
+          const multiRole = byRole.length >= 2;
+          return (
+            <div className="co__burn-breakdown">
+              <span>Payroll {format(wkPayroll)} · Rent {format(wkRent)}/wk</span>
+              {multiRole && (
+                <span className="co__payroll-split">
+                  {byRole.map((r, i) => (
+                    <span key={r.label}>
+                      {i > 0 && <span className="co__payroll-sep">·</span>}
+                      <span style={{ color: r.color }}>{r.label}</span> {format(dollars(Math.round(r.pay)))}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </div>
+          );
+        })()}
         {runway !== Infinity && runway <= 5 && (
           <p className="co__hint co__hint--urgent">
             {runway <= 2
