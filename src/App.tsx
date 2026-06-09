@@ -348,22 +348,29 @@ function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; on
 }
 
 function diagnoseFailure(state: GameState): string[] {
-  const { launched, staff } = state;
+  const { launched, staff, building } = state;
   const hits = launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const flops = launched.filter((lp) => lp.verdict === "flop").length;
   const totalMade = launched.reduce((s, lp) => s + (lp.plannedUnits ?? 0), 0);
   const totalSold = launched.reduce((s, lp) => s + lp.unitsSold, 0);
   const tips: string[] = [];
 
-  if (launched.length === 0) {
-    tips.push("No product launched before cash ran out — fixed costs burn even without a team. Get to market in the first 10 weeks.");
-  } else if (hits === 0 && launched.length >= 2) {
-    tips.push("All launches flopped. Check the Market tab for rising trends and watch the competition landscape before designing.");
+  if (launched.length === 0 && building.length === 0) {
+    tips.push("No product launched before cash ran out — fixed costs burn even at day one. Aim to ship your first device within the first 8 weeks.");
+  } else if (launched.length === 0 && building.length > 0) {
+    tips.push("Ran out of cash mid-build. Production locks up cash before revenue arrives — use a smaller run size and watch your runway in the Build Wizard's review step.");
+  } else if (flops === launched.length && launched.length >= 2) {
+    tips.push("Every launch flopped. Check the Market tab for rising demand trends and keep an eye on rival scores before finalising specs.");
+  } else if (hits === 0 && launched.length >= 1) {
+    tips.push("No hits yet. Target rising market stats in the Design Lab and price close to the fair-value estimate to improve your launch score.");
   }
 
   if (totalMade > 150 && totalSold < totalMade * 0.45 && tips.length < 2) {
-    tips.push("More than half of manufactured units went unsold — that's cash locked in inventory. Use 'Recommended' run sizes and plan small early.");
-  } else if (staff.length >= 4 && launched.length <= 1 && tips.length < 2) {
-    tips.push("Payroll grew faster than revenue. Keep the team lean (1–2 people) until at least one product is generating consistent income.");
+    tips.push("More than half of manufactured units went unsold — cash trapped in inventory. Stick to the 'Recommended' run size and start small.");
+  } else if (staff.length >= 3 && launched.length <= 1 && tips.length < 2) {
+    tips.push("Payroll grew faster than revenue. Keep the team at 1–2 people until a product is generating steady income.");
+  } else if (staff.length >= 2 && hits === 0 && tips.length < 2) {
+    tips.push("Payroll needs hits to cover it. Prioritise one well-designed launch before expanding the team.");
   }
 
   return tips;

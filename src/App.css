@@ -146,7 +146,7 @@
   height: 52px;
   border-radius: var(--r-pill);
   background: var(--warning-soft, color-mix(in srgb, var(--warning) 12%, transparent));
-  color: var(--warning, #f59e0b);
+  color: var(--warning-text);
   display: grid;
   place-items: center;
   margin-bottom: var(--sp-4);

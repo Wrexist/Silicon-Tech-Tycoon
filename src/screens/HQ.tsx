@@ -535,7 +535,7 @@ function Upgrades() {
             size="sm"
             variant={state.cash >= nextFac.upgradeCost ? "primary" : "tertiary"}
             disabled={state.cash < nextFac.upgradeCost}
-            onClick={upgradeHQ}
+            onClick={() => { upgradeHQ(); haptic.success(); sfx("tap"); showToast(`Moved to ${nextFac.name}`, { tone: "positive" }); }}
           >
             <ArrowUp size={14} /> Move to {nextFac.name} · {format(nextFac.upgradeCost)}
           </Button>
@@ -581,7 +581,7 @@ function Upgrades() {
                   size="sm"
                   variant={affordable ? "primary" : "tertiary"}
                   disabled={!affordable}
-                  onClick={() => { buyUpgrade(line.id); haptic.success(); sfx("tap"); }}
+                  onClick={() => { buyUpgrade(line.id); haptic.success(); sfx("tap"); showToast(`${line.name} upgraded to level ${cur + 1}`, { tone: "positive" }); }}
                 >
                   <ArrowUp size={14} /> {line.tierNames[cur]} · {cost !== null ? format(cost) : "—"}
                 </Button>

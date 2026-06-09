@@ -65,8 +65,8 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       id: "ready",
       color: mktBlue,
       icon: Rocket,
-      title: "Built — time to launch",
-      text: "On HQ, tap Market on your device, choose a campaign, then launch it into the market.",
+      title: "Built — ready to launch",
+      text: "Your device is manufactured and waiting. Tap the Launch button on HQ to release it to the market.",
       cta: tab === "hq" ? undefined : { label: "Go to HQ", tab: "hq" },
     };
   }
