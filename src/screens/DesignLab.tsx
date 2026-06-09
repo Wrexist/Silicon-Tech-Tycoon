@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, Check, FlipHorizontal2, Hammer, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Ban, Check, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -116,9 +116,11 @@ function successorDraft(prev: Product): Product {
 export function DesignLab({
   seed,
   onSeedConsumed,
+  onNavigate,
 }: {
   seed?: Product | null;
   onSeedConsumed?: () => void;
+  onNavigate?: (t: import("../components/BottomNav.tsx").Tab) => void;
 } = {}) {
   const { state, build } = useGame();
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
@@ -167,7 +169,7 @@ export function DesignLab({
   const priceSliderAccent =
     priceRatio < 0.65 ? "var(--accent)"
     : priceRatio < 1.3 ? "var(--positive)"
-    : priceRatio < 1.8 ? "#f59e0b"
+    : priceRatio < 1.8 ? "var(--warning)"
     : "var(--negative)";
 
   const breakdown = scoreLaunch({
@@ -417,7 +419,13 @@ export function DesignLab({
                         <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
                       )}
                       {atMax && maxTier(kind) > maxT && (
-                        <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
+                        onNavigate ? (
+                          <button className="lab__comp-locked lab__comp-locked--link" onClick={() => { haptic.light(); onNavigate("research"); }}>
+                            <Lock size={9} strokeWidth={2.5} /> T{maxT + 1} — unlock in R&amp;D
+                          </button>
+                        ) : (
+                          <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
+                        )
                       )}
                     </div>
                     <div className="lab__stepper">

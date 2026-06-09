@@ -81,7 +81,7 @@ function AppShell() {
             top-level boundary in App() remains the last resort. */}
         <ErrorBoundary key={tab} fallback={<ScreenError onHome={() => setTab("hq")} />}>
           {tab === "hq" && <HQ onNavigate={setTab} />}
-          {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
+          {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onNavigate={setTab} />}
           {tab === "research" && <Research onNavigate={setTab} />}
           {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
           {tab === "company" && <Company />}

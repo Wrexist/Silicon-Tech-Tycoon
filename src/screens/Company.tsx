@@ -618,8 +618,8 @@ function TeamOutputCard({ state }: { state: GameState }) {
       <SectionHeader
         title="Team output"
         accessory={
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "var(--fs-caption)", fontWeight: 600, color: moodColor }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: moodColor, display: "inline-block", flexShrink: 0 }} />
+          <span className="co__morale-chip" style={{ color: moodColor }}>
+            <span className="co__morale-dot" style={{ background: moodColor }} />
             {MOOD_LABEL[moodBandVal]} morale
           </span>
         }

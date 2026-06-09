@@ -624,6 +624,22 @@
   letter-spacing: 0.01em;
 }
 
+/* ---------- Team output: morale indicator chip ---------- */
+.co__morale-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+.co__morale-dot {
+  width: var(--sp-6);
+  height: var(--sp-6);
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 /* ---------- Team output summary card ---------- */
 .co__output-grid {
   display: grid;

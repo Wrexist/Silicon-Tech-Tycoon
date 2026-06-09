@@ -66,16 +66,26 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
 
           const revGoalD = eraDef.revToAdvance === Infinity ? null : toDollars(eraDef.revToAdvance as Money);
           const repGoal = Number.isFinite(eraDef.repToAdvance) ? eraDef.repToAdvance : null;
+          // Era 1 uses OR logic (either threshold advances); Era 2+ requires both (AND).
+          const isOrEra = eraDef.era === 1;
 
           let progressLabel = "";
+          let progressLabel2 = "";
+          let progressDone = false;
+          let progressDone2 = false;
           if (active && eraDef.era < eraMax) {
             const repPct = repGoal ? Math.min(100, Math.round((reputation / repGoal) * 100)) : 0;
             const revPct = revGoalD ? Math.min(100, Math.round((cumulativeRevenueDollars / revGoalD) * 100)) : 0;
-            const bestPct = Math.max(repPct, revPct);
-            const label = repPct >= revPct
-              ? `${Math.round(reputation)} / ${repGoal} rep`
-              : `${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD!)} rev`;
-            progressLabel = `${bestPct}% — ${label}`;
+            if (isOrEra) {
+              const bestPct = Math.max(repPct, revPct);
+              const label = repPct >= revPct
+                ? `${Math.round(reputation)} / ${repGoal} rep`
+                : `${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD!)} rev`;
+              progressLabel = `${bestPct}% — ${label}`;
+            } else {
+              if (repGoal) { progressLabel = repPct >= 100 ? `Rep ✓` : `${repPct}% rep — ${Math.round(reputation)} / ${repGoal}`; progressDone = repPct >= 100; }
+              if (revGoalD) { progressLabel2 = revPct >= 100 ? `Rev ✓` : `${revPct}% rev — ${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD)}`; progressDone2 = revPct >= 100; }
+            }
           }
 
           return (
@@ -93,13 +103,16 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
                   {future && eraDef.era < eraMax && (
                     <span className="rd__roadmap-req">
                       {repGoal ? `${repGoal} rep` : ""}
-                      {repGoal && revGoalD ? " or " : ""}
+                      {repGoal && revGoalD ? (isOrEra ? " or " : " and ") : ""}
                       {revGoalD ? `${fmtRevGoal(revGoalD)} rev` : ""}
                     </span>
                   )}
                 </div>
                 {active && progressLabel && (
-                  <p className="rd__roadmap-progress">{progressLabel}</p>
+                  <p className={`rd__roadmap-progress${progressDone ? " rd__roadmap-progress--done" : ""}`}>{progressLabel}</p>
+                )}
+                {active && progressLabel2 && (
+                  <p className={`rd__roadmap-progress${progressDone2 ? " rd__roadmap-progress--done" : ""}`}>{progressLabel2}</p>
                 )}
                 {(newCats.length > 0 || newCompTiers > 0) && (
                   <div className="rd__roadmap-unlocks">

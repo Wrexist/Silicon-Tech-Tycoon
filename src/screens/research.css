@@ -331,7 +331,10 @@
   font-size: var(--fs-caption);
   color: var(--accent);
   font-weight: 600;
-  margin: 0 0 var(--sp-6);
+  margin: 0 0 var(--sp-4);
+}
+.rd__roadmap-progress--done {
+  color: var(--positive-text);
 }
 .rd__roadmap-unlocks {
   display: flex;
