@@ -528,7 +528,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                         const repPct = Number.isFinite(advEra.repToAdvance)
                           ? Math.min(100, Math.round((state.reputation / advEra.repToAdvance) * 100)) : null;
                         const revTarget = Number.isFinite(advEra.revToAdvance as unknown as number)
-                          ? (advEra.revToAdvance as unknown as number) / 100 : null;
+                          ? toDollars(advEra.revToAdvance as Money) : null;
                         const revPct = revTarget ? Math.min(100, Math.round((toDollars(state.cumulativeRevenue) / revTarget) * 100)) : null;
                         const isOrEra = state.era === 1;
                         if (repPct !== null && revPct !== null) {

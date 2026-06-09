@@ -56,8 +56,8 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       id: "launched",
       color: "var(--accent)",
       icon: Sparkles,
-      title: "Your first product is live",
-      text: "Revenue arrives every week as it sells. Visit Research to unlock better components, hire team members in Company, and design the next generation.",
+      title: "Your first product is live!",
+      text: "Revenue arrives each week. Hire a team member in Company to generate R&D points, then use Research to unlock better components for your next launch.",
       done: true,
     };
   }
@@ -86,7 +86,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
     color: designGreen,
     icon: PencilRuler,
     title: "Design your first device",
-    text: "Pick all components, set a price, then go to the Launch tab and tap Plan Production to start manufacturing.",
+    text: "Choose a category, pick components across all tabs, set a price — then tap Plan Production at the bottom to start manufacturing.",
     cta: tab === "design" ? undefined : { label: "Open Design Lab", tab: "design" },
   };
 }

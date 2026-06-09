@@ -179,9 +179,14 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             </p>
           )
         ) : (
-          <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }} disabled={state.ownership <= 0.06}>
-            Sell more shares
-          </Button>
+          <>
+            <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }} disabled={state.ownership <= 0.06}>
+              Sell more shares
+            </Button>
+            {state.ownership <= 0.06 && (
+              <p className="mkt__co-hint">Founder floor reached — you must keep at least 6% to stay in control.</p>
+            )}
+          </>
         )}
       </Card>
 

@@ -13,7 +13,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, tierDef } from "../engine/catalogs.ts";
 import { overallScore } from "../engine/product.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { format, sub, toDollars } from "../engine/money.ts";
+import { format, sub, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
   CATEGORY_LABEL,
@@ -815,9 +815,9 @@ function EraGoalCard({ state }: { state: GameState }) {
   const eraDef = BALANCE.eras.find((e) => e.era === state.era);
   if (!eraDef) return null;
   const repNeeded = eraDef.repToAdvance - state.reputation;
-  const revThresholdTarget = eraDef.revToAdvance as unknown as number;
   const revDollars = toDollars(state.cumulativeRevenue);
-  const revTargetDollars = Number.isFinite(revThresholdTarget) ? revThresholdTarget / 100 : Infinity;
+  const revTargetDollars = Number.isFinite(eraDef.revToAdvance as unknown as number)
+    ? toDollars(eraDef.revToAdvance as Money) : Infinity;
   const revNeeded = Number.isFinite(revTargetDollars) ? revTargetDollars - revDollars : Infinity;
   // Era 1: OR logic — hide card if EITHER threshold is satisfied (advance is already ready).
   // Era 2+: AND logic — hide only if BOTH are satisfied (otherwise still need one or both).
