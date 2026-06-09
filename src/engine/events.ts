@@ -143,6 +143,50 @@ export const CHOICE_EVENTS: ChoiceEvent[] = [
       { id: "open", label: "Stay open", description: "Keep selling everywhere. Your community respects the independence.", effect: { kind: "fansBonus", fans: 3_000 } },
     ],
   },
+  {
+    id: "embargo_leak",
+    title: "Embargo Leak",
+    body: "A journalist accidentally published your product announcement early. The story is spreading fast — lean into the buzz or move to contain it?",
+    minEra: 1,
+    tone: "accent",
+    options: [
+      { id: "lean_in", label: "Ride the wave", description: "Let the early buzz build excitement — fans love the candid moment.", effect: { kind: "fansBonus", fans: 900 } },
+      { id: "contain", label: "Contain the story", description: "A professional, measured response shows discipline and earns industry respect.", effect: { kind: "repBoost", rep: 5 } },
+    ],
+  },
+  {
+    id: "rd_vs_runway",
+    title: "R&D vs Runway",
+    body: "A cash flow tightening puts you at a crossroads. You can defer planned research to protect the runway — or push through at reduced capacity.",
+    minEra: 1,
+    tone: "negative",
+    options: [
+      { id: "defer", label: "Protect the runway", description: "Pause non-critical R&D and bank the savings. Safety first.", effect: { kind: "cashWindfall", cash: 28_000 } },
+      { id: "push", label: "Push through R&D", description: "Keep the research cadence. The team delivers, and their pride shows.", effect: { kind: "rpBonus", amount: 42 } },
+    ],
+  },
+  {
+    id: "industry_alliance",
+    title: "Open Industry Standard",
+    body: "A coalition of tech companies is forming an open platform standard. Joining means sharing some IP — but also gaining access to a much wider ecosystem.",
+    minEra: 3,
+    tone: "accent",
+    options: [
+      { id: "join", label: "Join the coalition", description: "Platform access expands dramatically — millions of new potential fans.", effect: { kind: "fansBonus", fans: 4_000 } },
+      { id: "independent", label: "Stay proprietary", description: "Protect your IP moat. Premium independence earns respect from enthusiasts.", effect: { kind: "repBoost", rep: 7 } },
+    ],
+  },
+  {
+    id: "talent_war",
+    title: "Talent War",
+    body: "Competitors are actively recruiting your best engineers with bigger salary packages. You can match their offers — or let the market sort it out.",
+    minEra: 2,
+    tone: "negative",
+    options: [
+      { id: "counter", label: "Fight for the team", description: "Counter-offer shows you care. Morale soars and retention stays strong.", effect: { kind: "talentWave", mood: 22 } },
+      { id: "accept", label: "Let the market decide", description: "Save the salary budget for product investment instead.", effect: { kind: "cashWindfall", cash: 38_000 } },
+    ],
+  },
 ];
 
 /** Pick a choice event if one is available and hasn't been resolved yet. ~30% chance per event window. */
