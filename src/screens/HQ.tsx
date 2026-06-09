@@ -861,7 +861,7 @@ const INSIGHT_STAT_LABEL: Record<string, string> = {
 };
 
 function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
-  type Insight = { icon: LucideIcon; text: string; tab?: Tab };
+  type Insight = { icon: LucideIcon; text: string; tab?: Tab; critical?: boolean };
   const insights: Insight[] = [];
 
   // 0. Critical low runway — surface immediately if cash is about to run out
@@ -874,6 +874,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
         icon: TrendingDown,
         text: `Only ${runway} week${runway !== 1 ? "s" : ""} of cash left — launch a product or cut costs immediately to avoid bankruptcy.`,
         tab: "market",
+        critical: true,
       });
     }
   }
@@ -1173,8 +1174,8 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
           return (
             <button
               key={i}
-              className={`hq__insight${ins.tab ? "" : " hq__insight--static"}`}
-              onClick={() => { if (ins.tab) { haptic.light(); onNavigate(ins.tab); } }}
+              className={`hq__insight${ins.critical ? " hq__insight--critical" : ""}${ins.tab ? "" : " hq__insight--static"}`}
+              onClick={() => { if (ins.tab) { haptic.medium(); onNavigate(ins.tab); } }}
               disabled={!ins.tab}
             >
               <span className="hq__insight-icon"><Icon size={14} strokeWidth={2.5} /></span>
