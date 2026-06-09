@@ -25,6 +25,7 @@
   --negative-soft: #fdecec;
   --warning: #f59e0b;
   --warning-soft: #fdf3e3;
+  --warning-text: #b45309; /* amber-700: ~5.3:1 on white, WCAG AA */
 
   /* Function colours — engineering=orange, design=green, marketing=blue, team=violet
      (theme-stable hues; used to colour-code every screen + upgrade by its function) */
@@ -130,6 +131,7 @@
     --fn-team-text: #8b5cf6;
     --warning: #f59e0b;
     --warning-soft: #2a2113;
+    --warning-text: #f59e0b; /* bright amber is fine on dark surfaces */
     --fn-eng-soft: #2a1d10;
     --fn-design-soft: #0f2a1d;
     --fn-mkt-soft: #16233d;
@@ -162,6 +164,7 @@
   --fn-mkt-text: #3b82f6;
   --fn-team-text: #8b5cf6;
   --warning-soft: #2a2113;
+  --warning-text: #f59e0b;
   --fn-eng-soft: #2a1d10;
   --fn-design-soft: #0f2a1d;
   --fn-mkt-soft: #16233d;

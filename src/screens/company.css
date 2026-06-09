@@ -313,7 +313,7 @@
   line-height: 1.4;
 }
 .co__hint--urgent {
-  color: var(--warning-text, #f59e0b);
+  color: var(--warning-text);
   font-weight: 600;
 }
 .co__burn-breakdown {
