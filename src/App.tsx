@@ -473,14 +473,14 @@ function BankruptOverlay() {
             </div>
           )}
         </div>
-        {diagnosis.length > 0 && (
-          <div className="bankrupt__diagnosis">
-            <p className="bankrupt__diag-label">What went wrong</p>
-            {diagnosis.map((d, i) => (
-              <p key={i} className="bankrupt__diag-tip">{d}</p>
-            ))}
-          </div>
-        )}
+        <div className="bankrupt__diagnosis">
+          <p className="bankrupt__diag-label">What went wrong</p>
+          {diagnosis.length > 0 ? (
+            diagnosis.map((d, i) => <p key={i} className="bankrupt__diag-tip">{d}</p>)
+          ) : (
+            <p className="bankrupt__diag-tip">Cash burn outpaced revenue. Review your pricing, run size, and payroll timing on your next run.</p>
+          )}
+        </div>
         <Button block onClick={() => { haptic.medium(); sfx("confirm"); restart(); }}>Start a new company</Button>
       </div>
     </div>
