@@ -273,10 +273,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // a mount effect (that re-applied gains against the stale on-disk lastActive, x4 under StrictMode).
 
   // Sim tick. One week per tick; the interval shrinks by fastMultiplier in Fast mode.
+  // Multi-tab guard: hidden tabs skip their tick so two open tabs can't race-write the save.
   useEffect(() => {
     if (paused || state.bankrupt) return;
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
+      if (document.visibilityState === "hidden") return;
       setState((s) => {
         const next = advanceOneWeek(s);
         withRevToasts(s, next);
@@ -297,11 +299,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, []);
 
-  // Persist on background/exit too — but only when actually hidden, so returning to a visible
-  // tab doesn't reset lastActive and swallow elapsed time.
+  // Persist on background/exit — save when hidden; reload from disk when a tab re-gains focus
+  // so a tab that was in the background picks up any progress the foreground tab made.
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === "hidden") save({ ...stateRef.current, lastActive: Date.now() });
+      if (document.visibilityState === "hidden") {
+        save({ ...stateRef.current, lastActive: Date.now() });
+      } else {
+        // Another tab may have advanced the game while this one was hidden. Reload if the
+        // on-disk state is ahead (by week) so this tab resumes from the latest save.
+        const res = loadResult();
+        if (res.status === "ok" && res.state.week > stateRef.current.week) {
+          seedFeedSeq(res.state);
+          setState(res.state);
+        }
+      }
     };
     const onHide = () => save({ ...stateRef.current, lastActive: Date.now() });
     document.addEventListener("visibilitychange", onVis);

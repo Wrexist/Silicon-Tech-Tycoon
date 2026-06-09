@@ -635,6 +635,9 @@ function NowSellingCard({ state, onNavigate }: { state: GameState; onNavigate: (
           const stageKey = endingSoon ? "end" : isPeak ? "peak" : isRamp ? "ramp" : "fade";
           const stageLabel = endingSoon
             ? `last ${wkLeft} wk` : isPeak ? "peak" : isRamp ? "rising" : "fading";
+          const sellThruPct = lp.plannedUnits && lp.plannedUnits > 0
+            ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
+            : null;
           return (
             <button
               key={lp.product.id}
@@ -646,8 +649,19 @@ function NowSellingCard({ state, onNavigate }: { state: GameState; onNavigate: (
               <div className="hq__selling-info">
                 <span className="hq__selling-name">{lp.product.name}</span>
                 <span className="hq__selling-rev tnum">{fmtRevShort(weeklyRevD)}/wk</span>
+                {sellThruPct !== null && (
+                  <span className="hq__selling-thru-wrap" aria-label={`${sellThruPct}% sell-through`}>
+                    <span className={`hq__selling-thru-bar${sellThruPct >= 80 ? " hq__selling-thru-bar--good" : sellThruPct >= 40 ? " hq__selling-thru-bar--mid" : ""}`} style={{ width: `${sellThruPct}%` }} />
+                  </span>
+                )}
               </div>
-              <span className={`hq__selling-stage hq__selling-stage--${stageKey}`}>{stageLabel}</span>
+              {isRamp && lp.verdict ? (
+                <span className={`hq__selling-stage hq__selling-verdict--${lp.verdict}`}>
+                  {lp.verdict === "hit" ? "Hit" : lp.verdict === "solid" ? "Solid" : lp.verdict === "steady" ? "Steady" : "Flop"}
+                </span>
+              ) : (
+                <span className={`hq__selling-stage hq__selling-stage--${stageKey}`}>{stageLabel}</span>
+              )}
             </button>
           );
         })}

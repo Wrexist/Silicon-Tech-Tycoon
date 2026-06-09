@@ -1147,6 +1147,26 @@
   font-weight: 600;
   color: var(--positive-text);
 }
+.hq__selling-thru-wrap {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hairline);
+  overflow: hidden;
+  margin-top: 3px;
+}
+.hq__selling-thru-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+  background: var(--ink-3);
+}
+.hq__selling-thru-bar--mid {
+  background: color-mix(in srgb, var(--accent) 70%, var(--ink-3));
+}
+.hq__selling-thru-bar--good {
+  background: var(--positive);
+}
 .hq__selling-stage {
   flex-shrink: 0;
   padding: 2px 7px;
@@ -1168,6 +1188,22 @@
 }
 .hq__selling-stage--end {
   background: var(--warning-soft);
+  color: var(--warning-text);
+}
+.hq__selling-verdict--hit {
+  background: var(--positive-soft);
+  color: var(--positive-text);
+}
+.hq__selling-verdict--solid {
+  background: var(--fn-design-soft);
+  color: var(--fn-design-text);
+}
+.hq__selling-verdict--steady {
+  background: var(--bg-elevated);
+  color: var(--ink-2);
+}
+.hq__selling-verdict--flop {
+  background: color-mix(in srgb, var(--warning-soft) 80%, var(--error-soft, var(--warning-soft)));
   color: var(--warning-text);
 }
 .hq__selling-eco {
