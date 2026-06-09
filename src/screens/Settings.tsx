@@ -309,6 +309,7 @@ function CreativeModeGroup() {
     if (res.restored) {
       setOwned(true);
       haptic.success();
+      sfx("confirm");
       showToast("Purchases restored — Creative Mode unlocked.", { tone: "positive" });
     } else {
       showToast("No previous purchases found.", { tone: "neutral" });

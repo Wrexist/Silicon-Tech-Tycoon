@@ -218,7 +218,7 @@ export function DesignLab({
   }
 
   function suggestPrice() {
-    const fair = dollars(Math.max(50, overall * toDollars(dollars(9))));
+    const fair = dollars(Math.max(50, Math.round(fairPriceDollars / 10) * 10));
     haptic.light();
     if (fair === draft.price) {
       showToast("Price looks about right already", { tone: "neutral" });

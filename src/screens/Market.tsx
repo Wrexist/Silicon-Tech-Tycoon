@@ -916,6 +916,7 @@ function ProductDetailSheet({
                     const result = cutProductPrice(lp.product.id, suggestedCut);
                     if (result.ok) {
                       haptic.success();
+                      sfx("cash");
                       showToast("Price reduced", { tone: "positive" });
                       setPriceCutOpen(false);
                     } else {
@@ -968,7 +969,7 @@ function ProductDetailSheet({
       )}
 
       {onDesignSuccessor && (
-        <Button block onClick={() => { onDesignSuccessor(lp.product); haptic.success(); }}>
+        <Button block onClick={() => { onDesignSuccessor(lp.product); haptic.success(); sfx("confirm"); }}>
           <Wand2 size={16} /> Design a successor
         </Button>
       )}
