@@ -340,10 +340,28 @@ repo state, with every claim below re-verified in a fresh container (`npm ci`):
       build wizard (no longer a point estimate); spend −$/−RP FX (old backlog line).
 - **Still open (verified against source, carried forward)**:
       B5 one-button Suggest price → show a range (deferred design change);
-      B6 stock baseline drift still +EV (`balance.ts` drift .0016 + dividend .0011/wk — passive
-      income printer; the leaderboard market-cap clamp shipped but doesn't fix portfolio income);
+      B6 stock baseline drift still +EV — **FIXED in v15 below**;
       F13 furniture not instanced (only BrickWall is — draw calls scale with decoration);
       AUDIT 0.5 bundle audit (main chunk 541KB / 163KB gzip; three.js correctly split + lazy).
+
+## v15 — B6: mean-reverting stock market (DONE 2026-06-09)
+The stock market was a passive income printer: baseline drift (+0.16%/wk) + a CONSTANT
+reputation momentum (rival rep never changes after init → pure compounding, up to +0.16%/wk)
++ always-positive launch pops (~+6% every ~7-10wk) + dividends ≈ 40-70%/yr EV for buy-and-hold.
+- [x] `competitors.ts`: new exported `fairSharePrice(c)` — the rival's calibrated starting price
+      shifted by current-vs-calibrated reputation (`repFairWeight`). Quality is priced into the
+      LEVEL (Pomelo $188 vs Quantyx $11), never into a weekly return.
+- [x] `evolveShare`: weekly change = `log(fair/price) × meanReversion (0.06)` + launch pop +
+      noise. Drift + momentum terms REMOVED. Pops/dips decay (half-life ≈ 12wk) → the Market tab
+      becomes a timing game (buy dips / sell pops); buy-and-hold EV ≈ dividends (~5.9%/yr) − fees.
+      Corrupt persisted price heals to fair (v7 hardening pattern). −0.95 clamp + 50¢ floor kept.
+- [x] `rivalMarketCap` [0.4×, 2.5×] clamp kept as a safety band (comment updated — prices can no
+      longer compound out of reach, leaderboard #1 stays seizable).
+- [x] 5 new tests (`competitors.test.ts`): fair-value anchoring; 3-seed 400-week zero-EV bound
+      (|mean weekly log-return| < 0.002 ≈ ±11%/yr, old printer ≥ +40%/yr); deflation from 3×fair;
+      recovery from ⅓×fair; NaN/negative price healing. **182 tests green**, tsc 0, build + PWA ok.
+- NOT verified: live-play feel of the Market tab (sparklines now oscillate around fair instead of
+      grinding up — flag if it reads "dead"; `meanReversion`/`volatility` are the tuning knobs).
 - **Ship status**: repo-side work is DONE per WHAT_YOU_NEED_TO_DO.md — remaining steps are
       owner-side (Apple Developer account, Mac/Xcode build, optional StoreKit wiring at the 3
       `NATIVE INTEGRATION POINT` stubs in `src/state/iap.ts`).

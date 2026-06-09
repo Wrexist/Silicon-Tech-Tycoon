@@ -244,7 +244,12 @@ Balance findings queued for fix pass (B1-B9 below).
       undersupplyFanPenalty (0.05) for chronic undersupply (launchReady). Tests: token sellout isn't
       rewarded, gain is analytically bounded, pre-orders < total demand under the cap.
 - [ ] B5 Pricing solved by one Suggest button → show a range not the peak. (DEFERRED — larger design change.)
-- [ ] B6 Stock drift +EV passive income printer → mean-reverting/zero-EV drift. (DEFERRED — larger design change.)
+- [x] B6 Stock drift +EV passive income printer → FIXED (post-Sweep-4): share prices now
+      mean-revert around a reputation-anchored fairSharePrice (log-gap × meanReversion 0.06/wk);
+      baseline drift + perpetual reputation momentum REMOVED (quality lives in the price LEVEL).
+      Launch pops/dips decay (half-life ≈ 12wk) → tradable swings, not compounding income.
+      Buy-and-hold EV ≈ dividend yield (~5.9%/yr) − brokerage. 5 new engine tests (3-seed
+      400-week zero-EV bound, reversion both directions, corrupt-price healing).
 - [x] B7 Readability: DesignLab verdict disagreed with launch gate. FIXED — DesignLab now derives its
       projected verdict from the SAME effectiveScore (planProduction.launchScore × competitionFactor)
       and the SAME BALANCE.reputation.hit/flopThreshold the launch uses. Test: lab verdict == recorded
@@ -336,6 +341,7 @@ missing import. Build verified GREEN: tsc 0, vitest 135, vite build ok (SW + ico
 0 console errors. The rivals/events agent made no committed changes (cut off early).
 STILL TODO (Sweep 4 remainder): adversarial re-audit of Sweep 3; ~~reactive/specialized rivals~~
 (shipped, commit 06f7675); ~~choice-driven market events~~ (shipped, commit 3361445); ~~B3
-era-rep gating~~ (shipped — `eras.ts` requires rep AND rev for era 2+); B5 pricing range; B6
-stock mean-reversion; furniture instancing perf; deeper polish. ~~Demand-variance UI readability~~
+era-rep gating~~ (shipped — `eras.ts` requires rep AND rev for era 2+); B5 pricing range; ~~B6
+stock mean-reversion~~ (shipped — see Balance fix queue B6); furniture instancing perf; deeper
+polish. ~~Demand-variance UI readability~~
 (shipped — wizard "Projected demand" now shows the low–high range). Verified 2026-06-09.

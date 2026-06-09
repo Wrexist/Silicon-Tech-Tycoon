@@ -41,10 +41,10 @@ export function rivalDef(id: string): RivalDef | undefined {
 
 /** A rival's live market capitalization for the industry leaderboard. The cap is anchored to the
  *  rival's fundamental size (starting share price × float) and nudged by its LIVE share price within
- *  a bounded band. The band matters: rival share prices drift up geometrically every week, so an
- *  un-clamped cap would compound out of reach over a long game and the player could never seize #1.
- *  Clamping the share influence to [0.4×, 2.5×] keeps the giants worth ~$1-6B, so a dominant player
- *  can climb to — and HOLD — the top of the industry through sustained revenue. */
+ *  a bounded band. Share prices now mean-revert around their fair value (B6), so they can no longer
+ *  compound out of reach — the [0.4×, 2.5×] clamp stays as a safety band (a future balance tweak or
+ *  a long lucky streak still can't make #1 unreachable). Keeps the giants worth ~$1-6B, so a
+ *  dominant player can climb to — and HOLD — the top of the industry through sustained revenue. */
 export function rivalMarketCap(c: CompetitorState): Money {
   const def = rivalDef(c.id);
   const shares = def?.shares ?? 5_000_000;
@@ -73,17 +73,33 @@ export function initCompetitors(rng: Rng): CompetitorState[] {
   }));
 }
 
-/** Evolve a rival's share price one week: drift + momentum (reputation) + a launch pop + noise. */
+/** The fundamental value a rival's share price reverts toward: its calibrated starting price,
+ *  shifted by how far its CURRENT reputation sits from its calibrated starting reputation.
+ *  Quality is priced into the LEVEL (Pomelo $188 vs Quantyx $11), never into a perpetual weekly
+ *  return — that distinction is what keeps the stock market a timing game, not an income printer. */
+export function fairSharePrice(c: CompetitorState): number {
+  const def = rivalDef(c.id);
+  const baseCents = (def?.share ?? 50) * 100;
+  const repDelta = (c.reputation - (def?.reputation ?? c.reputation)) / 100;
+  return Math.max(50, Math.round(baseCents * (1 + repDelta * BALANCE.stocks.repFairWeight)));
+}
+
+/** Evolve a rival's share price one week: mean-reversion toward fair value + a launch pop + noise.
+ *  Zero-EV by design (B6): no baseline drift, no reputation momentum. Pops and dips decay back
+ *  toward fairSharePrice, so buy-and-hold earns ~the dividend yield and profit comes from timing. */
 function evolveShare(c: CompetitorState, launched: boolean, rng: Rng): { sharePrice: number; priceHistory: number[] } {
   const s = BALANCE.stocks;
   const vol = rivalDef(c.id)?.vol ?? 1;
-  const momentum = (c.reputation / 100 - 0.45) * 0.006; // strong brands trend up
+  const fair = fairSharePrice(c);
+  // Immunize the gap math against a corrupt persisted price (matches the v7 hardening pattern).
+  const price = Number.isFinite(c.sharePrice) && c.sharePrice > 0 ? c.sharePrice : fair;
+  const reversion = Math.log(fair / Math.max(50, price)) * s.meanReversion;
   const pop = launched ? s.launchPop * (0.5 + rng.next()) : 0;
   const noise = rng.range(-1, 1) * s.volatility * vol;
   // Clamp the weekly change so a future balance tweak can never drive (1 + change) <= 0
   // and flip a share price negative; -0.95 leaves headroom below the Math.max(50) floor.
-  const change = Math.max(-0.95, s.drift + momentum + pop + noise);
-  const sharePrice = Math.max(50, Math.round(c.sharePrice * (1 + change)));
+  const change = Math.max(-0.95, reversion + pop + noise);
+  const sharePrice = Math.max(50, Math.round(price * (1 + change)));
   const priceHistory = [...c.priceHistory, sharePrice / 100];
   if (priceHistory.length > s.historyLength) priceHistory.shift();
   return { sharePrice, priceHistory };
