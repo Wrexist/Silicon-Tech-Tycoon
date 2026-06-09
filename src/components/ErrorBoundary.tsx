@@ -10,10 +10,11 @@ interface State {
   error: Error | null;
   componentStack: string;
   copied: boolean;
+  confirmReset: boolean;
 }
 
 export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, State> {
-  state: State = { error: null, componentStack: "", copied: false };
+  state: State = { error: null, componentStack: "", copied: false, confirmReset: false };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
@@ -81,9 +82,21 @@ export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: R
             <Copy size={15} /> {this.state.copied ? "Copied!" : "Copy error details"}
           </Button>
           <Button block variant="secondary" onClick={() => window.location.reload()}>Reload</Button>
-          <Button block variant="tertiary" onClick={() => { clearSave(); window.location.reload(); }}>
-            <RotateCcw size={15} /> Reset company
-          </Button>
+          {/* Destroying the save needs a second tap — a crash screen is exactly where a panicked
+              player taps fast, and Reload alone fixes most transient errors. */}
+          {this.state.confirmReset ? (
+            <>
+              <p className="eb__text">This deletes your company permanently. Try Reload first.</p>
+              <Button block variant="destructive" onClick={() => { clearSave(); window.location.reload(); }}>
+                <RotateCcw size={15} /> Yes, delete the save
+              </Button>
+              <Button block variant="tertiary" onClick={() => this.setState({ confirmReset: false })}>Cancel</Button>
+            </>
+          ) : (
+            <Button block variant="tertiary" onClick={() => this.setState({ confirmReset: true })}>
+              <RotateCcw size={15} /> Reset company
+            </Button>
+          )}
         </div>
       </div>
     );

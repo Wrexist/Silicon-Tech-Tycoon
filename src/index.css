@@ -36,6 +36,14 @@ button {
   color: inherit;
 }
 
+/* body sets user-select:none for app-like feel — fields must opt back in, or iOS WKWebView
+   degrades long-press select/paste inside the company-name input and the import textarea. */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Keyboard focus — visible ring for keyboard/switch users, never on touch/mouse press. */
 :focus-visible {
   outline: 2px solid var(--accent);

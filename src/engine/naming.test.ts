@@ -9,8 +9,8 @@ describe("suggestNextName", () => {
   });
   it("increments the last digit run anywhere", () => {
     expect(suggestNextName("Aurora 2")).toBe("Aurora 3");
-    expect(suggestNextName("iPhone 15")).toBe("iPhone 16");
-    expect(suggestNextName("Galaxy S23 Ultra")).toBe("Galaxy S24 Ultra");
+    expect(suggestNextName("Astra 15")).toBe("Astra 16");
+    expect(suggestNextName("Nebula S23 Ultra")).toBe("Nebula S24 Ultra");
     expect(suggestNextName("Pro9")).toBe("Pro10");
   });
   it("increments Roman numerals", () => {

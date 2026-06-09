@@ -81,13 +81,13 @@ export function Settings({ onClose }: { onClose: () => void }) {
 
       <div className="set__group">
         <Row icon={<Boxes size={18} />} label="3D headquarters" sub="Real-time 3D office. Off uses the lighter 2D scene.">
-          <Switch on={settings.garage3d} onChange={(v) => { setSettings({ garage3d: v }); sfx("toggle"); }} />
+          <Switch label="3D headquarters" on={settings.garage3d} onChange={(v) => { setSettings({ garage3d: v }); sfx("toggle"); }} />
         </Row>
         <Row icon={<Volume2 size={18} />} label="Sound effects">
-          <Switch on={settings.sound} onChange={(v) => { setSettings({ sound: v }); if (v) sfx("toggle"); }} />
+          <Switch label="Sound effects" on={settings.sound} onChange={(v) => { setSettings({ sound: v }); if (v) sfx("toggle"); }} />
         </Row>
         <Row icon={<Smartphone size={18} />} label="Haptics">
-          <Switch on={settings.haptics} onChange={(v) => { setSettings({ haptics: v }); if (v) haptic.light(); }} />
+          <Switch label="Haptics" on={settings.haptics} onChange={(v) => { setSettings({ haptics: v }); if (v) haptic.light(); }} />
         </Row>
       </div>
 
@@ -329,7 +329,7 @@ function CreativeModeGroup() {
           label="Sandbox mode"
           sub={state.sandboxUnlocked ? "Active — cash floor prevents bankruptcy. Design freely." : "Owned. Toggle on to design without financial limits."}
         >
-          <Switch on={state.sandboxUnlocked} onChange={(v) => { setSandboxActive(v); haptic.light(); sfx("toggle"); }} />
+          <Switch label="Sandbox mode" on={state.sandboxUnlocked} onChange={(v) => { setSandboxActive(v); haptic.light(); sfx("toggle"); }} />
         </Row>
       ) : (
         <>
@@ -362,12 +362,13 @@ function Row({ icon, label, sub, children }: { icon: React.ReactNode; label: str
   );
 }
 
-function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button
       className={`set__switch${on ? " set__switch--on" : ""}`}
       role="switch"
       aria-checked={on}
+      aria-label={label}
       onClick={() => { haptic.light(); onChange(!on); }}
     >
       <span className="set__switch-knob" />

@@ -60,6 +60,15 @@ In Xcode → **App** target → **Signing & Capabilities**:
 - Confirm the **Bundle Identifier** is `com.wrexist.silicon`.
 - Add the **In-App Purchase** capability.
 
+**REQUIRED — lock orientation + ship iPhone-only** (the Capacitor template defaults to
+portrait+landscape and iPhone+iPad; the UI is a portrait phone layout):
+- **General → Deployment Info**: untick *Landscape Left* and *Landscape Right* (Portrait only).
+  Without this, rotating the phone during App Review shows a sideways portrait layout.
+- **General → Deployment Info → Supported Destinations / Device family**: **iPhone only**
+  (`TARGETED_DEVICE_FAMILY = 1`). Otherwise Apple reviews the app on a 13" iPad — which would
+  require iPad screenshots and shows a letterboxed 540px phone column — an avoidable rejection
+  risk. Add iPad support deliberately in a later release if wanted.
+
 Run on a simulator or a real device with the ▶ button to smoke-test.
 
 ---

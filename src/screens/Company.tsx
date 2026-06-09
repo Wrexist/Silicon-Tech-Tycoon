@@ -491,22 +491,22 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
       <div className="co__stats-spark">
         <div className="co__stats-spark-cap">
           <span className="co__stats-spark-label">Cash over time</span>
-          <span className="ds-stat__value tnum" style={{ color: netWorth >= 0 ? "var(--positive)" : "var(--negative)" }}>
+          <span className="ds-stat__value tnum" style={{ color: netWorth >= 0 ? "var(--positive-text)" : "var(--negative-text)" }}>
             {format(netWorth)}
           </span>
         </div>
-        <Sparkline data={cashData} stroke={netWorth >= 0 ? "var(--accent)" : "var(--negative)"} />
+        <Sparkline data={cashData} stroke={netWorth >= 0 ? "var(--accent)" : "var(--negative)"} label="Cash over time" />
       </div>
 
       {revData.length >= 2 && (
         <div className="co__stats-spark">
           <div className="co__stats-spark-cap">
             <span className="co__stats-spark-label">Weekly revenue</span>
-            <span className="ds-stat__value tnum" style={{ color: "var(--positive)" }}>
+            <span className="ds-stat__value tnum" style={{ color: "var(--positive-text)" }}>
               {format(state.cumulativeRevenue)}
             </span>
           </div>
-          <Sparkline data={revData} stroke="var(--positive)" />
+          <Sparkline data={revData} stroke="var(--positive)" label="Weekly revenue over time" />
         </div>
       )}
 

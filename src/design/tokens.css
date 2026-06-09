@@ -43,6 +43,7 @@
      hues, which already pass on dark surfaces. Keeps the function colour-coding intact. */
   --positive-text: #047857;
   --negative-text: #dc2626;
+  --warning-text: #b45309;
   --fn-eng-text: #c2570c;
   --fn-design-text: #0f8a57;
   --fn-mkt-text: #2563eb;
@@ -124,6 +125,7 @@
     /* on-light text variants fall back to the bright hues on dark surfaces */
     --positive-text: #10b981;
     --negative-text: #ef4444;
+    --warning-text: #fbbf24;
     --fn-eng-text: #f97316;
     --fn-design-text: #1eb877;
     --fn-mkt-text: #3b82f6;
@@ -157,6 +159,7 @@
   /* on-light text variants fall back to the bright hues on dark surfaces */
   --positive-text: #10b981;
   --negative-text: #ef4444;
+  --warning-text: #fbbf24;
   --fn-eng-text: #f97316;
   --fn-design-text: #1eb877;
   --fn-mkt-text: #3b82f6;

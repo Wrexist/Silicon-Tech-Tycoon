@@ -214,7 +214,8 @@
   background: var(--surface-2);
   color: var(--ink);
   font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  font-size: var(--fs-caption);
+  /* ≥16px or iOS auto-zooms the page when the field gains focus */
+  font-size: 16px;
   line-height: 1.5;
   word-break: break-all;
   outline: none;

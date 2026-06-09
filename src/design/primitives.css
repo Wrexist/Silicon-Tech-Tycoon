@@ -63,7 +63,9 @@
   color: var(--negative-text);
 }
 .ds-btn--sm {
-  min-height: 32px;
+  /* 40px (was 32) — these drive critical actions (Launch, IPO, research buys); HIG wants ≥44,
+     40 + the row's surrounding padding gives an effective ≥44pt hit area without bloating cards. */
+  min-height: 40px;
   padding: 0 var(--sp-12);
   font-size: var(--fs-caption);
   border-radius: 10px;

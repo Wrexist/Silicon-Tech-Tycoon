@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { STAT_KEYS, type Stats } from "../engine/types.ts";
 import "./charts.css";
 
@@ -79,12 +80,19 @@ export function Sparkline({
   width = 280,
   height = 64,
   stroke = "var(--accent)",
+  label,
 }: {
   data: number[];
   width?: number;
   height?: number;
   stroke?: string;
+  /** VoiceOver summary, e.g. "Cash over time". Charts are otherwise silent to assistive tech. */
+  label?: string;
 }) {
+  // Unique per instance: a shared id ("spark-fill") made every sparkline on a screen take the
+  // FIRST chart's fill colour (duplicate DOM ids resolve to the first match — a falling red
+  // stock showed a green area fill on the Market list).
+  const gradientId = useId();
   if (data.length < 2)
     return (
       <div className="spark-empty" style={{ height }}>
@@ -100,15 +108,22 @@ export function Sparkline({
   const area = `${line} L ${width} ${height} L 0 ${height} Z`;
   const zeroY = height - ((0 - min) / span) * height;
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} height={height} preserveAspectRatio="none">
+    <svg
+      width="100%"
+      viewBox={`0 0 ${width} ${height}`}
+      height={height}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={label ?? "Trend chart"}
+    >
       <defs>
-        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={stroke} stopOpacity="0.18" />
           <stop offset="1" stopColor={stroke} stopOpacity="0" />
         </linearGradient>
       </defs>
       <line x1="0" y1={zeroY} x2={width} y2={zeroY} stroke="var(--hairline)" strokeWidth="1" strokeDasharray="3 3" />
-      <path d={area} fill="url(#spark-fill)" />
+      <path d={area} fill={`url(#${gradientId})`} />
       <path d={line} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
@@ -129,7 +144,14 @@ export function SalesCurveChart({
   const max = Math.max(...weekly, 1);
   const barW = width / weekly.length;
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} height={height} preserveAspectRatio="none">
+    <svg
+      width="100%"
+      viewBox={`0 0 ${width} ${height}`}
+      height={height}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={`Weekly sales, week ${Math.min(elapsed, weekly.length)} of ${weekly.length}`}
+    >
       {weekly.map((u, i) => {
         const h = (u / max) * (height - 4);
         const sold = i < elapsed;

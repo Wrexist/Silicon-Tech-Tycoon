@@ -169,7 +169,7 @@ export function DesignLab({
   const priceSliderAccent =
     priceRatio < 0.65 ? "var(--accent)"
     : priceRatio < 1.3 ? "var(--positive)"
-    : priceRatio < 1.8 ? "#f59e0b"
+    : priceRatio < 1.8 ? "var(--warning)"
     : "var(--negative)";
 
   const breakdown = scoreLaunch({

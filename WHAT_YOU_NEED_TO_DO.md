@@ -149,7 +149,11 @@ In Xcode, with `App.xcworkspace` open:
 3. Check **Automatically manage signing**
 4. Select your **Team** from the dropdown
 5. Confirm Bundle Identifier is `com.wrexist.silicon`
-6. Click **+ Capability** → add **In-App Purchase**
+6. Click **+ Capability** → add **In-App Purchase** (only needed if you do Step 7)
+7. **General → Deployment Info**: untick **Landscape Left/Right** (Portrait only) — the game
+   is a portrait layout and the template defaults to all orientations
+8. **General → Deployment Info**: set device family to **iPhone only** — otherwise Apple
+   reviews it on a 13" iPad (extra screenshots required, letterboxed layout)
 
 Run on your iPhone or a Simulator (▶ button) to make sure it launches.
 
