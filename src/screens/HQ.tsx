@@ -33,7 +33,7 @@ import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canIPO, burn, nextWeekRevenue, weeklyEcosystemRevenue, facility, planProduction, upgradeCost, verdictBands, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canIPO, burn, industryRank, nextWeekRevenue, weeklyEcosystemRevenue, facility, planProduction, upgradeCost, verdictBands, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -151,12 +151,21 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         </Card>
       )}
 
-      <div className="hq__stats">
-        <StatPill label="Products" value={state.launched.length} />
-        <StatPill label="Team" value={state.staff.length} />
-        <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-        <StatPill label="Fans" value={fmtFans(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
-      </div>
+      {(() => {
+        const rank = state.launched.length > 0 ? industryRank(state) : null;
+        return (
+          <div className="hq__stats">
+            {rank !== null ? (
+              <StatPill label="Industry rank" value={`#${rank}`} tone={rank === 1 ? "positive" : "neutral"} />
+            ) : (
+              <StatPill label="Products" value={state.launched.length} />
+            )}
+            <StatPill label="Team" value={state.staff.length} />
+            <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
+            <StatPill label="Fans" value={fmtFans(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
+          </div>
+        );
+      })()}
       {(() => {
         const wkBurn = burn(state);
         const wkRev = nextWeekRevenue(state);
@@ -224,7 +233,11 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                 <div className="hq__ready-thumb"><DeviceRenderer product={p} size={52} /></div>
                 <div className="hq__ready-info">
                   <span className="hq__ready-name">{p.name}</span>
-                  {p.plannedUnits != null && <span className="hq__ready-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+                  {p.plannedUnits != null && (
+                    <span className="hq__ready-sub">
+                      {p.plannedUnits.toLocaleString()} units · est. {format(prev.projectedRevenue)}
+                    </span>
+                  )}
                   {p.channelId && p.channelId !== "none" && (
                     <span className="hq__ready-channel">
                       <Megaphone size={10} />
@@ -399,6 +412,7 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
   };
 
   return (
+    <>
     <Card variant="flush">
       <div className={`hq__scene${build ? " hq__scene--build" : ""}`}>
         {use3d && !glLost ? (
@@ -551,6 +565,13 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
         </div>
       )}
     </Card>
+    {!build && state.week <= 3 && state.layout.length <= 2 && (
+      <p className="hq__decorate-tip">
+        <LayoutGrid size={10} aria-hidden />
+        Tap Decorate to customize your office
+      </p>
+    )}
+  </>
   );
 }
 
@@ -1080,6 +1101,15 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
         tab: "design",
       });
     }
+  }
+
+  // 10. Large fanbase idle — nobody will pre-order unless you launch something
+  if (insights.length < 3 && state.fans >= 2_000 && !inPipeline && active.length === 0) {
+    insights.push({
+      icon: Users,
+      text: `${fmtFans(state.fans)} fans are ready to pre-order your next launch — designing a new product now converts loyal customers into day-one sales.`,
+      tab: "design",
+    });
   }
 
   if (insights.length === 0) return null;

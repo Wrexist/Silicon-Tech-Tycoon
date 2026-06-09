@@ -76,6 +76,13 @@
   display: flex;
   gap: var(--sp-8);
 }
+.lab__score-why {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  text-align: center;
+  margin: calc(var(--sp-6) * -1) 0 var(--sp-4);
+  letter-spacing: 0.01em;
+}
 .lab__flip {
   display: inline-flex;
   align-items: center;

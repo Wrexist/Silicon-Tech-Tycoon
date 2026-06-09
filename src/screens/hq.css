@@ -369,6 +369,18 @@
   .hq__decorate--new::after { animation: none; }
 }
 
+.hq__decorate-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  text-align: center;
+  padding: var(--sp-6) var(--edge) var(--sp-2);
+  margin-top: calc(var(--sp-8) * -1);
+}
+
 .hqb__top {
   position: absolute;
   top: 0;

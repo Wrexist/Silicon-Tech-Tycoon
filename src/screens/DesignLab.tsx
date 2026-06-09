@@ -307,6 +307,14 @@ export function DesignLab({
           <StatPill label="Fit" value={`${fit}`} tone={fit >= 60 ? "positive" : "neutral"} />
           <StatPill value={missing.length === 0 ? `${verdict.label} · ${Math.round(effectiveScore)}` : verdict.label} tone={verdict.tone} />
         </div>
+        {missing.length === 0 && effectiveScore < bands.hit && (() => {
+          const drags: string[] = [];
+          if (breakdown.priceFit < 0.68) drags.push("pricing");
+          if (breakdown.demand < 45) drags.push("stat fit");
+          if (preview && preview.competitionFactor < 0.78) drags.push("competition");
+          if (drags.length === 0) return null;
+          return <p className="lab__score-why">Drag: {drags.join(" · ")}</p>;
+        })()}
       </div>
 
       {/* Category — always visible above the tab strip */}
@@ -356,13 +364,18 @@ export function DesignLab({
           } · {catRivalCount === 0 ? "open market" : `${catRivalCount} rival${catRivalCount > 1 ? "s" : ""} · best ${catRivalMaxStr}`}
         </p>
         {(() => {
-          const prev = state.launched.find((lp) => lp.product.category === draft.category);
+          const prev = state.launched
+            .filter((lp) => lp.product.category === draft.category)
+            .reduce<typeof state.launched[0] | null>(
+              (best, lp) => (!best || overallScore(lp.stats, draft.category) > overallScore(best.stats, draft.category) ? lp : best),
+              null,
+            );
           if (!prev) return null;
           const prevScore = overallScore(prev.stats, prev.product.category);
           const scoreImproved = overall > prevScore;
           return (
             <div className="lab__prev-product">
-              <span className="lab__prev-label">Last in category:</span>
+              <span className="lab__prev-label">Best in category:</span>
               <span className="lab__prev-name">{prev.product.name}</span>
               <span className={`lab__prev-score${scoreImproved ? " lab__prev-score--up" : ""}`}>
                 {scoreImproved ? <TrendingUp size={11} aria-hidden /> : null}

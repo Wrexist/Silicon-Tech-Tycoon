@@ -438,7 +438,21 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       {/* Competition landscape — your position vs. rivals by category */}
       {unlockedCats.length > 0 && (
         <Card>
-          <SectionHeader title="Market position" accessory="you vs. rivals" />
+          {(() => {
+            const catStats = unlockedCats.map((cat) => {
+              const maxRivalStr = comps.reduce((m, c) => Math.max(m, ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0)), 0);
+              const bestYours = state.launched.filter((lp) => lp.product.category === cat.id).reduce<number>((m, lp) => Math.max(m, overallScore(lp.stats, cat.id)), 0);
+              return bestYours > 0 && bestYours >= maxRivalStr ? "leading" : bestYours > 0 ? "trailing" : maxRivalStr > 5 ? "absent" : "open";
+            });
+            const leading = catStats.filter((s) => s === "leading").length;
+            const trailing = catStats.filter((s) => s === "trailing").length;
+            const open = catStats.filter((s) => s === "open").length;
+            const summaryParts: string[] = [];
+            if (leading > 0) summaryParts.push(`leading ${leading}`);
+            if (trailing > 0) summaryParts.push(`behind ${trailing}`);
+            if (open > 0) summaryParts.push(`${open} open`);
+            return <SectionHeader title="Market position" accessory={summaryParts.join(" · ") || "you vs. rivals"} />;
+          })()}
           {(() => {
             const activeCats = new Set(
               state.launched
