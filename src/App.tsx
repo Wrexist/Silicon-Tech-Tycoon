@@ -274,8 +274,8 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           Each empire you build leaves a bigger legacy — found your next one stronger, or keep
           building this one.
         </p>
-        <Button block onClick={prestige}>Start New Game+ (Legacy {state.legacy + 1})</Button>
-        <Button block variant="tertiary" onClick={onDismiss}>Keep building</Button>
+        <Button block onClick={() => { haptic.success(); sfx("era"); prestige(); }}>Start New Game+ (Legacy {state.legacy + 1})</Button>
+        <Button block variant="tertiary" onClick={() => { haptic.light(); onDismiss(); }}>Keep building</Button>
       </div>
     </div>
   );
@@ -308,6 +308,8 @@ function Onboarding({ onStart }: { onStart: () => void }) {
         <Button
           block
           onClick={() => {
+            haptic.success();
+            sfx("confirm");
             if (name.trim()) setCompanyName(name);
             markOnboarded();
             onStart();
@@ -360,7 +362,7 @@ function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; on
           <span className="app__offline-label">Net change</span>
           <AnimatedMoney value={gain} sign className="app__offline-value rounded" />
         </Card>
-        <Button block onClick={onClose}>Continue</Button>
+        <Button block onClick={() => { haptic.success(); sfx("cash"); onClose(); }}>Continue</Button>
       </div>
     </div>
   );
@@ -450,7 +452,7 @@ function BankruptOverlay() {
             ))}
           </div>
         )}
-        <Button block onClick={restart}>Start a new company</Button>
+        <Button block onClick={() => { haptic.medium(); sfx("confirm"); restart(); }}>Start a new company</Button>
       </div>
     </div>
   );

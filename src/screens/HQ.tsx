@@ -143,7 +143,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
         {state.era < maxEra()
           ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
-          : <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
+          : <StatPill label="Fans" value={fmtFans(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
       </div>
       {(() => {
         const wkBurn = burn(state);
@@ -374,7 +374,7 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
         )}
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
         {use3d && !build && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
-        {use3d && !build && (
+        {!build && (
           <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); }}>
             <LayoutGrid size={15} /> Decorate
           </button>
@@ -397,6 +397,9 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
 
       {build && (
         <div className="hqb__panel">
+          {!use3d && (
+            <p className="hqb__hint-2d">3D is off — enable it in Settings to see furniture in the office.</p>
+          )}
           {selected ? (
             <div className="hqb__toolbar">
               <div className="hqb__sel">
@@ -604,6 +607,12 @@ function fmtRevShort(dollars: number): string {
   if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1)}M`;
   if (dollars >= 1_000) return `$${Math.round(dollars / 1_000)}k`;
   return `$${Math.round(dollars)}`;
+}
+
+function fmtFans(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
 }
 
 /** Progress bar strip used inside the era goal card. */
@@ -895,7 +904,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
             <button
               key={i}
               className={`hq__insight${ins.tab ? "" : " hq__insight--static"}`}
-              onClick={() => ins.tab && onNavigate(ins.tab)}
+              onClick={() => { if (ins.tab) { haptic.light(); onNavigate(ins.tab); } }}
               disabled={!ins.tab}
             >
               <span className="hq__insight-icon"><Icon size={14} strokeWidth={2.5} /></span>
@@ -931,7 +940,7 @@ function FeedCard({ feed, week, onNavigate }: { feed: FeedItem[]; week: number; 
         })}
       </ul>
       {hasMore && (
-        <button className="hq__feed-toggle" onClick={() => setExpanded((x) => !x)}>
+        <button className="hq__feed-toggle" onClick={() => { haptic.light(); setExpanded((x) => !x); }}>
           {expanded ? "Show recent" : `+${all.length - limit} older events`}
         </button>
       )}
@@ -1017,7 +1026,7 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
         </div>
       )}
       {best && (
-        <button className="hq__perf-best" onClick={() => onNavigate("market")}>
+        <button className="hq__perf-best" onClick={() => { haptic.light(); onNavigate("market"); }}>
           <span className="hq__perf-best-label">Best performer</span>
           <span className="hq__perf-best-name">{best.product.name}</span>
           <span className="hq__perf-best-rev tnum">{format(best.revenueToDate)}</span>

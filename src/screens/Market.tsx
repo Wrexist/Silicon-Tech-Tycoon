@@ -64,6 +64,12 @@ function changePct(history: number[]): number {
   return a > 0 ? ((b - a) / a) * 100 : 0;
 }
 
+function fmtFans(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
 export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccessor?: (p: Product) => void; onOpenDesignLab?: () => void } = {}) {
   const { state } = useGame();
   const trends = state.trends;
@@ -130,7 +136,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         </div>
         <div className="mkt__nw-row">
           <StatPill label="Cash" value={format(state.cash)} />
-          <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans > 0 ? "positive" : "neutral"} />
+          <StatPill label="Fans" value={fmtFans(state.fans)} tone={state.fans > 0 ? "positive" : "neutral"} />
           <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
           <StatPill label="Weekly" value={`${wkFlowD >= 0 ? "+" : ""}${format(wkFlow)}`} tone={wkFlowD >= 0 ? "positive" : "negative"} />
         </div>
@@ -576,7 +582,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           title="Activity"
           accessory={
             state.feed.length > 12 ? (
-              <button className="mkt__feed-all" onClick={() => setFeedOpen(true)}>
+              <button className="mkt__feed-all" onClick={() => { haptic.light(); setFeedOpen(true); }}>
                 View all {state.feed.length}
               </button>
             ) : "latest"
@@ -1153,7 +1159,7 @@ function FeedSheet({ feed, onClose }: { feed: FeedItem[]; onClose: () => void })
     <div className="mkt__feed-sheet">
       <div className="mkt__feed-sheet-hdr">
         <h2 className="mkt__feed-sheet-title">Activity log</h2>
-        <button className="mkt__feed-sheet-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        <button className="mkt__feed-sheet-x" onClick={() => { haptic.light(); onClose(); }} aria-label="Close"><X size={18} /></button>
       </div>
       <p className="mkt__feed-sheet-sub">{feed.length} events recorded</p>
       <ul className="mkt__feed mkt__feed--full">

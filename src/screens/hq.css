@@ -348,6 +348,15 @@
   flex-direction: column;
   gap: var(--sp-12);
 }
+.hqb__hint-2d {
+  margin: 0;
+  padding: var(--sp-8) var(--sp-12);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  background: var(--bg-elevated);
+  border-radius: var(--r-button);
+  text-align: center;
+}
 .hqb__search {
   display: flex;
   align-items: center;

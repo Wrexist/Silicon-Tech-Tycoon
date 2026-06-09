@@ -116,7 +116,7 @@ export function Company() {
         <SectionHeader
           title="Financials"
           accessory={
-            <button className="co__stats-link" onClick={() => setStatsOpen(true)} aria-label="View company stats">
+            <button className="co__stats-link" onClick={() => { haptic.light(); setStatsOpen(true); }} aria-label="View company stats">
               <BarChart3 size={14} /> Stats
             </button>
           }
@@ -255,7 +255,7 @@ export function Company() {
       {state.launched.length >= 2 && <TopProductsCard launched={state.launched} />}
 
       {/* Achievements entry */}
-      <button className="co__ach-row" onClick={() => setAchievementsOpen(true)} aria-label="View achievements">
+      <button className="co__ach-row" onClick={() => { haptic.light(); setAchievementsOpen(true); }} aria-label="View achievements">
         <span className="co__ach-glyph" aria-hidden><Award size={20} /></span>
         <span className="co__ach-info">
           <span className="co__ach-title">Achievements</span>
@@ -478,7 +478,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
       <div className="co__stats">
         <div className="co__stats-hdr">
           <h2 className="co__stats-title">Company stats</h2>
-          <button className="co__stats-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button className="co__stats-x" onClick={() => { haptic.light(); onClose(); }} aria-label="Close"><X size={18} /></button>
         </div>
         <EmptyState
           glyph={<Rocket size={36} strokeWidth={1.6} />}
