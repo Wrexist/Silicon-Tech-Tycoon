@@ -214,6 +214,21 @@
   background: color-mix(in srgb, var(--positive) 20%, transparent);
   color: var(--positive-text, var(--positive));
 }
+.lab__chip-new {
+  font-size: var(--fs-nano);
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.lab__chip--on .lab__chip-new {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  color: inherit;
+}
 .lab__chip--on .lab__chip-gen--live {
   background: color-mix(in srgb, currentColor 20%, transparent);
   color: inherit;

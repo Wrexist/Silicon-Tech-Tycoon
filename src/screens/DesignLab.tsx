@@ -314,6 +314,7 @@ export function DesignLab({
             const activeSelling = state.launched.some(
               (lp) => lp.product.category === c.id && lp.weeksElapsed < lp.weeklyUnits.length,
             );
+            const isNewThisEra = c.unlockEra === state.era && state.era > 1 && genCount === 0;
             return (
               <button
                 key={c.id}
@@ -327,7 +328,8 @@ export function DesignLab({
                 }}
               >
                 <CategoryIcon id={c.id} size={15} /> {c.displayName}
-                {genCount > 0 && (
+                {isNewThisEra && <span className="lab__chip-new">New</span>}
+                {!isNewThisEra && genCount > 0 && (
                   <span className={`lab__chip-gen${activeSelling ? " lab__chip-gen--live" : ""}`}>
                     G{genCount + 1}
                   </span>
@@ -682,7 +684,7 @@ export function DesignLab({
               <div className="lab__price-meta">
                 <StatPill label="Build" value={format(unitCost)} />
                 <StatPill label="Margin" value={`${format(margin)} · ${marginPct}%`} tone={marginPct > 0 ? "positive" : "negative"} />
-                <StatPill label="Fair ~" value={`$${Math.round(fairPriceDollars / 10) * 10}`} />
+                <StatPill label="Fair ~" value={format(dollars(Math.round(fairPriceDollars / 10) * 10))} />
                 <StatPill value={priceZone} tone={priceZoneTone} />
               </div>
               {(() => {

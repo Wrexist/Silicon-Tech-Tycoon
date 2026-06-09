@@ -2,6 +2,7 @@ import { FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, Star 
 import { AnimatedInt, AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
+import { haptic } from "../design/haptics.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./hud.css";
 
@@ -53,7 +54,7 @@ export function Hud({ onSettings }: { onSettings: () => void }) {
         </div>
         <button
           className="hud__pause"
-          onClick={() => setPaused(!paused)}
+          onClick={() => { haptic.light(); setPaused(!paused); }}
           aria-label={paused ? "Resume" : "Pause"}
           aria-pressed={paused}
         >
@@ -61,13 +62,13 @@ export function Hud({ onSettings }: { onSettings: () => void }) {
         </button>
         <button
           className={`hud__pause${fast && !paused ? " hud__pause--on" : ""}`}
-          onClick={() => { setFast(!fast); if (!fast) setPaused(false); }}
+          onClick={() => { haptic.light(); setFast(!fast); if (!fast) setPaused(false); }}
           aria-label={fast ? "Normal speed" : "Fast forward"}
           aria-pressed={fast}
         >
           <FastForward size={14} fill="currentColor" />
         </button>
-        <button className="hud__pause" onClick={onSettings} aria-label="Settings">
+        <button className="hud__pause" onClick={() => { haptic.light(); onSettings(); }} aria-label="Settings">
           <SettingsIcon size={15} />
         </button>
       </div>
