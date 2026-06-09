@@ -167,6 +167,48 @@
   margin-top: var(--sp-8);
 }
 
+/* Multi-tab takeover — this tab is frozen because another window claimed the save.
+   Highest overlay z-index in the app: whatever else is on screen, a frozen tab must say so. */
+.tabswap {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(var(--edge), env(safe-area-inset-top)) max(var(--edge), env(safe-area-inset-right))
+    max(var(--edge), env(safe-area-inset-bottom)) max(var(--edge), env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+.tabswap__inner {
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+.tabswap__glyph {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--sp-16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tabswap__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  margin-bottom: var(--sp-8);
+}
+.tabswap__text {
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin-bottom: var(--sp-24);
+}
+
 /* Bankruptcy */
 .bankrupt {
   position: fixed;

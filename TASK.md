@@ -362,6 +362,23 @@ reputation momentum (rival rep never changes after init → pure compounding, up
       recovery from ⅓×fair; NaN/negative price healing. **182 tests green**, tsc 0, build + PWA ok.
 - NOT verified: live-play feel of the Market tab (sparklines now oscillate around fair instead of
       grinding up — flag if it reads "dead"; `meanReversion`/`volatility` are the tuning knobs).
+
+## v15.1 — B5 price band + multi-tab single-writer guard (DONE 2026-06-09)
+- [x] **B5 — pricing is a decision again**: new engine `priceGuidance(stats, category)` returns the
+      band where priceFit ≥ `guidanceFitFloor` (0.9); the Design Lab shows "Buyers expect $lo–$hi"
+      and the one-click **Suggest setter is removed** (the exact peak is never spoiled). The band is
+      asymmetric via `overpriceHarshness` (1.45, hoisted from a priceFit literal) so the UI itself
+      teaches that overpricing hurts more. Old suggest's hardcoded $9/pt deleted; draft auto-price
+      now sources the same helper. Zone pills/slider accent unchanged (relative feedback). 1 test.
+- [x] **Multi-tab save guard** (v9 audit "only real save-loss path on web"): `state/tabGuard.ts` —
+      every context broadcasts a claim on `silicon.tab.v1` (BroadcastChannel); any OTHER context
+      hearing a claim freezes: tick stops AND all 3 save paths (4s autosave, visibility, pagehide)
+      check `tabBlockedRef`. Takeover semantics (newest tab plays); frozen tab shows a premium
+      `.tabswap` overlay (dialog semantics + focus trap, safe-area, tokens) with "Play here
+      instead" → reload → boots from freshest save + claims back. Handoff is near-lossless (the
+      old tab saved on visibilitychange). Per-CONTEXT id so StrictMode can't self-freeze; no
+      BroadcastChannel → exact pre-guard behaviour (no regression); native single-webview → idle.
+      5 tests (Node BC, in-process two-tab sim). **188 tests green**, tsc 0, build + PWA ok.
 - **Ship status**: repo-side work is DONE per WHAT_YOU_NEED_TO_DO.md — remaining steps are
       owner-side (Apple Developer account, Mac/Xcode build, optional StoreKit wiring at the 3
       `NATIVE INTEGRATION POINT` stubs in `src/state/iap.ts`).

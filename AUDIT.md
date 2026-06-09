@@ -41,7 +41,8 @@ Legend: 🐛 bug · ⚠️ risk · ✨ improvement · 💎 premium-polish · ⚡
 - [ ] 2.1 useGame tick: no double-ticks, pause/fast correctness, cleanup on unmount.
 - [ ] 2.2 Save schema versioning + migrations: forward/backward, corrupt-save recovery. ⚠️
 - [ ] 2.3 Field backfill completeness (new fields default safely on old saves).
-- [ ] 2.4 Multi-tab/localStorage race handling; quota-exceeded fallback. ⚠️
+- [x] 2.4 Multi-tab/localStorage race handling (v15.1 `tabGuard.ts` — BroadcastChannel takeover,
+      frozen tab stops tick + all saves, 5 tests); quota-exceeded fallback (F3, Sweep 1). ⚠️
 - [ ] 2.5 New Game+ / prestige reset correctness (no leaked state).
 - [ ] 2.6 Bankruptcy + IPO end states: clean, no stuck UI.
 

@@ -61,6 +61,7 @@ import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
 import { clearSave, exportSaveString, importSaveString, loadResult, save } from "./persistence.ts";
+import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
 import { showToast } from "../design/toast.tsx";
@@ -172,6 +173,10 @@ interface GameContextValue {
   setFast: (f: boolean) => void;
   offline: OfflineSummary | null;
   clearOffline: () => void;
+  /** True when ANOTHER tab/window took over this save — this tab is frozen (no tick, no saves). */
+  tabBlocked: boolean;
+  /** Reload this tab so it boots from the freshest save and claims play back. */
+  takeOverHere: () => void;
   // actions
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
   launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number };
@@ -253,15 +258,28 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [paused, setPaused] = useState(false);
   const [fast, setFast] = useState(false);
   const [offline, setOffline] = useState<OfflineSummary | null>(boot.offline);
+  const [tabBlocked, setTabBlocked] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
+  // Save paths are mount-once effects; they read the live blocked flag through a ref.
+  const tabBlockedRef = useRef(tabBlocked);
+  tabBlockedRef.current = tabBlocked;
 
   // F1 — offline catch-up already ran exactly once in the initializer above; do NOT re-run it in
   // a mount effect (that re-applied gains against the stale on-disk lastActive, x4 under StrictMode).
 
+  // Multi-tab single-writer guard: when another tab claims this save, freeze this one — the tick
+  // stops below and EVERY save path checks tabBlockedRef, so a stale context can never clobber
+  // the tab the player is actually using (the one real save-loss path on web).
+  useEffect(() => {
+    const guard = createTabGuard(() => setTabBlocked(true));
+    return guard.dispose;
+  }, []);
+  const takeOverHere = useCallback(() => window.location.reload(), []);
+
   // Sim tick. One week per tick; the interval shrinks by fastMultiplier in Fast mode.
   useEffect(() => {
-    if (paused || state.bankrupt) return;
+    if (paused || state.bankrupt || tabBlocked) return;
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
@@ -274,22 +292,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
       });
     }, ms);
     return () => clearInterval(id);
-  }, [paused, fast, state.bankrupt]);
+  }, [paused, fast, state.bankrupt, tabBlocked]);
 
   // Persist on a fixed cadence (reads the latest via ref so it actually fires during play),
   // always stamping lastActive so offline catch-up measures time since the last save.
   useEffect(() => {
-    const id = setInterval(() => save({ ...stateRef.current, lastActive: Date.now() }), 4000);
+    const id = setInterval(() => {
+      if (!tabBlockedRef.current) save({ ...stateRef.current, lastActive: Date.now() });
+    }, 4000);
     return () => clearInterval(id);
   }, []);
 
   // Persist on background/exit too — but only when actually hidden, so returning to a visible
-  // tab doesn't reset lastActive and swallow elapsed time.
+  // tab doesn't reset lastActive and swallow elapsed time. A blocked tab must never write: the
+  // takeover tab owns the save now, and our state is stale.
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === "hidden") save({ ...stateRef.current, lastActive: Date.now() });
+      if (document.visibilityState === "hidden" && !tabBlockedRef.current) save({ ...stateRef.current, lastActive: Date.now() });
     };
-    const onHide = () => save({ ...stateRef.current, lastActive: Date.now() });
+    const onHide = () => {
+      if (!tabBlockedRef.current) save({ ...stateRef.current, lastActive: Date.now() });
+    };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", onHide);
     return () => {
@@ -459,6 +482,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setFast,
       offline,
       clearOffline,
+      tabBlocked,
+      takeOverHere,
       build,
       launchReady: launchReadyCb,
       research,
@@ -499,7 +524,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       giveRaise: giveRaiseCb,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
