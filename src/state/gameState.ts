@@ -429,6 +429,7 @@ export interface ProductionPlan {
   overall: number; // product's overall quality score
   matchingRivals: number; // rivals roughly as good as you, splitting the market
   betterRivals: number; // rivals clearly better than you
+  selfCompeting: number; // your OWN products still selling in this category (cannibalization)
   competitionFactor: number; // 0..1 share you keep after competition
   preOrders: number; // guaranteed buyers from your fanbase
   marketDemand: number; // additional organic demand (after competition)
@@ -485,11 +486,23 @@ export function planProduction(
     if (r > overall + margin) betterRivals++;
     else if (r >= overall - margin) matchingRivals++;
   }
+  // Self-competition: your OWN products still selling in this category split the same buyers.
+  // Without this, relaunching one proven design back-to-back farmed a fresh, full demand pool
+  // every time — the dominant no-thought strategy. Tracked separately from rivals so the wizard
+  // can tell the player exactly why demand shrank.
+  let selfCompeting = 0;
+  for (const lp of s.launched) {
+    if (lp.product.category === product.category && lp.weeksElapsed < lp.weeklyUnits.length) selfCompeting++;
+  }
   // Era-scaled pressure: the Garage Era protects new players from being crushed before they've
   // built up; full competitive pressure applies from the Growth Era on.
   const pressure = comp.eraPressure[Math.max(0, Math.min(s.era - 1, comp.eraPressure.length - 1))];
   const competitionFactor =
-    1 / (1 + (matchingRivals * comp.matchPenalty + betterRivals * comp.beatPenalty) * pressure);
+    1 /
+    (1 +
+      (matchingRivals * comp.matchPenalty + betterRivals * comp.beatPenalty) * pressure +
+      // Self-competition is era-independent: cannibalization is about YOUR line-up, not rivals.
+      selfCompeting * comp.selfPenalty);
 
   const demandFit = breakdown.demand;
   const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
@@ -531,6 +544,7 @@ export function planProduction(
     overall,
     matchingRivals,
     betterRivals,
+    selfCompeting,
     competitionFactor,
     preOrders,
     marketDemand,
@@ -713,6 +727,19 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   );
   for (const l of launches) pushRivalFeed(feed, l, activePlayerCats);
 
+  // A rival entering a category where the player is ACTIVELY selling now dents the remaining
+  // sales curve (pre-fix, the "faces new competition" feed line was mechanically hollow — the
+  // curve was a frozen snapshot). Forecast total is re-derived so sell-through stays honest,
+  // and the mid-life price cut gains a real job: answering a rival's entry.
+  const contestedCats = new Set(launches.filter((l) => activePlayerCats.has(l.category)).map((l) => l.category));
+  const launchedFinal = contestedCats.size === 0 ? launched : launched.map((lp) => {
+    if (!contestedCats.has(lp.product.category) || lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
+    const haircut = 1 - BALANCE.market.competition.rivalEntrySalesHaircut;
+    const weeklyUnits = lp.weeklyUnits.map((u, i) => (i >= lp.weeksElapsed ? Math.round(u * haircut) : u));
+    const remaining = weeklyUnits.slice(lp.weeksElapsed).reduce((a, b) => a + b, 0);
+    return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
+  });
+
   // Research points generated this week
   // Must match the weeklyRpGen selector (incl. the Workstations upgrade), else the UI lies.
   // RP must stay a non-negative integer: partial (offline, rate=0.5) ticks accrue
@@ -847,7 +874,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     trends,
     trendRetargetWeek,
     competitors,
-    launched,
+    launched: launchedFinal,
     cashHistory,
     feed,
     rngState: rng.state(),
@@ -902,8 +929,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   return base;
 }
 
-/** Apply a single EventEffect to the state and push a feed item. Shared by market events and choice resolutions. */
-function applyEventEffect(
+/** Apply a single EventEffect to the state and push a feed item. Shared by market events and
+ *  choice resolutions. Exported for tests (the crunch cash-clamp is a bankruptcy-fairness guard). */
+export function applyEventEffect(
   s: GameState,
   eff: MarketEvent["effect"],
   week: number,
@@ -940,9 +968,13 @@ function applyEventEffect(
     case "burnout":
       staff = s.staff.map((m) => ({ ...m, mood: clampMood(m.mood + eff.mood) }));
       break;
-    case "supplyCrunch":
-      cash = sub(cash, dollars(eff.cash));
+    case "supplyCrunch": {
+      // Sting, never kill: cap the hit at a share of cash on hand so a random event can't
+      // push a by-the-book player below $0 (instant bankruptcy) mid-build.
+      const capDollars = Math.max(0, toDollars(cash)) * BALANCE.events.crunchMaxCashShare;
+      cash = sub(cash, dollars(Math.min(eff.cash, capDollars)));
       break;
+    }
     case "pressFeature":
       reputation = Math.min(BALANCE.reputation.max, reputation + eff.reputation);
       break;
