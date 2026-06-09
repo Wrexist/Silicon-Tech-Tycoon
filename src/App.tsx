@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CircuitBoard, CircleX, Cpu, Layers, RotateCcw, Sparkles, Trophy, TrendingUp } from "lucide-react";
+import { AlertTriangle, CircuitBoard, CircleX, Cpu, Layers, PencilRuler, RotateCcw, Sparkles, Trophy, TrendingUp } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
@@ -129,7 +129,7 @@ function AppShell() {
       </Sheet>
       {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} onClose={clearOffline} />}
       {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (
-        <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
+        <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} onNavigate={(t) => { setSeenEraModal(state.era); setTab(t); }} />
       )}
       {state.wentPublic && !ipoSeen && <IpoOverlay onDismiss={() => setIpoSeen(true)} />}
       {state.bankrupt && <BankruptOverlay />}
@@ -170,7 +170,7 @@ const ERA_ICONS: Partial<Record<number, ReturnType<typeof TrendingUp>>> = {
   4: <Cpu size={28} strokeWidth={2.2} />,
 };
 
-function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
+function EraModal({ era, onDismiss, onNavigate }: { era: number; onDismiss: () => void; onNavigate: (t: Tab) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
   useEffect(() => {
@@ -188,6 +188,7 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
   const newCompLines = Object.values(COMPONENT_LINES)
     .filter((line) => line.tiers.some((t) => t.era === era))
     .map((line) => line.displayName);
+  const hasRdUnlocks = newCompTiers > 0 || newProjects.length > 0;
 
   return (
     <div className="era-modal">
@@ -242,7 +243,23 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
           </Card>
         )}
 
-        <Button block onClick={() => { haptic.success(); sfx("era"); onDismiss(); }}>Let's go →</Button>
+        {hasRdUnlocks ? (
+          <>
+            <Button block onClick={() => { haptic.success(); sfx("era"); onNavigate("research"); }}>
+              <CircuitBoard size={16} /> Unlock new tech in R&D
+            </Button>
+            <Button block variant="tertiary" onClick={() => { haptic.light(); onDismiss(); }}>Stay on HQ</Button>
+          </>
+        ) : newCats.length > 0 ? (
+          <>
+            <Button block onClick={() => { haptic.success(); sfx("era"); onNavigate("design"); }}>
+              <PencilRuler size={16} /> Try a new category
+            </Button>
+            <Button block variant="tertiary" onClick={() => { haptic.light(); onDismiss(); }}>Stay on HQ</Button>
+          </>
+        ) : (
+          <Button block onClick={() => { haptic.success(); sfx("era"); onDismiss(); }}>Let's go →</Button>
+        )}
       </div>
     </div>
   );
@@ -381,10 +398,11 @@ function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; on
         <div className="ds-sheet__grab" aria-hidden />
         <h2 className="app__sheet-title" id="offline-title">While you were away</h2>
         <p className="app__sheet-text">
-          {weeks} {weeks === 1 ? "week" : "weeks"} passed. Your products kept selling.
+          {weeks} {weeks === 1 ? "week" : "weeks"} passed.{" "}
+          {gain > 0 ? "Your products kept selling." : gain < 0 ? "Costs accumulated — no active revenue." : "Nothing to report."}
         </p>
         <Card variant="inset" className="app__offline-card">
-          <span className="app__offline-label">Net change</span>
+          <span className="app__offline-label">{gain > 0 ? "Earned" : gain < 0 ? "Net loss" : "No change"}</span>
           <AnimatedMoney value={gain} sign className="app__offline-value rounded" />
         </Card>
         <Button block onClick={() => { haptic.success(); sfx("cash"); onClose(); }}>Continue</Button>
