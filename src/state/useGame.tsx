@@ -239,6 +239,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     // F4 — seed the feed-id counter above restored ids BEFORE any new feed item is generated.
     seedFeedSeq(res.state);
+    // The company doesn't exist until the player founds it: a save written at the onboarding
+    // name screen must not accrue offline weeks (rent/trends would erode an unstarted game).
+    if (!res.state.onboarded) return { state: res.state, offline: null as OfflineSummary | null };
     const fansBefore = res.state.fans;
     const { state: caught, weeks, gain } = catchUpOffline(res.state);
     // F7 — don't punish a player for being away: pure weekly fan decay over the offline window
@@ -278,8 +281,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const takeOverHere = useCallback(() => window.location.reload(), []);
 
   // Sim tick. One week per tick; the interval shrinks by fastMultiplier in Fast mode.
+  // Gated on onboarded: the sim must not burn rent/shift trends while the player is still on
+  // the name screen (pre-fix, ~13 idle minutes there bankrupted the save before it began).
   useEffect(() => {
-    if (paused || state.bankrupt || tabBlocked) return;
+    if (paused || state.bankrupt || tabBlocked || !state.onboarded) return;
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
@@ -292,7 +297,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       });
     }, ms);
     return () => clearInterval(id);
-  }, [paused, fast, state.bankrupt, tabBlocked]);
+  }, [paused, fast, state.bankrupt, tabBlocked, state.onboarded]);
 
   // Persist on a fixed cadence (reads the latest via ref so it actually fires during play),
   // always stamping lastActive so offline catch-up measures time since the last save.
