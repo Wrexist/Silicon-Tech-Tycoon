@@ -206,10 +206,14 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         </div>
         {perWeek === 0 ? (
           <div className="rd__bank-cta">
-            <p className="rd__bank-hint">No R&amp;D output yet — assign staff to the R&amp;D task to start earning Research Points.</p>
+            <p className="rd__bank-hint">
+              {state.staff.length === 0
+                ? "No R&D output yet — hire a team member and assign them to R&D to start earning Research Points each week."
+                : "No R&D output yet — assign a staff member to the R&D task in Company to start earning Research Points."}
+            </p>
             {onNavigate && (
               <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>
-                <Users size={14} /> Manage team
+                <Users size={14} /> {state.staff.length === 0 ? "Hire first" : "Manage team"}
               </Button>
             )}
           </div>
