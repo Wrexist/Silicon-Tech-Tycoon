@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { dollars } from "./money.ts";
+import { dollars, toDollars } from "./money.ts";
+import { BALANCE } from "./balance.ts";
 import { COMPONENT_LINES, CATEGORIES, maxTier } from "./catalogs.ts";
 import { computeStats, buildCost, overallScore, missingSlots } from "./product.ts";
 import {
   initialTrends,
   advanceTrends,
   priceFit,
+  priceGuidance,
   scoreLaunch,
   randomTrendTarget,
 } from "./market.ts";
@@ -99,6 +101,30 @@ describe("market simulation", () => {
     const fair = priceFit(dollars(600), stats, "phone");
     const gouge = priceFit(dollars(3000), stats, "phone");
     expect(gouge).toBeLessThan(fair);
+  });
+
+  it("priceGuidance brackets the fair price with an asymmetric, fit-honest band (B5)", () => {
+    const stats = computeStats(phone({ tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 3 } }));
+    const g = priceGuidance(stats, "phone");
+    expect(toDollars(g.lo)).toBeLessThan(toDollars(g.fair));
+    expect(toDollars(g.fair)).toBeLessThan(toDollars(g.hi));
+    // overpricing decays harder → less headroom above fair than room below it
+    expect(toDollars(g.hi) - toDollars(g.fair)).toBeLessThan(toDollars(g.fair) - toDollars(g.lo));
+    // the band is honest: fit at both edges stays at/above the advertised floor (rounding slack)
+    const floor = BALANCE.market.price.guidanceFitFloor - 0.01;
+    expect(priceFit(g.lo, stats, "phone")).toBeGreaterThanOrEqual(floor);
+    expect(priceFit(g.hi, stats, "phone")).toBeGreaterThanOrEqual(floor);
+    // and the peak isn't outside it: fair fits at least as well as either edge
+    expect(priceFit(g.fair, stats, "phone")).toBeGreaterThanOrEqual(priceFit(g.hi, stats, "phone"));
+    // a better product commands a higher band
+    const better = computeStats(phone({ tiers: { chip: 5, display: 5, battery: 5, materials: 5, software: 5, camera: 5 } }));
+    expect(toDollars(priceGuidance(better, "phone").lo)).toBeGreaterThan(toDollars(g.lo));
+    // degenerate stats stay ordered and positive
+    const zeros = { performance: 0, quality: 0, battery: 0, design: 0, ecosystem: 0 } as Stats;
+    const z = priceGuidance(zeros, "phone");
+    expect(toDollars(z.lo)).toBeGreaterThan(0);
+    expect(toDollars(z.lo)).toBeLessThanOrEqual(toDollars(z.fair));
+    expect(toDollars(z.fair)).toBeLessThanOrEqual(toDollars(z.hi));
   });
 
   it("trend shifts change which product wins", () => {

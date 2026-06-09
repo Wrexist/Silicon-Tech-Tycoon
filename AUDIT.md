@@ -9,15 +9,16 @@ Legend: 🐛 bug · ⚠️ risk · ✨ improvement · 💎 premium-polish · ⚡
 ---
 
 ## PHASE 0 — Build & toolchain health (FOUNDATION, do first)
-- [~] 0.1 Make `npm run build` (`tsc -b`) green — was ~40 pre-existing errors, now 10.
-  - [ ] Market.tsx ×4: `format(<number cents>)` needs branded `Money` — wrap with `cents()`.
-  - [ ] HQ.tsx ×4: remove unused `Sheet`, `UPGRADE_LINES` line, `Product` type, dead `CHANNEL_ICONS`
+- [x] 0.1 Make `npm run build` (`tsc -b`) green — was ~40 pre-existing errors, now **0**
+      (re-verified 2026-06-09 with `tsc -b --noEmit --force`, no stale tsbuildinfo).
+  - [x] Market.tsx ×4: `format(<number cents>)` needs branded `Money` — wrap with `cents()`.
+  - [x] HQ.tsx ×4: remove unused `Sheet`, `UPGRADE_LINES` line, `Product` type, dead `CHANNEL_ICONS`
         (+ any icon imports it orphans).
-  - [ ] DesignLab.tsx: remove unused `Rocket` import.
-  - [ ] vite.config.ts: `/// <reference types="vitest/config" />` + `defineConfig` from **vite**
+  - [x] DesignLab.tsx: remove unused `Rocket` import.
+  - [x] vite.config.ts: `/// <reference types="vitest/config" />` + `defineConfig` from **vite**
         (not vitest/config) to fix the duplicate-vite Plugin clash AND keep `test` valid.
-- [ ] 0.2 `npm run typecheck` green (same `tsc -b`); wire a real check (root tsconfig was a no-op stub).
-- [ ] 0.3 `npm test` (vitest) all green; note count.
+- [x] 0.2 `npm run typecheck` green (same `tsc -b`); wire a real check (root tsconfig was a no-op stub).
+- [x] 0.3 `npm test` (vitest) all green; count: **177** (14 files) as of 2026-06-09.
 - [ ] 0.4 Audit tsconfig: confirm `noUnusedLocals/Parameters`, `strict`, `noUncheckedIndexedAccess`?
 - [ ] 0.5 Bundle audit: three.js chunk ~732KB — confirm lazy-only; consider drei tree-shake.
 - [ ] 0.6 Dead-code sweep: unused exports/components/CSS classes across src.
@@ -34,13 +35,16 @@ Legend: 🐛 bug · ⚠️ risk · ✨ improvement · 💎 premium-polish · ⚡
 - [ ] 1.7 eras.ts: progression gating, unlocks, no soft-locks. 🧪
 - [ ] 1.8 stocks.ts: buy/sell fees, dividends, holdings value, player share price. 🧪
 - [ ] 1.9 furniture.ts: placement/collision/footprint/rotation correctness. 🧪
-- [ ] 1.10 Determinism: same seed → same outcome (RNG isolation).
+- [x] 1.10 Determinism: same seed → same outcome (RNG isolation). 🧪 (v15.2: 160-week full-state
+      reproducibility test in gameState.test.ts — only feed ids normalized, they embed the
+      module feedSeq counter by design; F4 uniqueness asserted in the same test.)
 
 ## PHASE 2 — State, persistence, lifecycle
 - [ ] 2.1 useGame tick: no double-ticks, pause/fast correctness, cleanup on unmount.
 - [ ] 2.2 Save schema versioning + migrations: forward/backward, corrupt-save recovery. ⚠️
 - [ ] 2.3 Field backfill completeness (new fields default safely on old saves).
-- [ ] 2.4 Multi-tab/localStorage race handling; quota-exceeded fallback. ⚠️
+- [x] 2.4 Multi-tab/localStorage race handling (v15.1 `tabGuard.ts` — BroadcastChannel takeover,
+      frozen tab stops tick + all saves, 5 tests); quota-exceeded fallback (F3, Sweep 1). ⚠️
 - [ ] 2.5 New Game+ / prestige reset correctness (no leaked state).
 - [ ] 2.6 Bankruptcy + IPO end states: clean, no stuck UI.
 
@@ -112,6 +116,15 @@ Each sweep: re-run build/typecheck/tests, re-read changed areas adversarially, h
 add one premium improvement per screen, log findings below.
 
 ## FINDINGS LOG (append-only; newest first)
+- (v14 reconciliation, 2026-06-09) Fresh-container verification: tsc -b forced-clean **0 errors**,
+  vitest **177/177**, vite build + PWA green, static dist smoke (shell/JS/CSS/sw/manifest all 200).
+  Browser smoke impossible in this env (no chromium; playwright CDN blocked). Verified shipped
+  since Sweep 4: B3 era rep-AND-rev gating, wizard demand-variance range, spend FX. Still open:
+  B5 price range, B6 +EV stock drift (drift .0016 + dividend .0011/wk), F13 furniture instancing,
+  0.5 bundle audit (main chunk 541KB/163KB gz; three split + lazy). Hygiene (0.7): found
+  `tsconfig.node.tsbuildinfo` TRACKED in git (the `*.tsbuildinfo` ignore pattern never applied to
+  it) — a committed, build-regenerated cache that could mask incremental typecheck errors;
+  untracked via `git rm --cached`.
 - (v13.1) tsc -b was a no-op stub historically → ~40 latent type errors. Fixed engine types
   (CompetitorState/Product/BuildJob/LaunchedProduct) + 3 unused params. 10 screen-level left.
 - (v13) Kenney CC0 furniture integrated (23 models) + 10 parametric items + glTF seam.
@@ -233,8 +246,17 @@ Balance findings queued for fix pass (B1-B9 below).
       fan-bonus only fires when the run met ≥ selloutMinDemandShare (0.5) of demand, else a small
       undersupplyFanPenalty (0.05) for chronic undersupply (launchReady). Tests: token sellout isn't
       rewarded, gain is analytically bounded, pre-orders < total demand under the cap.
-- [ ] B5 Pricing solved by one Suggest button → show a range not the peak. (DEFERRED — larger design change.)
-- [ ] B6 Stock drift +EV passive income printer → mean-reverting/zero-EV drift. (DEFERRED — larger design change.)
+- [x] B5 Pricing solved by one Suggest button → FIXED (v15.1): the lab now shows a price BAND
+      ("Buyers expect $lo–$hi" = where fit ≥ guidanceFitFloor 0.9), never the exact peak, and the
+      one-click Suggest setter is REMOVED. Band is asymmetric (overpriceHarshness) so it teaches
+      that overpricing hurts more; where to sit inside it is a margin-vs-volume call. New engine
+      `priceGuidance` + balance constants; hardcoded $9/pt in the old suggest deleted. 1 new test.
+- [x] B6 Stock drift +EV passive income printer → FIXED (post-Sweep-4): share prices now
+      mean-revert around a reputation-anchored fairSharePrice (log-gap × meanReversion 0.06/wk);
+      baseline drift + perpetual reputation momentum REMOVED (quality lives in the price LEVEL).
+      Launch pops/dips decay (half-life ≈ 12wk) → tradable swings, not compounding income.
+      Buy-and-hold EV ≈ dividend yield (~5.9%/yr) − brokerage. 5 new engine tests (3-seed
+      400-week zero-EV bound, reversion both directions, corrupt-price healing).
 - [x] B7 Readability: DesignLab verdict disagreed with launch gate. FIXED — DesignLab now derives its
       projected verdict from the SAME effectiveScore (planProduction.launchScore × competitionFactor)
       and the SAME BALANCE.reputation.hit/flopThreshold the launch uses. Test: lab verdict == recorded
@@ -324,7 +346,9 @@ A depth agent landed B9 LAUNCH DEMAND VARIANCE (market.ts demandVarianceMultipli
 RNG-persisted, bounded) but was cut off before adding its import to gameState.ts → I fixed the
 missing import. Build verified GREEN: tsc 0, vitest 135, vite build ok (SW + icons), runtime smoke
 0 console errors. The rivals/events agent made no committed changes (cut off early).
-STILL TODO (Sweep 4 remainder): adversarial re-audit of Sweep 3; reactive/specialized rivals;
-choice-driven market events; B3 era-rep gating; B5 pricing range; B6 stock mean-reversion;
-furniture instancing perf; deeper polish. Demand-variance UI readability ("forecast/band") not yet
-surfaced in the wizard — engine applies variance but wizard still shows point estimate (follow-up).
+STILL TODO (Sweep 4 remainder): adversarial re-audit of Sweep 3; ~~reactive/specialized rivals~~
+(shipped, commit 06f7675); ~~choice-driven market events~~ (shipped, commit 3361445); ~~B3
+era-rep gating~~ (shipped — `eras.ts` requires rep AND rev for era 2+); B5 pricing range; ~~B6
+stock mean-reversion~~ (shipped — see Balance fix queue B6); furniture instancing perf; deeper
+polish. ~~Demand-variance UI readability~~
+(shipped — wizard "Projected demand" now shows the low–high range). Verified 2026-06-09.

@@ -2,7 +2,7 @@
 // hype, price fit, and competition. PURE.
 import { BALANCE } from "./balance.ts";
 import { CATEGORIES } from "./catalogs.ts";
-import { toDollars, type Money } from "./money.ts";
+import { dollars, toDollars, type Money } from "./money.ts";
 import { overallScore } from "./product.ts";
 import type { Rng } from "./rng.ts";
 import {
@@ -74,11 +74,27 @@ export function priceFit(price: Money, stats: Stats, category: CategoryId): numb
   const fairDollars = Math.max(1, perceived * toDollars(p.valueToPrice));
   const ratio = toDollars(price) / fairDollars;
   let dev = ratio - 1;
-  if (dev > 0) dev *= 1.45; // overpricing penalised harder
+  if (dev > 0) dev *= p.overpriceHarshness; // overpricing penalised harder
   const fit = Math.exp(-(dev * dev) / (2 * p.tolerance * p.tolerance));
   // Slight volume reward for modest underpricing.
   const underBoost = ratio < 1 ? (1 - ratio) * 0.25 : 0;
   return Math.min(p.maxFit, Math.max(p.minFit, fit + underBoost));
+}
+
+/** B5 — the price band where priceFit stays ≥ guidanceFitFloor, shown to the player INSTEAD of
+ *  the exact peak. Deliberately asymmetric: overpricing decays overpriceHarshness× faster, so the
+ *  headroom above fair is smaller than the room below — the band itself teaches that overpricing
+ *  hurts more (pillar #5). lo ≤ fair ≤ hi, whole dollars. Where inside the band to price is the
+ *  player's margin-vs-volume call (under fair adds a small volume boost; over fair pads margin). */
+export function priceGuidance(stats: Stats, category: CategoryId): { lo: Money; fair: Money; hi: Money } {
+  const p = BALANCE.market.price;
+  const perceived = overallScore(stats, category); // 0..100
+  const fairDollars = Math.max(1, perceived * toDollars(p.valueToPrice));
+  // fit = exp(−dev²/(2·tol²)) ≥ floor  ⇔  |dev| ≤ tol·√(2·ln(1/floor))
+  const halfWidth = p.tolerance * Math.sqrt(2 * Math.log(1 / p.guidanceFitFloor));
+  const lo = Math.max(1, Math.round(fairDollars * (1 - halfWidth)));
+  const hi = Math.max(lo, Math.round(fairDollars * (1 + halfWidth / p.overpriceHarshness)));
+  return { lo: dollars(lo), fair: dollars(Math.round(fairDollars)), hi: dollars(hi) };
 }
 
 /**

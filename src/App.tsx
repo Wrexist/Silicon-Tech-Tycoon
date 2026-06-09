@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CircuitBoard, CircleX, Cpu, Layers, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
+import { AlertTriangle, CircuitBoard, CircleX, Copy, Cpu, Layers, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
@@ -49,7 +49,7 @@ export function App() {
 }
 
 function AppShell() {
-  const { state, offline, clearOffline } = useGame();
+  const { state, offline, clearOffline, tabBlocked, takeOverHere } = useGame();
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
@@ -109,6 +109,37 @@ function AppShell() {
       )}
       {state.wentPublic && !ipoSeen && <IpoOverlay onDismiss={() => setIpoSeen(true)} />}
       {state.bankrupt && <BankruptOverlay />}
+      {tabBlocked && <TabBlockedOverlay onTakeOver={takeOverHere} />}
+    </div>
+  );
+}
+
+/** Shown when ANOTHER tab/window claimed this save: this tab is frozen (no sim, no saves) so the
+ *  two contexts can't clobber each other's progress. Reloading boots from the freshest save and
+ *  claims play back here. */
+function TabBlockedOverlay({ onTakeOver }: { onTakeOver: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref, true);
+  return (
+    <div className="tabswap">
+      <div
+        ref={ref}
+        className="tabswap__inner"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tabswap-title"
+        tabIndex={-1}
+      >
+        <div className="tabswap__glyph" aria-hidden><Copy size={30} strokeWidth={2} /></div>
+        <h2 className="tabswap__title" id="tabswap-title">Playing in another window</h2>
+        <p className="tabswap__text">
+          Your company is now running in a different tab or window, so this one is paused —
+          running both at once would overwrite your progress.
+        </p>
+        <Button block onClick={onTakeOver}>
+          <RotateCcw size={15} /> Play here instead
+        </Button>
+      </div>
     </div>
   );
 }

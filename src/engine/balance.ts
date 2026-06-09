@@ -51,6 +51,10 @@ export const BALANCE = {
       idealMarkup: 2.2, // price ≈ unitCost * markup feels "fair" at mid value
       valueToPrice: dollars(9), // each perceived-value point ~ this much fair price
       tolerance: 0.55, // how forgiving the price curve is
+      overpriceHarshness: 1.45, // deviation above fair is penalised this much harder than below
+      // B5 — the lab shows a price RANGE (where fit stays ≥ this floor), never the exact peak,
+      // so pricing is a margin-vs-volume decision instead of a one-click answer.
+      guidanceFitFloor: 0.9,
       minFit: 0.15,
       maxFit: 1.35,
     },
@@ -261,7 +265,14 @@ export const BALANCE = {
   stocks: {
     tradeFeePct: 0.008, // 0.8% brokerage on buys + sells
     dividendYieldPerWeek: 0.0011, // weekly dividend ≈ 0.11% of share price for profitable rivals
-    drift: 0.0016, // baseline weekly upward drift
+    // Mean-reverting prices (B6 fix): there is NO free baseline drift, and reputation no longer
+    // adds a weekly return (a rival's quality is priced into its fair LEVEL, not a perpetual
+    // climb). Every week the price closes meanReversion of its log-gap to fairSharePrice, so
+    // launch pops and noise dips DECAY (half-life ≈ ln2/meanReversion ≈ 12wk) instead of
+    // compounding. Long-run EV of buy-and-hold ≈ the dividend yield minus brokerage; trading
+    // profit comes from timing the swings, not from parking cash.
+    meanReversion: 0.06, // weekly fraction of the log-gap to fair value that closes
+    repFairWeight: 0.8, // how strongly reputation above/below the rival's calibrated start lifts fair value
     volatility: 0.05, // weekly random swing (±)
     launchPop: 0.06, // share bump when a rival ships a strong product
     historyLength: 24,

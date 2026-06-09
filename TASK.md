@@ -227,8 +227,8 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
 - [DONE] Early-game valuation rebalanced (cubic reputation curve + $8K base + rev×4): net worth now
   starts ~$13–36K (garage ≈ cash) and grows with real revenue instead of starting at $880K.
-- Engine (PROTECTED): `makeSkills` doesn't guarantee the role's headline discipline is the *highest* — a level-3 "Engineer" can roll engineering 23 but marketing 43, so the role label + "Skill 3" disagree. Clamp the off-disciplines below the primary, or pick role from the strongest skill. (The contradictory *misfit hint* is already fixed in the UI.)
-- Balance: first-launch flop can yield 0 units sold — soften floor so even a weak product sells *some* (teachable, not brutal). Do in P6.
+- [DONE — verified + pinned v15.2] Engine (PROTECTED): `makeSkills` doesn't guarantee the role's headline discipline is the *highest* — FIXED by the "role-true skills" pass (off-disciplines roll at 35–85% of the primary, strictly below it); now pinned by `engine/staff.test.ts` property tests so it can't regress.
+- [DONE — resolved by design in V5/v8] Balance: first-launch flop can yield 0 units sold — the sales volume floor (`floorUnits`, now 70) guarantees any shipped product sells *some* units; flops still lose money on tooling+run (teachable, not brutal, but a real bet).
 - Renderer: laptop/desktop/monitor/console/wearable currently reuse the phone "slab" silhouette via the ASPECT map — give them distinct parametric silhouettes (hinge, stand, strap) in the post-core renderer pass (plan Prompt 9).
 - Design Lab: gate higher tiers visibly with a "Research in R&D" hint when a component is maxed at current research.
 - Multi-tab: localStorage races across tabs (only matters on web, not the Capacitor app) — consider a single-writer guard if shipping a web build.
@@ -283,7 +283,7 @@ _(append out-of-scope improvements here as one-liners; do not act mid-session)_
 - TODO (visual tuning, needs eyes-on): per-item yaw/offset for a few Kenney pieces if any face
   the wrong way or sit off-centre — adjust in furnitureModels.ts (scale/yaw/offset fields).
 
-## Backlog — PRE-EXISTING strict-build breakage (discovered v13, NOT from furniture)
+## Backlog — PRE-EXISTING strict-build breakage **[RESOLVED — verified in v14]**
 `npm run build` / `npm run typecheck` (= `tsc -b`) was already red before this session — the old
 check only ran a no-op stub. `npx vite build` (esbuild) is GREEN, so the shipped bundle is fine;
 only the strict TS gate fails. Fixes are additive + mechanical but touch PROTECTED engine/ types,
@@ -298,7 +298,7 @@ so they need an explicit go-ahead. Exact errors:
 - furniture3d.tsx unused `p` param in 3 pre-existing components (lines ~286/509/614) — prefix `_p` or drop
 - vite.config.ts `test` key — FIXED this session (defineConfig now imported from "vitest/config")
 
-## v13.1 — Strict-build repair progress (partial)
+## v13.1 — Strict-build repair progress **[the "remaining 10" below are RESOLVED — verified in v14]**
 Fixed the real PRE-EXISTING engine type bugs that broke `tsc -b` (was ~40 errors → now 10):
 - [x] engine/types.ts: `CompetitorState` += `blurb`, `sharePrice`, `priceHistory`;
       `Product`/`BuildJob` += `plannedUnits?`, `channelId?`; `LaunchedProduct` += `plannedUnits?`
@@ -314,3 +314,83 @@ Remaining 10 (pre-existing, screen-level — left for a focused, low-risk pass w
   clash; needs `dedupe`/cast or moving test cfg to vitest.config.ts.
 NOTE: `npx vite build` (the shipped esbuild bundle) is GREEN — these only block the strict
 `tsc -b` gate, which was already red before this session (old check ran a no-op stub).
+
+## v14 — reality sync: TASK.md reconciled with the shipped repo (DONE 2026-06-09)
+TASK.md had gone stale: ~45 commits landed after v13.1 (merged via PR #1) without doc updates,
+including the fixes for everything v13.1 listed as "remaining". Reconciled against the actual
+repo state, with every claim below re-verified in a fresh container (`npm ci`):
+- [x] **All gates GREEN (verified)**: `tsc -b --noEmit --force` 0 errors (clean, no stale
+      tsbuildinfo); vitest **177/177** (14 files); `npm run build` green incl. PWA (sw.js +
+      28-entry precache); static smoke of `dist/` via `vite preview` — shell HTML, entry JS/CSS,
+      sw.js, manifest all 200. NOT verified here: an in-browser runtime smoke (container has no
+      chromium and the playwright CDN is blocked by the network policy) — last recorded live
+      smoke is in AUDIT.md Sweep 3/4; unit tests + module-graph-resolving build mitigate.
+- **What the undocumented commits delivered** (see `git log` between v13.1 and the PR #1
+      merge `c38e327`, plus AUDIT.md):
+      audit Sweeps 1–4 (~43 fixes: data-loss/persistence, hype caps, a11y AA, PWA/SW, safe-areas);
+      ~30 premium-depth batches (insights, forecasts, lifecycle, achievements, stats, product
+      detail w/ "why it won/flopped"); balance passes (Garage-era protection, sharper rivals,
+      punishing flops); the late-game arc (Industry Leaderboard #7→#1, era-scaled hit bar,
+      escalating prestige/win); Design Lab 4-tab nav; ecosystem revenue + staff churn/raises +
+      choice events + rival specialization/price cuts; **IAP plumbing** (`state/iap.ts`,
+      simulated on web, 3 marked StoreKit stubs); the full **App Store package** (icon,
+      6.7" screenshots, STORE_LISTING.md, BUILD_IOS.md, WHAT_YOU_NEED_TO_DO.md); spend FX.
+- **Previously-open items verified as shipped**: v13.1's 10 strict-TS errors; B3 era gating
+      (era 2+ now needs rep AND revenue — `eras.ts`); demand-variance forecast **range** in the
+      build wizard (no longer a point estimate); spend −$/−RP FX (old backlog line).
+- **Still open (verified against source, carried forward)**:
+      B5 one-button Suggest price → show a range (deferred design change);
+      B6 stock baseline drift still +EV — **FIXED in v15 below**;
+      F13 furniture not instanced (only BrickWall is — draw calls scale with decoration);
+      AUDIT 0.5 bundle audit (main chunk 541KB / 163KB gzip; three.js correctly split + lazy).
+
+## v15 — B6: mean-reverting stock market (DONE 2026-06-09)
+The stock market was a passive income printer: baseline drift (+0.16%/wk) + a CONSTANT
+reputation momentum (rival rep never changes after init → pure compounding, up to +0.16%/wk)
++ always-positive launch pops (~+6% every ~7-10wk) + dividends ≈ 40-70%/yr EV for buy-and-hold.
+- [x] `competitors.ts`: new exported `fairSharePrice(c)` — the rival's calibrated starting price
+      shifted by current-vs-calibrated reputation (`repFairWeight`). Quality is priced into the
+      LEVEL (Pomelo $188 vs Quantyx $11), never into a weekly return.
+- [x] `evolveShare`: weekly change = `log(fair/price) × meanReversion (0.06)` + launch pop +
+      noise. Drift + momentum terms REMOVED. Pops/dips decay (half-life ≈ 12wk) → the Market tab
+      becomes a timing game (buy dips / sell pops); buy-and-hold EV ≈ dividends (~5.9%/yr) − fees.
+      Corrupt persisted price heals to fair (v7 hardening pattern). −0.95 clamp + 50¢ floor kept.
+- [x] `rivalMarketCap` [0.4×, 2.5×] clamp kept as a safety band (comment updated — prices can no
+      longer compound out of reach, leaderboard #1 stays seizable).
+- [x] 5 new tests (`competitors.test.ts`): fair-value anchoring; 3-seed 400-week zero-EV bound
+      (|mean weekly log-return| < 0.002 ≈ ±11%/yr, old printer ≥ +40%/yr); deflation from 3×fair;
+      recovery from ⅓×fair; NaN/negative price healing. **182 tests green**, tsc 0, build + PWA ok.
+- NOT verified: live-play feel of the Market tab (sparklines now oscillate around fair instead of
+      grinding up — flag if it reads "dead"; `meanReversion`/`volatility` are the tuning knobs).
+
+## v15.1 — B5 price band + multi-tab single-writer guard (DONE 2026-06-09)
+- [x] **B5 — pricing is a decision again**: new engine `priceGuidance(stats, category)` returns the
+      band where priceFit ≥ `guidanceFitFloor` (0.9); the Design Lab shows "Buyers expect $lo–$hi"
+      and the one-click **Suggest setter is removed** (the exact peak is never spoiled). The band is
+      asymmetric via `overpriceHarshness` (1.45, hoisted from a priceFit literal) so the UI itself
+      teaches that overpricing hurts more. Old suggest's hardcoded $9/pt deleted; draft auto-price
+      now sources the same helper. Zone pills/slider accent unchanged (relative feedback). 1 test.
+- [x] **Multi-tab save guard** (v9 audit "only real save-loss path on web"): `state/tabGuard.ts` —
+      every context broadcasts a claim on `silicon.tab.v1` (BroadcastChannel); any OTHER context
+      hearing a claim freezes: tick stops AND all 3 save paths (4s autosave, visibility, pagehide)
+      check `tabBlockedRef`. Takeover semantics (newest tab plays); frozen tab shows a premium
+      `.tabswap` overlay (dialog semantics + focus trap, safe-area, tokens) with "Play here
+      instead" → reload → boots from freshest save + claims back. Handoff is near-lossless (the
+      old tab saved on visibilitychange). Per-CONTEXT id so StrictMode can't self-freeze; no
+      BroadcastChannel → exact pre-guard behaviour (no regression); native single-webview → idle.
+      5 tests (Node BC, in-process two-tab sim). **188 tests green**, tsc 0, build + PWA ok.
+
+## v15.2 — engine hardening: determinism pinned + role-true skills pinned (DONE 2026-06-09)
+- [x] **AUDIT 1.10 determinism test**: a 160-week cash-boosted run (events, rival launches, trend
+      retargets, share prices all exercised) is **bit-for-bit reproducible** from a cloned start —
+      full-state deep equality, with only feed ids normalized (they embed the module feedSeq
+      counter across in-process runs by design; their per-run uniqueness is asserted instead).
+      Guards the whole sim against future Math.random/Date.now leaks. Verified the only wall-clock
+      uses in sim paths are intentional (newGame default seed, offline catch-up elapsed time).
+- [x] **`engine/staff.test.ts`**: property tests pinning the role-true skills guarantee (40 seeds ×
+      3 roles × 10 levels: off-disciplines ≤ primary, strictly below it beyond the tiny-level
+      rounding zone; `levelFromSkills` round-trips within ±1). Closes the old PROTECTED-engine
+      backlog item as verified-fixed. **191 tests green**, tsc 0, build + PWA ok.
+- **Ship status**: repo-side work is DONE per WHAT_YOU_NEED_TO_DO.md — remaining steps are
+      owner-side (Apple Developer account, Mac/Xcode build, optional StoreKit wiring at the 3
+      `NATIVE INTEGRATION POINT` stubs in `src/state/iap.ts`).
