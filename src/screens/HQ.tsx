@@ -79,7 +79,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       if (v === "hit") setTimeout(() => sfx("hit"), 380);
       showToast(
         v === "hit" ? "Launched — it's a hit!" : v === "flop" ? "Launched — sales are slow." : v === "solid" ? "Launched — solid performance." : "Launched into the market.",
-        { tone: v === "flop" ? "negative" : "positive", glyph: <Rocket size={15} /> },
+        { tone: v === "flop" ? "negative" : "positive", glyph: <Rocket size={15} />, action: () => onNavigate("market"), actionLabel: "See market" },
       );
     }
   };

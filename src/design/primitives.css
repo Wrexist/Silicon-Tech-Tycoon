@@ -302,6 +302,14 @@
   background: var(--negative);
   color: #fff;
 }
+.ds-toast-cta {
+  font-weight: 700;
+  white-space: nowrap;
+  margin-left: var(--sp-6);
+  padding-left: var(--sp-8);
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  opacity: 0.9;
+}
 
 @keyframes ds-fade {
   from {
