@@ -66,7 +66,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: mktBlue,
       icon: Rocket,
       title: "Built — time to launch",
-      text: "On HQ, tap Market on your device, choose a campaign, then launch it into the market.",
+      text: "On HQ, tap Launch on your finished device. The campaign you picked when planning production kicks in now — timing matters, so launch while demand is hot.",
       cta: tab === "hq" ? undefined : { label: "Go to HQ", tab: "hq" },
     };
   }
@@ -85,7 +85,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
     color: designGreen,
     icon: PencilRuler,
     title: "Design your first device",
-    text: "Pick components, a finish, and a price — then tap Build to start manufacturing.",
+    text: "Pick components, a finish, and a price — then tap Plan production to choose a run size and campaign. You pay for the whole run upfront, so keep a cash cushion.",
     cta: tab === "design" ? undefined : { label: "Open Design Lab", tab: "design" },
   };
 }

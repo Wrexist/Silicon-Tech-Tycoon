@@ -1159,7 +1159,10 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const deltaStr = deltaBits.length ? ` ${deltaBits.join(" · ")}.` : "";
 
   const feed = [...state.feed];
-  const verdict = isHit ? 'a hit' : isFlop ? 'a flop' : isSolid ? 'a solid performer' : 'a steady seller';
+  // A flop verdict can coexist with a sellout (the verdict is market reception of the product
+  // itself; sales are capped by the run size) — so the flop line must carry its cause, and the
+  // sellout line must not read as a pure celebration next to it, or the two contradict each other.
+  const verdict = isHit ? 'a hit' : isFlop ? 'a flop — out of step with what buyers wanted' : isSolid ? 'a solid performer' : 'a steady seller';
   feed.push(
     feedItem(
       state.week,
@@ -1168,7 +1171,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     ),
   );
   if (sellsOut) {
-    feed.push(feedItem(state.week, `”${product.name}” is selling out — demand outstrips your run.`, "positive"));
+    if (isFlop) {
+      feed.push(feedItem(state.week, `”${product.name}” will sell out its small run — but the wider market wasn't won over. Tap it on Market for the full story.`, "accent"));
+    } else {
+      feed.push(feedItem(state.week, `”${product.name}” is selling out — demand outstrips your run.`, "positive"));
+    }
   } else if (plannedUnits - totalUnits > plannedUnits * 0.35) {
     feed.push(feedItem(state.week, `Overproduced “${product.name}” — unsold stock is a write-off.`, "negative"));
   }

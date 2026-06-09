@@ -639,7 +639,10 @@ function EraGoalCard({ state }: { state: GameState }) {
   const revDollars = toDollars(state.cumulativeRevenue);
   const revTargetDollars = Number.isFinite(revThresholdTarget) ? revThresholdTarget / 100 : Infinity;
   const revNeeded = Number.isFinite(revTargetDollars) ? revTargetDollars - revDollars : Infinity;
-  if (repNeeded <= 0 || revNeeded <= 0) return null;
+  // Era 1→2 needs EITHER threshold; era 2+ needs BOTH (eras.ts) — hide the card only when the
+  // actual gate is satisfied, otherwise the roadmap vanishes the moment one bar fills.
+  const eitherGate = state.era === 1;
+  if (eitherGate ? repNeeded <= 0 || revNeeded <= 0 : repNeeded <= 0 && revNeeded <= 0) return null;
   return (
     <div className="hq__goal hq__goal--card">
       <div className="hq__goal-head">
@@ -652,7 +655,9 @@ function EraGoalCard({ state }: { state: GameState }) {
       {Number.isFinite(revTargetDollars) && (
         <GoalBar label={`Revenue (need ${fmtRevShort(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
       )}
-      <p className="hq__goal-or">Either threshold unlocks the next era.</p>
+      <p className="hq__goal-or">
+        {eitherGate ? "Either threshold unlocks the next era." : "Both thresholds are required to advance."}
+      </p>
       {Number.isFinite(revTargetDollars) && (() => {
         const wkRev = toDollars(nextWeekRevenue(state));
         if (wkRev <= 0 || revDollars >= revTargetDollars) return null;
