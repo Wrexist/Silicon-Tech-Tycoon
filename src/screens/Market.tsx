@@ -898,12 +898,20 @@ function ProductDetailSheet({
             const netPL = toDollars(lp.revenueToDate) - allCosts;
             const netMoney = dollars(Math.round(netPL));
             const chanHint = chanId !== "none" ? `${chan.name} campaign + ` : "";
+            // For live products show projected final P&L alongside current
+            const projHint = live
+              ? (() => {
+                  const projRevenue = lp.totalUnits * toDollars(lp.product.price);
+                  const projPL = projRevenue - allCosts;
+                  return `${chanHint}tooling incl. · projected: ${projPL >= 0 ? "+" : ""}${format(dollars(Math.round(projPL)))}`;
+                })()
+              : `${chanHint}tooling incl.`;
             return (
               <Stat
                 label="Net P&L"
                 value={`${netPL >= 0 ? "+" : ""}${format(netMoney)}`}
                 tone={netPL >= 0 ? "positive" : "negative"}
-                hint={`${chanHint}tooling incl.`}
+                hint={projHint}
               />
             );
           }
