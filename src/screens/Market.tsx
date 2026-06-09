@@ -681,6 +681,8 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
       detail: over ? "Buyers felt it cost too much for the spec." : under ? "Priced below its perceived value — drove volume." : "Priced fairly for what it delivered.",
       tone: over ? "negative" : under ? "positive" : "accent",
     });
+  } else {
+    drivers.push({ label: "Price", value: "—", detail: "Price data not available for this launch.", tone: "neutral" });
   }
 
   // 3) Competition pressure — rivals splitting or beating the market.
@@ -740,6 +742,9 @@ function generateTips(lp: LaunchedProduct): string[] {
   }
   if (tips.length === 0 && v === "hit") {
     tips.push("Strong launch — maintain momentum by designing a successor before this product finishes its run.");
+  }
+  if (tips.length === 0 && (v === "solid" || v === "steady")) {
+    tips.push("Decent launch — keep improving component tiers and align your next design more closely with trending demand for a breakthrough hit.");
   }
   return tips.slice(0, 3);
 }

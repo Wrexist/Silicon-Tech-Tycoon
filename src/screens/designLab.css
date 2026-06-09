@@ -98,8 +98,15 @@
   margin-top: var(--sp-12);
 }
 .lab__seg--disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   pointer-events: none;
+}
+.lab__seg-hint {
+  display: block;
+  margin-top: 5px;
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  font-style: italic;
 }
 .lab__seg-label {
   display: block;

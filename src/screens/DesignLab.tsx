@@ -496,6 +496,7 @@ export function DesignLab({
                   label="Layout"
                   value={draft.camera.layout}
                   disabled={draft.camera.count < 2}
+                  hint="Layout disabled · requires 2+ lenses"
                   options={[["vertical", "Vertical"], ["horizontal", "Row"], ["square", "Square"], ["triangle", "Triangle"]]}
                   onPick={(v) => setCam({ layout: v })}
                 />
@@ -730,7 +731,7 @@ export function DesignLab({
                 const plan = planProduction(state, draft, rec, "none");
                 const revD = toDollars(plan.projectedRevenue);
                 const profD = toDollars(plan.projectedProfit);
-                if (revD <= 0) return null;
+                if (revD <= 0) return <p className="lab__hint">Set a price above cost to see the revenue estimate.</p>;
                 return (
                   <div className="lab__rev-estimate">
                     <div className="lab__rev-row">
@@ -951,12 +952,14 @@ function Seg<T extends string>({
   options,
   onPick,
   disabled,
+  hint,
 }: {
   label: string;
   value: T;
   options: [T, string][];
   onPick: (v: T) => void;
   disabled?: boolean;
+  hint?: string;
 }) {
   return (
     <div className={`lab__seg${disabled ? " lab__seg--disabled" : ""}`}>
@@ -975,6 +978,7 @@ function Seg<T extends string>({
           </button>
         ))}
       </div>
+      {disabled && hint && <span className="lab__seg-hint">{hint}</span>}
     </div>
   );
 }

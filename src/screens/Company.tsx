@@ -675,7 +675,7 @@ function TeamOutputCard({ state }: { state: GameState }) {
           </p>
         );
       })()}
-      {avgMood < 55 && (() => {
+      {state.staff.length > 0 && avgMood < 55 && (() => {
         const amenitiesLvl = state.upgrades.amenities ?? 0;
         const recentFlops = state.launched.slice(-3).filter((lp) => lp.verdict === "flop").length;
         if (amenitiesLvl === 0) {

@@ -234,7 +234,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 
       <Upgrades />
 
-      {state.launched.length === 0 ? (
+      {state.launched.length === 0 && state.building.length === 0 && state.ready.length === 0 ? (
         <Card>
           <SectionHeader title="Get started" />
           <p className="hq__cta-text">Your garage is ready. Design your first product and launch it into the market.</p>
