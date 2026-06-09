@@ -195,6 +195,16 @@
   font-weight: 600;
   color: var(--ink-3);
   white-space: nowrap;
+  flex-wrap: wrap;
+}
+.rd__locked-era-prog {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 1px var(--sp-6);
+  border-radius: var(--r-pill);
+  white-space: nowrap;
 }
 
 /* Active boosts summary */

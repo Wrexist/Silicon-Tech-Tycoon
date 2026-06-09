@@ -894,9 +894,12 @@ function Member({
         </Button>
       </div>
       {isMisfit && (
-        <p className="co__fit-hint">
-          Low {DISCIPLINE_LABEL[activeDisc!]} fit · try <strong>{ASSIGN_LABEL[bestFitAssign]}</strong> for better output
-        </p>
+        <div className="co__fit-hint">
+          <span>Low {DISCIPLINE_LABEL[activeDisc!]} fit · try <strong>{ASSIGN_LABEL[bestFitAssign]}</strong></span>
+          <button className="co__fit-reassign" onClick={() => { haptic.light(); onAssign(s.id, bestFitAssign); }}>
+            Switch →
+          </button>
+        </div>
       )}
       {s.assignment !== "idle" && (() => {
         const disc = ACTIVE_DISCIPLINE[s.assignment]!;

@@ -350,7 +350,13 @@ export function DesignLab({
                   haptic.light();
                   const tiers: Product["tiers"] = {};
                   for (const k of c.slots) tiers[k] = Math.min(draft.tiers[k] ?? 1, researchedTier(state, k)) || 1;
-                  set({ category: c.id, tiers });
+                  // Auto-set a fair price for the new category so players don't
+                  // accidentally launch a phone-priced wearable (or vice versa).
+                  const newDraft = { ...draft, category: c.id, tiers };
+                  const newStats = computeStats(newDraft);
+                  const newOverall = overallScore(newStats, c.id);
+                  const fairPx = Math.max(49, Math.round(newOverall * toDollars(BALANCE.market.price.valueToPrice) / 10) * 10);
+                  set({ category: c.id, tiers, price: dollars(fairPx) });
                 }}
               >
                 <CategoryIcon id={c.id} size={15} /> {c.displayName}

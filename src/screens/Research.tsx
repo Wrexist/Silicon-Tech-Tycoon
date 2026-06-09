@@ -508,7 +508,34 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     {curDef && <span className="rd__contrib">{contributesLabel(curDef.contributes)}</span>}
                   </div>
                   {eraLocked ? (
-                    <div className="rd__locked"><Lock size={12} /> Unlocks in the {eraName(nextDef!.era)}</div>
+                    (() => {
+                      const targetEra = nextDef!.era;
+                      const isNextEra = targetEra === state.era + 1;
+                      const advEra = isNextEra ? BALANCE.eras.find((e) => e.era === state.era) : null;
+                      let eraProg = "";
+                      if (advEra) {
+                        const repPct = Number.isFinite(advEra.repToAdvance)
+                          ? Math.min(100, Math.round((state.reputation / advEra.repToAdvance) * 100)) : null;
+                        const revTarget = Number.isFinite(advEra.revToAdvance as unknown as number)
+                          ? (advEra.revToAdvance as unknown as number) / 100 : null;
+                        const revPct = revTarget ? Math.min(100, Math.round((toDollars(state.cumulativeRevenue) / revTarget) * 100)) : null;
+                        const isOrEra = state.era === 1;
+                        if (repPct !== null && revPct !== null) {
+                          const pct = isOrEra ? Math.max(repPct, revPct) : Math.min(repPct, revPct);
+                          eraProg = `${pct}% to next era`;
+                        } else if (repPct !== null) {
+                          eraProg = `${repPct}% rep`;
+                        } else if (revPct !== null) {
+                          eraProg = `${revPct}% rev`;
+                        }
+                      }
+                      return (
+                        <div className="rd__locked">
+                          <Lock size={12} /> Unlocks in {isNextEra ? "the next era" : eraName(targetEra)}
+                          {eraProg && <span className="rd__locked-era-prog">{eraProg}</span>}
+                        </div>
+                      );
+                    })()
                   ) : (
                     <div className="rd__next">
                       <div className="rd__next-info">

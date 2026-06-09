@@ -981,7 +981,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
       const cost = upgradeCost(state, affordableUpgrade.id)!;
       insights.push({
         icon: ArrowUp,
-        text: `Your ${affordableUpgrade.name} can be upgraded to "${affordableUpgrade.tierNames[cur]}" for ${format(cost)} — unlocks ${affordableUpgrade.effectAt(cur + 1)}.`,
+        text: `Upgrade ${affordableUpgrade.name} to "${affordableUpgrade.tierNames[cur]}" for ${format(cost)} → ${affordableUpgrade.effectAt(cur + 1)}.`,
       });
     }
   }

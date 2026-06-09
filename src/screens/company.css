@@ -661,6 +661,10 @@
 
 /* --- Best-fit assignment hint --- */
 .co__fit-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
   margin-top: var(--sp-6);
   font-size: var(--fs-micro);
   font-weight: 600;
@@ -669,6 +673,19 @@
 }
 .co__fit-hint strong {
   font-weight: 700;
+}
+.co__fit-reassign {
+  flex-shrink: 0;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: none;
+  padding: var(--sp-2) var(--sp-6);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 /* Subtle amber ring on the active assignment button when there's a skill mismatch */
 .co__assign-opt--misfit {
