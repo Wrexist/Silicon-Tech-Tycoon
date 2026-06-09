@@ -494,7 +494,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
     <div className="co__stats">
       <div className="co__stats-hdr">
         <h2 className="co__stats-title">Company stats</h2>
-        <button className="co__stats-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        <button className="co__stats-x" onClick={() => { haptic.light(); onClose(); }} aria-label="Close"><X size={18} /></button>
       </div>
       <p className="co__stats-sub">{state.companyName} · week {state.week}</p>
 

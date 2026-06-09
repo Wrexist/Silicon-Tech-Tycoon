@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { ArrowRight, Hammer, PencilRuler, Rocket, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
+import { haptic } from "../design/haptics.ts";
 import type { Tab } from "./BottomNav.tsx";
 import "./coach.css";
 
@@ -32,14 +33,14 @@ export function Coach({ tab, onNavigate }: { tab: Tab; onNavigate: (t: Tab) => v
         <div className="coach__text">{step.text}</div>
       </div>
       {step.done ? (
-        <button className="coach__cta" onClick={dismissTutorial}>Got it</button>
+        <button className="coach__cta" onClick={() => { haptic.success(); dismissTutorial(); }}>Got it</button>
       ) : step.cta ? (
-        <button className="coach__cta" onClick={() => onNavigate(step.cta!.tab)}>
+        <button className="coach__cta" onClick={() => { haptic.light(); onNavigate(step.cta!.tab); }}>
           {step.cta.label} <ArrowRight size={14} />
         </button>
       ) : null}
       {!step.done && (
-        <button className="coach__skip" aria-label="Skip tutorial" onClick={dismissTutorial}><X size={15} /></button>
+        <button className="coach__skip" aria-label="Skip tutorial" onClick={() => { haptic.light(); dismissTutorial(); }}><X size={15} /></button>
       )}
     </div>
   );
