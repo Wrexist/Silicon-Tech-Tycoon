@@ -873,6 +873,17 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     }
   }
 
+  // 0b. No staff at all — guide the player to hire before anything else
+  if (insights.length < 3 && state.staff.length === 0 && state.week >= 3) {
+    if (state.cash >= BALANCE.recruitment.tiers.board.cost) {
+      insights.push({
+        icon: Users,
+        text: "You're building solo — hire a team member on the Company tab to start generating R&D output and add launch hype to every product.",
+        tab: "company",
+      });
+    }
+  }
+
   // 1. Idle staff — most immediately actionable
   const idleCount = state.staff.filter((s) => s.assignment === "idle").length;
   if (idleCount > 0) {

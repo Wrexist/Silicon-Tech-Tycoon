@@ -19,6 +19,7 @@ import type {
   CameraLayout,
   CameraModuleShape,
   CameraPosition,
+  CategoryId,
   ComponentKind,
   FinishId,
   NotchStyle,
@@ -78,14 +79,14 @@ function newestProductName(state: GameState): string | null {
   return null;
 }
 
-function freshDraft(state: GameState): Product {
+function buildDraftForCategory(state: GameState, categoryId: string, name: string): Product {
+  const cat = CATEGORIES[categoryId as CategoryId] ?? CATEGORIES.phone;
   const tiers: Product["tiers"] = {};
-  for (const k of CATEGORIES.phone.slots) tiers[k] = Math.min(1, researchedTier(state, k));
-  const prev = newestProductName(state);
+  for (const k of cat.slots) tiers[k] = Math.min(1, researchedTier(state, k));
   const base: Product = {
     id: "draft",
-    name: prev ? suggestNextName(prev) : "Aurora One",
-    category: "phone",
+    name,
+    category: cat.id,
     tiers,
     finish: "aluminium",
     colorIndex: 0,
@@ -94,12 +95,23 @@ function freshDraft(state: GameState): Product {
     camera: defaultCameraDesign(),
     notch: "punch",
   };
-  // Auto-price: start at a fair market price based on actual component stats so new players
-  // aren't unknowingly launching severely overpriced T1 products.
   const stats = computeStats(base);
-  const overall = overallScore(stats, "phone");
+  const overall = overallScore(stats, cat.id as CategoryId);
   const fairPrice = Math.max(49, Math.round(overall * toDollars(BALANCE.market.price.valueToPrice) / 10) * 10);
   return { ...base, price: dollars(fairPrice) };
+}
+
+function freshDraft(state: GameState): Product {
+  // Continue in the same category the player was last working in so revisiting the lab
+  // doesn't reset back to phone when they've been designing tablets or laptops.
+  const lastCatId: CategoryId =
+    state.building.length > 0 ? state.building[state.building.length - 1].product.category as CategoryId :
+    state.ready.length > 0 ? state.ready[state.ready.length - 1].category as CategoryId :
+    state.launched.length > 0 ? state.launched[0].product.category as CategoryId :
+    "phone";
+  const catId = isCategoryUnlocked(lastCatId, state.era) ? lastCatId : "phone";
+  const prev = newestProductName(state);
+  return buildDraftForCategory(state, catId, prev ? suggestNextName(prev) : "Aurora One");
 }
 
 /** Seed a brand-new draft from an already-launched product: keep its whole design (category,
@@ -245,6 +257,8 @@ export function DesignLab({
   }
 
   function confirmBuild(units: number, channelId: ChannelId) {
+    const builtCategory = draft.category; // capture before state update
+    const builtName = draft.name;
     const res = build(draft, units, channelId);
     if (!res.ok) {
       haptic.error();
@@ -255,7 +269,7 @@ export function DesignLab({
     sfx("build");
     setWizard(false);
     showToast(`Production started — ${units.toLocaleString()} units on the line.`, { tone: "positive", glyph: <Hammer size={15} /> });
-    setDraft({ ...freshDraft(state), name: suggestNextName(draft.name) });
+    setDraft(buildDraftForCategory(state, builtCategory, suggestNextName(builtName)));
   }
 
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)
