@@ -11,6 +11,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
+import { overallScore } from "../engine/product.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
 import { format, toDollars } from "../engine/money.ts";
 import {
@@ -375,7 +376,10 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
         {use3d && !build && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
         {!build && (
-          <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); }}>
+          <button
+            className={`hq__decorate${state.week <= 4 && state.layout.length <= 2 ? " hq__decorate--new" : ""}`}
+            onClick={() => { setBuild(true); haptic.light(); }}
+          >
             <LayoutGrid size={15} /> Decorate
           </button>
         )}
@@ -910,10 +914,15 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     }
     if (threatComp && threatCat) {
       const catDef = CATEGORY_LIST.find((c) => c.id === threatCat);
-      const strength = Math.round(threatComp.strengthByCategory[threatCat] ?? 0);
+      const yourBestScore = active
+        .filter((lp) => lp.product.category === threatCat)
+        .reduce<number>((m, lp) => Math.max(m, overallScore(lp.stats, threatCat)), 0);
+      const rivalStr = Math.round(threatComp.strengthByCategory[threatCat] ?? 0);
+      const lead = rivalStr - yourBestScore;
+      const leadLabel = lead >= 20 ? "significantly ahead of you" : lead >= 8 ? "pulling ahead" : "neck and neck with you";
       insights.push({
         icon: TrendingDown,
-        text: `${threatComp.name} (strength ${strength}) is a strong rival in ${catDef?.displayName ?? threatCat}s — spec up your next launch to stay ahead.`,
+        text: `${threatComp.name} is ${leadLabel} in ${catDef?.displayName ?? threatCat}s — spec up your next launch to stay competitive.`,
         tab: "market",
       });
     }
@@ -945,6 +954,28 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
         text: "No one is assigned to Marketing — each launch is missing a hype bonus that boosts sales velocity. Assign a team member or hire a marketer.",
         tab: "company",
       });
+    }
+  }
+
+  // 8b. No designer assigned — design component tier is hard-capped at T1
+  if (insights.length < 3) {
+    const hasDesignerAssigned = state.staff.some((s) => s.assignment === "design");
+    const hasActivity = state.launched.length > 0 || state.building.length > 0;
+    if (!hasDesignerAssigned && hasActivity) {
+      const idleDesigner = state.staff.find((s) => s.role === "designer" && s.assignment !== "design");
+      if (idleDesigner) {
+        insights.push({
+          icon: PencilRuler,
+          text: `${idleDesigner.name} is a designer but not assigned to Design — switch their task to lift the design-component ceiling above Tier 1.`,
+          tab: "company",
+        });
+      } else if (state.staff.length >= 1) {
+        insights.push({
+          icon: PencilRuler,
+          text: "No one is assigned to Design — your design components are hard-capped at Tier 1, holding back the Design and Ecosystem stats of every product.",
+          tab: "company",
+        });
+      }
     }
   }
 

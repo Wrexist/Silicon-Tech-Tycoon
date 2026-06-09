@@ -488,7 +488,11 @@ export function DesignLab({
                 <span className="lab__stepper-val tnum" style={{ color: "var(--fn-design)" }}>Tier {draft.designTier}</span>
                 <button onClick={() => { haptic.light(); set({ designTier: Math.min(ceiling, draft.designTier + 1) }); }} disabled={draft.designTier >= ceiling} aria-label="Higher design tier"><Plus size={16} /></button>
               </div>
-              <p className="lab__hint">Higher design effort raises the Design stat ceiling. Hire designers to lift the cap.</p>
+              <p className="lab__hint">
+                {ceiling <= 1
+                  ? "Design components are capped at Tier 1 — assign a designer to the Design task in Company to raise the ceiling."
+                  : "Higher design effort raises the Design stat ceiling. Assign more skilled designers to lift it further."}
+              </p>
             </Card>
           </>
         )}
@@ -840,9 +844,18 @@ function BuildWizard({
 
   const fitLabel = plan.demandFit >= 60 ? "Strong fit" : plan.demandFit >= 35 ? "Decent fit" : "Weak fit";
   const fitTone = plan.demandFit >= 60 ? "positive" : plan.demandFit >= 35 ? "accent" : "negative";
+  const topRivalInCat = state.competitors
+    .filter(c => ((c.strengthByCategory as Record<string, number>)[draft.category] ?? 0) > 0)
+    .sort((a, b) =>
+      ((b.strengthByCategory as Record<string, number>)[draft.category] ?? 0) -
+      ((a.strengthByCategory as Record<string, number>)[draft.category] ?? 0),
+    )[0] ?? null;
+  const topRivName = topRivalInCat?.name.split(" ")[0] ?? null;
   const compLabel =
-    plan.betterRivals > 0 ? `${plan.betterRivals} rival${plan.betterRivals > 1 ? "s" : ""} beat you`
-      : plan.matchingRivals > 0 ? `${plan.matchingRivals} rival${plan.matchingRivals > 1 ? "s" : ""} match you`
+    plan.betterRivals > 0
+      ? (plan.betterRivals === 1 && topRivName ? `${topRivName} leads` : `${plan.betterRivals} rivals lead`)
+      : plan.matchingRivals > 0
+        ? (plan.matchingRivals === 1 && topRivName ? `${topRivName} matches` : `${plan.matchingRivals} rivals match`)
         : "Clear field";
   const compTone = plan.betterRivals > 0 ? "negative" : plan.matchingRivals > 0 ? "accent" : "positive";
 

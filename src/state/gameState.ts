@@ -664,10 +664,15 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       const sellThrough = lp.plannedUnits && lp.plannedUnits > 0
         ? Math.round((lp.totalUnits / lp.plannedUnits) * 100)
         : 100;
+      const suffix = sellThrough >= 90
+        ? "— virtually sold out"
+        : sellThrough < 50 && lp.plannedUnits != null
+          ? `— ${lp.plannedUnits - newUnitsSold} units unsold`
+          : "";
       productsFeed.push(feedItem(
         week,
-        `"${lp.product.name}" lifecycle complete — ${newUnitsSold.toLocaleString()} sold (${sellThrough}% sell-through), ${format(newRevenue)} total.`,
-        sellThrough >= 85 ? "positive" : "neutral",
+        `"${lp.product.name}" lifecycle complete — ${newUnitsSold.toLocaleString()} sold (${sellThrough}% sell-through), ${format(newRevenue)} total${suffix ? " " + suffix : ""}.`,
+        sellThrough >= 85 ? "positive" : sellThrough < 50 ? "negative" : "neutral",
       ));
     }
     return {

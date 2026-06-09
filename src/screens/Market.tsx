@@ -438,6 +438,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                   const activeRivals = comps.filter(
                     (c) => ((c.strengthByCategory as Record<string, number>)[cat.id] ?? 0) > 5,
                   ).length;
+                  const topRivalComp = comps.reduce<CompetitorState | null>((best, c) => {
+                    const str = (c.strengthByCategory as Record<string, number>)[cat.id] ?? 0;
+                    const bestStr = best ? ((best.strengthByCategory as Record<string, number>)[cat.id] ?? 0) : 0;
+                    return str > bestStr ? c : best;
+                  }, null);
                   const bestYours = state.launched
                     .filter((lp) => lp.product.category === cat.id)
                     .reduce<number>((m, lp) => Math.max(m, overallScore(lp.stats, cat.id)), 0);
@@ -445,7 +450,12 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                   const rivalPct = Math.round((maxRivalStr / MAX_SCORE) * 100);
                   const youHere = activeCats.has(cat.id);
                   const youWinning = bestYours > 0 && bestYours >= maxRivalStr;
-                  const statusLabel = bestYours === 0 ? (activeRivals === 0 ? "Open" : `${activeRivals} rival${activeRivals > 1 ? "s" : ""}`) : youWinning ? "Leading" : "Trailing";
+                  const topRivalName = topRivalComp ? topRivalComp.name.split(" ")[0] : null;
+                  const statusLabel = bestYours === 0
+                    ? (activeRivals === 0 ? "Open"
+                      : topRivalName && maxRivalStr > 5 ? topRivalName : `${activeRivals} rival${activeRivals > 1 ? "s" : ""}`)
+                    : youWinning ? "Leading"
+                    : topRivalName ? topRivalName : "Trailing";
                   const statusTone = bestYours === 0 ? (activeRivals === 0 ? "positive" : "accent") : youWinning ? "positive" : "negative";
                   return (
                     <div key={cat.id} className="mkt__compmap-row">
@@ -554,15 +564,24 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 </span>
               </div>
             )}
-            {pressuredProducts.length > 0 && (
-              <div className="mkt__intel-row">
-                <TrendingDown size={14} className="mkt__intel-icon mkt__intel-icon--down" />
-                <span className="mkt__intel-text">
-                  <strong>{pressuredProducts[0].product.name}</strong> is under pressure in{" "}
-                  {CATEGORY_LABEL[pressuredProducts[0].product.category]} — rivals are outspeccing it. Plan a successor with higher-tier components.
-                </span>
-              </div>
-            )}
+            {pressuredProducts.length > 0 && (() => {
+              const pp = pressuredProducts[0];
+              const pressingRival = comps.reduce<CompetitorState | null>((best, c) => {
+                const str = (c.strengthByCategory as Record<string, number>)[pp.product.category] ?? 0;
+                const bestStr = best ? ((best.strengthByCategory as Record<string, number>)[pp.product.category] ?? 0) : 0;
+                return str > bestStr ? c : best;
+              }, null);
+              return (
+                <div className="mkt__intel-row">
+                  <TrendingDown size={14} className="mkt__intel-icon mkt__intel-icon--down" />
+                  <span className="mkt__intel-text">
+                    <strong>{pp.product.name}</strong> is being outspecced by{" "}
+                    <strong>{pressingRival ? pressingRival.name.split(" ")[0] : "a rival"}</strong> in{" "}
+                    {CATEGORY_LABEL[pp.product.category]} — plan a successor with higher-tier components to reclaim the category.
+                  </span>
+                </div>
+              );
+            })()}
             {state.reputation >= 65 && (
               <div className="mkt__intel-row">
                 <span className="mkt__intel-icon mkt__intel-icon--rep" aria-hidden>★</span>
