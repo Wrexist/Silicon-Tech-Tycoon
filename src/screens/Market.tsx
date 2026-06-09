@@ -409,7 +409,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       })}
 
       {/* Competition landscape — your position vs. rivals by category */}
-      {unlockedCats.length > 1 && (
+      {unlockedCats.length > 0 && (
         <Card>
           <SectionHeader title="Market position" accessory="you vs. rivals" />
           {(() => {

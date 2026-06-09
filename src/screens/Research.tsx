@@ -295,7 +295,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                       >
                         {cost} RP
                       </Button>
-                      {!affordable && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+                      {!affordable && <span className="rd__weeks-away">~{weeksAway} wk</span>}
                     </div>
                   </div>
                 );
@@ -361,7 +361,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                       <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); sfx("levelup"); showToast(`${p.name} complete`, { tone: "positive" }); buyProject(p.id); }}>
                         {p.rpCost} RP
                       </Button>
-                      {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+                      {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway} wk</span>}
                     </div>
                   )}
                 </Card>

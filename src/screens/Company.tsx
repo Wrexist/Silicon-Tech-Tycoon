@@ -802,7 +802,7 @@ function Member({
           <span>Skill {s.skill}{maxed ? " (max)" : ""}</span>
           {!maxed && (
             <span className="co__xp-next tnum">
-              {xpPct}%{weeksToLevel !== null ? <span className="co__xp-eta"> · ~{weeksToLevel}wk</span> : null}
+              {xpPct}%{weeksToLevel !== null ? <span className="co__xp-eta"> · ~{weeksToLevel} wk</span> : null}
             </span>
           )}
         </div>
