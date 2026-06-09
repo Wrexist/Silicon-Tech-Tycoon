@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Clock, Lightbulb, Minus, Newspaper, Package, Plus, Rocket, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowUp, BarChart3, Building2, Clock, Factory, FlaskConical, Lightbulb, Minus, Newspaper, Package, Plus, Rocket, Sparkles, TrendingDown, TrendingUp, Trophy, Users, Wand2, X, Zap, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -68,6 +68,21 @@ function fmtFans(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
+}
+
+/** Pick a context-specific icon from feed item text, falling back to tone-based defaults. */
+function feedIcon(text: string, tone: string): LucideIcon {
+  if (text.startsWith('Launched "')) return Rocket;
+  if (text.includes("finished manufacturing")) return Factory;
+  if (text.startsWith("Researched ") || text.startsWith("Completed research project")) return FlaskConical;
+  if (text.startsWith("Hired ") || text.includes("candidates ready to interview")) return Users;
+  if (text.includes("leveled up to skill") || text.startsWith("Upgraded ") || text.includes("salary raised")) return ArrowUp;
+  if (text.includes("IPO") || text.includes("Moved into a new")) return Building2;
+  if (text.includes("#1 company") || text.includes("pinnacle")) return Trophy;
+  if (text.includes("Out of cash") || text.includes("quit —")) return AlertTriangle;
+  if (text.startsWith("Entered the ") && text.includes("tech unlocked")) return Zap;
+  if (/^Q\d+ complete/.test(text)) return BarChart3;
+  return tone === "positive" ? TrendingUp : tone === "negative" ? TrendingDown : tone === "accent" ? Sparkles : Newspaper;
 }
 
 export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccessor?: (p: Product) => void; onOpenDesignLab?: () => void } = {}) {
@@ -507,7 +522,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                   {/* solid = current weight (what affects launch scores today) */}
                   <div className="mkt__trend-fill" style={{ width: `${curPct}%` }} />
                 </div>
-                <span className="mkt__trend-val tnum">{Math.round(cur * 100)}</span>
+                <span className="mkt__trend-val tnum">
+                  {Math.round(cur * 100)}
+                  {(rising || falling) && <span className="mkt__trend-target"> → {Math.round(target * 100)}</span>}
+                </span>
               </div>
             );
           })}
@@ -621,7 +639,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         ) : (
           <ul className="mkt__feed">
             {feedItems.map((f) => {
-              const Icon: LucideIcon = f.tone === "positive" ? TrendingUp : f.tone === "negative" ? TrendingDown : f.tone === "accent" ? Sparkles : Newspaper;
+              const Icon = feedIcon(f.text, f.tone);
               return (
                 <li key={f.id} className={`mkt__feed-item mkt__feed-item--${f.tone}`}>
                   <span className="mkt__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
@@ -1203,7 +1221,7 @@ function FeedSheet({ feed, onClose }: { feed: FeedItem[]; onClose: () => void })
       <p className="mkt__feed-sheet-sub">{feed.length} events recorded</p>
       <ul className="mkt__feed mkt__feed--full">
         {sorted.map((f) => {
-          const Icon: LucideIcon = f.tone === "positive" ? TrendingUp : f.tone === "negative" ? TrendingDown : f.tone === "accent" ? Sparkles : Newspaper;
+          const Icon = feedIcon(f.text, f.tone);
           return (
             <li key={f.id} className={`mkt__feed-item mkt__feed-item--${f.tone}`}>
               <span className="mkt__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>

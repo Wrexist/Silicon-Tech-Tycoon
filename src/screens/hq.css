@@ -1035,6 +1035,11 @@
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+.hq__choice--negative {
+  border-color: var(--negative);
+  background: var(--negative-soft, color-mix(in srgb, var(--negative) 10%, transparent));
+}
+.hq__choice--negative .hq__choice-icon { color: var(--negative); }
 .hq__choice-head {
   display: flex;
   align-items: center;

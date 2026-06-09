@@ -1,9 +1,9 @@
 import {
-  Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, ChevronRight, CircleDot, Clock, Coffee,
+  AlertTriangle, Archive, ArrowUp, Armchair, BarChart3, BookOpen, Bot, Box, Boxes, Building2, Check, ChevronRight, CircleDot, Clock, Coffee,
   Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
   Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
   Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
-  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
+  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Trophy, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -162,10 +162,13 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
 
       {/* Player-choice event card — requires a decision before advancing */}
-      {state.pendingChoice && (
-        <Card className="hq__choice">
+      {state.pendingChoice && (() => {
+        const evTone = state.pendingChoice.event.tone;
+        const ChoiceIcon = evTone === "negative" ? TrendingDown : evTone === "accent" ? Lightbulb : Sparkles;
+        return (
+        <Card className={`hq__choice${evTone === "negative" ? " hq__choice--negative" : ""}`}>
           <div className="hq__choice-head">
-            <Zap size={14} className="hq__choice-icon" aria-hidden />
+            <ChoiceIcon size={14} className="hq__choice-icon" aria-hidden />
             <span className="hq__choice-title">{state.pendingChoice.event.title}</span>
           </div>
           <p className="hq__choice-body">{state.pendingChoice.event.body}</p>
@@ -187,7 +190,8 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
             ))}
           </div>
         </Card>
-      )}
+        );
+      })()}
 
       {/* Ready to launch */}
       {state.ready.length > 0 && (
@@ -223,7 +227,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                     <div className="hq__build-head">
                       <span className="hq__ready-name">{job.product.name}</span>
                       <span className="hq__build-pct tnum">
-                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · wk {state.week + weeksLeft}</span>}
+                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft === 1 ? "ready next week" : `in ${weeksLeft} wk`}</span>}
                       </span>
                     </div>
                     <div className="hq__build-track">
@@ -1032,6 +1036,20 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   );
 }
 
+function feedIcon(text: string, tone: string): LucideIcon {
+  if (text.startsWith('Launched "')) return Rocket;
+  if (text.includes("finished manufacturing")) return Factory;
+  if (text.startsWith("Researched ") || text.startsWith("Completed research project")) return FlaskConical;
+  if (text.startsWith("Hired ") || text.includes("candidates ready to interview")) return Users;
+  if (text.includes("leveled up to skill") || text.startsWith("Upgraded ") || text.includes("salary raised")) return ArrowUp;
+  if (text.includes("IPO") || text.includes("Moved into a new")) return Building2;
+  if (text.includes("#1 company") || text.includes("pinnacle")) return Trophy;
+  if (text.includes("Out of cash") || text.includes("quit —")) return AlertTriangle;
+  if (text.startsWith("Entered the ") && text.includes("tech unlocked")) return Zap;
+  if (/^Q\d+ complete/.test(text)) return BarChart3;
+  return tone === "positive" ? TrendingUp : tone === "negative" ? TrendingDown : tone === "accent" ? Sparkles : Newspaper;
+}
+
 function FeedCard({ feed, week, onNavigate }: { feed: FeedItem[]; week: number; onNavigate: (t: Tab) => void }) {
   const [expanded, setExpanded] = useState(false);
   const all = [...feed].reverse();
@@ -1043,7 +1061,7 @@ function FeedCard({ feed, week, onNavigate }: { feed: FeedItem[]; week: number; 
       <SectionHeader title="News" accessory={`week ${week}`} />
       <ul className="hq__feed-list">
         {shown.map((item) => {
-          const Icon = item.tone === "positive" ? TrendingUp : item.tone === "negative" ? TrendingDown : item.tone === "accent" ? Sparkles : Newspaper;
+          const Icon = feedIcon(item.text, item.tone);
           return (
             <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
               <span className="hq__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>

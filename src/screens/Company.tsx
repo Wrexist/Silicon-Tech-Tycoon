@@ -363,7 +363,7 @@ function NearMilestonesCard({ state }: { state: GameState }) {
       const pct = Math.min(99, Math.round((cur / target) * 100));
       return { a, pct };
     })
-    .filter(({ pct }) => pct >= 20)
+    .filter(({ pct }) => pct >= 10)
     .sort((x, y) => y.pct - x.pct)
     .slice(0, 3);
 
