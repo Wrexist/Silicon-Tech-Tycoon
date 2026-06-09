@@ -224,7 +224,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               <span className="rd__bank-goal-name">{nextGoal.name}</span>
               {goalWeeks !== null && (
                 <span className="rd__bank-goal-eta">
-                  {goalWeeks > 52 ? "1y+" : goalWeeks > 26 ? "26+ wk" : `~${goalWeeks} wk`}
+                  {goalWeeks > 52 ? "1y+" : `~${goalWeeks} wk`}
                 </span>
               )}
             </div>
@@ -251,7 +251,19 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           if (allCurrentEraDone) {
             return <p className="rd__bank-hint">All current-era projects are researched or affordable — check the lists below.</p>;
           }
-          return <p className="rd__bank-hint">Saving up. Keep staff on R&amp;D to accumulate Research Points faster.</p>;
+          return (
+            <>
+              <p className="rd__bank-hint">Saving up. Keep staff on R&amp;D to accumulate Research Points faster.</p>
+              {perWeek > 0 && perWeek < 1.5 && (
+                <p className="rd__bank-hint rd__bank-slow">
+                  Low R&amp;D output — assigning more engineers will speed this up.
+                  {onNavigate && (
+                    <> <button className="rd__bank-link" onClick={() => onNavigate("company")}>Manage team →</button></>
+                  )}
+                </p>
+              )}
+            </>
+          );
         })()}
       </Card>
 

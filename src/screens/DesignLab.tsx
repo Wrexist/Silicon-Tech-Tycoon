@@ -249,7 +249,12 @@ export function DesignLab({
   function openWizard() {
     if (missing.length > 0 || state.bankrupt) {
       haptic.error();
-      showToast(missing.length > 0 ? "Pick every component first." : "Company is bankrupt.", { tone: "negative", glyph: <AlertTriangle size={15} /> });
+      showToast(
+        missing.length > 0
+          ? `Missing: ${missing.map((k) => COMPONENT_LINES[k].displayName).join(", ")}`
+          : "Company is bankrupt.",
+        { tone: "negative", glyph: <AlertTriangle size={15} /> },
+      );
       return;
     }
     haptic.light();
@@ -320,7 +325,7 @@ export function DesignLab({
           </button>
         )}
         <div className="lab__verdict">
-          <StatPill label="Fit" value={`${fit}`} tone={fit >= 60 ? "positive" : "neutral"} />
+          <span title="How well your product stats match current market demand (0–100)"><StatPill label="Fit" value={`${fit}`} tone={fit >= 60 ? "positive" : fit >= 35 ? "neutral" : "negative"} /></span>
           <StatPill value={missing.length === 0 ? `${verdict.label} · ${Math.round(effectiveScore)}` : verdict.label} tone={verdict.tone} />
         </div>
         {missing.length === 0 && effectiveScore < bands.hit && (() => {

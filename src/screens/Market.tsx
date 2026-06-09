@@ -175,7 +175,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             </Button>
           ) : (
             <p className="mkt__co-hint">
-              IPO unlocks at {format(BALANCE.ipo.minRevenueToList)} lifetime revenue — you're at {format(state.cumulativeRevenue)}.
+              IPO (go public for a major cash infusion) unlocks at {format(BALANCE.ipo.minRevenueToList)} lifetime revenue — you're at {format(state.cumulativeRevenue)}.
             </p>
           )
         ) : (

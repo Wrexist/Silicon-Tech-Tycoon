@@ -15,7 +15,7 @@ import { channelById, type ChannelId } from "../engine/marketing.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
-import { cents, dollars, format, sub, toDollars } from "../engine/money.ts";
+import { cents, dollars, format, sub, toDollars, type Money } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
@@ -785,7 +785,7 @@ function Member({
   onRaise,
 }: {
   s: Staff;
-  cash: number;
+  cash: Money;
   era: number;
   onAssign: (id: string, a: Assignment) => void;
   onTrain: (id: string) => void;
@@ -839,12 +839,12 @@ function Member({
         </span>
         {isUnderpaid && (
           <span className="co__tag co__tag--warn" title={`Market rate: ${format(marketSalary)}/wk`}>
-            <TrendingDown size={11} aria-hidden /> Wants raise
+            <TrendingDown size={11} aria-hidden /> Wants +{format(sub(marketSalary, s.salary))}/wk
           </span>
         )}
         {isLowMood && (
-          <span className="co__tag co__tag--burnout">
-            Burnout risk · {quitRiskWeeks <= 1 ? "1 wk" : `${quitRiskWeeks} wk`}
+          <span className="co__tag co__tag--burnout" title="Low morale — raise salary, upgrade Amenities, or assign to Idle to recover before they quit">
+            Burnout risk · {quitRiskWeeks <= 1 ? "quits soon" : `${quitRiskWeeks} wk`}
           </span>
         )}
       </div>
@@ -898,7 +898,7 @@ function Member({
         </Button>
       </div>
       {!maxed && cash < cost && (
-        <p className="co__recruit-hint">Need {format(cost)} to train</p>
+        <p className="co__recruit-hint">Need {format(sub(cost, cash))} more to train {s.name}</p>
       )}
       {isMisfit && (
         <div className="co__fit-hint">
@@ -981,7 +981,7 @@ function RecruitPanel({
             : `Shortlist available for ${weeksLeft} more week${weeksLeft === 1 ? "" : "s"}.`}
         </p>
         {state.candidates.map((c) => (
-          <CandidateCard key={c.id} c={c} canHire={!full && state.cash >= c.hireFee} onHire={() => onHire(c.id)} />
+          <CandidateCard key={c.id} c={c} canHire={!full && state.cash >= c.hireFee} cash={state.cash} onHire={() => onHire(c.id)} />
         ))}
         <Button size="sm" variant="tertiary" onClick={() => { haptic.light(); onDismiss(); }}>Dismiss shortlist</Button>
       </>
@@ -1025,7 +1025,7 @@ function RecruitPanel({
   );
 }
 
-function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean; onHire: () => void }) {
+function CandidateCard({ c, canHire, cash, onHire }: { c: Candidate; canHire: boolean; cash: Money; onHire: () => void }) {
   const { state } = useGame();
   const disciplines: Discipline[] = ["engineering", "design", "marketing"];
 
@@ -1082,6 +1082,9 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
         </div>
         <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={() => { haptic.success(); sfx("levelup"); showToast(`${c.name} joined the team`, { tone: "positive" }); onHire(); }}>Sign · {format(c.hireFee)}</Button>
       </div>
+      {!canHire && cash < c.hireFee && (
+        <p className="co__recruit-hint">Need {format(sub(c.hireFee, cash))} more to sign {c.name}</p>
+      )}
     </Card>
   );
 }

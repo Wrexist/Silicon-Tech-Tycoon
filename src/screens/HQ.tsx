@@ -279,8 +279,8 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                     <div className="hq__build-head">
                       <span className="hq__ready-name">{job.product.name}</span>
                       <span className="hq__build-pct tnum">
-                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft === 1 ? "ready next week" : `in ${weeksLeft} wk`}</span>}
-                        {weeksLeft > 0 && <span className="hq__build-launch-wk"> · wk {state.week + weeksLeft}</span>}
+                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft === 1 ? "ready next week" : `${weeksLeft} wks left`}</span>}
+                        {weeksLeft > 0 && <span className="hq__build-launch-wk"> · launches wk {state.week + weeksLeft}</span>}
                       </span>
                     </div>
                     <div className="hq__build-track">
@@ -895,7 +895,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   if (idleCount > 0) {
     insights.push({
       icon: Users,
-      text: `${idleCount} staff member${idleCount > 1 ? "s are" : " is"} unassigned — assign them to R&D or Marketing to compound output.`,
+      text: `${idleCount} staff member${idleCount > 1 ? "s are" : " is"} unassigned — assign them to R&D, Design, or Marketing to generate output.`,
       tab: "company",
     });
   }
