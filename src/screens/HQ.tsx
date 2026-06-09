@@ -31,6 +31,7 @@ import {
 import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { channelById, type ChannelId } from "../engine/marketing.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canIPO, burn, nextWeekRevenue, weeklyEcosystemRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -234,6 +235,12 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                       <div className={`hq__build-fill${pct >= 80 ? " hq__build-fill--done" : ""}`} style={{ width: `${pct}%` }} />
                     </div>
                     {job.plannedUnits != null && <span className="hq__build-units">{job.plannedUnits.toLocaleString()} units</span>}
+                    {job.channelId && job.channelId !== "none" && (
+                      <span className="hq__build-channel">
+                        <Megaphone size={10} />
+                        {channelById(job.channelId as ChannelId).name}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -652,7 +659,12 @@ function NowSellingCard({ state, onNavigate }: { state: GameState; onNavigate: (
               <div className="hq__selling-thumb"><DeviceRenderer product={lp.product} size={36} /></div>
               <div className="hq__selling-info">
                 <span className="hq__selling-name">{lp.product.name}</span>
-                <span className="hq__selling-rev tnum">{fmtRevShort(weeklyRevD)}/wk</span>
+                <span className="hq__selling-rev tnum">
+                  {fmtRevShort(weeklyRevD)}/wk
+                  {sellThruPct !== null && (
+                    <span className={`hq__selling-thru-pct${sellThruPct >= 80 ? " hq__selling-thru-pct--good" : ""}`}> · {sellThruPct}%</span>
+                  )}
+                </span>
                 {sellThruPct !== null && (
                   <span className="hq__selling-thru-wrap" aria-label={`${sellThruPct}% sell-through`}>
                     <span className={`hq__selling-thru-bar${sellThruPct >= 80 ? " hq__selling-thru-bar--good" : sellThruPct >= 40 ? " hq__selling-thru-bar--mid" : ""}`} style={{ width: `${sellThruPct}%` }} />

@@ -113,7 +113,11 @@ function AppShell() {
       <BottomNav
         active={tab}
         onChange={setTab}
-        badge={{ hq: canAdvance(state), research: hasAffordableResearch(state) }}
+        badge={{
+          hq: canAdvance(state) || !!state.pendingChoice || state.ready.length > 0,
+          research: hasAffordableResearch(state),
+          company: state.candidates.length > 0 && (state.candidatesExpire - state.week) <= 3,
+        }}
       />
 
       <GainFX />

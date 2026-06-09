@@ -482,6 +482,13 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+.rd__sprint-active {
+  display: block;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 2px;
+}
 .rd__sprint-action {
   display: flex;
   flex-direction: column;

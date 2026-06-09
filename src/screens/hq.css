@@ -185,6 +185,15 @@
 .hq__build-fill--done {
   background: var(--positive);
 }
+.hq__build-channel {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--fn-mkt-text);
+  margin-top: 3px;
+}
 
 /* Era goal strip — compact hint below the stats row */
 .hq__goal {
@@ -1151,6 +1160,14 @@
   font-size: var(--fs-micro);
   font-weight: 600;
   color: var(--positive-text);
+}
+.hq__selling-thru-pct {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.hq__selling-thru-pct--good {
+  color: var(--positive-text);
+  font-weight: 600;
 }
 .hq__selling-thru-wrap {
   position: relative;

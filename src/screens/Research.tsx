@@ -285,6 +285,18 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                         {isTrending && <span className="rd__trend-badge">Trending</span>}
                       </div>
                       <span className="rd__sprint-line">{contrib ? `${line.displayName} · ${contrib}` : line.displayName}</span>
+                      {(() => {
+                        const inCat = (cat: string) => CATEGORY_LIST.some((c) => c.id === cat && c.slots.includes(kind));
+                        const liveName = state.launched.find(
+                          (lp) => lp.weeksElapsed < lp.weeklyUnits.length && inCat(lp.product.category),
+                        )?.product.name;
+                        const buildName = !liveName && state.building.find((j) => inCat(j.product.category))?.product.name;
+                        const readyName = !liveName && !buildName && state.ready.find((p) => inCat(p.category))?.name;
+                        const hint = liveName ?? buildName ?? readyName;
+                        if (!hint) return null;
+                        const label = liveName ? "Active" : buildName ? "In production" : "Ready";
+                        return <span className="rd__sprint-active">{label}: {hint}</span>;
+                      })()}
                     </div>
                     <div className="rd__sprint-action">
                       <Button
