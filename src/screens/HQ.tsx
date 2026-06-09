@@ -297,6 +297,17 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
               </div>
             );
           })}
+          {(() => {
+            const weeksToShift = state.trendRetargetWeek - state.week;
+            if (weeksToShift <= 0 || weeksToShift > 8) return null;
+            const shiftsDuringBuild = state.building.some((j) => (j.totalWeeks - j.weeksElapsed) > weeksToShift);
+            if (!shiftsDuringBuild) return null;
+            return (
+              <p className="hq__ready-trend-hint">
+                <Clock size={11} aria-hidden /> Trends shift in {weeksToShift} wk — your product may ship into a changed market.
+              </p>
+            );
+          })()}
         </Card>
       )}
 

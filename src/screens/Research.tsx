@@ -224,6 +224,14 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               <span className="tnum">{rp} / {nextGoal.rpCost} RP</span>
               <span className="tnum">{goalPct}%</span>
             </div>
+            {perWeek > 0 && perWeek < 1.5 && goalWeeks !== null && goalWeeks > 6 && (
+              <p className="rd__bank-hint rd__bank-slow">
+                Low R&amp;D output — assigning engineers to R&amp;D will speed this up.
+                {onNavigate && (
+                  <> <button className="rd__bank-link" onClick={() => onNavigate("company")}>Manage team →</button></>
+                )}
+              </p>
+            )}
           </div>
         ) : (() => {
           const allCurrentEraDone = RESEARCH_PROJECTS

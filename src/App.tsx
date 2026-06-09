@@ -453,6 +453,10 @@ function BankruptOverlay() {
             <span className="bankrupt__pm-val tnum">{state.week} weeks</span>
           </div>
           <div className="bankrupt__pm-row">
+            <span className="bankrupt__pm-label">Era reached</span>
+            <span className="bankrupt__pm-val tnum">{eraName(state.era)}</span>
+          </div>
+          <div className="bankrupt__pm-row">
             <span className="bankrupt__pm-label">Revenue earned</span>
             <span className="bankrupt__pm-val tnum">{format(state.cumulativeRevenue)}</span>
           </div>

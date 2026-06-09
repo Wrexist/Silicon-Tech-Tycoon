@@ -169,9 +169,15 @@ export function Company({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
             bars.push(cash);
           }
           const peak = Math.max(...bars.map(Math.abs), 1);
+          const netChange = bars[bars.length - 1] - toDollars(state.cash);
           return (
             <div className="co__proj" aria-label="Projected cash over next 8 weeks">
-              <span className="co__proj-label">Projected · 8 weeks</span>
+              <div className="co__proj-header">
+                <span className="co__proj-label">Projected · 8 weeks</span>
+                <span className={`co__proj-outcome tnum${netChange >= 0 ? " co__proj-outcome--pos" : " co__proj-outcome--neg"}`}>
+                  {netChange >= 0 ? "+" : ""}{fmtRevShort(netChange)}
+                </span>
+              </div>
               <div className="co__proj-bars">
                 {bars.map((v, i) => {
                   const pos = v >= 0;
@@ -245,9 +251,11 @@ export function Company({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
           <SectionHeader title="Selling now" accessory={`${activeSales.length} active`} />
           <div className="co__active-list">
             {activeSales.map(({ lp, weeklyRevenue }) => {
-              const weeksLeft = lp.weeklyUnits.length - lp.weeksElapsed;
+              const totalWeeks = lp.weeklyUnits.length;
+              const weeksLeft = totalWeeks - lp.weeksElapsed;
+              const elapsedPct = totalWeeks > 0 ? Math.round((lp.weeksElapsed / totalWeeks) * 100) : 0;
               const nextIdx = lp.weeksElapsed + 1;
-              const nextWkRevenue = nextIdx < lp.weeklyUnits.length
+              const nextWkRevenue = nextIdx < totalWeeks
                 ? cents(lp.weeklyUnits[nextIdx] * lp.product.price)
                 : null;
               const trend = nextWkRevenue !== null ? Math.sign(nextWkRevenue - weeklyRevenue) : 0;
@@ -271,6 +279,9 @@ export function Company({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) 
                     <span className="co__active-eta">{weeksLeft} wk left</span>
                     {onNavigate && <ChevronRight size={12} className="co__active-chevron" aria-hidden />}
                   </span>
+                  <div className="co__active-bar" aria-hidden>
+                    <div className="co__active-bar-fill" style={{ width: `${elapsedPct}%` }} />
+                  </div>
                 </Row>
               );
             })}
@@ -1024,7 +1035,14 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
       </div>
       {projContrib && <p className="co__cand-contrib">{projContrib}</p>}
       <div className="co__hire-controls">
-        <span className="co__hint">{format(c.salary)}/wk salary · {TRAIT_INFO[c.trait].blurb}</span>
+        <div>
+          <span className="co__hint">{format(c.salary)}/wk salary · {TRAIT_INFO[c.trait].blurb}</span>
+          {toDollars(c.hireFee) > 0 && toDollars(c.salary) > 0 && (() => {
+            const feeWeeks = Math.round(toDollars(c.hireFee) / toDollars(c.salary));
+            if (feeWeeks < 2) return null;
+            return <span className="co__cand-fee-hint">Sign fee ≈ {feeWeeks} wk salary</span>;
+          })()}
+        </div>
         <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={() => { haptic.success(); sfx("levelup"); showToast(`${c.name} joined the team`, { tone: "positive" }); onHire(); }}>Sign · {format(c.hireFee)}</Button>
       </div>
     </Card>

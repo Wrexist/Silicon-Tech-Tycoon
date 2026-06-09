@@ -31,6 +31,15 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
 }
+.rd__bank-slow {
+  margin-top: var(--sp-8);
+  color: var(--ink-3);
+}
+.rd__bank-link {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+}
 .rd__bank-ready {
   display: inline-flex;
   align-items: center;

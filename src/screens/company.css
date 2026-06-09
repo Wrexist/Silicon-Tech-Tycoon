@@ -55,6 +55,22 @@
   background: var(--bg-elevated);
   width: 100%;
   text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+.co__active-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+}
+.co__active-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.45;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .co__active-row--link {
   cursor: pointer;
@@ -624,6 +640,12 @@
   color: var(--positive-text, var(--positive));
   margin: var(--sp-4) 0 var(--sp-8);
 }
+.co__cand-fee-hint {
+  display: block;
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  margin-top: var(--sp-4);
+}
 
 /* --- Best-fit assignment hint --- */
 .co__fit-hint {
@@ -810,15 +832,25 @@
 .co__proj {
   margin: var(--sp-8) 0 var(--sp-4);
 }
+.co__proj-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-6);
+}
 .co__proj-label {
-  display: block;
   font-size: var(--fs-micro);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ink-3);
-  margin-bottom: var(--sp-6);
 }
+.co__proj-outcome {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+.co__proj-outcome--pos { color: var(--positive-text); }
+.co__proj-outcome--neg { color: var(--negative); }
 .co__proj-bars {
   display: flex;
   gap: 4px;
