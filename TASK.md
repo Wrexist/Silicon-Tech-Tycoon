@@ -227,8 +227,8 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
 - [DONE] Early-game valuation rebalanced (cubic reputation curve + $8K base + rev×4): net worth now
   starts ~$13–36K (garage ≈ cash) and grows with real revenue instead of starting at $880K.
-- Engine (PROTECTED): `makeSkills` doesn't guarantee the role's headline discipline is the *highest* — a level-3 "Engineer" can roll engineering 23 but marketing 43, so the role label + "Skill 3" disagree. Clamp the off-disciplines below the primary, or pick role from the strongest skill. (The contradictory *misfit hint* is already fixed in the UI.)
-- Balance: first-launch flop can yield 0 units sold — soften floor so even a weak product sells *some* (teachable, not brutal). Do in P6.
+- [DONE — verified + pinned v15.2] Engine (PROTECTED): `makeSkills` doesn't guarantee the role's headline discipline is the *highest* — FIXED by the "role-true skills" pass (off-disciplines roll at 35–85% of the primary, strictly below it); now pinned by `engine/staff.test.ts` property tests so it can't regress.
+- [DONE — resolved by design in V5/v8] Balance: first-launch flop can yield 0 units sold — the sales volume floor (`floorUnits`, now 70) guarantees any shipped product sells *some* units; flops still lose money on tooling+run (teachable, not brutal, but a real bet).
 - Renderer: laptop/desktop/monitor/console/wearable currently reuse the phone "slab" silhouette via the ASPECT map — give them distinct parametric silhouettes (hinge, stand, strap) in the post-core renderer pass (plan Prompt 9).
 - Design Lab: gate higher tiers visibly with a "Research in R&D" hint when a component is maxed at current research.
 - Multi-tab: localStorage races across tabs (only matters on web, not the Capacitor app) — consider a single-writer guard if shipping a web build.
@@ -379,6 +379,18 @@ reputation momentum (rival rep never changes after init → pure compounding, up
       old tab saved on visibilitychange). Per-CONTEXT id so StrictMode can't self-freeze; no
       BroadcastChannel → exact pre-guard behaviour (no regression); native single-webview → idle.
       5 tests (Node BC, in-process two-tab sim). **188 tests green**, tsc 0, build + PWA ok.
+
+## v15.2 — engine hardening: determinism pinned + role-true skills pinned (DONE 2026-06-09)
+- [x] **AUDIT 1.10 determinism test**: a 160-week cash-boosted run (events, rival launches, trend
+      retargets, share prices all exercised) is **bit-for-bit reproducible** from a cloned start —
+      full-state deep equality, with only feed ids normalized (they embed the module feedSeq
+      counter across in-process runs by design; their per-run uniqueness is asserted instead).
+      Guards the whole sim against future Math.random/Date.now leaks. Verified the only wall-clock
+      uses in sim paths are intentional (newGame default seed, offline catch-up elapsed time).
+- [x] **`engine/staff.test.ts`**: property tests pinning the role-true skills guarantee (40 seeds ×
+      3 roles × 10 levels: off-disciplines ≤ primary, strictly below it beyond the tiny-level
+      rounding zone; `levelFromSkills` round-trips within ±1). Closes the old PROTECTED-engine
+      backlog item as verified-fixed. **191 tests green**, tsc 0, build + PWA ok.
 - **Ship status**: repo-side work is DONE per WHAT_YOU_NEED_TO_DO.md — remaining steps are
       owner-side (Apple Developer account, Mac/Xcode build, optional StoreKit wiring at the 3
       `NATIVE INTEGRATION POINT` stubs in `src/state/iap.ts`).

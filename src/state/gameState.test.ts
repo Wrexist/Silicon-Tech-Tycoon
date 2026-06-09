@@ -102,6 +102,28 @@ describe("game state reducers", () => {
     expect(a.rngState).toBe(b.rngState);
   });
 
+  it("a 160-week run is fully reproducible from the same start (AUDIT 1.10 — RNG isolation)", () => {
+    // Cash-boosted so the company survives the whole horizon and the run exercises events,
+    // rival launches, trend retargets and share-price evolution — not just early burn.
+    const start = { ...newGame(7777), cash: dollars(5_000_000) };
+    const clone = structuredClone(start); // identical incl. lastActive (two newGame calls differ)
+    const run = (s0: typeof start) => {
+      let s = s0;
+      for (let w = 0; w < 160; w++) s = advanceOneWeek(s);
+      return s;
+    };
+    const a = run(start);
+    const b = run(clone);
+    // feed ids embed the module-level feedSeq counter (F4), which keeps counting across the two
+    // in-process runs — normalize ids away and compare EVERYTHING else bit-for-bit.
+    const norm = (s: typeof start) => ({ ...s, feed: s.feed.map((f) => ({ week: f.week, text: f.text, tone: f.tone })) });
+    expect(norm(b)).toEqual(norm(a));
+    // the horizon actually exercised the sim, and ids stayed unique within a run (F4 invariant)
+    expect(a.week).toBe(160);
+    expect(a.feed.length).toBeGreaterThan(0);
+    expect(new Set(a.feed.map((f) => f.id)).size).toBe(a.feed.length);
+  });
+
   it("builds then launches a product, accruing revenue over weeks", () => {
     // Production + tooling are paid upfront now, so seed enough cash to fund a real run + runway.
     let s = { ...newGame(42), cash: dollars(500_000) };

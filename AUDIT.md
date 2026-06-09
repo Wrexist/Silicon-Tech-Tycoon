@@ -35,7 +35,9 @@ Legend: 🐛 bug · ⚠️ risk · ✨ improvement · 💎 premium-polish · ⚡
 - [ ] 1.7 eras.ts: progression gating, unlocks, no soft-locks. 🧪
 - [ ] 1.8 stocks.ts: buy/sell fees, dividends, holdings value, player share price. 🧪
 - [ ] 1.9 furniture.ts: placement/collision/footprint/rotation correctness. 🧪
-- [ ] 1.10 Determinism: same seed → same outcome (RNG isolation).
+- [x] 1.10 Determinism: same seed → same outcome (RNG isolation). 🧪 (v15.2: 160-week full-state
+      reproducibility test in gameState.test.ts — only feed ids normalized, they embed the
+      module feedSeq counter by design; F4 uniqueness asserted in the same test.)
 
 ## PHASE 2 — State, persistence, lifecycle
 - [ ] 2.1 useGame tick: no double-ticks, pause/fast correctness, cleanup on unmount.
