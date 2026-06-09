@@ -73,12 +73,12 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
     const res = launchReady(id);
     if (res.ok) {
       haptic.success();
-      const sc = res.launchScore ?? 0;
       sfx("launch");
-      if (sc >= 76) setTimeout(() => sfx("hit"), 380);
+      const v = res.verdict;
+      if (v === "hit") setTimeout(() => sfx("hit"), 380);
       showToast(
-        sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : sc >= 45 ? "Launched — solid performance." : "Launched into the market.",
-        { tone: sc <= 22 ? "negative" : "positive", glyph: <Rocket size={15} /> },
+        v === "hit" ? "Launched — it's a hit!" : v === "flop" ? "Launched — sales are slow." : v === "solid" ? "Launched — solid performance." : "Launched into the market.",
+        { tone: v === "flop" ? "negative" : "positive", glyph: <Rocket size={15} /> },
       );
     }
   };

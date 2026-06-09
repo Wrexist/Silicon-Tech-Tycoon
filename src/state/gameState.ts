@@ -997,6 +997,8 @@ export interface ActionResult {
   ok: boolean;
   reason?: string;
   launchScore?: number;
+  /** Computed verdict after competition + era adjustment (more accurate than raw launchScore). */
+  verdict?: "hit" | "solid" | "steady" | "flop";
 }
 
 /** Queue a designed product for manufacturing with a production plan (run size + marketing).
@@ -1196,6 +1198,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     },
     ok: true,
     launchScore: plan.launchScore,
+    verdict: lp.verdict as "hit" | "solid" | "steady" | "flop",
   };
 }
 

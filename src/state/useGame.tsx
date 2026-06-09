@@ -187,7 +187,7 @@ interface GameContextValue {
   clearOffline: () => void;
   // actions
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
-  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number };
+  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "steady" | "flop" };
   research: (kind: ComponentKind) => void;
   buyProject: (id: ProjectId) => void;
   buyUpgrade: (id: UpgradeId) => void;
