@@ -410,7 +410,7 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
                 <button className="hqb__tool" onClick={() => { snapshot(); rotateFurniture(selected.iid); haptic.light(); }}><RotateCw size={16} /> Rotate</button>
                 <button className="hqb__tool" onClick={() => { snapshot(); duplicateFurniture(selected.iid); haptic.light(); }}><Copy size={16} /> Duplicate</button>
                 <button className="hqb__tool hqb__tool--danger" onClick={() => { snapshot(); removeFurniture(selected.iid); setSelectedIid(null); haptic.medium(); }}><Trash2 size={16} /> Remove</button>
-                <button className="hqb__tool" onClick={() => setSelectedIid(null)}><X size={16} /> Deselect</button>
+                <button className="hqb__tool" onClick={() => { haptic.light(); setSelectedIid(null); }}><X size={16} /> Deselect</button>
               </div>
             </div>
           ) : (
@@ -425,7 +425,7 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
                   onChange={(e) => setSearch(e.target.value)}
                 />
                 {searching && (
-                  <button className="hqb__search-clear" aria-label="Clear search" onClick={() => setSearch("")}><X size={14} /></button>
+                  <button className="hqb__search-clear" aria-label="Clear search" onClick={() => { haptic.light(); setSearch(""); }}><X size={14} /></button>
                 )}
               </div>
               {!searching && (
@@ -472,7 +472,7 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
                   <span className="hqb__placing-text">Placing <b>{furnitureDef(placingType).name}</b> — tap the floor</span>
                   <div className="hqb__row">
                     <button className="hqb__tool" onClick={() => { setPlaceRot((r) => ((r + 1) % 4) as Rot); haptic.light(); }}><RotateCw size={15} /> Rotate</button>
-                    <button className="hqb__tool" onClick={() => setPlacingType(null)}><X size={15} /> Cancel</button>
+                    <button className="hqb__tool" onClick={() => { haptic.light(); setPlacingType(null); }}><X size={15} /> Cancel</button>
                   </div>
                 </div>
               )}

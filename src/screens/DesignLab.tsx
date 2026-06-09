@@ -208,11 +208,9 @@ export function DesignLab({
     const maxT = researchedTier(state, kind);
     const cur = draft.tiers[kind] ?? 0;
     const next = Math.max(1, Math.min(maxT, cur + delta));
-    haptic.light();
     set({ tiers: { ...draft.tiers, [kind]: next } });
   }
   function setCam(partial: Partial<Product["camera"]>) {
-    haptic.light();
     setFace("back");
     setDraft((d) => ({ ...d, camera: { ...d.camera, ...partial } }));
   }
@@ -433,9 +431,9 @@ export function DesignLab({
                       )}
                     </div>
                     <div className="lab__stepper">
-                      <button onClick={() => setTier(kind, -1)} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
+                      <button onClick={() => { haptic.light(); setTier(kind, -1); }} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
                       <span className="lab__stepper-val tnum">T{tier}</span>
-                      <button onClick={() => setTier(kind, +1)} disabled={atMax} aria-label="Higher tier"><Plus size={16} /></button>
+                      <button onClick={() => { haptic.light(); setTier(kind, +1); }} disabled={atMax} aria-label="Higher tier"><Plus size={16} /></button>
                     </div>
                   </div>
                 );
@@ -499,9 +497,9 @@ export function DesignLab({
                     <span className="lab__comp-tier">{draft.camera.count} {draft.camera.count === 1 ? "lens" : "lenses"}</span>
                   </div>
                   <div className="lab__stepper">
-                    <button aria-label="Fewer lenses" disabled={draft.camera.count <= 1} onClick={() => setCam({ count: draft.camera.count - 1 })}><Minus size={16} /></button>
+                    <button aria-label="Fewer lenses" disabled={draft.camera.count <= 1} onClick={() => { haptic.light(); setCam({ count: draft.camera.count - 1 }); }}><Minus size={16} /></button>
                     <span className="lab__stepper-val tnum">{draft.camera.count}</span>
-                    <button aria-label="More lenses" disabled={draft.camera.count >= 4} onClick={() => setCam({ count: draft.camera.count + 1 })}><Plus size={16} /></button>
+                    <button aria-label="More lenses" disabled={draft.camera.count >= 4} onClick={() => { haptic.light(); setCam({ count: draft.camera.count + 1 }); }}><Plus size={16} /></button>
                   </div>
                 </div>
                 <Seg<CameraLayout>
@@ -530,7 +528,7 @@ export function DesignLab({
                     className={`lab__toggle${draft.camera.flash ? " lab__toggle--on" : ""}`}
                     role="switch"
                     aria-checked={draft.camera.flash}
-                    onClick={() => setCam({ flash: !draft.camera.flash })}
+                    onClick={() => { haptic.light(); setCam({ flash: !draft.camera.flash }); }}
                   >
                     <span className="lab__toggle-knob" />
                   </button>
@@ -543,7 +541,7 @@ export function DesignLab({
                 label="Cutout"
                 value={draft.notch}
                 options={[["punch", "Punch-hole"], ["island", "Island"], ["notch", "Notch"], ["none", "None"]]}
-                onPick={(v) => { haptic.light(); setFace("front"); set({ notch: v }); }}
+                onPick={(v) => { setFace("front"); set({ notch: v }); }}
               />
             </Card>
           </>
@@ -953,7 +951,7 @@ function BuildWizard({
           </Button>
         )}
       </div>
-      <button className="wiz__cancel" onClick={onClose}>Cancel</button>
+      <button className="wiz__cancel" onClick={() => { haptic.light(); onClose(); }}>Cancel</button>
     </div>
   );
 }
@@ -984,7 +982,7 @@ function Seg<T extends string>({
             aria-pressed={value === v}
             aria-label={`${label}: ${lbl}`}
             disabled={disabled}
-            onClick={() => onPick(v)}
+            onClick={() => { haptic.light(); onPick(v); }}
           >
             {lbl}
           </button>
