@@ -1160,6 +1160,15 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
   const hitRate = Math.round((hits / state.launched.length) * 100);
   const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
   const weeklyRevenue = active.reduce((s, lp) => s + lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price), 0);
+  const hitStreak = (() => {
+    let streak = 0;
+    for (let i = state.launched.length - 1; i >= 0; i--) {
+      const v = state.launched[i].verdict;
+      if (v === "hit" || v === "solid") streak++;
+      else break;
+    }
+    return streak;
+  })();
   // 4-week revenue forecast (wk 0 = this week, 1–3 = ahead)
   const forecast = Array.from({ length: 4 }, (_, i) =>
     active.reduce((sum, lp) => {
@@ -1195,12 +1204,19 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
           <span className="hq__perf-val tnum">{active.length}</span>
           <span className="hq__perf-label">Active</span>
         </div>
-        <div className="hq__perf-item">
-          <span className={`hq__perf-val tnum${hitRate >= 60 ? " hq__perf-val--positive" : hitRate <= 30 && state.launched.length >= 3 ? " hq__perf-val--negative" : ""}`}>
-            {hitRate}%
-          </span>
-          <span className="hq__perf-label">Hit rate</span>
-        </div>
+        {hitStreak >= 2 ? (
+          <div className="hq__perf-item">
+            <span className="hq__perf-val tnum hq__perf-val--positive">{hitStreak}</span>
+            <span className="hq__perf-label">Hot streak</span>
+          </div>
+        ) : (
+          <div className="hq__perf-item">
+            <span className={`hq__perf-val tnum${hitRate >= 60 ? " hq__perf-val--positive" : hitRate <= 30 && state.launched.length >= 3 ? " hq__perf-val--negative" : ""}`}>
+              {hitRate}%
+            </span>
+            <span className="hq__perf-label">Hit rate</span>
+          </div>
+        )}
       </div>
       {weeklyRevenue > 0 && (
         <div className="hq__perf-revenue">

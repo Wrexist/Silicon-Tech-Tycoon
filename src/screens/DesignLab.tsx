@@ -158,6 +158,12 @@ export function DesignLab({
   const marginPct = toDollars(draft.price) > 0 ? Math.round((toDollars(margin) / toDollars(draft.price)) * 100) : 0;
   const overall = overallScore(stats, draft.category);
   const weights = effectiveWeights(state.trends, draft.category);
+  const catRivalCount = state.competitors.filter(
+    (c) => ((c.strengthByCategory as Record<string, number>)[draft.category] ?? 0) > 10
+  ).length;
+  const catRivalMaxStr = Math.round(state.competitors.reduce(
+    (m, c) => Math.max(m, ((c.strengthByCategory as Record<string, number>)[draft.category] ?? 0)), 0
+  ));
 
   const fairPriceDollars = Math.max(1, overall * toDollars(BALANCE.market.price.valueToPrice));
   const priceRatio = toDollars(draft.price) / fairPriceDollars;
@@ -347,7 +353,7 @@ export function DesignLab({
               .map(([k]) => k)
               .slice(0, 2)
               .join(" & ")
-          }
+          } · {catRivalCount === 0 ? "open market" : `${catRivalCount} rival${catRivalCount > 1 ? "s" : ""} · best ${catRivalMaxStr}`}
         </p>
         {(() => {
           const prev = state.launched.find((lp) => lp.product.category === draft.category);

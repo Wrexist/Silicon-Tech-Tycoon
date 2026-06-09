@@ -774,7 +774,9 @@ function Member({
     s.assignment !== "idle" && fitScore < 40 && bestFitAssign !== s.assignment && s.skills[bestFitDisc] > fitScore + 4;
   const marketSalary = s.id !== "s0" ? salaryFor(s.role, s.skill) : s.salary;
   const isUnderpaid = s.id !== "s0" && toDollars(s.salary) < toDollars(marketSalary);
-  const isLowMood = (s.moodLowWeeks ?? 0) >= 3;
+  const moodLowWks = s.moodLowWeeks ?? 0;
+  const isLowMood = moodLowWks >= 3;
+  const quitRiskWeeks = Math.max(0, BALANCE.churn.weeksUntilQuitRisk - moodLowWks);
   return (
     <li className="co__member-card">
       <div className="co__member-top">
@@ -804,7 +806,9 @@ function Member({
           </span>
         )}
         {isLowMood && (
-          <span className="co__tag co__tag--burnout">Burnout risk</span>
+          <span className="co__tag co__tag--burnout">
+            Burnout risk · {quitRiskWeeks <= 1 ? "1 wk" : `${quitRiskWeeks} wk`}
+          </span>
         )}
       </div>
       <div className="co__mood-bar" aria-label={`Morale ${Math.round(s.mood)}%`}>

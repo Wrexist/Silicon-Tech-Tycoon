@@ -826,6 +826,10 @@ function ProductDetailSheet({
     ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
     : null;
   const live = lp.weeksElapsed < lp.weeklyUnits.length;
+  const projectedFinalSold = lp.weeklyUnits.reduce((s, u) => s + u, 0);
+  const projectedFinalSellThru = lp.plannedUnits != null && lp.plannedUnits > 0
+    ? Math.min(100, Math.round((projectedFinalSold / lp.plannedUnits) * 100))
+    : null;
   // Suggest cutting to ~85% of current price (or to unit cost if higher)
   const suggestedCut = dollars(Math.max(toDollars(lp.unitCost) + 1, Math.round(toDollars(lp.product.price) * 0.85 / 10) * 10));
 
@@ -862,7 +866,7 @@ function ProductDetailSheet({
           tone={sellThrough == null ? "neutral" : sellThrough >= 90 ? "positive" : sellThrough < 50 ? "negative" : "neutral"}
           hint={
             live && lp.plannedUnits != null
-              ? `${Math.max(0, lp.plannedUnits - lp.unitsSold).toLocaleString()} in stock · ${lp.plannedUnits.toLocaleString()} made`
+              ? `${Math.max(0, lp.plannedUnits - lp.unitsSold).toLocaleString()} in stock · ${lp.plannedUnits.toLocaleString()} made${projectedFinalSellThru !== null && projectedFinalSellThru !== sellThrough ? ` · → ${projectedFinalSellThru}% at end` : ""}`
               : lp.plannedUnits != null
                 ? `${lp.plannedUnits.toLocaleString()} made`
                 : undefined

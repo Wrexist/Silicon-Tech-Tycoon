@@ -185,6 +185,9 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
     (n, line) => n + line.tiers.filter((t) => t.era === era).length,
     0,
   );
+  const newCompLines = Object.values(COMPONENT_LINES)
+    .filter((line) => line.tiers.some((t) => t.era === era))
+    .map((line) => line.displayName);
 
   return (
     <div className="era-modal">
@@ -230,8 +233,12 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
 
         {newCompTiers > 0 && (
           <Card variant="inset" className="era-modal__section">
-            <p className="era-modal__section-label">{newCompTiers} new component tier{newCompTiers !== 1 ? "s" : ""} available</p>
-            <p className="era-modal__comp-hint">Head to Research to unlock higher-spec parts and push your products to the next level.</p>
+            <p className="era-modal__section-label">{newCompTiers} component tier{newCompTiers !== 1 ? "s" : ""} unlocked in R&amp;D</p>
+            <div className="era-modal__chips">
+              {newCompLines.map((name) => (
+                <span key={name} className="era-modal__chip">{name}</span>
+              ))}
+            </div>
           </Card>
         )}
 
