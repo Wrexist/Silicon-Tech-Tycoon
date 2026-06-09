@@ -387,6 +387,9 @@ export function DesignLab({
           if (!prev) return null;
           const prevScore = overallScore(prev.stats, prev.product.category);
           const scoreImproved = overall > prevScore;
+          const prevVerdict = prev.verdict;
+          const prevVerdictTone = prevVerdict === "hit" || prevVerdict === "solid" ? "pos"
+            : prevVerdict === "flop" ? "neg" : "acc";
           return (
             <div className="lab__prev-product">
               <span className="lab__prev-label">Best in category:</span>
@@ -394,6 +397,9 @@ export function DesignLab({
               <span className={`lab__prev-score${scoreImproved ? " lab__prev-score--up" : ""}`}>
                 {scoreImproved ? <TrendingUp size={11} aria-hidden /> : null}
                 Overall {prevScore}
+                {prevVerdict && (
+                  <span className={`lab__prev-verdict lab__prev-verdict--${prevVerdictTone}`}> · {prevVerdict}</span>
+                )}
               </span>
             </div>
           );

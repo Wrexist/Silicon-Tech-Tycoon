@@ -545,6 +545,19 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+.rd__value-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: var(--r-pill);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .rd__sprint-active {
   display: block;
   font-size: var(--fs-micro);

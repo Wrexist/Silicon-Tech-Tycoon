@@ -478,6 +478,10 @@
 .lab__prev-score--up {
   color: var(--positive-text);
 }
+.lab__prev-verdict { color: var(--ink-3); }
+.lab__prev-verdict--pos { color: var(--positive-text); }
+.lab__prev-verdict--neg { color: var(--negative); }
+.lab__prev-verdict--acc { color: var(--accent); }
 
 /* Stat delta pills — shown below StatBars when a previous product exists in the category */
 .lab__stat-deltas {

@@ -280,6 +280,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                       <span className="hq__ready-name">{job.product.name}</span>
                       <span className="hq__build-pct tnum">
                         {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft === 1 ? "ready next week" : `in ${weeksLeft} wk`}</span>}
+                        {weeksLeft > 0 && <span className="hq__build-launch-wk"> · wk {state.week + weeksLeft}</span>}
                       </span>
                     </div>
                     <div className="hq__build-track">

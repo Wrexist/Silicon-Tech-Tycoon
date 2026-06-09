@@ -285,11 +285,23 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             </Card>
           );
         }
+        // Pre-compute which pick is the best value (stat gain per RP spent)
+        const bestValueIdx = picks.length >= 2 ? (() => {
+          let bestEff = 0;
+          let bestIdx = -1;
+          picks.forEach(({ cost, statGain }, i) => {
+            const eff = cost > 0 ? statGain / cost : 0;
+            if (eff > bestEff) { bestEff = eff; bestIdx = i; }
+          });
+          const avgEff = picks.reduce((s, p) => s + (p.cost > 0 ? p.statGain / p.cost : 0), 0) / picks.length;
+          return bestIdx >= 0 && bestEff > avgEff * 1.2 ? bestIdx : -1;
+        })() : -1;
+
         return (
           <Card className="rd__sprint">
             <SectionHeader title="Top picks" accessory="next 12 weeks" />
             <div className="rd__sprint-list">
-              {picks.map(({ kind, next, cost, weeksAway }) => {
+              {picks.map(({ kind, next, cost, weeksAway, statGain }, pickIdx) => {
                 const line = COMPONENT_LINES[kind];
                 const affordable = rp >= cost;
                 const curTierDef = tierDef(kind, researchedTier(state, kind));
@@ -297,12 +309,15 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                   ? deltaLabel(curTierDef.contributes, next.contributes)
                   : contributesLabel(next.contributes);
                 const isTrending = trendDelta > 0.02 && trendStat && (next.contributes[trendStat] ?? 0) > 0;
+                const isBestValue = pickIdx === bestValueIdx && !isTrending;
+                void statGain; // used in bestValueIdx calc above
                 return (
                   <div key={kind} className="rd__sprint-row">
                     <div className="rd__sprint-info">
                       <div className="rd__sprint-name-row">
                         <span className="rd__sprint-name">{next.name}</span>
                         {isTrending && <span className="rd__trend-badge">Trending</span>}
+                        {isBestValue && <span className="rd__value-badge">Best value</span>}
                       </div>
                       <span className="rd__sprint-line">{contrib ? `${line.displayName} · ${contrib}` : line.displayName}</span>
                       {(() => {

@@ -469,6 +469,14 @@ function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
                     {netPL >= 0 ? "+" : ""}{fmtRevShort(netPL)} net
                   </span>
                 )}
+                {lp.plannedUnits != null && lp.plannedUnits > 0 && (() => {
+                  const thru = Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100));
+                  return (
+                    <span className={`co__top-thru tnum${thru >= 85 ? " co__top-thru--full" : thru < 40 ? " co__top-thru--low" : ""}`}>
+                      {thru}% sold
+                    </span>
+                  );
+                })()}
               </span>
             </div>
           );

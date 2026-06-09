@@ -564,6 +564,18 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             </p>
           );
         })()}
+        {/* "Your best in rising stat" context — only when a stat is climbing and you have products */}
+        {hotStatDelta > 0.008 && state.launched.length > 0 && (() => {
+          const best = state.launched.reduce((m, lp) => Math.max(m, lp.stats[hotStat] ?? 0), 0);
+          if (best <= 0) return null;
+          const good = best >= 60;
+          return (
+            <p className="mkt__trends-yours">
+              Your best <strong>{STAT_LABEL[hotStat]}</strong>: <span className={good ? "mkt__trends-yours--good" : "mkt__trends-yours--low"}>{Math.round(best)}</span>
+              {!good && " — boost it with higher-tier components"}
+            </p>
+          );
+        })()}
         {(() => {
           const wks = state.trendRetargetWeek - state.week;
           if (wks > 8 || wks < 0) return null;

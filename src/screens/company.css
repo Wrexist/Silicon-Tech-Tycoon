@@ -175,6 +175,12 @@
 }
 .co__top-pl--pos { color: var(--positive-text); }
 .co__top-pl--neg { color: var(--negative); }
+.co__top-thru {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+.co__top-thru--full { color: var(--positive-text); }
+.co__top-thru--low { color: var(--warning-text, var(--warning)); }
 
 /* ---------- Achievements entry row ---------- */
 .co__ach-row {
