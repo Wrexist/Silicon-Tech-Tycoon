@@ -802,7 +802,7 @@ function ProductDetailSheet({
         <Stat
           label="Sell-through"
           value={sellThrough != null ? `${sellThrough}%` : "—"}
-          tone={sellThrough != null && sellThrough >= 90 ? "positive" : "neutral"}
+          tone={sellThrough == null ? "neutral" : sellThrough >= 90 ? "positive" : sellThrough < 50 ? "negative" : "neutral"}
           hint={lp.plannedUnits != null ? `${lp.plannedUnits.toLocaleString()} made` : undefined}
         />
         {(() => {

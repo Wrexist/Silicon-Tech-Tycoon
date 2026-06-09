@@ -174,7 +174,12 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
               <button
                 key={opt.id}
                 className="hq__choice-opt"
-                onClick={() => { resolveChoice(opt.id); haptic.success(); }}
+                onClick={() => {
+                  resolveChoice(opt.id);
+                  haptic.success();
+                  sfx("confirm");
+                  showToast(opt.label, { tone: state.pendingChoice!.event.tone === "negative" ? "negative" : "positive" });
+                }}
               >
                 <span className="hq__choice-opt-label">{opt.label}</span>
                 <span className="hq__choice-opt-desc">{opt.description}</span>
