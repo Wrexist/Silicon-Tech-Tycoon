@@ -16,8 +16,8 @@ import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, type Money } from "./engine/money.ts";
 import type { Product } from "./engine/types.ts";
-import { canAdvance, ipoValuation, legacyBonus, industryRank, type GameState } from "./state/gameState.ts";
-import { CATEGORY_LIST } from "./engine/catalogs.ts";
+import { canAdvance, ipoValuation, legacyBonus, industryRank, rdRpCostFor, researchedTier, type GameState } from "./state/gameState.ts";
+import { CATEGORY_LIST, COMPONENT_LINES, maxTier } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
 import { RESEARCH_PROJECTS } from "./engine/research.ts";
 import { HQ } from "./screens/HQ.tsx";
@@ -26,6 +26,23 @@ import { Research } from "./screens/Research.tsx";
 import { Market } from "./screens/Market.tsx";
 import { Company } from "./screens/Company.tsx";
 import "./App.css";
+
+/** Returns true when the player has enough RP to unlock at least one component tier or
+ *  research project in the current era — used to badge the R&D nav item. */
+function hasAffordableResearch(state: GameState): boolean {
+  const rp = Math.floor(state.researchPoints);
+  if (rp <= 0) return false;
+  const kinds = Object.keys(COMPONENT_LINES) as (keyof typeof COMPONENT_LINES)[];
+  for (const kind of kinds) {
+    const cur = researchedTier(state, kind);
+    if (cur >= maxTier(kind)) continue;
+    const cost = rdRpCostFor(state, kind);
+    if (cost !== null && rp >= cost) return true;
+  }
+  return RESEARCH_PROJECTS.some(
+    (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost,
+  );
+}
 
 const TAB_TITLE: Record<Tab, string> = {
   hq: "Silicon",
@@ -96,7 +113,7 @@ function AppShell() {
       <BottomNav
         active={tab}
         onChange={setTab}
-        badge={{ hq: canAdvance(state) }}
+        badge={{ hq: canAdvance(state), research: hasAffordableResearch(state) }}
       />
 
       <GainFX />

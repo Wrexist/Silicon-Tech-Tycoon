@@ -3,6 +3,7 @@ import { AlertTriangle, Ban, Check, FlipHorizontal2, Hammer, Lock, Megaphone, Mi
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
+import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { isCategoryUnlocked } from "../engine/eras.ts";
@@ -245,6 +246,7 @@ export function DesignLab({
       return;
     }
     haptic.success();
+    sfx("build");
     setWizard(false);
     showToast(`Production started — ${units.toLocaleString()} units on the line.`, { tone: "positive", glyph: <Hammer size={15} /> });
     setDraft({ ...freshDraft(state), name: suggestNextName(draft.name) });
@@ -689,26 +691,26 @@ export function DesignLab({
                     const tier = draft.tiers[kind] ?? 1;
                     const def = tierDef(kind, tier);
                     return def && toDollars(def.unitCost) > 0
-                      ? { name: def.name, cost: toDollars(def.unitCost) }
+                      ? { name: def.name, cost: def.unitCost, costD: toDollars(def.unitCost) }
                       : null;
                   })
-                  .filter(Boolean) as { name: string; cost: number }[];
+                  .filter(Boolean) as { name: string; cost: ReturnType<typeof sub>; costD: number }[];
                 if (rows.length === 0) return null;
-                const total = rows.reduce((s, r) => s + r.cost, 0);
+                const totalD = rows.reduce((s, r) => s + r.costD, 0);
                 return (
                   <div className="lab__bom">
                     {rows.map((r) => (
                       <div key={r.name} className="lab__bom-row">
                         <span className="lab__bom-name">{r.name}</span>
                         <span className="lab__bom-bar-wrap">
-                          <span className="lab__bom-bar" style={{ width: `${Math.round((r.cost / total) * 100)}%` }} />
+                          <span className="lab__bom-bar" style={{ width: `${Math.round((r.costD / totalD) * 100)}%` }} />
                         </span>
-                        <span className="lab__bom-val tnum">${r.cost}</span>
+                        <span className="lab__bom-val tnum">{format(r.cost)}</span>
                       </div>
                     ))}
                     <div className="lab__bom-total">
                       <span>BOM total</span>
-                      <span className="tnum">${total.toFixed(0)}</span>
+                      <span className="tnum">{format(unitCost)}</span>
                     </div>
                   </div>
                 );

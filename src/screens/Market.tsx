@@ -1139,7 +1139,7 @@ function SellStakeSheet({ onClose }: { onClose: () => void }) {
       <div className="trade__ipo-amount rounded tnum">+{format(dollars(Math.round(raised)))}</div>
       <Slider value={pct} min={1} max={Math.max(1, maxSell)} step={1} ariaLabel="Stake to sell" accent="var(--accent)" onChange={setPct} />
       <p className="trade__ipo-pct">Sell {Math.round(pct)}%</p>
-      <Button block onClick={() => { sellOwnStake(pct / 100); haptic.success(); showToast(`Sold ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); }}>
+      <Button block onClick={() => { sellOwnStake(pct / 100); haptic.success(); sfx("cash"); showToast(`Sold ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); }}>
         Confirm sale
       </Button>
     </div>

@@ -57,12 +57,14 @@
   --mat-ti-2: #78716c;
   --mat-gold: #d4af37;
 
-  /* Spacing — strict 8pt scale (with 2/6 half-steps for fine details) */
+  /* Spacing — 8pt scale with 2/6/10/14 half-steps for fine-grained layout */
   --sp-2: 2px;
   --sp-4: 4px;
   --sp-6: 6px;
   --sp-8: 8px;
+  --sp-10: 10px;
   --sp-12: 12px;
+  --sp-14: 14px;
   --sp-16: 16px;
   --sp-24: 24px;
   --sp-32: 32px;

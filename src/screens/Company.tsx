@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowUp, Award, BarChart3, Building2, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
+import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
@@ -823,7 +824,7 @@ function Member({
             </button>
           ))}
         </div>
-        <Button size="sm" variant={cash >= cost && !maxed ? "secondary" : "tertiary"} disabled={maxed || cash < cost} onClick={() => { haptic.success(); showToast(`${s.name} trained to level ${s.skill + 1}`, { tone: "positive" }); onTrain(s.id); }}>
+        <Button size="sm" variant={cash >= cost && !maxed ? "secondary" : "tertiary"} disabled={maxed || cash < cost} onClick={() => { haptic.success(); sfx("levelup"); showToast(`${s.name} trained to level ${s.skill + 1}`, { tone: "positive" }); onTrain(s.id); }}>
           <ArrowUp size={13} /> {maxed ? "Maxed" : `Lv ${s.skill + 1} · ${format(cost)}`}
         </Button>
       </div>
@@ -849,7 +850,7 @@ function Member({
         return label ? <p className="co__member-contrib">{label}</p> : null;
       })()}
       {isUnderpaid && (
-        <button className="co__raise-btn" onClick={() => { haptic.success(); showToast(`${s.name}'s salary raised to ${format(marketSalary)}/wk`, { tone: "positive" }); onRaise(s.id); }}>
+        <button className="co__raise-btn" onClick={() => { haptic.success(); sfx("cash"); showToast(`${s.name}'s salary raised to ${format(marketSalary)}/wk`, { tone: "positive" }); onRaise(s.id); }}>
           <ArrowUp size={12} aria-hidden /> Raise to {format(marketSalary)}/wk
         </button>
       )}
