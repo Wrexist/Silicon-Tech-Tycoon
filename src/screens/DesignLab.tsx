@@ -35,9 +35,11 @@ import {
   marketerSkill,
   planProduction,
   productStats,
+  rdRpCostFor,
   recommendedRun,
   researchedTier,
   verdictBands,
+  weeklyRpGen,
   type GameState,
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -312,8 +314,20 @@ export function DesignLab({
           if (breakdown.priceFit < 0.68) drags.push("pricing");
           if (breakdown.demand < 45) drags.push("stat fit");
           if (preview && preview.competitionFactor < 0.78) drags.push("competition");
-          if (drags.length === 0) return null;
-          return <p className="lab__score-why">Drag: {drags.join(" · ")}</p>;
+          if (breakdown.hype < 1.05) drags.push("hype");
+          const nextBar = effectiveScore >= bands.solid ? bands.hit
+            : effectiveScore > bands.flop ? bands.solid : bands.flop;
+          const gap = nextBar - effectiveScore;
+          const nextVerb = nextBar === bands.hit ? "hit"
+            : nextBar === bands.solid ? "solid" : "steady";
+          const gapHint = gap > 0 && gap <= 25 ? ` · +${Math.ceil(gap)} → ${nextVerb}` : "";
+          if (drags.length === 0 && !gapHint) return null;
+          return (
+            <p className="lab__score-why">
+              {drags.length > 0 && `Drag: ${drags.join(" · ")}`}
+              {gapHint && <span className="lab__score-gap">{gapHint}</span>}
+            </p>
+          );
         })()}
       </div>
 
@@ -439,15 +453,22 @@ export function DesignLab({
                       {def && contribLabel(def.contributes) && (
                         <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
                       )}
-                      {atMax && maxTier(kind) > maxT && (
-                        onNavigate ? (
+                      {atMax && maxTier(kind) > maxT && (() => {
+                        const rpCost = rdRpCostFor(state, kind);
+                        const perWk = weeklyRpGen(state);
+                        const rp = Math.floor(state.researchPoints);
+                        const etaWks = rpCost !== null && perWk > 0
+                          ? Math.ceil(Math.max(0, rpCost - rp) / perWk)
+                          : null;
+                        const etaSuffix = etaWks === 0 ? " · ready now" : etaWks !== null ? ` · ~${etaWks} wk` : "";
+                        return onNavigate ? (
                           <button className="lab__comp-locked lab__comp-locked--link" onClick={() => { haptic.light(); onNavigate("research"); }}>
-                            <Lock size={9} strokeWidth={2.5} /> T{maxT + 1} — unlock in R&amp;D
+                            <Lock size={9} strokeWidth={2.5} /> T{maxT + 1} in R&amp;D{etaSuffix}
                           </button>
                         ) : (
-                          <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
-                        )
-                      )}
+                          <span className="lab__comp-locked">T{maxT + 1} in R&amp;D{etaSuffix}</span>
+                        );
+                      })()}
                     </div>
                     <div className="lab__stepper">
                       <button onClick={() => { haptic.light(); setTier(kind, -1); }} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
@@ -461,9 +482,11 @@ export function DesignLab({
             {missing.length === 0 ? (
               <div className="lab__comp-ready">
                 <Check size={13} strokeWidth={2.5} />
-                <span>All selected.</span>
+                <span>
+                  All set — <span className={`lab__comp-ready-verdict lab__comp-ready-verdict--${verdict.tone}`}>{verdict.label.toLowerCase()}</span>
+                </span>
                 <button className="lab__comp-ready-cta" onClick={() => { haptic.light(); setLabTab("launch"); }}>
-                  Set price & build →
+                  Price & build →
                 </button>
               </div>
             ) : (
@@ -792,7 +815,9 @@ export function DesignLab({
                       <span className="lab__rev-label">Est. profit</span>
                       <span className={`lab__rev-val tnum${profD >= 0 ? " lab__rev-val--pos" : " lab__rev-val--neg"}`}>{format(plan.projectedProfit)}</span>
                     </div>
-                    <p className="lab__rev-note">{rec.toLocaleString()} units, no campaign</p>
+                    <p className="lab__rev-note">
+                      {rec.toLocaleString()} units, no campaign · ±{Math.round((state.completedProjects.includes("demandSensing") ? 0.08 : BALANCE.market.demandVariance) * 100)}% demand variance
+                    </p>
                   </div>
                 );
               })()}

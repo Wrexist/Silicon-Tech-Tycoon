@@ -10,7 +10,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { CATEGORY_LIST } from "../engine/catalogs.ts";
+import { CATEGORY_LIST, COMPONENT_LINES, tierDef } from "../engine/catalogs.ts";
 import { overallScore } from "../engine/product.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
 import { format, toDollars } from "../engine/money.ts";
@@ -32,8 +32,8 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
-import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canIPO, burn, industryRank, nextWeekRevenue, weeklyEcosystemRevenue, facility, planProduction, upgradeCost, verdictBands, type FeedItem, type GameState } from "../state/gameState.ts";
+import { STAT_KEYS, type CategoryId, type ComponentKind } from "../engine/types.ts";
+import { canAdvance, canIPO, burn, industryRank, nextWeekRevenue, weeklyEcosystemRevenue, facility, planProduction, rdRpCostFor, researchedTier, upgradeCost, verdictBands, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -894,7 +894,28 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     });
   }
 
-  // 2b. Recent flop post-mortem nudge — guide the player to diagnose the cause
+  // 2b. Affordable component tech unlock — same Research tab, different category from projects
+  if (insights.length < 3) {
+    const kinds = Object.keys(COMPONENT_LINES) as ComponentKind[];
+    const affordableTech = kinds.find((kind) => {
+      const cur = researchedTier(state, kind);
+      const cost = rdRpCostFor(state, kind);
+      if (cost === null || rp < cost) return false;
+      const next = tierDef(kind, cur + 1);
+      return !!next && next.era <= state.era;
+    });
+    if (affordableTech) {
+      const cur = researchedTier(state, affordableTech);
+      const next = tierDef(affordableTech, cur + 1);
+      insights.push({
+        icon: FlaskConical,
+        text: `You can research ${COMPONENT_LINES[affordableTech].displayName} T${cur + 1}${next ? ` (${next.name})` : ""} right now — head to Research to unlock it.`,
+        tab: "research",
+      });
+    }
+  }
+
+  // 2c. Recent flop post-mortem nudge — guide the player to diagnose the cause
   if (insights.length < 3) {
     const recentFlop = [...state.launched]
       .filter((lp) => lp.verdict === "flop")

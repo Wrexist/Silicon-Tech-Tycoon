@@ -83,6 +83,10 @@
   margin: calc(var(--sp-6) * -1) 0 var(--sp-4);
   letter-spacing: 0.01em;
 }
+.lab__score-gap {
+  color: var(--accent);
+  font-weight: 600;
+}
 .lab__flip {
   display: inline-flex;
   align-items: center;
@@ -341,6 +345,10 @@
   font-size: var(--fs-caption);
   font-weight: 600;
 }
+.lab__comp-ready-verdict { font-weight: 700; }
+.lab__comp-ready-verdict--positive { color: var(--positive-text); }
+.lab__comp-ready-verdict--accent { color: var(--accent); }
+.lab__comp-ready-verdict--negative { color: var(--negative-text); }
 .lab__comp-ready-cta {
   margin-left: auto;
   font-size: var(--fs-caption);

@@ -279,6 +279,12 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                             {Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))}%{!live ? " sold" : ""}
                           </span>
                         )}
+                        {live && !endingSoon && (lp.priceCuts ?? 0) === 0
+                          && lp.weeksElapsed > BALANCE.sales.peakWeek
+                          && lp.plannedUnits != null && lp.plannedUnits > 0
+                          && (lp.unitsSold / lp.plannedUnits) < 0.4 && (
+                          <span className="mkt__product-cut">↓ cut price?</span>
+                        )}
                       </span>
                     </span>
                     {live && lp.weeklyUnits.length > 0 && (

@@ -11,6 +11,7 @@ import { Avatar } from "../components/Avatar.tsx";
 import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
+import { channelById, type ChannelId } from "../engine/marketing.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
@@ -447,6 +448,14 @@ function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
       <div className="co__top-list">
         {top.map((lp, i) => {
           const v = lp.verdict as string ?? "steady";
+          // v9+ saves have plannedUnits — compute true net P&L (same formula as Market detail sheet)
+          const netPL = lp.plannedUnits != null && lp.plannedUnits > 0 ? (() => {
+            const chanId = (lp.product.channelId ?? "none") as ChannelId;
+            const chan = channelById(chanId);
+            const tooling = Math.max(toDollars(BALANCE.build.minTooling), toDollars(lp.unitCost) * BALANCE.build.toolingUnits);
+            const allCosts = toDollars(lp.unitCost) * lp.plannedUnits + tooling + toDollars(chan.cost);
+            return toDollars(lp.revenueToDate) - allCosts;
+          })() : null;
           return (
             <div key={lp.product.id} className="co__top-row">
               <span className="co__top-rank tnum">#{i + 1}</span>
@@ -455,6 +464,11 @@ function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
               <span className="co__top-meta">
                 <StatPill value={VERDICT_LABEL[v] ?? "Steady"} tone={VERDICT_TONE[v] ?? "accent"} />
                 <span className="co__top-rev tnum">{format(lp.revenueToDate)}</span>
+                {netPL !== null && (
+                  <span className={`co__top-pl tnum${netPL >= 0 ? " co__top-pl--pos" : " co__top-pl--neg"}`}>
+                    {netPL >= 0 ? "+" : ""}{fmtRevShort(netPL)} net
+                  </span>
+                )}
               </span>
             </div>
           );
