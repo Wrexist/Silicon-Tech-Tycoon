@@ -763,6 +763,12 @@ export function DesignLab({
                       <span className="lab__rev-label">Est. revenue</span>
                       <span className="lab__rev-val tnum">{format(plan.projectedRevenue)}</span>
                     </div>
+                    {state.fans > 0 && plan.preOrders > 0 && (
+                      <div className="lab__rev-row">
+                        <span className="lab__rev-label">Fan pre-orders</span>
+                        <span className="lab__rev-val tnum lab__rev-val--pos">{plan.preOrders.toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="lab__rev-row">
                       <span className="lab__rev-label">Est. profit</span>
                       <span className={`lab__rev-val tnum${profD >= 0 ? " lab__rev-val--pos" : " lab__rev-val--neg"}`}>{format(plan.projectedProfit)}</span>
