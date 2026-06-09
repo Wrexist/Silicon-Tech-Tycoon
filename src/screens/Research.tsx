@@ -303,7 +303,12 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                         size="sm"
                         variant={affordable ? "primary" : "tertiary"}
                         disabled={!affordable}
-                        onClick={() => { haptic.success(); sfx("rp"); showToast(`${next.name} unlocked`, { tone: "positive" }); research(kind); }}
+                        onClick={() => {
+                          haptic.success();
+                          sfx("rp");
+                          showToast(`${next.name} unlocked`, { tone: "positive", action: onNavigate ? () => onNavigate("design") : undefined, actionLabel: onNavigate ? "Design Lab" : undefined });
+                          research(kind);
+                        }}
                       >
                         {cost} RP
                       </Button>
@@ -472,7 +477,12 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                         <span className="rd__contrib">{nextDef && (curDef ? deltaLabel(curDef.contributes, nextDef.contributes) : contributesLabel(nextDef.contributes))}</span>
                       </div>
                       <div className="rd__project-action">
-                        <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); sfx("rp"); showToast(`${nextDef?.name ?? "Tech"} unlocked`, { tone: "positive" }); research(kind); }}>
+                        <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => {
+                            haptic.success();
+                            sfx("rp");
+                            showToast(`${nextDef?.name ?? "Tech"} unlocked`, { tone: "positive", action: onNavigate ? () => onNavigate("design") : undefined, actionLabel: onNavigate ? "Design Lab" : undefined });
+                            research(kind);
+                          }}>
                           {cost !== null ? `${cost} RP` : "—"}
                         </Button>
                         {!affordable && cost !== null && perWeek > 0 && (
