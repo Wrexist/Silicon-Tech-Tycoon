@@ -157,6 +157,18 @@
   flex-direction: column;
   gap: 1px;
 }
+.hq__ready-trend-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-10);
+  padding-top: var(--sp-10);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1.4;
+}
 .hq__build + .hq__build {
   margin-top: var(--sp-12);
 }

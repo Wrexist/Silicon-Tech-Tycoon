@@ -227,6 +227,15 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
               </div>
             );
           })}
+          {(() => {
+            const weeksToShift = state.trendRetargetWeek - state.week;
+            if (weeksToShift <= 0 || weeksToShift > 4) return null;
+            return (
+              <p className="hq__ready-trend-hint">
+                <Clock size={11} aria-hidden /> Trends shift in {weeksToShift} wk — launch now to ride current demand, or wait for the next cycle.
+              </p>
+            );
+          })()}
         </Card>
       )}
 
