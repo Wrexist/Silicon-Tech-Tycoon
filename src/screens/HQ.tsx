@@ -783,6 +783,20 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     });
   }
 
+  // 2b. Recent flop post-mortem nudge — guide the player to diagnose the cause
+  if (insights.length < 3) {
+    const recentFlop = [...state.launched]
+      .filter((lp) => lp.verdict === "flop")
+      .sort((a, b) => (b.launchedWeek ?? 0) - (a.launchedWeek ?? 0))[0];
+    if (recentFlop && state.week - (recentFlop.launchedWeek ?? 0) <= 10) {
+      insights.push({
+        icon: TrendingDown,
+        text: `${recentFlop.product.name} flopped. The Market tab shows demand fit, pricing, and competition analysis with tips for your next launch.`,
+        tab: "market",
+      });
+    }
+  }
+
   // 3. Product drought — no active products and nothing in the pipeline
   const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
   const inPipeline = state.building.length > 0 || state.ready.length > 0;

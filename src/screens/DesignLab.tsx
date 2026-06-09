@@ -439,6 +439,14 @@ export function DesignLab({
                 );
               })}
             </div>
+            {missing.length === 0 ? (
+              <div className="lab__comp-ready">
+                <Check size={13} strokeWidth={2.5} />
+                <span>All components selected — set a price on the Launch tab, then plan production.</span>
+              </div>
+            ) : (
+              <p className="lab__comp-missing-hint">{missing.length} component{missing.length > 1 ? "s" : ""} still needed.</p>
+            )}
           </Card>
         )}
 

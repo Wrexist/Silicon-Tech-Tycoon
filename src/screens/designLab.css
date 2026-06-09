@@ -322,6 +322,24 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+.lab__comp-ready {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  background: var(--fn-design-soft);
+  color: var(--fn-design-text);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+.lab__comp-missing-hint {
+  margin-top: var(--sp-8);
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  text-align: center;
+}
 .lab__stepper {
   display: inline-flex;
   align-items: center;
