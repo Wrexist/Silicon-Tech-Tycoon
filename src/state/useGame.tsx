@@ -110,6 +110,19 @@ function withStaffLevelToasts(prev: GameState, next: GameState): void {
   }
 }
 
+/** Fire a warning toast when a staff member quits during the live tick. */
+function withStaffQuitToasts(prev: GameState, next: GameState): void {
+  const nextIds = new Set(next.staff.map((s) => s.id));
+  for (const s of prev.staff) {
+    if (s.id === "s0") continue; // founder never quits
+    if (!nextIds.has(s.id)) {
+      try {
+        showToast(`${s.name} quit — raise their salary or improve morale to retain staff.`, { tone: "negative" });
+      } catch { /* toast host not mounted */ }
+    }
+  }
+}
+
 /** Fire a summary toast when a product finishes its sales run this tick. */
 function withProductFinishToasts(prev: GameState, next: GameState): void {
   for (const nlp of next.launched) {
@@ -269,6 +282,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         withRevToasts(s, next);
         withFanToasts(s, next);
         withStaffLevelToasts(s, next);
+        withStaffQuitToasts(s, next);
         withProductFinishToasts(s, next);
         return withLiveAchievements(next);
       });

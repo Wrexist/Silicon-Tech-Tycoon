@@ -238,6 +238,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         </Card>
       )}
 
+      <NowSellingCard state={state} onNavigate={onNavigate} />
       <Upgrades />
 
       {state.launched.length === 0 && state.building.length === 0 && state.ready.length === 0 ? (
@@ -600,6 +601,53 @@ function Upgrades() {
         })}
       </div>
     </>
+  );
+}
+
+/** Compact card listing each product that is currently selling — visible at a glance on HQ
+ *  so the player knows what's earning without switching to the Market tab. Only renders
+ *  when ≥1 product is active; hidden after all runs finish. */
+function NowSellingCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
+  const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
+  if (active.length === 0) return null;
+  const totalWeeklyRevD = active.reduce((s, lp) => {
+    const u = lp.weeklyUnits[lp.weeksElapsed] ?? 0;
+    return s + u * toDollars(lp.product.price);
+  }, 0);
+  return (
+    <Card className="hq__selling">
+      <SectionHeader
+        title="Now selling"
+        accessory={<span className="hq__selling-total">{fmtRevShort(totalWeeklyRevD)}/wk</span>}
+      />
+      <div className="hq__selling-list">
+        {active.map((lp) => {
+          const weeklyRevD = (lp.weeklyUnits[lp.weeksElapsed] ?? 0) * toDollars(lp.product.price);
+          const wkLeft = lp.weeklyUnits.length - lp.weeksElapsed;
+          const endingSoon = wkLeft <= 3;
+          const isRamp = lp.weeksElapsed < BALANCE.sales.peakWeek;
+          const isPeak = lp.weeksElapsed === BALANCE.sales.peakWeek;
+          const stageKey = endingSoon ? "end" : isPeak ? "peak" : isRamp ? "ramp" : "fade";
+          const stageLabel = endingSoon
+            ? `last ${wkLeft} wk` : isPeak ? "peak" : isRamp ? "rising" : "fading";
+          return (
+            <button
+              key={lp.product.id}
+              className="hq__selling-row"
+              onClick={() => { haptic.light(); onNavigate("market"); }}
+              aria-label={`${lp.product.name} — view on Market`}
+            >
+              <div className="hq__selling-thumb"><DeviceRenderer product={lp.product} size={36} /></div>
+              <div className="hq__selling-info">
+                <span className="hq__selling-name">{lp.product.name}</span>
+                <span className="hq__selling-rev tnum">{fmtRevShort(weeklyRevD)}/wk</span>
+              </div>
+              <span className={`hq__selling-stage hq__selling-stage--${stageKey}`}>{stageLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 

@@ -1070,3 +1070,81 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+
+/* ---------- Now Selling ---------- */
+.hq__selling-total {
+  font-weight: 700;
+  color: var(--positive-text);
+}
+.hq__selling-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hq__selling-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  padding: var(--sp-8) var(--sp-4);
+  border-radius: var(--r-button);
+  text-align: left;
+  transition: background var(--spring-snappy);
+  width: 100%;
+}
+.hq__selling-row:hover {
+  background: var(--bg-elevated);
+}
+.hq__selling-row:active {
+  background: var(--bg-elevated);
+  transform: scale(0.99);
+}
+.hq__selling-thumb {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+}
+.hq__selling-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.hq__selling-name {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hq__selling-rev {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--positive-text);
+}
+.hq__selling-stage {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+.hq__selling-stage--ramp {
+  background: var(--fn-design-soft);
+  color: var(--fn-design-text);
+}
+.hq__selling-stage--peak {
+  background: var(--positive-soft);
+  color: var(--positive-text);
+}
+.hq__selling-stage--fade {
+  background: var(--bg-elevated);
+  color: var(--ink-2);
+}
+.hq__selling-stage--end {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
