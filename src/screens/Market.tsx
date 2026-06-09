@@ -537,6 +537,14 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           })}
         </div>
         {(() => {
+          const topStat = STAT_KEYS.reduce((best, k) => trends.weights[k] > trends.weights[best] ? k : best, STAT_KEYS[0]);
+          return (
+            <p className="mkt__trends-hint">
+              Solid bar = demand <strong>today</strong> · ghost = where it's <strong>heading</strong>. Products that score high in the tallest bars earn the most demand. Currently: <strong>{STAT_LABEL[topStat]}</strong> is most valued.
+            </p>
+          );
+        })()}
+        {(() => {
           const wks = state.trendRetargetWeek - state.week;
           if (wks > 8 || wks < 0) return null;
           return (

@@ -1280,6 +1280,14 @@
   padding-right: var(--sp-4);
 }
 
+/* Brief "how to read this" note above the trend shift footer */
+.mkt__trends-hint {
+  margin: var(--sp-10) 0 0;
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
 /* Trend shift countdown footer inside the "What the market wants" card */
 .mkt__trend-footer {
   display: flex;

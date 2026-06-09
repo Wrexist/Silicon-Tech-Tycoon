@@ -956,7 +956,18 @@ function BuildWizard({
             <Stat label="Competition" value={compLabel} tone={compTone} />
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
-            <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "sells out" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
+            {(() => {
+              const unsold = Math.max(0, plan.plannedUnits - plan.projectedSales);
+              const writeOff = unsold > 0 ? dollars(Math.round(unsold * toDollars(plan.unitCost))) : null;
+              return (
+                <Stat
+                  label="Projected sales"
+                  value={plan.projectedSales.toLocaleString()}
+                  tone={plan.sellsOut ? "positive" : unsold > plan.plannedUnits * 0.15 ? "negative" : undefined}
+                  hint={plan.sellsOut ? "sells out" : writeOff ? `${unsold.toLocaleString()} unsold · ${format(writeOff)} lost` : undefined}
+                />
+              );
+            })()}
             {channel !== "none" && (() => {
               const chan = MARKETING_CHANNELS.find((c) => c.id === channel);
               return chan ? <Stat label="Campaign" value={chan.name} hint={format(chan.cost)} /> : null;
@@ -994,6 +1005,16 @@ function BuildWizard({
             return (
               <p className="wiz__warn wiz__warn--shift">
                 <Clock size={14} /> Trends shift in {weeksToShift} wk but this build takes {buildWks} wk — demand fit shown reflects today's trends, not launch day.
+              </p>
+            );
+          })()}
+          {(() => {
+            const unsold = Math.max(0, plan.plannedUnits - plan.projectedSales);
+            if (!affordable || unsold < plan.plannedUnits * 0.3) return null;
+            const writeOff = dollars(Math.round(unsold * toDollars(plan.unitCost)));
+            return (
+              <p className="wiz__warn wiz__warn--risk">
+                <AlertTriangle size={14} /> Overproduction risk: {Math.round((unsold / plan.plannedUnits) * 100)}% of this run ({unsold.toLocaleString()} units · {format(writeOff)}) is unlikely to sell — reduce the run size to protect cash.
               </p>
             );
           })()}
