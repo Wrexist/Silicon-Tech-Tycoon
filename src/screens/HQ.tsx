@@ -128,6 +128,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
             onClick={() => {
               advanceEra();
               haptic.success();
+              sfx("era");
               showToast(`Welcome to the ${eraName(state.era + 1)}`, { tone: "positive", glyph: <Sparkles size={15} /> });
             }}
           >
@@ -186,7 +187,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       {/* Ready to launch */}
       {state.ready.length > 0 && (
         <Card className="hq__ready">
-          <SectionHeader title="Ready to launch" accessory="market & release" />
+          <SectionHeader title="Ready to launch" accessory="tap Launch to release" />
           {state.ready.map((p) => (
             <div className="hq__ready-row" key={p.id}>
               <div className="hq__ready-thumb"><DeviceRenderer product={p} size={52} /></div>

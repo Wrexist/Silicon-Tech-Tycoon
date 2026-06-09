@@ -924,7 +924,7 @@ function RecruitPanel({
               key={tier}
               className="co__recruit-tier"
               disabled={!affordable}
-              onClick={() => { haptic.light(); onRecruit(tier); }}
+              onClick={() => { haptic.light(); showToast(`${t.label} search started — results in ${t.weeks} weeks`, { tone: "neutral" }); onRecruit(tier); }}
             >
               <span className="co__recruit-tier-name">{t.label}</span>
               <span className="co__recruit-tier-meta">{t.weeks} wks · skill {t.minLevel}–{t.maxLevel}</span>

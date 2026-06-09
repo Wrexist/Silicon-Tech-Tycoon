@@ -1077,13 +1077,13 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
           block
           variant="secondary"
           disabled={owned <= 0}
-          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); showToast(`Sold ${q} ${comp.name}`, { tone: "neutral" }); }}
+          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); sfx("tap"); showToast(`Sold ${q} ${comp.name}`, { tone: "neutral" }); }}
         >
           Sell · {format(proceeds)}
         </Button>
       </div>
       {owned > 0 && (
-        <Button block variant="tertiary" onClick={() => { sellShares(comp.id, owned); haptic.medium(); onClose(); }}>
+        <Button block variant="tertiary" onClick={() => { sellShares(comp.id, owned); haptic.medium(); sfx("tap"); onClose(); }}>
           Sell all {owned}
         </Button>
       )}

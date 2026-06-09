@@ -8,6 +8,8 @@ import { Coach } from "./components/Coach.tsx";
 import { ToastHost } from "./design/toast.tsx";
 import { GainFX } from "./design/GainFX.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
+import { haptic } from "./design/haptics.ts";
+import { sfx } from "./design/sound.ts";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { Settings } from "./screens/Settings.tsx";
 import { Button, Card } from "./design/primitives.tsx";
@@ -200,7 +202,7 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
           </Card>
         )}
 
-        <Button block onClick={onDismiss}>Let's go →</Button>
+        <Button block onClick={() => { haptic.success(); sfx("era"); onDismiss(); }}>Let's go →</Button>
       </div>
     </div>
   );
