@@ -204,6 +204,12 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
               <div className="hq__ready-info">
                 <span className="hq__ready-name">{p.name}</span>
                 {p.plannedUnits != null && <span className="hq__ready-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+                {p.channelId && p.channelId !== "none" && (
+                  <span className="hq__ready-channel">
+                    <Megaphone size={10} />
+                    {channelById(p.channelId as ChannelId).name}
+                  </span>
+                )}
               </div>
               <Button size="sm" onClick={() => onLaunch(p.id)}>
                 <Rocket size={15} /> Launch

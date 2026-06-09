@@ -406,83 +406,106 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         );
       })()}
       <SectionHeader title="Component tech" accessory="unlock higher tiers" />
-      {sortedKinds.map((kind) => {
-        const line = COMPONENT_LINES[kind];
-        const cur = researchedTier(state, kind);
-        const max = maxTier(kind);
-        const curDef = tierDef(kind, cur);
-        const nextDef = tierDef(kind, cur + 1);
-        const cost = rdRpCostFor(state, kind);
-        const eraLocked = !!nextDef && nextDef.era > state.era;
-        const maxed = cur >= max;
-        const affordable = cost !== null && rp >= cost;
-
+      {(() => {
+        const maxedKinds = sortedKinds.filter((k) => researchedTier(state, k) >= maxTier(k));
+        const activeKinds = sortedKinds.filter((k) => researchedTier(state, k) < maxTier(k));
         return (
-          <Card key={kind}>
-            <SectionHeader title={line.displayName} accessory={<span className="rd__tier">T{cur}/{max}</span>} />
-            <div className="rd__tier-pips">
-              {Array.from({ length: max }).map((_, i) => (
-                <span key={i} className={`rd__tier-pip${i < cur ? " rd__tier-pip--on" : ""}`} />
-              ))}
-            </div>
-            {(() => {
-              const usedIn = CATEGORY_LIST.filter(
-                (c) => c.unlockEra <= state.era && c.slots.includes(kind),
-              );
-              if (usedIn.length === 0) return null;
-              return (
-                <div className="rd__used-in">
-                  {usedIn.map((c) => (
-                    <span key={c.id} className="rd__used-cat">
-                      <CategoryIcon id={c.id} size={10} />{c.displayName}
-                    </span>
-                  ))}
-                </div>
-              );
-            })()}
-            {!maxed && !eraLocked && (() => {
-              const active = state.launched.filter(
-                (lp) =>
-                  lp.weeksElapsed < lp.weeklyUnits.length &&
-                  CATEGORY_LIST.some((c) => c.id === lp.product.category && c.slots.includes(kind)),
-              );
-              if (active.length === 0) return null;
-              const prod = active[0];
-              const prodTier = prod.product.tiers[kind] ?? 0;
-              return (
-                <p className="rd__active-hint">
-                  Active: <strong>{prod.product.name}</strong> using T{prodTier} — upgrade to unlock T{cur + 1} for your next design.
-                </p>
-              );
-            })()}
-            <div className="rd__current">
-              <StatPill label="Current" value={curDef?.name ?? "—"} />
-              {curDef && <span className="rd__contrib">{contributesLabel(curDef.contributes)}</span>}
-            </div>
+          <>
+            {activeKinds.map((kind) => {
+              const line = COMPONENT_LINES[kind];
+              const cur = researchedTier(state, kind);
+              const max = maxTier(kind);
+              const curDef = tierDef(kind, cur);
+              const nextDef = tierDef(kind, cur + 1);
+              const cost = rdRpCostFor(state, kind);
+              const eraLocked = !!nextDef && nextDef.era > state.era;
+              const affordable = cost !== null && rp >= cost;
 
-            {maxed ? (
-              <div className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Fully researched</div>
-            ) : eraLocked ? (
-              <div className="rd__locked"><Lock size={12} /> Unlocks in the {eraName(nextDef!.era)}</div>
-            ) : (
-              <div className="rd__next">
-                <div className="rd__next-info">
-                  <span className="rd__next-name">{nextDef?.name}</span>
-                  <span className="rd__contrib">{nextDef && (curDef ? deltaLabel(curDef.contributes, nextDef.contributes) : contributesLabel(nextDef.contributes))}</span>
-                </div>
-                <div className="rd__project-action">
-                  <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); sfx("rp"); showToast(`${nextDef?.name ?? "Tech"} unlocked`, { tone: "positive" }); research(kind); }}>
-                    {cost !== null ? `${cost} RP` : "—"}
-                  </Button>
-                  {!affordable && cost !== null && perWeek > 0 && (
-                    <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)} wk</span>
+              return (
+                <Card key={kind}>
+                  <SectionHeader title={line.displayName} accessory={<span className="rd__tier">T{cur}/{max}</span>} />
+                  <div className="rd__tier-pips">
+                    {Array.from({ length: max }).map((_, i) => (
+                      <span key={i} className={`rd__tier-pip${i < cur ? " rd__tier-pip--on" : ""}`} />
+                    ))}
+                  </div>
+                  {(() => {
+                    const usedIn = CATEGORY_LIST.filter(
+                      (c) => c.unlockEra <= state.era && c.slots.includes(kind),
+                    );
+                    if (usedIn.length === 0) return null;
+                    return (
+                      <div className="rd__used-in">
+                        {usedIn.map((c) => (
+                          <span key={c.id} className="rd__used-cat">
+                            <CategoryIcon id={c.id} size={10} />{c.displayName}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  {!eraLocked && (() => {
+                    const active = state.launched.filter(
+                      (lp) =>
+                        lp.weeksElapsed < lp.weeklyUnits.length &&
+                        CATEGORY_LIST.some((c) => c.id === lp.product.category && c.slots.includes(kind)),
+                    );
+                    if (active.length === 0) return null;
+                    const prod = active[0];
+                    const prodTier = prod.product.tiers[kind] ?? 0;
+                    return (
+                      <p className="rd__active-hint">
+                        Active: <strong>{prod.product.name}</strong> using T{prodTier} — upgrade to unlock T{cur + 1} for your next design.
+                      </p>
+                    );
+                  })()}
+                  <div className="rd__current">
+                    <StatPill label="Current" value={curDef?.name ?? "—"} />
+                    {curDef && <span className="rd__contrib">{contributesLabel(curDef.contributes)}</span>}
+                  </div>
+                  {eraLocked ? (
+                    <div className="rd__locked"><Lock size={12} /> Unlocks in the {eraName(nextDef!.era)}</div>
+                  ) : (
+                    <div className="rd__next">
+                      <div className="rd__next-info">
+                        <span className="rd__next-name">{nextDef?.name}</span>
+                        <span className="rd__contrib">{nextDef && (curDef ? deltaLabel(curDef.contributes, nextDef.contributes) : contributesLabel(nextDef.contributes))}</span>
+                      </div>
+                      <div className="rd__project-action">
+                        <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); sfx("rp"); showToast(`${nextDef?.name ?? "Tech"} unlocked`, { tone: "positive" }); research(kind); }}>
+                          {cost !== null ? `${cost} RP` : "—"}
+                        </Button>
+                        {!affordable && cost !== null && perWeek > 0 && (
+                          <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)} wk</span>
+                        )}
+                      </div>
+                    </div>
                   )}
+                </Card>
+              );
+            })}
+            {maxedKinds.length > 0 && (
+              <div className="rd__maxed-group">
+                <span className="rd__maxed-group-label">
+                  <Check size={11} strokeWidth={3} /> Fully researched · {maxedKinds.length}
+                </span>
+                <div className="rd__maxed-chips">
+                  {maxedKinds.map((kind) => {
+                    const cur = researchedTier(state, kind);
+                    const max = maxTier(kind);
+                    return (
+                      <span key={kind} className="rd__maxed-chip">
+                        {COMPONENT_LINES[kind].displayName}
+                        <span className="rd__maxed-chip-tier">T{cur}/{max}</span>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             )}
-          </Card>
+          </>
         );
-      })}
+      })()}
     </div>
   );
 }

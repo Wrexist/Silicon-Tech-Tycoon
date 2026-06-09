@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Building2, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Building2, ChevronRight, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -26,6 +26,7 @@ import {
   TRAIT_INFO,
 } from "../engine/staff.ts";
 import type { Assignment, Candidate, LaunchedProduct, RecruitTier, Staff, StaffRole } from "../engine/types.ts";
+import type { Tab } from "../components/BottomNav.tsx";
 import {
   burn,
   facilityRent,
@@ -88,7 +89,7 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
   marketing: "var(--fn-mkt)",
 };
 
-export function Company() {
+export function Company({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise } = useGame();
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
@@ -232,8 +233,14 @@ export function Company() {
                 ? cents(lp.weeklyUnits[nextIdx] * lp.product.price)
                 : null;
               const trend = nextWkRevenue !== null ? Math.sign(nextWkRevenue - weeklyRevenue) : 0;
+              const Row = onNavigate ? "button" : "div";
               return (
-                <div key={lp.product.id} className="co__active-row">
+                <Row
+                  key={lp.product.id}
+                  className={`co__active-row${onNavigate ? " co__active-row--link" : ""}`}
+                  {...(onNavigate ? { onClick: () => { haptic.light(); onNavigate("market"); } } : {})}
+                  aria-label={onNavigate ? `View ${lp.product.name} on Market` : undefined}
+                >
                   <span className="co__active-name">{lp.product.name}</span>
                   <span className="co__active-meta">
                     <span className="co__active-rev">{format(weeklyRevenue)}/wk</span>
@@ -244,8 +251,9 @@ export function Company() {
                       </span>
                     )}
                     <span className="co__active-eta">{weeksLeft} wk left</span>
+                    {onNavigate && <ChevronRight size={12} className="co__active-chevron" aria-hidden />}
                   </span>
-                </div>
+                </Row>
               );
             })}
           </div>

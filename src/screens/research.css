@@ -433,6 +433,47 @@
   transition: width var(--spring-standard);
 }
 
+/* Compact "fully researched" group at the bottom of component tech */
+.rd__maxed-group {
+  padding: var(--sp-12) var(--sp-16);
+  border-radius: var(--r-card);
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+}
+.rd__maxed-group-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--positive-text, var(--positive));
+  margin-bottom: var(--sp-10);
+}
+.rd__maxed-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+}
+.rd__maxed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.rd__maxed-chip-tier {
+  font-weight: 800;
+  color: var(--positive-text, var(--positive));
+  font-size: 9px;
+}
+
 /* R&D sprint / top picks panel */
 .rd__sprint { }
 .rd__sprint-list {

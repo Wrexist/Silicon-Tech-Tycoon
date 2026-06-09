@@ -103,7 +103,7 @@ function AppShell() {
           {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onNavigate={setTab} />}
           {tab === "research" && <Research onNavigate={setTab} />}
           {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
-          {tab === "company" && <Company />}
+          {tab === "company" && <Company onNavigate={setTab} />}
         </ErrorBoundary>
         <div className="app__spacer" />
       </main>
