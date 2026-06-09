@@ -33,7 +33,7 @@ import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
-import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useCallback, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
 import { useSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
@@ -271,11 +271,15 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
   const searching = search.trim().length > 0;
   const visibleItems = searching ? searchFurniture(search) : FURNITURE.filter((f) => f.category === cat);
 
-  const snapshot = () => {
-    history.current.push(state.layout);
+  // Always-current layout for the undo snapshot, so the memoized builder callbacks below don't
+  // have to be rebuilt every render just to capture the latest layout reference.
+  const layoutRef = useRef(state.layout);
+  layoutRef.current = state.layout;
+  const snapshot = useCallback(() => {
+    history.current.push(layoutRef.current);
     if (history.current.length > 40) history.current.shift();
     setHistLen(history.current.length);
-  };
+  }, []);
   const undo = () => {
     const prev = history.current.pop();
     setHistLen(history.current.length);
@@ -287,7 +291,10 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
     }
   };
 
-  const builder: BuildProps = {
+  // Memoized: the 1s/8s sim tick re-renders this component, and a fresh builder object every
+  // render defeats React.memo on the 1,700-line R3F scene (the v9-flagged perf gap). Deps only
+  // change when the player actually interacts with Decorate mode.
+  const builder: BuildProps = useMemo(() => ({
     build,
     layout: state.layout,
     placingType,
@@ -309,7 +316,18 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
       setSelectedIid(iid);
       if (iid) setPlacingType(null);
     },
-  };
+  }), [build, state.layout, placingType, placeRot, selectedIid, snapshot, placeFurniture, moveFurniture]);
+
+  // Narrowed staff snapshot for the 3D scene: per-tick mood drift/XP gives every staff object a
+  // NEW identity each week, which would re-reconcile the whole scene. The scene only shows
+  // identity, desk count, a coarse mood band and the headline skills — so keep the same array
+  // until one of those actually changes.
+  const staffSceneKey = state.staff
+    .map((s) => `${s.id}${s.appearance.skin}${s.appearance.hair}${s.appearance.hairColor}${s.appearance.shirt}${s.appearance.accessory}${Math.round(s.mood / 12)}${s.skills.engineering},${s.skills.design},${s.skills.marketing}`)
+    .join(";");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const staff3d = useMemo(() => state.staff, [staffSceneKey]);
+  const onGlLost = useCallback(() => setGlLost(true), []);
 
   const exit = () => {
     setBuild(false);
@@ -349,14 +367,14 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
           <ErrorBoundary fallback={<IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />}>
             <Suspense fallback={<IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />}>
               <Garage3D
-                staff={state.staff}
-                staffCount={state.staff.length}
+                staff={staff3d}
+                staffCount={staff3d.length}
                 facilityTier={state.facilityTier}
                 hasProduction={hasProduction}
                 upgrades={state.upgrades}
                 companyName={state.companyName}
                 dark={dark}
-                onContextLost={() => setGlLost(true)}
+                onContextLost={onGlLost}
                 builder={builder}
                 roomStyle={state.roomStyle}
                 height={build ? 460 : 420}

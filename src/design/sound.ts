@@ -11,8 +11,24 @@ function ac(): AudioContext | null {
     if (!Ctor) return null;
     ctx = new Ctor();
   }
-  if (ctx.state === "suspended") void ctx.resume();
+  // iOS uses "interrupted" (phone call / Siri), not just "suspended" — resume on ANY
+  // non-running state or post-interruption cues stay silent forever.
+  if (ctx.state !== "running") void ctx.resume();
   return ctx;
+}
+
+// iOS only unlocks audio from a user gesture; the first cue can be tick-driven (e.g. a build
+// finishing), which would create the context outside a gesture and leave it suspended. Warm it
+// up on the first pointer so every later cue — gesture-driven or not — can play.
+if (typeof window !== "undefined") {
+  const warmup = () => {
+    try {
+      ac();
+    } catch {
+      /* audio unavailable — cues simply stay silent */
+    }
+  };
+  window.addEventListener("pointerdown", warmup, { once: true, passive: true });
 }
 
 interface ToneSpec {

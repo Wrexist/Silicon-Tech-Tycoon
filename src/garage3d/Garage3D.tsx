@@ -1,6 +1,6 @@
 // Procedural real-time 3D HQ (react-three-fiber). Zero image assets — everything is built
 // from primitives + materials + real lights. Scoped to the garage only; devices stay SVG.
-import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, lazy, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -1633,13 +1633,20 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       )}
 
       {/* Bake the shadow pass once (frames={1}) — the scene is mostly static, so re-rendering the
-          depth pass every frame is wasted GPU. Re-bakes when the layout key below changes. */}
-      <ContactShadows key={builder?.layout.length ?? 0} position={[0, 0.02, 0]} scale={16} blur={3.0} far={6} opacity={dark ? 0.5 : 0.45} color={p.shadow} resolution={1024} frames={1} />
+          depth pass every frame is wasted GPU. The key re-bakes on anything that moves geometry:
+          item count alone missed moves/rotations (a dragged sofa kept its shadow at the old spot),
+          plus desks (staff) and upgrade fixtures. */}
+      <ContactShadows
+        key={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${Object.values(upgrades).join("")}`}
+        position={[0, 0.02, 0]} scale={16} blur={3.0} far={6} opacity={dark ? 0.5 : 0.45} color={p.shadow} resolution={1024} frames={1} />
     </>
   );
 }
 
-export function Garage3D({
+// memo: the host (HQ) re-renders on every sim tick; with the narrowed staff snapshot + memoized
+// builder it passes, this skips re-reconciling the whole R3F tree (incl. drei <Html> labels)
+// when nothing visible changed — the v9-flagged "biggest perf win", narrow version.
+export const Garage3D = memo(function Garage3D({
   staff = [],
   facilityTier,
   hasProduction,
@@ -1690,4 +1697,4 @@ export function Garage3D({
       </Canvas>
     </div>
   );
-}
+});
