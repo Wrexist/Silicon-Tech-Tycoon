@@ -116,7 +116,8 @@ export function Sparkline({
   );
 }
 
-/** A launched product's weekly-units curve with progress marker. */
+/** A launched product's weekly-units curve with progress marker.
+ *  Sold weeks → accent, current week → positive (brightest), future → hairline. */
 export function SalesCurveChart({
   weekly,
   elapsed,
@@ -130,11 +131,14 @@ export function SalesCurveChart({
 }) {
   const max = Math.max(...weekly, 1);
   const barW = width / weekly.length;
+  const live = elapsed < weekly.length;
   return (
     <svg width="100%" viewBox={`0 0 ${width} ${height}`} height={height} preserveAspectRatio="none">
       {weekly.map((u, i) => {
-        const h = (u / max) * (height - 4);
+        const h = Math.max(2, (u / max) * (height - 4));
+        const isCurrent = live && i === elapsed;
         const sold = i < elapsed;
+        const fill = isCurrent ? "var(--positive)" : sold ? "var(--accent)" : "var(--hairline)";
         return (
           <rect
             key={i}
@@ -143,7 +147,8 @@ export function SalesCurveChart({
             width={barW - 2}
             height={h}
             rx={1.5}
-            fill={sold ? "var(--accent)" : "var(--hairline)"}
+            fill={fill}
+            opacity={isCurrent ? 1 : sold ? 0.85 : 0.4}
           />
         );
       })}
