@@ -420,7 +420,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                       <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); sfx("levelup"); showToast(`${p.name} — ${p.blurb}`, { tone: "positive" }); buyProject(p.id); }}>
                         {p.rpCost} RP
                       </Button>
-                      {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway} wk</span>}
+                      {weeksAway !== null && <span className="rd__weeks-away">{weeksAway > 52 ? "1y+" : `~${weeksAway} wk`}</span>}
                     </div>
                   )}
                 </Card>
@@ -558,9 +558,10 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                           }}>
                           {cost !== null ? `${cost} RP` : "—"}
                         </Button>
-                        {!affordable && cost !== null && perWeek > 0 && (
-                          <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)} wk</span>
-                        )}
+                        {!affordable && cost !== null && perWeek > 0 && (() => {
+                          const wks = Math.ceil((cost - rp) / perWeek);
+                          return <span className="rd__weeks-away">{wks > 52 ? "1y+" : `~${wks} wk`}</span>;
+                        })()}
                       </div>
                     </div>
                   )}
