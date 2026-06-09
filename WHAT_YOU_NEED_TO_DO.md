@@ -88,7 +88,10 @@ In App Store Connect → your app → **App Store** tab → **1.0 Prepare for Su
 
 ---
 
-## Step 4 — Create the Creative Mode in-app purchase (10 min)
+## Step 4 — Create the Creative Mode in-app purchase (10 min — ONLY if you complete Step 7)
+
+> Skip this step entirely if you're shipping v1 without the IAP (see the decision point in
+> Step 7). Creating-but-not-wiring the IAP is the one combination that gets rejected.
 
 In App Store Connect → your app → **In-App Purchases** tab → **+**:
 
@@ -113,8 +116,7 @@ Open **Terminal** on your Mac:
 ```bash
 # 1. Clone the repo (if not done)
 git clone https://github.com/wrexist/silicon-tech-tycoon.git
-cd silicon-tech-tycoon
-git checkout claude/stoic-archimedes-lV0ht   # or merge to main first
+cd silicon-tech-tycoon   # build from main
 
 # 2. Install dependencies
 npm ci
@@ -153,21 +155,30 @@ Run on your iPhone or a Simulator (▶ button) to make sure it launches.
 
 ---
 
-## Step 7 — Wire StoreKit for the IAP (30 min, optional for first TestFlight)
+## Step 7 — Wire StoreKit for the IAP (30 min) — REQUIRED if you attach the IAP
 
-> **You can skip this for initial TestFlight testing** — the web build simulates the
-> purchase. To ship to the App Store properly, complete this step before submission.
+> **Decision point.** While StoreKit is unwired, the app automatically **hides** the Creative
+> Mode purchase UI on iOS, so you can submit v1 **without** the IAP: skip this step AND skip
+> Step 4 (don't create/attach the IAP), then add it in a 1.x update.
+> If you DO attach the IAP to the review version, this step is **mandatory** — App Review
+> tests the purchase, and an IAP that can't be bought is a guaranteed Guideline 2.1 rejection.
 
 Open `src/state/iap.ts`. Search for `NATIVE INTEGRATION POINT` — there are 3 stubs.
 
 **Install the plugin first:**
 ```bash
-npm i @capacitor-community/in-app-purchases
+npm i cordova-plugin-purchase
 npx cap sync ios
 ```
 
-Then in `src/state/iap.ts`, replace each stub with real calls. The commented example code
-in each stub shows exactly what to write. After editing:
+> ⚠️ Do NOT try `@capacitor-community/in-app-purchases` — that package does not exist on npm.
+> Alternative: `@revenuecat/purchases-capacitor` (needs a free RevenueCat account + an SDK
+> configure call with your API key; check its compatibility table against this project's
+> Capacitor version first).
+
+Then in `src/state/iap.ts`, implement each stub against the plugin's API (the commented
+sketches follow cordova-plugin-purchase v13 — verify against the plugin docs) and flip
+`NATIVE_IAP_WIRED` to `true` at the top of the file. After editing:
 
 ```bash
 npm run build && npx cap sync ios
@@ -207,7 +218,8 @@ In App Store Connect → your app → **App Privacy**:
 3. Save
 
 Back on the 1.0 submission page:
-- Attach the IAP to the version: scroll to **In-App Purchases** → add Creative Mode
+- Attach the IAP to the version (**only if Step 7 was completed**): scroll to
+  **In-App Purchases** → add Creative Mode. If StoreKit isn't wired, attach nothing.
 - Set **App Review Information** → Notes: paste the review notes block from `STORE_LISTING.md`
 - Click **Submit for Review**
 
@@ -223,11 +235,13 @@ Apple typically reviews in **1–3 days**.
 - [ ] `com.wrexist.silicon.sandbox` IAP created at $2.99
 - [ ] `npm ci && npm run build && npx cap add ios && npx cap sync ios` run on Mac
 - [ ] Signing configured in Xcode, build runs on device
-- [ ] (Optional) StoreKit wired in `src/state/iap.ts` and tested in simulator
+- [ ] StoreKit wired in `src/state/iap.ts` + buy AND restore tested on device
+      (**required** if the IAP is attached to the version — otherwise skip the IAP entirely
+      and ship it in a 1.x update; the app hides the purchase UI while unwired)
 - [ ] App archived and uploaded to App Store Connect
 - [ ] Tested on real iPhone via TestFlight
 - [ ] App Privacy declared ("Data Not Collected")
-- [ ] IAP attached to submission
+- [ ] IAP attached to submission (only with Step 7 done — never attach unwired)
 - [ ] Review notes filled in
 - [ ] Submitted for review
 

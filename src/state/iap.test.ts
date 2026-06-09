@@ -1,4 +1,5 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { Capacitor } from "@capacitor/core";
 import {
   hasSandboxEntitlement,
   grantSandboxEntitlement,
@@ -6,6 +7,7 @@ import {
 } from "./entitlements.ts";
 import {
   getSandboxProduct,
+  iapAvailable,
   purchaseSandbox,
   restoreSandbox,
   SANDBOX_PRODUCT_ID,
@@ -54,5 +56,25 @@ describe("IAP entitlements + Sandbox unlock", () => {
     expect((await restoreSandbox()).restored).toBe(false);
     grantSandboxEntitlement();
     expect((await restoreSandbox()).restored).toBe(true);
+  });
+});
+
+// Revenue-critical regression guard: on NATIVE, the unwired stub must never simulate a
+// purchase (that would give Creative Mode away for free on iOS — or worse, look like a
+// charge without StoreKit), and the purchase UI must be hidden (iapAvailable false).
+describe("IAP native gate (StoreKit unwired)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("web reports IAP available (simulated test channel)", () => {
+    expect(iapAvailable()).toBe(true);
+  });
+
+  it("native purchase is unavailable and grants nothing until StoreKit is wired", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    expect(iapAvailable()).toBe(false); // Settings hides the buy/restore UI on this
+    const res = await purchaseSandbox();
+    expect(res.status).toBe("unavailable");
+    expect(hasSandboxEntitlement()).toBe(false);
+    expect((await restoreSandbox()).restored).toBe(false);
   });
 });

@@ -66,34 +66,46 @@ Run on a simulator or a real device with the ▶ button to smoke-test.
 
 ## 4. Wire StoreKit for the Creative Mode IAP
 
-The purchase flow is fully built and tested; only the native StoreKit call is stubbed. There is
-**one** integration point: `src/state/iap.ts` (search for `NATIVE INTEGRATION POINT`). On web it
-simulates a purchase so the flow is testable; on device it currently returns `"unavailable"` until
-you complete these three lines of wiring.
+The purchase UI and entitlement flow are built; the native StoreKit calls are stubbed in
+`src/state/iap.ts` (search for `NATIVE INTEGRATION POINT`). **While unwired, the app hides the
+Creative Mode purchase UI on iOS** (`iapAvailable()` returns false), so you have two valid paths:
+
+- **Ship v1 without the IAP** — do NOT create or attach the IAP in App Store Connect; submit the
+  base game; wire StoreKit in a 1.x update. Nothing else to do in this section.
+- **Ship v1 with the IAP** — complete ALL steps below **before submitting**. If the IAP is
+  attached to the review version, App Review will test the purchase; a dead or hidden buy button
+  with an attached IAP is a Guideline 2.1 rejection.
 
 1. **App Store Connect** → your app → **In-App Purchases** → create a **Non-Consumable**:
    - Product ID: **`com.wrexist.silicon.sandbox`** (must match `SANDBOX_PRODUCT_ID`).
    - Reference name: "Creative Mode", price tier ≈ **$2.99**, with a localized display name +
      description and a review screenshot.
 
-2. **Install a purchases plugin** (either works):
+2. **Install a purchases plugin:**
    ```bash
-   npm i @capacitor-community/in-app-purchases   # or: npm i @revenuecat/purchases-capacitor
+   npm i cordova-plugin-purchase   # v13+, works with Capacitor
    npx cap sync ios
    ```
+   > ⚠️ Older versions of this doc referenced `@capacitor-community/in-app-purchases` — that
+   > package **does not exist on npm**. Alternative: `@revenuecat/purchases-capacitor` (requires a
+   > free RevenueCat account + API-key configure step; check its compatibility table for the major
+   > that supports this project's Capacitor version before installing).
 
-3. **Complete `src/state/iap.ts`** — replace the three `NATIVE INTEGRATION POINT` stubs
-   (`getSandboxProduct`, `purchaseSandbox`, `restoreSandbox`) with the plugin's
-   `getProducts` / `purchase` / `restorePurchases` calls, calling `grantSandboxEntitlement()` on a
-   verified transaction. The commented example code in each stub shows the exact shape.
+3. **Complete `src/state/iap.ts`** — implement the three `NATIVE INTEGRATION POINT` stubs
+   (`getSandboxProduct`, `purchaseSandbox`, `restoreSandbox`) against the installed plugin's real
+   API, calling `grantSandboxEntitlement()` on a verified transaction. The commented sketches in
+   each stub follow cordova-plugin-purchase v13 — verify them against the plugin docs. Then flip
+   **`NATIVE_IAP_WIRED` to `true`** (top of iap.ts) so the purchase UI shows on device, and
+   `npm run build && npx cap sync ios`.
 
 4. **Local testing:** add a **StoreKit Configuration File** in Xcode (Product → Scheme → Edit
    Scheme → Run → Options → StoreKit Configuration) with the same product id, so you can test
-   buy/restore in the simulator without App Store Connect.
+   buy/restore in the simulator without App Store Connect. Verify both **Unlock** and
+   **Restore purchase** complete on a device before submitting.
 
-The entitlement persists in `localStorage` (`silicon.iap.sandbox`), survives new games/restarts,
-and **Restore purchase** re-grants it. Settings shows the price + Unlock when unowned, and a free
-on/off toggle once owned.
+The entitlement persists on-device (`silicon.iap.sandbox`), survives new games/restarts, and
+**Restore purchase** re-grants it after reinstall once StoreKit is wired. Settings shows the
+price + Unlock when unowned, and a free on/off toggle once owned.
 
 ---
 

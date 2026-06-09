@@ -307,7 +307,8 @@ Recommended pre-submission checklist:
 - [ ] Support URL is live
 - [ ] PrivacyInfo.xcprivacy added to Xcode target
 - [ ] In-App Purchase created in App Store Connect with correct product ID
-- [ ] IAP attached to the app version for review
+      (only if StoreKit is wired — see WHAT_YOU_NEED_TO_DO.md Step 7; otherwise skip the IAP for v1)
+- [ ] IAP attached to the app version for review (only with StoreKit wired — never attach unwired)
 - [ ] Age rating questionnaire completed → 4+
 - [ ] All 5 screenshots uploaded in the correct order
 - [ ] Review notes filled in (see above)

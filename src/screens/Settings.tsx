@@ -21,7 +21,7 @@ import { format, toDollars } from "../engine/money.ts";
 import { netWorth } from "../state/gameState.ts";
 import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
 import { hasSandboxEntitlement } from "../state/entitlements.ts";
-import { getSandboxProduct, purchaseSandbox, restoreSandbox, type ProductInfo } from "../state/iap.ts";
+import { getSandboxProduct, iapAvailable, purchaseSandbox, restoreSandbox, type ProductInfo } from "../state/iap.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./settings.css";
 
@@ -314,6 +314,11 @@ function CreativeModeGroup() {
       showToast("No previous purchases found.", { tone: "neutral" });
     }
   }
+
+  // Unwired native build: no working purchase path, so don't show a buy button that dead-ends
+  // (App Review tests every visible IAP entry point). Owners who already hold the entitlement
+  // (e.g. granted by a future wired build) still get their toggle.
+  if (!owned && !iapAvailable()) return null;
 
   return (
     <div className="set__group">
