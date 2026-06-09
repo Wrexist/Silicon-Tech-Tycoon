@@ -515,7 +515,7 @@ export function planProduction(
   const projectedRevenue = scale(product.price, projectedSales);
   const projectedProfit = sub(sub(projectedRevenue, productionCost), add(tooling, channelCost)) as Money;
   const spendable = sub(s.cash, add(tooling, channelCost));
-  const maxAffordableUnits = unitCost > 0 ? Math.max(0, Math.floor(toDollars(spendable) / toDollars(unitCost))) : BALANCE.build.maxRun;
+  const maxAffordableUnits = unitCost > 0 ? Math.min(BALANCE.build.maxRun, Math.max(0, Math.floor(toDollars(spendable) / toDollars(unitCost)))) : BALANCE.build.maxRun;
 
   return {
     plannedUnits: planned,
@@ -813,10 +813,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
     ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
     : BALANCE.fans.decayPerWeek;
-  const newFans = Math.round(
+  const newFans = Math.max(0, Math.round(
     state.fans * Math.pow(loyaltyDecay, rate)
     + (hasProject(state.completedProjects, "contentMarketing") ? 100 * rate : 0)
-  );
+  ));
 
   // Quarterly checkpoint: a snapshot feed item every BALANCE.quartersWeeks weeks to mark
   // the end of a "fiscal quarter" — gives the player a regular moment of reflection.
@@ -1136,7 +1136,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     if (metShare >= fb.selloutMinDemandShare) fans *= 1 + fb.selloutFanBonus;
     else fans = Math.max(0, fans * (1 - fb.undersupplyFanPenalty));
   }
-  fans = Math.round(fans);
+  fans = Math.min(100_000_000, Math.max(0, Math.round(fans)));
 
   // Fan milestones — surface crossing big numbers as celebratory feed items + rep bonus.
   const fanMilestones = fanMilestoneResult(state.fans, fans, state.week);
