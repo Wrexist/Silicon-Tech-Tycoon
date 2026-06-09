@@ -131,9 +131,10 @@ function withProductFinishToasts(prev: GameState, next: GameState): void {
     if (!plp || plp.weeksElapsed >= plp.weeklyUnits.length) continue; // wasn't selling last tick either
     const v = nlp.verdict ?? "steady";
     const tone = v === "hit" || v === "solid" ? "positive" : v === "flop" ? "negative" : "neutral";
+    const verdictSuffix = v === "hit" ? " — what a hit!" : v === "solid" ? " — solid run." : v === "flop" ? " — slow sales." : " — run complete.";
     try {
       showToast(
-        `${nlp.product.name} finished its run — ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
+        `${nlp.product.name}${verdictSuffix} ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
         { tone },
       );
     } catch { /* toast host not mounted */ }

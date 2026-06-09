@@ -375,7 +375,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
                   ) : (
                     <div className="rd__project-action">
-                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); sfx("levelup"); showToast(`${p.name} complete`, { tone: "positive" }); buyProject(p.id); }}>
+                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { haptic.success(); sfx("levelup"); showToast(`${p.name} — ${p.blurb}`, { tone: "positive" }); buyProject(p.id); }}>
                         {p.rpCost} RP
                       </Button>
                       {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway} wk</span>}

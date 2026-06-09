@@ -354,6 +354,7 @@ function NearMilestonesCard({ state }: { state: GameState }) {
     "all-rivals": [facts.rivalsInvested, 6],
     "first-research": [facts.completedProjects, 1],
     "research-4": [facts.completedProjects, 4],
+    "research-all": [facts.completedProjects, RESEARCH_PROJECTS.length],
     "big-run": [facts.biggestRun, 50_000],
     "mega-run": [facts.biggestRun, 200_000],
     "networth-1m": [facts.netWorth, 1_000_000],
