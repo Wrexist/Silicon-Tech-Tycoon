@@ -739,7 +739,11 @@ function TeamOutputCard({ state }: { state: GameState }) {
           })
           .filter(Boolean)
           .sort((a, b) => a!.weeksToLevel - b!.weeksToLevel)[0];
-        if (!soonest) return null;
+        if (!soonest) {
+          const allMaxed = state.staff.length > 0 && state.staff.every((s) => s.skill >= BALANCE.staff.maxSkill);
+          if (!allMaxed) return null;
+          return <p className="co__output-levelup co__output-levelup--maxed">All {state.staff.length} staff at max skill — peak team output achieved.</p>;
+        }
         return (
           <p className="co__output-levelup">
             Next level-up: <strong>{soonest.name}</strong> reaches skill {soonest.skill + 1} in {soonest.weeksToLevel > 52 ? "1y+" : `~${soonest.weeksToLevel} wk`}.

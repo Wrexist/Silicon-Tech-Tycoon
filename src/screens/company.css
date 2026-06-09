@@ -789,6 +789,9 @@
 .co__output-levelup strong {
   color: var(--accent);
 }
+.co__output-levelup--maxed {
+  color: var(--positive);
+}
 .co__member-contrib {
   font-size: var(--fs-micro);
   font-weight: 700;

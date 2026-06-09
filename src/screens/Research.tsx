@@ -504,9 +504,13 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     if (active.length === 0) return null;
                     const prod = active[0];
                     const prodTier = prod.product.tiers[kind] ?? 0;
+                    const isBehind = prodTier < cur;
                     return (
                       <p className="rd__active-hint">
-                        Active: <strong>{prod.product.name}</strong> using T{prodTier} — upgrade to unlock T{cur + 1} for your next design.
+                        Active: <strong>{prod.product.name}</strong>{isBehind
+                          ? ` uses T${prodTier} (T${cur} now available) — unlock T${cur + 1} to go further.`
+                          : ` using T${cur} — upgrade to unlock T${cur + 1} for your next design.`
+                        }
                       </p>
                     );
                   })()}
