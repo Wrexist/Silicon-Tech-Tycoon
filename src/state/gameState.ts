@@ -590,11 +590,13 @@ export function weeklyEcosystemRevenue(s: GameState): Money {
 }
 
 export function nextWeekRevenue(s: GameState): Money {
+  // v9+: production costs are paid upfront at build time, so each unit sold brings the FULL
+  // price into cash — no per-sale deduction. Use gross price, not margin.
   let acc = 0;
   for (const lp of s.launched) {
     if (lp.weeksElapsed < lp.weeklyUnits.length) {
       const units = lp.weeklyUnits[lp.weeksElapsed];
-      acc += units * (lp.product.price - lp.unitCost);
+      acc += units * lp.product.price;
     }
   }
   return add(cents(acc), weeklyEcosystemRevenue(s));

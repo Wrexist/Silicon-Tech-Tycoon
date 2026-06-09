@@ -1148,3 +1148,16 @@
   background: var(--warning-soft);
   color: var(--warning-text);
 }
+.hq__selling-eco {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-8) 0 0;
+  border-top: 1px solid var(--hairline);
+  margin-top: var(--sp-6);
+}
+.hq__selling-eco-label {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: 500;
+}

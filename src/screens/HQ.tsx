@@ -31,7 +31,7 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canIPO, burn, nextWeekRevenue, weeklyEcosystemRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -141,9 +141,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <StatPill label="Products" value={state.launched.length} />
         <StatPill label="Team" value={state.staff.length} />
         <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-        {state.era < maxEra()
-          ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
-          : <StatPill label="Fans" value={fmtFans(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
+        <StatPill label="Fans" value={fmtFans(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
       </div>
       {(() => {
         const wkBurn = burn(state);
@@ -155,6 +153,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         return (
           <div className="hq__fin-pills">
             <StatPill label="Cash" value={format(state.cash)} tone={state.cash >= 0 ? "neutral" : "negative"} />
+            <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
             <StatPill label="Runway" value={runwayLabel} tone={runwayTone as "positive" | "negative" | "neutral"} />
           </div>
         );
@@ -609,11 +608,13 @@ function Upgrades() {
  *  when ≥1 product is active; hidden after all runs finish. */
 function NowSellingCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
   const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
-  if (active.length === 0) return null;
-  const totalWeeklyRevD = active.reduce((s, lp) => {
+  const ecoRevD = toDollars(weeklyEcosystemRevenue(state));
+  if (active.length === 0 && ecoRevD <= 0) return null;
+  const salesRevD = active.reduce((s, lp) => {
     const u = lp.weeklyUnits[lp.weeksElapsed] ?? 0;
     return s + u * toDollars(lp.product.price);
   }, 0);
+  const totalWeeklyRevD = salesRevD + ecoRevD;
   return (
     <Card className="hq__selling">
       <SectionHeader
@@ -646,6 +647,12 @@ function NowSellingCard({ state, onNavigate }: { state: GameState; onNavigate: (
             </button>
           );
         })}
+        {ecoRevD > 0 && (
+          <div className="hq__selling-eco">
+            <span className="hq__selling-eco-label">Ecosystem services</span>
+            <span className="hq__selling-rev tnum">{fmtRevShort(ecoRevD)}/wk</span>
+          </div>
+        )}
       </div>
     </Card>
   );
