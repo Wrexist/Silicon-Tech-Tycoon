@@ -1,5 +1,9 @@
 // Prestige "legacy" — persists across companies (separate from the game save) so that
 // taking a company public and starting New Game+ grants a permanent head start.
+// Mirrored to native Preferences (nativeStore): hard-earned prestige must survive
+// WKWebView storage eviction like the save and the paid entitlement do.
+import { mirrorToNative } from "./nativeStore.ts";
+
 const KEY = "silicon.legacy";
 
 export function getLegacy(): number {
@@ -17,4 +21,5 @@ export function setLegacy(level: number): void {
   } catch {
     /* ignore */
   }
+  mirrorToNative(KEY, String(Math.max(0, level)));
 }

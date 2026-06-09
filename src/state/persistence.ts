@@ -7,6 +7,7 @@ import { defaultCameraDesign, type Product, type StaffRole } from "../engine/typ
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { showToast } from "../design/toast.tsx";
+import { mirrorToNative } from "./nativeStore.ts";
 
 function hashId(id: string): number {
   let h = 2166136261;
@@ -35,7 +36,12 @@ let quotaWarned = false;
  * errors (private mode, storage disabled) stay silent; the in-memory game continues.
  */
 export function save(state: GameState): void {
-  const write = (s: GameState) => localStorage.setItem(KEY, JSON.stringify(s));
+  const write = (s: GameState) => {
+    const json = JSON.stringify(s);
+    localStorage.setItem(KEY, json);
+    // Durable copy on native (WKWebView localStorage is OS-evictable). Fire-and-forget.
+    mirrorToNative(KEY, json);
+  };
   try {
     write(state);
   } catch (e) {
@@ -128,6 +134,8 @@ export function clearSave(): void {
   } catch {
     /* ignore */
   }
+  // The mirror must follow a deliberate reset, or the old company resurrects on next boot.
+  mirrorToNative(KEY, null);
 }
 
 /* ---------- Save export / import (offline backup; no backend, no accounts) ---------- */

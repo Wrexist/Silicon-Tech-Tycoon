@@ -1,6 +1,7 @@
 // App settings (theme, sound, haptics) — a tiny external store, separate from the game save
 // so preferences survive restarts/new companies. Read synchronously by sound/haptics helpers.
 import { useSyncExternalStore } from "react";
+import { syncStatusBar } from "../native.ts";
 
 export type ThemePref = "system" | "light" | "dark";
 export interface Settings {
@@ -45,15 +46,36 @@ export function setSettings(patch: Partial<Settings>): void {
   emit();
 }
 
-/** Apply the theme by toggling the documentElement attribute the CSS tokens key off. */
+/** The theme actually in effect right now ("system" resolved against the OS preference). */
+export function resolvedTheme(): "light" | "dark" {
+  if (current.theme !== "system") return current.theme;
+  try {
+    return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+/** Apply the theme by toggling the documentElement attribute the CSS tokens key off, and keep
+ *  the native status bar glyphs in sync (pre-fix it was hardcoded dark at boot — light-theme
+ *  devices, the default, got light glyphs over a light UI on every screen). */
 export function applyTheme(theme: ThemePref): void {
   const root = document.documentElement;
   if (theme === "system") root.removeAttribute("data-theme");
   else root.setAttribute("data-theme", theme);
+  void syncStatusBar(resolvedTheme());
 }
 
 export function initSettings(): void {
   applyTheme(current.theme);
+  // Follow live OS theme changes while the pref is "system" (also re-syncs the status bar).
+  try {
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (current.theme === "system") applyTheme("system");
+    });
+  } catch {
+    /* matchMedia events unsupported — theme still applies on next launch */
+  }
 }
 
 export function useSettings(): Settings {

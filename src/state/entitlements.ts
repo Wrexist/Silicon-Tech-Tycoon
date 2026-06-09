@@ -2,6 +2,10 @@
 // (like legacy.ts) so it survives new games, restarts, and save imports. The one v1 IAP is the
 // Sandbox / Creative-mode unlock; the base game itself is a paid ($8.99 premium) download handled
 // by the App Store, so it needs no in-app entitlement. PURE-ish (localStorage only, mockable).
+// On native the PAID entitlement is also mirrored to Preferences (nativeStore) — WKWebView
+// localStorage is OS-evictable, and losing a purchase the player paid for is unacceptable.
+import { mirrorToNative } from "./nativeStore.ts";
+
 const SANDBOX_KEY = "silicon.iap.sandbox";
 
 /** True once the player owns the Sandbox / Creative-mode unlock (purchased or restored). */
@@ -20,6 +24,7 @@ export function grantSandboxEntitlement(): void {
   } catch {
     /* ignore — storage unavailable */
   }
+  mirrorToNative(SANDBOX_KEY, "1");
 }
 
 /** Revoke the entitlement. Only used by dev tooling / tests — never in normal play. */
@@ -29,4 +34,5 @@ export function clearSandboxEntitlement(): void {
   } catch {
     /* ignore */
   }
+  mirrorToNative(SANDBOX_KEY, null);
 }
