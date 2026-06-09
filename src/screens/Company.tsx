@@ -105,7 +105,8 @@ export function Company() {
     .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
     .map((lp) => ({
       lp,
-      weeklyRevenue: cents(lp.weeklyUnits[lp.weeksElapsed] * (lp.product.price - lp.unitCost)),
+      // v9+: production paid upfront — each unit sold brings full price into cash.
+      weeklyRevenue: cents(lp.weeklyUnits[lp.weeksElapsed] * lp.product.price),
     }))
     .sort((a, b) => b.weeklyRevenue - a.weeklyRevenue);
 
@@ -228,7 +229,7 @@ export function Company() {
               const weeksLeft = lp.weeklyUnits.length - lp.weeksElapsed;
               const nextIdx = lp.weeksElapsed + 1;
               const nextWkRevenue = nextIdx < lp.weeklyUnits.length
-                ? cents(lp.weeklyUnits[nextIdx] * (lp.product.price - lp.unitCost))
+                ? cents(lp.weeklyUnits[nextIdx] * lp.product.price)
                 : null;
               const trend = nextWkRevenue !== null ? Math.sign(nextWkRevenue - weeklyRevenue) : 0;
               return (

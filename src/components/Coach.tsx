@@ -57,7 +57,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: "var(--accent)",
       icon: Sparkles,
       title: "Your first product is live",
-      text: "Revenue arrives every week as it sells. Reinvest in R&D, hire a team, and design the next one.",
+      text: "Revenue arrives every week as it sells. Visit Research to unlock better components, hire team members in Company, and design the next generation.",
       done: true,
     };
   }
@@ -67,7 +67,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: mktBlue,
       icon: Rocket,
       title: "Built — ready to launch",
-      text: "Your device is manufactured and waiting. Tap the Launch button on HQ to release it to the market.",
+      text: "Your production run is ready. Tap the Launch button on HQ to release it to the market.",
       cta: tab === "hq" ? undefined : { label: "Go to HQ", tab: "hq" },
     };
   }
@@ -77,7 +77,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: engOrange,
       icon: Hammer,
       title: "Manufacturing started",
-      text: "Time advances automatically — watch the build progress on HQ. You'll launch once it's ready.",
+      text: "Time advances automatically — watch the build progress on HQ. While you wait, explore Research to plan component upgrades.",
       cta: tab === "hq" ? undefined : { label: "Go to HQ", tab: "hq" },
     };
   }
@@ -86,7 +86,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
     color: designGreen,
     icon: PencilRuler,
     title: "Design your first device",
-    text: "Pick components, a finish, and a price — then tap Build to start manufacturing.",
+    text: "Pick all components, set a price, then go to the Launch tab and tap Plan Production to start manufacturing.",
     cta: tab === "design" ? undefined : { label: "Open Design Lab", tab: "design" },
   };
 }
