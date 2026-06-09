@@ -33,7 +33,7 @@ import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canIPO, burn, nextWeekRevenue, weeklyEcosystemRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canIPO, burn, nextWeekRevenue, weeklyEcosystemRevenue, facility, planProduction, upgradeCost, verdictBands, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -198,24 +198,35 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       {state.ready.length > 0 && (
         <Card className="hq__ready">
           <SectionHeader title="Ready to launch" accessory="tap Launch to release" />
-          {state.ready.map((p) => (
-            <div className="hq__ready-row" key={p.id}>
-              <div className="hq__ready-thumb"><DeviceRenderer product={p} size={52} /></div>
-              <div className="hq__ready-info">
-                <span className="hq__ready-name">{p.name}</span>
-                {p.plannedUnits != null && <span className="hq__ready-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
-                {p.channelId && p.channelId !== "none" && (
-                  <span className="hq__ready-channel">
-                    <Megaphone size={10} />
-                    {channelById(p.channelId as ChannelId).name}
-                  </span>
-                )}
+          {state.ready.map((p) => {
+            const prev = planProduction(state, p, p.plannedUnits ?? BALANCE.build.minRun, (p.channelId ?? "none") as ChannelId);
+            const eff = prev.launchScore * prev.competitionFactor;
+            const bands = verdictBands(state.era);
+            const [readyVerdictLabel, readyVerdictTone] =
+              eff >= bands.hit ? ["Hit" as const, "positive" as const]
+                : eff <= bands.flop ? ["Flop" as const, "negative" as const]
+                  : eff >= bands.solid ? ["Solid" as const, "positive" as const]
+                    : ["Steady" as const, "accent" as const];
+            return (
+              <div className="hq__ready-row" key={p.id}>
+                <div className="hq__ready-thumb"><DeviceRenderer product={p} size={52} /></div>
+                <div className="hq__ready-info">
+                  <span className="hq__ready-name">{p.name}</span>
+                  {p.plannedUnits != null && <span className="hq__ready-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+                  {p.channelId && p.channelId !== "none" && (
+                    <span className="hq__ready-channel">
+                      <Megaphone size={10} />
+                      {channelById(p.channelId as ChannelId).name}
+                    </span>
+                  )}
+                </div>
+                <StatPill value={readyVerdictLabel} tone={readyVerdictTone} />
+                <Button size="sm" onClick={() => onLaunch(p.id)}>
+                  <Rocket size={15} /> Launch
+                </Button>
               </div>
-              <Button size="sm" onClick={() => onLaunch(p.id)}>
-                <Rocket size={15} /> Launch
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </Card>
       )}
 
@@ -651,7 +662,7 @@ function NowSellingCard({ state, onNavigate }: { state: GameState; onNavigate: (
           const isPeak = lp.weeksElapsed === BALANCE.sales.peakWeek;
           const stageKey = endingSoon ? "end" : isPeak ? "peak" : isRamp ? "ramp" : "fade";
           const stageLabel = endingSoon
-            ? `last ${wkLeft} wk` : isPeak ? "peak" : isRamp ? "rising" : "fading";
+            ? `last ${wkLeft} wk` : isPeak ? "peak" : isRamp ? "rising" : `fading · ${wkLeft} wk`;
           const sellThruPct = lp.plannedUnits && lp.plannedUnits > 0
             ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
             : null;
