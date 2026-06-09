@@ -128,7 +128,7 @@ export const BALANCE = {
     // Index = era - 1. effectiveScore = launchScore × competitionFactor is compared to these.
     hitThresholdByEra: [70, 88, 112, 145],
     solidThresholdByEra: [45, 56, 72, 92],
-    flopThresholdByEra: [17, 21, 27, 35],
+    flopThresholdByEra: [14, 21, 27, 35],
     gainPerHit: 8,
     lossPerFlop: 5,
     overpricePenalty: 2,

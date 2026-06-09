@@ -712,6 +712,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Feed events
   const feed = [...state.feed];
   for (const item of productsFeed) feed.push(item);
+  // Trend shift notification — only when a new retarget actually fired this tick.
+  if (newTarget) {
+    const tKeys: (keyof Stats)[] = ["performance", "quality", "battery", "design", "ecosystem"];
+    const tLabels: Record<keyof Stats, string> = { performance: "Performance", quality: "Quality", battery: "Battery", design: "Design", ecosystem: "Ecosystem" };
+    const topKey = tKeys.reduce((best, k) => (newTarget![k] ?? 0) > (newTarget![best] ?? 0) ? k : best);
+    feed.push(feedItem(week, `Consumer preferences shifted — ${tLabels[topKey]} leads the new demand cycle.`, "accent"));
+  }
   // Rival launches: flag when a rival enters a category where the player has an active product.
   const activePlayerCats = new Set<CategoryId>(
     state.launched
