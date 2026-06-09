@@ -191,6 +191,13 @@ export function Company() {
             Payroll {format(wkPayroll)} · Rent {format(wkRent)} weekly
           </p>
         )}
+        {runway !== Infinity && runway <= 5 && (
+          <p className="co__hint co__hint--urgent">
+            {runway <= 2
+              ? `Cash gone in ${runway} week${runway === 1 ? "" : "s"} — launch a product or let staff go.`
+              : `${runway} weeks of runway — design and launch a product before the cash runs out.`}
+          </p>
+        )}
         {runway > 20 && fac.staffCapacity > state.staff.length && (
           <p className="co__hire-hint">
             {fac.staffCapacity - state.staff.length} open desk{fac.staffCapacity - state.staff.length > 1 ? "s" : ""} — runway supports a new hire
