@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   testflight:
-    uses: Wrexist/ios-certificates/.github/workflows/testflight.yml
+    uses: Wrexist/ios-certificates/.github/workflows/testflight.yml@master
     secrets: inherit
     with:
       project_type: capacitor
