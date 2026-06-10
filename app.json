@@ -1,5 +1,8 @@
 {
   "expo": {
+    "ios":{
+      "bundleIdentifier": "com.wrexist.silicon"
+    },
     "extra": {
       "eas": {
         "projectId": "7d638751-7a91-4e6b-a4bd-93562a508f67"
