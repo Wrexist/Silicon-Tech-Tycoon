@@ -572,7 +572,7 @@ export function DesignLab({
                 return (
                   <div className={`lab__score-target${met ? " lab__score-target--met" : ""}`}>
                     <div className="lab__score-target-head">
-                      <span>{met ? "✓ Competitive" : `Target: ${target}+ Overall`}</span>
+                      <span>{met ? <><Check size={12} aria-hidden /> Competitive</> : `Target: ${target}+ Overall`}</span>
                       <span className="tnum">{overall} / {target}</span>
                     </div>
                     <div className="lab__score-target-track">

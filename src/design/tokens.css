@@ -73,6 +73,12 @@
   --sp-24: 24px;
   --sp-32: 32px;
   --sp-48: 48px;
+  /* Off-grid one-offs referenced by existing screen CSS. Defined so those declarations don't
+     silently drop (an undefined custom property invalidates the whole rule). TODO: migrate the
+     call sites onto the strict 8pt scale above. */
+  --sp-5: 5px;
+  --sp-10: 10px;
+  --sp-14: 14px;
   --edge: 20px; /* screen edge margin */
 
   /* Radius */
