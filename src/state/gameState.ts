@@ -40,6 +40,7 @@ import {
   addItem as addFurniture,
   canPlace,
   defaultLayout,
+  deskItems,
   moveItem as moveFurnitureOp,
   removeItem as removeFurnitureOp,
   rotateItem as rotateFurnitureOp,
@@ -1422,9 +1423,14 @@ const ROLE_ASSIGNMENT: Record<StaffRole, Assignment> = {
   marketer: "marketing",
 };
 
+/** One placed desk = one seat. Hiring is desk-gated: the team can never outgrow the desks
+ *  the player actually bought in Decorate (the new hire's robot spawns AT a free desk). */
+export const deskCapacity = (s: GameState): number => deskItems(s.layout).length;
+
 export function hireStaff(state: GameState, role: StaffRole, skill: number, name: string): GameState {
   const cap = facility(state).staffCapacity;
   if (state.staff.length >= cap) return state;
+  if (state.staff.length >= deskCapacity(state)) return state; // every seat taken — buy a desk first
   const fee = hireCostFor(role, skill, hasProject(state.completedProjects, "talentNetwork"));
   if (state.cash < fee) return state;
   const rng = rngFrom(state);
@@ -1504,6 +1510,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
   const cand = state.candidates.find((c) => c.id === candidateId);
   if (!cand) return state;
   if (state.staff.length >= facility(state).staffCapacity) return state;
+  if (state.staff.length >= deskCapacity(state)) return state; // every seat taken — buy a desk first
   if (state.cash < cand.hireFee) return state;
   const member: Staff = {
     id: `s${state.staffCounter}`,

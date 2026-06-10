@@ -220,6 +220,19 @@ export function canPlace(
 }
 
 /** World-space centre + Y rotation for a placed item (for the 3D renderer). */
+/** Desk-category items are SEATS: one employee works at one placed desk. */
+export function isDeskType(type: FurnitureId): boolean {
+  return furnitureDef(type).category === "desks";
+}
+
+/** The room's desks in a stable order (by placement id), so an employee keeps the same desk
+ *  across renders/decorating instead of the team shuffling seats every re-render. */
+export function deskItems(layout: readonly PlacedItem[]): PlacedItem[] {
+  return layout
+    .filter((it) => isDeskType(it.type))
+    .sort((a, b) => (parseInt(a.iid.slice(1), 10) || 0) - (parseInt(b.iid.slice(1), 10) || 0));
+}
+
 export function worldOf(item: PlacedItem): { x: number; z: number; rotY: number } {
   const { w, d } = footprint(furnitureDef(item.type), item.rot);
   return {
@@ -261,12 +274,32 @@ export function removeItem(layout: PlacedItem[], iid: string): PlacedItem[] {
 }
 
 /** A tasteful starter layout so the office looks furnished out of the box. */
+/** The starting garage — a structured, deliberately-arranged room in three zones:
+ *  WORK (center-left): the founder's desk. Desks are SEATS — hiring needs a free one.
+ *  GARAGE/STORAGE (back wall): workbench + tools left, shelving + crates right.
+ *  LOUNGE (front-right): rug, sofa, coffee table, lounge chair, lamp.
+ *  Greenery + water cooler soften the edges. Every placement is collision-checked by the
+ *  defaultLayout test, so a refactor here can't ship an overlapping room. */
 export function defaultLayout(): PlacedItem[] {
   const mk = (i: number, type: FurnitureId, c: number, r: number, rot: Rot = 0): PlacedItem => ({ iid: `f${i}`, type, c, r, rot });
-  // Start clean: just a little greenery in the corners (matches the premium diorama look).
-  // Players add the rest via Decorate; everything they place still shows in the hero view.
   return [
-    mk(4, "plantTall", 0, 0, 0),
-    mk(5, "plantPot", 8, 0, 0),
+    // work zone — the founder's desk, centred and facing the room
+    mk(1, "desk", 2, 3, 0),
+    // garage zone along the back wall (left)
+    mk(2, "workbench", 0, 0, 0),
+    mk(3, "toolCabinet", 2, 0, 0),
+    // storage along the back wall (right)
+    mk(4, "shelfUnit", 8, 0, 0),
+    mk(5, "crates", 7, 0, 0),
+    // lounge, front-right
+    mk(6, "rug", 5, 5, 0),
+    mk(7, "sofa", 5, 5, 0),
+    mk(8, "coffeeTable", 5, 6, 0),
+    mk(9, "loungeChair", 7, 6, 1),
+    mk(10, "floorLamp", 8, 5, 0),
+    // greenery + water cooler
+    mk(11, "plantTall", 0, 8, 0),
+    mk(12, "plantPot", 8, 3, 0),
+    mk(13, "watercooler", 0, 3, 0),
   ];
 }

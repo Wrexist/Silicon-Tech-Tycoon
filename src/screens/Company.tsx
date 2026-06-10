@@ -25,6 +25,7 @@ import {
 import type { Assignment, Candidate, LaunchedProduct, RecruitTier, Staff, StaffRole } from "../engine/types.ts";
 import {
   burn,
+  deskCapacity,
   facilityRent,
   facility,
   nextWeekRevenue,
@@ -189,9 +190,9 @@ export function Company() {
             Payroll {format(wkPayroll)} · Rent {format(wkRent)} weekly
           </p>
         )}
-        {runway > 20 && fac.staffCapacity > state.staff.length && (
+        {runway > 20 && Math.min(fac.staffCapacity, deskCapacity(state)) > state.staff.length && (
           <p className="co__hire-hint">
-            {fac.staffCapacity - state.staff.length} open desk{fac.staffCapacity - state.staff.length > 1 ? "s" : ""} — runway supports a new hire
+            {deskCapacity(state) - state.staff.length} open desk{deskCapacity(state) - state.staff.length > 1 ? "s" : ""} — runway supports a new hire
           </p>
         )}
         {state.launched.length > 0 && (
@@ -274,8 +275,8 @@ export function Company() {
         )}
       </Card>
 
-      {/* Recruitment */}
-      <SectionHeader title="Recruitment" accessory={`${state.staff.length}/${fac.staffCapacity} desks`} />
+      {/* Recruitment — seats are PLACED desks: you hire into a desk you actually bought. */}
+      <SectionHeader title="Recruitment" accessory={`${state.staff.length}/${deskCapacity(state)} desks`} />
       {(() => {
         const nextFac = BALANCE.facilities[state.facilityTier]; // index = facilityTier (0-based array, tier is 1-based)
         if (!nextFac || state.staff.length < fac.staffCapacity) return null;
@@ -283,12 +284,21 @@ export function Company() {
           <div className="co__fac-nudge">
             <Building2 size={15} className="co__fac-nudge-icon" aria-hidden />
             <span className="co__fac-nudge-text">
-              <strong>At capacity</strong> — move to {nextFac.name} from HQ Upgrades to unlock {nextFac.staffCapacity} desks ({format(nextFac.upgradeCost)}).
+              <strong>At facility capacity</strong> — move to {nextFac.name} from HQ Upgrades to make room for more staff ({format(nextFac.upgradeCost)}).
             </span>
           </div>
         );
       })()}
-      <RecruitPanel state={state} capacity={fac.staffCapacity} onRecruit={recruit} onHire={hireCandidate} onDismiss={dismissCandidates} />
+      {state.staff.length >= deskCapacity(state) && state.staff.length < fac.staffCapacity && (
+        <div className="co__fac-nudge">
+          <PencilRuler size={15} className="co__fac-nudge-icon" aria-hidden />
+          <span className="co__fac-nudge-text">
+            <strong>Every desk is taken</strong> — buy a desk in HQ → Decorate and your next hire's
+            workstation appears right where you put it.
+          </span>
+        </div>
+      )}
+      <RecruitPanel state={state} capacity={Math.min(fac.staffCapacity, deskCapacity(state))} noDesk={state.staff.length >= deskCapacity(state)} onRecruit={recruit} onHire={hireCandidate} onDismiss={dismissCandidates} />
 
       <Sheet open={statsOpen} onClose={() => setStatsOpen(false)}>
         <StatsSheet state={state} onClose={() => setStatsOpen(false)} />
@@ -853,12 +863,15 @@ function Member({
 function RecruitPanel({
   state,
   capacity,
+  noDesk,
   onRecruit,
   onHire,
   onDismiss,
 }: {
   state: GameState;
   capacity: number;
+  /** True when desks (not the facility) are the binding constraint — drives the hint copy. */
+  noDesk: boolean;
   onRecruit: (tier: RecruitTier) => void;
   onHire: (id: string) => void;
   onDismiss: () => void;
@@ -889,7 +902,7 @@ function RecruitPanel({
     return (
       <>
         <p className="co__hint">
-          {full ? "At capacity — free up a desk to sign someone. " : ""}
+          {full ? (noDesk ? "Every desk is taken — buy a desk in HQ → Decorate to sign someone. " : "At capacity — free up a seat to sign someone. ") : ""}
           Shortlist available for {weeksLeft} more week{weeksLeft === 1 ? "" : "s"}.
         </p>
         {state.candidates.map((c) => (

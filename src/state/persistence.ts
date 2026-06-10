@@ -1,7 +1,7 @@
 // localStorage persistence with schema versioning + migration. The save is the
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
-import { defaultLayout } from "../engine/furniture.ts";
+import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
@@ -270,6 +270,28 @@ function migrate(state: GameState): GameState | null {
       const n = parseInt(String(it.iid ?? "").replace(/\D/g, ""), 10);
       return Number.isFinite(n) ? Math.max(m, n + 1) : m;
     }, 20);
+  }
+  // v17: desks are seats — hiring is desk-gated and robots sit at PLACED desks. Saves from the
+  // auto-workstation era may own fewer desks than employees: grant the missing desks at free
+  // cells so nobody loses a hire they already paid for. If the room is genuinely full the
+  // overflow staff roam (the 3D layer's existing fallback) — never block, never corrupt.
+  if (Array.isArray(s.staff)) {
+    let desks = deskItems(s.layout).length;
+    let guard = 0;
+    while (desks < s.staff.length && guard++ < 32) {
+      let placed = false;
+      outer: for (let r = 0; r < GRID.n; r++) {
+        for (let c = 0; c < GRID.n; c++) {
+          if (canPlace(s.layout, "desk", c, r, 0)) {
+            s.layout = [...s.layout, { iid: `f${s.furnitureCounter++}`, type: "desk", c, r, rot: 0 }];
+            desks++;
+            placed = true;
+            break outer;
+          }
+        }
+      }
+      if (!placed) break; // no free cell — overflow staff roam instead
+    }
   }
   s.ready = s.ready.map((p: Product) => fixProduct(p));
   if (Array.isArray(s.staff)) {
