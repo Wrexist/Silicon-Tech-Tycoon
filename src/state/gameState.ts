@@ -792,7 +792,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       ? (s.moodLowWeeks ?? 0) + 1
       : 0;
     // After enough consecutive low weeks, a weekly chance of quitting (founder never quits).
-    if (next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && rng.next() < churnCfg.quitChancePerWeek) {
+    // Never quit during offline catch-up: it's an irreversible loss the player couldn't react to
+    // (mirrors the fan-decay offline protection). At-risk staff can still quit on the next ONLINE
+    // tick, giving the player a chance to intervene (e.g. a raise). `!offline` is first so the
+    // active path's rng consumption is unchanged (the determinism test runs active-only).
+    if (!offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && rng.next() < churnCfg.quitChancePerWeek) {
       quitIds.push(next.id);
     }
     return { ...next, skills, mood, moodLowWeeks: newLowWeeks };
@@ -1740,7 +1744,10 @@ export function catchUpOffline(state: GameState): { state: GameState; weeks: num
   // weeksElapsed stays an integer index.
   const effectiveWeeks = Math.max(1, Math.round(weeks * BALANCE.offline.rate));
   for (let i = 0; i < effectiveWeeks; i++) s = advanceOneWeek(s, 1, true);
-  return { state: { ...s, lastActive: now }, weeks, gain: sub(s.cash, cashBefore) };
+  // Events are skipped while offline; if the schedule slipped into the past during catch-up, push
+  // it forward so the player isn't hit with an event the instant they return.
+  const nextEventWeek = s.nextEventWeek <= s.week ? s.week + BALANCE.events.everyWeeks : s.nextEventWeek;
+  return { state: { ...s, nextEventWeek, lastActive: now }, weeks, gain: sub(s.cash, cashBefore) };
 }
 
 export { dollars };

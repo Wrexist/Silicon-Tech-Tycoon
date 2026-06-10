@@ -4,6 +4,7 @@ import {
   hasSandboxEntitlement,
   grantSandboxEntitlement,
   clearSandboxEntitlement,
+  withValidatedSandbox,
 } from "./entitlements.ts";
 import {
   getSandboxProduct,
@@ -33,6 +34,16 @@ describe("IAP entitlements + Sandbox unlock", () => {
     expect(hasSandboxEntitlement()).toBe(true);
     clearSandboxEntitlement();
     expect(hasSandboxEntitlement()).toBe(false);
+  });
+
+  it("withValidatedSandbox honors sandboxUnlocked only when the entitlement is owned", () => {
+    // Not owned (e.g. an imported save on a device that never bought it): the flag is forced off.
+    expect(withValidatedSandbox({ sandboxUnlocked: true }).sandboxUnlocked).toBe(false);
+    expect(withValidatedSandbox({ sandboxUnlocked: false }).sandboxUnlocked).toBe(false);
+    // Owned: the flag passes through unchanged, and other fields are preserved.
+    grantSandboxEntitlement();
+    expect(withValidatedSandbox({ sandboxUnlocked: true }).sandboxUnlocked).toBe(true);
+    expect(withValidatedSandbox({ sandboxUnlocked: true, cash: 42 }).cash).toBe(42);
   });
 
   it("exposes product metadata with the right id and a display price", async () => {

@@ -468,14 +468,22 @@ reputation momentum (rival rep never changes after init → pure compounding, up
   `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_BASE64` (base64 of the `.p8`). The team ID is
   already wired (S3U8B8HH96). Without them the run fails fast with a clear message.
 
+### v17.1 — offline & import correctness (DONE 2026-06-10)
+- [x] **Sandbox entitlement re-validated on load** (`entitlements.withValidatedSandbox`, wired into
+      useGame boot + import): an imported/older save with `sandboxUnlocked:true` no longer unlocks the
+      unlimited-cash floor on a device that doesn't own the IAP. +1 test.
+- [x] **Staff no longer quit during offline catch-up** (gated the churn roll on `!offline`, `!offline`
+      first so the active-path RNG stream is unchanged) — an irreversible loss you couldn't react to;
+      at-risk staff can still quit on the next online tick. +1 multi-seed test (offline never drops an
+      at-risk member; online does — proving the contrast).
+- [x] **Stale event reschedule**: catch-up pushes `nextEventWeek` forward if it slipped into the past,
+      so an event no longer fires the instant you return. +1 test. (204 tests; tsc 0; build+PWA ok.)
+
 ### v17 Backlog — audit findings NOT actioned (carry forward; need a focused pass / design calls)
 **State/lifecycle:** side-effects (toasts + achievement eval) run inside the `setState` updater →
-  StrictMode double-fire (dev-only) — move to a `useEffect` keyed on week; offline catch-up runs staff
-  churn (staff can quit while away) and leaves `nextEventWeek` stale (an event fires the instant you
-  return) — gate both on `offline`; **sandbox entitlement not re-validated on import** (an imported save
-  with `sandboxUnlocked:true` keeps the unlimited-cash floor for free) — gate the floor on
-  `hasSandboxEntitlement()`; `tabGuard` first-claimant never un-freezes (no release/heartbeat); three
-  duplicate save sites → one `persist()` helper.
+  StrictMode double-fire (dev-only) — move to a `useEffect` keyed on week; `tabGuard` first-claimant
+  never un-freezes (no release/heartbeat); three duplicate save sites → one `persist()` helper.
+  _(v17.1 cleared offline staff-churn, stale-event reschedule, and sandbox-entitlement-on-import.)_
 **Engine:** `nextWeekRevenue` understates cash (subtracts prepaid unitCost) → runway reads pessimistic;
   ecosystem loop reads pre-sales `state.launched` (1-wk lag); competitors decay keep-threshold `>1` vs
   present-count `>0` disagree; `newGame`/`migrate` seeds are signed/overflowing (cosmetic).

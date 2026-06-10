@@ -61,6 +61,7 @@ import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
 import { clearSave, exportSaveString, importSaveString, loadResult, save } from "./persistence.ts";
+import { withValidatedSandbox } from "./entitlements.ts";
 import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
@@ -237,13 +238,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       // backup key inside loadResult(), so the player's data is preserved, not destroyed.
       return { state: newGame(undefined, getLegacy()), offline: null as OfflineSummary | null };
     }
+    // Honor sandboxUnlocked only when the device actually owns the IAP — an imported or older
+    // localStorage save could otherwise unlock the unlimited-cash floor for free.
+    const loaded = withValidatedSandbox(res.state);
     // F4 — seed the feed-id counter above restored ids BEFORE any new feed item is generated.
-    seedFeedSeq(res.state);
+    seedFeedSeq(loaded);
     // The company doesn't exist until the player founds it: a save written at the onboarding
     // name screen must not accrue offline weeks (rent/trends would erode an unstarted game).
-    if (!res.state.onboarded) return { state: res.state, offline: null as OfflineSummary | null };
-    const fansBefore = res.state.fans;
-    const { state: caught, weeks, gain } = catchUpOffline(res.state);
+    if (!loaded.onboarded) return { state: loaded, offline: null as OfflineSummary | null };
+    const fansBefore = loaded.fans;
+    const { state: caught, weeks, gain } = catchUpOffline(loaded);
     // F7 — don't punish a player for being away: pure weekly fan decay over the offline window
     // (up to 8 weeks of erosion they couldn't react to) is floored at the pre-catchup value.
     // Online weekly decay in advanceOneWeek is untouched.
@@ -425,7 +429,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const importSave = useCallback((str: string) => {
     const migrated = importSaveString(str);
     if (!migrated) return false;
-    const next: GameState = { ...migrated, lastActive: Date.now() };
+    const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids
     save(next);
     setState(next);

@@ -329,4 +329,40 @@ describe("offline catch-up", () => {
     expect(res.ok).toBe(true);
     expect(res.state.building[0].plannedUnits).toBeLessThanOrEqual(BALANCE.build.maxRun);
   });
+
+  it("reschedules a stale event so none fires the instant you return", () => {
+    // Away long enough that the event schedule fell behind; events are skipped while offline, so
+    // without the reschedule `week >= nextEventWeek` would be true on the first live tick.
+    const away = BALANCE.offline.maxCatchUpWeeks * BALANCE.secondsPerTick * 1000;
+    const s: GameState = { ...newGame(42), nextEventWeek: 0, lastActive: Date.now() - away };
+    const after = catchUpOffline(s).state;
+    expect(after.nextEventWeek).toBeGreaterThan(after.week);
+  });
+
+  it("never lets staff quit while offline, though the same at-risk roster can quit while playing", () => {
+    // A maximally at-risk, badly-underpaid non-founder employee, cloned from the founder so every
+    // field is valid. High cash keeps the company solvent across the run so churn evaluates weekly.
+    function atRisk(seed: number): GameState {
+      const base = { ...newGame(seed), cash: dollars(10_000_000) };
+      const risky = { ...base.staff[0], id: "risky", name: "Risky", salary: dollars(1), mood: 0, moodLowWeeks: 50 };
+      return { ...base, staff: [...base.staff, risky] };
+    }
+    const present = (s: GameState) => s.staff.some((m) => m.id === "risky");
+
+    // Offline can NEVER drop the at-risk member — for any seed.
+    for (let seed = 0; seed < 20; seed++) {
+      let off = atRisk(seed);
+      for (let i = 0; i < 30; i++) off = advanceOneWeek(off, 1, true);
+      expect(present(off)).toBe(true);
+    }
+    // ...and the setup is genuinely at-risk: at least one seed loses the member while PLAYING,
+    // proving the offline result above isn't vacuous.
+    let quitWhilePlaying = false;
+    for (let seed = 0; seed < 20 && !quitWhilePlaying; seed++) {
+      let on = atRisk(seed);
+      for (let i = 0; i < 30; i++) on = advanceOneWeek(on, 1, false);
+      if (!present(on)) quitWhilePlaying = true;
+    }
+    expect(quitWhilePlaying).toBe(true);
+  });
 });
