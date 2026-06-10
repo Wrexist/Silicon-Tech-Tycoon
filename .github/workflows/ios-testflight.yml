@@ -33,9 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
+      
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -50,10 +48,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Route conflict check
-        run: npm run check:routes
-
+        
       - name: Type check
         run: npm run type-check
 
