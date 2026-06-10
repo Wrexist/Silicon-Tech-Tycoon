@@ -84,7 +84,9 @@ function tierProgress(kind: Parameters<typeof maxTier>[0], tier: number): number
 
 export function deviceVisual(product: Product): DeviceVisual {
   const finish = product.finish;
-  const swatches = FINISH_SWATCHES[finish];
+  // Fall back to a known finish if a save ever carries an unknown one (forward schema / DLC),
+  // rather than indexing undefined and blanking the whole device render.
+  const swatches = FINISH_SWATCHES[finish] ?? FINISH_SWATCHES.aluminium;
   const swatch = swatches[((product.colorIndex % swatches.length) + swatches.length) % swatches.length];
 
   const cam = product.camera ?? defaultCameraDesign();

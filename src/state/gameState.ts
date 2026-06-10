@@ -1041,9 +1041,12 @@ export function startBuild(
     return { state, ok: false, reason: "Category not unlocked yet." };
   if (product.price <= 0) return { state, ok: false, reason: "Set a price." };
 
-  const units = Math.max(
-    BALANCE.build.minRun,
-    Math.round(plannedUnits ?? recommendedRun(state, product, channelId)),
+  const units = Math.min(
+    BALANCE.build.maxRun,
+    Math.max(
+      BALANCE.build.minRun,
+      Math.round(plannedUnits ?? recommendedRun(state, product, channelId)),
+    ),
   );
   const plan = planProduction(state, product, units, channelId);
   if (state.cash < plan.totalUpfront) {
@@ -1729,7 +1732,14 @@ export function catchUpOffline(state: GameState): { state: GameState; weeks: num
   if (weeks <= 0) return { state: { ...state, lastActive: now }, weeks: 0, gain: ZERO };
   const cashBefore = state.cash;
   let s = state;
-  for (let i = 0; i < weeks; i++) s = advanceOneWeek(s, BALANCE.offline.rate, true);
+  // Offline runs at reduced effectiveness. Simulate FEWER whole weeks at full rate rather than
+  // `weeks` weeks at a fractional rate: that keeps each launched product's finite sales curve in
+  // lockstep with the revenue it banks (the old fractional path advanced the curve a full week
+  // while collecting only half the units, permanently skipping the other half), while burn / RP /
+  // dividends / fan-decay totals stay ~unchanged — they're all per-tick rate-scaled — and
+  // weeksElapsed stays an integer index.
+  const effectiveWeeks = Math.max(1, Math.round(weeks * BALANCE.offline.rate));
+  for (let i = 0; i < effectiveWeeks; i++) s = advanceOneWeek(s, 1, true);
   return { state: { ...s, lastActive: now }, weeks, gain: sub(s.cash, cashBefore) };
 }
 

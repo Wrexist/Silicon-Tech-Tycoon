@@ -326,6 +326,16 @@ function migrate(state: GameState): GameState | null {
   if (Array.isArray(s.launched)) {
     s.launched = s.launched.map((lp: any) => {
       if (lp.product) lp.product = fixProduct(lp.product);
+      // Coerce the per-product fields the sales tick dereferences so a truncated/older save can't
+      // crash on the first sales pass (advanceOneWeek reads lp.weeklyUnits.length and
+      // lp.stats.ecosystem). Defaults are inert — an empty curve simply books no further sales.
+      if (!Array.isArray(lp.weeklyUnits)) lp.weeklyUnits = [];
+      if (!Number.isFinite(lp.weeksElapsed)) lp.weeksElapsed = 0;
+      if (!Number.isFinite(lp.totalUnits)) lp.totalUnits = lp.weeklyUnits.reduce((a: number, b: number) => a + (Number.isFinite(b) ? b : 0), 0);
+      if (!Number.isFinite(lp.unitsSold)) lp.unitsSold = 0;
+      if (!Number.isFinite(lp.revenueToDate)) lp.revenueToDate = 0;
+      if (!Number.isFinite(lp.unitCost)) lp.unitCost = 0;
+      if (!lp.stats || typeof lp.stats !== "object") lp.stats = {};
       // Backfill the launch verdict for saves written before it was recorded. competitionFactor
       // wasn't stored, so approximate from the (stored) launchScore against the same thresholds —
       // a reasonable design-quality read for old history rather than crashing or showing blanks.
