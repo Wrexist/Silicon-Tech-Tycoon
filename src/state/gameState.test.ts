@@ -18,6 +18,7 @@ import {
   rdRpCostFor,
   startRecruitment,
   hireCandidate,
+  type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
 
@@ -58,7 +59,19 @@ describe("recruitment", () => {
       }
     }
     const teamBefore = s.staff.length;
-    s = hireCandidate({ ...s, cash: dollars(999_999) }, s.candidates[0].id);
+    // signing is desk-gated: without a free desk the hire is refused...
+    const noDesk = hireCandidate({ ...s, cash: dollars(999_999) }, s.candidates[0].id);
+    expect(noDesk.staff.length).toBe(teamBefore);
+    // ...and goes through once a desk is bought
+    s = hireCandidate(
+      {
+        ...s,
+        cash: dollars(999_999),
+        layout: [...s.layout, { iid: `f${s.furnitureCounter}`, type: "desk", c: 5, r: 2, rot: 0 }],
+        furnitureCounter: s.furnitureCounter + 1,
+      },
+      s.candidates[0].id,
+    );
     expect(s.staff.length).toBe(teamBefore + 1);
     expect(s.candidates.length).toBe(0); // shortlist clears after a signing
   });
@@ -181,16 +194,30 @@ describe("game state reducers", () => {
     expect(after.researchPoints).toBeCloseTo(s.researchPoints - cost, 5);
   });
 
-  it("hiring adds payroll burn", () => {
-    const s = newGame(9);
-    const before = burn(s);
-    const after = hireStaff(s, "engineer", 4, "Dev");
-    expect(after.staff.length).toBe(s.staff.length + 1);
+  it("hiring is desk-gated: blocked at full desks, works once a desk is bought", () => {
+    const s = newGame(9); // 1 founder, 1 desk (the default room) → every seat taken
+    const blocked = hireStaff(s, "engineer", 4, "Dev");
+    expect(blocked.staff.length).toBe(s.staff.length); // no free desk → no hire, no charge
+    expect(blocked.cash).toBe(s.cash);
+    const withDesk: GameState = {
+      ...s,
+      layout: [...s.layout, { iid: `f${s.furnitureCounter}`, type: "desk", c: 5, r: 2, rot: 0 }],
+      furnitureCounter: s.furnitureCounter + 1,
+    };
+    const before = burn(withDesk);
+    const after = hireStaff(withDesk, "engineer", 4, "Dev");
+    expect(after.staff.length).toBe(withDesk.staff.length + 1);
     expect(burn(after)).toBeGreaterThan(before);
   });
 
   it("weekly burn is deducted even with no products", () => {
-    const s = hireStaff(newGame(3), "marketer", 5, "Mkt");
+    const base = newGame(3);
+    const withDesk: GameState = {
+      ...base,
+      layout: [...base.layout, { iid: `f${base.furnitureCounter}`, type: "desk", c: 5, r: 2, rot: 0 }],
+      furnitureCounter: base.furnitureCounter + 1,
+    };
+    const s = hireStaff(withDesk, "marketer", 5, "Mkt");
     const after = advanceOneWeek(s);
     expect(after.cash).toBeLessThan(s.cash);
   });

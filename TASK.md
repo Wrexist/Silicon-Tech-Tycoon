@@ -394,3 +394,50 @@ reputation momentum (rival rep never changes after init → pure compounding, up
 - **Ship status**: repo-side work is DONE per WHAT_YOU_NEED_TO_DO.md — remaining steps are
       owner-side (Apple Developer account, Mac/Xcode build, optional StoreKit wiring at the 3
       `NATIVE INTEGRATION POINT` stubs in `src/state/iap.ts`).
+      *(Superseded by the v16 audit below — "repo-side done" was false in several ways.)*
+
+## v16 — ship-readiness audit + fix pass (DONE 2026-06-10)
+39-agent verified audit (8 domains, every blocker/major adversarially re-checked against source)
++ a live play-through. 7 commits on `claude/ship-readiness-fixes`:
+- [x] **IAP safety (was a guaranteed 2.1 rejection)**: `iapAvailable()`/`NATIVE_IAP_WIRED` seam —
+      unwired native builds HIDE the Creative Mode purchase UI, so v1 can submit with or without
+      the IAP. Docs fixed: `@capacitor-community/in-app-purchases` does NOT exist on npm (404,
+      verified) → cordova-plugin-purchase v13 instructions; "(Optional)" removed from the
+      checklist; native-gate regression tests added.
+- [x] **Sim no longer ticks during onboarding** (burned ~$390/wk on the name screen; ~13 idle
+      min = bankruptcy before founding). Tick + offline catch-up gated on `onboarded`.
+- [x] **First-session readability**: coach launch step described a removed flow (campaign moved
+      to the wizard); era goal card said "Either threshold" at every era (era 2+ is AND) and
+      vanished when ONE bar filled; flop verdict now carries its cause and a flop+sellout launch
+      no longer celebrates + punishes in adjacent feed lines.
+- [x] **Balance (engine, tested, 197 green incl. determinism pin)**: supply-crunch events capped
+      at 35% of cash (RNG can't bankrupt); ecosystem rate 0.0008→0.05 (dead mechanic → real
+      annuity); self-cannibalization (`selfPenalty` 0.22 + wizard "Cannibalization" line) kills
+      the relaunch-spam dominant strategy; rival entries now dent active products' remaining
+      sales curve 10% (`rivalEntrySalesHaircut`) so the threat feed line is mechanically true.
+      Knob-tuning (0.22/0.10) needs a playtest; the mechanisms are pinned by tests.
+- [x] **Native durability**: save + paid entitlement + prestige mirrored to
+      @capacitor/preferences with boot-time restore (WKWebView eviction = the review-bomb risk);
+      status bar follows the resolved theme; SW registration actually skips the native shell;
+      splash masters generated (resources/splash[-dark].png); v1.0.0.
+- [x] **A11y/polish**: `--warning-text` token (closed ~12 hardcoded ambers + AA failures);
+      Sparkline per-instance gradient id (red stocks rendered green fills) + chart aria-labels;
+      Settings switch names; 40px small-button/coach-skip targets; field user-select + 16px
+      import textarea (iOS zoom); crash-screen Reset now confirms; STORE_LISTING no longer
+      claims "3D" device renders; Xcode docs REQUIRE portrait-only + iPhone-only.
+- [x] **Perf (narrow)**: `React.memo(Garage3D)` + memoized HQ builder + narrowed staff snapshot
+      (per-tick R3F re-reconcile gone when nothing visible changed); ContactShadows re-bake key
+      includes positions/rotations/desks (moved furniture kept stale shadows); WebGL2 probe
+      (three r163+ dropped WebGL1 — old check crashed into the ErrorBoundary); AudioContext
+      pointerdown warm-up + resumes from iOS "interrupted".
+
+### v16 — deferred (logged, not done)
+- Full state/actions context split (the complete F36) — the memo pass above captures most of the
+  win; the split is still right long-term.
+- Furniture instancing (F13), GPU-tier quality scaling, keep-HQ-mounted canvas reuse.
+- rem-based type / iOS Dynamic Type; iPad layout (v1 ships iPhone-only, documented).
+- More choice events (only 4, one-shot, replay verbatim in NG+) + era-4-only decisions; NG+
+  variety beyond bigger numbers; component sidegrades (always-top-tier is still dominant);
+  Creative Mode content beyond the cash floor (thin for $2.99).
+- Owner-side (Mac): `npx cap add ios`, Xcode portrait/iPhone-only settings, StoreKit wiring if
+  the IAP ships in v1, on-device smoke (Preferences mirror, status bar, haptics).

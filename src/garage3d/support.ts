@@ -4,11 +4,10 @@ let webgl: boolean | null = null;
 export function webglSupported(): boolean {
   if (webgl !== null) return webgl;
   try {
+    // three r163+ requires WebGL2 — probing WebGL1 here let WebGL1-only devices pass the gate
+    // and then crash into the ErrorBoundary instead of cleanly falling back to the SVG scene.
     const c = document.createElement("canvas");
-    webgl = !!(
-      window.WebGLRenderingContext &&
-      (c.getContext("webgl") || c.getContext("experimental-webgl"))
-    );
+    webgl = !!(window.WebGL2RenderingContext && c.getContext("webgl2"));
   } catch {
     webgl = false;
   }

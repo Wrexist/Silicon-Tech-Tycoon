@@ -4,6 +4,7 @@ import {
   canPlace,
   cellAt,
   defaultLayout,
+  deskItems,
   footprint,
   furnitureDef,
   GRID,
@@ -70,5 +71,15 @@ describe("furniture grid model", () => {
       }
     }
     expect(solids).toBeGreaterThan(0);
+  });
+
+  it("default layout seats the founder (≥1 desk) and deskItems keeps a stable placement order", () => {
+    expect(deskItems(defaultLayout()).length).toBeGreaterThanOrEqual(1);
+    // seats stay in placement order regardless of array order, so nobody swaps desks on re-render
+    const a: PlacedItem = { iid: "f2", type: "desk", c: 0, r: 0, rot: 0 };
+    const b: PlacedItem = { iid: "f10", type: "standingDesk", c: 4, r: 0, rot: 0 };
+    expect(deskItems([b, a]).map((d) => d.iid)).toEqual(["f2", "f10"]);
+    // non-desk furniture never counts as a seat
+    expect(deskItems([{ iid: "f3", type: "sofa", c: 0, r: 4, rot: 0 }])).toHaveLength(0);
   });
 });

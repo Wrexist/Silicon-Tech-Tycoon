@@ -67,6 +67,15 @@ export const BALANCE = {
       matchPenalty: 0.32, // a rival roughly as good as you
       beatPenalty: 0.72, // a rival clearly better than you
       beatMargin: 12, // rival strength must exceed your overall by this to "beat" you
+      // Your OWN products still selling in the category split the same buyers (self-
+      // cannibalization). Below matchPenalty — sequels share a fanbase — but real enough that
+      // back-to-back relaunches of one proven design stop being a free demand-pool reset.
+      selfPenalty: 0.22,
+      // When a rival launches into a category where the player has an ACTIVE product, the
+      // remaining weeks of that product's sales curve take this haircut (the feed already
+      // announced "faces new competition" — now it's mechanically true, and the mid-life
+      // price cut has a real job answering it).
+      rivalEntrySalesHaircut: 0.10,
       // Era-scaled competitive pressure. The Garage Era is a protected learning sandbox: rivals
       // barely contest you, so a new player's first products land as steady sellers and they climb
       // toward their first hit instead of drowning in flops. Pressure ramps to full force in the
@@ -292,7 +301,11 @@ export const BALANCE = {
   // base (apps, cloud, subscriptions). Incentivises building ecosystem-focused products.
   // Revenue = unitsSold × ecosystemStat × weeklyServiceRate cents per week.
   ecosystem: {
-    weeklyServiceRate: 0.0008, // per unit sold per ecosystem-stat point
+    // Was 0.0008 — at that rate a 50k-unit, eco-70 hit earned $28/wk (pure noise), so the
+    // ecosystem stat + the Unified OS line + the Ecosystem Architect specialty fed a dead
+    // mechanic. At 0.05 the same product pays ~$1,750/wk — a real annuity worth designing
+    // toward, still far below per-launch revenue so it complements launches, not replaces them.
+    weeklyServiceRate: 0.05,   // cents per unit sold per ecosystem-stat point per week
     minEcosystemStat: 20,      // ecosystem below this threshold earns nothing — the platform is too weak
   },
 
@@ -310,6 +323,9 @@ export const BALANCE = {
     firstWeek: 8,
     everyWeeks: 11,
     jitter: 6,
+    // RNG cost events (supply crunches) must sting, never kill: each hit is capped to this
+    // share of cash on hand, so a random feed item can't bankrupt a by-the-book player mid-build.
+    crunchMaxCashShare: 0.35,
   },
 
   // --- Offline catch-up ---

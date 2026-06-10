@@ -1,6 +1,6 @@
 // Procedural real-time 3D HQ (react-three-fiber). Zero image assets — everything is built
 // from primitives + materials + real lights. Scoped to the garage only; devices stay SVG.
-import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, lazy, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -10,6 +10,7 @@ import type { UpgradeId } from "../engine/upgrades.ts";
 import {
   canPlace,
   cellAt,
+  deskItems,
   footprint,
   furnitureDef,
   GRID,
@@ -52,19 +53,8 @@ const ROBOT_COLORS = ["#4a9af5", "#ff7a35", "#40c870", "#9060e8", "#f5c840"];
 // Desk slots — every hired employee gets one workstation (desk + computer + robot). Two columns
 // that fill front-to-back as the team grows, all facing the camera (+z) and clear of the vault /
 // gate / kanban / whiteboard / corner plants. Founder takes slot 0 (front-left).
-const DESK_SLOTS: { pos: [number, number]; rotY: number }[] = [
-  { pos: [-1.25, 2.35], rotY: 0 },
-  { pos: [1.25, 2.35], rotY: 0 },
-  { pos: [-1.25, 0.55], rotY: 0 },
-  { pos: [1.25, 0.55], rotY: 0 },
-  { pos: [-1.25, -1.25], rotY: 0 },
-  { pos: [1.25, -1.25], rotY: 0 },
-  { pos: [-3.05, -0.4], rotY: Math.PI / 2 }, // left wall, facing in
-  { pos: [3.05, -1.2], rotY: -Math.PI / 2 }, // right wall, facing in
-];
-
-// Overflow (team larger than desk slots, e.g. a packed Campus) — these employees roam the open
-// floor with obstacle-avoidance instead of getting a desk. Rare; keeps very large teams alive.
+// Overflow (more employees than PLACED desks — e.g. a desk was removed in Decorate) — these
+// employees roam the open floor with obstacle-avoidance instead of getting a workstation.
 const ROAM_HOMES: [number, number][] = [
   [0.4, 1.4],
   [-0.6, -0.2],
@@ -388,7 +378,26 @@ function Whiteboard({ p, pos = [-3.92, 2.6, 3.0], rotY = Math.PI / 2 }: { p: Roo
   );
 }
 
-function Room({ p, dark, finish, wall }: { p: RoomPalette; dark: boolean; finish: FloorFinish; wall: WallStyle }) {
+/** Dollhouse wall culling: any wall sitting between the camera and the room interior hides, so
+ *  the player always looks INTO the room — in the default view AND while WASD-orbiting. A small
+ *  hysteresis band stops flicker when the camera crosses an axis; state only changes on a flip. */
+export interface WallCull { a: boolean; b: boolean; r: boolean } // a = back (−z), b = left (−x), r = right (+x)
+
+function useWallCull(): WallCull {
+  // Default camera sits at +x/+z → the right wall starts hidden (it was boxing the view in).
+  const [cull, setCull] = useState<WallCull>({ a: false, b: false, r: true });
+  useFrame(({ camera }) => {
+    setCull((prev) => {
+      const a = camera.position.z < -0.6 ? true : camera.position.z > 0.6 ? false : prev.a;
+      const b = camera.position.x < -0.6 ? true : camera.position.x > 0.6 ? false : prev.b;
+      const r = camera.position.x > 0.6 ? true : camera.position.x < -0.6 ? false : prev.r;
+      return a === prev.a && b === prev.b && r === prev.r ? prev : { a, b, r };
+    });
+  });
+  return cull;
+}
+
+function Room({ p, dark, finish, wall, cull }: { p: RoomPalette; dark: boolean; finish: FloorFinish; wall: WallStyle; cull: WallCull }) {
   const wzA = -4.2;
   const isBrick = wall.kind === "brick";
   const wallColor = dark ? wall.dark : wall.light;
@@ -407,27 +416,30 @@ function Room({ p, dark, finish, wall }: { p: RoomPalette; dark: boolean; finish
           <planeGeometry args={[9.0, 9.0]} />
           <meshStandardMaterial color="#f4f5f8" roughness={0.95} />
         </mesh>
-        {/* low back wall (−z) */}
-        <mesh position={[0, 1.25, -4.0]}>
-          <boxGeometry args={[8.8, 2.7, 0.16]} />
-          <meshStandardMaterial color="#eef0f3" roughness={0.96} />
-        </mesh>
-        {/* low side wall (−x) */}
-        <mesh position={[-4.0, 1.25, 0]}>
-          <boxGeometry args={[0.16, 2.7, 8.8]} />
-          <meshStandardMaterial color="#e8eaee" roughness={0.96} />
-        </mesh>
-        {/* soft skirting where walls meet the slab */}
-        <mesh position={[0, 0.07, -3.95]}>
-          <boxGeometry args={[8.8, 0.14, 0.06]} />
-          <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
-        </mesh>
-        <mesh position={[-3.95, 0.07, 0]}>
-          <boxGeometry args={[0.06, 0.14, 8.8]} />
-          <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
-        </mesh>
-        {/* whiteboard on the low back wall (−z), facing the room */}
-        <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />
+        {/* low back wall (−z) cluster — hides when the camera swings behind it */}
+        <group visible={!cull.a}>
+          <mesh position={[0, 1.25, -4.0]}>
+            <boxGeometry args={[8.8, 2.7, 0.16]} />
+            <meshStandardMaterial color="#eef0f3" roughness={0.96} />
+          </mesh>
+          <mesh position={[0, 0.07, -3.95]}>
+            <boxGeometry args={[8.8, 0.14, 0.06]} />
+            <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
+          </mesh>
+          {/* whiteboard on the low back wall (−z), facing the room */}
+          <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />
+        </group>
+        {/* low side wall (−x) cluster */}
+        <group visible={!cull.b}>
+          <mesh position={[-4.0, 1.25, 0]}>
+            <boxGeometry args={[0.16, 2.7, 8.8]} />
+            <meshStandardMaterial color="#e8eaee" roughness={0.96} />
+          </mesh>
+          <mesh position={[-3.95, 0.07, 0]}>
+            <boxGeometry args={[0.06, 0.14, 8.8]} />
+            <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
+          </mesh>
+        </group>
       </group>
     );
   }
@@ -435,33 +447,38 @@ function Room({ p, dark, finish, wall }: { p: RoomPalette; dark: boolean; finish
   return (
     <group>
       <Floor p={p} finish={finish} dark={dark} />
-      {/* wall A (the garage-door wall, drywall) */}
-      <mesh position={[0, 2.6, wzA]}>
-        <boxGeometry args={[8.4, 5.2, 0.3]} />
-        <meshStandardMaterial color={p.wallA} roughness={0.95} />
-      </mesh>
-      {/* wall B — brick uses instanced bricks; other styles a flat finished wall */}
-      <mesh position={[-4.2, 2.6, 0]}>
-        <boxGeometry args={[0.3, 5.2, 8.4]} />
-        <meshStandardMaterial color={isBrick ? p.brickEdge : wallColor} roughness={wall.kind === "concrete" ? 0.95 : 0.8} metalness={wall.kind === "panel" ? 0.05 : 0} />
-      </mesh>
-      {isBrick && <BrickWall p={p} backZ={-4.1} />}
-      {wall.kind === "panel" && [-3.0, -1.5, 0, 1.5, 3.0].map((z, i) => (
-        <mesh key={i} position={[-4.04, 2.6, z]}><boxGeometry args={[0.02, 5.0, 0.04]} /><meshStandardMaterial color={dark ? "#2a1f15" : "#8a6843"} roughness={0.7} /></mesh>
-      ))}
 
-      {/* baseboard along wall A */}
-      <mesh position={[0, 0.12, wzA + 0.18]}>
-        <boxGeometry args={[8.4, 0.24, 0.06]} />
-        <meshStandardMaterial color={p.baseboard} roughness={0.85} />
-      </mesh>
-      {/* crown trim where wall meets ceiling */}
-      <mesh position={[0, 5.1, wzA]}>
-        <boxGeometry args={[8.4, 0.2, 0.4]} />
-        <meshStandardMaterial color={p.trim} roughness={0.9} />
-      </mesh>
+      {/* ── wall A cluster (back, −z: drywall + garage door + trim) — dollhouse-culled ── */}
+      <group visible={!cull.a}>
+        <mesh position={[0, 2.6, wzA]}>
+          <boxGeometry args={[8.4, 5.2, 0.3]} />
+          <meshStandardMaterial color={p.wallA} roughness={0.95} />
+        </mesh>
+        {/* baseboard along wall A */}
+        <mesh position={[0, 0.12, wzA + 0.18]}>
+          <boxGeometry args={[8.4, 0.24, 0.06]} />
+          <meshStandardMaterial color={p.baseboard} roughness={0.85} />
+        </mesh>
+        {/* crown trim where wall meets ceiling */}
+        <mesh position={[0, 5.1, wzA]}>
+          <boxGeometry args={[8.4, 0.2, 0.4]} />
+          <meshStandardMaterial color={p.trim} roughness={0.9} />
+        </mesh>
+        {dark && <GarageDoor p={p} z={wzA + 0.24} />}
+      </group>
 
-      {dark && <GarageDoor p={p} z={wzA + 0.24} />}
+      {/* ── wall B cluster (left, −x: brick/finish + window + pegboard) — dollhouse-culled ── */}
+      <group visible={!cull.b}>
+        <mesh position={[-4.2, 2.6, 0]}>
+          <boxGeometry args={[0.3, 5.2, 8.4]} />
+          <meshStandardMaterial color={isBrick ? p.brickEdge : wallColor} roughness={wall.kind === "concrete" ? 0.95 : 0.8} metalness={wall.kind === "panel" ? 0.05 : 0} />
+        </mesh>
+        {isBrick && <BrickWall p={p} backZ={-4.1} />}
+        {wall.kind === "panel" && [-3.0, -1.5, 0, 1.5, 3.0].map((z, i) => (
+          <mesh key={i} position={[-4.04, 2.6, z]}><boxGeometry args={[0.02, 5.0, 0.04]} /><meshStandardMaterial color={dark ? "#2a1f15" : "#8a6843"} roughness={0.7} /></mesh>
+        ))}
+      </group>
+
       {dark && <Beams p={p} backZ={-3.2} />}
       {dark && <StringLights />}
       {/* clean-mode ceiling (light mode): flush white soffit instead of beams */}
@@ -471,15 +488,18 @@ function Room({ p, dark, finish, wall }: { p: RoomPalette; dark: boolean; finish
           <meshStandardMaterial color="#f0f1f4" roughness={0.9} />
         </mesh>
       )}
-      {/* right-side wall for KanbanWall mount */}
-      <mesh position={[4.2, 2.6, 0]}>
+      {/* ── right wall (+x) — hidden in the default view (it boxed the room in); appears only
+            when the camera orbits to the other side and it becomes the far wall ── */}
+      <mesh visible={!cull.r} position={[4.2, 2.6, 0]}>
         <boxGeometry args={[0.3, 5.2, 8.4]} />
         <meshStandardMaterial color={dark ? "#272d37" : "#e8e9ec"} roughness={0.85} />
       </mesh>
-      <Whiteboard p={p} />
+      <group visible={!cull.b}>
+        <Whiteboard p={p} />
+      </group>
 
       {/* daylight window (wall B), framed */}
-      <group position={[-3.97, 3.1, -1.1]}>
+      <group visible={!cull.b} position={[-3.97, 3.1, -1.1]}>
         <mesh>
           <boxGeometry args={[0.05, 1.7, 2.3]} />
           <meshStandardMaterial color={p.metalDark} roughness={0.6} metalness={0.3} />
@@ -500,7 +520,7 @@ function Room({ p, dark, finish, wall }: { p: RoomPalette; dark: boolean; finish
       </group>
 
       {/* pegboard with tools (wall B) */}
-      <group position={[-3.95, 2.5, 2.2]}>
+      <group visible={!cull.b} position={[-3.95, 2.5, 2.2]}>
         <mesh>
           <boxGeometry args={[0.04, 1.5, 1.9]} />
           <meshStandardMaterial color={p.pot} roughness={0.85} />
@@ -1385,7 +1405,7 @@ function TestChamber({ p }: { p: RoomPalette }) {
 // ---- Office builder: furniture + drag-to-move interaction ----
 // Press a piece and drag it across the floor; it follows your finger, snaps to the grid, and
 // drops where you release (green ghost = valid, red = blocked). Tap the palette → tap to place.
-function BuildLayer({ p, b }: { p: RoomPalette; b: BuildProps }) {
+function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIids?: ReadonlySet<string> }) {
   const [dragIid, setDragIid] = useState<string | null>(null);
   const [dragCell, setDragCell] = useState<{ c: number; r: number } | null>(null);
   const [hover, setHover] = useState<{ c: number; r: number } | null>(null);
@@ -1419,6 +1439,7 @@ function BuildLayer({ p, b }: { p: RoomPalette; b: BuildProps }) {
     <group>
       {/* placed furniture (the dragged one follows the cursor, lifted slightly) */}
       {b.layout.map((it) => {
+        if (hideIids?.has(it.iid)) return null; // occupied desk → live workstation renders instead
         const isDrag = it.iid === dragIid;
         const cell = isDrag && dragCell ? dragCell : { c: it.c, r: it.r };
         const { x, z, rotY } = worldOf({ ...it, c: cell.c, r: cell.r });
@@ -1510,6 +1531,17 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   const amenityTier = tierOf(upgrades, "amenities");
   const finish = floorFinish(roomStyle.floor);
   const wall = wallStyle(roomStyle.wall);
+  const cull = useWallCull();
+  // Desks ARE the seats: each employee works at a PLACED desk (in placement order), so the
+  // robot a new hire spawns sits at the desk the player actually bought. Overflow (a desk was
+  // removed mid-game) roams the floor instead of vanishing.
+  const inBuild = !!builder?.build;
+  const seats = deskItems(builder?.layout ?? []);
+  const seated = staff.slice(0, seats.length);
+  const roaming = staff.slice(seats.length, 16);
+  // Occupied desks render as full live workstations, so hide their plain furniture models
+  // (cozy view only — in Decorate mode the editable furniture pieces must stay visible).
+  const occupiedIids = new Set(seated.map((_, i) => seats[i].iid));
   return (
     <>
       <VisibilityPause />
@@ -1539,7 +1571,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       <pointLight position={[0, 3.4, 0]} intensity={dark ? 14 : 4} distance={12} decay={2} color={p.lamp} />
       <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.2} distance={7} decay={2} color={p.screen} />
 
-      <Room p={p} dark={dark} finish={finish} wall={wall} />
+      <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} />
       {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
           a clean white void, so no exterior scenery. */}
       {dark && (
@@ -1566,30 +1598,36 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         <meshStandardMaterial color={p.screen} transparent opacity={facilityTier > 1 ? 0.1 : 0.05} roughness={1} />
       </mesh>
 
-      {/* The team — EXACTLY one workstation (desk + computer + robot) per employee. Desks fill
-          front-to-back as you hire; only a packed late-game team (more than the desk slots)
-          overflows into roaming robots. The headcount you hired is the headcount you see. */}
-      {staff.slice(0, DESK_SLOTS.length).map((s, i) => {
-        const slot = DESK_SLOTS[i];
+      {/* The team — each employee's full workstation (desk + computer + robot) renders AT the
+          placed desk they occupy, so buying a desk and hiring puts the new robot exactly where
+          the player put the furniture. Hidden in Decorate mode (the editable desk pieces show
+          instead); employees beyond the desk count roam the floor. */}
+      {!inBuild && seated.map((s, i) => {
+        const w = worldOf(seats[i]);
         return (
-          <group key={s.id ?? i} position={[slot.pos[0], 0, slot.pos[1]]} rotation-y={slot.rotY}>
+          <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
             <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} />
           </group>
         );
       })}
-      {staff.slice(DESK_SLOTS.length, 16).map((s, i) => (
-        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(DESK_SLOTS.length + i) % ROBOT_COLORS.length} seed={(DESK_SLOTS.length + i) * 3.7} home={ROAM_HOMES[i % ROAM_HOMES.length]} />
+      {!inBuild && roaming.map((s, i) => (
+        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + i) % ROBOT_COLORS.length} seed={(seats.length + i) * 3.7} home={ROAM_HOMES[i % ROAM_HOMES.length]} />
       ))}
       <Props p={p} hasProduction={hasProduction} dark={dark} />
       <Dust />
       {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
 
-      {/* player-arranged furniture + the drag-to-move builder */}
-      {builder && <BuildLayer p={p} b={builder} />}
+      {/* player-arranged furniture + the drag-to-move builder. Occupied desks are rendered as
+          live workstations above, so their plain models are suppressed outside Decorate mode. */}
+      {builder && <BuildLayer p={p} b={builder} hideIids={inBuild ? undefined : occupiedIids} />}
 
       {/* ---- Upgrades made physical: each company upgrade adds real furniture ---- */}
       {/* Marketing Suite → a branded wall screen */}
-      {tierOf(upgrades, "marketing") >= 1 && <WallTV name={companyName} tier={tierOf(upgrades, "marketing")} accent="#3b82f6" />}
+      {tierOf(upgrades, "marketing") >= 1 && (
+        <group visible={!cull.b}>
+          <WallTV name={companyName} tier={tierOf(upgrades, "marketing")} accent="#3b82f6" />
+        </group>
+      )}
       {/* Amenities → a coffee station + greenery that grows with the tier */}
       {amenityTier >= 1 && <CoffeeStation p={p} />}
       {amenityTier >= 2 && <Plant p={p} pos={[-3.3, 0, 3.1]} scale={0.85} />}
@@ -1601,7 +1639,10 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {tierOf(upgrades, "testLab") >= 1 && <TestChamber p={p} />}
 
       {/* Always-present office fixtures: kanban board, vault, security gate */}
-      <KanbanWall />
+      {/* Kanban board mounts on the back wall — hide it with its wall or it floats in mid-air */}
+      <group visible={!cull.a}>
+        <KanbanWall />
+      </group>
       <Vault />
       <SecurityGate />
 
@@ -1612,9 +1653,9 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           <OfficeLabel pos={[1.2, 3.05, -2.6]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
           <OfficeLabel pos={[0.8, 2.0, 3.0]} label="Security Gate" sub="Access Control" dot="#10b981" />
-          {/* Per-desk name + primary-discipline label for every occupied workstation */}
-          {staff.slice(0, DESK_SLOTS.length).map((s, i) => {
-            const slot = DESK_SLOTS[i];
+          {/* Per-desk name + primary-discipline label for every occupied (placed) desk */}
+          {seated.map((s, i) => {
+            const w = worldOf(seats[i]);
             const best = (["engineering", "design", "marketing"] as const).reduce<"engineering" | "design" | "marketing">(
               (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering",
             );
@@ -1622,7 +1663,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
             return (
               <OfficeLabel
                 key={s.id ?? i}
-                pos={[slot.pos[0], 2.2, slot.pos[1]]}
+                pos={[w.x, 2.2, w.z]}
                 label={s.name.split(" ")[0]}
                 sub={`${abbr} · ${s.skills[best]}`}
                 dot={ROBOT_COLORS[i % ROBOT_COLORS.length]}
@@ -1633,13 +1674,20 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       )}
 
       {/* Bake the shadow pass once (frames={1}) — the scene is mostly static, so re-rendering the
-          depth pass every frame is wasted GPU. Re-bakes when the layout key below changes. */}
-      <ContactShadows key={builder?.layout.length ?? 0} position={[0, 0.02, 0]} scale={16} blur={3.0} far={6} opacity={dark ? 0.5 : 0.45} color={p.shadow} resolution={1024} frames={1} />
+          depth pass every frame is wasted GPU. The key re-bakes on anything that moves geometry:
+          item count alone missed moves/rotations (a dragged sofa kept its shadow at the old spot),
+          plus desks (staff) and upgrade fixtures. */}
+      <ContactShadows
+        key={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${Object.values(upgrades).join("")}`}
+        position={[0, 0.02, 0]} scale={16} blur={3.0} far={6} opacity={dark ? 0.5 : 0.45} color={p.shadow} resolution={1024} frames={1} />
     </>
   );
 }
 
-export function Garage3D({
+// memo: the host (HQ) re-renders on every sim tick; with the narrowed staff snapshot + memoized
+// builder it passes, this skips re-reconciling the whole R3F tree (incl. drei <Html> labels)
+// when nothing visible changed — the v9-flagged "biggest perf win", narrow version.
+export const Garage3D = memo(function Garage3D({
   staff = [],
   facilityTier,
   hasProduction,
@@ -1690,4 +1738,4 @@ export function Garage3D({
       </Canvas>
     </div>
   );
-}
+});

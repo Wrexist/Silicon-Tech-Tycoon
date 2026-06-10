@@ -51,10 +51,10 @@ Character count: 94 ✓ (Apple counts punctuation; stay under 100)
 
 Build a tech company from a garage to a global empire — one device at a time.
 
-Silicon is a premium management simulation. You don't just watch numbers tick — you DESIGN the products. Pick the chip, display, battery, materials, and camera array, choose a finish and colour, and watch a phone, tablet, laptop, or console render live in crisp, parametric 3D. Then you read the market, time your launch to the week, price it right, and bet on the channel that fits your budget.
+Silicon is a premium management simulation. You don't just watch numbers tick — you DESIGN the products. Pick the chip, display, battery, materials, and camera array, choose a finish and colour, and watch a phone, tablet, laptop, or console render live in a crisp, parametric vector preview. Then you read the market, time your launch to the week, price it right, and bet on the channel that fits your budget.
 
 DESIGN EVERY DETAIL
-Customise your device from the inside out: processor tier, display technology, battery size, frame material, camera layout, lens count, body finish, and colour. Every choice is reflected in a live 3D render, your cost structure, and your margin.
+Customise your device from the inside out: processor tier, display technology, battery size, frame material, camera layout, lens count, body finish, and colour. Every choice is reflected in the live device render, your cost structure, and your margin.
 
 TIME THE MARKET
 Consumer preferences shift week by week. Launch too early and you leave money on the table; launch into a cold market and you flop. Read the trend graph, watch your rivals, and find your window.
@@ -307,7 +307,8 @@ Recommended pre-submission checklist:
 - [ ] Support URL is live
 - [ ] PrivacyInfo.xcprivacy added to Xcode target
 - [ ] In-App Purchase created in App Store Connect with correct product ID
-- [ ] IAP attached to the app version for review
+      (only if StoreKit is wired — see WHAT_YOU_NEED_TO_DO.md Step 7; otherwise skip the IAP for v1)
+- [ ] IAP attached to the app version for review (only with StoreKit wired — never attach unwired)
 - [ ] Age rating questionnaire completed → 4+
 - [ ] All 5 screenshots uploaded in the correct order
 - [ ] Review notes filled in (see above)

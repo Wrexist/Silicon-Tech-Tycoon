@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { dollars } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
+import { addItem, deskItems } from "../engine/furniture.ts";
 import {
   newGame,
   catchUpOffline,
@@ -299,6 +300,34 @@ describe("achievements — migrate backfills earned milestones SILENTLY on an ol
     const back = importSaveString(exportSaveString(fresh as unknown as GameState));
     expect(back).not.toBeNull();
     expect(back!.unlockedAchievements).toEqual([]);
+  });
+});
+
+describe("v17 — desks are seats: migrate grants missing desks to old teams", () => {
+  it("a pre-desk-era save (3 staff, plant-only layout) gets a desk per employee, all legally placed", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const base = newGame(13);
+    const mk = (i: number) => ({ ...base.staff[0], id: `s${i}`, name: `Dev ${i}` });
+    const legacy: GameState = {
+      ...base,
+      staff: [base.staff[0], mk(2), mk(3)],
+      // the old 2-plant default room — zero desks, the worst case
+      layout: [
+        { iid: "f4", type: "plantTall", c: 0, r: 0, rot: 0 },
+        { iid: "f5", type: "plantPot", c: 8, r: 0, rot: 0 },
+      ],
+      furnitureCounter: 6,
+    };
+    const back = importSaveString(exportSaveString(legacy));
+    expect(back).not.toBeNull();
+    const desks = deskItems(back!.layout);
+    expect(desks.length).toBeGreaterThanOrEqual(back!.staff.length); // nobody loses a paid hire
+    // and the grant respects the grid (rebuilding through addItem accepts every item)
+    let acc: GameState["layout"] = [];
+    for (const it of back!.layout) {
+      acc = addItem(acc, it.iid, it.type, it.c, it.r, it.rot);
+    }
+    expect(acc.length).toBe(back!.layout.length);
   });
 });
 

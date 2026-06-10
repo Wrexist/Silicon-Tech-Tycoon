@@ -1,6 +1,8 @@
 .app {
   min-height: 100%;
-  background: var(--bg);
+  /* transparent so the fixed ambient backdrop (index.css body::before) shows through the
+     glass surfaces; the base color lives on body. */
+  background: transparent;
 }
 .app__main {
   padding: var(--sp-16) var(--edge) 0;

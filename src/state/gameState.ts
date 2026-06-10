@@ -40,6 +40,7 @@ import {
   addItem as addFurniture,
   canPlace,
   defaultLayout,
+  deskItems,
   moveItem as moveFurnitureOp,
   removeItem as removeFurnitureOp,
   rotateItem as rotateFurnitureOp,
@@ -429,6 +430,7 @@ export interface ProductionPlan {
   overall: number; // product's overall quality score
   matchingRivals: number; // rivals roughly as good as you, splitting the market
   betterRivals: number; // rivals clearly better than you
+  selfCompeting: number; // your OWN products still selling in this category (cannibalization)
   competitionFactor: number; // 0..1 share you keep after competition
   preOrders: number; // guaranteed buyers from your fanbase
   marketDemand: number; // additional organic demand (after competition)
@@ -485,11 +487,23 @@ export function planProduction(
     if (r > overall + margin) betterRivals++;
     else if (r >= overall - margin) matchingRivals++;
   }
+  // Self-competition: your OWN products still selling in this category split the same buyers.
+  // Without this, relaunching one proven design back-to-back farmed a fresh, full demand pool
+  // every time — the dominant no-thought strategy. Tracked separately from rivals so the wizard
+  // can tell the player exactly why demand shrank.
+  let selfCompeting = 0;
+  for (const lp of s.launched) {
+    if (lp.product.category === product.category && lp.weeksElapsed < lp.weeklyUnits.length) selfCompeting++;
+  }
   // Era-scaled pressure: the Garage Era protects new players from being crushed before they've
   // built up; full competitive pressure applies from the Growth Era on.
   const pressure = comp.eraPressure[Math.max(0, Math.min(s.era - 1, comp.eraPressure.length - 1))];
   const competitionFactor =
-    1 / (1 + (matchingRivals * comp.matchPenalty + betterRivals * comp.beatPenalty) * pressure);
+    1 /
+    (1 +
+      (matchingRivals * comp.matchPenalty + betterRivals * comp.beatPenalty) * pressure +
+      // Self-competition is era-independent: cannibalization is about YOUR line-up, not rivals.
+      selfCompeting * comp.selfPenalty);
 
   const demandFit = breakdown.demand;
   const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
@@ -531,6 +545,7 @@ export function planProduction(
     overall,
     matchingRivals,
     betterRivals,
+    selfCompeting,
     competitionFactor,
     preOrders,
     marketDemand,
@@ -713,6 +728,19 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   );
   for (const l of launches) pushRivalFeed(feed, l, activePlayerCats);
 
+  // A rival entering a category where the player is ACTIVELY selling now dents the remaining
+  // sales curve (pre-fix, the "faces new competition" feed line was mechanically hollow — the
+  // curve was a frozen snapshot). Forecast total is re-derived so sell-through stays honest,
+  // and the mid-life price cut gains a real job: answering a rival's entry.
+  const contestedCats = new Set(launches.filter((l) => activePlayerCats.has(l.category)).map((l) => l.category));
+  const launchedFinal = contestedCats.size === 0 ? launched : launched.map((lp) => {
+    if (!contestedCats.has(lp.product.category) || lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
+    const haircut = 1 - BALANCE.market.competition.rivalEntrySalesHaircut;
+    const weeklyUnits = lp.weeklyUnits.map((u, i) => (i >= lp.weeksElapsed ? Math.round(u * haircut) : u));
+    const remaining = weeklyUnits.slice(lp.weeksElapsed).reduce((a, b) => a + b, 0);
+    return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
+  });
+
   // Research points generated this week
   // Must match the weeklyRpGen selector (incl. the Workstations upgrade), else the UI lies.
   // RP must stay a non-negative integer: partial (offline, rate=0.5) ticks accrue
@@ -847,7 +875,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     trends,
     trendRetargetWeek,
     competitors,
-    launched,
+    launched: launchedFinal,
     cashHistory,
     feed,
     rngState: rng.state(),
@@ -902,8 +930,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   return base;
 }
 
-/** Apply a single EventEffect to the state and push a feed item. Shared by market events and choice resolutions. */
-function applyEventEffect(
+/** Apply a single EventEffect to the state and push a feed item. Shared by market events and
+ *  choice resolutions. Exported for tests (the crunch cash-clamp is a bankruptcy-fairness guard). */
+export function applyEventEffect(
   s: GameState,
   eff: MarketEvent["effect"],
   week: number,
@@ -940,9 +969,13 @@ function applyEventEffect(
     case "burnout":
       staff = s.staff.map((m) => ({ ...m, mood: clampMood(m.mood + eff.mood) }));
       break;
-    case "supplyCrunch":
-      cash = sub(cash, dollars(eff.cash));
+    case "supplyCrunch": {
+      // Sting, never kill: cap the hit at a share of cash on hand so a random event can't
+      // push a by-the-book player below $0 (instant bankruptcy) mid-build.
+      const capDollars = Math.max(0, toDollars(cash)) * BALANCE.events.crunchMaxCashShare;
+      cash = sub(cash, dollars(Math.min(eff.cash, capDollars)));
       break;
+    }
     case "pressFeature":
       reputation = Math.min(BALANCE.reputation.max, reputation + eff.reputation);
       break;
@@ -1159,7 +1192,10 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const deltaStr = deltaBits.length ? ` ${deltaBits.join(" · ")}.` : "";
 
   const feed = [...state.feed];
-  const verdict = isHit ? 'a hit' : isFlop ? 'a flop' : isSolid ? 'a solid performer' : 'a steady seller';
+  // A flop verdict can coexist with a sellout (the verdict is market reception of the product
+  // itself; sales are capped by the run size) — so the flop line must carry its cause, and the
+  // sellout line must not read as a pure celebration next to it, or the two contradict each other.
+  const verdict = isHit ? 'a hit' : isFlop ? 'a flop — out of step with what buyers wanted' : isSolid ? 'a solid performer' : 'a steady seller';
   feed.push(
     feedItem(
       state.week,
@@ -1168,7 +1204,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     ),
   );
   if (sellsOut) {
-    feed.push(feedItem(state.week, `”${product.name}” is selling out — demand outstrips your run.`, "positive"));
+    if (isFlop) {
+      feed.push(feedItem(state.week, `”${product.name}” will sell out its small run — but the wider market wasn't won over. Tap it on Market for the full story.`, "accent"));
+    } else {
+      feed.push(feedItem(state.week, `”${product.name}” is selling out — demand outstrips your run.`, "positive"));
+    }
   } else if (plannedUnits - totalUnits > plannedUnits * 0.35) {
     feed.push(feedItem(state.week, `Overproduced “${product.name}” — unsold stock is a write-off.`, "negative"));
   }
@@ -1383,9 +1423,14 @@ const ROLE_ASSIGNMENT: Record<StaffRole, Assignment> = {
   marketer: "marketing",
 };
 
+/** One placed desk = one seat. Hiring is desk-gated: the team can never outgrow the desks
+ *  the player actually bought in Decorate (the new hire's robot spawns AT a free desk). */
+export const deskCapacity = (s: GameState): number => deskItems(s.layout).length;
+
 export function hireStaff(state: GameState, role: StaffRole, skill: number, name: string): GameState {
   const cap = facility(state).staffCapacity;
   if (state.staff.length >= cap) return state;
+  if (state.staff.length >= deskCapacity(state)) return state; // every seat taken — buy a desk first
   const fee = hireCostFor(role, skill, hasProject(state.completedProjects, "talentNetwork"));
   if (state.cash < fee) return state;
   const rng = rngFrom(state);
@@ -1465,6 +1510,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
   const cand = state.candidates.find((c) => c.id === candidateId);
   if (!cand) return state;
   if (state.staff.length >= facility(state).staffCapacity) return state;
+  if (state.staff.length >= deskCapacity(state)) return state; // every seat taken — buy a desk first
   if (state.cash < cand.hireFee) return state;
   const member: Staff = {
     id: `s${state.staffCounter}`,

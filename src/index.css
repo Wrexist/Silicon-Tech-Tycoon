@@ -23,9 +23,26 @@ body {
   user-select: none;
 }
 
+/* Ambient backdrop — the color field the liquid-glass surfaces refract. Fixed so it doesn't
+   scroll away; whisper-quiet function-color tints that auto-adapt to both themes. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(90% 42% at 12% -6%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
+    radial-gradient(70% 36% at 108% 14%, color-mix(in srgb, var(--fn-team) 6%, transparent), transparent 70%),
+    radial-gradient(85% 45% at 50% 112%, color-mix(in srgb, var(--fn-design) 5%, transparent), transparent 70%);
+}
+
 #root {
   max-width: 540px;
   margin-inline: auto;
+  /* Safety net: one overflowing element must never make the whole page pan sideways on a
+     narrow phone. `clip` (not `hidden`) so the sticky HUD keeps working. */
+  overflow-x: clip;
 }
 
 button {
@@ -34,6 +51,14 @@ button {
   border: none;
   background: none;
   color: inherit;
+}
+
+/* body sets user-select:none for app-like feel — fields must opt back in, or iOS WKWebView
+   degrades long-press select/paste inside the company-name input and the import textarea. */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* Keyboard focus — visible ring for keyboard/switch users, never on touch/mouse press. */

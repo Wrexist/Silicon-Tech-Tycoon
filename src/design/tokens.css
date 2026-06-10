@@ -14,6 +14,12 @@
   --hairline: #e5e7eb;
   --knob: #ffffff; /* toggle/switch knob — sits on a coloured track, stays white in both themes */
   --glass: color-mix(in srgb, var(--surface) 88%, transparent); /* one cohesive frosted material */
+  /* Liquid-glass card material: translucent surface + a 1px inner top highlight reads as
+     polished glass over the ambient backdrop (no per-card backdrop-filter — that would cost
+     GPU on every scrolling card; the real blur is reserved for HUD/nav/sheets). */
+  --glass-card: color-mix(in srgb, #ffffff 78%, transparent);
+  --glass-stroke: color-mix(in srgb, var(--hairline) 85%, transparent);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.85);
   /* --accent darkened to #2563eb in light theme so white text on accent (incl. 13px .ds-btn--sm)
      meets 4.5:1. --accent-ink stays #fff. Dark theme overrides --accent back to #3b82f6. */
   --accent: #2563eb;
@@ -43,6 +49,7 @@
      hues, which already pass on dark surfaces. Keeps the function colour-coding intact. */
   --positive-text: #047857;
   --negative-text: #dc2626;
+  --warning-text: #b45309;
   --fn-eng-text: #c2570c;
   --fn-design-text: #0f8a57;
   --fn-mkt-text: #2563eb;
@@ -99,6 +106,17 @@
   color-scheme: light dark;
 }
 
+/* Small phones (iPhone SE / Display Zoom / narrow windows): tighten the scale so the same
+   layout breathes instead of crowding — type steps down one notch, edges pull in. */
+@media (max-width: 360px) {
+  :root {
+    --edge: 14px;
+    --fs-large-title: 29px;
+    --fs-title: 24px;
+    --fs-headline: 18px;
+  }
+}
+
 :root[data-theme="dark"],
 :root:not([data-theme="light"]) {
   /* default fallthrough handled below by media query */
@@ -124,6 +142,7 @@
     /* on-light text variants fall back to the bright hues on dark surfaces */
     --positive-text: #10b981;
     --negative-text: #ef4444;
+    --warning-text: #fbbf24;
     --fn-eng-text: #f97316;
     --fn-design-text: #1eb877;
     --fn-mkt-text: #3b82f6;
@@ -134,6 +153,9 @@
     --fn-design-soft: #0f2a1d;
     --fn-mkt-soft: #16233d;
     --fn-team-soft: #1f1638;
+    --glass-card: color-mix(in srgb, var(--surface) 76%, transparent);
+    --glass-stroke: rgba(255, 255, 255, 0.07);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -157,6 +179,7 @@
   /* on-light text variants fall back to the bright hues on dark surfaces */
   --positive-text: #10b981;
   --negative-text: #ef4444;
+  --warning-text: #fbbf24;
   --fn-eng-text: #f97316;
   --fn-design-text: #1eb877;
   --fn-mkt-text: #3b82f6;
@@ -165,6 +188,9 @@
   --fn-eng-soft: #2a1d10;
   --fn-design-soft: #0f2a1d;
   --fn-mkt-soft: #16233d;
+  --glass-card: color-mix(in srgb, var(--surface) 76%, transparent);
+  --glass-stroke: rgba(255, 255, 255, 0.07);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);

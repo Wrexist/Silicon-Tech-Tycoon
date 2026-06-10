@@ -7,6 +7,12 @@
   position: relative;
   background: radial-gradient(120% 90% at 50% 30%, var(--accent-soft), var(--surface) 70%);
   padding: var(--sp-16) 0 var(--sp-8);
+  overflow: hidden;
+}
+/* Defensive: if the WebGL canvas holds a stale size across a resize (rAF paused while the
+   page was hidden), clip-scale it into its box instead of letting it crop the scene. */
+.hq__scene canvas {
+  max-width: 100%;
 }
 .hq__scene-tag {
   position: absolute;
@@ -616,13 +622,16 @@
   gap: var(--sp-12);
 }
 
-/* Accent is carried by the glyph + level chip + buy button — not a hard border that would
-   clip the rounded corner. A whisper-thin tinted top keeps it cohesive and premium. */
+/* Accent is carried by the glyph + level chip + buy button — plus a whisper of the function
+   color washed INTO the glass itself (no colored border: that read as a hard "themed card"
+   edge). The per-card --accent override tints the wash automatically. */
 .hqu__card,
 .hqu__fac {
   position: relative;
   overflow: hidden;
-  border-top: 2px solid color-mix(in srgb, var(--accent) 55%, var(--hairline));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 46%),
+    var(--glass-card);
   transition: box-shadow var(--spring-standard), transform var(--spring-snappy), border-color var(--spring-snappy);
 }
 .hqu__card:active {
@@ -796,9 +805,16 @@
 /* ---------- Performance card ---------- */
 .hq__perf-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* minmax(0,1fr): plain 1fr tracks refuse to shrink below their content's min width, which
+     pushed this row past the viewport on narrow phones (the whole page clipped right). */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--sp-8);
   margin-bottom: var(--sp-12);
+}
+@media (max-width: 360px) {
+  .hq__perf-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .hq__perf-item {
   display: flex;
@@ -808,6 +824,7 @@
   padding: var(--sp-8) var(--sp-4);
   border-radius: var(--r-button);
   background: var(--surface-2);
+  min-width: 0;
 }
 .hq__perf-val {
   font-size: var(--fs-headline);
@@ -823,6 +840,10 @@
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .hq__perf-revenue {
   display: flex;

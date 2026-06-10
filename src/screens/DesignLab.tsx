@@ -169,7 +169,7 @@ export function DesignLab({
   const priceSliderAccent =
     priceRatio < 0.65 ? "var(--accent)"
     : priceRatio < 1.3 ? "var(--positive)"
-    : priceRatio < 1.8 ? "#f59e0b"
+    : priceRatio < 1.8 ? "var(--warning)"
     : "var(--negative)";
 
   const breakdown = scoreLaunch({
@@ -880,6 +880,14 @@ function BuildWizard({
             <Stat label="Demand fit" value={`${Math.round(plan.demandFit)}`} tone={fitTone} hint={fitLabel} />
             <Stat label="Price fit" value={priceFit.label} tone={priceFit.tone} />
             <Stat label="Competition" value={compLabel} tone={compTone} />
+            {plan.selfCompeting > 0 && (
+              <Stat
+                label="Cannibalization"
+                value={`${plan.selfCompeting} of yours`}
+                tone="accent"
+                hint="your own products still selling here split this demand"
+              />
+            )}
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
             <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "sells out" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />

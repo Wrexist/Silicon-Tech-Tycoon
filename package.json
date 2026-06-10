@@ -1,7 +1,7 @@
 {
   "name": "silicon-tech-tycoon",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Silicon: Tech Tycoon — design and sell tech products. Web build (Vite + React + TS), ships to iOS via Capacitor.",
   "scripts": {
@@ -17,6 +17,7 @@
   "dependencies": {
     "@capacitor/core": "^6.2.1",
     "@capacitor/haptics": "^6.0.3",
+    "@capacitor/preferences": "^6.0.4",
     "@capacitor/splash-screen": "^6.0.4",
     "@capacitor/status-bar": "^6.0.3",
     "@react-three/drei": "^10.7.7",

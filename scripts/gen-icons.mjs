@@ -57,6 +57,23 @@ async function withSharp(src, isRaster) {
     .png()
     .toFile(resolve(root, "resources/icon.png"));
   console.log("wrote resources/icon.png (1024, opaque master)");
+
+  // Splash masters: 2732×2732 (the largest iPad size; @capacitor/assets scales every other
+  // size from it), brand-dark bg with the mark centered well inside the safe zone. The splash
+  // is the SAME dark art for light + dark (matches capacitor.config backgroundColor #0f1115);
+  // splash-dark.png must exist or the assets generator falls back to its Capacitor-logo default.
+  const SPLASH = 2732;
+  const mark = await sharp(src).resize(820, 820).png().toBuffer();
+  const splashPng = await sharp({
+    create: { width: SPLASH, height: SPLASH, channels: 4, background: BG },
+  })
+    .composite([{ input: mark, top: Math.round((SPLASH - 820) / 2), left: Math.round((SPLASH - 820) / 2) }])
+    .flatten({ background: BG })
+    .png()
+    .toBuffer();
+  await writeFile(resolve(root, "resources/splash.png"), splashPng);
+  await writeFile(resolve(root, "resources/splash-dark.png"), splashPng);
+  console.log("wrote resources/splash.png + splash-dark.png (2732, opaque)");
 }
 
 async function withResvg(svg) {
