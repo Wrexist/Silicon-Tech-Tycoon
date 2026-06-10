@@ -43,7 +43,11 @@ jobs:
           fi
 
           grep DEVELOPMENT_TEAM ios/App/App.xcodeproj/project.pbxproj
-         
+          
+      - name: Debug signing settings
+        run: |
+          grep -n "PRODUCT_BUNDLE_IDENTIFIER" ios/App/App.xcodeproj/project.pbxproj || true
+          grep -n "DEVELOPMENT_TEAM" ios/App/App.xcodeproj/project.pbxproj || true
 
       - name: Archive App
         run: |
