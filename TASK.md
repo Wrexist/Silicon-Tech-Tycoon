@@ -441,3 +441,51 @@ reputation momentum (rival rep never changes after init → pure compounding, up
   Creative Mode content beyond the cash floor (thin for $2.99).
 - Owner-side (Mac): `npx cap add ios`, Xcode portrait/iPhone-only settings, StoreKit wiring if
   the IAP ships in v1, on-device smoke (Preferences mirror, status bar, haptics).
+
+## v17 — full audit + iOS/CI pipeline made shippable (DONE 2026-06-10)
+4 parallel domain agents + a CI/native deep-dive on a green tree (tsc 0, vitest 199→**201**, build+PWA ok).
+- [x] **iOS TestFlight workflow rewritten to actually work.** It was archive-only (never uploaded) and its
+      `DEVELOPMENT_TEAM` injection was a no-op (the `grep -q` guard matched the team already in the *Debug*
+      config, so the `sed` was skipped and *Release* — what `archive` uses — had no team → signing failed).
+      Now: build → cap sync → archive (ASC API-key cloud signing) → export `app-store-connect` IPA → upload
+      via altool, team/signing passed as `xcodebuild` args, secret preflight, run-number build number.
+- [x] **Removed the corrupt `ios-testflight.yml`** (invalid YAML — no indentation + literal markdown fences).
+- [x] **Added the missing shared `App.xcscheme`** (Windows-generated project never had one;
+      `xcodebuild -scheme App` would have failed) + `ios/ExportOptions.plist`.
+- [x] **Capacitor stack aligned** `@capacitor/cli` 8.4.0→6.2.1 (was a major skew vs core/ios/plugins 6.2.1).
+- [x] **`Package.swift` fixed**: Windows `\` paths → POSIX, and the **missing `CapacitorPreferences`** plugin
+      (used by `nativeStore.ts`) added. (`cap sync` self-heals it on the runner; the committed file is now
+      correct for a manual Xcode open too.)
+- [x] **`Info.plist`/pbxproj match the locked ship target**: `armv7`→`arm64`; portrait-only; iPad orientation
+      block dropped; `TARGETED_DEVICE_FAMILY` `"1,2"`→`"1"`; Release `DEVELOPMENT_TEAM` set;
+      `CODE_SIGN_IDENTITY` "iPhone Developer"→"Apple Development".
+- [x] **Engine**: offline catch-up was **silently skipping ~half of every selling product's revenue** (the
+      one untested code path) — fixed to half-speed time; `startBuild` maxRun clamp; `migrate` launched-field
+      guards; `deviceStyle` blank-render fallback. +2 tests.
+- [x] **UI**: defined the missing `--sp-5/10/14` spacing tokens (app-wide spacing was silently collapsing —
+      RULE #1); replaced glyphs `◎ ★ › → ✓` with Lucide.
+- **Owner action for the workflow:** add three repo secrets — `APP_STORE_CONNECT_KEY_ID`,
+  `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_BASE64` (base64 of the `.p8`). The team ID is
+  already wired (S3U8B8HH96). Without them the run fails fast with a clear message.
+
+### v17 Backlog — audit findings NOT actioned (carry forward; need a focused pass / design calls)
+**State/lifecycle:** side-effects (toasts + achievement eval) run inside the `setState` updater →
+  StrictMode double-fire (dev-only) — move to a `useEffect` keyed on week; offline catch-up runs staff
+  churn (staff can quit while away) and leaves `nextEventWeek` stale (an event fires the instant you
+  return) — gate both on `offline`; **sandbox entitlement not re-validated on import** (an imported save
+  with `sandboxUnlocked:true` keeps the unlimited-cash floor for free) — gate the floor on
+  `hasSandboxEntitlement()`; `tabGuard` first-claimant never un-freezes (no release/heartbeat); three
+  duplicate save sites → one `persist()` helper.
+**Engine:** `nextWeekRevenue` understates cash (subtracts prepaid unitCost) → runway reads pessimistic;
+  ecosystem loop reads pre-sales `state.launched` (1-wk lag); competitors decay keep-threshold `>1` vs
+  present-count `>0` disagree; `newGame`/`migrate` seeds are signed/overflowing (cosmetic).
+**Render/3D:** `<Canvas frameloop="always">` + ~10 always-on `useFrame` loops defeat the CameraRig
+  "settle to save battery" (→ `frameloop="demand"` + `invalidate()`); glTF **robot `tint` path is dead**
+  (`robotModelFor` never passes a tint, so a shared base model wouldn't recolor); live reduced-motion not
+  honored inside the mounted 3D scene; context-loss fallback is one-shot and drops you out of Decorate;
+  >4 roamers share 4 homes; staff #17+ render invisible (`slice(…,16)`); several hardcoded non-theme
+  colors in `furniture3d.tsx`/`Garage3D.tsx`.
+**Screens/UI/a11y:** dead CSS (`.lab__price-btn`, stale icon-container `font-size`s on now-SVG glyphs);
+  sub-10px type (`co__proj-wk` 8px + several 9px badges); `market.css` rank-1 medal hardcodes gold
+  (off-token, won't dark-adapt); "WASD to look around" shown on touch; index keys on per-tick-recomputed
+  lists; soft `→` arrows in `App.tsx`/`HQ.tsx` button labels (debatable vs the Lucide rule).
