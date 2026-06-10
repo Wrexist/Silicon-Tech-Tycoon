@@ -23,6 +23,20 @@ body {
   user-select: none;
 }
 
+/* Ambient backdrop — the color field the liquid-glass surfaces refract. Fixed so it doesn't
+   scroll away; whisper-quiet function-color tints that auto-adapt to both themes. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(90% 42% at 12% -6%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
+    radial-gradient(70% 36% at 108% 14%, color-mix(in srgb, var(--fn-team) 6%, transparent), transparent 70%),
+    radial-gradient(85% 45% at 50% 112%, color-mix(in srgb, var(--fn-design) 5%, transparent), transparent 70%);
+}
+
 #root {
   max-width: 540px;
   margin-inline: auto;

@@ -1,10 +1,13 @@
 /* DesignSystem primitives — every screen is assembled from these. */
 
 .ds-card {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
+  /* Liquid glass: translucent surface + 1px inner top highlight over the ambient backdrop.
+     No backdrop-filter here on purpose — dozens of scrolling cards with live blur would cost
+     GPU/battery; the translucency against the fixed color field carries the material. */
+  background: var(--glass-card);
+  border: 1px solid var(--glass-stroke);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
   padding: var(--sp-16);
 }
 .ds-card--flush {
@@ -249,9 +252,14 @@
   max-width: 540px;
   max-height: 88vh;
   overflow-y: auto;
-  background: var(--surface);
+  /* One overlay at a time → real backdrop blur is affordable here, and it's where the
+     liquid-glass material pays off most (content slides under the sheet). */
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: saturate(170%) blur(22px);
+  -webkit-backdrop-filter: saturate(170%) blur(22px);
+  border-top: 1px solid var(--glass-stroke);
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
-  box-shadow: var(--shadow-floating);
+  box-shadow: var(--glass-highlight), var(--shadow-floating);
   padding: var(--sp-24) var(--edge) calc(var(--sp-32) + env(safe-area-inset-bottom));
   animation: ds-rise var(--spring-standard);
 }

@@ -622,13 +622,16 @@
   gap: var(--sp-12);
 }
 
-/* Accent is carried by the glyph + level chip + buy button — not a hard border that would
-   clip the rounded corner. A whisper-thin tinted top keeps it cohesive and premium. */
+/* Accent is carried by the glyph + level chip + buy button — plus a whisper of the function
+   color washed INTO the glass itself (no colored border: that read as a hard "themed card"
+   edge). The per-card --accent override tints the wash automatically. */
 .hqu__card,
 .hqu__fac {
   position: relative;
   overflow: hidden;
-  border-top: 2px solid color-mix(in srgb, var(--accent) 55%, var(--hairline));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 46%),
+    var(--glass-card);
   transition: box-shadow var(--spring-standard), transform var(--spring-snappy), border-color var(--spring-snappy);
 }
 .hqu__card:active {
