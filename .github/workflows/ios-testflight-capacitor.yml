@@ -34,6 +34,17 @@ jobs:
           xcodebuild -version
           xcode-select -p
 
+      - name: Set Apple Team ID
+        run: |
+          if ! grep -q "DEVELOPMENT_TEAM" ios/App/App.xcodeproj/project.pbxproj; then
+            /usr/bin/sed -i '' '/PRODUCT_BUNDLE_IDENTIFIER = com.wrexist.silicon;/a\
+            DEVELOPMENT_TEAM = S3U8B8HH96;
+            ' ios/App/App.xcodeproj/project.pbxproj
+          fi
+
+          grep DEVELOPMENT_TEAM ios/App/App.xcodeproj/project.pbxproj
+         
+
       - name: Archive App
         run: |
           mkdir -p build
