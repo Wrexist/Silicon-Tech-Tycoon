@@ -1,0 +1,23 @@
+name: iOS TestFlight
+on:
+  workflow_dispatch:
+    inputs:
+      marketing_version:
+        description: 'Leave blank to use default_version below.'
+        required: false
+        type: string
+        default: ''
+permissions:
+  contents: read
+jobs:
+  testflight:
+    uses: Wrexist/ios-certificates/.github/workflows/testflight.yml@master
+    secrets: inherit
+    with:
+      project_type: capacitor
+      scheme: App
+      xcode_project: ios/App/App.xcodeproj
+      bundle_map: '{"App": "com.wrexist.silicon"}'   # ← change the bundle id
+      match_branch: new-apps
+      default_version: '1.0.0'                          # ← the version your builds get
+      marketing_version: ${{ inputs.marketing_version }}
