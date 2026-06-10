@@ -26,6 +26,9 @@ body {
 #root {
   max-width: 540px;
   margin-inline: auto;
+  /* Safety net: one overflowing element must never make the whole page pan sideways on a
+     narrow phone. `clip` (not `hidden`) so the sticky HUD keeps working. */
+  overflow-x: clip;
 }
 
 button {

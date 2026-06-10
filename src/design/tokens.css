@@ -100,6 +100,17 @@
   color-scheme: light dark;
 }
 
+/* Small phones (iPhone SE / Display Zoom / narrow windows): tighten the scale so the same
+   layout breathes instead of crowding — type steps down one notch, edges pull in. */
+@media (max-width: 360px) {
+  :root {
+    --edge: 14px;
+    --fs-large-title: 29px;
+    --fs-title: 24px;
+    --fs-headline: 18px;
+  }
+}
+
 :root[data-theme="dark"],
 :root:not([data-theme="light"]) {
   /* default fallthrough handled below by media query */

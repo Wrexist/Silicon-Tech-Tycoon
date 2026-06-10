@@ -17,6 +17,9 @@
 }
 .bnav__item {
   flex: 1;
+  /* without min-width:0 the longest label ("Company") sets a floor and the bar overflows
+     the viewport on narrow phones */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -50,4 +53,8 @@
 .bnav__label {
   font-size: var(--fs-nano);
   font-weight: 600;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
