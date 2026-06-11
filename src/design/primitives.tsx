@@ -1,8 +1,10 @@
 import {
   type ButtonHTMLAttributes,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   useEffect,
   useRef,
+  useState,
 } from "react";
 import { Sparkles } from "lucide-react";
 import { haptic } from "./haptics.ts";
@@ -255,26 +257,65 @@ export function Sheet({
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Drag-to-dismiss from the grab handle: a real tap closes, a downward drag past the threshold
+  // closes, anything shorter snaps back. Lives on the handle (not the whole sheet) so it never
+  // fights the sheet's own content scrolling.
+  const drag = useRef({ startY: 0, dy: 0, moved: 0, active: false });
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+  useEffect(() => { if (open) setOffset(0); }, [open]);
   useDialogFocus(dialogRef, open);
 
   if (!open) return null;
+
+  const grabDown = (e: ReactPointerEvent) => {
+    drag.current = { startY: e.clientY, dy: 0, moved: 0, active: true };
+    setDragging(true);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const grabMove = (e: ReactPointerEvent) => {
+    if (!drag.current.active) return;
+    const raw = e.clientY - drag.current.startY;
+    drag.current.dy = Math.max(0, raw);
+    drag.current.moved = Math.max(drag.current.moved, Math.abs(raw));
+    setOffset(drag.current.dy);
+  };
+  const grabUp = () => {
+    if (!drag.current.active) return;
+    const { dy, moved } = drag.current;
+    drag.current.active = false;
+    setDragging(false);
+    if (dy > 96 || moved < 6) onClose(); // dragged far enough, or a clean tap on the handle
+    else setOffset(0); // a short drag — snap back
+  };
+
   return (
     <div className="ds-sheet-scrim" onClick={onClose}>
       <div
         ref={dialogRef}
         className="ds-sheet"
+        style={offset ? { transform: `translateY(${offset}px)`, transition: dragging ? "none" : undefined } : undefined}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="ds-sheet__grab" aria-hidden />
+        <button
+          type="button"
+          className="ds-sheet__grab"
+          aria-label="Close"
+          onPointerDown={grabDown}
+          onPointerMove={grabMove}
+          onPointerUp={grabUp}
+          onPointerCancel={grabUp}
+        />
         {children}
       </div>
     </div>

@@ -6,6 +6,34 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-16);
+  /* room so the last content scrolls clear of the fixed step-nav bar above the tab bar */
+  padding-bottom: 72px;
+}
+
+/* Sticky step nav: Back (left) + Next (right), fixed just above the bottom tab bar. The bar
+   itself is click-through (only the buttons capture taps) so it never blocks content in the gap.
+   Offset clears the ~54px tab bar; tune if the bar height changes. */
+.lab__nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(60px + env(safe-area-inset-bottom));
+  z-index: 29;
+  max-width: 540px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  padding: 0 var(--edge);
+  pointer-events: none;
+}
+.lab__nav > button {
+  pointer-events: auto;
+  box-shadow: var(--shadow-floating);
+}
+.lab__nav-spacer {
+  width: 1px;
 }
 
 /* Market hint banner — shown when a stat is trending up */
@@ -276,10 +304,25 @@
   color: var(--positive-text);
 }
 .lab__comp-locked {
-  margin-top: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
   font-size: var(--fs-micro);
+  font-weight: 700;
+  /* the next-tier NAME is the hook — give it the accent, mute the trailing hint */
+  color: var(--accent);
+}
+.lab__comp-locked svg {
+  flex-shrink: 0;
+}
+.lab__comp-locked-stat {
+  color: var(--positive-text);
   font-weight: 600;
+}
+.lab__comp-locked-hint {
   color: var(--ink-3);
+  font-weight: 600;
 }
 .lab__comp-cost {
   font-size: var(--fs-caption);

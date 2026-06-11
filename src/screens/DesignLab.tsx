@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -409,9 +409,19 @@ export function DesignLab({
                       {def && contribLabel(def.contributes) && (
                         <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
                       )}
-                      {atMax && maxTier(kind) > maxT && (
-                        <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
-                      )}
+                      {atMax && maxTier(kind) > maxT && (() => {
+                        // Show the NAME of the next component you'd unlock (e.g. "TurboCore A2"),
+                        // not a dry "T2" — it's the upgrade to get excited about and research toward.
+                        const nextDef = tierDef(kind, maxT + 1);
+                        if (!nextDef) return null;
+                        return (
+                          <span className="lab__comp-locked">
+                            <Lock size={10} aria-hidden /> {nextDef.name}
+                            {contribLabel(nextDef.contributes) && <span className="lab__comp-locked-stat"> · {contribLabel(nextDef.contributes)}</span>}
+                            <span className="lab__comp-locked-hint"> · research in R&amp;D</span>
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="lab__stepper">
                       <button onClick={() => setTier(kind, -1)} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
@@ -823,6 +833,26 @@ export function DesignLab({
         )}
 
       </div>
+
+      {/* Sticky step nav above the tab bar — Back (left) + Next (right) so the design flow reads
+          as clear steps. Fixed (stays put while the pane scrolls). The Launch step has its own
+          Build CTA, so Next hides there. Suppressed during the first-build tutorial, where the
+          Coach occupies the same bottom band and provides the guidance instead. */}
+      {state.tutorialDone && (() => {
+        const i = LAB_TABS.findIndex((t) => t.id === labTab);
+        const prev = i > 0 ? LAB_TABS[i - 1] : null;
+        const next = i < LAB_TABS.length - 1 ? LAB_TABS[i + 1] : null;
+        return (
+          <div className="lab__nav">
+            {prev
+              ? <Button variant="secondary" onClick={() => { haptic.light(); setLabTab(prev.id); }}><ArrowLeft size={16} /> Back</Button>
+              : <span className="lab__nav-spacer" aria-hidden />}
+            {next
+              ? <Button onClick={() => { haptic.light(); setLabTab(next.id); }}>Next: {next.label} <ArrowRight size={16} /></Button>
+              : <span className="lab__nav-spacer" aria-hidden />}
+          </div>
+        );
+      })()}
 
       <Sheet open={wizard} onClose={() => setWizard(false)}>
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}

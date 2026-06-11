@@ -262,13 +262,38 @@
   box-shadow: var(--glass-highlight), var(--shadow-floating);
   padding: var(--sp-24) var(--edge) calc(var(--sp-32) + env(safe-area-inset-bottom));
   animation: ds-rise var(--spring-standard);
+  /* drag-to-dismiss snaps back to here when released short of the threshold */
+  transition: transform var(--spring-standard);
 }
+/* The grab handle is a real control: tap it or drag it down to close. The visible pill is a
+   ::before so the button itself is a comfortable 64×24 hit/drag target. */
 .ds-sheet__grab {
+  display: block;
+  width: 64px;
+  height: 24px;
+  margin: 0 auto var(--sp-12);
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: grab;
+  touch-action: none;
+  position: relative;
+}
+.ds-sheet__grab::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 36px;
   height: 5px;
   border-radius: var(--r-pill);
   background: var(--hairline);
-  margin: 0 auto var(--sp-16);
+  transition: background var(--spring-snappy), width var(--spring-snappy);
+}
+.ds-sheet__grab:active::before {
+  background: var(--ink-3);
+  width: 46px;
 }
 
 /* Toast */

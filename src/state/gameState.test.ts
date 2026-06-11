@@ -450,6 +450,21 @@ describe("Rest — paid morale recovery", () => {
     const rich: GameState = { ...base, cash: dollars(100_000), staff: [m] };
     expect(restStaff(rich, m.id).staff[0].mood).toBe(100); // 90 + 30 capped
   });
+
+  it("is never free — the unpaid founder still pays the floor (no infinite morale)", () => {
+    const base = newGame(10);
+    const founder = base.staff.find((s) => s.id === "s0")!;
+    expect(founder.salary).toBe(0);
+    expect(restCost(founder)).toBe(dollars(BALANCE.churn.restMinCost)); // floor, not $0
+
+    const tiredFounder = { ...founder, mood: 30 };
+    const broke: GameState = { ...base, cash: dollars(0), staff: [tiredFounder] };
+    expect(restStaff(broke, "s0")).toBe(broke); // can't rest for free anymore
+
+    const rich: GameState = { ...base, cash: dollars(100_000), staff: [tiredFounder] };
+    const after = restStaff(rich, "s0");
+    expect(rich.cash - after.cash).toBe(dollars(BALANCE.churn.restMinCost));
+  });
 });
 
 describe("premium finish unlocks (RP-gated, with a Design bonus)", () => {

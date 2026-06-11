@@ -1548,9 +1548,11 @@ export function trainStaff(state: GameState, id: string): GameState {
   };
 }
 
-/** Cash cost to send a staff member on paid time off (Rest) — one week of their salary. */
+/** Cash cost to send a staff member on paid time off (Rest) — one week of their salary, with a
+ *  floor so it's never free (the unpaid founder would otherwise get unlimited morale resets). */
 export function restCost(member: Staff): Money {
-  return member.salary;
+  const floor = dollars(BALANCE.churn.restMinCost);
+  return member.salary > floor ? member.salary : floor;
 }
 
 /** Rest: pay for time off — a big immediate morale boost that also clears the burnout danger
