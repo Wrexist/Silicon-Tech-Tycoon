@@ -45,7 +45,7 @@
   min-width: 0;
 }
 .coach__title {
-  font-size: 14px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--ink);
   line-height: 1.25;

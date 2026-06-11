@@ -103,6 +103,7 @@
   --fs-caption: 13px;
   --fs-micro: 11px;
   --fs-nano: 10px;
+  --fs-fx: 15px; /* floating gain/spend FX text — between caption and body on purpose */
 
   /* Motion */
   --spring-standard: 350ms cubic-bezier(0.22, 1, 0.36, 1);

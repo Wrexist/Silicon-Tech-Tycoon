@@ -1289,7 +1289,7 @@
   align-items: center;
   padding: 2px 6px;
   border-radius: var(--r-pill);
-  font-size: 9px;
+  font-size: var(--fs-nano);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;

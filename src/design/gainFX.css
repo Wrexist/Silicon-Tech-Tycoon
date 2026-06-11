@@ -10,7 +10,7 @@
   pointer-events: none;
 }
 .gainfx__tok {
-  font-size: 15px;
+  font-size: var(--fs-fx);
   font-weight: 800;
   letter-spacing: -0.01em;
   animation: gainfx-rise 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;

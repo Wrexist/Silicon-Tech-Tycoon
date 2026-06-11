@@ -190,7 +190,7 @@
   transform: scale(0.95);
 }
 .lab__chip-gen {
-  font-size: 9px;
+  font-size: var(--fs-nano);
   font-weight: 800;
   line-height: 1;
   padding: 2px 4px;
