@@ -239,9 +239,14 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 const line = COMPONENT_LINES[kind];
                 const affordable = rp >= cost;
                 const curTierDef = tierDef(kind, researchedTier(state, kind));
-                const contrib = curTierDef
+                const contribRaw = curTierDef
                   ? deltaLabel(curTierDef.contributes, next.contributes)
                   : contributesLabel(next.contributes);
+                // A single-stat line whose stat IS the line ("Battery · +16 Battery") reads
+                // redundant — drop the repeated word: "Battery · +16".
+                const contrib = !contribRaw.includes("  ") && contribRaw.endsWith(` ${line.displayName}`)
+                  ? contribRaw.slice(0, -line.displayName.length - 1)
+                  : contribRaw;
                 const isTrending = trendDelta > 0.02 && trendStat && (next.contributes[trendStat] ?? 0) > 0;
                 return (
                   <div key={kind} className="rd__sprint-row">
