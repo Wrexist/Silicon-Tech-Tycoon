@@ -296,37 +296,43 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
 function Onboarding({ onStart }: { onStart: () => void }) {
   const { markOnboarded, setCompanyName } = useGame();
   const [name, setName] = useState("");
+  const found = () => {
+    if (name.trim()) setCompanyName(name);
+    markOnboarded();
+    onStart();
+  };
   return (
     <div className="onboard">
-      <div className="onboard__inner">
-        <div className="onboard__logo"><CircuitBoard size={48} strokeWidth={1.8} /></div>
-        <h1 className="onboard__title">Silicon</h1>
-        <p className="onboard__tag">Design tech. Time the market. Build an empire.</p>
-        <div className="onboard__steps">
-          <Step n="1" title="Design a device" text="Pick components, a finish, and a price. Watch it render live." />
-          <Step n="2" title="Read the market" text="Build toward what consumers want — and launch before the trend shifts." />
-          <Step n="3" title="Reinvest & grow" text="Fund R&D, hire a team, and expand from a garage to a global brand." />
+      <div className="onboard__scroll">
+        <div className="onboard__inner">
+          <div className="onboard__logo"><CircuitBoard size={48} strokeWidth={1.8} /></div>
+          <h1 className="onboard__title">Silicon</h1>
+          <p className="onboard__tag">Design tech. Time the market. Build an empire.</p>
+          <div className="onboard__steps">
+            <Step n="1" title="Design a device" text="Pick components, a finish, and a price. Watch it render live." />
+            <Step n="2" title="Read the market" text="Build toward what consumers want — and launch before the trend shifts." />
+            <Step n="3" title="Reinvest & grow" text="Fund R&D, hire a team, and expand from a garage to a global brand." />
+          </div>
+          <label className="onboard__name-label" htmlFor="onboard-name">Name your company</label>
+          <input
+            id="onboard-name"
+            className="onboard__name"
+            value={name}
+            maxLength={18}
+            placeholder="Silicon"
+            aria-label="Company name"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="words"
+            spellCheck={false}
+            enterKeyHint="done"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") found(); }}
+          />
+          <Button block onClick={found}>
+            Found {name.trim() || "Silicon"}
+          </Button>
         </div>
-        <label className="onboard__name-label" htmlFor="onboard-name">Name your company</label>
-        <input
-          id="onboard-name"
-          className="onboard__name"
-          value={name}
-          maxLength={18}
-          placeholder="Silicon"
-          aria-label="Company name"
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Button
-          block
-          onClick={() => {
-            if (name.trim()) setCompanyName(name);
-            markOnboarded();
-            onStart();
-          }}
-        >
-          Found {name.trim() || "Silicon"}
-        </Button>
       </div>
     </div>
   );
