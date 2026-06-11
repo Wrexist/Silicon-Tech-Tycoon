@@ -78,7 +78,7 @@ const UPGRADE_FN: Record<UpgradeId, { accent: string; soft: string }> = {
 
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
 
-export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
+export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
   const onLaunch = (id: string) => {
@@ -106,7 +106,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 
   return (
     <div className="hq">
-      <OfficeScene use3d={use3d} hasProduction={hasProduction} />
+      <OfficeScene use3d={use3d} hasProduction={hasProduction} onNavigate={onNavigate} onOpenBank={onOpenBank} />
 
       {ipoReady && (
         <Card className="hq__era hq__ipo">
@@ -266,7 +266,7 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 }
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
-function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: boolean }) {
+function OfficeScene({ use3d, hasProduction, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, resetFurniture, setLayout, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
   const [placingType, setPlacingType] = useState<FurnitureId | null>(null);
@@ -401,6 +401,8 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
                 builder={builder}
                 roomStyle={state.roomStyle}
                 height={build ? 460 : 420}
+                onTapStaff={() => onNavigate("company")}
+                onTapBank={onOpenBank}
               />
             </Suspense>
           </ErrorBoundary>

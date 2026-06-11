@@ -1453,7 +1453,7 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number } }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
@@ -1537,6 +1537,17 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
             <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} />
+            {/* invisible tap target over the desk+robot → opens this person's roster card. A
+                transparent (not visible:false) mesh so the raycaster still hits it. */}
+            {onTapStaff && s.id && (
+              <mesh
+                position={[0, 0.95, 0]}
+                onClick={(e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onTapStaff(s.id!); }}
+              >
+                <boxGeometry args={[1.3, 1.9, 1.3]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              </mesh>
+            )}
           </group>
         );
       })}
@@ -1568,10 +1579,12 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* Test Lab → a glass test chamber */}
       {tierOf(upgrades, "testLab") >= 1 && <TestChamber p={p} />}
 
-      {/* The Vault is the company BANK — your money lives here; tapping it (on-device) opens
-          the finances popup. Kept from the start; the Kanban wall + security gate were starter
-          clutter and were removed so a fresh garage reads as a real, empty garage. */}
-      <Vault />
+      {/* The Vault is the company BANK — your money lives here; tapping it opens the finances
+          popup. Kept from the start; the Kanban wall + security gate were starter clutter and
+          were removed so a fresh garage reads as a real, empty garage. */}
+      <group onClick={onTapBank && !inBuild ? (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onTapBank(); } : undefined}>
+        <Vault />
+      </group>
 
       {/* Floating zone labels — only the meaningful, interactive ones (Bank = your money;
           Whiteboard once earned). Decorative-fixture labels were removed with their fixtures. */}
@@ -1580,7 +1593,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           {tierOf(upgrades, "computers") >= 1 && (
             <OfficeLabel pos={[-2.2, 2.35, -3.2]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
           )}
-          <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Company funds" dot="#34c759" />
+          <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Tap for finances" dot="#34c759" />
           {/* Per-desk name + primary-discipline label for every occupied (placed) desk */}
           {seated.map((s, i) => {
             const w = worldOf(seats[i]);
@@ -1626,6 +1639,8 @@ export const Garage3D = memo(function Garage3D({
   builder,
   roomStyle = { floor: 0, wall: 0 },
   onContextLost,
+  onTapStaff,
+  onTapBank,
 }: {
   staff?: Staff[];
   staffCount: number;
@@ -1639,6 +1654,10 @@ export const Garage3D = memo(function Garage3D({
   roomStyle?: { floor: number; wall: number };
   /** Called when the WebGL context is lost so the host can downgrade to the 2D fallback. */
   onContextLost?: () => void;
+  /** Tap an employee → open their roster card (host navigates to Company). */
+  onTapStaff?: (id: string) => void;
+  /** Tap the office Bank/vault → open the finances popup. */
+  onTapBank?: () => void;
 }) {
   return (
     <div style={{ height, width: "100%" }}>
@@ -1662,7 +1681,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );

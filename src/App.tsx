@@ -82,7 +82,7 @@ function AppShell() {
             bottom nav stay usable. Keyed by tab so navigating away clears a crashed screen. The
             top-level boundary in App() remains the last resort. */}
         <ErrorBoundary key={tab} fallback={<ScreenError onHome={() => setTab("hq")} />}>
-          {tab === "hq" && <HQ onNavigate={setTab} />}
+          {tab === "hq" && <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} />}
           {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
           {tab === "research" && <Research onNavigate={setTab} />}
           {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
