@@ -431,6 +431,44 @@
 }
 
 /* R&D sprint / top picks panel */
+/* Design unlocks card — device-design capabilities RP buys (lenses, finishes) */
+.rd__unlock-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.rd__unlock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+}
+.rd__unlock-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rd__unlock-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+.rd__unlock-sub {
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  line-height: 1.3;
+}
+.rd__unlock-done {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-shrink: 0;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--positive);
+}
+
 .rd__sprint { }
 .rd__sprint-list {
   display: flex;

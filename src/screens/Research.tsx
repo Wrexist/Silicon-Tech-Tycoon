@@ -10,8 +10,8 @@ import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/cata
 import { eraName, maxEra } from "../engine/eras.ts";
 import { toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
-import { STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { rdRpCostFor, researchedTier, weeklyRpGen } from "../state/gameState.ts";
+import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
+import { rdRpCostFor, researchedTier, weeklyRpGen, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -125,7 +125,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
 }
 
 export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
-  const { state, research, buyProject } = useGame();
+  const { state, research, buyProject, unlockLens, unlockFinish } = useGame();
   const kinds = Object.keys(COMPONENT_LINES) as ComponentKind[];
   const rp = Math.floor(state.researchPoints);
   const perWeek = weeklyRpGen(state);
@@ -203,6 +203,41 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           <p className="rd__bank-hint">Assign staff to R&amp;D (Company tab) to earn more Research Points.</p>
         )}
       </Card>
+
+      {/* Design unlocks — the device-design capabilities RP buys (camera lenses + premium
+          finishes), surfaced in the same hub as component tiers + projects so the RP economy
+          reads as one thing. Hidden once both tracks are fully unlocked. */}
+      {(() => {
+        const lensCost = lensUnlockCost(state);
+        const finishCost = finishUnlockCost(state);
+        if (lensCost === null && finishCost === null) return null;
+        const lensLimit = state.lensLimit ?? 2;
+        const finishLimit = state.finishLimit ?? 1;
+        const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+        return (
+          <Card className="rd__unlocks">
+            <SectionHeader title="Design unlocks" accessory="device R&D" />
+            <div className="rd__unlock-list">
+              <UnlockTrack
+                name="Camera lenses"
+                sub={lensCost === null ? "Quad-lens array — maxed" : `Designs use up to ${lensLimit} lenses · more = sharper photos`}
+                cta={lensCost === null ? null : `Unlock ${lensLimit + 1}-lens`}
+                cost={lensCost}
+                rp={rp}
+                onBuy={() => { unlockLens(); haptic.success(); sfx("upgrade"); }}
+              />
+              <UnlockTrack
+                name="Premium finishes"
+                sub={finishCost === null ? "Gold — maxed" : `${finishLimit + 1} of ${FINISH_ORDER.length} materials · premium = +design appeal`}
+                cta={finishCost === null ? null : `Unlock ${cap(FINISH_ORDER[finishLimit + 1])}`}
+                cost={finishCost}
+                rp={rp}
+                onBuy={() => { unlockFinish(); haptic.success(); sfx("upgrade"); }}
+              />
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* R&D sprint: top picks — up to 3 actionable component upgrades */}
       {perWeek > 0 && (() => {
@@ -444,6 +479,33 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </Card>
         );
       })}
+    </div>
+  );
+}
+
+/** One device-design unlock track in the R&D hub: name + effect, and a buy button (or a
+ *  "Maxed" check when the track is fully unlocked). */
+function UnlockTrack({ name, sub, cta, cost, rp, onBuy }: {
+  name: string;
+  sub: string;
+  cta: string | null;
+  cost: number | null;
+  rp: number;
+  onBuy: () => void;
+}) {
+  return (
+    <div className="rd__unlock-row">
+      <div className="rd__unlock-info">
+        <span className="rd__unlock-name">{name}</span>
+        <span className="rd__unlock-sub">{sub}</span>
+      </div>
+      {cost === null || cta === null ? (
+        <span className="rd__unlock-done"><Check size={13} strokeWidth={2.5} aria-hidden /> Maxed</span>
+      ) : (
+        <Button size="sm" variant={rp >= cost ? "primary" : "tertiary"} disabled={rp < cost} onClick={onBuy}>
+          {cta} · {cost} RP
+        </Button>
+      )}
     </div>
   );
 }
