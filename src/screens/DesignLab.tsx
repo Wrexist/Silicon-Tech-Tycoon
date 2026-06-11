@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -833,6 +833,25 @@ export function DesignLab({
         )}
 
       </div>
+
+      {/* Sticky step nav above the tab bar — Back (left) + Next (right) so the design flow reads
+          as clear steps. Fixed (stays put while the pane scrolls). The Launch step has its own
+          Build CTA, so Next hides there. */}
+      {(() => {
+        const i = LAB_TABS.findIndex((t) => t.id === labTab);
+        const prev = i > 0 ? LAB_TABS[i - 1] : null;
+        const next = i < LAB_TABS.length - 1 ? LAB_TABS[i + 1] : null;
+        return (
+          <div className="lab__nav">
+            {prev
+              ? <Button variant="secondary" onClick={() => { haptic.light(); setLabTab(prev.id); }}><ArrowLeft size={16} /> Back</Button>
+              : <span className="lab__nav-spacer" aria-hidden />}
+            {next
+              ? <Button onClick={() => { haptic.light(); setLabTab(next.id); }}>Next: {next.label} <ArrowRight size={16} /></Button>
+              : <span className="lab__nav-spacer" aria-hidden />}
+          </div>
+        );
+      })()}
 
       <Sheet open={wizard} onClose={() => setWizard(false)}>
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}

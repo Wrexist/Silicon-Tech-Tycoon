@@ -6,6 +6,34 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-16);
+  /* room so the last content scrolls clear of the fixed step-nav bar above the tab bar */
+  padding-bottom: 72px;
+}
+
+/* Sticky step nav: Back (left) + Next (right), fixed just above the bottom tab bar. The bar
+   itself is click-through (only the buttons capture taps) so it never blocks content in the gap.
+   Offset clears the ~54px tab bar; tune if the bar height changes. */
+.lab__nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(60px + env(safe-area-inset-bottom));
+  z-index: 29;
+  max-width: 540px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  padding: 0 var(--edge);
+  pointer-events: none;
+}
+.lab__nav > button {
+  pointer-events: auto;
+  box-shadow: var(--shadow-floating);
+}
+.lab__nav-spacer {
+  width: 1px;
 }
 
 /* Market hint banner — shown when a stat is trending up */
