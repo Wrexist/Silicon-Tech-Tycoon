@@ -863,9 +863,10 @@ function Member({
         <button
           className={`co__rest-btn${isLowMood ? " co__rest-btn--urgent" : ""}`}
           disabled={cash < restCost(s)}
+          title="Paid time off — restores morale and eases burnout"
           onClick={() => onRest(s.id)}
         >
-          <Coffee size={12} aria-hidden /> Rest · {format(restCost(s))} <span className="co__rest-sub">time off, restores morale</span>
+          <Coffee size={12} aria-hidden /> {isLowMood ? "Rest — recharge morale" : "Rest"} · {format(restCost(s))}
         </button>
       )}
     </li>
