@@ -875,15 +875,20 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
 }
 
 // Floating label overlay — white pill badge with a coloured dot indicator.
+// Scene-constant colours (like RoomPalette's intrinsic object colours): the pill must stay
+// dark-on-white over the 3D room in BOTH app themes, so it can't ride the theme ink tokens.
+const LABEL_BG = "rgba(255,255,255,0.94)";
+const LABEL_INK = "#1a1d23";
+const LABEL_INK_SOFT = "#6b7280";
 function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; label: string; sub: string; dot: string }) {
   // Fixed screen-size UI chip (no distanceFactor → constant size), always rendered on top.
   return (
     <Html position={pos} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 8px", background: "rgba(255,255,255,0.94)", borderRadius: 7, boxShadow: "0 1px 7px rgba(40,60,90,0.16)", whiteSpace: "nowrap", backdropFilter: "blur(4px)", transform: "translateY(-150%)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 8px", background: LABEL_BG, borderRadius: 7, boxShadow: "0 1px 7px rgba(40,60,90,0.16)", whiteSpace: "nowrap", backdropFilter: "blur(4px)", transform: "translateY(-150%)" }}>
         <div style={{ width: 7, height: 7, borderRadius: "50%", background: dot, flexShrink: 0 }} />
         <div>
-          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 10.5, fontWeight: 700, color: "#1a1d23", lineHeight: 1.25 }}>{label}</div>
-          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: 9.5, color: "#6b7280", lineHeight: 1.25 }}>{sub}</div>
+          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: "var(--fs-micro)", fontWeight: 700, color: LABEL_INK, lineHeight: 1.25 }}>{label}</div>
+          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: "var(--fs-nano)", color: LABEL_INK_SOFT, lineHeight: 1.25 }}>{sub}</div>
         </div>
       </div>
     </Html>
@@ -1664,7 +1669,9 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {!builder?.build && (
         <>
           <OfficeLabel pos={[-2.2, 2.35, -3.2]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
-          <OfficeLabel pos={[1.2, 3.05, -2.6]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
+          {/* Anchored over the board itself (x=2.5) — drifting it toward centre made the pill
+              collide with the Whiteboard label at the default camera. */}
+          <OfficeLabel pos={[2.5, 2.8, -3.5]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
           <OfficeLabel pos={[0.8, 2.0, 3.0]} label="Security Gate" sub="Access Control" dot="#10b981" />
           {/* Per-desk name + primary-discipline label for every occupied (placed) desk */}
