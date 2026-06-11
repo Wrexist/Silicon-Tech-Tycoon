@@ -6,6 +6,11 @@ name: iOS TestFlight
 #
 # Required repository secrets  (Settings → Secrets and variables → Actions):
 #   APP_STORE_CONNECT_KEY_ID          App Store Connect API key ID         (e.g. ABC123XYZ9)
+#                                     The key MUST have the *Admin* role — only Admin keys can do the
+#                                     cloud-managed distribution signing the export step needs. A
+#                                     Developer/App-Manager key archives fine but fails -exportArchive
+#                                     with "Cloud signing permission error", and there is no web toggle
+#                                     to grant a key that access after the fact (recreate it as Admin).
 #   APP_STORE_CONNECT_ISSUER_ID       API key issuer ID                    (a UUID)
 #   APP_STORE_CONNECT_API_KEY_BASE64  base64 of the .p8 key file. Any of:
 #                                       macOS/Linux:  base64 -i AuthKey_XXXX.p8 | pbcopy
