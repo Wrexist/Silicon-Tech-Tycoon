@@ -1,6 +1,7 @@
 // HQ office upgrades — tiered equipment bought with cash that scale the whole company.
 // PURE catalog + effect helpers; state holds the per-line tier.
 import { dollars, type Money } from "./money.ts";
+import type { ProjectId } from "./research.ts";
 
 export type UpgradeId =
   | "computers"
@@ -20,6 +21,9 @@ export interface UpgradeLine {
   baseCost: number; // dollars for tier 1
   growth: number; // cost multiplier per tier
   effectAt: (tier: number) => string; // human-readable effect at a given tier
+  /** Tiers at/above `fromTier` stay LOCKED (masked grey in the UI) until your team finishes the
+   *  research `project` — the most advanced equipment must be earned through R&D, not just cash. */
+  requires?: { project: ProjectId; fromTier: number };
 }
 
 export const UPGRADE_LINES: UpgradeLine[] = [
@@ -66,6 +70,7 @@ export const UPGRADE_LINES: UpgradeLine[] = [
     baseCost: 13_000,
     growth: 2.4,
     effectAt: (t) => `+${t * 8}% launch hype`,
+    requires: { project: "brandStudio", fromTier: 4 },
   },
   {
     id: "amenities",
@@ -88,8 +93,18 @@ export const UPGRADE_LINES: UpgradeLine[] = [
     baseCost: 16_000,
     growth: 2.5,
     effectAt: (t) => `−${(t * 0.5).toFixed(1)} build wk, −${t * 5}% cost`,
+    requires: { project: "verticalIntegration", fromTier: 4 },
   },
 ];
+
+/** The research project (if any) BLOCKING the given next tier of a line — null when the tier is
+ *  buyable. `completed` is the player's finished project ids. Pure; used by the UI to grey-mask
+ *  a locked upgrade and by buyUpgrade to refuse the purchase. */
+export function upgradeLockedBy(id: UpgradeId, nextTier: number, completed: readonly ProjectId[]): ProjectId | null {
+  const req = upgradeLine(id).requires;
+  if (!req || nextTier < req.fromTier || completed.includes(req.project)) return null;
+  return req.project;
+}
 
 export function upgradeLine(id: UpgradeId): UpgradeLine {
   return UPGRADE_LINES.find((l) => l.id === id)!;

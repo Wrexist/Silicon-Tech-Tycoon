@@ -19,18 +19,34 @@
 
 /* Onboarding */
 .onboard {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  background: radial-gradient(120% 60% at 50% 0%, var(--accent-soft), var(--bg) 60%);
+}
+.onboard__scroll {
+  /* Own scroll layer (not body scroll): when the iOS keyboard opens and WebKit scrolls the
+     focused input into view, THIS scrolls — and the top mask fades content out before it can
+     collide with the clock / Dynamic Island (it used to jam raw text against the status bar).
+     The mask lives here, not on .onboard, so the background gradient stays unfaded. */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow-y: auto;
+  scroll-padding-top: calc(env(safe-area-inset-top) + var(--sp-12));
   padding: max(var(--edge), env(safe-area-inset-top)) max(var(--edge), env(safe-area-inset-right))
     max(var(--edge), env(safe-area-inset-bottom)) max(var(--edge), env(safe-area-inset-left));
-  background: radial-gradient(120% 60% at 50% 0%, var(--accent-soft), var(--bg) 60%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 calc(env(safe-area-inset-top) + var(--sp-16)));
+  mask-image: linear-gradient(to bottom, transparent 0, #000 calc(env(safe-area-inset-top) + var(--sp-16)));
 }
 .onboard__inner {
   width: 100%;
   max-width: 420px;
   text-align: center;
+  /* margin:auto centers when content fits AND keeps the top reachable when it overflows
+     (align-items:center would clip overflow above the scroll start). */
+  margin: auto;
   padding-top: env(safe-area-inset-top);
 }
 .onboard__logo {

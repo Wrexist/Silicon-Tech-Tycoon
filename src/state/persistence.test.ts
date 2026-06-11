@@ -369,3 +369,29 @@ describe("F8 — hit/flop tracks actual (competition-adjusted) outcome", () => {
     expect(afterCrowded.launched[0].totalUnits).toBeLessThan(afterClear.launched[0].totalUnits);
   });
 });
+
+describe("lensLimit backfill — old saves keep every lens count they used", () => {
+  it("grants the highest lens count found in the save's products (min 2, max 4)", async () => {
+    const { exportSaveString, importSaveString } = await freshPersistence();
+    const s = newGame(31);
+    const quad: Product = {
+      id: "p1", name: "Quad", category: "phone", tiers: { chip: 1 }, finish: "aluminium",
+      colorIndex: 0, price: dollars(699), designTier: 1, notch: "punch",
+      camera: { count: 4, layout: "square", position: "topLeft", module: "squircle", flash: true },
+    };
+    const { lensLimit: _drop, ...rest } = {
+      ...s,
+      launched: [{ product: quad, launchWeek: 1, weeksElapsed: 1, weeklyUnits: [10], totalUnits: 10, unitsSold: 0, revenueToDate: dollars(0), unitCost: dollars(100), stats: { performance: 50, quality: 50, battery: 50, design: 50, ecosystem: 10 }, verdict: "solid", launchScore: 60 }],
+    };
+    const back = importSaveString(exportSaveString(rest as unknown as GameState)); // pre-gating save shape
+    expect(back).not.toBeNull();
+    expect(back!.lensLimit).toBe(4);
+  });
+
+  it("defaults to 2 when the save never used more", async () => {
+    const { exportSaveString, importSaveString } = await freshPersistence();
+    const { lensLimit: _drop, ...rest } = newGame(32);
+    const back = importSaveString(exportSaveString(rest as unknown as GameState));
+    expect(back!.lensLimit).toBe(2);
+  });
+});

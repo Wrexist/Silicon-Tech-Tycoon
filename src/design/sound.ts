@@ -69,6 +69,7 @@ type Cue =
   | "hit"
   | "build"
   | "levelup"
+  | "upgrade"
   | "cash"
   | "rp"
   | "era"
@@ -99,6 +100,13 @@ export function sfx(cue: Cue): void {
       break;
     case "levelup":
       chord([659, 880, 1109], 0.3, { type: "sine", gain: 0.07 });
+      break;
+    case "upgrade":
+      // Something REAL was installed: a weighty mechanical thunk, then a bright rising
+      // sparkle that lands on a major-chord shimmer. Bigger than levelup, shorter than era.
+      tone({ freq: 196, to: 147, dur: 0.09, type: "triangle", gain: 0.11 });
+      tone({ freq: 523, to: 784, dur: 0.14, type: "sine", gain: 0.07, delay: 0.07 });
+      chord([784, 988, 1175], 0.35, { type: "triangle", gain: 0.06, delay: 0.18 });
       break;
     case "cash":
       tone({ freq: 880, dur: 0.05, type: "square", gain: 0.04 });

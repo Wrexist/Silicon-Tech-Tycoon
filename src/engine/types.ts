@@ -32,6 +32,10 @@ export type CategoryId =
 
 export type FinishId = "plastic" | "aluminium" | "titanium" | "gold";
 
+/** Canonical finish order, cheap→premium. Doubles as the unlock ladder: the first
+ *  `BALANCE.design.freeFinishes` are available from the start; the rest are RP-unlocked in order. */
+export const FINISH_ORDER: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
+
 // --- Device design customization (cosmetic + light gameplay) ---
 export type CameraLayout = "vertical" | "horizontal" | "square" | "triangle";
 export type CameraPosition = "topLeft" | "topCenter" | "center";
@@ -128,6 +132,8 @@ export interface LaunchedProduct {
   insight?: LaunchInsight;
   /** Number of mid-lifecycle price adjustments made (max 1). Old saves: undefined → treated as 0. */
   priceCuts?: number;
+  /** Number of mid-lifecycle marketing pushes run (max 1). Old saves: undefined → treated as 0. */
+  marketingPushes?: number;
 }
 
 export type StaffRole = "engineer" | "designer" | "marketer";

@@ -59,6 +59,7 @@ import {
   qualityStatBonus,
   rpMultiplier,
   upgradeLine,
+  upgradeLockedBy,
   type UpgradeId,
 } from "../engine/upgrades.ts";
 import { canAdvanceEra, eraName, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
@@ -102,6 +103,7 @@ import type {
   StaffRole,
   Stats,
 } from "../engine/types.ts";
+import { FINISH_ORDER } from "../engine/types.ts";
 
 export const SAVE_VERSION = 1;
 
@@ -129,6 +131,10 @@ export interface GameState {
   competitors: CompetitorState[];
   /** highest unlocked tier per component line (>=1 means researched up to that tier) */
   researched: Partial<Record<ComponentKind, number>>;
+  /** max camera lens count the Design Lab offers (2 at start; 3rd/4th bought with RP) */
+  lensLimit: number;
+  /** highest unlocked index into FINISH_ORDER (1 at start = plastic+aluminium; titanium/gold bought with RP) */
+  finishLimit: number;
   staff: Staff[];
   /** in-progress recruitment search (null when idle), and the candidates it produced */
   recruitment: Recruitment | null;
@@ -318,6 +324,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     layout: defaultLayout(),
     furnitureCounter: 20,
     roomStyle: { floor: 0, wall: 0 },
+    lensLimit: 2,
+    finishLimit: BALANCE.design.freeFinishes - 1,
     sandboxUnlocked: false,
     onboarded: false,
     tutorialDone: false,
@@ -367,6 +375,8 @@ export function productStats(s: GameState, product: Product): Stats {
   const bonus = designSpecialtyBonus(s.staff);
   bonus.design = (bonus.design ?? 0) + designStatBonus(s.upgrades);
   bonus.quality = (bonus.quality ?? 0) + qualityStatBonus(s.upgrades);
+  // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
+  bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
@@ -380,13 +390,31 @@ export function upgradeCost(s: GameState, id: UpgradeId): Money | null {
   return nextUpgradeCost(id, s.upgrades[id] ?? 0);
 }
 
+/** Tiers whose purchase physically changes the 3D office — the feed says what appeared, so the
+ *  upgrade visibly "did something" beyond a stat line (Garage3D renders these objects). */
+const UPGRADE_ROOM_CHANGES: Partial<Record<UpgradeId, Record<number, string>>> = {
+  amenities: { 1: "A coffee station appeared in your office.", 2: "A new plant brightens the room.", 3: "More greenery arrives.", 4: "The office is turning lush." },
+  marketing: { 1: "A branded wall screen now plays your campaigns." },
+  designSuite: { 1: "A drafting easel stands by the wall." },
+  testLab: { 1: "A glass test chamber hums in the corner." },
+  computers: { 3: "Every desk gains a second monitor." },
+};
+
+/** Cash cost of the next tier, OR the research project that must be completed first (locked). */
+export function upgradeGate(s: GameState, id: UpgradeId): ProjectId | null {
+  return upgradeLockedBy(id, (s.upgrades[id] ?? 0) + 1, s.completedProjects);
+}
+
 export function buyUpgrade(state: GameState, id: UpgradeId): GameState {
   const cur = state.upgrades[id] ?? 0;
   const cost = nextUpgradeCost(id, cur);
   if (cost === null || state.cash < cost) return state;
+  // The advanced tiers are research-gated — refuse until the prerequisite project is done.
+  if (upgradeLockedBy(id, cur + 1, state.completedProjects) !== null) return state;
   const line = upgradeLine(id);
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Upgraded ${line.name} → ${line.tierNames[cur]}.`, "accent"));
+  const roomChange = UPGRADE_ROOM_CHANGES[id]?.[cur + 1];
+  feed.push(feedItem(state.week, `Upgraded ${line.name} → ${line.tierNames[cur]}.${roomChange ? ` ${roomChange}` : ""}`, "accent"));
   return {
     ...state,
     cash: sub(state.cash, cost),
@@ -1285,6 +1313,54 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
   };
 }
 
+/** A quote for a mid-lifecycle marketing push, or null when there's nothing left to promote (no
+ *  surplus inventory) or the lifecycle has ended. Pure — drives both the UI preview and the action,
+ *  so the number the player sees is the number they pay. */
+export function marketingPushQuote(lp: LaunchedProduct): { cost: Money; addedUnits: number } | null {
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return null;
+  const cap = lp.plannedUnits ?? lp.totalUnits;
+  const boosted = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
+  const newTotal = Math.min(cap, boosted.reduce((a, b) => a + b, 0));
+  const oldTotal = Math.min(cap, lp.weeklyUnits.reduce((a, b) => a + b, 0));
+  const addedUnits = Math.max(0, newTotal - oldTotal);
+  if (addedUnits <= 0) return null;
+  const cost = dollars(Math.round(BALANCE.marketingPush.costPct * addedUnits * toDollars(lp.product.price)));
+  return { cost, addedUnits };
+}
+
+/** Run a marketing push: pay cash to lift a still-selling product's remaining demand while KEEPING
+ *  its price (the margin-preserving alternative to a price cut). One push per product. */
+export function marketingPush(state: GameState, productId: string): ActionResult {
+  const lp = state.launched.find((l) => l.product.id === productId);
+  if (!lp) return { state, ok: false, reason: "Product not found." };
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };
+  if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return { state, ok: false, reason: "This product has already had a marketing push." };
+  const quote = marketingPushQuote(lp);
+  if (!quote) return { state, ok: false, reason: "No unsold inventory left to promote." };
+  if (state.cash < quote.cost) return { state, ok: false, reason: "Not enough cash for the campaign." };
+
+  const cap = lp.plannedUnits ?? lp.totalUnits;
+  const newWeeklyUnits = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
+  const newTotalUnits = Math.min(cap, newWeeklyUnits.reduce((a, b) => a + b, 0));
+
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Marketing push on "${lp.product.name}" — ${quote.addedUnits.toLocaleString()} more units in the pipeline.`, "accent"));
+
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, quote.cost),
+      launched: state.launched.map((l) =>
+        l.product.id === productId
+          ? { ...l, weeklyUnits: newWeeklyUnits, totalUnits: newTotalUnits, marketingPushes: (l.marketingPushes ?? 0) + 1 }
+          : l,
+      ),
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
 function clampMood(m: number): number {
   return Math.max(0, Math.min(100, m));
 }
@@ -1332,6 +1408,56 @@ export function researchNext(state: GameState, kind: ComponentKind): GameState {
     ...state,
     researchPoints: state.researchPoints - cost,
     researched: { ...state.researched, [kind]: next },
+    feed: trimFeed(feed),
+  };
+}
+
+/** RP cost to unlock the next camera lens count (null when already at the max). */
+export function lensUnlockCost(s: GameState): number | null {
+  const next = (s.lensLimit ?? 2) + 1;
+  if (next > BALANCE.design.maxLenses) return null;
+  return BALANCE.design.lensUnlockCosts[next] ?? null;
+}
+
+const LENS_NAMES: Record<number, string> = { 3: "triple-lens module", 4: "quad-lens array" };
+
+/** Spend RP to unlock designing with one more camera lens. */
+export function unlockLens(state: GameState): GameState {
+  const cost = lensUnlockCost(state);
+  if (cost === null || state.researchPoints < cost) return state;
+  const next = (state.lensLimit ?? 2) + 1;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Camera lab: ${LENS_NAMES[next] ?? `${next}-lens design`} unlocked.`, "accent"));
+  return {
+    ...state,
+    researchPoints: state.researchPoints - cost,
+    lensLimit: next,
+    feed: trimFeed(feed),
+  };
+}
+
+const DEFAULT_FINISH_LIMIT = BALANCE.design.freeFinishes - 1;
+const finishLimitOf = (s: GameState) => s.finishLimit ?? DEFAULT_FINISH_LIMIT;
+
+/** RP cost to unlock the next premium finish in FINISH_ORDER (null when all are unlocked). */
+export function finishUnlockCost(s: GameState): number | null {
+  const next = finishLimitOf(s) + 1;
+  if (next >= FINISH_ORDER.length) return null;
+  return BALANCE.design.finishUnlockCosts[FINISH_ORDER[next]] ?? null;
+}
+
+/** Spend RP to unlock designing with the next premium finish (titanium → gold). */
+export function unlockFinish(state: GameState): GameState {
+  const cost = finishUnlockCost(state);
+  if (cost === null || state.researchPoints < cost) return state;
+  const next = finishLimitOf(state) + 1;
+  const name = FINISH_ORDER[next];
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Materials lab: ${name.charAt(0).toUpperCase()}${name.slice(1)} finish unlocked.`, "accent"));
+  return {
+    ...state,
+    researchPoints: state.researchPoints - cost,
+    finishLimit: next,
     feed: trimFeed(feed),
   };
 }
@@ -1418,6 +1544,30 @@ export function trainStaff(state: GameState, id: string): GameState {
     cash: sub(state.cash, cost),
     staff: state.staff.map((s) =>
       s.id === id ? { ...s, skill: s.skill + 1, salary: salaryFor(s.role, s.skill + 1) } : s,
+    ),
+  };
+}
+
+/** Cash cost to send a staff member on paid time off (Rest) — one week of their salary. */
+export function restCost(member: Staff): Money {
+  return member.salary;
+}
+
+/** Rest: pay for time off — a big immediate morale boost that also clears the burnout danger
+ *  counter. Unlike a raise it's a one-off cost with no permanent salary change — the emergency
+ *  "they're burning out, give them a break" lever. No-op if already maxed-mood or can't afford. */
+export function restStaff(state: GameState, id: string): GameState {
+  const member = state.staff.find((s) => s.id === id);
+  if (!member || member.mood >= 100) return state;
+  const cost = restCost(member);
+  if (state.cash < cost) return state;
+  return {
+    ...state,
+    cash: sub(state.cash, cost),
+    staff: state.staff.map((s) =>
+      s.id === id
+        ? { ...s, mood: Math.min(100, s.mood + BALANCE.churn.restMoodBoost), moodLowWeeks: 0 }
+        : s,
     ),
   };
 }

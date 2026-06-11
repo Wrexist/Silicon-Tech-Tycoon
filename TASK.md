@@ -528,6 +528,122 @@ Worked the remaining v17 audit backlog. 206 tests (+2), tsc 0, build+PWA green.
   persists); staff #17+ "invisible" — the render cap (16) equals the Campus staffCapacity cap (16);
   CameraRig's settle comment claims only what it does (skips camera writes, not whole-scene battery).
 
+## v17.4 — first REAL on-device pass (TestFlight screenshots) (DONE 2026-06-11)
+The TestFlight pipeline went live this session (Admin ASC key + tolerant .p8 decode + app record);
+build 11 reached a real iPhone. Four on-device screenshots drove this pass — all four findings were
+invisible in the container and real on the phone. 206 tests, tsc 0, build+PWA green.
+- [x] **Branded icon + splash shipped** (was the stock Capacitor logo on device): gen-icons.mjs now
+      writes the native AppIcon (opaque) + Splash imageset directly — no forgettable second step.
+- [x] **Splash can't strand the app**: launchAutoHide:true (2s cap) as the OS-level net + boot's
+      native-restore raced against 1.2s so a stalled bridge can't block first paint.
+- [x] **Onboarding keyboard**: own scroll layer + top safe-area fade (content jammed into the
+      Dynamic Island when the keyboard opened); brand-name field drops autocorrect/QuickType,
+      Enter founds.
+- [x] **HUD**: chips/buttons wrap as groups (was an arbitrary mid-group split on iPhone width);
+      cash + label turn negative with "Nwk left" under 4 weeks of runway (the below-fold pills
+      were the only warning — a player at $1.2K/8 staff saw a calm HUD).
+- [x] **3D office**: Kanban label re-anchored over its board (collided with the Whiteboard pill);
+      OfficeLabel type onto --fs-micro/--fs-nano, scene-constant colours lifted to named consts.
+- [x] **Research**: "Battery · +16 Battery" → "Battery · +16" (single-stat dedupe).
+- Flagged, not changed (design call): the 4 always-on fixture labels (Whiteboard/Kanban/Vault/
+  Gate) label static objects forever — restraint says fade them after first view or show on tap;
+  staff labels carry live data and should stay. Needs the owner's eyes on-device.
+
+## v18 — upgrades feel like SOMETHING + lens counts are earned (DONE 2026-06-11)
+Direct user ask: "upgrades should be exciting / feel like you're actually doing something; device
+features like lens count should be RP unlocks." 210 tests (+4), tsc 0, build+PWA green.
+- [x] **Upgrade celebration**: new `upgrade` sfx (mechanical thunk → rising sparkle → chord);
+      bought card blooms (accent ring + radial wash), the new tier pip ignites (overshoot pop),
+      the effect line rises out of the card; facility moves celebrate too. Research component/
+      project buys (previously DEAD silent) share the cue + success haptic. Reduced-motion safe.
+- [x] **The feed says what appeared in the 3D room** per tier (coffee station, wall screen,
+      easel, test chamber, second monitors) — purchases visibly change the world they own.
+- [x] **RP-gated lens counts** (`state.lensLimit`, `unlockLens`, `lensUnlockCosts {3:14, 4:30}`):
+      stepper caps at the unlocked count; an inline "Unlock triple-lens module · 14 RP" buy in the
+      Camera tab steps straight onto the new lens (live render payoff). Old saves backfilled to the
+      highest count they actually used. Counts 1–2 free; grandfathered drafts never downgraded.
+- NOT verified on-device: sound character + animation timing need ears/eyes (tuning knobs:
+  sound.ts upgrade case, hq.css keyframes). Knob costs (14/30 RP) need a playtest.
+- Backlog seed: the unlock seam generalizes — notch styles / module shapes / finishes as
+  research unlocks if the lens gate lands well.
+
+## v19 — garage declutter, Bank popup, gated upgrades, Rest (DONE 2026-06-11)
+User ask: bare-garage start, whiteboard/TV as upgrades, tap-employee menu, research-masked
+upgrades, vault→bank money popup, "extremely easy to understand." Decisions locked via
+AskUserQuestion: **foundation first** (3D taps deferred to an on-device follow-up), tap **opens
+the roster card**, **Rest is a real mechanic**. 214 tests (+8), tsc 0, build+PWA green.
+- [x] **Bare-garage start**: removed Kanban wall + security gate (starter clutter) + labels;
+      **Whiteboard now appears only with Workstations (computers ≥ 1)** — earned, not pre-placed.
+      TV was already Marketing-gated (confirmed). Down to Bank + (earned) Whiteboard + live staff labels.
+- [x] **Bank popup** (`components/Bank.tsx`): tap the HUD cash → a clean, bold finances screen —
+      hero cash + weekly in/out + runway, Net Worth broken into cash + your-company stake + rival
+      shares, Research points as the 2nd currency, lifetime earned. The vault is relabelled "Bank";
+      the 3D vault-tap entry point is the deferred follow-up (HUD entry ships + is testable now).
+- [x] **Research-gated masked upgrades**: Marketing (Brand Agency+) and Assembly (Robotic Line+)
+      top tiers LOCK behind Brand Studio / Vertical Integration research — rendered masked-grey with
+      a lock + "Research X to unlock Y". Engine enforces the gate too. `UpgradeLine.requires` +
+      `upgradeLockedBy` — extensible to more lines.
+- [x] **Rest mechanic**: paid time off (one week's salary) → +30 mood + clears the burnout counter;
+      distinct from Raise (permanent). In the roster only when useful (mood<50 / danger), urgent red
+      when about to quit. Free for the unpaid founder.
+- **Deferred (on-device follow-up — chosen "foundation first"):** the 3D taps — tap employee →
+      open their roster card (Train/Assign/Raise/Rest live there now); tap the office Vault → open
+      the Bank. Both reuse the proven furniture tap-select raycast; unverifiable in CI.
+- NOT verified on-device: Bank layout polish, masked-card contrast, Rest button thresholds —
+      flag anything off. Gate mapping (which tiers/projects) + Rest cost/boost (1wk / +30) need a playtest.
+
+## v19.1 — roster polish + 3D taps wired (DONE 2026-06-11)
+- [x] **Roster-card premium pass** (user-requested audit): verdict = already premium (token-driven,
+      soft surface-2 + hairline, smooth mood/skill/xp bars, 12px rhythm). Fixed the two real flaws —
+      the Rest button crammed a sub-label inside the pill (wrapped/broke the pill on narrow phones →
+      now clean "Rest · $X", explanation in a title) and a pre-existing DUPLICATE `.co__member-contrib`
+      rule (consolidated to one).
+- [x] **3D taps wired** (the deferred follow-up): tap a seated employee → Company roster (invisible
+      transparent hitbox over desk+robot); tap the Vault → Bank popup. `onTapStaff`/`onTapBank` through
+      Garage3D→Scene, `onNavigate`/`onOpenBank` through HQ→OfficeScene. Gated to non-Decorate mode.
+      **NOT CI-verifiable — 3D tap hit-testing needs an on-device check** (does the tap register over
+      the parallax camera? does the vault wrap-group catch child-mesh taps?). Reuses the BuildLayer
+      raycast pattern, so the approach is proven; the wiring is new.
+- Still nice-to-have: tapping an employee navigates to Company but doesn't yet scroll/highlight THAT
+  person's card (just opens the roster). Add a focus-id hand-off if the tap lands well on-device.
+
+## v19.2 — premium finishes are earned (RP-unlocked + meaningful) (DONE 2026-06-11)
+Continues the user's "device upgrades with research points" vision (lenses → finishes). 216 tests
+(+2), tsc 0, build+PWA green.
+- [x] **titanium / gold finishes RP-unlocked** (12 / 26 RP); plastic + aluminium stay free. Design
+      Lab Style tab masks locked finishes (lock + dim) with an inline "Unlock {Finish} · N RP" buy
+      that unlocks + selects + plays the upgrade fanfare. `finishLimit` + `unlockFinish` /
+      `finishUnlockCost` mirror the lens seam; `FINISH_ORDER` is the canonical ladder.
+- [x] **They DO something** (not just cosmetic): premium finishes add a small Design-appeal bonus
+      (titanium +2, gold +4) in the STATE layer (`productStats`), NOT the protected engine
+      computeStats — so launched products keep their snapshot stats; zero retroactive balance ripple.
+- [x] Old saves backfill `finishLimit` to the highest finish their products already use.
+- NOT verified on-device: the locked-chip look + unlock-button placement. Bonus magnitudes
+  (+2/+4) and costs (12/26) need a playtest.
+- Backlog seed (unchanged): notch styles / camera module shapes could follow the same seam, but
+  they're purely cosmetic — only worth gating if the finish gate feels good first.
+
+## v19.3 — one R&D hub: device unlocks surfaced on Research (DONE 2026-06-11)
+The progression spine (lenses / finishes / projects / component tiers) had drifted across 3 screens.
+- [x] **Research leads with a "Design unlocks" card** showing both device tracks (camera lenses +
+      premium finishes): what each does + a buy button (or Maxed ✓), reusing unlockLens/unlockFinish
+      + the upgrade fanfare. Hides once both maxed. Design Lab keeps its point-of-use inline buys.
+      Now RP reads as ONE economy (assign R&D → earn RP → unlock device tech / component tiers /
+      projects, all in one place). UI-only; engine actions already tested. 216 tests, tsc 0, build ok.
+- NOT verified on-device: the card's look + placement among the other Research cards.
+
+## v19.4 — Marketing Push: a 2nd mid-life lever (cash vs margin) (DONE 2026-06-11)
+Found the price-cut/refresh mechanic already existed (well-built, one cut per product, caps at the
+production run). Added its missing sibling so the post-launch decision has a real trade-off.
+- [x] **Marketing Push** (`marketingPush` + pure `marketingPushQuote`): spend cash to lift a live
+      product's remaining weekly demand (capped at plannedUnits → clears genuine surplus only),
+      KEEPING price. Cost = 35% of the extra revenue unlocked; +30% demand boost. One per product.
+      Price cut (no cash, lower margin) vs Push (full price, cash now) = a real cash-vs-margin call.
+- [x] Surfaced in the product detail sheet beside the price cut (reuses the `.pd__pricecut` visual
+      language, Megaphone icon). Only shown when surplus exists. Cash-spend FX wired. +3 tests (218).
+- NOT verified on-device: the two intervention blocks stacked in the sheet — check they read
+  clearly as distinct options. Boost/costPct (30% / 35%) need a playtest.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with

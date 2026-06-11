@@ -189,6 +189,15 @@
 .lab__chip:active {
   transform: scale(0.95);
 }
+/* Locked premium finish — masked until researched (the unlock buy sits just below). */
+.lab__chip--locked {
+  opacity: 0.5;
+  background: var(--bg-elevated);
+  color: var(--ink-3);
+}
+.lab__chip--locked:active {
+  transform: none;
+}
 .lab__chip-gen {
   font-size: var(--fs-nano);
   font-weight: 800;

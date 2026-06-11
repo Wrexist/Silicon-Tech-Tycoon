@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Building2, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Building2, Coffee, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
@@ -29,6 +29,7 @@ import {
   facilityRent,
   facility,
   nextWeekRevenue,
+  restCost,
   weeklyEcosystemRevenue,
   weeklyRpGen,
   type GameState,
@@ -87,7 +88,7 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 };
 
 export function Company() {
-  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise } = useGame();
+  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest } = useGame();
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const achievementCount = state.unlockedAchievements.length;
@@ -269,7 +270,7 @@ export function Company() {
         ) : (
           <ul className="co__roster">
             {state.staff.map((s) => (
-              <Member key={s.id} s={s} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} />
+              <Member key={s.id} s={s} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} onRest={rest} />
             ))}
           </ul>
         )}
@@ -718,6 +719,7 @@ function Member({
   onTrain,
   onFire,
   onRaise,
+  onRest,
 }: {
   s: Staff;
   cash: number;
@@ -726,6 +728,7 @@ function Member({
   onTrain: (id: string) => void;
   onFire: (id: string) => void;
   onRaise: (id: string) => void;
+  onRest: (id: string) => void;
 }) {
   const maxed = s.skill >= BALANCE.staff.maxSkill;
   const cost = trainCost(s.skill);
@@ -852,6 +855,18 @@ function Member({
       {isUnderpaid && (
         <button className="co__raise-btn" onClick={() => onRaise(s.id)}>
           <ArrowUp size={12} aria-hidden /> Raise to {format(marketSalary)}/wk
+        </button>
+      )}
+      {/* Rest — paid time off that recharges morale and pulls them out of the burnout
+          countdown. Shown only when it's actually useful (low/sinking mood). */}
+      {s.mood < 100 && (s.mood < 50 || isLowMood) && (
+        <button
+          className={`co__rest-btn${isLowMood ? " co__rest-btn--urgent" : ""}`}
+          disabled={cash < restCost(s)}
+          title="Paid time off — restores morale and eases burnout"
+          onClick={() => onRest(s.id)}
+        >
+          <Coffee size={12} aria-hidden /> {isLowMood ? "Rest — recharge morale" : "Rest"} · {format(restCost(s))}
         </button>
       )}
     </li>

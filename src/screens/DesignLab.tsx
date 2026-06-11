@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, Check, FlipHorizontal2, Hammer, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
+import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { isCategoryUnlocked } from "../engine/eras.ts";
@@ -31,6 +32,8 @@ import {
   burn,
   designTierCeiling,
   hypeBonus,
+  lensUnlockCost,
+  finishUnlockCost,
   marketerSkill,
   planProduction,
   productStats,
@@ -119,7 +122,7 @@ export function DesignLab({
   seed?: Product | null;
   onSeedConsumed?: () => void;
 } = {}) {
-  const { state, build } = useGame();
+  const { state, build, unlockLens, unlockFinish } = useGame();
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
@@ -427,18 +430,51 @@ export function DesignLab({
           <>
             <Card>
               <SectionHeader title="Finish & colour" />
-              <div className="lab__chips">
-                {FINISHES.map((f) => (
-                  <button
-                    key={f}
-                    className={`lab__chip${draft.finish === f ? " lab__chip--on" : ""}`}
-                    aria-pressed={draft.finish === f}
-                    onClick={() => { haptic.light(); set({ finish: f, colorIndex: 0 }); }}
-                  >
-                    {FINISH_LABEL[f]}
-                  </button>
-                ))}
-              </div>
+              {(() => {
+                // Premium finishes (titanium, gold) are RP-unlocked — locked chips render masked
+                // with a lock, and an inline research buy unlocks + selects the next material.
+                const finishLimit = state.finishLimit ?? (BALANCE.design.freeFinishes - 1);
+                const nextIdx = finishLimit + 1;
+                const nextCost = finishUnlockCost(state);
+                const rp = Math.floor(state.researchPoints);
+                return (
+                  <>
+                    <div className="lab__chips">
+                      {FINISHES.map((f, i) => {
+                        const locked = i > finishLimit;
+                        return (
+                          <button
+                            key={f}
+                            className={`lab__chip${draft.finish === f ? " lab__chip--on" : ""}${locked ? " lab__chip--locked" : ""}`}
+                            aria-pressed={draft.finish === f}
+                            disabled={locked}
+                            title={locked ? "Unlock with research below" : undefined}
+                            onClick={() => { haptic.light(); set({ finish: f, colorIndex: 0 }); }}
+                          >
+                            {locked && <Lock size={11} aria-hidden />}{FINISH_LABEL[f]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {nextCost !== null && (
+                      <Button
+                        block
+                        size="sm"
+                        variant={rp >= nextCost ? "primary" : "tertiary"}
+                        disabled={rp < nextCost}
+                        onClick={() => {
+                          unlockFinish();
+                          set({ finish: FINISHES[nextIdx], colorIndex: 0 });
+                          haptic.success();
+                          sfx("upgrade");
+                        }}
+                      >
+                        <FlaskConical size={14} /> Unlock {FINISH_LABEL[FINISHES[nextIdx]]} · {nextCost} RP
+                      </Button>
+                    )}
+                  </>
+                );
+              })()}
               <div className="lab__swatches">
                 {FINISH_SWATCHES[draft.finish].map((sw, i) => (
                   <button
@@ -471,17 +507,51 @@ export function DesignLab({
             {hasCamera && (
               <Card>
                 <SectionHeader title="Camera" accessory="back of device" />
-                <div className="lab__comp">
-                  <div className="lab__comp-info">
-                    <span className="lab__comp-name">Lenses</span>
-                    <span className="lab__comp-tier">{draft.camera.count} {draft.camera.count === 1 ? "lens" : "lenses"}</span>
-                  </div>
-                  <div className="lab__stepper">
-                    <button aria-label="Fewer lenses" disabled={draft.camera.count <= 1} onClick={() => setCam({ count: draft.camera.count - 1 })}><Minus size={16} /></button>
-                    <span className="lab__stepper-val tnum">{draft.camera.count}</span>
-                    <button aria-label="More lenses" disabled={draft.camera.count >= 4} onClick={() => setCam({ count: draft.camera.count + 1 })}><Plus size={16} /></button>
-                  </div>
-                </div>
+                {(() => {
+                  // Lens counts beyond the current limit are RESEARCH unlocks (RP), not free
+                  // picker options — designing a triple/quad module is something you earn.
+                  const lensCap = Math.min(4, state.lensLimit ?? 2);
+                  const nextLensCost = lensUnlockCost(state);
+                  const rp = Math.floor(state.researchPoints);
+                  const atCap = draft.camera.count >= lensCap;
+                  return (
+                    <>
+                      <div className="lab__comp">
+                        <div className="lab__comp-info">
+                          <span className="lab__comp-name">Lenses</span>
+                          <span className="lab__comp-tier">{draft.camera.count} {draft.camera.count === 1 ? "lens" : "lenses"}</span>
+                        </div>
+                        <div className="lab__stepper">
+                          <button aria-label="Fewer lenses" disabled={draft.camera.count <= 1} onClick={() => setCam({ count: draft.camera.count - 1 })}><Minus size={16} /></button>
+                          <span className="lab__stepper-val tnum">{draft.camera.count}</span>
+                          <button
+                            aria-label={atCap && nextLensCost !== null ? "More lenses (research the next module below)" : "More lenses"}
+                            disabled={atCap}
+                            onClick={() => setCam({ count: draft.camera.count + 1 })}
+                          ><Plus size={16} /></button>
+                        </div>
+                      </div>
+                      {atCap && nextLensCost !== null && (
+                        <Button
+                          block
+                          size="sm"
+                          variant={rp >= nextLensCost ? "primary" : "tertiary"}
+                          disabled={rp < nextLensCost}
+                          onClick={() => {
+                            unlockLens();
+                            // Step straight onto the new lens (instant gratification) — unless the
+                            // draft is a grandfathered design already above the old cap.
+                            if (lensCap + 1 > draft.camera.count) setCam({ count: lensCap + 1 });
+                            haptic.success();
+                            sfx("upgrade");
+                          }}
+                        >
+                          <FlaskConical size={14} /> Unlock {lensCap + 1 === 3 ? "triple-lens module" : "quad-lens array"} · {nextLensCost} RP
+                        </Button>
+                      )}
+                    </>
+                  );
+                })()}
                 <Seg<CameraLayout>
                   label="Layout"
                   value={draft.camera.layout}

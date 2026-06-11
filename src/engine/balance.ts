@@ -25,6 +25,17 @@ export const BALANCE = {
     // multiplier on the camera component's stat contribution by lens count (index = count-1)
     cameraCountFactor: [0.7, 1.0, 1.22, 1.42],
     extraLensCost: dollars(12), // per lens beyond the first
+    // RP cost to unlock designing with the 3rd / 4th lens (counts 1–2 are free from the start).
+    // Keyed by the lens count being unlocked. Tuned vs early component research (4–8 RP/tier):
+    // the triple module is an early-mid goal, the quad array a real era-2 investment.
+    lensUnlockCosts: { 3: 14, 4: 30 } as Record<number, number>,
+    maxLenses: 4,
+    // Premium finishes are RP-unlocked (plastic + aluminium are the free basics) and lend a small
+    // Design-appeal bonus — a titanium/gold chassis simply reads as more premium. Applied in the
+    // STATE layer (productStats), so it never retroactively changes already-launched products.
+    freeFinishes: 2, // first N entries of FINISH_ORDER are available from the start
+    finishUnlockCosts: { titanium: 12, gold: 26 } as Record<string, number>,
+    finishDesignBonus: { plastic: 0, aluminium: 0, titanium: 2, gold: 4 } as Record<string, number>,
   },
 
   // --- Market ---
@@ -102,6 +113,16 @@ export const BALANCE = {
     // even a weak product that ships should sell *something* (× marketSize), but small enough
     // that a flop can't recoup its tooling — so launch quality genuinely matters.
     floorUnits: 18,
+  },
+
+  // --- Mid-lifecycle marketing push (the margin-preserving sibling of a price cut) ---
+  // Spend cash to lift a still-selling product's REMAINING weekly demand (capped at the
+  // production run, so it only clears genuine surplus). Cost scales with the extra units it'll
+  // move, so it's priced fairly: you pay a slice of the revenue you're unlocking, keep full price.
+  marketingPush: {
+    boost: 0.3,    // +30% to each remaining week's units (then capped at plannedUnits)
+    costPct: 0.35, // cash cost = 35% of the extra revenue the push unlocks
+    maxPerProduct: 1,
   },
 
   // --- Fans / loyal customer base ---
@@ -316,6 +337,7 @@ export const BALANCE = {
     quitChancePerWeek: 0.15,  // per-week probability of quitting once at risk
     underpaidMoodPenalty: 10, // extra target reduction each week when salary lags skill level
     raiseMoodBoost: 15,       // mood bump when player gives a raise
+    restMoodBoost: 30,        // mood bump when player sends someone on paid time off (Rest)
   },
 
   // --- Market events ---

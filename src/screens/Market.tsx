@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Building2, ChevronRight, Clock, Lightbulb, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, ChevronRight, Clock, Lightbulb, Megaphone, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -20,6 +20,7 @@ import {
   founderStakeValue,
   industryLeaderboard,
   industryRank,
+  marketingPushQuote,
   netWorth,
   nextWeekRevenue,
   type FeedItem,
@@ -750,8 +751,9 @@ function ProductDetailSheet({
   onClose: () => void;
   onDesignSuccessor?: (p: Product) => void;
 }) {
-  const { cutProductPrice } = useGame();
+  const { cutProductPrice, marketingPush } = useGame();
   const [priceCutOpen, setPriceCutOpen] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
   const v = verdictOf(lp);
   const drivers = performanceDrivers(lp);
   const tips = generateTips(lp);
@@ -761,6 +763,9 @@ function ProductDetailSheet({
   const live = lp.weeksElapsed < lp.weeklyUnits.length;
   // Suggest cutting to ~85% of current price (or to unit cost if higher)
   const suggestedCut = dollars(Math.max(toDollars(lp.unitCost) + 1, Math.round(toDollars(lp.product.price) * 0.85 / 10) * 10));
+  // Marketing push quote — only offered when there's genuine surplus inventory left to clear.
+  const pushQuote = marketingPushQuote(lp);
+  const pushed = (lp.marketingPushes ?? 0) >= 1;
 
   return (
     <div className="pd">
@@ -905,6 +910,54 @@ function ProductDetailSheet({
                   Confirm · {format(suggestedCut)}
                 </Button>
                 <Button block variant="tertiary" onClick={() => { setPriceCutOpen(false); haptic.light(); }}>Cancel</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mid-lifecycle marketing push — the margin-preserving sibling of a price cut. Only shown
+          when there's surplus inventory to clear (pushQuote != null) or one has already run. */}
+      {live && (pushed || pushQuote) && (
+        <div className="pd__pricecut">
+          {pushed ? (
+            <div className="pd__pricecut-done">
+              <Megaphone size={13} aria-hidden />
+              <span>Marketing campaign running</span>
+            </div>
+          ) : !pushOpen ? (
+            <button className="pd__pricecut-trigger" onClick={() => { setPushOpen(true); haptic.light(); }}>
+              <Megaphone size={13} aria-hidden />
+              <span>Marketing push · keep your <span className="tnum">{format(lp.product.price)}</span> price</span>
+              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
+            </button>
+          ) : (
+            <div className="pd__pricecut-panel">
+              <div className="pd__pricecut-title">
+                <Megaphone size={14} aria-hidden />
+                <span>Marketing push</span>
+              </div>
+              <p className="pd__pricecut-hint">
+                Sell ~<strong className="tnum">{pushQuote!.addedUnits.toLocaleString()}</strong> more units at full price — no margin cut. One campaign per product.
+              </p>
+              <div className="pd__pricecut-actions">
+                <Button
+                  block
+                  onClick={() => {
+                    const result = marketingPush(lp.product.id);
+                    if (result.ok) {
+                      haptic.success();
+                      showToast("Campaign launched", { tone: "positive" });
+                      setPushOpen(false);
+                    } else {
+                      haptic.medium();
+                      showToast(result.reason ?? "Can't run campaign", { tone: "negative" });
+                    }
+                  }}
+                >
+                  Confirm · {format(pushQuote!.cost)}
+                </Button>
+                <Button block variant="tertiary" onClick={() => { setPushOpen(false); haptic.light(); }}>Cancel</Button>
               </div>
             </div>
           )}

@@ -19,6 +19,17 @@ import {
   rdRpCostFor,
   startRecruitment,
   hireCandidate,
+  unlockLens,
+  lensUnlockCost,
+  unlockFinish,
+  finishUnlockCost,
+  productStats,
+  marketingPush,
+  marketingPushQuote,
+  buyUpgrade,
+  upgradeGate,
+  restStaff,
+  restCost,
   type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
@@ -364,5 +375,158 @@ describe("offline catch-up", () => {
       if (!present(on)) quitWhilePlaying = true;
     }
     expect(quitWhilePlaying).toBe(true);
+  });
+});
+
+describe("camera lens unlocks (RP-gated design feature)", () => {
+  it("unlocks 3 then 4 lenses for RP, then has nothing left to sell", () => {
+    let s = { ...newGame(11), researchPoints: 100 };
+    expect(s.lensLimit).toBe(2);
+    expect(lensUnlockCost(s)).toBe(BALANCE.design.lensUnlockCosts[3]);
+
+    s = unlockLens(s);
+    expect(s.lensLimit).toBe(3);
+    expect(s.researchPoints).toBe(100 - BALANCE.design.lensUnlockCosts[3]);
+    expect(s.feed.some((f) => f.text.includes("triple-lens"))).toBe(true);
+
+    s = unlockLens(s);
+    expect(s.lensLimit).toBe(4);
+    expect(lensUnlockCost(s)).toBeNull();
+
+    const maxed = unlockLens(s);
+    expect(maxed).toBe(s); // no-op at the cap
+  });
+
+  it("refuses when RP is short (state untouched)", () => {
+    const s = { ...newGame(12), researchPoints: BALANCE.design.lensUnlockCosts[3] - 1 };
+    expect(unlockLens(s)).toBe(s);
+  });
+});
+
+describe("research-gated upgrades", () => {
+  it("locks the advanced tier until the prerequisite project is researched", () => {
+    let s: GameState = { ...newGame(5), cash: dollars(5_000_000), upgrades: { marketing: 3 } };
+    // Brand Agency (tier 4) is gated behind the Brand Studio research project.
+    expect(upgradeGate(s, "marketing")).toBe("brandStudio");
+    s = buyUpgrade(s, "marketing");
+    expect(s.upgrades.marketing).toBe(3); // refused while locked
+
+    s = { ...s, completedProjects: ["brandStudio"] };
+    expect(upgradeGate(s, "marketing")).toBeNull();
+    s = buyUpgrade(s, "marketing");
+    expect(s.upgrades.marketing).toBe(4); // unlocked
+  });
+
+  it("never gates the early tiers", () => {
+    const s: GameState = { ...newGame(6), cash: dollars(5_000_000), upgrades: { marketing: 0 } };
+    expect(upgradeGate(s, "marketing")).toBeNull();
+    expect(buyUpgrade(s, "marketing").upgrades.marketing).toBe(1);
+  });
+});
+
+describe("Rest — paid morale recovery", () => {
+  // A salaried hire (not the unpaid founder s0, whose week-of-salary cost would be $0).
+  const salaried = (over: Partial<import("../engine/types.ts").Staff>) => {
+    const base = newGame(8);
+    return { ...base.staff[0], id: "h1", salary: dollars(2_000), ...over } as typeof base.staff[0];
+  };
+
+  it("boosts mood, clears the burnout counter, and costs a week's salary", () => {
+    const base = newGame(8);
+    const tired = salaried({ mood: 25, moodLowWeeks: 4 });
+    const s0: GameState = { ...base, cash: dollars(100_000), staff: [tired] };
+    const s1 = restStaff(s0, tired.id);
+    expect(s1.staff[0].mood).toBe(25 + BALANCE.churn.restMoodBoost);
+    expect(s1.staff[0].moodLowWeeks).toBe(0);
+    expect(s0.cash - s1.cash).toBe(restCost(tired)); // exactly one week's salary
+  });
+
+  it("caps mood at 100 and refuses when broke", () => {
+    const base = newGame(9);
+    const m = salaried({ mood: 90 });
+    const broke: GameState = { ...base, cash: dollars(0), staff: [m] };
+    expect(restStaff(broke, m.id)).toBe(broke); // can't afford → no-op
+
+    const rich: GameState = { ...base, cash: dollars(100_000), staff: [m] };
+    expect(restStaff(rich, m.id).staff[0].mood).toBe(100); // 90 + 30 capped
+  });
+});
+
+describe("premium finish unlocks (RP-gated, with a Design bonus)", () => {
+  it("unlocks titanium then gold for RP and adds a Design-appeal bonus", () => {
+    let s = { ...newGame(21), researchPoints: 100 };
+    expect(s.finishLimit).toBe(BALANCE.design.freeFinishes - 1); // plastic+aluminium free
+    expect(finishUnlockCost(s)).toBe(BALANCE.design.finishUnlockCosts.titanium);
+
+    s = unlockFinish(s);
+    expect(s.finishLimit).toBe(2); // titanium
+    expect(s.feed.some((f) => f.text.toLowerCase().includes("titanium"))).toBe(true);
+
+    s = unlockFinish(s);
+    expect(s.finishLimit).toBe(3); // gold
+    expect(finishUnlockCost(s)).toBeNull();
+    expect(unlockFinish(s)).toBe(s); // nothing left to unlock
+
+    // The Design bonus flows through productStats (state layer, not the protected engine).
+    const gold = { ...goodPhone(), finish: "gold" as const };
+    const plastic = { ...goodPhone(), finish: "plastic" as const };
+    expect(productStats(s, gold).design).toBeGreaterThan(productStats(s, plastic).design);
+  });
+
+  it("refuses when RP is short", () => {
+    const s = { ...newGame(22), researchPoints: BALANCE.design.finishUnlockCosts.titanium - 1 };
+    expect(unlockFinish(s)).toBe(s);
+  });
+});
+
+describe("marketing push (mid-life, margin-preserving)", () => {
+  // A launched product with surplus inventory: built 1000, curve only forecasts ~600, so there's
+  // room for a push to lift remaining demand toward the production cap.
+  const surplusLaunch = (over: Partial<import("../engine/types.ts").LaunchedProduct> = {}) => {
+    const p = { ...goodPhone(), price: dollars(600) };
+    return {
+      product: p,
+      stats: { performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 40 },
+      unitCost: dollars(200),
+      launchScore: 100,
+      launchedWeek: 1,
+      totalUnits: 510, // = sum(weeklyUnits)
+      weeklyUnits: [100, 100, 100, 80, 60, 40, 20, 10, 0, 0],
+      unitsSold: 300,
+      weeksElapsed: 3,
+      revenueToDate: dollars(180_000),
+      plannedUnits: 1000,
+      ...over,
+    } as import("../engine/types.ts").LaunchedProduct;
+  };
+
+  it("quotes extra units + a cash cost, then lifts remaining demand at full price", () => {
+    const lp = surplusLaunch();
+    const quote = marketingPushQuote(lp)!;
+    expect(quote.addedUnits).toBeGreaterThan(0);
+    expect(quote.cost).toBeGreaterThan(0);
+
+    const s: GameState = { ...newGame(31), cash: dollars(1_000_000), launched: [lp] };
+    const after = marketingPush(s, lp.product.id);
+    expect(after.ok).toBe(true);
+    const out = after.state.launched[0];
+    expect(out.product.price).toBe(lp.product.price); // price unchanged — margin preserved
+    expect(out.totalUnits).toBeGreaterThan(lp.totalUnits); // more units in the pipeline
+    expect(out.marketingPushes).toBe(1);
+    expect(s.cash - after.state.cash).toBe(quote.cost); // charged the quoted amount
+  });
+
+  it("refuses a second push, a broke push, and a sold-out (no surplus) product", () => {
+    const lp = surplusLaunch();
+    const broke: GameState = { ...newGame(32), cash: dollars(0), launched: [lp] };
+    expect(marketingPush(broke, lp.product.id).ok).toBe(false); // can't afford
+
+    const already = surplusLaunch({ marketingPushes: 1 });
+    const rich: GameState = { ...newGame(33), cash: dollars(1_000_000), launched: [already] };
+    expect(marketingPush(rich, already.product.id).ok).toBe(false); // one per product
+
+    // No surplus: the curve already sums to the production run, so nothing to clear.
+    const soldOut = surplusLaunch({ plannedUnits: 510 });
+    expect(marketingPushQuote(soldOut)).toBeNull();
   });
 });

@@ -23,6 +23,7 @@ import {
   buyShares,
   buyUpgrade,
   cutProductPrice,
+  marketingPush,
   giveRaise,
   resolveChoice,
   catchUpOffline,
@@ -40,6 +41,8 @@ import {
   placeFurniture,
   removeFurniture,
   researchNext,
+  unlockLens,
+  unlockFinish,
   resetFurniture,
   rotateFurniture,
   sellOwnStake,
@@ -50,6 +53,7 @@ import {
   setWallStyle,
   startBuild,
   trainStaff,
+  restStaff,
   upgradeFacility,
   seedFeedSeq,
   type GameState,
@@ -189,10 +193,13 @@ interface GameContextValue {
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
   launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number };
   research: (kind: ComponentKind) => void;
+  unlockLens: () => void;
+  unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
   buyUpgrade: (id: UpgradeId) => void;
   assign: (id: string, assignment: Assignment) => void;
   train: (id: string) => void;
+  rest: (id: string) => void;
   hire: (role: StaffRole, skill: number, name: string) => void;
   recruit: (tier: RecruitTier) => void;
   hireCandidate: (candidateId: string) => void;
@@ -226,6 +233,7 @@ interface GameContextValue {
   listCompany: (stake: number) => void;
   sellOwnStake: (pct: number) => void;
   cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
+  marketingPush: (productId: string) => { ok: boolean; reason?: string };
   giveRaise: (id: string) => void;
   resolveChoice: (optionId: string) => void;
 }
@@ -377,6 +385,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState((s) => researchNext(s, kind));
   }, []);
 
+  const unlockLensCb = useCallback(() => {
+    const prev = stateRef.current;
+    const next = unlockLens(prev);
+    const rpSpent = prev.researchPoints - next.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    setState(next);
+  }, []);
+  const unlockFinishCb = useCallback(() => {
+    const prev = stateRef.current;
+    const next = unlockFinish(prev);
+    const rpSpent = prev.researchPoints - next.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    setState(next);
+  }, []);
   const buyProjectCb = useCallback((id: ProjectId) => {
     const prev = stateRef.current;
     const next = buyProject(prev, id);
@@ -395,6 +417,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const train = useCallback((id: string) => {
     const prev = stateRef.current;
     const next = trainStaff(prev, id);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
+  const rest = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const next = restStaff(prev, id);
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
     setState(next);
@@ -494,6 +523,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (result.ok) setState(result.state);
     return { ok: result.ok, reason: result.reason };
   }, []);
+  const marketingPushCb = useCallback((productId: string) => {
+    const prev = stateRef.current;
+    const result = marketingPush(prev, productId);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
   const giveRaiseCb = useCallback((id: string) => setState((s) => giveRaise(s, id)), []);
   const resolveChoiceCb = useCallback((optionId: string) => setState((s) => resolveChoice(s, optionId)), []);
 
@@ -521,6 +560,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       build,
       launchReady: launchReadyCb,
       research,
+      unlockLens: unlockLensCb,
+      unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
       buyUpgrade: buyUpgradeCb,
       assign,
@@ -555,7 +596,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       listCompany: listCompanyCb,
       sellOwnStake: sellOwnStakeCb,
       cutProductPrice: cutProductPriceCb,
+      marketingPush: marketingPushCb,
       giveRaise: giveRaiseCb,
+      rest,
       resolveChoice: resolveChoiceCb,
     }),
     [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],

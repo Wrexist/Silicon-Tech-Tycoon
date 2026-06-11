@@ -3,6 +3,7 @@ import { AlertTriangle, CircuitBoard, CircleX, Copy, Cpu, Layers, RotateCcw, Spa
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
+import { Bank } from "./components/Bank.tsx";
 import { BottomNav, type Tab } from "./components/BottomNav.tsx";
 import { Coach } from "./components/Coach.tsx";
 import { ToastHost } from "./design/toast.tsx";
@@ -52,6 +53,7 @@ function AppShell() {
   const { state, offline, clearOffline, tabBlocked, takeOverHere } = useGame();
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bankOpen, setBankOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
   // seenEraModal is initialized to the current era so loading an existing save never re-shows
   // modals for eras already reached. When era advances during play it becomes > seenEraModal.
@@ -73,14 +75,14 @@ function AppShell() {
 
   return (
     <div className="app">
-      <Hud onSettings={() => setSettingsOpen(true)} />
+      <Hud onSettings={() => setSettingsOpen(true)} onOpenBank={() => setBankOpen(true)} />
       <main className="app__main">
         <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
         {/* Screen-level boundary: a crash in one screen shows an inline card here while the HUD +
             bottom nav stay usable. Keyed by tab so navigating away clears a crashed screen. The
             top-level boundary in App() remains the last resort. */}
         <ErrorBoundary key={tab} fallback={<ScreenError onHome={() => setTab("hq")} />}>
-          {tab === "hq" && <HQ onNavigate={setTab} />}
+          {tab === "hq" && <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} />}
           {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
           {tab === "research" && <Research onNavigate={setTab} />}
           {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
@@ -100,6 +102,7 @@ function AppShell() {
       <GainFX />
       <SoundFX />
       <ToastHost />
+      <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
@@ -296,37 +299,43 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
 function Onboarding({ onStart }: { onStart: () => void }) {
   const { markOnboarded, setCompanyName } = useGame();
   const [name, setName] = useState("");
+  const found = () => {
+    if (name.trim()) setCompanyName(name);
+    markOnboarded();
+    onStart();
+  };
   return (
     <div className="onboard">
-      <div className="onboard__inner">
-        <div className="onboard__logo"><CircuitBoard size={48} strokeWidth={1.8} /></div>
-        <h1 className="onboard__title">Silicon</h1>
-        <p className="onboard__tag">Design tech. Time the market. Build an empire.</p>
-        <div className="onboard__steps">
-          <Step n="1" title="Design a device" text="Pick components, a finish, and a price. Watch it render live." />
-          <Step n="2" title="Read the market" text="Build toward what consumers want — and launch before the trend shifts." />
-          <Step n="3" title="Reinvest & grow" text="Fund R&D, hire a team, and expand from a garage to a global brand." />
+      <div className="onboard__scroll">
+        <div className="onboard__inner">
+          <div className="onboard__logo"><CircuitBoard size={48} strokeWidth={1.8} /></div>
+          <h1 className="onboard__title">Silicon</h1>
+          <p className="onboard__tag">Design tech. Time the market. Build an empire.</p>
+          <div className="onboard__steps">
+            <Step n="1" title="Design a device" text="Pick components, a finish, and a price. Watch it render live." />
+            <Step n="2" title="Read the market" text="Build toward what consumers want — and launch before the trend shifts." />
+            <Step n="3" title="Reinvest & grow" text="Fund R&D, hire a team, and expand from a garage to a global brand." />
+          </div>
+          <label className="onboard__name-label" htmlFor="onboard-name">Name your company</label>
+          <input
+            id="onboard-name"
+            className="onboard__name"
+            value={name}
+            maxLength={18}
+            placeholder="Silicon"
+            aria-label="Company name"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="words"
+            spellCheck={false}
+            enterKeyHint="done"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") found(); }}
+          />
+          <Button block onClick={found}>
+            Found {name.trim() || "Silicon"}
+          </Button>
         </div>
-        <label className="onboard__name-label" htmlFor="onboard-name">Name your company</label>
-        <input
-          id="onboard-name"
-          className="onboard__name"
-          value={name}
-          maxLength={18}
-          placeholder="Silicon"
-          aria-label="Company name"
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Button
-          block
-          onClick={() => {
-            if (name.trim()) setCompanyName(name);
-            markOnboarded();
-            onStart();
-          }}
-        >
-          Found {name.trim() || "Silicon"}
-        </Button>
       </div>
     </div>
   );
