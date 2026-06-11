@@ -11,8 +11,13 @@ import { hydrateFromNative } from "./state/nativeStore.ts";
 async function boot(): Promise<void> {
   // NATIVE ONLY: restore any save/entitlement/prestige keys that WKWebView storage eviction
   // wiped, from the durable Preferences mirror — BEFORE anything reads localStorage. Resolves
-  // immediately on web; on device the splash (launchAutoHide: false) covers the wait.
-  await hydrateFromNative();
+  // immediately on web. Cap the wait: a stalled native bridge here must never block first paint,
+  // or the app hangs on the splash. Worst case the timeout wins and a just-evicted save is
+  // restored on the next launch instead — far better than an unbootable app.
+  await Promise.race([
+    hydrateFromNative().catch(() => {}),
+    new Promise<void>((resolve) => setTimeout(resolve, 1200)),
+  ]);
 
   initSettings();
 

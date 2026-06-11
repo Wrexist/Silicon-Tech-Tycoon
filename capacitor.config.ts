@@ -14,10 +14,14 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      // Short branded splash on the game's dark background, no spinner. We hide it from JS
-      // (src/native.ts) as soon as the React tree mounts, so keep autoHide off there.
-      launchShowDuration: 600,
-      launchAutoHide: false,
+      // Branded splash on the game's dark background, no spinner. JS hides it the instant the
+      // React tree mounts (src/native.ts) for a crisp hand-off — but launchAutoHide stays TRUE
+      // as a hard safety net: if that JS hide never fires (a stalled boot, a missing plugin),
+      // the OS still dismisses the splash instead of stranding the app on it forever (the bug
+      // that showed an eternal splash on device). launchShowDuration is the auto-hide cap, set
+      // high enough that the explicit hide wins first on a healthy boot (no flash of blank web).
+      launchShowDuration: 2000,
+      launchAutoHide: true,
       backgroundColor: "#0f1115",
       showSpinner: false,
       iosSpinnerStyle: "small",
