@@ -24,6 +24,8 @@ import {
   unlockFinish,
   finishUnlockCost,
   productStats,
+  marketingPush,
+  marketingPushQuote,
   buyUpgrade,
   upgradeGate,
   restStaff,
@@ -474,5 +476,57 @@ describe("premium finish unlocks (RP-gated, with a Design bonus)", () => {
   it("refuses when RP is short", () => {
     const s = { ...newGame(22), researchPoints: BALANCE.design.finishUnlockCosts.titanium - 1 };
     expect(unlockFinish(s)).toBe(s);
+  });
+});
+
+describe("marketing push (mid-life, margin-preserving)", () => {
+  // A launched product with surplus inventory: built 1000, curve only forecasts ~600, so there's
+  // room for a push to lift remaining demand toward the production cap.
+  const surplusLaunch = (over: Partial<import("../engine/types.ts").LaunchedProduct> = {}) => {
+    const p = { ...goodPhone(), price: dollars(600) };
+    return {
+      product: p,
+      stats: { performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 40 },
+      unitCost: dollars(200),
+      launchScore: 100,
+      launchedWeek: 1,
+      totalUnits: 510, // = sum(weeklyUnits)
+      weeklyUnits: [100, 100, 100, 80, 60, 40, 20, 10, 0, 0],
+      unitsSold: 300,
+      weeksElapsed: 3,
+      revenueToDate: dollars(180_000),
+      plannedUnits: 1000,
+      ...over,
+    } as import("../engine/types.ts").LaunchedProduct;
+  };
+
+  it("quotes extra units + a cash cost, then lifts remaining demand at full price", () => {
+    const lp = surplusLaunch();
+    const quote = marketingPushQuote(lp)!;
+    expect(quote.addedUnits).toBeGreaterThan(0);
+    expect(quote.cost).toBeGreaterThan(0);
+
+    const s: GameState = { ...newGame(31), cash: dollars(1_000_000), launched: [lp] };
+    const after = marketingPush(s, lp.product.id);
+    expect(after.ok).toBe(true);
+    const out = after.state.launched[0];
+    expect(out.product.price).toBe(lp.product.price); // price unchanged — margin preserved
+    expect(out.totalUnits).toBeGreaterThan(lp.totalUnits); // more units in the pipeline
+    expect(out.marketingPushes).toBe(1);
+    expect(s.cash - after.state.cash).toBe(quote.cost); // charged the quoted amount
+  });
+
+  it("refuses a second push, a broke push, and a sold-out (no surplus) product", () => {
+    const lp = surplusLaunch();
+    const broke: GameState = { ...newGame(32), cash: dollars(0), launched: [lp] };
+    expect(marketingPush(broke, lp.product.id).ok).toBe(false); // can't afford
+
+    const already = surplusLaunch({ marketingPushes: 1 });
+    const rich: GameState = { ...newGame(33), cash: dollars(1_000_000), launched: [already] };
+    expect(marketingPush(rich, already.product.id).ok).toBe(false); // one per product
+
+    // No surplus: the curve already sums to the production run, so nothing to clear.
+    const soldOut = surplusLaunch({ plannedUnits: 510 });
+    expect(marketingPushQuote(soldOut)).toBeNull();
   });
 });

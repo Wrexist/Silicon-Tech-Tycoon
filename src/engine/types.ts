@@ -132,6 +132,8 @@ export interface LaunchedProduct {
   insight?: LaunchInsight;
   /** Number of mid-lifecycle price adjustments made (max 1). Old saves: undefined → treated as 0. */
   priceCuts?: number;
+  /** Number of mid-lifecycle marketing pushes run (max 1). Old saves: undefined → treated as 0. */
+  marketingPushes?: number;
 }
 
 export type StaffRole = "engineer" | "designer" | "marketer";

@@ -23,6 +23,7 @@ import {
   buyShares,
   buyUpgrade,
   cutProductPrice,
+  marketingPush,
   giveRaise,
   resolveChoice,
   catchUpOffline,
@@ -232,6 +233,7 @@ interface GameContextValue {
   listCompany: (stake: number) => void;
   sellOwnStake: (pct: number) => void;
   cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
+  marketingPush: (productId: string) => { ok: boolean; reason?: string };
   giveRaise: (id: string) => void;
   resolveChoice: (optionId: string) => void;
 }
@@ -521,6 +523,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (result.ok) setState(result.state);
     return { ok: result.ok, reason: result.reason };
   }, []);
+  const marketingPushCb = useCallback((productId: string) => {
+    const prev = stateRef.current;
+    const result = marketingPush(prev, productId);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
   const giveRaiseCb = useCallback((id: string) => setState((s) => giveRaise(s, id)), []);
   const resolveChoiceCb = useCallback((optionId: string) => setState((s) => resolveChoice(s, optionId)), []);
 
@@ -584,6 +596,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       listCompany: listCompanyCb,
       sellOwnStake: sellOwnStakeCb,
       cutProductPrice: cutProductPriceCb,
+      marketingPush: marketingPushCb,
       giveRaise: giveRaiseCb,
       rest,
       resolveChoice: resolveChoiceCb,

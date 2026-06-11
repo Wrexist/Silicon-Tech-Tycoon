@@ -115,6 +115,16 @@ export const BALANCE = {
     floorUnits: 18,
   },
 
+  // --- Mid-lifecycle marketing push (the margin-preserving sibling of a price cut) ---
+  // Spend cash to lift a still-selling product's REMAINING weekly demand (capped at the
+  // production run, so it only clears genuine surplus). Cost scales with the extra units it'll
+  // move, so it's priced fairly: you pay a slice of the revenue you're unlocking, keep full price.
+  marketingPush: {
+    boost: 0.3,    // +30% to each remaining week's units (then capped at plannedUnits)
+    costPct: 0.35, // cash cost = 35% of the extra revenue the push unlocks
+    maxPerProduct: 1,
+  },
+
   // --- Fans / loyal customer base ---
   // Fans are guaranteed buyers: they pre-order in proportion to how well your product fits
   // current demand. Hits grow your fanbase; it slowly decays as attention fades.

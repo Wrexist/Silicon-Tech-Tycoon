@@ -1313,6 +1313,54 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
   };
 }
 
+/** A quote for a mid-lifecycle marketing push, or null when there's nothing left to promote (no
+ *  surplus inventory) or the lifecycle has ended. Pure — drives both the UI preview and the action,
+ *  so the number the player sees is the number they pay. */
+export function marketingPushQuote(lp: LaunchedProduct): { cost: Money; addedUnits: number } | null {
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return null;
+  const cap = lp.plannedUnits ?? lp.totalUnits;
+  const boosted = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
+  const newTotal = Math.min(cap, boosted.reduce((a, b) => a + b, 0));
+  const oldTotal = Math.min(cap, lp.weeklyUnits.reduce((a, b) => a + b, 0));
+  const addedUnits = Math.max(0, newTotal - oldTotal);
+  if (addedUnits <= 0) return null;
+  const cost = dollars(Math.round(BALANCE.marketingPush.costPct * addedUnits * toDollars(lp.product.price)));
+  return { cost, addedUnits };
+}
+
+/** Run a marketing push: pay cash to lift a still-selling product's remaining demand while KEEPING
+ *  its price (the margin-preserving alternative to a price cut). One push per product. */
+export function marketingPush(state: GameState, productId: string): ActionResult {
+  const lp = state.launched.find((l) => l.product.id === productId);
+  if (!lp) return { state, ok: false, reason: "Product not found." };
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };
+  if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return { state, ok: false, reason: "This product has already had a marketing push." };
+  const quote = marketingPushQuote(lp);
+  if (!quote) return { state, ok: false, reason: "No unsold inventory left to promote." };
+  if (state.cash < quote.cost) return { state, ok: false, reason: "Not enough cash for the campaign." };
+
+  const cap = lp.plannedUnits ?? lp.totalUnits;
+  const newWeeklyUnits = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
+  const newTotalUnits = Math.min(cap, newWeeklyUnits.reduce((a, b) => a + b, 0));
+
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Marketing push on "${lp.product.name}" — ${quote.addedUnits.toLocaleString()} more units in the pipeline.`, "accent"));
+
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, quote.cost),
+      launched: state.launched.map((l) =>
+        l.product.id === productId
+          ? { ...l, weeklyUnits: newWeeklyUnits, totalUnits: newTotalUnits, marketingPushes: (l.marketingPushes ?? 0) + 1 }
+          : l,
+      ),
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
 function clampMood(m: number): number {
   return Math.max(0, Math.min(100, m));
 }
