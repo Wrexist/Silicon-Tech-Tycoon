@@ -411,7 +411,7 @@ function useWallCull(): WallCull {
   return cull;
 }
 
-function Room({ p, dark, finish, wall, cull }: { p: RoomPalette; dark: boolean; finish: FloorFinish; wall: WallStyle; cull: WallCull }) {
+function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomPalette; dark: boolean; finish: FloorFinish; wall: WallStyle; cull: WallCull; showWhiteboard?: boolean }) {
   const wzA = -4.2;
   const isBrick = wall.kind === "brick";
   const wallColor = dark ? wall.dark : wall.light;
@@ -440,8 +440,8 @@ function Room({ p, dark, finish, wall, cull }: { p: RoomPalette; dark: boolean; 
             <boxGeometry args={[8.8, 0.14, 0.06]} />
             <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
           </mesh>
-          {/* whiteboard on the low back wall (−z), facing the room */}
-          <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />
+          {/* whiteboard on the low back wall (−z), facing the room — gated (an earned upgrade) */}
+          {showWhiteboard && <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />}
         </group>
         {/* low side wall (−x) cluster */}
         <group visible={!cull.b}>
@@ -508,9 +508,11 @@ function Room({ p, dark, finish, wall, cull }: { p: RoomPalette; dark: boolean; 
         <boxGeometry args={[0.3, 5.2, 8.4]} />
         <meshStandardMaterial color={dark ? "#272d37" : "#e8e9ec"} roughness={0.85} />
       </mesh>
-      <group visible={!cull.b}>
-        <Whiteboard p={p} />
-      </group>
+      {showWhiteboard && (
+        <group visible={!cull.b}>
+          <Whiteboard p={p} />
+        </group>
+      )}
 
       {/* daylight window (wall B), framed */}
       <group visible={!cull.b} position={[-3.97, 3.1, -1.1]}>
@@ -892,99 +894,6 @@ function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; 
         </div>
       </div>
     </Html>
-  );
-}
-
-// Kanban board with three swim-lane columns and coloured sticky cards.
-function KanbanWall() {
-  const W = 3.2, H = 2.4;
-  const colW = (W - 0.16) / 3;
-  const cols: { label: string; hdr: string; cards: string[] }[] = [
-    { label: "Backlog", hdr: "#9aa0a8", cards: ["#f0f1f4", "#e8e9ec", "#f0f1f4"] },
-    { label: "In Progress", hdr: "#f97316", cards: ["#fff0e6", "#ffe8d0"] },
-    { label: "Done", hdr: "#10b981", cards: ["#e6f5ef", "#d0eddf", "#e6f5ef"] },
-  ];
-  return (
-    <group position={[2.5, 1.3, -3.55]} rotation-y={0}>
-      {/* frame */}
-      <RoundedBox args={[W + 0.14, H + 0.14, 0.06]} radius={0.03} smoothness={2}>
-        <meshStandardMaterial color="#1a1d23" roughness={0.5} metalness={0.3} />
-      </RoundedBox>
-      {/* surface */}
-      <mesh position={[0, 0, 0.036]}>
-        <planeGeometry args={[W, H]} />
-        <meshStandardMaterial color="#f4f5f7" roughness={0.7} />
-      </mesh>
-      {/* columns */}
-      {cols.map((col, ci) => {
-        const cx = -W / 2 + colW / 2 + ci * (colW + 0.04) + 0.04;
-        return (
-          <group key={ci} position={[cx, 0, 0.042]}>
-            {/* column header stripe */}
-            <mesh position={[0, H / 2 - 0.18, 0]}>
-              <planeGeometry args={[colW - 0.04, 0.24]} />
-              <meshBasicMaterial color={col.hdr} />
-            </mesh>
-            {/* cards */}
-            {col.cards.map((c, ki) => (
-              <mesh key={ki} position={[0, H / 2 - 0.52 - ki * 0.34, 0.002]}>
-                <planeGeometry args={[colW - 0.06, 0.26]} />
-                <meshBasicMaterial color={c} />
-              </mesh>
-            ))}
-          </group>
-        );
-      })}
-      {/* active-column blue glow (the "In Progress" lane) */}
-      <mesh position={[colW / 2, 0, 0.058]}>
-        <planeGeometry args={[colW + 0.04, H + 0.04]} />
-        <meshBasicMaterial color="#3b82f6" transparent opacity={0.16} depthWrite={false} />
-      </mesh>
-      {/* soft "active zone" aura radiating out around the whole board (matches the reference) */}
-      {[0, 1, 2].map((i) => (
-        <mesh key={i} position={[0, 0, -0.04 - i * 0.06]}>
-          <planeGeometry args={[W + 0.5 + i * 0.55, H + 0.5 + i * 0.55]} />
-          <meshBasicMaterial color="#5aa0ff" transparent opacity={0.1 - i * 0.03} depthWrite={false} />
-        </mesh>
-      ))}
-      {/* a thin emissive frame edge so the board reads as "powered/active" */}
-      <mesh position={[0, 0, 0.066]}>
-        <planeGeometry args={[W + 0.06, H + 0.06]} />
-        <meshBasicMaterial color="#3b82f6" transparent opacity={0.06} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-}
-
-// Glass-panel security gate — two posts + retractable panels + card reader.
-function SecurityGate() {
-  return (
-    <group position={[0.8, 0, 3.55]}>
-      {/* upright posts */}
-      {([-0.52, 0.52] as const).map((x, i) => (
-        <mesh key={i} position={[x, 0.9, 0]}>
-          <boxGeometry args={[0.13, 1.8, 0.13]} />
-          <meshStandardMaterial color="#b8bdc4" metalness={0.65} roughness={0.25} />
-        </mesh>
-      ))}
-      {/* glass panels */}
-      {([-0.26, 0.26] as const).map((x, i) => (
-        <mesh key={i} position={[x, 0.58, 0]}>
-          <boxGeometry args={[0.04, 0.96, 0.78]} />
-          <meshStandardMaterial color="#a8d8f8" transparent opacity={0.38} roughness={0.04} />
-        </mesh>
-      ))}
-      {/* card reader on right post */}
-      <group position={[0.6, 1.02, 0]}>
-        <RoundedBox args={[0.1, 0.22, 0.14]} radius={0.02} smoothness={2}>
-          <meshStandardMaterial color="#1e2128" roughness={0.4} />
-        </RoundedBox>
-        <mesh position={[0.06, 0.04, 0]}>
-          <sphereGeometry args={[0.025, 8, 8]} />
-          <meshStandardMaterial color="#10b981" emissive="#10b981" emissiveIntensity={1.5} toneMapped={false} />
-        </mesh>
-      </group>
-    </group>
   );
 }
 
@@ -1590,7 +1499,9 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       <pointLight position={[0, 3.4, 0]} intensity={dark ? 14 : 4} distance={12} decay={2} color={p.lamp} />
       <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.2} distance={7} decay={2} color={p.screen} />
 
-      <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} />
+      {/* Whiteboard is earned: it appears once the team has real Workstations (computers ≥ 1),
+          so a fresh garage starts bare and upgrading visibly adds the planning board. */}
+      <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={tierOf(upgrades, "computers") >= 1} />
       {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
           a clean white void, so no exterior scenery. */}
       {dark && (
@@ -1657,23 +1568,19 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* Test Lab → a glass test chamber */}
       {tierOf(upgrades, "testLab") >= 1 && <TestChamber p={p} />}
 
-      {/* Always-present office fixtures: kanban board, vault, security gate */}
-      {/* Kanban board mounts on the back wall — hide it with its wall or it floats in mid-air */}
-      <group visible={!cull.a}>
-        <KanbanWall />
-      </group>
+      {/* The Vault is the company BANK — your money lives here; tapping it (on-device) opens
+          the finances popup. Kept from the start; the Kanban wall + security gate were starter
+          clutter and were removed so a fresh garage reads as a real, empty garage. */}
       <Vault />
-      <SecurityGate />
 
-      {/* Floating zone labels */}
+      {/* Floating zone labels — only the meaningful, interactive ones (Bank = your money;
+          Whiteboard once earned). Decorative-fixture labels were removed with their fixtures. */}
       {!builder?.build && (
         <>
-          <OfficeLabel pos={[-2.2, 2.35, -3.2]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
-          {/* Anchored over the board itself (x=2.5) — drifting it toward centre made the pill
-              collide with the Whiteboard label at the default camera. */}
-          <OfficeLabel pos={[2.5, 2.8, -3.5]} label="Kanban Wall" sub="Work Items · Active" dot="#3b82f6" />
-          <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Vault" sub="Secure Storage" dot="#9095a0" />
-          <OfficeLabel pos={[0.8, 2.0, 3.0]} label="Security Gate" sub="Access Control" dot="#10b981" />
+          {tierOf(upgrades, "computers") >= 1 && (
+            <OfficeLabel pos={[-2.2, 2.35, -3.2]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
+          )}
+          <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Company funds" dot="#34c759" />
           {/* Per-desk name + primary-discipline label for every occupied (placed) desk */}
           {seated.map((s, i) => {
             const w = worldOf(seats[i]);
