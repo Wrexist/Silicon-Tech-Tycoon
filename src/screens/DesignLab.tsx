@@ -836,8 +836,9 @@ export function DesignLab({
 
       {/* Sticky step nav above the tab bar — Back (left) + Next (right) so the design flow reads
           as clear steps. Fixed (stays put while the pane scrolls). The Launch step has its own
-          Build CTA, so Next hides there. */}
-      {(() => {
+          Build CTA, so Next hides there. Suppressed during the first-build tutorial, where the
+          Coach occupies the same bottom band and provides the guidance instead. */}
+      {state.tutorialDone && (() => {
         const i = LAB_TABS.findIndex((t) => t.id === labTab);
         const prev = i > 0 ? LAB_TABS[i - 1] : null;
         const next = i < LAB_TABS.length - 1 ? LAB_TABS[i + 1] : null;
