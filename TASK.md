@@ -567,6 +567,31 @@ features like lens count should be RP unlocks." 210 tests (+4), tsc 0, build+PWA
 - Backlog seed: the unlock seam generalizes — notch styles / module shapes / finishes as
   research unlocks if the lens gate lands well.
 
+## v19 — garage declutter, Bank popup, gated upgrades, Rest (DONE 2026-06-11)
+User ask: bare-garage start, whiteboard/TV as upgrades, tap-employee menu, research-masked
+upgrades, vault→bank money popup, "extremely easy to understand." Decisions locked via
+AskUserQuestion: **foundation first** (3D taps deferred to an on-device follow-up), tap **opens
+the roster card**, **Rest is a real mechanic**. 214 tests (+8), tsc 0, build+PWA green.
+- [x] **Bare-garage start**: removed Kanban wall + security gate (starter clutter) + labels;
+      **Whiteboard now appears only with Workstations (computers ≥ 1)** — earned, not pre-placed.
+      TV was already Marketing-gated (confirmed). Down to Bank + (earned) Whiteboard + live staff labels.
+- [x] **Bank popup** (`components/Bank.tsx`): tap the HUD cash → a clean, bold finances screen —
+      hero cash + weekly in/out + runway, Net Worth broken into cash + your-company stake + rival
+      shares, Research points as the 2nd currency, lifetime earned. The vault is relabelled "Bank";
+      the 3D vault-tap entry point is the deferred follow-up (HUD entry ships + is testable now).
+- [x] **Research-gated masked upgrades**: Marketing (Brand Agency+) and Assembly (Robotic Line+)
+      top tiers LOCK behind Brand Studio / Vertical Integration research — rendered masked-grey with
+      a lock + "Research X to unlock Y". Engine enforces the gate too. `UpgradeLine.requires` +
+      `upgradeLockedBy` — extensible to more lines.
+- [x] **Rest mechanic**: paid time off (one week's salary) → +30 mood + clears the burnout counter;
+      distinct from Raise (permanent). In the roster only when useful (mood<50 / danger), urgent red
+      when about to quit. Free for the unpaid founder.
+- **Deferred (on-device follow-up — chosen "foundation first"):** the 3D taps — tap employee →
+      open their roster card (Train/Assign/Raise/Rest live there now); tap the office Vault → open
+      the Bank. Both reuse the proven furniture tap-select raycast; unverifiable in CI.
+- NOT verified on-device: Bank layout polish, masked-card contrast, Rest button thresholds —
+      flag anything off. Gate mapping (which tiers/projects) + Rest cost/boost (1wk / +30) need a playtest.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
