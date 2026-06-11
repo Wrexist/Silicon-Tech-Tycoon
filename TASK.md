@@ -592,6 +592,21 @@ the roster card**, **Rest is a real mechanic**. 214 tests (+8), tsc 0, build+PWA
 - NOT verified on-device: Bank layout polish, masked-card contrast, Rest button thresholds —
       flag anything off. Gate mapping (which tiers/projects) + Rest cost/boost (1wk / +30) need a playtest.
 
+## v19.1 — roster polish + 3D taps wired (DONE 2026-06-11)
+- [x] **Roster-card premium pass** (user-requested audit): verdict = already premium (token-driven,
+      soft surface-2 + hairline, smooth mood/skill/xp bars, 12px rhythm). Fixed the two real flaws —
+      the Rest button crammed a sub-label inside the pill (wrapped/broke the pill on narrow phones →
+      now clean "Rest · $X", explanation in a title) and a pre-existing DUPLICATE `.co__member-contrib`
+      rule (consolidated to one).
+- [x] **3D taps wired** (the deferred follow-up): tap a seated employee → Company roster (invisible
+      transparent hitbox over desk+robot); tap the Vault → Bank popup. `onTapStaff`/`onTapBank` through
+      Garage3D→Scene, `onNavigate`/`onOpenBank` through HQ→OfficeScene. Gated to non-Decorate mode.
+      **NOT CI-verifiable — 3D tap hit-testing needs an on-device check** (does the tap register over
+      the parallax camera? does the vault wrap-group catch child-mesh taps?). Reuses the BuildLayer
+      raycast pattern, so the approach is proven; the wiring is new.
+- Still nice-to-have: tapping an employee navigates to Company but doesn't yet scroll/highlight THAT
+  person's card (just opens the roster). Add a focus-id hand-off if the tap lands well on-device.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
