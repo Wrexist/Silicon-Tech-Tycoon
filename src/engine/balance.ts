@@ -338,6 +338,7 @@ export const BALANCE = {
     underpaidMoodPenalty: 10, // extra target reduction each week when salary lags skill level
     raiseMoodBoost: 15,       // mood bump when player gives a raise
     restMoodBoost: 30,        // mood bump when player sends someone on paid time off (Rest)
+    restMinCost: 1000,        // floor on a Rest's cost so it's never free (the unpaid founder pays this)
   },
 
   // --- Market events ---
