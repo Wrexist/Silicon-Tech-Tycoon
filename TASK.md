@@ -498,23 +498,44 @@ Verified each flagged site against source first (several audit findings were sta
   (`lab__chip-gen`, market) — acceptable micro-type; `coach__title` 14px / `gainfx__tok` 15px (no
   matching token); the soft `→` arrows in `App.tsx`/`HQ.tsx` labels (typographic, low value).
 
-### v17 Backlog — audit findings NOT actioned (carry forward; need a focused pass / design calls)
-**State/lifecycle:** side-effects (toasts + achievement eval) run inside the `setState` updater →
-  StrictMode double-fire (dev-only) — move to a `useEffect` keyed on week; `tabGuard` first-claimant
-  never un-freezes (no release/heartbeat); three duplicate save sites → one `persist()` helper.
-  _(v17.1 cleared offline staff-churn, stale-event reschedule, and sandbox-entitlement-on-import.)_
-**Engine:** `nextWeekRevenue` understates cash (subtracts prepaid unitCost) → runway reads pessimistic;
-  ecosystem loop reads pre-sales `state.launched` (1-wk lag); competitors decay keep-threshold `>1` vs
-  present-count `>0` disagree; `newGame`/`migrate` seeds are signed/overflowing (cosmetic).
-**Render/3D:** `<Canvas frameloop="always">` + ~10 always-on `useFrame` loops defeat the CameraRig
-  "settle to save battery" (→ `frameloop="demand"` + `invalidate()`); glTF **robot `tint` path is dead**
-  (`robotModelFor` never passes a tint, so a shared base model wouldn't recolor); live reduced-motion not
-  honored inside the mounted 3D scene; context-loss fallback is one-shot and drops you out of Decorate;
-  >4 roamers share 4 homes; staff #17+ render invisible (`slice(…,16)`); several hardcoded non-theme
-  colors in `furniture3d.tsx`/`Garage3D.tsx`.
-**Screens/UI/a11y:** _(v17.2 cleared the rank-1 medal contrast, dead `.lab__price-btn`, `co__proj-wk`
-  8px, HQ insight keys, and coach.css literals; the "WASD"-on-touch finding was stale — already gated.)_
-  Remaining: inert icon-container `font-size`s on now-SVG glyphs (harmless); 9px micro-badges
-  (`lab__chip-gen`, market) and `coach__title` 14px / `gainfx__tok` 15px (want tokens or a deliberate
-  scale call); broader hardcoded-px tokenization across screen CSS; soft `→` arrows in `App.tsx`/`HQ.tsx`
-  labels (typographic — debatable vs the Lucide rule).
+## v17.3 — backlog cleared: state robustness + 3D correctness + engine nits (DONE 2026-06-11)
+Worked the remaining v17 audit backlog. 206 tests (+2), tsc 0, build+PWA green.
+- [x] **Tick announcements fire once per simulated week** (`announcedWeekRef` gate): toasts +
+      achievement announces ran inside the `setState` updater, which React invokes twice under
+      StrictMode → double toasts in dev. Unlocks still fold into state on every invocation; only the
+      announce is gated. `withLiveAchievements` (launch path) documented as value-call-only.
+- [x] **Frozen tabs can recover** (`tabGuard` release protocol): the PLAYING context broadcasts
+      `release` on pagehide (frozen tabs never do — closing a stale tab can't steal play); a frozen
+      tab that's currently visible reloads into the freshest save, a hidden one keeps the overlay
+      CTA. `releaseNow()` test seam (+2 node BC tests incl. the 3-tab no-steal case).
+- [x] **One `persistNow()`** replaces the three drifting copies of the save call (interval /
+      visibility / pagehide).
+- [x] **Engine:** `nextWeekRevenue` now sums full price (production prepaid at build — runway/forecast
+      read low while selling); ecosystem revenue reads the freshly-updated `launched` (was 1-wk lag);
+      `newGame`/`migrate` seeds unsigned (`>>>0`; migrate's Date-based fallback collapsed toward few
+      values from float overflow).
+- [x] **3D:** robot model seam made truthful + the dead `tint` path is now LIVE — `robot_shared.glb`
+      (rename the committed inactive sample) is tinted per ROBOT_COLORS slot, per-colour files keep
+      native colours; parametric robot stays the shipped default (zero visual change today).
+      ROBOT_COLORS single-sourced in robotModels.ts. Roamer #5+ fan out on a golden-angle spiral
+      around the 4 homes (no more stacked/jittering pairs). Context loss now toasts + exits Decorate
+      cleanly (was a silent swap that stranded editor state). `prefers-reduced-motion` is live —
+      flipping it mid-session downgrades 3D→IsoScene without a reload (was mount-time only).
+- [x] **Micro-type on-scale:** 9px badges → `--fs-nano` (designLab chip-gen, market stage badges);
+      `coach__title` → `--fs-caption`; `gainfx__tok` → new `--fs-fx` token (15px, deliberate).
+- **Stale audit findings verified NOT bugs** (documented, untouched): competitors decay/presence
+  thresholds agree in practice (entries ≤1 are deleted the tick they decay — sub-1 strength never
+  persists); staff #17+ "invisible" — the render cap (16) equals the Campus staffCapacity cap (16);
+  CameraRig's settle comment claims only what it does (skips camera writes, not whole-scene battery).
+
+### v17 Backlog — still open (need on-device eyes / a design call)
+**3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
+  freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
+  decoration); route the deliberate "intrinsic object colours" in `furniture3d.tsx`/`Garage3D.tsx`
+  through `RoomPalette` for light-theme harmony (visual tuning); context-loss auto-RESTORE (current:
+  clean fallback + toast; no path back to 3D without remount).
+**Screens (cosmetic, low value):** inert icon-container `font-size`s on now-SVG glyphs; broader
+  hardcoded-px tokenization across screen CSS; soft `→` arrows in `App.tsx`/`HQ.tsx` labels
+  (typographic — debatable vs the Lucide rule).
+**Larger projects (logged earlier, unchanged):** full state/actions context split (F36); rem-based
+  type / Dynamic Type; iPad layout; more choice events / NG+ variety / component sidegrades.

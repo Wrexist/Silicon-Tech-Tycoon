@@ -116,6 +116,16 @@ Each sweep: re-run build/typecheck/tests, re-read changed areas adversarially, h
 add one premium improvement per screen, log findings below.
 
 ## FINDINGS LOG (append-only; newest first)
+- (v17.1–v17.3 backlog burn-down, 2026-06-11) Cleared the actionable v17 findings across four pushes:
+  offline/import correctness (entitlement re-validation, no offline staff churn, stale-event
+  reschedule); cosmetic sweep (medal contrast, dead CSS, insight keys); state robustness (announce-
+  once tick, tabGuard release/recover, single persistNow); engine nits (forecast full-price,
+  ecosystem lag, unsigned seeds); 3D correctness (robot tint seam live w/ parametric default
+  unchanged, roamer spread, context-loss toast + clean Decorate exit, live reduced-motion); micro-
+  type on-scale. 206 tests. **Three v17 findings verified STALE** (not bugs): WASD hint already
+  touch-gated; competitors decay/presence thresholds agree on real data; staff render cap (16) ==
+  max staffCapacity (16). Still open (on-device): frameloop=demand, furniture instancing, 3D
+  intrinsic-colour theming, context-loss auto-restore.
 - (v17 full audit + iOS pipeline fix, 2026-06-10) 4 parallel domain agents (engine / state / render /
   screens) + a CI/native deep-dive, on a green tree (tsc 0, vitest 199, build+PWA ok). **FIXED (5 commits):**
   • **iOS/CI pipeline was non-functional for TestFlight.** Rewrote the workflow for App Store Connect
