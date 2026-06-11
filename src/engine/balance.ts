@@ -25,6 +25,11 @@ export const BALANCE = {
     // multiplier on the camera component's stat contribution by lens count (index = count-1)
     cameraCountFactor: [0.7, 1.0, 1.22, 1.42],
     extraLensCost: dollars(12), // per lens beyond the first
+    // RP cost to unlock designing with the 3rd / 4th lens (counts 1–2 are free from the start).
+    // Keyed by the lens count being unlocked. Tuned vs early component research (4–8 RP/tier):
+    // the triple module is an early-mid goal, the quad array a real era-2 investment.
+    lensUnlockCosts: { 3: 14, 4: 30 } as Record<number, number>,
+    maxLenses: 4,
   },
 
   // --- Market ---

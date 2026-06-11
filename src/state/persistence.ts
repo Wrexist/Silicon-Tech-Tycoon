@@ -248,6 +248,16 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.unlockedAchievements)) s.unlockedAchievements = [];
   if (s.pendingChoice === undefined) s.pendingChoice = null;
   if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
+  // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at
+  // least what the save already USES — nobody loses a capability they had.
+  if (!Number.isFinite(s.lensLimit)) {
+    const used = [
+      ...(Array.isArray(s.building) ? s.building.map((b: any) => b?.product?.camera?.count) : []),
+      ...(Array.isArray(s.ready) ? s.ready.map((p: any) => p?.camera?.count) : []),
+      ...(Array.isArray(s.launched) ? s.launched.map((lp: any) => lp?.product?.camera?.count) : []),
+    ].filter((n: unknown): n is number => Number.isFinite(n));
+    s.lensLimit = Math.max(2, Math.min(4, used.length ? Math.max(...used) : 2));
+  }
   if (Array.isArray(s.competitors)) {
     s.competitors = s.competitors.map((c: any) => ({
       ...c,

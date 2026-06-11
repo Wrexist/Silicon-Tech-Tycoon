@@ -19,6 +19,8 @@ import {
   rdRpCostFor,
   startRecruitment,
   hireCandidate,
+  unlockLens,
+  lensUnlockCost,
   type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
@@ -364,5 +366,30 @@ describe("offline catch-up", () => {
       if (!present(on)) quitWhilePlaying = true;
     }
     expect(quitWhilePlaying).toBe(true);
+  });
+});
+
+describe("camera lens unlocks (RP-gated design feature)", () => {
+  it("unlocks 3 then 4 lenses for RP, then has nothing left to sell", () => {
+    let s = { ...newGame(11), researchPoints: 100 };
+    expect(s.lensLimit).toBe(2);
+    expect(lensUnlockCost(s)).toBe(BALANCE.design.lensUnlockCosts[3]);
+
+    s = unlockLens(s);
+    expect(s.lensLimit).toBe(3);
+    expect(s.researchPoints).toBe(100 - BALANCE.design.lensUnlockCosts[3]);
+    expect(s.feed.some((f) => f.text.includes("triple-lens"))).toBe(true);
+
+    s = unlockLens(s);
+    expect(s.lensLimit).toBe(4);
+    expect(lensUnlockCost(s)).toBeNull();
+
+    const maxed = unlockLens(s);
+    expect(maxed).toBe(s); // no-op at the cap
+  });
+
+  it("refuses when RP is short (state untouched)", () => {
+    const s = { ...newGame(12), researchPoints: BALANCE.design.lensUnlockCosts[3] - 1 };
+    expect(unlockLens(s)).toBe(s);
   });
 });

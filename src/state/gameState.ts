@@ -129,6 +129,8 @@ export interface GameState {
   competitors: CompetitorState[];
   /** highest unlocked tier per component line (>=1 means researched up to that tier) */
   researched: Partial<Record<ComponentKind, number>>;
+  /** max camera lens count the Design Lab offers (2 at start; 3rd/4th bought with RP) */
+  lensLimit: number;
   staff: Staff[];
   /** in-progress recruitment search (null when idle), and the candidates it produced */
   recruitment: Recruitment | null;
@@ -318,6 +320,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     layout: defaultLayout(),
     furnitureCounter: 20,
     roomStyle: { floor: 0, wall: 0 },
+    lensLimit: 2,
     sandboxUnlocked: false,
     onboarded: false,
     tutorialDone: false,
@@ -1332,6 +1335,30 @@ export function researchNext(state: GameState, kind: ComponentKind): GameState {
     ...state,
     researchPoints: state.researchPoints - cost,
     researched: { ...state.researched, [kind]: next },
+    feed: trimFeed(feed),
+  };
+}
+
+/** RP cost to unlock the next camera lens count (null when already at the max). */
+export function lensUnlockCost(s: GameState): number | null {
+  const next = (s.lensLimit ?? 2) + 1;
+  if (next > BALANCE.design.maxLenses) return null;
+  return BALANCE.design.lensUnlockCosts[next] ?? null;
+}
+
+const LENS_NAMES: Record<number, string> = { 3: "triple-lens module", 4: "quad-lens array" };
+
+/** Spend RP to unlock designing with one more camera lens. */
+export function unlockLens(state: GameState): GameState {
+  const cost = lensUnlockCost(state);
+  if (cost === null || state.researchPoints < cost) return state;
+  const next = (state.lensLimit ?? 2) + 1;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Camera lab: ${LENS_NAMES[next] ?? `${next}-lens design`} unlocked.`, "accent"));
+  return {
+    ...state,
+    researchPoints: state.researchPoints - cost,
+    lensLimit: next,
     feed: trimFeed(feed),
   };
 }
