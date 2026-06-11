@@ -30,6 +30,12 @@ export const BALANCE = {
     // the triple module is an early-mid goal, the quad array a real era-2 investment.
     lensUnlockCosts: { 3: 14, 4: 30 } as Record<number, number>,
     maxLenses: 4,
+    // Premium finishes are RP-unlocked (plastic + aluminium are the free basics) and lend a small
+    // Design-appeal bonus — a titanium/gold chassis simply reads as more premium. Applied in the
+    // STATE layer (productStats), so it never retroactively changes already-launched products.
+    freeFinishes: 2, // first N entries of FINISH_ORDER are available from the start
+    finishUnlockCosts: { titanium: 12, gold: 26 } as Record<string, number>,
+    finishDesignBonus: { plastic: 0, aluminium: 0, titanium: 2, gold: 4 } as Record<string, number>,
   },
 
   // --- Market ---

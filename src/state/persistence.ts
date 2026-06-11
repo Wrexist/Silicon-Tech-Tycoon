@@ -1,9 +1,10 @@
 // localStorage persistence with schema versioning + migration. The save is the
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
+import { BALANCE } from "../engine/balance.ts";
 import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
-import { defaultCameraDesign, type Product, type StaffRole } from "../engine/types.ts";
+import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { showToast } from "../design/toast.tsx";
@@ -257,6 +258,17 @@ function migrate(state: GameState): GameState | null {
       ...(Array.isArray(s.launched) ? s.launched.map((lp: any) => lp?.product?.camera?.count) : []),
     ].filter((n: unknown): n is number => Number.isFinite(n));
     s.lensLimit = Math.max(2, Math.min(4, used.length ? Math.max(...used) : 2));
+  }
+  // Finish unlocks (added later): grant at least the highest finish index the save already uses,
+  // so a pre-gating titanium/gold design never becomes un-selectable. Default = free basics.
+  if (!Number.isFinite(s.finishLimit)) {
+    const idx = (f: unknown) => FINISH_ORDER.indexOf(f as FinishId);
+    const used = [
+      ...(Array.isArray(s.building) ? s.building.map((b: any) => idx(b?.product?.finish)) : []),
+      ...(Array.isArray(s.ready) ? s.ready.map((p: any) => idx(p?.finish)) : []),
+      ...(Array.isArray(s.launched) ? s.launched.map((lp: any) => idx(lp?.product?.finish)) : []),
+    ].filter((n: number) => n >= 0);
+    s.finishLimit = Math.max(BALANCE.design.freeFinishes - 1, used.length ? Math.max(...used) : 0);
   }
   if (Array.isArray(s.competitors)) {
     s.competitors = s.competitors.map((c: any) => ({

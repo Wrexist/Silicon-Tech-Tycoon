@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -33,6 +33,7 @@ import {
   designTierCeiling,
   hypeBonus,
   lensUnlockCost,
+  finishUnlockCost,
   marketerSkill,
   planProduction,
   productStats,
@@ -121,7 +122,7 @@ export function DesignLab({
   seed?: Product | null;
   onSeedConsumed?: () => void;
 } = {}) {
-  const { state, build, unlockLens } = useGame();
+  const { state, build, unlockLens, unlockFinish } = useGame();
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
@@ -429,18 +430,51 @@ export function DesignLab({
           <>
             <Card>
               <SectionHeader title="Finish & colour" />
-              <div className="lab__chips">
-                {FINISHES.map((f) => (
-                  <button
-                    key={f}
-                    className={`lab__chip${draft.finish === f ? " lab__chip--on" : ""}`}
-                    aria-pressed={draft.finish === f}
-                    onClick={() => { haptic.light(); set({ finish: f, colorIndex: 0 }); }}
-                  >
-                    {FINISH_LABEL[f]}
-                  </button>
-                ))}
-              </div>
+              {(() => {
+                // Premium finishes (titanium, gold) are RP-unlocked — locked chips render masked
+                // with a lock, and an inline research buy unlocks + selects the next material.
+                const finishLimit = state.finishLimit ?? (BALANCE.design.freeFinishes - 1);
+                const nextIdx = finishLimit + 1;
+                const nextCost = finishUnlockCost(state);
+                const rp = Math.floor(state.researchPoints);
+                return (
+                  <>
+                    <div className="lab__chips">
+                      {FINISHES.map((f, i) => {
+                        const locked = i > finishLimit;
+                        return (
+                          <button
+                            key={f}
+                            className={`lab__chip${draft.finish === f ? " lab__chip--on" : ""}${locked ? " lab__chip--locked" : ""}`}
+                            aria-pressed={draft.finish === f}
+                            disabled={locked}
+                            title={locked ? "Unlock with research below" : undefined}
+                            onClick={() => { haptic.light(); set({ finish: f, colorIndex: 0 }); }}
+                          >
+                            {locked && <Lock size={11} aria-hidden />}{FINISH_LABEL[f]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {nextCost !== null && (
+                      <Button
+                        block
+                        size="sm"
+                        variant={rp >= nextCost ? "primary" : "tertiary"}
+                        disabled={rp < nextCost}
+                        onClick={() => {
+                          unlockFinish();
+                          set({ finish: FINISHES[nextIdx], colorIndex: 0 });
+                          haptic.success();
+                          sfx("upgrade");
+                        }}
+                      >
+                        <FlaskConical size={14} /> Unlock {FINISH_LABEL[FINISHES[nextIdx]]} · {nextCost} RP
+                      </Button>
+                    )}
+                  </>
+                );
+              })()}
               <div className="lab__swatches">
                 {FINISH_SWATCHES[draft.finish].map((sw, i) => (
                   <button

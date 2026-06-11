@@ -103,6 +103,7 @@ import type {
   StaffRole,
   Stats,
 } from "../engine/types.ts";
+import { FINISH_ORDER } from "../engine/types.ts";
 
 export const SAVE_VERSION = 1;
 
@@ -132,6 +133,8 @@ export interface GameState {
   researched: Partial<Record<ComponentKind, number>>;
   /** max camera lens count the Design Lab offers (2 at start; 3rd/4th bought with RP) */
   lensLimit: number;
+  /** highest unlocked index into FINISH_ORDER (1 at start = plastic+aluminium; titanium/gold bought with RP) */
+  finishLimit: number;
   staff: Staff[];
   /** in-progress recruitment search (null when idle), and the candidates it produced */
   recruitment: Recruitment | null;
@@ -322,6 +325,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     furnitureCounter: 20,
     roomStyle: { floor: 0, wall: 0 },
     lensLimit: 2,
+    finishLimit: BALANCE.design.freeFinishes - 1,
     sandboxUnlocked: false,
     onboarded: false,
     tutorialDone: false,
@@ -371,6 +375,8 @@ export function productStats(s: GameState, product: Product): Stats {
   const bonus = designSpecialtyBonus(s.staff);
   bonus.design = (bonus.design ?? 0) + designStatBonus(s.upgrades);
   bonus.quality = (bonus.quality ?? 0) + qualityStatBonus(s.upgrades);
+  // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
+  bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
@@ -1378,6 +1384,32 @@ export function unlockLens(state: GameState): GameState {
     ...state,
     researchPoints: state.researchPoints - cost,
     lensLimit: next,
+    feed: trimFeed(feed),
+  };
+}
+
+const DEFAULT_FINISH_LIMIT = BALANCE.design.freeFinishes - 1;
+const finishLimitOf = (s: GameState) => s.finishLimit ?? DEFAULT_FINISH_LIMIT;
+
+/** RP cost to unlock the next premium finish in FINISH_ORDER (null when all are unlocked). */
+export function finishUnlockCost(s: GameState): number | null {
+  const next = finishLimitOf(s) + 1;
+  if (next >= FINISH_ORDER.length) return null;
+  return BALANCE.design.finishUnlockCosts[FINISH_ORDER[next]] ?? null;
+}
+
+/** Spend RP to unlock designing with the next premium finish (titanium → gold). */
+export function unlockFinish(state: GameState): GameState {
+  const cost = finishUnlockCost(state);
+  if (cost === null || state.researchPoints < cost) return state;
+  const next = finishLimitOf(state) + 1;
+  const name = FINISH_ORDER[next];
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Materials lab: ${name.charAt(0).toUpperCase()}${name.slice(1)} finish unlocked.`, "accent"));
+  return {
+    ...state,
+    researchPoints: state.researchPoints - cost,
+    finishLimit: next,
     feed: trimFeed(feed),
   };
 }

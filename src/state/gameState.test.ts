@@ -21,6 +21,9 @@ import {
   hireCandidate,
   unlockLens,
   lensUnlockCost,
+  unlockFinish,
+  finishUnlockCost,
+  productStats,
   buyUpgrade,
   upgradeGate,
   restStaff,
@@ -444,5 +447,32 @@ describe("Rest — paid morale recovery", () => {
 
     const rich: GameState = { ...base, cash: dollars(100_000), staff: [m] };
     expect(restStaff(rich, m.id).staff[0].mood).toBe(100); // 90 + 30 capped
+  });
+});
+
+describe("premium finish unlocks (RP-gated, with a Design bonus)", () => {
+  it("unlocks titanium then gold for RP and adds a Design-appeal bonus", () => {
+    let s = { ...newGame(21), researchPoints: 100 };
+    expect(s.finishLimit).toBe(BALANCE.design.freeFinishes - 1); // plastic+aluminium free
+    expect(finishUnlockCost(s)).toBe(BALANCE.design.finishUnlockCosts.titanium);
+
+    s = unlockFinish(s);
+    expect(s.finishLimit).toBe(2); // titanium
+    expect(s.feed.some((f) => f.text.toLowerCase().includes("titanium"))).toBe(true);
+
+    s = unlockFinish(s);
+    expect(s.finishLimit).toBe(3); // gold
+    expect(finishUnlockCost(s)).toBeNull();
+    expect(unlockFinish(s)).toBe(s); // nothing left to unlock
+
+    // The Design bonus flows through productStats (state layer, not the protected engine).
+    const gold = { ...goodPhone(), finish: "gold" as const };
+    const plastic = { ...goodPhone(), finish: "plastic" as const };
+    expect(productStats(s, gold).design).toBeGreaterThan(productStats(s, plastic).design);
+  });
+
+  it("refuses when RP is short", () => {
+    const s = { ...newGame(22), researchPoints: BALANCE.design.finishUnlockCosts.titanium - 1 };
+    expect(unlockFinish(s)).toBe(s);
   });
 });

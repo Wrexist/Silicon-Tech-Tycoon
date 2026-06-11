@@ -32,6 +32,10 @@ export type CategoryId =
 
 export type FinishId = "plastic" | "aluminium" | "titanium" | "gold";
 
+/** Canonical finish order, cheap→premium. Doubles as the unlock ladder: the first
+ *  `BALANCE.design.freeFinishes` are available from the start; the rest are RP-unlocked in order. */
+export const FINISH_ORDER: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
+
 // --- Device design customization (cosmetic + light gameplay) ---
 export type CameraLayout = "vertical" | "horizontal" | "square" | "triangle";
 export type CameraPosition = "topLeft" | "topCenter" | "center";

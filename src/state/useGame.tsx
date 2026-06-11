@@ -41,6 +41,7 @@ import {
   removeFurniture,
   researchNext,
   unlockLens,
+  unlockFinish,
   resetFurniture,
   rotateFurniture,
   sellOwnStake,
@@ -192,6 +193,7 @@ interface GameContextValue {
   launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number };
   research: (kind: ComponentKind) => void;
   unlockLens: () => void;
+  unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
   buyUpgrade: (id: UpgradeId) => void;
   assign: (id: string, assignment: Assignment) => void;
@@ -388,6 +390,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (rpSpent > 0) emitRpSpend(rpSpent);
     setState(next);
   }, []);
+  const unlockFinishCb = useCallback(() => {
+    const prev = stateRef.current;
+    const next = unlockFinish(prev);
+    const rpSpent = prev.researchPoints - next.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    setState(next);
+  }, []);
   const buyProjectCb = useCallback((id: ProjectId) => {
     const prev = stateRef.current;
     const next = buyProject(prev, id);
@@ -540,6 +549,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       launchReady: launchReadyCb,
       research,
       unlockLens: unlockLensCb,
+      unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
       buyUpgrade: buyUpgradeCb,
       assign,
