@@ -661,6 +661,20 @@ Four issues reported live from PR #6's build; all fixed, 218 tests, tsc 0, build
       unlikely my regression) — this makes it recoverable in-session rather than fixing a root cause
       I can't repro. **Open question for the user: is it every launch or intermittent? did relaunch fix it?**
 
+## v19.6 — exploit/bug audit + smoothness (DONE 2026-06-11)
+"Make it clean & smooth; look for exploits and bugs." Audited the money/economy surfaces.
+- [x] **Exploit fixed — free Rest**: founder (s0) has $0 salary, so Rest cost $0 → unlimited free
+      morale (≈ permanent free output). `restCost = max(salary, BALANCE.churn.restMinCost=$1000)`.
+      Rest is now always a real spend. +1 test.
+- [x] **Bug fixed — Coach/step-nav overlap**: the new Design step nav (fixed, z29/bottom60) sat in
+      the same band as the first-build Coach card (z28/bottom72), buttons rendering over it. Nav now
+      gated on `state.tutorialDone` (they never coexist; Coach guides during the tutorial).
+- [x] **Audited clean (no action needed):** offline catch-up (week-capped, clock-backward = no-op);
+      stock trades (two-sided fee → no same-week round-trip; oversell/insufficient-cash clamped);
+      builds (cash-guarded, no cancel/refund path); giveRaise (founder-excluded + no-op at market →
+      no mood farm); prestige (gated behind IPO win, full reset → legacy can't be farmed); bankruptcy
+      (post-mortem + restart, no soft-lock). 219 tests, tsc 0, build+PWA green.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
