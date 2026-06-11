@@ -15,7 +15,18 @@
 .hud__cash {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
+  /* it's a real button now (opens the Bank) — strip the native chrome, keep the tap feedback */
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--spring-snappy);
+}
+.hud__cash:active {
+  transform: scale(0.96);
 }
 .hud__cash-label {
   font-size: var(--fs-micro);

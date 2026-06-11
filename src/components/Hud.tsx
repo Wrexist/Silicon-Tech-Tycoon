@@ -13,7 +13,7 @@ export function weekLabel(week: number): string {
   return `Y${year} Q${quarter}`;
 }
 
-export function Hud({ onSettings }: { onSettings: () => void }) {
+export function Hud({ onSettings, onOpenBank }: { onSettings: () => void; onOpenBank: () => void }) {
   const { state, paused, setPaused, fast, setFast } = useGame();
   // Critical-runway signal: the HQ/Company runway pills live below the fold, so when cash will
   // run out within a month the always-visible headline number itself turns negative. Same math
@@ -22,16 +22,17 @@ export function Hud({ onSettings }: { onSettings: () => void }) {
   const critical = runway < 4;
   return (
     <header className="hud">
-      <div
+      <button
+        type="button"
         className="hud__cash"
-        aria-live="polite"
-        aria-label={`Cash ${format(state.cash)}${critical ? `, ${runway} weeks of runway left` : ""}`}
+        onClick={onOpenBank}
+        aria-label={`Open Bank. Cash ${format(state.cash)}${critical ? `, ${runway} weeks of runway left` : ""}`}
       >
         <span className={`hud__cash-label${critical ? " hud__cash-label--danger" : ""}`} aria-hidden>
           {critical ? `Cash · ${runway}wk left` : "Cash"}
         </span>
         <AnimatedMoney value={state.cash} className={`hud__cash-value rounded${critical ? " hud__cash-value--danger" : ""}`} />
-      </div>
+      </button>
       <div className="hud__meta">
         {/* Chips and buttons wrap as GROUPS — on narrow phones the buttons drop to their own
             right-aligned row instead of splitting at an arbitrary chip boundary. */}

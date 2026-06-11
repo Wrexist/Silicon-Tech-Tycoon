@@ -1,0 +1,186 @@
+.bank {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+}
+.bank__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.bank__head-glyph {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--positive);
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+}
+.bank__title {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Hero — the one number that matters, big and bold on a soft tinted card */
+.bank__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-20) var(--sp-16);
+  border-radius: var(--r-card);
+  background:
+    radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--positive) 12%, transparent), transparent 70%),
+    var(--surface);
+  border: 1px solid var(--hairline);
+}
+.bank__hero-label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.bank__hero-value {
+  font-size: clamp(34px, 12vw, 46px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.bank__hero-value--neg {
+  color: var(--negative);
+}
+.bank__flow {
+  display: flex;
+  gap: var(--sp-8);
+  margin-top: var(--sp-6);
+}
+.bank__flow-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: var(--sp-4) var(--sp-10);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  background: var(--bg-elevated);
+}
+.bank__flow-chip--in {
+  color: var(--positive);
+}
+.bank__flow-chip--out {
+  color: var(--negative);
+}
+.bank__runway {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-4);
+  padding: var(--sp-4) var(--sp-12);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+.bank__runway-sep {
+  opacity: 0.4;
+}
+.bank__runway--good {
+  color: var(--positive);
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
+}
+.bank__runway--warn {
+  color: var(--warning-text);
+  background: color-mix(in srgb, var(--warning-text) 14%, transparent);
+}
+.bank__runway--bad {
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 12%, transparent);
+}
+
+.bank__section-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+  margin-bottom: calc(-1 * var(--sp-8));
+}
+
+/* Net worth headline row */
+.bank__networth {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--sp-12) var(--sp-16);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.bank__networth-label {
+  font-weight: 700;
+}
+.bank__networth-value {
+  font-size: var(--fs-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Breakdown rows */
+.bank__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.bank__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-16);
+  border-radius: var(--r-button);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.bank__row-glyph {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--ink-2);
+  background: var(--bg-elevated);
+}
+.bank__row-glyph--accent {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.bank__row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.bank__row-label {
+  font-weight: 600;
+  line-height: 1.25;
+}
+.bank__row-sub {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+.bank__row-value {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.bank__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+}

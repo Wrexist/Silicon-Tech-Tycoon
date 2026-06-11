@@ -3,6 +3,7 @@ import { AlertTriangle, CircuitBoard, CircleX, Copy, Cpu, Layers, RotateCcw, Spa
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
+import { Bank } from "./components/Bank.tsx";
 import { BottomNav, type Tab } from "./components/BottomNav.tsx";
 import { Coach } from "./components/Coach.tsx";
 import { ToastHost } from "./design/toast.tsx";
@@ -52,6 +53,7 @@ function AppShell() {
   const { state, offline, clearOffline, tabBlocked, takeOverHere } = useGame();
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bankOpen, setBankOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
   // seenEraModal is initialized to the current era so loading an existing save never re-shows
   // modals for eras already reached. When era advances during play it becomes > seenEraModal.
@@ -73,7 +75,7 @@ function AppShell() {
 
   return (
     <div className="app">
-      <Hud onSettings={() => setSettingsOpen(true)} />
+      <Hud onSettings={() => setSettingsOpen(true)} onOpenBank={() => setBankOpen(true)} />
       <main className="app__main">
         <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
         {/* Screen-level boundary: a crash in one screen shows an inline card here while the HUD +
@@ -100,6 +102,7 @@ function AppShell() {
       <GainFX />
       <SoundFX />
       <ToastHost />
+      <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
