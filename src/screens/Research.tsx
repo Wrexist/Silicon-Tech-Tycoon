@@ -1,5 +1,7 @@
 import { Check, ChevronRight, FlaskConical, Lock, MapPin, Users } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
+import { haptic } from "../design/haptics.ts";
+import { sfx } from "../design/sound.ts";
 import { CategoryIcon } from "../design/icons.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
@@ -262,7 +264,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                         size="sm"
                         variant={affordable ? "primary" : "tertiary"}
                         disabled={!affordable}
-                        onClick={() => research(kind)}
+                        onClick={() => { research(kind); haptic.success(); sfx("upgrade"); }}
                       >
                         {cost} RP
                       </Button>
@@ -329,7 +331,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
                   ) : (
                     <div className="rd__project-action">
-                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => buyProject(p.id)}>
+                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { buyProject(p.id); haptic.success(); sfx("upgrade"); }}>
                         {p.rpCost} RP
                       </Button>
                       {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
@@ -430,7 +432,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                   <span className="rd__contrib">{nextDef && (curDef ? deltaLabel(curDef.contributes, nextDef.contributes) : contributesLabel(nextDef.contributes))}</span>
                 </div>
                 <div className="rd__project-action">
-                  <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => research(kind)}>
+                  <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { research(kind); haptic.success(); sfx("upgrade"); }}>
                     {cost !== null ? `${cost} RP` : "—"}
                   </Button>
                   {!affordable && cost !== null && perWeek > 0 && (

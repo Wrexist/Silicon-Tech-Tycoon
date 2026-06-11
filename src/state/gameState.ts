@@ -383,13 +383,24 @@ export function upgradeCost(s: GameState, id: UpgradeId): Money | null {
   return nextUpgradeCost(id, s.upgrades[id] ?? 0);
 }
 
+/** Tiers whose purchase physically changes the 3D office — the feed says what appeared, so the
+ *  upgrade visibly "did something" beyond a stat line (Garage3D renders these objects). */
+const UPGRADE_ROOM_CHANGES: Partial<Record<UpgradeId, Record<number, string>>> = {
+  amenities: { 1: "A coffee station appeared in your office.", 2: "A new plant brightens the room.", 3: "More greenery arrives.", 4: "The office is turning lush." },
+  marketing: { 1: "A branded wall screen now plays your campaigns." },
+  designSuite: { 1: "A drafting easel stands by the wall." },
+  testLab: { 1: "A glass test chamber hums in the corner." },
+  computers: { 3: "Every desk gains a second monitor." },
+};
+
 export function buyUpgrade(state: GameState, id: UpgradeId): GameState {
   const cur = state.upgrades[id] ?? 0;
   const cost = nextUpgradeCost(id, cur);
   if (cost === null || state.cash < cost) return state;
   const line = upgradeLine(id);
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Upgraded ${line.name} → ${line.tierNames[cur]}.`, "accent"));
+  const roomChange = UPGRADE_ROOM_CHANGES[id]?.[cur + 1];
+  feed.push(feedItem(state.week, `Upgraded ${line.name} → ${line.tierNames[cur]}.${roomChange ? ` ${roomChange}` : ""}`, "accent"));
   return {
     ...state,
     cash: sub(state.cash, cost),

@@ -538,6 +538,21 @@ function Upgrades() {
   const fac = facility(state);
   const nextFac = BALANCE.facilities[state.facilityTier];
 
+  // Purchase celebration: the bought card blooms (ring + accent wash), the new pip ignites,
+  // and the effect line rises out of the card — the moment should FEEL like installing
+  // something real, not a silent counter bump. `n` re-keys the burst/pip so a rapid second
+  // buy restarts their animations.
+  const [boom, setBoom] = useState<{ id: string; tier: number; text: string; n: number } | null>(null);
+  const boomTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (boomTimer.current !== null) window.clearTimeout(boomTimer.current); }, []);
+  const celebrate = (id: string, tier: number, text: string) => {
+    setBoom({ id, tier, text, n: Date.now() });
+    if (boomTimer.current !== null) window.clearTimeout(boomTimer.current);
+    boomTimer.current = window.setTimeout(() => setBoom(null), 1200);
+    haptic.success();
+    sfx("upgrade");
+  };
+
   // Overall progression — every tier bought across all lines + facility moves.
   const builtTiers =
     UPGRADE_LINES.reduce((a, l) => a + (state.upgrades[l.id] ?? 0), 0) + (state.facilityTier - 1);
@@ -561,7 +576,8 @@ function Upgrades() {
       </Card>
 
       {/* Facility (the headquarters itself) */}
-      <Card className="hqu__fac">
+      <Card className={`hqu__fac${boom?.id === "facility" ? " hqu__card--boom" : ""}`}>
+        {boom?.id === "facility" && <span key={boom.n} className="hqu__burst" aria-hidden>{boom.text}</span>}
         <div className="hqu__card-head">
           <span className="hqu__glyph hqu__glyph--fac" aria-hidden><Users size={18} /></span>
           <div className="hqu__info">
@@ -576,7 +592,7 @@ function Upgrades() {
             size="sm"
             variant={state.cash >= nextFac.upgradeCost ? "primary" : "tertiary"}
             disabled={state.cash < nextFac.upgradeCost}
-            onClick={upgradeHQ}
+            onClick={() => { upgradeHQ(); celebrate("facility", 0, `${nextFac.name} · ${nextFac.staffCapacity} desks`); }}
           >
             <ArrowUp size={14} /> Move to {nextFac.name} · {format(nextFac.upgradeCost)}
           </Button>
@@ -594,12 +610,14 @@ function Upgrades() {
           const affordable = cost !== null && state.cash >= cost;
           const Icon = UPGRADE_ICONS[line.icon] ?? Cpu;
           const fn = UPGRADE_FN[line.id];
+          const boomed = boom?.id === line.id;
           return (
             <Card
               key={line.id}
-              className="hqu__card"
+              className={`hqu__card${boomed ? " hqu__card--boom" : ""}`}
               style={{ "--accent": fn.accent, "--accent-soft": fn.soft } as CSSProperties}
             >
+              {boomed && <span key={boom.n} className="hqu__burst" aria-hidden>{boom.text}</span>}
               <div className="hqu__card-head">
                 <span className="hqu__glyph" aria-hidden><Icon size={18} /></span>
                 <div className="hqu__info">
@@ -611,7 +629,10 @@ function Upgrades() {
               </div>
               <div className="hqu__pips">
                 {Array.from({ length: line.maxTier }).map((_, i) => (
-                  <span key={i} className={`hqu__pip${i < cur ? " hqu__pip--on" : ""}`} />
+                  <span
+                    key={boomed && i === boom.tier - 1 ? `ignite${boom.n}` : i}
+                    className={`hqu__pip${i < cur ? " hqu__pip--on" : ""}${boomed && i === boom.tier - 1 ? " hqu__pip--ignite" : ""}`}
+                  />
                 ))}
               </div>
               {maxed ? (
@@ -622,7 +643,7 @@ function Upgrades() {
                   size="sm"
                   variant={affordable ? "primary" : "tertiary"}
                   disabled={!affordable}
-                  onClick={() => { buyUpgrade(line.id); haptic.success(); sfx("tap"); }}
+                  onClick={() => { buyUpgrade(line.id); celebrate(line.id, cur + 1, line.effectAt(cur + 1)); }}
                 >
                   <ArrowUp size={14} /> {line.tierNames[cur]} · {cost !== null ? format(cost) : "—"}
                 </Button>
