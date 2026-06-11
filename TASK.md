@@ -623,6 +623,15 @@ Continues the user's "device upgrades with research points" vision (lenses → f
 - Backlog seed (unchanged): notch styles / camera module shapes could follow the same seam, but
   they're purely cosmetic — only worth gating if the finish gate feels good first.
 
+## v19.3 — one R&D hub: device unlocks surfaced on Research (DONE 2026-06-11)
+The progression spine (lenses / finishes / projects / component tiers) had drifted across 3 screens.
+- [x] **Research leads with a "Design unlocks" card** showing both device tracks (camera lenses +
+      premium finishes): what each does + a buy button (or Maxed ✓), reusing unlockLens/unlockFinish
+      + the upgrade fanfare. Hides once both maxed. Design Lab keeps its point-of-use inline buys.
+      Now RP reads as ONE economy (assign R&D → earn RP → unlock device tech / component tiers /
+      projects, all in one place). UI-only; engine actions already tested. 216 tests, tsc 0, build ok.
+- NOT verified on-device: the card's look + placement among the other Research cards.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
