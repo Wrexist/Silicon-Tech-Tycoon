@@ -607,6 +607,22 @@ the roster card**, **Rest is a real mechanic**. 214 tests (+8), tsc 0, build+PWA
 - Still nice-to-have: tapping an employee navigates to Company but doesn't yet scroll/highlight THAT
   person's card (just opens the roster). Add a focus-id hand-off if the tap lands well on-device.
 
+## v19.2 — premium finishes are earned (RP-unlocked + meaningful) (DONE 2026-06-11)
+Continues the user's "device upgrades with research points" vision (lenses → finishes). 216 tests
+(+2), tsc 0, build+PWA green.
+- [x] **titanium / gold finishes RP-unlocked** (12 / 26 RP); plastic + aluminium stay free. Design
+      Lab Style tab masks locked finishes (lock + dim) with an inline "Unlock {Finish} · N RP" buy
+      that unlocks + selects + plays the upgrade fanfare. `finishLimit` + `unlockFinish` /
+      `finishUnlockCost` mirror the lens seam; `FINISH_ORDER` is the canonical ladder.
+- [x] **They DO something** (not just cosmetic): premium finishes add a small Design-appeal bonus
+      (titanium +2, gold +4) in the STATE layer (`productStats`), NOT the protected engine
+      computeStats — so launched products keep their snapshot stats; zero retroactive balance ripple.
+- [x] Old saves backfill `finishLimit` to the highest finish their products already use.
+- NOT verified on-device: the locked-chip look + unlock-button placement. Bonus magnitudes
+  (+2/+4) and costs (12/26) need a playtest.
+- Backlog seed (unchanged): notch styles / camera module shapes could follow the same seam, but
+  they're purely cosmetic — only worth gating if the finish gate feels good first.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
