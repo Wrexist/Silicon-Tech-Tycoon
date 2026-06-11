@@ -17,6 +17,14 @@ export function hasSandboxEntitlement(): boolean {
   }
 }
 
+/** Strip a `sandboxUnlocked` flag the device isn't actually entitled to (e.g. carried in from an
+ *  imported save, or a localStorage save whose entitlement was cleared) so the engine's
+ *  unlimited-cash floor can never be unlocked for free. Generic over the state shape to avoid a
+ *  GameState import here — entitlements stay decoupled from the engine types. */
+export function withValidatedSandbox<T extends { sandboxUnlocked: boolean }>(s: T): T {
+  return s.sandboxUnlocked && !hasSandboxEntitlement() ? { ...s, sandboxUnlocked: false } : s;
+}
+
 /** Grant the Sandbox entitlement (called after a successful purchase or restore). */
 export function grantSandboxEntitlement(): void {
   try {

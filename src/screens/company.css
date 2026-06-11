@@ -805,7 +805,7 @@
   background: var(--negative);
 }
 .co__proj-wk {
-  font-size: 8px;
+  font-size: var(--fs-nano);
   font-weight: 600;
   color: var(--ink-3);
   line-height: 1;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Clock, Lightbulb, Minus, Newspaper, Package, Plus, Rocket, Sparkles, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, ChevronRight, Clock, Lightbulb, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -537,7 +537,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             )}
             {weakestCat != null && (
               <div className="mkt__intel-row">
-                <span className="mkt__intel-icon mkt__intel-icon--opp" aria-hidden>◎</span>
+                <Target size={14} className="mkt__intel-icon mkt__intel-icon--opp" aria-hidden />
                 <span className="mkt__intel-text">
                   <strong>{weakestCat.displayName}</strong> has the least rival competition right now.
                 </span>
@@ -554,7 +554,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             )}
             {state.reputation >= 65 && (
               <div className="mkt__intel-row">
-                <span className="mkt__intel-icon mkt__intel-icon--rep" aria-hidden>★</span>
+                <Star size={14} fill="currentColor" className="mkt__intel-icon mkt__intel-icon--rep" aria-hidden />
                 <span className="mkt__intel-text">
                   Your reputation ({Math.round(state.reputation)}) supports premium pricing on your next launch.
                 </span>
@@ -864,7 +864,7 @@ function ProductDetailSheet({
             <button className="pd__pricecut-trigger" onClick={() => { setPriceCutOpen(true); haptic.light(); }}>
               <TrendingDown size={13} aria-hidden />
               <span>Reduce price · <span className="tnum">{format(lp.product.price)}</span> now</span>
-              <span className="pd__pricecut-caret" aria-hidden>›</span>
+              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
             </button>
           ) : (
             <div className="pd__pricecut-panel">
@@ -874,7 +874,7 @@ function ProductDetailSheet({
               </div>
               <div className="pd__pricecut-row">
                 <span className="pd__pricecut-from tnum">{format(lp.product.price)}</span>
-                <span className="pd__pricecut-arrow" aria-hidden>→</span>
+                <ArrowRight size={14} className="pd__pricecut-arrow" aria-hidden />
                 <span className="pd__pricecut-to tnum">{format(suggestedCut)}</span>
               </div>
               {(() => {

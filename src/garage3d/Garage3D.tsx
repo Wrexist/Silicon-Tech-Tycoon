@@ -22,7 +22,7 @@ import {
 import { FurniturePiece } from "./furniture3d.tsx";
 import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
-import { robotModelFor } from "./robotModels.ts";
+import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
 
 type Upgrades = Partial<Record<UpgradeId, number>>;
 const tierOf = (u: Upgrades, id: UpgradeId) => u[id] ?? 0;
@@ -48,7 +48,7 @@ const MOOD_HEX: Record<MoodBand, string> = {
   burnedout: "#ef4444",
 };
 
-const ROBOT_COLORS = ["#4a9af5", "#ff7a35", "#40c870", "#9060e8", "#f5c840"];
+// ROBOT_COLORS lives in robotModels.ts (single source — also drives the shared-model tint).
 
 // Desk slots — every hired employee gets one workstation (desk + computer + robot). Two columns
 // that fill front-to-back as the team grows, all facing the camera (+z) and clear of the vault /
@@ -61,6 +61,20 @@ const ROAM_HOMES: [number, number][] = [
   [0.8, -0.6],
   [-0.2, 0.6],
 ];
+
+/** Roam anchor for overflow employee i. The 5th+ roamer used to land EXACTLY on an earlier one's
+ *  home (i % 4) and the pair would jitter against each other (no roamer-roamer separation, only
+ *  furniture repulsion) — so successive occupants of a home are fanned out around it on a small
+ *  golden-angle spiral, clamped to the floor slab. */
+function roamHomeFor(i: number): [number, number] {
+  const base = ROAM_HOMES[i % ROAM_HOMES.length];
+  const ring = Math.floor(i / ROAM_HOMES.length);
+  if (ring === 0) return base;
+  const a = i * 2.39996; // golden angle — no two offsets align
+  const r = 0.85 * ring;
+  const cl = (v: number) => Math.max(-ROAM_BOUND, Math.min(ROAM_BOUND, v));
+  return [cl(base[0] + Math.cos(a) * r), cl(base[1] + Math.sin(a) * r)];
+}
 
 // Build mode lifts the camera to a higher, more overhead angle so the whole floor grid is
 // readable; otherwise it's the cozy parallax view. WASD lets the player drive the view:
@@ -1611,7 +1625,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         );
       })}
       {!inBuild && roaming.map((s, i) => (
-        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + i) % ROBOT_COLORS.length} seed={(seats.length + i) * 3.7} home={ROAM_HOMES[i % ROAM_HOMES.length]} />
+        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + i) % ROBOT_COLORS.length} seed={(seats.length + i) * 3.7} home={roamHomeFor(i)} />
       ))}
       <Props p={p} hasProduction={hasProduction} dark={dark} />
       <Dust />

@@ -33,7 +33,7 @@ import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
-import { Suspense, lazy, useCallback, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
 import { useSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
@@ -44,6 +44,19 @@ import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
 import "./hq.css";
 
+/** prefers-reduced-motion, kept LIVE: enabling it mid-session downgrades the always-animating 3D
+ *  office to the static IsoScene without a reload (the one-shot read only covered mount time). */
+function useReducedMotionLive(): boolean {
+  const [reduced, setReduced] = useState(() => prefersReducedMotion());
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mq?.addEventListener) return;
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
 
 const FURN_ICONS: Record<string, LucideIcon> = {
   Table, Table2, Armchair, Sofa, Coffee, Presentation, BookOpen, Archive, Box, Trees, Sprout,
@@ -81,7 +94,8 @@ export function HQ({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       );
     }
   };
-  const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion();
+  const reducedMotion = useReducedMotionLive();
+  const use3d = settings.garage3d && webglSupported() && !reducedMotion;
   const ipoReady = canIPO(state);
   const hasProduction =
     state.building.length > 0 || state.launched.some((l) => l.weeksElapsed < l.weeklyUnits.length);
@@ -327,7 +341,16 @@ function OfficeScene({ use3d, hasProduction }: { use3d: boolean; hasProduction: 
     .join(";");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const staff3d = useMemo(() => state.staff, [staffSceneKey]);
-  const onGlLost = useCallback(() => setGlLost(true), []);
+  // GPU dropped the WebGL context: tell the player why the office changed (it used to swap
+  // silently), and leave Decorate cleanly — the 2D fallback has no editor, so lingering
+  // place/select state would point at UI that no longer exists.
+  const onGlLost = useCallback(() => {
+    setGlLost(true);
+    setBuild(false);
+    setPlacingType(null);
+    setSelectedIid(null);
+    showToast("3D view unavailable — switched to the 2D office.", { tone: "neutral" });
+  }, []);
 
   const exit = () => {
     setBuild(false);
@@ -878,11 +901,11 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     <Card className="hq__insights">
       <SectionHeader title="Strategic insights" accessory={`${insights.length} hint${insights.length > 1 ? "s" : ""}`} />
       <div className="hq__insights-list">
-        {insights.slice(0, 3).map((ins, i) => {
+        {insights.slice(0, 3).map((ins) => {
           const Icon = ins.icon;
           return (
             <button
-              key={i}
+              key={ins.text}
               className={`hq__insight${ins.tab ? "" : " hq__insight--static"}`}
               onClick={() => ins.tab && onNavigate(ins.tab)}
               disabled={!ins.tab}

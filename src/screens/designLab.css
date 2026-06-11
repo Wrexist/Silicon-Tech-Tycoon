@@ -190,7 +190,7 @@
   transform: scale(0.95);
 }
 .lab__chip-gen {
-  font-size: 9px;
+  font-size: var(--fs-nano);
   font-weight: 800;
   line-height: 1;
   padding: 2px 4px;
@@ -560,17 +560,6 @@
   align-items: center;
   gap: var(--sp-16);
   margin-bottom: var(--sp-12);
-}
-.lab__price-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r-button);
-  background: var(--bg-elevated);
-  font-size: 22px;
-  font-weight: 600;
-}
-.lab__price-btn:active {
-  transform: scale(0.92);
 }
 .lab__price-display {
   flex: 1;

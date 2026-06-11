@@ -9,6 +9,7 @@ import {
   buildSafetyReserve,
   startBuild,
   launchReady,
+  catchUpOffline,
   newGame,
   planProduction,
   recommendedRun,
@@ -289,5 +290,79 @@ describe("B4 — sellout fan-gain is bounded (no free fan-grind)", () => {
     expect(plan.preOrders).toBeLessThan(plan.totalDemand);
     // Cap holds: pre-orders ≤ preOrderCap × total demand (+1 for integer rounding).
     expect(plan.preOrders).toBeLessThanOrEqual(BALANCE.fans.preOrderCap * plan.totalDemand + 1);
+  });
+});
+
+describe("offline catch-up", () => {
+  function launched(seed: number): GameState {
+    let s = { ...newGame(seed), cash: dollars(500_000) };
+    s = startBuild(s, goodPhone(), 800, "none").state;
+    for (let i = 0; i < buildWeeksFor(s) + 1; i++) s = advanceOneWeek(s);
+    s = launchReady(s, s.ready[0].id).state;
+    // Freeze rivals so no mid-life rival-entry haircut perturbs the sales curve — this isolates
+    // the offline mechanic (the two timelines below would otherwise evolve rivals differently).
+    return { ...s, competitors: [] };
+  }
+
+  it("never skips a product's sales — offline catch-up sells through the same as active play", () => {
+    // Reference: a run played straight through actively reaches some final sell-through.
+    let active = launched(42);
+    const curveLen = active.launched[0].weeklyUnits.length;
+    for (let i = 0; i < curveLen + 2; i++) active = advanceOneWeek(active);
+    const activeSold = active.launched[0].unitsSold;
+    expect(activeSold).toBeGreaterThan(0);
+
+    // Offline path: away for the max catch-up window, then finish actively. The old fractional
+    // path advanced the curve a full week per offline tick while banking only half the units, so
+    // the skipped half was lost forever and final unitsSold ended BELOW the active run. The
+    // half-speed-time fix must make the two paths reach an identical total.
+    let off = launched(42);
+    off = { ...off, lastActive: Date.now() - BALANCE.offline.maxCatchUpWeeks * BALANCE.secondsPerTick * 1000 };
+    off = catchUpOffline(off).state;
+    for (let i = 0; i < curveLen + 2; i++) off = advanceOneWeek(off);
+    expect(off.launched[0].unitsSold).toBe(activeSold);
+  });
+
+  it("clamps a production run to BALANCE.build.maxRun", () => {
+    const s = { ...newGame(3), cash: dollars(50_000_000_000), sandboxUnlocked: true };
+    const res = startBuild(s, goodPhone(), BALANCE.build.maxRun * 3, "none");
+    expect(res.ok).toBe(true);
+    expect(res.state.building[0].plannedUnits).toBeLessThanOrEqual(BALANCE.build.maxRun);
+  });
+
+  it("reschedules a stale event so none fires the instant you return", () => {
+    // Away long enough that the event schedule fell behind; events are skipped while offline, so
+    // without the reschedule `week >= nextEventWeek` would be true on the first live tick.
+    const away = BALANCE.offline.maxCatchUpWeeks * BALANCE.secondsPerTick * 1000;
+    const s: GameState = { ...newGame(42), nextEventWeek: 0, lastActive: Date.now() - away };
+    const after = catchUpOffline(s).state;
+    expect(after.nextEventWeek).toBeGreaterThan(after.week);
+  });
+
+  it("never lets staff quit while offline, though the same at-risk roster can quit while playing", () => {
+    // A maximally at-risk, badly-underpaid non-founder employee, cloned from the founder so every
+    // field is valid. High cash keeps the company solvent across the run so churn evaluates weekly.
+    function atRisk(seed: number): GameState {
+      const base = { ...newGame(seed), cash: dollars(10_000_000) };
+      const risky = { ...base.staff[0], id: "risky", name: "Risky", salary: dollars(1), mood: 0, moodLowWeeks: 50 };
+      return { ...base, staff: [...base.staff, risky] };
+    }
+    const present = (s: GameState) => s.staff.some((m) => m.id === "risky");
+
+    // Offline can NEVER drop the at-risk member — for any seed.
+    for (let seed = 0; seed < 20; seed++) {
+      let off = atRisk(seed);
+      for (let i = 0; i < 30; i++) off = advanceOneWeek(off, 1, true);
+      expect(present(off)).toBe(true);
+    }
+    // ...and the setup is genuinely at-risk: at least one seed loses the member while PLAYING,
+    // proving the offline result above isn't vacuous.
+    let quitWhilePlaying = false;
+    for (let seed = 0; seed < 20 && !quitWhilePlaying; seed++) {
+      let on = atRisk(seed);
+      for (let i = 0; i < 30; i++) on = advanceOneWeek(on, 1, false);
+      if (!present(on)) quitWhilePlaying = true;
+    }
+    expect(quitWhilePlaying).toBe(true);
   });
 });

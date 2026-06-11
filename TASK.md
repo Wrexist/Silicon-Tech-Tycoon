@@ -441,3 +441,101 @@ reputation momentum (rival rep never changes after init → pure compounding, up
   Creative Mode content beyond the cash floor (thin for $2.99).
 - Owner-side (Mac): `npx cap add ios`, Xcode portrait/iPhone-only settings, StoreKit wiring if
   the IAP ships in v1, on-device smoke (Preferences mirror, status bar, haptics).
+
+## v17 — full audit + iOS/CI pipeline made shippable (DONE 2026-06-10)
+4 parallel domain agents + a CI/native deep-dive on a green tree (tsc 0, vitest 199→**201**, build+PWA ok).
+- [x] **iOS TestFlight workflow rewritten to actually work.** It was archive-only (never uploaded) and its
+      `DEVELOPMENT_TEAM` injection was a no-op (the `grep -q` guard matched the team already in the *Debug*
+      config, so the `sed` was skipped and *Release* — what `archive` uses — had no team → signing failed).
+      Now: build → cap sync → archive (ASC API-key cloud signing) → export `app-store-connect` IPA → upload
+      via altool, team/signing passed as `xcodebuild` args, secret preflight, run-number build number.
+- [x] **Removed the corrupt `ios-testflight.yml`** (invalid YAML — no indentation + literal markdown fences).
+- [x] **Added the missing shared `App.xcscheme`** (Windows-generated project never had one;
+      `xcodebuild -scheme App` would have failed) + `ios/ExportOptions.plist`.
+- [x] **Capacitor stack aligned** `@capacitor/cli` 8.4.0→6.2.1 (was a major skew vs core/ios/plugins 6.2.1).
+- [x] **`Package.swift` fixed**: Windows `\` paths → POSIX, and the **missing `CapacitorPreferences`** plugin
+      (used by `nativeStore.ts`) added. (`cap sync` self-heals it on the runner; the committed file is now
+      correct for a manual Xcode open too.)
+- [x] **`Info.plist`/pbxproj match the locked ship target**: `armv7`→`arm64`; portrait-only; iPad orientation
+      block dropped; `TARGETED_DEVICE_FAMILY` `"1,2"`→`"1"`; Release `DEVELOPMENT_TEAM` set;
+      `CODE_SIGN_IDENTITY` "iPhone Developer"→"Apple Development".
+- [x] **Engine**: offline catch-up was **silently skipping ~half of every selling product's revenue** (the
+      one untested code path) — fixed to half-speed time; `startBuild` maxRun clamp; `migrate` launched-field
+      guards; `deviceStyle` blank-render fallback. +2 tests.
+- [x] **UI**: defined the missing `--sp-5/10/14` spacing tokens (app-wide spacing was silently collapsing —
+      RULE #1); replaced glyphs `◎ ★ › → ✓` with Lucide.
+- **Owner action for the workflow:** add three repo secrets — `APP_STORE_CONNECT_KEY_ID`,
+  `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_BASE64` (base64 of the `.p8`). The team ID is
+  already wired (S3U8B8HH96). Without them the run fails fast with a clear message.
+
+### v17.1 — offline & import correctness (DONE 2026-06-10)
+- [x] **Sandbox entitlement re-validated on load** (`entitlements.withValidatedSandbox`, wired into
+      useGame boot + import): an imported/older save with `sandboxUnlocked:true` no longer unlocks the
+      unlimited-cash floor on a device that doesn't own the IAP. +1 test.
+- [x] **Staff no longer quit during offline catch-up** (gated the churn roll on `!offline`, `!offline`
+      first so the active-path RNG stream is unchanged) — an irreversible loss you couldn't react to;
+      at-risk staff can still quit on the next online tick. +1 multi-seed test (offline never drops an
+      at-risk member; online does — proving the contrast).
+- [x] **Stale event reschedule**: catch-up pushes `nextEventWeek` forward if it slipped into the past,
+      so an event no longer fires the instant you return. +1 test. (204 tests; tsc 0; build+PWA ok.)
+
+## v17.2 — cosmetic polish sweep (DONE 2026-06-10)
+Verified each flagged site against source first (several audit findings were stale/wrong — see below).
+- [x] **Rank-1 leaderboard medal dark-mode contrast**: was a translucent amber tint + `#b8860b` text →
+      dark-on-dark in dark theme. Now a solid `--mat-gold` chip + new `--gold-ink` token (opaque, reads
+      in both themes), mirroring the `--me` rank chip's solid treatment.
+- [x] **Removed dead `.lab__price-btn`** (the old +/- price stepper; price is a Slider now).
+- [x] **`.co__proj-wk` 8px → `--fs-nano` (10px)** — was below the legible floor on-device.
+- [x] **HQ insights keyed by `ins.text`, not array index** — the set is recomputed/sliced per tick, so
+      index keys caused stale DOM/animation. (Fixed-position pip + forecast-bar lists keep index keys.)
+- [x] **Tokenized coach.css exact-match literals** (`13px`→`--fs-caption`, `8px 12px`→`--sp-8/--sp-12`,
+      `2px`→`--sp-2`) — appearance-preserving RULE-#1 cleanup.
+- Stale findings (already correct — left untouched): the "WASD" hint is **already** gated off touch
+  (`hq.css`: `display:none` + `@media (hover:hover) and (pointer:fine)`); `.lab__price-display` is **in
+  use** (the live price readout), not dead; EmptyState passes only Lucide glyphs so `.ds-empty__glyph`
+  `font-size` is inert (harmless, left).
+- Deliberately NOT changed (reflow/appearance risk without on-device eyes): 9px micro-badges
+  (`lab__chip-gen`, market) — acceptable micro-type; `coach__title` 14px / `gainfx__tok` 15px (no
+  matching token); the soft `→` arrows in `App.tsx`/`HQ.tsx` labels (typographic, low value).
+
+## v17.3 — backlog cleared: state robustness + 3D correctness + engine nits (DONE 2026-06-11)
+Worked the remaining v17 audit backlog. 206 tests (+2), tsc 0, build+PWA green.
+- [x] **Tick announcements fire once per simulated week** (`announcedWeekRef` gate): toasts +
+      achievement announces ran inside the `setState` updater, which React invokes twice under
+      StrictMode → double toasts in dev. Unlocks still fold into state on every invocation; only the
+      announce is gated. `withLiveAchievements` (launch path) documented as value-call-only.
+- [x] **Frozen tabs can recover** (`tabGuard` release protocol): the PLAYING context broadcasts
+      `release` on pagehide (frozen tabs never do — closing a stale tab can't steal play); a frozen
+      tab that's currently visible reloads into the freshest save, a hidden one keeps the overlay
+      CTA. `releaseNow()` test seam (+2 node BC tests incl. the 3-tab no-steal case).
+- [x] **One `persistNow()`** replaces the three drifting copies of the save call (interval /
+      visibility / pagehide).
+- [x] **Engine:** `nextWeekRevenue` now sums full price (production prepaid at build — runway/forecast
+      read low while selling); ecosystem revenue reads the freshly-updated `launched` (was 1-wk lag);
+      `newGame`/`migrate` seeds unsigned (`>>>0`; migrate's Date-based fallback collapsed toward few
+      values from float overflow).
+- [x] **3D:** robot model seam made truthful + the dead `tint` path is now LIVE — `robot_shared.glb`
+      (rename the committed inactive sample) is tinted per ROBOT_COLORS slot, per-colour files keep
+      native colours; parametric robot stays the shipped default (zero visual change today).
+      ROBOT_COLORS single-sourced in robotModels.ts. Roamer #5+ fan out on a golden-angle spiral
+      around the 4 homes (no more stacked/jittering pairs). Context loss now toasts + exits Decorate
+      cleanly (was a silent swap that stranded editor state). `prefers-reduced-motion` is live —
+      flipping it mid-session downgrades 3D→IsoScene without a reload (was mount-time only).
+- [x] **Micro-type on-scale:** 9px badges → `--fs-nano` (designLab chip-gen, market stage badges);
+      `coach__title` → `--fs-caption`; `gainfx__tok` → new `--fs-fx` token (15px, deliberate).
+- **Stale audit findings verified NOT bugs** (documented, untouched): competitors decay/presence
+  thresholds agree in practice (entries ≤1 are deleted the tick they decay — sub-1 strength never
+  persists); staff #17+ "invisible" — the render cap (16) equals the Campus staffCapacity cap (16);
+  CameraRig's settle comment claims only what it does (skips camera writes, not whole-scene battery).
+
+### v17 Backlog — still open (need on-device eyes / a design call)
+**3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
+  freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
+  decoration); route the deliberate "intrinsic object colours" in `furniture3d.tsx`/`Garage3D.tsx`
+  through `RoomPalette` for light-theme harmony (visual tuning); context-loss auto-RESTORE (current:
+  clean fallback + toast; no path back to 3D without remount).
+**Screens (cosmetic, low value):** inert icon-container `font-size`s on now-SVG glyphs; broader
+  hardcoded-px tokenization across screen CSS; soft `→` arrows in `App.tsx`/`HQ.tsx` labels
+  (typographic — debatable vs the Lucide rule).
+**Larger projects (logged earlier, unchanged):** full state/actions context split (F36); rem-based
+  type / Dynamic Type; iPad layout; more choice events / NG+ variety / component sidegrades.

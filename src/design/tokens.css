@@ -62,6 +62,7 @@
   --mat-ti-1: #a8a29e;
   --mat-ti-2: #78716c;
   --mat-gold: #d4af37;
+  --gold-ink: #3d2c00; /* dark text for a solid gold chip (rank-1 medal) — readable in both themes */
 
   /* Spacing — strict 8pt scale (with 2/6 half-steps for fine details) */
   --sp-2: 2px;
@@ -73,6 +74,12 @@
   --sp-24: 24px;
   --sp-32: 32px;
   --sp-48: 48px;
+  /* Off-grid one-offs referenced by existing screen CSS. Defined so those declarations don't
+     silently drop (an undefined custom property invalidates the whole rule). TODO: migrate the
+     call sites onto the strict 8pt scale above. */
+  --sp-5: 5px;
+  --sp-10: 10px;
+  --sp-14: 14px;
   --edge: 20px; /* screen edge margin */
 
   /* Radius */
@@ -96,6 +103,7 @@
   --fs-caption: 13px;
   --fs-micro: 11px;
   --fs-nano: 10px;
+  --fs-fx: 15px; /* floating gain/spend FX text — between caption and body on purpose */
 
   /* Motion */
   --spring-standard: 350ms cubic-bezier(0.22, 1, 0.36, 1);

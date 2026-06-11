@@ -45,7 +45,7 @@
   min-width: 0;
 }
 .coach__title {
-  font-size: 14px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--ink);
   line-height: 1.25;
@@ -54,7 +54,7 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
   line-height: 1.35;
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 
 .coach__cta {
@@ -62,8 +62,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-4);
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: var(--sp-8) var(--sp-12);
+  font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--accent-ink);
   background: var(--coach-accent);
