@@ -632,6 +632,18 @@ The progression spine (lenses / finishes / projects / component tiers) had drift
       projects, all in one place). UI-only; engine actions already tested. 216 tests, tsc 0, build ok.
 - NOT verified on-device: the card's look + placement among the other Research cards.
 
+## v19.4 — Marketing Push: a 2nd mid-life lever (cash vs margin) (DONE 2026-06-11)
+Found the price-cut/refresh mechanic already existed (well-built, one cut per product, caps at the
+production run). Added its missing sibling so the post-launch decision has a real trade-off.
+- [x] **Marketing Push** (`marketingPush` + pure `marketingPushQuote`): spend cash to lift a live
+      product's remaining weekly demand (capped at plannedUnits → clears genuine surplus only),
+      KEEPING price. Cost = 35% of the extra revenue unlocked; +30% demand boost. One per product.
+      Price cut (no cash, lower margin) vs Push (full price, cash now) = a real cash-vs-margin call.
+- [x] Surfaced in the product detail sheet beside the price cut (reuses the `.pd__pricecut` visual
+      language, Megaphone icon). Only shown when surplus exists. Cash-spend FX wired. +3 tests (218).
+- NOT verified on-device: the two intervention blocks stacked in the sheet — check they read
+  clearly as distinct options. Boost/costPct (30% / 35%) need a playtest.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
