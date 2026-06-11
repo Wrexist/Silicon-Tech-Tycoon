@@ -74,6 +74,28 @@ async function withSharp(src, isRaster) {
   await writeFile(resolve(root, "resources/splash.png"), splashPng);
   await writeFile(resolve(root, "resources/splash-dark.png"), splashPng);
   console.log("wrote resources/splash.png + splash-dark.png (2732, opaque)");
+
+  // iOS native assets (the Capacitor Xcode project). Write them DIRECTLY from the masters so
+  // `npm run assets:icons` fully refreshes the native app — there is no separate
+  // `@capacitor/assets generate` step that can be (and was) forgotten, which is how the default
+  // Capacitor icon + splash shipped to TestFlight. `cap sync` never touches these, so they
+  // persist. The AppIcon set uses one 1024² universal icon (modern Xcode format); the Splash
+  // image set uses one 2732² image referenced at 1x/2x/3x.
+  const xcassets = resolve(root, "ios/App/App/Assets.xcassets");
+  if (existsSync(xcassets)) {
+    // App icon: 1024², FULLY OPAQUE — the App Store rejects icons that carry an alpha channel.
+    await sharp(src)
+      .resize(1024, 1024)
+      .flatten({ background: BG })
+      .png()
+      .toFile(resolve(xcassets, "AppIcon.appiconset/AppIcon-512@2x.png"));
+    console.log("wrote ios AppIcon-512@2x.png (1024, opaque)");
+    // Splash: the same dark branded art at every scale slot the imageset declares.
+    for (const name of ["splash-2732x2732.png", "splash-2732x2732-1.png", "splash-2732x2732-2.png"]) {
+      await writeFile(resolve(xcassets, "Splash.imageset", name), splashPng);
+    }
+    console.log("wrote ios Splash.imageset (2732 ×3)");
+  }
 }
 
 async function withResvg(svg) {
