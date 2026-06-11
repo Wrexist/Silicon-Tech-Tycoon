@@ -32,6 +32,12 @@
   letter-spacing: -0.02em;
   white-space: nowrap;
 }
+.hud__cash-label--danger {
+  color: var(--negative);
+}
+.hud__cash-value--danger {
+  color: var(--negative);
+}
 .hud__meta {
   display: flex;
   align-items: center;
@@ -39,6 +45,13 @@
   flex-wrap: wrap;
   gap: var(--sp-6);
   min-width: 0;
+}
+/* Chips and control buttons wrap as whole groups (each row right-aligned), never mid-group. */
+.hud__chips,
+.hud__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
 }
 .hud__chip {
   display: inline-flex;
