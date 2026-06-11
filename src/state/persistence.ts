@@ -211,7 +211,9 @@ function migrate(state: GameState): GameState | null {
   if (!Number.isFinite(s.reputation)) s.reputation = 8;
   if (!Number.isFinite(s.fans)) s.fans = 250;
   if (!Number.isFinite(s.cumulativeRevenue)) s.cumulativeRevenue = 0;
-  if (!Number.isFinite(s.seed)) s.seed = (Date.now() * 2 ** 31) % 2147483647 | 0;
+  // Same unsigned formula as newGame's default — the old Date.now()*2**31 overflowed Number
+  // precision before the modulo, collapsing most regenerated seeds toward the same few values.
+  if (!Number.isFinite(s.seed)) s.seed = (Math.random() * 2 ** 31) >>> 0;
   if (!Number.isFinite(s.rngState)) s.rngState = s.seed;
   if (!Number.isFinite(s.facilityTier) || s.facilityTier < 1) s.facilityTier = 1;
   if (!Number.isFinite(s.lastActive)) s.lastActive = Date.now();

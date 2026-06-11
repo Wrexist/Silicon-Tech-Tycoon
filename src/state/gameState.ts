@@ -262,7 +262,7 @@ export function legacyBonus(level: number): LegacyBonus {
   };
 }
 
-export function newGame(seed = (Math.random() * 2 ** 31) | 0, legacy = 0): GameState {
+export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): GameState {
   const lb = legacyBonus(legacy);
   const rng = makeRng(seed);
   const trends = initialTrends(rng);
@@ -609,7 +609,9 @@ export function nextWeekRevenue(s: GameState): Money {
   for (const lp of s.launched) {
     if (lp.weeksElapsed < lp.weeklyUnits.length) {
       const units = lp.weeklyUnits[lp.weeksElapsed];
-      acc += units * (lp.product.price - lp.unitCost);
+      // Production was prepaid at build, so a sale brings the FULL price into cash — subtracting
+      // unitCost here made every runway/forecast read low while a product was selling.
+      acc += units * lp.product.price;
     }
   }
   return add(cents(acc), weeklyEcosystemRevenue(s));
@@ -698,10 +700,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     productsFeed.push(item);
   }
 
-  // Ecosystem service revenue — recurring income from the installed base of high-ecosystem products.
+  // Ecosystem service revenue — recurring income from the installed base of high-ecosystem
+  // products. Reads the freshly-updated `launched` (not `state.launched`) so this week's sales
+  // join the installed base immediately instead of paying with a one-week lag.
   const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate;
   const ecoMinStat = BALANCE.ecosystem.minEcosystemStat;
-  for (const lp of state.launched) {
+  for (const lp of launched) {
     const eco = lp.stats.ecosystem;
     if (eco > ecoMinStat) {
       cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * rate)));
