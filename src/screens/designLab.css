@@ -276,10 +276,25 @@
   color: var(--positive-text);
 }
 .lab__comp-locked {
-  margin-top: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
   font-size: var(--fs-micro);
+  font-weight: 700;
+  /* the next-tier NAME is the hook — give it the accent, mute the trailing hint */
+  color: var(--accent);
+}
+.lab__comp-locked svg {
+  flex-shrink: 0;
+}
+.lab__comp-locked-stat {
+  color: var(--positive-text);
   font-weight: 600;
+}
+.lab__comp-locked-hint {
   color: var(--ink-3);
+  font-weight: 600;
 }
 .lab__comp-cost {
   font-size: var(--fs-caption);

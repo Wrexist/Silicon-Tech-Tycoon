@@ -409,9 +409,19 @@ export function DesignLab({
                       {def && contribLabel(def.contributes) && (
                         <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
                       )}
-                      {atMax && maxTier(kind) > maxT && (
-                        <span className="lab__comp-locked">T{maxT + 1} unlockable in R&amp;D</span>
-                      )}
+                      {atMax && maxTier(kind) > maxT && (() => {
+                        // Show the NAME of the next component you'd unlock (e.g. "TurboCore A2"),
+                        // not a dry "T2" — it's the upgrade to get excited about and research toward.
+                        const nextDef = tierDef(kind, maxT + 1);
+                        if (!nextDef) return null;
+                        return (
+                          <span className="lab__comp-locked">
+                            <Lock size={10} aria-hidden /> {nextDef.name}
+                            {contribLabel(nextDef.contributes) && <span className="lab__comp-locked-stat"> · {contribLabel(nextDef.contributes)}</span>}
+                            <span className="lab__comp-locked-hint"> · research in R&amp;D</span>
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="lab__stepper">
                       <button onClick={() => setTier(kind, -1)} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
