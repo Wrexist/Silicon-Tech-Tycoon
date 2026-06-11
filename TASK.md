@@ -528,6 +528,27 @@ Worked the remaining v17 audit backlog. 206 tests (+2), tsc 0, build+PWA green.
   persists); staff #17+ "invisible" — the render cap (16) equals the Campus staffCapacity cap (16);
   CameraRig's settle comment claims only what it does (skips camera writes, not whole-scene battery).
 
+## v17.4 — first REAL on-device pass (TestFlight screenshots) (DONE 2026-06-11)
+The TestFlight pipeline went live this session (Admin ASC key + tolerant .p8 decode + app record);
+build 11 reached a real iPhone. Four on-device screenshots drove this pass — all four findings were
+invisible in the container and real on the phone. 206 tests, tsc 0, build+PWA green.
+- [x] **Branded icon + splash shipped** (was the stock Capacitor logo on device): gen-icons.mjs now
+      writes the native AppIcon (opaque) + Splash imageset directly — no forgettable second step.
+- [x] **Splash can't strand the app**: launchAutoHide:true (2s cap) as the OS-level net + boot's
+      native-restore raced against 1.2s so a stalled bridge can't block first paint.
+- [x] **Onboarding keyboard**: own scroll layer + top safe-area fade (content jammed into the
+      Dynamic Island when the keyboard opened); brand-name field drops autocorrect/QuickType,
+      Enter founds.
+- [x] **HUD**: chips/buttons wrap as groups (was an arbitrary mid-group split on iPhone width);
+      cash + label turn negative with "Nwk left" under 4 weeks of runway (the below-fold pills
+      were the only warning — a player at $1.2K/8 staff saw a calm HUD).
+- [x] **3D office**: Kanban label re-anchored over its board (collided with the Whiteboard pill);
+      OfficeLabel type onto --fs-micro/--fs-nano, scene-constant colours lifted to named consts.
+- [x] **Research**: "Battery · +16 Battery" → "Battery · +16" (single-stat dedupe).
+- Flagged, not changed (design call): the 4 always-on fixture labels (Whiteboard/Kanban/Vault/
+  Gate) label static objects forever — restraint says fade them after first view or show on tap;
+  staff labels carry live data and should stay. Needs the owner's eyes on-device.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
