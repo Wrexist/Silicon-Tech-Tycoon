@@ -942,3 +942,38 @@
   transform: scale(0.97);
   background: color-mix(in srgb, var(--warning) 20%, transparent);
 }
+
+/* Rest — a calm, restorative action (vs. the warning-toned raise). Urgent variant when the
+   employee is already in the burnout danger zone. */
+.co__rest-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  padding: var(--sp-8) var(--sp-14);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  width: 100%;
+  justify-content: center;
+  transition: all var(--spring-snappy);
+}
+.co__rest-btn:active {
+  transform: scale(0.97);
+}
+.co__rest-btn:disabled {
+  opacity: 0.5;
+}
+.co__rest-btn--urgent {
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 12%, transparent);
+  border-color: color-mix(in srgb, var(--negative) 30%, transparent);
+}
+.co__rest-sub {
+  font-weight: 500;
+  font-size: var(--fs-micro);
+  opacity: 0.75;
+}

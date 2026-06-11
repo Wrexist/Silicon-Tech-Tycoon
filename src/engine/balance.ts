@@ -321,6 +321,7 @@ export const BALANCE = {
     quitChancePerWeek: 0.15,  // per-week probability of quitting once at risk
     underpaidMoodPenalty: 10, // extra target reduction each week when salary lags skill level
     raiseMoodBoost: 15,       // mood bump when player gives a raise
+    restMoodBoost: 30,        // mood bump when player sends someone on paid time off (Rest)
   },
 
   // --- Market events ---

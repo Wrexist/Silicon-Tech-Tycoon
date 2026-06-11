@@ -23,6 +23,8 @@ import {
   lensUnlockCost,
   buyUpgrade,
   upgradeGate,
+  restStaff,
+  restCost,
   type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
@@ -414,5 +416,33 @@ describe("research-gated upgrades", () => {
     const s: GameState = { ...newGame(6), cash: dollars(5_000_000), upgrades: { marketing: 0 } };
     expect(upgradeGate(s, "marketing")).toBeNull();
     expect(buyUpgrade(s, "marketing").upgrades.marketing).toBe(1);
+  });
+});
+
+describe("Rest — paid morale recovery", () => {
+  // A salaried hire (not the unpaid founder s0, whose week-of-salary cost would be $0).
+  const salaried = (over: Partial<import("../engine/types.ts").Staff>) => {
+    const base = newGame(8);
+    return { ...base.staff[0], id: "h1", salary: dollars(2_000), ...over } as typeof base.staff[0];
+  };
+
+  it("boosts mood, clears the burnout counter, and costs a week's salary", () => {
+    const base = newGame(8);
+    const tired = salaried({ mood: 25, moodLowWeeks: 4 });
+    const s0: GameState = { ...base, cash: dollars(100_000), staff: [tired] };
+    const s1 = restStaff(s0, tired.id);
+    expect(s1.staff[0].mood).toBe(25 + BALANCE.churn.restMoodBoost);
+    expect(s1.staff[0].moodLowWeeks).toBe(0);
+    expect(s0.cash - s1.cash).toBe(restCost(tired)); // exactly one week's salary
+  });
+
+  it("caps mood at 100 and refuses when broke", () => {
+    const base = newGame(9);
+    const m = salaried({ mood: 90 });
+    const broke: GameState = { ...base, cash: dollars(0), staff: [m] };
+    expect(restStaff(broke, m.id)).toBe(broke); // can't afford → no-op
+
+    const rich: GameState = { ...base, cash: dollars(100_000), staff: [m] };
+    expect(restStaff(rich, m.id).staff[0].mood).toBe(100); // 90 + 30 capped
   });
 });

@@ -1468,6 +1468,30 @@ export function trainStaff(state: GameState, id: string): GameState {
   };
 }
 
+/** Cash cost to send a staff member on paid time off (Rest) — one week of their salary. */
+export function restCost(member: Staff): Money {
+  return member.salary;
+}
+
+/** Rest: pay for time off — a big immediate morale boost that also clears the burnout danger
+ *  counter. Unlike a raise it's a one-off cost with no permanent salary change — the emergency
+ *  "they're burning out, give them a break" lever. No-op if already maxed-mood or can't afford. */
+export function restStaff(state: GameState, id: string): GameState {
+  const member = state.staff.find((s) => s.id === id);
+  if (!member || member.mood >= 100) return state;
+  const cost = restCost(member);
+  if (state.cash < cost) return state;
+  return {
+    ...state,
+    cash: sub(state.cash, cost),
+    staff: state.staff.map((s) =>
+      s.id === id
+        ? { ...s, mood: Math.min(100, s.mood + BALANCE.churn.restMoodBoost), moodLowWeeks: 0 }
+        : s,
+    ),
+  };
+}
+
 export function hireCostFor(role: StaffRole, skill: number, discounted = false): Money {
   // One-time hiring fee = 3 weeks of salary (Talent Network cuts it 40%).
   const base = scale(salaryFor(role, skill), 3);

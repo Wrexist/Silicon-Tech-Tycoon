@@ -51,6 +51,7 @@ import {
   setWallStyle,
   startBuild,
   trainStaff,
+  restStaff,
   upgradeFacility,
   seedFeedSeq,
   type GameState,
@@ -195,6 +196,7 @@ interface GameContextValue {
   buyUpgrade: (id: UpgradeId) => void;
   assign: (id: string, assignment: Assignment) => void;
   train: (id: string) => void;
+  rest: (id: string) => void;
   hire: (role: StaffRole, skill: number, name: string) => void;
   recruit: (tier: RecruitTier) => void;
   hireCandidate: (candidateId: string) => void;
@@ -408,6 +410,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (spent > 0) emitSpend(spent);
     setState(next);
   }, []);
+  const rest = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const next = restStaff(prev, id);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
 
   const hire = useCallback((role: StaffRole, skill: number, name: string) => {
     const prev = stateRef.current;
@@ -566,6 +575,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       sellOwnStake: sellOwnStakeCb,
       cutProductPrice: cutProductPriceCb,
       giveRaise: giveRaiseCb,
+      rest,
       resolveChoice: resolveChoiceCb,
     }),
     [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
