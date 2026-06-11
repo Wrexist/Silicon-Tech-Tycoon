@@ -281,6 +281,27 @@
 .hq__scene--build {
   background: radial-gradient(120% 90% at 50% 20%, var(--accent-soft), var(--surface) 75%);
 }
+.hq__retry3d {
+  position: absolute;
+  top: var(--sp-12);
+  right: var(--sp-12);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-card);
+}
+.hq__retry3d:active {
+  transform: scale(0.96);
+}
 .hq__decorate {
   position: absolute;
   right: var(--sp-12);

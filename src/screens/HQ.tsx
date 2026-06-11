@@ -407,7 +407,16 @@ function OfficeScene({ use3d, hasProduction, onNavigate, onOpenBank }: { use3d: 
             </Suspense>
           </ErrorBoundary>
         ) : (
-          <IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />
+          <>
+            <IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />
+            {/* Context loss is recoverable — let the player re-attempt the 3D view without
+                relaunching the app (a fresh Canvas mount usually gets a new GPU context). */}
+            {glLost && (
+              <button className="hq__retry3d" onClick={() => { setGlLost(false); haptic.light(); }}>
+                <RotateCw size={13} aria-hidden /> Try 3D again
+              </button>
+            )}
+          </>
         )}
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
         {use3d && !build && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
