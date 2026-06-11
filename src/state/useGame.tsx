@@ -142,15 +142,8 @@ function withRevToasts(prev: GameState, next: GameState): void {
   }
 }
 
-/**
- * Fold achievement evaluation into a state transition during LIVE play. Marks newly-satisfied
- * milestones unlocked AND fires one celebratory toast per new unlock (Lucide glyph, positive tone).
- * Only ever called from the live tick / live actions — never the boot or offline-catch-up paths,
- * which fold unlocks in SILENTLY (evaluateAndUnlock without toasts) so a returning/away player is
- * never spammed with a backlog of celebrations.
- */
-function withLiveAchievements(next: GameState): GameState {
-  const { state: out, unlocked } = evaluateAndUnlock(next);
+/** Fire one celebratory toast per newly-unlocked achievement (Lucide glyph, positive tone). */
+function announceAchievements(unlocked: readonly string[]): void {
   for (const id of unlocked) {
     const a = achievementById(id);
     if (!a) continue;
@@ -163,6 +156,20 @@ function withLiveAchievements(next: GameState): GameState {
       /* toast host not mounted (e.g. tests) */
     }
   }
+}
+
+/**
+ * Fold achievement evaluation into a state transition during LIVE play. Marks newly-satisfied
+ * milestones unlocked AND fires one celebratory toast per new unlock. Only ever called from live
+ * actions with a PRECOMPUTED state value — never from inside a setState updater (React invokes
+ * updaters more than once under StrictMode, which would double-fire the toasts; the tick gates
+ * its announcements per week instead) — and never the boot or offline-catch-up paths, which fold
+ * unlocks in SILENTLY (evaluateAndUnlock without toasts) so a returning/away player is never
+ * spammed with a backlog of celebrations.
+ */
+function withLiveAchievements(next: GameState): GameState {
+  const { state: out, unlocked } = evaluateAndUnlock(next);
+  announceAchievements(unlocked);
   return out;
 }
 
@@ -277,9 +284,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Multi-tab single-writer guard: when another tab claims this save, freeze this one — the tick
   // stops below and EVERY save path checks tabBlockedRef, so a stale context can never clobber
-  // the tab the player is actually using (the one real save-loss path on web).
+  // the tab the player is actually using (the one real save-loss path on web). When the playing
+  // tab goes away (its pagehide broadcasts a release), a frozen tab the player is LOOKING AT
+  // recovers by reloading into the freshest save; a hidden frozen tab keeps the overlay's
+  // "Play here instead" CTA (auto-reloading something off-screen buys nothing).
   useEffect(() => {
-    const guard = createTabGuard(() => setTabBlocked(true));
+    const guard = createTabGuard(
+      () => setTabBlocked(true),
+      undefined,
+      () => {
+        if (document.visibilityState === "visible") window.location.reload();
+      },
+    );
     return guard.dispose;
   }, []);
   const takeOverHere = useCallback(() => window.location.reload(), []);
@@ -287,48 +303,57 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Sim tick. One week per tick; the interval shrinks by fastMultiplier in Fast mode.
   // Gated on onboarded: the sim must not burn rent/shift trends while the player is still on
   // the name screen (pre-fix, ~13 idle minutes there bankrupted the save before it began).
+  // React may invoke the setState updater more than once (StrictMode dev double-invoke, bail-out
+  // re-runs), so the toast/announce side-effects inside it are gated to fire once per simulated
+  // week — state changes (including achievement unlocks) still apply on every invocation.
+  const announcedWeekRef = useRef(-1);
   useEffect(() => {
     if (paused || state.bankrupt || tabBlocked || !state.onboarded) return;
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
         const next = advanceOneWeek(s);
-        withRevToasts(s, next);
-        withFanToasts(s, next);
-        withStaffLevelToasts(s, next);
-        withProductFinishToasts(s, next);
-        return withLiveAchievements(next);
+        const { state: out, unlocked } = evaluateAndUnlock(next);
+        if (next.week !== announcedWeekRef.current) {
+          announcedWeekRef.current = next.week;
+          withRevToasts(s, next);
+          withFanToasts(s, next);
+          withStaffLevelToasts(s, next);
+          withProductFinishToasts(s, next);
+          announceAchievements(unlocked);
+        }
+        return out;
       });
     }, ms);
     return () => clearInterval(id);
   }, [paused, fast, state.bankrupt, tabBlocked, state.onboarded]);
 
-  // Persist on a fixed cadence (reads the latest via ref so it actually fires during play),
-  // always stamping lastActive so offline catch-up measures time since the last save.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!tabBlockedRef.current) save({ ...stateRef.current, lastActive: Date.now() });
-    }, 4000);
-    return () => clearInterval(id);
+  // One write path for every persistence trigger below: skip while another tab owns the save,
+  // and always stamp lastActive so offline catch-up measures time since the last write. The old
+  // three inlined copies of this had already drifted once (the double-offline bug).
+  const persistNow = useCallback(() => {
+    if (!tabBlockedRef.current) save({ ...stateRef.current, lastActive: Date.now() });
   }, []);
 
+  // Persist on a fixed cadence (reads the latest via ref so it actually fires during play).
+  useEffect(() => {
+    const id = setInterval(persistNow, 4000);
+    return () => clearInterval(id);
+  }, [persistNow]);
+
   // Persist on background/exit too — but only when actually hidden, so returning to a visible
-  // tab doesn't reset lastActive and swallow elapsed time. A blocked tab must never write: the
-  // takeover tab owns the save now, and our state is stale.
+  // tab doesn't reset lastActive and swallow elapsed time.
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === "hidden" && !tabBlockedRef.current) save({ ...stateRef.current, lastActive: Date.now() });
-    };
-    const onHide = () => {
-      if (!tabBlockedRef.current) save({ ...stateRef.current, lastActive: Date.now() });
+      if (document.visibilityState === "hidden") persistNow();
     };
     document.addEventListener("visibilitychange", onVis);
-    window.addEventListener("pagehide", onHide);
+    window.addEventListener("pagehide", persistNow);
     return () => {
       document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("pagehide", persistNow);
     };
-  }, []);
+  }, [persistNow]);
 
   const build = useCallback((product: Product, plannedUnits?: number, channelId?: ChannelId) => {
     const result = startBuild(stateRef.current, product, plannedUnits, channelId);

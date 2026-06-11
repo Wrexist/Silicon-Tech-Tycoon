@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTabGuard, type TabGuard } from "./tabGuard.ts";
 
 const guards: TabGuard[] = [];
-function guard(onBlocked: () => void, id: string): TabGuard {
-  const g = createTabGuard(onBlocked, id);
+function guard(onBlocked: () => void, id: string, onReleased?: () => void): TabGuard {
+  const g = createTabGuard(onBlocked, id, onReleased);
   guards.push(g);
   return g;
 }
@@ -64,6 +64,30 @@ describe("multi-tab single-writer guard", () => {
     const blocked = vi.fn();
     const g = createTabGuard(blocked, "tab-a");
     expect(() => g.dispose()).not.toThrow();
+    expect(() => g.releaseNow()).not.toThrow();
     expect(blocked).not.toHaveBeenCalled();
+  });
+
+  it("the playing tab's release reaches frozen tabs so they can recover", async () => {
+    const releasedA = vi.fn();
+    guard(vi.fn(), "tab-a", releasedA);
+    const b = guard(vi.fn(), "tab-b"); // B claims → A frozen
+    await eventually(() => expect(releasedA).not.toHaveBeenCalled());
+    b.releaseNow(); // B (playing) goes away
+    await eventually(() => expect(releasedA).toHaveBeenCalledTimes(1));
+  });
+
+  it("a frozen tab closing never releases (can't steal play back for other frozen tabs)", async () => {
+    const blockedA = vi.fn();
+    const releasedB = vi.fn();
+    const a = guard(blockedA, "tab-a");
+    guard(vi.fn(), "tab-b", releasedB);
+    const c = guard(vi.fn(), "tab-c"); // C claims last → A and B frozen, C playing
+    await eventually(() => expect(blockedA).toHaveBeenCalled());
+    a.releaseNow(); // A is frozen — its pagehide must NOT broadcast a release
+    await new Promise((r) => setTimeout(r, 50));
+    expect(releasedB).not.toHaveBeenCalled();
+    c.releaseNow(); // the PLAYING tab going away does release the frozen ones
+    await eventually(() => expect(releasedB).toHaveBeenCalledTimes(1));
   });
 });
