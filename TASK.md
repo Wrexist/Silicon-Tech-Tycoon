@@ -644,6 +644,23 @@ production run). Added its missing sibling so the post-launch decision has a rea
 - NOT verified on-device: the two intervention blocks stacked in the sheet — check they read
   clearly as distinct options. Boost/costPct (30% / 35%) need a playtest.
 
+## v19.5 — on-device fixes from the first TestFlight playthrough (DONE 2026-06-11)
+Four issues reported live from PR #6's build; all fixed, 218 tests, tsc 0, build+PWA green.
+- [x] **Sheets wouldn't close (IMG_0140)**: the grab handle was decorative; only the thin scrim
+      strip closed a sheet → felt trapped. Handle is now a real control — **tap or drag-down to
+      dismiss** (snaps back under threshold). In the shared `Sheet` primitive → every popup gets it.
+- [x] **Locked components showed "T2" (IMG_0139)**: the Components picker now names the **next
+      tier** you'd unlock + its stat gain ("🔒 TurboCore A2 · +24 Perf · research in R&D"), accent
+      name — aspiration, not a dry number.
+- [x] **Design flow unclear (IMG_0142)**: added a **sticky Back / Next step bar** above the tab nav
+      (gray Back left, green "Next: <step>" right); click-through except the buttons; Next hides on
+      Launch (its own Build CTA). Fixed-position offset clears the tab bar — **needs an on-device px tune**.
+- [x] **3D fell back to 2D permanently (IMG_0138)**: `webglcontextlost` → sticky `glLost` stranded
+      the player in 2D until app relaunch. Added a **"Try 3D again"** pill on the fallback that
+      remounts the Canvas. Likely a device GPU context-loss (recent work *reduces* 3D load, so
+      unlikely my regression) — this makes it recoverable in-session rather than fixing a root cause
+      I can't repro. **Open question for the user: is it every launch or intermittent? did relaunch fix it?**
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
