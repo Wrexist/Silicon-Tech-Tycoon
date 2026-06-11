@@ -1,7 +1,7 @@
 import {
   Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, ChevronRight, CircleDot, Clock, Coffee,
   Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
-  Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
+  Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Lock, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
   Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
   Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
@@ -29,9 +29,9 @@ import {
 } from "../engine/furniture.ts";
 import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
-import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -607,19 +607,22 @@ function Upgrades() {
           const cur = state.upgrades[line.id] ?? 0;
           const cost = upgradeCost(state, line.id);
           const maxed = cur >= line.maxTier;
-          const affordable = cost !== null && state.cash >= cost;
+          // The advanced tiers are research-gated: locked (masked grey) until the team finishes
+          // the prerequisite project. Shown so the player SEES the aspirational tier to work toward.
+          const gate = maxed ? null : upgradeGate(state, line.id);
+          const affordable = cost !== null && state.cash >= cost && !gate;
           const Icon = UPGRADE_ICONS[line.icon] ?? Cpu;
           const fn = UPGRADE_FN[line.id];
           const boomed = boom?.id === line.id;
           return (
             <Card
               key={line.id}
-              className={`hqu__card${boomed ? " hqu__card--boom" : ""}`}
+              className={`hqu__card${boomed ? " hqu__card--boom" : ""}${gate ? " hqu__card--locked" : ""}`}
               style={{ "--accent": fn.accent, "--accent-soft": fn.soft } as CSSProperties}
             >
               {boomed && <span key={boom.n} className="hqu__burst" aria-hidden>{boom.text}</span>}
               <div className="hqu__card-head">
-                <span className="hqu__glyph" aria-hidden><Icon size={18} /></span>
+                <span className="hqu__glyph" aria-hidden>{gate ? <Lock size={16} /> : <Icon size={18} />}</span>
                 <div className="hqu__info">
                   <span className="hqu__name">{line.name}</span>
                   <span className="hqu__effect">{cur > 0 ? line.effectAt(cur) : line.blurb}</span>
@@ -637,6 +640,11 @@ function Upgrades() {
               </div>
               {maxed ? (
                 <div className="hqu__maxed"><Check size={14} strokeWidth={2.5} /> Fully upgraded</div>
+              ) : gate ? (
+                <div className="hqu__locked">
+                  <Lock size={13} strokeWidth={2.5} aria-hidden />
+                  <span>Research <strong>{projectById(gate).name}</strong> to unlock {line.tierNames[cur]}</span>
+                </div>
               ) : (
                 <Button
                   block

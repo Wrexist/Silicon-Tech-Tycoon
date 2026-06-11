@@ -59,6 +59,7 @@ import {
   qualityStatBonus,
   rpMultiplier,
   upgradeLine,
+  upgradeLockedBy,
   type UpgradeId,
 } from "../engine/upgrades.ts";
 import { canAdvanceEra, eraName, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
@@ -393,10 +394,17 @@ const UPGRADE_ROOM_CHANGES: Partial<Record<UpgradeId, Record<number, string>>> =
   computers: { 3: "Every desk gains a second monitor." },
 };
 
+/** Cash cost of the next tier, OR the research project that must be completed first (locked). */
+export function upgradeGate(s: GameState, id: UpgradeId): ProjectId | null {
+  return upgradeLockedBy(id, (s.upgrades[id] ?? 0) + 1, s.completedProjects);
+}
+
 export function buyUpgrade(state: GameState, id: UpgradeId): GameState {
   const cur = state.upgrades[id] ?? 0;
   const cost = nextUpgradeCost(id, cur);
   if (cost === null || state.cash < cost) return state;
+  // The advanced tiers are research-gated — refuse until the prerequisite project is done.
+  if (upgradeLockedBy(id, cur + 1, state.completedProjects) !== null) return state;
   const line = upgradeLine(id);
   const feed = [...state.feed];
   const roomChange = UPGRADE_ROOM_CHANGES[id]?.[cur + 1];

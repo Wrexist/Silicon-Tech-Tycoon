@@ -706,6 +706,41 @@
   background: var(--accent);
 }
 
+/* Research-locked upgrade: masked grey until the prerequisite project is done. The glyph + buy
+   CTA are replaced by a lock + "Research X first"; the accent wash is muted so it reads as
+   "not yet yours" without hiding the aspirational tier. */
+.hqu__card--locked {
+  background: var(--glass-card);
+}
+.hqu__card--locked .hqu__glyph {
+  color: var(--ink-3);
+  background: var(--bg-elevated);
+}
+.hqu__card--locked .hqu__name,
+.hqu__card--locked .hqu__effect-next {
+  color: var(--ink-2);
+}
+.hqu__locked {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+  border: 1px dashed var(--hairline);
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  line-height: 1.3;
+}
+.hqu__locked svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+.hqu__locked strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 /* ---- Purchase celebration: the bought card blooms — outward accent ring + a radial wash
    sweeping down from the top, the new pip ignites with an overshoot, and the effect line
    rises out of the card. Restrained (no confetti); the global reduced-motion catch-all

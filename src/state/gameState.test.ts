@@ -21,6 +21,8 @@ import {
   hireCandidate,
   unlockLens,
   lensUnlockCost,
+  buyUpgrade,
+  upgradeGate,
   type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
@@ -391,5 +393,26 @@ describe("camera lens unlocks (RP-gated design feature)", () => {
   it("refuses when RP is short (state untouched)", () => {
     const s = { ...newGame(12), researchPoints: BALANCE.design.lensUnlockCosts[3] - 1 };
     expect(unlockLens(s)).toBe(s);
+  });
+});
+
+describe("research-gated upgrades", () => {
+  it("locks the advanced tier until the prerequisite project is researched", () => {
+    let s: GameState = { ...newGame(5), cash: dollars(5_000_000), upgrades: { marketing: 3 } };
+    // Brand Agency (tier 4) is gated behind the Brand Studio research project.
+    expect(upgradeGate(s, "marketing")).toBe("brandStudio");
+    s = buyUpgrade(s, "marketing");
+    expect(s.upgrades.marketing).toBe(3); // refused while locked
+
+    s = { ...s, completedProjects: ["brandStudio"] };
+    expect(upgradeGate(s, "marketing")).toBeNull();
+    s = buyUpgrade(s, "marketing");
+    expect(s.upgrades.marketing).toBe(4); // unlocked
+  });
+
+  it("never gates the early tiers", () => {
+    const s: GameState = { ...newGame(6), cash: dollars(5_000_000), upgrades: { marketing: 0 } };
+    expect(upgradeGate(s, "marketing")).toBeNull();
+    expect(buyUpgrade(s, "marketing").upgrades.marketing).toBe(1);
   });
 });
