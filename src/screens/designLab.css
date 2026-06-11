@@ -561,17 +561,6 @@
   gap: var(--sp-16);
   margin-bottom: var(--sp-12);
 }
-.lab__price-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r-button);
-  background: var(--bg-elevated);
-  font-size: 22px;
-  font-weight: 600;
-}
-.lab__price-btn:active {
-  transform: scale(0.92);
-}
 .lab__price-display {
   flex: 1;
   text-align: center;

@@ -878,11 +878,11 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     <Card className="hq__insights">
       <SectionHeader title="Strategic insights" accessory={`${insights.length} hint${insights.length > 1 ? "s" : ""}`} />
       <div className="hq__insights-list">
-        {insights.slice(0, 3).map((ins, i) => {
+        {insights.slice(0, 3).map((ins) => {
           const Icon = ins.icon;
           return (
             <button
-              key={i}
+              key={ins.text}
               className={`hq__insight${ins.tab ? "" : " hq__insight--static"}`}
               onClick={() => ins.tab && onNavigate(ins.tab)}
               disabled={!ins.tab}

@@ -62,6 +62,7 @@
   --mat-ti-1: #a8a29e;
   --mat-ti-2: #78716c;
   --mat-gold: #d4af37;
+  --gold-ink: #3d2c00; /* dark text for a solid gold chip (rank-1 medal) — readable in both themes */
 
   /* Spacing — strict 8pt scale (with 2/6 half-steps for fine details) */
   --sp-2: 2px;

@@ -479,6 +479,25 @@ reputation momentum (rival rep never changes after init → pure compounding, up
 - [x] **Stale event reschedule**: catch-up pushes `nextEventWeek` forward if it slipped into the past,
       so an event no longer fires the instant you return. +1 test. (204 tests; tsc 0; build+PWA ok.)
 
+## v17.2 — cosmetic polish sweep (DONE 2026-06-10)
+Verified each flagged site against source first (several audit findings were stale/wrong — see below).
+- [x] **Rank-1 leaderboard medal dark-mode contrast**: was a translucent amber tint + `#b8860b` text →
+      dark-on-dark in dark theme. Now a solid `--mat-gold` chip + new `--gold-ink` token (opaque, reads
+      in both themes), mirroring the `--me` rank chip's solid treatment.
+- [x] **Removed dead `.lab__price-btn`** (the old +/- price stepper; price is a Slider now).
+- [x] **`.co__proj-wk` 8px → `--fs-nano` (10px)** — was below the legible floor on-device.
+- [x] **HQ insights keyed by `ins.text`, not array index** — the set is recomputed/sliced per tick, so
+      index keys caused stale DOM/animation. (Fixed-position pip + forecast-bar lists keep index keys.)
+- [x] **Tokenized coach.css exact-match literals** (`13px`→`--fs-caption`, `8px 12px`→`--sp-8/--sp-12`,
+      `2px`→`--sp-2`) — appearance-preserving RULE-#1 cleanup.
+- Stale findings (already correct — left untouched): the "WASD" hint is **already** gated off touch
+  (`hq.css`: `display:none` + `@media (hover:hover) and (pointer:fine)`); `.lab__price-display` is **in
+  use** (the live price readout), not dead; EmptyState passes only Lucide glyphs so `.ds-empty__glyph`
+  `font-size` is inert (harmless, left).
+- Deliberately NOT changed (reflow/appearance risk without on-device eyes): 9px micro-badges
+  (`lab__chip-gen`, market) — acceptable micro-type; `coach__title` 14px / `gainfx__tok` 15px (no
+  matching token); the soft `→` arrows in `App.tsx`/`HQ.tsx` labels (typographic, low value).
+
 ### v17 Backlog — audit findings NOT actioned (carry forward; need a focused pass / design calls)
 **State/lifecycle:** side-effects (toasts + achievement eval) run inside the `setState` updater →
   StrictMode double-fire (dev-only) — move to a `useEffect` keyed on week; `tabGuard` first-claimant
@@ -493,7 +512,9 @@ reputation momentum (rival rep never changes after init → pure compounding, up
   honored inside the mounted 3D scene; context-loss fallback is one-shot and drops you out of Decorate;
   >4 roamers share 4 homes; staff #17+ render invisible (`slice(…,16)`); several hardcoded non-theme
   colors in `furniture3d.tsx`/`Garage3D.tsx`.
-**Screens/UI/a11y:** dead CSS (`.lab__price-btn`, stale icon-container `font-size`s on now-SVG glyphs);
-  sub-10px type (`co__proj-wk` 8px + several 9px badges); `market.css` rank-1 medal hardcodes gold
-  (off-token, won't dark-adapt); "WASD to look around" shown on touch; index keys on per-tick-recomputed
-  lists; soft `→` arrows in `App.tsx`/`HQ.tsx` button labels (debatable vs the Lucide rule).
+**Screens/UI/a11y:** _(v17.2 cleared the rank-1 medal contrast, dead `.lab__price-btn`, `co__proj-wk`
+  8px, HQ insight keys, and coach.css literals; the "WASD"-on-touch finding was stale — already gated.)_
+  Remaining: inert icon-container `font-size`s on now-SVG glyphs (harmless); 9px micro-badges
+  (`lab__chip-gen`, market) and `coach__title` 14px / `gainfx__tok` 15px (want tokens or a deliberate
+  scale call); broader hardcoded-px tokenization across screen CSS; soft `→` arrows in `App.tsx`/`HQ.tsx`
+  labels (typographic — debatable vs the Lucide rule).

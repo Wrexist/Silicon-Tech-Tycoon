@@ -206,8 +206,8 @@
   color: var(--accent-ink);
 }
 .mkt__board-rank--first {
-  background: color-mix(in srgb, #f5b301 24%, transparent);
-  color: #b8860b;
+  background: var(--mat-gold);
+  color: var(--gold-ink);
 }
 .mkt__board-name {
   flex: 1;
