@@ -549,6 +549,24 @@ invisible in the container and real on the phone. 206 tests, tsc 0, build+PWA gr
   Gate) label static objects forever — restraint says fade them after first view or show on tap;
   staff labels carry live data and should stay. Needs the owner's eyes on-device.
 
+## v18 — upgrades feel like SOMETHING + lens counts are earned (DONE 2026-06-11)
+Direct user ask: "upgrades should be exciting / feel like you're actually doing something; device
+features like lens count should be RP unlocks." 210 tests (+4), tsc 0, build+PWA green.
+- [x] **Upgrade celebration**: new `upgrade` sfx (mechanical thunk → rising sparkle → chord);
+      bought card blooms (accent ring + radial wash), the new tier pip ignites (overshoot pop),
+      the effect line rises out of the card; facility moves celebrate too. Research component/
+      project buys (previously DEAD silent) share the cue + success haptic. Reduced-motion safe.
+- [x] **The feed says what appeared in the 3D room** per tier (coffee station, wall screen,
+      easel, test chamber, second monitors) — purchases visibly change the world they own.
+- [x] **RP-gated lens counts** (`state.lensLimit`, `unlockLens`, `lensUnlockCosts {3:14, 4:30}`):
+      stepper caps at the unlocked count; an inline "Unlock triple-lens module · 14 RP" buy in the
+      Camera tab steps straight onto the new lens (live render payoff). Old saves backfilled to the
+      highest count they actually used. Counts 1–2 free; grandfathered drafts never downgraded.
+- NOT verified on-device: sound character + animation timing need ears/eyes (tuning knobs:
+  sound.ts upgrade case, hq.css keyframes). Knob costs (14/30 RP) need a playtest.
+- Backlog seed: the unlock seam generalizes — notch styles / module shapes / finishes as
+  research unlocks if the lens gate lands well.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
