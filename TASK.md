@@ -675,6 +675,23 @@ Four issues reported live from PR #6's build; all fixed, 218 tests, tsc 0, build
       no mood farm); prestige (gated behind IPO win, full reset → legacy can't be farmed); bankruptcy
       (post-mortem + restart, no soft-lock). 219 tests, tsc 0, build+PWA green.
 
+## v19.7 — money-flicker fix + UI polish (DONE 2026-06-12)
+On-device screenshots: cash flickered negative↔positive every tick; floating gains sat on the
+speed controls; finishing a design had no closure; the boosts list scrolled forever.
+- [x] **Bug fixed — headline cash flickering negative**: `AnimatedMoney` tweened with a bitwise
+      `| 0`, which coerces to a signed 32-bit int. Cash is integer **cents**, so any balance above
+      ~$21.47M (cents > 2^31) overflowed mid-count-up and wrapped negative — the headline visibly
+      flipped −/+ on every weekly tick. Switched to `Math.trunc`; interrupted tweens now resume from
+      the on-screen value (no backward jump). The ONLY money-bitwise in the app (grep-verified).
+- [x] **Floating gain tokens off the controls**: `+$ / +RP` tokens were pinned top-right over the
+      pause/fast-forward/settings buttons. Anchored under the cash headline on the left.
+- [x] **Design-complete sheet**: finishing a build only flashed a toast + silently reset the draft.
+      Now a celebratory sheet shows the finished device + forecast, a "manufacturing → launch from
+      HQ" next-steps panel, and a "Track in HQ" CTA that navigates there.
+- [x] **Active boosts compacted**: ~19 completed projects rendered as two-line rows = endless
+      scroll. Now a wrapped chip cloud (effect on `title`) with a "Details" expander.
+- [x] tsc 0, 219 tests green, build + PWA green.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
