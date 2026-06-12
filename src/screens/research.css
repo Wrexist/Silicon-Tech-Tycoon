@@ -205,6 +205,33 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+/* Compact chip cloud — collapses a long list of completed projects into a tidy wrapped grid. */
+.rd__boost-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+}
+.rd__boost-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.rd__boost-chip svg { flex-shrink: 0; }
+.rd__boosts-toggle {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--accent);
+  padding: 2px 0;
+}
+.rd__boosts-toggle:active { opacity: 0.7; }
 
 /* Tier progress pips for component tech cards */
 .rd__tier-pips {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Check, ChevronRight, FlaskConical, Lock, MapPin, Users } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -126,6 +127,9 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
 
 export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const { state, research, buyProject, unlockLens, unlockFinish } = useGame();
+  // Once many projects are complete, the full-blurb list grows into a long scroll. Default to a
+  // compact chip cloud; the player can expand to the detailed effects on demand.
+  const [boostsExpanded, setBoostsExpanded] = useState(false);
   const kinds = Object.keys(COMPONENT_LINES) as ComponentKind[];
   const rp = Math.floor(state.researchPoints);
   const perWeek = weeklyRpGen(state);
@@ -313,22 +317,48 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         );
       })()}
 
-      {/* Active project boosts */}
+      {/* Active project boosts — compact chip cloud by default, expandable to full effects */}
       {state.completedProjects.length > 0 && (
         <Card>
-          <SectionHeader title="Active boosts" accessory={`${state.completedProjects.length} projects`} />
-          <div className="rd__boosts">
-            {state.completedProjects.map((id) => {
-              const p = RESEARCH_PROJECTS.find((rp) => rp.id === id);
-              if (!p) return null;
-              return (
-                <div key={id} className="rd__boost">
-                  <span className="rd__boost-name"><Check size={11} strokeWidth={2.5} /> {p.name}</span>
-                  <span className="rd__boost-blurb">{p.blurb}</span>
-                </div>
-              );
-            })}
-          </div>
+          <SectionHeader
+            title="Active boosts"
+            accessory={
+              <button
+                type="button"
+                className="rd__boosts-toggle"
+                aria-expanded={boostsExpanded}
+                onClick={() => { haptic.light(); setBoostsExpanded((v) => !v); }}
+              >
+                {state.completedProjects.length} projects · {boostsExpanded ? "Hide" : "Details"}
+              </button>
+            }
+          />
+          {boostsExpanded ? (
+            <div className="rd__boosts">
+              {state.completedProjects.map((id) => {
+                const p = RESEARCH_PROJECTS.find((rp) => rp.id === id);
+                if (!p) return null;
+                return (
+                  <div key={id} className="rd__boost">
+                    <span className="rd__boost-name"><Check size={11} strokeWidth={2.5} /> {p.name}</span>
+                    <span className="rd__boost-blurb">{p.blurb}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rd__boost-cloud">
+              {state.completedProjects.map((id) => {
+                const p = RESEARCH_PROJECTS.find((rp) => rp.id === id);
+                if (!p) return null;
+                return (
+                  <span key={id} className="rd__boost-chip" title={p.blurb}>
+                    <Check size={10} strokeWidth={3} aria-hidden /> {p.name}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </Card>
       )}
 
