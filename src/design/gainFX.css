@@ -1,11 +1,13 @@
 .gainfx {
   position: fixed;
-  top: calc(58px + env(safe-area-inset-top));
-  right: var(--edge);
+  /* Rise from just under the cash headline on the LEFT. Previously pinned top-right, where the
+     tokens rendered on top of the pause / fast-forward / settings buttons. */
+  top: calc(56px + env(safe-area-inset-top));
+  left: var(--edge);
   z-index: 25;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2px;
   pointer-events: none;
 }
