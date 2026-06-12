@@ -115,17 +115,31 @@ function successorDraft(prev: Product): Product {
   };
 }
 
+/** What the just-completed build produced — drives the "Design complete" celebration sheet. */
+interface CompletedBuild {
+  product: Product;
+  units: number;
+  weeks: number;
+  overall: number;
+  projectedSales: number;
+  projectedProfit: ReturnType<typeof sub>;
+  sellsOut: boolean;
+}
+
 export function DesignLab({
   seed,
   onSeedConsumed,
+  onGoToHQ,
 }: {
   seed?: Product | null;
   onSeedConsumed?: () => void;
+  onGoToHQ?: () => void;
 } = {}) {
   const { state, build, unlockLens, unlockFinish } = useGame();
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
+  const [completed, setCompleted] = useState<CompletedBuild | null>(null);
   const [labTab, setLabTab] = useState<LabTab>("components");
 
   const cat = CATEGORIES[draft.category];
@@ -230,16 +244,30 @@ export function DesignLab({
   }
 
   function confirmBuild(units: number, channelId: ChannelId) {
-    const res = build(draft, units, channelId);
+    // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the
+    // completion sheet can celebrate exactly what just shipped to the factory floor.
+    const finished = draft;
+    const plan = planProduction(state, finished, units, channelId);
+    const weeks = buildWeeksFor(state);
+    const res = build(finished, units, channelId);
     if (!res.ok) {
       haptic.error();
       showToast(res.reason ?? "Can't build yet", { tone: "negative", glyph: <AlertTriangle size={15} /> });
       return;
     }
     haptic.success();
+    sfx("build");
     setWizard(false);
-    showToast(`Production started — ${units.toLocaleString()} units on the line.`, { tone: "positive", glyph: <Hammer size={15} /> });
-    setDraft({ ...freshDraft(state), name: suggestNextName(draft.name) });
+    setCompleted({
+      product: finished,
+      units,
+      weeks,
+      overall: overallScore(productStats(state, finished), finished.category),
+      projectedSales: plan.projectedSales,
+      projectedProfit: plan.projectedProfit,
+      sellsOut: plan.sellsOut,
+    });
+    setDraft({ ...freshDraft(state), name: suggestNextName(finished.name) });
   }
 
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)
@@ -857,6 +885,68 @@ export function DesignLab({
       <Sheet open={wizard} onClose={() => setWizard(false)}>
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}
       </Sheet>
+
+      <Sheet open={!!completed} onClose={() => setCompleted(null)}>
+        {completed && (
+          <DesignCompleteCard
+            done={completed}
+            onGoToHQ={() => { setCompleted(null); onGoToHQ?.(); }}
+            onDesignAnother={() => setCompleted(null)}
+          />
+        )}
+      </Sheet>
+    </div>
+  );
+}
+
+/** The closing beat of the design flow: confirms the device is finished and now manufacturing,
+ *  then points the player to where they'll launch it (HQ). Turns a silent toast into a clear
+ *  "you made something → here's what's next" moment. */
+function DesignCompleteCard({
+  done,
+  onGoToHQ,
+  onDesignAnother,
+}: {
+  done: CompletedBuild;
+  onGoToHQ: () => void;
+  onDesignAnother: () => void;
+}) {
+  const profD = toDollars(done.projectedProfit);
+  return (
+    <div className="done">
+      <div className="done__badge" aria-hidden><Check size={24} strokeWidth={3} /></div>
+      <h2 className="done__title">Design complete</h2>
+      <p className="done__sub">“{done.product.name}” is finished and headed to the factory.</p>
+
+      <div className="done__hero">
+        <DeviceRenderer product={done.product} size={150} idle shimmer />
+      </div>
+
+      <div className="done__grid">
+        <Stat label="Overall" value={`${done.overall}`} />
+        <Stat label="Run size" value={done.units.toLocaleString()} />
+        <Stat
+          label="Est. sales"
+          value={done.projectedSales.toLocaleString()}
+          tone={done.sellsOut ? "positive" : undefined}
+          hint={done.sellsOut ? "would sell out" : undefined}
+        />
+        <Stat label="Est. profit" value={format(done.projectedProfit)} tone={profD >= 0 ? "positive" : "negative"} />
+      </div>
+
+      <div className="done__next">
+        <div className="done__step">
+          <span className="done__step-icon"><Factory size={16} /></span>
+          <span>Manufacturing now — <b>ready in ~{done.weeks} {done.weeks === 1 ? "week" : "weeks"}</b>.</span>
+        </div>
+        <div className="done__step">
+          <span className="done__step-icon"><TrendingUp size={16} /></span>
+          <span>When it’s built, <b>launch it from your HQ</b> to put it on the market.</span>
+        </div>
+      </div>
+
+      <Button block onClick={onGoToHQ}><TrendingUp size={16} /> Track in HQ</Button>
+      <button className="wiz__cancel" onClick={onDesignAnother}>Design another</button>
     </div>
   );
 }
