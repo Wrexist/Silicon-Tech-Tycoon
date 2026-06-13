@@ -308,31 +308,6 @@ function GarageDoor({ p, z = -3.96, big = 0 }: { p: RoomPalette; z?: number; big
   );
 }
 
-// Exposed wood ceiling beams (rafters) running across the room; extends as the bay deepens.
-function Beams({ p, backZ = -3.2 }: { p: RoomPalette; backZ?: number }) {
-  const y = 4.7;
-  const zs: number[] = [];
-  for (let z = 3.2; z >= backZ - 0.01; z -= 1.6) zs.push(z);
-  const span = 3.2 - (zs[zs.length - 1] ?? -3.2);
-  const cz = (3.2 + (zs[zs.length - 1] ?? -3.2)) / 2;
-  return (
-    <group>
-      {zs.map((z, i) => (
-        <mesh key={`b${i}`} position={[0, y, z]}>
-          <boxGeometry args={[8.2, 0.24, 0.16]} />
-          <meshStandardMaterial color={p.beam} roughness={0.85} />
-        </mesh>
-      ))}
-      {[-2.6, 2.6].map((x, i) => (
-        <mesh key={`c${i}`} position={[x, y + 0.13, cz]}>
-          <boxGeometry args={[0.16, 0.2, span + 0.4]} />
-          <meshStandardMaterial color={p.beam} roughness={0.85} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 // Warm festoon string lights strung in a catenary near the ceiling.
 function StringLights() {
   const a = [-3.8, 4.5, -3.6];
@@ -493,7 +468,6 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
         ))}
       </group>
 
-      {dark && <Beams p={p} backZ={-3.2} />}
       {dark && <StringLights />}
       {/* clean-mode ceiling (light mode): flush white soffit instead of beams */}
       {!dark && (
