@@ -1606,7 +1606,9 @@ const ROLE_ASSIGNMENT: Record<StaffRole, Assignment> = {
 
 /** One placed desk = one seat. Hiring is desk-gated: the team can never outgrow the desks
  *  the player actually bought in Decorate (the new hire's robot spawns AT a free desk). */
-export const deskCapacity = (s: GameState): number => deskItems(s.layout).length;
+// Seats an employee can occupy = placed furniture desks + player-bought desktops. Buying a
+// desktop both adds a workstation to the garage AND opens a seat to hire someone into.
+export const deskCapacity = (s: GameState): number => deskItems(s.layout).length + (s.desktops ?? 0);
 
 export function hireStaff(state: GameState, role: StaffRole, skill: number, name: string): GameState {
   const cap = facility(state).staffCapacity;

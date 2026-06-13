@@ -294,8 +294,8 @@ export function Company() {
         <div className="co__fac-nudge">
           <PencilRuler size={15} className="co__fac-nudge-icon" aria-hidden />
           <span className="co__fac-nudge-text">
-            <strong>Every desk is taken</strong> — buy a desk in HQ → Decorate and your next hire's
-            workstation appears right where you put it.
+            <strong>Every desk is taken</strong> — buy a Desktop in HQ (or add a desk in Decorate)
+            and your next hire sits down at it.
           </span>
         </div>
       )}
@@ -917,7 +917,7 @@ function RecruitPanel({
     return (
       <>
         <p className="co__hint">
-          {full ? (noDesk ? "Every desk is taken — buy a desk in HQ → Decorate to sign someone. " : "At capacity — free up a seat to sign someone. ") : ""}
+          {full ? (noDesk ? "Every desk is taken — buy a Desktop in HQ to open a seat. " : "At capacity — free up a seat to sign someone. ") : ""}
           Shortlist available for {weeksLeft} more week{weeksLeft === 1 ? "" : "s"}.
         </p>
         {state.candidates.map((c) => (

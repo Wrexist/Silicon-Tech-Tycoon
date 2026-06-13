@@ -830,26 +830,48 @@ function Workstation({ p, staff, seed, monitors, colorIdx, powered }: { p: RoomP
   );
 }
 
-// The player-bought desktops: 1–4 standalone, powered computer desks laid out in a single
-// centred row so the set always reads symmetric (auto-centres for any count). Screens face the
-// camera (+z). Purely decorative — they make the garage feel populated as the company grows.
+// The player-bought desktops: 1–4 standalone computer desks laid out in a single centred row so
+// the set always reads symmetric (auto-centres for any count). Oriented like the founder's desk —
+// the seated robot faces the camera — so a hired employee sits here exactly as the first one does.
+// Empty (unstaffed) desks still render powered-on, so the office looks set up before it's filled.
 const DESKTOP_ROW_Z = 0.3;
 const DESKTOP_SPACING = 1.95;
-function DesktopPod({ p, count, monitors }: { p: RoomPalette; count: number; monitors: number }) {
+function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));
-  if (n === 0) return null;
+  return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
+}
+function DesktopPod({ p, worlds, staff, monitors, onTapStaff, startColorIdx }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; onTapStaff?: (id: string) => void; startColorIdx: number }) {
   return (
     <group>
-      {Array.from({ length: n }).map((_, i) => {
-        const x = (i - (n - 1) / 2) * DESKTOP_SPACING;
+      {worlds.map((w, i) => {
+        const s = staff[i];
         return (
-          <group key={i} position={[x, 0, DESKTOP_ROW_Z]} rotation-y={Math.PI}>
-            <Workstation p={p} seed={i * 1.7} monitors={monitors} colorIdx={i + 2} powered />
+          <group key={i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
+            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} powered />
+            {/* invisible tap target → opens this employee's roster card (matches the placed desks) */}
+            {onTapStaff && s?.id && (
+              <mesh
+                position={[0, 0.95, 0]}
+                onClick={(e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onTapStaff(s.id!); }}
+              >
+                <boxGeometry args={[1.3, 1.9, 1.3]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              </mesh>
+            )}
           </group>
         );
       })}
     </group>
   );
+}
+
+// Name + primary-discipline shown on a desk's floating label (shared by placed + bought desks).
+function deskLabel(s: Staff): { label: string; sub: string } {
+  const best = (["engineering", "design", "marketing"] as const).reduce<"engineering" | "design" | "marketing">(
+    (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering",
+  );
+  const abbr = { engineering: "Eng", design: "Des", marketing: "Mkt" }[best];
+  return { label: s.name.split(" ")[0], sub: `${abbr} · ${s.skills[best]}` };
 }
 
 function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
@@ -1456,13 +1478,17 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   const finish = floorFinish(roomStyle.floor);
   const wall = wallStyle(roomStyle.wall);
   const cull = useWallCull();
-  // Desks ARE the seats: each employee works at a PLACED desk (in placement order), so the
-  // robot a new hire spawns sits at the desk the player actually bought. Overflow (a desk was
-  // removed mid-game) roams the floor instead of vanishing.
+  // Desks ARE the seats: each employee works at a desk (placed furniture desks first, then the
+  // player-bought desktops), so a new hire's robot sits at a real desk instead of milling around.
+  // Only when every desk is taken do extra employees roam the floor.
   const inBuild = !!builder?.build;
   const seats = deskItems(builder?.layout ?? []);
   const seated = staff.slice(0, seats.length);
-  const roaming = staff.slice(seats.length, 16);
+  const overflow = staff.slice(seats.length);
+  const podCount = Math.max(0, Math.min(4, desktops));
+  const podWorlds = desktopWorlds(podCount);
+  const podStaff = overflow.slice(0, podCount);
+  const roaming = overflow.slice(podCount, 16);
   // Occupied desks render as full live workstations, so hide their plain furniture models
   // (cozy view only — in Decorate mode the editable furniture pieces must stay visible).
   const occupiedIids = new Set(seated.map((_, i) => seats[i].iid));
@@ -1548,11 +1574,11 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         );
       })}
       {!inBuild && roaming.map((s, i) => (
-        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + i) % ROBOT_COLORS.length} seed={(seats.length + i) * 3.7} home={roamHomeFor(i)} />
+        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + podCount + i) % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} />
       ))}
-      {/* Player-bought desktops — a tidy symmetric row. Hidden in Decorate mode (like the live
-          workstations) so they don't fight the editable furniture pieces. */}
-      {!inBuild && <DesktopPod p={p} count={desktops} monitors={monitors} />}
+      {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
+          hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}
+      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} onTapStaff={onTapStaff} startColorIdx={seats.length} />}
       <Props p={p} hasProduction={hasProduction} dark={dark} />
       <Dust />
       {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
@@ -1593,22 +1619,17 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
             <OfficeLabel pos={[-2.2, 2.35, -3.2]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
           )}
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Tap for finances" dot="#34c759" />
-          {/* Per-desk name + primary-discipline label for every occupied (placed) desk */}
+          {/* Per-desk name + primary-discipline label for every occupied desk — placed desks
+              first, then the bought desktops, so a desktop-seated hire is labelled like the rest. */}
           {seated.map((s, i) => {
             const w = worldOf(seats[i]);
-            const best = (["engineering", "design", "marketing"] as const).reduce<"engineering" | "design" | "marketing">(
-              (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering",
-            );
-            const abbr = { engineering: "Eng", design: "Des", marketing: "Mkt" }[best];
-            return (
-              <OfficeLabel
-                key={s.id ?? i}
-                pos={[w.x, 2.2, w.z]}
-                label={s.name.split(" ")[0]}
-                sub={`${abbr} · ${s.skills[best]}`}
-                dot={ROBOT_COLORS[i % ROBOT_COLORS.length]}
-              />
-            );
+            const { label, sub } = deskLabel(s);
+            return <OfficeLabel key={s.id ?? i} pos={[w.x, 2.2, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[i % ROBOT_COLORS.length]} />;
+          })}
+          {podStaff.map((s, i) => {
+            const w = podWorlds[i];
+            const { label, sub } = deskLabel(s);
+            return <OfficeLabel key={s.id ?? `pod${i}`} pos={[w.x, 2.2, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length]} />;
           })}
         </>
       )}
