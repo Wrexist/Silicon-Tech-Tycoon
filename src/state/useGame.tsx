@@ -22,6 +22,7 @@ import {
   REV_MILESTONES,
   buyShares,
   buyUpgrade,
+  buyDesktop,
   cutProductPrice,
   marketingPush,
   giveRaise,
@@ -197,6 +198,7 @@ interface GameContextValue {
   unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
   buyUpgrade: (id: UpgradeId) => void;
+  buyDesktop: () => void;
   assign: (id: string, assignment: Assignment) => void;
   train: (id: string) => void;
   rest: (id: string) => void;
@@ -413,6 +415,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (spent > 0) emitSpend(spent);
     setState(next);
   }, []);
+  const buyDesktopCb = useCallback(() => {
+    const prev = stateRef.current;
+    const next = buyDesktop(prev);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const assign = useCallback((id: string, a: Assignment) => setState((s) => assignStaff(s, id, a)), []);
   const train = useCallback((id: string) => {
     const prev = stateRef.current;
@@ -564,6 +573,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
       buyUpgrade: buyUpgradeCb,
+      buyDesktop: buyDesktopCb,
       assign,
       train,
       hire,
@@ -601,7 +611,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

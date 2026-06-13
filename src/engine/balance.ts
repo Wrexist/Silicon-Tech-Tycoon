@@ -241,6 +241,14 @@ export const BALANCE = {
     { tier: 3, name: "Campus", staffCapacity: 16, weeklyRent: dollars(6_000), upgradeCost: dollars(1_500_000) },
   ],
 
+  // --- Garage desktops: standalone computer workstations the player buys to populate the office.
+  // Cosmetic flair (a fuller, more alive room), capped so the garage never looks cluttered. Each
+  // successive desktop costs a little more. `cost[i]` is the price of the (i+1)-th desktop. ---
+  desktops: {
+    max: 4,
+    cost: [dollars(18_000), dollars(32_000), dollars(52_000), dollars(80_000)] as Money[],
+  },
+
   // --- Tech eras: thresholds to advance (reputation OR cumulative revenue) ---
   eras: [
     { era: 1, name: "Garage Era", repToAdvance: 35, revToAdvance: dollars(500_000) },

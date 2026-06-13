@@ -773,9 +773,9 @@ function Monitor({ p, on, bright }: { p: RoomPalette; on: boolean; bright: boole
 
 // A workstation = desk + computer (monitor/keyboard/mouse) + the employee's robot, rendered at
 // the local origin facing +z. Callers position/rotate it. Each hired employee gets exactly one.
-function Workstation({ p, staff, seed, monitors, colorIdx }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number }) {
+function Workstation({ p, staff, seed, monitors, colorIdx, powered }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean }) {
   const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
-  const on = !!staff;
+  const on = !!staff || !!powered;
   const bright = monitors >= 2;
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   // 1 or 2 monitors clustered on the RIGHT side of the desk, angled toward the person.
@@ -826,6 +826,28 @@ function Workstation({ p, staff, seed, monitors, colorIdx }: { p: RoomPalette; s
           </group>
         )}
       </group>
+    </group>
+  );
+}
+
+// The player-bought desktops: 1–4 standalone, powered computer desks laid out in a single
+// centred row so the set always reads symmetric (auto-centres for any count). Screens face the
+// camera (+z). Purely decorative — they make the garage feel populated as the company grows.
+const DESKTOP_ROW_Z = 0.3;
+const DESKTOP_SPACING = 1.95;
+function DesktopPod({ p, count, monitors }: { p: RoomPalette; count: number; monitors: number }) {
+  const n = Math.max(0, Math.min(4, count));
+  if (n === 0) return null;
+  return (
+    <group>
+      {Array.from({ length: n }).map((_, i) => {
+        const x = (i - (n - 1) / 2) * DESKTOP_SPACING;
+        return (
+          <group key={i} position={[x, 0, DESKTOP_ROW_Z]} rotation-y={Math.PI}>
+            <Workstation p={p} seed={i * 1.7} monitors={monitors} colorIdx={i + 2} powered />
+          </group>
+        );
+      })}
     </group>
   );
 }
@@ -1427,7 +1449,7 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
@@ -1528,6 +1550,9 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {!inBuild && roaming.map((s, i) => (
         <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + i) % ROBOT_COLORS.length} seed={(seats.length + i) * 3.7} home={roamHomeFor(i)} />
       ))}
+      {/* Player-bought desktops — a tidy symmetric row. Hidden in Decorate mode (like the live
+          workstations) so they don't fight the editable furniture pieces. */}
+      {!inBuild && <DesktopPod p={p} count={desktops} monitors={monitors} />}
       <Props p={p} hasProduction={hasProduction} dark={dark} />
       <Dust />
       {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
@@ -1612,6 +1637,7 @@ export const Garage3D = memo(function Garage3D({
   dark,
   builder,
   roomStyle = { floor: 0, wall: 0 },
+  desktops = 0,
   onContextLost,
   onTapStaff,
   onTapBank,
@@ -1626,6 +1652,8 @@ export const Garage3D = memo(function Garage3D({
   dark: boolean;
   builder?: BuildProps;
   roomStyle?: { floor: number; wall: number };
+  /** How many player-bought desktops to show in the garage (0–4). */
+  desktops?: number;
   /** Called when the WebGL context is lost so the host can downgrade to the 2D fallback. */
   onContextLost?: () => void;
   /** Tap an employee → open their roster card (host navigates to Company). */
@@ -1655,7 +1683,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} onTapStaff={onTapStaff} onTapBank={onTapBank} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );
