@@ -34,6 +34,16 @@ const GRID_ORIGIN = -(GRID.n * GRID.cell) / 2;
 // the edges read as standing "outside the garage". Everything placeable lives within ±3.87 (the
 // 9×9 grid) and the fixed props within ±4.0, so 8.6 contains the whole room with a small margin.
 const FLOOR_SIZE = 8.6;
+const FLOOR_SLAB_THICKNESS = 0.4; // slab depth — gives the open dollhouse sides a finished plate edge
+const FLOOR_EDGE_RADIUS = 0.12;   // rounded slab corners
+// Low curbs that frame the two OPEN edges (front +z, right +x), derived from FLOOR_SIZE so they
+// track the floor: they sit just inside the rounded slab edge; the front curb spans the floor minus
+// its rounded corners; the right curb stops short so it doesn't double the front curb's corner.
+const CURB_H = 0.24;
+const CURB_T = 0.12;
+const CURB_EDGE = FLOOR_SIZE / 2 - 0.05; // ±4.25 — just inside the slab edge
+const CURB_LONG = FLOOR_SIZE - 0.1;      // 8.5 — front curb (minus the rounded corners)
+const CURB_SHORT = FLOOR_SIZE - 0.5;     // 8.1 — right curb (short of the front curb's corner)
 
 export interface BuildProps {
   build: boolean;
@@ -188,7 +198,7 @@ function Floor({ p, finish, dark }: { p: RoomPalette; finish: FloorFinish; dark:
           the ±4.2 walls on every side, so anything near the edge looked stranded outside the room.)
           The slab's thickness gives the open dollhouse sides — front (+z) and the culled right (+x)
           — a clean, premium plate edge instead of a hard cut. */}
-      <RoundedBox args={[FLOOR_SIZE, 0.4, FLOOR_SIZE]} radius={0.12} smoothness={3} position={[0, -0.2, 0]}>
+      <RoundedBox args={[FLOOR_SIZE, FLOOR_SLAB_THICKNESS, FLOOR_SIZE]} radius={FLOOR_EDGE_RADIUS} smoothness={3} position={[0, -FLOOR_SLAB_THICKNESS / 2, 0]}>
         <meshStandardMaterial color={color} roughness={finish.roughness} metalness={finish.metalness} />
       </RoundedBox>
       {zs.map((z, i) => (
@@ -493,12 +503,12 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
       </mesh>
       {/* Low curbs frame the two OPEN dollhouse edges (front +z, right +x) so the room footprint
           reads as a deliberate space on all four sides — the back/left already have wall baseboards. */}
-      <mesh position={[0, 0.12, 4.25]}>
-        <boxGeometry args={[8.5, 0.24, 0.12]} />
+      <mesh position={[0, CURB_H / 2, CURB_EDGE]}>
+        <boxGeometry args={[CURB_LONG, CURB_H, CURB_T]} />
         <meshStandardMaterial color={p.baseboard} roughness={0.85} />
       </mesh>
-      <mesh position={[4.25, 0.12, 0.2]}>
-        <boxGeometry args={[0.12, 0.24, 8.1]} />
+      <mesh position={[CURB_EDGE, CURB_H / 2, 0.2]}>
+        <boxGeometry args={[CURB_T, CURB_H, CURB_SHORT]} />
         <meshStandardMaterial color={p.baseboard} roughness={0.85} />
       </mesh>
       {showWhiteboard && (
