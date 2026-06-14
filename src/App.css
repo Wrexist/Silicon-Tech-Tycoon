@@ -7,6 +7,17 @@
 .app__main {
   padding: var(--sp-16) var(--edge) 0;
 }
+/* Screen-enter transition: every tab change remounts this (keyed by tab) and replays a quick
+   fade+rise so navigation feels smooth instead of a hard cut. The final keyframe is
+   `transform: none` (not translateY(0)) so no containing block lingers to trap position:fixed
+   children. Neutralized by the global prefers-reduced-motion catch-all in index.css. */
+.app__screen {
+  animation: app-screen-in var(--spring-snappy) both;
+}
+@keyframes app-screen-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
 .app__title {
   font-size: var(--fs-large-title);
   font-weight: 700;

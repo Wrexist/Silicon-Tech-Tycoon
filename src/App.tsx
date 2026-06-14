@@ -77,17 +77,20 @@ function AppShell() {
     <div className="app">
       <Hud onSettings={() => setSettingsOpen(true)} onOpenBank={() => setBankOpen(true)} />
       <main className="app__main">
-        <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
-        {/* Screen-level boundary: a crash in one screen shows an inline card here while the HUD +
-            bottom nav stay usable. Keyed by tab so navigating away clears a crashed screen. The
-            top-level boundary in App() remains the last resort. */}
-        <ErrorBoundary key={tab} fallback={<ScreenError onHome={() => setTab("hq")} />}>
-          {tab === "hq" && <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} />}
-          {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onGoToHQ={() => setTab("hq")} />}
-          {tab === "research" && <Research onNavigate={setTab} />}
-          {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
-          {tab === "company" && <Company />}
-        </ErrorBoundary>
+        {/* Keyed by tab so each screen remounts on navigation — this also replays the
+            `app__screen` enter animation (fast fade+rise) for a smooth tab change. The
+            screen-level ErrorBoundary shows an inline card on a crash while the HUD +
+            bottom nav stay usable; the top-level boundary in App() is the last resort. */}
+        <div className="app__screen" key={tab}>
+          <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
+          <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
+            {tab === "hq" && <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} />}
+            {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onGoToHQ={() => setTab("hq")} />}
+            {tab === "research" && <Research onNavigate={setTab} />}
+            {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
+            {tab === "company" && <Company />}
+          </ErrorBoundary>
+        </div>
         <div className="app__spacer" />
       </main>
 
