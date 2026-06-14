@@ -298,6 +298,10 @@ function CreativeModeGroup() {
       haptic.success();
       sfx("confirm");
       showToast("Creative Mode unlocked", { tone: "positive" });
+    } else if (res.status === "pending") {
+      // Ask-to-Buy / SCA: the charge is awaiting approval. It'll unlock automatically once it
+      // clears (the native transaction listener grants the entitlement).
+      showToast(res.message ?? "Purchase pending approval.", { tone: "neutral" });
     } else if (res.status !== "cancelled") {
       haptic.error();
       showToast(res.message ?? "Purchase unavailable right now.", { tone: "negative" });

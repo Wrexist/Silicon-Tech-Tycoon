@@ -70,22 +70,31 @@ describe("IAP entitlements + Sandbox unlock", () => {
   });
 });
 
-// Revenue-critical regression guard: on NATIVE, the unwired stub must never simulate a
-// purchase (that would give Creative Mode away for free on iOS — or worse, look like a
-// charge without StoreKit), and the purchase UI must be hidden (iapAvailable false).
-describe("IAP native gate (StoreKit unwired)", () => {
+// Revenue-critical regression guard. StoreKit is now WIRED (NATIVE_IAP_WIRED = true), so the
+// purchase UI is shown on native. The invariant that must never regress: the entitlement is
+// granted ONLY when the store confirms a purchase. If the native bridge can't complete a sale
+// (as in this test env, where no StoreKit runtime exists), nothing may be unlocked — a broken
+// or absent store must never give Creative Mode away for free, nor report a phantom "purchased".
+describe("IAP native gate (StoreKit wired)", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("web reports IAP available (simulated test channel)", () => {
     expect(iapAvailable()).toBe(true);
   });
 
-  it("native purchase is unavailable and grants nothing until StoreKit is wired", async () => {
+  it("native exposes the purchase UI now that StoreKit is wired", () => {
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
-    expect(iapAvailable()).toBe(false); // Settings hides the buy/restore UI on this
+    expect(iapAvailable()).toBe(true);
+  });
+
+  it("native purchase never unlocks unless StoreKit confirms it", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    // No real StoreKit bridge in the test env → the purchase cannot complete.
     const res = await purchaseSandbox();
-    expect(res.status).toBe("unavailable");
+    expect(res.status).not.toBe("purchased");
     expect(hasSandboxEntitlement()).toBe(false);
+    // Restore likewise grants nothing without a confirmed entitlement.
     expect((await restoreSandbox()).restored).toBe(false);
+    expect(hasSandboxEntitlement()).toBe(false);
   });
 });

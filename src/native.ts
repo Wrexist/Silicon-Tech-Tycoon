@@ -1,6 +1,7 @@
 // Native-platform init (Capacitor only). On web/PWA every call here is a guarded no-op
 // and must never throw — the same bundle runs in the browser and inside the iOS shell.
 import { Capacitor } from "@capacitor/core";
+import { initIapListeners } from "./state/iap.ts";
 
 /** Keep the iOS status bar glyphs readable on the CURRENT theme. Style.Dark = light glyphs
  *  (for the dark UI), Style.Light = dark glyphs (for the light UI — the default on most
@@ -21,6 +22,9 @@ export async function initNative(resolvedTheme: "light" | "dark"): Promise<void>
   if (!Capacitor.isNativePlatform()) return;
   try {
     await syncStatusBar(resolvedTheme);
+    // Start listening for StoreKit transactions approved out-of-band (Ask-to-Buy, Family Sharing,
+    // re-downloads) so a deferred purchase grants Creative Mode the moment it clears. No-op on web.
+    void initIapListeners();
     const { SplashScreen } = await import("@capacitor/splash-screen");
     // Hide the splash now that the React tree has mounted.
     await SplashScreen.hide().catch(() => {});
