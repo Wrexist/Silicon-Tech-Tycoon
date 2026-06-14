@@ -1088,7 +1088,7 @@ function BuildWizard({
             />
             <Stat
               label="Runway"
-              value={runway === Infinity ? "∞" : `${runway} wk`}
+              value={runway === Infinity || runway >= 520 ? "10+ yr" : runway >= 104 ? `${Math.round(runway / 52)} yr` : `${runway} wk`}
               tone={runwayRisky ? "negative" : undefined}
               hint={`build takes ${buildWks} wk`}
             />
