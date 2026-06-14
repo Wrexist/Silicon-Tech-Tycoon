@@ -471,7 +471,7 @@ export interface ProductionPlan {
   totalUpfront: Money;
   launchScore: number;
   demandFit: number; // 0..100 — how well the product matches current demand
-  priceFit: number; // 0.15..1.35 — price fairness vs. perceived value (1 = on the money)
+  priceFit: number; // 0..1.35 — price fairness vs. perceived value (1 = on the money; →0 = gouging)
   hype: number; // total launch hype multiplier (reputation + marketing)
   overall: number; // product's overall quality score
   matchingRivals: number; // rivals roughly as good as you, splitting the market
@@ -553,7 +553,7 @@ export function planProduction(
 
   const demandFit = breakdown.demand;
   const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
-  const organic = forecast(breakdown.launchScore, marketSize).totalUnits;
+  const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
   const marketDemand = Math.round(organic * competitionFactor);
   // B4 — cap fan pre-orders to a share of TOTAL demand so a huge fanbase can't single-handedly
   // satisfy (and guarantee a sellout of) a token run. Pre-orders may cover at most preOrderCap of

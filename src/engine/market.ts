@@ -67,7 +67,9 @@ export function hypeMultiplier(reputation: number, marketerSkill: number): numbe
   return Math.min(h.max, Math.max(h.base, raw));
 }
 
-/** 0.15..1.35 — how fair the price feels vs. perceived value (asymmetric: overpricing hurts more). */
+/** 0..1.35 — how fair the price feels vs. perceived value. Asymmetric: UNDERpricing keeps a floor
+ *  (a cheap product still sells) but OVERpricing craters toward 0, so demand is genuinely
+ *  price-elastic and gouging fails (no "max price always sells"). */
 export function priceFit(price: Money, stats: Stats, category: CategoryId): number {
   const p = BALANCE.market.price;
   const perceived = overallScore(stats, category); // 0..100
@@ -78,7 +80,13 @@ export function priceFit(price: Money, stats: Stats, category: CategoryId): numb
   const fit = Math.exp(-(dev * dev) / (2 * p.tolerance * p.tolerance));
   // Slight volume reward for modest underpricing.
   const underBoost = ratio < 1 ? (1 - ratio) * 0.25 : 0;
-  return Math.min(p.maxFit, Math.max(p.minFit, fit + underBoost));
+  const raw = fit + underBoost;
+  // Asymmetric floor. Underpricing keeps minFit (cheap stays teachable); overpricing is allowed to
+  // decay to ~0. The old symmetric [minFit, maxFit] clamp made demand INELASTIC above ~1.8× fair —
+  // units stopped falling while revenue = units × price kept climbing, so max price always won.
+  // Letting the overpriced tail crater makes revenue peak near the fair price and gouging lose.
+  const floored = ratio <= 1 ? Math.max(p.minFit, raw) : raw;
+  return Math.min(p.maxFit, Math.max(0, floored));
 }
 
 /** B5 — the price band where priceFit stays ≥ guidanceFitFloor, shown to the player INSTEAD of

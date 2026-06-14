@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dollars, toDollars } from "./money.ts";
+import { dollars, toDollars, type Money } from "./money.ts";
 import { BALANCE } from "./balance.ts";
 import { COMPONENT_LINES, CATEGORIES, maxTier } from "./catalogs.ts";
 import { computeStats, buildCost, overallScore, missingSlots } from "./product.ts";
@@ -101,6 +101,27 @@ describe("market simulation", () => {
     const fair = priceFit(dollars(600), stats, "phone");
     const gouge = priceFit(dollars(3000), stats, "phone");
     expect(gouge).toBeLessThan(fair);
+  });
+
+  it("overpricing collapses revenue — a fair price out-earns gouging (no max-price exploit)", () => {
+    const stats = computeStats(phone({ tiers: { chip: 4, display: 4, battery: 3, materials: 3, software: 3, camera: 3 } }));
+    const fairP = priceGuidance(stats, "phone").fair;
+    const sim = (price: Money) => {
+      const bd = scoreLaunch({ stats, category: "phone", price, trends, reputation: 40, marketerSkill: 5, competitorStrength: 10 });
+      const units = forecast(bd.launchScore, 1, bd.priceFit).totalUnits;
+      return { units, revenue: units * toDollars(price) };
+    };
+    const fair = sim(fairP);
+    const dbl = sim(dollars(toDollars(fairP) * 2));
+    const gouge = sim(dollars(toDollars(fairP) * 6));
+    // pricing DOUBLE the fair value loses revenue; a 6× gouge collapses it (units crater faster
+    // than price climbs) — so "set max price, sell anyway" is no longer a winning strategy.
+    expect(dbl.revenue).toBeLessThan(fair.revenue);
+    expect(gouge.revenue).toBeLessThan(fair.revenue * 0.2);
+    // units crater at the gouge price — the teachable floor doesn't prop gouging up
+    expect(gouge.units).toBeLessThan(fair.units * 0.1);
+    // sanity: a fairly-priced product of this quality still sells well (not floored)
+    expect(fair.units).toBeGreaterThan(BALANCE.sales.floorUnits * 5);
   });
 
   it("priceGuidance brackets the fair price with an asymmetric, fit-honest band (B5)", () => {
