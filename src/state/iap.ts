@@ -162,6 +162,19 @@ export async function restoreSandbox(): Promise<{ restored: boolean }> {
   return { restored: hasSandboxEntitlement() };
 }
 
+/** Window event fired when the owned entitlement changes out-of-band (an Ask-to-Buy / Family
+ *  Sharing approval that lands while the app is open). The Settings UI listens for it so the
+ *  "owned" state refreshes live instead of waiting for a remount. */
+export const IAP_ENTITLEMENT_EVENT = "silicon:iap-entitlement-updated";
+
+/** Apply a StoreKit transaction that cleared outside an active purchase() call: grant the
+ *  entitlement and notify any mounted UI. Exported (and bridge-free) so it's unit-testable. */
+export function applyTransactionUpdate(productId: string | undefined): void {
+  if (productId !== SANDBOX_PRODUCT_ID) return;
+  grantSandboxEntitlement();
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(IAP_ENTITLEMENT_EVENT));
+}
+
 /** Listen for transactions approved out-of-band (Ask-to-Buy, Family Sharing, another device) and
  *  grant the entitlement live. Idempotent and safe to call once at native boot (see native.ts). */
 let listenerHandle: PluginListenerHandle | null = null;
@@ -169,7 +182,7 @@ export async function initIapListeners(): Promise<void> {
   if (!isNative() || listenerHandle) return;
   try {
     listenerHandle = await storeKit().addListener("transactionUpdated", (data) => {
-      if (data?.productId === SANDBOX_PRODUCT_ID) grantSandboxEntitlement();
+      applyTransactionUpdate(data?.productId);
     });
   } catch {
     /* listener unsupported on this build — buy/restore still work without it */

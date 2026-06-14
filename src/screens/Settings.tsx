@@ -21,7 +21,7 @@ import { format, toDollars } from "../engine/money.ts";
 import { netWorth } from "../state/gameState.ts";
 import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
 import { hasSandboxEntitlement } from "../state/entitlements.ts";
-import { getSandboxProduct, iapAvailable, purchaseSandbox, restoreSandbox, type ProductInfo } from "../state/iap.ts";
+import { getSandboxProduct, iapAvailable, purchaseSandbox, restoreSandbox, IAP_ENTITLEMENT_EVENT, type ProductInfo } from "../state/iap.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./settings.css";
 
@@ -285,6 +285,14 @@ function CreativeModeGroup() {
     let live = true;
     getSandboxProduct().then((p) => { if (live) setProduct(p); });
     return () => { live = false; };
+  }, []);
+
+  // Out-of-band approvals (Ask-to-Buy / Family Sharing) grant the entitlement from a native
+  // callback; refresh the owned state live so the toggle appears without needing a remount.
+  useEffect(() => {
+    const refresh = () => setOwned(hasSandboxEntitlement());
+    window.addEventListener(IAP_ENTITLEMENT_EVENT, refresh);
+    return () => window.removeEventListener(IAP_ENTITLEMENT_EVENT, refresh);
   }, []);
 
   async function buy() {
