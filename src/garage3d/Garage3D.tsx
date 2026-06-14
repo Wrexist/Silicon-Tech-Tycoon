@@ -830,11 +830,13 @@ function Workstation({ p, staff, seed, monitors, colorIdx, powered }: { p: RoomP
   );
 }
 
-// The player-bought desktops: 1–4 standalone computer desks laid out in a single centred row so
-// the set always reads symmetric (auto-centres for any count). Oriented like the founder's desk —
-// the seated robot faces the camera — so a hired employee sits here exactly as the first one does.
+// The player-bought desks: 1–4 standalone computer desks laid out in a single centred row so the
+// set always reads symmetric (auto-centres for any count). Oriented like the founder's desk — the
+// seated robot faces the camera — so a hired employee sits here exactly as the first one does. The
+// row sits in the open back-centre, a clear gap behind the founder's desk (and well clear of the
+// front lounge), so a full team reads as founder-in-front + a tidy desk bank behind, never a pile-up.
 // Empty (unstaffed) desks still render powered-on, so the office looks set up before it's filled.
-const DESKTOP_ROW_Z = 0.3;
+const DESKTOP_ROW_Z = -2.2;
 const DESKTOP_SPACING = 1.95;
 function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));

@@ -437,7 +437,7 @@ export function desktopCost(owned: number): Money | null {
 export function buyDesktop(state: GameState): GameState {
   const cost = desktopCost(state.desktops);
   if (cost === null || state.cash < cost) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, "Set up a new desktop workstation in the garage.", "accent")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, "Set up a new office desk in the garage.", "accent")]);
   return { ...state, cash: sub(state.cash, cost), desktops: state.desktops + 1, feed };
 }
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");

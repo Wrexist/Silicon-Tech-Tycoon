@@ -627,9 +627,9 @@ function Upgrades() {
             <div className="hqu__card-head">
               <span className="hqu__glyph" aria-hidden><Monitor size={18} /></span>
               <div className="hqu__info">
-                <span className="hqu__name">Desktops</span>
+                <span className="hqu__name">Office Desks</span>
                 <span className="hqu__effect">
-                  {owned > 0 ? `${owned} workstation${owned > 1 ? "s" : ""} set up in the garage` : "Add computer workstations to your garage"}
+                  {owned > 0 ? `${owned} desk${owned > 1 ? "s" : ""} — each seats a new hire` : "Add a desk to the garage to seat another hire"}
                 </span>
               </div>
               <span className="hqu__lv tnum">{owned}/{BALANCE.desktops.max}</span>
@@ -650,9 +650,9 @@ function Upgrades() {
                 size="sm"
                 variant={affordable ? "primary" : "tertiary"}
                 disabled={!affordable}
-                onClick={() => { buyDesktop(); celebrate("desktops", owned + 1, "Desktop added"); }}
+                onClick={() => { buyDesktop(); celebrate("desktops", owned + 1, "Desk added"); }}
               >
-                <ArrowUp size={14} /> Buy desktop · {cost !== null ? format(cost) : "—"}
+                <ArrowUp size={14} /> Buy desk · {cost !== null ? format(cost) : "—"}
               </Button>
             )}
           </Card>
