@@ -8,15 +8,16 @@
   padding: var(--sp-16) var(--edge) 0;
 }
 /* Screen-enter transition: every tab change remounts this (keyed by tab) and replays a quick
-   fade+rise so navigation feels smooth instead of a hard cut. The final keyframe is
-   `transform: none` (not translateY(0)) so no containing block lingers to trap position:fixed
-   children. Neutralized by the global prefers-reduced-motion catch-all in index.css. */
+   cross-fade so navigation feels smooth instead of a hard cut. OPACITY-ONLY on purpose — a
+   transform here (even one ending at `none`) makes the element a containing block on iOS WebKit,
+   which traps position:fixed descendants like the Design step nav (they'd scroll with content).
+   The per-card stagger below carries the motion. Neutralized by prefers-reduced-motion (index.css). */
 .app__screen {
   animation: app-screen-in var(--spring-snappy) both;
 }
 @keyframes app-screen-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 /* Per-card stagger: under the keyed screen remount, each screen's top-level cards resolve in
    sequence for a premium "settling" entrance on top of the container's rise. FADE-ONLY (no
