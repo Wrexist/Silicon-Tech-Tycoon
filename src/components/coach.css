@@ -6,7 +6,7 @@
   z-index: 28;
   width: min(calc(100% - 2 * var(--edge)), 500px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sp-12);
   padding: var(--sp-12) var(--sp-12) var(--sp-12) var(--sp-16);
   background: var(--glass);
@@ -43,6 +43,8 @@
 .coach__body {
   flex: 1;
   min-width: 0;
+  /* clears the corner close button so the title never runs under it */
+  padding-right: var(--sp-24);
 }
 .coach__title {
   font-size: var(--fs-caption);
@@ -56,13 +58,15 @@
   line-height: 1.35;
   margin-top: var(--sp-2);
 }
+.coach__actions {
+  margin-top: var(--sp-12);
+}
 
 .coach__cta {
-  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: var(--sp-4);
-  padding: var(--sp-8) var(--sp-12);
+  padding: var(--sp-8) var(--sp-16);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--accent-ink);
@@ -75,7 +79,9 @@
 }
 
 .coach__skip {
-  flex-shrink: 0;
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
   width: 40px;
   height: 40px;
   display: grid;
