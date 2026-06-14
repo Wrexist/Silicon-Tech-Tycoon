@@ -19,7 +19,7 @@ export function Bank({ open, onClose }: { open: boolean; onClose: () => void }) 
   const net = sub(wkRev, wkBurn);
   const runway = runwayWeeks(state.cash, wkBurn, wkRev);
   const runwayTone = runway === Infinity ? "good" : runway < 8 ? "bad" : runway < 20 ? "warn" : "good";
-  const runwayText = runway === Infinity ? "Profitable" : runway > 52 ? `${Math.round(runway / 52)}y runway` : `${runway} wk runway`;
+  const runwayText = runway === Infinity ? "Profitable" : runway > 520 ? "10y+ runway" : runway > 52 ? `${Math.round(runway / 52)}y runway` : `${runway} wk runway`;
 
   const portfolio = holdingsValue(state.holdings, state.competitors);
   const stake = founderStakeValue(state);

@@ -424,8 +424,8 @@
 }
 .co__member-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--sp-8);
 }
 .co__assign {
@@ -435,7 +435,10 @@
   padding: 3px;
   border-radius: var(--r-pill);
 }
+/* even segments so the assignment row reads as one clean control and the Train button below it
+   has full width (it was clipping off the card edge when crammed onto the same row). */
 .co__assign-opt {
+  flex: 1;
   min-height: 38px;
   display: inline-flex;
   align-items: center;

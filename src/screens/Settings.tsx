@@ -333,15 +333,18 @@ function CreativeModeGroup() {
         </Row>
       ) : (
         <>
-          <Row
-            icon={<Lock size={18} />}
-            label="Creative Mode"
-            sub="Design freely with no financial limits — an unlimited cash floor so you can never go bankrupt."
-          >
-            <Button onClick={buy} disabled={busy}>
-              {busy ? "…" : `Unlock · ${product?.price ?? "$2.99"}`}
-            </Button>
-          </Row>
+          {/* full-width description + CTA on its own row: a wide "Unlock" button inline with the
+              text squeezed the copy into an unreadable narrow column (same trap as the coach card). */}
+          <div className="set__row">
+            <span className="set__row-icon"><Lock size={18} /></span>
+            <div className="set__row-text">
+              <span className="set__row-label">Creative Mode</span>
+              <span className="set__row-sub">Design freely with no financial limits — an unlimited cash floor so you can never go bankrupt.</span>
+            </div>
+          </div>
+          <Button block onClick={buy} disabled={busy}>
+            {busy ? "…" : `Unlock · ${product?.price ?? "$2.99"}`}
+          </Button>
           <button className="set__restore" onClick={restore}>Restore purchase</button>
         </>
       )}

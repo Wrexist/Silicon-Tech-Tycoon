@@ -828,7 +828,7 @@ function Member({
           ))}
         </div>
         <Button size="sm" variant={cash >= cost && !maxed ? "secondary" : "tertiary"} disabled={maxed || cash < cost} onClick={() => onTrain(s.id)}>
-          <ArrowUp size={13} /> {maxed ? "Max" : format(cost)}
+          <ArrowUp size={13} /> {maxed ? "Max skill" : `Train · ${format(cost)}`}
         </Button>
       </div>
       {isMisfit && (

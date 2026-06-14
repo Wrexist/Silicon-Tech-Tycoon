@@ -8,15 +8,16 @@
   padding: var(--sp-16) var(--edge) 0;
 }
 /* Screen-enter transition: every tab change remounts this (keyed by tab) and replays a quick
-   fade+rise so navigation feels smooth instead of a hard cut. The final keyframe is
-   `transform: none` (not translateY(0)) so no containing block lingers to trap position:fixed
-   children. Neutralized by the global prefers-reduced-motion catch-all in index.css. */
+   cross-fade so navigation feels smooth instead of a hard cut. OPACITY-ONLY on purpose — a
+   transform here (even one ending at `none`) makes the element a containing block on iOS WebKit,
+   which traps position:fixed descendants like the Design step nav (they'd scroll with content).
+   The per-card stagger below carries the motion. Neutralized by prefers-reduced-motion (index.css). */
 .app__screen {
   animation: app-screen-in var(--spring-snappy) both;
 }
 @keyframes app-screen-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 /* Per-card stagger: under the keyed screen remount, each screen's top-level cards resolve in
    sequence for a premium "settling" entrance on top of the container's rise. FADE-ONLY (no
@@ -150,6 +151,33 @@
 .onboard__name:focus {
   outline: none;
   border-color: var(--accent);
+  /* crisp accent ring (solid spread, not a blur glow) — premium focus affordance on tap */
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Premium first impression: onboarding content reveals in a gentle stagger (logo → title → steps
+   → form) instead of all at once. Pure entrance; neutralized by prefers-reduced-motion (index.css). */
+.onboard__inner > * {
+  animation: onboard-rise var(--spring-gentle) both;
+}
+.onboard__inner > *:nth-child(1) { animation-delay: 60ms; }
+.onboard__inner > *:nth-child(2) { animation-delay: 130ms; }
+.onboard__inner > *:nth-child(3) { animation-delay: 200ms; }
+.onboard__inner > *:nth-child(4) { animation-delay: 280ms; }
+.onboard__inner > *:nth-child(5) { animation-delay: 360ms; }
+.onboard__inner > *:nth-child(6) { animation-delay: 420ms; }
+.onboard__inner > *:nth-child(7) { animation-delay: 480ms; }
+@keyframes onboard-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+/* logo gets a touch of scale for a crafted entrance (specificity matches the nth-child rule and
+   is declared after it, so it wins). */
+.onboard__inner > .onboard__logo {
+  animation: onboard-logo var(--spring-gentle) 40ms both;
+}
+@keyframes onboard-logo {
+  from { opacity: 0; transform: translateY(8px) scale(0.85); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* Sheets */

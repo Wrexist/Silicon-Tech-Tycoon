@@ -164,7 +164,7 @@ export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; o
         const wkRev = nextWeekRevenue(state);
         const runway = runwayWeeks(state.cash, wkBurn, wkRev);
         // The pill is already labelled "Runway" — keep the value short so it doesn't read "Runway 7wk runway".
-        const runwayLabel = runway === Infinity ? "Profitable" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
+        const runwayLabel = runway === Infinity ? "Profitable" : runway > 520 ? "10y+" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
         const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
         return (
           <div className="hq__fin-pills">
@@ -1068,7 +1068,7 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
       <div className="hq__perf-grid">
         <div className="hq__perf-item">
           <span className="hq__perf-val tnum">{state.launched.length}</span>
-          <span className="hq__perf-label">Products</span>
+          <span className="hq__perf-label">Shipped</span>
         </div>
         <div className="hq__perf-item">
           <span className="hq__perf-val tnum hq__perf-val--positive">{hits}</span>
