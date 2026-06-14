@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { dollars, toDollars, type Money } from "./money.ts";
 import { BALANCE } from "./balance.ts";
 import { COMPONENT_LINES, CATEGORIES, maxTier } from "./catalogs.ts";
-import { computeStats, buildCost, overallScore, missingSlots } from "./product.ts";
+import { componentSynergy, computeStats, buildCost, overallScore, missingSlots } from "./product.ts";
 import {
   initialTrends,
   advanceTrends,
@@ -122,6 +122,32 @@ describe("market simulation", () => {
     expect(gouge.units).toBeLessThan(fair.units * 0.1);
     // sanity: a fairly-priced product of this quality still sells well (not floored)
     expect(fair.units).toBeGreaterThan(BALANCE.sales.floorUnits * 5);
+  });
+
+  it("component synergy: a bottleneck scores below a balanced build; a coherent flagship earns a bonus", () => {
+    const balanced = componentSynergy(phone({ tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 2 } }));
+    const bottleneck = componentSynergy(phone({ tiers: { chip: 6, display: 1, battery: 4, materials: 4, software: 4, camera: 3 } }));
+    const flagship = componentSynergy(phone({ tiers: { chip: 6, display: 6, battery: 6, materials: 5, software: 5, camera: 4 } }));
+    // a glaring weak link drags the build down and is named; a coherent build flags none
+    expect(bottleneck.factor).toBeLessThan(balanced.factor);
+    expect(bottleneck.weakest).toBe("display");
+    expect(balanced.weakest).toBeNull();
+    // a maxed, coherent flagship earns the small bonus
+    expect(flagship.factor).toBeGreaterThan(1);
+    // everything stays bounded
+    const s = BALANCE.market.synergy;
+    for (const r of [balanced, bottleneck, flagship]) {
+      expect(r.factor).toBeGreaterThanOrEqual(s.minFactor);
+      expect(r.factor).toBeLessThanOrEqual(s.maxFactor);
+    }
+  });
+
+  it("synergy scales the launch score and defaults to 1", () => {
+    const stats = computeStats(phone());
+    const base = scoreLaunch({ stats, category: "phone", price: dollars(600), trends, reputation: 30, marketerSkill: 5, competitorStrength: 0 });
+    const penalized = scoreLaunch({ stats, category: "phone", price: dollars(600), trends, reputation: 30, marketerSkill: 5, competitorStrength: 0, synergy: 0.8 });
+    expect(base.synergy).toBe(1);
+    expect(penalized.launchScore).toBeCloseTo(base.launchScore * 0.8, 5);
   });
 
   it("priceGuidance brackets the fair price with an asymmetric, fit-honest band (B5)", () => {

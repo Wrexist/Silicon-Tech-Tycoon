@@ -1,6 +1,6 @@
 // Product stat computation + build cost. PURE.
 import { BALANCE } from "./balance.ts";
-import { CATEGORIES, tierDef } from "./catalogs.ts";
+import { CATEGORIES, tierDef, maxTier } from "./catalogs.ts";
 import { sum, type Money, ZERO } from "./money.ts";
 import {
   STAT_KEYS,
@@ -84,4 +84,27 @@ export function overallScore(stats: Stats, category: Product["category"]): numbe
     acc += w * stats[key];
   }
   return Math.round(acc / wSum);
+}
+
+/**
+ * Component-combination synergy: a product is judged on its WEAKEST link, not just the sum of parts
+ * (pillar #5 — the combination of components should matter, not just maxing each slot). Each
+ * applicable slot's chosen tier is normalised to 0..1 of its line's range; a coherent build keeps
+ * the factor ≈ 1, a flagship dragged down by one budget component is penalised, and a balanced
+ * high-end build earns a small bonus. Bounded by balance.synergy so it nudges, never dominates.
+ * Returns the multiplier plus the weakest slot (for a readable "weak link" callout), or null when
+ * the build is coherent enough not to flag one.
+ */
+export function componentSynergy(product: Product): { factor: number; weakest: ComponentKind | null } {
+  const slots = CATEGORIES[product.category].slots;
+  const levels = slots.map((kind) => ({ kind, level: maxTier(kind) > 0 ? (product.tiers[kind] ?? 0) / maxTier(kind) : 0 }));
+  if (levels.length === 0) return { factor: 1, weakest: null };
+  const mean = levels.reduce((a, b) => a + b.level, 0) / levels.length;
+  const weakest = levels.reduce((a, b) => (b.level < a.level ? b : a));
+  const bottleneck = Math.max(0, mean - weakest.level); // 0..1 — how far the weakest link sits below the build
+  const s = BALANCE.market.synergy;
+  let factor = 1 - bottleneck * s.bottleneckPenalty;
+  if (mean >= s.flagshipMeanFloor && bottleneck <= s.flagshipMaxGap) factor += s.flagshipBonus;
+  factor = clamp(factor, s.minFactor, s.maxFactor);
+  return { factor, weakest: bottleneck > s.weakestThreshold ? weakest.kind : null };
 }

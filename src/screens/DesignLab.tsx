@@ -12,7 +12,7 @@ import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
-import { buildCost, computeStats, missingSlots, overallScore } from "../engine/product.ts";
+import { buildCost, componentSynergy, computeStats, missingSlots, overallScore } from "../engine/product.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
 import type {
@@ -189,6 +189,9 @@ export function DesignLab({
     : priceRatio < 1.8 ? "var(--warning)"
     : "var(--negative)";
 
+  // Component-combination synergy (weak-link penalty / coherent-build bonus) — surfaced live so the
+  // player sees how the MIX of components scores, not just each slot maxed in isolation.
+  const syn = componentSynergy(draft);
   const breakdown = scoreLaunch({
     stats,
     category: draft.category,
@@ -198,6 +201,7 @@ export function DesignLab({
     marketerSkill: marketerSkill(state),
     competitorStrength: 0,
     hypeBonus: hypeBonus(state),
+    synergy: syn.factor,
   });
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
@@ -319,6 +323,7 @@ export function DesignLab({
         )}
         <div className="lab__verdict">
           <StatPill label="Fit" value={`${fit}`} tone={fit >= 60 ? "positive" : "neutral"} />
+          {syn.weakest && <StatPill label="Weak link" value={`${syn.weakest[0].toUpperCase()}${syn.weakest.slice(1)}`} tone="negative" />}
           <StatPill value={verdict.label} tone={verdict.tone} />
         </div>
       </div>
@@ -1001,6 +1006,8 @@ function BuildWizard({
       : plan.matchingRivals > 0 ? `${plan.matchingRivals} rival${plan.matchingRivals > 1 ? "s" : ""} match you`
         : "Clear field";
   const compTone = plan.betterRivals > 0 ? "negative" : plan.matchingRivals > 0 ? "accent" : "positive";
+  const balanceLabel = plan.synergy >= 1.0 ? "Balanced" : plan.synergy >= 0.95 ? "Slightly off" : "Unbalanced";
+  const balanceTone = plan.synergy >= 1.0 ? "positive" : plan.synergy >= 0.95 ? "accent" : "negative";
 
   return (
     <div className="wiz">
@@ -1069,6 +1076,8 @@ function BuildWizard({
             <Stat label="Demand fit" value={`${Math.round(plan.demandFit)}`} tone={fitTone} hint={fitLabel} />
             <Stat label="Price fit" value={priceFit.label} tone={priceFit.tone} />
             <Stat label="Competition" value={compLabel} tone={compTone} />
+            <Stat label="Balance" value={balanceLabel} tone={balanceTone} hint={plan.synergy < 0.97 ? "a weak component drags this down" : "components are well-matched"} />
+
             {plan.selfCompeting > 0 && (
               <Stat
                 label="Cannibalization"

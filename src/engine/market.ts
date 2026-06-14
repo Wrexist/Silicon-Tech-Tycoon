@@ -128,6 +128,7 @@ export interface LaunchBreakdown {
   hype: number;
   priceFit: number;
   competitionFactor: number; // 0..1 share multiplier
+  synergy: number; // 0.8..1.06 — component-combination balance (bottleneck penalty / flagship bonus)
   launchScore: number;
 }
 
@@ -141,6 +142,9 @@ export function scoreLaunch(args: {
   marketerSkill: number;
   competitorStrength: number;
   hypeBonus?: number;
+  /** Component-combination synergy multiplier (see product.componentSynergy). Defaults to 1 so
+   *  callers that don't model it (and the bounds tests) are unaffected. */
+  synergy?: number;
 }): LaunchBreakdown {
   const demand = demandScore(args.stats, args.trends, args.category);
   // Total hype must be bounded: the base multiplier is already clamped to h.max, but
@@ -154,6 +158,7 @@ export function scoreLaunch(args: {
   const hype = Math.min(hypeCeiling, Math.max(0, rawHype));
   const pf = priceFit(args.price, args.stats, args.category);
   const competitionFactor = 1 / (1 + args.competitorStrength * BALANCE.market.competition.factorK);
-  const launchScore = Math.max(0, demand * hype * pf * competitionFactor);
-  return { demand, hype, priceFit: pf, competitionFactor, launchScore };
+  const synergy = args.synergy ?? 1;
+  const launchScore = Math.max(0, demand * hype * pf * competitionFactor * synergy);
+  return { demand, hype, priceFit: pf, competitionFactor, synergy, launchScore };
 }

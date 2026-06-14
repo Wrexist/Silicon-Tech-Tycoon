@@ -69,6 +69,19 @@ export const BALANCE = {
       minFit: 0.15, // floor for UNDERpricing only — overpricing is allowed to crater to ~0 (elastic demand)
       maxFit: 1.35,
     },
+    // Component-combination synergy: a build is judged on its WEAKEST link, not just the sum of
+    // parts. A coherent build keeps factor ≈ 1; a flagship dragged down by one budget component is
+    // penalised; a balanced, high-end build earns a small flagship bonus. Bounded so it nudges,
+    // never dominates — makes "which combination of components" a real design decision.
+    synergy: {
+      bottleneckPenalty: 0.35, // factor lost per unit of (mean level − weakest level)
+      flagshipBonus: 0.06,     // coherent + high-end build bonus
+      flagshipMeanFloor: 0.7,  // mean component level needed to qualify for the bonus
+      flagshipMaxGap: 0.15,    // max weakest-link gap still counted as "coherent"
+      weakestThreshold: 0.18,  // surface a "weak link" callout above this gap
+      minFactor: 0.8,
+      maxFactor: 1.06,
+    },
     competition: {
       // Competition is a *share multiplier* (never erases a viable product):
       // factor = 1 / (1 + competitorStrength * factorK).

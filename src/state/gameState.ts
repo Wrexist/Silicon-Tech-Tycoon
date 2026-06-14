@@ -83,7 +83,7 @@ import {
   ZERO,
   type Money,
 } from "../engine/money.ts";
-import { buildCost, computeStats, missingSlots, overallScore } from "../engine/product.ts";
+import { buildCost, componentSynergy, computeStats, missingSlots, overallScore } from "../engine/product.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -478,6 +478,7 @@ export interface ProductionPlan {
   betterRivals: number; // rivals clearly better than you
   selfCompeting: number; // your OWN products still selling in this category (cannibalization)
   competitionFactor: number; // 0..1 share you keep after competition
+  synergy: number; // 0.8..1.06 — component-combination balance (weak-link penalty / flagship bonus)
   preOrders: number; // guaranteed buyers from your fanbase
   marketDemand: number; // additional organic demand (after competition)
   totalDemand: number; // preOrders + marketDemand
@@ -521,6 +522,9 @@ export function planProduction(
     // channel) before it reaches scoreLaunch, which also clamps total hype. Without this,
     // stacking many visionary marketers makes launchScore/volume explode. Safety guard.
     hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, hypeBonus(s) + channel.hype)),
+    // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
+    // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
+    synergy: componentSynergy(product).factor,
   });
 
   const overall = overallScore(stats, product.category);
@@ -593,6 +597,7 @@ export function planProduction(
     betterRivals,
     selfCompeting,
     competitionFactor,
+    synergy: breakdown.synergy,
     preOrders,
     marketDemand,
     totalDemand,
