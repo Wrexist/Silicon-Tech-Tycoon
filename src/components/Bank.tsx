@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, FlaskConical, Landmark, LineChart, PiggyBank, Wallet } from "lucide-react";
 import { Sheet } from "../design/primitives.tsx";
+import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format, sub, toDollars } from "../engine/money.ts";
 import { holdingsValue } from "../engine/stocks.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -37,8 +38,8 @@ export function Bank({ open, onClose }: { open: boolean; onClose: () => void }) 
         {/* Hero: cash on hand + this week's flow */}
         <div className="bank__hero">
           <span className="bank__hero-label">Cash on hand</span>
-          <div className={`bank__hero-value tnum${toDollars(state.cash) < 0 ? " bank__hero-value--neg" : ""}`}>
-            {format(state.cash)}
+          <div className={`bank__hero-value${toDollars(state.cash) < 0 ? " bank__hero-value--neg" : ""}`}>
+            <AnimatedMoney value={state.cash} />
           </div>
           <div className="bank__flow">
             <span className="bank__flow-chip bank__flow-chip--in">
@@ -59,7 +60,7 @@ export function Bank({ open, onClose }: { open: boolean; onClose: () => void }) 
         <div className="bank__section-label">Your wealth</div>
         <div className="bank__networth">
           <span className="bank__networth-label">Net worth</span>
-          <span className="bank__networth-value tnum">{format(nw)}</span>
+          <span className="bank__networth-value"><AnimatedMoney value={nw} /></span>
         </div>
         <div className="bank__rows">
           <Row glyph={<Wallet size={16} />} label="Cash" value={format(state.cash)} />

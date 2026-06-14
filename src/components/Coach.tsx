@@ -26,21 +26,25 @@ export function Coach({ tab, onNavigate }: { tab: Tab; onNavigate: (t: Tab) => v
 
   return (
     <div className="coach" role="status" aria-live="polite" style={{ "--coach-accent": step.color } as CSSProperties}>
+      {!step.done && (
+        <button className="coach__skip" aria-label="Skip tutorial" onClick={dismissTutorial}><X size={15} /></button>
+      )}
       <div className="coach__glyph"><step.icon size={18} /></div>
       <div className="coach__body">
         <div className="coach__title">{step.title}</div>
         <div className="coach__text">{step.text}</div>
+        {step.done ? (
+          <div className="coach__actions">
+            <button className="coach__cta" onClick={dismissTutorial}>Got it</button>
+          </div>
+        ) : step.cta ? (
+          <div className="coach__actions">
+            <button className="coach__cta" onClick={() => onNavigate(step.cta!.tab)}>
+              {step.cta.label} <ArrowRight size={14} />
+            </button>
+          </div>
+        ) : null}
       </div>
-      {step.done ? (
-        <button className="coach__cta" onClick={dismissTutorial}>Got it</button>
-      ) : step.cta ? (
-        <button className="coach__cta" onClick={() => onNavigate(step.cta!.tab)}>
-          {step.cta.label} <ArrowRight size={14} />
-        </button>
-      ) : null}
-      {!step.done && (
-        <button className="coach__skip" aria-label="Skip tutorial" onClick={dismissTutorial}><X size={15} /></button>
-      )}
     </div>
   );
 }

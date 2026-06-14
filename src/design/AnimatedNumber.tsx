@@ -29,19 +29,21 @@ export function AnimatedMoney({
 }) {
   const [display, setDisplay] = useState(value);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
-  const fromRef = useRef(value);
+  // The value currently on screen. A new target mid-tween resumes from HERE (not a stale origin),
+  // so the number never jumps backwards before counting to its new value.
+  const displayRef = useRef(value);
   const rafRef = useRef(0);
   const reduced = useReducedMotion();
 
   useEffect(() => {
-    const from = fromRef.current;
+    const from = displayRef.current;
     const to = value;
     if (from === to) return;
     // Reduced motion: snap to the final value, no tween (a single brief colour flash is fine).
     if (reduced) {
       setFlash(to > from ? "up" : "down");
       setDisplay(to);
-      fromRef.current = to;
+      displayRef.current = to;
       const id = setTimeout(() => setFlash(null), 320);
       return () => clearTimeout(id);
     }
@@ -51,11 +53,16 @@ export function AnimatedMoney({
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / dur);
       const eased = 1 - Math.pow(1 - t, 3);
-      setDisplay(((from + (to - from) * eased) | 0) as Money);
+      // Math.trunc — NOT `| 0`. Bitwise ops coerce to a signed 32-bit int, which overflows for
+      // cash above ~$21.47M (cents exceed 2^31) and wraps NEGATIVE mid-tween — the bug where the
+      // headline number flickered negative→positive→negative every count-up.
+      const v = Math.trunc(from + (to - from) * eased) as Money;
+      displayRef.current = v;
+      setDisplay(v);
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
       else {
+        displayRef.current = to;
         setDisplay(to);
-        fromRef.current = to;
         setTimeout(() => setFlash(null), 320);
       }
     };

@@ -22,7 +22,6 @@ export interface RoomPalette {
   floorPaint: string; // painted "work zone" outline
   brick: string; // exposed brick accent wall
   brickEdge: string; // mortar / shading between bricks
-  beam: string; // exposed wood ceiling beams
   door: string; // sectional garage-door panels
   doorRail: string; // door tracks + dark trim
   baseboard: string; // skirting along wall bottoms
@@ -52,7 +51,6 @@ export function roomPalette(dark: boolean): RoomPalette {
         floorPaint: "#c9a23c",
         brick: "#5d3b34",
         brickEdge: "#241712",
-        beam: "#4a3826",
         door: "#2b323d",
         doorRail: "#171b22",
         baseboard: "#2b313b",
@@ -79,7 +77,6 @@ export function roomPalette(dark: boolean): RoomPalette {
         floorPaint: "#cdd3de",
         brick: "#e0e1e4",
         brickEdge: "#d5d6da",
-        beam: "#dcdde2",
         door: "#ebebee",
         doorRail: "#c8cdd4",
         baseboard: "#dcdde2",

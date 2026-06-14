@@ -7,6 +7,35 @@
 .app__main {
   padding: var(--sp-16) var(--edge) 0;
 }
+/* Screen-enter transition: every tab change remounts this (keyed by tab) and replays a quick
+   fade+rise so navigation feels smooth instead of a hard cut. The final keyframe is
+   `transform: none` (not translateY(0)) so no containing block lingers to trap position:fixed
+   children. Neutralized by the global prefers-reduced-motion catch-all in index.css. */
+.app__screen {
+  animation: app-screen-in var(--spring-snappy) both;
+}
+@keyframes app-screen-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+/* Per-card stagger: under the keyed screen remount, each screen's top-level cards resolve in
+   sequence for a premium "settling" entrance on top of the container's rise. FADE-ONLY (no
+   transform) so nothing creates a containing block that could shift absolutely-positioned card
+   chrome (pips, bursts). Delay is capped so a long screen doesn't train a deep cascade.
+   Neutralized by the global prefers-reduced-motion catch-all in index.css. */
+.app__screen :is(.hq, .rd, .mkt, .co, .lab) > * {
+  animation: app-card-in var(--spring-standard) both;
+}
+.app__screen :is(.hq, .rd, .mkt, .co, .lab) > *:nth-child(1) { animation-delay: 0ms; }
+.app__screen :is(.hq, .rd, .mkt, .co, .lab) > *:nth-child(2) { animation-delay: 45ms; }
+.app__screen :is(.hq, .rd, .mkt, .co, .lab) > *:nth-child(3) { animation-delay: 90ms; }
+.app__screen :is(.hq, .rd, .mkt, .co, .lab) > *:nth-child(4) { animation-delay: 135ms; }
+.app__screen :is(.hq, .rd, .mkt, .co, .lab) > *:nth-child(5) { animation-delay: 180ms; }
+.app__screen :is(.hq, .rd, .mkt, .co, .lab) > *:nth-child(n + 6) { animation-delay: 215ms; }
+@keyframes app-card-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 .app__title {
   font-size: var(--fs-large-title);
   font-weight: 700;

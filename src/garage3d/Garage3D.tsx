@@ -308,31 +308,6 @@ function GarageDoor({ p, z = -3.96, big = 0 }: { p: RoomPalette; z?: number; big
   );
 }
 
-// Exposed wood ceiling beams (rafters) running across the room; extends as the bay deepens.
-function Beams({ p, backZ = -3.2 }: { p: RoomPalette; backZ?: number }) {
-  const y = 4.7;
-  const zs: number[] = [];
-  for (let z = 3.2; z >= backZ - 0.01; z -= 1.6) zs.push(z);
-  const span = 3.2 - (zs[zs.length - 1] ?? -3.2);
-  const cz = (3.2 + (zs[zs.length - 1] ?? -3.2)) / 2;
-  return (
-    <group>
-      {zs.map((z, i) => (
-        <mesh key={`b${i}`} position={[0, y, z]}>
-          <boxGeometry args={[8.2, 0.24, 0.16]} />
-          <meshStandardMaterial color={p.beam} roughness={0.85} />
-        </mesh>
-      ))}
-      {[-2.6, 2.6].map((x, i) => (
-        <mesh key={`c${i}`} position={[x, y + 0.13, cz]}>
-          <boxGeometry args={[0.16, 0.2, span + 0.4]} />
-          <meshStandardMaterial color={p.beam} roughness={0.85} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 // Warm festoon string lights strung in a catenary near the ceiling.
 function StringLights() {
   const a = [-3.8, 4.5, -3.6];
@@ -493,7 +468,6 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
         ))}
       </group>
 
-      {dark && <Beams p={p} backZ={-3.2} />}
       {dark && <StringLights />}
       {/* clean-mode ceiling (light mode): flush white soffit instead of beams */}
       {!dark && (
@@ -799,9 +773,9 @@ function Monitor({ p, on, bright }: { p: RoomPalette; on: boolean; bright: boole
 
 // A workstation = desk + computer (monitor/keyboard/mouse) + the employee's robot, rendered at
 // the local origin facing +z. Callers position/rotate it. Each hired employee gets exactly one.
-function Workstation({ p, staff, seed, monitors, colorIdx }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number }) {
+function Workstation({ p, staff, seed, monitors, colorIdx, powered }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean }) {
   const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
-  const on = !!staff;
+  const on = !!staff || !!powered;
   const bright = monitors >= 2;
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   // 1 or 2 monitors clustered on the RIGHT side of the desk, angled toward the person.
@@ -854,6 +828,56 @@ function Workstation({ p, staff, seed, monitors, colorIdx }: { p: RoomPalette; s
       </group>
     </group>
   );
+}
+
+// The player-bought desks: 1–4 standalone computer desks laid out in a single centred row so the
+// set always reads symmetric (auto-centres for any count). Oriented like the founder's desk — the
+// seated robot faces the camera — so a hired employee sits here exactly as the first one does. The
+// row sits in the open back-centre, a clear gap behind the founder's desk (and well clear of the
+// front lounge), so a full team reads as founder-in-front + a tidy desk bank behind, never a pile-up.
+// Empty (unstaffed) desks still render powered-on, so the office looks set up before it's filled.
+const DESKTOP_ROW_Z = -2.2;
+const DESKTOP_SPACING = 1.95;
+// Floating desk labels: base height + a per-row zig-zag so adjacent labels sit at alternating
+// heights and never overlap into an unreadable pile when the team fills a row of desks.
+const LABEL_Y = 2.2;
+const LABEL_STAGGER = 0.62;
+function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
+  const n = Math.max(0, Math.min(4, count));
+  return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
+}
+function DesktopPod({ p, worlds, staff, monitors, onTapStaff, startColorIdx }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; onTapStaff?: (id: string) => void; startColorIdx: number }) {
+  return (
+    <group>
+      {worlds.map((w, i) => {
+        const s = staff[i];
+        return (
+          <group key={i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
+            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} powered />
+            {/* invisible tap target → opens this employee's roster card (matches the placed desks) */}
+            {onTapStaff && s?.id && (
+              <mesh
+                position={[0, 0.95, 0]}
+                onClick={(e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onTapStaff(s.id!); }}
+              >
+                <boxGeometry args={[1.3, 1.9, 1.3]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+// Name + primary-discipline shown on a desk's floating label (shared by placed + bought desks).
+function deskLabel(s: Staff): { label: string; sub: string } {
+  const best = (["engineering", "design", "marketing"] as const).reduce<"engineering" | "design" | "marketing">(
+    (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering",
+  );
+  const abbr = { engineering: "Eng", design: "Des", marketing: "Mkt" }[best];
+  return { label: s.name.split(" ")[0], sub: `${abbr} · ${s.skills[best]}` };
 }
 
 function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
@@ -1453,20 +1477,24 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
   const finish = floorFinish(roomStyle.floor);
   const wall = wallStyle(roomStyle.wall);
   const cull = useWallCull();
-  // Desks ARE the seats: each employee works at a PLACED desk (in placement order), so the
-  // robot a new hire spawns sits at the desk the player actually bought. Overflow (a desk was
-  // removed mid-game) roams the floor instead of vanishing.
+  // Desks ARE the seats: each employee works at a desk (placed furniture desks first, then the
+  // player-bought desktops), so a new hire's robot sits at a real desk instead of milling around.
+  // Only when every desk is taken do extra employees roam the floor.
   const inBuild = !!builder?.build;
   const seats = deskItems(builder?.layout ?? []);
   const seated = staff.slice(0, seats.length);
-  const roaming = staff.slice(seats.length, 16);
+  const overflow = staff.slice(seats.length);
+  const podCount = Math.max(0, Math.min(4, desktops));
+  const podWorlds = desktopWorlds(podCount);
+  const podStaff = overflow.slice(0, podCount);
+  const roaming = overflow.slice(podCount, 16);
   // Occupied desks render as full live workstations, so hide their plain furniture models
   // (cozy view only — in Decorate mode the editable furniture pieces must stay visible).
   const occupiedIids = new Set(seated.map((_, i) => seats[i].iid));
@@ -1552,8 +1580,11 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         );
       })}
       {!inBuild && roaming.map((s, i) => (
-        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + i) % ROBOT_COLORS.length} seed={(seats.length + i) * 3.7} home={roamHomeFor(i)} />
+        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + podCount + i) % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} />
       ))}
+      {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
+          hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}
+      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} onTapStaff={onTapStaff} startColorIdx={seats.length} />}
       <Props p={p} hasProduction={hasProduction} dark={dark} />
       <Dust />
       {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
@@ -1586,30 +1617,24 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         <Vault />
       </group>
 
-      {/* Floating zone labels — only the meaningful, interactive ones (Bank = your money;
-          Whiteboard once earned). Decorative-fixture labels were removed with their fixtures. */}
+      {/* Floating zone labels — kept to ONLY the interactive Bank hint (your money; tap to open
+          finances). The static Whiteboard label was decorative noise that piled into the staff
+          labels — the board is recognizable on its own, so the label was removed. */}
       {!builder?.build && (
         <>
-          {tierOf(upgrades, "computers") >= 1 && (
-            <OfficeLabel pos={[-2.2, 2.35, -3.2]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
-          )}
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Tap for finances" dot="#34c759" />
-          {/* Per-desk name + primary-discipline label for every occupied (placed) desk */}
+          {/* Per-desk name + primary-discipline label for every occupied desk — placed desks
+              first, then the bought desktops, so a desktop-seated hire is labelled like the rest.
+              Heights zig-zag (LABEL_STAGGER) so a row of adjacent labels never piles up. */}
           {seated.map((s, i) => {
             const w = worldOf(seats[i]);
-            const best = (["engineering", "design", "marketing"] as const).reduce<"engineering" | "design" | "marketing">(
-              (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering",
-            );
-            const abbr = { engineering: "Eng", design: "Des", marketing: "Mkt" }[best];
-            return (
-              <OfficeLabel
-                key={s.id ?? i}
-                pos={[w.x, 2.2, w.z]}
-                label={s.name.split(" ")[0]}
-                sub={`${abbr} · ${s.skills[best]}`}
-                dot={ROBOT_COLORS[i % ROBOT_COLORS.length]}
-              />
-            );
+            const { label, sub } = deskLabel(s);
+            return <OfficeLabel key={s.id ?? i} pos={[w.x, LABEL_Y + (i % 2) * LABEL_STAGGER, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[i % ROBOT_COLORS.length]} />;
+          })}
+          {podStaff.map((s, i) => {
+            const w = podWorlds[i];
+            const { label, sub } = deskLabel(s);
+            return <OfficeLabel key={s.id ?? `pod${i}`} pos={[w.x, LABEL_Y + (i % 2) * LABEL_STAGGER, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length]} />;
           })}
         </>
       )}
@@ -1638,6 +1663,7 @@ export const Garage3D = memo(function Garage3D({
   dark,
   builder,
   roomStyle = { floor: 0, wall: 0 },
+  desktops = 0,
   onContextLost,
   onTapStaff,
   onTapBank,
@@ -1652,6 +1678,8 @@ export const Garage3D = memo(function Garage3D({
   dark: boolean;
   builder?: BuildProps;
   roomStyle?: { floor: number; wall: number };
+  /** How many player-bought desktops to show in the garage (0–4). */
+  desktops?: number;
   /** Called when the WebGL context is lost so the host can downgrade to the 2D fallback. */
   onContextLost?: () => void;
   /** Tap an employee → open their roster card (host navigates to Company). */
@@ -1681,7 +1709,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} onTapStaff={onTapStaff} onTapBank={onTapBank} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );

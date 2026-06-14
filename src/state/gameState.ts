@@ -161,6 +161,8 @@ export interface GameState {
   furnitureCounter: number;
   /** room theming — indices into FLOOR_FINISHES / WALL_STYLES */
   roomStyle: { floor: number; wall: number };
+  /** standalone computer desks the player has bought to populate the garage (0–4) */
+  desktops: number;
   sandboxUnlocked: boolean;
   onboarded: boolean;
   tutorialDone: boolean;
@@ -324,6 +326,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     layout: defaultLayout(),
     furnitureCounter: 20,
     roomStyle: { floor: 0, wall: 0 },
+    desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
     sandboxUnlocked: false,
@@ -421,6 +424,21 @@ export function buyUpgrade(state: GameState, id: UpgradeId): GameState {
     upgrades: { ...state.upgrades, [id]: cur + 1 },
     feed: trimFeed(feed),
   };
+}
+
+/** Price of the next garage desktop, or null when the player already owns the maximum. */
+export function desktopCost(owned: number): Money | null {
+  if (owned >= BALANCE.desktops.max) return null;
+  const tiers = BALANCE.desktops.cost;
+  return tiers[owned] ?? tiers[tiers.length - 1];
+}
+
+/** Buy one more standalone computer desk for the garage (capped at BALANCE.desktops.max). */
+export function buyDesktop(state: GameState): GameState {
+  const cost = desktopCost(state.desktops);
+  if (cost === null || state.cash < cost) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, "Set up a new office desk in the garage.", "accent")]);
+  return { ...state, cash: sub(state.cash, cost), desktops: state.desktops + 1, feed };
 }
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
 export const buildWeeksFor = (s: GameState) =>
@@ -1588,7 +1606,9 @@ const ROLE_ASSIGNMENT: Record<StaffRole, Assignment> = {
 
 /** One placed desk = one seat. Hiring is desk-gated: the team can never outgrow the desks
  *  the player actually bought in Decorate (the new hire's robot spawns AT a free desk). */
-export const deskCapacity = (s: GameState): number => deskItems(s.layout).length;
+// Seats an employee can occupy = placed furniture desks + player-bought desktops. Buying a
+// desktop both adds a workstation to the garage AND opens a seat to hire someone into.
+export const deskCapacity = (s: GameState): number => deskItems(s.layout).length + (s.desktops ?? 0);
 
 export function hireStaff(state: GameState, role: StaffRole, skill: number, name: string): GameState {
   const cap = facility(state).staffCapacity;
