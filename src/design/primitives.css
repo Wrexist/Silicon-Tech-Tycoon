@@ -349,3 +349,24 @@
     transform: translateY(16px);
   }
 }
+/* Close: the sheet slides down + fades and the scrim fades out, instead of the dialog vanishing.
+   `forwards` holds the end frame for the ~260ms before the component unmounts. The exit overrides
+   the open animation (same specificity, declared later). Neutralized by reduced-motion. */
+.ds-sheet--closing {
+  animation: ds-sink var(--spring-snappy) forwards;
+}
+.ds-sheet-scrim--closing {
+  animation: ds-fade-out var(--spring-snappy) forwards;
+  pointer-events: none;
+}
+@keyframes ds-sink {
+  to {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@keyframes ds-fade-out {
+  to {
+    opacity: 0;
+  }
+}

@@ -263,6 +263,14 @@ export function Sheet({
   const drag = useRef({ startY: 0, dy: 0, moved: 0, active: false });
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // The sheet stays rendered through its close animation (`closing`) so it slides+fades out
+  // instead of vanishing. Opening shows it immediately (no mount-delay frame).
+  const [closing, setClosing] = useState(false);
+  const wasOpen = useRef(open);
+  // Children are cached while open so a sheet whose content is gated on the same state that
+  // toggles `open` (e.g. `{detail && <…>}`) still shows that content while sliding out.
+  const lastChildren = useRef<ReactNode>(children);
+  if (open) lastChildren.current = children;
 
   useEffect(() => {
     if (!open) return;
@@ -271,9 +279,21 @@ export function Sheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   useEffect(() => { if (open) setOffset(0); }, [open]);
+  // Closed after being open → play the exit, then drop `closing` to unmount. Reduced motion
+  // (the global catch-all makes the exit instant) skips straight to unmount.
+  useEffect(() => {
+    if (open) { wasOpen.current = true; setClosing(false); return; }
+    if (!wasOpen.current) return;
+    wasOpen.current = false;
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    if (reduced) { setClosing(false); return; }
+    setClosing(true);
+    const t = window.setTimeout(() => setClosing(false), 260);
+    return () => window.clearTimeout(t);
+  }, [open]);
   useDialogFocus(dialogRef, open);
 
-  if (!open) return null;
+  if (!open && !closing) return null;
 
   const grabDown = (e: ReactPointerEvent) => {
     drag.current = { startY: e.clientY, dy: 0, moved: 0, active: true };
@@ -297,11 +317,11 @@ export function Sheet({
   };
 
   return (
-    <div className="ds-sheet-scrim" onClick={onClose}>
+    <div className={`ds-sheet-scrim${closing ? " ds-sheet-scrim--closing" : ""}`} onClick={onClose}>
       <div
         ref={dialogRef}
-        className="ds-sheet"
-        style={offset ? { transform: `translateY(${offset}px)`, transition: dragging ? "none" : undefined } : undefined}
+        className={`ds-sheet${closing ? " ds-sheet--closing" : ""}`}
+        style={!closing && offset ? { transform: `translateY(${offset}px)`, transition: dragging ? "none" : undefined } : undefined}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
@@ -316,7 +336,7 @@ export function Sheet({
           onPointerUp={grabUp}
           onPointerCancel={grabUp}
         />
-        {children}
+        {open ? children : lastChildren.current}
       </div>
     </div>
   );
