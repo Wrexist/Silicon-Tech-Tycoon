@@ -151,6 +151,33 @@
 .onboard__name:focus {
   outline: none;
   border-color: var(--accent);
+  /* crisp accent ring (solid spread, not a blur glow) — premium focus affordance on tap */
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Premium first impression: onboarding content reveals in a gentle stagger (logo → title → steps
+   → form) instead of all at once. Pure entrance; neutralized by prefers-reduced-motion (index.css). */
+.onboard__inner > * {
+  animation: onboard-rise var(--spring-gentle) both;
+}
+.onboard__inner > *:nth-child(1) { animation-delay: 60ms; }
+.onboard__inner > *:nth-child(2) { animation-delay: 130ms; }
+.onboard__inner > *:nth-child(3) { animation-delay: 200ms; }
+.onboard__inner > *:nth-child(4) { animation-delay: 280ms; }
+.onboard__inner > *:nth-child(5) { animation-delay: 360ms; }
+.onboard__inner > *:nth-child(6) { animation-delay: 420ms; }
+.onboard__inner > *:nth-child(7) { animation-delay: 480ms; }
+@keyframes onboard-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+/* logo gets a touch of scale for a crafted entrance (specificity matches the nth-child rule and
+   is declared after it, so it wins). */
+.onboard__inner > .onboard__logo {
+  animation: onboard-logo var(--spring-gentle) 40ms both;
+}
+@keyframes onboard-logo {
+  from { opacity: 0; transform: translateY(8px) scale(0.85); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* Sheets */
