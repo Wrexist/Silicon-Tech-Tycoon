@@ -7,6 +7,7 @@ import {
   withValidatedSandbox,
 } from "./entitlements.ts";
 import {
+  applyTransactionUpdate,
   getSandboxProduct,
   iapAvailable,
   purchaseSandbox,
@@ -96,5 +97,14 @@ describe("IAP native gate (StoreKit wired)", () => {
     // Restore likewise grants nothing without a confirmed entitlement.
     expect((await restoreSandbox()).restored).toBe(false);
     expect(hasSandboxEntitlement()).toBe(false);
+  });
+
+  it("an out-of-band transaction update grants the entitlement (only for our product)", () => {
+    expect(hasSandboxEntitlement()).toBe(false);
+    applyTransactionUpdate("com.wrexist.silicon.somethingelse");
+    expect(hasSandboxEntitlement()).toBe(false); // unrelated product → no grant
+    // An Ask-to-Buy / Family-Sharing approval delivered via the native listener must unlock.
+    applyTransactionUpdate(SANDBOX_PRODUCT_ID);
+    expect(hasSandboxEntitlement()).toBe(true);
   });
 });

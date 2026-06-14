@@ -102,7 +102,7 @@ wired directly:
 > for a single non-consumable.
 
 ### The only remaining setup (one-time, in Xcode)
-1. Open `ios/App/App.xcworkspace`. Confirm `SiliconStoreKit.swift` is in the **App** target
+1. Open `ios/App/App.xcodeproj`. Confirm `SiliconStoreKit.swift` is in the **App** target
    (it is, via the project edit; if you ever regenerate the project from scratch, drag the
    file into the App group and tick the **App** target).
 2. **Signing & Capabilities → + Capability → In-App Purchase** on the App target. Also enable

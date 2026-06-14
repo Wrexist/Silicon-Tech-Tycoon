@@ -22,9 +22,9 @@ app's no-tracking ethos). GitHub Pages serves this `docs/` folder as-is.
 4. Wait ~1 minute. The site goes live at:
 
 ```
-https://wrexist.github.io/silicon-tech-tycoon/
-https://wrexist.github.io/silicon-tech-tycoon/privacy/
-https://wrexist.github.io/silicon-tech-tycoon/support/
+https://wrexist.github.io/Silicon-Tech-Tycoon/
+https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/
+https://wrexist.github.io/Silicon-Tech-Tycoon/support/
 ```
 
 Paste those three URLs into App Store Connect (Marketing / Privacy Policy / Support URL).
