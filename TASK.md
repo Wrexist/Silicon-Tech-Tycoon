@@ -233,6 +233,8 @@ _(append out-of-scope improvements here as one-liners; do not act mid-session)_
 - Design Lab: gate higher tiers visibly with a "Research in R&D" hint when a component is maxed at current research.
 - Multi-tab: localStorage races across tabs (only matters on web, not the Capacitor app) — consider a single-writer guard if shipping a web build.
 - Settings screen: theme toggle (data-theme), sound/haptics mute, restart-with-confirm.
+- Website (docs/) duplicates the legal/support copy in public/privacy.html + public/support.html; when the policy text changes, update both (or make the in-app copies redirect to the Pages site once it's live).
+- Vitest 4 prints a `test.poolOptions` deprecation warning — migrate vitest.config.ts off poolOptions to the new top-level pool options (cosmetic; tests pass).
 
 ## v9 — slower economy + production wizard + smart demand + fanbase (DONE)
 - [x] **Much slower base pace**: secondsPerTick 4→8 (Fast button still lets you catch up).
