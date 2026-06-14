@@ -29,6 +29,12 @@ const tierOf = (u: Upgrades, id: UpgradeId) => u[id] ?? 0;
 
 const GRID_ORIGIN = -(GRID.n * GRID.cell) / 2;
 
+// The room's floor footprint. Sized to the walls (which sit at ±4.2) so the floor ends AT the
+// room instead of sprawling far past it — an oversized 18×18 floor was why furniture/desks near
+// the edges read as standing "outside the garage". Everything placeable lives within ±3.87 (the
+// 9×9 grid) and the fixed props within ±4.0, so 8.6 contains the whole room with a small margin.
+const FLOOR_SIZE = 8.6;
+
 export interface BuildProps {
   build: boolean;
   layout: PlacedItem[];
@@ -178,10 +184,13 @@ function Floor({ p, finish, dark }: { p: RoomPalette; finish: FloorFinish; dark:
   }
   return (
     <group>
-      <mesh rotation-x={-Math.PI / 2} position-y={0}>
-        <planeGeometry args={[18, 18]} />
+      {/* Room floor as a finished slab sized to the walls. (Was an 18×18 plane that ran ~4.8m past
+          the ±4.2 walls on every side, so anything near the edge looked stranded outside the room.)
+          The slab's thickness gives the open dollhouse sides — front (+z) and the culled right (+x)
+          — a clean, premium plate edge instead of a hard cut. */}
+      <RoundedBox args={[FLOOR_SIZE, 0.4, FLOOR_SIZE]} radius={0.12} smoothness={3} position={[0, -0.2, 0]}>
         <meshStandardMaterial color={color} roughness={finish.roughness} metalness={finish.metalness} />
-      </mesh>
+      </RoundedBox>
       {zs.map((z, i) => (
         <mesh key={`sz${i}`} rotation-x={-Math.PI / 2} position={[0, 0.012, z]}>
           <planeGeometry args={[8.2, 0.03]} />
@@ -481,6 +490,16 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
       <mesh visible={!cull.r} position={[4.2, 2.6, 0]}>
         <boxGeometry args={[0.3, 5.2, 8.4]} />
         <meshStandardMaterial color={dark ? "#272d37" : "#e8e9ec"} roughness={0.85} />
+      </mesh>
+      {/* Low curbs frame the two OPEN dollhouse edges (front +z, right +x) so the room footprint
+          reads as a deliberate space on all four sides — the back/left already have wall baseboards. */}
+      <mesh position={[0, 0.12, 4.25]}>
+        <boxGeometry args={[8.5, 0.24, 0.12]} />
+        <meshStandardMaterial color={p.baseboard} roughness={0.85} />
+      </mesh>
+      <mesh position={[4.25, 0.12, 0.2]}>
+        <boxGeometry args={[0.12, 0.24, 8.1]} />
+        <meshStandardMaterial color={p.baseboard} roughness={0.85} />
       </mesh>
       {showWhiteboard && (
         <group visible={!cull.b}>
