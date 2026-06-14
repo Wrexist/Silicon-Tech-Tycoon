@@ -10,6 +10,7 @@ import { rivalDef } from "../engine/competitors.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
 import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
+import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
@@ -125,7 +126,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       <Card className="mkt__networth">
         <div className="mkt__nw-main">
           <span className="mkt__nw-label">Net worth</span>
-          <span className="mkt__nw-value rounded tnum">{format(net)}</span>
+          <AnimatedMoney value={net} className="mkt__nw-value rounded" />
         </div>
         <div className="mkt__nw-row">
           <StatPill label="Cash" value={format(state.cash)} />
