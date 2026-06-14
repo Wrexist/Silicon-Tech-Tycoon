@@ -266,6 +266,9 @@
 .lab__comp-info {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
 }
 .lab__comp-name {
   font-size: var(--fs-caption);
@@ -304,25 +307,26 @@
   color: var(--positive-text);
 }
 .lab__comp-locked {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 3px;
-  margin-top: 2px;
+  gap: var(--sp-4);
+  margin-top: 3px;
   font-size: var(--fs-micro);
   font-weight: 700;
-  /* the next-tier NAME is the hook — give it the accent, mute the trailing hint */
-  color: var(--accent);
+  min-width: 0;
 }
 .lab__comp-locked svg {
   flex-shrink: 0;
+  color: var(--accent);
 }
-.lab__comp-locked-stat {
-  color: var(--positive-text);
-  font-weight: 600;
-}
-.lab__comp-locked-hint {
-  color: var(--ink-3);
-  font-weight: 600;
+/* the next-tier NAME is the hook (accent); it truncates rather than wrapping into a messy
+   multi-line block in the rare case it's very long. "tier gated by R&D" in the card header
+   already explains HOW to unlock, so the per-row hint was dropped to cut clutter. */
+.lab__comp-locked-name {
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lab__comp-cost {
   font-size: var(--fs-caption);
@@ -336,6 +340,8 @@
   background: var(--bg-elevated);
   border-radius: var(--r-pill);
   padding: 3px;
+  flex-shrink: 0;
+  margin-left: var(--sp-12);
 }
 .lab__stepper--wide {
   width: 100%;
