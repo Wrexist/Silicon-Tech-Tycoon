@@ -838,6 +838,10 @@ function Workstation({ p, staff, seed, monitors, colorIdx, powered }: { p: RoomP
 // Empty (unstaffed) desks still render powered-on, so the office looks set up before it's filled.
 const DESKTOP_ROW_Z = -2.2;
 const DESKTOP_SPACING = 1.95;
+// Floating desk labels: base height + a per-row zig-zag so adjacent labels sit at alternating
+// heights and never overlap into an unreadable pile when the team fills a row of desks.
+const LABEL_Y = 2.2;
+const LABEL_STAGGER = 0.62;
 function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
@@ -1613,25 +1617,24 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         <Vault />
       </group>
 
-      {/* Floating zone labels — only the meaningful, interactive ones (Bank = your money;
-          Whiteboard once earned). Decorative-fixture labels were removed with their fixtures. */}
+      {/* Floating zone labels — kept to ONLY the interactive Bank hint (your money; tap to open
+          finances). The static Whiteboard label was decorative noise that piled into the staff
+          labels — the board is recognizable on its own, so the label was removed. */}
       {!builder?.build && (
         <>
-          {tierOf(upgrades, "computers") >= 1 && (
-            <OfficeLabel pos={[-2.2, 2.35, -3.2]} label="Whiteboard" sub="Ideas & Planning" dot="#f97316" />
-          )}
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Tap for finances" dot="#34c759" />
           {/* Per-desk name + primary-discipline label for every occupied desk — placed desks
-              first, then the bought desktops, so a desktop-seated hire is labelled like the rest. */}
+              first, then the bought desktops, so a desktop-seated hire is labelled like the rest.
+              Heights zig-zag (LABEL_STAGGER) so a row of adjacent labels never piles up. */}
           {seated.map((s, i) => {
             const w = worldOf(seats[i]);
             const { label, sub } = deskLabel(s);
-            return <OfficeLabel key={s.id ?? i} pos={[w.x, 2.2, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[i % ROBOT_COLORS.length]} />;
+            return <OfficeLabel key={s.id ?? i} pos={[w.x, LABEL_Y + (i % 2) * LABEL_STAGGER, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[i % ROBOT_COLORS.length]} />;
           })}
           {podStaff.map((s, i) => {
             const w = podWorlds[i];
             const { label, sub } = deskLabel(s);
-            return <OfficeLabel key={s.id ?? `pod${i}`} pos={[w.x, 2.2, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length]} />;
+            return <OfficeLabel key={s.id ?? `pod${i}`} pos={[w.x, LABEL_Y + (i % 2) * LABEL_STAGGER, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length]} />;
           })}
         </>
       )}
