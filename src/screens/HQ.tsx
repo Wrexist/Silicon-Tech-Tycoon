@@ -9,6 +9,7 @@ import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx"
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
+import { emitCelebrate } from "../design/celebrateFx.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
@@ -87,7 +88,7 @@ export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; o
       haptic.success();
       const sc = res.launchScore ?? 0;
       sfx("launch");
-      if (sc >= 76) setTimeout(() => sfx("hit"), 380);
+      if (sc >= 76) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
       showToast(
         sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : sc >= 45 ? "Launched — solid performance." : "Launched into the market.",
         { tone: sc <= 22 ? "negative" : "positive", glyph: <Rocket size={15} /> },

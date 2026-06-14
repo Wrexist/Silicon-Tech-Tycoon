@@ -8,6 +8,7 @@ import { BottomNav, type Tab } from "./components/BottomNav.tsx";
 import { Coach } from "./components/Coach.tsx";
 import { ToastHost } from "./design/toast.tsx";
 import { GainFX } from "./design/GainFX.tsx";
+import { Confetti } from "./design/Confetti.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { Settings } from "./screens/Settings.tsx";
@@ -103,6 +104,7 @@ function AppShell() {
       />
 
       <GainFX />
+      <Confetti />
       <SoundFX />
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
