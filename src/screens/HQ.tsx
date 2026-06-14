@@ -1068,7 +1068,7 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
       <div className="hq__perf-grid">
         <div className="hq__perf-item">
           <span className="hq__perf-val tnum">{state.launched.length}</span>
-          <span className="hq__perf-label">Products</span>
+          <span className="hq__perf-label">Shipped</span>
         </div>
         <div className="hq__perf-item">
           <span className="hq__perf-val tnum hq__perf-val--positive">{hits}</span>

@@ -963,11 +963,13 @@
   font-weight: 600;
   color: var(--ink-3);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* wrap to two lines instead of truncating to cryptic "HIT R" / "PROD"; the reserved height
+     keeps every tile's baseline aligned whether the label is one word or two. */
+  text-align: center;
+  line-height: 1.15;
+  min-height: 2.3em;
 }
 .hq__perf-revenue {
   display: flex;
