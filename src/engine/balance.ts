@@ -54,7 +54,7 @@ export const BALANCE = {
     // Era-scaled market volume: the Garage era is a tiny market you slowly grow into; each later
     // era opens it up. Multiplies demand (→ recommended run size → revenue) by era, so the early
     // game is deliberately slow + hand-built while the end-game still scales. Index = era - 1.
-    eraVolumeScale: [0.62, 0.82, 1.0, 1.18],
+    eraVolumeScale: [0.40, 0.66, 0.92, 1.15],
     // B9 — launch demand variance. The wizard's forecast is a deterministic point estimate; real
     // demand at launch is a BET, so the actual realized volume is jittered by up to ±this fraction
     // (seeded, NOT Math.random — reproducible per save). Turns run-sizing/pricing from solved
@@ -69,7 +69,7 @@ export const BALANCE = {
     price: {
       // priceFit peaks when price ≈ perceivedValue*idealMargin; falls off both sides.
       idealMarkup: 2.2, // price ≈ unitCost * markup feels "fair" at mid value
-      valueToPrice: dollars(9), // each perceived-value point ~ this much fair price
+      valueToPrice: dollars(7.5), // each perceived-value point ~ this much fair price (tightened from 9 — margins were too fat, early game too easy)
       tolerance: 0.55, // how forgiving the price curve is
       overpriceHarshness: 1.45, // deviation above fair is penalised this much harder than below
       // B5 — the lab shows a price RANGE (where fit stays ≥ this floor), never the exact peak,
