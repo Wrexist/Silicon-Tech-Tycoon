@@ -161,6 +161,14 @@ function Front({
 
         <SelfieCamera x={g.x} y={g.y} W={g.W} bz={bz} notch={visual.notch} accent={visual.swatch.accent} />
 
+        {/* refresh-rate badge — shows the chosen Hz ON the screen (a subtle on-glass indicator) */}
+        {visual.refreshRate > 60 && (
+          <g>
+            <rect x={g.x + g.W / 2 - 11} y={g.y + g.H - bz - 10} width={22} height={6} rx={3} fill="#7fa8ff" opacity={0.16} />
+            <text x={g.x + g.W / 2} y={g.y + g.H - bz - 5.6} textAnchor="middle" fontSize={4} fontWeight={700} fill="#dce8ff" fontFamily="-apple-system, system-ui, sans-serif">{visual.refreshRate}Hz</text>
+          </g>
+        )}
+
         {/* side buttons */}
         {visual.buttons && (
           <>

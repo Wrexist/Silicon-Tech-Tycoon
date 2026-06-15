@@ -17,6 +17,23 @@ function clamp(n: number, lo: number, hi: number): number {
   return n < lo ? lo : n > hi ? hi : n;
 }
 
+/** The display tier's max drivable refresh rate (Hz) — a budget panel can't push 144Hz. */
+export function maxRefreshRate(displayTier: number): number {
+  const caps = BALANCE.design.refreshRate.maxByDisplayTier;
+  return caps[clamp(displayTier - 1, 0, caps.length - 1)] ?? 60;
+}
+
+/** The product's EFFECTIVE refresh rate: the chosen value (default 60 for older saves), capped by
+ *  what the display tier can actually drive. */
+export function effectiveRefreshRate(product: Product): number {
+  return Math.min(product.refreshRate ?? 60, maxRefreshRate(product.tiers.display ?? 1));
+}
+
+/** Steps above the 60Hz baseline (0..3) — drives the appeal bump + extra unit cost. */
+function refreshSteps(product: Product): number {
+  return Math.max(0, BALANCE.design.refreshRate.options.indexOf(effectiveRefreshRate(product)));
+}
+
 /**
  * Compute a product's five stats from its selected component tiers + design tier.
  * Only the category's applicable slots count. Design tier nudges the Design stat
@@ -45,6 +62,14 @@ export function computeStats(product: Product): Stats {
   // Design tier contribution (1 = baseline, no bonus).
   stats.design += (product.designTier - 1) * 6;
 
+  // Refresh rate: a fluid, high-Hz screen reads as fast + premium (gated by the display tier).
+  const hzSteps = refreshSteps(product);
+  if (hzSteps > 0) {
+    const ap = BALANCE.design.refreshRate.appealPerStep;
+    stats.performance += hzSteps * ap;
+    stats.design += hzSteps * ap * 0.5;
+  }
+
   for (const key of STAT_KEYS) {
     stats[key] = Math.round(clamp(stats[key], 0, BALANCE.statMax));
   }
@@ -65,6 +90,8 @@ export function buildCost(product: Product): Money {
     const extra = Math.max(0, clamp(product.camera?.count ?? 2, 1, 4) - 1);
     for (let i = 0; i < extra; i++) costs.push(BALANCE.design.extraLensCost);
   }
+  // Higher refresh rate adds a per-unit cost per step above 60Hz.
+  for (let i = 0; i < refreshSteps(product); i++) costs.push(BALANCE.design.refreshRate.unitCost);
   return costs.length ? sum(costs) : ZERO;
 }
 

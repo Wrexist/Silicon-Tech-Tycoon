@@ -83,6 +83,16 @@ describe("product stats & cost", () => {
     const designed = computeStats(phone({ designTier: 4 }));
     expect(designed.design).toBeGreaterThan(base.design);
   });
+  it("refresh rate raises appeal + cost, and is gated by display tier", () => {
+    const mk = (display: number, refreshRate: number) =>
+      phone({ tiers: { chip: 3, display, battery: 3, materials: 3, software: 3, camera: 2 }, refreshRate });
+    // 120Hz on a tier-4 display beats the 60Hz baseline on performance and costs more to build
+    expect(computeStats(mk(4, 120)).performance).toBeGreaterThan(computeStats(mk(4, 60)).performance);
+    expect(toDollars(buildCost(mk(4, 120)))).toBeGreaterThan(toDollars(buildCost(mk(4, 60))));
+    // gating: 144Hz on a tier-1 panel is capped to 60 — no stat or cost gain over the baseline
+    expect(computeStats(mk(1, 144)).performance).toBe(computeStats(mk(1, 60)).performance);
+    expect(buildCost(mk(1, 144))).toBe(buildCost(mk(1, 60)));
+  });
 });
 
 describe("market simulation", () => {

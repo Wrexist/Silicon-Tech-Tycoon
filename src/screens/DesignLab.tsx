@@ -12,7 +12,7 @@ import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
-import { buildCost, componentSynergy, computeStats, missingSlots, overallScore } from "../engine/product.ts";
+import { buildCost, componentSynergy, computeStats, effectiveRefreshRate, maxRefreshRate, missingSlots, overallScore } from "../engine/product.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
 import type {
@@ -93,6 +93,7 @@ function freshDraft(state: GameState): Product {
     designTier: 1,
     camera: defaultCameraDesign(),
     notch: "punch",
+    refreshRate: 60,
   };
   // Auto-price: start at a fair market price based on actual component stats so new players
   // aren't unknowingly launching severely overpriced T1 products.
@@ -206,6 +207,14 @@ export function DesignLab({
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
   const ceiling = designTierCeiling(state);
+
+  // Refresh rate (Hz): the options the chosen display tier can drive, plus the effective value.
+  const hasDisplay = CATEGORIES[draft.category].slots.includes("display");
+  const maxHz = maxRefreshRate(draft.tiers.display ?? 1);
+  const effHz = effectiveRefreshRate(draft);
+  const hzOptions = BALANCE.design.refreshRate.options
+    .filter((h) => h <= maxHz)
+    .map((h) => [h, `${h}Hz`] as [number, string]);
 
   // B7 — the lab's projected verdict must use the SAME gate the launch actually applies:
   // effectiveScore = launchScore × competitionFactor, compared to the era-scaled verdict bands.
@@ -635,6 +644,17 @@ export function DesignLab({
                 onPick={(v) => { haptic.light(); setFace("front"); set({ notch: v }); }}
               />
             </Card>
+            {hasDisplay && (
+              <Card>
+                <SectionHeader title="Display" accessory={maxHz < 144 ? `${effHz}Hz · max ${maxHz}` : `${effHz}Hz`} />
+                <Seg<number>
+                  label="Refresh rate"
+                  value={effHz}
+                  options={hzOptions}
+                  onPick={(v) => { haptic.light(); setFace("front"); set({ refreshRate: v }); }}
+                />
+              </Card>
+            )}
           </>
         )}
 
@@ -1134,7 +1154,7 @@ function BuildWizard({
   );
 }
 
-function Seg<T extends string>({
+function Seg<T extends string | number>({
   label,
   value,
   options,

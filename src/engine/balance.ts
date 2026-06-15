@@ -36,6 +36,15 @@ export const BALANCE = {
     freeFinishes: 2, // first N entries of FINISH_ORDER are available from the start
     finishUnlockCosts: { titanium: 12, gold: 26 } as Record<string, number>,
     finishDesignBonus: { plastic: 0, aluminium: 0, titanium: 2, gold: 4 } as Record<string, number>,
+    // Screen refresh rate (Hz) — a customizable display spec. Higher Hz adds a small appeal bump
+    // and a per-unit cost, but is GATED by the display tier (a budget panel can't drive 144Hz), so
+    // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).
+    refreshRate: {
+      options: [60, 90, 120, 144] as number[],
+      maxByDisplayTier: [60, 90, 120, 120, 144, 144] as number[], // index = displayTier − 1 (6 tiers)
+      appealPerStep: 3,     // stat appeal per step above 60 (full to performance, half to design)
+      unitCost: dollars(5), // extra per-unit cost per step above 60
+    },
   },
 
   // --- Market ---
