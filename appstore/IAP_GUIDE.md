@@ -116,15 +116,15 @@ wired directly:
 
 ## Step 3 — Test the purchase (Option B)
 
-Test locally with a **StoreKit Configuration file** (no real money, no sandbox Apple ID needed):
+Test locally with a **StoreKit Configuration file** (no real money, no sandbox Apple ID needed).
+A ready-made one is included: **`ios/App/Configuration.storekit`** (Creative Mode, Non-Consumable,
+$2.99) — so you don't have to hand-enter the product.
 
-1. Xcode → **Product → Scheme → Edit Scheme → Run → Options → StoreKit Configuration**.
-2. Click **+** to create a `.storekit` file.
-3. Add a **Non-Consumable** product:
-   - Product ID: `com.wrexist.silicon.sandbox`
-   - Price: `$2.99`
-   - Display name / description: as above.
-4. Run on a simulator or device and verify, in **Settings → Creative Mode**:
+1. Open `ios/App/App.xcodeproj` in Xcode.
+2. **Product → Scheme → Edit Scheme → Run → Options → StoreKit Configuration** → select
+   **`Configuration.storekit`**. (If Xcode doesn't list it, add the file to the project first, or
+   recreate it with **+** — Product ID `com.wrexist.silicon.sandbox`, Non-Consumable, $2.99.)
+3. Run on a simulator or device and verify, in **Settings → Creative Mode**:
    - **Buy** completes → the Sandbox toggle appears, and the cash floor activates in play.
    - **Restore purchase** re-grants it (delete + reinstall the app, then Restore → it
      comes back).

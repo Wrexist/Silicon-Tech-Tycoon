@@ -45,6 +45,14 @@ export const BALANCE = {
       appealPerStep: 3,     // stat appeal per step above 60 (full to performance, half to design)
       unitCost: dollars(5), // extra per-unit cost per step above 60
     },
+    // On-board storage (GB) — a customizable spec gated by the software/OS tier (a basic OS can't
+    // manage a terabyte). More storage lifts ecosystem + quality appeal and adds per-unit cost.
+    storage: {
+      options: [128, 256, 512, 1024] as number[],
+      maxBySoftwareTier: [256, 512, 512, 1024, 1024] as number[], // index = software tier − 1 (5 tiers)
+      appeal: { ecosystem: 3, quality: 1 },
+      unitCost: dollars(8), // per-unit cost per step above the 128GB baseline
+    },
   },
 
   // --- Market ---
@@ -54,7 +62,7 @@ export const BALANCE = {
     // Era-scaled market volume: the Garage era is a tiny market you slowly grow into; each later
     // era opens it up. Multiplies demand (→ recommended run size → revenue) by era, so the early
     // game is deliberately slow + hand-built while the end-game still scales. Index = era - 1.
-    eraVolumeScale: [0.62, 0.82, 1.0, 1.18],
+    eraVolumeScale: [0.40, 0.66, 0.92, 1.15],
     // B9 — launch demand variance. The wizard's forecast is a deterministic point estimate; real
     // demand at launch is a BET, so the actual realized volume is jittered by up to ±this fraction
     // (seeded, NOT Math.random — reproducible per save). Turns run-sizing/pricing from solved
@@ -69,7 +77,7 @@ export const BALANCE = {
     price: {
       // priceFit peaks when price ≈ perceivedValue*idealMargin; falls off both sides.
       idealMarkup: 2.2, // price ≈ unitCost * markup feels "fair" at mid value
-      valueToPrice: dollars(9), // each perceived-value point ~ this much fair price
+      valueToPrice: dollars(7.5), // each perceived-value point ~ this much fair price (tightened from 9 — margins were too fat, early game too easy)
       tolerance: 0.55, // how forgiving the price curve is
       overpriceHarshness: 1.45, // deviation above fair is penalised this much harder than below
       // B5 — the lab shows a price RANGE (where fit stays ≥ this floor), never the exact peak,

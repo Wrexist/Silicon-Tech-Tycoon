@@ -1,0 +1,31 @@
+{
+  "identifier" : "5E9C3A10-51C0-4A00-B100-000000000001",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : true,
+      "internalID" : "5E9C3A10-51C0-4A00-B100-000000000002",
+      "localizations" : [
+        {
+          "description" : "Unlocks Creative Mode — a Sandbox with unlimited funds so you can design and launch any product without financial pressure. The base game is complete without this purchase. Permanent and restores across devices.",
+          "displayName" : "Creative Mode",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.wrexist.silicon.sandbox",
+      "referenceName" : "Creative Mode",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA"
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

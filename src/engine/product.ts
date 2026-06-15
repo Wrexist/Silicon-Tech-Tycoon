@@ -34,6 +34,26 @@ function refreshSteps(product: Product): number {
   return Math.max(0, BALANCE.design.refreshRate.options.indexOf(effectiveRefreshRate(product)));
 }
 
+/** The software/OS tier's max supported storage (GB) — a basic OS can't manage a terabyte. */
+export function maxStorage(softwareTier: number): number {
+  const caps = BALANCE.design.storage.maxBySoftwareTier;
+  return caps[clamp(softwareTier - 1, 0, caps.length - 1)] ?? 128;
+}
+
+/** The product's EFFECTIVE storage (GB): chosen value (default 128 for older saves), capped by the
+ *  software/OS tier, then SNAPPED to the nearest supported option ≤ that (so a legacy/odd value like
+ *  300 still resolves to a real tier instead of silently dropping to baseline via indexOf === -1). */
+export function effectiveStorage(product: Product): number {
+  const capped = Math.min(product.storage ?? 128, maxStorage(product.tiers.software ?? 1));
+  const opts = BALANCE.design.storage.options;
+  return opts.reduce((best, cur) => (cur <= capped ? cur : best), opts[0] ?? 128);
+}
+
+/** Steps above the 128GB baseline (0..3) — appeal bump + extra unit cost. */
+function storageSteps(product: Product): number {
+  return Math.max(0, BALANCE.design.storage.options.indexOf(effectiveStorage(product)));
+}
+
 /**
  * Compute a product's five stats from its selected component tiers + design tier.
  * Only the category's applicable slots count. Design tier nudges the Design stat
@@ -70,6 +90,14 @@ export function computeStats(product: Product): Stats {
     stats.design += hzSteps * ap * 0.5;
   }
 
+  // Storage: more on-board capacity lifts the platform's ecosystem appeal + perceived quality.
+  const stSteps = storageSteps(product);
+  if (stSteps > 0) {
+    const a = BALANCE.design.storage.appeal;
+    stats.ecosystem += stSteps * a.ecosystem;
+    stats.quality += stSteps * a.quality;
+  }
+
   for (const key of STAT_KEYS) {
     stats[key] = Math.round(clamp(stats[key], 0, BALANCE.statMax));
   }
@@ -92,6 +120,8 @@ export function buildCost(product: Product): Money {
   }
   // Higher refresh rate adds a per-unit cost per step above 60Hz.
   for (let i = 0; i < refreshSteps(product); i++) costs.push(BALANCE.design.refreshRate.unitCost);
+  // More storage adds a per-unit cost per step above the 128GB baseline.
+  for (let i = 0; i < storageSteps(product); i++) costs.push(BALANCE.design.storage.unitCost);
   return costs.length ? sum(costs) : ZERO;
 }
 
