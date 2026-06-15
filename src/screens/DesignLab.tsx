@@ -12,7 +12,7 @@ import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
-import { buildCost, componentSynergy, computeStats, effectiveRefreshRate, maxRefreshRate, missingSlots, overallScore } from "../engine/product.ts";
+import { buildCost, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
 import type {
@@ -94,6 +94,7 @@ function freshDraft(state: GameState): Product {
     camera: defaultCameraDesign(),
     notch: "punch",
     refreshRate: 60,
+    storage: 128,
   };
   // Auto-price: start at a fair market price based on actual component stats so new players
   // aren't unknowingly launching severely overpriced T1 products.
@@ -215,6 +216,14 @@ export function DesignLab({
   const hzOptions = BALANCE.design.refreshRate.options
     .filter((h) => h <= maxHz)
     .map((h) => [h, `${h}Hz`] as [number, string]);
+  // Storage (GB): options the software/OS tier supports, plus the effective value.
+  const hasSoftware = CATEGORIES[draft.category].slots.includes("software");
+  const maxStor = maxStorage(draft.tiers.software ?? 1);
+  const effStor = effectiveStorage(draft);
+  const storLabel = (g: number) => (g >= 1024 ? "1TB" : `${g}GB`);
+  const storOptions = BALANCE.design.storage.options
+    .filter((g) => g <= maxStor)
+    .map((g) => [g, storLabel(g)] as [number, string]);
 
   // B7 — the lab's projected verdict must use the SAME gate the launch actually applies:
   // effectiveScore = launchScore × competitionFactor, compared to the era-scaled verdict bands.
@@ -652,6 +661,17 @@ export function DesignLab({
                   value={effHz}
                   options={hzOptions}
                   onPick={(v) => { haptic.light(); setFace("front"); set({ refreshRate: v }); }}
+                />
+              </Card>
+            )}
+            {hasSoftware && (
+              <Card>
+                <SectionHeader title="Storage" accessory={maxStor < 1024 ? `${storLabel(effStor)} · max ${storLabel(maxStor)}` : storLabel(effStor)} />
+                <Seg<number>
+                  label="Capacity"
+                  value={effStor}
+                  options={storOptions}
+                  onPick={(v) => { haptic.light(); set({ storage: v }); }}
                 />
               </Card>
             )}

@@ -45,6 +45,14 @@ export const BALANCE = {
       appealPerStep: 3,     // stat appeal per step above 60 (full to performance, half to design)
       unitCost: dollars(5), // extra per-unit cost per step above 60
     },
+    // On-board storage (GB) — a customizable spec gated by the software/OS tier (a basic OS can't
+    // manage a terabyte). More storage lifts ecosystem + quality appeal and adds per-unit cost.
+    storage: {
+      options: [128, 256, 512, 1024] as number[],
+      maxBySoftwareTier: [256, 512, 512, 1024, 1024] as number[], // index = software tier − 1 (5 tiers)
+      appeal: { ecosystem: 3, quality: 1 },
+      unitCost: dollars(8), // per-unit cost per step above the 128GB baseline
+    },
   },
 
   // --- Market ---

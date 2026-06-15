@@ -94,6 +94,9 @@ export interface Product {
   /** Screen refresh rate in Hz (60/90/120/144). Optional — older saves default to 60 on read; the
    *  effective value is capped by the display tier (see product.effectiveRefreshRate). */
   refreshRate?: number;
+  /** On-board storage in GB (128/256/512/1024). Optional — defaults to 128 on read; capped by the
+   *  software/OS tier (see product.effectiveStorage). */
+  storage?: number;
   plannedUnits?: number; // production run size chosen in the build wizard
   channelId?: string; // marketing channel selected at launch
 }
