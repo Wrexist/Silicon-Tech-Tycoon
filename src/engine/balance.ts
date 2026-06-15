@@ -201,6 +201,10 @@ export const BALANCE = {
     // tech unlocks now cost RP (a fraction of the old cash R&D cost, converted)
     rdCashToRp: 1 / 1400, // dollars of old rdCost -> RP cost
     minTechRp: 4,
+    // Research excitement: a strong launch funds your next breakthrough — hits/solids award RP, so
+    // the tree advances through PLAY, not just idle ticks. Tuned vs project costs (20–140 RP).
+    launchRpHit: 16,
+    launchRpSolid: 7,
   },
 
   // --- Employees: XP & leveling ---

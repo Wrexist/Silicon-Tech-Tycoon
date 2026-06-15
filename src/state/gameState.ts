@@ -20,6 +20,7 @@ import {
 } from "../engine/economy.ts";
 import {
   hasProject,
+  launchRpReward,
   projectById,
   techRpCost,
   weeklyRp,
@@ -1244,13 +1245,15 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 
   // Record the verdict the player saw on the launched product, so the history screen can report it.
   lp.verdict = isHit ? "hit" : isFlop ? "flop" : isSolid ? "solid" : "steady";
+  // Research excitement: a strong launch funds the next breakthrough (RP earned through play).
+  const rpReward = launchRpReward(lp.verdict);
 
   // B8 — surface the deltas the player otherwise can't see: how this launch moved fans + reputation.
   const fanDelta = fans - state.fans;
   const repDelta = Math.round(reputation - state.reputation);
   const part = (n: number, unit: string) =>
     n === 0 ? null : `${n > 0 ? "+" : "−"}${Math.abs(n).toLocaleString()} ${unit}`;
-  const deltaBits = [part(fanDelta, "fans"), part(repDelta, "reputation")].filter(Boolean);
+  const deltaBits = [part(fanDelta, "fans"), part(repDelta, "reputation"), part(rpReward, "RP")].filter(Boolean);
   const deltaStr = deltaBits.length ? ` ${deltaBits.join(" · ")}.` : "";
 
   const feed = [...state.feed];
@@ -1283,6 +1286,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
       launched: [lp, ...state.launched],
       reputation,
       fans,
+      researchPoints: state.researchPoints + rpReward,
       staff,
       feed: trimFeed(feed),
       // Persist the RNG advance from the demand-variance roll so the launch outcome is deterministic

@@ -12,6 +12,7 @@ import {
   randomTrendTarget,
 } from "./market.ts";
 import { forecast } from "./salesCurve.ts";
+import { launchRpReward } from "./research.ts";
 import { runwayWeeks, isBankrupt, salaryFor, discountedRd } from "./economy.ts";
 import { canAdvanceEra, isCategoryUnlocked, unlockedCategories } from "./eras.ts";
 import { makeRng } from "./rng.ts";
@@ -158,6 +159,13 @@ describe("market simulation", () => {
     const penalized = scoreLaunch({ stats, category: "phone", price: dollars(600), trends, reputation: 30, marketerSkill: 5, competitorStrength: 0, synergy: 0.8 });
     expect(base.synergy).toBe(1);
     expect(penalized.launchScore).toBeCloseTo(base.launchScore * 0.8, 5);
+  });
+
+  it("launch RP reward: hits fund research more than solids; flops/steady award none", () => {
+    expect(launchRpReward("hit")).toBeGreaterThan(launchRpReward("solid"));
+    expect(launchRpReward("solid")).toBeGreaterThan(0);
+    expect(launchRpReward("flop")).toBe(0);
+    expect(launchRpReward("steady")).toBe(0);
   });
 
   it("priceGuidance brackets the fair price with an asymmetric, fit-honest band (B5)", () => {
