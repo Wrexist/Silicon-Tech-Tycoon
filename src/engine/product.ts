@@ -41,9 +41,12 @@ export function maxStorage(softwareTier: number): number {
 }
 
 /** The product's EFFECTIVE storage (GB): chosen value (default 128 for older saves), capped by the
- *  software/OS tier. */
+ *  software/OS tier, then SNAPPED to the nearest supported option ≤ that (so a legacy/odd value like
+ *  300 still resolves to a real tier instead of silently dropping to baseline via indexOf === -1). */
 export function effectiveStorage(product: Product): number {
-  return Math.min(product.storage ?? 128, maxStorage(product.tiers.software ?? 1));
+  const capped = Math.min(product.storage ?? 128, maxStorage(product.tiers.software ?? 1));
+  const opts = BALANCE.design.storage.options;
+  return opts.reduce((best, cur) => (cur <= capped ? cur : best), opts[0] ?? 128);
 }
 
 /** Steps above the 128GB baseline (0..3) — appeal bump + extra unit cost. */

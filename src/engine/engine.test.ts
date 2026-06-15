@@ -97,12 +97,16 @@ describe("product stats & cost", () => {
   it("storage raises appeal + cost, and is gated by the software/OS tier", () => {
     const mk = (software: number, storage: number) =>
       phone({ tiers: { chip: 3, display: 3, battery: 3, materials: 3, software, camera: 2 }, storage });
-    // 512GB on a tier-3 OS beats 128GB on ecosystem appeal and costs more to build
+    // 512GB on a tier-3 OS beats 128GB on ecosystem + quality appeal and costs more to build
     expect(computeStats(mk(3, 512)).ecosystem).toBeGreaterThan(computeStats(mk(3, 128)).ecosystem);
+    expect(computeStats(mk(3, 512)).quality).toBeGreaterThan(computeStats(mk(3, 128)).quality);
     expect(toDollars(buildCost(mk(3, 512)))).toBeGreaterThan(toDollars(buildCost(mk(3, 128))));
-    // gating: 1TB on a tier-1 OS is capped to 256 — no gain beyond the cap
+    // gating: 1TB on a tier-1 OS is capped to 256 — no gain (ecosystem OR quality) beyond the cap
     expect(computeStats(mk(1, 1024)).ecosystem).toBe(computeStats(mk(1, 256)).ecosystem);
+    expect(computeStats(mk(1, 1024)).quality).toBe(computeStats(mk(1, 256)).quality);
     expect(buildCost(mk(1, 1024))).toBe(buildCost(mk(1, 256)));
+    // a non-option value (e.g. a legacy save) snaps down to the nearest supported tier
+    expect(computeStats(mk(3, 300)).ecosystem).toBe(computeStats(mk(3, 256)).ecosystem);
   });
 });
 
