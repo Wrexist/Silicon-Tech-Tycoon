@@ -85,6 +85,13 @@ export function techRpCost(cashRdCost: number): number {
   return Math.max(BALANCE.research.minTechRp, Math.round(cashRdCost * BALANCE.research.rdCashToRp));
 }
 
+/** RP awarded for a launch outcome — a strong launch funds the next breakthrough, so research is
+ *  earned through PLAY, not only idle ticks. Flops + steady sellers award nothing. */
+export function launchRpReward(verdict: "hit" | "solid" | "flop" | "steady"): number {
+  const r = BALANCE.research;
+  return verdict === "hit" ? r.launchRpHit : verdict === "solid" ? r.launchRpSolid : 0;
+}
+
 export function hasProject(completed: readonly ProjectId[], id: ProjectId): boolean {
   return completed.includes(id);
 }

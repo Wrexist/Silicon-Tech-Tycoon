@@ -20,6 +20,7 @@ import {
 } from "../engine/economy.ts";
 import {
   hasProject,
+  launchRpReward,
   projectById,
   techRpCost,
   weeklyRp,
@@ -83,7 +84,7 @@ import {
   ZERO,
   type Money,
 } from "../engine/money.ts";
-import { buildCost, computeStats, missingSlots, overallScore } from "../engine/product.ts";
+import { buildCost, componentSynergy, computeStats, missingSlots, overallScore } from "../engine/product.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -471,13 +472,14 @@ export interface ProductionPlan {
   totalUpfront: Money;
   launchScore: number;
   demandFit: number; // 0..100 — how well the product matches current demand
-  priceFit: number; // 0.15..1.35 — price fairness vs. perceived value (1 = on the money)
+  priceFit: number; // 0..1.35 — price fairness vs. perceived value (1 = on the money; →0 = gouging)
   hype: number; // total launch hype multiplier (reputation + marketing)
   overall: number; // product's overall quality score
   matchingRivals: number; // rivals roughly as good as you, splitting the market
   betterRivals: number; // rivals clearly better than you
   selfCompeting: number; // your OWN products still selling in this category (cannibalization)
   competitionFactor: number; // 0..1 share you keep after competition
+  synergy: number; // 0.8..1.06 — component-combination balance (weak-link penalty / flagship bonus)
   preOrders: number; // guaranteed buyers from your fanbase
   marketDemand: number; // additional organic demand (after competition)
   totalDemand: number; // preOrders + marketDemand
@@ -521,6 +523,9 @@ export function planProduction(
     // channel) before it reaches scoreLaunch, which also clamps total hype. Without this,
     // stacking many visionary marketers makes launchScore/volume explode. Safety guard.
     hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, hypeBonus(s) + channel.hype)),
+    // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
+    // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
+    synergy: componentSynergy(product).factor,
   });
 
   const overall = overallScore(stats, product.category);
@@ -553,7 +558,7 @@ export function planProduction(
 
   const demandFit = breakdown.demand;
   const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
-  const organic = forecast(breakdown.launchScore, marketSize).totalUnits;
+  const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
   const marketDemand = Math.round(organic * competitionFactor);
   // B4 — cap fan pre-orders to a share of TOTAL demand so a huge fanbase can't single-handedly
   // satisfy (and guarantee a sellout of) a token run. Pre-orders may cover at most preOrderCap of
@@ -593,6 +598,7 @@ export function planProduction(
     betterRivals,
     selfCompeting,
     competitionFactor,
+    synergy: breakdown.synergy,
     preOrders,
     marketDemand,
     totalDemand,
@@ -1239,13 +1245,15 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 
   // Record the verdict the player saw on the launched product, so the history screen can report it.
   lp.verdict = isHit ? "hit" : isFlop ? "flop" : isSolid ? "solid" : "steady";
+  // Research excitement: a strong launch funds the next breakthrough (RP earned through play).
+  const rpReward = launchRpReward(lp.verdict);
 
   // B8 — surface the deltas the player otherwise can't see: how this launch moved fans + reputation.
   const fanDelta = fans - state.fans;
   const repDelta = Math.round(reputation - state.reputation);
   const part = (n: number, unit: string) =>
     n === 0 ? null : `${n > 0 ? "+" : "−"}${Math.abs(n).toLocaleString()} ${unit}`;
-  const deltaBits = [part(fanDelta, "fans"), part(repDelta, "reputation")].filter(Boolean);
+  const deltaBits = [part(fanDelta, "fans"), part(repDelta, "reputation"), part(rpReward, "RP")].filter(Boolean);
   const deltaStr = deltaBits.length ? ` ${deltaBits.join(" · ")}.` : "";
 
   const feed = [...state.feed];
@@ -1278,6 +1286,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
       launched: [lp, ...state.launched],
       reputation,
       fans,
+      researchPoints: state.researchPoints + rpReward,
       staff,
       feed: trimFeed(feed),
       // Persist the RNG advance from the demand-variance roll so the launch outcome is deterministic

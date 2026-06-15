@@ -90,19 +90,19 @@ describe("salesCurve floor", () => {
 });
 
 describe("priceFit / overallScore stay in bounds for extreme inputs", () => {
-  it("priceFit stays within [minFit, maxFit] at price 0, huge price, and all-zero stats", () => {
+  it("priceFit: underpricing keeps a floor, overpricing craters below it, all finite ≤ maxFit", () => {
     const p = BALANCE.market.price;
-    const cases = [
-      priceFit(cents(0), MID, "phone"),
-      priceFit(dollars(50_000_000), MID, "phone"),
-      priceFit(cents(0), ZEROS, "phone"),
-      priceFit(dollars(50_000_000), ZEROS, "phone"),
-    ];
-    for (const fit of cases) {
+    const under = [priceFit(cents(0), MID, "phone"), priceFit(cents(0), ZEROS, "phone")];
+    const over = [priceFit(dollars(50_000_000), MID, "phone"), priceFit(dollars(50_000_000), ZEROS, "phone")];
+    for (const fit of [...under, ...over]) {
       expect(Number.isFinite(fit)).toBe(true);
-      expect(fit).toBeGreaterThanOrEqual(p.minFit);
+      expect(fit).toBeGreaterThanOrEqual(0);
       expect(fit).toBeLessThanOrEqual(p.maxFit);
     }
+    // a near-zero price still sells (cheap, not a flop): the underprice floor holds
+    for (const fit of under) expect(fit).toBeGreaterThanOrEqual(p.minFit);
+    // gross overpricing is ALLOWED to collapse demand toward zero (kills the max-price exploit)
+    for (const fit of over) expect(fit).toBeLessThan(p.minFit);
   });
 
   it("overallScore stays within [0, statMax] for all-zero and maxed stats", () => {

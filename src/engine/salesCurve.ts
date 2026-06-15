@@ -44,10 +44,14 @@ export function distributeOverCurve(totalUnits: number): number[] {
   return weeklyUnits;
 }
 
-export function forecast(launchScore: number, marketSize: number): SalesForecast {
+export function forecast(launchScore: number, marketSize: number, priceFit = 1): SalesForecast {
   const raw = launchScore * BALANCE.sales.scoreToVolume * marketSize;
-  // Any product that ships at all sells *something* (keeps the early game teachable).
-  const floor = launchScore > 0 ? BALANCE.sales.floorUnits * marketSize : 0;
+  // Any product that ships at a sensible price sells *something* (keeps the early game teachable),
+  // but the floor is SCALED BY priceFit so a grossly overpriced product loses it too. A
+  // price-independent floor guaranteed a minimum unit count at ANY price, so revenue = floor × price
+  // grew without bound — another "max price always sells" route. At a fair price priceFit ≈ 1 (full
+  // teachable floor); when gouging, priceFit → 0 and the floor collapses with it.
+  const floor = launchScore > 0 ? BALANCE.sales.floorUnits * marketSize * priceFit : 0;
   const totalUnits = Math.max(0, Math.round(Math.max(raw, floor)));
   const shape = curveWeights();
   const shapeSum = shape.reduce((a, b) => a + b, 0) || 1;

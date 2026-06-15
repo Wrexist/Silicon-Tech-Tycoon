@@ -1,6 +1,7 @@
 // DeviceStyle — maps a product's chosen components/design/era to exact visual parameters.
 // This is the make-or-break system: flagship-render look, never clip-art. PURE.
 import { maxTier } from "../engine/catalogs.ts";
+import { effectiveRefreshRate } from "../engine/product.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
 import type {
   CameraLayout,
@@ -70,6 +71,7 @@ export interface DeviceVisual {
   notch: NotchStyle;
   eraDetail: number; // 1..4 (chunky retro -> sleek modern)
   buttons: boolean;
+  refreshRate: number; // effective screen Hz (60/90/120/144), capped by display tier
 }
 
 function lerp(a: number, b: number, t: number): number {
@@ -124,6 +126,7 @@ export function deviceVisual(product: Product): DeviceVisual {
     notch,
     eraDetail: Math.min(4, Math.max(1, product.designTier <= 1 ? 1 : 4)),
     buttons: true,
+    refreshRate: effectiveRefreshRate(product),
   };
 }
 

@@ -72,6 +72,9 @@ import { achievementById } from "../engine/achievements.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
+import { emitCelebrate } from "../design/celebrateFx.ts";
+import { sfx } from "../design/sound.ts";
+import { projectById } from "../engine/research.ts";
 import { createElement } from "react";
 
 export interface OfflineSummary {
@@ -384,7 +387,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const research = useCallback((kind: ComponentKind) => {
-    setState((s) => researchNext(s, kind));
+    const prev = stateRef.current;
+    const next = researchNext(prev, kind);
+    const rpSpent = prev.researchPoints - next.researchPoints;
+    if (rpSpent > 0) { emitRpSpend(rpSpent); sfx("confirm"); }
+    setState(next);
   }, []);
 
   const unlockLensCb = useCallback(() => {
@@ -406,6 +413,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const next = buyProject(prev, id);
     const rpSpent = prev.researchPoints - next.researchPoints;
     if (rpSpent > 0) emitRpSpend(rpSpent);
+    // Breakthrough! A completed project is a real milestone — celebrate it.
+    if (next.completedProjects.length > prev.completedProjects.length) {
+      emitCelebrate();
+      sfx("confirm");
+      showToast(`Breakthrough — ${projectById(id).name}`, { tone: "positive" });
+    }
     setState(next);
   }, []);
   const buyUpgradeCb = useCallback((id: UpgradeId) => {

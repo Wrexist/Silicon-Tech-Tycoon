@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { dollars, toDollars } from "./money.ts";
+import { dollars, toDollars, type Money } from "./money.ts";
 import { BALANCE } from "./balance.ts";
 import { COMPONENT_LINES, CATEGORIES, maxTier } from "./catalogs.ts";
-import { computeStats, buildCost, overallScore, missingSlots } from "./product.ts";
+import { componentSynergy, computeStats, buildCost, overallScore, missingSlots } from "./product.ts";
 import {
   initialTrends,
   advanceTrends,
@@ -12,6 +12,7 @@ import {
   randomTrendTarget,
 } from "./market.ts";
 import { forecast } from "./salesCurve.ts";
+import { launchRpReward } from "./research.ts";
 import { runwayWeeks, isBankrupt, salaryFor, discountedRd } from "./economy.ts";
 import { canAdvanceEra, isCategoryUnlocked, unlockedCategories } from "./eras.ts";
 import { makeRng } from "./rng.ts";
@@ -83,6 +84,16 @@ describe("product stats & cost", () => {
     const designed = computeStats(phone({ designTier: 4 }));
     expect(designed.design).toBeGreaterThan(base.design);
   });
+  it("refresh rate raises appeal + cost, and is gated by display tier", () => {
+    const mk = (display: number, refreshRate: number) =>
+      phone({ tiers: { chip: 3, display, battery: 3, materials: 3, software: 3, camera: 2 }, refreshRate });
+    // 120Hz on a tier-4 display beats the 60Hz baseline on performance and costs more to build
+    expect(computeStats(mk(4, 120)).performance).toBeGreaterThan(computeStats(mk(4, 60)).performance);
+    expect(toDollars(buildCost(mk(4, 120)))).toBeGreaterThan(toDollars(buildCost(mk(4, 60))));
+    // gating: 144Hz on a tier-1 panel is capped to 60 — no stat or cost gain over the baseline
+    expect(computeStats(mk(1, 144)).performance).toBe(computeStats(mk(1, 60)).performance);
+    expect(buildCost(mk(1, 144))).toBe(buildCost(mk(1, 60)));
+  });
 });
 
 describe("market simulation", () => {
@@ -101,6 +112,60 @@ describe("market simulation", () => {
     const fair = priceFit(dollars(600), stats, "phone");
     const gouge = priceFit(dollars(3000), stats, "phone");
     expect(gouge).toBeLessThan(fair);
+  });
+
+  it("overpricing collapses revenue — a fair price out-earns gouging (no max-price exploit)", () => {
+    const stats = computeStats(phone({ tiers: { chip: 4, display: 4, battery: 3, materials: 3, software: 3, camera: 3 } }));
+    const fairP = priceGuidance(stats, "phone").fair;
+    const sim = (price: Money) => {
+      const bd = scoreLaunch({ stats, category: "phone", price, trends, reputation: 40, marketerSkill: 5, competitorStrength: 10 });
+      const units = forecast(bd.launchScore, 1, bd.priceFit).totalUnits;
+      return { units, revenue: units * toDollars(price) };
+    };
+    const fair = sim(fairP);
+    const dbl = sim(dollars(toDollars(fairP) * 2));
+    const gouge = sim(dollars(toDollars(fairP) * 6));
+    // pricing DOUBLE the fair value loses revenue; a 6× gouge collapses it (units crater faster
+    // than price climbs) — so "set max price, sell anyway" is no longer a winning strategy.
+    expect(dbl.revenue).toBeLessThan(fair.revenue);
+    expect(gouge.revenue).toBeLessThan(fair.revenue * 0.2);
+    // units crater at the gouge price — the teachable floor doesn't prop gouging up
+    expect(gouge.units).toBeLessThan(fair.units * 0.1);
+    // sanity: a fairly-priced product of this quality still sells well (not floored)
+    expect(fair.units).toBeGreaterThan(BALANCE.sales.floorUnits * 5);
+  });
+
+  it("component synergy: a bottleneck scores below a balanced build; a coherent flagship earns a bonus", () => {
+    const balanced = componentSynergy(phone({ tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 2 } }));
+    const bottleneck = componentSynergy(phone({ tiers: { chip: 6, display: 1, battery: 4, materials: 4, software: 4, camera: 3 } }));
+    const flagship = componentSynergy(phone({ tiers: { chip: 6, display: 6, battery: 6, materials: 5, software: 5, camera: 4 } }));
+    // a glaring weak link drags the build down and is named; a coherent build flags none
+    expect(bottleneck.factor).toBeLessThan(balanced.factor);
+    expect(bottleneck.weakest).toBe("display");
+    expect(balanced.weakest).toBeNull();
+    // a maxed, coherent flagship earns the small bonus
+    expect(flagship.factor).toBeGreaterThan(1);
+    // everything stays bounded
+    const s = BALANCE.market.synergy;
+    for (const r of [balanced, bottleneck, flagship]) {
+      expect(r.factor).toBeGreaterThanOrEqual(s.minFactor);
+      expect(r.factor).toBeLessThanOrEqual(s.maxFactor);
+    }
+  });
+
+  it("synergy scales the launch score and defaults to 1", () => {
+    const stats = computeStats(phone());
+    const base = scoreLaunch({ stats, category: "phone", price: dollars(600), trends, reputation: 30, marketerSkill: 5, competitorStrength: 0 });
+    const penalized = scoreLaunch({ stats, category: "phone", price: dollars(600), trends, reputation: 30, marketerSkill: 5, competitorStrength: 0, synergy: 0.8 });
+    expect(base.synergy).toBe(1);
+    expect(penalized.launchScore).toBeCloseTo(base.launchScore * 0.8, 5);
+  });
+
+  it("launch RP reward: hits fund research more than solids; flops/steady award none", () => {
+    expect(launchRpReward("hit")).toBeGreaterThan(launchRpReward("solid"));
+    expect(launchRpReward("solid")).toBeGreaterThan(0);
+    expect(launchRpReward("flop")).toBe(0);
+    expect(launchRpReward("steady")).toBe(0);
   });
 
   it("priceGuidance brackets the fair price with an asymmetric, fit-honest band (B5)", () => {

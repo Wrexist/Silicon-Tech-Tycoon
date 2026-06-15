@@ -67,7 +67,9 @@ export function hypeMultiplier(reputation: number, marketerSkill: number): numbe
   return Math.min(h.max, Math.max(h.base, raw));
 }
 
-/** 0.15..1.35 — how fair the price feels vs. perceived value (asymmetric: overpricing hurts more). */
+/** 0..1.35 — how fair the price feels vs. perceived value. Asymmetric: UNDERpricing keeps a floor
+ *  (a cheap product still sells) but OVERpricing craters toward 0, so demand is genuinely
+ *  price-elastic and gouging fails (no "max price always sells"). */
 export function priceFit(price: Money, stats: Stats, category: CategoryId): number {
   const p = BALANCE.market.price;
   const perceived = overallScore(stats, category); // 0..100
@@ -78,7 +80,13 @@ export function priceFit(price: Money, stats: Stats, category: CategoryId): numb
   const fit = Math.exp(-(dev * dev) / (2 * p.tolerance * p.tolerance));
   // Slight volume reward for modest underpricing.
   const underBoost = ratio < 1 ? (1 - ratio) * 0.25 : 0;
-  return Math.min(p.maxFit, Math.max(p.minFit, fit + underBoost));
+  const raw = fit + underBoost;
+  // Asymmetric floor. Underpricing keeps minFit (cheap stays teachable); overpricing is allowed to
+  // decay to ~0. The old symmetric [minFit, maxFit] clamp made demand INELASTIC above ~1.8× fair —
+  // units stopped falling while revenue = units × price kept climbing, so max price always won.
+  // Letting the overpriced tail crater makes revenue peak near the fair price and gouging lose.
+  const floored = ratio <= 1 ? Math.max(p.minFit, raw) : raw;
+  return Math.min(p.maxFit, Math.max(0, floored));
 }
 
 /** B5 — the price band where priceFit stays ≥ guidanceFitFloor, shown to the player INSTEAD of
@@ -120,6 +128,7 @@ export interface LaunchBreakdown {
   hype: number;
   priceFit: number;
   competitionFactor: number; // 0..1 share multiplier
+  synergy: number; // 0.8..1.06 — component-combination balance (bottleneck penalty / flagship bonus)
   launchScore: number;
 }
 
@@ -133,6 +142,9 @@ export function scoreLaunch(args: {
   marketerSkill: number;
   competitorStrength: number;
   hypeBonus?: number;
+  /** Component-combination synergy multiplier (see product.componentSynergy). Defaults to 1 so
+   *  callers that don't model it (and the bounds tests) are unaffected. */
+  synergy?: number;
 }): LaunchBreakdown {
   const demand = demandScore(args.stats, args.trends, args.category);
   // Total hype must be bounded: the base multiplier is already clamped to h.max, but
@@ -146,6 +158,7 @@ export function scoreLaunch(args: {
   const hype = Math.min(hypeCeiling, Math.max(0, rawHype));
   const pf = priceFit(args.price, args.stats, args.category);
   const competitionFactor = 1 / (1 + args.competitorStrength * BALANCE.market.competition.factorK);
-  const launchScore = Math.max(0, demand * hype * pf * competitionFactor);
-  return { demand, hype, priceFit: pf, competitionFactor, launchScore };
+  const synergy = args.synergy ?? 1;
+  const launchScore = Math.max(0, demand * hype * pf * competitionFactor * synergy);
+  return { demand, hype, priceFit: pf, competitionFactor, synergy, launchScore };
 }

@@ -91,6 +91,9 @@ export interface Product {
   designTier: number; // 1..N, raises the Design ceiling (from designers/effort)
   camera: CameraDesign;
   notch: NotchStyle;
+  /** Screen refresh rate in Hz (60/90/120/144). Optional — older saves default to 60 on read; the
+   *  effective value is capped by the display tier (see product.effectiveRefreshRate). */
+  refreshRate?: number;
   plannedUnits?: number; // production run size chosen in the build wizard
   channelId?: string; // marketing channel selected at launch
 }

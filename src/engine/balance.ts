@@ -36,6 +36,15 @@ export const BALANCE = {
     freeFinishes: 2, // first N entries of FINISH_ORDER are available from the start
     finishUnlockCosts: { titanium: 12, gold: 26 } as Record<string, number>,
     finishDesignBonus: { plastic: 0, aluminium: 0, titanium: 2, gold: 4 } as Record<string, number>,
+    // Screen refresh rate (Hz) — a customizable display spec. Higher Hz adds a small appeal bump
+    // and a per-unit cost, but is GATED by the display tier (a budget panel can't drive 144Hz), so
+    // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).
+    refreshRate: {
+      options: [60, 90, 120, 144] as number[],
+      maxByDisplayTier: [60, 90, 120, 120, 144, 144] as number[], // index = displayTier − 1 (6 tiers)
+      appealPerStep: 3,     // stat appeal per step above 60 (full to performance, half to design)
+      unitCost: dollars(5), // extra per-unit cost per step above 60
+    },
   },
 
   // --- Market ---
@@ -66,8 +75,21 @@ export const BALANCE = {
       // B5 — the lab shows a price RANGE (where fit stays ≥ this floor), never the exact peak,
       // so pricing is a margin-vs-volume decision instead of a one-click answer.
       guidanceFitFloor: 0.9,
-      minFit: 0.15,
+      minFit: 0.15, // floor for UNDERpricing only — overpricing is allowed to crater to ~0 (elastic demand)
       maxFit: 1.35,
+    },
+    // Component-combination synergy: a build is judged on its WEAKEST link, not just the sum of
+    // parts. A coherent build keeps factor ≈ 1; a flagship dragged down by one budget component is
+    // penalised; a balanced, high-end build earns a small flagship bonus. Bounded so it nudges,
+    // never dominates — makes "which combination of components" a real design decision.
+    synergy: {
+      bottleneckPenalty: 0.35, // factor lost per unit of (mean level − weakest level)
+      flagshipBonus: 0.06,     // coherent + high-end build bonus
+      flagshipMeanFloor: 0.7,  // mean component level needed to qualify for the bonus
+      flagshipMaxGap: 0.15,    // max weakest-link gap still counted as "coherent"
+      weakestThreshold: 0.18,  // surface a "weak link" callout above this gap
+      minFactor: 0.8,
+      maxFactor: 1.06,
     },
     competition: {
       // Competition is a *share multiplier* (never erases a viable product):
@@ -179,6 +201,10 @@ export const BALANCE = {
     // tech unlocks now cost RP (a fraction of the old cash R&D cost, converted)
     rdCashToRp: 1 / 1400, // dollars of old rdCost -> RP cost
     minTechRp: 4,
+    // Research excitement: a strong launch funds your next breakthrough — hits/solids award RP, so
+    // the tree advances through PLAY, not just idle ticks. Tuned vs project costs (20–140 RP).
+    launchRpHit: 16,
+    launchRpSolid: 7,
   },
 
   // --- Employees: XP & leveling ---
