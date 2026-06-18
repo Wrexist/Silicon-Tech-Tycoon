@@ -163,6 +163,13 @@ export const BALANCE = {
     preOrderConversion: 0.62, // fraction of fans who pre-order a well-fitting product
     gainPerHitUnitsK: 90, // fans gained per 1,000 units of a hit sold
     gainOnHitFlat: 120, // flat fan bump for any hit launch
+    // A well-received product BUILDS an audience — not just a viral hit. Without this, fans only
+    // ever decayed between hits, so a company shipping steady/solid sellers slowly bled its whole
+    // fanbase (hype → score → verdict all stuck low: an early-game stall with no way out). A solid
+    // performer wins a real bump; even a steady seller earns enough new fans to outpace the weekly
+    // decay, so consistent shipping compounds into reach. The decay caps it (self-limiting).
+    gainOnSolidFlat: 70, // flat fan bump for a "solid" launch (+ half the hit's per-unit growth)
+    gainOnSteadyFlat: 55, // flat fan bump for a "steady" launch — beats decay so reach slowly grows
     lossPerFlop: 140, // fans lost on a flop
     decayPerWeek: 0.992, // gentle weekly erosion of attention
     selloutFanBonus: 0.04, // extra fan growth when a run sells out (demand > supply)
@@ -183,16 +190,21 @@ export const BALANCE = {
   // This means: launch early/uncontested and survive; launch late/outclassed and lose reputation.
   reputation: {
     hitThreshold: 70, // era-1 base (see hitThresholdByEra for the scaled bar)
-    flopThreshold: 17, // era-1 base
+    flopThreshold: 10, // era-1 base
     // Era-scaled expectations: as the company grows, the bar for a "hit" / "solid" rises and the
     // floor for a "flop" lifts. A maxed, well-timed, uncontested product still triumphs late-game,
     // but a lazy or heavily-contested launch only lands "solid" — so the AI Era stays a contest,
     // not a guaranteed-hit victory lap. The player reaches the win-reputation in eras 2-3 under the
     // gentler early bars, so scaling the late bars keeps tension without blocking the endgame.
     // Index = era - 1. effectiveScore = launchScore × competitionFactor is compared to these.
+    // ERA-1 FLOP FLOOR (10): a brand-new company's hype is tiny, so even a competently-built,
+    // well-priced tier-1 product can only score ~13–17 (measured). A 17 floor made the *maiden
+    // launch a guaranteed flop* — punishing reputation for a product the player built correctly.
+    // At 10, a sensible first product lands "steady" (neutral: no rep/fan loss) and only a genuinely
+    // bad bet (badly overpriced, eff ≤10) still flops. Later eras keep the rising floor for tension.
     hitThresholdByEra: [70, 88, 112, 145],
     solidThresholdByEra: [45, 56, 72, 92],
-    flopThresholdByEra: [17, 21, 27, 35],
+    flopThresholdByEra: [10, 21, 27, 35],
     gainPerHit: 8,
     lossPerFlop: 5,
     overpricePenalty: 2,
@@ -263,14 +275,18 @@ export const BALANCE = {
     // B1 — the recommended/affordable run must leave the player solvent through the build.
     // recommendedRun reserves (buildWeeks × weeklyBurn) + this flat margin before spending cash
     // on units, so a fresh save can't accidentally brick itself manufacturing its first product.
-    // A healthy reserve also keeps early runs modest (you grow into bigger runs as cash builds),
-    // so the garage phase is deliberately slow + hand-built rather than one giant first bet.
-    safetyReserveMargin: dollars(5_000) as Money,
+    // Lowered 5,000 → 2,500: at $20k start, a $5k reserve choked early runs so hard (~150 units vs
+    // ~200 demand) that thin margins couldn't clear burn and every early cycle ran at a loss. A
+    // $2.5k reserve still protects the build-through window but lets early runs reach a profitable
+    // scale (a measured first cycle moves from a ~$3k loss to break-even).
+    safetyReserveMargin: dollars(2_500) as Money,
   },
 
   // --- Facilities ---
   facilities: [
-    { tier: 1, name: "Garage", staffCapacity: 4, weeklyRent: dollars(200), upgradeCost: dollars(0) },
+    // Garage rent lowered 200 → 120/wk: a pre-revenue garage carrying $200/wk of fixed burn turned
+    // thin-margin early cycles net-negative. A leaner garage overhead keeps the bootstrap survivable.
+    { tier: 1, name: "Garage", staffCapacity: 4, weeklyRent: dollars(120), upgradeCost: dollars(0) },
     { tier: 2, name: "Studio", staffCapacity: 7, weeklyRent: dollars(1_200), upgradeCost: dollars(120_000) },
     { tier: 3, name: "Campus", staffCapacity: 16, weeklyRent: dollars(6_000), upgradeCost: dollars(1_500_000) },
   ],
@@ -281,6 +297,21 @@ export const BALANCE = {
   desktops: {
     max: 4,
     cost: [dollars(18_000), dollars(32_000), dollars(52_000), dollars(80_000)] as Money[],
+  },
+
+  // --- Office shop: furniture costs money and buffs the office. Buffs are summed across the room
+  // and capped, so a fully-decorated office is a meaningful COMPLEMENT to the HQ upgrades, never a
+  // replacement. K = buff per attribute point; cap = the most furniture can contribute. Anchored
+  // against the upgrades: amenities = +5 mood/tier (max +20), workstations = +15% research/tier.
+  // Starting values — tunable, pinned by the shop balance test. ---
+  shop: {
+    resaleRate: 0.5, // refund fraction when selling a placed item
+    comfortK: 0.5, // mood-target points per comfort point
+    comfortCap: 15, // max mood target from furniture
+    focusK: 0.01, // +research multiplier per focus point
+    focusCap: 0.15, // max +15% research from furniture
+    inspK: 0.5, // Design-stat points per inspiration point
+    inspCap: 5, // max +5 Design from furniture
   },
 
   // --- Tech eras: thresholds to advance (reputation OR cumulative revenue) ---

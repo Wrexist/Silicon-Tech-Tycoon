@@ -9,10 +9,13 @@ export interface Settings {
   sound: boolean;
   haptics: boolean;
   garage3d: boolean;
+  /** First-run Decorate tutorial: shown once the first time the player opens Decorate, then
+   *  remembered here (a UI preference, so it survives a new company — not in the game save). */
+  decorateTutorialSeen: boolean;
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, decorateTutorialSeen: false };
 
 function read(): Settings {
   try {

@@ -1,9 +1,9 @@
 import {
   Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, ChevronRight, CircleDot, Clock, Coffee,
   Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
-  Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Lock, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
+  HelpCircle, Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Lock, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
   Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
-  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
+  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -14,9 +14,10 @@ import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { format, toDollars } from "../engine/money.ts";
+import { dollars, format, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
+  furnitureCost,
   CATEGORY_LABEL,
   CATEGORY_ORDER,
   footprint,
@@ -33,12 +34,13 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, desktopCost, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
-import { useSettings } from "../state/settings.ts";
+import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
+import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
@@ -267,9 +269,43 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
   );
 }
 
+/** Live office buffs + seat count, shown atop the shop so the player SEES the office working for
+ *  the team. Each bar fills toward the BALANCE.shop cap (faint track = diminishing returns). */
+function OfficeOverview({ state }: { state: GameState }) {
+  const comfort = officeComfortMoodBonus(state);
+  const focus = officeFocusMult(state) - 1; // 0..focusCap
+  const inspo = officeInspoBonus(state);
+  const rows: { icon: LucideIcon; label: string; value: string; frac: number; tint: string }[] = [
+    { icon: Smile, label: "Mood", value: `+${Math.round(comfort)}`, frac: comfort / BALANCE.shop.comfortCap, tint: "var(--fn-team)" },
+    { icon: Crosshair, label: "Research", value: `+${Math.round(focus * 100)}%`, frac: focus / BALANCE.shop.focusCap, tint: "var(--fn-eng)" },
+    { icon: Sparkles, label: "Design", value: `+${Math.round(inspo)}`, frac: inspo / BALANCE.shop.inspCap, tint: "var(--fn-design)" },
+  ];
+  return (
+    <div className="hqb__office">
+      <div className="hqb__office-stats">
+        {rows.map((r) => (
+          <div className="hqb__office-stat" key={r.label}>
+            <span className="hqb__office-head">
+              <span className="hqb__office-label"><r.icon size={12} aria-hidden /> {r.label}</span>
+              <span className="hqb__office-val tnum" style={{ color: r.tint }}>{r.value}</span>
+            </span>
+            <span className="hqb__office-bar">
+              <span className="hqb__office-fill" style={{ width: `${Math.min(100, Math.round(r.frac * 100))}%`, background: r.tint }} />
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="hqb__office-seats">
+        <Users size={12} aria-hidden /> Seats <b className="tnum">{state.staff.length}/{deskCapacity(state)}</b>
+        <span className="hqb__office-seats-hint">— buy a desk to add one</span>
+      </div>
+    </div>
+  );
+}
+
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
-  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, resetFurniture, setLayout, setFloorStyle, setWallStyle } = useGame();
+  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
   const [placingType, setPlacingType] = useState<FurnitureId | null>(null);
   const [placeRot, setPlaceRot] = useState<Rot>(0);
@@ -277,7 +313,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   const [cat, setCat] = useState<FurnitureCategory>("desks");
   const [search, setSearch] = useState("");
   const [roomTab, setRoomTab] = useState(false);
-  const history = useRef<PlacedItem[][]>([]);
+  const [tutorial, setTutorial] = useState(false); // first-run Decorate coach (or replayed via ?)
+  // Undo snapshots carry BOTH layout and cash, so undoing a purchase refunds in full (a true
+  // reversal); Sell is the separate, deliberate 50%-refund path.
+  const history = useRef<{ layout: PlacedItem[]; cash: Money }[]>([]);
   const [histLen, setHistLen] = useState(0); // mirror of history depth so Undo's disabled state stays live
   const dark = isDarkTheme();
   // If the GPU drops the WebGL context mid-game, fall back to the 2D IsoScene instead of black.
@@ -291,8 +330,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   // have to be rebuilt every render just to capture the latest layout reference.
   const layoutRef = useRef(state.layout);
   layoutRef.current = state.layout;
+  const cashRef = useRef(state.cash);
+  cashRef.current = state.cash;
   const snapshot = useCallback(() => {
-    history.current.push(layoutRef.current);
+    history.current.push({ layout: layoutRef.current, cash: cashRef.current });
     if (history.current.length > 40) history.current.shift();
     setHistLen(history.current.length);
   }, []);
@@ -300,7 +341,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
     const prev = history.current.pop();
     setHistLen(history.current.length);
     if (prev) {
-      setLayout(prev);
+      applyLayoutSnapshot(prev);
       setSelectedIid(null);
       setPlacingType(null);
       haptic.medium();
@@ -318,6 +359,11 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
     selectedIid,
     onPlaceCell: (c, r) => {
       if (!placingType) return;
+      if (!canAffordFurniture(state, placingType)) {
+        showToast(`Can't afford — ${furnitureDef(placingType).name} costs ${format(dollars(furnitureCost(placingType)))}`, { tone: "negative" });
+        haptic.error();
+        return;
+      }
       snapshot();
       placeFurniture(placingType, c, r, placeRot);
       haptic.light();
@@ -365,6 +411,11 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   // Tapping a catalog item drops it into the first free cell + selects it, so the player can
   // immediately drag it where they want.
   const pick = (type: FurnitureId) => {
+    if (!canAffordFurniture(state, type)) {
+      showToast(`Can't afford — ${furnitureDef(type).name} costs ${format(dollars(furnitureCost(type)))}`, { tone: "negative" });
+      haptic.error();
+      return;
+    }
     const def = furnitureDef(type);
     for (let r = 0; r <= GRID.n - 1; r++) {
       for (let c = 0; c <= GRID.n - 1; c++) {
@@ -386,7 +437,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   };
 
   return (
-    <Card variant="flush">
+    <Card variant="flush" className={build ? "hq__deco" : undefined}>
       <div className={`hq__scene${build ? " hq__scene--build" : ""}`}>
         {use3d && !glLost ? (
           <ErrorBoundary fallback={<IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />}>
@@ -403,7 +454,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 builder={builder}
                 roomStyle={state.roomStyle}
                 desktops={state.desktops}
-                height={build ? 460 : 420}
+                height={build ? "100%" : 420}
                 paused={!active}
                 onTapStaff={() => onNavigate("company")}
                 onTapBank={onOpenBank}
@@ -425,19 +476,22 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
         {use3d && !build && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
         {use3d && !build && (
-          <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); }}>
+          <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
             <LayoutGrid size={15} /> Decorate
           </button>
         )}
         {build && (
           <div className="hqb__top">
-            <span className="hqb__title">Decorate your office</span>
+            <div className="hqb__top-id">
+              <span className="hqb__title">Decorate</span>
+              <span className="hqb__cash tnum">{format(state.cash)}</span>
+            </div>
             <div className="hqb__top-actions">
+              <button className="hqb__icon" aria-label="How Decorate works" onClick={() => { setTutorial(true); haptic.light(); }}>
+                <HelpCircle size={15} />
+              </button>
               <button className="hqb__icon" aria-label="Undo" disabled={histLen === 0} onClick={undo}>
                 <Undo2 size={15} />
-              </button>
-              <button className="hqb__icon" aria-label="Reset layout" onClick={() => { snapshot(); resetFurniture(); setSelectedIid(null); setPlacingType(null); haptic.medium(); }}>
-                <Trash2 size={15} />
               </button>
               <Button size="sm" onClick={exit}><Check size={14} /> Done</Button>
             </div>
@@ -456,12 +510,13 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
               <div className="hqb__row">
                 <button className="hqb__tool" onClick={() => { snapshot(); rotateFurniture(selected.iid); haptic.light(); }}><RotateCw size={16} /> Rotate</button>
                 <button className="hqb__tool" onClick={() => { snapshot(); duplicateFurniture(selected.iid); haptic.light(); }}><Copy size={16} /> Duplicate</button>
-                <button className="hqb__tool hqb__tool--danger" onClick={() => { snapshot(); removeFurniture(selected.iid); setSelectedIid(null); haptic.medium(); }}><Trash2 size={16} /> Remove</button>
+                <button className="hqb__tool hqb__tool--danger" onClick={() => { snapshot(); removeFurniture(selected.iid); setSelectedIid(null); haptic.medium(); sfx("cash"); }}><Trash2 size={16} /> Sell · +{format(dollars(Math.round(furnitureCost(selected.type) * BALANCE.shop.resaleRate)))}</button>
                 <button className="hqb__tool" onClick={() => setSelectedIid(null)}><X size={16} /> Deselect</button>
               </div>
             </div>
           ) : (
             <>
+              <OfficeOverview state={state} />
               <div className="hqb__search">
                 <Search size={15} className="hqb__search-icon" />
                 <input
@@ -529,10 +584,19 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 <div className="hqb__items">
                   {visibleItems.map((f) => {
                     const Icon = FURN_ICONS[f.icon] ?? Box;
+                    const afford = canAffordFurniture(state, f.id);
                     return (
-                      <button key={f.id} className={`hqb__item${placingType === f.id ? " hqb__item--on" : ""}`} aria-pressed={placingType === f.id} aria-label={`Place ${f.name}`} onClick={() => pick(f.id)}>
+                      <button key={f.id} className={`hqb__item${placingType === f.id ? " hqb__item--on" : ""}${afford ? "" : " hqb__item--poor"}`} aria-pressed={placingType === f.id} aria-label={`Buy ${f.name}, ${format(dollars(f.cost))}`} onClick={() => pick(f.id)}>
                         <span className="hqb__item-glyph"><Icon size={20} /></span>
                         <span className="hqb__item-name">{f.name}</span>
+                        <span className="hqb__item-price tnum">{format(dollars(f.cost))}</span>
+                        {(f.attrs?.comfort || f.attrs?.focus || f.attrs?.inspiration) ? (
+                          <span className="hqb__item-attrs">
+                            {f.attrs?.comfort ? <span className="hqb__attr hqb__attr--c"><Smile size={10} aria-hidden />{f.attrs.comfort}</span> : null}
+                            {f.attrs?.focus ? <span className="hqb__attr hqb__attr--f"><Crosshair size={10} aria-hidden />{f.attrs.focus}</span> : null}
+                            {f.attrs?.inspiration ? <span className="hqb__attr hqb__attr--i"><Sparkles size={10} aria-hidden />{f.attrs.inspiration}</span> : null}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -544,12 +608,13 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
           )}
         </div>
       )}
+      <DecorateTutorial open={tutorial} onClose={() => { setTutorial(false); setSettings({ decorateTutorialSeen: true }); }} />
     </Card>
   );
 }
 
 function Upgrades() {
-  const { state, buyUpgrade, upgradeHQ, buyDesktop } = useGame();
+  const { state, buyUpgrade, upgradeHQ } = useGame();
   const fac = facility(state);
   const nextFac = BALANCE.facilities[state.facilityTier];
 
@@ -616,51 +681,18 @@ function Upgrades() {
         )}
       </Card>
 
-      {/* Desktops — standalone computer workstations that visibly populate the 3D garage.
-          Cosmetic flair, capped so the room never looks cluttered. */}
-      {(() => {
-        const owned = state.desktops;
-        const cost = desktopCost(owned);
-        const maxed = cost === null;
-        const affordable = cost !== null && state.cash >= cost;
-        const boomed = boom?.id === "desktops";
-        return (
-          <Card className={`hqu__fac${boomed ? " hqu__card--boom" : ""}`}>
-            {boomed && <span key={boom.n} className="hqu__burst" aria-hidden>{boom.text}</span>}
-            <div className="hqu__card-head">
-              <span className="hqu__glyph" aria-hidden><Monitor size={18} /></span>
-              <div className="hqu__info">
-                <span className="hqu__name">Office Desks</span>
-                <span className="hqu__effect">
-                  {owned > 0 ? `${owned} desk${owned > 1 ? "s" : ""} — each seats a new hire` : "Add a desk to the garage to seat another hire"}
-                </span>
-              </div>
-              <span className="hqu__lv tnum">{owned}/{BALANCE.desktops.max}</span>
-            </div>
-            <div className="hqu__pips">
-              {Array.from({ length: BALANCE.desktops.max }).map((_, i) => (
-                <span
-                  key={boomed && i === boom.tier - 1 ? `ignite${boom.n}` : i}
-                  className={`hqu__pip${i < owned ? " hqu__pip--on" : ""}${boomed && i === boom.tier - 1 ? " hqu__pip--ignite" : ""}`}
-                />
-              ))}
-            </div>
-            {maxed ? (
-              <div className="hqu__maxed"><Check size={14} strokeWidth={2.5} /> Garage at capacity</div>
-            ) : (
-              <Button
-                block
-                size="sm"
-                variant={affordable ? "primary" : "tertiary"}
-                disabled={!affordable}
-                onClick={() => { buyDesktop(); celebrate("desktops", owned + 1, "Desk added"); }}
-              >
-                <ArrowUp size={14} /> Buy desk · {cost !== null ? format(cost) : "—"}
-              </Button>
-            )}
-          </Card>
-        );
-      })()}
+      {/* Seats now come from placed desks, bought in the Decorate shop above — every desk you
+          set down is a seat a new hire sits at. This is just the pointer there. */}
+      <Card className="hqu__fac hqu__seats-hint">
+        <div className="hqu__card-head">
+          <span className="hqu__glyph" aria-hidden><Monitor size={18} /></span>
+          <div className="hqu__info">
+            <span className="hqu__name">Need more seats?</span>
+            <span className="hqu__effect">Buy a desk in <strong>Decorate</strong> — each one seats another hire.</span>
+          </div>
+          <span className="hqu__lv tnum">{deskCapacity(state)} {deskCapacity(state) === 1 ? "seat" : "seats"}</span>
+        </div>
+      </Card>
 
       {/* Office upgrade lines — colour-coded by function, glowing tier pips. */}
       <div className="hqu__grid">
@@ -835,6 +867,38 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   // 3. Product drought — no active products and nothing in the pipeline
   const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
   const inPipeline = state.building.length > 0 || state.ready.length > 0;
+
+  // 2b. Breakout coaching — the recent launches keep landing "steady" and never break out. Read the
+  // latest launch's recorded drivers and name the ONE biggest lever, so a stuck player gets a
+  // specific, proactive nudge toward their first "solid"/hit instead of grinding identical sellers.
+  if (insights.length < 3 && state.launched.length >= 2) {
+    const recent = state.launched.slice(0, 3); // newest first (prepended on launch)
+    const brokeOut = recent.some((lp) => lp.verdict === "hit" || lp.verdict === "solid");
+    const ins = state.launched.find((lp) => lp.insight)?.insight;
+    if (!brokeOut && ins) {
+      const hasMarketer = state.staff.some((s) => s.assignment === "marketing");
+      if (ins.betterRivals >= 1) {
+        insights.push({
+          icon: FlaskConical,
+          text: 'Your launches keep landing "steady" because rivals outclass them — raise component tiers in R&D to break out with a "solid" or a hit.',
+          tab: "research",
+        });
+      } else if (ins.hype < 1.15) {
+        insights.push(
+          hasMarketer
+            ? { icon: Megaphone, text: 'Your products sell steadily but lack buzz — add a launch campaign to push the next one past "steady".', tab: "market" }
+            : { icon: Megaphone, text: 'Your products sell steadily but lack buzz — put someone on Marketing to lift launch hype and break past "steady".', tab: "company" },
+        );
+      } else if (ins.demandFit < 45) {
+        insights.push({
+          icon: TrendingUp,
+          text: 'Your launches keep just missing the trend — check Market demand before your next design to land a "solid".',
+          tab: "market",
+        });
+      }
+    }
+  }
+
   if (insights.length < 3) {
     if (active.length === 0 && !inPipeline) {
       insights.push({

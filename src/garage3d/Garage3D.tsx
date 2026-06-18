@@ -1704,7 +1704,7 @@ export const Garage3D = memo(function Garage3D({
   hasProduction: boolean;
   upgrades?: Upgrades;
   companyName?: string;
-  height?: number;
+  height?: number | string;
   dark: boolean;
   builder?: BuildProps;
   roomStyle?: { floor: number; wall: number };

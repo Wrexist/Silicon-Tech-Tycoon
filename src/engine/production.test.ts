@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dollars, toDollars } from "./money.ts";
 import { BALANCE } from "./balance.ts";
-import type { Product, CompetitorState, LaunchedProduct } from "./types.ts";
+import type { Product, CompetitorState, LaunchedProduct, ComponentKind } from "./types.ts";
 import {
   advanceOneWeek,
   applyEventEffect,
@@ -12,9 +12,18 @@ import {
   planProduction,
   recommendedRun,
   startBuild,
+  effectiveUnitCost,
   verdictBands,
   type GameState,
 } from "../state/gameState.ts";
+
+/** Build a product to launch-ready, then return the recorded verdict. */
+function buildAndLaunch(s0: GameState, product: Product): string | undefined {
+  let s = startBuild(s0, product, recommendedRun(s0, product, "none"), "none").state;
+  const weeks = buildWeeksFor(s) + 1;
+  for (let i = 0; i < weeks; i++) s = advanceOneWeek(s);
+  return launchReady(s, s.ready[0].id).state.launched[0].verdict;
+}
 
 /** Mirror of DesignLab's projected verdict (B7): the lab uses the SAME competition-adjusted
  *  effectiveScore + the SAME era-scaled verdict bands the launch gate uses. */
@@ -118,6 +127,79 @@ describe("production planning + smart demand", () => {
       const launched = launchReady(s, s.ready[0].id).state.launched[0];
       expect(launched.verdict).toBe(predicted);
     }
+  });
+});
+
+describe("early-game fairness — the maiden launch must not punish a competent player", () => {
+  // A fresh company's hype is tiny, so even a well-built, well-priced tier-1 product can only score
+  // ~13–17. Before the era-1 flop floor was lowered to 10, that made the FIRST launch a guaranteed
+  // flop (−reputation, −fans) for a product the player built correctly — a demoralizing opener.
+  it("a sensibly-priced tier-1 first product lands 'steady', never 'flop'", () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const s = newGame(seed);
+      const unit = toDollars(effectiveUnitCost(s, phone()));
+      const product: Product = { ...phone(), price: dollars(Math.max(120, Math.round(unit * 1.8))) };
+      expect(buildAndLaunch(s, product)).not.toBe("flop");
+    }
+  });
+
+  // Stakes are preserved: a genuinely bad bet (badly overpriced) still flops.
+  it("a badly overpriced first product still flops — the floor isn't a free pass", () => {
+    const s = newGame(1);
+    const unit = toDollars(effectiveUnitCost(s, phone()));
+    const gouged: Product = { ...phone(), price: dollars(unit * 6) };
+    expect(buildAndLaunch(s, gouged)).toBe("flop");
+  });
+
+  // The progression on-ramp must EXIST: era 1 cannot be a plateau where every launch is forever
+  // "steady". A developed era-1 company (researched to the tier-2 ceiling, healthy reputation +
+  // fans) building a maxed product at a sensible price must be able to reach "solid" — and "hit"
+  // with a strong launch campaign. This guards the verdict bars / scoring from regressing into an
+  // unwinnable grind. (Measured ceiling: ~54 uncontested, ~95 with a launch event.)
+  it("a developed era-1 company can reach 'solid' (and 'hit' with a campaign) — the climb is real", () => {
+    const KINDS: ComponentKind[] = ["chip", "display", "battery", "materials", "software", "camera"];
+    const base = newGame(1);
+    const s: GameState = {
+      ...base,
+      reputation: 30,
+      fans: 1500,
+      researched: Object.fromEntries(KINDS.map((k) => [k, 2])) as Record<ComponentKind, number>,
+    };
+    const maxed = (price: number): Product => ({
+      id: "apex", name: "Apex", category: "phone",
+      tiers: { chip: 2, display: 2, battery: 2, materials: 2, software: 2, camera: 2 },
+      finish: "aluminium", colorIndex: 0, price: dollars(price), designTier: 2,
+      camera: { count: 3, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
+      notch: "punch",
+    });
+    const bestEff = (channel: "none" | "event") => {
+      let best = 0;
+      for (let price = 120; price <= 500; price += 10) {
+        const plan = planProduction(s, maxed(price), 5000, channel);
+        best = Math.max(best, plan.launchScore * plan.competitionFactor);
+      }
+      return best;
+    };
+    const bands = verdictBands(1);
+    expect(bestEff("none")).toBeGreaterThanOrEqual(bands.solid); // solid is reachable uncontested
+    expect(bestEff("event")).toBeGreaterThanOrEqual(bands.hit); // a hit is reachable with a campaign
+  });
+
+  // The positive feedback loop: shipping decent products must GROW your audience. Fans decay
+  // every week, and before this only viral "hits" added any — so a company shipping steady
+  // sellers slowly bled its whole fanbase (hype → score → verdict all stuck low: a dead-end
+  // stall). A steady launch now wins fans on the spot, outpacing the decay.
+  it("a steady seller grows the fanbase on launch (not just hits)", () => {
+    const s0 = newGame(1);
+    const unit = toDollars(effectiveUnitCost(s0, phone()));
+    const product: Product = { ...phone(), price: dollars(Math.max(120, Math.round(unit * 1.8))) };
+    let s = startBuild(s0, product, recommendedRun(s0, product, "none"), "none").state;
+    const weeks = buildWeeksFor(s) + 1;
+    for (let i = 0; i < weeks; i++) s = advanceOneWeek(s);
+    const fansBefore = s.fans;
+    const launched = launchReady(s, s.ready[0].id).state;
+    expect(launched.launched[0].verdict).toBe("steady"); // precondition: this is the steady path
+    expect(launched.fans).toBeGreaterThan(fansBefore); // …and it added fans rather than losing them
   });
 });
 

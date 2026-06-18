@@ -750,7 +750,7 @@ function generateTips(lp: LaunchedProduct): string[] {
     tips.push("One rival edged you out — a single component upgrade or a tighter price could swing the category your way.");
   }
   if (ins.hype < 1.05 && tips.length < 3) {
-    tips.push("Very little launch buzz. A paid marketing channel (Social, Search, or TV) can multiply demand at launch.");
+    tips.push("Very little launch buzz. Put a team member on Marketing for an ongoing hype boost, or run a paid campaign (Social, Search, or TV) to multiply demand at the next launch.");
   }
   if (tips.length === 0 && v === "hit") {
     tips.push("Strong launch — maintain momentum by designing a successor before this product finishes its run.");
