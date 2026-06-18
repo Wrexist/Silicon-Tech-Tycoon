@@ -89,10 +89,13 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
     const res = launchReady(id);
     if (res.ok) {
       haptic.success();
-      const sc = res.launchScore ?? 0;
+      // Drive the celebration off the ACTUAL recorded verdict, not the raw launchScore, so the
+      // launch moment can never contradict the verdict Market/feed record (competition-adjusted).
+      const verdict = res.verdict ?? "steady";
+      const isHit = verdict === "hit";
       sfx("launch");
-      if (sc >= 76) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
-      const fb = launchFeedback(sc, firstEver, sc >= 76 && !hadHit);
+      if (isHit) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
+      const fb = launchFeedback(verdict, firstEver, isHit && !hadHit);
       showToast(fb.text, { tone: fb.tone, glyph: <Rocket size={15} /> });
     }
   };

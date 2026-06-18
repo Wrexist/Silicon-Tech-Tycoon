@@ -7,17 +7,21 @@ export interface LaunchFeedback {
   tone: "neutral" | "positive" | "negative";
 }
 
+/** The four recorded launch verdicts (competition-adjusted, era-scaled). */
+export type LaunchVerdict = "hit" | "solid" | "flop" | "steady";
+
 /**
- * @param score      the launch score (0..100-ish) returned by launchReady
+ * @param verdict    the verdict the launch ACTUALLY recorded (so the toast can never contradict
+ *                   what Market shows — a raw-score "hit" that flopped under competition is a flop)
  * @param firstEver  true if this is the company's very first launch
  * @param firstHit   true if this launch is a hit AND no prior product was a hit
  */
-export function launchFeedback(score: number, firstEver: boolean, firstHit: boolean): LaunchFeedback {
-  if (score >= 76) {
+export function launchFeedback(verdict: LaunchVerdict, firstEver: boolean, firstHit: boolean): LaunchFeedback {
+  if (verdict === "hit") {
     return { text: firstHit ? "Your first hit — the market loves it!" : "Launched — it's a hit!", tone: "positive" };
   }
-  if (score >= 45) return { text: "Launched — solid performance.", tone: "positive" };
-  if (score <= 22) {
+  if (verdict === "solid") return { text: "Launched — solid performance.", tone: "positive" };
+  if (verdict === "flop") {
     // Constructive, not deflating — and never red for a debut. Point the player at the Market
     // post-mortem so a slow start reads as "here's how to improve", not "you failed".
     return firstEver

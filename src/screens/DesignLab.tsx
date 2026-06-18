@@ -307,13 +307,16 @@ export function DesignLab({
     const res = launchReady(id);
     if (!res.ok) return;
     haptic.success();
-    const sc = res.launchScore ?? 0;
+    // Drive the celebration off the ACTUAL recorded verdict, not the raw launchScore — a strong
+    // design launched into a crowded category records as solid/flop, and the moment must agree.
+    const verdict = res.verdict ?? "steady";
+    const isHit = verdict === "hit";
     sfx("launch");
-    if (sc >= 76) {
+    if (isHit) {
       setTimeout(() => sfx("hit"), 380);
       emitCelebrate();
     }
-    const fb = launchFeedback(sc, firstEver, sc >= 76 && !hadHit);
+    const fb = launchFeedback(verdict, firstEver, isHit && !hadHit);
     showToast(fb.text, { tone: fb.tone, glyph: <Rocket size={15} /> });
   }
 

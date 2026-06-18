@@ -226,7 +226,7 @@ interface GameContextValue {
   takeOverHere: () => void;
   // actions
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
-  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number };
+  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady" };
   research: (kind: ComponentKind) => void;
   unlockLens: () => void;
   unlockFinish: () => void;
@@ -415,7 +415,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // A launch can immediately cross a milestone (first ship, a hit, a hit streak, a sellout) — so
     // evaluate + celebrate right here, not only on the next weekly tick.
     if (result.ok) setState(withLiveAchievements(result.state));
-    return { ok: result.ok, reason: result.reason, launchScore: result.launchScore };
+    return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
   }, []);
 
   const research = useCallback((kind: ComponentKind) => {
