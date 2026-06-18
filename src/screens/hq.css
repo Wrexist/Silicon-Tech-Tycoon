@@ -473,10 +473,24 @@
   display: flex;
   gap: var(--sp-6);
   overflow-x: auto;
-  scrollbar-width: none;
+  /* A visible, premium scroll affordance — the category strip is the main way to browse the
+     shop, so it must read as scrollable. Slim styled bar + edge fades that hint "more →". */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+  padding-bottom: 7px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
 .hqb__cats::-webkit-scrollbar {
-  display: none;
+  height: 5px;
+}
+.hqb__cats::-webkit-scrollbar-track {
+  background: var(--bg-elevated);
+  border-radius: var(--r-pill);
+}
+.hqb__cats::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: var(--r-pill);
 }
 .hqb__cat {
   flex-shrink: 0;
@@ -502,7 +516,7 @@
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  padding: var(--sp-12) 4px;
+  padding: 8px 6px 10px;
   border-radius: var(--r-button);
   background: var(--surface-2);
   border: 1px solid var(--hairline);
@@ -517,17 +531,19 @@
   transform: scale(0.95);
 }
 .hqb__item-glyph {
-  width: 38px;
-  height: 38px;
+  width: 100%;
+  height: 52px;
   display: grid;
   place-items: center;
   border-radius: 10px;
-  background: var(--bg-elevated);
-  color: var(--ink-2);
+  /* a soft "showroom" tile the parametric furniture thumbnail sits on */
+  background: linear-gradient(180deg, var(--surface), var(--bg-elevated));
+  border: 1px solid var(--hairline);
+  overflow: hidden;
 }
 .hqb__item--on .hqb__item-glyph {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: linear-gradient(180deg, var(--surface), var(--accent-soft));
+  border-color: var(--accent);
 }
 .hqb__item-name {
   font-size: var(--fs-nano);
@@ -1296,12 +1312,17 @@
 .hqb__attr--f { color: var(--fn-eng); }
 .hqb__attr--i { color: var(--fn-design); }
 
-/* ============ Phase C: decorate = an inline two-zone layout that fits the screen ============
-   Scene on top, shop sheet below — both visible at once so you can see the floor AND the catalog
-   while decorating, and nothing clips. Sized in dvh to fill the space between the HUD and the
-   bottom nav. INLINE (not a fixed overlay) so it composites cleanly on every renderer. The
-   Garage3D canvas is the SAME mounted instance as the inline scene — never remounted (WebGL
-   context preserved). */
+/* ============ Decorate = a FULL-SCREEN, focused two-zone editor ============
+   A fixed overlay that takes over the whole viewport (above the HUD + bottom nav, below the
+   tutorial coach + toasts): the top half is the live 3D office, the bottom half is the shop
+   sheet, so the player sees the floor AND the catalog at once with maximum room to customize.
+   Split 50/50 with flex; the shop half scrolls internally. The Garage3D canvas is the SAME
+   mounted instance as the inline scene — never remounted (WebGL context preserved). */
+/* Lock background page scroll while the full-screen editor is open so a drag on the overlay
+   can't scroll HQ underneath it. */
+body.hq-deco-open {
+  overflow: hidden;
+}
 /* Seats-hint card: informational, not a buy action. Routes the player to the Decorate shop
    for desks. Subtle so it doesn't compete with the real upgrade lines. */
 .hqu__seats-hint {
@@ -1313,19 +1334,32 @@
 }
 
 .ds-card.hq__deco {
+  position: fixed;
+  inset: 0;
+  z-index: 45; /* above bottom nav (30) + HUD (20); below tutorial coach (70) + toasts (60) */
   display: flex;
   flex-direction: column;
-  /* viewport minus HUD + screen title + bottom nav + margins, so the card bottom always
-     clears the fixed bottom nav (measured: HUD+title ≈ 168px, nav+safe-area ≈ 80px). */
-  height: calc(100dvh - 248px);
-  min-height: 360px;
-  margin-bottom: var(--sp-8);
+  height: 100dvh;
+  margin: 0;
   padding: 0;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
+  background: var(--surface);
+  /* keep the scene's top chrome clear of the notch / status bar */
+  padding-top: env(safe-area-inset-top);
+  /* OPACITY-only (no transform): a transform here would make the card a containing block for its
+     own position:fixed children, like the tutorial coach. The app uses this same convention. */
+  animation: hq-deco-in var(--spring-standard) both;
 }
+@keyframes hq-deco-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* Top half: the live 3D office. */
 .hq__deco .hq__scene--build {
-  flex: 1 1 auto;
-  min-height: 140px;
+  flex: 1 1 50%;
+  min-height: 0;
   padding: 0;
 }
 .hqb__top-id {
@@ -1338,20 +1372,22 @@
   font-weight: 800;
   color: var(--ink);
 }
+/* Bottom half: the shop sheet, scrolls internally. */
 .hq__deco .hqb__panel {
-  flex: 0 1 auto;
-  max-height: 50dvh;
+  flex: 1 1 50%;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   background: var(--surface);
-  box-shadow: 0 -10px 30px -16px rgba(0, 0, 0, 0.22);
-  padding-bottom: var(--sp-16);
+  box-shadow: 0 -12px 30px -18px rgba(0, 0, 0, 0.28);
+  /* the rounded lip reads as a sheet lifting over the scene */
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  padding-bottom: calc(var(--sp-16) + env(safe-area-inset-bottom));
 }
 /* Category strip: a single horizontal snap-scroll row, never wraps off-screen */
 .hq__deco .hqb__cats {
   scroll-snap-type: x proximity;
-  padding-bottom: 2px;
 }
 .hq__deco .hqb__cat {
   flex: 0 0 auto;
