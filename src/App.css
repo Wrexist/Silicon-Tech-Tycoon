@@ -217,6 +217,12 @@
   font-weight: 600;
   color: var(--ink-2);
 }
+.ipo__rank-first {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  color: var(--accent);
+}
 
 /* Screen-level error boundary card */
 .app__screen-error {

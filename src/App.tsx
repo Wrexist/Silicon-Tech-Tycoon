@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CircuitBoard, CircleX, Copy, Cpu, Layers, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
+import { AlertTriangle, CircuitBoard, CircleX, Copy, Cpu, Layers, RotateCcw, Sparkles, TrendingUp, Trophy } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
@@ -287,7 +287,11 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           </Card>
           <Card variant="inset" className="ipo__stat">
             <span className="app__offline-label">Industry rank</span>
-            <span className="app__offline-value rounded tnum">{rank === 1 ? "#1 🏆" : `#${rank}`}</span>
+            <span className="app__offline-value rounded tnum">
+              {rank === 1 ? (
+                <span className="ipo__rank-first">#1 <Trophy size={16} aria-hidden /></span>
+              ) : `#${rank}`}
+            </span>
           </Card>
         </div>
         <Card variant="inset" className="ipo__legacy">
