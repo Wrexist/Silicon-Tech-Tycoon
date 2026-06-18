@@ -120,7 +120,7 @@ function AppShell() {
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
-      {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} onClose={clearOffline} />}
+      {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} topProduct={offline.topProduct} onClose={clearOffline} />}
       {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (
         <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
       )}
@@ -367,7 +367,7 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
   );
 }
 
-function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; onClose: () => void }) {
+function OfflineSheet({ weeks, gain, topProduct, onClose }: { weeks: number; gain: Money; topProduct: { name: string; units: number } | null; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
   useEffect(() => {
@@ -395,6 +395,14 @@ function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; on
           <span className="app__offline-label">Net change</span>
           <AnimatedMoney value={gain} sign className="app__offline-value rounded" />
         </Card>
+        {topProduct && (
+          <Card variant="inset" className="app__offline-card">
+            <span className="app__offline-label">Best seller while away</span>
+            <span className="app__offline-hero">
+              {topProduct.name}<span className="app__offline-units tnum"> · {topProduct.units.toLocaleString()} units</span>
+            </span>
+          </Card>
+        )}
         <Button block onClick={onClose}>Continue</Button>
       </div>
     </div>

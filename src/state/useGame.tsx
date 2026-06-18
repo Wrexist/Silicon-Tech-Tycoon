@@ -80,6 +80,20 @@ import { createElement } from "react";
 export interface OfflineSummary {
   weeks: number;
   gain: Money;
+  /** The product that sold the most units while the player was away — a recap highlight. */
+  topProduct: { name: string; units: number } | null;
+}
+
+/** The product whose unit sales grew the most across the offline window. Pure diff of the
+ *  pre/post catch-up states; null if nothing sold while away. */
+function topSellerWhileAway(before: GameState, after: GameState): { name: string; units: number } | null {
+  const prev = new Map(before.launched.map((lp) => [lp.product.id, lp.unitsSold]));
+  let best: { name: string; units: number } | null = null;
+  for (const lp of after.launched) {
+    const delta = lp.unitsSold - (prev.get(lp.product.id) ?? 0);
+    if (delta > 0 && (!best || delta > best.units)) best = { name: lp.product.name, units: delta };
+  }
+  return best;
 }
 
 function fmtMilestone(d: number): string {
@@ -277,7 +291,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const withAch = evaluateAndUnlock(floored).state;
     // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
     save({ ...withAch, lastActive: Date.now() });
-    return { state: withAch, offline: weeks > 0 ? { weeks, gain } : null };
+    const topProduct = weeks > 0 ? topSellerWhileAway(loaded, withAch) : null;
+    return { state: withAch, offline: weeks > 0 ? { weeks, gain, topProduct } : null };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

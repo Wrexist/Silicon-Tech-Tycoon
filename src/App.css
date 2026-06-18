@@ -206,6 +206,17 @@
   font-size: var(--fs-title);
   font-weight: 700;
 }
+.app__offline-hero {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  text-align: right;
+  min-width: 0;
+}
+.app__offline-units {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+}
 
 /* Screen-level error boundary card */
 .app__screen-error {
