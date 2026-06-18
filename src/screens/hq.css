@@ -1302,6 +1302,16 @@
    bottom nav. INLINE (not a fixed overlay) so it composites cleanly on every renderer. The
    Garage3D canvas is the SAME mounted instance as the inline scene — never remounted (WebGL
    context preserved). */
+/* Seats-hint card: informational, not a buy action. Routes the player to the Decorate shop
+   for desks. Subtle so it doesn't compete with the real upgrade lines. */
+.hqu__seats-hint {
+  background: var(--surface-2, var(--surface));
+}
+.hqu__seats-hint .hqu__effect strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .ds-card.hq__deco {
   display: flex;
   flex-direction: column;

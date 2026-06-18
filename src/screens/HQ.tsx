@@ -34,7 +34,7 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, desktopCost, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -608,7 +608,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
 }
 
 function Upgrades() {
-  const { state, buyUpgrade, upgradeHQ, buyDesktop } = useGame();
+  const { state, buyUpgrade, upgradeHQ } = useGame();
   const fac = facility(state);
   const nextFac = BALANCE.facilities[state.facilityTier];
 
@@ -675,51 +675,18 @@ function Upgrades() {
         )}
       </Card>
 
-      {/* Desktops — standalone computer workstations that visibly populate the 3D garage.
-          Cosmetic flair, capped so the room never looks cluttered. */}
-      {(() => {
-        const owned = state.desktops;
-        const cost = desktopCost(owned);
-        const maxed = cost === null;
-        const affordable = cost !== null && state.cash >= cost;
-        const boomed = boom?.id === "desktops";
-        return (
-          <Card className={`hqu__fac${boomed ? " hqu__card--boom" : ""}`}>
-            {boomed && <span key={boom.n} className="hqu__burst" aria-hidden>{boom.text}</span>}
-            <div className="hqu__card-head">
-              <span className="hqu__glyph" aria-hidden><Monitor size={18} /></span>
-              <div className="hqu__info">
-                <span className="hqu__name">Office Desks</span>
-                <span className="hqu__effect">
-                  {owned > 0 ? `${owned} desk${owned > 1 ? "s" : ""} — each seats a new hire` : "Add a desk to the garage to seat another hire"}
-                </span>
-              </div>
-              <span className="hqu__lv tnum">{owned}/{BALANCE.desktops.max}</span>
-            </div>
-            <div className="hqu__pips">
-              {Array.from({ length: BALANCE.desktops.max }).map((_, i) => (
-                <span
-                  key={boomed && i === boom.tier - 1 ? `ignite${boom.n}` : i}
-                  className={`hqu__pip${i < owned ? " hqu__pip--on" : ""}${boomed && i === boom.tier - 1 ? " hqu__pip--ignite" : ""}`}
-                />
-              ))}
-            </div>
-            {maxed ? (
-              <div className="hqu__maxed"><Check size={14} strokeWidth={2.5} /> Garage at capacity</div>
-            ) : (
-              <Button
-                block
-                size="sm"
-                variant={affordable ? "primary" : "tertiary"}
-                disabled={!affordable}
-                onClick={() => { buyDesktop(); celebrate("desktops", owned + 1, "Desk added"); }}
-              >
-                <ArrowUp size={14} /> Buy desk · {cost !== null ? format(cost) : "—"}
-              </Button>
-            )}
-          </Card>
-        );
-      })()}
+      {/* Seats now come from placed desks, bought in the Decorate shop above — every desk you
+          set down is a seat a new hire sits at. This is just the pointer there. */}
+      <Card className="hqu__fac hqu__seats-hint">
+        <div className="hqu__card-head">
+          <span className="hqu__glyph" aria-hidden><Monitor size={18} /></span>
+          <div className="hqu__info">
+            <span className="hqu__name">Need more seats?</span>
+            <span className="hqu__effect">Buy a desk in <strong>Decorate</strong> — each one seats another hire.</span>
+          </div>
+          <span className="hqu__lv tnum">{deskCapacity(state)} {deskCapacity(state) === 1 ? "seat" : "seats"}</span>
+        </div>
+      </Card>
 
       {/* Office upgrade lines — colour-coded by function, glowing tier pips. */}
       <div className="hqu__grid">
