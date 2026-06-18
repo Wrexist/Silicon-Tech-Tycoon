@@ -275,14 +275,18 @@ export const BALANCE = {
     // B1 — the recommended/affordable run must leave the player solvent through the build.
     // recommendedRun reserves (buildWeeks × weeklyBurn) + this flat margin before spending cash
     // on units, so a fresh save can't accidentally brick itself manufacturing its first product.
-    // A healthy reserve also keeps early runs modest (you grow into bigger runs as cash builds),
-    // so the garage phase is deliberately slow + hand-built rather than one giant first bet.
-    safetyReserveMargin: dollars(5_000) as Money,
+    // Lowered 5,000 → 2,500: at $20k start, a $5k reserve choked early runs so hard (~150 units vs
+    // ~200 demand) that thin margins couldn't clear burn and every early cycle ran at a loss. A
+    // $2.5k reserve still protects the build-through window but lets early runs reach a profitable
+    // scale (a measured first cycle moves from a ~$3k loss to break-even).
+    safetyReserveMargin: dollars(2_500) as Money,
   },
 
   // --- Facilities ---
   facilities: [
-    { tier: 1, name: "Garage", staffCapacity: 4, weeklyRent: dollars(200), upgradeCost: dollars(0) },
+    // Garage rent lowered 200 → 120/wk: a pre-revenue garage carrying $200/wk of fixed burn turned
+    // thin-margin early cycles net-negative. A leaner garage overhead keeps the bootstrap survivable.
+    { tier: 1, name: "Garage", staffCapacity: 4, weeklyRent: dollars(120), upgradeCost: dollars(0) },
     { tier: 2, name: "Studio", staffCapacity: 7, weeklyRent: dollars(1_200), upgradeCost: dollars(120_000) },
     { tier: 3, name: "Campus", staffCapacity: 16, weeklyRent: dollars(6_000), upgradeCost: dollars(1_500_000) },
   ],
