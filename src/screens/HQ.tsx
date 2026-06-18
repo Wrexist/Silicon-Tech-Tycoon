@@ -10,6 +10,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
+import { launchFeedback } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
@@ -83,16 +84,16 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
   const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
   const onLaunch = (id: string) => {
+    const firstEver = state.launched.length === 0;
+    const hadHit = state.launched.some((lp) => lp.verdict === "hit");
     const res = launchReady(id);
     if (res.ok) {
       haptic.success();
       const sc = res.launchScore ?? 0;
       sfx("launch");
       if (sc >= 76) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
-      showToast(
-        sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : sc >= 45 ? "Launched — solid performance." : "Launched into the market.",
-        { tone: sc <= 22 ? "negative" : "positive", glyph: <Rocket size={15} /> },
-      );
+      const fb = launchFeedback(sc, firstEver, sc >= 76 && !hadHit);
+      showToast(fb.text, { tone: fb.tone, glyph: <Rocket size={15} /> });
     }
   };
   const reducedMotion = useReducedMotionLive();

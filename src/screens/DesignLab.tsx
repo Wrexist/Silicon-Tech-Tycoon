@@ -5,6 +5,7 @@ import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
+import { launchFeedback } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { isCategoryUnlocked } from "../engine/eras.ts";
@@ -300,6 +301,9 @@ export function DesignLab({
   // celebrate FX on a hit, verdict toast) so the whole loop (design → build → launch) lives in one
   // place and never forces a trip to another tab.
   function onLaunch(id: string) {
+    // Snapshot before launchReady records the product, so "first ever / first hit" are correct.
+    const firstEver = state.launched.length === 0;
+    const hadHit = state.launched.some((lp) => lp.verdict === "hit");
     const res = launchReady(id);
     if (!res.ok) return;
     haptic.success();
@@ -309,10 +313,8 @@ export function DesignLab({
       setTimeout(() => sfx("hit"), 380);
       emitCelebrate();
     }
-    showToast(
-      sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : sc >= 45 ? "Launched — solid performance." : "Launched into the market.",
-      { tone: sc <= 22 ? "negative" : "positive", glyph: <Rocket size={15} /> },
-    );
+    const fb = launchFeedback(sc, firstEver, sc >= 76 && !hadHit);
+    showToast(fb.text, { tone: fb.tone, glyph: <Rocket size={15} /> });
   }
 
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)
@@ -1052,7 +1054,7 @@ function DesignCompleteCard({
       </div>
 
       <div className="done__grid">
-        <Stat label="Overall" value={`${done.overall}`} />
+        <Stat label="Overall" value={`${done.overall}`} hint={done.overall >= 75 ? "flagship tier" : done.overall >= 55 ? "strong build" : done.overall >= 35 ? "mid-tier" : "entry tier"} />
         <Stat label="Run size" value={done.units.toLocaleString()} />
         <Stat
           label="Est. sales"
