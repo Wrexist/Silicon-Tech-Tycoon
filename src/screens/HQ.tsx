@@ -79,7 +79,7 @@ const UPGRADE_FN: Record<UpgradeId, { accent: string; soft: string }> = {
 
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
 
-export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
+export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; active?: boolean }) {
   const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
   const onLaunch = (id: string) => {
@@ -107,7 +107,7 @@ export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; o
 
   return (
     <div className="hq">
-      <OfficeScene use3d={use3d} hasProduction={hasProduction} onNavigate={onNavigate} onOpenBank={onOpenBank} />
+      <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active} onNavigate={onNavigate} onOpenBank={onOpenBank} />
 
       {ipoReady && (
         <Card className="hq__era hq__ipo">
@@ -267,7 +267,7 @@ export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; o
 }
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
-function OfficeScene({ use3d, hasProduction, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
+function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, resetFurniture, setLayout, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
   const [placingType, setPlacingType] = useState<FurnitureId | null>(null);
@@ -403,6 +403,7 @@ function OfficeScene({ use3d, hasProduction, onNavigate, onOpenBank }: { use3d: 
                 roomStyle={state.roomStyle}
                 desktops={state.desktops}
                 height={build ? 460 : 420}
+                paused={!active}
                 onTapStaff={() => onNavigate("company")}
                 onTapBank={onOpenBank}
               />
