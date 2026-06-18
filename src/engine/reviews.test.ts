@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { criticReviews, type ReviewInputs, type ReviewVerdict } from "./reviews.ts";
+import { criticReviews, OUTLETS, type ReviewInputs, type ReviewVerdict } from "./reviews.ts";
 import type { Stats } from "./types.ts";
 
 const stats = (over: Partial<Stats> = {}): Stats => ({
@@ -21,7 +21,8 @@ const base = (over: Partial<ReviewInputs> = {}): ReviewInputs => ({
   ...over,
 });
 
-const OUTLETS = new Set(["The Circuit", "Bitstream", "Field & Frame", "Teardown Weekly", "Mainboard", "Slate & Silicon"]);
+// Reuse the source list (not a hand-copied dup) so renames there are tracked here.
+const OUTLET_NAMES = new Set<string>(OUTLETS);
 
 describe("criticReviews", () => {
   it("is deterministic for a given product id", () => {
@@ -59,7 +60,7 @@ describe("criticReviews", () => {
     expect(r.outlets).toHaveLength(3);
     const names = r.outlets.map((o) => o.outlet);
     expect(new Set(names).size).toBe(3);
-    for (const n of names) expect(OUTLETS.has(n)).toBe(true);
+    for (const n of names) expect(OUTLET_NAMES.has(n)).toBe(true);
   });
 
   it("always gives 1-2 pros and 1-2 cons, and a headline", () => {

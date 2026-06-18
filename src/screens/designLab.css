@@ -7,8 +7,8 @@
   flex-direction: column;
   gap: var(--sp-16);
   /* room so the last content scrolls clear of the fixed step-nav bar above the tab bar — extra
-     breathing space so the section tabs / Plan-production CTA never crowd the floating nav */
-  padding-bottom: 92px;
+     breathing space so the section tabs / Plan-production CTA never crowd the floating nav (96 = 12×8pt) */
+  padding-bottom: 96px;
 }
 
 /* Sticky step nav: Back (left) + Next (right), fixed just above the bottom tab bar. The bar

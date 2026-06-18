@@ -34,7 +34,7 @@ export interface CriticReviews {
 }
 
 // IP-clean fictional publications (no real outlet names — ship-blocker rule).
-const OUTLETS = ["The Circuit", "Bitstream", "Field & Frame", "Teardown Weekly", "Mainboard", "Slate & Silicon"] as const;
+export const OUTLETS = ["The Circuit", "Bitstream", "Field & Frame", "Teardown Weekly", "Mainboard", "Slate & Silicon"] as const;
 
 const STAT_LABEL: Record<keyof Stats, string> = {
   performance: "performance",

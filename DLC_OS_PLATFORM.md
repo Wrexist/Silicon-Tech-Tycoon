@@ -62,7 +62,7 @@ rivals for a new income stream.
 ## 4. Data model (additive, migration-safe)
 
 All new fields default safely on old saves (the established `persistence.ts` migrate pattern):
-```
+```text
 osName: string                 // player-named, defaults to "<Company> OS"
 osVersion: number              // released version counter
 osLicensees: string[]          // rival ids currently licensing the OS

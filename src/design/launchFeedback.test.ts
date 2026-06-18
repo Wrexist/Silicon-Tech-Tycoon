@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { launchFeedback } from "./launchFeedback.ts";
+import { launchFeedback, launchOutcome } from "./launchFeedback.ts";
 
 describe("launchFeedback", () => {
   it("celebrates a hit, and gives the first hit its own line", () => {
@@ -27,5 +27,25 @@ describe("launchFeedback", () => {
     expect(launchFeedback("solid", false, false).tone).toBe("positive");
     expect(launchFeedback("steady", false, false).text).toMatch(/Launched/);
     expect(launchFeedback("steady", false, false).tone).toBe("neutral");
+  });
+});
+
+describe("launchOutcome (shared by Design Lab + HQ)", () => {
+  it("flags a hit and the first-hit when no prior hit exists", () => {
+    const r = launchOutcome({ verdict: "hit" }, []);
+    expect(r.isHit).toBe(true);
+    expect(r.feedback.text).toMatch(/first hit/i);
+  });
+
+  it("a hit after a prior hit is still a hit, but not the first", () => {
+    const r = launchOutcome({ verdict: "hit" }, [{ verdict: "hit" }]);
+    expect(r.isHit).toBe(true);
+    expect(r.feedback.text).not.toMatch(/first hit/i);
+  });
+
+  it("defaults a missing verdict to steady (no hit celebration)", () => {
+    const r = launchOutcome({}, []);
+    expect(r.isHit).toBe(false);
+    expect(r.feedback.text).toMatch(/Launched/);
   });
 });

@@ -30,3 +30,25 @@ export function launchFeedback(verdict: LaunchVerdict, firstEver: boolean, first
   }
   return { text: "Launched into the market.", tone: "neutral" };
 }
+
+export interface LaunchOutcome {
+  /** Whether to fire the celebratory beat (confetti + hit SFX). */
+  isHit: boolean;
+  feedback: LaunchFeedback;
+}
+
+/**
+ * The shared launch-result derivation used by BOTH launch surfaces (Design Lab + HQ) so they can
+ * never drift apart. Pass the result of `launchReady` and the `launched` array as it was BEFORE
+ * this launch was recorded (the pre-launch snapshot the screen already holds).
+ */
+export function launchOutcome(
+  res: { verdict?: LaunchVerdict },
+  launchedBefore: readonly { verdict?: string }[],
+): LaunchOutcome {
+  const firstEver = launchedBefore.length === 0;
+  const hadHit = launchedBefore.some((lp) => lp.verdict === "hit");
+  const verdict = res.verdict ?? "steady";
+  const isHit = verdict === "hit";
+  return { isHit, feedback: launchFeedback(verdict, firstEver, isHit && !hadHit) };
+}

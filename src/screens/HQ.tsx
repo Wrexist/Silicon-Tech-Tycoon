@@ -10,7 +10,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { launchFeedback } from "../design/launchFeedback.ts";
+import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
@@ -84,19 +84,16 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
   const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
   const onLaunch = (id: string) => {
-    const firstEver = state.launched.length === 0;
-    const hadHit = state.launched.some((lp) => lp.verdict === "hit");
+    const launchedBefore = state.launched; // before launchReady records this product
     const res = launchReady(id);
     if (res.ok) {
       haptic.success();
-      // Drive the celebration off the ACTUAL recorded verdict, not the raw launchScore, so the
-      // launch moment can never contradict the verdict Market/feed record (competition-adjusted).
-      const verdict = res.verdict ?? "steady";
-      const isHit = verdict === "hit";
+      // Shared with the Design Lab; keys the celebration off the recorded (competition-adjusted)
+      // verdict, so the launch moment can never contradict what Market/feed record.
+      const { isHit, feedback } = launchOutcome(res, launchedBefore);
       sfx("launch");
       if (isHit) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
-      const fb = launchFeedback(verdict, firstEver, isHit && !hadHit);
-      showToast(fb.text, { tone: fb.tone, glyph: <Rocket size={15} /> });
+      showToast(feedback.text, { tone: feedback.tone, glyph: <Rocket size={15} /> });
     }
   };
   const reducedMotion = useReducedMotionLive();

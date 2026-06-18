@@ -5,7 +5,7 @@ import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { launchFeedback } from "../design/launchFeedback.ts";
+import { launchOutcome } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { isCategoryUnlocked } from "../engine/eras.ts";
@@ -301,23 +301,20 @@ export function DesignLab({
   // celebrate FX on a hit, verdict toast) so the whole loop (design → build → launch) lives in one
   // place and never forces a trip to another tab.
   function onLaunch(id: string) {
-    // Snapshot before launchReady records the product, so "first ever / first hit" are correct.
-    const firstEver = state.launched.length === 0;
-    const hadHit = state.launched.some((lp) => lp.verdict === "hit");
+    // Snapshot the launched list BEFORE launchReady records this product (for first-ever/first-hit).
+    const launchedBefore = state.launched;
     const res = launchReady(id);
     if (!res.ok) return;
     haptic.success();
-    // Drive the celebration off the ACTUAL recorded verdict, not the raw launchScore — a strong
-    // design launched into a crowded category records as solid/flop, and the moment must agree.
-    const verdict = res.verdict ?? "steady";
-    const isHit = verdict === "hit";
+    // launchOutcome keys the celebration off the ACTUAL recorded verdict (competition-adjusted),
+    // not the raw score — and is shared with HQ so the two launch surfaces can't drift.
+    const { isHit, feedback } = launchOutcome(res, launchedBefore);
     sfx("launch");
     if (isHit) {
       setTimeout(() => sfx("hit"), 380);
       emitCelebrate();
     }
-    const fb = launchFeedback(verdict, firstEver, isHit && !hadHit);
-    showToast(fb.text, { tone: fb.tone, glyph: <Rocket size={15} /> });
+    showToast(feedback.text, { tone: feedback.tone, glyph: <Rocket size={15} /> });
   }
 
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)
