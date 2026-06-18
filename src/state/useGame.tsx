@@ -325,6 +325,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Save paths are mount-once effects; they read the live blocked flag through a ref.
   const tabBlockedRef = useRef(tabBlocked);
   tabBlockedRef.current = tabBlocked;
+  // Sim pauses while the page/app is backgrounded so hidden wall-time is reconciled EXACTLY ONCE
+  // on resume (below) instead of being partially simulated by a throttled interval (web) or lost
+  // entirely while JS is suspended (iOS). WKWebView fires visibilitychange on iOS background, so
+  // this one path covers web + the Capacitor app.
+  const [hidden, setHidden] = useState(false);
+  // The wall-clock we last stamped onto the save — the basis for resume catch-up (a hide always
+  // persists first, so this is the moment the sim effectively stopped).
+  const lastActiveRef = useRef(Date.now());
+  // The exact state object last written, so the periodic safety-net save can skip when nothing
+  // changed (advanceOneWeek + every action return a NEW object, so reference identity = "dirty").
+  const lastSavedRef = useRef<GameState>(boot.state);
+  const hiddenAtRef = useRef(0);
 
   // F1 — offline catch-up already ran exactly once in the initializer above; do NOT re-run it in
   // a mount effect (that re-applied gains against the stale on-disk lastActive, x4 under StrictMode).
@@ -355,7 +367,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // week — state changes (including achievement unlocks) still apply on every invocation.
   const announcedWeekRef = useRef(-1);
   useEffect(() => {
-    if (paused || state.bankrupt || tabBlocked || !state.onboarded) return;
+    if (paused || hidden || state.bankrupt || tabBlocked || !state.onboarded) return;
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
@@ -373,26 +385,74 @@ export function GameProvider({ children }: { children: ReactNode }) {
       });
     }, ms);
     return () => clearInterval(id);
-  }, [paused, fast, state.bankrupt, tabBlocked, state.onboarded]);
+  }, [paused, hidden, fast, state.bankrupt, tabBlocked, state.onboarded]);
 
   // One write path for every persistence trigger below: skip while another tab owns the save,
   // and always stamp lastActive so offline catch-up measures time since the last write. The old
   // three inlined copies of this had already drifted once (the double-offline bug).
   const persistNow = useCallback(() => {
-    if (!tabBlockedRef.current) save({ ...stateRef.current, lastActive: Date.now() });
+    if (tabBlockedRef.current) return;
+    const snap = stateRef.current;
+    const stamped = Date.now();
+    save({ ...snap, lastActive: stamped });
+    lastActiveRef.current = stamped;
+    lastSavedRef.current = snap;
   }, []);
 
-  // Persist on a fixed cadence (reads the latest via ref so it actually fires during play).
+  // Persist shortly after the LAST state change (debounce), not on a blind timer: this closes the
+  // crash-loss window after an action (build/hire/launch) to ≤1s and avoids re-serializing the full
+  // state every few seconds when nothing changed.
   useEffect(() => {
-    const id = setInterval(persistNow, 4000);
+    if (tabBlockedRef.current) return;
+    const id = setTimeout(persistNow, 800);
+    return () => clearTimeout(id);
+  }, [state, persistNow]);
+
+  // Safety net for the one case the debounce can starve — continuous Fast-mode ticks faster than
+  // the debounce window. Only writes when the state actually changed since the last save.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (stateRef.current !== lastSavedRef.current) persistNow();
+    }, 10_000);
     return () => clearInterval(id);
   }, [persistNow]);
 
-  // Persist on background/exit too — but only when actually hidden, so returning to a visible
-  // tab doesn't reset lastActive and swallow elapsed time.
+  // Reconcile elapsed real-time into the sim when returning to the foreground (warm-resume offline
+  // catch-up). Mirrors the cold-boot path: catch up from the lastActive we stamped on hide, so a
+  // long background gap is simulated exactly once here (the tick was paused while hidden) instead
+  // of silently vanishing. Surfaces the "while you were away" sheet only for a real absence.
+  const resumeFromBackground = useCallback(() => {
+    if (tabBlockedRef.current) return;
+    const base: GameState = { ...stateRef.current, lastActive: lastActiveRef.current };
+    if (!base.onboarded || base.bankrupt) return;
+    const fansBefore = base.fans;
+    const { state: caught, weeks, gain } = catchUpOffline(base);
+    if (weeks <= 0) return;
+    // F7 — don't punish time away: floor fans at the pre-catchup value (online decay is untouched).
+    const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
+    const withAch = evaluateAndUnlock(floored).state;
+    const stamped = Date.now();
+    setState(withAch);
+    save({ ...withAch, lastActive: stamped });
+    lastActiveRef.current = stamped;
+    lastSavedRef.current = withAch;
+    // Only interrupt with the recap sheet after a genuine absence — not a quick tab glance.
+    if (Date.now() - hiddenAtRef.current >= 60_000) {
+      setOffline({ weeks, gain, topProduct: topSellerWhileAway(base, withAch) });
+    }
+  }, []);
+
+  // Pause the sim on hide (persisting lastActive first) and reconcile on show; also persist on exit.
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === "hidden") persistNow();
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = Date.now();
+        persistNow();
+        setHidden(true);
+      } else {
+        setHidden(false);
+        resumeFromBackground();
+      }
     };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", persistNow);
@@ -400,7 +460,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pagehide", persistNow);
     };
-  }, [persistNow]);
+  }, [persistNow, resumeFromBackground]);
 
   const build = useCallback((product: Product, plannedUnits?: number, channelId?: ChannelId) => {
     const result = startBuild(stateRef.current, product, plannedUnits, channelId);
