@@ -20,7 +20,9 @@ Legend: 🐛 bug · ⚠️ risk · ✨ improvement · 💎 premium-polish · ⚡
 - [x] 0.2 `npm run typecheck` green (same `tsc -b`); wire a real check (root tsconfig was a no-op stub).
 - [x] 0.3 `npm test` (vitest) all green; count: **177** (14 files) as of 2026-06-09.
 - [ ] 0.4 Audit tsconfig: confirm `noUnusedLocals/Parameters`, `strict`, `noUncheckedIndexedAccess`?
-- [ ] 0.5 Bundle audit: three.js chunk ~732KB — confirm lazy-only; consider drei tree-shake.
+- [x] 0.5 Bundle audit: three.js (732KB / 190KB gz) + Garage3D (266KB) + Gltf (71KB) are
+      code-split into their own lazy chunks — confirmed NOT in the main bundle (initial payload
+      ~178KB gz + 20KB gz CSS); the 3D office streams in behind the 2D fallback. Lazy-only ✓.
 - [ ] 0.6 Dead-code sweep: unused exports/components/CSS classes across src.
 - [ ] 0.7 `.gitignore` covers dist/, .furniture-tmp/, scratch; no stray temp files committed.
 
