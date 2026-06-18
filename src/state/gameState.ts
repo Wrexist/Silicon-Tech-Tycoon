@@ -1234,6 +1234,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const isSolid = !isHit && !isFlop && effectiveScore >= bands.solid;
   const hasCrisisComms = hasProject(state.completedProjects, "crisisComms");
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
+  else if (isSolid) reputation = Math.min(rep.max, reputation + rep.gainPerSolid);
   else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
   if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);

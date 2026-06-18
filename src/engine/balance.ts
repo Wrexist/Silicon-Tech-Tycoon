@@ -206,6 +206,11 @@ export const BALANCE = {
     solidThresholdByEra: [45, 56, 72, 92],
     flopThresholdByEra: [10, 21, 27, 35],
     gainPerHit: 8,
+    // A "solid" launch earns a little reputation too, so a player who optimizes specs + price but
+    // never runs marketing campaigns can still climb past the era rep gates on consistent quality
+    // alone (without it, only hits/flops moved rep, and a campaign-free run could soft-stall at the
+    // era-2 rep wall). Small enough that hits remain the real reputation driver.
+    gainPerSolid: 2,
     lossPerFlop: 5,
     overpricePenalty: 2,
     max: 100,
