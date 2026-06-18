@@ -235,6 +235,7 @@ _(append out-of-scope improvements here as one-liners; do not act mid-session)_
 - Settings screen: theme toggle (data-theme), sound/haptics mute, restart-with-confirm.
 - Website (docs/) duplicates the legal/support copy in public/privacy.html + public/support.html; when the policy text changes, update both (or make the in-app copies redirect to the Pages site once it's live).
 - Vitest 4 prints a `test.poolOptions` deprecation warning — migrate vitest.config.ts off poolOptions to the new top-level pool options (cosmetic; tests pass).
+- **POST-LAUNCH DLC candidate #1 — first-class "OS / Platform" division.** The OS economy ALREADY exists in the engine: the `software` component line (BasicOS → Unified OS, catalogs.ts), the `ecosystem` stat, and recurring ecosystem-service revenue (balance.ts `ecosystem.weeklyServiceRate` = unitsSold × ecosystemStat/wk). Today the OS is an invisible *ingredient* inside hardware. The DLC = surface it as a visible feature: a Platform screen showing your released OS, its install base across all your shipped devices, and the licensing $/wk it already earns; plus new levers (license your OS to rivals for a revenue line; OS version releases that lift the whole installed base). This is a framing/UX layer over existing mechanics, NOT a new economy — lower risk than it sounds, but still out of v1 scope (ship first).
 
 ## v9 — slower economy + production wizard + smart demand + fanbase (DONE)
 - [x] **Much slower base pace**: secondsPerTick 4→8 (Fast button still lets you catch up).
