@@ -183,16 +183,21 @@ export const BALANCE = {
   // This means: launch early/uncontested and survive; launch late/outclassed and lose reputation.
   reputation: {
     hitThreshold: 70, // era-1 base (see hitThresholdByEra for the scaled bar)
-    flopThreshold: 17, // era-1 base
+    flopThreshold: 10, // era-1 base
     // Era-scaled expectations: as the company grows, the bar for a "hit" / "solid" rises and the
     // floor for a "flop" lifts. A maxed, well-timed, uncontested product still triumphs late-game,
     // but a lazy or heavily-contested launch only lands "solid" — so the AI Era stays a contest,
     // not a guaranteed-hit victory lap. The player reaches the win-reputation in eras 2-3 under the
     // gentler early bars, so scaling the late bars keeps tension without blocking the endgame.
     // Index = era - 1. effectiveScore = launchScore × competitionFactor is compared to these.
+    // ERA-1 FLOP FLOOR (10): a brand-new company's hype is tiny, so even a competently-built,
+    // well-priced tier-1 product can only score ~13–17 (measured). A 17 floor made the *maiden
+    // launch a guaranteed flop* — punishing reputation for a product the player built correctly.
+    // At 10, a sensible first product lands "steady" (neutral: no rep/fan loss) and only a genuinely
+    // bad bet (badly overpriced, eff ≤10) still flops. Later eras keep the rising floor for tension.
     hitThresholdByEra: [70, 88, 112, 145],
     solidThresholdByEra: [45, 56, 72, 92],
-    flopThresholdByEra: [17, 21, 27, 35],
+    flopThresholdByEra: [10, 21, 27, 35],
     gainPerHit: 8,
     lossPerFlop: 5,
     overpricePenalty: 2,

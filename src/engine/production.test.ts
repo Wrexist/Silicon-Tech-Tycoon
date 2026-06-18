@@ -12,9 +12,18 @@ import {
   planProduction,
   recommendedRun,
   startBuild,
+  effectiveUnitCost,
   verdictBands,
   type GameState,
 } from "../state/gameState.ts";
+
+/** Build a product to launch-ready, then return the recorded verdict. */
+function buildAndLaunch(s0: GameState, product: Product): string | undefined {
+  let s = startBuild(s0, product, recommendedRun(s0, product, "none"), "none").state;
+  const weeks = buildWeeksFor(s) + 1;
+  for (let i = 0; i < weeks; i++) s = advanceOneWeek(s);
+  return launchReady(s, s.ready[0].id).state.launched[0].verdict;
+}
 
 /** Mirror of DesignLab's projected verdict (B7): the lab uses the SAME competition-adjusted
  *  effectiveScore + the SAME era-scaled verdict bands the launch gate uses. */
@@ -118,6 +127,28 @@ describe("production planning + smart demand", () => {
       const launched = launchReady(s, s.ready[0].id).state.launched[0];
       expect(launched.verdict).toBe(predicted);
     }
+  });
+});
+
+describe("early-game fairness — the maiden launch must not punish a competent player", () => {
+  // A fresh company's hype is tiny, so even a well-built, well-priced tier-1 product can only score
+  // ~13–17. Before the era-1 flop floor was lowered to 10, that made the FIRST launch a guaranteed
+  // flop (−reputation, −fans) for a product the player built correctly — a demoralizing opener.
+  it("a sensibly-priced tier-1 first product lands 'steady', never 'flop'", () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const s = newGame(seed);
+      const unit = toDollars(effectiveUnitCost(s, phone()));
+      const product: Product = { ...phone(), price: dollars(Math.max(120, Math.round(unit * 1.8))) };
+      expect(buildAndLaunch(s, product)).not.toBe("flop");
+    }
+  });
+
+  // Stakes are preserved: a genuinely bad bet (badly overpriced) still flops.
+  it("a badly overpriced first product still flops — the floor isn't a free pass", () => {
+    const s = newGame(1);
+    const unit = toDollars(effectiveUnitCost(s, phone()));
+    const gouged: Product = { ...phone(), price: dollars(unit * 6) };
+    expect(buildAndLaunch(s, gouged)).toBe("flop");
   });
 });
 
