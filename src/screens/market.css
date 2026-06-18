@@ -1388,3 +1388,37 @@
   background: color-mix(in srgb, var(--ink-3) 12%, transparent);
   color: var(--ink-2);
 }
+
+/* Road-to-IPO progress (item 19): a visible long-term goal */
+.mkt__ipo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.mkt__ipo-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.mkt__ipo-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.mkt__ipo-pct {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+}
+.mkt__ipo-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.mkt__ipo-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), var(--positive));
+  transition: width var(--spring-standard);
+}

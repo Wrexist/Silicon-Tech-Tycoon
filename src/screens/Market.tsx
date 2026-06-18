@@ -150,11 +150,25 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             <Button block onClick={() => { setIpo(true); haptic.light(); }}>
               <Building2 size={16} /> Take {state.companyName} public (IPO)
             </Button>
-          ) : (
-            <p className="mkt__co-hint">
-              IPO unlocks at {format(BALANCE.ipo.minRevenueToList)} lifetime revenue — you're at {format(state.cumulativeRevenue)}.
-            </p>
-          )
+          ) : (() => {
+            // Item 19: turn the IPO threshold into a motivating progress bar — a visible
+            // long-term goal to climb toward, not just a line of text.
+            const haveD = Math.max(0, toDollars(state.cumulativeRevenue));
+            const needD = Math.max(1, toDollars(BALANCE.ipo.minRevenueToList));
+            const pct = Math.min(100, Math.round((haveD / needD) * 100));
+            return (
+              <div className="mkt__ipo">
+                <div className="mkt__ipo-head">
+                  <span className="mkt__ipo-label">Road to IPO</span>
+                  <span className="mkt__ipo-pct tnum">{pct}%</span>
+                </div>
+                <div className="mkt__ipo-track"><div className="mkt__ipo-fill" style={{ width: `${pct}%` }} /></div>
+                <p className="mkt__co-hint">
+                  Unlocks at {format(BALANCE.ipo.minRevenueToList)} lifetime revenue — you're at {format(state.cumulativeRevenue)}.
+                </p>
+              </div>
+            );
+          })()
         ) : (
           <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }} disabled={state.ownership <= 0.06}>
             Sell more shares
