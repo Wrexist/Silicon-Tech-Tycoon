@@ -6,8 +6,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-16);
-  /* room so the last content scrolls clear of the fixed step-nav bar above the tab bar */
-  padding-bottom: 72px;
+  /* room so the last content scrolls clear of the fixed step-nav bar above the tab bar — extra
+     breathing space so the section tabs / Plan-production CTA never crowd the floating nav */
+  padding-bottom: 92px;
 }
 
 /* Sticky step nav: Back (left) + Next (right), fixed just above the bottom tab bar. The bar
@@ -102,7 +103,10 @@
 }
 .lab__verdict {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--sp-8);
+  margin-top: var(--sp-8);
 }
 .lab__flip {
   display: inline-flex;

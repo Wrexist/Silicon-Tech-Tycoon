@@ -795,6 +795,34 @@ function ProductDetailSheet({
         <DeviceRenderer product={lp.product} size={150} idle />
       </div>
 
+      {/* Press reception — the buzz, surfaced right under the device (it's the fun payoff) */}
+      <div className="pd__reviews">
+        <div className="pd__reviews-head">
+          <Newspaper size={15} aria-hidden />
+          <span>Press reception</span>
+          <span className={`pd__reviews-score pd__reviews-score--${reviewBand} tnum`}>
+            {reviews.aggregate}<span className="pd__reviews-max">/100</span>
+          </span>
+        </div>
+        <blockquote className="pd__reviews-quote">“{reviews.headline}”</blockquote>
+        <div className="pd__reviews-outlets">
+          {reviews.outlets.map((o) => (
+            <div className="pd__reviews-outlet" key={o.outlet}>
+              <span className="pd__reviews-outlet-score tnum"><Star size={11} aria-hidden /> {o.score}</span>
+              <span className="pd__reviews-outlet-name">{o.outlet}</span>
+            </div>
+          ))}
+        </div>
+        <div className="pd__reviews-pc">
+          {reviews.pros.map((p) => (
+            <span className="pd__reviews-pro" key={p}><Plus size={12} aria-hidden /> {p}</span>
+          ))}
+          {reviews.cons.map((c) => (
+            <span className="pd__reviews-con" key={c}><Minus size={12} aria-hidden /> {c}</span>
+          ))}
+        </div>
+      </div>
+
       {/* Sales curve */}
       <div className="pd__curve">
         <div className="pd__curve-cap">
@@ -976,34 +1004,6 @@ function ProductDetailSheet({
           )}
         </div>
       )}
-
-      {/* Press reception — fictional tech-press reviews from the recorded launch metrics */}
-      <div className="pd__reviews">
-        <div className="pd__reviews-head">
-          <Newspaper size={15} aria-hidden />
-          <span>Press reception</span>
-          <span className={`pd__reviews-score pd__reviews-score--${reviewBand} tnum`}>
-            {reviews.aggregate}<span className="pd__reviews-max">/100</span>
-          </span>
-        </div>
-        <blockquote className="pd__reviews-quote">“{reviews.headline}”</blockquote>
-        <div className="pd__reviews-outlets">
-          {reviews.outlets.map((o) => (
-            <div className="pd__reviews-outlet" key={o.outlet}>
-              <span className="pd__reviews-outlet-score tnum"><Star size={11} aria-hidden /> {o.score}</span>
-              <span className="pd__reviews-outlet-name">{o.outlet}</span>
-            </div>
-          ))}
-        </div>
-        <div className="pd__reviews-pc">
-          {reviews.pros.map((p) => (
-            <span className="pd__reviews-pro" key={p}><Plus size={12} aria-hidden /> {p}</span>
-          ))}
-          {reviews.cons.map((c) => (
-            <span className="pd__reviews-con" key={c}><Minus size={12} aria-hidden /> {c}</span>
-          ))}
-        </div>
-      </div>
 
       {/* Why it performed */}
       <div className="pd__why">
