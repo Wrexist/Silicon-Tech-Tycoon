@@ -6,8 +6,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-16);
-  /* room so the last content scrolls clear of the fixed step-nav bar above the tab bar */
-  padding-bottom: 72px;
+  /* room so the last content scrolls clear of the fixed step-nav bar above the tab bar — extra
+     breathing space so the section tabs / Plan-production CTA never crowd the floating nav (96 = 12×8pt) */
+  padding-bottom: 96px;
 }
 
 /* Sticky step nav: Back (left) + Next (right), fixed just above the bottom tab bar. The bar
@@ -102,7 +103,10 @@
 }
 .lab__verdict {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--sp-8);
+  margin-top: var(--sp-8);
 }
 .lab__flip {
   display: inline-flex;
@@ -903,4 +907,104 @@
 @keyframes lab-pane-in {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Production pipeline — mirrors HQ's, so the design → build → launch loop closes inside the
+   Lab without a forced trip to another tab. */
+.lab__pipeline--ready {
+  border-color: var(--positive);
+}
+.lab__pipe-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-8) 0;
+}
+.lab__pipe-row + .lab__pipe-row {
+  border-top: 1px solid var(--hairline);
+}
+.lab__pipe-thumb {
+  flex-shrink: 0;
+}
+.lab__pipe-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lab__pipe-name {
+  font-weight: 600;
+}
+.lab__pipe-sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.lab__pipe-build + .lab__pipe-build {
+  border-top: 1px solid var(--hairline);
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-8);
+}
+.lab__pipe-build-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lab__pipe-build-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.lab__pipe-pct {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.lab__pipe-eta {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.lab__pipe-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.lab__pipe-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), var(--positive));
+  transition: width var(--spring-standard);
+}
+
+/* Phase 1 readability: fit denominator, competition note, cost breakdown */
+.lab__den {
+  opacity: 0.5;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+.lab__verdict-note {
+  margin-top: var(--sp-8);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+  text-align: center;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.lab__bom-subtotal {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.lab__bom-assembly {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-top: 2px;
 }

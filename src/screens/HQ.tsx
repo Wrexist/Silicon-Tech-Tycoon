@@ -10,6 +10,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
+import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
@@ -79,20 +80,20 @@ const UPGRADE_FN: Record<UpgradeId, { accent: string; soft: string }> = {
 
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
 
-export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
+export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; active?: boolean }) {
   const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
   const onLaunch = (id: string) => {
+    const launchedBefore = state.launched; // before launchReady records this product
     const res = launchReady(id);
     if (res.ok) {
       haptic.success();
-      const sc = res.launchScore ?? 0;
+      // Shared with the Design Lab; keys the celebration off the recorded (competition-adjusted)
+      // verdict, so the launch moment can never contradict what Market/feed record.
+      const { isHit, feedback } = launchOutcome(res, launchedBefore);
       sfx("launch");
-      if (sc >= 76) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
-      showToast(
-        sc >= 76 ? "Launched — it's a hit!" : sc <= 22 ? "Launched — sales are slow." : sc >= 45 ? "Launched — solid performance." : "Launched into the market.",
-        { tone: sc <= 22 ? "negative" : "positive", glyph: <Rocket size={15} /> },
-      );
+      if (isHit) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
+      showToast(feedback.text, { tone: feedback.tone, glyph: <Rocket size={15} /> });
     }
   };
   const reducedMotion = useReducedMotionLive();
@@ -107,7 +108,7 @@ export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; o
 
   return (
     <div className="hq">
-      <OfficeScene use3d={use3d} hasProduction={hasProduction} onNavigate={onNavigate} onOpenBank={onOpenBank} />
+      <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active} onNavigate={onNavigate} onOpenBank={onOpenBank} />
 
       {ipoReady && (
         <Card className="hq__era hq__ipo">
@@ -267,7 +268,7 @@ export function HQ({ onNavigate, onOpenBank }: { onNavigate: (t: Tab) => void; o
 }
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
-function OfficeScene({ use3d, hasProduction, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
+function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, resetFurniture, setLayout, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
   const [placingType, setPlacingType] = useState<FurnitureId | null>(null);
@@ -342,15 +343,15 @@ function OfficeScene({ use3d, hasProduction, onNavigate, onOpenBank }: { use3d: 
     .join(";");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const staff3d = useMemo(() => state.staff, [staffSceneKey]);
-  // GPU dropped the WebGL context: tell the player why the office changed (it used to swap
-  // silently), and leave Decorate cleanly — the 2D fallback has no editor, so lingering
-  // place/select state would point at UI that no longer exists.
+  // GPU dropped the WebGL context: fall back to the 2D office silently — no error toast (the
+  // swap speaks for itself and a "Try 3D again" affordance sits on the scene). Leave Decorate
+  // cleanly: the 2D fallback has no editor, so lingering place/select state would point at UI
+  // that no longer exists.
   const onGlLost = useCallback(() => {
     setGlLost(true);
     setBuild(false);
     setPlacingType(null);
     setSelectedIid(null);
-    showToast("3D view unavailable — switched to the 2D office.", { tone: "neutral" });
   }, []);
 
   const exit = () => {
@@ -403,6 +404,7 @@ function OfficeScene({ use3d, hasProduction, onNavigate, onOpenBank }: { use3d: 
                 roomStyle={state.roomStyle}
                 desktops={state.desktops}
                 height={build ? 460 : 420}
+                paused={!active}
                 onTapStaff={() => onNavigate("company")}
                 onTapBank={onOpenBank}
               />

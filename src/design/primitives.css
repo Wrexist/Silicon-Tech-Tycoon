@@ -265,6 +265,14 @@
   /* drag-to-dismiss snaps back to here when released short of the threshold */
   transition: transform var(--spring-standard);
 }
+/* Robustness: where backdrop-filter isn't supported (older webviews, some Android), the 86%
+   surface would let screen content bleed through and muddy the sheet. Fall back to an opaque
+   surface so the sheet always reads as a clean, premium panel. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ds-sheet {
+    background: var(--surface);
+  }
+}
 /* The grab handle is a real control: tap it or drag it down to close. The visible pill is a
    ::before so the button itself is a comfortable 64×24 hit/drag target. */
 .ds-sheet__grab {

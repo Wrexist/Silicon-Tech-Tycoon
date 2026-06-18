@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CircuitBoard, CircleX, Copy, Cpu, Layers, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
+import { AlertTriangle, CircuitBoard, CircleX, Copy, Cpu, Layers, RotateCcw, Sparkles, TrendingUp, Trophy } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
@@ -78,20 +78,29 @@ function AppShell() {
     <div className="app">
       <Hud onSettings={() => setSettingsOpen(true)} onOpenBank={() => setBankOpen(true)} />
       <main className="app__main">
-        {/* Keyed by tab so each screen remounts on navigation — this also replays the
-            `app__screen` enter animation (fast fade+rise) for a smooth tab change. The
-            screen-level ErrorBoundary shows an inline card on a crash while the HUD +
-            bottom nav stay usable; the top-level boundary in App() is the last resort. */}
-        <div className="app__screen" key={tab}>
-          <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
+        {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
+            GPU context instead of tearing it down + re-creating it on every visit — that churn
+            is what made the 3D office fail on memory-constrained mobile browsers. Its render
+            loop pauses while hidden (active={false}), so there's no battery cost off-screen. */}
+        <div className="app__screen" hidden={tab !== "hq"}>
+          <h1 className="app__title">{TAB_TITLE.hq}</h1>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-            {tab === "hq" && <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} />}
-            {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onGoToHQ={() => setTab("hq")} />}
-            {tab === "research" && <Research onNavigate={setTab} />}
-            {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
-            {tab === "company" && <Company />}
+            <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} active={tab === "hq"} />
           </ErrorBoundary>
         </div>
+        {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
+            replays the `app__screen` enter animation on each navigation. */}
+        {tab !== "hq" && (
+          <div className="app__screen" key={tab}>
+            <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
+            <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
+              {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onGoToHQ={() => setTab("hq")} />}
+              {tab === "research" && <Research onNavigate={setTab} />}
+              {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
+              {tab === "company" && <Company />}
+            </ErrorBoundary>
+          </div>
+        )}
         <div className="app__spacer" />
       </main>
 
@@ -111,7 +120,7 @@ function AppShell() {
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
-      {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} onClose={clearOffline} />}
+      {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} topProduct={offline.topProduct} onClose={clearOffline} />}
       {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (
         <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
       )}
@@ -278,7 +287,11 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           </Card>
           <Card variant="inset" className="ipo__stat">
             <span className="app__offline-label">Industry rank</span>
-            <span className="app__offline-value rounded tnum">{rank === 1 ? "#1 🏆" : `#${rank}`}</span>
+            <span className="app__offline-value rounded tnum">
+              {rank === 1 ? (
+                <span className="ipo__rank-first">#1 <Trophy size={16} aria-hidden /></span>
+              ) : `#${rank}`}
+            </span>
           </Card>
         </div>
         <Card variant="inset" className="ipo__legacy">
@@ -358,7 +371,7 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
   );
 }
 
-function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; onClose: () => void }) {
+function OfflineSheet({ weeks, gain, topProduct, onClose }: { weeks: number; gain: Money; topProduct: { name: string; units: number } | null; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
   useEffect(() => {
@@ -386,6 +399,14 @@ function OfflineSheet({ weeks, gain, onClose }: { weeks: number; gain: Money; on
           <span className="app__offline-label">Net change</span>
           <AnimatedMoney value={gain} sign className="app__offline-value rounded" />
         </Card>
+        {topProduct && (
+          <Card variant="inset" className="app__offline-card">
+            <span className="app__offline-label">Best seller while away</span>
+            <span className="app__offline-hero">
+              {topProduct.name}<span className="app__offline-units tnum"> · {topProduct.units.toLocaleString()} units</span>
+            </span>
+          </Card>
+        )}
         <Button block onClick={onClose}>Continue</Button>
       </div>
     </div>

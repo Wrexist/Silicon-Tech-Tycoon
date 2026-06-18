@@ -13,6 +13,7 @@ import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
+import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
   burn,
@@ -149,11 +150,25 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
             <Button block onClick={() => { setIpo(true); haptic.light(); }}>
               <Building2 size={16} /> Take {state.companyName} public (IPO)
             </Button>
-          ) : (
-            <p className="mkt__co-hint">
-              IPO unlocks at {format(BALANCE.ipo.minRevenueToList)} lifetime revenue — you're at {format(state.cumulativeRevenue)}.
-            </p>
-          )
+          ) : (() => {
+            // Item 19: turn the IPO threshold into a motivating progress bar — a visible
+            // long-term goal to climb toward, not just a line of text.
+            const haveD = Math.max(0, toDollars(state.cumulativeRevenue));
+            const needD = Math.max(1, toDollars(BALANCE.ipo.minRevenueToList));
+            const pct = Math.min(100, Math.round((haveD / needD) * 100));
+            return (
+              <div className="mkt__ipo">
+                <div className="mkt__ipo-head">
+                  <span className="mkt__ipo-label">Road to IPO</span>
+                  <span className="mkt__ipo-pct tnum">{pct}%</span>
+                </div>
+                <div className="mkt__ipo-track"><div className="mkt__ipo-fill" style={{ width: `${pct}%` }} /></div>
+                <p className="mkt__co-hint">
+                  Unlocks at {format(BALANCE.ipo.minRevenueToList)} lifetime revenue — you're at {format(state.cumulativeRevenue)}.
+                </p>
+              </div>
+            );
+          })()
         ) : (
           <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }} disabled={state.ownership <= 0.06}>
             Sell more shares
@@ -758,6 +773,17 @@ function ProductDetailSheet({
   const v = verdictOf(lp);
   const drivers = performanceDrivers(lp);
   const tips = generateTips(lp);
+  // Fictional tech-press reviews derived from the recorded launch metrics (pure, presentation
+  // only — never affects the sim). Falls back to neutral drivers for pre-insight saves.
+  const reviews = criticReviews({
+    productId: lp.product.id,
+    stats: lp.stats,
+    verdict: v,
+    demandFit: lp.insight?.demandFit ?? 60,
+    priceFit: lp.insight?.priceFit ?? 1,
+    betterRivals: lp.insight?.betterRivals ?? 0,
+  });
+  const reviewBand = reviews.aggregate >= 75 ? "high" : reviews.aggregate >= 55 ? "mid" : "low";
   const sellThrough = lp.plannedUnits && lp.plannedUnits > 0
     ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
     : null;
@@ -781,6 +807,34 @@ function ProductDetailSheet({
 
       <div className="pd__hero">
         <DeviceRenderer product={lp.product} size={150} idle />
+      </div>
+
+      {/* Press reception — the buzz, surfaced right under the device (it's the fun payoff) */}
+      <div className="pd__reviews">
+        <div className="pd__reviews-head">
+          <Newspaper size={15} aria-hidden />
+          <span>Press reception</span>
+          <span className={`pd__reviews-score pd__reviews-score--${reviewBand} tnum`}>
+            {reviews.aggregate}<span className="pd__reviews-max">/100</span>
+          </span>
+        </div>
+        <blockquote className="pd__reviews-quote">“{reviews.headline}”</blockquote>
+        <div className="pd__reviews-outlets">
+          {reviews.outlets.map((o) => (
+            <div className="pd__reviews-outlet" key={o.outlet}>
+              <span className="pd__reviews-outlet-score tnum"><Star size={11} aria-hidden /> {o.score}</span>
+              <span className="pd__reviews-outlet-name">{o.outlet}</span>
+            </div>
+          ))}
+        </div>
+        <div className="pd__reviews-pc">
+          {reviews.pros.map((p) => (
+            <span className="pd__reviews-pro" key={p}><Plus size={12} aria-hidden /> {p}</span>
+          ))}
+          {reviews.cons.map((c) => (
+            <span className="pd__reviews-con" key={c}><Minus size={12} aria-hidden /> {c}</span>
+          ))}
+        </div>
       </div>
 
       {/* Sales curve */}

@@ -1693,6 +1693,7 @@ export const Garage3D = memo(function Garage3D({
   builder,
   roomStyle = { floor: 0, wall: 0 },
   desktops = 0,
+  paused = false,
   onContextLost,
   onTapStaff,
   onTapBank,
@@ -1709,6 +1710,10 @@ export const Garage3D = memo(function Garage3D({
   roomStyle?: { floor: number; wall: number };
   /** How many player-bought desktops to show in the garage (0–4). */
   desktops?: number;
+  /** Pause the render loop while the office is off-screen (e.g. another tab is active). The
+   *  WebGL context stays alive — only frames stop — so returning to HQ never re-creates the
+   *  context (that churn is what made the 3D office fail on memory-constrained mobile browsers). */
+  paused?: boolean;
   /** Called when the WebGL context is lost so the host can downgrade to the 2D fallback. */
   onContextLost?: () => void;
   /** Tap an employee → open their roster card (host navigates to Company). */
@@ -1721,6 +1726,7 @@ export const Garage3D = memo(function Garage3D({
       <Canvas
         role="img"
         aria-label="Company office, 3D view"
+        frameloop={paused ? "never" : "always"}
         dpr={[1, 1.75]}
         shadows={dark ? false : { type: THREE.VSMShadowMap }}
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}

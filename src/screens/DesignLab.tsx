@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Rocket, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { emitCelebrate } from "../design/celebrateFx.ts";
+import { launchOutcome } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { isCategoryUnlocked } from "../engine/eras.ts";
@@ -137,7 +139,7 @@ export function DesignLab({
   onSeedConsumed?: () => void;
   onGoToHQ?: () => void;
 } = {}) {
-  const { state, build, unlockLens, unlockFinish } = useGame();
+  const { state, build, launchReady, unlockLens, unlockFinish } = useGame();
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
@@ -238,6 +240,9 @@ export function DesignLab({
       : effectiveScore <= bands.flop ? { label: "Likely flop", tone: "negative" as const }
         : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
           : { label: "Steady seller", tone: "accent" as const };
+  // Item 1: the verdict can swing while "Fit" is unchanged because rivals (competitionFactor)
+  // drag the effective score. Flag that so the label never looks like it flipped at random.
+  const competitionDrag = !!preview && preview.competitionFactor < 0.85 && (preview.betterRivals > 0 || preview.matchingRivals > 0);
 
   function set(partial: Partial<Product>) {
     setDraft((d) => ({ ...d, ...partial }));
@@ -292,6 +297,26 @@ export function DesignLab({
     setDraft({ ...freshDraft(state), name: suggestNextName(finished.name) });
   }
 
+  // Launch a finished product straight from the Lab — same premium beat HQ uses (haptics, sound,
+  // celebrate FX on a hit, verdict toast) so the whole loop (design → build → launch) lives in one
+  // place and never forces a trip to another tab.
+  function onLaunch(id: string) {
+    // Snapshot the launched list BEFORE launchReady records this product (for first-ever/first-hit).
+    const launchedBefore = state.launched;
+    const res = launchReady(id);
+    if (!res.ok) return;
+    haptic.success();
+    // launchOutcome keys the celebration off the ACTUAL recorded verdict (competition-adjusted),
+    // not the raw score — and is shared with HQ so the two launch surfaces can't drift.
+    const { isHit, feedback } = launchOutcome(res, launchedBefore);
+    sfx("launch");
+    if (isHit) {
+      setTimeout(() => sfx("hit"), 380);
+      emitCelebrate();
+    }
+    showToast(feedback.text, { tone: feedback.tone, glyph: <Rocket size={15} /> });
+  }
+
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)
   const topWanted = STAT_KEYS.reduce((best, k) => {
     const d = state.trends.targetWeights[k] - state.trends.weights[k];
@@ -303,6 +328,53 @@ export function DesignLab({
 
   return (
     <div className="lab">
+      {/* Production pipeline — launch finished products right here, so the whole loop
+          (design → build → launch) stays in one place with no trip to HQ. */}
+      {state.ready.length > 0 && (
+        <Card className="lab__pipeline lab__pipeline--ready">
+          <SectionHeader title="Ready to launch" accessory="market & release" />
+          {state.ready.map((p) => (
+            <div className="lab__pipe-row" key={p.id}>
+              <div className="lab__pipe-thumb"><DeviceRenderer product={p} size={52} /></div>
+              <div className="lab__pipe-info">
+                <span className="lab__pipe-name">{p.name}</span>
+                {p.plannedUnits != null && <span className="lab__pipe-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+              </div>
+              <Button size="sm" onClick={() => onLaunch(p.id)}>
+                <Rocket size={15} /> Launch
+              </Button>
+            </div>
+          ))}
+        </Card>
+      )}
+      {state.building.length > 0 && (
+        <Card className="lab__pipeline">
+          <SectionHeader title="In production" accessory="manufacturing" />
+          {state.building.map((job) => {
+            const pct = Math.min(100, Math.round((job.weeksElapsed / job.totalWeeks) * 100));
+            const weeksLeft = Math.max(0, job.totalWeeks - job.weeksElapsed);
+            return (
+              <div className="lab__pipe-build" key={job.product.id}>
+                <div className="lab__pipe-row">
+                  <div className="lab__pipe-thumb"><DeviceRenderer product={job.product} size={44} /></div>
+                  <div className="lab__pipe-build-body">
+                    <div className="lab__pipe-build-head">
+                      <span className="lab__pipe-name">{job.product.name}</span>
+                      <span className="lab__pipe-pct tnum">
+                        {pct}%{weeksLeft > 0 && <span className="lab__pipe-eta"> · wk {state.week + weeksLeft}</span>}
+                      </span>
+                    </div>
+                    <div className="lab__pipe-track">
+                      <div className="lab__pipe-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+
       {/* Market hints — always visible */}
       {topWantedDelta > 0.02 && (
         <div className="lab__market-hint">
@@ -340,10 +412,17 @@ export function DesignLab({
           </button>
         )}
         <div className="lab__verdict">
-          <StatPill label="Fit" value={`${fit}`} tone={fit >= 60 ? "positive" : "neutral"} />
+          <StatPill label="Fit" value={<>{fit}<span className="lab__den">/100</span></>} tone={fit >= 60 ? "positive" : "neutral"} />
           {syn.weakest && <StatPill label="Weak link" value={`${syn.weakest[0].toUpperCase()}${syn.weakest.slice(1)}`} tone="negative" />}
           <StatPill value={verdict.label} tone={verdict.tone} />
         </div>
+        {competitionDrag && preview && (
+          <p className="lab__verdict-note">
+            {preview.betterRivals > 0
+              ? `${preview.betterRivals} rival${preview.betterRivals > 1 ? "s" : ""} currently outclass this — that's pulling the forecast down, not your design.`
+              : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now — they'll split this market.`}
+          </p>
+        )}
       </div>
 
       {/* Category — always visible above the tab strip */}
@@ -811,7 +890,7 @@ export function DesignLab({
                 onChange={(v) => set({ price: dollars(v) })}
               />
               <div className="lab__price-meta">
-                <StatPill label="Build" value={format(unitCost)} />
+                <StatPill label="Unit cost" value={format(unitCost)} />
                 <StatPill label="Margin" value={`${format(margin)} · ${marginPct}%`} tone={marginPct > 0 ? "positive" : "negative"} />
                 <StatPill label="Buyers expect" value={`$${Math.round(toDollars(guidance.lo) / 10) * 10}–$${Math.round(toDollars(guidance.hi) / 10) * 10}`} />
                 <StatPill value={priceZone} tone={priceZoneTone} />
@@ -839,9 +918,17 @@ export function DesignLab({
                         <span className="lab__bom-val tnum">${r.cost}</span>
                       </div>
                     ))}
-                    <div className="lab__bom-total">
-                      <span>BOM total</span>
+                    <div className="lab__bom-total lab__bom-subtotal">
+                      <span>Parts (BOM)</span>
                       <span className="tnum">${total.toFixed(0)}</span>
+                    </div>
+                    <div className="lab__bom-assembly">
+                      <span>Assembly &amp; overhead</span>
+                      <span className="tnum">+${Math.max(0, Math.round(toDollars(unitCost) - total))}</span>
+                    </div>
+                    <div className="lab__bom-total">
+                      <span>Unit cost</span>
+                      <span className="tnum">${Math.round(toDollars(unitCost))}</span>
                     </div>
                   </div>
                 );
@@ -967,7 +1054,7 @@ function DesignCompleteCard({
       </div>
 
       <div className="done__grid">
-        <Stat label="Overall" value={`${done.overall}`} />
+        <Stat label="Overall" value={`${done.overall}`} hint={done.overall >= 75 ? "flagship tier" : done.overall >= 55 ? "strong build" : done.overall >= 35 ? "mid-tier" : "entry tier"} />
         <Stat label="Run size" value={done.units.toLocaleString()} />
         <Stat
           label="Est. sales"
@@ -984,13 +1071,13 @@ function DesignCompleteCard({
           <span>Manufacturing now — <b>ready in ~{done.weeks} {done.weeks === 1 ? "week" : "weeks"}</b>.</span>
         </div>
         <div className="done__step">
-          <span className="done__step-icon"><TrendingUp size={16} /></span>
-          <span>When it’s built, <b>launch it from your HQ</b> to put it on the market.</span>
+          <span className="done__step-icon"><Rocket size={16} /></span>
+          <span>When it’s built, <b>launch it right here</b> — it’ll appear at the top of the Lab, ready to release.</span>
         </div>
       </div>
 
-      <Button block onClick={onGoToHQ}><TrendingUp size={16} /> Track in HQ</Button>
-      <button className="wiz__cancel" onClick={onDesignAnother}>Design another</button>
+      <Button block onClick={onDesignAnother}><Sparkles size={16} /> Design another</Button>
+      <button className="wiz__cancel" onClick={onGoToHQ}>View in HQ</button>
     </div>
   );
 }
@@ -1113,7 +1200,7 @@ function BuildWizard({
       {step === 2 && (
         <div className="wiz__body">
           <div className="wiz__review">
-            <Stat label="Demand fit" value={`${Math.round(plan.demandFit)}`} tone={fitTone} hint={fitLabel} />
+            <Stat label="Demand fit" value={<>{Math.round(plan.demandFit)}<span className="lab__den">/100</span></>} tone={fitTone} hint={fitLabel} />
             <Stat label="Price fit" value={priceFit.label} tone={priceFit.tone} />
             <Stat label="Competition" value={compLabel} tone={compTone} />
             <Stat label="Balance" value={balanceLabel} tone={balanceTone} hint={plan.synergy < 0.97 ? "a weak component drags this down" : "components are well-matched"} />
@@ -1128,7 +1215,7 @@ function BuildWizard({
             )}
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
-            <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "sells out" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
+            <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "run sells out — you could make more" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
             <Stat label="Projected profit" value={format(plan.projectedProfit)} tone={plan.projectedProfit >= 0 ? "positive" : "negative"} />
             <Stat
               label="Cash after build starts"

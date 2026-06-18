@@ -43,6 +43,7 @@ export function Hud({ onSettings, onOpenBank }: { onSettings: () => void; onOpen
             aria-label={`Research points: ${Math.floor(state.researchPoints)}`}
           >
             <FlaskConical size={13} strokeWidth={2.2} aria-hidden />
+            <span className="hud__chip-tag" aria-hidden>RP</span>
             <span aria-hidden>
               <AnimatedInt value={Math.floor(state.researchPoints)} />
             </span>
@@ -53,6 +54,7 @@ export function Hud({ onSettings, onOpenBank }: { onSettings: () => void; onOpen
             aria-label={`Reputation ${Math.round(state.reputation)} of 100`}
           >
             <Star size={13} strokeWidth={2.4} fill="currentColor" style={{ color: "var(--warning)" }} aria-hidden />
+            <span className="hud__chip-tag" aria-hidden>Rep</span>
             <span className="tnum" aria-hidden>{Math.round(state.reputation)}</span>
           </div>
           <div

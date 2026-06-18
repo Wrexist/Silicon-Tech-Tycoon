@@ -1,0 +1,64 @@
+import { describe, it, expect } from "vitest";
+import { CHOICE_EVENTS, MARKET_EVENTS, pickChoiceEvent } from "./events.ts";
+import { makeRng } from "./rng.ts";
+
+const TONES = new Set(["positive", "negative", "neutral", "accent"]);
+
+describe("choice events catalog", () => {
+  it("has unique ids", () => {
+    const ids = CHOICE_EVENTS.map((e) => e.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("every event is well-formed (two distinct options, valid tone, sane era)", () => {
+    for (const e of CHOICE_EVENTS) {
+      expect(e.title.length).toBeGreaterThan(0);
+      expect(e.body.length).toBeGreaterThan(0);
+      expect(TONES.has(e.tone)).toBe(true);
+      expect(e.minEra).toBeGreaterThanOrEqual(1);
+      expect(e.options.length).toBe(2);
+      expect(e.options[0].id).not.toBe(e.options[1].id);
+      for (const opt of e.options) {
+        expect(opt.label.length).toBeGreaterThan(0);
+        expect(opt.description.length).toBeGreaterThan(0);
+        expect(opt.effect.kind.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("never re-offers a resolved choice, and dries up once all are resolved", () => {
+    const era = 3;
+    const eligible = CHOICE_EVENTS.filter((e) => e.minEra <= era).map((e) => e.id);
+    const rng = makeRng(123);
+    const resolved: string[] = [];
+    // Drain the pool: each pick must be a fresh, era-eligible event.
+    for (let i = 0; i < 400 && resolved.length < eligible.length; i++) {
+      const ev = pickChoiceEvent(rng, era, resolved);
+      if (!ev) continue;
+      expect(resolved).not.toContain(ev.id);
+      expect(eligible).toContain(ev.id);
+      resolved.push(ev.id);
+    }
+    expect(resolved.sort()).toEqual([...eligible].sort());
+    // Pool exhausted → always null thereafter.
+    for (let i = 0; i < 50; i++) {
+      expect(pickChoiceEvent(rng, era, resolved)).toBeNull();
+    }
+  });
+
+  it("respects era gating (era-1 player never sees an era-3 dilemma)", () => {
+    const rng = makeRng(7);
+    for (let i = 0; i < 500; i++) {
+      const ev = pickChoiceEvent(rng, 1, []);
+      if (ev) expect(ev.minEra).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("market events are all well-formed", () => {
+    for (const e of MARKET_EVENTS) {
+      expect(e.weight).toBeGreaterThan(0);
+      expect(TONES.has(e.tone)).toBe(true);
+      expect(e.minEra).toBeGreaterThanOrEqual(1);
+    }
+  });
+});

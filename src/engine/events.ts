@@ -143,6 +143,108 @@ export const CHOICE_EVENTS: ChoiceEvent[] = [
       { id: "open", label: "Stay open", description: "Keep selling everywhere. Your community respects the independence.", effect: { kind: "fansBonus", fans: 3_000 } },
     ],
   },
+  // --- Era 1: early founder dilemmas ---
+  {
+    id: "open_source",
+    title: "Open-Source Gambit",
+    body: "Your team wants to open-source the in-house toolkit they built. It would rally developers — but hand your edge to rivals too.",
+    minEra: 1,
+    tone: "accent",
+    options: [
+      { id: "release", label: "Open-source it", description: "Developers rally to your platform — a wave of grassroots goodwill.", effect: { kind: "fansBonus", fans: 1_600 } },
+      { id: "keep", label: "Keep it proprietary", description: "Hold your technical edge close. Reviewers respect the polish.", effect: { kind: "pressFeature", reputation: 4 } },
+    ],
+  },
+  {
+    id: "angel_offer",
+    title: "An Angel Comes Knocking",
+    body: "A respected angel investor offers an early cheque. Easy runway — but you'd be giving up a slice of the company you fought for.",
+    minEra: 1,
+    tone: "accent",
+    options: [
+      { id: "take", label: "Take the investment", description: "A cash injection now — runway to build boldly.", effect: { kind: "cashWindfall", cash: 45_000 } },
+      { id: "bootstrap", label: "Stay bootstrapped", description: "Keep full ownership. The market respects the conviction.", effect: { kind: "repBoost", rep: 6 } },
+    ],
+  },
+  {
+    id: "crunch_call",
+    title: "The Deadline Call",
+    body: "You can hit the launch window if the team crunches — or slip the date and keep them fresh. Your call.",
+    minEra: 1,
+    tone: "neutral",
+    options: [
+      { id: "ship", label: "Ship on time", description: "Hit the date and ride the launch hype — the team digs deep.", effect: { kind: "fansBonus", fans: 1_200 } },
+      { id: "protect", label: "Give the team room", description: "Slip the date to protect morale. A rested team is a sharp team.", effect: { kind: "talentWave", mood: 12 } },
+    ],
+  },
+  // --- Era 2: scaling dilemmas ---
+  {
+    id: "defect_found",
+    title: "A Quiet Defect",
+    body: "QA found a rare defect after units already shipped. Recall and own it publicly, or bet the failure rate stays low?",
+    minEra: 2,
+    tone: "negative",
+    options: [
+      { id: "recall", label: "Issue a recall", description: "Own it publicly and make it right. Costly now, trusted later.", effect: { kind: "repBoost", rep: 7 } },
+      { id: "ship", label: "Ship and monitor", description: "Bet the failure rate is low. If word gets out, fans walk.", effect: { kind: "fansBonus", fans: -1_400 } },
+    ],
+  },
+  {
+    id: "star_engineer",
+    title: "Poaching a Star Engineer",
+    body: "A brilliant engineer is on the market — and so is the chance to instead promote the people who got you here.",
+    minEra: 2,
+    tone: "accent",
+    options: [
+      { id: "hire", label: "Win them over", description: "A brilliant hire supercharges the lab — research leaps ahead.", effect: { kind: "rpBonus", amount: 45 } },
+      { id: "promote", label: "Promote from within", description: "Back your own people instead. The whole team feels seen.", effect: { kind: "talentWave", mood: 14 } },
+    ],
+  },
+  {
+    id: "patent_demand",
+    title: "A Patent Demand",
+    body: "A patent holder demands a settlement. Pay quietly and move on, or fight it out in public?",
+    minEra: 2,
+    tone: "negative",
+    options: [
+      { id: "settle", label: "Settle quietly", description: "Pay to make it disappear. Painful, but the team stays focused.", effect: { kind: "supplyCrunch", cash: 18_000 } },
+      { id: "fight", label: "Fight it in public", description: "Stand your ground — a risky, drawn-out battle, but win the crowd.", effect: { kind: "fansBonus", fans: 1_500 } },
+    ],
+  },
+  // --- Era 3: empire dilemmas ---
+  {
+    id: "flagship_store",
+    title: "A Flagship Store",
+    body: "Your team pitches a landmark flagship store. An unforgettable brand statement — or capital better kept in the bank?",
+    minEra: 3,
+    tone: "accent",
+    options: [
+      { id: "build", label: "Open the flagship", description: "A landmark retail experience — fans flock to it.", effect: { kind: "fansBonus", fans: 4_000 } },
+      { id: "online", label: "Stay online-only", description: "Pocket the capital and double down on direct sales.", effect: { kind: "cashWindfall", cash: 120_000 } },
+    ],
+  },
+  {
+    id: "acquire_rival",
+    title: "Acquire a Struggling Rival",
+    body: "A fading competitor is up for sale. Absorb their talent and shelve their roadmap — or stay lean and bank the war chest?",
+    minEra: 3,
+    tone: "accent",
+    options: [
+      { id: "buy", label: "Acquire them", description: "Absorb a rival's talent and shelve their roadmap — the field tilts your way.", effect: { kind: "rivalScandal", factor: 0.6 } },
+      { id: "pass", label: "Let them fade", description: "Stay lean and bank the war chest for your own moonshots.", effect: { kind: "cashWindfall", cash: 90_000 } },
+    ],
+  },
+  {
+    id: "antitrust",
+    title: "Regulators Come Calling",
+    body: "Antitrust regulators open an inquiry. Cooperate fully and emerge trusted, or lawyer up and fight every inch?",
+    minEra: 3,
+    tone: "negative",
+    options: [
+      { id: "cooperate", label: "Open the books", description: "Full cooperation. Slow and costly, but you emerge trusted.", effect: { kind: "repBoost", rep: 8 } },
+      { id: "lawyer", label: "Lawyer up", description: "Fight every inch. The base loves the defiance; regulators don't forget.", effect: { kind: "fansBonus", fans: 3_000 } },
+    ],
+  },
 ];
 
 /** Pick a choice event if one is available and hasn't been resolved yet. ~30% chance per event window. */

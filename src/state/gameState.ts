@@ -1083,6 +1083,9 @@ export interface ActionResult {
   ok: boolean;
   reason?: string;
   launchScore?: number;
+  /** The recorded launch verdict (competition-adjusted, era-scaled) — the source of truth the
+   *  UI must use for the launch celebration so the moment can't contradict what Market records. */
+  verdict?: "hit" | "solid" | "flop" | "steady";
 }
 
 /** Queue a designed product for manufacturing with a production plan (run size + marketing).
@@ -1295,6 +1298,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     },
     ok: true,
     launchScore: plan.launchScore,
+    verdict: lp.verdict,
   };
 }
 

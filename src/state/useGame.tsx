@@ -80,6 +80,20 @@ import { createElement } from "react";
 export interface OfflineSummary {
   weeks: number;
   gain: Money;
+  /** The product that sold the most units while the player was away — a recap highlight. */
+  topProduct: { name: string; units: number } | null;
+}
+
+/** The product whose unit sales grew the most across the offline window. Pure diff of the
+ *  pre/post catch-up states; null if nothing sold while away. */
+function topSellerWhileAway(before: GameState, after: GameState): { name: string; units: number } | null {
+  const prev = new Map(before.launched.map((lp) => [lp.product.id, lp.unitsSold]));
+  let best: { name: string; units: number } | null = null;
+  for (const lp of after.launched) {
+    const delta = lp.unitsSold - (prev.get(lp.product.id) ?? 0);
+    if (delta > 0 && (!best || delta > best.units)) best = { name: lp.product.name, units: delta };
+  }
+  return best;
 }
 
 function fmtMilestone(d: number): string {
@@ -150,20 +164,37 @@ function withRevToasts(prev: GameState, next: GameState): void {
   }
 }
 
-/** Fire one celebratory toast per newly-unlocked achievement (Lucide glyph, positive tone). */
+/** Announce newly-unlocked achievements. Two polish rules (Phase 1, item 5):
+ *  - Let the triggering action's own toast (e.g. the launch verdict) land FIRST — achievements
+ *    are the secondary beat — by deferring this slightly.
+ *  - Collapse a burst of simultaneous unlocks into ONE toast, so a single action (like a first
+ *    launch that trips several milestones at once) can't bury the screen under a stack. */
 function announceAchievements(unlocked: readonly string[]): void {
-  for (const id of unlocked) {
-    const a = achievementById(id);
-    if (!a) continue;
+  const earned = unlocked
+    .map((id) => achievementById(id))
+    .filter((a): a is NonNullable<typeof a> => !!a);
+  if (earned.length === 0) return;
+  const fire = () => {
     try {
-      showToast(`Achievement unlocked — ${a.title}`, {
-        tone: "positive",
-        glyph: createElement(achievementIcon(a.icon), { size: 15 }),
-      });
+      if (earned.length === 1) {
+        const a = earned[0];
+        showToast(`Achievement unlocked — ${a.title}`, {
+          tone: "positive",
+          glyph: createElement(achievementIcon(a.icon), { size: 15 }),
+        });
+      } else {
+        const names = earned.slice(0, 2).map((a) => a.title).join(" · ");
+        const extra = earned.length > 2 ? ` +${earned.length - 2} more` : "";
+        showToast(`${earned.length} milestones unlocked — ${names}${extra}`, {
+          tone: "positive",
+          glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
+        });
+      }
     } catch {
       /* toast host not mounted (e.g. tests) */
     }
-  }
+  };
+  setTimeout(fire, 600);
 }
 
 /**
@@ -195,7 +226,7 @@ interface GameContextValue {
   takeOverHere: () => void;
   // actions
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
-  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number };
+  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady" };
   research: (kind: ComponentKind) => void;
   unlockLens: () => void;
   unlockFinish: () => void;
@@ -277,7 +308,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const withAch = evaluateAndUnlock(floored).state;
     // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
     save({ ...withAch, lastActive: Date.now() });
-    return { state: withAch, offline: weeks > 0 ? { weeks, gain } : null };
+    const topProduct = weeks > 0 ? topSellerWhileAway(loaded, withAch) : null;
+    return { state: withAch, offline: weeks > 0 ? { weeks, gain, topProduct } : null };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -383,7 +415,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // A launch can immediately cross a milestone (first ship, a hit, a hit streak, a sellout) — so
     // evaluate + celebrate right here, not only on the next weekly tick.
     if (result.ok) setState(withLiveAchievements(result.state));
-    return { ok: result.ok, reason: result.reason, launchScore: result.launchScore };
+    return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
   }, []);
 
   const research = useCallback((kind: ComponentKind) => {
