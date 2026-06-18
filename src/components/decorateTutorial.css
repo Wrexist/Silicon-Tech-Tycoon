@@ -1,0 +1,219 @@
+/* First-run Decorate tutorial — a centered, multi-step modal portaled to <body>. Premium glass
+   card, one accent per step, pure-vector visuals (no image assets). */
+.dtut-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70; /* above nav (30), sheet scrim (50), toast (60); below the frozen-tab guard (75+) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--sp-24) + env(safe-area-inset-top)) var(--edge) calc(var(--sp-24) + env(safe-area-inset-bottom));
+  background: rgba(10, 12, 16, 0.46);
+  backdrop-filter: saturate(160%) blur(6px);
+  -webkit-backdrop-filter: saturate(160%) blur(6px);
+  animation: dtut-fade var(--spring-snappy) both;
+}
+@keyframes dtut-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.dtut {
+  position: relative;
+  width: min(100%, 380px);
+  background: var(--surface);
+  border: 1px solid var(--glass-stroke);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--glass-highlight), var(--shadow-floating);
+  padding: var(--sp-24);
+  overflow: hidden;
+  animation: dtut-rise var(--spring-standard) both;
+}
+@keyframes dtut-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* A whisper of the step's accent washes down from the top of the card. */
+.dtut::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 120px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--dtut-accent) 12%, transparent), transparent);
+  pointer-events: none;
+}
+
+.dtut__skip {
+  position: absolute;
+  top: var(--sp-8);
+  right: var(--sp-8);
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  border-radius: 50%;
+  transition: color var(--spring-snappy), background var(--spring-snappy);
+}
+.dtut__skip:active { background: var(--bg-elevated); color: var(--ink-2); }
+
+.dtut__hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--sp-16);
+}
+.dtut__glyph {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: var(--dtut-accent);
+  background: color-mix(in srgb, var(--dtut-accent) 13%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dtut-accent) 22%, transparent);
+  animation: dtut-pop var(--spring-standard) both;
+}
+@keyframes dtut-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  60% { transform: scale(1.08); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.dtut__body {
+  text-align: center;
+  animation: dtut-swap var(--spring-standard) both;
+}
+@keyframes dtut-swap {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.dtut__title {
+  font-size: var(--fs-headline);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0;
+}
+.dtut__text {
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  color: var(--ink-2);
+  margin: var(--sp-8) 0 0;
+}
+
+/* --- Step visuals --- */
+.dtut__perks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin-top: var(--sp-16);
+  text-align: left;
+}
+.dtut__perk {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
+}
+.dtut__perk-chip {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+}
+.dtut__perk-text { font-size: var(--fs-caption); color: var(--ink-2); }
+.dtut__perk-text b { font-weight: 700; }
+
+.dtut__seat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-12);
+  margin-top: var(--sp-16);
+}
+.dtut__seat-desk {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-button);
+  color: var(--fn-team);
+  background: color-mix(in srgb, var(--fn-team) 12%, var(--surface));
+  border: 1px solid var(--hairline);
+}
+.dtut__seat-eq { font-size: var(--fs-headline); font-weight: 700; color: var(--ink-3); }
+.dtut__seat-one {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-12);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-pill);
+}
+
+.dtut__acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-8);
+  margin-top: var(--sp-16);
+}
+.dtut__act {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-12);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-pill);
+}
+
+/* --- Footer: progress + navigation --- */
+.dtut__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-16);
+  margin-top: var(--sp-24);
+}
+.dtut__dots { display: flex; align-items: center; gap: var(--sp-8); }
+.dtut__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--hairline);
+  transition: width var(--spring-standard), background var(--spring-standard);
+}
+.dtut__dot--done { background: color-mix(in srgb, var(--dtut-accent) 45%, var(--hairline)); }
+.dtut__dot--on { width: 22px; background: var(--dtut-accent); }
+
+.dtut__nav { display: flex; align-items: center; gap: var(--sp-8); }
+.dtut__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-16);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  border-radius: var(--r-pill);
+  transition: transform var(--spring-snappy), background var(--spring-snappy), color var(--spring-snappy);
+}
+.dtut__btn:active { transform: scale(0.95); }
+.dtut__btn--ghost { color: var(--ink-2); }
+.dtut__btn--ghost:active { background: var(--bg-elevated); }
+.dtut__btn--primary {
+  color: var(--accent-ink);
+  background: var(--dtut-accent);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--dtut-accent) 80%, transparent);
+}

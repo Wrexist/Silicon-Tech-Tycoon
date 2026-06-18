@@ -1,7 +1,7 @@
 import {
   Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, ChevronRight, CircleDot, Clock, Coffee,
   Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
-  Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Lock, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
+  HelpCircle, Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Lock, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
   Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
   Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
 } from "lucide-react";
@@ -38,8 +38,9 @@ import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
-import { useSettings } from "../state/settings.ts";
+import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
+import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
@@ -312,6 +313,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   const [cat, setCat] = useState<FurnitureCategory>("desks");
   const [search, setSearch] = useState("");
   const [roomTab, setRoomTab] = useState(false);
+  const [tutorial, setTutorial] = useState(false); // first-run Decorate coach (or replayed via ?)
   // Undo snapshots carry BOTH layout and cash, so undoing a purchase refunds in full (a true
   // reversal); Sell is the separate, deliberate 50%-refund path.
   const history = useRef<{ layout: PlacedItem[]; cash: Money }[]>([]);
@@ -474,7 +476,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
         {use3d && !build && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
         {use3d && !build && (
-          <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); }}>
+          <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
             <LayoutGrid size={15} /> Decorate
           </button>
         )}
@@ -485,6 +487,9 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
               <span className="hqb__cash tnum">{format(state.cash)}</span>
             </div>
             <div className="hqb__top-actions">
+              <button className="hqb__icon" aria-label="How Decorate works" onClick={() => { setTutorial(true); haptic.light(); }}>
+                <HelpCircle size={15} />
+              </button>
               <button className="hqb__icon" aria-label="Undo" disabled={histLen === 0} onClick={undo}>
                 <Undo2 size={15} />
               </button>
@@ -603,6 +608,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
           )}
         </div>
       )}
+      <DecorateTutorial open={tutorial} onClose={() => { setTutorial(false); setSettings({ decorateTutorialSeen: true }); }} />
     </Card>
   );
 }
