@@ -38,10 +38,12 @@
   to   { opacity: 1; }
 }
 .app__title {
-  font-size: var(--fs-large-title);
+  /* Tightened from large-title: a dense sim wants more of the small screen for content (the
+     device, the cards) than for a billboard header — still a clear, premium page title. */
+  font-size: var(--fs-title);
   font-weight: 700;
   letter-spacing: -0.02em;
-  margin: var(--sp-8) 0 var(--sp-16);
+  margin: var(--sp-4) 0 var(--sp-12);
 }
 .app__spacer {
   height: calc(96px + env(safe-area-inset-bottom));

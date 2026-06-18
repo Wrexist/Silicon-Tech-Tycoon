@@ -104,3 +104,13 @@
   border-color: var(--accent);
   color: var(--accent-ink);
 }
+
+/* Micro-label so an icon chip reads unambiguously ("Rep 8", not a bare gold star). */
+.hud__chip-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  opacity: 0.85;
+}
