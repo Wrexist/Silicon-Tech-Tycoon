@@ -342,15 +342,15 @@ function OfficeScene({ use3d, hasProduction, onNavigate, onOpenBank }: { use3d: 
     .join(";");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const staff3d = useMemo(() => state.staff, [staffSceneKey]);
-  // GPU dropped the WebGL context: tell the player why the office changed (it used to swap
-  // silently), and leave Decorate cleanly — the 2D fallback has no editor, so lingering
-  // place/select state would point at UI that no longer exists.
+  // GPU dropped the WebGL context: fall back to the 2D office silently — no error toast (the
+  // swap speaks for itself and a "Try 3D again" affordance sits on the scene). Leave Decorate
+  // cleanly: the 2D fallback has no editor, so lingering place/select state would point at UI
+  // that no longer exists.
   const onGlLost = useCallback(() => {
     setGlLost(true);
     setBuild(false);
     setPlacingType(null);
     setSelectedIid(null);
-    showToast("3D view unavailable — switched to the 2D office.", { tone: "neutral" });
   }, []);
 
   const exit = () => {
