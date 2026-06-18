@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dollars, toDollars } from "./money.ts";
 import { BALANCE } from "./balance.ts";
-import type { Product, CompetitorState, LaunchedProduct } from "./types.ts";
+import type { Product, CompetitorState, LaunchedProduct, ComponentKind } from "./types.ts";
 import {
   advanceOneWeek,
   applyEventEffect,
@@ -149,6 +149,40 @@ describe("early-game fairness — the maiden launch must not punish a competent 
     const unit = toDollars(effectiveUnitCost(s, phone()));
     const gouged: Product = { ...phone(), price: dollars(unit * 6) };
     expect(buildAndLaunch(s, gouged)).toBe("flop");
+  });
+
+  // The progression on-ramp must EXIST: era 1 cannot be a plateau where every launch is forever
+  // "steady". A developed era-1 company (researched to the tier-2 ceiling, healthy reputation +
+  // fans) building a maxed product at a sensible price must be able to reach "solid" — and "hit"
+  // with a strong launch campaign. This guards the verdict bars / scoring from regressing into an
+  // unwinnable grind. (Measured ceiling: ~54 uncontested, ~95 with a launch event.)
+  it("a developed era-1 company can reach 'solid' (and 'hit' with a campaign) — the climb is real", () => {
+    const KINDS: ComponentKind[] = ["chip", "display", "battery", "materials", "software", "camera"];
+    const base = newGame(1);
+    const s: GameState = {
+      ...base,
+      reputation: 30,
+      fans: 1500,
+      researched: Object.fromEntries(KINDS.map((k) => [k, 2])) as Record<ComponentKind, number>,
+    };
+    const maxed = (price: number): Product => ({
+      id: "apex", name: "Apex", category: "phone",
+      tiers: { chip: 2, display: 2, battery: 2, materials: 2, software: 2, camera: 2 },
+      finish: "aluminium", colorIndex: 0, price: dollars(price), designTier: 2,
+      camera: { count: 3, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
+      notch: "punch",
+    });
+    const bestEff = (channel: "none" | "event") => {
+      let best = 0;
+      for (let price = 120; price <= 500; price += 10) {
+        const plan = planProduction(s, maxed(price), 5000, channel);
+        best = Math.max(best, plan.launchScore * plan.competitionFactor);
+      }
+      return best;
+    };
+    const bands = verdictBands(1);
+    expect(bestEff("none")).toBeGreaterThanOrEqual(bands.solid); // solid is reachable uncontested
+    expect(bestEff("event")).toBeGreaterThanOrEqual(bands.hit); // a hit is reachable with a campaign
   });
 
   // The positive feedback loop: shipping decent products must GROW your audience. Fans decay
