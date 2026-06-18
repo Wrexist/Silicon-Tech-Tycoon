@@ -239,6 +239,9 @@ export function DesignLab({
       : effectiveScore <= bands.flop ? { label: "Likely flop", tone: "negative" as const }
         : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
           : { label: "Steady seller", tone: "accent" as const };
+  // Item 1: the verdict can swing while "Fit" is unchanged because rivals (competitionFactor)
+  // drag the effective score. Flag that so the label never looks like it flipped at random.
+  const competitionDrag = !!preview && preview.competitionFactor < 0.85 && (preview.betterRivals > 0 || preview.matchingRivals > 0);
 
   function set(partial: Partial<Product>) {
     setDraft((d) => ({ ...d, ...partial }));
@@ -407,10 +410,17 @@ export function DesignLab({
           </button>
         )}
         <div className="lab__verdict">
-          <StatPill label="Fit" value={`${fit}`} tone={fit >= 60 ? "positive" : "neutral"} />
+          <StatPill label="Fit" value={<>{fit}<span className="lab__den">/100</span></>} tone={fit >= 60 ? "positive" : "neutral"} />
           {syn.weakest && <StatPill label="Weak link" value={`${syn.weakest[0].toUpperCase()}${syn.weakest.slice(1)}`} tone="negative" />}
           <StatPill value={verdict.label} tone={verdict.tone} />
         </div>
+        {competitionDrag && preview && (
+          <p className="lab__verdict-note">
+            {preview.betterRivals > 0
+              ? `${preview.betterRivals} rival${preview.betterRivals > 1 ? "s" : ""} currently outclass this — that's pulling the forecast down, not your design.`
+              : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now — they'll split this market.`}
+          </p>
+        )}
       </div>
 
       {/* Category — always visible above the tab strip */}
@@ -878,7 +888,7 @@ export function DesignLab({
                 onChange={(v) => set({ price: dollars(v) })}
               />
               <div className="lab__price-meta">
-                <StatPill label="Build" value={format(unitCost)} />
+                <StatPill label="Unit cost" value={format(unitCost)} />
                 <StatPill label="Margin" value={`${format(margin)} · ${marginPct}%`} tone={marginPct > 0 ? "positive" : "negative"} />
                 <StatPill label="Buyers expect" value={`$${Math.round(toDollars(guidance.lo) / 10) * 10}–$${Math.round(toDollars(guidance.hi) / 10) * 10}`} />
                 <StatPill value={priceZone} tone={priceZoneTone} />
@@ -906,9 +916,17 @@ export function DesignLab({
                         <span className="lab__bom-val tnum">${r.cost}</span>
                       </div>
                     ))}
-                    <div className="lab__bom-total">
-                      <span>BOM total</span>
+                    <div className="lab__bom-total lab__bom-subtotal">
+                      <span>Parts (BOM)</span>
                       <span className="tnum">${total.toFixed(0)}</span>
+                    </div>
+                    <div className="lab__bom-assembly">
+                      <span>Assembly &amp; overhead</span>
+                      <span className="tnum">+${Math.max(0, Math.round(toDollars(unitCost) - total))}</span>
+                    </div>
+                    <div className="lab__bom-total">
+                      <span>Unit cost</span>
+                      <span className="tnum">${Math.round(toDollars(unitCost))}</span>
                     </div>
                   </div>
                 );
@@ -1180,7 +1198,7 @@ function BuildWizard({
       {step === 2 && (
         <div className="wiz__body">
           <div className="wiz__review">
-            <Stat label="Demand fit" value={`${Math.round(plan.demandFit)}`} tone={fitTone} hint={fitLabel} />
+            <Stat label="Demand fit" value={<>{Math.round(plan.demandFit)}<span className="lab__den">/100</span></>} tone={fitTone} hint={fitLabel} />
             <Stat label="Price fit" value={priceFit.label} tone={priceFit.tone} />
             <Stat label="Competition" value={compLabel} tone={compTone} />
             <Stat label="Balance" value={balanceLabel} tone={balanceTone} hint={plan.synergy < 0.97 ? "a weak component drags this down" : "components are well-matched"} />
@@ -1195,7 +1213,7 @@ function BuildWizard({
             )}
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
-            <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "sells out" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
+            <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "run sells out — you could make more" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
             <Stat label="Projected profit" value={format(plan.projectedProfit)} tone={plan.projectedProfit >= 0 ? "positive" : "negative"} />
             <Stat
               label="Cash after build starts"

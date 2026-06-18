@@ -164,20 +164,37 @@ function withRevToasts(prev: GameState, next: GameState): void {
   }
 }
 
-/** Fire one celebratory toast per newly-unlocked achievement (Lucide glyph, positive tone). */
+/** Announce newly-unlocked achievements. Two polish rules (Phase 1, item 5):
+ *  - Let the triggering action's own toast (e.g. the launch verdict) land FIRST — achievements
+ *    are the secondary beat — by deferring this slightly.
+ *  - Collapse a burst of simultaneous unlocks into ONE toast, so a single action (like a first
+ *    launch that trips several milestones at once) can't bury the screen under a stack. */
 function announceAchievements(unlocked: readonly string[]): void {
-  for (const id of unlocked) {
-    const a = achievementById(id);
-    if (!a) continue;
+  const earned = unlocked
+    .map((id) => achievementById(id))
+    .filter((a): a is NonNullable<typeof a> => !!a);
+  if (earned.length === 0) return;
+  const fire = () => {
     try {
-      showToast(`Achievement unlocked — ${a.title}`, {
-        tone: "positive",
-        glyph: createElement(achievementIcon(a.icon), { size: 15 }),
-      });
+      if (earned.length === 1) {
+        const a = earned[0];
+        showToast(`Achievement unlocked — ${a.title}`, {
+          tone: "positive",
+          glyph: createElement(achievementIcon(a.icon), { size: 15 }),
+        });
+      } else {
+        const names = earned.slice(0, 2).map((a) => a.title).join(" · ");
+        const extra = earned.length > 2 ? ` +${earned.length - 2} more` : "";
+        showToast(`${earned.length} milestones unlocked — ${names}${extra}`, {
+          tone: "positive",
+          glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
+        });
+      }
     } catch {
       /* toast host not mounted (e.g. tests) */
     }
-  }
+  };
+  setTimeout(fire, 600);
 }
 
 /**

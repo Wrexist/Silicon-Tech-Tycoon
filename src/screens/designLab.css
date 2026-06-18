@@ -975,3 +975,32 @@
   background: linear-gradient(90deg, var(--accent), var(--positive));
   transition: width var(--spring-standard);
 }
+
+/* Phase 1 readability: fit denominator, competition note, cost breakdown */
+.lab__den {
+  opacity: 0.5;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+.lab__verdict-note {
+  margin-top: var(--sp-8);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+  text-align: center;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.lab__bom-subtotal {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.lab__bom-assembly {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
