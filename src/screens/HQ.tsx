@@ -3,7 +3,7 @@ import {
   Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
   Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Lock, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
   Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
-  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, type LucideIcon,
+  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -34,7 +34,7 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, desktopCost, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, desktopCost, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -268,6 +268,40 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
   );
 }
 
+/** Live office buffs + seat count, shown atop the shop so the player SEES the office working for
+ *  the team. Each bar fills toward the BALANCE.shop cap (faint track = diminishing returns). */
+function OfficeOverview({ state }: { state: GameState }) {
+  const comfort = officeComfortMoodBonus(state);
+  const focus = officeFocusMult(state) - 1; // 0..focusCap
+  const inspo = officeInspoBonus(state);
+  const rows: { icon: LucideIcon; label: string; value: string; frac: number; tint: string }[] = [
+    { icon: Smile, label: "Mood", value: `+${Math.round(comfort)}`, frac: comfort / BALANCE.shop.comfortCap, tint: "var(--fn-team)" },
+    { icon: Crosshair, label: "Research", value: `+${Math.round(focus * 100)}%`, frac: focus / BALANCE.shop.focusCap, tint: "var(--fn-eng)" },
+    { icon: Sparkles, label: "Design", value: `+${Math.round(inspo)}`, frac: inspo / BALANCE.shop.inspCap, tint: "var(--fn-design)" },
+  ];
+  return (
+    <div className="hqb__office">
+      <div className="hqb__office-stats">
+        {rows.map((r) => (
+          <div className="hqb__office-stat" key={r.label}>
+            <span className="hqb__office-head">
+              <span className="hqb__office-label"><r.icon size={12} aria-hidden /> {r.label}</span>
+              <span className="hqb__office-val tnum" style={{ color: r.tint }}>{r.value}</span>
+            </span>
+            <span className="hqb__office-bar">
+              <span className="hqb__office-fill" style={{ width: `${Math.min(100, Math.round(r.frac * 100))}%`, background: r.tint }} />
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="hqb__office-seats">
+        <Users size={12} aria-hidden /> Seats <b className="tnum">{state.staff.length}/{deskCapacity(state)}</b>
+        <span className="hqb__office-seats-hint">— buy a desk to add one</span>
+      </div>
+    </div>
+  );
+}
+
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setFloorStyle, setWallStyle } = useGame();
@@ -474,6 +508,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
             </div>
           ) : (
             <>
+              <OfficeOverview state={state} />
               <div className="hqb__search">
                 <Search size={15} className="hqb__search-icon" />
                 <input
@@ -547,6 +582,13 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                         <span className="hqb__item-glyph"><Icon size={20} /></span>
                         <span className="hqb__item-name">{f.name}</span>
                         <span className="hqb__item-price tnum">{format(dollars(f.cost))}</span>
+                        {(f.attrs?.comfort || f.attrs?.focus || f.attrs?.inspiration) ? (
+                          <span className="hqb__item-attrs">
+                            {f.attrs?.comfort ? <span className="hqb__attr hqb__attr--c"><Smile size={10} aria-hidden />{f.attrs.comfort}</span> : null}
+                            {f.attrs?.focus ? <span className="hqb__attr hqb__attr--f"><Crosshair size={10} aria-hidden />{f.attrs.focus}</span> : null}
+                            {f.attrs?.inspiration ? <span className="hqb__attr hqb__attr--i"><Sparkles size={10} aria-hidden />{f.attrs.inspiration}</span> : null}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
