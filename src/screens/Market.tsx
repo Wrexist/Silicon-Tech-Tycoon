@@ -13,6 +13,7 @@ import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
+import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
   burn,
@@ -758,6 +759,17 @@ function ProductDetailSheet({
   const v = verdictOf(lp);
   const drivers = performanceDrivers(lp);
   const tips = generateTips(lp);
+  // Fictional tech-press reviews derived from the recorded launch metrics (pure, presentation
+  // only — never affects the sim). Falls back to neutral drivers for pre-insight saves.
+  const reviews = criticReviews({
+    productId: lp.product.id,
+    stats: lp.stats,
+    verdict: v,
+    demandFit: lp.insight?.demandFit ?? 60,
+    priceFit: lp.insight?.priceFit ?? 1,
+    betterRivals: lp.insight?.betterRivals ?? 0,
+  });
+  const reviewBand = reviews.aggregate >= 75 ? "high" : reviews.aggregate >= 55 ? "mid" : "low";
   const sellThrough = lp.plannedUnits && lp.plannedUnits > 0
     ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
     : null;
@@ -964,6 +976,34 @@ function ProductDetailSheet({
           )}
         </div>
       )}
+
+      {/* Press reception — fictional tech-press reviews from the recorded launch metrics */}
+      <div className="pd__reviews">
+        <div className="pd__reviews-head">
+          <Newspaper size={15} aria-hidden />
+          <span>Press reception</span>
+          <span className={`pd__reviews-score pd__reviews-score--${reviewBand} tnum`}>
+            {reviews.aggregate}<span className="pd__reviews-max">/100</span>
+          </span>
+        </div>
+        <blockquote className="pd__reviews-quote">“{reviews.headline}”</blockquote>
+        <div className="pd__reviews-outlets">
+          {reviews.outlets.map((o) => (
+            <div className="pd__reviews-outlet" key={o.outlet}>
+              <span className="pd__reviews-outlet-score tnum"><Star size={11} aria-hidden /> {o.score}</span>
+              <span className="pd__reviews-outlet-name">{o.outlet}</span>
+            </div>
+          ))}
+        </div>
+        <div className="pd__reviews-pc">
+          {reviews.pros.map((p) => (
+            <span className="pd__reviews-pro" key={p}><Plus size={12} aria-hidden /> {p}</span>
+          ))}
+          {reviews.cons.map((c) => (
+            <span className="pd__reviews-con" key={c}><Minus size={12} aria-hidden /> {c}</span>
+          ))}
+        </div>
+      </div>
 
       {/* Why it performed */}
       <div className="pd__why">
