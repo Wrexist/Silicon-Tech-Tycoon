@@ -715,6 +715,7 @@ export function DesignLab({
                   <button
                     className={`lab__toggle${draft.camera.flash ? " lab__toggle--on" : ""}`}
                     role="switch"
+                    aria-label="Flash"
                     aria-checked={draft.camera.flash}
                     onClick={() => setCam({ flash: !draft.camera.flash })}
                   >
