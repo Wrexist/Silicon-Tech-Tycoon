@@ -16,9 +16,13 @@ function dismiss(id: number) {
   emit();
 }
 
+// Cap how many toasts can stack at once — a single busy moment (e.g. a launch tripping several
+// systems) should never tower the screen. Oldest drop off when a newer one arrives.
+const MAX_VISIBLE = 3;
+
 export function showToast(text: string, opts: { glyph?: ReactNode; tone?: Tone } = {}) {
   const id = nextId++;
-  toasts = [...toasts, { id, text, glyph: opts.glyph, tone: opts.tone ?? "neutral" }];
+  toasts = [...toasts, { id, text, glyph: opts.glyph, tone: opts.tone ?? "neutral" }].slice(-MAX_VISIBLE);
   emit();
   setTimeout(() => dismiss(id), 2600);
 }
