@@ -867,6 +867,38 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   // 3. Product drought — no active products and nothing in the pipeline
   const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
   const inPipeline = state.building.length > 0 || state.ready.length > 0;
+
+  // 2b. Breakout coaching — the recent launches keep landing "steady" and never break out. Read the
+  // latest launch's recorded drivers and name the ONE biggest lever, so a stuck player gets a
+  // specific, proactive nudge toward their first "solid"/hit instead of grinding identical sellers.
+  if (insights.length < 3 && state.launched.length >= 2) {
+    const recent = state.launched.slice(0, 3); // newest first (prepended on launch)
+    const brokeOut = recent.some((lp) => lp.verdict === "hit" || lp.verdict === "solid");
+    const ins = state.launched.find((lp) => lp.insight)?.insight;
+    if (!brokeOut && ins) {
+      const hasMarketer = state.staff.some((s) => s.assignment === "marketing");
+      if (ins.betterRivals >= 1) {
+        insights.push({
+          icon: FlaskConical,
+          text: 'Your launches keep landing "steady" because rivals outclass them — raise component tiers in R&D to break out with a "solid" or a hit.',
+          tab: "research",
+        });
+      } else if (ins.hype < 1.15) {
+        insights.push(
+          hasMarketer
+            ? { icon: Megaphone, text: 'Your products sell steadily but lack buzz — add a launch campaign to push the next one past "steady".', tab: "market" }
+            : { icon: Megaphone, text: 'Your products sell steadily but lack buzz — put someone on Marketing to lift launch hype and break past "steady".', tab: "company" },
+        );
+      } else if (ins.demandFit < 45) {
+        insights.push({
+          icon: TrendingUp,
+          text: 'Your launches keep just missing the trend — check Market demand before your next design to land a "solid".',
+          tab: "market",
+        });
+      }
+    }
+  }
+
   if (insights.length < 3) {
     if (active.length === 0 && !inPipeline) {
       insights.push({
