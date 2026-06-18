@@ -1197,3 +1197,16 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+
+/* Office shop: per-item price + unaffordable state */
+.hqb__item-price {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  color: var(--ink);
+}
+.hqb__item--poor {
+  opacity: 0.5;
+}
+.hqb__item--poor .hqb__item-price {
+  color: var(--negative-text, var(--negative));
+}

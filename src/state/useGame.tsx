@@ -37,6 +37,7 @@ import {
   startRecruitment,
   launchReady,
   listCompany,
+  applyLayoutSnapshot,
   moveFurniture,
   newGame,
   placeFurniture,
@@ -261,6 +262,7 @@ interface GameContextValue {
   duplicateFurniture: (iid: string) => void;
   resetFurniture: () => void;
   setLayout: (layout: PlacedItem[]) => void;
+  applyLayoutSnapshot: (snap: { layout: PlacedItem[]; cash: Money }) => void;
   setFloorStyle: (i: number) => void;
   setWallStyle: (i: number) => void;
   // equity / stock market
@@ -560,6 +562,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const duplicateFurnitureCb = useCallback((iid: string) => setState((s) => duplicateFurniture(s, iid)), []);
   const resetFurnitureCb = useCallback(() => setState((s) => resetFurniture(s)), []);
   const setLayoutCb = useCallback((layout: PlacedItem[]) => setState((s) => setLayout(s, layout)), []);
+  const applyLayoutSnapshotCb = useCallback((snap: { layout: PlacedItem[]; cash: Money }) => setState((s) => applyLayoutSnapshot(s, snap)), []);
   const setFloorStyleCb = useCallback((i: number) => setState((s) => setFloorStyle(s, i)), []);
   const setWallStyleCb = useCallback((i: number) => setState((s) => setWallStyle(s, i)), []);
   const buySharesCb = useCallback((id: string, qty: number) => {
@@ -644,6 +647,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       duplicateFurniture: duplicateFurnitureCb,
       resetFurniture: resetFurnitureCb,
       setLayout: setLayoutCb,
+      applyLayoutSnapshot: applyLayoutSnapshotCb,
       setFloorStyle: setFloorStyleCb,
       setWallStyle: setWallStyleCb,
       buyShares: buySharesCb,
@@ -656,7 +660,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

@@ -42,7 +42,9 @@ import {
   canPlace,
   defaultLayout,
   deskItems,
+  furnitureCost,
   moveItem as moveFurnitureOp,
+  officeAttrs,
   removeItem as removeFurnitureOp,
   rotateItem as rotateFurnitureOp,
   type FurnitureId,
@@ -325,7 +327,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     productCounter: 1,
     staffCounter: 1,
     layout: defaultLayout(),
-    furnitureCounter: 20,
+    furnitureCounter: 3, // starter layout uses f1 (desk) + f2 (plant)
     roomStyle: { floor: 0, wall: 0 },
     desktops: 0,
     lensLimit: 2,
@@ -356,7 +358,21 @@ export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1]
 export const burn = (s: GameState): Money => weeklyBurn(s.staff, facilityRent(s));
 export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades);
-export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades);
+// ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
+/** Mood-target bonus from the room's comfort furniture (capped). Added to the weekly mood target. */
+export const officeComfortMoodBonus = (s: GameState): number =>
+  Math.min(BALANCE.shop.comfortCap, officeAttrs(s.layout).comfort * BALANCE.shop.comfortK);
+/** Research multiplier from the room's focus furniture (≥1, capped). */
+export const officeFocusMult = (s: GameState): number =>
+  1 + Math.min(BALANCE.shop.focusCap, officeAttrs(s.layout).focus * BALANCE.shop.focusK);
+/** Design-stat bonus from the room's inspiration furniture (capped). */
+export const officeInspoBonus = (s: GameState): number =>
+  Math.min(BALANCE.shop.inspCap, officeAttrs(s.layout).inspiration * BALANCE.shop.inspK);
+/** Can the player afford to buy + place this furniture id right now? */
+export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
+  s.cash >= dollars(furnitureCost(type));
+
+export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s);
 export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
@@ -377,7 +393,7 @@ const floorRP = (n: number) => Math.max(0, Math.floor(Number.isFinite(n) ? n : 0
 export function productStats(s: GameState, product: Product): Stats {
   const base = computeStats(product);
   const bonus = designSpecialtyBonus(s.staff);
-  bonus.design = (bonus.design ?? 0) + designStatBonus(s.upgrades);
+  bonus.design = (bonus.design ?? 0) + designStatBonus(s.upgrades) + officeInspoBonus(s);
   bonus.quality = (bonus.quality ?? 0) + qualityStatBonus(s.upgrades);
   // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
@@ -833,7 +849,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const skills = leveledUp
       ? { ...next.skills, [ROLE_DISCIPLINE[next.role]]: Math.min(100, Math.max(next.skills[ROLE_DISCIPLINE[next.role]], next.skill * 10)) }
       : next.skills;
-    let target = 60 + moodBonus(state.upgrades);
+    let target = 60 + moodBonus(state.upgrades) + officeComfortMoodBonus(state);
     if (s.trait === "hustler") target -= 12;
     if (cashDropping) target -= 12;
     else target += 6;
@@ -1510,10 +1526,12 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
 
 // ---------- Office builder (furniture layout) ----------
 export function placeFurniture(state: GameState, type: FurnitureId, c: number, r: number, rot: Rot): GameState {
+  const cost = dollars(furnitureCost(type));
+  if (state.cash < cost) return state; // can't afford — no-op (the UI surfaces "Need $X")
   const iid = `f${state.furnitureCounter}`;
   const layout = addFurniture(state.layout, iid, type, c, r, rot);
-  if (layout === state.layout) return state; // rejected (overlap / out of bounds)
-  return { ...state, layout, furnitureCounter: state.furnitureCounter + 1 };
+  if (layout === state.layout) return state; // rejected (overlap / out of bounds) — no charge
+  return { ...state, cash: sub(state.cash, cost), layout, furnitureCounter: state.furnitureCounter + 1 };
 }
 export function moveFurniture(state: GameState, iid: string, c: number, r: number): GameState {
   const layout = moveFurnitureOp(state.layout, iid, c, r);
@@ -1523,8 +1541,13 @@ export function rotateFurniture(state: GameState, iid: string): GameState {
   const layout = rotateFurnitureOp(state.layout, iid);
   return layout === state.layout ? state : { ...state, layout };
 }
+/** Sell a placed item back to the shop — removes it and refunds BALANCE.shop.resaleRate of its cost. */
 export function removeFurniture(state: GameState, iid: string): GameState {
-  return { ...state, layout: removeFurnitureOp(state.layout, iid) };
+  const it = state.layout.find((x) => x.iid === iid);
+  const layout = removeFurnitureOp(state.layout, iid);
+  if (layout === state.layout) return state; // nothing removed
+  const refund = it ? dollars(Math.round(furnitureCost(it.type) * BALANCE.shop.resaleRate)) : ZERO;
+  return { ...state, cash: add(state.cash, refund) as Money, layout };
 }
 export function resetFurniture(state: GameState): GameState {
   return { ...state, layout: defaultLayout() };
@@ -1533,15 +1556,22 @@ export function resetFurniture(state: GameState): GameState {
 export function setLayout(state: GameState, layout: PlacedItem[]): GameState {
   return { ...state, layout };
 }
-/** Drop a copy of an item into the nearest free cell. */
+/** Restore a Decorate undo snapshot — both the layout AND the cash, so undoing a purchase is a
+ *  true reversal (cash back in full; selling is the deliberate 50%-refund path instead). */
+export function applyLayoutSnapshot(state: GameState, snap: { layout: PlacedItem[]; cash: Money }): GameState {
+  return { ...state, layout: snap.layout, cash: snap.cash };
+}
+/** Buy another copy of a placed item, dropped into the nearest free cell (charges its cost). */
 export function duplicateFurniture(state: GameState, iid: string): GameState {
   const it = state.layout.find((x) => x.iid === iid);
   if (!it) return state;
+  const cost = dollars(furnitureCost(it.type));
+  if (state.cash < cost) return state; // can't afford
   for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [2, 0], [0, 2], [-2, 0]]) {
     const c = it.c + dc, r = it.r + dr;
     if (canPlace(state.layout, it.type, c, r, it.rot)) {
       const copy: PlacedItem = { ...it, iid: `f${state.furnitureCounter}`, c, r };
-      return { ...state, layout: [...state.layout, copy], furnitureCounter: state.furnitureCounter + 1 };
+      return { ...state, cash: sub(state.cash, cost), layout: [...state.layout, copy], furnitureCounter: state.furnitureCounter + 1 };
     }
   }
   return state;

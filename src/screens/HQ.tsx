@@ -14,9 +14,10 @@ import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { format, toDollars } from "../engine/money.ts";
+import { dollars, format, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
+  furnitureCost,
   CATEGORY_LABEL,
   CATEGORY_ORDER,
   footprint,
@@ -33,7 +34,7 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, desktopCost, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, desktopCost, type FeedItem, type GameState } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -269,7 +270,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
-  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, resetFurniture, setLayout, setFloorStyle, setWallStyle } = useGame();
+  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
   const [placingType, setPlacingType] = useState<FurnitureId | null>(null);
   const [placeRot, setPlaceRot] = useState<Rot>(0);
@@ -277,7 +278,9 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   const [cat, setCat] = useState<FurnitureCategory>("desks");
   const [search, setSearch] = useState("");
   const [roomTab, setRoomTab] = useState(false);
-  const history = useRef<PlacedItem[][]>([]);
+  // Undo snapshots carry BOTH layout and cash, so undoing a purchase refunds in full (a true
+  // reversal); Sell is the separate, deliberate 50%-refund path.
+  const history = useRef<{ layout: PlacedItem[]; cash: Money }[]>([]);
   const [histLen, setHistLen] = useState(0); // mirror of history depth so Undo's disabled state stays live
   const dark = isDarkTheme();
   // If the GPU drops the WebGL context mid-game, fall back to the 2D IsoScene instead of black.
@@ -291,8 +294,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   // have to be rebuilt every render just to capture the latest layout reference.
   const layoutRef = useRef(state.layout);
   layoutRef.current = state.layout;
+  const cashRef = useRef(state.cash);
+  cashRef.current = state.cash;
   const snapshot = useCallback(() => {
-    history.current.push(layoutRef.current);
+    history.current.push({ layout: layoutRef.current, cash: cashRef.current });
     if (history.current.length > 40) history.current.shift();
     setHistLen(history.current.length);
   }, []);
@@ -300,7 +305,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
     const prev = history.current.pop();
     setHistLen(history.current.length);
     if (prev) {
-      setLayout(prev);
+      applyLayoutSnapshot(prev);
       setSelectedIid(null);
       setPlacingType(null);
       haptic.medium();
@@ -318,6 +323,11 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
     selectedIid,
     onPlaceCell: (c, r) => {
       if (!placingType) return;
+      if (!canAffordFurniture(state, placingType)) {
+        showToast(`Can't afford — ${furnitureDef(placingType).name} costs ${format(dollars(furnitureCost(placingType)))}`, { tone: "negative" });
+        haptic.error();
+        return;
+      }
       snapshot();
       placeFurniture(placingType, c, r, placeRot);
       haptic.light();
@@ -365,6 +375,11 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   // Tapping a catalog item drops it into the first free cell + selects it, so the player can
   // immediately drag it where they want.
   const pick = (type: FurnitureId) => {
+    if (!canAffordFurniture(state, type)) {
+      showToast(`Can't afford — ${furnitureDef(type).name} costs ${format(dollars(furnitureCost(type)))}`, { tone: "negative" });
+      haptic.error();
+      return;
+    }
     const def = furnitureDef(type);
     for (let r = 0; r <= GRID.n - 1; r++) {
       for (let c = 0; c <= GRID.n - 1; c++) {
@@ -436,9 +451,6 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
               <button className="hqb__icon" aria-label="Undo" disabled={histLen === 0} onClick={undo}>
                 <Undo2 size={15} />
               </button>
-              <button className="hqb__icon" aria-label="Reset layout" onClick={() => { snapshot(); resetFurniture(); setSelectedIid(null); setPlacingType(null); haptic.medium(); }}>
-                <Trash2 size={15} />
-              </button>
               <Button size="sm" onClick={exit}><Check size={14} /> Done</Button>
             </div>
           </div>
@@ -456,7 +468,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
               <div className="hqb__row">
                 <button className="hqb__tool" onClick={() => { snapshot(); rotateFurniture(selected.iid); haptic.light(); }}><RotateCw size={16} /> Rotate</button>
                 <button className="hqb__tool" onClick={() => { snapshot(); duplicateFurniture(selected.iid); haptic.light(); }}><Copy size={16} /> Duplicate</button>
-                <button className="hqb__tool hqb__tool--danger" onClick={() => { snapshot(); removeFurniture(selected.iid); setSelectedIid(null); haptic.medium(); }}><Trash2 size={16} /> Remove</button>
+                <button className="hqb__tool hqb__tool--danger" onClick={() => { snapshot(); removeFurniture(selected.iid); setSelectedIid(null); haptic.medium(); }}><Trash2 size={16} /> Sell · +{format(dollars(Math.round(furnitureCost(selected.type) * BALANCE.shop.resaleRate)))}</button>
                 <button className="hqb__tool" onClick={() => setSelectedIid(null)}><X size={16} /> Deselect</button>
               </div>
             </div>
@@ -529,10 +541,12 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 <div className="hqb__items">
                   {visibleItems.map((f) => {
                     const Icon = FURN_ICONS[f.icon] ?? Box;
+                    const afford = canAffordFurniture(state, f.id);
                     return (
-                      <button key={f.id} className={`hqb__item${placingType === f.id ? " hqb__item--on" : ""}`} aria-pressed={placingType === f.id} aria-label={`Place ${f.name}`} onClick={() => pick(f.id)}>
+                      <button key={f.id} className={`hqb__item${placingType === f.id ? " hqb__item--on" : ""}${afford ? "" : " hqb__item--poor"}`} aria-pressed={placingType === f.id} aria-label={`Buy ${f.name}, ${format(dollars(f.cost))}`} onClick={() => pick(f.id)}>
                         <span className="hqb__item-glyph"><Icon size={20} /></span>
                         <span className="hqb__item-name">{f.name}</span>
+                        <span className="hqb__item-price tnum">{format(dollars(f.cost))}</span>
                       </button>
                     );
                   })}

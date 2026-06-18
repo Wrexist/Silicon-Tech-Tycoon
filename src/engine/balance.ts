@@ -283,6 +283,21 @@ export const BALANCE = {
     cost: [dollars(18_000), dollars(32_000), dollars(52_000), dollars(80_000)] as Money[],
   },
 
+  // --- Office shop: furniture costs money and buffs the office. Buffs are summed across the room
+  // and capped, so a fully-decorated office is a meaningful COMPLEMENT to the HQ upgrades, never a
+  // replacement. K = buff per attribute point; cap = the most furniture can contribute. Anchored
+  // against the upgrades: amenities = +5 mood/tier (max +20), workstations = +15% research/tier.
+  // Starting values — tunable, pinned by the shop balance test. ---
+  shop: {
+    resaleRate: 0.5, // refund fraction when selling a placed item
+    comfortK: 0.5, // mood-target points per comfort point
+    comfortCap: 15, // max mood target from furniture
+    focusK: 0.01, // +research multiplier per focus point
+    focusCap: 0.15, // max +15% research from furniture
+    inspK: 0.5, // Design-stat points per inspiration point
+    inspCap: 5, // max +5 Design from furniture
+  },
+
   // --- Tech eras: thresholds to advance (reputation OR cumulative revenue) ---
   eras: [
     { era: 1, name: "Garage Era", repToAdvance: 35, revToAdvance: dollars(500_000) },

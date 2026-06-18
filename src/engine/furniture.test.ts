@@ -6,9 +6,12 @@ import {
   defaultLayout,
   deskItems,
   footprint,
+  furnitureCost,
   furnitureDef,
+  FURNITURE,
   GRID,
   moveItem,
+  officeAttrs,
   removeItem,
   rotateItem,
   worldOf,
@@ -73,6 +76,12 @@ describe("furniture grid model", () => {
     expect(solids).toBeGreaterThan(0);
   });
 
+  it("the starter garage is exactly a desk + a plant (one seat for the founder)", () => {
+    const l = defaultLayout();
+    expect(l.map((i) => i.type).sort()).toEqual(["desk", "plantPot"]);
+    expect(deskItems(l)).toHaveLength(1);
+  });
+
   it("default layout seats the founder (≥1 desk) and deskItems keeps a stable placement order", () => {
     expect(deskItems(defaultLayout()).length).toBeGreaterThanOrEqual(1);
     // seats stay in placement order regardless of array order, so nobody swaps desks on re-render
@@ -81,5 +90,23 @@ describe("furniture grid model", () => {
     expect(deskItems([b, a]).map((d) => d.iid)).toEqual(["f2", "f10"]);
     // non-desk furniture never counts as a seat
     expect(deskItems([{ iid: "f3", type: "sofa", c: 0, r: 4, rot: 0 }])).toHaveLength(0);
+  });
+});
+
+describe("office shop catalog", () => {
+  it("every item has a positive price", () => {
+    for (const f of FURNITURE) expect(f.cost).toBeGreaterThan(0);
+    expect(furnitureCost("sofa")).toBe(furnitureDef("sofa").cost);
+  });
+
+  it("officeAttrs sums every placed item's attributes (cosmetics contribute nothing)", () => {
+    const layout: PlacedItem[] = [
+      { iid: "a", type: "sofa", c: 0, r: 0, rot: 0 },       // comfort 5
+      { iid: "b", type: "serverRack", c: 4, r: 0, rot: 0 }, // focus 6
+      { iid: "c", type: "sculpture", c: 6, r: 0, rot: 0 },  // inspiration 6
+      { iid: "d", type: "crates", c: 8, r: 0, rot: 0 },     // no attrs
+    ];
+    expect(officeAttrs(layout)).toEqual({ comfort: 5, focus: 6, inspiration: 6 });
+    expect(officeAttrs([])).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
   });
 });
