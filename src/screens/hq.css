@@ -1295,3 +1295,55 @@
 .hqb__attr--c { color: var(--fn-team); }
 .hqb__attr--f { color: var(--fn-eng); }
 .hqb__attr--i { color: var(--fn-design); }
+
+/* ============ Phase C: decorate = an inline two-zone layout that fits the screen ============
+   Scene on top, shop sheet below — both visible at once so you can see the floor AND the catalog
+   while decorating, and nothing clips. Sized in dvh to fill the space between the HUD and the
+   bottom nav. INLINE (not a fixed overlay) so it composites cleanly on every renderer. The
+   Garage3D canvas is the SAME mounted instance as the inline scene — never remounted (WebGL
+   context preserved). */
+.ds-card.hq__deco {
+  display: flex;
+  flex-direction: column;
+  /* viewport minus HUD + screen title + bottom nav + margins, so the card bottom always
+     clears the fixed bottom nav (measured: HUD+title ≈ 168px, nav+safe-area ≈ 80px). */
+  height: calc(100dvh - 248px);
+  min-height: 360px;
+  margin-bottom: var(--sp-8);
+  padding: 0;
+  overflow: hidden;
+}
+.hq__deco .hq__scene--build {
+  flex: 1 1 auto;
+  min-height: 140px;
+  padding: 0;
+}
+.hqb__top-id {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.hqb__cash {
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--ink);
+}
+.hq__deco .hqb__panel {
+  flex: 0 1 auto;
+  max-height: 50dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background: var(--surface);
+  box-shadow: 0 -10px 30px -16px rgba(0, 0, 0, 0.22);
+  padding-bottom: var(--sp-16);
+}
+/* Category strip: a single horizontal snap-scroll row, never wraps off-screen */
+.hq__deco .hqb__cats {
+  scroll-snap-type: x proximity;
+  padding-bottom: 2px;
+}
+.hq__deco .hqb__cat {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}

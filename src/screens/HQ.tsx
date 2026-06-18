@@ -435,7 +435,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   };
 
   return (
-    <Card variant="flush">
+    <Card variant="flush" className={build ? "hq__deco" : undefined}>
       <div className={`hq__scene${build ? " hq__scene--build" : ""}`}>
         {use3d && !glLost ? (
           <ErrorBoundary fallback={<IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />}>
@@ -452,7 +452,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 builder={builder}
                 roomStyle={state.roomStyle}
                 desktops={state.desktops}
-                height={build ? 460 : 420}
+                height={build ? "100%" : 420}
                 paused={!active}
                 onTapStaff={() => onNavigate("company")}
                 onTapBank={onOpenBank}
@@ -480,7 +480,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         )}
         {build && (
           <div className="hqb__top">
-            <span className="hqb__title">Decorate your office</span>
+            <div className="hqb__top-id">
+              <span className="hqb__title">Decorate</span>
+              <span className="hqb__cash tnum">{format(state.cash)}</span>
+            </div>
             <div className="hqb__top-actions">
               <button className="hqb__icon" aria-label="Undo" disabled={histLen === 0} onClick={undo}>
                 <Undo2 size={15} />
