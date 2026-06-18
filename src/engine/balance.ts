@@ -163,6 +163,13 @@ export const BALANCE = {
     preOrderConversion: 0.62, // fraction of fans who pre-order a well-fitting product
     gainPerHitUnitsK: 90, // fans gained per 1,000 units of a hit sold
     gainOnHitFlat: 120, // flat fan bump for any hit launch
+    // A well-received product BUILDS an audience — not just a viral hit. Without this, fans only
+    // ever decayed between hits, so a company shipping steady/solid sellers slowly bled its whole
+    // fanbase (hype → score → verdict all stuck low: an early-game stall with no way out). A solid
+    // performer wins a real bump; even a steady seller earns enough new fans to outpace the weekly
+    // decay, so consistent shipping compounds into reach. The decay caps it (self-limiting).
+    gainOnSolidFlat: 70, // flat fan bump for a "solid" launch (+ half the hit's per-unit growth)
+    gainOnSteadyFlat: 55, // flat fan bump for a "steady" launch — beats decay so reach slowly grows
     lossPerFlop: 140, // fans lost on a flop
     decayPerWeek: 0.992, // gentle weekly erosion of attention
     selloutFanBonus: 0.04, // extra fan growth when a run sells out (demand > supply)

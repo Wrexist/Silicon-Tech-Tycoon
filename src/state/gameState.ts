@@ -1231,6 +1231,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     : bands.hit;
   const isHit = effectiveScore >= hitThreshold;
   const isFlop = effectiveScore <= bands.flop;
+  const isSolid = !isHit && !isFlop && effectiveScore >= bands.solid;
   const hasCrisisComms = hasProject(state.completedProjects, "crisisComms");
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
   else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
@@ -1241,7 +1242,9 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const fb = BALANCE.fans;
   let fans = state.fans;
   if (isHit) fans += fb.gainOnHitFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK;
+  else if (isSolid) fans += fb.gainOnSolidFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK * 0.5;
   else if (isFlop) fans = Math.max(0, fans - fb.lossPerFlop);
+  else fans += fb.gainOnSteadyFlat; // a steady seller still wins a few new fans (beats the decay)
   // B4 — the sellout buzz is only earned if the run actually met a reasonable share of demand.
   // A deliberately tiny run that sells out while ignoring most of the market no longer farms fans;
   // instead chronic severe undersupply costs you fans ("couldn't meet demand"). This kills the
@@ -1258,7 +1261,6 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   reputation = Math.min(rep.max, reputation + fanMilestones.repBonus);
 
   // The whole team feels the result.
-  const isSolid = !isHit && !isFlop && effectiveScore >= bands.solid;
   const moodSwing = isHit ? 12 : isFlop ? -12 : 3;
   const staff = state.staff.map((s) => ({ ...s, mood: clampMood(s.mood + moodSwing) }));
 

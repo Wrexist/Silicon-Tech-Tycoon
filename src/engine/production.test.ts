@@ -150,6 +150,23 @@ describe("early-game fairness — the maiden launch must not punish a competent 
     const gouged: Product = { ...phone(), price: dollars(unit * 6) };
     expect(buildAndLaunch(s, gouged)).toBe("flop");
   });
+
+  // The positive feedback loop: shipping decent products must GROW your audience. Fans decay
+  // every week, and before this only viral "hits" added any — so a company shipping steady
+  // sellers slowly bled its whole fanbase (hype → score → verdict all stuck low: a dead-end
+  // stall). A steady launch now wins fans on the spot, outpacing the decay.
+  it("a steady seller grows the fanbase on launch (not just hits)", () => {
+    const s0 = newGame(1);
+    const unit = toDollars(effectiveUnitCost(s0, phone()));
+    const product: Product = { ...phone(), price: dollars(Math.max(120, Math.round(unit * 1.8))) };
+    let s = startBuild(s0, product, recommendedRun(s0, product, "none"), "none").state;
+    const weeks = buildWeeksFor(s) + 1;
+    for (let i = 0; i < weeks; i++) s = advanceOneWeek(s);
+    const fansBefore = s.fans;
+    const launched = launchReady(s, s.ready[0].id).state;
+    expect(launched.launched[0].verdict).toBe("steady"); // precondition: this is the steady path
+    expect(launched.fans).toBeGreaterThan(fansBefore); // …and it added fans rather than losing them
+  });
 });
 
 /** An actively-selling launched product (flat 100-unit weeks) for cannibalization/haircut tests. */
