@@ -8,6 +8,19 @@ premium polish, then deeper fun.
 Caveat: backdrop-blur and some shadow effects can under-render in a headless browser, so items
 tagged **[verify-device]** must be confirmed on TestFlight before acting.
 
+## STATUS — all phases implemented (branch claude/game-audit-engagement-qiauna)
+- **P1 (1–5):** done. Verdict competition-note, wizard "run sells out — you could make more",
+  Fit/100, unified Unit cost + Parts/Assembly/Unit cost breakdown, launch toast sequencing+merge.
+- **P2 (6–9):** done via *framing, not faking* — constructive weak-launch copy + warm debut + Overall
+  tier hint + first-hit line. A mechanical "first-launch grace" was rejected (would make the lab
+  preview lie about the outcome and break the preview==launch test).
+- **P3 (10–11):** done. Opaque sheet `@supports` fallback; toast stack cap (max 3).
+- **P4 (12–13):** done. HUD chips "RP"/"Rep" micro-labels; tighter screen title.
+- **P5 (14–16):** done. Reviews moved under the device hero; nav clearance; tidy under-device cluster.
+- **P6 (17–20):** 17 already existed (leaderboard overtake nudge); 19 IPO progress bar added;
+  18 met by the prominent reviews + launch toast pointer (no disruptive launch modal); 20 **declined**
+  as a nag (conflicts with the no-nag pillar) — its "always a next goal" intent is met by 17 + 19.
+
 Legend: ⚡ quick win · 🎯 high impact · ⚠️ touches balance · 💎 premium polish
 
 ---
