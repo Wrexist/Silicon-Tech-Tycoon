@@ -98,4 +98,16 @@ describe("challenge best store", () => {
     localStorage.setItem("silicon.challengeBests.v1", "{broken");
     expect(bestScore(key)).toBe(null); // corrupt store reads as empty
   });
+
+  it("challengeHistory lists recorded results newest-first (kind-stable)", async () => {
+    const { recordChallengeBest, challengeKey, challengeHistory } = await import("./challengeProgress.ts");
+    recordChallengeBest(challengeKey("daily", "2026-06-19"), 100);
+    recordChallengeBest(challengeKey("weekly", "2026-06-15"), 500);
+    recordChallengeBest(challengeKey("daily", "2026-06-20"), 200);
+    expect(challengeHistory().map((h) => `${h.kind}:${h.dateKey}`)).toEqual([
+      "daily:2026-06-20",
+      "daily:2026-06-19",
+      "weekly:2026-06-15",
+    ]);
+  });
 });

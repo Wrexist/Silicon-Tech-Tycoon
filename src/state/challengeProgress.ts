@@ -33,6 +33,29 @@ export function bestScore(key: string): number | null {
   return v == null ? null : v;
 }
 
+export interface ChallengeHistoryEntry {
+  kind: "daily" | "weekly";
+  dateKey: string;
+  score: number;
+}
+
+/** Every recorded challenge result, newest first — the offline "beat your own history" record.
+ *  Keys are `${kind}:${dateKey}`; each challenge's goal is re-derivable from its date, so callers
+ *  only need kind+dateKey+score here. */
+export function challengeHistory(): ChallengeHistoryEntry[] {
+  const out: ChallengeHistoryEntry[] = [];
+  for (const [key, score] of Object.entries(getChallengeBests())) {
+    const sep = key.indexOf(":");
+    if (sep < 0) continue;
+    const kind = key.slice(0, sep);
+    const dateKey = key.slice(sep + 1);
+    if ((kind === "daily" || kind === "weekly") && dateKey) out.push({ kind, dateKey, score });
+  }
+  // Newest date first; daily before weekly on the same date for a stable order.
+  out.sort((a, b) => (a.dateKey < b.dateKey ? 1 : a.dateKey > b.dateKey ? -1 : a.kind.localeCompare(b.kind)));
+  return out;
+}
+
 /** Bulk-restore (backup import). Merges with existing, keeping the higher score per key. */
 export function mergeChallengeBests(incoming: unknown): void {
   if (!incoming || typeof incoming !== "object") return;

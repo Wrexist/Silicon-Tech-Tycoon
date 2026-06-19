@@ -89,8 +89,10 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
 ## Features around the new systems (post-ship content cadence)
 - [ ] **Real StoreKit/IAP** for the Platform DLC (currently a Settings preview toggle) — mirror the
       sandbox entitlement (purchase + restore + `iapAvailable()` gating), so it can ship as paid content.
-- [ ] **Local challenge history** — past dailies/weeklies with your scores + a streak (cosmetic, never
-      punishing). The offline substitute for a leaderboard.
+- [x] **Local challenge history (DONE)** — the Challenges sheet now lists every past daily/weekly
+      result (date, re-derived goal, your best), newest-first, from the existing `challengeProgress`
+      store via a pure `challengeHistory()` helper. The offline leaderboard substitute. (A consecutive-
+      day streak is a possible later cosmetic.)
 - [ ] **Custom/shareable scenario codes** — encode a start + objectives into a short string players can
       paste (offline, no server) — the "new thinking" community hook.
 - [x] **Mode-tied achievements (DONE)** — win a scenario / complete a challenge / release an OS

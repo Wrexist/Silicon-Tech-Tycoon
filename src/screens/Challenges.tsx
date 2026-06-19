@@ -13,7 +13,7 @@ import {
   type Challenge,
   type ChallengeKind,
 } from "../engine/challenges.ts";
-import { bestScore, challengeKey } from "../state/challengeProgress.ts";
+import { bestScore, challengeKey, challengeHistory } from "../state/challengeProgress.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./scenarios.css";
 
@@ -61,6 +61,8 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
+  const history = challengeHistory();
+
   return (
     <div className="scn">
       <div className="scn__head">
@@ -74,6 +76,25 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
         <ChallengeCard challenge={daily} onPlay={() => setConfirmKind("daily")} />
         <ChallengeCard challenge={weekly} onPlay={() => setConfirmKind("weekly")} />
       </ul>
+
+      {history.length > 0 && (
+        <>
+          <p className="scn__hist-head">Your history <span className="tnum">· {history.length}</span></p>
+          <ul className="scn__hist">
+            {history.slice(0, 30).map((h) => {
+              const ch = h.kind === "weekly" ? weeklyChallenge(h.dateKey) : dailyChallenge(h.dateKey);
+              return (
+                <li key={`${h.kind}:${h.dateKey}`} className="scn__hist-row">
+                  <span className="scn__hist-kind">{h.kind === "weekly" ? <CalendarRange size={13} /> : <CalendarDays size={13} />}</span>
+                  <span className="scn__hist-date">{h.dateKey}</span>
+                  <span className="scn__hist-goal">{scoreMetricLabel(ch.scoreMetric)}</span>
+                  <span className="scn__hist-score tnum">{formatScore(ch.scoreMetric, h.score)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>
 
