@@ -93,6 +93,7 @@ import { makeRng, type Rng } from "../engine/rng.ts";
 import { deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
 import { canReleaseVersion, installedBase, licenseeStrengthUplift, osReleaseReward, osTier, rivalLicenseFee, type OsTierInfo } from "../engine/platform.ts";
+import { perkBonuses } from "../engine/perks.ts";
 import type {
   Assignment,
   BuildJob,
@@ -476,7 +477,7 @@ export const facilityRent = (s: GameState): Money =>
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
 export const burn = (s: GameState): Money => weeklyBurn(s.staff, facilityRent(s));
 export const designTierCeiling = (s: GameState) =>
-  designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades);
+  designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + perkBonuses(s.legacy).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
 /** Mood-target bonus from the room's comfort furniture (capped). Added to the weekly mood target. */
 export const officeComfortMoodBonus = (s: GameState): number =>
@@ -491,12 +492,12 @@ export const officeInspoBonus = (s: GameState): number =>
 export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
   s.cash >= dollars(furnitureCost(type));
 
-export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s);
+export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
 export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
-  visionaryHype(s.staff) + marketingHype(s.upgrades);
+  visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype;
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
  * upgrade + channel). scoreLaunch clamps total hype too; this caps the bonus side so

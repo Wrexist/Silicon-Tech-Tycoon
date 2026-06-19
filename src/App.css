@@ -674,6 +674,16 @@
   color: var(--ink);
   font-weight: 800;
 }
+.ipo__legacy-perk {
+  display: block;
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.ipo__legacy-perk b { color: var(--accent); font-weight: 700; }
 .app__offline-value.rounded {
   font-size: var(--fs-title);
   font-weight: 700;
