@@ -12,7 +12,7 @@ import {
   canReleaseOsVersion,
   weeklyEcosystemRevenue,
 } from "../state/gameState.ts";
-import { osReleaseReward, rivalLicenseFee } from "../engine/platform.ts";
+import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift } from "../engine/platform.ts";
 import { weeklyLicenseFees } from "../state/gameState.ts";
 import { format } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -94,8 +94,8 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
       <Card>
         <SectionHeader title="License your OS" accessory={licenseTotal > 0 ? `${format(licenseTotal)}/wk` : undefined} />
         <p className="plat__release-note plat__release-note--muted">
-          Rivals pay a weekly fee to run {osDisplayName(state)} — but a licensee becomes a sharper
-          competitor in your shared markets. A real bet: reach vs. rivalry.
+          Rivals pay a weekly fee to run {osDisplayName(state)} — but a licensee competes
+          ~+{licenseeStrengthUplift()} stronger in your shared markets. A real bet: reach vs. rivalry.
         </p>
         <ul className="plat__rivals">
           {state.competitors.map((c) => {
