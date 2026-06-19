@@ -12,7 +12,8 @@ import {
   canReleaseOsVersion,
   weeklyEcosystemRevenue,
 } from "../state/gameState.ts";
-import { osReleaseReward } from "../engine/platform.ts";
+import { osReleaseReward, rivalLicenseFee } from "../engine/platform.ts";
+import { weeklyLicenseFees } from "../state/gameState.ts";
 import { format } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./platform.css";
@@ -24,8 +25,9 @@ function fmtBase(n: number): string {
 }
 
 export function PlatformSheet({ onClose }: { onClose: () => void }) {
-  const { state, setOsName, releaseOsVersion } = useGame();
+  const { state, setOsName, releaseOsVersion, licenseOsToRival, revokeOsLicense } = useGame();
   const tier = osTierInfo(state);
+  const licenseTotal = weeklyLicenseFees(state);
   const base = platformInstalledBase(state);
   const weekly = weeklyEcosystemRevenue(state);
   const canRelease = canReleaseOsVersion(state);
@@ -87,6 +89,33 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
             {osDisplayName(state)} is up to date with your research. Advance the Software line in R&D to unlock a new OS version to release.
           </p>
         )}
+      </Card>
+
+      <Card>
+        <SectionHeader title="License your OS" accessory={licenseTotal > 0 ? `${format(licenseTotal)}/wk` : undefined} />
+        <p className="plat__release-note plat__release-note--muted">
+          Rivals pay a weekly fee to run {osDisplayName(state)} — but a licensee becomes a sharper
+          competitor in your shared markets. A real bet: reach vs. rivalry.
+        </p>
+        <ul className="plat__rivals">
+          {state.competitors.map((c) => {
+            const licensed = state.osLicensees.includes(c.id);
+            const fee = rivalLicenseFee(c.reputation, tier.tier);
+            return (
+              <li key={c.id} className={`plat__rival${licensed ? " plat__rival--on" : ""}`}>
+                <span className="plat__rival-name">{c.name}</span>
+                <span className="plat__rival-fee tnum">{format(fee)}/wk</span>
+                <Button
+                  size="sm"
+                  variant={licensed ? "tertiary" : "secondary"}
+                  onClick={() => { haptic.light(); if (licensed) revokeOsLicense(c.id); else licenseOsToRival(c.id); }}
+                >
+                  {licensed ? "Revoke" : "License"}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
       </Card>
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>

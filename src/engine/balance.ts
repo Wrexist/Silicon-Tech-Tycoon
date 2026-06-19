@@ -421,6 +421,11 @@ export const BALANCE = {
     releaseFanBaseBonus: 2_000,  // base fans gained on release
     releaseFanPerKInstalled: 5,  // + fans per 1,000 devices in the installed base
     releaseFanCap: 60_000,       // hard cap (no free faucet)
+    // Phase C — licensing your OS to rivals: a recurring fee, but it strengthens that rival.
+    licenseFeeBase: 1_500,       // $/wk base a licensee pays
+    licenseFeePerRepTier: 40,    // + $/wk per (rival reputation point × your OS tier)
+    licenseFeeCap: 250_000,      // $/wk hard cap per licensee
+    licenseStrengthUplift: 8,    // strength points a licensee rival gains in shared categories (the teeth)
   },
 
   // --- Staff churn: underpaid or burnt-out staff eventually quit ---

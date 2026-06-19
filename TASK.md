@@ -765,11 +765,22 @@ state→UI; 325 tests, tsc 0, build+PWA green.
       gate; real IAP purchase wiring deferred like the existing sandbox stub).
 - **Phase B** (version release) is a one-time, BOUNDED rep/fan moment tied to advancing the Software
       research tier — deliberately NOT a recurring rate change, so the tuned economy is undisturbed.
-- **DEFERRED — Phase C (license your OS to rivals)**: recurring rival fees + a competitiveness uplift
-      = the most balance-sensitive surface (needs tick-integrated fee collection + rival-strength
-      changes + a playtest). Engine/state are structured to extend into it; documented, not built.
 - **NOT verified on-device**: Platform sheet layout; release reward magnitudes (4 rep / 2k+capped
       fans) need a playtest.
+
+## v22.1 — Wave 3 Phase C: license your OS to rivals (DONE 2026-06-19)
+The platform trade-off — reach & revenue vs. a sharper competitor. 329 tests, tsc 0, build+PWA green.
+- [x] **Engine** (+2 tests): `rivalLicenseFee(rivalRep, osTier)` — bounded, hard-capped weekly fee;
+      `licenseeStrengthUplift()`. `rivalStrengthsFor` gains an optional `{licenseeIds, uplift}` so a
+      licensee competes harder in shared categories (backward-compatible — plain reads unchanged).
+- [x] **State** (+2 tests): `osLicensees` field (+backfill); `weeklyLicenseFees` selector;
+      `licenseOsToRival` / `revokeOsLicense` actions (gated on unlock + a real rival, idempotent).
+      Fees collected weekly in the tick (rate-scaled, next to ecosystem revenue); the licensee uplift
+      is applied in `planProduction` (the single competition point) — so the fee genuinely makes
+      that rival tougher on your launches. Balance: fee `$1.5k + rep×tier×$40`, capped `$250k/wk`;
+      uplift +8 strength. **Magnitudes need a playtest** (flagged).
+- [x] **UI**: PlatformSheet "License your OS" section — every rival with its weekly fee + a
+      License/Revoke button + the explicit reach-vs-rivalry warning.
 
 ## v21 — Wave 2: daily/weekly challenges (DONE 2026-06-19)
 The offline Mini Motorways model (date-seeded, no backend/leaderboard). Built engine→state→UI; 310 tests, tsc 0, build+PWA green.

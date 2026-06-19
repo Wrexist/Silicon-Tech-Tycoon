@@ -5,6 +5,7 @@
 // Everything is gated behind `platformUnlocked` (the DLC entitlement) at the state/UI layer.
 import { BALANCE } from "./balance.ts";
 import { tierDef } from "./catalogs.ts";
+import { dollars, type Money } from "./money.ts";
 import type { LaunchedProduct } from "./types.ts";
 
 /** Devices in the field running your OS — the sum of units sold across every launched product
@@ -45,4 +46,19 @@ export function osReleaseReward(base: number): ReleaseReward {
   const p = BALANCE.platform;
   const fans = Math.min(p.releaseFanCap, p.releaseFanBaseBonus + Math.floor(Math.max(0, base) / 1000) * p.releaseFanPerKInstalled);
   return { reputation: p.releaseRepBonus, fans };
+}
+
+// ---------- Phase C: licensing your OS to rivals ----------
+/** Weekly fee a rival pays to license your OS, scaling with their reputation and your OS tier.
+ *  Bounded by a hard cap (no runaway income). The trade-off — a licensee gets a competitiveness
+ *  uplift (licenseeStrengthUplift) — is applied where launch competition is evaluated. */
+export function rivalLicenseFee(rivalReputation: number, osTierNum: number): Money {
+  const p = BALANCE.platform;
+  const d = p.licenseFeeBase + Math.max(0, rivalReputation) * Math.max(1, Math.floor(osTierNum)) * p.licenseFeePerRepTier;
+  return dollars(Math.min(p.licenseFeeCap, Math.round(d)));
+}
+
+/** Strength points added to a licensee rival in categories where they compete (the "teeth"). */
+export function licenseeStrengthUplift(): number {
+  return BALANCE.platform.licenseStrengthUplift;
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { installedBase, osTier, canReleaseVersion, osReleaseReward } from "./platform.ts";
+import { installedBase, osTier, canReleaseVersion, osReleaseReward, rivalLicenseFee } from "./platform.ts";
 import { BALANCE } from "./balance.ts";
+import { toDollars } from "./money.ts";
 import type { LaunchedProduct } from "./types.ts";
 
 function lp(unitsSold: number): LaunchedProduct {
@@ -51,5 +52,17 @@ describe("osReleaseReward", () => {
 
   it("never rewards negative installed base", () => {
     expect(osReleaseReward(-50).fans).toBe(BALANCE.platform.releaseFanBaseBonus);
+  });
+});
+
+describe("rivalLicenseFee", () => {
+  const p = BALANCE.platform;
+  it("scales with rival reputation × OS tier, off a base", () => {
+    expect(toDollars(rivalLicenseFee(0, 1))).toBe(p.licenseFeeBase);
+    expect(toDollars(rivalLicenseFee(50, 3))).toBe(p.licenseFeeBase + 50 * 3 * p.licenseFeePerRepTier);
+  });
+  it("is hard-capped (bounded income) and floors tier at 1", () => {
+    expect(toDollars(rivalLicenseFee(100, 99))).toBe(p.licenseFeeCap);
+    expect(toDollars(rivalLicenseFee(10, 0))).toBe(p.licenseFeeBase + 10 * 1 * p.licenseFeePerRepTier);
   });
 });

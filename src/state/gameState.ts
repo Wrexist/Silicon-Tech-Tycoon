@@ -92,7 +92,7 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
-import { canReleaseVersion, installedBase, osReleaseReward, osTier, type OsTierInfo } from "../engine/platform.ts";
+import { canReleaseVersion, installedBase, licenseeStrengthUplift, osReleaseReward, osTier, rivalLicenseFee, type OsTierInfo } from "../engine/platform.ts";
 import type {
   Assignment,
   BuildJob,
@@ -204,6 +204,8 @@ export interface GameState {
   osName: string;
   /** Released OS version number — caught up to the software research tier via releaseOsVersion. */
   osVersion: number;
+  /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
+  osLicensees: string[];
 }
 
 export const REV_MILESTONES = [
@@ -368,6 +370,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     platformUnlocked: false,
     osName: "",
     osVersion: 1,
+    osLicensees: [],
   };
 }
 
@@ -672,7 +675,8 @@ export function planProduction(
   });
 
   const overall = overallScore(stats, product.category);
-  const rivals = rivalStrengthsFor(s.competitors, product.category);
+  // Licensees of your OS compete harder in shared categories (the Phase-C trade-off for their fee).
+  const rivals = rivalStrengthsFor(s.competitors, product.category, { licenseeIds: s.osLicensees, uplift: licenseeStrengthUplift() });
   const comp = BALANCE.market.competition;
   const margin = comp.beatMargin;
   let matchingRivals = 0;
@@ -906,6 +910,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * rate)));
     }
   }
+
+  // Platform licensing fees — recurring income from rivals licensing your OS (Phase C).
+  cash = add(cash, scale(weeklyLicenseFees(state), rate));
 
   // Burn
   cash = sub(cash, scale(burn(state), rate));
@@ -1755,6 +1762,37 @@ export function releaseOsVersion(state: GameState): GameState {
     fans: state.fans + reward.fans,
     feed: trimFeed(feed),
   };
+}
+
+/** Total weekly licensing fees from all rivals currently licensing your OS (fee scales with each
+ *  rival's reputation × your OS tier). */
+export function weeklyLicenseFees(s: GameState): Money {
+  if (s.osLicensees.length === 0) return ZERO;
+  const tier = osTierInfo(s).tier;
+  let acc = ZERO;
+  for (const id of s.osLicensees) {
+    const rival = s.competitors.find((c) => c.id === id);
+    if (rival) acc = add(acc, rivalLicenseFee(rival.reputation, tier));
+  }
+  return acc;
+}
+
+/** License your OS to a rival: a new recurring revenue line, but it strengthens that competitor
+ *  in your shared categories (the platform trade-off). No-op unless the division is unlocked. */
+export function licenseOsToRival(state: GameState, rivalId: string): GameState {
+  if (!state.platformUnlocked) return state;
+  if (state.osLicensees.includes(rivalId)) return state;
+  if (!state.competitors.some((c) => c.id === rivalId)) return state;
+  const rival = state.competitors.find((c) => c.id === rivalId);
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${rival?.name ?? "A rival"} now licenses ${osDisplayName(state)} — new revenue, but a sharper competitor.`, "accent"));
+  return { ...state, osLicensees: [...state.osLicensees, rivalId], feed: trimFeed(feed) };
+}
+
+/** End a rival's OS license — drops the fee, removes their competitiveness uplift. */
+export function revokeOsLicense(state: GameState, rivalId: string): GameState {
+  if (!state.osLicensees.includes(rivalId)) return state;
+  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId) };
 }
 
 /** Reassign a staff member to a different function. */

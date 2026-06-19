@@ -264,6 +264,7 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.platformUnlocked !== "boolean") s.platformUnlocked = false;
   if (typeof s.osName !== "string") s.osName = "";
   if (!Number.isFinite(s.osVersion) || s.osVersion < 1) s.osVersion = 1;
+  if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
   if (!Number.isFinite(s.desktops) || s.desktops < 0) s.desktops = 0;
   // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at

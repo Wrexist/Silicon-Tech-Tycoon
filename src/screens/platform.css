@@ -41,4 +41,16 @@
 .plat__stat-icon { position: absolute; top: var(--sp-16); right: var(--sp-16); color: var(--ink-3); opacity: 0.6; }
 
 .plat__release-note { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin-bottom: var(--sp-12); }
-.plat__release-note--muted { color: var(--ink-3); margin-bottom: 0; }
+.plat__release-note--muted { color: var(--ink-3); margin-bottom: var(--sp-12); }
+
+.plat__rivals { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); }
+.plat__rival {
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.plat__rival--on { border-color: color-mix(in srgb, var(--accent) 36%, var(--hairline)); background: var(--accent-soft); }
+.plat__rival-name { font-weight: 600; font-size: var(--fs-body); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plat__rival-fee { font-size: var(--fs-caption); color: var(--ink-2); flex-shrink: 0; }

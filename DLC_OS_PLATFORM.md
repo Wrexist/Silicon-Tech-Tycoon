@@ -1,7 +1,8 @@
 # DLC #1 — The OS / Platform Division
 
-**Status:** Phase A + B BUILT (TASK.md v22) — `engine/platform.ts` + state + `screens/Platform.tsx`,
-gated behind `platformUnlocked` (Settings → Expansions). Phase C (rival licensing) deferred — see §3.3.
+**Status:** Phases A + B + C BUILT (TASK.md v22/v22.1) — `engine/platform.ts` + state +
+`screens/Platform.tsx`, gated behind `platformUnlocked` (Settings → Expansions). Phase C: license
+your OS to rivals for a recurring fee that strengthens them (the trade-off has teeth).
 Original design spec below. Post-launch (NOT v1). Ship the base game first.
 **One-liner:** Surface the OS economy that already runs invisibly inside the engine as a
 first-class, visible "Platform" division — research and release your own operating system,
