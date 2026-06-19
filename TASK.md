@@ -806,6 +806,21 @@ The offline Mini Motorways model (date-seeded, no backend/leaderboard). Built en
 - **Next**: Wave 3 OS/Platform DLC (DLC_OS_PLATFORM.md); Wave 1c component sidegrades (PROTECTED
       engine — needs a go-ahead); the NG+/mastery + content-cadence items in RETENTION_ROADMAP Wave 4.
 
+## v23.2 — Wave 4: Founder Perks + AI-Era content (DONE 2026-06-19)
+- [x] **Founder Perks** (`engine/perks.ts`, PURE +tests): NG+ "beyond bigger numbers" — a 6-perk
+      ladder unlocked one-per-prestige, derived purely from the persisted `legacy` level (no new
+      store). Bounded effects (design ceiling / launch hype / weekly RP) applied via the existing
+      STATE-layer selectors (designTierCeiling / hypeBonus / weeklyRpGen) — protected engine
+      untouched. NG+ win overlay previews the next perk.
+- [x] **AI-Era (era 4) content**: 7 era-4 market events + 3 era-4 choice dilemmas (AI ethics, the
+      moonshot race, training-data consent) — the endgame had NO era-specific events/decisions before
+      (it reused the era-1–3 pool). Additive content, era-appropriate magnitudes.
+- **Era-distinct *mechanics* (different RULES per era) remains a deliberately-deferred large item**:
+      it would reshape the tuned per-era economy and needs a playtest. The event/choice flavour above
+      is the safe slice; true mechanic divergence is flagged, not built.
+- **Wave 4 remaining (open, low priority)**: run-history "this week in tech" recap (the live feed
+      already serves this — likely redundant); deeper era mechanics (above).
+
 ## v23 — Wave 4: Device Museum (cross-run collection meta-progression) (DONE 2026-06-19)
 The "new thinking" headline from RETENTION_ROADMAP §3 — leans into the pillars (devices are
 parametric SVG, "the product is the toy"): every device you ship is enshrined in a permanent,

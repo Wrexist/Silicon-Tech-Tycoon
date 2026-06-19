@@ -95,6 +95,14 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: "ad-campaign", title: "A viral ad campaign drove a wave of new brand interest.", minEra: 2, weight: 1, effect: { kind: "fansBonus", fans: 1500 }, tone: "positive" },
   // Additional era 3+ events
   { id: "vc-interview", title: "VC interest has driven a spike in industry attention around your sector.", minEra: 3, weight: 1, effect: { kind: "repBoost", rep: 5 }, tone: "positive" },
+  // Era 4+ — the AI Era: distinct, larger-stakes flavour for the endgame.
+  { id: "ai-model-launch", title: "Your on-device AI model stunned the industry — adoption is soaring.", minEra: 4, weight: 3, effect: { kind: "fansBonus", fans: 8_000 }, tone: "positive" },
+  { id: "ai-research-leap", title: "A breakthrough in your AI lab compressed years of research into weeks.", minEra: 4, weight: 3, effect: { kind: "rpBonus", amount: 90 }, tone: "accent" },
+  { id: "ai-compute-crunch", title: "A global compute shortage spiked the cost of training your models.", minEra: 4, weight: 2, effect: { kind: "supplyCrunch", cash: 90_000 }, tone: "negative" },
+  { id: "ai-standard", title: "Your AI framework became the de-facto industry standard.", minEra: 4, weight: 2, effect: { kind: "repBoost", rep: 7 }, tone: "positive" },
+  { id: "ai-regulation", title: "Sweeping new AI regulations raised compliance costs across the sector.", minEra: 4, weight: 2, effect: { kind: "supplyCrunch", cash: 70_000 }, tone: "negative" },
+  { id: "ai-talent-war", title: "The AI talent war drove a wave of energy — and ego — through your team.", minEra: 4, weight: 1, effect: { kind: "talentWave", mood: 10 }, tone: "positive" },
+  { id: "ai-licensing", title: "Licensing your AI models to the industry opened a lucrative new line.", minEra: 4, weight: 2, effect: { kind: "cashWindfall", cash: 200_000 }, tone: "positive" },
   // viral trends are generated dynamically per stat below
 ];
 
@@ -345,6 +353,40 @@ export const CHOICE_EVENTS: ChoiceEvent[] = [
     options: [
       { id: "retain", label: "Fund retention", description: "Match the offers and then some. Painful now, but you keep the brain trust.", effect: { kind: "supplyCrunch", cash: 70_000 } },
       { id: "letgo", label: "Let them walk", description: "Wish them well and promote the hungry. Morale dips before it recovers.", effect: { kind: "burnout", mood: -12 } },
+    ],
+  },
+  // --- Era 4: AI-era dilemmas (the endgame's distinct decisions) ---
+  {
+    id: "ai_ethics",
+    title: "An AI Ethics Line",
+    body: "Your new assistant could ship far more capable if you loosen its safety guardrails. Hold the line on responsible AI, or chase raw capability?",
+    minEra: 4,
+    tone: "accent",
+    options: [
+      { id: "responsible", label: "Hold the line", description: "Ship responsibly. The public — and regulators — trust you for it.", effect: { kind: "repBoost", rep: 9 } },
+      { id: "capability", label: "Chase capability", description: "Push the frontier and let the demos speak. The hype is enormous.", effect: { kind: "fansBonus", fans: 6_000 } },
+    ],
+  },
+  {
+    id: "agi_race",
+    title: "The Moonshot Race",
+    body: "A rival claims a frontier-model breakthrough is imminent. Pour the war chest into catching up, or stay disciplined and build what ships today?",
+    minEra: 4,
+    tone: "accent",
+    options: [
+      { id: "race", label: "Join the race", description: "All-in on the frontier. Your labs surge toward the breakthrough.", effect: { kind: "rpBonus", amount: 110 } },
+      { id: "discipline", label: "Stay disciplined", description: "Ship real products, not promises. Investors reward the focus.", effect: { kind: "cashWindfall", cash: 180_000 } },
+    ],
+  },
+  {
+    id: "data_consent",
+    title: "Training-Data Reckoning",
+    body: "Creators are demanding you stop training on their work without consent. Strike fair licensing deals, or argue fair use and press on?",
+    minEra: 4,
+    tone: "negative",
+    options: [
+      { id: "license", label: "License the data", description: "Pay creators fairly. Costly upfront, but it future-proofs the brand.", effect: { kind: "supplyCrunch", cash: 120_000 } },
+      { id: "fairuse", label: "Argue fair use", description: "Stand firm and keep shipping. A vocal base cheers; the courts may not.", effect: { kind: "fansBonus", fans: 4_000 } },
     ],
   },
 ];
