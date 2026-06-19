@@ -7,6 +7,7 @@ import { ChallengesSheet } from "./Challenges.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { MuseumSheet } from "./Museum.tsx";
 import { getMuseum } from "../state/museum.ts";
+import { getProfileAchievements } from "../state/achievementsProfile.ts";
 import { osDisplayName } from "../state/gameState.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
 import { getScenarioStars } from "../state/scenarioProgress.ts";
@@ -104,7 +105,9 @@ export function Company() {
   const [platformOpen, setPlatformOpen] = useState(false);
   const [museumOpen, setMuseumOpen] = useState(false);
   const museumCount = getMuseum().length;
-  const achievementCount = state.unlockedAchievements.length;
+  // Lifetime (cross-company) earned set — the profile union with this run's unlocks.
+  const earnedAchievements = [...new Set([...getProfileAchievements(), ...state.unlockedAchievements])];
+  const achievementCount = earnedAchievements.length;
   // Recomputed each render (localStorage read is cheap) so it reflects stars earned this session.
   const scenarioStars = Object.values(getScenarioStars()).reduce((a, b) => a + b, 0);
   const fac = facility(state);
@@ -368,7 +371,7 @@ export function Company() {
       </Sheet>
 
       <Sheet open={achievementsOpen} onClose={() => setAchievementsOpen(false)}>
-        <AchievementsSheet unlocked={state.unlockedAchievements} onClose={() => setAchievementsOpen(false)} />
+        <AchievementsSheet unlocked={earnedAchievements} onClose={() => setAchievementsOpen(false)} />
       </Sheet>
 
       <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)}>

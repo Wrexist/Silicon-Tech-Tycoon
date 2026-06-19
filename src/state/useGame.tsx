@@ -73,6 +73,7 @@ import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioProgress.ts";
 import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
 import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
+import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
 import { scenarioById, canEarnStars } from "../engine/scenarios.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
@@ -224,6 +225,7 @@ function announceAchievements(unlocked: readonly string[]): void {
 function withLiveAchievements(next: GameState): GameState {
   const { state: out, unlocked } = evaluateAndUnlock(next);
   announceAchievements(unlocked);
+  mergeProfileAchievements(unlocked); // accumulate into the lifetime (cross-company) set
   return out;
 }
 
@@ -381,6 +383,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Fold in any achievements earned while away SILENTLY (no toast backlog on return). migrate()
     // already backfilled the on-disk earned set; this catches milestones crossed during catch-up.
     const withAch = evaluateAndUnlock(withChallengeScore(floored)).state;
+    mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
     // A challenge whose scoreWeek was crossed while away locks + records its best silently here.
     syncChallengeBest(floored, withAch, false);
     // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
@@ -455,6 +458,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           withStaffLevelToasts(s, next);
           withProductFinishToasts(s, next);
           announceAchievements(unlocked);
+          mergeProfileAchievements(unlocked);
           announceScenarioStars(next);
           syncChallengeBest(s, next, true);
         }
@@ -508,6 +512,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // F7 — don't punish time away: floor fans at the pre-catchup value (online decay is untouched).
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
     const withAch = evaluateAndUnlock(withChallengeScore(floored)).state;
+    mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
     syncChallengeBest(floored, withAch, false); // lock + record a challenge that finished while away
     const stamped = Date.now();
     setState(withAch);
@@ -676,6 +681,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const advanceEra = useCallback(() => setState((s) => withLiveAchievements(advanceEraAction(s))), []);
   const goPublicCb = useCallback(() => setState((s) => withLiveAchievements(goPublic(s))), []);
   const prestige = useCallback(() => {
+    mergeProfileAchievements(stateRef.current.unlockedAchievements); // milestones earned this run persist into NG+
     const next = getLegacy() + 1;
     setLegacy(next);
     clearSave();
@@ -693,6 +699,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       scenarioStars: getScenarioStars(),
       challengeBests: getChallengeBests(),
       museum: getMuseum(),
+      achievements: getProfileAchievements(),
     }),
     [],
   );
@@ -710,6 +717,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       mergeScenarioStars(profile.scenarioStars);
       mergeChallengeBests(profile.challengeBests);
       mergeMuseum(profile.museum);
+      mergeProfileAchievements(profile.achievements as unknown[] | undefined);
     }
     const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids
@@ -777,6 +785,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const resolveChoiceCb = useCallback((optionId: string) => setState((s) => resolveChoice(s, optionId)), []);
 
   const restart = useCallback(() => {
+    mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good
     clearSave();
     // Platform is an entitlement, not run progress — keep it across a fresh company.
     setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked });

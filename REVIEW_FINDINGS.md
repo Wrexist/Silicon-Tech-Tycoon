@@ -24,10 +24,13 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
 
 ## P1 — Correctness / data integrity
 - [x] **Backup completeness (DONE).** Export/import now bundles the profile stores; see "Fixed" above.
-- [ ] **Achievements reset per company** (pre-existing): `newGame` clears `unlockedAchievements`, so
-      milestones don't persist across NG+/restart. Decide: keep per-company, or promote to a
-      profile-level union (a `achievementsProfile` store merged on boot) — the latter matches how
-      scenario/challenge mastery now persists. (If promoted, mode-achievements below become worth adding.)
+- [x] **Achievements now persist across companies (DONE).** New profile-level union
+      (`state/achievementsProfile.ts`, native-mirrored + in the backup) accumulates every milestone
+      ever earned; the game save's per-run `unlockedAchievements` still drives live celebration. The
+      Company wall + count show the lifetime union. Merged on unlock, boot, resume, and before every
+      company reset (restart/prestige) so nothing is lost. Unlocked **mode achievements**: Goal
+      Oriented (win a scenario), Daily Grind (complete a challenge), Platform Owner (release an OS
+      version) — +facts, +catalog, +coverage tests.
 
 ## P2 — Behaviour decisions (need a call, then a small change)
 - [ ] **Challenge has no one-attempt-per-day lock** — a date's challenge can be replayed for a better
@@ -90,8 +93,9 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
       punishing). The offline substitute for a leaderboard.
 - [ ] **Custom/shareable scenario codes** — encode a start + objectives into a short string players can
       paste (offline, no server) — the "new thinking" community hook.
-- [ ] **Mode-tied achievements** (only if achievements go profile-level, P1): win a scenario, 3★ a
-      scenario, complete a challenge, release an OS version, enshrine N devices.
+- [x] **Mode-tied achievements (DONE)** — win a scenario / complete a challenge / release an OS
+      version (now that achievements persist profile-level). Still open: 3★-a-scenario, enshrine-N-
+      devices (need profile-store reads in the evaluator, which deriveFacts deliberately avoids).
 - [ ] **Era-distinct mechanics** (the deferred large item) — each era should *play* differently
       (e.g. AI-era model-training as a resource), not just scale numbers. Biggest design bet; do it
       behind tests + a playtest, after ship.

@@ -36,6 +36,9 @@ function emptyFacts(): AchievementFacts {
     completedProjects: 0,
     biggestRun: 0,
     categoriesShipped: 0,
+    wonScenario: false,
+    completedChallenge: false,
+    releasedOsVersion: false,
   };
 }
 
@@ -138,6 +141,9 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "networth-10m", facts: { netWorth: 10_000_000 } },
     { id: "flop-proof", facts: { productsShipped: 10, flops: 0 } },
     { id: "rep-75", facts: { reputation: 75 } },
+    { id: "scenario-win", facts: { wonScenario: true } },
+    { id: "challenge-done", facts: { completedChallenge: true } },
+    { id: "os-release", facts: { releasedOsVersion: true } },
   ];
 
   it("covers the whole catalog", () => {
