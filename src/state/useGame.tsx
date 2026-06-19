@@ -243,6 +243,7 @@ function announceScenarioStars(state: GameState): void {
   if (!res || res.stars <= 0) return;
   const { improved, best } = recordStars(state.activeScenario, res.stars);
   if (!improved) return;
+  sfx("mastery");
   const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
   setTimeout(() => {
     try {
@@ -263,6 +264,7 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
   if (!ch || next.challengeScore == null) return;
   const { improved, best } = recordChallengeBest(challengeKey(ch.kind, ch.dateKey), next.challengeScore);
   if (!announce || prev.challengeScore != null) return; // only on the locking transition
+  sfx("mastery");
   const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
   const scored = formatScore(ch.scoreMetric, next.challengeScore);
   const tail = improved ? " — new best!" : ` · best ${formatScore(ch.scoreMetric, best)}`;
