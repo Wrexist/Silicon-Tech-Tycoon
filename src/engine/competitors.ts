@@ -2,7 +2,7 @@
 // market reads) AND trade on the stock market with a live share price. PURE.
 //
 // Names are ORIGINAL but evoke real-world archetypes (IP rule: no real brand names). Pomelo ≈ the
-// premium "fruit" maker, Tristar ≈ the broad "three-stars" conglomerate, Googol ≈ the search/
+// premium "fruit" maker, Tristar ≈ the broad "three-stars" conglomerate, Oqular ≈ the search/
 // platform giant, NovaPlus ≈ the flagship-killer, Pandacore ≈ the aggressive value manufacturer.
 import { BALANCE } from "./balance.ts";
 import { unlockedCategories } from "./eras.ts";
@@ -29,7 +29,7 @@ interface RivalDef {
 export const RIVALS: RivalDef[] = [
   { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, shares: 13_000_000, preferredCategories: ["phone", "wearable"],               isLead: true  },
   { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, shares: 9_500_000, preferredCategories: ["phone", "tablet", "laptop"],   isLead: false },
-  { id: "googol",    name: "Googol",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], isLead: false },
+  { id: "googol",    name: "Oqular",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], isLead: false },
   { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, shares: 3_500_000, preferredCategories: ["phone"],                           isLead: false },
   { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, shares: 9_000_000, preferredCategories: ["phone", "tablet", "desktop"],       isLead: false },
   { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      isLead: false },

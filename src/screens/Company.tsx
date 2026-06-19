@@ -198,13 +198,20 @@ export function Company() {
         )}
         {state.launched.length > 0 && (
           <div className="co__track">
-            {state.launched.slice(-16).map((lp) => (
-              <span
-                key={lp.product.id}
-                className={`co__track-dot co__track-dot--${lp.verdict}`}
-                title={`${lp.product.name}: ${lp.verdict}`}
-              />
-            ))}
+            {state.launched.slice(-16).map((lp) => {
+              // verdict is absent on older saves — fall back so the dot + accessible name never
+              // read "undefined" (matches the `?? "steady"` default used elsewhere on this screen).
+              const verdict = lp.verdict ?? "steady";
+              return (
+                <span
+                  key={lp.product.id}
+                  className={`co__track-dot co__track-dot--${verdict}`}
+                  role="img"
+                  aria-label={`${lp.product.name}: ${verdict}`}
+                  title={`${lp.product.name}: ${verdict}`}
+                />
+              );
+            })}
             <span className="co__track-label">{state.launched.length} shipped</span>
           </div>
         )}

@@ -4,7 +4,7 @@ import {
   RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp,
   Undo2, Users, X, Zap, Smile, Crosshair, type LucideIcon,
 } from "lucide-react";
-import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
+import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
@@ -580,7 +580,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 </div>
               )}
               {visibleItems.length === 0 ? (
-                <p className="hqb__empty">No furniture matches “{search.trim()}”.</p>
+                <EmptyState glyph={<Search size={36} strokeWidth={1.6} />} title="No matches" sub={`Nothing in the catalog matches “${search.trim()}”. Try a different word.`} />
               ) : (
                 <div className="hqb__items">
                   {visibleItems.map((f) => {

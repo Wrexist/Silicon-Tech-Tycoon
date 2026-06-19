@@ -399,12 +399,6 @@
   color: var(--ink-2);
   background: var(--surface);
 }
-.hqb__empty {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  text-align: center;
-  padding: var(--sp-16) 0;
-}
 .hqb__cat--room {
   display: inline-flex;
   align-items: center;
