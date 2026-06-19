@@ -25,6 +25,7 @@ import type {
   FinishId,
   NotchStyle,
   Product,
+  ProductTuning,
   Stats,
 } from "../engine/types.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
@@ -58,6 +59,11 @@ function contribLabel(c: Partial<Stats>): string {
 }
 
 const FINISHES: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
+const TUNINGS: { id: ProductTuning; label: string; hint: string }[] = [
+  { id: "efficiency", label: "Efficiency", hint: "+battery, −performance" },
+  { id: "balanced", label: "Balanced", hint: "no trade-off" },
+  { id: "performance", label: "Performance", hint: "+performance, −battery" },
+];
 const FINISH_LABEL: Record<FinishId, string> = {
   plastic: "Polymer",
   aluminium: "Aluminium",
@@ -97,6 +103,7 @@ function freshDraft(state: GameState): Product {
     notch: "punch",
     refreshRate: 60,
     storage: 128,
+    tuning: "balanced",
   };
   // Auto-price: start at a fair market price based on actual component stats so new players
   // aren't unknowingly launching severely overpriced T1 products.
@@ -626,6 +633,25 @@ export function DesignLab({
                     onClick={() => { haptic.light(); set({ colorIndex: i }); }}
                   />
                 ))}
+              </div>
+            </Card>
+            <Card>
+              <SectionHeader title="Tuning" accessory={TUNINGS.find((t) => t.id === (draft.tuning ?? "balanced"))?.hint} />
+              <div className="lab__chips">
+                {TUNINGS.map((t) => {
+                  const on = (draft.tuning ?? "balanced") === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      className={`lab__chip${on ? " lab__chip--on" : ""}`}
+                      aria-pressed={on}
+                      title={t.hint}
+                      onClick={() => { haptic.light(); set({ tuning: t.id }); }}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
               </div>
             </Card>
             <Card>

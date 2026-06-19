@@ -36,6 +36,11 @@ export const BALANCE = {
     freeFinishes: 2, // first N entries of FINISH_ORDER are available from the start
     finishUnlockCosts: { titanium: 12, gold: 26 } as Record<string, number>,
     finishDesignBonus: { plastic: 0, aluminium: 0, titanium: 2, gold: 4 } as Record<string, number>,
+    // Per-product performance/efficiency tuning (state-layer, gameState.productStats). A trade-off,
+    // not free stats: "performance" shifts points from battery → performance, "efficiency" the
+    // reverse, "balanced" is neutral. Modest so it's a tie-breaker toward what the market wants,
+    // never a dominant lever. Applied AFTER computeStats, clamped 0..statMax.
+    tuningShift: 7,
     // Screen refresh rate (Hz) — a customizable display spec. Higher Hz adds a small appeal bump
     // and a per-unit cost, but is GATED by the display tier (a budget panel can't drive 144Hz), so
     // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).

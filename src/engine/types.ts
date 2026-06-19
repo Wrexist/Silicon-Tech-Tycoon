@@ -42,6 +42,12 @@ export type CameraPosition = "topLeft" | "topCenter" | "center";
 export type CameraModuleShape = "squircle" | "circle" | "pill";
 export type NotchStyle = "none" | "punch" | "notch" | "island";
 
+/** Per-product performance/efficiency tuning — a meaningful build choice that trades one stat for
+ *  another so the optimal recipe depends on what the market wants, not just "pick the top tier".
+ *  Applied in the STATE layer (gameState.productStats), never in the protected computeStats, so it
+ *  carries zero retroactive balance ripple (launched products keep their snapshot stats). */
+export type ProductTuning = "balanced" | "performance" | "efficiency";
+
 export interface CameraDesign {
   count: number; // 1..4 lenses placed on the back
   layout: CameraLayout;
@@ -99,6 +105,7 @@ export interface Product {
   storage?: number;
   plannedUnits?: number; // production run size chosen in the build wizard
   channelId?: string; // marketing channel selected at launch
+  tuning?: ProductTuning; // performance/efficiency trade-off (defaults "balanced" on older saves)
 }
 
 export function defaultCameraDesign(): CameraDesign {

@@ -190,7 +190,7 @@ export function importSaveString(str: string): GameState | null {
 }
 
 function fixProduct(p: Product): Product {
-  return { ...p, camera: p.camera ?? defaultCameraDesign(), notch: p.notch ?? "punch" };
+  return { ...p, camera: p.camera ?? defaultCameraDesign(), notch: p.notch ?? "punch", tuning: p.tuning ?? "balanced" };
 }
 
 /** Forward-migrate older saves. Backfills fields added after the save was written so a

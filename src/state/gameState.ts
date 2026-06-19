@@ -503,9 +503,20 @@ export function productStats(s: GameState, product: Product): Stats {
   // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
+  // Performance/efficiency tuning — trades points between performance and battery (a real build
+  // choice that depends on what the market wants). Neutral when balanced/undefined → no ripple.
+  const shift = BALANCE.design.tuningShift;
+  if (product.tuning === "performance") {
+    bonus.performance = (bonus.performance ?? 0) + shift;
+    bonus.battery = (bonus.battery ?? 0) - shift;
+  } else if (product.tuning === "efficiency") {
+    bonus.battery = (bonus.battery ?? 0) + shift;
+    bonus.performance = (bonus.performance ?? 0) - shift;
+  }
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
-    out[k] = Math.min(BALANCE.statMax, Math.round(out[k] + (bonus[k] ?? 0)));
+    // Clamp BOTH ends (tuning can subtract): never below 0, never above statMax.
+    out[k] = Math.max(0, Math.min(BALANCE.statMax, Math.round(out[k] + (bonus[k] ?? 0))));
   }
   return out;
 }
