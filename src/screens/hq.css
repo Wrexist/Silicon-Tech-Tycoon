@@ -1317,6 +1317,14 @@
 body.hq-deco-open {
   overflow: hidden;
 }
+/* The editor is a fixed z-45 overlay, but it's nested inside the screen subtree while the global
+   HUD (sticky, z-20) and bottom nav (fixed, z-30) are root-level — so their stacking context wins
+   and they'd bleed over the "full-screen" editor. Hide them while it's open (the editor has its
+   own top bar + Done button, so they're not needed). */
+body.hq-deco-open .hud,
+body.hq-deco-open .bnav {
+  display: none;
+}
 /* Seats-hint card: informational, not a buy action. Routes the player to the Decorate shop
    for desks. Subtle so it doesn't compete with the real upgrade lines. */
 .hqu__seats-hint {

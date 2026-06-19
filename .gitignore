@@ -17,3 +17,4 @@ store-shots
 # scratch from research tooling
 .tmp_ss/
 .tmp_*.json
+scripts/.stage.cjs
