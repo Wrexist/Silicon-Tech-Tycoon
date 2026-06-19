@@ -1,7 +1,9 @@
 // In-run challenge tracker — shown on HQ while a daily/weekly challenge run is active. Surfaces the
 // scored goal, live score, weeks remaining, and the locked final score + personal best on completion.
-import { CalendarDays, CalendarRange, Trophy } from "lucide-react";
-import { Card } from "../design/primitives.tsx";
+import { useState } from "react";
+import { CalendarDays, CalendarRange, Trophy, Share2 } from "lucide-react";
+import { Button, Card, Sheet } from "../design/primitives.tsx";
+import { ResultCard } from "./ResultCard.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { challengeViewFor } from "../state/gameState.ts";
 import { formatScore, scoreMetricLabel } from "../engine/challenges.ts";
@@ -10,6 +12,7 @@ import "../screens/scenarios.css";
 
 export function ChallengeTracker() {
   const { state } = useGame();
+  const [cardOpen, setCardOpen] = useState(false);
   if (!state.activeChallenge) return null;
   const view = challengeViewFor(state);
   if (!view) return null;
@@ -47,6 +50,16 @@ export function ChallengeTracker() {
           <span className="scn-track__obj-val tnum">{weeksLeft}</span>
         </div>
       )}
+
+      {done && (
+        <Button size="sm" variant="secondary" onClick={() => setCardOpen(true)}>
+          <Share2 size={15} /> View result card
+        </Button>
+      )}
+
+      <Sheet open={cardOpen} onClose={() => setCardOpen(false)}>
+        <ResultCard state={state} result={null} />
+      </Sheet>
     </Card>
   );
 }

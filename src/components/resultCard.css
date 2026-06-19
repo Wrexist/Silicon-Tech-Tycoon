@@ -86,6 +86,15 @@
   color: var(--ink-2);
 }
 
+.rcard__code {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  letter-spacing: 0.02em;
+}
+.rcard__code strong { color: var(--accent); font-weight: 800; letter-spacing: 0.06em; }
 .rcard__foot {
   display: flex;
   align-items: baseline;

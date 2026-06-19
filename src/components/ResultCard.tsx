@@ -5,9 +5,10 @@
 // enhancement — no fragile canvas rasterization that would need on-device verification).
 import { CircuitBoard, Star, Share2 } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
-import { netWorth, type GameState } from "../state/gameState.ts";
+import { netWorth, challengeViewFor, type GameState } from "../state/gameState.ts";
 import type { ScenarioResult } from "../engine/scenarios.ts";
 import { scenarioById } from "../engine/scenarios.ts";
+import { encodeChallengeCode, formatScore, scoreMetricLabel } from "../engine/challenges.ts";
 import { format } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
 import "./resultCard.css";
@@ -31,6 +32,7 @@ function Stars({ n }: { n: number }) {
 
 export function ResultCard({ state, result }: { state: GameState; result: ScenarioResult | null }) {
   const scn = state.activeScenario ? scenarioById(state.activeScenario) : null;
+  const chv = challengeViewFor(state);
   const rev = format(state.cumulativeRevenue);
   const worth = format(netWorth(state));
   const years = (state.week / 52).toFixed(1);
@@ -42,15 +44,23 @@ export function ResultCard({ state, result }: { state: GameState; result: Scenar
     { label: "Fans", value: fmtFans(state.fans) },
   ];
 
-  const headline = scn ? scn.name : `${eraName(state.era)} empire`;
+  // Challenge run → challenge-flavoured card (with a shareable code). Scenario → name + stars.
+  // Otherwise a freeform company summary.
+  const chScore = chv ? formatScore(chv.challenge.scoreMetric, chv.final ?? chv.current) : null;
+  const chCode = chv ? encodeChallengeCode(chv.challenge.kind, chv.challenge.dateKey) : null;
+  const headline = scn ? scn.name : chv ? `${chv.challenge.kind === "weekly" ? "Weekly" : "Daily"} Challenge` : `${eraName(state.era)} empire`;
   const sub = scn
     ? (result?.stars === 3 ? "Mastered — all three stars" : result?.won ? `${result.stars}★ earned` : scn.tagline)
+    : chv
+    ? `${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)}${chv.final == null ? " so far" : ""}`
     : `${state.companyName} · Year ${years}`;
 
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
   const share = () => {
     const line = scn
       ? `I just earned ${result?.stars ?? 0}★ in "${scn.name}" on Silicon: Tech Tycoon — ${state.companyName}, ${rev} lifetime revenue.`
+      : chv
+      ? `I scored ${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)} in a Silicon: Tech Tycoon challenge. Beat it — code ${chCode}.`
       : `${state.companyName} on Silicon: Tech Tycoon — ${worth} net worth, ${rev} lifetime revenue, ${fmtFans(state.fans)} fans.`;
     navigator.share?.({ title: "Silicon: Tech Tycoon", text: line }).catch(() => { /* user cancelled / unsupported */ });
   };
@@ -78,6 +88,10 @@ export function ResultCard({ state, result }: { state: GameState; result: Scenar
             </div>
           ))}
         </div>
+
+        {chCode && (
+          <div className="rcard__code">Challenge code <strong>{chCode}</strong> — beat my score</div>
+        )}
 
         <div className="rcard__foot">
           <span className="rcard__wordmark">SILICON</span>
