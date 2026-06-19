@@ -3,6 +3,7 @@ import {
   Boxes,
   Check,
   Download,
+  Layers,
   Lock,
   Monitor,
   Moon,
@@ -33,7 +34,7 @@ const THEMES: { id: ThemePref; label: string; Icon: typeof Sun }[] = [
 
 export function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettings();
-  const { state, restart } = useGame();
+  const { state, restart, unlockPlatform } = useGame();
   const [confirmReset, setConfirmReset] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -92,6 +93,13 @@ export function Settings({ onClose }: { onClose: () => void }) {
       </div>
 
       <CreativeModeGroup />
+
+      <div className="set__group">
+        <span className="set__group-label">Expansions</span>
+        <Row icon={<Layers size={18} />} label="Platform Division" sub="Surface your OS as a first-class division: installed base, licensing income, and version releases.">
+          <Switch label="Platform Division" on={state.platformUnlocked} onChange={(v) => { unlockPlatform(v); sfx("toggle"); }} />
+        </Row>
+      </div>
 
       <div className="set__group">
         <span className="set__group-label">Backup</span>

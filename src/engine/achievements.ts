@@ -6,7 +6,7 @@
 // never invent state. The evaluator is monotonic: once earned, an id stays earned (the caller keeps
 // the union), so an achievement can never "un-unlock".
 import type { GameState } from "../state/gameState.ts";
-import { netWorth } from "../state/gameState.ts";
+import { netWorth, scenarioResultFor } from "../state/gameState.ts";
 import { toDollars } from "./money.ts";
 import { RESEARCH_PROJECTS } from "./research.ts";
 import { maxEra } from "./eras.ts";
@@ -60,6 +60,9 @@ export interface AchievementFacts {
   completedProjects: number; // research projects completed
   biggestRun: number; // largest single production run (units) ever ordered
   categoriesShipped: number; // distinct product categories ever shipped
+  wonScenario: boolean; // currently winning the active scenario (≥1★)
+  completedChallenge: boolean; // a daily/weekly challenge score has locked in
+  releasedOsVersion: boolean; // shipped a new OS version via the Platform division
 }
 
 export interface Achievement {
@@ -129,6 +132,9 @@ export function deriveFacts(state: GameState): AchievementFacts {
     completedProjects: state.completedProjects.length,
     biggestRun,
     categoriesShipped,
+    wonScenario: scenarioResultFor(state)?.won ?? false,
+    completedChallenge: state.challengeScore != null,
+    releasedOsVersion: state.platformUnlocked && state.osVersion > 1,
   };
 }
 
@@ -470,6 +476,30 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Sparkles",
     hint: "Keep delivering hits and the world notices.",
     predicate: (f) => f.reputation >= 75,
+  },
+  {
+    id: "scenario-win",
+    title: "Goal Oriented",
+    description: "Won a Scenario — you met a hand-crafted challenge's objectives.",
+    icon: "Star",
+    hint: "Take on a Scenario and hit its goal.",
+    predicate: (f) => f.wonScenario,
+  },
+  {
+    id: "challenge-done",
+    title: "Daily Grind",
+    description: "Completed a daily or weekly Challenge — scored under the mutators.",
+    icon: "Zap",
+    hint: "Play a Challenge through to its scoring week.",
+    predicate: (f) => f.completedChallenge,
+  },
+  {
+    id: "os-release",
+    title: "Platform Owner",
+    description: "Released a new version of your OS across the installed base.",
+    icon: "Layers",
+    hint: "Build the Platform division and ship an OS version.",
+    predicate: (f) => f.releasedOsVersion,
   },
 ];
 

@@ -36,6 +36,11 @@ export const BALANCE = {
     freeFinishes: 2, // first N entries of FINISH_ORDER are available from the start
     finishUnlockCosts: { titanium: 12, gold: 26 } as Record<string, number>,
     finishDesignBonus: { plastic: 0, aluminium: 0, titanium: 2, gold: 4 } as Record<string, number>,
+    // Per-product performance/efficiency tuning (state-layer, gameState.productStats). A trade-off,
+    // not free stats: "performance" shifts points from battery → performance, "efficiency" the
+    // reverse, "balanced" is neutral. Modest so it's a tie-breaker toward what the market wants,
+    // never a dominant lever. Applied AFTER computeStats, clamped 0..statMax.
+    tuningShift: 7,
     // Screen refresh rate (Hz) — a customizable display spec. Higher Hz adds a small appeal bump
     // and a per-unit cost, but is GATED by the display tier (a budget panel can't drive 144Hz), so
     // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).
@@ -406,6 +411,21 @@ export const BALANCE = {
     // toward, still far below per-launch revenue so it complements launches, not replaces them.
     weeklyServiceRate: 0.05,   // cents per unit sold per ecosystem-stat point per week
     minEcosystemStat: 20,      // ecosystem below this threshold earns nothing — the platform is too weak
+  },
+
+  // --- Platform / OS division (DLC #1). The recurring licensing revenue is just the ecosystem
+  // services above, reframed. These constants size only the one-time OS-version-release MOMENT —
+  // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
+  platform: {
+    releaseRepBonus: 4,          // one-time reputation lift per OS version release
+    releaseFanBaseBonus: 2_000,  // base fans gained on release
+    releaseFanPerKInstalled: 5,  // + fans per 1,000 devices in the installed base
+    releaseFanCap: 60_000,       // hard cap (no free faucet)
+    // Phase C — licensing your OS to rivals: a recurring fee, but it strengthens that rival.
+    licenseFeeBase: 1_500,       // $/wk base a licensee pays
+    licenseFeePerRepTier: 40,    // + $/wk per (rival reputation point × your OS tier)
+    licenseFeeCap: 250_000,      // $/wk hard cap per licensee
+    licenseStrengthUplift: 8,    // strength points a licensee rival gains in shared categories (the teeth)
   },
 
   // --- Staff churn: underpaid or burnt-out staff eventually quit ---

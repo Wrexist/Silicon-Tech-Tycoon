@@ -95,6 +95,14 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: "ad-campaign", title: "A viral ad campaign drove a wave of new brand interest.", minEra: 2, weight: 1, effect: { kind: "fansBonus", fans: 1500 }, tone: "positive" },
   // Additional era 3+ events
   { id: "vc-interview", title: "VC interest has driven a spike in industry attention around your sector.", minEra: 3, weight: 1, effect: { kind: "repBoost", rep: 5 }, tone: "positive" },
+  // Era 4+ — the AI Era: distinct, larger-stakes flavour for the endgame.
+  { id: "ai-model-launch", title: "Your on-device AI model stunned the industry — adoption is soaring.", minEra: 4, weight: 3, effect: { kind: "fansBonus", fans: 8_000 }, tone: "positive" },
+  { id: "ai-research-leap", title: "A breakthrough in your AI lab compressed years of research into weeks.", minEra: 4, weight: 3, effect: { kind: "rpBonus", amount: 90 }, tone: "accent" },
+  { id: "ai-compute-crunch", title: "A global compute shortage spiked the cost of training your models.", minEra: 4, weight: 2, effect: { kind: "supplyCrunch", cash: 90_000 }, tone: "negative" },
+  { id: "ai-standard", title: "Your AI framework became the de-facto industry standard.", minEra: 4, weight: 2, effect: { kind: "repBoost", rep: 7 }, tone: "positive" },
+  { id: "ai-regulation", title: "Sweeping new AI regulations raised compliance costs across the sector.", minEra: 4, weight: 2, effect: { kind: "supplyCrunch", cash: 70_000 }, tone: "negative" },
+  { id: "ai-talent-war", title: "The AI talent war drove a wave of energy — and ego — through your team.", minEra: 4, weight: 1, effect: { kind: "talentWave", mood: 10 }, tone: "positive" },
+  { id: "ai-licensing", title: "Licensing your AI models to the industry opened a lucrative new line.", minEra: 4, weight: 2, effect: { kind: "cashWindfall", cash: 200_000 }, tone: "positive" },
   // viral trends are generated dynamically per stat below
 ];
 
@@ -243,6 +251,142 @@ export const CHOICE_EVENTS: ChoiceEvent[] = [
     options: [
       { id: "cooperate", label: "Open the books", description: "Full cooperation. Slow and costly, but you emerge trusted.", effect: { kind: "repBoost", rep: 8 } },
       { id: "lawyer", label: "Lawyer up", description: "Fight every inch. The base loves the defiance; regulators don't forget.", effect: { kind: "fansBonus", fans: 3_000 } },
+    ],
+  },
+  // --- More era-1 founder dilemmas (replay variety) ---
+  {
+    id: "public_beta",
+    title: "Ship the Beta?",
+    body: "Your team wants to put a rough public beta in players' hands now. Rally a community early — or wait and reveal something polished?",
+    minEra: 1,
+    tone: "accent",
+    options: [
+      { id: "beta", label: "Open the beta", description: "Let the community in early. They feel ownership — and they show up.", effect: { kind: "fansBonus", fans: 1_400 } },
+      { id: "polish", label: "Wait for polish", description: "Reveal nothing until it shines. Reviewers reward the restraint.", effect: { kind: "pressFeature", reputation: 5 } },
+    ],
+  },
+  {
+    id: "founder_burnout",
+    title: "Running on Fumes",
+    body: "You haven't stopped in months and it shows. Take a real week off and reset — or push through to keep the momentum?",
+    minEra: 1,
+    tone: "neutral",
+    options: [
+      { id: "rest", label: "Step back a week", description: "Rest and reset. The whole team breathes easier with you.", effect: { kind: "talentWave", mood: 14 } },
+      { id: "push", label: "Push through", description: "Keep the foot down. The grind ships product — and fans notice the output.", effect: { kind: "fansBonus", fans: 900 } },
+    ],
+  },
+  {
+    id: "viral_meme",
+    title: "An Unexpected Meme",
+    body: "A joke about your scrappy startup is going viral. Lean in and play along, or steer the conversation back to the product?",
+    minEra: 1,
+    tone: "positive",
+    options: [
+      { id: "lean", label: "Play along", description: "Embrace the joke. The internet adores a brand that doesn't take itself too seriously.", effect: { kind: "fansBonus", fans: 1_300 } },
+      { id: "redirect", label: "Refocus on the work", description: "Gently steer back to substance. Serious buyers respect it.", effect: { kind: "repBoost", rep: 4 } },
+    ],
+  },
+  // --- More era-2 scaling dilemmas ---
+  {
+    id: "sustainability_pledge",
+    title: "A Green Pledge",
+    body: "Activists are pushing you to commit to recycled materials and carbon-neutral shipping. Make the pledge — or keep costs lean for now?",
+    minEra: 2,
+    tone: "accent",
+    options: [
+      { id: "pledge", label: "Make the pledge", description: "Commit publicly to sustainability. It costs margin, but goodwill compounds.", effect: { kind: "repBoost", rep: 6 } },
+      { id: "later", label: "Not yet", description: "Hold the line on cost this cycle and bank the savings.", effect: { kind: "cashWindfall", cash: 30_000 } },
+    ],
+  },
+  {
+    id: "retailer_ultimatum",
+    title: "The Retailer's Ultimatum",
+    body: "Your biggest retail partner demands a steeper margin cut for prime shelf space. Take the volume — or hold your price and walk?",
+    minEra: 2,
+    tone: "neutral",
+    options: [
+      { id: "accept", label: "Take the deal", description: "Swallow the margin for reach. More units, more hands holding your product.", effect: { kind: "fansBonus", fans: 1_800 } },
+      { id: "hold", label: "Hold your price", description: "Refuse to be squeezed. The market reads it as confidence.", effect: { kind: "repBoost", rep: 5 } },
+    ],
+  },
+  {
+    id: "counterfeit_surge",
+    title: "Counterfeits in the Wild",
+    body: "Knock-offs of your hardware are flooding grey markets. Fund an aggressive legal crackdown, or focus your energy on out-innovating them?",
+    minEra: 2,
+    tone: "negative",
+    options: [
+      { id: "crackdown", label: "Crack down", description: "Lawyers and takedowns. Expensive, but it protects the brand you built.", effect: { kind: "supplyCrunch", cash: 20_000 } },
+      { id: "outbuild", label: "Out-build them", description: "Ignore the fakes and race ahead. Your labs find a new gear.", effect: { kind: "rpBonus", amount: 40 } },
+    ],
+  },
+  // --- More era-3 empire dilemmas ---
+  {
+    id: "data_privacy",
+    title: "A Privacy Reckoning",
+    body: "You could quietly monetize the usage data your devices collect. Lucrative — but a leak would be catastrophic. Or you could pledge privacy and never touch it.",
+    minEra: 3,
+    tone: "negative",
+    options: [
+      { id: "pledge", label: "Pledge privacy", description: "Promise never to sell user data. A principled stand the public remembers.", effect: { kind: "repBoost", rep: 8 } },
+      { id: "monetize", label: "Monetize the data", description: "Turn telemetry into a revenue stream. The board cheers; the optics are a gamble.", effect: { kind: "cashWindfall", cash: 160_000 } },
+    ],
+  },
+  {
+    id: "moonshot_lab",
+    title: "Fund the Moonshot",
+    body: "A skunkworks team pitches a wild, decade-out research bet. Fund it from the war chest, or return that capital to a steadier roadmap?",
+    minEra: 3,
+    tone: "accent",
+    options: [
+      { id: "fund", label: "Fund the moonshot", description: "Bet big on the far future. The lab surges with ambition.", effect: { kind: "rpBonus", amount: 70 } },
+      { id: "steady", label: "Stay the course", description: "Keep the powder dry and the roadmap grounded.", effect: { kind: "cashWindfall", cash: 110_000 } },
+    ],
+  },
+  {
+    id: "talent_exodus",
+    title: "A Rival's Raid",
+    body: "A deep-pocketed rival is trying to poach your senior team en masse. Counter with a costly retention package, or let the restless ones go and rebuild?",
+    minEra: 3,
+    tone: "negative",
+    options: [
+      { id: "retain", label: "Fund retention", description: "Match the offers and then some. Painful now, but you keep the brain trust.", effect: { kind: "supplyCrunch", cash: 70_000 } },
+      { id: "letgo", label: "Let them walk", description: "Wish them well and promote the hungry. Morale dips before it recovers.", effect: { kind: "burnout", mood: -12 } },
+    ],
+  },
+  // --- Era 4: AI-era dilemmas (the endgame's distinct decisions) ---
+  {
+    id: "ai_ethics",
+    title: "An AI Ethics Line",
+    body: "Your new assistant could ship far more capable if you loosen its safety guardrails. Hold the line on responsible AI, or chase raw capability?",
+    minEra: 4,
+    tone: "accent",
+    options: [
+      { id: "responsible", label: "Hold the line", description: "Ship responsibly. The public — and regulators — trust you for it.", effect: { kind: "repBoost", rep: 9 } },
+      { id: "capability", label: "Chase capability", description: "Push the frontier and let the demos speak. The hype is enormous.", effect: { kind: "fansBonus", fans: 6_000 } },
+    ],
+  },
+  {
+    id: "agi_race",
+    title: "The Moonshot Race",
+    body: "A rival claims a frontier-model breakthrough is imminent. Pour the war chest into catching up, or stay disciplined and build what ships today?",
+    minEra: 4,
+    tone: "accent",
+    options: [
+      { id: "race", label: "Join the race", description: "All-in on the frontier. Your labs surge toward the breakthrough.", effect: { kind: "rpBonus", amount: 110 } },
+      { id: "discipline", label: "Stay disciplined", description: "Ship real products, not promises. Investors reward the focus.", effect: { kind: "cashWindfall", cash: 180_000 } },
+    ],
+  },
+  {
+    id: "data_consent",
+    title: "Training-Data Reckoning",
+    body: "Creators are demanding you stop training on their work without consent. Strike fair licensing deals, or argue fair use and press on?",
+    minEra: 4,
+    tone: "negative",
+    options: [
+      { id: "license", label: "License the data", description: "Pay creators fairly. Costly upfront, but it future-proofs the brand.", effect: { kind: "supplyCrunch", cash: 120_000 } },
+      { id: "fairuse", label: "Argue fair use", description: "Stand firm and keep shipping. A vocal base cheers; the courts may not.", effect: { kind: "fansBonus", fans: 4_000 } },
     ],
   },
 ];

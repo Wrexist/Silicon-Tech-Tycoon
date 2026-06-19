@@ -1,7 +1,16 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Building2, Coffee, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Boxes, Building2, CalendarDays, Coffee, FlaskConical, Layers, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
+import { ScenariosSheet } from "./Scenarios.tsx";
+import { ChallengesSheet } from "./Challenges.tsx";
+import { PlatformSheet } from "./Platform.tsx";
+import { MuseumSheet } from "./Museum.tsx";
+import { getMuseum } from "../state/museum.ts";
+import { getProfileAchievements } from "../state/achievementsProfile.ts";
+import { osDisplayName } from "../state/gameState.ts";
+import { SCENARIOS } from "../engine/scenarios.ts";
+import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
 import { Avatar } from "../components/Avatar.tsx";
@@ -91,7 +100,18 @@ export function Company() {
   const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest } = useGame();
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
-  const achievementCount = state.unlockedAchievements.length;
+  const [scenariosOpen, setScenariosOpen] = useState(false);
+  const [challengesOpen, setChallengesOpen] = useState(false);
+  const [platformOpen, setPlatformOpen] = useState(false);
+  const [museumOpen, setMuseumOpen] = useState(false);
+  const museumCount = getMuseum().length;
+  // Lifetime (cross-company) earned set — the profile union with this run's unlocks.
+  const earnedAchievements = [...new Set([...getProfileAchievements(), ...state.unlockedAchievements])];
+  const achievementCount = earnedAchievements.length;
+  // Recomputed each render (localStorage read is cheap) so it reflects stars earned this session.
+  // Scope to the active catalog so stale ids from old backups can't push the total past the max.
+  const storedScenarioStars = getScenarioStars();
+  const scenarioStars = SCENARIOS.reduce((sum, s) => sum + (storedScenarioStars[s.id] ?? 0), 0);
   const fac = facility(state);
   const wkBurn = burn(state);
   const wkPayroll = weeklyPayroll(state.staff);
@@ -263,6 +283,46 @@ export function Company() {
         <span className="co__ach-count tnum">{achievementCount}<span className="co__ach-count-total">/{ACHIEVEMENT_COUNT}</span></span>
       </button>
 
+      {/* Scenarios entry */}
+      <button className="co__ach-row" onClick={() => setScenariosOpen(true)} aria-label="View scenarios">
+        <span className="co__ach-glyph" aria-hidden><Target size={20} /></span>
+        <span className="co__ach-info">
+          <span className="co__ach-title">Scenarios</span>
+          <span className="co__ach-sub">Hand-crafted challenges with star goals</span>
+        </span>
+        <span className="co__ach-count tnum">{scenarioStars}<span className="co__ach-count-total">/{SCENARIOS.length * 3}★</span></span>
+      </button>
+
+      {/* Challenges entry */}
+      <button className="co__ach-row" onClick={() => setChallengesOpen(true)} aria-label="View daily and weekly challenges">
+        <span className="co__ach-glyph" aria-hidden><CalendarDays size={20} /></span>
+        <span className="co__ach-info">
+          <span className="co__ach-title">Challenges</span>
+          <span className="co__ach-sub">A fresh seeded run every day — beat your best</span>
+        </span>
+      </button>
+
+      {/* Device museum — your shipped-device legacy across all runs */}
+      <button className="co__ach-row" onClick={() => setMuseumOpen(true)} aria-label="Open the device museum">
+        <span className="co__ach-glyph" aria-hidden><Boxes size={20} /></span>
+        <span className="co__ach-info">
+          <span className="co__ach-title">Device Museum</span>
+          <span className="co__ach-sub">Every device you've ever shipped</span>
+        </span>
+        {museumCount > 0 && <span className="co__ach-count tnum">{museumCount}</span>}
+      </button>
+
+      {/* Platform division (DLC) — only when unlocked */}
+      {state.platformUnlocked && (
+        <button className="co__ach-row" onClick={() => setPlatformOpen(true)} aria-label="Open the Platform division">
+          <span className="co__ach-glyph" aria-hidden><Layers size={20} /></span>
+          <span className="co__ach-info">
+            <span className="co__ach-title">Platform</span>
+            <span className="co__ach-sub">{osDisplayName(state)} · installed base & licensing</span>
+          </span>
+        </button>
+      )}
+
       {/* Near-achievement progress */}
       <NearMilestonesCard state={state} />
 
@@ -313,7 +373,23 @@ export function Company() {
       </Sheet>
 
       <Sheet open={achievementsOpen} onClose={() => setAchievementsOpen(false)}>
-        <AchievementsSheet unlocked={state.unlockedAchievements} onClose={() => setAchievementsOpen(false)} />
+        <AchievementsSheet unlocked={earnedAchievements} onClose={() => setAchievementsOpen(false)} />
+      </Sheet>
+
+      <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)}>
+        <ScenariosSheet onClose={() => setScenariosOpen(false)} />
+      </Sheet>
+
+      <Sheet open={challengesOpen} onClose={() => setChallengesOpen(false)}>
+        <ChallengesSheet onClose={() => setChallengesOpen(false)} />
+      </Sheet>
+
+      <Sheet open={platformOpen} onClose={() => setPlatformOpen(false)}>
+        <PlatformSheet onClose={() => setPlatformOpen(false)} />
+      </Sheet>
+
+      <Sheet open={museumOpen} onClose={() => setMuseumOpen(false)}>
+        <MuseumSheet onClose={() => setMuseumOpen(false)} />
       </Sheet>
     </div>
   );

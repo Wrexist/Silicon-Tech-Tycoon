@@ -156,6 +156,22 @@
   /* crisp accent ring (solid spread, not a blur glow) — premium focus affordance on tap */
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+.onboard__scenario-link {
+  display: block;
+  width: 100%;
+  margin-top: var(--sp-12);
+  padding: var(--sp-8);
+  background: none;
+  border: none;
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--hairline);
+}
+.onboard__scenario-link:hover { color: var(--accent); }
 /* Premium first impression: onboarding content reveals in a gentle stagger (logo → title → steps
    → form) instead of all at once. Pure entrance; neutralized by prefers-reduced-motion (index.css). */
 .onboard__inner > * {
@@ -658,6 +674,16 @@
   color: var(--ink);
   font-weight: 800;
 }
+.ipo__legacy-perk {
+  display: block;
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.ipo__legacy-perk b { color: var(--accent); font-weight: 700; }
 .app__offline-value.rounded {
   font-size: var(--fs-title);
   font-weight: 700;

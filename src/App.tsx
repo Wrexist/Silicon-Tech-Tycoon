@@ -12,11 +12,13 @@ import { Confetti } from "./design/Confetti.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { Settings } from "./screens/Settings.tsx";
+import { ScenariosSheet } from "./screens/Scenarios.tsx";
 import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, type Money } from "./engine/money.ts";
 import type { Product } from "./engine/types.ts";
 import { canAdvance, ipoValuation, legacyBonus, industryRank, type GameState } from "./state/gameState.ts";
+import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
 import { RESEARCH_PROJECTS } from "./engine/research.ts";
@@ -259,6 +261,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const rank = industryRank(state);
   const nextBonus = legacyBonus(state.legacy + 1);
+  const nextFounderPerk = nextPerk(state.legacy);
   useDialogFocus(ref, true);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
@@ -302,6 +305,11 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             <span className="ipo__legacy-item"><b>+{nextBonus.fans.toLocaleString()}</b> fans</span>
             <span className="ipo__legacy-item"><b>+{nextBonus.rp}</b> research</span>
           </div>
+          {nextFounderPerk && (
+            <span className="ipo__legacy-perk">
+              New founder perk — <b>{nextFounderPerk.name}</b>: {nextFounderPerk.description}
+            </span>
+          )}
         </Card>
         <p className="ipo__sub">
           Each empire you build leaves a bigger legacy — found your next one stronger, or keep
@@ -317,6 +325,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
 function Onboarding({ onStart }: { onStart: () => void }) {
   const { markOnboarded, setCompanyName } = useGame();
   const [name, setName] = useState("");
+  const [scenariosOpen, setScenariosOpen] = useState(false);
   const found = () => {
     if (name.trim()) setCompanyName(name);
     markOnboarded();
@@ -353,8 +362,14 @@ function Onboarding({ onStart }: { onStart: () => void }) {
           <Button block onClick={found}>
             Found {name.trim() || "Silicon"}
           </Button>
+          <button className="onboard__scenario-link" onClick={() => setScenariosOpen(true)}>
+            Or take on a scenario
+          </button>
         </div>
       </div>
+      <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)}>
+        <ScenariosSheet onClose={() => setScenariosOpen(false)} />
+      </Sheet>
     </div>
   );
 }

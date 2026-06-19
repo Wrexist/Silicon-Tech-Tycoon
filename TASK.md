@@ -697,6 +697,148 @@ speed controls; finishing a design had no closure; the boosts list scrolled fore
       scroll. Now a wrapped chip cloud (effect on `title`) with a "Details" expander.
 - [x] tsc 0, 219 tests green, build + PWA green.
 
+## v20 — Scenario mode (retention Wave 1a) (DONE 2026-06-19)
+The retention backbone from RETENTION_ROADMAP.md (competitor research: RollerCoaster Tycoon +
+Two Point Hospital — scenarios with tiered 1–3★ win conditions are what carry tycoon replayability,
+and they're fully offline/server-free). Built engine-first across 3 commits; 291 tests, tsc 0, build+PWA green.
+- [x] **Engine** (`engine/scenarios.ts`, PURE + 13 tests): `Scenario` = authored start overrides
+      (era/cash/reputation/fans) + `[1★,2★,3★]` tiers, each an AND of `Objective`s that read ONLY
+      data the engine already tracks (cumulativeRevenue/netWorth/reputation/fans/productsShipped/
+      hits/era). Pure evaluators + a `deriveScenarioFacts(state)` adapter (mirrors achievements.ts).
+      6-scenario catalog spanning the curve (First Light → Bootstrapped → Head Start → Underdog →
+      The Long Game → Empire). A tier-monotonicity property test pins that a higher star can never
+      be easier than a lower one.
+- [x] **State** (`state/gameState.ts` + `scenarioProgress.ts`, +9 tests): `activeScenario` per-run
+      tag (+persistence backfill → null for old saves); `newScenarioGame(id)` applies the setup over
+      `newGame` and skips onboarding/coach; `scenarioResultFor(state)` selector. Best-stars-per-
+      scenario live in a PROFILE store (separate localStorage key, mirrored to native Preferences +
+      added to MIRROR_KEYS for durability) so mastery survives restarts/NG+. The tick records a new
+      best + one celebratory toast in the same once-per-week gate as achievements (idempotent write).
+- [x] **UI**: `ScenariosSheet` (premium card list — difficulty chip, the three tiers, earned stars,
+      confirm-before-overwrite Play) reached from a Scenarios row in Company (mirrors Achievements);
+      `ScenarioTracker` on HQ shows the next unmet tier's objectives with live progress bars + a
+      closure banner on 3★ mastery / failed deadline. `useGame.startScenario(id)` (does NOT inherit
+      prestige legacy — scenarios are a level playing field). Tokens + 8pt grid (RULE #1).
+- **NOT verified on-device**: card/tracker layout + the confirm overlay; scenario target balance
+      (the objective thresholds + Underdog's wk-78 deadline) needs a playtest — flag anything off.
+- [x] **Onboarding entry** (follow-up done): "Or take on a scenario" link on the first-run screen.
+- **Deferred (follow-up, logged)**: scenario setup overrides for rivals/trends/forced-category
+      (would touch protected competitor/trend init — a separate pass).
+
+## v20.1 — Wave 1b: shareable result cards (DONE 2026-06-19)
+The only "community surface" available without a backend (per RETENTION_ROADMAP §6/Wave 1b);
+also delivers the deferred celebratory win moment. tsc 0, 291 tests, build+PWA green.
+- [x] `components/ResultCard.tsx` — a premium, screenshot-worthy SVG/token card (zero image assets:
+      parametric CircuitBoard brand glyph): company name, scenario name + stars (or "{Era} empire"),
+      4 headline stats (lifetime revenue / net worth / products / fans), wordmark + week. Offers a
+      `navigator.share` TEXT summary where supported (progressive enhancement — deliberately NOT a
+      canvas→PNG rasterizer, which would be fragile + need on-device verification; the universal
+      share is the OS screenshot, and a "Screenshot this card" hint says so).
+- [x] Surfaced from the HQ `ScenarioTracker`: a "View result card" button appears once the player
+      has earned any star; mastery (3★) and failed-deadline closure banners cleaned up alongside.
+- NOT verified on-device: card layout as an actual screenshot; navigator.share behaviour on iOS.
+
+## v20.2 — Wave 1c (partial): choice-event variety (DONE 2026-06-19)
+- [x] `engine/events.ts` CHOICE_EVENTS 13 → 22 (purely additive content; no logic change). 3 era-1
+      (public beta / founder burnout / viral meme), 3 era-2 (green pledge / retailer ultimatum /
+      counterfeit surge), 3 era-3 (privacy reckoning / moonshot lab / talent raid). Reuses existing
+      EventEffect kinds + era-consistent magnitudes → resolveChoice + balance untouched; the picker
+      already avoids repeats within a run, so more events = more run-to-run variety (attacks the
+      GDT "solved/verbatim replay" failure mode). events pool-drain test now covers all 22.
+- **Wave 1c remaining — NEEDS A GO-AHEAD**: component sidegrades (cheaper-but-lower / battery-vs-
+      perf tiers so the optimal recipe isn't a fixed ladder) touch PROTECTED engine (product.ts /
+      catalogs.ts / balance) + need a balance pass — not done without explicit instruction.
+## v22 — Wave 3: Platform / OS division DLC (Phase A+B) (DONE 2026-06-19)
+DLC #1 per DLC_OS_PLATFORM.md — surfaces the OS economy that already runs invisibly (software line
++ ecosystem stat + recurring ecosystem-service revenue) as a first-class, gated division. Engine→
+state→UI; 325 tests, tsc 0, build+PWA green.
+- [x] **Engine** (`engine/platform.ts`, PURE + 6 tests): `installedBase`, `osTier` (software level →
+      tier name), `canReleaseVersion`, `osReleaseReward` (bounded, hard-capped fan bonus — the
+      "no free faucet" guard from spec §5). `BALANCE.platform` constants.
+- [x] **State** (+5 tests): `platformUnlocked` (DLC gate), `osName`, `osVersion` (+persistence
+      backfill + newGame defaults). Selectors `platformInstalledBase` / `osTierInfo` / `osDisplayName`
+      / `canReleaseOsVersion`; actions `unlockPlatform` / `setOsName` / `releaseOsVersion`. Licensing
+      revenue is the EXISTING `weeklyEcosystemRevenue`, reframed (no formula duplication → no drift).
+- [x] **UI**: `PlatformSheet` (name your OS, tier, installed base, licensing $/wk, version + a
+      release-version "launch day" button) — gated, reached from a Platform row in Company (shown
+      only when unlocked). Settings → Expansions → a "Platform Division" unlock switch (entitlement
+      gate; real IAP purchase wiring deferred like the existing sandbox stub).
+- **Phase B** (version release) is a one-time, BOUNDED rep/fan moment tied to advancing the Software
+      research tier — deliberately NOT a recurring rate change, so the tuned economy is undisturbed.
+- **NOT verified on-device**: Platform sheet layout; release reward magnitudes (4 rep / 2k+capped
+      fans) need a playtest.
+
+## v22.1 — Wave 3 Phase C: license your OS to rivals (DONE 2026-06-19)
+The platform trade-off — reach & revenue vs. a sharper competitor. 329 tests, tsc 0, build+PWA green.
+- [x] **Engine** (+2 tests): `rivalLicenseFee(rivalRep, osTier)` — bounded, hard-capped weekly fee;
+      `licenseeStrengthUplift()`. `rivalStrengthsFor` gains an optional `{licenseeIds, uplift}` so a
+      licensee competes harder in shared categories (backward-compatible — plain reads unchanged).
+- [x] **State** (+2 tests): `osLicensees` field (+backfill); `weeklyLicenseFees` selector;
+      `licenseOsToRival` / `revokeOsLicense` actions (gated on unlock + a real rival, idempotent).
+      Fees collected weekly in the tick (rate-scaled, next to ecosystem revenue); the licensee uplift
+      is applied in `planProduction` (the single competition point) — so the fee genuinely makes
+      that rival tougher on your launches. Balance: fee `$1.5k + rep×tier×$40`, capped `$250k/wk`;
+      uplift +8 strength. **Magnitudes need a playtest** (flagged).
+- [x] **UI**: PlatformSheet "License your OS" section — every rival with its weekly fee + a
+      License/Revoke button + the explicit reach-vs-rivalry warning.
+
+## v21 — Wave 2: daily/weekly challenges (DONE 2026-06-19)
+The offline Mini Motorways model (date-seeded, no backend/leaderboard). Built engine→state→UI; 310 tests, tsc 0, build+PWA green.
+- [x] **Engine** (`engine/challenges.ts`, PURE + 13 tests): a challenge = freeform start + date-seeded
+      MUTATORS + a scored "best <metric> by week N" goal. MUTATORS catalog (start-condition twists
+      expressible via the existing newGame path — cash mult / reputation / fans); UTC date helpers
+      (dateKeyOf, mondayOf), FNV-1a hashSeed, dailyChallenge / weeklyChallenge (Monday-anchored,
+      2–3 distinct mutators, longer run); formatScore / scoreMetricLabel. Same date → identical
+      challenge for every offline player.
+- [x] **State** (+8 tests): `activeChallenge` + `challengeScore` (+persistence backfill); `newChallengeGame`
+      applies mutators as start overrides; `withChallengeScore` locks the score snapshot at scoreWeek
+      (pure, idempotent; folded into the tick + boot/offline like evaluateAndUnlock); `challengeViewFor`
+      selector; per-date personal-best store (`challengeProgress.ts`, native-mirrored) — the offline
+      "beat your own history" substitute for the server leaderboard. `useGame.startChallenge(kind)`;
+      tick records best + one toast on the score-lock transition.
+- [x] **UI**: `ChallengesSheet` (today's daily + this week's weekly, mutators, personal best,
+      confirm-before-overwrite) from a Challenges row in Company; `ChallengeTracker` on HQ (goal,
+      live score, weeks left, locked final + best banner). Reuses the scenarios card language.
+- **NOT verified on-device**: card/tracker layout; mutator balance + the 52/104-week score windows
+      need a playtest. **Deferred**: deeper sim-level mutators (no-marketing / fixed-price / recession)
+      need BALANCE-override plumbing (a larger change); a one-attempt-per-day LOCK (today you can
+      replay a date's challenge — single-player, no leaderboard to protect, so low priority).
+- **Next**: Wave 3 OS/Platform DLC (DLC_OS_PLATFORM.md); Wave 1c component sidegrades (PROTECTED
+      engine — needs a go-ahead); the NG+/mastery + content-cadence items in RETENTION_ROADMAP Wave 4.
+
+## v23.2 — Wave 4: Founder Perks + AI-Era content (DONE 2026-06-19)
+- [x] **Founder Perks** (`engine/perks.ts`, PURE +tests): NG+ "beyond bigger numbers" — a 6-perk
+      ladder unlocked one-per-prestige, derived purely from the persisted `legacy` level (no new
+      store). Bounded effects (design ceiling / launch hype / weekly RP) applied via the existing
+      STATE-layer selectors (designTierCeiling / hypeBonus / weeklyRpGen) — protected engine
+      untouched. NG+ win overlay previews the next perk.
+- [x] **AI-Era (era 4) content**: 7 era-4 market events + 3 era-4 choice dilemmas (AI ethics, the
+      moonshot race, training-data consent) — the endgame had NO era-specific events/decisions before
+      (it reused the era-1–3 pool). Additive content, era-appropriate magnitudes.
+- **Era-distinct *mechanics* (different RULES per era) remains a deliberately-deferred large item**:
+      it would reshape the tuned per-era economy and needs a playtest. The event/choice flavour above
+      is the safe slice; true mechanic divergence is flagged, not built.
+- **Wave 4 remaining (open, low priority)**: run-history "this week in tech" recap (the live feed
+      already serves this — likely redundant); deeper era mechanics (above).
+
+## v23 — Wave 4: Device Museum (cross-run collection meta-progression) (DONE 2026-06-19)
+The "new thinking" headline from RETENTION_ROADMAP §3 — leans into the pillars (devices are
+parametric SVG, "the product is the toy"): every device you ship is enshrined in a permanent,
+browsable museum that PERSISTS across New Game+ and restarts. Retention via collection, not
+engagement-farming. 333 tests, tsc 0, build+PWA green.
+- [x] **Profile store** (`state/museum.ts`, +1 test file): newest-first, capped at 60, de-duped by
+      key, corruption-tolerant, native-mirrored (added to MIRROR_KEYS). Stores the renderable
+      Product + name/category/era/company/week/verdict.
+- [x] **Recorded on launch** (useGame.launchReadyCb) — each shipped device is enshrined the moment
+      it launches (keyed by seed+productId+week, so re-runs don't collide).
+- [x] **UI** (`screens/Museum.tsx`): a 2-col gallery re-rendering each device via DeviceRenderer
+      (zero assets) with name/category/era/company/verdict; premium empty state. Reached from a
+      Device Museum row in Company (always available).
+- **NOT verified on-device**: gallery layout + DeviceRenderer at 120px thumb size.
+- **Wave 4 remaining (open)**: NG+/mastery depth beyond bigger numbers; era-distinct mechanics;
+      run-history "this week in tech" headlines; bankruptcy post-mortem share card. RETENTION_ROADMAP
+      Wave 4 + the "new thinking" list track these.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with

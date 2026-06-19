@@ -90,6 +90,10 @@ import { buildCost, componentSynergy, computeStats, missingSlots, overallScore }
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
+import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
+import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
+import { canReleaseVersion, installedBase, licenseeStrengthUplift, osReleaseReward, osTier, rivalLicenseFee, type OsTierInfo } from "../engine/platform.ts";
+import { perkBonuses } from "../engine/perks.ts";
 import type {
   Assignment,
   BuildJob,
@@ -186,6 +190,26 @@ export interface GameState {
   pendingChoice: { event: ChoiceEvent; week: number } | null;
   /** IDs of choice events already resolved — prevents repeats. */
   resolvedChoices: string[];
+  /** Scenario this run is playing (id from engine/scenarios.ts), or null for a freeform game.
+   *  Per-RUN only — the BEST stars earned per scenario live in the profile store (scenarioProgress). */
+  activeScenario: string | null;
+  /** Stars earned in THIS run (run-scoped, monotonic, frozen after a deadline passes). The tracker
+   *  reads this — never the cross-run profile best — so a replay reflects the current run, not history. */
+  scenarioRunStars: number;
+  /** Active daily/weekly challenge run (null otherwise). The full challenge is re-derivable from
+   *  kind+dateKey (deterministic); scoreMetric/scoreWeek are stored for a cheap, explicit tick check. */
+  activeChallenge: { kind: ChallengeKind; dateKey: string; scoreMetric: ScenarioMetric; scoreWeek: number } | null;
+  /** Final locked challenge score, set once the challenge's scoreWeek is reached (null until then). */
+  challengeScore: number | null;
+  // --- Platform / OS division (DLC #1) ---
+  /** DLC entitlement — the Platform division UI + levers are hidden unless this is true. */
+  platformUnlocked: boolean;
+  /** Player-named OS line (empty → defaults to "<Company> OS" for display). */
+  osName: string;
+  /** Released OS version number — caught up to the software research tier via releaseOsVersion. */
+  osVersion: number;
+  /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
+  osLicensees: string[];
 }
 
 export const REV_MILESTONES = [
@@ -344,7 +368,120 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     unlockedAchievements: [],
     pendingChoice: null,
     resolvedChoices: [],
+    activeScenario: null,
+    scenarioRunStars: 0,
+    activeChallenge: null,
+    challengeScore: null,
+    platformUnlocked: false,
+    osName: "",
+    osVersion: 1,
+    osLicensees: [],
   };
+}
+
+/** Start a daily/weekly challenge: a freeform run seeded from the date with the challenge's
+ *  date-seeded mutators applied as start overrides. Deterministic — everyone playing the same
+ *  date's challenge gets the same market. Score locks at scoreWeek (see withChallengeScore). */
+export function newChallengeGame(kind: ChallengeKind, dateKey: string): GameState {
+  const ch = kind === "weekly" ? weeklyChallenge(dateKey) : dailyChallenge(dateKey);
+  const base = newGame(ch.seed);
+  let cash = base.cash;
+  let reputation = base.reputation;
+  let fans = base.fans;
+  for (const m of ch.mutators) {
+    if (m.cashMult != null) cash = scale(cash, m.cashMult);
+    if (m.reputation != null) reputation = m.reputation;
+    if (m.fans != null) fans = m.fans;
+  }
+  return {
+    ...base,
+    cash,
+    reputation,
+    fans,
+    onboarded: true,
+    tutorialDone: true,
+    activeChallenge: { kind: ch.kind, dateKey: ch.dateKey, scoreMetric: ch.scoreMetric, scoreWeek: ch.scoreWeek },
+    challengeScore: null,
+    cashHistory: [{ week: 0, cash: toDollars(cash) }],
+    feed: [feedItem(0, `${kind === "weekly" ? "Weekly" : "Daily"} challenge — ${ch.mutators.map((m) => m.name).join(" + ")}. Score: best ${ch.scoreMetric} by week ${ch.scoreWeek}.`, "accent")],
+  };
+}
+
+/** Lock the challenge's final score once its scoreWeek is reached (pure, idempotent). Called from
+ *  the tick alongside evaluateAndUnlock; the score is a snapshot of the scored metric at that week. */
+export function withChallengeScore(state: GameState): GameState {
+  const ch = state.activeChallenge;
+  if (!ch || state.challengeScore != null || state.week < ch.scoreWeek) return state;
+  const score = Math.round(metricValue(deriveScenarioFacts(state), ch.scoreMetric));
+  return { ...state, challengeScore: score };
+}
+
+export interface ChallengeView {
+  challenge: Challenge;
+  /** Current value of the scored metric (live progress before the score locks). */
+  current: number;
+  /** The locked final score, or null while still in progress. */
+  final: number | null;
+  weeksLeft: number;
+}
+
+/** UI view of the active challenge (null for non-challenge runs). */
+export function challengeViewFor(state: GameState): ChallengeView | null {
+  const ch = state.activeChallenge;
+  if (!ch) return null;
+  const challenge = ch.kind === "weekly" ? weeklyChallenge(ch.dateKey) : dailyChallenge(ch.dateKey);
+  return {
+    challenge,
+    current: Math.round(metricValue(deriveScenarioFacts(state), ch.scoreMetric)),
+    final: state.challengeScore,
+    weeksLeft: Math.max(0, ch.scoreWeek - state.week),
+  };
+}
+
+/** Start a scenario run: a normal new game with the scenario's authored start overrides applied on
+ *  top (era/cash/reputation/fans — the fields that vary a start without touching protected engine
+ *  init). Scenarios skip the freeform onboarding + tutorial coach (the player chose a goal-driven
+ *  run, not a fresh founding). Unknown id → a normal freeform game (defensive). */
+export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): GameState {
+  const base = newGame(seed, legacy);
+  const scn = scenarioById(scenarioId);
+  if (!scn) return base;
+  const { era, cash, reputation, fans } = scn.setup;
+  const startCash = cash ?? base.cash;
+  return {
+    ...base,
+    activeScenario: scenarioId,
+    era: era ?? base.era,
+    cash: startCash,
+    reputation: reputation ?? base.reputation,
+    fans: fans ?? base.fans,
+    onboarded: true,
+    tutorialDone: true,
+    cashHistory: [{ week: 0, cash: toDollars(startCash) }],
+    feed: [feedItem(0, `Scenario started — ${scn.name}. ${scn.tagline}`, "accent")],
+  };
+}
+
+/** Evaluate the active scenario against the current state. null for a freeform game (or an unknown
+ *  scenario id). Pure — the UI tracker and the tick both read this. */
+export function scenarioResultFor(state: GameState): ScenarioResult | null {
+  if (!state.activeScenario) return null;
+  const scn = scenarioById(state.activeScenario);
+  if (!scn) return null;
+  return evaluateScenario(scn, deriveScenarioFacts(state));
+}
+
+/** Advance the run-scoped scenario star count (pure, idempotent). Monotonic and only ever rises
+ *  while stars are still EARNABLE (gated by canEarnStars), so it freezes once a deadline passes —
+ *  the tracker reads this for a replay-accurate, history-free result. Folded into the tick like
+ *  withChallengeScore. */
+export function withScenarioRunStars(state: GameState): GameState {
+  if (!state.activeScenario) return state;
+  const scn = scenarioById(state.activeScenario);
+  if (!scn || !canEarnStars(scn, state.week)) return state;
+  const res = evaluateScenario(scn, deriveScenarioFacts(state));
+  if (res.stars <= state.scenarioRunStars) return state;
+  return { ...state, scenarioRunStars: res.stars };
 }
 
 // ---------- Derived selectors ----------
@@ -357,7 +494,7 @@ export const facilityRent = (s: GameState): Money =>
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
 export const burn = (s: GameState): Money => weeklyBurn(s.staff, facilityRent(s));
 export const designTierCeiling = (s: GameState) =>
-  designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades);
+  designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + perkBonuses(s.legacy).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
 /** Mood-target bonus from the room's comfort furniture (capped). Added to the weekly mood target. */
 export const officeComfortMoodBonus = (s: GameState): number =>
@@ -372,12 +509,12 @@ export const officeInspoBonus = (s: GameState): number =>
 export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
   s.cash >= dollars(furnitureCost(type));
 
-export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s);
+export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
 export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
-  visionaryHype(s.staff) + marketingHype(s.upgrades);
+  visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype;
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
  * upgrade + channel). scoreLaunch clamps total hype too; this caps the bonus side so
@@ -398,9 +535,20 @@ export function productStats(s: GameState, product: Product): Stats {
   // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
+  // Performance/efficiency tuning — trades points between performance and battery (a real build
+  // choice that depends on what the market wants). Neutral when balanced/undefined → no ripple.
+  const shift = BALANCE.design.tuningShift;
+  if (product.tuning === "performance") {
+    bonus.performance = (bonus.performance ?? 0) + shift;
+    bonus.battery = (bonus.battery ?? 0) - shift;
+  } else if (product.tuning === "efficiency") {
+    bonus.battery = (bonus.battery ?? 0) + shift;
+    bonus.performance = (bonus.performance ?? 0) - shift;
+  }
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
-    out[k] = Math.min(BALANCE.statMax, Math.round(out[k] + (bonus[k] ?? 0)));
+    // Clamp BOTH ends (tuning can subtract): never below 0, never above statMax.
+    out[k] = Math.max(0, Math.min(BALANCE.statMax, Math.round(out[k] + (bonus[k] ?? 0))));
   }
   return out;
 }
@@ -545,7 +693,8 @@ export function planProduction(
   });
 
   const overall = overallScore(stats, product.category);
-  const rivals = rivalStrengthsFor(s.competitors, product.category);
+  // Licensees of your OS compete harder in shared categories (the Phase-C trade-off for their fee).
+  const rivals = rivalStrengthsFor(s.competitors, product.category, { licenseeIds: s.osLicensees, uplift: licenseeStrengthUplift() });
   const comp = BALANCE.market.competition;
   const margin = comp.beatMargin;
   let matchingRivals = 0;
@@ -780,6 +929,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
+  // Platform licensing fees — recurring income from rivals licensing your OS (Phase C).
+  cash = add(cash, scale(weeklyLicenseFees(state), rate));
+
   // Burn
   cash = sub(cash, scale(burn(state), rate));
 
@@ -813,13 +965,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
   });
 
-  // Research points generated this week
-  // Must match the weeklyRpGen selector (incl. the Workstations upgrade), else the UI lies.
+  // Research points generated this week — accrue through the SAME selector the UI shows, so the
+  // displayed rate and the earned amount can never diverge (this previously omitted the office-focus
+  // multiplier and, later, the legacy perk bonus — the UI lied for players who had them).
   // RP must stay a non-negative integer: partial (offline, rate=0.5) ticks accrue
   // fractional RP, so floor on accrual to keep the counter clean.
-  const researchPoints = floorRP(
-    state.researchPoints + weeklyRp(state.staff, state.era) * rpMultiplier(state.upgrades) * rate,
-  );
+  const researchPoints = floorRP(state.researchPoints + weeklyRpGen(state) * rate);
 
   // Manufacturing: advance build jobs; completed ones move to the "ready" shelf
   const building: BuildJob[] = [];
@@ -1590,6 +1741,75 @@ export function setWallStyle(state: GameState, i: number): GameState {
 export function setCompanyName(state: GameState, name: string): GameState {
   const trimmed = name.trim().slice(0, 18);
   return { ...state, companyName: trimmed || "Silicon" };
+}
+
+// ---------- Platform / OS division (DLC #1) ----------
+/** Devices in the field running your OS. */
+export const platformInstalledBase = (s: GameState): number => installedBase(s.launched);
+/** Current OS tier (name + number) from the software research level. */
+export const osTierInfo = (s: GameState): OsTierInfo => osTier(s.researched.software);
+/** Display name for the OS — the player's name, or "<Company> OS" by default. */
+export const osDisplayName = (s: GameState): string => (s.osName.trim() || `${s.companyName} OS`);
+/** Can a new OS version be released right now (research has advanced past the released version)? */
+export const canReleaseOsVersion = (s: GameState): boolean => canReleaseVersion(s.osVersion, s.researched.software);
+
+/** Unlock (or re-lock) the Platform division — the DLC entitlement gate. */
+export function unlockPlatform(state: GameState, on: boolean): GameState {
+  return { ...state, platformUnlocked: on };
+}
+
+/** Rename the OS line (empty clears back to the "<Company> OS" default). */
+export function setOsName(state: GameState, name: string): GameState {
+  return { ...state, osName: name.trim().slice(0, 22) };
+}
+
+/** Release a new OS version — a software "launch day": catches the released version up to your
+ *  research tier and grants a one-time, bounded reputation + fan lift across the installed base.
+ *  No-op unless the Platform division is unlocked and research is actually ahead. */
+export function releaseOsVersion(state: GameState): GameState {
+  if (!state.platformUnlocked || !canReleaseOsVersion(state)) return state;
+  const newVersion = osTierInfo(state).tier;
+  const reward = osReleaseReward(platformInstalledBase(state));
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${osDisplayName(state)} ${newVersion}.0 released — the installed base updated. +${reward.fans.toLocaleString()} fans.`, "positive"));
+  return {
+    ...state,
+    osVersion: newVersion,
+    reputation: Math.min(100, state.reputation + reward.reputation),
+    fans: state.fans + reward.fans,
+    feed: trimFeed(feed),
+  };
+}
+
+/** Total weekly licensing fees from all rivals currently licensing your OS (fee scales with each
+ *  rival's reputation × your OS tier). */
+export function weeklyLicenseFees(s: GameState): Money {
+  if (s.osLicensees.length === 0) return ZERO;
+  const tier = osTierInfo(s).tier;
+  let acc = ZERO;
+  for (const id of s.osLicensees) {
+    const rival = s.competitors.find((c) => c.id === id);
+    if (rival) acc = add(acc, rivalLicenseFee(rival.reputation, tier));
+  }
+  return acc;
+}
+
+/** License your OS to a rival: a new recurring revenue line, but it strengthens that competitor
+ *  in your shared categories (the platform trade-off). No-op unless the division is unlocked. */
+export function licenseOsToRival(state: GameState, rivalId: string): GameState {
+  if (!state.platformUnlocked) return state;
+  if (state.osLicensees.includes(rivalId)) return state;
+  if (!state.competitors.some((c) => c.id === rivalId)) return state;
+  const rival = state.competitors.find((c) => c.id === rivalId);
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${rival?.name ?? "A rival"} now licenses ${osDisplayName(state)} — new revenue, but a sharper competitor.`, "accent"));
+  return { ...state, osLicensees: [...state.osLicensees, rivalId], feed: trimFeed(feed) };
+}
+
+/** End a rival's OS license — drops the fee, removes their competitiveness uplift. */
+export function revokeOsLicense(state: GameState, rivalId: string): GameState {
+  if (!state.osLicensees.includes(rivalId)) return state;
+  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId) };
 }
 
 /** Reassign a staff member to a different function. */

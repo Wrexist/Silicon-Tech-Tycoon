@@ -58,15 +58,31 @@ import {
   restStaff,
   upgradeFacility,
   seedFeedSeq,
+  scenarioResultFor,
+  newScenarioGame,
+  newChallengeGame,
+  withChallengeScore,
+  withScenarioRunStars,
+  setOsName,
+  unlockPlatform,
+  releaseOsVersion,
+  licenseOsToRival,
+  revokeOsLicense,
   type GameState,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
+import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioProgress.ts";
+import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
+import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
+import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
+import { scenarioById, canEarnStars } from "../engine/scenarios.ts";
+import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
 import type { ProjectId } from "../engine/research.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
-import { clearSave, exportSaveString, importSaveString, loadResult, save } from "./persistence.ts";
+import { clearSave, exportSaveString, importSaveString, importProfileFromString, loadResult, save } from "./persistence.ts";
 import { withValidatedSandbox } from "./entitlements.ts";
 import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
@@ -210,7 +226,59 @@ function announceAchievements(unlocked: readonly string[]): void {
 function withLiveAchievements(next: GameState): GameState {
   const { state: out, unlocked } = evaluateAndUnlock(next);
   announceAchievements(unlocked);
+  mergeProfileAchievements(unlocked); // accumulate into the lifetime (cross-company) set
   return out;
+}
+
+/** Record any new scenario star earned on this state into the profile store, and celebrate a new
+ *  best with one toast. Like announceAchievements, this is called only from the once-per-week tick
+ *  gate (recordStars is idempotent — it writes only on improvement — so a StrictMode double-invoke
+ *  can't double-celebrate or double-write). No-op for freeform runs. */
+function announceScenarioStars(state: GameState): void {
+  if (!state.activeScenario) return;
+  // Deadline scenarios are a hard cutoff: stars can only be EARNED on or before the deadline week,
+  // so a player can't blow the deadline and then grind the goal out for late credit.
+  const scn = scenarioById(state.activeScenario);
+  if (scn && !canEarnStars(scn, state.week)) return;
+  const res = scenarioResultFor(state);
+  if (!res || res.stars <= 0) return;
+  const { improved, best } = recordStars(state.activeScenario, res.stars);
+  if (!improved) return;
+  sfx("mastery");
+  const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
+  setTimeout(() => {
+    try {
+      showToast(`${best}★ earned — ${name}`, {
+        tone: "positive",
+        glyph: createElement(achievementIcon("Star"), { size: 15 }),
+      });
+    } catch {
+      /* toast host not mounted (e.g. tests) */
+    }
+  }, 800);
+}
+
+/** Record a completed challenge's score into the profile store (idempotent — only writes on a new
+ *  best). When `announce` and the score just locked this tick (prev had none), celebrate once. */
+function syncChallengeBest(prev: GameState, next: GameState, announce: boolean): void {
+  const ch = next.activeChallenge;
+  if (!ch || next.challengeScore == null) return;
+  const { improved, best } = recordChallengeBest(challengeKey(ch.kind, ch.dateKey), next.challengeScore);
+  if (!announce || prev.challengeScore != null) return; // only on the locking transition
+  sfx("mastery");
+  const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
+  const scored = formatScore(ch.scoreMetric, next.challengeScore);
+  const tail = improved ? " — new best!" : ` · best ${formatScore(ch.scoreMetric, best)}`;
+  setTimeout(() => {
+    try {
+      showToast(`${label} complete — ${scored}${tail}`, {
+        tone: "positive",
+        glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
+      });
+    } catch {
+      /* toast host not mounted (e.g. tests) */
+    }
+  }, 800);
 }
 
 interface GameContextValue {
@@ -247,6 +315,11 @@ interface GameContextValue {
   goPublic: () => void;
   prestige: () => void;
   restart: () => void;
+  /** Begin a scenario run (overwrites the current save with the scenario's authored start). */
+  startScenario: (id: string) => void;
+  /** Begin a daily/weekly challenge (overwrites the current save). Defaults to today; pass a
+   *  dateKey to play a specific (e.g. shared-by-code or historical) challenge. */
+  startChallenge: (kind: ChallengeKind, dateKey?: string) => void;
   markOnboarded: () => void;
   dismissTutorial: () => void;
   // save export / import (offline backup)
@@ -254,6 +327,12 @@ interface GameContextValue {
   importSave: (str: string) => boolean;
   setCompanyName: (name: string) => void;
   setSandboxActive: (on: boolean) => void;
+  // Platform / OS division (DLC #1)
+  setOsName: (name: string) => void;
+  unlockPlatform: (on: boolean) => void;
+  releaseOsVersion: () => void;
+  licenseOsToRival: (rivalId: string) => void;
+  revokeOsLicense: (rivalId: string) => void;
   // office builder
   placeFurniture: (type: FurnitureId, c: number, r: number, rot: Rot) => void;
   moveFurniture: (iid: string, c: number, r: number) => void;
@@ -307,7 +386,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
     // Fold in any achievements earned while away SILENTLY (no toast backlog on return). migrate()
     // already backfilled the on-disk earned set; this catches milestones crossed during catch-up.
-    const withAch = evaluateAndUnlock(floored).state;
+    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored))).state;
+    mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
+    // A challenge whose scoreWeek was crossed while away locks + records its best silently here.
+    syncChallengeBest(floored, withAch, false);
     // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
     save({ ...withAch, lastActive: Date.now() });
     const topProduct = weeks > 0 ? topSellerWhileAway(loaded, withAch) : null;
@@ -371,7 +453,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
-        const next = advanceOneWeek(s);
+        const next = withScenarioRunStars(withChallengeScore(advanceOneWeek(s)));
         const { state: out, unlocked } = evaluateAndUnlock(next);
         if (next.week !== announcedWeekRef.current) {
           announcedWeekRef.current = next.week;
@@ -380,6 +462,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
           withStaffLevelToasts(s, next);
           withProductFinishToasts(s, next);
           announceAchievements(unlocked);
+          mergeProfileAchievements(unlocked);
+          announceScenarioStars(next);
+          syncChallengeBest(s, next, true);
         }
         return out;
       });
@@ -430,7 +515,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (weeks <= 0) return;
     // F7 — don't punish time away: floor fans at the pre-catchup value (online decay is untouched).
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
-    const withAch = evaluateAndUnlock(floored).state;
+    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored))).state;
+    mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
+    syncChallengeBest(floored, withAch, false); // lock + record a challenge that finished while away
     const stamped = Date.now();
     setState(withAch);
     save({ ...withAch, lastActive: stamped });
@@ -476,7 +563,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const result = launchReady(stateRef.current, productId);
     // A launch can immediately cross a milestone (first ship, a hit, a hit streak, a sellout) — so
     // evaluate + celebrate right here, not only on the next weekly tick.
-    if (result.ok) setState(withLiveAchievements(result.state));
+    if (result.ok) {
+      const next = withLiveAchievements(result.state);
+      // Enshrine the freshly-shipped device in the permanent museum (newest is launched[0]).
+      const lp = next.launched[0];
+      if (lp) {
+        addMuseumEntry({
+          key: `${next.seed}-${lp.product.id}-${lp.launchedWeek}`,
+          product: lp.product,
+          name: lp.product.name,
+          category: lp.product.category,
+          era: next.era,
+          companyName: next.companyName,
+          week: lp.launchedWeek,
+          verdict: lp.verdict,
+        });
+      }
+      setState(next);
+    }
     return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
   }, []);
 
@@ -581,17 +685,28 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const advanceEra = useCallback(() => setState((s) => withLiveAchievements(advanceEraAction(s))), []);
   const goPublicCb = useCallback(() => setState((s) => withLiveAchievements(goPublic(s))), []);
   const prestige = useCallback(() => {
+    mergeProfileAchievements(stateRef.current.unlockedAchievements); // milestones earned this run persist into NG+
     const next = getLegacy() + 1;
     setLegacy(next);
     clearSave();
     // New Game+ players already know the ropes — skip onboarding + the first-build coach.
-    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true });
+    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
   }, []);
-  // Serialize the live state for a downloadable / copyable backup (works pre-first-autosave).
-  const exportSave = useCallback(() => exportSaveString(stateRef.current), []);
+  // Serialize the live state PLUS profile-level progression (legacy, scenario stars, challenge
+  // bests, museum) so a backup is complete and survives a device migration.
+  const exportSave = useCallback(
+    () => exportSaveString(stateRef.current, {
+      legacy: getLegacy(),
+      scenarioStars: getScenarioStars(),
+      challengeBests: getChallengeBests(),
+      museum: getMuseum(),
+      achievements: getProfileAchievements(),
+    }),
+    [],
+  );
 
   // Validate + apply an imported backup. Returns false (and changes nothing) on a bad string, so
   // the caller can surface a clear error. On success we set the migrated state immutably, stamp
@@ -599,6 +714,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const importSave = useCallback((str: string) => {
     const migrated = importSaveString(str);
     if (!migrated) return false;
+    // Restore profile-level progression from a v2 backup (merged, keeping the best — never a downgrade).
+    const profile = importProfileFromString(str);
+    if (profile) {
+      if (typeof profile.legacy === "number" && profile.legacy > getLegacy()) setLegacy(profile.legacy);
+      mergeScenarioStars(profile.scenarioStars);
+      mergeChallengeBests(profile.challengeBests);
+      mergeMuseum(profile.museum);
+      mergeProfileAchievements(Array.isArray(profile.achievements) ? profile.achievements : undefined);
+    }
     const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids
     save(next);
@@ -615,6 +739,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
   // caller (Settings only shows the toggle once the IAP entitlement is held).
   const setSandboxActive = useCallback((on: boolean) => setState((s) => ({ ...s, sandboxUnlocked: on })), []);
+  const setOsNameCb = useCallback((name: string) => setState((s) => setOsName(s, name)), []);
+  const unlockPlatformCb = useCallback((on: boolean) => setState((s) => unlockPlatform(s, on)), []);
+  const releaseOsVersionCb = useCallback(() => {
+    setState((s) => {
+      const next = withLiveAchievements(releaseOsVersion(s));
+      if (next !== s) sfx("era");
+      return next;
+    });
+  }, []);
+  const licenseOsToRivalCb = useCallback((rivalId: string) => setState((s) => licenseOsToRival(s, rivalId)), []);
+  const revokeOsLicenseCb = useCallback((rivalId: string) => setState((s) => revokeOsLicense(s, rivalId)), []);
   const placeFurnitureCb = useCallback((type: FurnitureId, c: number, r: number, rot: Rot) => setState((s) => placeFurniture(s, type, c, r, rot)), []);
   const moveFurnitureCb = useCallback((iid: string, c: number, r: number) => setState((s) => moveFurniture(s, iid, c, r)), []);
   const rotateFurnitureCb = useCallback((iid: string) => setState((s) => rotateFurniture(s, iid)), []);
@@ -654,11 +789,36 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const resolveChoiceCb = useCallback((optionId: string) => setState((s) => resolveChoice(s, optionId)), []);
 
   const restart = useCallback(() => {
+    mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good
     clearSave();
-    setState(newGame(undefined, getLegacy()));
+    // Platform is an entitlement, not run progress — keep it across a fresh company.
+    setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
+  }, []);
+
+  // Scenarios are a level playing field: they deliberately do NOT inherit the prestige legacy bonus
+  // (that would break each scenario's hand-authored start, e.g. Bootstrapped's tight cash). The
+  // start values come entirely from the scenario's setup.
+  const startScenario = useCallback((id: string) => {
+    mergeProfileAchievements(stateRef.current.unlockedAchievements); // keep this run's milestones
+    clearSave();
+    setState({ ...newScenarioGame(id), platformUnlocked: stateRef.current.platformUnlocked });
+    setOffline(null);
+    setPaused(false);
+    setFast(false);
+  }, []);
+
+  // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this
+  // overwrites the current save; the per-date personal best lives in the profile store.
+  const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string) => {
+    mergeProfileAchievements(stateRef.current.unlockedAchievements); // keep this run's milestones
+    clearSave();
+    setState({ ...newChallengeGame(kind, dateKey ?? dateKeyOf(new Date())), platformUnlocked: stateRef.current.platformUnlocked });
+    setOffline(null);
+    setPaused(false);
+    setFast(false);
   }, []);
 
   const clearOffline = useCallback(() => setOffline(null), []);
@@ -694,12 +854,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
       goPublic: goPublicCb,
       prestige,
       restart,
+      startScenario,
+      startChallenge,
       markOnboarded,
       dismissTutorial,
       exportSave,
       importSave,
       setCompanyName: setCompanyNameCb,
       setSandboxActive,
+      setOsName: setOsNameCb,
+      unlockPlatform: unlockPlatformCb,
+      releaseOsVersion: releaseOsVersionCb,
+      licenseOsToRival: licenseOsToRivalCb,
+      revokeOsLicense: revokeOsLicenseCb,
       placeFurniture: placeFurnitureCb,
       moveFurniture: moveFurnitureCb,
       rotateFurniture: rotateFurnitureCb,
@@ -720,7 +887,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setOsNameCb, unlockPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

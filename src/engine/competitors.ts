@@ -181,14 +181,22 @@ export function competitorStrengthFor(comps: readonly CompetitorState[], categor
   return max;
 }
 
-/** Every rival's current strength in a category (only those actively shipping there). */
-export function rivalStrengthsFor(comps: readonly CompetitorState[], category: CategoryId): number[] {
+/** Every rival's current strength in a category (only those actively shipping there). When the
+ *  player licenses their OS to a rival, that licensee gets a bounded strength uplift here (the
+ *  trade-off for the licensing fee) — pass `opts` from the platform layer; omit for plain reads. */
+export function rivalStrengthsFor(
+  comps: readonly CompetitorState[],
+  category: CategoryId,
+  opts?: { licenseeIds?: readonly string[]; uplift?: number },
+): number[] {
+  const licensees = opts?.licenseeIds;
+  const up = opts?.uplift ?? 0;
   const out: number[] = [];
   for (const c of comps) {
     // Use the same "rival is present" threshold (>0) as competitorStrengthFor so the
     // planner and the score's competition term agree on which rivals are active.
     const s = c.strengthByCategory[category];
-    if (s && s > 0) out.push(s);
+    if (s && s > 0) out.push(licensees && up > 0 && licensees.includes(c.id) ? s + up : s);
   }
   return out;
 }
