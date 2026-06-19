@@ -33,6 +33,23 @@ export function getMuseum(): MuseumEntry[] {
   }
 }
 
+/** Bulk-restore from a backup. Merges incoming entries with existing (de-duped by key), newest
+ *  preserved, capped. Tolerant of malformed payloads. */
+export function mergeMuseum(incoming: unknown): void {
+  if (!Array.isArray(incoming)) return;
+  const valid = (incoming as MuseumEntry[]).filter((e) => e && e.product && e.category && typeof e.name === "string" && typeof e.key === "string");
+  const seen = new Set<string>();
+  const merged: MuseumEntry[] = [];
+  for (const e of [...valid, ...getMuseum()]) {
+    if (seen.has(e.key)) continue;
+    seen.add(e.key);
+    merged.push(e);
+  }
+  const serialized = JSON.stringify(merged.slice(0, CAP));
+  try { localStorage.setItem(KEY, serialized); } catch { /* ignore */ }
+  mirrorToNative(KEY, serialized);
+}
+
 /** Add a freshly-shipped device to the museum (newest first, capped). De-dupes by key. */
 export function addMuseumEntry(entry: MuseumEntry): void {
   const list = getMuseum().filter((e) => e.key !== entry.key);

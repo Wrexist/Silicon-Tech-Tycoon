@@ -33,6 +33,19 @@ export function bestScore(key: string): number | null {
   return v == null ? null : v;
 }
 
+/** Bulk-restore (backup import). Merges with existing, keeping the higher score per key. */
+export function mergeChallengeBests(incoming: unknown): void {
+  if (!incoming || typeof incoming !== "object") return;
+  const map = getChallengeBests();
+  for (const [k, v] of Object.entries(incoming as Record<string, unknown>)) {
+    const n = Math.round(Number(v));
+    if (Number.isFinite(n) && (map[k] == null || n > map[k])) map[k] = n;
+  }
+  const serialized = JSON.stringify(map);
+  try { localStorage.setItem(KEY, serialized); } catch { /* ignore */ }
+  mirrorToNative(KEY, serialized);
+}
+
 /** Record a score for a challenge, keeping only the best. Returns whether it improved + the best. */
 export function recordChallengeBest(key: string, score: number): { improved: boolean; best: number } {
   const s = Math.round(Number(score));

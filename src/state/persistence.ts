@@ -165,8 +165,27 @@ function fromBase64(b64: string): string {
  * Serialize a GameState to a portable, self-describing backup string (prefix + base64 JSON).
  * Pure — operates on the passed live state, so it works even before the first autosave.
  */
-export function exportSaveString(state: GameState): string {
-  return EXPORT_PREFIX + toBase64(JSON.stringify(state));
+export function exportSaveString(state: GameState, profile?: Record<string, unknown>): string {
+  // With a profile bundle, wrap as { save, profile } so a backup also carries cross-run progression
+  // (legacy, scenario stars, challenge bests, museum). Without one, emit a bare state (unchanged).
+  const payload = profile ? { save: state, profile } : state;
+  return EXPORT_PREFIX + toBase64(JSON.stringify(payload));
+}
+
+/** Extract the profile bundle from a backup string, or null if it's a bare (pre-profile) export. */
+export function importProfileFromString(str: string): Record<string, unknown> | null {
+  if (typeof str !== "string") return null;
+  let payload = str.trim();
+  if (payload.startsWith(EXPORT_PREFIX)) payload = payload.slice(EXPORT_PREFIX.length).trim();
+  try {
+    const parsed = JSON.parse(fromBase64(payload)) as Record<string, unknown>;
+    if (parsed && typeof parsed === "object" && "save" in parsed && parsed.profile && typeof parsed.profile === "object") {
+      return parsed.profile as Record<string, unknown>;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -182,8 +201,10 @@ export function importSaveString(str: string): GameState | null {
   if (payload.startsWith(EXPORT_PREFIX)) payload = payload.slice(EXPORT_PREFIX.length).trim();
   try {
     const json = fromBase64(payload);
-    const parsed = JSON.parse(json) as GameState;
-    return migrate(parsed);
+    const parsed = JSON.parse(json) as GameState | { save: GameState };
+    // A v2 backup wraps the state as { save, profile }; a bare export IS the state. Back-compat.
+    const state = parsed && typeof parsed === "object" && "save" in parsed ? parsed.save : (parsed as GameState);
+    return migrate(state);
   } catch {
     return null;
   }

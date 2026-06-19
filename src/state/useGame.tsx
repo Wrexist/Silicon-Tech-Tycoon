@@ -70,9 +70,9 @@ import {
   type GameState,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
-import { recordStars } from "./scenarioProgress.ts";
-import { recordChallengeBest, challengeKey } from "./challengeProgress.ts";
-import { addMuseumEntry } from "./museum.ts";
+import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioProgress.ts";
+import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
+import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
 import { scenarioById, canEarnStars } from "../engine/scenarios.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
@@ -80,7 +80,7 @@ import type { ProjectId } from "../engine/research.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
-import { clearSave, exportSaveString, importSaveString, loadResult, save } from "./persistence.ts";
+import { clearSave, exportSaveString, importSaveString, importProfileFromString, loadResult, save } from "./persistence.ts";
 import { withValidatedSandbox } from "./entitlements.ts";
 import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
@@ -507,7 +507,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (weeks <= 0) return;
     // F7 — don't punish time away: floor fans at the pre-catchup value (online decay is untouched).
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
-    const withAch = evaluateAndUnlock(floored).state;
+    const withAch = evaluateAndUnlock(withChallengeScore(floored)).state;
+    syncChallengeBest(floored, withAch, false); // lock + record a challenge that finished while away
     const stamped = Date.now();
     setState(withAch);
     save({ ...withAch, lastActive: stamped });
@@ -684,8 +685,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
   }, []);
-  // Serialize the live state for a downloadable / copyable backup (works pre-first-autosave).
-  const exportSave = useCallback(() => exportSaveString(stateRef.current), []);
+  // Serialize the live state PLUS profile-level progression (legacy, scenario stars, challenge
+  // bests, museum) so a backup is complete and survives a device migration.
+  const exportSave = useCallback(
+    () => exportSaveString(stateRef.current, {
+      legacy: getLegacy(),
+      scenarioStars: getScenarioStars(),
+      challengeBests: getChallengeBests(),
+      museum: getMuseum(),
+    }),
+    [],
+  );
 
   // Validate + apply an imported backup. Returns false (and changes nothing) on a bad string, so
   // the caller can surface a clear error. On success we set the migrated state immutably, stamp
@@ -693,6 +703,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const importSave = useCallback((str: string) => {
     const migrated = importSaveString(str);
     if (!migrated) return false;
+    // Restore profile-level progression from a v2 backup (merged, keeping the best — never a downgrade).
+    const profile = importProfileFromString(str);
+    if (profile) {
+      if (typeof profile.legacy === "number" && profile.legacy > getLegacy()) setLegacy(profile.legacy);
+      mergeScenarioStars(profile.scenarioStars);
+      mergeChallengeBests(profile.challengeBests);
+      mergeMuseum(profile.museum);
+    }
     const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids
     save(next);
