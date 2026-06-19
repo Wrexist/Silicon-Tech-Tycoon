@@ -1,0 +1,113 @@
+/* Shareable result card. Tokens + 8pt grid only (RULE #1). Designed to look premium as a screenshot. */
+.rcard-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.rcard {
+  border-radius: var(--r-sheet, 24px);
+  padding: var(--sp-24);
+  background: linear-gradient(160deg,
+    color-mix(in srgb, var(--accent) 14%, var(--surface)) 0%,
+    var(--surface) 46%);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--hairline));
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-24);
+}
+.rcard__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.rcard__brand {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.rcard__company {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rcard__stars { display: inline-flex; gap: 3px; color: var(--ink-3); flex-shrink: 0; }
+.rcard__star--on { color: var(--mat-gold); }
+
+.rcard__hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.rcard__headline {
+  font-size: var(--fs-display, 30px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.rcard__sub {
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.rcard__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-12);
+}
+.rcard__stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  border: 1px solid var(--hairline);
+}
+.rcard__stat-val {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--ink);
+}
+.rcard__stat-label {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
+.rcard__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
+}
+.rcard__wordmark {
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+.rcard__wordmark-sub {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+
+.rcard__hint {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  text-align: center;
+}

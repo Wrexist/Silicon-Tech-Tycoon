@@ -721,12 +721,35 @@ and they're fully offline/server-free). Built engine-first across 3 commits; 291
       prestige legacy — scenarios are a level playing field). Tokens + 8pt grid (RULE #1).
 - **NOT verified on-device**: card/tracker layout + the confirm overlay; scenario target balance
       (the objective thresholds + Underdog's wk-78 deadline) needs a playtest — flag anything off.
-- **Deferred (follow-up, logged)**: a Scenarios entry on the first-run Onboarding screen (today
-      reachable via Company, like Achievements); a fuller celebratory win sheet; scenario setup
-      overrides for rivals/trends/forced-category (would touch protected competitor/trend init — a
-      separate pass). Next roadmap waves: 1b shareable result cards, 1c replay-variety (more choice
-      events + non-repeating picker; component sidegrades — PROTECTED engine, needs a go-ahead),
-      Wave 2 daily/weekly challenges, Wave 3 OS/Platform DLC.
+- [x] **Onboarding entry** (follow-up done): "Or take on a scenario" link on the first-run screen.
+- **Deferred (follow-up, logged)**: scenario setup overrides for rivals/trends/forced-category
+      (would touch protected competitor/trend init — a separate pass).
+
+## v20.1 — Wave 1b: shareable result cards (DONE 2026-06-19)
+The only "community surface" available without a backend (per RETENTION_ROADMAP §6/Wave 1b);
+also delivers the deferred celebratory win moment. tsc 0, 291 tests, build+PWA green.
+- [x] `components/ResultCard.tsx` — a premium, screenshot-worthy SVG/token card (zero image assets:
+      parametric CircuitBoard brand glyph): company name, scenario name + stars (or "{Era} empire"),
+      4 headline stats (lifetime revenue / net worth / products / fans), wordmark + week. Offers a
+      `navigator.share` TEXT summary where supported (progressive enhancement — deliberately NOT a
+      canvas→PNG rasterizer, which would be fragile + need on-device verification; the universal
+      share is the OS screenshot, and a "Screenshot this card" hint says so).
+- [x] Surfaced from the HQ `ScenarioTracker`: a "View result card" button appears once the player
+      has earned any star; mastery (3★) and failed-deadline closure banners cleaned up alongside.
+- NOT verified on-device: card layout as an actual screenshot; navigator.share behaviour on iOS.
+
+## v20.2 — Wave 1c (partial): choice-event variety (DONE 2026-06-19)
+- [x] `engine/events.ts` CHOICE_EVENTS 13 → 22 (purely additive content; no logic change). 3 era-1
+      (public beta / founder burnout / viral meme), 3 era-2 (green pledge / retailer ultimatum /
+      counterfeit surge), 3 era-3 (privacy reckoning / moonshot lab / talent raid). Reuses existing
+      EventEffect kinds + era-consistent magnitudes → resolveChoice + balance untouched; the picker
+      already avoids repeats within a run, so more events = more run-to-run variety (attacks the
+      GDT "solved/verbatim replay" failure mode). events pool-drain test now covers all 22.
+- **Wave 1c remaining — NEEDS A GO-AHEAD**: component sidegrades (cheaper-but-lower / battery-vs-
+      perf tiers so the optimal recipe isn't a fixed ladder) touch PROTECTED engine (product.ts /
+      catalogs.ts / balance) + need a balance pass — not done without explicit instruction.
+- **Next**: Wave 2 daily/weekly challenges (date-seeded mutators — needs sim-level BALANCE override
+      plumbing, a larger change); Wave 3 OS/Platform DLC (DLC_OS_PLATFORM.md).
 
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently

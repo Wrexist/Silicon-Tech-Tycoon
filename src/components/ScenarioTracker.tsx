@@ -1,8 +1,10 @@
 // In-run scenario objective tracker — shown on HQ while a scenario run is active. Surfaces the
 // immediate goal (the next unmet star tier) with live progress, the stars earned so far, and a
 // closure banner on full mastery (3★) or a failed deadline. Reads the pure selector; no new state.
-import { Star } from "lucide-react";
-import { Card } from "../design/primitives.tsx";
+import { useState } from "react";
+import { Star, Share2 } from "lucide-react";
+import { Button, Card, Sheet } from "../design/primitives.tsx";
+import { ResultCard } from "./ResultCard.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { scenarioResultFor } from "../state/gameState.ts";
 import { scenarioById, type ScenarioMetric, type ScenarioTier } from "../engine/scenarios.ts";
@@ -37,6 +39,7 @@ function Stars({ n }: { n: number }) {
 
 export function ScenarioTracker() {
   const { state } = useGame();
+  const [cardOpen, setCardOpen] = useState(false);
   if (!state.activeScenario) return null;
   const scn = scenarioById(state.activeScenario);
   const res = scenarioResultFor(state);
@@ -48,6 +51,9 @@ export function ScenarioTracker() {
     ? res.objectives.filter((o) => o.tier === nextTier.stars)
     : [];
 
+  // A scenario whose deadline lapsed before the 1★ goal (and never won) is a loss.
+  const lost = res.failed && res.stars === 0;
+
   return (
     <Card className="scn-track">
       <div className="scn-track__top">
@@ -55,17 +61,20 @@ export function ScenarioTracker() {
         <Stars n={res.stars} />
       </div>
 
-      {res.stars === 3 ? (
+      {res.stars === 3 && (
         <div className="scn-track__banner scn-track__banner--win">Scenario mastered — all three stars earned.</div>
-      ) : res.failed ? (
+      )}
+
+      {lost && (
         <div className="scn-track__banner scn-track__banner--fail">
           Deadline passed (week {scn.deadlineWeek}). The 1★ goal wasn’t met — restart from Scenarios to try again.
         </div>
-      ) : (
+      )}
+
+      {/* Show the live goal whenever the run is ongoing and not mastered. */}
+      {!lost && nextTier && (
         <>
-          <span className="scn-track__label">
-            Next: {nextTier?.stars}★ goal
-          </span>
+          <span className="scn-track__label">Next: {nextTier.stars}★ goal</span>
           <ul className="scn-track__objs">
             {tierObjectives.map((o, i) => {
               const frac = o.objective.target > 0 ? Math.max(0, Math.min(1, o.current / o.objective.target)) : (o.met ? 1 : 0);
@@ -84,6 +93,17 @@ export function ScenarioTracker() {
           </ul>
         </>
       )}
+
+      {/* Once the player has earned any star, let them open the shareable result card. */}
+      {res.won && (
+        <Button size="sm" variant="secondary" onClick={() => setCardOpen(true)}>
+          <Share2 size={15} /> View result card
+        </Button>
+      )}
+
+      <Sheet open={cardOpen} onClose={() => setCardOpen(false)}>
+        <ResultCard state={state} result={res} />
+      </Sheet>
     </Card>
   );
 }
