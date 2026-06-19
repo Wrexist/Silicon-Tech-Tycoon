@@ -58,9 +58,12 @@ import {
   restStaff,
   upgradeFacility,
   seedFeedSeq,
+  scenarioResultFor,
   type GameState,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
+import { recordStars } from "./scenarioProgress.ts";
+import { scenarioById } from "../engine/scenarios.ts";
 import type { Assignment } from "../engine/types.ts";
 import type { ProjectId } from "../engine/research.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
@@ -211,6 +214,29 @@ function withLiveAchievements(next: GameState): GameState {
   const { state: out, unlocked } = evaluateAndUnlock(next);
   announceAchievements(unlocked);
   return out;
+}
+
+/** Record any new scenario star earned on this state into the profile store, and celebrate a new
+ *  best with one toast. Like announceAchievements, this is called only from the once-per-week tick
+ *  gate (recordStars is idempotent — it writes only on improvement — so a StrictMode double-invoke
+ *  can't double-celebrate or double-write). No-op for freeform runs. */
+function announceScenarioStars(state: GameState): void {
+  if (!state.activeScenario) return;
+  const res = scenarioResultFor(state);
+  if (!res || res.stars <= 0) return;
+  const { improved, best } = recordStars(state.activeScenario, res.stars);
+  if (!improved) return;
+  const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
+  setTimeout(() => {
+    try {
+      showToast(`${best}★ earned — ${name}`, {
+        tone: "positive",
+        glyph: createElement(achievementIcon("Star"), { size: 15 }),
+      });
+    } catch {
+      /* toast host not mounted (e.g. tests) */
+    }
+  }, 800);
 }
 
 interface GameContextValue {
@@ -380,6 +406,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           withStaffLevelToasts(s, next);
           withProductFinishToasts(s, next);
           announceAchievements(unlocked);
+          announceScenarioStars(next);
         }
         return out;
       });

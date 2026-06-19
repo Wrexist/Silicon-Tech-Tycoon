@@ -249,6 +249,8 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.unlockedAchievements)) s.unlockedAchievements = [];
   if (s.pendingChoice === undefined) s.pendingChoice = null;
   if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
+  // Scenario mode (added later): old saves are freeform runs → no active scenario.
+  if (typeof s.activeScenario !== "string") s.activeScenario = null;
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
   if (!Number.isFinite(s.desktops) || s.desktops < 0) s.desktops = 0;
   // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at

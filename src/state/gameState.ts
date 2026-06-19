@@ -90,6 +90,7 @@ import { buildCost, componentSynergy, computeStats, missingSlots, overallScore }
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
+import { deriveScenarioFacts, evaluateScenario, scenarioById, type ScenarioResult } from "../engine/scenarios.ts";
 import type {
   Assignment,
   BuildJob,
@@ -186,6 +187,9 @@ export interface GameState {
   pendingChoice: { event: ChoiceEvent; week: number } | null;
   /** IDs of choice events already resolved — prevents repeats. */
   resolvedChoices: string[];
+  /** Scenario this run is playing (id from engine/scenarios.ts), or null for a freeform game.
+   *  Per-RUN only — the BEST stars earned per scenario live in the profile store (scenarioProgress). */
+  activeScenario: string | null;
 }
 
 export const REV_MILESTONES = [
@@ -344,7 +348,41 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     unlockedAchievements: [],
     pendingChoice: null,
     resolvedChoices: [],
+    activeScenario: null,
   };
+}
+
+/** Start a scenario run: a normal new game with the scenario's authored start overrides applied on
+ *  top (era/cash/reputation/fans — the fields that vary a start without touching protected engine
+ *  init). Scenarios skip the freeform onboarding + tutorial coach (the player chose a goal-driven
+ *  run, not a fresh founding). Unknown id → a normal freeform game (defensive). */
+export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): GameState {
+  const base = newGame(seed, legacy);
+  const scn = scenarioById(scenarioId);
+  if (!scn) return base;
+  const { era, cash, reputation, fans } = scn.setup;
+  const startCash = cash ?? base.cash;
+  return {
+    ...base,
+    activeScenario: scenarioId,
+    era: era ?? base.era,
+    cash: startCash,
+    reputation: reputation ?? base.reputation,
+    fans: fans ?? base.fans,
+    onboarded: true,
+    tutorialDone: true,
+    cashHistory: [{ week: 0, cash: toDollars(startCash) }],
+    feed: [feedItem(0, `Scenario started — ${scn.name}. ${scn.tagline}`, "accent")],
+  };
+}
+
+/** Evaluate the active scenario against the current state. null for a freeform game (or an unknown
+ *  scenario id). Pure — the UI tracker and the tick both read this. */
+export function scenarioResultFor(state: GameState): ScenarioResult | null {
+  if (!state.activeScenario) return null;
+  const scn = scenarioById(state.activeScenario);
+  if (!scn) return null;
+  return evaluateScenario(scn, deriveScenarioFacts(state));
 }
 
 // ---------- Derived selectors ----------
