@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Building2, Coffee, FlaskConical, PencilRuler, Megaphone, Rocket, Search, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Building2, Coffee, FlaskConical, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
+import { ScenariosSheet } from "./Scenarios.tsx";
+import { SCENARIOS } from "../engine/scenarios.ts";
+import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
 import { Avatar } from "../components/Avatar.tsx";
@@ -91,7 +94,10 @@ export function Company() {
   const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest } = useGame();
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [scenariosOpen, setScenariosOpen] = useState(false);
   const achievementCount = state.unlockedAchievements.length;
+  // Recomputed each render (localStorage read is cheap) so it reflects stars earned this session.
+  const scenarioStars = Object.values(getScenarioStars()).reduce((a, b) => a + b, 0);
   const fac = facility(state);
   const wkBurn = burn(state);
   const wkPayroll = weeklyPayroll(state.staff);
@@ -263,6 +269,16 @@ export function Company() {
         <span className="co__ach-count tnum">{achievementCount}<span className="co__ach-count-total">/{ACHIEVEMENT_COUNT}</span></span>
       </button>
 
+      {/* Scenarios entry */}
+      <button className="co__ach-row" onClick={() => setScenariosOpen(true)} aria-label="View scenarios">
+        <span className="co__ach-glyph" aria-hidden><Target size={20} /></span>
+        <span className="co__ach-info">
+          <span className="co__ach-title">Scenarios</span>
+          <span className="co__ach-sub">Hand-crafted challenges with star goals</span>
+        </span>
+        <span className="co__ach-count tnum">{scenarioStars}<span className="co__ach-count-total">/{SCENARIOS.length * 3}★</span></span>
+      </button>
+
       {/* Near-achievement progress */}
       <NearMilestonesCard state={state} />
 
@@ -314,6 +330,10 @@ export function Company() {
 
       <Sheet open={achievementsOpen} onClose={() => setAchievementsOpen(false)}>
         <AchievementsSheet unlocked={state.unlockedAchievements} onClose={() => setAchievementsOpen(false)} />
+      </Sheet>
+
+      <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)}>
+        <ScenariosSheet onClose={() => setScenariosOpen(false)} />
       </Sheet>
     </div>
   );

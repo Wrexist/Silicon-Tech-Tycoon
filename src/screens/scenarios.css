@@ -1,0 +1,230 @@
+/* Scenarios picker + in-run tracker. Tokens + 8pt grid only (RULE #1). Mirrors achievements.css. */
+.scn {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.scn__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-16);
+}
+.scn__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}
+.scn__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin-top: var(--sp-2);
+  line-height: 1.4;
+}
+.scn__count {
+  flex-shrink: 0;
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  color: var(--mat-gold);
+}
+.scn__count-total {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+/* Stars */
+.scn__stars {
+  display: inline-flex;
+  gap: 2px;
+  color: var(--ink-3);
+}
+.scn__star--on {
+  color: var(--mat-gold);
+}
+
+.scn__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-16);
+}
+.scn__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding: var(--sp-16);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-card);
+}
+.scn__card--played {
+  border-color: color-mix(in srgb, var(--mat-gold) 34%, var(--hairline));
+}
+.scn__card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.scn__diff {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px var(--sp-8);
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  color: var(--ink-2);
+}
+.scn__diff--standard { color: var(--accent); background: var(--accent-soft); }
+.scn__diff--hard { color: var(--warning-text); background: var(--warning-soft); }
+.scn__diff--expert { color: var(--negative-text); background: var(--negative-soft); }
+.scn__name {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.scn__tagline {
+  font-size: var(--fs-body);
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.scn__desc {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.scn__tiers {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  margin: var(--sp-6) 0;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+}
+.scn__tier {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  opacity: 0.7;
+}
+.scn__tier--met { opacity: 1; }
+.scn__tier-objs {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.scn__tier--met .scn__tier-objs { color: var(--ink); }
+.scn__deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-caption);
+  color: var(--warning-text);
+}
+
+/* Confirm overlay */
+.scn__confirm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+  border-radius: inherit;
+  padding: var(--sp-16);
+}
+.scn__confirm-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-modal, var(--shadow-card));
+  padding: var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.scn__confirm-title { font-size: var(--fs-headline); font-weight: 700; }
+.scn__confirm-text { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; }
+.scn__confirm-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+  margin-top: var(--sp-4);
+}
+
+/* ---------- In-run tracker card (HQ) ---------- */
+.scn-track {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.scn-track__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.scn-track__name {
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+.scn-track__label {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.scn-track__objs {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.scn-track__obj {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.scn-track__obj-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  font-size: var(--fs-caption);
+}
+.scn-track__obj-label { color: var(--ink-2); }
+.scn-track__obj--met .scn-track__obj-label { color: var(--ink); }
+.scn-track__obj-val { color: var(--ink-3); flex-shrink: 0; font-weight: 600; }
+.scn-track__bar {
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.scn-track__bar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-standard);
+}
+.scn-track__obj--met .scn-track__bar-fill { background: var(--positive); }
+.scn-track__banner {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  line-height: 1.4;
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+}
+.scn-track__banner--win { color: var(--positive-text); background: var(--positive-soft); }
+.scn-track__banner--fail { color: var(--negative-text); background: var(--negative-soft); }

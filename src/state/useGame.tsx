@@ -59,6 +59,7 @@ import {
   upgradeFacility,
   seedFeedSeq,
   scenarioResultFor,
+  newScenarioGame,
   type GameState,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
@@ -273,6 +274,8 @@ interface GameContextValue {
   goPublic: () => void;
   prestige: () => void;
   restart: () => void;
+  /** Begin a scenario run (overwrites the current save with the scenario's authored start). */
+  startScenario: (id: string) => void;
   markOnboarded: () => void;
   dismissTutorial: () => void;
   // save export / import (offline backup)
@@ -688,6 +691,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
   }, []);
 
+  // Scenarios are a level playing field: they deliberately do NOT inherit the prestige legacy bonus
+  // (that would break each scenario's hand-authored start, e.g. Bootstrapped's tight cash). The
+  // start values come entirely from the scenario's setup.
+  const startScenario = useCallback((id: string) => {
+    clearSave();
+    setState(newScenarioGame(id));
+    setOffline(null);
+    setPaused(false);
+    setFast(false);
+  }, []);
+
   const clearOffline = useCallback(() => setOffline(null), []);
 
   const value = useMemo<GameContextValue>(
@@ -721,6 +735,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       goPublic: goPublicCb,
       prestige,
       restart,
+      startScenario,
       markOnboarded,
       dismissTutorial,
       exportSave,
@@ -747,7 +762,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
