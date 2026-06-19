@@ -72,6 +72,7 @@ import {
 import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars } from "./scenarioProgress.ts";
 import { recordChallengeBest, challengeKey } from "./challengeProgress.ts";
+import { addMuseumEntry } from "./museum.ts";
 import { scenarioById } from "../engine/scenarios.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
@@ -548,7 +549,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const result = launchReady(stateRef.current, productId);
     // A launch can immediately cross a milestone (first ship, a hit, a hit streak, a sellout) — so
     // evaluate + celebrate right here, not only on the next weekly tick.
-    if (result.ok) setState(withLiveAchievements(result.state));
+    if (result.ok) {
+      const next = withLiveAchievements(result.state);
+      // Enshrine the freshly-shipped device in the permanent museum (newest is launched[0]).
+      const lp = next.launched[0];
+      if (lp) {
+        addMuseumEntry({
+          key: `${next.seed}-${lp.product.id}-${lp.launchedWeek}`,
+          product: lp.product,
+          name: lp.product.name,
+          category: lp.product.category,
+          era: next.era,
+          companyName: next.companyName,
+          week: lp.launchedWeek,
+          verdict: lp.verdict,
+        });
+      }
+      setState(next);
+    }
     return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
   }, []);
 

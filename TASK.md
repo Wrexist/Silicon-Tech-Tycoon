@@ -806,6 +806,24 @@ The offline Mini Motorways model (date-seeded, no backend/leaderboard). Built en
 - **Next**: Wave 3 OS/Platform DLC (DLC_OS_PLATFORM.md); Wave 1c component sidegrades (PROTECTED
       engine — needs a go-ahead); the NG+/mastery + content-cadence items in RETENTION_ROADMAP Wave 4.
 
+## v23 — Wave 4: Device Museum (cross-run collection meta-progression) (DONE 2026-06-19)
+The "new thinking" headline from RETENTION_ROADMAP §3 — leans into the pillars (devices are
+parametric SVG, "the product is the toy"): every device you ship is enshrined in a permanent,
+browsable museum that PERSISTS across New Game+ and restarts. Retention via collection, not
+engagement-farming. 333 tests, tsc 0, build+PWA green.
+- [x] **Profile store** (`state/museum.ts`, +1 test file): newest-first, capped at 60, de-duped by
+      key, corruption-tolerant, native-mirrored (added to MIRROR_KEYS). Stores the renderable
+      Product + name/category/era/company/week/verdict.
+- [x] **Recorded on launch** (useGame.launchReadyCb) — each shipped device is enshrined the moment
+      it launches (keyed by seed+productId+week, so re-runs don't collide).
+- [x] **UI** (`screens/Museum.tsx`): a 2-col gallery re-rendering each device via DeviceRenderer
+      (zero assets) with name/category/era/company/verdict; premium empty state. Reached from a
+      Device Museum row in Company (always available).
+- **NOT verified on-device**: gallery layout + DeviceRenderer at 120px thumb size.
+- **Wave 4 remaining (open)**: NG+/mastery depth beyond bigger numbers; era-distinct mechanics;
+      run-history "this week in tech" headlines; bankruptcy post-mortem share card. RETENTION_ROADMAP
+      Wave 4 + the "new thinking" list track these.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with

@@ -1,0 +1,47 @@
+// Device museum — a permanent, cross-run collection of every device you've shipped. Profile-level
+// (separate from the game save), so your design legacy persists across New Game+ and restarts.
+// Leans into the pillars: devices are parametric SVG ("the product is the toy", zero image assets),
+// so the museum re-renders them from the stored Product with no assets. Retention via collection,
+// not engagement-farming (RETENTION_ROADMAP §3, "new thinking").
+import { mirrorToNative } from "./nativeStore.ts";
+import type { CategoryId, Product } from "../engine/types.ts";
+
+const KEY = "silicon.museum.v1";
+const CAP = 60; // keep the most recent N shipped devices (bounds localStorage)
+
+export interface MuseumEntry {
+  key: string; // unique
+  product: Product; // renderable via DeviceRenderer (zero assets)
+  name: string;
+  category: CategoryId;
+  era: number;
+  companyName: string;
+  week: number;
+  verdict?: string; // "hit" | "solid" | "flop" | "steady"
+}
+
+export function getMuseum(): MuseumEntry[] {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    // Tolerant: keep only entries that can actually render (have a product + category).
+    return (parsed as MuseumEntry[]).filter((e) => e && e.product && e.category && typeof e.name === "string");
+  } catch {
+    return [];
+  }
+}
+
+/** Add a freshly-shipped device to the museum (newest first, capped). De-dupes by key. */
+export function addMuseumEntry(entry: MuseumEntry): void {
+  const list = getMuseum().filter((e) => e.key !== entry.key);
+  const next = [entry, ...list].slice(0, CAP);
+  const serialized = JSON.stringify(next);
+  try {
+    localStorage.setItem(KEY, serialized);
+  } catch {
+    /* ignore */
+  }
+  mirrorToNative(KEY, serialized);
+}

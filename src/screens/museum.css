@@ -1,0 +1,42 @@
+/* Device Museum. Tokens + 8pt grid only (RULE #1). */
+.mus { display: flex; flex-direction: column; }
+.mus__head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-12); margin-bottom: var(--sp-16);
+}
+.mus__title { font-size: var(--fs-title); font-weight: 700; }
+.mus__sub { font-size: var(--fs-caption); color: var(--ink-2); margin-top: var(--sp-2); line-height: 1.4; }
+.mus__count { flex-shrink: 0; font-size: var(--fs-headline); font-weight: 700; color: var(--accent); }
+
+.mus__grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-16);
+}
+.mus__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-card);
+}
+.mus__device {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+}
+.mus__meta { display: flex; flex-direction: column; gap: var(--sp-2); }
+.mus__name { font-weight: 700; font-size: var(--fs-body); line-height: 1.2; }
+.mus__detail {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  font-size: var(--fs-caption); color: var(--ink-2);
+}
+.mus__detail--sub { color: var(--ink-3); font-size: var(--fs-nano); }

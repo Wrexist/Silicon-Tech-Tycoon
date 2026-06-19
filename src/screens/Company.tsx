@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Building2, CalendarDays, Coffee, FlaskConical, Layers, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Boxes, Building2, CalendarDays, Coffee, FlaskConical, Layers, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ScenariosSheet } from "./Scenarios.tsx";
 import { ChallengesSheet } from "./Challenges.tsx";
 import { PlatformSheet } from "./Platform.tsx";
+import { MuseumSheet } from "./Museum.tsx";
+import { getMuseum } from "../state/museum.ts";
 import { osDisplayName } from "../state/gameState.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
 import { getScenarioStars } from "../state/scenarioProgress.ts";
@@ -100,6 +102,8 @@ export function Company() {
   const [scenariosOpen, setScenariosOpen] = useState(false);
   const [challengesOpen, setChallengesOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
+  const [museumOpen, setMuseumOpen] = useState(false);
+  const museumCount = getMuseum().length;
   const achievementCount = state.unlockedAchievements.length;
   // Recomputed each render (localStorage read is cheap) so it reflects stars earned this session.
   const scenarioStars = Object.values(getScenarioStars()).reduce((a, b) => a + b, 0);
@@ -293,6 +297,16 @@ export function Company() {
         </span>
       </button>
 
+      {/* Device museum — your shipped-device legacy across all runs */}
+      <button className="co__ach-row" onClick={() => setMuseumOpen(true)} aria-label="Open the device museum">
+        <span className="co__ach-glyph" aria-hidden><Boxes size={20} /></span>
+        <span className="co__ach-info">
+          <span className="co__ach-title">Device Museum</span>
+          <span className="co__ach-sub">Every device you've ever shipped</span>
+        </span>
+        {museumCount > 0 && <span className="co__ach-count tnum">{museumCount}</span>}
+      </button>
+
       {/* Platform division (DLC) — only when unlocked */}
       {state.platformUnlocked && (
         <button className="co__ach-row" onClick={() => setPlatformOpen(true)} aria-label="Open the Platform division">
@@ -367,6 +381,10 @@ export function Company() {
 
       <Sheet open={platformOpen} onClose={() => setPlatformOpen(false)}>
         <PlatformSheet onClose={() => setPlatformOpen(false)} />
+      </Sheet>
+
+      <Sheet open={museumOpen} onClose={() => setMuseumOpen(false)}>
+        <MuseumSheet onClose={() => setMuseumOpen(false)} />
       </Sheet>
     </div>
   );
