@@ -8,7 +8,6 @@ import { ResultCard } from "./ResultCard.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { scenarioResultFor } from "../state/gameState.ts";
 import { scenarioById, canEarnStars, type ScenarioMetric, type ScenarioTier } from "../engine/scenarios.ts";
-import { bestStars } from "../state/scenarioProgress.ts";
 import { eraName } from "../engine/eras.ts";
 import { dollars, format } from "../engine/money.ts";
 import "../screens/scenarios.css";
@@ -46,12 +45,13 @@ export function ScenarioTracker() {
   const res = scenarioResultFor(state);
   if (!scn || !res) return null;
 
-  // Once past the deadline the run is settled: show the EARNED (recorded, deadline-honest) result,
-  // not late live progress — stars stop being earnable after the deadline (see announceScenarioStars).
-  const pastDeadline = !canEarnStars(scn, state.week);
-  const earned = bestStars(state.activeScenario);
-  const stars = pastDeadline ? earned : res.stars;
-  const lost = pastDeadline && earned === 0;
+  // Stars shown are RUN-SCOPED (state.scenarioRunStars), never the cross-run profile best, so a
+  // replay reflects this run, not history. While still earnable, take the live max for instant
+  // feedback; once the deadline passes, the run-scoped count is frozen and authoritative.
+  const earnable = canEarnStars(scn, state.week);
+  const pastDeadline = !earnable;
+  const stars = earnable ? Math.max(state.scenarioRunStars, res.stars) : state.scenarioRunStars;
+  const lost = pastDeadline && stars === 0;
 
   // The tier the player is working toward now (stars 0→1★, 1→2★, 2→3★; 3 = mastered).
   const nextTier: ScenarioTier | null = !pastDeadline && stars < 3 ? scn.tiers[stars as 0 | 1 | 2] : null;

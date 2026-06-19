@@ -109,7 +109,9 @@ export function Company() {
   const earnedAchievements = [...new Set([...getProfileAchievements(), ...state.unlockedAchievements])];
   const achievementCount = earnedAchievements.length;
   // Recomputed each render (localStorage read is cheap) so it reflects stars earned this session.
-  const scenarioStars = Object.values(getScenarioStars()).reduce((a, b) => a + b, 0);
+  // Scope to the active catalog so stale ids from old backups can't push the total past the max.
+  const storedScenarioStars = getScenarioStars();
+  const scenarioStars = SCENARIOS.reduce((sum, s) => sum + (storedScenarioStars[s.id] ?? 0), 0);
   const fac = facility(state);
   const wkBurn = burn(state);
   const wkPayroll = weeklyPayroll(state.staff);

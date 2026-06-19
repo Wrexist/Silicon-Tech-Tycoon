@@ -99,6 +99,15 @@ describe("challenge best store", () => {
     expect(bestScore(key)).toBe(null); // corrupt store reads as empty
   });
 
+  it("never persists a non-finite score (no corruption)", async () => {
+    const { recordChallengeBest, bestScore, challengeKey } = await import("./challengeProgress.ts");
+    const key = challengeKey("daily", "2026-01-01");
+    recordChallengeBest(key, 5000);
+    expect(recordChallengeBest(key, NaN)).toEqual({ improved: false, best: 5000 });
+    expect(recordChallengeBest(key, Infinity)).toEqual({ improved: false, best: 5000 });
+    expect(bestScore(key)).toBe(5000); // unchanged
+  });
+
   it("challengeHistory lists recorded results newest-first (kind-stable)", async () => {
     const { recordChallengeBest, challengeKey, challengeHistory } = await import("./challengeProgress.ts");
     recordChallengeBest(challengeKey("daily", "2026-06-19"), 100);

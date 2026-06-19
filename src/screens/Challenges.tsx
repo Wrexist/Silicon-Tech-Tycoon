@@ -27,12 +27,14 @@ interface Target { kind: ChallengeKind; dateKey: string; }
 
 function shareCode(kind: ChallengeKind, dateKey: string): void {
   const code = encodeChallengeCode(kind, dateKey);
-  const done = () => showToast(`Code copied — ${code}`, { tone: "positive", glyph: <Share2 size={15} /> });
+  const onCopied = () => showToast(`Code copied — ${code}`, { tone: "positive", glyph: <Share2 size={15} /> });
+  // Clipboard unavailable or denied → surface the code so the player can copy it manually.
+  const onFallback = () => showToast(`Share code: ${code}`, { tone: "neutral", glyph: <Share2 size={15} /> });
   try {
-    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(done).catch(done);
-    else done();
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(onCopied).catch(onFallback);
+    else onFallback();
   } catch {
-    done();
+    onFallback();
   }
 }
 
@@ -154,7 +156,8 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
       <Button block variant="secondary" onClick={onClose}>Done</Button>
 
       {confirm && (
-        <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting challenge">
+        <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting challenge"
+          onKeyDown={(e) => { if (e.key === "Escape") setConfirm(null); }}>
           <div className="scn__confirm-card">
             <p className="scn__confirm-title">Start this {confirm.kind} challenge?</p>
             <p className="scn__confirm-text">
@@ -162,7 +165,7 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
               Your best scores and museum are kept.
             </p>
             <div className="scn__confirm-row">
-              <Button variant="secondary" onClick={() => setConfirm(null)}>Cancel</Button>
+              <Button variant="secondary" autoFocus onClick={() => setConfirm(null)}>Cancel</Button>
               <Button onClick={() => begin(confirm)}>Start</Button>
             </div>
           </div>

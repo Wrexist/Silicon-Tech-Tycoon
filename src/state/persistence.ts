@@ -272,14 +272,15 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
   // Scenario mode (added later): old saves are freeform runs → no active scenario.
   if (typeof s.activeScenario !== "string") s.activeScenario = null;
+  if (!Number.isFinite(s.scenarioRunStars) || s.scenarioRunStars < 0) s.scenarioRunStars = 0;
   // Challenge mode (added later): keep a well-formed activeChallenge or null; locked score numeric/null.
   {
     const ac = s.activeChallenge;
     s.activeChallenge =
-      ac && typeof ac === "object" && typeof ac.dateKey === "string" && typeof ac.scoreWeek === "number"
+      ac && typeof ac === "object" && typeof ac.dateKey === "string" && Number.isFinite(ac.scoreWeek)
         ? ac
         : null;
-    if (typeof s.challengeScore !== "number") s.challengeScore = null;
+    if (!Number.isFinite(s.challengeScore)) s.challengeScore = null;
   }
   // Platform / OS division (DLC, added later): default locked + a v1 OS for old saves.
   if (typeof s.platformUnlocked !== "boolean") s.platformUnlocked = false;

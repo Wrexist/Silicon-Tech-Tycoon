@@ -90,7 +90,7 @@ import { buildCost, componentSynergy, computeStats, missingSlots, overallScore }
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
-import { deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
+import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
 import { canReleaseVersion, installedBase, licenseeStrengthUplift, osReleaseReward, osTier, rivalLicenseFee, type OsTierInfo } from "../engine/platform.ts";
 import { perkBonuses } from "../engine/perks.ts";
@@ -193,6 +193,9 @@ export interface GameState {
   /** Scenario this run is playing (id from engine/scenarios.ts), or null for a freeform game.
    *  Per-RUN only — the BEST stars earned per scenario live in the profile store (scenarioProgress). */
   activeScenario: string | null;
+  /** Stars earned in THIS run (run-scoped, monotonic, frozen after a deadline passes). The tracker
+   *  reads this — never the cross-run profile best — so a replay reflects the current run, not history. */
+  scenarioRunStars: number;
   /** Active daily/weekly challenge run (null otherwise). The full challenge is re-derivable from
    *  kind+dateKey (deterministic); scoreMetric/scoreWeek are stored for a cheap, explicit tick check. */
   activeChallenge: { kind: ChallengeKind; dateKey: string; scoreMetric: ScenarioMetric; scoreWeek: number } | null;
@@ -366,6 +369,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingChoice: null,
     resolvedChoices: [],
     activeScenario: null,
+    scenarioRunStars: 0,
     activeChallenge: null,
     challengeScore: null,
     platformUnlocked: false,
@@ -465,6 +469,19 @@ export function scenarioResultFor(state: GameState): ScenarioResult | null {
   const scn = scenarioById(state.activeScenario);
   if (!scn) return null;
   return evaluateScenario(scn, deriveScenarioFacts(state));
+}
+
+/** Advance the run-scoped scenario star count (pure, idempotent). Monotonic and only ever rises
+ *  while stars are still EARNABLE (gated by canEarnStars), so it freezes once a deadline passes —
+ *  the tracker reads this for a replay-accurate, history-free result. Folded into the tick like
+ *  withChallengeScore. */
+export function withScenarioRunStars(state: GameState): GameState {
+  if (!state.activeScenario) return state;
+  const scn = scenarioById(state.activeScenario);
+  if (!scn || !canEarnStars(scn, state.week)) return state;
+  const res = evaluateScenario(scn, deriveScenarioFacts(state));
+  if (res.stars <= state.scenarioRunStars) return state;
+  return { ...state, scenarioRunStars: res.stars };
 }
 
 // ---------- Derived selectors ----------
@@ -948,13 +965,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
   });
 
-  // Research points generated this week
-  // Must match the weeklyRpGen selector (incl. the Workstations upgrade), else the UI lies.
+  // Research points generated this week — accrue through the SAME selector the UI shows, so the
+  // displayed rate and the earned amount can never diverge (this previously omitted the office-focus
+  // multiplier and, later, the legacy perk bonus — the UI lied for players who had them).
   // RP must stay a non-negative integer: partial (offline, rate=0.5) ticks accrue
   // fractional RP, so floor on accrual to keep the counter clean.
-  const researchPoints = floorRP(
-    state.researchPoints + weeklyRp(state.staff, state.era) * rpMultiplier(state.upgrades) * rate,
-  );
+  const researchPoints = floorRP(state.researchPoints + weeklyRpGen(state) * rate);
 
   // Manufacturing: advance build jobs; completed ones move to the "ready" shelf
   const building: BuildJob[] = [];

@@ -107,7 +107,8 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
       <Button block variant="secondary" onClick={onClose}>Done</Button>
 
       {confirmScenario && (
-        <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting scenario">
+        <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting scenario"
+          onKeyDown={(e) => { if (e.key === "Escape") setConfirmId(null); }}>
           <div className="scn__confirm-card">
             <p className="scn__confirm-title">Start “{confirmScenario.name}”?</p>
             <p className="scn__confirm-text">
@@ -115,7 +116,7 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
               Scenario stars and your museum are kept.
             </p>
             <div className="scn__confirm-row">
-              <Button variant="secondary" onClick={() => setConfirmId(null)}>Cancel</Button>
+              <Button variant="secondary" autoFocus onClick={() => setConfirmId(null)}>Cancel</Button>
               <Button onClick={() => begin(confirmScenario.id)}>Start</Button>
             </div>
           </div>

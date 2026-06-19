@@ -2,7 +2,7 @@
 // evaluates the active scenario, and the profile-level best-stars store is monotonic + persistent.
 // node env (no DOM) → stub localStorage on globalThis, mirroring persistence.test.ts.
 import { describe, it, expect, beforeEach } from "vitest";
-import { newGame, newScenarioGame, scenarioResultFor } from "./gameState.ts";
+import { newGame, newScenarioGame, scenarioResultFor, withScenarioRunStars } from "./gameState.ts";
 import { SCENARIOS, scenarioById } from "../engine/scenarios.ts";
 import { dollars, toDollars } from "../engine/money.ts";
 
@@ -45,6 +45,29 @@ describe("newScenarioGame", () => {
   it("an unknown scenario id falls back to a freeform game", () => {
     const g = newScenarioGame("does-not-exist", 7);
     expect(g.activeScenario).toBe(null);
+  });
+});
+
+describe("withScenarioRunStars (run-scoped, replay-safe)", () => {
+  it("is a no-op for a freeform run", () => {
+    expect(withScenarioRunStars(newGame(1)).scenarioRunStars).toBe(0);
+  });
+
+  it("rises monotonically while stars are earnable", () => {
+    // first-light 1★ = $250K revenue; inject it and advance the run-star count.
+    const g = { ...newScenarioGame("first-light", 1), cumulativeRevenue: dollars(250_000) };
+    expect(g.scenarioRunStars).toBe(0);
+    const after = withScenarioRunStars(g);
+    expect(after.scenarioRunStars).toBeGreaterThanOrEqual(1);
+    // never decreases even if facts would imply fewer
+    const lowered = withScenarioRunStars({ ...after, cumulativeRevenue: dollars(0) });
+    expect(lowered.scenarioRunStars).toBe(after.scenarioRunStars);
+  });
+
+  it("freezes once a deadline scenario's deadline passes (no late credit)", () => {
+    // underdog has a wk-78 deadline; past it, run stars can't advance.
+    const g = { ...newScenarioGame("underdog", 1), week: 200, cumulativeRevenue: dollars(5_000_000) };
+    expect(withScenarioRunStars(g).scenarioRunStars).toBe(0);
   });
 });
 

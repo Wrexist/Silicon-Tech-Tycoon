@@ -62,6 +62,7 @@ import {
   newScenarioGame,
   newChallengeGame,
   withChallengeScore,
+  withScenarioRunStars,
   setOsName,
   unlockPlatform,
   releaseOsVersion,
@@ -385,7 +386,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
     // Fold in any achievements earned while away SILENTLY (no toast backlog on return). migrate()
     // already backfilled the on-disk earned set; this catches milestones crossed during catch-up.
-    const withAch = evaluateAndUnlock(withChallengeScore(floored)).state;
+    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored))).state;
     mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
     // A challenge whose scoreWeek was crossed while away locks + records its best silently here.
     syncChallengeBest(floored, withAch, false);
@@ -452,7 +453,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
-        const next = withChallengeScore(advanceOneWeek(s));
+        const next = withScenarioRunStars(withChallengeScore(advanceOneWeek(s)));
         const { state: out, unlocked } = evaluateAndUnlock(next);
         if (next.week !== announcedWeekRef.current) {
           announcedWeekRef.current = next.week;
@@ -514,7 +515,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (weeks <= 0) return;
     // F7 — don't punish time away: floor fans at the pre-catchup value (online decay is untouched).
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
-    const withAch = evaluateAndUnlock(withChallengeScore(floored)).state;
+    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored))).state;
     mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
     syncChallengeBest(floored, withAch, false); // lock + record a challenge that finished while away
     const stamped = Date.now();
@@ -720,7 +721,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       mergeScenarioStars(profile.scenarioStars);
       mergeChallengeBests(profile.challengeBests);
       mergeMuseum(profile.museum);
-      mergeProfileAchievements(profile.achievements as unknown[] | undefined);
+      mergeProfileAchievements(Array.isArray(profile.achievements) ? profile.achievements : undefined);
     }
     const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids
@@ -801,6 +802,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // (that would break each scenario's hand-authored start, e.g. Bootstrapped's tight cash). The
   // start values come entirely from the scenario's setup.
   const startScenario = useCallback((id: string) => {
+    mergeProfileAchievements(stateRef.current.unlockedAchievements); // keep this run's milestones
     clearSave();
     setState({ ...newScenarioGame(id), platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);
@@ -811,6 +813,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this
   // overwrites the current save; the per-date personal best lives in the profile store.
   const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string) => {
+    mergeProfileAchievements(stateRef.current.unlockedAchievements); // keep this run's milestones
     clearSave();
     setState({ ...newChallengeGame(kind, dateKey ?? dateKeyOf(new Date())), platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);

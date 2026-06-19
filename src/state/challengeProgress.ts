@@ -72,6 +72,8 @@ export function mergeChallengeBests(incoming: unknown): void {
 /** Record a score for a challenge, keeping only the best. Returns whether it improved + the best. */
 export function recordChallengeBest(key: string, score: number): { improved: boolean; best: number } {
   const s = Math.round(Number(score));
+  // Never persist a non-finite score: it serializes to null and rehydrates as 0, corrupting bests.
+  if (!Number.isFinite(s)) return { improved: false, best: bestScore(key) ?? 0 };
   const map = getChallengeBests();
   const prev = map[key];
   if (prev != null && s <= prev) return { improved: false, best: prev };

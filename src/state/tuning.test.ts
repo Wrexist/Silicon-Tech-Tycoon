@@ -4,6 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { newGame, productStats } from "./gameState.ts";
 import { computeStats } from "../engine/product.ts";
+import { BALANCE } from "../engine/balance.ts";
 import type { Product, ProductTuning } from "../engine/types.ts";
 
 function draft(tuning: ProductTuning): Product {
@@ -51,7 +52,7 @@ describe("build tuning (state-layer)", () => {
       const st = productStats(s, draft(t));
       for (const v of Object.values(st)) {
         expect(v).toBeGreaterThanOrEqual(0);
-        expect(v).toBeLessThanOrEqual(100);
+        expect(v).toBeLessThanOrEqual(BALANCE.statMax);
       }
     }
   });

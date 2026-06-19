@@ -26,8 +26,10 @@ export function getMuseum(): MuseumEntry[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    // Tolerant: keep only entries that can actually render (have a product + category).
-    return (parsed as MuseumEntry[]).filter((e) => e && e.product && e.category && typeof e.name === "string");
+    // Tolerant: keep only entries that can render AND have a string key (used for de-dup + list identity).
+    return (parsed as MuseumEntry[]).filter(
+      (e) => e && typeof e.key === "string" && e.key.length > 0 && e.product && e.category && typeof e.name === "string",
+    );
   } catch {
     return [];
   }

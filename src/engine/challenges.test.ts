@@ -120,6 +120,7 @@ describe("shareable challenge codes", () => {
     expect(decodeChallengeCode("nope")).toBe(null);
     expect(decodeChallengeCode("ST-X-20260101")).toBe(null);
     expect(decodeChallengeCode("ST-D-20261301")).toBe(null); // month 13
+    expect(decodeChallengeCode("ST-D-20260230")).toBe(null); // Feb 30 — impossible day
     expect(decodeChallengeCode("ST-D-2026")).toBe(null);
     expect(decodeChallengeCode("")).toBe(null);
   });

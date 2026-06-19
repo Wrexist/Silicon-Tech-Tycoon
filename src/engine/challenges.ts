@@ -59,6 +59,11 @@ export function decodeChallengeCode(code: string): { kind: ChallengeKind; dateKe
   const mo = Number(m[3]);
   const d = Number(m[4]);
   if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  // Reject impossible calendar dates (e.g. 2026-02-30) — Date would silently roll them over to a
+  // different day, resolving to a different challenge than the code implies.
+  const y = Number(m[2]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== mo || dt.getUTCDate() !== d) return null;
   const dateKey = `${m[2]}-${m[3]}-${m[4]}`;
   const kind: ChallengeKind = m[1].toUpperCase() === "W" ? "weekly" : "daily";
   // Weekly challenges are Monday-anchored — normalize so any day in the week resolves identically.

@@ -54,7 +54,9 @@ export function osReleaseReward(base: number): ReleaseReward {
  *  uplift (licenseeStrengthUplift) — is applied where launch competition is evaluated. */
 export function rivalLicenseFee(rivalReputation: number, osTierNum: number): Money {
   const p = BALANCE.platform;
-  const d = p.licenseFeeBase + Math.max(0, rivalReputation) * Math.max(1, Math.floor(osTierNum)) * p.licenseFeePerRepTier;
+  const rep = Number.isFinite(rivalReputation) ? Math.max(0, rivalReputation) : 0;
+  const tier = Number.isFinite(osTierNum) ? Math.max(1, Math.floor(osTierNum)) : 1;
+  const d = p.licenseFeeBase + rep * tier * p.licenseFeePerRepTier;
   return dollars(Math.min(p.licenseFeeCap, Math.round(d)));
 }
 
