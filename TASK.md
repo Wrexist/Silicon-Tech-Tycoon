@@ -697,6 +697,37 @@ speed controls; finishing a design had no closure; the boosts list scrolled fore
       scroll. Now a wrapped chip cloud (effect on `title`) with a "Details" expander.
 - [x] tsc 0, 219 tests green, build + PWA green.
 
+## v20 — Scenario mode (retention Wave 1a) (DONE 2026-06-19)
+The retention backbone from RETENTION_ROADMAP.md (competitor research: RollerCoaster Tycoon +
+Two Point Hospital — scenarios with tiered 1–3★ win conditions are what carry tycoon replayability,
+and they're fully offline/server-free). Built engine-first across 3 commits; 291 tests, tsc 0, build+PWA green.
+- [x] **Engine** (`engine/scenarios.ts`, PURE + 13 tests): `Scenario` = authored start overrides
+      (era/cash/reputation/fans) + `[1★,2★,3★]` tiers, each an AND of `Objective`s that read ONLY
+      data the engine already tracks (cumulativeRevenue/netWorth/reputation/fans/productsShipped/
+      hits/era). Pure evaluators + a `deriveScenarioFacts(state)` adapter (mirrors achievements.ts).
+      6-scenario catalog spanning the curve (First Light → Bootstrapped → Head Start → Underdog →
+      The Long Game → Empire). A tier-monotonicity property test pins that a higher star can never
+      be easier than a lower one.
+- [x] **State** (`state/gameState.ts` + `scenarioProgress.ts`, +9 tests): `activeScenario` per-run
+      tag (+persistence backfill → null for old saves); `newScenarioGame(id)` applies the setup over
+      `newGame` and skips onboarding/coach; `scenarioResultFor(state)` selector. Best-stars-per-
+      scenario live in a PROFILE store (separate localStorage key, mirrored to native Preferences +
+      added to MIRROR_KEYS for durability) so mastery survives restarts/NG+. The tick records a new
+      best + one celebratory toast in the same once-per-week gate as achievements (idempotent write).
+- [x] **UI**: `ScenariosSheet` (premium card list — difficulty chip, the three tiers, earned stars,
+      confirm-before-overwrite Play) reached from a Scenarios row in Company (mirrors Achievements);
+      `ScenarioTracker` on HQ shows the next unmet tier's objectives with live progress bars + a
+      closure banner on 3★ mastery / failed deadline. `useGame.startScenario(id)` (does NOT inherit
+      prestige legacy — scenarios are a level playing field). Tokens + 8pt grid (RULE #1).
+- **NOT verified on-device**: card/tracker layout + the confirm overlay; scenario target balance
+      (the objective thresholds + Underdog's wk-78 deadline) needs a playtest — flag anything off.
+- **Deferred (follow-up, logged)**: a Scenarios entry on the first-run Onboarding screen (today
+      reachable via Company, like Achievements); a fuller celebratory win sheet; scenario setup
+      overrides for rivals/trends/forced-category (would touch protected competitor/trend init — a
+      separate pass). Next roadmap waves: 1b shareable result cards, 1c replay-variety (more choice
+      events + non-repeating picker; component sidegrades — PROTECTED engine, needs a go-ahead),
+      Wave 2 daily/weekly challenges, Wave 3 OS/Platform DLC.
+
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently
   freezes the scene — do with eyes on the office); furniture instancing (F13, draw calls scale with
