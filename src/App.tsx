@@ -12,6 +12,7 @@ import { Confetti } from "./design/Confetti.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { Settings } from "./screens/Settings.tsx";
+import { ScenariosSheet } from "./screens/Scenarios.tsx";
 import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, type Money } from "./engine/money.ts";
@@ -317,6 +318,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
 function Onboarding({ onStart }: { onStart: () => void }) {
   const { markOnboarded, setCompanyName } = useGame();
   const [name, setName] = useState("");
+  const [scenariosOpen, setScenariosOpen] = useState(false);
   const found = () => {
     if (name.trim()) setCompanyName(name);
     markOnboarded();
@@ -353,8 +355,14 @@ function Onboarding({ onStart }: { onStart: () => void }) {
           <Button block onClick={found}>
             Found {name.trim() || "Silicon"}
           </Button>
+          <button className="onboard__scenario-link" onClick={() => setScenariosOpen(true)}>
+            Or take on a scenario
+          </button>
         </div>
       </div>
+      <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)}>
+        <ScenariosSheet onClose={() => setScenariosOpen(false)} />
+      </Sheet>
     </div>
   );
 }
