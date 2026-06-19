@@ -202,6 +202,8 @@ export function Company() {
               <span
                 key={lp.product.id}
                 className={`co__track-dot co__track-dot--${lp.verdict}`}
+                role="img"
+                aria-label={`${lp.product.name}: ${lp.verdict}`}
                 title={`${lp.product.name}: ${lp.verdict}`}
               />
             ))}
