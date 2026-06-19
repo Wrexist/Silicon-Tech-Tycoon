@@ -73,7 +73,7 @@ import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars } from "./scenarioProgress.ts";
 import { recordChallengeBest, challengeKey } from "./challengeProgress.ts";
 import { addMuseumEntry } from "./museum.ts";
-import { scenarioById } from "../engine/scenarios.ts";
+import { scenarioById, canEarnStars } from "../engine/scenarios.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
 import type { ProjectId } from "../engine/research.ts";
@@ -233,6 +233,10 @@ function withLiveAchievements(next: GameState): GameState {
  *  can't double-celebrate or double-write). No-op for freeform runs. */
 function announceScenarioStars(state: GameState): void {
   if (!state.activeScenario) return;
+  // Deadline scenarios are a hard cutoff: stars can only be EARNED on or before the deadline week,
+  // so a player can't blow the deadline and then grind the goal out for late credit.
+  const scn = scenarioById(state.activeScenario);
+  if (scn && !canEarnStars(scn, state.week)) return;
   const res = scenarioResultFor(state);
   if (!res || res.stars <= 0) return;
   const { improved, best } = recordStars(state.activeScenario, res.stars);
@@ -675,7 +679,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setLegacy(next);
     clearSave();
     // New Game+ players already know the ropes — skip onboarding + the first-build coach.
-    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true });
+    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
@@ -756,7 +760,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const restart = useCallback(() => {
     clearSave();
-    setState(newGame(undefined, getLegacy()));
+    // Platform is an entitlement, not run progress — keep it across a fresh company.
+    setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
@@ -767,7 +772,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // start values come entirely from the scenario's setup.
   const startScenario = useCallback((id: string) => {
     clearSave();
-    setState(newScenarioGame(id));
+    setState({ ...newScenarioGame(id), platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);
     setPaused(false);
     setFast(false);
@@ -777,7 +782,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // overwrites the current save; the per-date personal best lives in the profile store.
   const startChallenge = useCallback((kind: ChallengeKind) => {
     clearSave();
-    setState(newChallengeGame(kind, dateKeyOf(new Date())));
+    setState({ ...newChallengeGame(kind, dateKeyOf(new Date())), platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);
     setPaused(false);
     setFast(false);

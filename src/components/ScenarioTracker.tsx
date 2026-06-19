@@ -7,7 +7,8 @@ import { Button, Card, Sheet } from "../design/primitives.tsx";
 import { ResultCard } from "./ResultCard.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { scenarioResultFor } from "../state/gameState.ts";
-import { scenarioById, type ScenarioMetric, type ScenarioTier } from "../engine/scenarios.ts";
+import { scenarioById, canEarnStars, type ScenarioMetric, type ScenarioTier } from "../engine/scenarios.ts";
+import { bestStars } from "../state/scenarioProgress.ts";
 import { eraName } from "../engine/eras.ts";
 import { dollars, format } from "../engine/money.ts";
 import "../screens/scenarios.css";
@@ -45,23 +46,27 @@ export function ScenarioTracker() {
   const res = scenarioResultFor(state);
   if (!scn || !res) return null;
 
+  // Once past the deadline the run is settled: show the EARNED (recorded, deadline-honest) result,
+  // not late live progress — stars stop being earnable after the deadline (see announceScenarioStars).
+  const pastDeadline = !canEarnStars(scn, state.week);
+  const earned = bestStars(state.activeScenario);
+  const stars = pastDeadline ? earned : res.stars;
+  const lost = pastDeadline && earned === 0;
+
   // The tier the player is working toward now (stars 0→1★, 1→2★, 2→3★; 3 = mastered).
-  const nextTier: ScenarioTier | null = res.stars < 3 ? scn.tiers[res.stars as 0 | 1 | 2] : null;
+  const nextTier: ScenarioTier | null = !pastDeadline && stars < 3 ? scn.tiers[stars as 0 | 1 | 2] : null;
   const tierObjectives = nextTier
     ? res.objectives.filter((o) => o.tier === nextTier.stars)
     : [];
-
-  // A scenario whose deadline lapsed before the 1★ goal (and never won) is a loss.
-  const lost = res.failed && res.stars === 0;
 
   return (
     <Card className="scn-track">
       <div className="scn-track__top">
         <span className="scn-track__name">{scn.name}</span>
-        <Stars n={res.stars} />
+        <Stars n={stars} />
       </div>
 
-      {res.stars === 3 && (
+      {stars === 3 && (
         <div className="scn-track__banner scn-track__banner--win">Scenario mastered — all three stars earned.</div>
       )}
 
@@ -95,7 +100,7 @@ export function ScenarioTracker() {
       )}
 
       {/* Once the player has earned any star, let them open the shareable result card. */}
-      {res.won && (
+      {stars > 0 && (
         <Button size="sm" variant="secondary" onClick={() => setCardOpen(true)}>
           <Share2 size={15} /> View result card
         </Button>

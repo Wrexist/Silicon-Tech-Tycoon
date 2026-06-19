@@ -7,6 +7,7 @@ import {
   objectiveMet,
   tierMet,
   scenarioById,
+  canEarnStars,
   type Scenario,
   type ScenarioFacts,
   type ScenarioMetric,
@@ -105,6 +106,15 @@ describe("evaluateScenario", () => {
   it("a scenario with no deadline never fails", () => {
     const noDeadline: Scenario = { ...scn, deadlineWeek: undefined };
     expect(evaluateScenario(noDeadline, { ...zeroFacts(), week: 9999 }).failed).toBe(false);
+  });
+
+  it("canEarnStars enforces the deadline as a hard cutoff (no late credit)", () => {
+    // deadline scenario: earnable up to & including the deadline week, not after.
+    expect(canEarnStars(scn, 50)).toBe(true);
+    expect(canEarnStars(scn, 51)).toBe(false);
+    // no-deadline scenario: always earnable.
+    const noDeadline: Scenario = { ...scn, deadlineWeek: undefined };
+    expect(canEarnStars(noDeadline, 99_999)).toBe(true);
   });
 });
 

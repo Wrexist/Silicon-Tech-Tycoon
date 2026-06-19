@@ -149,6 +149,13 @@ export function scenarioById(id: string): Scenario | undefined {
   return SCENARIOS.find((s) => s.id === id);
 }
 
+/** Whether stars can still be EARNED at the given week. Deadline scenarios are a hard cutoff: a
+ *  player can't blow the deadline and then grind the goal out for late credit. Non-deadline
+ *  scenarios are always earnable. */
+export function canEarnStars(scenario: Scenario, week: number): boolean {
+  return scenario.deadlineWeek == null || week <= scenario.deadlineWeek;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Catalog — single source of truth for scenario content. Spans the difficulty curve.
 // Targets are grounded in real balance thresholds (era gates: 35 rep / $500K to leave the Garage
