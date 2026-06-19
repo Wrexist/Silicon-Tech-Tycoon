@@ -90,7 +90,8 @@ import { buildCost, componentSynergy, computeStats, missingSlots, overallScore }
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
-import { deriveScenarioFacts, evaluateScenario, scenarioById, type ScenarioResult } from "../engine/scenarios.ts";
+import { deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
+import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
 import type {
   Assignment,
   BuildJob,
@@ -190,6 +191,11 @@ export interface GameState {
   /** Scenario this run is playing (id from engine/scenarios.ts), or null for a freeform game.
    *  Per-RUN only — the BEST stars earned per scenario live in the profile store (scenarioProgress). */
   activeScenario: string | null;
+  /** Active daily/weekly challenge run (null otherwise). The full challenge is re-derivable from
+   *  kind+dateKey (deterministic); scoreMetric/scoreWeek are stored for a cheap, explicit tick check. */
+  activeChallenge: { kind: ChallengeKind; dateKey: string; scoreMetric: ScenarioMetric; scoreWeek: number } | null;
+  /** Final locked challenge score, set once the challenge's scoreWeek is reached (null until then). */
+  challengeScore: number | null;
 }
 
 export const REV_MILESTONES = [
@@ -349,6 +355,67 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingChoice: null,
     resolvedChoices: [],
     activeScenario: null,
+    activeChallenge: null,
+    challengeScore: null,
+  };
+}
+
+/** Start a daily/weekly challenge: a freeform run seeded from the date with the challenge's
+ *  date-seeded mutators applied as start overrides. Deterministic — everyone playing the same
+ *  date's challenge gets the same market. Score locks at scoreWeek (see withChallengeScore). */
+export function newChallengeGame(kind: ChallengeKind, dateKey: string): GameState {
+  const ch = kind === "weekly" ? weeklyChallenge(dateKey) : dailyChallenge(dateKey);
+  const base = newGame(ch.seed);
+  let cash = base.cash;
+  let reputation = base.reputation;
+  let fans = base.fans;
+  for (const m of ch.mutators) {
+    if (m.cashMult != null) cash = scale(cash, m.cashMult);
+    if (m.reputation != null) reputation = m.reputation;
+    if (m.fans != null) fans = m.fans;
+  }
+  return {
+    ...base,
+    cash,
+    reputation,
+    fans,
+    onboarded: true,
+    tutorialDone: true,
+    activeChallenge: { kind: ch.kind, dateKey: ch.dateKey, scoreMetric: ch.scoreMetric, scoreWeek: ch.scoreWeek },
+    challengeScore: null,
+    cashHistory: [{ week: 0, cash: toDollars(cash) }],
+    feed: [feedItem(0, `${kind === "weekly" ? "Weekly" : "Daily"} challenge — ${ch.mutators.map((m) => m.name).join(" + ")}. Score: best ${ch.scoreMetric} by week ${ch.scoreWeek}.`, "accent")],
+  };
+}
+
+/** Lock the challenge's final score once its scoreWeek is reached (pure, idempotent). Called from
+ *  the tick alongside evaluateAndUnlock; the score is a snapshot of the scored metric at that week. */
+export function withChallengeScore(state: GameState): GameState {
+  const ch = state.activeChallenge;
+  if (!ch || state.challengeScore != null || state.week < ch.scoreWeek) return state;
+  const score = Math.round(metricValue(deriveScenarioFacts(state), ch.scoreMetric));
+  return { ...state, challengeScore: score };
+}
+
+export interface ChallengeView {
+  challenge: Challenge;
+  /** Current value of the scored metric (live progress before the score locks). */
+  current: number;
+  /** The locked final score, or null while still in progress. */
+  final: number | null;
+  weeksLeft: number;
+}
+
+/** UI view of the active challenge (null for non-challenge runs). */
+export function challengeViewFor(state: GameState): ChallengeView | null {
+  const ch = state.activeChallenge;
+  if (!ch) return null;
+  const challenge = ch.kind === "weekly" ? weeklyChallenge(ch.dateKey) : dailyChallenge(ch.dateKey);
+  return {
+    challenge,
+    current: Math.round(metricValue(deriveScenarioFacts(state), ch.scoreMetric)),
+    final: state.challengeScore,
+    weeksLeft: Math.max(0, ch.scoreWeek - state.week),
   };
 }
 

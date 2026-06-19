@@ -7,6 +7,8 @@ import {
   dateKeyOf,
   mondayOf,
   hashSeed,
+  formatScore,
+  scoreMetricLabel,
 } from "./challenges.ts";
 
 describe("mutator catalog", () => {
@@ -92,5 +94,21 @@ describe("weeklyChallenge", () => {
 
   it("differs from the same date's daily challenge", () => {
     expect(weeklyChallenge("2026-06-19").seed).not.toBe(dailyChallenge("2026-06-19").seed);
+  });
+});
+
+describe("score formatting", () => {
+  it("formats money metrics as currency, fans compactly, others as integers", () => {
+    expect(formatScore("netWorth", 1_500_000)).toMatch(/^\$/);
+    expect(formatScore("cumulativeRevenue", 250_000)).toMatch(/^\$/);
+    expect(formatScore("fans", 12_345)).toBe("12k");
+    expect(formatScore("fans", 2_000_000)).toBe("2.0M");
+    expect(formatScore("fans", 500)).toBe("500");
+    expect(formatScore("reputation", 73.6)).toBe("74");
+  });
+
+  it("labels every metric", () => {
+    expect(scoreMetricLabel("netWorth")).toBe("net worth");
+    expect(scoreMetricLabel("fans")).toBe("fans");
   });
 });

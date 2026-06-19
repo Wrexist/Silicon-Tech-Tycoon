@@ -60,11 +60,15 @@ import {
   seedFeedSeq,
   scenarioResultFor,
   newScenarioGame,
+  newChallengeGame,
+  withChallengeScore,
   type GameState,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars } from "./scenarioProgress.ts";
+import { recordChallengeBest, challengeKey } from "./challengeProgress.ts";
 import { scenarioById } from "../engine/scenarios.ts";
+import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
 import type { ProjectId } from "../engine/research.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
@@ -240,6 +244,28 @@ function announceScenarioStars(state: GameState): void {
   }, 800);
 }
 
+/** Record a completed challenge's score into the profile store (idempotent — only writes on a new
+ *  best). When `announce` and the score just locked this tick (prev had none), celebrate once. */
+function syncChallengeBest(prev: GameState, next: GameState, announce: boolean): void {
+  const ch = next.activeChallenge;
+  if (!ch || next.challengeScore == null) return;
+  const { improved, best } = recordChallengeBest(challengeKey(ch.kind, ch.dateKey), next.challengeScore);
+  if (!announce || prev.challengeScore != null) return; // only on the locking transition
+  const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
+  const scored = formatScore(ch.scoreMetric, next.challengeScore);
+  const tail = improved ? " — new best!" : ` · best ${formatScore(ch.scoreMetric, best)}`;
+  setTimeout(() => {
+    try {
+      showToast(`${label} complete — ${scored}${tail}`, {
+        tone: "positive",
+        glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
+      });
+    } catch {
+      /* toast host not mounted (e.g. tests) */
+    }
+  }, 800);
+}
+
 interface GameContextValue {
   state: GameState;
   paused: boolean;
@@ -276,6 +302,8 @@ interface GameContextValue {
   restart: () => void;
   /** Begin a scenario run (overwrites the current save with the scenario's authored start). */
   startScenario: (id: string) => void;
+  /** Begin today's daily or weekly challenge (overwrites the current save). */
+  startChallenge: (kind: ChallengeKind) => void;
   markOnboarded: () => void;
   dismissTutorial: () => void;
   // save export / import (offline backup)
@@ -336,7 +364,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
     // Fold in any achievements earned while away SILENTLY (no toast backlog on return). migrate()
     // already backfilled the on-disk earned set; this catches milestones crossed during catch-up.
-    const withAch = evaluateAndUnlock(floored).state;
+    const withAch = evaluateAndUnlock(withChallengeScore(floored)).state;
+    // A challenge whose scoreWeek was crossed while away locks + records its best silently here.
+    syncChallengeBest(floored, withAch, false);
     // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
     save({ ...withAch, lastActive: Date.now() });
     const topProduct = weeks > 0 ? topSellerWhileAway(loaded, withAch) : null;
@@ -400,7 +430,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
-        const next = advanceOneWeek(s);
+        const next = withChallengeScore(advanceOneWeek(s));
         const { state: out, unlocked } = evaluateAndUnlock(next);
         if (next.week !== announcedWeekRef.current) {
           announcedWeekRef.current = next.week;
@@ -410,6 +440,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           withProductFinishToasts(s, next);
           announceAchievements(unlocked);
           announceScenarioStars(next);
+          syncChallengeBest(s, next, true);
         }
         return out;
       });
@@ -702,6 +733,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setFast(false);
   }, []);
 
+  // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this
+  // overwrites the current save; the per-date personal best lives in the profile store.
+  const startChallenge = useCallback((kind: ChallengeKind) => {
+    clearSave();
+    setState(newChallengeGame(kind, dateKeyOf(new Date())));
+    setOffline(null);
+    setPaused(false);
+    setFast(false);
+  }, []);
+
   const clearOffline = useCallback(() => setOffline(null), []);
 
   const value = useMemo<GameContextValue>(
@@ -736,6 +777,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       prestige,
       restart,
       startScenario,
+      startChallenge,
       markOnboarded,
       dismissTutorial,
       exportSave,
@@ -762,7 +804,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

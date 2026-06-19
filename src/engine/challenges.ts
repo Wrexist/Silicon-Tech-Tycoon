@@ -10,6 +10,7 @@
 // can apply with zero sim changes; deeper sim-level mutators (no-marketing, fixed-price, recession)
 // are a documented future extension that lands with the BALANCE-override plumbing.
 import { makeRng } from "./rng.ts";
+import { dollars, format } from "./money.ts";
 import type { ScenarioMetric } from "./scenarios.ts";
 
 export interface Mutator {
@@ -116,4 +117,29 @@ export function weeklyChallenge(dateKey: string): Challenge {
   const mutators = pickMutators(rng, 2 + rng.int(2)); // 2 or 3
   const scoreMetric = SCORE_METRICS[rng.int(SCORE_METRICS.length)];
   return { kind: "weekly", dateKey: anchor, seed, mutators, scoreMetric, scoreWeek: 104 };
+}
+
+const SCORE_METRIC_LABEL: Record<ScenarioMetric, string> = {
+  netWorth: "net worth",
+  cumulativeRevenue: "lifetime revenue",
+  fans: "fans",
+  reputation: "reputation",
+  productsShipped: "products shipped",
+  hits: "hit products",
+  era: "era",
+};
+
+export function scoreMetricLabel(metric: ScenarioMetric): string {
+  return SCORE_METRIC_LABEL[metric];
+}
+
+/** Format a score for display, by metric (money → $; fans → compact; else integer). Pure. */
+export function formatScore(metric: ScenarioMetric, value: number): string {
+  const v = Math.round(value);
+  if (metric === "netWorth" || metric === "cumulativeRevenue") return format(dollars(v));
+  if (metric === "fans") {
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `${(v / 1_000).toFixed(v >= 10_000 ? 0 : 1)}k`;
+  }
+  return String(v);
 }

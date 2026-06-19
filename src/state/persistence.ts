@@ -251,6 +251,15 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
   // Scenario mode (added later): old saves are freeform runs → no active scenario.
   if (typeof s.activeScenario !== "string") s.activeScenario = null;
+  // Challenge mode (added later): keep a well-formed activeChallenge or null; locked score numeric/null.
+  {
+    const ac = s.activeChallenge;
+    s.activeChallenge =
+      ac && typeof ac === "object" && typeof ac.dateKey === "string" && typeof ac.scoreWeek === "number"
+        ? ac
+        : null;
+    if (typeof s.challengeScore !== "number") s.challengeScore = null;
+  }
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
   if (!Number.isFinite(s.desktops) || s.desktops < 0) s.desktops = 0;
   // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at
