@@ -92,6 +92,7 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
+import { canReleaseVersion, installedBase, osReleaseReward, osTier, type OsTierInfo } from "../engine/platform.ts";
 import type {
   Assignment,
   BuildJob,
@@ -196,6 +197,13 @@ export interface GameState {
   activeChallenge: { kind: ChallengeKind; dateKey: string; scoreMetric: ScenarioMetric; scoreWeek: number } | null;
   /** Final locked challenge score, set once the challenge's scoreWeek is reached (null until then). */
   challengeScore: number | null;
+  // --- Platform / OS division (DLC #1) ---
+  /** DLC entitlement — the Platform division UI + levers are hidden unless this is true. */
+  platformUnlocked: boolean;
+  /** Player-named OS line (empty → defaults to "<Company> OS" for display). */
+  osName: string;
+  /** Released OS version number — caught up to the software research tier via releaseOsVersion. */
+  osVersion: number;
 }
 
 export const REV_MILESTONES = [
@@ -357,6 +365,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     activeScenario: null,
     activeChallenge: null,
     challengeScore: null,
+    platformUnlocked: false,
+    osName: "",
+    osVersion: 1,
   };
 }
 
@@ -1706,6 +1717,44 @@ export function setWallStyle(state: GameState, i: number): GameState {
 export function setCompanyName(state: GameState, name: string): GameState {
   const trimmed = name.trim().slice(0, 18);
   return { ...state, companyName: trimmed || "Silicon" };
+}
+
+// ---------- Platform / OS division (DLC #1) ----------
+/** Devices in the field running your OS. */
+export const platformInstalledBase = (s: GameState): number => installedBase(s.launched);
+/** Current OS tier (name + number) from the software research level. */
+export const osTierInfo = (s: GameState): OsTierInfo => osTier(s.researched.software);
+/** Display name for the OS — the player's name, or "<Company> OS" by default. */
+export const osDisplayName = (s: GameState): string => (s.osName.trim() || `${s.companyName} OS`);
+/** Can a new OS version be released right now (research has advanced past the released version)? */
+export const canReleaseOsVersion = (s: GameState): boolean => canReleaseVersion(s.osVersion, s.researched.software);
+
+/** Unlock (or re-lock) the Platform division — the DLC entitlement gate. */
+export function unlockPlatform(state: GameState, on: boolean): GameState {
+  return { ...state, platformUnlocked: on };
+}
+
+/** Rename the OS line (empty clears back to the "<Company> OS" default). */
+export function setOsName(state: GameState, name: string): GameState {
+  return { ...state, osName: name.trim().slice(0, 22) };
+}
+
+/** Release a new OS version — a software "launch day": catches the released version up to your
+ *  research tier and grants a one-time, bounded reputation + fan lift across the installed base.
+ *  No-op unless the Platform division is unlocked and research is actually ahead. */
+export function releaseOsVersion(state: GameState): GameState {
+  if (!state.platformUnlocked || !canReleaseOsVersion(state)) return state;
+  const newVersion = osTierInfo(state).tier;
+  const reward = osReleaseReward(platformInstalledBase(state));
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${osDisplayName(state)} ${newVersion}.0 released — the installed base updated. +${reward.fans.toLocaleString()} fans.`, "positive"));
+  return {
+    ...state,
+    osVersion: newVersion,
+    reputation: Math.min(100, state.reputation + reward.reputation),
+    fans: state.fans + reward.fans,
+    feed: trimFeed(feed),
+  };
 }
 
 /** Reassign a staff member to a different function. */

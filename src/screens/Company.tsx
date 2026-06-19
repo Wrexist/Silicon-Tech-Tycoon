@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Building2, CalendarDays, Coffee, FlaskConical, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Building2, CalendarDays, Coffee, FlaskConical, Layers, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ScenariosSheet } from "./Scenarios.tsx";
 import { ChallengesSheet } from "./Challenges.tsx";
+import { PlatformSheet } from "./Platform.tsx";
+import { osDisplayName } from "../state/gameState.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
 import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
@@ -97,6 +99,7 @@ export function Company() {
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const [scenariosOpen, setScenariosOpen] = useState(false);
   const [challengesOpen, setChallengesOpen] = useState(false);
+  const [platformOpen, setPlatformOpen] = useState(false);
   const achievementCount = state.unlockedAchievements.length;
   // Recomputed each render (localStorage read is cheap) so it reflects stars earned this session.
   const scenarioStars = Object.values(getScenarioStars()).reduce((a, b) => a + b, 0);
@@ -290,6 +293,17 @@ export function Company() {
         </span>
       </button>
 
+      {/* Platform division (DLC) — only when unlocked */}
+      {state.platformUnlocked && (
+        <button className="co__ach-row" onClick={() => setPlatformOpen(true)} aria-label="Open the Platform division">
+          <span className="co__ach-glyph" aria-hidden><Layers size={20} /></span>
+          <span className="co__ach-info">
+            <span className="co__ach-title">Platform</span>
+            <span className="co__ach-sub">{osDisplayName(state)} · installed base & licensing</span>
+          </span>
+        </button>
+      )}
+
       {/* Near-achievement progress */}
       <NearMilestonesCard state={state} />
 
@@ -349,6 +363,10 @@ export function Company() {
 
       <Sheet open={challengesOpen} onClose={() => setChallengesOpen(false)}>
         <ChallengesSheet onClose={() => setChallengesOpen(false)} />
+      </Sheet>
+
+      <Sheet open={platformOpen} onClose={() => setPlatformOpen(false)}>
+        <PlatformSheet onClose={() => setPlatformOpen(false)} />
       </Sheet>
     </div>
   );

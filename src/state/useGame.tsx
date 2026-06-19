@@ -62,6 +62,9 @@ import {
   newScenarioGame,
   newChallengeGame,
   withChallengeScore,
+  setOsName,
+  unlockPlatform,
+  releaseOsVersion,
   type GameState,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
@@ -311,6 +314,10 @@ interface GameContextValue {
   importSave: (str: string) => boolean;
   setCompanyName: (name: string) => void;
   setSandboxActive: (on: boolean) => void;
+  // Platform / OS division (DLC #1)
+  setOsName: (name: string) => void;
+  unlockPlatform: (on: boolean) => void;
+  releaseOsVersion: () => void;
   // office builder
   placeFurniture: (type: FurnitureId, c: number, r: number, rot: Rot) => void;
   moveFurniture: (iid: string, c: number, r: number) => void;
@@ -676,6 +683,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
   // caller (Settings only shows the toggle once the IAP entitlement is held).
   const setSandboxActive = useCallback((on: boolean) => setState((s) => ({ ...s, sandboxUnlocked: on })), []);
+  const setOsNameCb = useCallback((name: string) => setState((s) => setOsName(s, name)), []);
+  const unlockPlatformCb = useCallback((on: boolean) => setState((s) => unlockPlatform(s, on)), []);
+  const releaseOsVersionCb = useCallback(() => {
+    setState((s) => {
+      const next = withLiveAchievements(releaseOsVersion(s));
+      if (next !== s) sfx("era");
+      return next;
+    });
+  }, []);
   const placeFurnitureCb = useCallback((type: FurnitureId, c: number, r: number, rot: Rot) => setState((s) => placeFurniture(s, type, c, r, rot)), []);
   const moveFurnitureCb = useCallback((iid: string, c: number, r: number) => setState((s) => moveFurniture(s, iid, c, r)), []);
   const rotateFurnitureCb = useCallback((iid: string) => setState((s) => rotateFurniture(s, iid)), []);
@@ -784,6 +800,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       importSave,
       setCompanyName: setCompanyNameCb,
       setSandboxActive,
+      setOsName: setOsNameCb,
+      unlockPlatform: unlockPlatformCb,
+      releaseOsVersion: releaseOsVersionCb,
       placeFurniture: placeFurnitureCb,
       moveFurniture: moveFurnitureCb,
       rotateFurniture: rotateFurnitureCb,
@@ -804,7 +823,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setOsNameCb, unlockPlatformCb, releaseOsVersionCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

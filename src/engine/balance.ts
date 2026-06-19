@@ -413,6 +413,16 @@ export const BALANCE = {
     minEcosystemStat: 20,      // ecosystem below this threshold earns nothing — the platform is too weak
   },
 
+  // --- Platform / OS division (DLC #1). The recurring licensing revenue is just the ecosystem
+  // services above, reframed. These constants size only the one-time OS-version-release MOMENT —
+  // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
+  platform: {
+    releaseRepBonus: 4,          // one-time reputation lift per OS version release
+    releaseFanBaseBonus: 2_000,  // base fans gained on release
+    releaseFanPerKInstalled: 5,  // + fans per 1,000 devices in the installed base
+    releaseFanCap: 60_000,       // hard cap (no free faucet)
+  },
+
   // --- Staff churn: underpaid or burnt-out staff eventually quit ---
   churn: {
     moodQuitThreshold: 22,    // mood below this counts as "danger zone"

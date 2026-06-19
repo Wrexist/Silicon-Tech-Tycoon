@@ -748,6 +748,29 @@ also delivers the deferred celebratory win moment. tsc 0, 291 tests, build+PWA g
 - **Wave 1c remaining — NEEDS A GO-AHEAD**: component sidegrades (cheaper-but-lower / battery-vs-
       perf tiers so the optimal recipe isn't a fixed ladder) touch PROTECTED engine (product.ts /
       catalogs.ts / balance) + need a balance pass — not done without explicit instruction.
+## v22 — Wave 3: Platform / OS division DLC (Phase A+B) (DONE 2026-06-19)
+DLC #1 per DLC_OS_PLATFORM.md — surfaces the OS economy that already runs invisibly (software line
++ ecosystem stat + recurring ecosystem-service revenue) as a first-class, gated division. Engine→
+state→UI; 325 tests, tsc 0, build+PWA green.
+- [x] **Engine** (`engine/platform.ts`, PURE + 6 tests): `installedBase`, `osTier` (software level →
+      tier name), `canReleaseVersion`, `osReleaseReward` (bounded, hard-capped fan bonus — the
+      "no free faucet" guard from spec §5). `BALANCE.platform` constants.
+- [x] **State** (+5 tests): `platformUnlocked` (DLC gate), `osName`, `osVersion` (+persistence
+      backfill + newGame defaults). Selectors `platformInstalledBase` / `osTierInfo` / `osDisplayName`
+      / `canReleaseOsVersion`; actions `unlockPlatform` / `setOsName` / `releaseOsVersion`. Licensing
+      revenue is the EXISTING `weeklyEcosystemRevenue`, reframed (no formula duplication → no drift).
+- [x] **UI**: `PlatformSheet` (name your OS, tier, installed base, licensing $/wk, version + a
+      release-version "launch day" button) — gated, reached from a Platform row in Company (shown
+      only when unlocked). Settings → Expansions → a "Platform Division" unlock switch (entitlement
+      gate; real IAP purchase wiring deferred like the existing sandbox stub).
+- **Phase B** (version release) is a one-time, BOUNDED rep/fan moment tied to advancing the Software
+      research tier — deliberately NOT a recurring rate change, so the tuned economy is undisturbed.
+- **DEFERRED — Phase C (license your OS to rivals)**: recurring rival fees + a competitiveness uplift
+      = the most balance-sensitive surface (needs tick-integrated fee collection + rival-strength
+      changes + a playtest). Engine/state are structured to extend into it; documented, not built.
+- **NOT verified on-device**: Platform sheet layout; release reward magnitudes (4 rep / 2k+capped
+      fans) need a playtest.
+
 ## v21 — Wave 2: daily/weekly challenges (DONE 2026-06-19)
 The offline Mini Motorways model (date-seeded, no backend/leaderboard). Built engine→state→UI; 310 tests, tsc 0, build+PWA green.
 - [x] **Engine** (`engine/challenges.ts`, PURE + 13 tests): a challenge = freeform start + date-seeded

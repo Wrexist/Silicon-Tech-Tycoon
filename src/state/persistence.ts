@@ -260,6 +260,10 @@ function migrate(state: GameState): GameState | null {
         : null;
     if (typeof s.challengeScore !== "number") s.challengeScore = null;
   }
+  // Platform / OS division (DLC, added later): default locked + a v1 OS for old saves.
+  if (typeof s.platformUnlocked !== "boolean") s.platformUnlocked = false;
+  if (typeof s.osName !== "string") s.osName = "";
+  if (!Number.isFinite(s.osVersion) || s.osVersion < 1) s.osVersion = 1;
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
   if (!Number.isFinite(s.desktops) || s.desktops < 0) s.desktops = 0;
   // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at
