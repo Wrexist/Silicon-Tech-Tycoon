@@ -82,9 +82,9 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
       should show the live ± on the device's stat bars so the swap is visible, not abstract.
 - [ ] **Dedicated audio cues** for scenario-star and challenge-complete (they reuse generic toasts);
       a distinct "mastery" chord would feel more premium (extend `design/sound.ts`).
-- [ ] **Result card depth + real share.** Put the scenario stars / challenge score on the card; replace
-      the text-only `navigator.share` with a rendered-PNG export (a tested `html-to-image`-style path)
-      so the card itself is shareable — revisit the earlier fragility concern with a real lib + a fallback.
+- [x] **Result card depth (DONE)** — the card now carries scenario stars OR the challenge score +
+      the shareable challenge code; `navigator.share` text matches. Still open: a rendered-PNG export
+      (needs a rasterization dep — deliberately deferred; OS screenshot is the offline path today).
 - [ ] **Confirm dialogs**: the scenario/challenge "replace your company" confirm should show what's at
       stake (current company's week + net worth) so it's an informed choice; give `scn__confirm` a focus
       trap (the shared `Sheet` has one; these inline overlays don't).
