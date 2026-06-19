@@ -42,6 +42,29 @@ export function mutatorById(id: string): Mutator | undefined {
   return MUTATORS.find((m) => m.id === id);
 }
 
+// ---------- Shareable challenge codes ----------
+// A short, human-readable code that pins a specific daily/weekly challenge (which is fully
+// date-seeded), so a friend can paste it and play the IDENTICAL run and compare scores — the
+// offline community hook (no backend). Form: `ST-D-YYYYMMDD` (daily) / `ST-W-YYYYMMDD` (weekly).
+const CODE_PREFIX = "ST";
+
+export function encodeChallengeCode(kind: ChallengeKind, dateKey: string): string {
+  return `${CODE_PREFIX}-${kind === "weekly" ? "W" : "D"}-${dateKey.replace(/-/g, "")}`;
+}
+
+export function decodeChallengeCode(code: string): { kind: ChallengeKind; dateKey: string } | null {
+  if (typeof code !== "string") return null;
+  const m = /^ST-([DW])-(\d{4})(\d{2})(\d{2})$/i.exec(code.trim());
+  if (!m) return null;
+  const mo = Number(m[3]);
+  const d = Number(m[4]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const dateKey = `${m[2]}-${m[3]}-${m[4]}`;
+  const kind: ChallengeKind = m[1].toUpperCase() === "W" ? "weekly" : "daily";
+  // Weekly challenges are Monday-anchored — normalize so any day in the week resolves identically.
+  return kind === "weekly" ? { kind, dateKey: mondayOf(dateKey) } : { kind, dateKey };
+}
+
 export type ChallengeKind = "daily" | "weekly";
 
 export interface Challenge {

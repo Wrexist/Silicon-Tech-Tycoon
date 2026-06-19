@@ -100,8 +100,11 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
       result (date, re-derived goal, your best), newest-first, from the existing `challengeProgress`
       store via a pure `challengeHistory()` helper. The offline leaderboard substitute. (A consecutive-
       day streak is a possible later cosmetic.)
-- [ ] **Custom/shareable scenario codes** — encode a start + objectives into a short string players can
-      paste (offline, no server) — the "new thinking" community hook.
+- [x] **Shareable challenge codes (DONE)** — short human-readable codes (`ST-D-YYYYMMDD` /
+      `ST-W-...`) pin a specific daily/weekly so a friend pastes it and plays the IDENTICAL run to
+      compare scores. Share buttons on the cards + every history row; a "Play a shared code" input.
+      Pure encode/decode (+tests), offline, no schema change. Still open: fully CUSTOM-authored
+      scenarios (player-set objectives) — a bigger editor, separate from this.
 - [x] **Mode-tied achievements (DONE)** — win a scenario / complete a challenge / release an OS
       version (now that achievements persist profile-level). Still open: 3★-a-scenario, enshrine-N-
       devices (need profile-store reads in the evaluator, which deriveFacts deliberately avoids).

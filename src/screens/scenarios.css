@@ -174,6 +174,65 @@
   margin-top: var(--sp-4);
 }
 
+/* ---------- Challenge card actions + shared codes ---------- */
+.scn__card-actions {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--sp-8);
+}
+.scn__code {
+  margin-bottom: var(--sp-16);
+}
+.scn__code-label {
+  display: block;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+  margin-bottom: var(--sp-8);
+}
+.scn__code-row {
+  display: flex;
+  gap: var(--sp-8);
+}
+.scn__code-input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.scn__code-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.scn__code-input--err { border-color: var(--negative); }
+.scn__code-err {
+  font-size: var(--fs-caption);
+  color: var(--negative-text);
+  margin-top: var(--sp-6);
+}
+.scn__hist-share {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: var(--r-button);
+}
+.scn__hist-share:hover { color: var(--accent); background: var(--accent-soft); }
+
 /* ---------- Challenge history ---------- */
 .scn__hist-head {
   font-size: var(--fs-caption);

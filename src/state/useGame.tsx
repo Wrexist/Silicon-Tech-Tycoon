@@ -316,8 +316,9 @@ interface GameContextValue {
   restart: () => void;
   /** Begin a scenario run (overwrites the current save with the scenario's authored start). */
   startScenario: (id: string) => void;
-  /** Begin today's daily or weekly challenge (overwrites the current save). */
-  startChallenge: (kind: ChallengeKind) => void;
+  /** Begin a daily/weekly challenge (overwrites the current save). Defaults to today; pass a
+   *  dateKey to play a specific (e.g. shared-by-code or historical) challenge. */
+  startChallenge: (kind: ChallengeKind, dateKey?: string) => void;
   markOnboarded: () => void;
   dismissTutorial: () => void;
   // save export / import (offline backup)
@@ -809,9 +810,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this
   // overwrites the current save; the per-date personal best lives in the profile store.
-  const startChallenge = useCallback((kind: ChallengeKind) => {
+  const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string) => {
     clearSave();
-    setState({ ...newChallengeGame(kind, dateKeyOf(new Date())), platformUnlocked: stateRef.current.platformUnlocked });
+    setState({ ...newChallengeGame(kind, dateKey ?? dateKeyOf(new Date())), platformUnlocked: stateRef.current.platformUnlocked });
     setOffline(null);
     setPaused(false);
     setFast(false);

@@ -9,6 +9,8 @@ import {
   hashSeed,
   formatScore,
   scoreMetricLabel,
+  encodeChallengeCode,
+  decodeChallengeCode,
 } from "./challenges.ts";
 
 describe("mutator catalog", () => {
@@ -94,6 +96,32 @@ describe("weeklyChallenge", () => {
 
   it("differs from the same date's daily challenge", () => {
     expect(weeklyChallenge("2026-06-19").seed).not.toBe(dailyChallenge("2026-06-19").seed);
+  });
+});
+
+describe("shareable challenge codes", () => {
+  it("round-trips a daily code", () => {
+    const code = encodeChallengeCode("daily", "2026-06-19");
+    expect(code).toBe("ST-D-20260619");
+    expect(decodeChallengeCode(code)).toEqual({ kind: "daily", dateKey: "2026-06-19" });
+  });
+
+  it("normalizes a weekly code to its Monday (any day in the week resolves the same)", () => {
+    // 2026-06-19 (Fri) → Monday 2026-06-15.
+    expect(decodeChallengeCode(encodeChallengeCode("weekly", "2026-06-19"))).toEqual({ kind: "weekly", dateKey: "2026-06-15" });
+    expect(decodeChallengeCode("ST-W-20260615")).toEqual({ kind: "weekly", dateKey: "2026-06-15" });
+  });
+
+  it("is case-insensitive and whitespace-tolerant", () => {
+    expect(decodeChallengeCode("  st-d-20260101 ")).toEqual({ kind: "daily", dateKey: "2026-01-01" });
+  });
+
+  it("rejects garbage and impossible dates", () => {
+    expect(decodeChallengeCode("nope")).toBe(null);
+    expect(decodeChallengeCode("ST-X-20260101")).toBe(null);
+    expect(decodeChallengeCode("ST-D-20261301")).toBe(null); // month 13
+    expect(decodeChallengeCode("ST-D-2026")).toBe(null);
+    expect(decodeChallengeCode("")).toBe(null);
   });
 });
 
