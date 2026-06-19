@@ -7,6 +7,8 @@ import { Star, Target, Clock } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
 import { SCENARIOS, type Scenario } from "../engine/scenarios.ts";
 import { getScenarioStars } from "../state/scenarioProgress.ts";
+import { netWorth } from "../state/gameState.ts";
+import { format } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./scenarios.css";
 
@@ -108,7 +110,10 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
         <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting scenario">
           <div className="scn__confirm-card">
             <p className="scn__confirm-title">Start “{confirmScenario.name}”?</p>
-            <p className="scn__confirm-text">This replaces your current company. Scenario progress (stars) is kept.</p>
+            <p className="scn__confirm-text">
+              This replaces <strong>{state.companyName}</strong> (Wk {state.week} · {format(netWorth(state))} net worth).
+              Scenario stars and your museum are kept.
+            </p>
             <div className="scn__confirm-row">
               <Button variant="secondary" onClick={() => setConfirmId(null)}>Cancel</Button>
               <Button onClick={() => begin(confirmScenario.id)}>Start</Button>

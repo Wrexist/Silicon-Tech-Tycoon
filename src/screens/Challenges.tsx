@@ -14,6 +14,8 @@ import {
   type ChallengeKind,
 } from "../engine/challenges.ts";
 import { bestScore, challengeKey, challengeHistory } from "../state/challengeProgress.ts";
+import { netWorth } from "../state/gameState.ts";
+import { format } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./scenarios.css";
 
@@ -50,7 +52,7 @@ function ChallengeCard({ challenge, onPlay }: { challenge: Challenge; onPlay: ()
 }
 
 export function ChallengesSheet({ onClose }: { onClose: () => void }) {
-  const { startChallenge } = useGame();
+  const { state, startChallenge } = useGame();
   const [confirmKind, setConfirmKind] = useState<ChallengeKind | null>(null);
   const today = dateKeyOf(new Date());
   const daily = dailyChallenge(today);
@@ -102,7 +104,10 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
         <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting challenge">
           <div className="scn__confirm-card">
             <p className="scn__confirm-title">Start the {confirmKind} challenge?</p>
-            <p className="scn__confirm-text">This replaces your current company. Your best score is kept.</p>
+            <p className="scn__confirm-text">
+              This replaces <strong>{state.companyName}</strong> (Wk {state.week} · {format(netWorth(state))} net worth).
+              Your best scores and museum are kept.
+            </p>
             <div className="scn__confirm-row">
               <Button variant="secondary" onClick={() => setConfirmKind(null)}>Cancel</Button>
               <Button onClick={() => begin(confirmKind)}>Start</Button>
