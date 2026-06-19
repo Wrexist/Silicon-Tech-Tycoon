@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Building2, Coffee, FlaskConical, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Building2, CalendarDays, Coffee, FlaskConical, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ScenariosSheet } from "./Scenarios.tsx";
+import { ChallengesSheet } from "./Challenges.tsx";
 import { SCENARIOS } from "../engine/scenarios.ts";
 import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
@@ -95,6 +96,7 @@ export function Company() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const [scenariosOpen, setScenariosOpen] = useState(false);
+  const [challengesOpen, setChallengesOpen] = useState(false);
   const achievementCount = state.unlockedAchievements.length;
   // Recomputed each render (localStorage read is cheap) so it reflects stars earned this session.
   const scenarioStars = Object.values(getScenarioStars()).reduce((a, b) => a + b, 0);
@@ -279,6 +281,15 @@ export function Company() {
         <span className="co__ach-count tnum">{scenarioStars}<span className="co__ach-count-total">/{SCENARIOS.length * 3}★</span></span>
       </button>
 
+      {/* Challenges entry */}
+      <button className="co__ach-row" onClick={() => setChallengesOpen(true)} aria-label="View daily and weekly challenges">
+        <span className="co__ach-glyph" aria-hidden><CalendarDays size={20} /></span>
+        <span className="co__ach-info">
+          <span className="co__ach-title">Challenges</span>
+          <span className="co__ach-sub">A fresh seeded run every day — beat your best</span>
+        </span>
+      </button>
+
       {/* Near-achievement progress */}
       <NearMilestonesCard state={state} />
 
@@ -334,6 +345,10 @@ export function Company() {
 
       <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)}>
         <ScenariosSheet onClose={() => setScenariosOpen(false)} />
+      </Sheet>
+
+      <Sheet open={challengesOpen} onClose={() => setChallengesOpen(false)}>
+        <ChallengesSheet onClose={() => setChallengesOpen(false)} />
       </Sheet>
     </div>
   );

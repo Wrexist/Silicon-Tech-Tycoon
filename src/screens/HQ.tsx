@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
+import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
@@ -107,6 +108,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
       <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active} onNavigate={onNavigate} onOpenBank={onOpenBank} />
 
       <ScenarioTracker />
+      <ChallengeTracker />
 
       {ipoReady && (
         <Card className="hq__era hq__ipo">

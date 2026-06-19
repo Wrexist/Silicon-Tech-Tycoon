@@ -748,8 +748,29 @@ also delivers the deferred celebratory win moment. tsc 0, 291 tests, build+PWA g
 - **Wave 1c remaining — NEEDS A GO-AHEAD**: component sidegrades (cheaper-but-lower / battery-vs-
       perf tiers so the optimal recipe isn't a fixed ladder) touch PROTECTED engine (product.ts /
       catalogs.ts / balance) + need a balance pass — not done without explicit instruction.
-- **Next**: Wave 2 daily/weekly challenges (date-seeded mutators — needs sim-level BALANCE override
-      plumbing, a larger change); Wave 3 OS/Platform DLC (DLC_OS_PLATFORM.md).
+## v21 — Wave 2: daily/weekly challenges (DONE 2026-06-19)
+The offline Mini Motorways model (date-seeded, no backend/leaderboard). Built engine→state→UI; 310 tests, tsc 0, build+PWA green.
+- [x] **Engine** (`engine/challenges.ts`, PURE + 13 tests): a challenge = freeform start + date-seeded
+      MUTATORS + a scored "best <metric> by week N" goal. MUTATORS catalog (start-condition twists
+      expressible via the existing newGame path — cash mult / reputation / fans); UTC date helpers
+      (dateKeyOf, mondayOf), FNV-1a hashSeed, dailyChallenge / weeklyChallenge (Monday-anchored,
+      2–3 distinct mutators, longer run); formatScore / scoreMetricLabel. Same date → identical
+      challenge for every offline player.
+- [x] **State** (+8 tests): `activeChallenge` + `challengeScore` (+persistence backfill); `newChallengeGame`
+      applies mutators as start overrides; `withChallengeScore` locks the score snapshot at scoreWeek
+      (pure, idempotent; folded into the tick + boot/offline like evaluateAndUnlock); `challengeViewFor`
+      selector; per-date personal-best store (`challengeProgress.ts`, native-mirrored) — the offline
+      "beat your own history" substitute for the server leaderboard. `useGame.startChallenge(kind)`;
+      tick records best + one toast on the score-lock transition.
+- [x] **UI**: `ChallengesSheet` (today's daily + this week's weekly, mutators, personal best,
+      confirm-before-overwrite) from a Challenges row in Company; `ChallengeTracker` on HQ (goal,
+      live score, weeks left, locked final + best banner). Reuses the scenarios card language.
+- **NOT verified on-device**: card/tracker layout; mutator balance + the 52/104-week score windows
+      need a playtest. **Deferred**: deeper sim-level mutators (no-marketing / fixed-price / recession)
+      need BALANCE-override plumbing (a larger change); a one-attempt-per-day LOCK (today you can
+      replay a date's challenge — single-player, no leaderboard to protect, so low priority).
+- **Next**: Wave 3 OS/Platform DLC (DLC_OS_PLATFORM.md); Wave 1c component sidegrades (PROTECTED
+      engine — needs a go-ahead); the NG+/mastery + content-cadence items in RETENTION_ROADMAP Wave 4.
 
 ### v17 Backlog — still open (need on-device eyes / a design call)
 **3D/perf:** `frameloop="demand"` + `invalidate()` retrofit (battery; a wrong conversion silently

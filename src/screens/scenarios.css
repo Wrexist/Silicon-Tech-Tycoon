@@ -42,6 +42,15 @@
 .scn__star--on {
   color: var(--mat-gold);
 }
+.scn__best {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--mat-gold);
+  flex-shrink: 0;
+}
 
 .scn__list {
   list-style: none;
@@ -70,6 +79,9 @@
   gap: var(--sp-8);
 }
 .scn__diff {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
   font-size: var(--fs-nano);
   font-weight: 700;
   letter-spacing: 0.05em;
