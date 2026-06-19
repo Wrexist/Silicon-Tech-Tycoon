@@ -66,6 +66,13 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
 ---
 
 ## Polish — premium, intelligent, professional
+- [x] **Legible trade-offs (DONE)** — OS licensing states the competitiveness cost numerically
+      ("~+8 stronger"); build Tuning's ± is already live on the device stat bars (productStats).
+- [x] **Dedicated mastery audio (DONE)** — a distinct `mastery` cue for scenario stars + challenge
+      completion (was toast-only).
+- [x] **Informed confirm dialogs (DONE)** — scenario/challenge "replace your company" confirms now
+      show the company name, week, net worth at stake and what's kept (stars/scores + museum).
+- [x] **Local challenge history + museum category filter (DONE)** — see features list.
 - [ ] **Balance playtest pass (the big one).** Every new knob is unverified on a device — tune from a
       real playthrough: scenario targets + Underdog's wk-78 deadline; challenge score windows (52/104
       wk) + mutator magnitudes; OS release reward (4 rep / 2k+capped fans); license fee
@@ -81,8 +88,8 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
 - [ ] **Confirm dialogs**: the scenario/challenge "replace your company" confirm should show what's at
       stake (current company's week + net worth) so it's an informed choice; give `scn__confirm` a focus
       trap (the shared `Sheet` has one; these inline overlays don't).
-- [ ] **Museum**: filter/sort (category / era / verdict), tap a device → its launch stats + "why it
-      won/flopped" (reuse the product-detail insight); a "lineage" view of one product line across eras.
+- [x] **Museum category filter (DONE)**. Still open: sort by era/verdict, tap → device detail
+      (limited by what the entry stores), a "lineage" view across eras.
 - [ ] **Empty/first-run states** for the new sheets are present; verify the Platform "no installed base
       yet" and Museum empty states read well, and that the Challenges sheet explains scoring at a glance.
 
