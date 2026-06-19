@@ -1,17 +1,23 @@
 // Device Museum — a permanent, cross-run gallery of every device you've shipped, re-rendered
 // parametrically from the stored Product (zero image assets). Collection-as-meta-progression.
+import { useState } from "react";
 import { Button, EmptyState } from "../design/primitives.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { getMuseum } from "../state/museum.ts";
 import { eraName } from "../engine/eras.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
+import type { CategoryId } from "../engine/types.ts";
 import "./museum.css";
 
 const VERDICT_LABEL: Record<string, string> = { hit: "Hit", solid: "Solid", flop: "Flop", steady: "Steady" };
 
 export function MuseumSheet({ onClose }: { onClose: () => void }) {
-  const entries = getMuseum();
+  const all = getMuseum();
+  const [filter, setFilter] = useState<CategoryId | "all">("all");
+  // Categories actually present, in catalog order, so the filter only offers what you own.
+  const present = (Object.keys(CATEGORIES) as CategoryId[]).filter((c) => all.some((e) => e.category === c));
+  const entries = filter === "all" ? all : all.filter((e) => e.category === filter);
 
   return (
     <div className="mus">
@@ -20,10 +26,21 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
           <h2 className="mus__title">Device Museum</h2>
           <p className="mus__sub">Every device you've shipped — across every company you've built.</p>
         </div>
-        <span className="mus__count tnum" aria-label={`${entries.length} devices`}>{entries.length}</span>
+        <span className="mus__count tnum" aria-label={`${all.length} devices`}>{all.length}</span>
       </div>
 
-      {entries.length === 0 ? (
+      {present.length > 1 && (
+        <div className="mus__filters">
+          <button className={`mus__filter${filter === "all" ? " mus__filter--on" : ""}`} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All</button>
+          {present.map((c) => (
+            <button key={c} className={`mus__filter${filter === c ? " mus__filter--on" : ""}`} aria-pressed={filter === c} onClick={() => setFilter(c)}>
+              <CategoryIcon id={c} size={13} /> {CATEGORIES[c].displayName}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {all.length === 0 ? (
         <EmptyState
           glyph={<CategoryIcon id="phone" size={28} />}
           title="No devices yet"

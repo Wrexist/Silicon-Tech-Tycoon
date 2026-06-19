@@ -8,6 +8,30 @@
 .mus__sub { font-size: var(--fs-caption); color: var(--ink-2); margin-top: var(--sp-2); line-height: 1.4; }
 .mus__count { flex-shrink: 0; font-size: var(--fs-headline); font-weight: 700; color: var(--accent); }
 
+.mus__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-16);
+}
+.mus__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-12);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+}
+.mus__filter--on {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--hairline));
+  color: var(--accent);
+}
 .mus__grid {
   list-style: none;
   display: grid;
