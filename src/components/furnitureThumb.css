@@ -1,0 +1,88 @@
+/* Self-contained, theme-aware palette for the shop furniture thumbnails (FurnitureThumb).
+   Mirrors the garage.css pattern: a scoped set of semantic tokens so the SVG fills never
+   hardcode raw colors and flip cleanly between light/dark. */
+.furn-thumb {
+  --ft-wood: #c9a274;
+  --ft-wood-d: #a37f4e;
+  --ft-panel: #b9c0c9;
+  --ft-panel-d: #8b94a0;
+  --ft-fabric: #8d97b0;
+  --ft-fabric-d: #5f6b86;
+  --ft-leg: #767d88;
+  --ft-metal: #99a0aa;
+  --ft-metal-d: #6b7178;
+  --ft-plant: #4e9d6b;
+  --ft-plant-d: #3c7e54;
+  --ft-pot: #c08457;
+  --ft-screen: #3b82f6;
+  --ft-frame: #2a2f38;
+  --ft-board: #eef1f5;
+  --ft-shade: #e7c98a;
+  --ft-glow: #ffd98a;
+  --ft-peg: #c98b5a;
+  --ft-chest: #d2483f;
+  --ft-chest-top: #e7665c;
+  --ft-chest-d: #a8362f;
+  --ft-accent: var(--accent);
+  --ft-shadow: rgba(40, 48, 66, 0.13);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .furn-thumb {
+    --ft-wood: #a3814f;
+    --ft-wood-d: #7c6038;
+    --ft-panel: #6b7480;
+    --ft-panel-d: #4c545f;
+    --ft-fabric: #6a7691;
+    --ft-fabric-d: #4a5470;
+    --ft-leg: #565d66;
+    --ft-metal: #6f767f;
+    --ft-metal-d: #4a505a;
+    --ft-plant: #4e9d6b;
+    --ft-plant-d: #3c7e54;
+    --ft-pot: #9a6a45;
+    --ft-screen: #5b9bff;
+    --ft-frame: #1c2128;
+    --ft-board: #c6ccd6;
+    --ft-shade: #d9b673;
+    --ft-glow: #ffcf78;
+    --ft-peg: #a06f44;
+    --ft-chest: #c0443c;
+    --ft-chest-top: #d05a51;
+    --ft-chest-d: #8f2f29;
+    --ft-shadow: rgba(0, 0, 0, 0.32);
+  }
+}
+:root[data-theme="dark"] .furn-thumb {
+  --ft-wood: #a3814f;
+  --ft-wood-d: #7c6038;
+  --ft-panel: #6b7480;
+  --ft-panel-d: #4c545f;
+  --ft-fabric: #6a7691;
+  --ft-fabric-d: #4a5470;
+  --ft-leg: #565d66;
+  --ft-metal: #6f767f;
+  --ft-metal-d: #4a505a;
+  --ft-plant: #4e9d6b;
+  --ft-plant-d: #3c7e54;
+  --ft-pot: #9a6a45;
+  --ft-screen: #5b9bff;
+  --ft-frame: #1c2128;
+  --ft-board: #c6ccd6;
+  --ft-shade: #d9b673;
+  --ft-glow: #ffcf78;
+  --ft-peg: #a06f44;
+  --ft-chest: #c0443c;
+  --ft-chest-top: #d05a51;
+  --ft-chest-d: #8f2f29;
+  --ft-shadow: rgba(0, 0, 0, 0.32);
+}
+
+.furn-thumb svg {
+  display: block;
+}

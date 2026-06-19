@@ -1,9 +1,8 @@
 import {
-  Archive, ArrowUp, Armchair, BookOpen, Bot, Box, Boxes, Building2, Check, ChevronRight, CircleDot, Clock, Coffee,
-  Construction, Copy, Cpu, Cylinder, Disc, Factory, FlaskConical, Footprints, Gamepad2, GlassWater, Globe, Hammer,
-  HelpCircle, Image as ImageIcon, Lamp, LayoutGrid, Library, Lightbulb, Lock, Megaphone, Monitor, Music, Newspaper, PaintbrushVertical, PencilRuler, Presentation, Printer,
-  Refrigerator, RotateCw, Rocket, Search, Server, Shapes, Sofa, Sparkles, Sprout, Square, Table,
-  Table2, Target, Trash2, TrendingDown, TrendingUp, Trees, Tv, Undo2, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
+  ArrowUp, Check, ChevronRight, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
+  HelpCircle, LayoutGrid, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
+  RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp,
+  Undo2, Users, X, Zap, Smile, Crosshair, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -41,6 +40,7 @@ import { useGame } from "../state/useGame.tsx";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
+import { FurnitureThumb } from "../components/FurnitureThumb.tsx";
 import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
@@ -61,13 +61,6 @@ function useReducedMotionLive(): boolean {
   }, []);
   return reduced;
 }
-
-const FURN_ICONS: Record<string, LucideIcon> = {
-  Table, Table2, Armchair, Sofa, Coffee, Presentation, BookOpen, Archive, Box, Trees, Sprout,
-  Square, CircleDot, Lamp, Tv, PencilRuler, Gamepad2, GlassWater, Server, Printer,
-  Monitor, Building2, Library, Boxes, Zap, Image: ImageIcon, Globe, Clock, Shapes, Lightbulb, Refrigerator,
-  Target, Music, Footprints, Bot, Hammer, Wrench, Disc, Construction, Cylinder,
-};
 
 const UPGRADE_ICONS: Record<string, LucideIcon> = { Cpu, PencilRuler, FlaskConical, Megaphone, Coffee, Factory };
 // Each upgrade line is colour-coded by the company function it powers.
@@ -321,6 +314,14 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   const dark = isDarkTheme();
   // If the GPU drops the WebGL context mid-game, fall back to the 2D IsoScene instead of black.
   const [glLost, setGlLost] = useState(false);
+
+  // Decorate is a full-screen overlay: lock background page scroll while it's open so a drag on
+  // the editor can't scroll HQ underneath it.
+  useEffect(() => {
+    if (!build) return;
+    document.body.classList.add("hq-deco-open");
+    return () => document.body.classList.remove("hq-deco-open");
+  }, [build]);
 
   const selected = build ? state.layout.find((x) => x.iid === selectedIid) ?? null : null;
   const searching = search.trim().length > 0;
@@ -583,11 +584,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
               ) : (
                 <div className="hqb__items">
                   {visibleItems.map((f) => {
-                    const Icon = FURN_ICONS[f.icon] ?? Box;
                     const afford = canAffordFurniture(state, f.id);
                     return (
                       <button key={f.id} className={`hqb__item${placingType === f.id ? " hqb__item--on" : ""}${afford ? "" : " hqb__item--poor"}`} aria-pressed={placingType === f.id} aria-label={`Buy ${f.name}, ${format(dollars(f.cost))}`} onClick={() => pick(f.id)}>
-                        <span className="hqb__item-glyph"><Icon size={20} /></span>
+                        <span className="hqb__item-glyph"><FurnitureThumb id={f.id} size={48} /></span>
                         <span className="hqb__item-name">{f.name}</span>
                         <span className="hqb__item-price tnum">{format(dollars(f.cost))}</span>
                         {(f.attrs?.comfort || f.attrs?.focus || f.attrs?.inspiration) ? (

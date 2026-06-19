@@ -189,6 +189,37 @@ describe("game state reducers", () => {
     expect(ins!.betterRivals).toBeGreaterThanOrEqual(0);
   });
 
+  it("a 'solid' launch grants reputation (so quality alone can climb the era gates)", () => {
+    // Search designTier × price for the first launch that lands a 'solid' verdict, then assert it
+    // moved reputation by exactly gainPerSolid. Fresh game → 0 fans (no milestone rep bonus) and a
+    // 'none' campaign (channel reputation 0), so the solid branch is the only rep contribution.
+    let found = false;
+    outer: for (let designTier = 1; designTier <= 3 && !found; designTier++) {
+      for (const price of [140, 220, 320, 460, 640, 900]) {
+        let s = { ...newGame(42), cash: dollars(2_000_000) };
+        const product: Product = {
+          ...goodPhone(),
+          tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 3 },
+          designTier,
+          price: dollars(price),
+        };
+        const build = startBuild(s, product, 1500, "none");
+        if (!build.ok) continue;
+        s = build.state;
+        for (let i = 0; i < buildWeeksFor(s) + 1; i++) s = advanceOneWeek(s);
+        if (s.ready.length === 0) continue;
+        const repBefore = s.reputation;
+        s = launchReady(s, s.ready[0].id).state;
+        if (s.launched[0]?.verdict === "solid") {
+          expect(s.reputation - repBefore).toBeCloseTo(BALANCE.reputation.gainPerSolid, 5);
+          found = true;
+          break outer;
+        }
+      }
+    }
+    expect(found).toBe(true); // the search must actually exercise a 'solid' launch
+  });
+
   it("rejects building an incomplete product", () => {
     const s = newGame(1);
     const bad = { ...goodPhone(), tiers: { chip: 1 } };
