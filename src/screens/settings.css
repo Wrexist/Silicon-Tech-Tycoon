@@ -167,8 +167,12 @@
 
 .set__restore {
   align-self: flex-start;
-  margin-top: var(--sp-6);
-  padding: var(--sp-4) var(--sp-6);
+  /* Keep the text-link look but give it a real 44px touch target (it's an IAP restore action). */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--sp-2);
+  padding: var(--sp-8) var(--sp-6);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--accent);

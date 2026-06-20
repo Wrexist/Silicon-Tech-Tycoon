@@ -342,7 +342,7 @@ function CreativeModeGroup() {
 
   return (
     <div className="set__group">
-      <span className="set__group-label">Creative mode</span>
+      <span className="set__group-label">Creative Mode</span>
       {owned ? (
         <Row
           icon={<Sparkles size={18} />}

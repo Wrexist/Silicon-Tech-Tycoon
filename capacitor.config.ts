@@ -9,7 +9,9 @@ const config: CapacitorConfig = {
   webDir: "dist",
   backgroundColor: "#0f1115",
   ios: {
-    contentInset: "always",
+    // Edge-to-edge: the web layer owns the safe-area insets via env(safe-area-inset-*), so the
+    // native scroll view must NOT add its own inset (that double-pads and reintroduces a top gap).
+    contentInset: "never",
     backgroundColor: "#0f1115",
   },
   plugins: {
@@ -29,10 +31,11 @@ const config: CapacitorConfig = {
       splashImmersive: true,
     },
     StatusBar: {
-      // Dark style = light glyphs over the dark app background. Don't overlay the web view.
+      // Overlay the web view so the app's OWN themed background fills behind the bar (no native
+      // colour band that reads as black over the light UI). Glyph style is re-synced to the live
+      // theme at runtime in native.ts (syncStatusBar). `style` here is just the pre-React default.
       style: "DARK",
-      backgroundColor: "#0f1115",
-      overlaysWebView: false,
+      overlaysWebView: true,
     },
   },
 };

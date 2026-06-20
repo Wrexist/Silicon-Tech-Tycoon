@@ -9,7 +9,7 @@ import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { toDollars, type Money } from "../engine/money.ts";
+import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
 import { rdRpCostFor, researchedTier, weeklyRpGen, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
@@ -25,7 +25,7 @@ const STAT_SHORT: Record<keyof Stats, string> = {
 };
 
 function contributesLabel(c: Partial<Stats>): string {
-  return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_SHORT[k]}`).join("  ");
+  return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_SHORT[k]}`).join(" · ");
 }
 
 /** Show the improvement from upgrading (delta) rather than the tier's total contribution. */
@@ -33,14 +33,9 @@ function deltaLabel(cur: Partial<Stats>, next: Partial<Stats>): string {
   const parts = STAT_KEYS
     .filter((k) => (next[k] ?? 0) > (cur[k] ?? 0))
     .map((k) => `+${Math.round((next[k] ?? 0) - (cur[k] ?? 0))} ${STAT_SHORT[k]}`);
-  return parts.length > 0 ? parts.join("  ") : contributesLabel(next);
+  return parts.length > 0 ? parts.join(" · ") : contributesLabel(next);
 }
 
-function fmtRevGoal(dollars: number): string {
-  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(0)}M`;
-  if (dollars >= 1_000) return `$${(dollars / 1_000).toFixed(0)}k`;
-  return `$${dollars}`;
-}
 
 function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
   currentEra: number;
@@ -75,7 +70,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
             const bestPct = Math.max(repPct, revPct);
             const label = repPct >= revPct
               ? `${Math.round(reputation)} / ${repGoal} rep`
-              : `${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD!)} rev`;
+              : `${formatShortDollars(cumulativeRevenueDollars)} / ${formatShortDollars(revGoalD!)} rev`;
             progressLabel = `${bestPct}% — ${label}`;
           }
 
@@ -95,7 +90,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
                     <span className="rd__roadmap-req">
                       {repGoal ? `${repGoal} rep` : ""}
                       {repGoal && revGoalD ? " or " : ""}
-                      {revGoalD ? `${fmtRevGoal(revGoalD)} rev` : ""}
+                      {revGoalD ? `${formatShortDollars(revGoalD)} rev` : ""}
                     </span>
                   )}
                 </div>
@@ -165,7 +160,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           <FlaskConical size={22} style={{ color: "var(--fn-eng)", flexShrink: 0 }} />
           <div>
             <div className="rd__bank-value tnum" style={{ color: "var(--fn-eng)" }}><AnimatedInt value={rp} /> RP</div>
-            <div className="rd__bank-sub">+{perWeek.toFixed(1)} / week</div>
+            <div className="rd__bank-sub">+{perWeek.toFixed(1)}/wk</div>
           </div>
           {(() => {
             const buyableNow = RESEARCH_PROJECTS.filter(
@@ -285,7 +280,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                   : contributesLabel(next.contributes);
                 // A single-stat line whose stat IS the line ("Battery · +16 Battery") reads
                 // redundant — drop the repeated word: "Battery · +16".
-                const contrib = !contribRaw.includes("  ") && contribRaw.endsWith(` ${line.displayName}`)
+                const contrib = !contribRaw.includes(" · ") && contribRaw.endsWith(` ${line.displayName}`)
                   ? contribRaw.slice(0, -line.displayName.length - 1)
                   : contribRaw;
                 const isTrending = trendDelta > 0.02 && trendStat && (next.contributes[trendStat] ?? 0) > 0;

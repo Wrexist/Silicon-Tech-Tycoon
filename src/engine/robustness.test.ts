@@ -37,6 +37,20 @@ describe("engine robustness (audit hardening)", () => {
     expect(f1.weeklyUnits.reduce((a, b) => a + b, 0)).toBe(f1.totalUnits);
   });
 
+  it("forecast sanitises non-finite inputs instead of propagating NaN/Infinity", () => {
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      const f = forecast(120, bad, 1);
+      expect(Number.isFinite(f.totalUnits)).toBe(true);
+      expect(f.weeklyUnits.every((u) => Number.isFinite(u))).toBe(true);
+      const g = forecast(120, 1, bad);
+      expect(Number.isFinite(g.totalUnits)).toBe(true);
+      expect(g.weeklyUnits.every((u) => Number.isFinite(u))).toBe(true);
+      const h = forecast(bad, 1, 1);
+      expect(Number.isFinite(h.totalUnits)).toBe(true);
+      expect(h.weeklyUnits.every((u) => Number.isFinite(u))).toBe(true);
+    }
+  });
+
   it("furnitureDef falls back instead of returning undefined for a bad id", () => {
     expect(furnitureDef("not-a-real-id" as FurnitureId)).toBeTruthy();
     expect(furnitureDef("sofa").id).toBe("sofa");

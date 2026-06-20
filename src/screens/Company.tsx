@@ -20,7 +20,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
-import { cents, dollars, format, sub, toDollars } from "../engine/money.ts";
+import { cents, dollars, format, formatShortDollars, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
@@ -45,6 +45,8 @@ import {
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
+import { haptic } from "../design/haptics.ts";
+import { showToast } from "../design/toast.tsx";
 import type { CSSProperties } from "react";
 import "./company.css";
 
@@ -509,11 +511,6 @@ function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
   );
 }
 
-function fmtRevShort(d: number): string {
-  if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(1)}M`;
-  if (d >= 1_000) return `$${Math.round(d / 1_000)}k`;
-  return `$${Math.round(d)}`;
-}
 
 /* ---------- Company stats / history ---------- */
 
@@ -652,7 +649,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
               )}
               {peakWkRev > 0 && (
                 <div className="co__stats-best-item">
-                  <span className="co__stats-best-item-val tnum">{fmtRevShort(peakWkRev)}</span>
+                  <span className="co__stats-best-item-val tnum">{formatShortDollars(peakWkRev)}</span>
                   <span className="co__stats-best-item-label">Peak weekly rev</span>
                   <span className="co__stats-best-item-sub">{peakWkName}</span>
                 </div>
@@ -813,6 +810,7 @@ function Member({
   onRaise: (id: string) => void;
   onRest: (id: string) => void;
 }) {
+  const [confirmFire, setConfirmFire] = useState(false);
   const maxed = s.skill >= BALANCE.staff.maxSkill;
   const cost = trainCost(s.skill);
   const xpPct = maxed ? 100 : Math.min(100, Math.round((s.xp / xpToNext(s.skill)) * 100));
@@ -842,12 +840,30 @@ function Member({
           <span className="co__member-role">{ROLE_LABEL[s.role]} · {SPECIALTY_TITLE[s.specialty]}</span>
           <span className="co__member-sub">{format(s.salary)}/wk</span>
         </div>
-        {s.id !== "s0" && (
-          <button className="co__fire" onClick={() => onFire(s.id)} aria-label={`Let go ${s.name}`}>
+        {s.id !== "s0" && !confirmFire && (
+          <button className="co__fire" onClick={() => setConfirmFire(true)} aria-label={`Let go ${s.name}`}>
             <X size={15} />
           </button>
         )}
       </div>
+
+      {confirmFire && (
+        // Firing is irreversible and wipes accumulated skill/XP — confirm before it happens
+        // (mirrors the save-wipe confirms in Settings/Scenarios) and give real feedback on commit.
+        <div className="co__confirm" role="group" aria-label={`Confirm letting go ${s.name}`}>
+          <span className="co__confirm-text">Let go {s.name}? Their training is lost for good.</span>
+          <div className="co__confirm-row">
+            <Button size="sm" variant="tertiary" onClick={() => setConfirmFire(false)}>Keep</Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => { onFire(s.id); haptic.warning(); showToast(`${s.name} left the company`, { tone: "neutral" }); }}
+            >
+              Let go
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="co__tags">
         <span className="co__tag co__tag--trait" style={{ color: ROLE_COLOR[s.role] }} title={TRAIT_INFO[s.trait].blurb}>
@@ -1033,7 +1049,7 @@ function RecruitPanel({
               onClick={() => onRecruit(tier)}
             >
               <span className="co__recruit-tier-name">{t.label}</span>
-              <span className="co__recruit-tier-meta">{t.weeks} wks · skill {t.minLevel}–{t.maxLevel}</span>
+              <span className="co__recruit-tier-meta">{t.weeks} wk · skill {t.minLevel}–{t.maxLevel}</span>
               <span className="co__recruit-tier-cost">{format(t.cost)}</span>
             </button>
           );

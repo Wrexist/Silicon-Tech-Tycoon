@@ -15,7 +15,7 @@ import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { dollars, format, toDollars, type Money } from "../engine/money.ts";
+import { dollars, format, formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
   furnitureCost,
@@ -76,6 +76,10 @@ const UPGRADE_FN: Record<UpgradeId, { accent: string; soft: string }> = {
 };
 
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
+
+// A fine pointer (mouse/trackpad) means a physical keyboard is almost certainly present — the only
+// place the WASD camera hint makes sense. Touch phones report a coarse pointer and get no hint.
+const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
 export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; active?: boolean }) {
   const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
@@ -480,7 +484,9 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
           </>
         )}
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
-        {use3d && !build && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
+        {/* WASD is keyboard-only — never show it on a touch device (the iOS target), where it's
+            both useless and confusing. Gate on a fine pointer (mouse/trackpad). */}
+        {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
         {use3d && !build && (
           <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
             <LayoutGrid size={15} /> Decorate
@@ -762,11 +768,6 @@ function Upgrades() {
   );
 }
 
-function fmtRevShort(dollars: number): string {
-  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1)}M`;
-  if (dollars >= 1_000) return `$${Math.round(dollars / 1_000)}k`;
-  return `$${Math.round(dollars)}`;
-}
 
 /** Progress bar strip used inside the era goal card. */
 function GoalBar({ label, value, target }: { label: string; value: number; target: number }) {
@@ -821,7 +822,7 @@ function EraGoalCard({ state }: { state: GameState }) {
         <GoalBar label={`Reputation (need ${Math.round(eraDef.repToAdvance)})`} value={state.reputation} target={eraDef.repToAdvance} />
       )}
       {Number.isFinite(revTargetDollars) && (
-        <GoalBar label={`Revenue (need ${fmtRevShort(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
+        <GoalBar label={`Revenue (need ${formatShortDollars(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
       )}
       <p className="hq__goal-or">
         {eitherGate ? "Either threshold unlocks the next era." : "Both thresholds are required to advance."}
@@ -1163,7 +1164,7 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
       {weeklyRevenue > 0 && (
         <div className="hq__perf-revenue">
           {revTrending === "up" ? <TrendingUp size={12} aria-hidden className="hq__rev-arrow hq__rev-arrow--up" /> : revTrending === "down" ? <TrendingDown size={12} aria-hidden className="hq__rev-arrow hq__rev-arrow--down" /> : <span className="hq__rev-flat" aria-hidden>—</span>}
-          <span>{fmtRevShort(weeklyRevenue)}/wk</span>
+          <span>{formatShortDollars(weeklyRevenue)}/wk</span>
           {revDeltaPct !== 0 && (
             <span className={`hq__rev-delta tnum${revTrending === "up" ? " hq__rev-delta--up" : revTrending === "down" ? " hq__rev-delta--down" : ""}`}>
               {revDeltaPct > 0 ? "+" : ""}{revDeltaPct}% next wk

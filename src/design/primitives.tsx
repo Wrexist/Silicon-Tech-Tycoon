@@ -257,10 +257,15 @@ export function Sheet({
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  // Drag-to-dismiss from the grab handle: a real tap closes, a downward drag past the threshold
-  // closes, anything shorter snaps back. Lives on the handle (not the whole sheet) so it never
-  // fights the sheet's own content scrolling.
+  // Drag-to-dismiss. On touch the WHOLE sheet is grabbable (gated on the scroll being at the top
+  // so it never fights content scrolling — see the effect below). On mouse, the grab handle is
+  // the drag target. A real tap on the handle closes, a downward drag past the threshold closes,
+  // anything shorter snaps back.
   const drag = useRef({ startY: 0, dy: 0, moved: 0, active: false });
+  // Latest onClose, read by the touch listeners so the effect can attach once per open (re-running
+  // it on every onClose identity change would tear down mid-gesture as setOffset re-renders).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   // The sheet stays rendered through its close animation (`closing`) so it slides+fades out
@@ -279,6 +284,65 @@ export function Sheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   useEffect(() => { if (open) setOffset(0); }, [open]);
+  // Touch swipe-to-dismiss across the whole sheet. We claim the gesture as a dismiss only when the
+  // content is scrolled to the very top AND the finger is moving down — so scrolling the content
+  // still works everywhere else. A tap that starts on the grab handle also closes. Attached once
+  // per open (refs hold the live gesture state) so the re-renders from setOffset don't detach it.
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!open || !el) return;
+    let startY = 0, dy = 0, maxMove = 0;
+    let active = false, dragging = false, onHandle = false;
+    const start = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      startY = e.touches[0].clientY;
+      dy = 0; maxMove = 0; active = true; dragging = false;
+      onHandle = !!(e.target as HTMLElement | null)?.closest?.(".ds-sheet__grab");
+    };
+    const move = (e: TouchEvent) => {
+      if (!active) return;
+      dy = e.touches[0].clientY - startY;
+      maxMove = Math.max(maxMove, Math.abs(dy));
+      if (!dragging) {
+        // Decide once: a downward pull while pinned at the top is a dismiss; anything else (an
+        // upward move, or any move while the content can still scroll) is left to native scroll.
+        if (el.scrollTop <= 0 && dy > 4) dragging = true;
+        else if (dy < -4 || el.scrollTop > 0) { active = false; return; }
+        else return;
+      }
+      if (dy < 0) dy = 0;
+      e.preventDefault(); // we own the gesture now — stop the rubber-band scroll underneath it
+      setDragging(true);
+      setOffset(dy);
+    };
+    const end = () => {
+      if (!active) return;
+      active = false;
+      setDragging(false);
+      if (dragging && dy > 96) onCloseRef.current();          // dragged far enough
+      else if (onHandle && maxMove < 6) onCloseRef.current();  // a clean tap on the grab handle
+      else setOffset(0);                                       // short drag — snap back
+    };
+    // An OS/browser-interrupted gesture is an ABORT, not a dismiss — snap back without evaluating
+    // the dismiss thresholds (otherwise a cancel mid-drag past 96px would wrongly close the sheet).
+    const cancel = () => {
+      if (!active) return;
+      active = false;
+      dragging = false;
+      setDragging(false);
+      setOffset(0);
+    };
+    el.addEventListener("touchstart", start, { passive: true });
+    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchend", end);
+    el.addEventListener("touchcancel", cancel);
+    return () => {
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchmove", move);
+      el.removeEventListener("touchend", end);
+      el.removeEventListener("touchcancel", cancel);
+    };
+  }, [open]);
   // Closed after being open → play the exit, then drop `closing` to unmount. Reduced motion
   // (the global catch-all makes the exit instant) skips straight to unmount.
   useEffect(() => {
@@ -296,6 +360,7 @@ export function Sheet({
   if (!open && !closing) return null;
 
   const grabDown = (e: ReactPointerEvent) => {
+    if (e.pointerType === "touch") return; // touch is handled by the whole-sheet swipe listeners
     drag.current = { startY: e.clientY, dy: 0, moved: 0, active: true };
     setDragging(true);
     e.currentTarget.setPointerCapture?.(e.pointerId);

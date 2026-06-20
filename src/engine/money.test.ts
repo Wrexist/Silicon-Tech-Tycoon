@@ -7,9 +7,25 @@ import {
   scale,
   sum,
   format,
+  formatShortDollars,
   toDollars,
   type Money,
 } from "./money.ts";
+
+describe("formatShortDollars (shared compact formatter)", () => {
+  it("agrees on rounding across the magnitude bands", () => {
+    expect(formatShortDollars(3_200_000)).toBe("$3.2M");
+    expect(formatShortDollars(3_000_000)).toBe("$3.0M"); // never "$3M" on one screen, "$3.2M" on another
+    expect(formatShortDollars(45_000)).toBe("$45k");
+    expect(formatShortDollars(320)).toBe("$320");
+    expect(formatShortDollars(0)).toBe("$0");
+  });
+  it("is finite-safe and signed", () => {
+    expect(formatShortDollars(-1_500_000)).toBe("-$1.5M");
+    expect(formatShortDollars(NaN)).toBe("$0");
+    expect(formatShortDollars(Infinity)).toBe("$0");
+  });
+});
 
 describe("money construction & arithmetic", () => {
   it("stores dollars as integer cents", () => {

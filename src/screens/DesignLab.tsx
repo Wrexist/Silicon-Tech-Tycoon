@@ -540,7 +540,9 @@ export function DesignLab({
                       <span className="lab__comp-tier">
                         {def?.name ?? "—"}
                         {def && toDollars(def.unitCost) > 0 && (
-                          <span className="lab__comp-cost"> · {format(def.unitCost)}</span>
+                          // Breakable space, then a nowrap "· $price" unit (non-breaking space), so the
+                          // separator wraps WITH the price instead of orphaning at a line end on long names.
+                          <>{" "}<span className="lab__comp-cost">·{"\u00a0"}{format(def.unitCost)}</span></>
                         )}
                       </span>
                       {def && contribLabel(def.contributes) && (
@@ -905,7 +907,18 @@ export function DesignLab({
             </Card>
 
             <Card>
-              <SectionHeader title="Price" />
+              <SectionHeader
+                title="Price"
+                accessory={
+                  <button
+                    type="button"
+                    className="lab__suggest"
+                    onClick={() => { set({ price: dollars(fairPriceDollars) }); haptic.light(); }}
+                  >
+                    Suggest
+                  </button>
+                }
+              />
               <div className="lab__price-display rounded tnum">{format(draft.price)}</div>
               <Slider
                 value={toDollars(draft.price)}
@@ -1099,7 +1112,7 @@ function DesignCompleteCard({
         </div>
         <div className="done__step">
           <span className="done__step-icon"><Rocket size={16} /></span>
-          <span>When it’s built, <b>launch it right here</b> — it’ll appear at the top of the Lab, ready to release.</span>
+          <span>When it's built, <b>launch it right here</b> — it'll appear at the top of the Lab, ready to release.</span>
         </div>
       </div>
 

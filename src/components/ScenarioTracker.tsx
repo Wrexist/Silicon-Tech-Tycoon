@@ -72,7 +72,7 @@ export function ScenarioTracker() {
 
       {lost && (
         <div className="scn-track__banner scn-track__banner--fail">
-          Deadline passed (week {scn.deadlineWeek}). The 1★ goal wasn’t met — restart from Scenarios to try again.
+          Deadline passed (week {scn.deadlineWeek}). The 1★ goal wasn't met — restart from Scenarios to try again.
         </div>
       )}
 

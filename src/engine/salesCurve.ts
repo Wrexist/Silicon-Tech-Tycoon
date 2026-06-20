@@ -45,6 +45,12 @@ export function distributeOverCurve(totalUnits: number): number[] {
 }
 
 export function forecast(launchScore: number, marketSize: number, priceFit = 1): SalesForecast {
+  // Immunise this public boundary against non-finite inputs so a NaN/Infinity can never propagate
+  // into weeklyUnits/totalUnits and reach the planner or UI (matches the engine's guard-at-the-edge
+  // pattern). Today's callers pass clamped values; this is cheap insurance for the contract.
+  marketSize = Number.isFinite(marketSize) ? Math.max(0, marketSize) : 0;
+  priceFit = Number.isFinite(priceFit) ? Math.max(0, priceFit) : 1;
+  launchScore = Number.isFinite(launchScore) ? launchScore : 0;
   const raw = launchScore * BALANCE.sales.scoreToVolume * marketSize;
   // Any product that ships at a sensible price sells *something* (keeps the early game teachable),
   // but the floor is SCALED BY priceFit so a grossly overpriced product loses it too. A

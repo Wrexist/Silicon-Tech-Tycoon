@@ -634,6 +634,19 @@
   line-height: 1.5;
   margin: var(--sp-4) 0;
 }
+/* Confirm step before the irreversible New Game+ reset (replaces the two action buttons). */
+.ipo__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.ipo__confirm-text {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-align: center;
+  color: var(--ink-2);
+  margin-bottom: var(--sp-4);
+}
 .ipo__stats {
   display: grid;
   grid-template-columns: 1fr 1fr;

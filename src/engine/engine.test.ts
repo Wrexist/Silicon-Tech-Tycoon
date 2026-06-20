@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { dollars, toDollars, type Money } from "./money.ts";
 import { BALANCE } from "./balance.ts";
 import { COMPONENT_LINES, CATEGORIES, maxTier } from "./catalogs.ts";
-import { componentSynergy, computeStats, buildCost, overallScore, missingSlots } from "./product.ts";
+import { componentSynergy, computeStats, buildCost, overallScore, missingSlots, effectiveRefreshRate } from "./product.ts";
 import {
   initialTrends,
   advanceTrends,
@@ -165,6 +165,34 @@ describe("market simulation", () => {
       expect(r.factor).toBeGreaterThanOrEqual(s.minFactor);
       expect(r.factor).toBeLessThanOrEqual(s.maxFactor);
     }
+  });
+
+  it("component synergy clamps out-of-range tiers (corrupt/forward-compat save can't skew it)", () => {
+    // a wildly out-of-range tier must read no better than a maxed one, never push level > 1
+    const maxed = componentSynergy(phone({ tiers: { chip: 6, display: 6, battery: 6, materials: 5, software: 5, camera: 4 } }));
+    const corrupt = componentSynergy(phone({ tiers: { chip: 99, display: 6, battery: 6, materials: 5, software: 5, camera: 4 } }));
+    expect(Number.isFinite(corrupt.factor)).toBe(true);
+    const s = BALANCE.market.synergy;
+    expect(corrupt.factor).toBeLessThanOrEqual(s.maxFactor);
+    expect(corrupt.factor).toBeGreaterThanOrEqual(s.minFactor);
+    // clamping the over-driven chip makes the build read as coherent as the genuinely-maxed one
+    expect(corrupt.factor).toBeCloseTo(maxed.factor, 5);
+    // a non-finite tier (corrupt save) must not propagate NaN into the factor
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      const r = componentSynergy(phone({ tiers: { chip: bad as number, display: 3, battery: 3, materials: 3, software: 2, camera: 2 } }));
+      expect(Number.isFinite(r.factor)).toBe(true);
+    }
+  });
+
+  it("effectiveRefreshRate snaps an odd/legacy value to a real option (no silent drop to baseline)", () => {
+    const opts = BALANCE.design.refreshRate.options; // [60, 90, 120, 144]
+    // 100 isn't an option; it must snap DOWN to 90, and contribute > 0 refresh steps in stats
+    const odd = phone({ refreshRate: 100, tiers: { chip: 3, display: 6, battery: 3, materials: 3, software: 2, camera: 2 } });
+    expect(effectiveRefreshRate(odd)).toBe(90);
+    // a legit option is returned unchanged (capped by the display tier)
+    const exact = phone({ refreshRate: 120, tiers: { chip: 3, display: 6, battery: 3, materials: 3, software: 2, camera: 2 } });
+    expect(opts).toContain(effectiveRefreshRate(exact));
+    expect(effectiveRefreshRate(exact)).toBe(120);
   });
 
   it("synergy scales the launch score and defaults to 1", () => {

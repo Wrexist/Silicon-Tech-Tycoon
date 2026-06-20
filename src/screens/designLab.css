@@ -630,6 +630,21 @@
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+/* "Suggest" snaps the price to the fair-value midpoint — a one-tap shortcut for the every-build
+   pricing decision (and the affordance the Market tip points players to). */
+.lab__suggest {
+  padding: var(--sp-6) var(--sp-12);
+  min-height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  transition: transform var(--spring-snappy);
+}
+.lab__suggest:active {
+  transform: scale(0.94);
+}
 .lab__price-meta {
   display: flex;
   flex-wrap: wrap;

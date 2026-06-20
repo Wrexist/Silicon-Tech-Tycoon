@@ -169,8 +169,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
               </div>
             );
           })()
+        ) : state.ownership < 0.06 ? (
+          <p className="mkt__co-hint">You're at your minimum 5% founder stake — there are no more shares to sell.</p>
         ) : (
-          <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }} disabled={state.ownership <= 0.06}>
+          <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>
             Sell more shares
           </Button>
         )}
@@ -338,7 +340,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       })()}
 
       {/* Stock exchange */}
-      <SectionHeader title="Stock Exchange" accessory="trade rival shares" />
+      <SectionHeader title="Stock exchange" accessory="trade rival shares" />
       {Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
         const portfolioVal = holdingsValue(state.holdings, comps);
         const divPerWk = weeklyDividends(state.holdings, comps);
@@ -1187,7 +1189,7 @@ function IPOSheet({ onClose }: { onClose: () => void }) {
       <div className="trade__head">
         <div>
           <h2 className="trade__title">Take {state.companyName} public</h2>
-          <p className="trade__sub">Sell a stake on the exchange for a cash infusion — you keep the rest.</p>
+          <p className="trade__sub">Sell a stake on the exchange for a cash infusion — you keep the rest. Going public can't be undone.</p>
         </div>
       </div>
       <div className="trade__row">
@@ -1215,7 +1217,7 @@ function SellStakeSheet({ onClose }: { onClose: () => void }) {
       <div className="trade__head">
         <div>
           <h2 className="trade__title">Sell shares</h2>
-          <p className="trade__sub">Cash out more of your stake (you'll keep at least 5%).</p>
+          <p className="trade__sub">Cash out more of your stake (you'll keep at least 5%). Sold shares can't be bought back.</p>
         </div>
       </div>
       <div className="trade__row">

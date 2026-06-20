@@ -33,6 +33,7 @@ export function AnimatedMoney({
   // so the number never jumps backwards before counting to its new value.
   const displayRef = useRef(value);
   const rafRef = useRef(0);
+  const flashTimer = useRef(0);
   const reduced = useReducedMotion();
 
   useEffect(() => {
@@ -44,8 +45,8 @@ export function AnimatedMoney({
       setFlash(to > from ? "up" : "down");
       setDisplay(to);
       displayRef.current = to;
-      const id = setTimeout(() => setFlash(null), 320);
-      return () => clearTimeout(id);
+      flashTimer.current = window.setTimeout(() => setFlash(null), 320);
+      return () => clearTimeout(flashTimer.current);
     }
     setFlash(to > from ? "up" : "down");
     const start = performance.now();
@@ -63,11 +64,11 @@ export function AnimatedMoney({
       else {
         displayRef.current = to;
         setDisplay(to);
-        setTimeout(() => setFlash(null), 320);
+        flashTimer.current = window.setTimeout(() => setFlash(null), 320);
       }
     };
     rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => { cancelAnimationFrame(rafRef.current); clearTimeout(flashTimer.current); };
   }, [value, reduced]);
 
   const color = flash === "up" ? "var(--positive)" : flash === "down" ? "var(--negative)" : undefined;
