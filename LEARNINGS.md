@@ -16,6 +16,21 @@ where Swift/Xcode cannot run. We build on the owner's proven web stack (Vite + R
 shipped to iOS via Capacitor — same approach as the "Goobler" project). The game design,
 pillars, market sim, and monetization model are all preserved unchanged.
 
+## iOS release signing (CI) — archive is development, export is distribution
+The TestFlight workflow signs with an App Store Connect **API key**. Its two xcodebuild
+steps sign *differently on purpose*:
+- **Archive** (`xcodebuild archive`, automatic signing) produces a **development**-signed
+  `.xcarchive`. Do NOT pin `CODE_SIGN_IDENTITY=Apple Distribution` on it — forcing a
+  distribution identity onto automatic development signing fails the archive with
+  "conflicting provisioning settings" (learned by shipping exactly that mistake).
+- **Export** (`xcodebuild -exportArchive` + `ExportOptions.plist` `method: app-store-connect`)
+  re-signs with the **distribution** identity and makes the App Store IPA.
+- "Choose a certificate to revoke" / "no iOS App Development provisioning profiles" at
+  archive time = the Apple account hit its **certificate cap**, not a workflow bug.
+  Automatic signing mints a fresh dev cert on every ephemeral runner, so this recurs; revoke
+  stale certs in the portal. Durable fix = manual signing with an imported identity
+  (fastlane match / .p12 + profile from secrets), not changing the archive identity.
+
 ## LOCKED: Design system (build to these exact tokens)
 Light theme: bg `#F4F5F7`, surface `#FFFFFF`, ink `#1A1D23`, ink-2 `#6B7280`,
 hairline `#E5E7EB`, accent `#3B82F6`, positive `#10B981`, negative `#EF4444`,
