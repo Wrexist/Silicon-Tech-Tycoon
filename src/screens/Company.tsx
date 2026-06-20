@@ -45,6 +45,8 @@ import {
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
+import { haptic } from "../design/haptics.ts";
+import { showToast } from "../design/toast.tsx";
 import type { CSSProperties } from "react";
 import "./company.css";
 
@@ -813,6 +815,7 @@ function Member({
   onRaise: (id: string) => void;
   onRest: (id: string) => void;
 }) {
+  const [confirmFire, setConfirmFire] = useState(false);
   const maxed = s.skill >= BALANCE.staff.maxSkill;
   const cost = trainCost(s.skill);
   const xpPct = maxed ? 100 : Math.min(100, Math.round((s.xp / xpToNext(s.skill)) * 100));
@@ -842,12 +845,30 @@ function Member({
           <span className="co__member-role">{ROLE_LABEL[s.role]} · {SPECIALTY_TITLE[s.specialty]}</span>
           <span className="co__member-sub">{format(s.salary)}/wk</span>
         </div>
-        {s.id !== "s0" && (
-          <button className="co__fire" onClick={() => onFire(s.id)} aria-label={`Let go ${s.name}`}>
+        {s.id !== "s0" && !confirmFire && (
+          <button className="co__fire" onClick={() => setConfirmFire(true)} aria-label={`Let go ${s.name}`}>
             <X size={15} />
           </button>
         )}
       </div>
+
+      {confirmFire && (
+        // Firing is irreversible and wipes accumulated skill/XP — confirm before it happens
+        // (mirrors the save-wipe confirms in Settings/Scenarios) and give real feedback on commit.
+        <div className="co__confirm" role="group" aria-label={`Confirm letting go ${s.name}`}>
+          <span className="co__confirm-text">Let go {s.name}? Their training is lost for good.</span>
+          <div className="co__confirm-row">
+            <Button size="sm" variant="tertiary" onClick={() => setConfirmFire(false)}>Keep</Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => { onFire(s.id); haptic.warning(); showToast(`${s.name} left the company`, { tone: "neutral" }); }}
+            >
+              Let go
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="co__tags">
         <span className="co__tag co__tag--trait" style={{ color: ROLE_COLOR[s.role] }} title={TRAIT_INFO[s.trait].blurb}>

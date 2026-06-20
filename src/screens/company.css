@@ -502,6 +502,28 @@
 .co__fire:active {
   transform: scale(0.9);
 }
+/* Inline "let go" confirmation — appears in the card before the irreversible fire goes through. */
+.co__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin-top: var(--sp-12);
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--negative-soft);
+}
+.co__confirm-text {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--negative-text);
+}
+.co__confirm-row {
+  display: flex;
+  gap: var(--sp-8);
+}
+.co__confirm-row .ds-btn {
+  flex: 1;
+}
 .co__hire-head {
   margin-bottom: var(--sp-12);
 }

@@ -258,6 +258,7 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
 
 function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const { state, prestige } = useGame();
+  const [confirmReset, setConfirmReset] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const rank = industryRank(state);
   const nextBonus = legacyBonus(state.legacy + 1);
@@ -315,8 +316,18 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           Each empire you build leaves a bigger legacy — found your next one stronger, or keep
           building this one.
         </p>
-        <Button block onClick={prestige}>Start New Game+ (Legacy {state.legacy + 1})</Button>
-        <Button block variant="tertiary" onClick={onDismiss}>Keep building</Button>
+        {confirmReset ? (
+          <div className="ipo__confirm">
+            <span className="ipo__confirm-text">Retire {state.companyName} and start fresh? This run ends now.</span>
+            <Button block variant="destructive" onClick={prestige}>Yes, start New Game+</Button>
+            <Button block variant="tertiary" onClick={() => setConfirmReset(false)}>Back</Button>
+          </div>
+        ) : (
+          <>
+            <Button block onClick={() => setConfirmReset(true)}>Start New Game+ (Legacy {state.legacy + 1})</Button>
+            <Button block variant="tertiary" onClick={onDismiss}>Keep building</Button>
+          </>
+        )}
       </div>
     </div>
   );
