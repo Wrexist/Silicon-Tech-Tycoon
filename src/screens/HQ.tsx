@@ -77,6 +77,10 @@ const UPGRADE_FN: Record<UpgradeId, { accent: string; soft: string }> = {
 
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
 
+// A fine pointer (mouse/trackpad) means a physical keyboard is almost certainly present — the only
+// place the WASD camera hint makes sense. Touch phones report a coarse pointer and get no hint.
+const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
+
 export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; active?: boolean }) {
   const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
@@ -480,7 +484,9 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
           </>
         )}
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
-        {use3d && !build && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
+        {/* WASD is keyboard-only — never show it on a touch device (the iOS target), where it's
+            both useless and confusing. Gate on a fine pointer (mouse/trackpad). */}
+        {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
         {use3d && !build && (
           <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
             <LayoutGrid size={15} /> Decorate
