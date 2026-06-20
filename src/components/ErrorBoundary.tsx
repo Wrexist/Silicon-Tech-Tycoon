@@ -15,9 +15,14 @@ interface State {
 
 export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, State> {
   state: State = { error: null, componentStack: "", copied: false, confirmReset: false };
+  private copiedTimer = 0;
 
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.copiedTimer);
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -49,7 +54,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: R
     try {
       await navigator.clipboard.writeText(text);
       this.setState({ copied: true });
-      setTimeout(() => this.setState({ copied: false }), 2000);
+      clearTimeout(this.copiedTimer);
+      this.copiedTimer = window.setTimeout(() => this.setState({ copied: false }), 2000);
     } catch {
       // Clipboard blocked — select the <pre> so the player can copy manually.
       const pre = document.getElementById("eb-report");

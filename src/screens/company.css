@@ -198,8 +198,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-4);
-  min-height: 32px;
-  padding: 0 var(--sp-8);
+  min-height: 44px; /* comfortable touch target (was 32px — below the 44px floor) */
+  padding: 0 var(--sp-12);
   border-radius: var(--r-pill);
   font-size: var(--fs-caption);
   font-weight: 600;
