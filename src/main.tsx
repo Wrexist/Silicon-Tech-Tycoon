@@ -30,6 +30,11 @@ async function boot(): Promise<void> {
   // Capacitor native init (status bar style per theme + splash hide). No-op on web, never throws.
   void initNative(resolvedTheme());
 
+  // Hand the boot splash off to the live app: complete the loading bar, hold a brief minimum so the
+  // intro never flashes, then fade it out. Lives here (not in the splash) so it only clears once
+  // React has actually mounted and painted the first screen underneath.
+  removeBootSplash();
+
   // Register the PWA service worker for offline support — web/PWA only. Inside the Capacitor
   // shell assets are already served locally; a SW there only adds a stale-cache risk on update.
   if (!Capacitor.isNativePlatform() && typeof navigator !== "undefined" && "serviceWorker" in navigator) {
@@ -41,6 +46,23 @@ async function boot(): Promise<void> {
         /* SW registration unavailable — app still works online */
       });
   }
+}
+
+/** Finish + dismiss the inline boot splash (index.html). Snaps the loading bar to 100%, holds a
+ *  ~900ms minimum from first paint so the intro reads as deliberate rather than a flash, then fades
+ *  the overlay out and removes it. Safe no-op if the element is already gone. */
+function removeBootSplash(): void {
+  const el = document.getElementById("boot");
+  if (!el) return;
+  const fill = el.querySelector<HTMLElement>(".boot__bar-fill");
+  if (fill) { fill.style.animation = "none"; fill.style.transform = "scaleX(1)"; }
+  const start = (window as unknown as { __bootStart?: number }).__bootStart ?? 0;
+  const elapsed = ((window.performance && performance.now) ? performance.now() : Date.now()) - start;
+  const hold = Math.max(220, 900 - elapsed); // let the bar visibly complete before fading
+  window.setTimeout(() => {
+    el.classList.add("boot--done");
+    window.setTimeout(() => el.remove(), 480); // after the fade transition
+  }, hold);
 }
 
 void boot();
