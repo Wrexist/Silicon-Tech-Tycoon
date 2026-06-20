@@ -5,6 +5,7 @@
 import { Cpu, Layers, Users, BadgeDollarSign, Rocket } from "lucide-react";
 import { Button, Card, Stat, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
+import { showToast } from "../design/toast.tsx";
 import {
   osDisplayName,
   osTierInfo,
@@ -108,7 +109,11 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
                 <Button
                   size="sm"
                   variant={licensed ? "tertiary" : "secondary"}
-                  onClick={() => { haptic.light(); if (licensed) revokeOsLicense(c.id); else licenseOsToRival(c.id); }}
+                  onClick={() => {
+                    haptic.light();
+                    if (licensed) { revokeOsLicense(c.id); showToast(`${c.name} no longer licenses ${osDisplayName(state)}`, { tone: "neutral" }); }
+                    else { licenseOsToRival(c.id); showToast(`${c.name} now licenses ${osDisplayName(state)} — +${format(fee)}/wk, but stronger in your markets`, { tone: "neutral" }); }
+                  }}
                 >
                   {licensed ? "Revoke" : "License"}
                 </Button>

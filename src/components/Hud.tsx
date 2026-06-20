@@ -29,7 +29,7 @@ export function Hud({ onSettings, onOpenBank }: { onSettings: () => void; onOpen
         aria-label={`Open Bank. Cash ${format(state.cash)}${critical ? `, ${runway} weeks of runway left` : ""}`}
       >
         <span className={`hud__cash-label${critical ? " hud__cash-label--danger" : ""}`} aria-hidden>
-          {critical ? `Cash · ${runway}wk left` : "Cash"}
+          {critical ? `Cash · ${runway} wk left` : "Cash"}
         </span>
         <AnimatedMoney value={state.cash} className={`hud__cash-value rounded${critical ? " hud__cash-value--danger" : ""}`} />
       </button>
