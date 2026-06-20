@@ -24,9 +24,13 @@ export function maxRefreshRate(displayTier: number): number {
 }
 
 /** The product's EFFECTIVE refresh rate: the chosen value (default 60 for older saves), capped by
- *  what the display tier can actually drive. */
+ *  what the display tier can actually drive, then SNAPPED to the nearest supported option ≤ that
+ *  (so a legacy/odd value like 75 resolves to a real step instead of silently dropping to the 60Hz
+ *  baseline via indexOf === -1 — same hardening the storage path already does). */
 export function effectiveRefreshRate(product: Product): number {
-  return Math.min(product.refreshRate ?? 60, maxRefreshRate(product.tiers.display ?? 1));
+  const capped = Math.min(product.refreshRate ?? 60, maxRefreshRate(product.tiers.display ?? 1));
+  const opts = BALANCE.design.refreshRate.options;
+  return opts.reduce((best, cur) => (cur <= capped ? cur : best), opts[0] ?? 60);
 }
 
 /** Steps above the 60Hz baseline (0..3) — drives the appeal bump + extra unit cost. */
@@ -154,7 +158,12 @@ export function overallScore(stats: Stats, category: Product["category"]): numbe
  */
 export function componentSynergy(product: Product): { factor: number; weakest: ComponentKind | null } {
   const slots = CATEGORIES[product.category].slots;
-  const levels = slots.map((kind) => ({ kind, level: maxTier(kind) > 0 ? (product.tiers[kind] ?? 0) / maxTier(kind) : 0 }));
+  // Clamp the chosen tier to its line's range before normalising: a corrupt/forward-compat save
+  // with an out-of-range tier would otherwise push level > 1 and skew the mean / weak-link readout.
+  const levels = slots.map((kind) => {
+    const max = maxTier(kind);
+    return { kind, level: max > 0 ? clamp(product.tiers[kind] ?? 0, 0, max) / max : 0 };
+  });
   if (levels.length === 0) return { factor: 1, weakest: null };
   const mean = levels.reduce((a, b) => a + b.level, 0) / levels.length;
   const weakest = levels.reduce((a, b) => (b.level < a.level ? b : a));
