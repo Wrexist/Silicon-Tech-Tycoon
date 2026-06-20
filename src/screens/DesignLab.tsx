@@ -1112,7 +1112,7 @@ function DesignCompleteCard({
         </div>
         <div className="done__step">
           <span className="done__step-icon"><Rocket size={16} /></span>
-          <span>When it’s built, <b>launch it right here</b> — it’ll appear at the top of the Lab, ready to release.</span>
+          <span>When it's built, <b>launch it right here</b> — it'll appear at the top of the Lab, ready to release.</span>
         </div>
       </div>
 

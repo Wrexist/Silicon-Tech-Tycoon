@@ -1443,9 +1443,9 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   );
   if (sellsOut) {
     if (isFlop) {
-      feed.push(feedItem(state.week, `”${product.name}” will sell out its small run — but the wider market wasn't won over. Tap it on Market for the full story.`, "accent"));
+      feed.push(feedItem(state.week, `“${product.name}” will sell out its small run — but the wider market wasn't won over. Tap it on Market for the full story.`, "accent"));
     } else {
-      feed.push(feedItem(state.week, `”${product.name}” is selling out — demand outstrips your run.`, "positive"));
+      feed.push(feedItem(state.week, `“${product.name}” is selling out — demand outstrips your run.`, "positive"));
     }
   } else if (plannedUnits - totalUnits > plannedUnits * 0.35) {
     feed.push(feedItem(state.week, `Overproduced “${product.name}” — unsold stock is a write-off.`, "negative"));

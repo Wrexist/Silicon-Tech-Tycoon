@@ -25,7 +25,7 @@ const STAT_SHORT: Record<keyof Stats, string> = {
 };
 
 function contributesLabel(c: Partial<Stats>): string {
-  return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_SHORT[k]}`).join("  ");
+  return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_SHORT[k]}`).join(" · ");
 }
 
 /** Show the improvement from upgrading (delta) rather than the tier's total contribution. */
@@ -33,7 +33,7 @@ function deltaLabel(cur: Partial<Stats>, next: Partial<Stats>): string {
   const parts = STAT_KEYS
     .filter((k) => (next[k] ?? 0) > (cur[k] ?? 0))
     .map((k) => `+${Math.round((next[k] ?? 0) - (cur[k] ?? 0))} ${STAT_SHORT[k]}`);
-  return parts.length > 0 ? parts.join("  ") : contributesLabel(next);
+  return parts.length > 0 ? parts.join(" · ") : contributesLabel(next);
 }
 
 
@@ -160,7 +160,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           <FlaskConical size={22} style={{ color: "var(--fn-eng)", flexShrink: 0 }} />
           <div>
             <div className="rd__bank-value tnum" style={{ color: "var(--fn-eng)" }}><AnimatedInt value={rp} /> RP</div>
-            <div className="rd__bank-sub">+{perWeek.toFixed(1)} / week</div>
+            <div className="rd__bank-sub">+{perWeek.toFixed(1)}/wk</div>
           </div>
           {(() => {
             const buyableNow = RESEARCH_PROJECTS.filter(

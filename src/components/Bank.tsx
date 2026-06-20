@@ -75,7 +75,7 @@ export function Bank({ open, onClose }: { open: boolean; onClose: () => void }) 
             glyph={<FlaskConical size={16} />}
             label="Research points"
             value={`${rp} RP`}
-            sub={`+${rpWk.toFixed(1)} per week`}
+            sub={`+${rpWk.toFixed(1)}/wk`}
             accent
           />
         </div>

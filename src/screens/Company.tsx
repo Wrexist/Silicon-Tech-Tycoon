@@ -1049,7 +1049,7 @@ function RecruitPanel({
               onClick={() => onRecruit(tier)}
             >
               <span className="co__recruit-tier-name">{t.label}</span>
-              <span className="co__recruit-tier-meta">{t.weeks} wks · skill {t.minLevel}–{t.maxLevel}</span>
+              <span className="co__recruit-tier-meta">{t.weeks} wk · skill {t.minLevel}–{t.maxLevel}</span>
               <span className="co__recruit-tier-cost">{format(t.cost)}</span>
             </button>
           );
