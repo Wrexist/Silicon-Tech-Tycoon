@@ -75,6 +75,18 @@ export function format(a: Money, opts: { sign?: boolean } = {}): string {
   return opts.sign ? `+${body}` : body;
 }
 
+/** Compact money for goal cards and tight stats (e.g. "$3.2M", "$45k", "$320"). Input is whole
+ *  DOLLARS, not cents. One shared formatter so the same figure can't render "$3M" on the Research
+ *  roadmap and "$3.2M" on the HQ era card — every screen now agrees on rounding. */
+export function formatShortDollars(dollars: number): string {
+  if (!Number.isFinite(dollars)) return "$0";
+  const abs = Math.abs(dollars);
+  const sign = dollars < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}k`;
+  return `${sign}$${Math.round(abs)}`;
+}
+
 /** Sum a list of Money exactly. */
 export function sum(list: readonly Money[]): Money {
   let acc = 0;

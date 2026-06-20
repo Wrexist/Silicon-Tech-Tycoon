@@ -15,7 +15,7 @@ import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { dollars, format, toDollars, type Money } from "../engine/money.ts";
+import { dollars, format, formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
   furnitureCost,
@@ -762,11 +762,6 @@ function Upgrades() {
   );
 }
 
-function fmtRevShort(dollars: number): string {
-  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1)}M`;
-  if (dollars >= 1_000) return `$${Math.round(dollars / 1_000)}k`;
-  return `$${Math.round(dollars)}`;
-}
 
 /** Progress bar strip used inside the era goal card. */
 function GoalBar({ label, value, target }: { label: string; value: number; target: number }) {
@@ -821,7 +816,7 @@ function EraGoalCard({ state }: { state: GameState }) {
         <GoalBar label={`Reputation (need ${Math.round(eraDef.repToAdvance)})`} value={state.reputation} target={eraDef.repToAdvance} />
       )}
       {Number.isFinite(revTargetDollars) && (
-        <GoalBar label={`Revenue (need ${fmtRevShort(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
+        <GoalBar label={`Revenue (need ${formatShortDollars(revTargetDollars)})`} value={revDollars} target={revTargetDollars} />
       )}
       <p className="hq__goal-or">
         {eitherGate ? "Either threshold unlocks the next era." : "Both thresholds are required to advance."}
@@ -1163,7 +1158,7 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
       {weeklyRevenue > 0 && (
         <div className="hq__perf-revenue">
           {revTrending === "up" ? <TrendingUp size={12} aria-hidden className="hq__rev-arrow hq__rev-arrow--up" /> : revTrending === "down" ? <TrendingDown size={12} aria-hidden className="hq__rev-arrow hq__rev-arrow--down" /> : <span className="hq__rev-flat" aria-hidden>—</span>}
-          <span>{fmtRevShort(weeklyRevenue)}/wk</span>
+          <span>{formatShortDollars(weeklyRevenue)}/wk</span>
           {revDeltaPct !== 0 && (
             <span className={`hq__rev-delta tnum${revTrending === "up" ? " hq__rev-delta--up" : revTrending === "down" ? " hq__rev-delta--down" : ""}`}>
               {revDeltaPct > 0 ? "+" : ""}{revDeltaPct}% next wk

@@ -9,7 +9,7 @@ import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
-import { toDollars, type Money } from "../engine/money.ts";
+import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
 import { rdRpCostFor, researchedTier, weeklyRpGen, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
@@ -36,11 +36,6 @@ function deltaLabel(cur: Partial<Stats>, next: Partial<Stats>): string {
   return parts.length > 0 ? parts.join("  ") : contributesLabel(next);
 }
 
-function fmtRevGoal(dollars: number): string {
-  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(0)}M`;
-  if (dollars >= 1_000) return `$${(dollars / 1_000).toFixed(0)}k`;
-  return `$${dollars}`;
-}
 
 function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
   currentEra: number;
@@ -75,7 +70,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
             const bestPct = Math.max(repPct, revPct);
             const label = repPct >= revPct
               ? `${Math.round(reputation)} / ${repGoal} rep`
-              : `${fmtRevGoal(cumulativeRevenueDollars)} / ${fmtRevGoal(revGoalD!)} rev`;
+              : `${formatShortDollars(cumulativeRevenueDollars)} / ${formatShortDollars(revGoalD!)} rev`;
             progressLabel = `${bestPct}% — ${label}`;
           }
 
@@ -95,7 +90,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
                     <span className="rd__roadmap-req">
                       {repGoal ? `${repGoal} rep` : ""}
                       {repGoal && revGoalD ? " or " : ""}
-                      {revGoalD ? `${fmtRevGoal(revGoalD)} rev` : ""}
+                      {revGoalD ? `${formatShortDollars(revGoalD)} rev` : ""}
                     </span>
                   )}
                 </div>

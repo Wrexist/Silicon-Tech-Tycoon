@@ -20,7 +20,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
-import { cents, dollars, format, sub, toDollars } from "../engine/money.ts";
+import { cents, dollars, format, formatShortDollars, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
@@ -511,11 +511,6 @@ function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
   );
 }
 
-function fmtRevShort(d: number): string {
-  if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(1)}M`;
-  if (d >= 1_000) return `$${Math.round(d / 1_000)}k`;
-  return `$${Math.round(d)}`;
-}
 
 /* ---------- Company stats / history ---------- */
 
@@ -654,7 +649,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
               )}
               {peakWkRev > 0 && (
                 <div className="co__stats-best-item">
-                  <span className="co__stats-best-item-val tnum">{fmtRevShort(peakWkRev)}</span>
+                  <span className="co__stats-best-item-val tnum">{formatShortDollars(peakWkRev)}</span>
                   <span className="co__stats-best-item-label">Peak weekly rev</span>
                   <span className="co__stats-best-item-sub">{peakWkName}</span>
                 </div>
