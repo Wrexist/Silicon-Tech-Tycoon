@@ -907,7 +907,18 @@ export function DesignLab({
             </Card>
 
             <Card>
-              <SectionHeader title="Price" />
+              <SectionHeader
+                title="Price"
+                accessory={
+                  <button
+                    type="button"
+                    className="lab__suggest"
+                    onClick={() => { set({ price: dollars(fairPriceDollars) }); haptic.light(); }}
+                  >
+                    Suggest
+                  </button>
+                }
+              />
               <div className="lab__price-display rounded tnum">{format(draft.price)}</div>
               <Slider
                 value={toDollars(draft.price)}
