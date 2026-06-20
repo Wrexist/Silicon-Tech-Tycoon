@@ -115,6 +115,15 @@ jobs:
           echo "API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
       - name: Archive
+        # CODE_SIGN_IDENTITY=Apple Distribution is load-bearing: the Xcode project's
+        # Release config inherits the Capacitor-template default "Apple Development",
+        # which makes automatic signing mint a NEW development certificate on every
+        # ephemeral runner (the private key never survives the run). Accounts have a
+        # hard certificate cap, so this eventually fails with "choose a certificate to
+        # revoke" + "no iOS App Development provisioning profiles". Forcing the
+        # distribution identity makes the API key engage Apple's cloud-managed
+        # distribution certificate instead — held by Apple, reused every run, cap-safe —
+        # which is the whole point of the API-key signing this workflow is built around.
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -131,6 +140,7 @@ jobs:
             -authenticationKeyIssuerID "$ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             archive
 
