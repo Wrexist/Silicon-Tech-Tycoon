@@ -47,6 +47,7 @@ describe("engine robustness (audit hardening)", () => {
       expect(g.weeklyUnits.every((u) => Number.isFinite(u))).toBe(true);
       const h = forecast(bad, 1, 1);
       expect(Number.isFinite(h.totalUnits)).toBe(true);
+      expect(h.weeklyUnits.every((u) => Number.isFinite(u))).toBe(true);
     }
   });
 

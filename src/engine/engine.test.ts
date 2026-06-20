@@ -177,6 +177,11 @@ describe("market simulation", () => {
     expect(corrupt.factor).toBeGreaterThanOrEqual(s.minFactor);
     // clamping the over-driven chip makes the build read as coherent as the genuinely-maxed one
     expect(corrupt.factor).toBeCloseTo(maxed.factor, 5);
+    // a non-finite tier (corrupt save) must not propagate NaN into the factor
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      const r = componentSynergy(phone({ tiers: { chip: bad as number, display: 3, battery: 3, materials: 3, software: 2, camera: 2 } }));
+      expect(Number.isFinite(r.factor)).toBe(true);
+    }
   });
 
   it("effectiveRefreshRate snaps an odd/legacy value to a real option (no silent drop to baseline)", () => {

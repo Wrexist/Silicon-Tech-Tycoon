@@ -280,7 +280,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                   : contributesLabel(next.contributes);
                 // A single-stat line whose stat IS the line ("Battery · +16 Battery") reads
                 // redundant — drop the repeated word: "Battery · +16".
-                const contrib = !contribRaw.includes("  ") && contribRaw.endsWith(` ${line.displayName}`)
+                const contrib = !contribRaw.includes(" · ") && contribRaw.endsWith(` ${line.displayName}`)
                   ? contribRaw.slice(0, -line.displayName.length - 1)
                   : contribRaw;
                 const isTrending = trendDelta > 0.02 && trendStat && (next.contributes[trendStat] ?? 0) > 0;

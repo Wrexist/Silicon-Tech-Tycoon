@@ -169,7 +169,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
               </div>
             );
           })()
-        ) : state.ownership <= 0.06 ? (
+        ) : state.ownership < 0.06 ? (
           <p className="mkt__co-hint">You're at your minimum 5% founder stake — there are no more shares to sell.</p>
         ) : (
           <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>

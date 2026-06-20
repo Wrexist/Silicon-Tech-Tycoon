@@ -323,15 +323,24 @@ export function Sheet({
       else if (onHandle && maxMove < 6) onCloseRef.current();  // a clean tap on the grab handle
       else setOffset(0);                                       // short drag — snap back
     };
+    // An OS/browser-interrupted gesture is an ABORT, not a dismiss — snap back without evaluating
+    // the dismiss thresholds (otherwise a cancel mid-drag past 96px would wrongly close the sheet).
+    const cancel = () => {
+      if (!active) return;
+      active = false;
+      dragging = false;
+      setDragging(false);
+      setOffset(0);
+    };
     el.addEventListener("touchstart", start, { passive: true });
     el.addEventListener("touchmove", move, { passive: false });
     el.addEventListener("touchend", end);
-    el.addEventListener("touchcancel", end);
+    el.addEventListener("touchcancel", cancel);
     return () => {
       el.removeEventListener("touchstart", start);
       el.removeEventListener("touchmove", move);
       el.removeEventListener("touchend", end);
-      el.removeEventListener("touchcancel", end);
+      el.removeEventListener("touchcancel", cancel);
     };
   }, [open]);
   // Closed after being open → play the exit, then drop `closing` to unmount. Reduced motion

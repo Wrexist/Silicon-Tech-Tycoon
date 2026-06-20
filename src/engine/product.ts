@@ -162,7 +162,11 @@ export function componentSynergy(product: Product): { factor: number; weakest: C
   // with an out-of-range tier would otherwise push level > 1 and skew the mean / weak-link readout.
   const levels = slots.map((kind) => {
     const max = maxTier(kind);
-    return { kind, level: max > 0 ? clamp(product.tiers[kind] ?? 0, 0, max) / max : 0 };
+    // Sanitize before clamp: clamp(NaN) returns NaN (both comparisons are false), which would
+    // propagate through the mean and survive the final factor clamp. A non-finite tier → 0.
+    const tier = product.tiers[kind] ?? 0;
+    const safe = Number.isFinite(tier) ? tier : 0;
+    return { kind, level: max > 0 ? clamp(safe, 0, max) / max : 0 };
   });
   if (levels.length === 0) return { factor: 1, weakest: null };
   const mean = levels.reduce((a, b) => a + b.level, 0) / levels.length;
