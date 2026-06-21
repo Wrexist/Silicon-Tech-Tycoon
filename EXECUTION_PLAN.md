@@ -24,7 +24,10 @@ Pure checklist; full steps in `WHAT_YOU_NEED_TO_DO.md`. No agent code here.
 - [ ] 🧑 Add 3 CI secrets: `APP_STORE_CONNECT_KEY_ID`, `_ISSUER_ID`, `_API_KEY_BASE64`. (Team `S3U8B8HH96` wired.)
 - [ ] 🧑 `npx cap add ios` → portrait-only + iPhone-only → archive → TestFlight.
 - [ ] 🧑 On-device smoke: Preferences mirror, status-bar theme, haptics, splash, full design→launch loop.
-- [ ] 🧑 Ship **without** the IAP (the `iapAvailable()` seam hides it) → submit. IAP lands in Phase 2.
+- [ ] 🧑 Ship **WITH** the Creative-Mode IAP — it's already wired (`NATIVE_IAP_WIRED = true`,
+      `SiliconStoreKit.swift`), so create + attach it in App Store Connect and test buy+restore (see
+      `SHIP_READINESS.md`). *To defer instead:* flip `NATIVE_IAP_WIRED = false` in `src/state/iap.ts`
+      (the `iapAvailable()` seam then hides the purchase UI) and ship it in a 1.x update. → submit.
 
 **Agent support available now:** I can pre-stage anything code-side the owner needs (verify
 `ExportOptions.plist`, the TestFlight workflow, `Info.plist` flags, icon/splash generation) — ask

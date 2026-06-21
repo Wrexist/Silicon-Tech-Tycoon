@@ -17,7 +17,7 @@ priorities.** When they disagree, this file wins; update it as work lands.
 |---|---|
 | Version | `1.0.0` (`package.json`) |
 | Typecheck | `tsc -b` — **0 errors** ✅ |
-| Tests | **362 passing across 33 files** (vitest) ✅ |
+| Tests | **384 passing across 35 files** (vitest) ✅ |
 | Build | `vite build` + PWA (manifest + service worker) green ✅ |
 | Engine purity | `engine/` is pure TS, fully unit-tested, deterministic (pinned by `engine.test.ts`) ✅ |
 | iOS pipeline | Capacitor shell + TestFlight CI workflow wired; reached a real device (build 11) ✅ |

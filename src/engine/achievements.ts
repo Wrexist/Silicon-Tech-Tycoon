@@ -154,7 +154,9 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
     wonScenario: scenarioResultFor(state)?.won ?? false,
     completedChallenge: state.challengeScore != null,
     releasedOsVersion: state.platformUnlocked && state.osVersion > 1,
-    scenarioThreeStarRun: (scenarioResultFor(state)?.stars ?? 0) >= 3,
+    // Use the RUN-LOCKED high-water stars (monotonic, the value recorded to the profile), not a
+    // live recompute — so a 3★ run still counts after the earn window closes or metrics later dip.
+    scenarioThreeStarRun: (state.scenarioRunStars ?? 0) >= 3,
     scenariosThreeStarred: mastery?.scenariosThreeStarred ?? 0,
     allScenariosWon: !!mastery && mastery.totalScenarios > 0 && mastery.scenariosWon >= mastery.totalScenarios,
     allScenariosThreeStarred:
