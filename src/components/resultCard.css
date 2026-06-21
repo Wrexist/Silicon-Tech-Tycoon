@@ -120,3 +120,15 @@
   color: var(--ink-3);
   text-align: center;
 }
+
+/* Post-mortem (bankruptcy) — a calm, dignified epitaph rather than a celebratory accent gradient. */
+.rcard--memoriam {
+  background: linear-gradient(160deg,
+    color-mix(in srgb, var(--ink-3) 10%, var(--surface)) 0%,
+    var(--surface) 46%);
+  border-color: color-mix(in srgb, var(--ink-3) 22%, var(--hairline));
+}
+.rcard--memoriam .rcard__brand,
+.rcard--memoriam .rcard__wordmark {
+  color: var(--ink-2);
+}

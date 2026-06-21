@@ -108,6 +108,17 @@ export function computeStats(product: Product): Stats {
   return stats;
 }
 
+/** Build-cost multiplier from the value/premium tuning axis (pure; 1 for every other tuning).
+ *  "value" makes the device cheaper to manufacture (thinner specs, lower margin appeal); "premium"
+ *  costs more to build. Applied by the state layer to tooling + per-unit cost so the margin trade
+ *  is real money, not just a stat tweak. Default 1 → zero ripple for older saves / balanced builds. */
+export function tuningCostMultiplier(tuning: Product["tuning"]): number {
+  if (tuning === "value" || tuning === "premium") {
+    return BALANCE.design.tuningCostMult[tuning] ?? 1;
+  }
+  return 1;
+}
+
 /** Per-unit build cost = sum of selected component unit costs + extra camera lenses. */
 export function buildCost(product: Product): Money {
   const cat = CATEGORIES[product.category];

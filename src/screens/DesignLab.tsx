@@ -63,6 +63,8 @@ const TUNINGS: { id: ProductTuning; label: string; hint: string }[] = [
   { id: "efficiency", label: "Efficiency", hint: "+battery, −performance" },
   { id: "balanced", label: "Balanced", hint: "no trade-off" },
   { id: "performance", label: "Performance", hint: "+performance, −battery" },
+  { id: "value", label: "Value", hint: "cheaper to build, −quality & design" },
+  { id: "premium", label: "Premium", hint: "+quality & design, costs more to build" },
 ];
 const FINISH_LABEL: Record<FinishId, string> = {
   plastic: "Polymer",

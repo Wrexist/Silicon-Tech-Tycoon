@@ -66,7 +66,7 @@ import {
   type UpgradeId,
 } from "../engine/upgrades.ts";
 import { canAdvanceEra, eraName, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
-import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
+import { deriveFacts, evaluateAchievements, type MasteryInput } from "../engine/achievements.ts";
 import {
   advanceTrends,
   demandVarianceMultiplier,
@@ -86,7 +86,7 @@ import {
   ZERO,
   type Money,
 } from "../engine/money.ts";
-import { buildCost, componentSynergy, computeStats, missingSlots, overallScore } from "../engine/product.ts";
+import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -544,6 +544,12 @@ export function productStats(s: GameState, product: Product): Stats {
   } else if (product.tuning === "efficiency") {
     bonus.battery = (bonus.battery ?? 0) + shift;
     bonus.performance = (bonus.performance ?? 0) - shift;
+  } else if (product.tuning === "value" || product.tuning === "premium") {
+    // Margin axis: "premium" buys quality+design appeal (and costs more to build, see
+    // effectiveUnitCost/toolingCost); "value" trades that appeal away for a cheaper build.
+    const m = product.tuning === "premium" ? BALANCE.design.marginShift : -BALANCE.design.marginShift;
+    bonus.quality = (bonus.quality ?? 0) + m;
+    bonus.design = (bonus.design ?? 0) + m;
   }
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
@@ -615,15 +621,19 @@ export const buildWeeksFor = (s: GameState) =>
 
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
-  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades));
+  const margin = tuningCostMultiplier(product.tuning);
+  const perk = 1 - perkBonuses(s.legacy).buildCostMult; // NG+ Supply Chain / Industrialist perks
+  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk);
   return base > BALANCE.build.minTooling ? base : BALANCE.build.minTooling;
 }
 
-/** Per-unit manufacturing cost after company projects + upgrades. */
+/** Per-unit manufacturing cost after company projects + upgrades + the value/premium margin axis
+ *  + any NG+ build-cost perks. */
 export function effectiveUnitCost(s: GameState, product: Product): Money {
-  let unitCost = buildCost(product);
+  let unitCost = scale(buildCost(product), tuningCostMultiplier(product.tuning));
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
+  unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   return scale(unitCost, buildCostMult(s.upgrades));
 }
 
@@ -2149,9 +2159,12 @@ export function sellShares(state: GameState, id: string, qty: number): GameState
  * unlocked (referential stability), plus the list of ids that flipped this evaluation so the UI
  * layer can fire celebratory toasts for live-play unlocks only. Never mutates input.
  */
-export function evaluateAndUnlock(state: GameState): { state: GameState; unlocked: string[] } {
+export function evaluateAndUnlock(
+  state: GameState,
+  mastery?: MasteryInput,
+): { state: GameState; unlocked: string[] } {
   const prev = state.unlockedAchievements ?? [];
-  const satisfied = evaluateAchievements(deriveFacts(state));
+  const satisfied = evaluateAchievements(deriveFacts(state, mastery));
   const had = new Set(prev);
   const unlocked = satisfied.filter((id) => !had.has(id));
   if (unlocked.length === 0) return { state, unlocked: [] };

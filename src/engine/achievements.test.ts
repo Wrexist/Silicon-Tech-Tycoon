@@ -39,6 +39,11 @@ function emptyFacts(): AchievementFacts {
     wonScenario: false,
     completedChallenge: false,
     releasedOsVersion: false,
+    scenarioThreeStarRun: false,
+    scenariosThreeStarred: 0,
+    allScenariosWon: false,
+    allScenariosThreeStarred: false,
+    challengesCompletedTotal: 0,
   };
 }
 
@@ -144,10 +149,43 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "scenario-win", facts: { wonScenario: true } },
     { id: "challenge-done", facts: { completedChallenge: true } },
     { id: "os-release", facts: { releasedOsVersion: true } },
+    { id: "scenario-3star", facts: { scenarioThreeStarRun: true } },
+    { id: "scenarios-3starred-3", facts: { scenariosThreeStarred: 3 } },
+    { id: "scenarios-all-won", facts: { allScenariosWon: true } },
+    { id: "scenarios-all-3star", facts: { allScenariosThreeStarred: true } },
+    { id: "challenges-10", facts: { challengesCompletedTotal: 10 } },
   ];
 
   it("covers the whole catalog", () => {
     expect(new Set(cases.map((c) => c.id))).toEqual(new Set(ACHIEVEMENTS.map((a) => a.id)));
+  });
+
+  describe("mastery facts map from MasteryInput (cross-run)", () => {
+    const s = newGame(1);
+    it("default to 0/false when no mastery is supplied (a plain run never false-unlocks)", () => {
+      const f = deriveFacts(s);
+      expect(f.allScenariosWon).toBe(false);
+      expect(f.allScenariosThreeStarred).toBe(false);
+      expect(f.scenariosThreeStarred).toBe(0);
+      expect(f.challengesCompletedTotal).toBe(0);
+    });
+    it("allScenariosWon requires EVERY scenario won", () => {
+      const partial = deriveFacts(s, { totalScenarios: 6, scenariosWon: 5, scenariosThreeStarred: 0, challengesCompleted: 0 });
+      const all = deriveFacts(s, { totalScenarios: 6, scenariosWon: 6, scenariosThreeStarred: 0, challengesCompleted: 0 });
+      expect(partial.allScenariosWon).toBe(false);
+      expect(all.allScenariosWon).toBe(true);
+    });
+    it("allScenariosThreeStarred needs every scenario 3-starred AND a non-empty catalog", () => {
+      const empty = deriveFacts(s, { totalScenarios: 0, scenariosWon: 0, scenariosThreeStarred: 0, challengesCompleted: 0 });
+      const all = deriveFacts(s, { totalScenarios: 6, scenariosWon: 6, scenariosThreeStarred: 6, challengesCompleted: 0 });
+      expect(empty.allScenariosThreeStarred).toBe(false); // can't "master all" of nothing
+      expect(all.allScenariosThreeStarred).toBe(true);
+    });
+    it("passes through the lifetime counts", () => {
+      const f = deriveFacts(s, { totalScenarios: 6, scenariosWon: 6, scenariosThreeStarred: 3, challengesCompleted: 12 });
+      expect(f.scenariosThreeStarred).toBe(3);
+      expect(f.challengesCompletedTotal).toBe(12);
+    });
   });
 
   for (const c of cases) {

@@ -42,11 +42,21 @@ export type CameraPosition = "topLeft" | "topCenter" | "center";
 export type CameraModuleShape = "squircle" | "circle" | "pill";
 export type NotchStyle = "none" | "punch" | "notch" | "island";
 
-/** Per-product performance/efficiency tuning — a meaningful build choice that trades one stat for
- *  another so the optimal recipe depends on what the market wants, not just "pick the top tier".
- *  Applied in the STATE layer (gameState.productStats), never in the protected computeStats, so it
- *  carries zero retroactive balance ripple (launched products keep their snapshot stats). */
-export type ProductTuning = "balanced" | "performance" | "efficiency";
+/** Per-product build philosophy — a meaningful sidegrade so the optimal recipe depends on what the
+ *  market wants (and on your margin strategy), not just "pick the top tier". Two trade axes,
+ *  mutually exclusive (one readable choice):
+ *    • performance / efficiency — shift points between performance and battery (stat↔stat).
+ *    • value / premium — value lowers build cost but dims quality/design appeal; premium raises
+ *      both appeal and build cost (margin↔appeal).
+ *  Stat effects apply in the STATE layer (gameState.productStats), never in the protected
+ *  computeStats, so there's zero retroactive balance ripple (launched products keep their snapshot
+ *  stats). The cost multiplier is a pure engine helper (tuningCostMultiplier). */
+export type ProductTuning =
+  | "balanced"
+  | "performance"
+  | "efficiency"
+  | "value"
+  | "premium";
 
 export interface CameraDesign {
   count: number; // 1..4 lenses placed on the back

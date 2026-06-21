@@ -143,6 +143,16 @@ describe("early-game fairness — the maiden launch must not punish a competent 
     }
   });
 
+  // NG+ build-cost perks (Supply Chain Master / Industrialist) actually reduce manufacturing cost.
+  it("a high-prestige founder manufactures more cheaply (perk wiring)", () => {
+    const fresh = newGame(7); // legacy 0 — no perks
+    const veteran = { ...newGame(7), legacy: 99 }; // every perk active (build-cost capped at −40%)
+    const freshUnit = toDollars(effectiveUnitCost(fresh, phone()));
+    const vetUnit = toDollars(effectiveUnitCost(veteran, phone()));
+    expect(vetUnit).toBeLessThan(freshUnit);
+    expect(vetUnit).toBeGreaterThanOrEqual(freshUnit * 0.6); // never cheaper than the −40% hard cap
+  });
+
   // Stakes are preserved: a genuinely bad bet (badly overpriced) still flops.
   it("a badly overpriced first product still flops — the floor isn't a free pass", () => {
     const s = newGame(1);

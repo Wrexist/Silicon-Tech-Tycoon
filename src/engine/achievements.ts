@@ -63,6 +63,22 @@ export interface AchievementFacts {
   wonScenario: boolean; // currently winning the active scenario (≥1★)
   completedChallenge: boolean; // a daily/weekly challenge score has locked in
   releasedOsVersion: boolean; // shipped a new OS version via the Platform division
+  // --- Mastery (cross-run profile) facts. Supplied by the state layer via MasteryInput; default to
+  //     0/false in a pure run so these never false-unlock without real profile data. ---
+  scenarioThreeStarRun: boolean; // the CURRENT run has 3-starred its scenario
+  scenariosThreeStarred: number; // distinct scenarios 3-starred across ALL runs (lifetime)
+  allScenariosWon: boolean; // every scenario in the catalog won (≥1★) across runs
+  allScenariosThreeStarred: boolean; // every scenario 3-starred across runs (the mastery peak)
+  challengesCompletedTotal: number; // daily/weekly challenges completed across runs (lifetime)
+}
+
+/** Cross-run mastery counts, computed by the state layer (which owns the profile stores + the
+ *  scenario catalog) and passed into deriveFacts so the engine stays pure / IO-free. */
+export interface MasteryInput {
+  totalScenarios: number; // size of the current scenario catalog
+  scenariosWon: number; // distinct current scenarios won (≥1★), lifetime
+  scenariosThreeStarred: number; // distinct current scenarios 3-starred, lifetime
+  challengesCompleted: number; // challenges completed, lifetime
 }
 
 export interface Achievement {
@@ -76,8 +92,11 @@ export interface Achievement {
   predicate: (f: AchievementFacts) => boolean;
 }
 
-/** Derive the (read-only) facts an evaluator needs from a full GameState. Pure. */
-export function deriveFacts(state: GameState): AchievementFacts {
+/** Derive the (read-only) facts an evaluator needs from a full GameState. Pure. The optional
+ *  `mastery` carries cross-run profile data the engine can't read itself (localStorage lives in the
+ *  state layer); omitted → the mastery facts default to 0/false, so a plain run never false-unlocks
+ *  a mastery achievement. */
+export function deriveFacts(state: GameState, mastery?: MasteryInput): AchievementFacts {
   const launched = state.launched; // newest-first
   const hits = launched.filter((lp) => lp.verdict === "hit").length;
 
@@ -135,6 +154,12 @@ export function deriveFacts(state: GameState): AchievementFacts {
     wonScenario: scenarioResultFor(state)?.won ?? false,
     completedChallenge: state.challengeScore != null,
     releasedOsVersion: state.platformUnlocked && state.osVersion > 1,
+    scenarioThreeStarRun: (scenarioResultFor(state)?.stars ?? 0) >= 3,
+    scenariosThreeStarred: mastery?.scenariosThreeStarred ?? 0,
+    allScenariosWon: !!mastery && mastery.totalScenarios > 0 && mastery.scenariosWon >= mastery.totalScenarios,
+    allScenariosThreeStarred:
+      !!mastery && mastery.totalScenarios > 0 && mastery.scenariosThreeStarred >= mastery.totalScenarios,
+    challengesCompletedTotal: mastery?.challengesCompleted ?? 0,
   };
 }
 
@@ -500,6 +525,47 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Layers",
     hint: "Build the Platform division and ship an OS version.",
     predicate: (f) => f.releasedOsVersion,
+  },
+  // --- Mastery tier (cross-run; the engaged-player tail, per RETENTION_ROADMAP Wave 4) ---
+  {
+    id: "scenario-3star",
+    title: "Flawless Run",
+    description: "Three-starred a Scenario — every objective, every tier, in a single run.",
+    icon: "Star",
+    hint: "Master a Scenario's hardest tier.",
+    predicate: (f) => f.scenarioThreeStarRun,
+  },
+  {
+    id: "scenarios-3starred-3",
+    title: "Triple Threat",
+    description: "Three-starred three different Scenarios. A serial master.",
+    icon: "Flame",
+    hint: "Master several Scenarios, not just one.",
+    predicate: (f) => f.scenariosThreeStarred >= 3,
+  },
+  {
+    id: "scenarios-all-won",
+    title: "Campaign Complete",
+    description: "Won every Scenario in the catalog. You've answered every brief.",
+    icon: "Trophy",
+    hint: "Earn at least one star in every Scenario.",
+    predicate: (f) => f.allScenariosWon,
+  },
+  {
+    id: "scenarios-all-3star",
+    title: "Grand Master",
+    description: "Three-starred every Scenario. Total mastery of the game.",
+    icon: "Crown",
+    hint: "Master all three tiers of every Scenario.",
+    predicate: (f) => f.allScenariosThreeStarred,
+  },
+  {
+    id: "challenges-10",
+    title: "Daily Devotee",
+    description: "Completed ten daily or weekly Challenges. A creature of habit.",
+    icon: "Zap",
+    hint: "Keep coming back for the Challenge.",
+    predicate: (f) => f.challengesCompletedTotal >= 10,
   },
 ];
 

@@ -75,7 +75,8 @@ import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioPro
 import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
 import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
 import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
-import { scenarioById, canEarnStars } from "../engine/scenarios.ts";
+import { scenarioById, canEarnStars, SCENARIOS } from "../engine/scenarios.ts";
+import type { MasteryInput } from "../engine/achievements.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
 import type { ProjectId } from "../engine/research.ts";
@@ -223,8 +224,22 @@ function announceAchievements(unlocked: readonly string[]): void {
  * unlocks in SILENTLY (evaluateAndUnlock without toasts) so a returning/away player is never
  * spammed with a backlog of celebrations.
  */
+/** Cross-run mastery counts for the achievement evaluator, read from the profile stores (which the
+ *  pure engine can't reach). Cheap — a couple of small JSON reads; called only on the once-per-week
+ *  announce path + the value-call unlock paths, never per render. */
+function readMasteryInput(): MasteryInput {
+  const stars = getScenarioStars();
+  const ids = SCENARIOS.map((s) => s.id);
+  return {
+    totalScenarios: ids.length,
+    scenariosWon: ids.filter((id) => (stars[id] ?? 0) >= 1).length,
+    scenariosThreeStarred: ids.filter((id) => (stars[id] ?? 0) >= 3).length,
+    challengesCompleted: Object.keys(getChallengeBests()).length,
+  };
+}
+
 function withLiveAchievements(next: GameState): GameState {
-  const { state: out, unlocked } = evaluateAndUnlock(next);
+  const { state: out, unlocked } = evaluateAndUnlock(next, readMasteryInput());
   announceAchievements(unlocked);
   mergeProfileAchievements(unlocked); // accumulate into the lifetime (cross-company) set
   return out;
@@ -386,7 +401,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
     // Fold in any achievements earned while away SILENTLY (no toast backlog on return). migrate()
     // already backfilled the on-disk earned set; this catches milestones crossed during catch-up.
-    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored))).state;
+    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored)), readMasteryInput()).state;
     mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
     // A challenge whose scoreWeek was crossed while away locks + records its best silently here.
     syncChallengeBest(floored, withAch, false);
@@ -454,7 +469,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const id = setInterval(() => {
       setState((s) => {
         const next = withScenarioRunStars(withChallengeScore(advanceOneWeek(s)));
-        const { state: out, unlocked } = evaluateAndUnlock(next);
+        const { state: out, unlocked } = evaluateAndUnlock(next, readMasteryInput());
         if (next.week !== announcedWeekRef.current) {
           announcedWeekRef.current = next.week;
           withRevToasts(s, next);
@@ -515,7 +530,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (weeks <= 0) return;
     // F7 — don't punish time away: floor fans at the pre-catchup value (online decay is untouched).
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
-    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored))).state;
+    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored)), readMasteryInput()).state;
     mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
     syncChallengeBest(floored, withAch, false); // lock + record a challenge that finished while away
     const stamped = Date.now();
