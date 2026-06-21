@@ -66,7 +66,7 @@ import {
   type UpgradeId,
 } from "../engine/upgrades.ts";
 import { canAdvanceEra, eraName, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
-import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
+import { deriveFacts, evaluateAchievements, type MasteryInput } from "../engine/achievements.ts";
 import {
   advanceTrends,
   demandVarianceMultiplier,
@@ -2156,9 +2156,12 @@ export function sellShares(state: GameState, id: string, qty: number): GameState
  * unlocked (referential stability), plus the list of ids that flipped this evaluation so the UI
  * layer can fire celebratory toasts for live-play unlocks only. Never mutates input.
  */
-export function evaluateAndUnlock(state: GameState): { state: GameState; unlocked: string[] } {
+export function evaluateAndUnlock(
+  state: GameState,
+  mastery?: MasteryInput,
+): { state: GameState; unlocked: string[] } {
   const prev = state.unlockedAchievements ?? [];
-  const satisfied = evaluateAchievements(deriveFacts(state));
+  const satisfied = evaluateAchievements(deriveFacts(state, mastery));
   const had = new Set(prev);
   const unlocked = satisfied.filter((id) => !had.has(id));
   if (unlocked.length === 0) return { state, unlocked: [] };

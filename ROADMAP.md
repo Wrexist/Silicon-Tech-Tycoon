@@ -214,8 +214,10 @@ Our data-driven `catalogs.ts` makes most of this cheap. Mix free drops (goodwill
       seam generalizes to notch styles and module shapes.
 - [ ] **Deeper challenge mutators** (no-marketing / fixed-price / recession) — needs `balance.ts`
       override plumbing (a larger change than the v21 start-override mutators).
-- [ ] **Achievements expansion** tied to scenarios/challenges ("3★ every scenario," "win a daily
-      under a self-imposed constraint").
+- [x] **Achievements expansion** tied to scenarios/challenges — DONE 2026-06-21. Added a mastery
+      tier reading cross-run profile data (Flawless Run = 3★ a scenario; Triple Threat = 3★ three;
+      Campaign Complete = win all; Grand Master = 3★ all; Daily Devotee = 10 challenges). Engine stays
+      pure via a `MasteryInput` the state layer supplies from the profile stores. +tests.
 
 **Paid DLC #2 candidates (pick by live data):**
 - [ ] **A new era past the AI Era** — fresh components, scenarios, and the "new toy" reach moment.
