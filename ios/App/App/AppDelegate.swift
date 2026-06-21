@@ -7,7 +7,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Keep the StoreKit IAP plugin alive in Release archives. SiliconStoreKitPlugin is only
+        // reached through Capacitor's runtime CAPBridgedPlugin scan, so with no compile-time
+        // reference the Release linker can dead-strip the class — the bridge then can't find
+        // "SiliconStoreKit" and every purchase()/getProduct() call rejects ("The purchase couldn't
+        // be started"). Touching the metatype forces the symbol to be retained. (No effect in Debug,
+        // where stripping is off.)
+        _ = SiliconStoreKitPlugin.self
         return true
     }
 
