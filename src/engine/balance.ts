@@ -41,6 +41,12 @@ export const BALANCE = {
     // reverse, "balanced" is neutral. Modest so it's a tie-breaker toward what the market wants,
     // never a dominant lever. Applied AFTER computeStats, clamped 0..statMax.
     tuningShift: 7,
+    // Value/premium margin axis (the second, mutually-exclusive tuning trade). "value" shaves build
+    // cost but dims quality+design appeal; "premium" lifts both appeal stats at a higher build cost.
+    // marginShift is the appeal points moved (state-layer, clamped); tuningCostMult scales build +
+    // tooling + unit cost (pure engine, tuningCostMultiplier). Magnitudes need a playtest (⚠️).
+    marginShift: 6,
+    tuningCostMult: { value: 0.85, premium: 1.18 } as Record<string, number>,
     // Screen refresh rate (Hz) — a customizable display spec. Higher Hz adds a small appeal bump
     // and a per-unit cost, but is GATED by the display tier (a budget panel can't drive 144Hz), so
     // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).

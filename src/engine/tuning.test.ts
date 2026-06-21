@@ -13,12 +13,15 @@ import { type Stats, STAT_KEYS } from "./types.ts";
 import type { CategoryId, ConsumerTrends } from "./types.ts";
 import { scoreLaunch, priceGuidance } from "./market.ts";
 import { forecast } from "./salesCurve.ts";
+import { tuningCostMultiplier } from "./product.ts";
+import type { ProductTuning } from "./types.ts";
 
 const CATEGORY: CategoryId = "phone";
 
 /** Mirror of gameState.productStats' tuning branch — the shipped transform, clamped 0..statMax. */
-function tuned(base: Stats, tuning: "balanced" | "performance" | "efficiency"): Stats {
+function tuned(base: Stats, tuning: ProductTuning): Stats {
   const shift = BALANCE.design.tuningShift;
+  const margin = BALANCE.design.marginShift;
   const s = { ...base };
   if (tuning === "performance") {
     s.performance += shift;
@@ -26,6 +29,10 @@ function tuned(base: Stats, tuning: "balanced" | "performance" | "efficiency"): 
   } else if (tuning === "efficiency") {
     s.battery += shift;
     s.performance -= shift;
+  } else if (tuning === "value" || tuning === "premium") {
+    const m = tuning === "premium" ? margin : -margin;
+    s.quality += m;
+    s.design += m;
   }
   for (const k of STAT_KEYS) s[k] = Math.max(0, Math.min(BALANCE.statMax, Math.round(s[k])));
   return s;
@@ -96,5 +103,31 @@ describe("tuning is a real sidegrade (not a no-op)", () => {
       return best;
     };
     expect(bestIn(perfClimate)).not.toBe(bestIn(battClimate));
+  });
+});
+
+describe("margin axis: value vs premium is a real cost↔appeal trade", () => {
+  const base: Stats = { performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 };
+
+  it("the cost multiplier is a genuine trade (value < 1 < premium, balanced == 1)", () => {
+    expect(tuningCostMultiplier("value")).toBeLessThan(1);
+    expect(tuningCostMultiplier("premium")).toBeGreaterThan(1);
+    expect(tuningCostMultiplier("balanced")).toBe(1);
+    expect(tuningCostMultiplier("performance")).toBe(1); // the other axis never touches cost
+    expect(tuningCostMultiplier(undefined)).toBe(1); // older saves
+  });
+
+  it("premium lifts appeal where the market values quality/design; value dims it", () => {
+    const trends = climateFavouring("quality");
+    const premium = revenueAtFair(tuned(base, "premium"), trends);
+    const value = revenueAtFair(tuned(base, "value"), trends);
+    const balanced = revenueAtFair(tuned(base, "balanced"), trends);
+    expect(premium).toBeGreaterThan(balanced);
+    expect(value).toBeLessThan(balanced);
+  });
+
+  it("value is the cheaper build (margin play), premium the dearer one", () => {
+    // marginShift only moves appeal, never the COST — that lives in tuningCostMultiplier.
+    expect(tuningCostMultiplier("value")).toBeLessThan(tuningCostMultiplier("premium"));
   });
 });
