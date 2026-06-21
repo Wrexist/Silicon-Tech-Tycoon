@@ -6,6 +6,7 @@ import { Hud } from "./components/Hud.tsx";
 import { Bank } from "./components/Bank.tsx";
 import { BottomNav, type Tab } from "./components/BottomNav.tsx";
 import { Coach } from "./components/Coach.tsx";
+import { ResultCard } from "./components/ResultCard.tsx";
 import { ToastHost } from "./design/toast.tsx";
 import { GainFX } from "./design/GainFX.tsx";
 import { Confetti } from "./design/Confetti.tsx";
@@ -465,12 +466,32 @@ function BankruptOverlay() {
   const { state, restart } = useGame();
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
+  const [showCard, setShowCard] = useState(false);
   const bestRevProduct = state.launched.reduce<{ product: { name: string }; revenueToDate: number } | null>(
     (top, lp) => (top == null || lp.revenueToDate > top.revenueToDate ? lp : top),
     null,
   );
   const hitsCount = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
   const diagnosis = diagnoseFailure(state);
+  if (showCard) {
+    return (
+      <div className="bankrupt">
+        <div
+          ref={ref}
+          className="bankrupt__inner"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bankrupt-title"
+          tabIndex={-1}
+        >
+          <h2 className="bankrupt__title" id="bankrupt-title">Your story</h2>
+          <ResultCard state={state} result={null} variant="postmortem" />
+          <Button block variant="secondary" onClick={() => setShowCard(false)}>Back</Button>
+          <Button block onClick={restart}>Start a new company</Button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="bankrupt">
       <div
@@ -516,6 +537,9 @@ function BankruptOverlay() {
             ))}
           </div>
         )}
+        <Button block variant="secondary" onClick={() => setShowCard(true)}>
+          <Sparkles size={15} /> View shareable card
+        </Button>
         <Button block onClick={restart}>Start a new company</Button>
       </div>
     </div>

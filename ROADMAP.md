@@ -231,8 +231,9 @@ Our data-driven `catalogs.ts` makes most of this cheap. Mix free drops (goodwill
       already cover this — verify before building).
 - [ ] **Scenario authoring from a finished run** → shareable offline "challenge codes" (a pasteable
       string, our server-free substitute for sharing leaderboard runs).
-- [ ] **Bankruptcy post-mortem share card** — failure made shareable lowers the sting and is
-      inherently viral (respects pillar #6).
+- [x] **Bankruptcy post-mortem share card** — DONE 2026-06-21. `ResultCard variant="postmortem"`
+      (calm "memoriam" styling, self-deprecating share line) surfaced from the bankruptcy overlay via
+      a "View shareable card" toggle. Failure made shareable, pillar #6. ⚠️ layout wants a device check.
 
 ---
 

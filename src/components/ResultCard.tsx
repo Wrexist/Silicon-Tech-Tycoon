@@ -30,26 +30,44 @@ function Stars({ n }: { n: number }) {
   );
 }
 
-export function ResultCard({ state, result }: { state: GameState; result: ScenarioResult | null }) {
-  const scn = state.activeScenario ? scenarioById(state.activeScenario) : null;
-  const chv = challengeViewFor(state);
+export function ResultCard({
+  state,
+  result,
+  variant = "default",
+}: {
+  state: GameState;
+  result: ScenarioResult | null;
+  /** "postmortem" = a tasteful, shareable epitaph on bankruptcy (failure made shareable lowers the
+   *  sting — pillar #6). Overrides the scenario/challenge flavour with the run's story + a self-
+   *  deprecating share line. */
+  variant?: "default" | "postmortem";
+}) {
+  const pm = variant === "postmortem";
+  // A bankrupt run reads as a story of survival, not a scenario/challenge result.
+  const scn = !pm && state.activeScenario ? scenarioById(state.activeScenario) : null;
+  const chv = pm ? null : challengeViewFor(state);
   const rev = format(state.cumulativeRevenue);
   const worth = format(netWorth(state));
   const years = (state.week / 52).toFixed(1);
+  const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
 
   const stats: { label: string; value: string }[] = [
     { label: "Lifetime revenue", value: rev },
-    { label: "Net worth", value: worth },
+    { label: pm ? "Survived" : "Net worth", value: pm ? `${state.week} wk` : worth },
     { label: "Products shipped", value: String(state.launched.length) },
     { label: "Fans", value: fmtFans(state.fans) },
   ];
 
   // Challenge run → challenge-flavoured card (with a shareable code). Scenario → name + stars.
-  // Otherwise a freeform company summary.
+  // Postmortem → epitaph. Otherwise a freeform company summary.
   const chScore = chv ? formatScore(chv.challenge.scoreMetric, chv.final ?? chv.current) : null;
   const chCode = chv ? encodeChallengeCode(chv.challenge.kind, chv.challenge.dateKey) : null;
-  const headline = scn ? scn.name : chv ? `${chv.challenge.kind === "weekly" ? "Weekly" : "Daily"} Challenge` : `${eraName(state.era)} empire`;
-  const sub = scn
+  const headline = pm
+    ? `A ${years}-year run`
+    : scn ? scn.name : chv ? `${chv.challenge.kind === "weekly" ? "Weekly" : "Daily"} Challenge` : `${eraName(state.era)} empire`;
+  const sub = pm
+    ? `Out of cash in the ${eraName(state.era)}${hits > 0 ? ` · ${hits} hit${hits > 1 ? "s" : ""} along the way` : ""}`
+    : scn
     ? (result?.stars === 3 ? "Mastered — all three stars" : result?.won ? `${result.stars}★ earned` : scn.tagline)
     : chv
     ? `${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)}${chv.final == null ? " so far" : ""}`
@@ -57,7 +75,9 @@ export function ResultCard({ state, result }: { state: GameState; result: Scenar
 
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
   const share = () => {
-    const line = scn
+    const line = pm
+      ? `${state.companyName} went bankrupt after ${state.week} weeks on Silicon: Tech Tycoon — ${rev} earned, ${fmtFans(state.fans)} fans. Think you'd last longer?`
+      : scn
       ? `I just earned ${result?.stars ?? 0}★ in "${scn.name}" on Silicon: Tech Tycoon — ${state.companyName}, ${rev} lifetime revenue.`
       : chv
       ? `I scored ${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)} in a Silicon: Tech Tycoon challenge. Beat it — code ${chCode}.`
@@ -68,7 +88,7 @@ export function ResultCard({ state, result }: { state: GameState; result: Scenar
   return (
     <div className="rcard-wrap">
       {/* The card itself — designed to look great as a screenshot. */}
-      <div className="rcard" role="img" aria-label={`${state.companyName} — ${headline}, ${sub}`}>
+      <div className={`rcard${pm ? " rcard--memoriam" : ""}`} role="img" aria-label={`${state.companyName} — ${headline}, ${sub}`}>
         <div className="rcard__head">
           <span className="rcard__brand"><CircuitBoard size={20} strokeWidth={1.8} /></span>
           <span className="rcard__company">{state.companyName}</span>

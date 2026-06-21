@@ -192,7 +192,8 @@ What genuinely remains, agent-buildable, in order:
 2. **Phase 5b state/actions context split** 🔒 — biggest perf lever; broad `state/` change.
 3. **Phase 6 iPad layout + Dynamic Type** ⚠️ — reach; needs device verification.
 4. **Phase 7 content** — NG+ depth (`perks.ts`), new tiers/categories (`catalogs.ts`), achievements
-   expansion, bankruptcy post-mortem card (reuse `ResultCard.tsx`), "this week in tech" headlines.
+   expansion, "this week in tech" headlines. [x] bankruptcy post-mortem card DONE 2026-06-21
+   (`ResultCard variant="postmortem"`, surfaced from the bankruptcy overlay).
 5. **Phase 2a/4 IAP wiring** — pairs with the owner's StoreKit/device steps.
 
 **Honest status:** the high-value *engine* work the roadmap imagined is largely already in the repo.
