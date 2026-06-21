@@ -50,9 +50,12 @@ The only critical-path work. Detailed steps live in `WHAT_YOU_NEED_TO_DO.md`; th
       `APP_STORE_CONNECT_API_KEY_BASE64`. Team ID `S3U8B8HH96` is already wired.
 - [ ] Mac/Xcode: `npx cap add ios` → portrait-only + iPhone-only → archive → TestFlight →
       on-device smoke (Preferences mirror, status bar theme, haptics, splash).
-- [ ] **IAP decision — recommended: ship v1.0 WITHOUT the Creative-Mode IAP.** The `iapAvailable()`
-      seam hides the purchase UI while StoreKit is unwired, so v1 can submit cleanly and avoid a
-      Guideline 2.1 rejection. Wire and attach the IAP in the 1.1 update (Phase 2) once tested.
+- [ ] **IAP — it is already WIRED** (audited 2026-06-21, see `SHIP_READINESS.md`): `NATIVE_IAP_WIRED
+      = true`, a real StoreKit 2 bridge (`SiliconStoreKit.swift`), and the `.storekit` config all
+      ship. The purchase UI is SHOWN on device, so the owner **must create + attach** the
+      `com.wrexist.silicon.sandbox` IAP in App Store Connect (shown-but-unattached = 2.1 rejection).
+      *To defer instead:* flip `NATIVE_IAP_WIRED` to `false` (hides the UI) and ship it in 1.x.
+      **Recommendation: ship WITH it — the code is done; just create/attach + test buy+restore once.**
 - [ ] Submit for review. **Get the first real crash/retention data from live players** — it
       re-prioritizes everything below.
 

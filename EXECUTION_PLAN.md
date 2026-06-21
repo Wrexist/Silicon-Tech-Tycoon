@@ -71,12 +71,16 @@ balance commit series.
 
 ## Phase 2 — Free 1.1: IAP + sidegrades + sandbox depth 🤖🔒
 
-### 2a — Wire the Creative/Sandbox IAP 🧑🤖
-- [ ] 🤖 Implement the 3 `NATIVE INTEGRATION POINT` stubs in `src/state/iap.ts` against
-      `cordova-plugin-purchase` v13; flip `NATIVE_IAP_WIRED`.
-- [ ] 🤖 Keep `entitlements.withValidatedSandbox` boot-revalidation intact (don't unlock on imported saves).
-- [ ] 🧑 `npm i cordova-plugin-purchase && npx cap sync ios`; StoreKit config file; test buy **and**
-      restore on device; attach IAP to the version.
+### 2a — Creative/Sandbox IAP ✅ ALREADY WIRED (audited 2026-06-21, see SHIP_READINESS.md)
+Not cordova-plugin-purchase — a native StoreKit 2 plugin. The "3 NATIVE INTEGRATION POINT" labels
+sit above real implementations.
+- [x] 🤖 `src/state/iap.ts` — `registerPlugin("SiliconStoreKit")`, `NATIVE_IAP_WIRED = true`, all
+      StoreKit statuses handled with the revenue guard (grant only on confirmed `purchased`).
+- [x] 🤖 `ios/App/App/SiliconStoreKit.swift` — StoreKit 2 product/purchase/restore + txn listener;
+      `ios/App/Configuration.storekit` product for simulator testing.
+- [x] 🤖 `entitlements.withValidatedSandbox` boot-revalidation intact (imported saves can't unlock).
+- [ ] 🧑 Create + attach the IAP in App Store Connect; test buy **and** restore on device. (Or flip
+      `NATIVE_IAP_WIRED=false` to hide it and ship in 1.x.)
 
 ### 2b — Component sidegrades ✅ DONE 2026-06-21
 Discovered the perf↔battery axis already shipped; added the missing margin axis + guards.
@@ -194,7 +198,8 @@ What genuinely remains, agent-buildable, in order:
 4. **Phase 7 content** — NG+ depth (`perks.ts`), new tiers/categories (`catalogs.ts`), achievements
    expansion, "this week in tech" headlines. [x] bankruptcy post-mortem card DONE 2026-06-21
    (`ResultCard variant="postmortem"`, surfaced from the bankruptcy overlay).
-5. **Phase 2a/4 IAP wiring** — pairs with the owner's StoreKit/device steps.
+5. ~~Phase 2a IAP wiring~~ — ✅ already wired (native StoreKit 2); only owner-side ASC create+attach
+   remains. Phase 4 (Platform DLC) IAP is a separate product, still entitlement-stubbed.
 
 **Honest status:** the high-value *engine* work the roadmap imagined is largely already in the repo.
 What's left is dominated by (a) owner-side shipping, (b) device-needing UI/perf, and (c) content
