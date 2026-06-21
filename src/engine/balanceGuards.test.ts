@@ -63,7 +63,9 @@ function revenueAt(stats: Stats, priceDollars: number, trends: ReturnType<typeof
     competitorStrength: 0,
   });
   const units = forecast(b.launchScore, MARKET_SIZE, b.priceFit).totalUnits;
-  return units * priceDollars;
+  // Revenue must use the SAME (rounded) price that drove priceFit above, else a fractional sweep
+  // value biases Guard B's peak-price assertion.
+  return units * toDollars(price);
 }
 
 /** Revenue with each recipe priced at its OWN fair price (margin-neutral comparison). */

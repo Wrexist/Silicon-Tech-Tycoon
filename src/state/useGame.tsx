@@ -401,10 +401,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
     // Fold in any achievements earned while away SILENTLY (no toast backlog on return). migrate()
     // already backfilled the on-disk earned set; this catches milestones crossed during catch-up.
-    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored)), readMasteryInput()).state;
+    // Record a challenge whose scoreWeek was crossed while away FIRST (silently), so readMasteryInput
+    // below counts it — otherwise challenges-10 would lag a cycle behind the completion.
+    const scored = withScenarioRunStars(withChallengeScore(floored));
+    syncChallengeBest(floored, scored, false);
+    const withAch = evaluateAndUnlock(scored, readMasteryInput()).state;
     mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
-    // A challenge whose scoreWeek was crossed while away locks + records its best silently here.
-    syncChallengeBest(floored, withAch, false);
     // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
     save({ ...withAch, lastActive: Date.now() });
     const topProduct = weeks > 0 ? topSellerWhileAway(loaded, withAch) : null;
@@ -469,9 +471,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const id = setInterval(() => {
       setState((s) => {
         const next = withScenarioRunStars(withChallengeScore(advanceOneWeek(s)));
+        const firstThisWeek = next.week !== announcedWeekRef.current;
+        if (firstThisWeek) {
+          announcedWeekRef.current = next.week; // claim the week first (StrictMode double-invoke guard)
+          // Record this week's challenge best BEFORE mastery is read, so a challenge that locks
+          // this tick is counted now (no one-cycle lag for challenges-10). Idempotent.
+          syncChallengeBest(s, next, true);
+        }
         const { state: out, unlocked } = evaluateAndUnlock(next, readMasteryInput());
-        if (next.week !== announcedWeekRef.current) {
-          announcedWeekRef.current = next.week;
+        if (firstThisWeek) {
           withRevToasts(s, next);
           withFanToasts(s, next);
           withStaffLevelToasts(s, next);
@@ -479,7 +487,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
           announceAchievements(unlocked);
           mergeProfileAchievements(unlocked);
           announceScenarioStars(next);
-          syncChallengeBest(s, next, true);
         }
         return out;
       });
@@ -530,9 +537,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (weeks <= 0) return;
     // F7 — don't punish time away: floor fans at the pre-catchup value (online decay is untouched).
     const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
-    const withAch = evaluateAndUnlock(withScenarioRunStars(withChallengeScore(floored)), readMasteryInput()).state;
+    // Lock + record a challenge that finished while away BEFORE reading mastery input (so it counts).
+    const scored = withScenarioRunStars(withChallengeScore(floored));
+    syncChallengeBest(floored, scored, false);
+    const withAch = evaluateAndUnlock(scored, readMasteryInput()).state;
     mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
-    syncChallengeBest(floored, withAch, false); // lock + record a challenge that finished while away
     const stamped = Date.now();
     setState(withAch);
     save({ ...withAch, lastActive: stamped });
