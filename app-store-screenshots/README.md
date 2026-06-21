@@ -1,9 +1,11 @@
 # App Store screenshots
 
-Finished, branded marketing screenshots for the App Store listing — headline + a live
-in-app capture + the wordmark, on the app's dark/blue brand background.
+Finished, branded marketing screenshots for the App Store listing. Each frame is a headline +
+a live in-app capture (in the app's **dark** theme, for a cohesive premium look) wrapped in a
+**realistic titanium iPhone frame** (status bar, dynamic island, side buttons, floor glow) +
+the wordmark, all on the app's dark/blue brand background.
 
-## `6.7/` — iPhone 6.7" (1290 × 2796)
+## `6.7/` — iPhone 6.7" (1284 × 2778)
 The standard required iPhone screenshot size; App Store Connect scales it for smaller devices.
 
 | # | Screen | Headline |
@@ -12,7 +14,10 @@ The standard required iPhone screenshot size; App Store Connect scales it for sm
 | 02 | Launch — stats, price, margin | **Time the market** |
 | 03 | Industry leaderboard | **Race rivals to #1** |
 | 04 | Real-time 3D HQ | **Garage to global empire** |
-| 05 | Research / era roadmap | **Own the frontier** |
+| 05 | Studio decorator (furniture shop) | **Make it yours** |
+| 06 | Research / era roadmap | **Own the frontier** |
+
+Lead the carousel with 01–04; 05–06 add depth/progression signal.
 
 ## Regenerating
 
