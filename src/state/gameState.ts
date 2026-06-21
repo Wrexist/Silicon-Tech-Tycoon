@@ -622,15 +622,18 @@ export const buildWeeksFor = (s: GameState) =>
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
-  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin);
+  const perk = 1 - perkBonuses(s.legacy).buildCostMult; // NG+ Supply Chain / Industrialist perks
+  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk);
   return base > BALANCE.build.minTooling ? base : BALANCE.build.minTooling;
 }
 
-/** Per-unit manufacturing cost after company projects + upgrades + the value/premium margin axis. */
+/** Per-unit manufacturing cost after company projects + upgrades + the value/premium margin axis
+ *  + any NG+ build-cost perks. */
 export function effectiveUnitCost(s: GameState, product: Product): Money {
   let unitCost = scale(buildCost(product), tuningCostMultiplier(product.tuning));
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
+  unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   return scale(unitCost, buildCostMult(s.upgrades));
 }
 

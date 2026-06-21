@@ -7,6 +7,7 @@ export interface PerkBonus {
   designCeiling: number; // + to the design-tier ceiling
   hype: number;          // + to the launch hype bonus
   rpMult: number;        // + fractional weekly-RP multiplier (0.15 = +15%)
+  buildCostMult: number; // + fractional build-cost REDUCTION (0.10 = −10% tooling + per-unit cost)
 }
 
 export interface Perk {
@@ -25,6 +26,12 @@ export const PERKS: readonly Perk[] = [
   { id: "master-designer", name: "Master Designer", description: "Another leap in craft — design ceiling +1.", bonus: { designCeiling: 1 } },
   { id: "marketing-genius", name: "Marketing Genius", description: "The world watches your every reveal — +20% launch hype.", bonus: { hype: 0.20 } },
   { id: "lab-director", name: "Lab Director", description: "World-class R&D — +25% weekly research.", bonus: { rpMult: 0.25 } },
+  // --- The deep-prestige tail (7th+ company) — a NEW qualitative axis (cheaper manufacturing) so
+  //     a veteran founder plays a different margin game, not just a richer one. ---
+  { id: "supply-chain", name: "Supply Chain Master", description: "Lean operations — build costs −10%.", bonus: { buildCostMult: 0.10 } },
+  { id: "brand-legend", name: "Brand Legend", description: "A name spoken in every home — +25% launch hype.", bonus: { hype: 0.25 } },
+  { id: "innovation-engine", name: "Innovation Engine", description: "Breakthroughs on tap — +30% weekly research.", bonus: { rpMult: 0.30 } },
+  { id: "industrialist", name: "Industrialist", description: "You own the whole pipeline — build costs −15%.", bonus: { buildCostMult: 0.15 } },
 ] as const;
 
 /** Perks active at a given prestige level (the first `level`, clamped). */
@@ -33,14 +40,17 @@ export function activePerks(legacyLevel: number): Perk[] {
   return PERKS.slice(0, n);
 }
 
-/** Aggregate bonus from all active perks at a prestige level. */
+/** Aggregate bonus from all active perks at a prestige level. The build-cost reduction is clamped to
+ *  a hard ceiling so manufacturing can never become free, no matter how many times you prestige. */
 export function perkBonuses(legacyLevel: number): PerkBonus {
-  const out: PerkBonus = { designCeiling: 0, hype: 0, rpMult: 0 };
+  const out: PerkBonus = { designCeiling: 0, hype: 0, rpMult: 0, buildCostMult: 0 };
   for (const p of activePerks(legacyLevel)) {
     out.designCeiling += p.bonus.designCeiling ?? 0;
     out.hype += p.bonus.hype ?? 0;
     out.rpMult += p.bonus.rpMult ?? 0;
+    out.buildCostMult += p.bonus.buildCostMult ?? 0;
   }
+  out.buildCostMult = Math.max(0, Math.min(0.4, out.buildCostMult)); // never below 60% of cost
   return out;
 }
 

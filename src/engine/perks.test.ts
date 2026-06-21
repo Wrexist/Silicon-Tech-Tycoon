@@ -4,7 +4,7 @@ import { PERKS, activePerks, perkBonuses, nextPerk } from "./perks.ts";
 describe("founder perks", () => {
   it("level 0 (first playthrough) grants no perks", () => {
     expect(activePerks(0)).toEqual([]);
-    expect(perkBonuses(0)).toEqual({ designCeiling: 0, hype: 0, rpMult: 0 });
+    expect(perkBonuses(0)).toEqual({ designCeiling: 0, hype: 0, rpMult: 0, buildCostMult: 0 });
   });
 
   it("each prestige unlocks the next perk in order, cumulatively", () => {
@@ -25,12 +25,22 @@ describe("founder perks", () => {
         designCeiling: a.designCeiling + (p.bonus.designCeiling ?? 0),
         hype: a.hype + (p.bonus.hype ?? 0),
         rpMult: a.rpMult + (p.bonus.rpMult ?? 0),
+        buildCostMult: a.buildCostMult + (p.bonus.buildCostMult ?? 0),
       }),
-      { designCeiling: 0, hype: 0, rpMult: 0 },
+      { designCeiling: 0, hype: 0, rpMult: 0, buildCostMult: 0 },
     );
     expect(all.designCeiling).toBe(sum.designCeiling);
     expect(all.hype).toBeCloseTo(sum.hype);
     expect(all.rpMult).toBeCloseTo(sum.rpMult);
+    // buildCostMult is the one capped dimension — never exceeds the 40% hard ceiling.
+    expect(all.buildCostMult).toBeLessThanOrEqual(0.4);
+    expect(all.buildCostMult).toBeCloseTo(Math.min(0.4, sum.buildCostMult));
+  });
+
+  it("the build-cost reduction is hard-capped so manufacturing is never free", () => {
+    // Even with an absurd prestige level, the reduction can't exceed 40% (cost stays ≥ 60%).
+    expect(perkBonuses(9999).buildCostMult).toBeLessThanOrEqual(0.4);
+    expect(perkBonuses(9999).buildCostMult).toBeGreaterThan(0);
   });
 
   it("nextPerk previews the upcoming unlock, undefined when maxed", () => {

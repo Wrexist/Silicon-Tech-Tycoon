@@ -204,9 +204,12 @@ Our data-driven `catalogs.ts` makes most of this cheap. Mix free drops (goodwill
 (revenue). Sequence by live data once players exist.
 
 **Free drops (goodwill, low cost):**
-- [ ] **NG+ / mastery beyond bigger numbers** (flagged thin): prestige modifiers, harder-mode
-      mutators carried into replays, scenario-only unlocks. Founder perks (v23.2) started this —
-      extend it so the engaged-player tail has texture, not just larger numbers.
+- [~] **NG+ / mastery beyond bigger numbers** — DEEPENED 2026-06-21. Extended the founder-perk
+      ladder 6→10 and added a genuinely new *qualitative* axis: build-cost reduction (Supply Chain
+      Master −10%, Industrialist −15%, hard-capped −40% so manufacturing is never free) — a
+      veteran founder plays a different margin game, not just a richer one. Wired into
+      `toolingCost`/`effectiveUnitCost`; +tests. *Still open:* harder-mode mutators carried into
+      replays, scenario-only unlocks.
 - [ ] **New component tiers + a new device category** (renderer already supports
       laptop/desktop/monitor/console/wearable/AR silhouettes — gameplay-gated today). Each new
       category is content the engine already renders.
