@@ -5,7 +5,7 @@ a live in-app capture (in the app's **dark** theme, for a cohesive premium look)
 **realistic titanium iPhone frame** (status bar, dynamic island, side buttons, floor glow) +
 the wordmark, all on the app's dark/blue brand background.
 
-## `6.7/` — iPhone 6.7" (1290 × 2796)
+## `6.7/` — iPhone 6.7" (1284 × 2778)
 The standard required iPhone screenshot size; App Store Connect scales it for smaller devices.
 
 | # | Screen | Headline |

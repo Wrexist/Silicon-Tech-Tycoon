@@ -39,8 +39,9 @@ async function resolveChrome() {
 }
 const executablePath = await resolveChrome();
 
-// Target device: logical points × DPR = required App Store pixels. 6.7\" = 1290×2796.
-const SIZE = { name: "6.7", w: 1290, h: 2796 };
+// Target device: logical points × DPR = required App Store pixels.
+// 6.7" (iPhone 14/15 Plus & Pro Max class): 1284×2778 — accepted for the required 6.7" slot.
+const SIZE = { name: "6.7", w: 1284, h: 2778 };
 const rawDir = resolve(root, ".shots-raw");
 const outDir = resolve(root, "app-store-screenshots", SIZE.name);
 await mkdir(rawDir, { recursive: true });
