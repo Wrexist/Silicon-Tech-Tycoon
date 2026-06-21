@@ -78,17 +78,17 @@ balance commit series.
 - [ ] 🧑 `npm i cordova-plugin-purchase && npx cap sync ios`; StoreKit config file; test buy **and**
       restore on device; attach IAP to the version.
 
-### 2b — Component sidegrades 🔒 (the GDT-determinism strike — **needs go-ahead**)
-Order strictly engine-first:
-1. [ ] 🔒 `engine/catalogs.ts` — add sidegrade tiers with trade-off stats (cheaper-but-lower,
-       battery-vs-performance) so the recipe stops being a fixed ladder.
-2. [ ] 🔒 `engine/product.ts` — ensure `computeStats` reads the trade-off cleanly; no top-tier-always-wins.
-3. [ ] 🤖 `engine/*.test.ts` — pin that no single recipe dominates across a trend sweep.
-4. [ ] 🤖 `screens/DesignLab.tsx` — surface the trade-off in the component picker (not a dry number).
-5. [ ] ⚠️ Balance playtest the trade-off weights.
-
-*Risk:* protected engine + balance ripple. *Mitigation:* additive tiers, property test the
-non-dominance claim, gate behind tests before any UI.
+### 2b — Component sidegrades ✅ DONE 2026-06-21
+Discovered the perf↔battery axis already shipped; added the missing margin axis + guards.
+1. [x] 🤖 `balanceGuards.test.ts` — pins "no universal recipe" + "gouging fails" + "power matters".
+2. [x] 🤖 `tuning.test.ts` — pins the perf↔battery trade is trend-dependent (not a no-op).
+3. [x] 🔒 `types.ts` / `balance.ts` / `product.ts` — added `value`/`premium` to `ProductTuning`;
+       pure `tuningCostMultiplier`; `marginShift` + `tuningCostMult` constants.
+4. [x] 🔒 `state/gameState.ts` — value/premium appeal shift in `productStats`; cost multiplier in
+       `toolingCost` + `effectiveUnitCost`. Persistence already backfills `tuning → "balanced"`.
+5. [x] 🤖 `screens/DesignLab.tsx` — two chips in the existing wrapping Tuning picker.
+6. [ ] ⚠️ Playtest magnitudes (0.85 / 1.18 / 6) + the 5-chip row layout on device.
+*Optional follow-up:* per-component (not per-product) sidegrade variants.
 
 ### 2c — Sandbox depth (make the IAP worth $2.99) 🤖
 - [ ] 🤖 `state/` + `screens/Settings.tsx` — unlimited component tiers, cosmetic-only extras, a lite
@@ -96,36 +96,25 @@ non-dominance claim, gate behind tests before any UI.
 
 ---
 
-## Phase 3 — Office Shop overhaul 🤖🔒⚠️ (the big unbuilt feature)
+## Phase 3 — Office Shop overhaul ✅ ALREADY BUILT (verified against source 2026-06-21)
 
-Full spec: `OFFICE_SHOP_PLAN.md`. Build strictly in this order (engine → state → 3D → UI).
+`OFFICE_SHOP_PLAN.md`'s "awaiting go-ahead" header is **stale** — the feature ships in the code.
+Verified, all DONE:
+- [x] 🔒 `engine/furniture.ts` — `FurnitureDef.cost` (required) + `attrs` (comfort/focus/inspiration),
+      §2.3 table across the catalog. `engine/furniture.test.ts` covers it.
+- [x] 🔒 `engine/balance.ts` — `BALANCE.shop` caps (`comfortCap`/`focusCap`/`inspCap`, `resaleRate`).
+- [x] 🔒 `state/gameState.ts` — `placeFurniture` charges (no-op if broke); `removeFurniture` refunds
+      50%; `applyLayoutSnapshot` restores layout + cash (undo = true reversal); `deskCapacity`
+      desk-gates hiring. `state/officeShop.test.ts` (7 cases).
+- [x] 🤖 Attributes wired additively: `officeComfortMoodBonus` (mood target), `officeFocusMult`
+      (`weeklyRpGen`), `officeInspoBonus` (`productStats.design`).
+- [x] 🤖 UI: HQ Decorate **shop** with live buff bars vs. cap, place/sell/duplicate, "Need $X",
+      `DecorateTutorial`.
 
-### 3a — Engine (pure, tested) 🔒
-1. [ ] 🔒 `engine/furniture.ts` — add `cost: number` (required) + `attrs?: {comfort?,focus?,inspiration?}`
-       + explicit `seat?: boolean` to `FurnitureDef`. One data pass over the ~70 items (cost + attrs per §2.3).
-2. [ ] 🔒 Hard-cap each attribute (§5.1) — pure helpers `comfortFromLayout / focusFromLayout /
-       inspirationFromLayout` with clamps so decoration can't trivialize the sim.
-3. [ ] 🤖 `engine/furniture.test.ts` — cost on every item; attribute caps; seat derivation.
-
-### 3b — State + migration 🔒
-4. [ ] 🔒 `state/gameState.ts` — buy charges cash; **sell refunds 50%**; **undo restores cash**;
-       remove the `buyDesktop` upgrade path; desks become the only seat source (`deskCapacity`).
-5. [ ] 🔒 Persistence migration — starter room → desk + plant; existing saves keep their room and get
-       a **one-way capped buff**; backfill `cost`/`attrs` defaults. Versioned, safe.
-6. [ ] 🤖 Tests — buy/sell/undo cash conservation; hire-gate tied to bought desks; migration idempotence.
-
-### 3c — Wire attributes into the sim 🤖
-7. [ ] 🤖 Feed comfort→mood, focus→research, inspiration→design **additively** on top of HQ upgrades
-       (the existing selectors). No upgrade line removed except `buyDesktop`.
-
-### 3d — 3D + UI 🤖⚠️
-8. [ ] 🤖 `garage3d/furniture3d.tsx` — no change to renderers; ensure new attrs don't affect visuals.
-9. [ ] 🤖 `screens/HQ.tsx` + `hq.css` — Decorate panel becomes a **shop**: price tags, buy/sell,
-       attribute readout; mobile-first so nothing clips.
-10. [ ] ⚠️ On-device: buy/place/sell smoothness; attribute readout clarity; migration sanity on a real save.
-
-*Risk:* touches the hire-gate + economy + save schema. *Mitigation:* land 3a–3b fully green before
-any UI; treat the migration as protected; playtest the attribute caps.
+**Remaining (small):**
+- [ ] 🤖 Remove the dead `buyDesktop` action (exposed via `useGame`, no UI caller) — low-priority
+      cleanup; keep old-save `desktops` counting through `deskCapacity`.
+- [ ] ⚠️ On-device polish of the Decorate shop (smoothness / no clipping).
 
 ---
 
@@ -192,19 +181,24 @@ Sequence by live data once players exist. All content lands in `catalogs.ts`/dat
 
 ## Suggested execution waves (what I'd build, in order)
 
-Given Phase 0 is owner-side, here's the agent-buildable sequence I'd actually run, smallest-risk-
-to-market first. **Each line is one go-ahead-able unit; I'll deliver each as a tested commit series.**
+**Done this session (2026-06-21):** `balanceGuards.test.ts` (Phase 1b guard), `tuning.test.ts`
+(sidegrade guard), the value/premium margin axis (Phase 2b). **Audit correction:** Phase 2b was
+mostly already shipped and **Phase 3 Office Shop is fully shipped** — both plan docs were stale; the
+roadmap/this file now reflect verified source.
 
-1. **Phase 1b balance pass** — no go-ahead needed; `balance.ts`-only; ships confidence for launch.
-2. **Phase 5a furniture instancing** — pure perf win, no schema risk, clears the way for Phase 3.
-3. **Phase 2b component sidegrades** 🔒 — highest design value (kills the solved-game endgame).
-4. **Phase 3 Office Shop** 🔒 — biggest content win; engine-first, careful migration.
+What genuinely remains, agent-buildable, in order:
+1. **Phase 5a furniture instancing** ⚠️ — perf win, but the spec says "do with eyes on the scene";
+   safest *after* a device is available, not blind.
+2. **Phase 5b state/actions context split** 🔒 — biggest perf lever; broad `state/` change.
+3. **Phase 6 iPad layout + Dynamic Type** ⚠️ — reach; needs device verification.
+4. **Phase 7 content** — NG+ depth (`perks.ts`), new tiers/categories (`catalogs.ts`), achievements
+   expansion, bankruptcy post-mortem card (reuse `ResultCard.tsx`), "this week in tech" headlines.
 5. **Phase 2a/4 IAP wiring** — pairs with the owner's StoreKit/device steps.
-6. **Phase 5b context split, Phase 6 reach, Phase 7 content** — by live data.
 
-**The three 🔒 items I cannot start without your explicit go-ahead:** component sidegrades (2b),
-the Office Shop engine/migration (3a/3b), and the state/actions context split (5b). Say the word on
-any and I'll begin engine-first with tests.
+**Honest status:** the high-value *engine* work the roadmap imagined is largely already in the repo.
+What's left is dominated by (a) owner-side shipping, (b) device-needing UI/perf, and (c) content
+drops best prioritized by live player data. The cleanest remaining pure-logic wins are Phase 7
+content items; the rest wants a device or a go-ahead on the 🔒 context split.
 
 ---
 

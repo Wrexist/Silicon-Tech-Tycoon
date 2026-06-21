@@ -107,10 +107,11 @@ the goodwill + word-of-mouth engine and visible depth for reviewers.
 - [ ] **Wire + ship the Creative/Sandbox IAP** ($2.99) deferred from Phase 0: implement the 3
       `NATIVE INTEGRATION POINT` stubs in `src/state/iap.ts` against `cordova-plugin-purchase` v13,
       flip `NATIVE_IAP_WIRED`, test buy **and** restore on device, attach to the version.
-- [ ] **Component sidegrades** (Wave 1c, **PROTECTED engine — needs explicit go-ahead + balance
-      pass**): give some component tiers real trade-offs (cheaper-but-lower-quality,
-      battery-vs-performance) so the optimal recipe stops being a fixed ladder. This is the single
-      most direct strike at the GDT determinism failure. `catalogs.ts` + `product.ts` + tests.
+- [x] **Component sidegrades** (Wave 1c) — DONE 2026-06-21. The perf↔battery trade already shipped
+      (`tuningShift`); this session added the **value↔premium margin axis** (`tuningCostMultiplier`
+      + `marginShift`) so the optimal recipe depends on cost strategy too, and pinned both with
+      `tuning.test.ts` + the `balanceGuards.test.ts` no-universal-recipe property — the direct strike
+      at the GDT determinism failure. *Optional follow-up:* per-component (not per-product) variants.
 - [ ] **Sandbox depth so the IAP earns $2.99** (flagged thin): beyond the cash floor — unlimited
       component tiers, a lite scenario-start editor, cosmetic-only extras. Without this the IAP is
       a one-line toggle and reviews will say so.
@@ -121,31 +122,29 @@ recipe-determinism guard (sidegrades) is live and tested.
 
 ---
 
-## Phase 3 — The Office Shop overhaul 🟢 (biggest designed-but-UNBUILT feature)
+## Phase 3 — The Office Shop overhaul ✅ (ALREADY BUILT — verified against source 2026-06-21)
 
-`OFFICE_SHOP_PLAN.md` is a refined, build-ready spec that is **not yet built** — the largest piece
-of designed scope with no code. Today "Decorate" is a free cosmetic tool; the plan turns it into a
-premium economy where furniture **costs money**, carries three gameplay attributes (**Comfort →
-mood**, **Focus → research**, **Inspiration → design**), and **buying a desk is how you open a seat
-to hire**. It deepens the office (a major part of the toy) without a new screen.
+**Correction:** `OFFICE_SHOP_PLAN.md`'s header still says "awaiting go-ahead," but the feature is
+**shipped in the code** (the plan doc is stale, same pattern as the retention roadmap). Verified in
+`engine/furniture.ts`, `engine/balance.ts`, `state/gameState.ts`, `screens/HQ.tsx`,
+`state/officeShop.test.ts`:
 
-- [ ] **Engine (pure, tested first):** extend `FurnitureDef` with required `cost` + optional
-      `attrs` + explicit `seat`; one data pass over the ~70 catalog items; hard-cap each attribute
-      (§5.1) so decoration can't trivialize the sim.
-- [ ] **State:** buy charges cash; **sell refunds 50%**; **undo restores cash** (true reversal);
-      remove the standalone `buyDesktop` upgrade (desks become the seat source); starter room
-      shrinks to desk + plant; migration-safe one-way capped buff for existing saves.
-- [ ] **Mobile-first Decorate redesign:** nothing clips off-screen; buy/place/sell feels smooth.
-- [ ] Attributes feed the existing mood/research/design selectors **additively** on top of HQ
-      upgrades — no upgrade line removed except `buyDesktop`.
+- [x] **Engine:** `FurnitureDef` carries required `cost` + optional `attrs`
+      (comfort/focus/inspiration), populated with the locked §2.3 table across the catalog.
+      `BALANCE.shop` caps every attribute (`comfortCap` 15, `focusCap` 0.15, `inspCap`).
+- [x] **State:** `placeFurniture` charges cash (can't-afford = no-op); `removeFurniture` refunds
+      `resaleRate` (50%); `applyLayoutSnapshot` restores layout **and** cash (undo = true reversal);
+      `duplicateFurniture` charges. Hiring is desk-gated — `deskCapacity = desks + desktops`.
+- [x] **Attributes wired additively:** `officeComfortMoodBonus` → weekly mood target,
+      `officeFocusMult` → `weeklyRpGen`, `officeInspoBonus` → `productStats.design`.
+- [x] **UI:** HQ "Decorate" shop with live office-buff bars (Mood/Research/Design vs. cap),
+      place/sell/duplicate, "Need $X", + a `DecorateTutorial`. 7 `officeShop.test.ts` cases.
 
-**Why here:** it's free-update content that materially deepens the most-loved toy, it's already
-spec'd to build-ready, and it pairs with the hiring loop. **Risk:** it touches the
-hire-gate + economy — land it engine-first with tests and a balance playtest, and gate the save
-migration carefully.
-
-**Definition of done:** furniture is a priced, attributed shop; hiring is gated by desks you bought;
-old saves migrate without a cash exploit or a broken room; full test coverage on the engine layer.
+**Remaining (small):**
+- [ ] Remove the now-**dead `buyDesktop` action** (still exposed via `useGame` but no UI calls it;
+      desks-as-seats replaced it). Harmless legacy — low-priority cleanup, keeps old-save `desktops`
+      counting as seats through `deskCapacity`.
+- [ ] ⚠️ On-device polish pass of the Decorate UI (smoothness, no clipping) — device-only.
 
 ---
 
@@ -269,7 +268,7 @@ patterns. **Revenue grows via content (paid DLC), never via nags.**
 | **0** | Ship v1.0 to the App Store | owner-side | **blocks everything** |
 | **1** | On-device debt burn-down + balance playtest | quality | right after submit |
 | **2** | Free 1.1: IAP wired, component sidegrades, sandbox depth | free + IAP | post-launch |
-| **3** | Office Shop overhaul (priced, attributed furniture) | free content | engine-first |
+| **3** | Office Shop (priced, attributed furniture) — ✅ already built; dead-code cleanup left | free content | done |
 | **4** | DLC #1: OS/Platform Division (built — needs live wrapper) | paid DLC | post-launch |
 | **5** | Perf: context split, instancing, demand frameloop | hardening | alongside |
 | **6** | iPad layout + Dynamic Type | reach/a11y | post-launch |
