@@ -231,6 +231,39 @@ function activeLaunched(p: Product, weeks = 4): LaunchedProduct {
   };
 }
 
+describe("Epic A — market segments drive planning end-to-end", () => {
+  it("planProduction exposes a populated segment breakdown consistent with demandFit", () => {
+    const s = newGame(11);
+    const plan = planProduction(s, phone(), 5000, "none");
+    expect(plan.segments.perSegment).toHaveLength(5);
+    // demandFit is now the segment-weighted demand index (the override fed to scoreLaunch).
+    expect(plan.demandFit).toBeCloseTo(plan.segments.demandIndex, 5);
+    expect(["budget", "mainstream", "pro", "style", "enterprise"]).toContain(plan.segments.dominant);
+  });
+
+  it("raising the price erodes the price-sensitive Budget segment more than the Pro segment", () => {
+    const s = newGame(12);
+    const cheap = planProduction(s, { ...phone(), price: dollars(150) }, 5000, "none");
+    const dear = planProduction(s, { ...phone(), price: dollars(600) }, 5000, "none");
+    const cap = (p: typeof cheap, id: string) => p.segments.perSegment.find((x) => x.id === id)!.captured;
+    // Budget loses capture as price climbs…
+    expect(cap(cheap, "budget")).toBeGreaterThan(cap(dear, "budget"));
+    // …and it loses MORE than the price-insensitive Pro segment does (elasticity through the pipeline).
+    expect(cap(cheap, "budget") - cap(dear, "budget")).toBeGreaterThan(cap(cheap, "pro") - cap(dear, "pro"));
+  });
+
+  it("records the winning/losing segment in the launch insight (readable verdict, pillar #5)", () => {
+    const s0 = { ...newGame(13), cash: dollars(50_000_000) };
+    let s = startBuild(s0, phone(), recommendedRun(s0, phone(), "none"), "none").state;
+    const weeks = buildWeeksFor(s) + 1;
+    for (let i = 0; i < weeks; i++) s = advanceOneWeek(s);
+    const launched = launchReady(s, s.ready[0].id).state.launched[0];
+    expect(launched.insight?.dominantSegment).toBeDefined();
+    expect(launched.insight?.weakestSegment).toBeDefined();
+    expect(launched.insight?.perSegment).toHaveLength(5);
+  });
+});
+
 describe("v16 balance guards (audit fixes)", () => {
   it("your own active product in the category cannibalizes a relaunch's demand", () => {
     const s = newGame(7);

@@ -32,6 +32,11 @@ export type CategoryId =
 
 export type FinishId = "plastic" | "aluminium" | "titanium" | "gold";
 
+/** Buyer segments (Epic A). The id lives here (the shared types home) so both engine/segments.ts and
+ *  LaunchInsight below can reference it without a circular import. The SEGMENTS table + the demand
+ *  math live in engine/segments.ts. */
+export type SegmentId = "budget" | "mainstream" | "pro" | "style" | "enterprise";
+
 /** Canonical finish order, cheap→premium. Doubles as the unlock ladder: the first
  *  `BALANCE.design.freeFinishes` are available from the start; the rest are RP-unlocked in order. */
 export const FINISH_ORDER: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
@@ -134,6 +139,11 @@ export interface LaunchInsight {
   matchingRivals: number; // rivals roughly as good as you, splitting the market
   betterRivals: number; // rivals clearly better than you
   competitionFactor: number; // 0..1 — share of demand kept after competition
+  /** Epic A — which buyer segments this launch won and lost (the readable "won Pro, lost Budget on
+   *  price" verdict). Optional/additive: saves written before segments lack it and the UI falls back. */
+  dominantSegment?: SegmentId;
+  weakestSegment?: SegmentId;
+  perSegment?: { id: SegmentId; name: string; captured: number; fit: number; priceFit: number }[];
 }
 
 /** A product that has been launched into the market. */

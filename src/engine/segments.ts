@@ -12,9 +12,9 @@
 import { BALANCE } from "./balance.ts";
 import { CATEGORIES } from "./catalogs.ts";
 import { toDollars, type Money } from "./money.ts";
-import { STAT_KEYS, type CategoryId, type ConsumerTrends, type Stats } from "./types.ts";
+import { STAT_KEYS, type CategoryId, type ConsumerTrends, type SegmentId, type Stats } from "./types.ts";
 
-export type SegmentId = "budget" | "mainstream" | "pro" | "style" | "enterprise";
+export type { SegmentId };
 
 export interface Segment {
   id: SegmentId;

@@ -87,6 +87,7 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -662,6 +663,7 @@ export interface ProductionPlan {
   projectedRevenue: Money;
   projectedProfit: Money; // revenue − full production − tooling − channel (unsold = sunk cost)
   maxAffordableUnits: number;
+  segments: SegmentDemand; // Epic A — per-buyer-segment breakdown driving demand + the verdict
 }
 
 /** The smart demand model: fans (pre-orders) + demand-fit + how many rivals match/beat you.
@@ -683,6 +685,13 @@ export function planProduction(
   const eraScales = BALANCE.market.eraVolumeScale;
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
 
+  // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
+  // weighting the five stats AND price differently; the product wins a share of each, summed. This
+  // replaces the single global demandScore/priceFit with a positioning decision ("who is this for?").
+  // A balanced product scores ≈ the old single-trend demand (the segment sizes average back to it),
+  // so the macro-economy is preserved; lopsided products diverge — that divergence IS the new depth.
+  const segments = segmentDemand(stats, product.price, s.trends, product.category);
+
   // Score WITHOUT the strength-based competition term — competition is modelled below as a
   // count of rivals that match/beat you, which is clearer and is what the player sees.
   const breakdown = scoreLaunch({
@@ -700,6 +709,10 @@ export function planProduction(
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: componentSynergy(product).factor,
+    // Drive demand + price reaction from the segment model (the two aggregates are on the same
+    // 0..100 / 0..maxFit scales as the originals they replace).
+    demandOverride: segments.demandIndex,
+    priceFitOverride: segments.effectivePriceFit,
   });
 
   const overall = overallScore(stats, product.category);
@@ -782,6 +795,7 @@ export function planProduction(
     projectedRevenue,
     projectedProfit,
     maxAffordableUnits,
+    segments,
   };
 }
 
@@ -1371,6 +1385,16 @@ export function launchReady(state: GameState, productId: string): ActionResult {
       matchingRivals: plan.matchingRivals,
       betterRivals: plan.betterRivals,
       competitionFactor: plan.competitionFactor,
+      // Epic A — which segments this launch won/lost (the readable verdict).
+      dominantSegment: plan.segments.dominant,
+      weakestSegment: plan.segments.weakest,
+      perSegment: plan.segments.perSegment.map((r) => ({
+        id: r.id,
+        name: r.name,
+        captured: r.captured,
+        fit: r.fit,
+        priceFit: r.priceFit,
+      })),
     },
   };
 
