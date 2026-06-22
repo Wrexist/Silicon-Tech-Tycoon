@@ -141,6 +141,19 @@ export const BALANCE = {
       retargetEveryWeeks: 14,
       retargetJitter: 6,
     },
+    // --- Market segments (Epic A) ---
+    // The market is split into buyer segments (engine/segments.ts SEGMENTS), each weighting the five
+    // stats + price differently, so "who is this product for?" becomes a real positioning decision
+    // instead of a single global "what consumers want". A launch wins a SHARE OF EACH SEGMENT, summed.
+    segments: {
+      // How strongly the drifting global trend tilts each segment's taste (0 = pure segment identity,
+      // 1 = trend dominates). Keeps the existing trend-drift mechanic meaningful WITHIN segmentation:
+      // a segment still leans its way, but a hot trend shifts every segment toward it.
+      trendInfluence: 0.4,
+      // Floor on a segment's price tolerance after the priceSensitivity divide, so a very
+      // price-sensitive segment still has a usable (if narrow) pricing band, never a knife-edge.
+      minPriceTolerance: 0.18,
+    },
   },
 
   // --- Sales curve (ramp -> peak -> decline) ---
