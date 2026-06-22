@@ -686,6 +686,20 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     });
   }
 
+  // 1b) Audience — which buyer segment this product won and which it lost (Epic A). Additive:
+  // skipped for saves written before segments existed (no dominantSegment recorded).
+  if (ins?.dominantSegment && ins.perSegment && ins.perSegment.length) {
+    const top = ins.perSegment.find((s) => s.id === ins.dominantSegment) ?? ins.perSegment[0];
+    const low = ins.perSegment.find((s) => s.id === ins.weakestSegment) ?? ins.perSegment[ins.perSegment.length - 1];
+    const lowReason = low.priceFit < 0.6 ? "priced out" : low.fit < 35 ? "specs missed" : "niche appeal";
+    drivers.push({
+      label: "Audience",
+      value: top.name,
+      detail: `Strongest with ${top.name} buyers; weakest with ${low.name} (${lowReason}).`,
+      tone: "accent",
+    });
+  }
+
   // 2) Price positioning — value buy vs. on-the-money vs. overpriced.
   if (ins) {
     const pf = ins.priceFit;

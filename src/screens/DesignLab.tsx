@@ -48,7 +48,49 @@ import {
 import { runwayWeeks } from "../engine/economy.ts";
 import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
+import type { SegmentDemand } from "../engine/segments.ts";
 import "./designLab.css";
+
+/** Epic A — "Who it's for": the per-segment positioning readout in the build wizard. Each bar is how
+ *  much of that buyer segment's potential the product captures (fit × price reaction), so the player
+ *  sees the trade-offs of their design before building (pillar #5; the positioning lever Epic A adds). */
+function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
+  const rows = segments.perSegment.map((r) => ({
+    ...r,
+    winRate: r.size > 0 ? Math.min(1, r.captured / r.size) : 0,
+  }));
+  const top = rows.reduce((a, b) => (b.captured > a.captured ? b : a));
+  const low = rows.reduce((a, b) => (b.captured < a.captured ? b : a));
+  const reason = low.priceFit < 0.6 ? "priced out" : low.fit < 35 ? "specs miss" : "niche fit";
+  return (
+    <div className="wiz__segs">
+      <div className="wiz__segs-head">
+        <span className="wiz__segs-title">Who it's for</span>
+        <span className="wiz__segs-note">
+          Best fit <b>{top.name}</b> · weakest {low.name} ({reason})
+        </span>
+      </div>
+      <div className="wiz__seg-list">
+        {rows.map((r) => {
+          const pct = Math.round(r.winRate * 100);
+          return (
+            <div
+              key={r.id}
+              className={`wiz__seg-row${r.id === top.id ? " wiz__seg-row--top" : ""}`}
+              aria-label={`${r.name}: wins ${pct}% of the segment`}
+            >
+              <span className="wiz__seg-name">{r.name}</span>
+              <div className="wiz__seg-bar" aria-hidden>
+                <span className="wiz__seg-fill" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="wiz__seg-pct tnum" aria-hidden>{pct}%</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const STAT_ABBR: Record<keyof Stats, string> = {
   performance: "Perf", quality: "Qual", battery: "Bat", design: "Dsn", ecosystem: "Eco",
@@ -1271,6 +1313,7 @@ function BuildWizard({
               hint={`build takes ${buildWks} wk`}
             />
           </div>
+          <SegmentBreakdown segments={plan.segments} />
           <div className="wiz__total">
             <span>Upfront cost</span>
             <span className={`rounded tnum${affordable ? "" : " wiz__total--bad"}`}>{format(plan.totalUpfront)}</span>

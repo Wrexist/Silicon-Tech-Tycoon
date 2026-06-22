@@ -848,6 +848,29 @@
 .wiz__nav { display: flex; gap: var(--sp-8); }
 .wiz__cancel { padding: var(--sp-8); font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
 
+/* ---------- Segment breakdown ("Who it's for") ---------- */
+.wiz__segs {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-12); border-radius: var(--r-button); background: var(--bg-elevated);
+}
+.wiz__segs-head { display: flex; flex-direction: column; gap: 2px; }
+.wiz__segs-title { font-size: var(--fs-caption); font-weight: 700; }
+.wiz__segs-note { font-size: var(--fs-micro); color: var(--ink-2); }
+.wiz__segs-note b { color: var(--ink); font-weight: 700; }
+.wiz__seg-list { display: flex; flex-direction: column; gap: 6px; }
+.wiz__seg-row { display: grid; grid-template-columns: 76px 1fr 34px; align-items: center; gap: var(--sp-8); }
+.wiz__seg-name { font-size: var(--fs-caption); color: var(--ink-2); }
+.wiz__seg-row--top .wiz__seg-name { color: var(--ink); font-weight: 700; }
+.wiz__seg-bar { height: 6px; border-radius: var(--r-pill); background: var(--hairline); overflow: hidden; }
+.wiz__seg-fill {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--fn-design) 45%, var(--hairline));
+  transition: width var(--spring-snappy);
+}
+.wiz__seg-row--top .wiz__seg-fill { background: var(--fn-design); }
+.wiz__seg-pct { font-size: var(--fs-micro); font-weight: 700; text-align: right; color: var(--ink-2); }
+.wiz__seg-row--top .wiz__seg-pct { color: var(--fn-design); }
+
 /* ---------- Design-complete sheet ---------- */
 .done { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); text-align: center; }
 .done__badge {
