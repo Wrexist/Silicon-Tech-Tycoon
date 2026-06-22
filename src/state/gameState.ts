@@ -88,6 +88,7 @@ import {
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -211,7 +212,13 @@ export interface GameState {
   osVersion: number;
   /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
   osLicensees: string[];
+  /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
+   *  device the player can see and learn from, instead of an invisible "strength" number. */
+  rivalReleases: RivalRelease[];
 }
+
+/** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery. */
+export const RIVAL_RELEASES_CAP = 24;
 
 export const REV_MILESTONES = [
   10_000, 25_000, 50_000, 100_000, 250_000, 500_000,
@@ -377,6 +384,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osName: "",
     osVersion: 1,
     osLicensees: [],
+    rivalReleases: [],
   };
 }
 
@@ -974,7 +982,28 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
       .map((lp) => lp.product.category),
   );
-  for (const l of launches) pushRivalFeed(feed, l, activePlayerCats);
+
+  // Epic B — turn each rival launch into a real, renderable product the player can see and learn from
+  // (visibility only; the strength number above still drives the market math, so no balance ripple).
+  // A DERIVED rng (seeded from the save + week + index) keeps the MAIN sim rng stream byte-identical,
+  // so the pinned determinism test and every seed-specific test are unaffected.
+  let rivalReleases = state.rivalReleases;
+  if (launches.length) {
+    const idByName = new Map(competitors.map((c) => [c.name, c.id]));
+    const fresh = launches.map((l, i) =>
+      generateRivalProduct({
+        rivalId: idByName.get(l.competitor) ?? l.competitor,
+        rivalName: l.competitor,
+        category: l.category,
+        era: state.era,
+        strength: l.strength,
+        week,
+        rng: makeRng(((state.rngState || state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
+      }),
+    );
+    launches.forEach((l, i) => pushRivalFeed(feed, l, activePlayerCats, fresh[i].product.name));
+    rivalReleases = [...fresh, ...state.rivalReleases].slice(0, RIVAL_RELEASES_CAP);
+  }
 
   // A rival entering a category where the player is ACTIVELY selling now dents the remaining
   // sales curve (pre-fix, the "faces new competition" feed line was mechanically hollow — the
@@ -1129,6 +1158,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     launched: launchedFinal,
     cashHistory,
     feed,
+    rivalReleases,
     rngState: rng.state(),
     bankrupt,
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
@@ -1251,15 +1281,18 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
   return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
 }
 
-function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>) {
+function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>, productName?: string) {
   const catName = CATEGORIES[l.category]?.displayName ?? l.category;
   const threat = activePlayerCats?.has(l.category);
+  // The product name already carries the rival's name (e.g. "Pomelo Vync Pro"), so use it as the
+  // subject; fall back to the bare rival name for callers that don't generate a product.
+  const subject = productName ?? l.competitor;
   feed.push(
     feedItem(
       l.week,
       threat
-        ? `${l.competitor} launched a new ${catName} — your active product faces new competition.`
-        : `${l.competitor} entered the ${catName} market.`,
+        ? `${subject} launches — your active ${catName} faces new competition.`
+        : `${subject} launches into ${catName}.`,
       threat ? "negative" : "neutral",
     ),
   );

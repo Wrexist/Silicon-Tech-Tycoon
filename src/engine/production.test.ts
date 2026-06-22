@@ -14,8 +14,10 @@ import {
   startBuild,
   effectiveUnitCost,
   verdictBands,
+  RIVAL_RELEASES_CAP,
   type GameState,
 } from "../state/gameState.ts";
+import { CATEGORIES } from "./catalogs.ts";
 
 /** Build a product to launch-ready, then return the recorded verdict. */
 function buildAndLaunch(s0: GameState, product: Product): string | undefined {
@@ -261,6 +263,27 @@ describe("Epic A — market segments drive planning end-to-end", () => {
     expect(launched.insight?.dominantSegment).toBeDefined();
     expect(launched.insight?.weakestSegment).toBeDefined();
     expect(launched.insight?.perSegment).toHaveLength(5);
+  });
+});
+
+describe("Epic B — living rivals ship real, renderable products", () => {
+  it("rival launches populate rivalReleases with valid products", () => {
+    let s: GameState = { ...newGame(42), cash: dollars(50_000_000) };
+    for (let i = 0; i < 16; i++) s = advanceOneWeek(s);
+    expect(s.rivalReleases.length).toBeGreaterThan(0);
+    const r = s.rivalReleases[0];
+    expect(r.product.name.length).toBeGreaterThan(0);
+    expect(toDollars(r.product.price)).toBeGreaterThan(0);
+    for (const kind of CATEGORIES[r.category].slots) expect(r.product.tiers[kind]).toBeDefined();
+  });
+
+  it("rivalReleases stays capped and newest-first over a long run", () => {
+    let s: GameState = { ...newGame(43), cash: dollars(50_000_000) };
+    for (let i = 0; i < 200; i++) s = advanceOneWeek(s);
+    expect(s.rivalReleases.length).toBeLessThanOrEqual(RIVAL_RELEASES_CAP);
+    if (s.rivalReleases.length > 1) {
+      expect(s.rivalReleases[0].week).toBeGreaterThanOrEqual(s.rivalReleases[s.rivalReleases.length - 1].week);
+    }
   });
 });
 

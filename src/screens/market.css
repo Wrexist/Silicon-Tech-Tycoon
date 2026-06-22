@@ -566,6 +566,25 @@
   flex-direction: column;
   gap: var(--sp-8);
 }
+
+/* ---------- Rival releases (Epic B) ---------- */
+.mkt__rivals { display: flex; flex-direction: column; gap: var(--sp-8); }
+.mkt__rival {
+  display: flex; align-items: center; gap: var(--sp-12);
+  padding: var(--sp-8); border-radius: var(--r-card); background: var(--bg-elevated);
+}
+.mkt__rival-thumb { flex-shrink: 0; width: 48px; display: flex; align-items: center; justify-content: center; }
+.mkt__rival-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mkt__rival-name { font-weight: 700; font-size: var(--fs-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mkt__rival-sub { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
+.mkt__rival-meta { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.mkt__rival-price { font-size: var(--fs-caption); font-weight: 700; }
+.mkt__rival-tone {
+  font-size: var(--fs-nano); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 6px; border-radius: var(--r-pill); color: var(--ink-2); background: var(--surface-2);
+}
+.mkt__rival-tone--premium { color: var(--fn-design); background: var(--fn-design-soft, var(--surface-2)); }
+.mkt__rival-tone--value { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--surface-2)); }
 .mkt__product {
   width: 100%;
   text-align: left;

@@ -210,6 +210,30 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         );
       })()}
 
+      {/* Rival releases — the real products rivals have shipped (Epic B): see and learn from them */}
+      {state.rivalReleases.length > 0 && (
+        <Card>
+          <SectionHeader title="Rival releases" accessory={`${state.rivalReleases.length} recent`} />
+          <div className="mkt__rivals">
+            {state.rivalReleases.slice(0, 6).map((r, i) => (
+              <div key={`${r.product.id}-${i}`} className="mkt__rival">
+                <span className="mkt__rival-thumb"><DeviceRenderer product={r.product} size={44} /></span>
+                <span className="mkt__rival-info">
+                  <span className="mkt__rival-name">{r.product.name}</span>
+                  <span className="mkt__rival-sub">
+                    <CategoryIcon id={r.category} size={12} /> {CATEGORY_LABEL[r.category] ?? r.category} · wk {r.week}
+                  </span>
+                </span>
+                <span className="mkt__rival-meta">
+                  <span className="mkt__rival-price tnum">{format(r.product.price)}</span>
+                  <span className={`mkt__rival-tone mkt__rival-tone--${r.tone}`}>{r.tone}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Your launched products — tap one to see why it performed + design a successor */}
       <Card>
         <SectionHeader title="Your products" accessory={state.launched.length > 0 ? `${state.launched.length} launched` : undefined} />
