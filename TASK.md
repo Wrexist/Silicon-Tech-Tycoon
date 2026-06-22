@@ -850,3 +850,46 @@ engagement-farming. 333 tests, tsc 0, build+PWA green.
   (typographic — debatable vs the Lucide rule).
 **Larger projects (logged earlier, unchanged):** full state/actions context split (F36); rem-based
   type / Dynamic Type; iPad layout; more choice events / NG+ variety / component sidegrades.
+
+## v24 — post-launch depth: market segments + living rivals (Epic A + B1) (DONE 2026-06-22)
+The first post-launch feature chapter (v1.0 is live). Built from `EXPANSION_ROADMAP.md` (a fresh
+2024–2026 competitor research pass). Owner authorized Epics A + B. Engine-first, backward-compatible,
+405 tests green, tsc 0, build+PWA ok.
+
+### Epic A — Market Segments (the demand-model second axis) — COMPLETE end-to-end
+The market is split into five buyer segments, each weighting the five stats AND price differently;
+a launch wins a SHARE OF EACH segment, summed — so "who is this for?" is a real positioning decision
+(the strike at the genre's solved-recipe failure: GDT/Mad Games Tycoon).
+- [x] **Engine** (`engine/segments.ts`, PURE +9 tests): `SEGMENTS` (Budget/Mainstream/Pro/Style/
+      Enterprise); `segmentEffectiveWeights` (segment taste × category emphasis × global-trend tilt —
+      trend-drift still matters); `segmentFit`; `segmentPriceFit` (per-segment elasticity); `segmentDemand`
+      → per-segment breakdown + `demandIndex` + `effectivePriceFit` (drop-in analogs) + dominant/weakest.
+      `balance.ts` gains an additive `market.segments` block (trendInfluence, minPriceTolerance).
+- [x] **Integration** (`market.ts` PROTECTED, additive: optional `demandOverride`/`priceFitOverride` on
+      scoreLaunch — omitted = identical pre-segments behaviour; `gameState.planProduction` feeds the two
+      aggregates; `ProductionPlan.segments`; `launchReady` records dominant/weakest/per-segment in the
+      launch insight). Balance preserved: a balanced product's demandIndex averages back to the old
+      single-trend demand, so era thresholds / verdict bands / maiden-launch fairness are unchanged
+      (full suite green). Lopsided products diverge — that IS the new depth. `types.ts` SegmentId +
+      LaunchInsight optional fields. +3 production integration tests.
+- [x] **UI**: DesignLab wizard "Who it's for" bars (which segment each design wins, best-fit accented);
+      Market post-launch "Audience" driver ("strongest with Pro; weakest with Budget — priced out").
+- NOT verified on-device: segment-bar layout; live economic FEEL of lopsided builds needs a playtest
+      (mechanism pinned by tests; segment weights/sizes in segments.ts are the tuning knobs).
+
+### Epic B — Living Rivals (phase B1: rivals ship real products) — visibility layer COMPLETE
+Rivals were invisible "strength" emitters; now each launch is a real, renderable device you can see
+and learn from (fix for Computer Tycoon's "rivals are just a color on the map").
+- [x] **Engine** (`engine/rivalAI.ts`, PURE +7 tests): `generateRivalProduct` builds a full Product
+      (era-gated tiers, finish, camera, price, original name) whose quality tracks launch strength and
+      whose style/margin follow the rival's tone (premium/value/balanced from competitors.ts identity).
+- [x] **State** (`gameState.rivalReleases`, capped 24, newest-first; persistence backfill): the tick
+      converts each rival launch into a RivalRelease via a DERIVED rng (seeded from save+week+index) so
+      the MAIN sim rng stream stays byte-identical — determinism pin + all seed tests unchanged. Feed
+      lines name the device. +2 integration tests.
+- [x] **UI**: Market "Rival releases" card — each rival device via DeviceRenderer (zero assets) with
+      name/category/price/tone tag.
+- NOT verified on-device: Rival releases card layout.
+- **Remaining (next chapters):** B2 reactive doctrines (generalize the lead-rival-only reactivity to
+      all rivals — undercut price, chase trends, defend home turf); B3 rival M&A + mortality (acquire
+      weak rivals via the stock layer; failing rivals exit; new entrants appear).

@@ -124,7 +124,13 @@ turns "rival CEO" / "era mechanics" from a bullet into a buildable spec. Where a
 
 ---
 
-### EPIC A — Market Segments (the demand-model overhaul) 🔴 highest leverage
+### EPIC A — Market Segments (the demand-model overhaul) ✅ SHIPPED (v24, 2026-06-22)
+
+> **Status:** COMPLETE end-to-end (engine `segments.ts` + integration via additive `scoreLaunch`
+> overrides + wizard "Who it's for" + post-launch "Audience" verdict). Balance preserved (balanced
+> products average back to the old demand; lopsided diverge). Live economic feel for lopsided builds
+> still wants a playtest. Original spec below.
+
 
 **Research basis:** Capitalism Lab's per-product value weighting [STEAL]; Automation's "looks don't
 affect sales" disconnect [AVOID]; the genre-wide legibility win [DIFFERENTIATE].
@@ -167,7 +173,12 @@ playtested. Effort: **L**.
 
 ---
 
-### EPIC B — Living Rivals ("Rival CEO") 🟠 biggest "aliveness" lever
+### EPIC B — Living Rivals ("Rival CEO") 🟠 biggest "aliveness" lever — B1 SHIPPED (v24)
+
+> **Status:** B1 COMPLETE (rivals ship real, renderable products via `engine/rivalAI.ts`; shown in a
+> Market "Rival releases" card; visibility-only so no balance ripple). **B2** (reactive doctrines for
+> all rivals) and **B3** (M&A + mortality) remain. Original spec below.
+
 
 **Research basis:** Computer Tycoon's "rivals are just a color on the map" [AVOID, top complaint];
 MGT2 IP/fanbase [STEAL]; the player needs a legible "why I lost this quarter" [DIFFERENTIATE].
