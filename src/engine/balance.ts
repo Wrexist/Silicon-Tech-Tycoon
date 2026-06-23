@@ -534,6 +534,16 @@ export const BALANCE = {
     licenseFeePerRepTier: 40,    // + $/wk per (rival reputation point × your OS tier)
     licenseFeeCap: 250_000,      // $/wk hard cap per licensee
     licenseStrengthUplift: 8,    // strength points a licensee rival gains in shared categories (the teeth)
+    // OS feature modules (engine/platform.ts OS_FEATURES) — capability customization. Each module is
+    // researched (RP) and gated behind an OS version; together they make the OS a real lever:
+    // a strong OS lifts the ecosystem stat of every device you launch AND multiplies recurring
+    // services income. These are the global rails; per-module effects live in the OS_FEATURES catalog
+    // (content, alongside the segments table). All gated behind platformUnlocked → 0 in the base game.
+    features: {
+      ecoBonusCap: 20,          // max ecosystem-stat points the OS adds to a launched device (safety rail)
+      servicesMultCap: 2.6,     // hard cap on the recurring-services multiplier (no runaway)
+      versionServicesStep: 0.04,// + services multiplier per OS version released above v1
+    },
   },
 
   // --- Staff churn: underpaid or burnt-out staff eventually quit ---

@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { installedBase, osTier, canReleaseVersion, osReleaseReward, rivalLicenseFee } from "./platform.ts";
+import {
+  installedBase,
+  osTier,
+  canReleaseVersion,
+  osReleaseReward,
+  rivalLicenseFee,
+  OS_FEATURES,
+  osFeatureById,
+  osEcosystemBonus,
+  osServicesMultiplier,
+  osFeatureRows,
+  canInstallOsFeature,
+} from "./platform.ts";
 import { BALANCE } from "./balance.ts";
 import { toDollars } from "./money.ts";
 import type { LaunchedProduct } from "./types.ts";
@@ -64,5 +76,75 @@ describe("rivalLicenseFee", () => {
   it("is hard-capped (bounded income) and floors tier at 1", () => {
     expect(toDollars(rivalLicenseFee(100, 99))).toBe(p.licenseFeeCap);
     expect(toDollars(rivalLicenseFee(10, 0))).toBe(p.licenseFeeBase + 10 * 1 * p.licenseFeePerRepTier);
+  });
+});
+
+describe("OS feature modules — catalog integrity", () => {
+  it("has unique ids, sane versions and non-negative effects", () => {
+    const ids = new Set(OS_FEATURES.map((f) => f.id));
+    expect(ids.size).toBe(OS_FEATURES.length);
+    for (const f of OS_FEATURES) {
+      expect(f.minVersion).toBeGreaterThanOrEqual(1);
+      expect(f.rpCost).toBeGreaterThan(0);
+      expect(f.ecoBonus).toBeGreaterThanOrEqual(0);
+      expect(f.servicesMult).toBeGreaterThanOrEqual(0);
+      expect(f.name.length).toBeGreaterThan(0);
+      expect(f.blurb.length).toBeGreaterThan(0);
+      expect(f.icon.length).toBeGreaterThan(0);
+    }
+  });
+  it("at least one module is available from OS v1 (so the system is reachable early)", () => {
+    expect(OS_FEATURES.some((f) => f.minVersion === 1)).toBe(true);
+  });
+});
+
+describe("osEcosystemBonus", () => {
+  it("is 0 with no modules (backward compatible) and sums installed modules", () => {
+    expect(osEcosystemBonus([])).toBe(0);
+    const app = osFeatureById("appMarket")!;
+    const cloud = osFeatureById("cloudSync")!;
+    expect(osEcosystemBonus(["appMarket"])).toBe(app.ecoBonus);
+    expect(osEcosystemBonus(["appMarket", "cloudSync"])).toBe(app.ecoBonus + cloud.ecoBonus);
+  });
+  it("ignores unknown ids and is hard-capped", () => {
+    expect(osEcosystemBonus(["nope"])).toBe(0);
+    const all = OS_FEATURES.map((f) => f.id);
+    expect(osEcosystemBonus(all)).toBeLessThanOrEqual(BALANCE.platform.features.ecoBonusCap);
+  });
+});
+
+describe("osServicesMultiplier", () => {
+  it("is exactly 1 at v1 with no modules (the base economy is untouched)", () => {
+    expect(osServicesMultiplier(1, [])).toBe(1);
+    expect(osServicesMultiplier(0, [])).toBe(1);
+    expect(osServicesMultiplier(undefined as unknown as number, [])).toBe(1);
+  });
+  it("rises with version and with each installed module, and is capped", () => {
+    const f = BALANCE.platform.features;
+    expect(osServicesMultiplier(3, [])).toBeCloseTo(1 + 2 * f.versionServicesStep, 9);
+    const withApp = osServicesMultiplier(1, ["appMarket"]);
+    expect(withApp).toBeGreaterThan(1);
+    expect(osServicesMultiplier(5, OS_FEATURES.map((x) => x.id))).toBeLessThanOrEqual(f.servicesMultCap);
+  });
+});
+
+describe("osFeatureRows / canInstallOsFeature — gating", () => {
+  it("locks modules behind their OS version and behind affordability", () => {
+    // v1, plenty of RP: v1 modules available, higher-version ones locked.
+    const rows = osFeatureRows([], 1, 9999);
+    const app = rows.find((r) => r.id === "appMarket")!;
+    const cont = rows.find((r) => r.id === "continuity")!; // minVersion 4
+    expect(app.status).toBe("available");
+    expect(cont.status).toBe("locked");
+    // Owned shows installed; unaffordable when RP is short.
+    expect(osFeatureRows(["appMarket"], 1, 9999).find((r) => r.id === "appMarket")!.status).toBe("installed");
+    expect(osFeatureRows([], 1, 0).find((r) => r.id === "appMarket")!.status).toBe("unaffordable");
+  });
+  it("canInstallOsFeature mirrors the gates and rejects re-install / unknown", () => {
+    expect(canInstallOsFeature([], 1, 25, "appMarket")).toBe(true);
+    expect(canInstallOsFeature([], 1, 24, "appMarket")).toBe(false); // can't afford (rpCost 25)
+    expect(canInstallOsFeature([], 1, 9999, "continuity")).toBe(false); // version too low
+    expect(canInstallOsFeature(["appMarket"], 1, 9999, "appMarket")).toBe(false); // already owned
+    expect(canInstallOsFeature([], 1, 9999, "ghost")).toBe(false); // unknown id
   });
 });

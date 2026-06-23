@@ -64,3 +64,96 @@ export function rivalLicenseFee(rivalReputation: number, osTierNum: number): Mon
 export function licenseeStrengthUplift(): number {
   return BALANCE.platform.licenseStrengthUplift;
 }
+
+// ---------- OS feature modules: the customizable capabilities of your platform ----------
+// Each module is a research investment (RP) gated behind an OS version. Installing it is permanent
+// (it's built into the OS). Together they make the OS a real lever: `ecoBonus` lifts the ecosystem
+// stat of every device you launch (a strong OS → better devices), and `servicesMult` raises the
+// recurring services income from your whole installed base. IP-safe, fictional capabilities only.
+export interface OsFeature {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Lucide icon key — a plain string so the engine stays DOM-free; the UI maps it to a glyph. */
+  icon: string;
+  /** OS major version required before this module can be installed. */
+  minVersion: number;
+  /** Research points to build the module. */
+  rpCost: number;
+  /** Ecosystem-stat points every device you launch gains while this module ships. */
+  ecoBonus: number;
+  /** Added to the recurring-services revenue multiplier. */
+  servicesMult: number;
+}
+
+export const OS_FEATURES: readonly OsFeature[] = [
+  { id: "appMarket",  name: "App Marketplace",         icon: "Store",       minVersion: 1, rpCost: 25,  ecoBonus: 4, servicesMult: 0.22,
+    blurb: "A first-party app store. Developers ship to your platform and you take a cut of every sale." },
+  { id: "cloudSync",  name: "Cloud Sync",              icon: "Cloud",       minVersion: 1, rpCost: 30,  ecoBonus: 2, servicesMult: 0.14,
+    blurb: "Photos, files and settings follow the user across every device they own." },
+  { id: "assistant",  name: "On-Device Assistant",     icon: "Sparkles",    minVersion: 2, rpCost: 48,  ecoBonus: 3, servicesMult: 0.10,
+    blurb: "A private voice + text assistant that makes the whole system feel smart." },
+  { id: "privacy",    name: "Privacy Suite",           icon: "ShieldCheck", minVersion: 2, rpCost: 52,  ecoBonus: 3, servicesMult: 0.06,
+    blurb: "On-device encryption and tracking controls. Buyers trust the platform more." },
+  { id: "health",     name: "Health Hub",              icon: "HeartPulse",  minVersion: 3, rpCost: 70,  ecoBonus: 3, servicesMult: 0.12,
+    blurb: "Activity, sleep and wellbeing tracking that pulls wearables into your ecosystem." },
+  { id: "continuity", name: "Cross-Device Continuity", icon: "Layers",      minVersion: 4, rpCost: 110, ecoBonus: 4, servicesMult: 0.18,
+    blurb: "Hand off any task between your phone, tablet and laptop seamlessly — true lock-in." },
+];
+
+export function osFeatureById(id: string): OsFeature | undefined {
+  return OS_FEATURES.find((f) => f.id === id);
+}
+
+/** Ecosystem-stat points the installed OS modules add to every device you launch (capped). */
+export function osEcosystemBonus(featureIds: readonly string[]): number {
+  let sum = 0;
+  for (const id of featureIds) sum += osFeatureById(id)?.ecoBonus ?? 0;
+  return Math.min(BALANCE.platform.features.ecoBonusCap, Math.max(0, sum));
+}
+
+/** Recurring-services revenue multiplier from the OS version + installed modules (>=1, capped). */
+export function osServicesMultiplier(osVersion: number, featureIds: readonly string[]): number {
+  const f = BALANCE.platform.features;
+  const version = Math.max(1, Math.floor(osVersion || 1));
+  let mult = 1 + (version - 1) * f.versionServicesStep;
+  for (const id of featureIds) mult += osFeatureById(id)?.servicesMult ?? 0;
+  return Math.min(f.servicesMultCap, Math.max(1, mult));
+}
+
+export type OsFeatureStatus = "installed" | "available" | "locked" | "unaffordable";
+
+export interface OsFeatureRow extends OsFeature {
+  status: OsFeatureStatus;
+}
+
+/** Per-module install/locked/affordable status for the UI (entitlement is enforced at the state layer). */
+export function osFeatureRows(
+  featureIds: readonly string[],
+  osVersion: number,
+  researchPoints: number,
+): OsFeatureRow[] {
+  const version = Math.max(1, Math.floor(osVersion || 1));
+  const owned = new Set(featureIds);
+  return OS_FEATURES.map((feat) => {
+    let status: OsFeatureStatus;
+    if (owned.has(feat.id)) status = "installed";
+    else if (version < feat.minVersion) status = "locked";
+    else if (researchPoints < feat.rpCost) status = "unaffordable";
+    else status = "available";
+    return { ...feat, status };
+  });
+}
+
+/** Whether a specific module can be installed right now (version reached, RP affordable, not owned). */
+export function canInstallOsFeature(
+  featureIds: readonly string[],
+  osVersion: number,
+  researchPoints: number,
+  id: string,
+): boolean {
+  const feat = osFeatureById(id);
+  if (!feat || featureIds.includes(id)) return false;
+  if (Math.max(1, Math.floor(osVersion || 1)) < feat.minVersion) return false;
+  return researchPoints >= feat.rpCost;
+}
