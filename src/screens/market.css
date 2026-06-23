@@ -587,6 +587,29 @@
 .mkt__fr-sub { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--ink-2); }
 .mkt__fr-bar { height: 5px; border-radius: var(--r-pill); background: var(--hairline); overflow: hidden; }
 .mkt__fr-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--fn-mkt); transition: width var(--spring-snappy); }
+/* Tappable franchise row → detail sheet */
+.mkt__fr--tap { width: 100%; text-align: left; background: none; border: none; padding: var(--sp-8); margin: calc(-1 * var(--sp-8)); border-radius: var(--r-button); cursor: pointer; transition: background var(--spring-snappy); -webkit-tap-highlight-color: transparent; }
+.mkt__fr--tap:active { background: var(--bg-elevated); }
+.mkt__fr-chev { color: var(--ink-3); flex-shrink: 0; }
+
+/* Franchise detail sheet — the line's chapters */
+.frd { display: flex; flex-direction: column; gap: var(--sp-16); }
+.frd__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12); }
+.frd__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
+.frd__sub { font-size: var(--fs-caption); color: var(--ink-2); margin-top: var(--sp-2); }
+.frd__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-12); }
+.frd__list { display: flex; flex-direction: column; gap: var(--sp-8); }
+.frd__row { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-8) var(--sp-12); border-radius: var(--r-button); background: var(--surface-2); border: 1px solid var(--hairline); }
+.frd__thumb { width: 44px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.frd__row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.frd__row-name { font-weight: 600; font-size: var(--fs-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frd__row-meta { font-size: var(--fs-caption); color: var(--ink-2); }
+.frd__row-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-4); flex-shrink: 0; }
+.frd__row-rev { font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2); }
+.frd__verdict { font-size: var(--fs-nano); font-weight: 700; padding: var(--sp-2) var(--sp-8); border-radius: var(--r-pill); white-space: nowrap; }
+.frd__verdict--positive { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--bg-elevated)); }
+.frd__verdict--accent { color: var(--accent); background: var(--accent-soft); }
+.frd__verdict--negative { color: var(--negative-text, var(--negative)); background: var(--negative-soft, var(--bg-elevated)); }
 
 /* ---------- Rival company profile ---------- */
 .rprof { display: flex; flex-direction: column; gap: var(--sp-16); }
