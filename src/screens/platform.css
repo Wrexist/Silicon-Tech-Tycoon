@@ -45,15 +45,30 @@
 
 .plat__rivals { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); }
 .plat__rival {
-  display: flex; align-items: center; gap: var(--sp-8);
+  display: flex; flex-direction: column; gap: var(--sp-8);
   padding: var(--sp-8) var(--sp-12);
   border-radius: var(--r-button);
   background: var(--surface-2);
   border: 1px solid var(--hairline);
 }
+.plat__rival-top { display: flex; align-items: center; gap: var(--sp-8); }
 .plat__rival--on { border-color: color-mix(in srgb, var(--accent) 36%, var(--hairline)); background: var(--accent-soft); }
 .plat__rival-name { font-weight: 600; font-size: var(--fs-body); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plat__rival-fee { font-size: var(--fs-caption); color: var(--ink-2); flex-shrink: 0; }
+/* Licensee relationship strip */
+.plat__rel { display: flex; align-items: center; gap: var(--sp-8); }
+.plat__rel-bar { flex: 1; height: 6px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }
+.plat__rel-fill { display: block; height: 100%; border-radius: var(--r-pill); transition: width var(--spring-gentle); }
+.plat__rel-fill--happy { background: var(--positive); }
+.plat__rel-fill--content { background: var(--accent); }
+.plat__rel-fill--strained { background: var(--warning); }
+.plat__rel-fill--at-risk { background: var(--negative); }
+.plat__rel-label { flex-shrink: 0; font-size: var(--fs-nano); font-weight: 700; }
+.plat__rel-label--happy { color: var(--positive-text, var(--positive)); }
+.plat__rel-label--content { color: var(--accent); }
+.plat__rel-label--strained { color: var(--warning-text, var(--warning)); }
+.plat__rel-label--at-risk { color: var(--negative-text, var(--negative)); }
+.plat__rel-note { font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4; margin-top: var(--sp-8); }
 
 /* OS feature modules */
 .plat__feats { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); }

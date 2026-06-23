@@ -287,6 +287,8 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.osName !== "string") s.osName = "";
   if (!Number.isFinite(s.osVersion) || s.osVersion < 1) s.osVersion = 1;
   if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
+  // Per-licensee satisfaction (added later): default empty — existing licensees fall back to startHealth.
+  if (!s.osLicenseeHealth || typeof s.osLicenseeHealth !== "object" || Array.isArray(s.osLicenseeHealth)) s.osLicenseeHealth = {};
   // OS feature modules (added later): default none — a save loads with an un-customized OS, so
   // ecosystem bonus = 0 and services multiplier = 1 until the player builds modules.
   if (!Array.isArray(s.osFeatures)) s.osFeatures = [];

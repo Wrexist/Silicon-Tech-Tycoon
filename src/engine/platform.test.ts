@@ -19,6 +19,8 @@ import {
   philosophyStatBonus,
   philosophyServicesMult,
   philosophyEffectLabel,
+  updateLicenseeRelations,
+  licenseeMood,
 } from "./platform.ts";
 import { BALANCE } from "./balance.ts";
 import { toDollars } from "./money.ts";
@@ -165,6 +167,49 @@ describe("OS module synergies", () => {
     expect(rows.find((r) => r.id === OS_SYNERGIES[0].id)!.active).toBe(false);
     const rows2 = osSynergyRows([...OS_SYNERGIES[0].requires]);
     expect(rows2.find((r) => r.id === OS_SYNERGIES[0].id)!.active).toBe(true);
+  });
+});
+
+describe("updateLicenseeRelations (churn)", () => {
+  const reps: Record<string, number> = { r1: 40 };
+  const env = (playerReputation: number, rng: () => number, health: Record<string, number> = {}) =>
+    updateLicenseeRelations({
+      licensees: ["r1"],
+      health,
+      playerReputation,
+      rivalRepById: (id) => reps[id],
+      rivalNameById: () => "Rival One",
+      rng,
+    });
+
+  it("satisfaction recovers toward 100 when you are not dominating", () => {
+    const r = env(45, () => 0.99, { r1: 50 }); // rep lead 5 < tolerated gap → recover
+    expect(r.health.r1).toBeGreaterThan(50);
+    expect(r.licensees).toEqual(["r1"]);
+    expect(r.dropped).toHaveLength(0);
+  });
+  it("satisfaction decays when your reputation lead is large", () => {
+    const r = env(100, () => 0.99, { r1: 80 }); // huge lead → decay (rng high → no churn yet)
+    expect(r.health.r1).toBeLessThan(80);
+  });
+  it("an unhappy licensee can churn (and is reported), with rng below the chance", () => {
+    const r = env(100, () => 0, { r1: 10 }); // already low + rng 0 → drops
+    expect(r.licensees).toHaveLength(0);
+    expect(r.dropped.map((d) => d.id)).toEqual(["r1"]);
+  });
+  it("prunes a licensee whose rival no longer exists", () => {
+    const r = updateLicenseeRelations({
+      licensees: ["ghost"], health: { ghost: 90 }, playerReputation: 50,
+      rivalRepById: () => undefined, rivalNameById: () => "Ghost", rng: () => 0.99,
+    });
+    expect(r.licensees).toHaveLength(0);
+    expect(r.dropped).toHaveLength(0); // silent prune, not a churn event
+  });
+  it("licenseeMood buckets satisfaction sensibly", () => {
+    expect(licenseeMood(95)).toBe("happy");
+    expect(licenseeMood(70)).toBe("content");
+    expect(licenseeMood(40)).toBe("strained");
+    expect(licenseeMood(10)).toBe("at-risk");
   });
 });
 

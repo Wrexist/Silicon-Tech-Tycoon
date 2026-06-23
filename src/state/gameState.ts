@@ -102,7 +102,7 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
-import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
+import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeMood, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { perkBonuses } from "../engine/perks.ts";
 import type {
   Assignment,
@@ -220,6 +220,9 @@ export interface GameState {
   osVersion: number;
   /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
   osLicensees: string[];
+  /** Per-licensee satisfaction (id → 0..100). Decays when you dominate them; low satisfaction can
+   *  make a licensee drop the license (churn). Defaults to startHealth for any licensee not present. */
+  osLicenseeHealth: Record<string, number>;
   /** Installed OS feature modules (engine/platform.ts OS_FEATURES). Each lifts the ecosystem stat of
    *  every device you launch AND multiplies recurring services income. Empty → no effect. */
   osFeatures: string[];
@@ -411,6 +414,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osName: "",
     osVersion: 1,
     osLicensees: [],
+    osLicenseeHealth: {},
     osFeatures: [],
     osBaseHistory: [],
     osPhilosophy: null,
@@ -1234,6 +1238,27 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (osBaseHistory.length > 40) osBaseHistory = osBaseHistory.slice(-40);
   }
 
+  // Licensee relationships: a rival paying to license your OS resents being dominated. Each live week
+  // their satisfaction shifts with your reputation lead, and an unhappy licensee may walk (churn).
+  // Gated to live play (never offline) so a returning player can't lose partners while away.
+  let osLicensees = state.osLicensees;
+  let osLicenseeHealth = state.osLicenseeHealth;
+  if (!offline && state.platformUnlocked && osLicensees.length > 0) {
+    const rel = updateLicenseeRelations({
+      licensees: osLicensees,
+      health: osLicenseeHealth,
+      playerReputation: state.reputation,
+      rivalRepById: (id) => competitors.find((c) => c.id === id)?.reputation,
+      rivalNameById: (id) => competitors.find((c) => c.id === id)?.name ?? "A licensee",
+      rng: () => rng.next(),
+    });
+    osLicensees = rel.licensees;
+    osLicenseeHealth = rel.health;
+    for (const d of rel.dropped) {
+      feed.push(feedItem(week, `${d.name} dropped ${osDisplayName(state)} — they couldn't keep competing while paying to license it.`, "negative"));
+    }
+  }
+
   const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
     ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
     : BALANCE.fans.decayPerWeek;
@@ -1274,6 +1299,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     launched: launchedFinal,
     cashHistory,
     osBaseHistory,
+    osLicensees,
+    osLicenseeHealth,
     feed,
     rivalReleases,
     rivalLineCounters,
@@ -1996,13 +2023,28 @@ export function licenseOsToRival(state: GameState, rivalId: string): GameState {
   const rival = state.competitors.find((c) => c.id === rivalId);
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `${rival?.name ?? "A rival"} now licenses ${osDisplayName(state)} — new revenue, but a sharper competitor.`, "accent"));
-  return { ...state, osLicensees: [...state.osLicensees, rivalId], feed: trimFeed(feed) };
+  return {
+    ...state,
+    osLicensees: [...state.osLicensees, rivalId],
+    // A new partner starts content.
+    osLicenseeHealth: { ...state.osLicenseeHealth, [rivalId]: BALANCE.platform.licenseeChurn.startHealth },
+    feed: trimFeed(feed),
+  };
 }
+
+/** A licensee's current satisfaction (0..100), defaulting to startHealth if untracked. */
+export const licenseeHealthOf = (s: GameState, id: string): number =>
+  s.osLicenseeHealth[id] ?? BALANCE.platform.licenseeChurn.startHealth;
+
+/** A licensee's mood bucket (happy/content/strained/at-risk) for the UI. */
+export const licenseeMoodOf = (s: GameState, id: string) => licenseeMood(licenseeHealthOf(s, id));
 
 /** End a rival's OS license — drops the fee, removes their competitiveness uplift. */
 export function revokeOsLicense(state: GameState, rivalId: string): GameState {
   if (!state.osLicensees.includes(rivalId)) return state;
-  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId) };
+  const osLicenseeHealth = { ...state.osLicenseeHealth };
+  delete osLicenseeHealth[rivalId];
+  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId), osLicenseeHealth };
 }
 
 /** OS feature modules with their install/locked/affordable status, for the Platform screen. */
@@ -2448,6 +2490,8 @@ export function acquireRival(state: GameState, id: string): GameState {
   const holdings = { ...state.holdings };
   delete holdings[id];
   const osLicensees = state.osLicensees.filter((x) => x !== id);
+  const osLicenseeHealth = { ...state.osLicenseeHealth };
+  delete osLicenseeHealth[id];
   const fansGain = Math.min(m.fansCap, Math.round(Math.max(0, rivalRep) * m.fansPerRepPoint));
   const reputation = Math.min(BALANCE.reputation.max, state.reputation + m.repBonus);
 
@@ -2464,6 +2508,7 @@ export function acquireRival(state: GameState, id: string): GameState {
     competitors,
     holdings,
     osLicensees,
+    osLicenseeHealth,
     fans: state.fans + fansGain,
     reputation,
     acquiredRivals: [...state.acquiredRivals, id],

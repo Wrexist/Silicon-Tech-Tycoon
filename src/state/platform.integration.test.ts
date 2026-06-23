@@ -20,6 +20,7 @@ import {
   weeklyEcosystemRevenue,
   advanceOneWeek,
   setOsPhilosophy,
+  licenseeHealthOf,
   type GameState,
 } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -99,6 +100,36 @@ describe("OS licensing (Phase C)", () => {
     g = revokeOsLicense(g, a.id);
     expect(g.osLicensees).toEqual([b.id]);
     expect(weeklyLicenseFees(g)).toBe(rivalLicenseFee(b.reputation, 2));
+  });
+
+  it("licensing seeds full satisfaction; revoking prunes the entry", () => {
+    const base = unlockPlatform(newGame(3), true);
+    const rid = base.competitors[0].id;
+    const g = licenseOsToRival(base, rid);
+    expect(licenseeHealthOf(g, rid)).toBe(100);
+    expect(g.osLicenseeHealth[rid]).toBe(100);
+    const off = revokeOsLicense(g, rid);
+    expect(off.osLicenseeHealth[rid]).toBeUndefined();
+  });
+
+  it("a tick erodes a dominated licensee's satisfaction (live play)", () => {
+    let g = unlockPlatform({ ...newGame(3), reputation: 70 } as GameState, true);
+    // Weaken the first rival so the player has a commanding reputation lead.
+    g = { ...g, competitors: g.competitors.map((c, i) => (i === 0 ? { ...c, reputation: 30 } : c)) };
+    const rid = g.competitors[0].id;
+    g = licenseOsToRival(g, rid);
+    const after = advanceOneWeek(g);
+    expect(after.osLicensees).toContain(rid);                 // still licensed after one week
+    expect(licenseeHealthOf(after, rid)).toBeLessThan(100);   // but less content
+  });
+
+  it("offline catch-up never changes licensee relationships", () => {
+    let g = unlockPlatform({ ...newGame(3), reputation: 90 } as GameState, true);
+    g = { ...g, competitors: g.competitors.map((c, i) => (i === 0 ? { ...c, reputation: 20 } : c)) };
+    const rid = g.competitors[0].id;
+    g = licenseOsToRival(g, rid);
+    const after = advanceOneWeek(g, 0.5, true); // offline tick
+    expect(licenseeHealthOf(after, rid)).toBe(100); // untouched while away
   });
 });
 

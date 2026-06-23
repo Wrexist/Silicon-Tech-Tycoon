@@ -23,6 +23,8 @@ import {
   osEcoBonus,
   osServicesMult,
   weeklyLicenseFees,
+  licenseeHealthOf,
+  licenseeMoodOf,
 } from "../state/gameState.ts";
 import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById, OS_PHILOSOPHIES, philosophyEffectLabel } from "../engine/platform.ts";
 import { format, add, toDollars } from "../engine/money.ts";
@@ -35,6 +37,8 @@ const FEATURE_ICONS: Record<string, LucideIcon> = {
 };
 // OS philosophy icons (same DOM-free string→glyph indirection).
 const PHIL_ICONS: Record<string, LucideIcon> = { ShieldCheck, Globe, Zap, Lock };
+// Licensee relationship mood → label.
+const MOOD_LABEL: Record<string, string> = { happy: "Happy", content: "Content", strained: "Strained", "at-risk": "At risk" };
 
 function fmtBase(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -258,25 +262,36 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
           {state.competitors.map((c) => {
             const licensed = state.osLicensees.includes(c.id);
             const fee = rivalLicenseFee(c.reputation, tier.tier);
+            const health = licensed ? licenseeHealthOf(state, c.id) : 0;
+            const mood = licensed ? licenseeMoodOf(state, c.id) : "happy";
             return (
               <li key={c.id} className={`plat__rival${licensed ? " plat__rival--on" : ""}`}>
-                <span className="plat__rival-name">{c.name}</span>
-                <span className="plat__rival-fee tnum">{format(fee)}/wk</span>
-                <Button
-                  size="sm"
-                  variant={licensed ? "tertiary" : "secondary"}
-                  onClick={() => {
-                    haptic.light();
-                    if (licensed) { revokeOsLicense(c.id); showToast(`${c.name} no longer licenses ${osDisplayName(state)}`, { tone: "neutral" }); }
-                    else { licenseOsToRival(c.id); showToast(`${c.name} now licenses ${osDisplayName(state)} — +${format(fee)}/wk, but stronger in your markets`, { tone: "neutral" }); }
-                  }}
-                >
-                  {licensed ? "Revoke" : "License"}
-                </Button>
+                <div className="plat__rival-top">
+                  <span className="plat__rival-name">{c.name}</span>
+                  <span className="plat__rival-fee tnum">{format(fee)}/wk</span>
+                  <Button
+                    size="sm"
+                    variant={licensed ? "tertiary" : "secondary"}
+                    onClick={() => {
+                      haptic.light();
+                      if (licensed) { revokeOsLicense(c.id); showToast(`${c.name} no longer licenses ${osDisplayName(state)}`, { tone: "neutral" }); }
+                      else { licenseOsToRival(c.id); showToast(`${c.name} now licenses ${osDisplayName(state)} — +${format(fee)}/wk, but stronger in your markets`, { tone: "neutral" }); }
+                    }}
+                  >
+                    {licensed ? "Revoke" : "License"}
+                  </Button>
+                </div>
+                {licensed && (
+                  <div className="plat__rel">
+                    <span className="plat__rel-bar" aria-hidden><i className={`plat__rel-fill plat__rel-fill--${mood}`} style={{ width: `${Math.round(health)}%` }} /></span>
+                    <span className={`plat__rel-label plat__rel-label--${mood}`}>{MOOD_LABEL[mood]}</span>
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
+        <p className="plat__rel-note">Licensees grow restless if you dominate them too hard — keep them content, or push for share and risk losing the fees.</p>
       </Card>
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>

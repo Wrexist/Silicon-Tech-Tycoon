@@ -65,6 +65,55 @@ export function licenseeStrengthUplift(): number {
   return BALANCE.platform.licenseStrengthUplift;
 }
 
+// ---------- Licensee relationships + churn ----------
+export interface LicenseeRelationsResult {
+  licensees: string[];                 // those still licensing after this week
+  health: Record<string, number>;      // satisfaction 0..100 for the survivors
+  dropped: { id: string; name: string }[]; // licensees who walked this week (for the feed)
+}
+
+/** Advance each licensee's satisfaction one week and resolve churn. Pure. A licensee resents being
+ *  dominated: when your reputation lead exceeds the tolerated gap, satisfaction decays; otherwise it
+ *  recovers. Once unhappy, there's a per-week chance they drop the license. A rival that no longer
+ *  exists (acquired/removed) is pruned silently. `rng` returns 0..1. */
+export function updateLicenseeRelations(args: {
+  licensees: readonly string[];
+  health: Readonly<Record<string, number>>;
+  playerReputation: number;
+  rivalRepById: (id: string) => number | undefined;
+  rivalNameById: (id: string) => string;
+  rng: () => number;
+}): LicenseeRelationsResult {
+  const c = BALANCE.platform.licenseeChurn;
+  const licensees: string[] = [];
+  const health: Record<string, number> = {};
+  const dropped: { id: string; name: string }[] = [];
+  for (const id of args.licensees) {
+    const rep = args.rivalRepById(id);
+    if (rep === undefined) continue; // rival gone — prune the stale license silently
+    const over = Math.max(0, args.playerReputation - rep - c.dominanceFreeGap);
+    const delta = over > 0 ? -over * c.decayPerGapPoint : c.recoverPerWeek;
+    const h = Math.max(0, Math.min(100, (args.health[id] ?? c.startHealth) + delta));
+    if (h <= c.churnThreshold && args.rng() < c.churnChancePerWeek) {
+      dropped.push({ id, name: args.rivalNameById(id) });
+      continue;
+    }
+    licensees.push(id);
+    health[id] = h;
+  }
+  return { licensees, health, dropped };
+}
+
+export type LicenseeMood = "happy" | "content" | "strained" | "at-risk";
+
+/** Bucket a satisfaction value into a mood for the UI. */
+export function licenseeMood(health: number): LicenseeMood {
+  if (health <= BALANCE.platform.licenseeChurn.churnThreshold) return "at-risk";
+  if (health < 55) return "strained";
+  if (health < 80) return "content";
+  return "happy";
+}
+
 // ---------- OS feature modules: the customizable capabilities of your platform ----------
 // Each module is a research investment (RP) gated behind an OS version. Installing it is permanent
 // (it's built into the OS). Together they make the OS a real lever: `ecoBonus` lifts the ecosystem

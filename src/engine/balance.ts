@@ -546,6 +546,18 @@ export const BALANCE = {
       servicesMultCap: 2.6,     // hard cap on the recurring-services multiplier (no runaway)
       versionServicesStep: 0.04,// + services multiplier per OS version released above v1
     },
+    // Licensee relationships: a rival licensing your OS grows resentful if you dominate them too
+    // hard — they're paying YOU while you crush them in shared markets. Satisfaction (0..100) decays
+    // with your reputation lead and, once low, they may unilaterally drop the license (churn). The
+    // trade-off: stay licensed-rich by not steamrolling, or dominate and lose the fees.
+    licenseeChurn: {
+      startHealth: 100,        // a fresh licensee starts content
+      recoverPerWeek: 5,       // satisfaction drifts back up when you're NOT dominating them
+      dominanceFreeGap: 12,    // reputation lead a licensee tolerates before resentment sets in
+      decayPerGapPoint: 0.7,   // satisfaction lost/wk per reputation point beyond the tolerated gap
+      churnThreshold: 28,      // at/below this satisfaction, the licensee may walk
+      churnChancePerWeek: 0.14,// per-week probability they drop the license once unhappy
+    },
   },
 
   // --- Staff churn: underpaid or burnt-out staff eventually quit ---
