@@ -103,6 +103,16 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: "ai-regulation", title: "Sweeping new AI regulations raised compliance costs across the sector.", minEra: 4, weight: 2, effect: { kind: "supplyCrunch", cash: 70_000 }, tone: "negative" },
   { id: "ai-talent-war", title: "The AI talent war drove a wave of energy — and ego — through your team.", minEra: 4, weight: 1, effect: { kind: "talentWave", mood: 10 }, tone: "positive" },
   { id: "ai-licensing", title: "Licensing your AI models to the industry opened a lucrative new line.", minEra: 4, weight: 2, effect: { kind: "cashWindfall", cash: 200_000 }, tone: "positive" },
+  // --- v38 content drop: more flavour across every era ---
+  { id: "maker-fair", title: "A maker-fair demo drew a curious crowd around your booth.", minEra: 1, weight: 2, effect: { kind: "fansBonus", fans: 350 }, tone: "positive" },
+  { id: "midnight-outage", title: "An overnight outage forced an emergency, all-hands fix.", minEra: 1, weight: 1, effect: { kind: "supplyCrunch", cash: 5_500 }, tone: "negative" },
+  { id: "repair-praise", title: "A repairability champion praised how serviceable your hardware is.", minEra: 1, weight: 1, effect: { kind: "pressFeature", reputation: 3 }, tone: "positive" },
+  { id: "teardown-love", title: "A popular teardown channel marvelled at your internal engineering.", minEra: 2, weight: 2, effect: { kind: "repBoost", rep: 4 }, tone: "positive" },
+  { id: "logistics-strike", title: "A logistics strike delayed shipments and spiked freight costs.", minEra: 2, weight: 2, effect: { kind: "supplyCrunch", cash: 16_000 }, tone: "negative" },
+  { id: "dev-conf-keynote", title: "Your developer conference keynote trended worldwide.", minEra: 3, weight: 2, effect: { kind: "fansBonus", fans: 4_000 }, tone: "positive" },
+  { id: "vendor-breach", title: "A subprocessor breach forced a costly, urgent security audit.", minEra: 3, weight: 1, effect: { kind: "supplyCrunch", cash: 50_000 }, tone: "negative" },
+  { id: "design-retrospective", title: "A museum opened a retrospective of your product design language.", minEra: 3, weight: 1, effect: { kind: "repBoost", rep: 6 }, tone: "positive" },
+  { id: "agent-shortlist", title: "Your agentic assistant quietly booked itself onto every buyer's shortlist.", minEra: 4, weight: 2, effect: { kind: "fansBonus", fans: 9_000 }, tone: "positive" },
   // viral trends are generated dynamically per stat below
 ];
 
@@ -387,6 +397,51 @@ export const CHOICE_EVENTS: ChoiceEvent[] = [
     options: [
       { id: "license", label: "License the data", description: "Pay creators fairly. Costly upfront, but it future-proofs the brand.", effect: { kind: "supplyCrunch", cash: 120_000 } },
       { id: "fairuse", label: "Argue fair use", description: "Stand firm and keep shipping. A vocal base cheers; the courts may not.", effect: { kind: "fansBonus", fans: 4_000 } },
+    ],
+  },
+  // --- v38 content drop: more dilemmas across the journey ---
+  {
+    id: "accessory_partner",
+    title: "The Accessory Question",
+    body: "A scrappy accessory maker wants an official partnership around your device. License the ecosystem to them for a fee, or build the accessories first-party?",
+    minEra: 1,
+    tone: "accent",
+    options: [
+      { id: "license", label: "License the ecosystem", description: "Quick cash and a wider accessory shelf — others build on you.", effect: { kind: "cashWindfall", cash: 28_000 } },
+      { id: "firstparty", label: "Build them yourself", description: "Own the whole experience. Reviewers praise the seamless fit.", effect: { kind: "pressFeature", reputation: 5 } },
+    ],
+  },
+  {
+    id: "carbon_drive",
+    title: "Offset or Discount?",
+    body: "A windfall quarter leaves room for a gesture. Fund a visible carbon-offset program, or pass the savings to customers as a price drop?",
+    minEra: 2,
+    tone: "accent",
+    options: [
+      { id: "offset", label: "Fund offsets", description: "A public environmental commitment. Goodwill that compounds over years.", effect: { kind: "repBoost", rep: 6 } },
+      { id: "discount", label: "Pass on savings", description: "Cut prices for buyers this cycle. The community feels the love.", effect: { kind: "fansBonus", fans: 2_000 } },
+    ],
+  },
+  {
+    id: "media_bundle",
+    title: "The Streaming Bundle",
+    body: "A media giant proposes bundling a year of their service with every device you sell. A juicy kickback, or keep the box clean and unbundled?",
+    minEra: 3,
+    tone: "accent",
+    options: [
+      { id: "bundle", label: "Bundle the perk", description: "Buyers love the free year — sales momentum builds.", effect: { kind: "fansBonus", fans: 3_500 } },
+      { id: "clean", label: "Keep it clean", description: "No bloat, no strings — and a healthy cheque for the shelf space you declined.", effect: { kind: "cashWindfall", cash: 90_000 } },
+    ],
+  },
+  {
+    id: "open_weights",
+    title: "Open the Weights?",
+    body: "Researchers are urging you to release your model's weights openly. It would rally the community — but hand a frontier asset to rivals and raise safety questions.",
+    minEra: 4,
+    tone: "accent",
+    options: [
+      { id: "open", label: "Open the weights", description: "The research world rallies to your platform — an enormous goodwill wave.", effect: { kind: "fansBonus", fans: 7_000 } },
+      { id: "closed", label: "Keep them closed", description: "Hold the frontier asset and license it carefully. The board sleeps easier.", effect: { kind: "cashWindfall", cash: 150_000 } },
     ],
   },
 ];
