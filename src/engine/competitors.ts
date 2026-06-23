@@ -41,8 +41,49 @@ export const RIVALS: RivalDef[] = [
   { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      doctrine: "trendChaser" },
 ];
 
+/** B3 — reserve challengers that rise to refill the field after the player acquires rivals, so the
+ *  industry never goes quiet. Not present at game start; they enter via spawnChallenger. */
+export const CHALLENGER_POOL: RivalDef[] = [
+  { id: "vortex",  name: "Vortex",  blurb: "A venture-backed upstart chasing every hot trend.",   reputation: 38, share: 26, vol: 1.5, shares: 5_000_000, preferredCategories: ["phone", "wearable", "experimental"], doctrine: "trendChaser" },
+  { id: "lumina",  name: "Lumina",  blurb: "A contract manufacturer turned cut-price brand.",      reputation: 34, share: 18, vol: 1.5, shares: 8_000_000, preferredCategories: ["phone", "tablet", "laptop"],        doctrine: "undercutter" },
+  { id: "kestrel", name: "Kestrel", blurb: "A steady mid-market generalist with broad reach.",      reputation: 50, share: 58, vol: 1.0, shares: 7_000_000, preferredCategories: ["laptop", "desktop", "monitor"],     doctrine: "generalist"  },
+  { id: "axion",   name: "Axion",   blurb: "A premium newcomer betting on design and ecosystem.",   reputation: 58, share: 96, vol: 0.8, shares: 6_000_000, preferredCategories: ["phone", "tablet", "wearable"],      doctrine: "defender"    },
+];
+
+/** Lookup across the starting roster AND the reserve challenger pool (so an entered challenger has a
+ *  full identity — market cap, fair price, doctrine, tone — everywhere rivalDef is consulted). */
 export function rivalDef(id: string): RivalDef | undefined {
-  return RIVALS.find((r) => r.id === id);
+  return RIVALS.find((r) => r.id === id) ?? CHALLENGER_POOL.find((r) => r.id === id);
+}
+
+/** Build a fresh CompetitorState for a rival def entering mid-game (B3 new entrant / refill). */
+function freshCompetitor(r: RivalDef, week: number, rng: Rng): CompetitorState {
+  return {
+    id: r.id,
+    name: r.name,
+    blurb: r.blurb,
+    reputation: r.reputation + rng.range(-4, 4),
+    strengthByCategory: {},
+    nextLaunchWeek: week + 2 + rng.int(BALANCE.competitors.launchEveryWeeks),
+    sharePrice: Math.round(r.share * 100 * (0.92 + rng.range(0, 0.16))),
+    priceHistory: [r.share],
+  };
+}
+
+/** B3 — maybe spawn a new challenger to refill a thinned field. Returns null most weeks (gated by
+ *  entryChancePerWeek) and when every challenger is already active or has been acquired. The caller
+ *  only invokes this when the field is below its starting size, so a normal game never draws here. */
+export function spawnChallenger(
+  activeIds: readonly string[],
+  acquiredIds: readonly string[],
+  week: number,
+  rng: Rng,
+): CompetitorState | null {
+  if (rng.next() >= BALANCE.mergers.entryChancePerWeek) return null;
+  const taken = new Set<string>([...activeIds, ...acquiredIds]);
+  const pool = CHALLENGER_POOL.filter((r) => !taken.has(r.id));
+  if (!pool.length) return null;
+  return freshCompetitor(pool[rng.int(pool.length)], week, rng);
 }
 
 /** A rival's behavioural doctrine (B2). Defaults to generalist for an unknown id. */

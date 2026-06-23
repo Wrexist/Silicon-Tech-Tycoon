@@ -384,6 +384,21 @@ export const BALANCE = {
     undercutPriceMult: 0.78, // visible price multiplier on an undercutter's contesting product (it ships cheap)
   },
 
+  // --- Mergers & acquisitions (Epic B3) ---
+  // The late-game power move: buy out a rival you've been beating. You pay a control PREMIUM over its
+  // market cap (minus any shares you already hold), remove it from competition, and absorb its brand
+  // (reputation) + customer base (fans). Gated so it's an established-company play, with a field floor
+  // so the market never empties — and the field REFILLS as fresh challengers rise (entryChancePerWeek),
+  // keeping the industry alive instead of letting the player mute it permanently.
+  mergers: {
+    acquisitionPremium: 1.35, // pay this multiple of the rival's market cap to take control
+    minActiveRivals: 2,       // acquisitions can never drop the field below this many rivals
+    repBonus: 6,              // one-time reputation lift from absorbing a known brand
+    fansPerRepPoint: 220,     // fans absorbed per point of the acquired rival's reputation
+    fansCap: 80_000,          // hard cap on absorbed fans (no free faucet)
+    entryChancePerWeek: 0.06, // weekly chance a new challenger refills a thinned field (~16wk mean)
+  },
+
   // --- IPO / prestige ---
   ipo: {
     minReputation: 85, // plus reaching the final era — the "win" / New Game+ trigger

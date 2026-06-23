@@ -289,6 +289,8 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
+  // Acquired rivals (Epic B3, added later): default none.
+  if (!Array.isArray(s.acquiredRivals)) s.acquiredRivals = [];
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
   if (!Number.isFinite(s.desktops) || s.desktops < 0) s.desktops = 0;
   // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at

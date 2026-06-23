@@ -7,6 +7,9 @@ import {
   initCompetitors,
   rivalMarketCap,
   rivalStrengthsFor,
+  rivalDef,
+  spawnChallenger,
+  RIVALS,
   type CompetitorLaunch,
 } from "../engine/competitors.ts";
 import {
@@ -215,6 +218,9 @@ export interface GameState {
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
+  /** Epic B3 — ids of rivals the player has acquired (removed from competition). Tracked so an
+   *  acquired rival never re-enters as a fresh challenger, and for UI/achievements. */
+  acquiredRivals: string[];
 }
 
 /** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery. */
@@ -385,6 +391,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osVersion: 1,
     osLicensees: [],
     rivalReleases: [],
+    acquiredRivals: [],
   };
 }
 
@@ -907,7 +914,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const recentPlayerHitCats = state.launched
     .filter((lp) => lp.launchedWeek >= week - hitWindow && (lp.verdict === "hit" || lp.verdict === "solid"))
     .map((lp) => lp.product.category);
-  const { competitors, launches } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
+  const { competitors: competitorsBase, launches } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
+  // `let` so B3 can append a fresh challenger that rises to refill a field thinned by acquisitions.
+  let competitors = competitorsBase;
 
   // Sales + revenue
   let cash = state.cash;
@@ -1004,6 +1013,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     );
     launches.forEach((l, i) => pushRivalFeed(feed, l, activePlayerCats, fresh[i].product.name, l.contested));
     rivalReleases = [...fresh, ...state.rivalReleases].slice(0, RIVAL_RELEASES_CAP);
+  }
+
+  // B3 — refill the field: if acquisitions have thinned the roster below its starting size, a fresh
+  // challenger occasionally rises to keep the industry alive. The rng is only drawn on this branch,
+  // which a normal (no-acquisition) game never enters — so the determinism pin stays byte-identical.
+  if (competitors.length < RIVALS.length) {
+    const entrant = spawnChallenger(competitors.map((c) => c.id), state.acquiredRivals, week, rng);
+    if (entrant) {
+      competitors = [...competitors, entrant];
+      feed.push(feedItem(week, `A new challenger, ${entrant.name}, enters the market.`, "accent"));
+    }
   }
 
   // A rival entering a category where the player is ACTIVELY selling now dents the remaining
@@ -2206,6 +2226,67 @@ export function sellShares(state: GameState, id: string, qty: number): GameState
   const holdings = { ...state.holdings, [id]: held - q };
   if (holdings[id] === 0) delete holdings[id];
   return { ...state, cash: add(state.cash, sellProceeds(comp.sharePrice, q)), holdings };
+}
+
+/** B3 — the all-cash cost to acquire a rival outright: its market cap × the control premium, LESS
+ *  the market value of any shares the player already holds (you only pay for the rest). Null if the
+ *  rival isn't on the board. Floored at a token amount so it's never free. */
+export function acquisitionCost(state: GameState, id: string): Money | null {
+  const c = state.competitors.find((x) => x.id === id);
+  if (!c) return null;
+  const gross = scale(rivalMarketCap(c), BALANCE.mergers.acquisitionPremium);
+  const ownedValue = cents(Math.max(0, state.holdings[id] ?? 0) * c.sharePrice);
+  const net = sub(gross, ownedValue);
+  return toDollars(net) > 0 ? (net as Money) : cents(1);
+}
+
+/** Whether the player may acquire rival `id`: established (revenue), solvent enough to pay, and the
+ *  field stays above its floor afterwards. */
+export function canAcquire(state: GameState, id: string): boolean {
+  if (state.bankrupt) return false;
+  const c = state.competitors.find((x) => x.id === id);
+  if (!c) return false;
+  if (state.competitors.length <= BALANCE.mergers.minActiveRivals) return false;
+  if (toDollars(state.cumulativeRevenue) < toDollars(BALANCE.ipo.minRevenueToList)) return false;
+  const cost = acquisitionCost(state, id);
+  return cost != null && state.cash >= cost;
+}
+
+/** B3 — acquire a rival outright: pay the buyout, remove it from competition, and absorb its brand
+ *  (a one-time reputation lift) + its customer base (fans). Settles the player's existing shares into
+ *  the deal (deleted, since their value was already credited against the price). A no-op if not allowed. */
+export function acquireRival(state: GameState, id: string): GameState {
+  if (!canAcquire(state, id)) return state;
+  const c = state.competitors.find((x) => x.id === id)!;
+  const cost = acquisitionCost(state, id)!;
+  const m = BALANCE.mergers;
+  const rivalRep = rivalDef(id)?.reputation ?? c.reputation;
+
+  const competitors = state.competitors.filter((x) => x.id !== id);
+  const holdings = { ...state.holdings };
+  delete holdings[id];
+  const osLicensees = state.osLicensees.filter((x) => x !== id);
+  const fansGain = Math.min(m.fansCap, Math.round(Math.max(0, rivalRep) * m.fansPerRepPoint));
+  const reputation = Math.min(BALANCE.reputation.max, state.reputation + m.repBonus);
+
+  const feed = [...state.feed];
+  feed.push(feedItem(
+    state.week,
+    `Acquired ${c.name} for ${format(cost)} — absorbed their brand (+${m.repBonus} rep) and ${fansGain.toLocaleString()} customers.`,
+    "positive",
+  ));
+
+  return {
+    ...state,
+    cash: sub(state.cash, cost),
+    competitors,
+    holdings,
+    osLicensees,
+    fans: state.fans + fansGain,
+    reputation,
+    acquiredRivals: [...state.acquiredRivals, id],
+    feed: trimFeed(feed),
+  };
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Building2, ChevronRight, Clock, Lightbulb, Megaphone, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, ChevronRight, Clock, Crown, Lightbulb, Megaphone, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -18,6 +18,8 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine
 import {
   burn,
   canList,
+  canAcquire,
+  acquisitionCost,
   companyValuation,
   founderStakeValue,
   industryLeaderboard,
@@ -1106,9 +1108,16 @@ function ProductDetailSheet({
 }
 
 function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => void }) {
-  const { state, buyShares, sellShares } = useGame();
+  const { state, buyShares, sellShares, acquireRival } = useGame();
   const [qty, setQty] = useState(1);
+  const [armAcquire, setArmAcquire] = useState(false);
   const owned = state.holdings[comp.id] ?? 0;
+  // B3 — outright acquisition. Surface once the company is established (past the revenue bar); the
+  // button explains itself when gated (field floor / not enough cash).
+  const established = toDollars(state.cumulativeRevenue) >= toDollars(BALANCE.ipo.minRevenueToList);
+  const buyout = acquisitionCost(state, comp.id);
+  const acquirable = canAcquire(state, comp.id);
+  const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
   const cost = buyCost(comp.sharePrice, qty);
   const proceeds = sellProceeds(comp.sharePrice, qty);
   const canBuy = state.cash >= cost;
@@ -1214,6 +1223,34 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         <Button block variant="tertiary" onClick={() => { sellShares(comp.id, owned); haptic.medium(); onClose(); }}>
           Sell all {owned}
         </Button>
+      )}
+
+      {established && buyout && (
+        <div className="trade__acquire">
+          <Button
+            block
+            variant={armAcquire ? "primary" : "tertiary"}
+            disabled={!acquirable}
+            onClick={() => {
+              if (!armAcquire) { setArmAcquire(true); haptic.medium(); return; }
+              acquireRival(comp.id); haptic.success(); sfx("era");
+              showToast(`Acquired ${comp.name}`, { tone: "positive", glyph: <Crown size={15} /> });
+              onClose();
+            }}
+          >
+            <Crown size={14} />
+            {armAcquire ? `Confirm buyout · ${format(buyout)}` : `Acquire ${comp.name} · ${format(buyout)}`}
+          </Button>
+          <p className="trade__acquire-note">
+            {acquirable
+              ? "Buy out the company: remove it from competition and absorb its brand + customers."
+              : atFloor
+                ? "The market needs at least a couple of rivals — you can't acquire any more right now."
+                : state.cash < buyout
+                  ? `You need ${format(sub(buyout, state.cash))} more cash to take control.`
+                  : "Acquisitions unlock once your company is established."}
+          </p>
+        </div>
       )}
     </div>
   );
