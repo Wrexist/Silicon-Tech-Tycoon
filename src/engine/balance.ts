@@ -167,6 +167,19 @@ export const BALANCE = {
       demandSensingConfidence: 0.3,  // confidence from the Demand Sensing research project
       maxConfidence: 0.85,           // hard cap — a forecast is never a certainty
     },
+    // --- Aesthetics → demand (Epic G1: "form affects demand") ---
+    // The parametric render's purely-cosmetic choices (notch, camera module/layout, flash) carried
+    // ZERO weight before — Automation's self-inflicted "looks don't affect sales" bug, on the very
+    // toy we centre the game on. These now feed a bounded STYLE APPEAL that lifts the Style segment's
+    // fit ONLY (engine/aesthetics.ts → segments.ts), so a striking design wins design-led buyers
+    // without touching the global economy. A fully-considered design exactly reaches maxStyleAppeal.
+    aesthetics: {
+      maxStyleAppeal: 8,             // cap on form-driven Style-segment fit points
+      notch: { island: 3, punch: 2, none: 1, notch: 0 } as Record<string, number>, // modern screen treatment
+      module: { squircle: 2, pill: 2, circle: 1 } as Record<string, number>,        // camera module shape
+      coherentLayoutBonus: 2,        // a camera layout that suits the lens count reads intentional
+      flashBonus: 1,                 // a complete camera system
+    },
   },
 
   // --- Sales curve (ramp -> peak -> decline) ---

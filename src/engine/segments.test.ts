@@ -97,6 +97,27 @@ describe("price sensitivity — Budget reacts harder than Enterprise", () => {
   });
 });
 
+describe("G1 — style appeal lifts the Style segment only", () => {
+  const s = stats({ performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 });
+
+  it("raises the Style segment's fit + capture and leaves other segments untouched", () => {
+    const plain = segmentDemand(s, dollars(500), flat, "phone", 0);
+    const striking = segmentDemand(s, dollars(500), flat, "phone", 8);
+    const styleOf = (d: typeof plain) => d.perSegment.find((x) => x.id === "style")!;
+    const proOf = (d: typeof plain) => d.perSegment.find((x) => x.id === "pro")!;
+    expect(styleOf(striking).fit).toBeGreaterThan(styleOf(plain).fit);
+    expect(styleOf(striking).captured).toBeGreaterThan(styleOf(plain).captured);
+    // every non-style segment is identical
+    expect(proOf(striking).captured).toBeCloseTo(proOf(plain).captured, 9);
+  });
+
+  it("defaults to no effect (backward compatible)", () => {
+    const a = segmentDemand(s, dollars(500), flat, "phone");
+    const b = segmentDemand(s, dollars(500), flat, "phone", 0);
+    expect(a).toEqual(b);
+  });
+});
+
 describe("no universal recipe — the anti-solved-game guard", () => {
   it("the build that dominates one segment does not dominate every segment", () => {
     // A cheap, battery-led all-rounder vs a premium design flagship: their best segments differ.

@@ -1045,6 +1045,19 @@
   margin-left: auto;
   margin-right: auto;
 }
+/* G1 — design-language readout (form → demand) */
+.lab__style {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.lab__style strong { color: var(--ink); font-weight: 700; }
+.lab__style--striking strong { color: var(--fn-design); }
+.lab__style svg { color: var(--fn-design); }
+.lab__style-hint { color: var(--ink-2); font-weight: 500; }
 .lab__bom-subtotal {
   font-weight: 600;
   color: var(--ink-2);

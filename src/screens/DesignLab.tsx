@@ -49,7 +49,8 @@ import { runwayWeeks } from "../engine/economy.ts";
 import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
-import type { SegmentDemand } from "../engine/segments.ts";
+import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
 import "./designLab.css";
 
 /** Epic A — "Who it's for": the per-segment positioning readout in the build wizard. Each bar is how
@@ -253,6 +254,13 @@ export function DesignLab({
   const synState: "flagship" | "weak" | "balanced" =
     syn.factor > 1.001 ? "flagship" : syn.weakest ? "weak" : "balanced";
   const capSlot = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
+  // G1 — the device's form lifts the Style segment. Drive the LIVE breakdown through the SAME segment
+  // model the wizard/launch use (demand + price overrides), so the always-visible "Fit" is consistent
+  // with the actual launch math (it was previously the old single-trend demandScore).
+  const styleAp = styleAppeal(draft);
+  const styleLabel = styleAppealLabel(styleAp);
+  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp);
+  const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
   const breakdown = scoreLaunch({
     stats,
     category: draft.category,
@@ -263,6 +271,8 @@ export function DesignLab({
     competitorStrength: 0,
     hypeBonus: hypeBonus(state),
     synergy: syn.factor,
+    demandOverride: liveSegments.demandIndex,
+    priceFitOverride: liveSegments.effectivePriceFit,
   });
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
@@ -482,6 +492,14 @@ export function DesignLab({
             {synState === "flagship"
               ? "Coherent high-end build — every part pulls its weight, earning a flagship bonus."
               : `${capSlot(syn.weakest!)} is the weak link dragging this build down — raise it to lift the whole product.`}
+          </p>
+        )}
+        {formMatters && (
+          <p className={`lab__style lab__style--${styleLabel.toLowerCase()}`}>
+            <Sparkles size={12} aria-hidden /> Design language: <strong>{styleLabel}</strong>
+            <span className="lab__style-hint">
+              {styleLabel === "Striking" ? " — wins style-led buyers" : " — refine the screen + camera form for more style appeal"}
+            </span>
           </p>
         )}
         {competitionDrag && preview && (

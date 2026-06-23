@@ -93,6 +93,7 @@ import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, 
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
+import { styleAppeal } from "../engine/aesthetics.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -706,7 +707,8 @@ export function planProduction(
   // replaces the single global demandScore/priceFit with a positioning decision ("who is this for?").
   // A balanced product scores ≈ the old single-trend demand (the segment sizes average back to it),
   // so the macro-economy is preserved; lopsided products diverge — that divergence IS the new depth.
-  const segments = segmentDemand(stats, product.price, s.trends, product.category);
+  // G1 — the device's form (styleAppeal) lifts the Style segment, so the parametric render is a lever.
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product));
 
   // Score WITHOUT the strength-based competition term — competition is modelled below as a
   // count of rivals that match/beat you, which is clearer and is what the player sees.

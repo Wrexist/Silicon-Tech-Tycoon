@@ -174,9 +174,14 @@ export function segmentDemand(
   price: Money,
   trends: ConsumerTrends,
   category: CategoryId,
+  /** G1 — bonus to the Style segment's fit from the device's form/design language (engine/aesthetics).
+   *  Defaults to 0 so callers/tests that don't model form are unaffected. Applies to Style ONLY. */
+  styleAppeal = 0,
 ): SegmentDemand {
   const perSegment: SegmentResult[] = SEGMENTS.map((seg) => {
-    const fit = segmentFit(stats, seg, category, trends);
+    const rawFit = segmentFit(stats, seg, category, trends);
+    // A striking, coherent form lifts the design-led Style segment only (no global ripple).
+    const fit = seg.id === "style" ? Math.min(100, rawFit + Math.max(0, styleAppeal)) : rawFit;
     const priceFit = segmentPriceFit(price, fit, seg);
     return {
       id: seg.id,
