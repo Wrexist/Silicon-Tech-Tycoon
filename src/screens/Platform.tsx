@@ -3,7 +3,6 @@
 // recurring licensing revenue it already earns — plus the version-release "launch day" lever.
 // Tokens + 8pt grid only (RULE #1).
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Cpu, Layers, Users, BadgeDollarSign, Rocket, FlaskConical, Check, Lock,
   Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Wallet, Music, type LucideIcon,
@@ -12,7 +11,7 @@ import { Button, Card, Stat, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { showToast } from "../design/toast.tsx";
 import { sfx } from "../design/sound.ts";
-import { emitCelebrate } from "../design/celebrateFx.ts";
+import { Celebration } from "../design/Celebration.tsx";
 import {
   osDisplayName,
   osTierInfo,
@@ -165,9 +164,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
                         installOsFeature(f.id);
                         if (willComplete) {
                           haptic.success();
-                          sfx("mastery");
-                          emitCelebrate();
-                          setCelebrate(true);
+                          setCelebrate(true); // the Celebration overlay fires confetti + sound on mount
                         } else {
                           haptic.success();
                           sfx("upgrade");
@@ -219,44 +216,19 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
       <Button block variant="secondary" onClick={onClose}>Done</Button>
 
       {celebrate && (
-        <OsCompleteCelebration
-          osName={osDisplayName(state)}
-          eco={osEcoBonus(state)}
-          mult={osServicesMult(state)}
-          onClose={() => setCelebrate(false)}
+        <Celebration
+          eyebrow="Platform complete"
+          title={`${osDisplayName(state)} is whole`}
+          sub="Every capability now ships in your OS — a complete, self-reinforcing platform."
+          icon={<Layers size={34} />}
+          chips={[
+            { icon: <Sparkles size={14} />, value: `+${osEcoBonus(state)}`, label: "ecosystem", sub: "every device" },
+            { icon: <BadgeDollarSign size={14} />, value: `×${osServicesMult(state).toFixed(2)}`, label: "services", sub: "recurring" },
+          ]}
+          confirmLabel="Brilliant"
+          onConfirm={() => setCelebrate(false)}
         />
       )}
     </div>
-  );
-}
-
-/** The dopamine payoff: a one-shot, premium celebration when the player completes their OS — every
- *  capability built. Portals to <body> (escapes the sheet's scroll/stacking), confetti fires from
- *  the global bus, and the emblem springs in with a ray burst. Zero image assets — pure vector. */
-function OsCompleteCelebration({ osName, eco, mult, onClose }: { osName: string; eco: number; mult: number; onClose: () => void }) {
-  const rays = Array.from({ length: 12 });
-  return createPortal(
-    <div className="osc" role="dialog" aria-modal="true" aria-label="Platform complete" onClick={onClose}>
-      <div className="osc__card" onClick={(e) => e.stopPropagation()}>
-        <div className="osc__emblem" aria-hidden>
-          <span className="osc__rays">
-            {rays.map((_, i) => (
-              <i key={i} style={{ "--a": `${(360 / rays.length) * i}deg`, "--d": `${i * 28}ms` } as React.CSSProperties} />
-            ))}
-          </span>
-          <span className="osc__disc"><Layers size={34} /></span>
-          <span className="osc__seal" aria-hidden><Check size={16} /></span>
-        </div>
-        <p className="osc__eyebrow">Platform complete</p>
-        <h3 className="osc__title">{osName} is whole</h3>
-        <p className="osc__sub">Every capability now ships in your OS — a complete, self-reinforcing platform.</p>
-        <div className="osc__chips">
-          <span className="osc__chip"><Sparkles size={14} /><strong>+{eco}</strong> ecosystem<small>every device</small></span>
-          <span className="osc__chip"><BadgeDollarSign size={14} /><strong>×{mult.toFixed(2)}</strong> services<small>recurring</small></span>
-        </div>
-        <Button block onClick={onClose}><Check size={15} /> Brilliant</Button>
-      </div>
-    </div>,
-    document.body,
   );
 }
