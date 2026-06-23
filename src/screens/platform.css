@@ -85,3 +85,90 @@
   white-space: nowrap;
 }
 .plat__feat-tag--on { color: var(--positive); background: color-mix(in srgb, var(--positive) 14%, transparent); }
+
+/* OS build progress — the dopamine ladder: every build advances the bar toward a complete platform */
+.plat__os-progress { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+.plat__os-progress-track { flex: 1; height: 8px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }
+.plat__os-progress-track i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, transparent), var(--accent));
+  transition: width var(--spring-gentle);
+}
+.plat__os-progress-label { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.plat__os-progress--done .plat__os-progress-track i { background: linear-gradient(90deg, color-mix(in srgb, var(--positive) 70%, transparent), var(--positive)); }
+.plat__os-progress--done .plat__os-progress-label { color: var(--positive); }
+
+/* ---------- "Platform complete" celebration overlay ---------- */
+.osc {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--edge);
+  background: color-mix(in srgb, #0a0c10 58%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  animation: osc-scrim var(--spring-standard) both;
+}
+.osc__card {
+  width: min(380px, 100%);
+  background: var(--surface); border: 1px solid var(--glass-stroke);
+  border-radius: var(--r-sheet); padding: var(--sp-32) var(--sp-24) var(--sp-24);
+  box-shadow: var(--glass-highlight), var(--shadow-floating);
+  text-align: center;
+  animation: osc-pop var(--spring-standard) both;
+}
+.osc__emblem { position: relative; width: 96px; height: 96px; margin: 0 auto var(--sp-16); }
+.osc__disc {
+  position: absolute; inset: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 88%, white), var(--accent));
+  color: var(--accent-ink);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 45%, transparent);
+  animation: osc-disc 600ms var(--spring-snappy) both;
+}
+.osc__seal {
+  position: absolute; right: 6px; bottom: 6px;
+  width: 30px; height: 30px; border-radius: var(--r-pill);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--positive); color: #fff;
+  border: 3px solid var(--surface);
+  box-shadow: var(--shadow-subtle);
+  animation: osc-seal 420ms 320ms var(--spring-snappy) both;
+}
+.osc__rays { position: absolute; inset: 0; }
+.osc__rays i {
+  position: absolute; top: 50%; left: 50%;
+  width: 3px; height: 14px; margin: -7px 0 0 -1.5px;
+  border-radius: var(--r-pill); background: var(--accent);
+  transform: rotate(var(--a)) translateY(-44px) scaleY(0);
+  transform-origin: center;
+  opacity: 0;
+  animation: osc-ray 520ms var(--d) cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.osc__rays i:nth-child(3n) { background: var(--positive); }
+.osc__rays i:nth-child(3n + 1) { background: var(--warning); }
+.osc__eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.osc__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; margin-top: var(--sp-4); }
+.osc__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; margin-top: var(--sp-8); }
+.osc__chips { display: flex; gap: var(--sp-12); justify-content: center; margin: var(--sp-24) 0; }
+.osc__chip {
+  flex: 1; max-width: 150px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-12); border-radius: var(--r-button);
+  background: var(--surface-2); border: 1px solid var(--hairline);
+  font-size: var(--fs-nano); color: var(--ink-3); font-weight: 600;
+}
+.osc__chip svg { color: var(--accent); }
+.osc__chip strong { font-size: var(--fs-headline); font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+.osc__chip small { font-size: var(--fs-nano); color: var(--ink-3); }
+
+@keyframes osc-scrim { from { opacity: 0; } to { opacity: 1; } }
+@keyframes osc-pop { from { opacity: 0; transform: translateY(16px) scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes osc-disc { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes osc-seal { from { transform: scale(0); } 70% { transform: scale(1.18); } to { transform: scale(1); } }
+@keyframes osc-ray { from { transform: rotate(var(--a)) translateY(-30px) scaleY(0); opacity: 0; } 55% { opacity: 1; } to { transform: rotate(var(--a)) translateY(-44px) scaleY(1); opacity: 0.9; } }
+
+/* Reduced motion: skip the spring/ray choreography, show the finished emblem at rest immediately. */
+@media (prefers-reduced-motion: reduce) {
+  .osc, .osc__card, .osc__disc, .osc__seal { animation: none; }
+  .osc__rays i { animation: none; opacity: 0.9; transform: rotate(var(--a)) translateY(-44px) scaleY(1); }
+}
