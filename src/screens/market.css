@@ -598,6 +598,9 @@
 .rprof__title { font-size: var(--fs-title); font-weight: 700; }
 .rprof__sub { font-size: var(--fs-caption); color: var(--ink-2); margin-top: var(--sp-2); line-height: 1.4; }
 .rprof__stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
+.rprof__spark { padding: var(--sp-8) 0; }
+.rprof__acquire { display: flex; flex-direction: column; gap: 6px; }
+.rprof__acquire-note { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; text-align: center; }
 
 /* ---------- Rival releases (Epic B) ---------- */
 .mkt__rivals { display: flex; flex-direction: column; gap: var(--sp-8); }

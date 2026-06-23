@@ -51,7 +51,7 @@ import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
-import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel } from "../engine/franchise.ts";
+import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel, playerFranchises } from "../engine/franchise.ts";
 import { segmentWantsById, STAT_INFO } from "../engine/glossary.ts";
 import "./designLab.css";
 
@@ -1088,6 +1088,31 @@ export function DesignLab({
 
             <Card>
               <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state)} wk to make`} />
+              {(() => {
+                // "Continue a line" — one-tap sequels: name the draft as the next entry in one of your
+                // existing lines (and inherit its brand equity). Same-category lines first.
+                const lines = playerFranchises(state.launched)
+                  .sort((a, b) => Number(b.categories.includes(draft.category)) - Number(a.categories.includes(draft.category)))
+                  .slice(0, 4);
+                if (lines.length === 0) return null;
+                return (
+                  <div className="lab__lines">
+                    <span className="lab__lines-label">Continue a line</span>
+                    <div className="lab__lines-chips">
+                      {lines.map((f) => (
+                        <button
+                          key={f.stem}
+                          className="lab__line-chip"
+                          onClick={() => { set({ name: suggestNextName(f.latestName) }); haptic.light(); }}
+                        >
+                          {f.name}
+                          <span className={`lab__line-tag lab__line-tag--${f.label.toLowerCase().replace(/\s+/g, "")}`}>{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               <input
                 className="lab__name"
                 value={draft.name}

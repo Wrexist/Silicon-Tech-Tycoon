@@ -1061,6 +1061,23 @@
   margin-left: auto;
   margin-right: auto;
 }
+/* "Continue a line" chips (franchise sequels) */
+.lab__lines { display: flex; flex-direction: column; gap: var(--sp-8); margin-bottom: var(--sp-8); }
+.lab__lines-label { font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2); }
+.lab__lines-chips { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.lab__line-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 11px; border-radius: var(--r-pill);
+  background: var(--bg-elevated); font-size: var(--fs-caption); font-weight: 700;
+}
+.lab__line-chip:active { transform: scale(0.96); }
+.lab__line-tag {
+  font-size: var(--fs-nano); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.lab__line-tag--established, .lab__line-tag--iconic { color: var(--positive-text, var(--positive)); }
+.lab__line-tag--tarnished { color: var(--negative-text, var(--negative)); }
+
 /* Brand equity readout (franchise feature) */
 .wiz__brand {
   display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap;

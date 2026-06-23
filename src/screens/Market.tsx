@@ -1186,9 +1186,15 @@ function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
 
 /** A rival's company card + their product lines + recent releases (tap a rival release to open). */
 function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: CompetitorState; releases: RivalRelease[]; onTrade: () => void; onClose: () => void }) {
+  const { state, acquireRival } = useGame();
+  const [armAcquire, setArmAcquire] = useState(false);
   const cap = rivalMarketCap(comp);
   const ch = changePct(comp.priceHistory);
   const lines = rivalLines(releases.map((r) => ({ name: r.product.name, week: r.week, overall: r.overall, category: r.category })));
+  const acquirable = canAcquire(state, comp.id);
+  const buyout = acquisitionCost(state, comp.id);
+  const established = toDollars(state.cumulativeRevenue) >= toDollars(BALANCE.ipo.minRevenueToList);
+  const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
   return (
     <div className="rprof">
       <div className="rprof__head">
@@ -1198,10 +1204,13 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
           <p className="rprof__sub">{comp.blurb}</p>
         </div>
       </div>
+      <div className="rprof__spark">
+        <Sparkline data={comp.priceHistory} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} height={40} />
+      </div>
       <div className="rprof__stats">
         <StatPill label="Reputation" value={Math.round(comp.reputation)} tone={comp.reputation >= 60 ? "positive" : "neutral"} />
         <StatPill label="Market cap" value={format(cap)} />
-        <StatPill label="Share" value={format(cents(comp.sharePrice))} tone={ch >= 0 ? "positive" : "negative"} />
+        <StatPill label="Share" value={`${format(cents(comp.sharePrice))} ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}%`} tone={ch >= 0 ? "positive" : "negative"} />
         <StatPill label="Strategy" value={DOCTRINE_LABEL[rivalDoctrine(comp.id)] ?? "—"} />
       </div>
 
@@ -1241,6 +1250,34 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
       </Card>
 
       <Button block variant="secondary" onClick={onTrade}>Trade {comp.name} shares</Button>
+
+      {established && buyout && (
+        <div className="rprof__acquire">
+          <Button
+            block
+            variant={armAcquire ? "primary" : "tertiary"}
+            disabled={!acquirable}
+            onClick={() => {
+              if (!armAcquire) { setArmAcquire(true); haptic.medium(); return; }
+              acquireRival(comp.id); haptic.success(); sfx("era");
+              showToast(`Acquired ${comp.name}`, { tone: "positive", glyph: <Crown size={15} /> });
+              onClose();
+            }}
+          >
+            <Crown size={14} />
+            {armAcquire ? `Confirm buyout · ${format(buyout)}` : `Acquire ${comp.name} · ${format(buyout)}`}
+          </Button>
+          <p className="rprof__acquire-note">
+            {acquirable
+              ? "Buy them out: remove them from competition and absorb their brand + customers."
+              : atFloor
+                ? "The market needs at least a couple of rivals — you can't acquire any more right now."
+                : state.cash < buyout
+                  ? `You need ${format(sub(buyout, state.cash))} more cash to take control.`
+                  : "Acquisitions unlock once your company is established."}
+          </p>
+        </div>
+      )}
       <Button block variant="tertiary" onClick={onClose}>Done</Button>
     </div>
   );
