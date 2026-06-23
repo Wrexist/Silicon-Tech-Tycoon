@@ -347,8 +347,11 @@ export function Company() {
         )}
       </Card>
 
-      {/* Delegation — automate the repetitive ops once you've grown a senior lead (Epic E) */}
-      <DelegationCard state={state} onToggle={setAutomation} />
+      {/* Delegation — only surfaced once it's relevant: a growing team, an eligible lead, or already
+          in use. Keeps it off a day-one garage where it would just be a dead, fully-locked card. */}
+      {(state.staff.length >= 2 || canAutoAssign(state) || canAutoResearch(state) || state.automation.autoAssign || state.automation.autoResearch) && (
+        <DelegationCard state={state} onToggle={setAutomation} />
+      )}
 
       {/* Recruitment — seats are PLACED desks: you hire into a desk you actually bought. */}
       <SectionHeader title="Recruitment" accessory={`${state.staff.length}/${deskCapacity(state)} desks`} />

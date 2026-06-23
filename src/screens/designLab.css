@@ -848,6 +848,20 @@
 .wiz__nav { display: flex; gap: var(--sp-8); }
 .wiz__cancel { padding: var(--sp-8); font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
 
+/* ---------- Stat glossary (C3) ---------- */
+.lab__glossary-toggle {
+  align-self: flex-start; margin-top: 2px;
+  font-size: var(--fs-caption); font-weight: 600; color: var(--accent);
+}
+.lab__glossary {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: var(--sp-8); padding: var(--sp-12);
+  border-radius: var(--r-button); background: var(--bg-elevated);
+}
+.lab__glossary-row { display: flex; flex-direction: column; gap: 1px; }
+.lab__glossary-term { font-size: var(--fs-caption); font-weight: 700; }
+.lab__glossary-def { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.35; }
+
 /* ---------- Forecast confidence (C2) ---------- */
 .wiz__forecast {
   display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: var(--sp-8);
