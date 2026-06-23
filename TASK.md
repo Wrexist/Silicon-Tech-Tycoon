@@ -1113,3 +1113,20 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - 481 tests, tsc 0, build+PWA green. preview sent.
 - ⚠️ Still NOT playtested on device: a fully-built OS adds +25 ecosystem to every launch (intentional
       late-game power, gated behind all 8 modules + OS v4 + ~408 RP). Tunable in one file if too strong.
+
+## v38 — Celebration system + OS depth (DONE 2026-06-23)
+- [x] **Reusable `Celebration` overlay** (design/Celebration.tsx + celebration.css): generalized the
+      OS-complete moment — portal, ray-burst emblem, sealing check, stat chips, confetti + sound on
+      mount, accent/positive tone. Reduced-motion safe. OS-complete refactored onto it.
+- [x] **(b) OS version release celebration**: launch-day beat (new version, +fans, +reputation, devices
+      updated); reward captured at click so it survives the card swap.
+- [x] **(a) New Game+ legacy celebration**: confirming prestige opens a positive-tone "Legacy N forged"
+      moment (crown emblem, the inherited cash/rep/fans/RP + founder perk); its confirm founds the next
+      run. The reset reads as a reward, not a wipe.
+- [x] **OS reach sparkline**: tick samples installed base weekly while unlocked (capped 40, backfilled);
+      Platform shows an "OS reach" Sparkline + "+N this period" trend.
+- [x] **3 OS achievements**: Going Mainstream (100k base), Ubiquitous (1M), Kingmaker (3 licensees).
+- 485 tests, tsc 0, build+PWA green. preview-os-celebrations.html sent.
+- Backlog (logged from the v38 survey, not acted): franchise line-naming + gallery UI; Research RP-sink
+      feedback card; Challenge weekly recap + milestones; per-licensee relationship/churn; OS module
+      synergies; Market feed empty state; Museum device-story blurbs.
