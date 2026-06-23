@@ -272,7 +272,13 @@ Effort: **L**. Do it *after* Epics A/C exist (segments + readability make era sh
 
 ---
 
-### EPIC E — Delegation & Ops (scale without micromanagement) 🟢 touch-critical
+### EPIC E — Delegation & Ops (scale without micromanagement) ✅ SHIPPED (v29)
+
+> **Status:** COMPLETE (first slice). Pure gated policies (autoAssignIdle + autoClaimResearch) applied
+> at the top of the tick; capability-gated on a senior lead; OFF by default (determinism preserved).
+> Company "Delegation" card with two toggles. Future: auto-reorder production, a design-lead spec
+> drafter (both bigger — they touch cash/launch decisions). Original spec below.
+
 
 **Research basis:** Capitalism Lab directors [STEAL]; Software Inc team leads [STEAL]; the late-game
 micromanagement death of Startup Company / Computer Tycoon [AVOID]; Two Point mobile "menu density

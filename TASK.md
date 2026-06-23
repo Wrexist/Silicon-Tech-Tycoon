@@ -980,3 +980,21 @@ F-audio + F-microinteractions (on-device), G3 (new categories/era DLC).
 STRONG RECOMMENDATION: an on-device playtest of the A→B→C→G stack before more balance-sensitive work —
 a lot has landed engine-side (segments reshape demand, rivals, forecast, style→demand) without on-device
 validation of FEEL. Next buildable-blind epic: E (delegation, low-risk, touch-critical) or C3 (explainers).
+
+## v29 — Epic E: delegation & ops (DONE 2026-06-23)
+- [x] **Delegation** (`gameState.ts` pure policies +7 tests `state/ops.test.ts`): canAutoAssign /
+      canAutoResearch (gated on a senior staffer / senior engineer, BALANCE.ops.leadSkill=5);
+      autoAssignIdle (idle → role discipline via ROLE_ASSIGNMENT); autoClaimResearch (cheapest
+      affordable in-era project via buyProject — can't exceed player capability); applyWeeklyAutomation
+      runs the enabled+capable ones at the top of advanceOneWeek. setAutomation action; state.automation
+      persisted + backfilled. OFF by default → determinism byte-identical (all prior tests unaffected).
+      Company "Delegation" card: two gated toggles with self-explaining lock states. useGame wired.
+- NOT verified on-device: delegation card layout.
+- **Future (bigger, deferred):** auto-reorder production runs + a design-lead spec drafter — both touch
+      cash/launch decisions, so they need their own balance pass + on-device validation.
+
+### Roadmap status after v29
+Shipped: A, B, C1+C2, G1+G2, F-a11y, E (delegation). Open: C3 (explainers), D (era-distinct mechanics —
+PROTECTED, playtest-heavy), F-audio + F-microinteractions (on-device), G3 (new categories/era DLC),
+E-future (auto-reorder / design lead). Next blind-buildable: C3 (explainers, low-risk UI) or G3 (content).
+STILL STRONGLY RECOMMEND an on-device playtest of the A→B→C→G→E stack before the balance-heavy D.
