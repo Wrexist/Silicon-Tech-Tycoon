@@ -913,3 +913,27 @@ and learn from (fix for Computer Tycoon's "rivals are just a color on the map").
 - Rival mortality (organic exits via a rival-fortune signal) — deferred; B3's player-driven removal +
       entrants already keeps the field churning.
 - Acquired-rival synergies (inherit their preferred categories as a launch bonus); M&A achievements.
+
+## v26 — Epic C: the Verdict Layer (readability moat) (DONE 2026-06-23)
+The H1 "make it legible" bet from EXPANSION_ROADMAP §4 — cheapest, lowest-risk, most review-quotable,
+and it amplifies the Epic A segments. Engine-first, additive. 428 tests, tsc 0, build+PWA.
+- [x] **C2 — converging pre-launch forecast** (`engine/forecast.ts`, pure +6 tests): forecastConfidence
+      (marketer skill + Demand Sensing, capped) → forecastBand (base→floor, monotone, never above the
+      no-knowledge band). The wizard band uses it AND the realized launch variance is remapped into the
+      same band (gameState.launchReady), so a tighter forecast is HONEST. Wizard shows a
+      "Forecast confidence: Low/Med/High" row. baseBand mirrors demandVariance (no-knowledge = old ±12%).
+- [x] **C1 — first-class ranked post-mortem** (`engine/postmortem.ts`, pure +6 tests): scores how
+      decisive each factor was (demand/price/competition/hype/audience), ranks them, writes a synthesized
+      headline (segment-aware via Epic A's perSegment). Market ProductDetailSheet orders drivers by
+      impact, flags the 2–3 "key factor"s, dims the rest, and leads with the headline. Falls back to the
+      plain list for pre-insight saves.
+- NOT verified on-device: post-mortem headline + forecast row layout.
+- **Remaining:** C3 — plain-language explainers ("what it does and who wants it") for every
+      stat/component/segment (Two Point "almost nothing is confusing"). Lower leverage; open.
+
+### Roadmap status after v26
+Shipped: A (segments), B (living rivals), C1+C2 (verdict layer). Open H1/H2/H3 epics:
+C3 (explainers), D (era-distinct mechanics — PROTECTED, needs playtest), E (delegation/ops),
+F (reactive audio + a11y), G1 (form→demand, needs A — now unblocked), G2 (surface synergy),
+G3 (new categories/era DLC). Next-best by leverage: G2 (cheap, UI over existing synergy math) or
+F (premium feel/a11y); G1 is now unblocked by segments.

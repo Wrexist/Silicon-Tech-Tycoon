@@ -215,7 +215,14 @@ CEO expansion").**
 
 ---
 
-### EPIC C — The Verdict Layer (cash in the readability moat) 🟢 cheapest, most on-brand
+### EPIC C — The Verdict Layer (cash in the readability moat) 🟢 C1 + C2 SHIPPED (v26)
+
+> **Status:** C1 (`engine/postmortem.ts` — ranked decisive factors + synthesized verdict headline in
+> the post-launch detail) and C2 (`engine/forecast.ts` — the pre-launch demand band tightens with
+> market knowledge AND scales the realized variance, so it's honest) are SHIPPED. **C3** (plain-
+> language "what it does / who wants it" explainers for every stat/component/segment) remains.
+> Original spec below.
+
 
 **Research basis:** the genre's #1 failure is illegibility (GDT/Automation/Motorsport Manager
 [AVOID]); Two Point's readability is "the best part of the game" [STEAL]; converging feedback that
