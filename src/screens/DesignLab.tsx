@@ -246,8 +246,13 @@ export function DesignLab({
     : "var(--negative)";
 
   // Component-combination synergy (weak-link penalty / coherent-build bonus) — surfaced live so the
-  // player sees how the MIX of components scores, not just each slot maxed in isolation.
+  // player sees how the MIX of components scores, not just each slot maxed in isolation. G2 — show
+  // BOTH sides: the bottleneck to fix AND the flagship bonus a coherent high-end build earns.
   const syn = componentSynergy(draft);
+  const synPct = Math.round((syn.factor - 1) * 100);
+  const synState: "flagship" | "weak" | "balanced" =
+    syn.factor > 1.001 ? "flagship" : syn.weakest ? "weak" : "balanced";
+  const capSlot = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
   const breakdown = scoreLaunch({
     stats,
     category: draft.category,
@@ -465,9 +470,20 @@ export function DesignLab({
         )}
         <div className="lab__verdict">
           <StatPill label="Fit" value={<>{fit}<span className="lab__den">/100</span></>} tone={fit >= 60 ? "positive" : "neutral"} />
-          {syn.weakest && <StatPill label="Weak link" value={`${syn.weakest[0].toUpperCase()}${syn.weakest.slice(1)}`} tone="negative" />}
+          <StatPill
+            label="Build"
+            value={synState === "flagship" ? `Flagship +${synPct}%` : synState === "weak" ? `Weak: ${capSlot(syn.weakest!)}` : "Balanced"}
+            tone={synState === "flagship" ? "positive" : synState === "weak" ? "negative" : "neutral"}
+          />
           <StatPill value={verdict.label} tone={verdict.tone} />
         </div>
+        {synState !== "balanced" && (
+          <p className="lab__verdict-note">
+            {synState === "flagship"
+              ? "Coherent high-end build — every part pulls its weight, earning a flagship bonus."
+              : `${capSlot(syn.weakest!)} is the weak link dragging this build down — raise it to lift the whole product.`}
+          </p>
+        )}
         {competitionDrag && preview && (
           <p className="lab__verdict-note">
             {preview.betterRivals > 0
