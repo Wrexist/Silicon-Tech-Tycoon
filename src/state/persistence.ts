@@ -287,6 +287,9 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.osName !== "string") s.osName = "";
   if (!Number.isFinite(s.osVersion) || s.osVersion < 1) s.osVersion = 1;
   if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
+  // OS feature modules (added later): default none — a save loads with an un-customized OS, so
+  // ecosystem bonus = 0 and services multiplier = 1 until the player builds modules.
+  if (!Array.isArray(s.osFeatures)) s.osFeatures = [];
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

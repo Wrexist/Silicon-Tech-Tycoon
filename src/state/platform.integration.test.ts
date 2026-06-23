@@ -11,10 +11,19 @@ import {
   licenseOsToRival,
   revokeOsLicense,
   weeklyLicenseFees,
+  installOsFeature,
+  canInstallFeature,
+  osFeatureList,
+  osEcoBonus,
+  osServicesMult,
+  productStats,
+  weeklyEcosystemRevenue,
+  type GameState,
 } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { rivalLicenseFee } from "../engine/platform.ts";
-import { add, ZERO } from "../engine/money.ts";
+import { rivalLicenseFee, osFeatureById } from "../engine/platform.ts";
+import { add, ZERO, dollars, toDollars } from "../engine/money.ts";
+import type { Product, LaunchedProduct } from "../engine/types.ts";
 
 describe("platform entitlement + naming", () => {
   it("defaults locked, with a derived OS name", () => {
@@ -88,5 +97,76 @@ describe("OS licensing (Phase C)", () => {
     g = revokeOsLicense(g, a.id);
     expect(g.osLicensees).toEqual([b.id]);
     expect(weeklyLicenseFees(g)).toBe(rivalLicenseFee(b.reputation, 2));
+  });
+});
+
+function phone(): Product {
+  return {
+    id: "p", name: "Aurora", category: "phone",
+    tiers: { chip: 1, display: 1, battery: 1, materials: 1, software: 1, camera: 1 },
+    finish: "aluminium", colorIndex: 0, price: dollars(500), designTier: 1,
+    camera: { count: 1, layout: "vertical", module: "squircle", flash: false, position: "topLeft" },
+    notch: "none",
+  };
+}
+function soldPhone(ecosystem: number, unitsSold: number): LaunchedProduct {
+  return {
+    product: phone(),
+    stats: { performance: 40, quality: 40, battery: 40, design: 40, ecosystem },
+    unitCost: dollars(0), launchScore: 0, launchedWeek: 0, totalUnits: unitsSold,
+    weeklyUnits: [], unitsSold, weeksElapsed: 0, revenueToDate: dollars(0),
+  };
+}
+
+describe("OS feature modules (state)", () => {
+  it("installs only when unlocked, version-reached and affordable — spending the RP", () => {
+    const app = osFeatureById("appMarket")!;
+    const locked = { ...newGame(1), researchPoints: 9999 };
+    expect(canInstallFeature(locked, "appMarket")).toBe(false);      // division off
+    expect(installOsFeature(locked, "appMarket")).toBe(locked);       // no-op
+
+    const g = unlockPlatform({ ...newGame(1), osVersion: 1, researchPoints: 9999 }, true);
+    expect(canInstallFeature(g, "appMarket")).toBe(true);
+    expect(canInstallFeature(g, "continuity")).toBe(false);           // minVersion 4 > v1
+    const after = installOsFeature(g, "appMarket");
+    expect(after.osFeatures).toContain("appMarket");
+    expect(after.researchPoints).toBe(9999 - app.rpCost);
+    expect(installOsFeature(after, "appMarket")).toBe(after);         // idempotent
+
+    const broke = unlockPlatform({ ...newGame(1), osVersion: 1, researchPoints: 0 }, true);
+    expect(installOsFeature(broke, "appMarket")).toBe(broke);         // can't afford
+  });
+
+  it("osFeatureList reports a v1 module available and a v4 module locked", () => {
+    const g = unlockPlatform({ ...newGame(1), osVersion: 1, researchPoints: 9999 }, true);
+    const rows = osFeatureList(g);
+    expect(rows.find((r) => r.id === "appMarket")!.status).toBe("available");
+    expect(rows.find((r) => r.id === "continuity")!.status).toBe("locked");
+  });
+
+  it("a module lifts the ecosystem stat of every device you launch (the real lever)", () => {
+    const g = unlockPlatform({ ...newGame(1), osVersion: 1, researchPoints: 9999 }, true);
+    const before = productStats(g, phone()).ecosystem;
+    const withApp = installOsFeature(g, "appMarket");
+    const after = productStats(withApp, phone()).ecosystem;
+    expect(after).toBe(before + osFeatureById("appMarket")!.ecoBonus);
+    expect(osEcoBonus(withApp)).toBe(osFeatureById("appMarket")!.ecoBonus);
+    // and a locked game gets no bonus at all
+    expect(osEcoBonus({ ...newGame(1), osFeatures: ["appMarket"] })).toBe(0);
+  });
+
+  it("modules + version multiply recurring services income; base game is untouched (mult 1)", () => {
+    const launched = [soldPhone(50, 10_000)];
+    const base = { ...newGame(1), launched } as GameState;        // division off
+    expect(osServicesMult(base)).toBe(1);
+    const baseRev = toDollars(weeklyEcosystemRevenue(base));
+
+    const unlocked = unlockPlatform({ ...newGame(1), launched, osVersion: 1, researchPoints: 9999 }, true);
+    expect(osServicesMult(unlocked)).toBe(1);                      // v1, no modules → unchanged
+    expect(toDollars(weeklyEcosystemRevenue(unlocked))).toBeCloseTo(baseRev, 6);
+
+    const withApp = installOsFeature(unlocked, "appMarket");
+    expect(osServicesMult(withApp)).toBeGreaterThan(1);
+    expect(toDollars(weeklyEcosystemRevenue(withApp))).toBeGreaterThan(baseRev);
   });
 });

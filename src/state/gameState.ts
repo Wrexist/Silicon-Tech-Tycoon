@@ -101,7 +101,7 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
-import { canReleaseVersion, installedBase, licenseeStrengthUplift, osReleaseReward, osTier, rivalLicenseFee, type OsTierInfo } from "../engine/platform.ts";
+import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, rivalLicenseFee, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { perkBonuses } from "../engine/perks.ts";
 import type {
   Assignment,
@@ -219,6 +219,9 @@ export interface GameState {
   osVersion: number;
   /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
   osLicensees: string[];
+  /** Installed OS feature modules (engine/platform.ts OS_FEATURES). Each lifts the ecosystem stat of
+   *  every device you launch AND multiplies recurring services income. Empty → no effect. */
+  osFeatures: string[];
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
@@ -401,6 +404,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osName: "",
     osVersion: 1,
     osLicensees: [],
+    osFeatures: [],
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
@@ -580,6 +584,10 @@ export function productStats(s: GameState, product: Product): Stats {
     bonus.quality = (bonus.quality ?? 0) + m;
     bonus.design = (bonus.design ?? 0) + m;
   }
+  // Platform / OS division — the OS your devices run lifts their ecosystem stat (a strong OS makes
+  // every device you ship better). Gated on the entitlement and 0 with no installed modules, so the
+  // base game is byte-identical until the player opts in and builds OS features.
+  if (s.platformUnlocked) bonus.ecosystem = (bonus.ecosystem ?? 0) + osEcosystemBonus(s.osFeatures);
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
     // Clamp BOTH ends (tuning can subtract): never below 0, never above statMax.
@@ -871,6 +879,11 @@ export function recommendedRun(s: GameState, product: Product, channelId: Channe
 }
 export const counts = (s: GameState) => ({ assigned: s.staff.filter((x) => x.assignment !== "idle").length });
 
+/** Recurring-services revenue multiplier from the OS division (1 unless the division is unlocked).
+ *  Steps up with each released OS version and each installed feature module. */
+export const osServicesMult = (s: GameState): number =>
+  s.platformUnlocked ? osServicesMultiplier(s.osVersion, s.osFeatures) : 1;
+
 /** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
 export function weeklyEcosystemRevenue(s: GameState): Money {
   // Epic D — the Platform/AI eras amplify ecosystem lock-in (services pay more).
@@ -881,7 +894,8 @@ export function weeklyEcosystemRevenue(s: GameState): Money {
     const eco = lp.stats.ecosystem;
     if (eco > minStat) acc += lp.unitsSold * eco * rate;
   }
-  return cents(Math.round(acc));
+  // OS feature modules + version multiply recurring services (1.0 when the division is off → unchanged).
+  return cents(Math.round(acc * osServicesMult(s)));
 }
 
 export function nextWeekRevenue(s: GameState): Money {
@@ -991,10 +1005,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // join the installed base immediately instead of paying with a one-week lag.
   const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate * eraModifier(state.era).ecosystemRate;
   const ecoMinStat = BALANCE.ecosystem.minEcosystemStat;
+  // OS feature modules + released version multiply services income (1.0 when the division is off, so
+  // this is identical to the prior calculation for the base game).
+  const osMult = osServicesMult(state);
   for (const lp of launched) {
     const eco = lp.stats.ecosystem;
     if (eco > ecoMinStat) {
-      cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * rate)));
+      cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * osMult * rate)));
     }
   }
 
@@ -1938,6 +1955,34 @@ export function licenseOsToRival(state: GameState, rivalId: string): GameState {
 export function revokeOsLicense(state: GameState, rivalId: string): GameState {
   if (!state.osLicensees.includes(rivalId)) return state;
   return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId) };
+}
+
+/** OS feature modules with their install/locked/affordable status, for the Platform screen. */
+export const osFeatureList = (s: GameState): OsFeatureRow[] =>
+  osFeatureRows(s.osFeatures, s.osVersion, s.researchPoints);
+
+/** Ecosystem-stat points the OS currently adds to every device you launch (0 unless unlocked). */
+export const osEcoBonus = (s: GameState): number =>
+  s.platformUnlocked ? osEcosystemBonus(s.osFeatures) : 0;
+
+/** Can a specific OS feature module be installed right now? */
+export const canInstallFeature = (s: GameState, id: string): boolean =>
+  s.platformUnlocked && canInstallOsFeature(s.osFeatures, s.osVersion, s.researchPoints, id);
+
+/** Build (research) an OS feature module: spend its RP cost and ship it in the OS. No-op unless the
+ *  division is unlocked, its OS version is reached, it's affordable, and it isn't already installed. */
+export function installOsFeature(state: GameState, id: string): GameState {
+  if (!canInstallFeature(state, id)) return state;
+  const feat = osFeatureById(id);
+  if (!feat) return state;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${osDisplayName(state)} gained ${feat.name} — a new platform capability.`, "accent"));
+  return {
+    ...state,
+    researchPoints: state.researchPoints - feat.rpCost,
+    osFeatures: [...state.osFeatures, id],
+    feed: trimFeed(feed),
+  };
 }
 
 /** Reassign a staff member to a different function. */
