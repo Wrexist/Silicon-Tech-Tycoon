@@ -8,6 +8,7 @@ import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { rivalDef, rivalDoctrine, rivalMarketCap } from "../engine/competitors.ts";
 import { playerFranchises, rivalLines } from "../engine/franchise.ts";
+import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
@@ -30,6 +31,8 @@ import {
   marketingPushQuote,
   netWorth,
   nextWeekRevenue,
+  osDisplayName,
+  osTierInfo,
   type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -1174,7 +1177,7 @@ function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
               <span className={`mkt__fr-tag mkt__fr-tag--${f.label.toLowerCase().replace(/\s+/g, "")}`}>{f.label}</span>
             </div>
             <div className="mkt__fr-sub">
-              {f.entries} product{f.entries > 1 ? "s" : ""} · {fmtCompact(f.unitsSold)} sold · latest {f.latestName}
+              {f.entries} product{f.entries > 1 ? "s" : ""} · {fmtCompact(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
             </div>
             <div className="mkt__fr-bar" aria-hidden><span className="mkt__fr-fill" style={{ width: `${Math.round(Math.max(0, f.equity) * 100)}%` }} /></div>
           </div>
@@ -1195,6 +1198,12 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
   const buyout = acquisitionCost(state, comp.id);
   const established = toDollars(state.cumulativeRevenue) >= toDollars(BALANCE.ipo.minRevenueToList);
   const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
+  // Your relationships with this rival: do they license your OS, and do you hold their shares?
+  const licensed = state.osLicensees.includes(comp.id);
+  const licenseFee = licensed ? rivalLicenseFee(comp.reputation, osTierInfo(state).tier) : null;
+  const held = state.holdings[comp.id] ?? 0;
+  const totalShares = rivalDef(comp.id)?.shares ?? 0;
+  const ownPct = totalShares > 0 ? (held / totalShares) * 100 : 0;
   return (
     <div className="rprof">
       <div className="rprof__head">
@@ -1213,6 +1222,21 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
         <StatPill label="Share" value={`${format(cents(comp.sharePrice))} ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}%`} tone={ch >= 0 ? "positive" : "negative"} />
         <StatPill label="Strategy" value={DOCTRINE_LABEL[rivalDoctrine(comp.id)] ?? "—"} />
       </div>
+
+      {(licensed || held > 0) && (
+        <div className="rprof__status">
+          {licensed && licenseFee && (
+            <span className="rprof__badge rprof__badge--license">
+              Licenses {osDisplayName(state)} · {format(licenseFee)}/wk
+            </span>
+          )}
+          {held > 0 && (
+            <span className="rprof__badge">
+              You own {held.toLocaleString()} share{held !== 1 ? "s" : ""}{ownPct >= 0.1 ? ` · ${ownPct.toFixed(1)}%` : ""}
+            </span>
+          )}
+        </div>
+      )}
 
       {lines.length > 0 && (
         <Card>

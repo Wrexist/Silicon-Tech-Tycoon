@@ -88,6 +88,7 @@ describe("brandEquity — a line's track record", () => {
     expect(lines[0].equity).toBeGreaterThan(0);
     expect(lines[0].latestName).toBe("Aurora Three"); // newest by week
     expect(lines[0].unitsSold).toBe(3000);
+    expect(lines[0].revenue).toBe(0); // launched2 records zero revenueToDate
     expect(lines.find((l) => l.stem === "zephyr")!.entries).toBe(1);
   });
 

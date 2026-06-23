@@ -10,6 +10,7 @@
 // First-in-line products have no history → zero equity → zero bonus, so this is purely additive and
 // never changes a fresh launch. Bounded throughout: a beloved line is an edge, never an auto-win.
 import { BALANCE } from "./balance.ts";
+import { sum, type Money } from "./money.ts";
 import type { CategoryId, LaunchedProduct } from "./types.ts";
 
 const NUM_WORDS = new Set([
@@ -97,6 +98,7 @@ export interface FranchiseSummary {
   equity: number;          // -1..1 brand equity
   label: ReturnType<typeof brandEquityLabel>;
   unitsSold: number;       // total units across the line
+  revenue: Money;          // total revenue earned across the line
   latestName: string;      // most recent product in the line
   latestWeek: number;
   categories: CategoryId[]; // distinct categories the line spans
@@ -124,6 +126,7 @@ export function playerFranchises(launched: readonly LaunchedProduct[]): Franchis
       equity: eq.equity,
       label: brandEquityLabel(eq),
       unitsSold: lps.reduce((a, b) => a + b.unitsSold, 0),
+      revenue: sum(lps.map((l) => l.revenueToDate)),
       latestName: latest.product.name,
       latestWeek: latest.launchedWeek,
       categories: [...new Set(lps.map((l) => l.product.category))],
