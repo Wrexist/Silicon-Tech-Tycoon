@@ -1145,3 +1145,20 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - 489 tests, tsc 0, build+PWA green.
 - ⚠️ Synergy + module + version services bonuses now reach ~2.56× at a full v5 build (cap 2.6) — close
       to the rail; if more is added later, raise servicesMultCap. NOT playtested on device.
+
+## v40 — Research income legibility + OS customization & licensee churn (DONE 2026-06-23)
+- [x] **Research income card** (lowest-risk pick): read-only breakdown of weekly RP by source (founder
+      trickle + each R&D staffer) with mini bars. Pure rpSources(staff,era) engine helper (sum pinned to
+      weeklyRp by test) + weeklyRpSources(s) selector (sum == weeklyRpGen). No balance/persistence change.
+- [x] **OS philosophy** (customizable + unique): pick one lasting identity that tilts every launch +
+      services — Curated Garden (+eco), Open Platform (+services), Performance-First (+perf), Privacy-First
+      (+quality). Bounded via productStats + osServicesMult (re-capped). osPhilosophy state (backfilled
+      null; resets on NG+), setOsPhilosophy (gated, tap-to-clear), 2-up picker card.
+- [x] **Licensee relationships + churn**: per-licensee satisfaction (osLicenseeHealth) that decays with
+      your reputation lead and can churn (they drop the license) once low. Pure updateLicenseeRelations +
+      licenseeMood (balance platform.licenseeChurn). Tick advances it live-only (never offline). Platform
+      shows a relationship bar + mood per licensee. Seeded on license, pruned on revoke + acquisition.
+- 505 tests, tsc 0, build+PWA green.
+- ⚠️ Churn magnitudes (dominanceFreeGap 12, decay 0.7/pt, threshold 28, churn 14%/wk) NOT playtested —
+      all in balance.platform.licenseeChurn. Philosophy +5 stat / +20% services likewise untuned on device.
+- Note: the signing server returned intermittent 503s this session; commits succeeded on retry.
