@@ -2,7 +2,10 @@
 // engine: your named OS, its tier, the installed base across every device you've shipped, and the
 // recurring licensing revenue it already earns — plus the version-release "launch day" lever.
 // Tokens + 8pt grid only (RULE #1).
-import { Cpu, Layers, Users, BadgeDollarSign, Rocket } from "lucide-react";
+import {
+  Cpu, Layers, Users, BadgeDollarSign, Rocket, FlaskConical, Check, Lock,
+  Store, Cloud, Sparkles, ShieldCheck, HeartPulse, type LucideIcon,
+} from "lucide-react";
 import { Button, Card, Stat, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { showToast } from "../design/toast.tsx";
@@ -12,12 +15,19 @@ import {
   platformInstalledBase,
   canReleaseOsVersion,
   weeklyEcosystemRevenue,
+  osFeatureList,
+  osEcoBonus,
+  weeklyLicenseFees,
 } from "../state/gameState.ts";
 import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift } from "../engine/platform.ts";
-import { weeklyLicenseFees } from "../state/gameState.ts";
 import { format, add, toDollars } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./platform.css";
+
+// Map each OS module's icon key (engine stays DOM-free, so it ships a string) to a Lucide glyph.
+const FEATURE_ICONS: Record<string, LucideIcon> = {
+  Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Layers,
+};
 
 function fmtBase(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -26,8 +36,11 @@ function fmtBase(n: number): string {
 }
 
 export function PlatformSheet({ onClose }: { onClose: () => void }) {
-  const { state, setOsName, releaseOsVersion, licenseOsToRival, revokeOsLicense } = useGame();
+  const { state, setOsName, releaseOsVersion, licenseOsToRival, revokeOsLicense, installOsFeature } = useGame();
   const tier = osTierInfo(state);
+  const features = osFeatureList(state);
+  const ecoBonus = osEcoBonus(state);
+  const rp = Math.floor(state.researchPoints);
   const licenseTotal = weeklyLicenseFees(state);
   const base = platformInstalledBase(state);
   const weekly = weeklyEcosystemRevenue(state);
@@ -97,6 +110,50 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
             {osDisplayName(state)} is up to date with your research. Advance the Software line in R&D to unlock a new OS version to release.
           </p>
         )}
+      </Card>
+
+      <Card>
+        <SectionHeader title="OS features" accessory={ecoBonus > 0 ? `+${ecoBonus} ecosystem` : undefined} />
+        <p className="plat__release-note plat__release-note--muted">
+          Build platform capabilities into {osDisplayName(state)}. Each ships in every device you
+          launch — lifting its ecosystem and your recurring services. <strong>{rp.toLocaleString()} RP</strong> available.
+        </p>
+        <ul className="plat__feats">
+          {features.map((f) => {
+            const Icon = FEATURE_ICONS[f.icon] ?? Layers;
+            const pct = Math.round(f.servicesMult * 100);
+            return (
+              <li key={f.id} className={`plat__feat plat__feat--${f.status}`}>
+                <span className="plat__feat-icon" aria-hidden><Icon size={18} /></span>
+                <div className="plat__feat-main">
+                  <span className="plat__feat-name">{f.name}</span>
+                  <span className="plat__feat-blurb">{f.blurb}</span>
+                  <span className="plat__feat-effect tnum">+{f.ecoBonus} ecosystem · +{pct}% services</span>
+                </div>
+                <div className="plat__feat-side">
+                  {f.status === "installed" ? (
+                    <span className="plat__feat-tag plat__feat-tag--on"><Check size={13} /> Built</span>
+                  ) : f.status === "locked" ? (
+                    <span className="plat__feat-tag"><Lock size={12} /> OS v{f.minVersion}</span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={f.status === "unaffordable"}
+                      onClick={() => {
+                        haptic.success();
+                        installOsFeature(f.id);
+                        showToast(`${f.name} built into ${osDisplayName(state)}`, { tone: "positive" });
+                      }}
+                    >
+                      <FlaskConical size={13} /> {f.rpCost} RP
+                    </Button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </Card>
 
       <Card>

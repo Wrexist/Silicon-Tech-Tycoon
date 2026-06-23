@@ -54,3 +54,34 @@
 .plat__rival--on { border-color: color-mix(in srgb, var(--accent) 36%, var(--hairline)); background: var(--accent-soft); }
 .plat__rival-name { font-weight: 600; font-size: var(--fs-body); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plat__rival-fee { font-size: var(--fs-caption); color: var(--ink-2); flex-shrink: 0; }
+
+/* OS feature modules */
+.plat__feats { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); }
+.plat__feat {
+  display: flex; align-items: flex-start; gap: var(--sp-12);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.plat__feat--installed { border-color: color-mix(in srgb, var(--positive) 32%, var(--hairline)); background: color-mix(in srgb, var(--positive) 7%, var(--surface-2)); }
+.plat__feat--locked { opacity: 0.6; }
+.plat__feat-icon {
+  width: 34px; height: 34px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent);
+}
+.plat__feat--installed .plat__feat-icon { background: color-mix(in srgb, var(--positive) 18%, transparent); color: var(--positive); }
+.plat__feat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.plat__feat-name { font-weight: 600; font-size: var(--fs-body); }
+.plat__feat-blurb { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; }
+.plat__feat-effect { font-size: var(--fs-nano); font-weight: 600; color: var(--accent); margin-top: var(--sp-2); }
+.plat__feat--installed .plat__feat-effect { color: var(--positive); }
+.plat__feat-side { flex-shrink: 0; display: flex; align-items: center; }
+.plat__feat-tag {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  font-size: var(--fs-nano); font-weight: 600; color: var(--ink-3);
+  padding: var(--sp-4) var(--sp-8); border-radius: var(--r-pill); background: var(--bg-elevated);
+  white-space: nowrap;
+}
+.plat__feat-tag--on { color: var(--positive); background: color-mix(in srgb, var(--positive) 14%, transparent); }
