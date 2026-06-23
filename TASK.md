@@ -1079,3 +1079,23 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
       rival licenses your OS, and "You own N shares · X%" when you hold their stock (the buyout-discount
       stake). Reuses rivalLicenseFee/osTierInfo/holdings.
 - 465 tests, tsc 0, build+PWA. preview.html updated. Franchise chapter complete.
+
+## v36 — OS division deepened: feature modules + device coupling (DONE 2026-06-23)
+- [x] **Sheet bug fix**: bottom sheets now portal to `<body>` (primitives.tsx) so the trailing action
+      (e.g. Platform → "Done") clears the fixed tab bar instead of being trapped beneath it. Also drops
+      the unintended screen card-stagger fade the scrim was inheriting.
+- [x] **OS feature modules** (`engine/platform.ts` OS_FEATURES): 6 researchable capabilities (App
+      Marketplace, Cloud Sync, On-Device Assistant, Privacy Suite, Health Hub, Cross-Device Continuity),
+      each gated behind an OS version + an RP cost. `osEcosystemBonus` + `osServicesMultiplier` (both
+      bounded; caps + per-version step in `balance.platform.features`).
+- [x] **Real lever** (user's call): a built module lifts the ecosystem stat of every device you launch
+      (via `productStats`, state layer — `product.ts` untouched) AND multiplies recurring services income
+      (selector + tick). Exactly 1.0× / +0 when the division is off → base economy byte-identical.
+- [x] **State**: `osFeatures: string[]` (+persistence backfill, resets on NG+ like research, entitlement
+      carries); `installOsFeature` gated on entitlement+version+RP; `osFeatureList`/`osEcoBonus`/
+      `canInstallFeature` selectors; exposed via useGame.
+- [x] **UI**: Platform "OS features" card (build/locked/built/unaffordable states, effect readout);
+      Design Lab review note "Runs <OS> vN · +X ecosystem from N modules".
+- 477 tests, tsc 0, build+PWA green. preview-os-features.html sent.
+- ⚠️ Balance magnitudes (module RP costs, ecoBonus/servicesMult, caps) NOT playtested on device — all
+      isolated in `balance.platform.features` + the OS_FEATURES catalog for a one-file tuning pass.
