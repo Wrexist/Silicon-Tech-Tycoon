@@ -15,7 +15,7 @@ import {
 } from "../state/gameState.ts";
 import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift } from "../engine/platform.ts";
 import { weeklyLicenseFees } from "../state/gameState.ts";
-import { format } from "../engine/money.ts";
+import { format, add, toDollars } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./platform.css";
 
@@ -33,6 +33,13 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
   const weekly = weeklyEcosystemRevenue(state);
   const canRelease = canReleaseOsVersion(state);
   const reward = osReleaseReward(base);
+  // Total OS income = the recurring ecosystem-service revenue from the installed base PLUS the weekly
+  // fees from rivals licensing your OS. Surfacing the sum (not just the services line) so the headline
+  // reflects the division's full worth; the licensing portion is detailed in its own section below.
+  const totalOsIncome = add(weekly, licenseTotal);
+  const incomeHint = toDollars(licenseTotal) > 0
+    ? `${format(weekly)}/wk services + ${format(licenseTotal)}/wk rival licensing`
+    : "Recurring ecosystem-service revenue from your installed base";
 
   return (
     <div className="plat">
@@ -68,7 +75,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
           <Users size={18} className="plat__stat-icon" aria-hidden />
         </Card>
         <Card className="plat__stat-card">
-          <Stat label="Licensing income" value={`${format(weekly)}/wk`} tone="positive" hint="Recurring ecosystem-service revenue from your installed base" />
+          <Stat label="OS income" value={`${format(totalOsIncome)}/wk`} tone="positive" hint={incomeHint} />
           <BadgeDollarSign size={18} className="plat__stat-icon" aria-hidden />
         </Card>
       </div>
