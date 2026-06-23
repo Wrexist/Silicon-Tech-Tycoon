@@ -13,6 +13,7 @@ import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
+import { postMortem, type FactorKey } from "../engine/postmortem.ts";
 import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
@@ -681,6 +682,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
 
 type DriverTone = "positive" | "accent" | "negative" | "neutral";
 interface Driver {
+  key: FactorKey;
   label: string;
   value: string;
   detail: string;
@@ -698,6 +700,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
   if (ins) {
     const f = Math.round(ins.demandFit);
     drivers.push({
+      key: "demand",
       label: "Demand fit",
       value: `${f}/100`,
       detail: f >= 60 ? "Closely matched what the market wanted." : f >= 35 ? "A decent match for the trend." : "Out of step with what buyers wanted.",
@@ -707,6 +710,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const hi = lp.launchScore >= 76;
     const lo = lp.launchScore <= 22;
     drivers.push({
+      key: "demand",
       label: "Demand fit",
       value: hi ? "Strong" : lo ? "Weak" : "Fair",
       detail: hi ? "Read the market well at launch." : lo ? "Mistimed the market." : "An average read on the trend.",
@@ -721,6 +725,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const low = ins.perSegment.find((s) => s.id === ins.weakestSegment) ?? ins.perSegment[ins.perSegment.length - 1];
     const lowReason = low.priceFit < 0.6 ? "priced out" : low.fit < 35 ? "specs missed" : "niche appeal";
     drivers.push({
+      key: "audience",
       label: "Audience",
       value: top.name,
       detail: `Strongest with ${top.name} buyers; weakest with ${low.name} (${lowReason}).`,
@@ -734,6 +739,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const over = pf < 0.8;
     const under = pf > 1.12;
     drivers.push({
+      key: "price",
       label: "Price",
       value: over ? "Overpriced" : under ? "Value buy" : "On the money",
       detail: over ? "Buyers felt it cost too much for the spec." : under ? "Priced below its perceived value — drove volume." : "Priced fairly for what it delivered.",
@@ -747,6 +753,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const matches = ins.matchingRivals;
     const kept = Math.round(ins.competitionFactor * 100);
     drivers.push({
+      key: "competition",
       label: "Competition",
       value: beats > 0 ? `${beats} ahead` : matches > 0 ? `${matches} matched` : "Clear field",
       detail: beats > 0
@@ -764,6 +771,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const strong = h >= 1.6;
     const weak = h < 1.1;
     drivers.push({
+      key: "hype",
       label: "Hype",
       value: strong ? "High" : weak ? "Low" : "Moderate",
       detail: strong ? "Reputation and marketing gave a big launch boost." : weak ? "Little buzz — few buyers knew it existed." : "A steady amount of launch buzz.",
@@ -816,6 +824,12 @@ function ProductDetailSheet({
   const [pushOpen, setPushOpen] = useState(false);
   const v = verdictOf(lp);
   const drivers = performanceDrivers(lp);
+  // C1 — rank the drivers by how DECISIVE each was and synthesize a headline (2–3 dominant factors,
+  // not a fog). Only when the launch-moment insight was recorded; older saves keep the plain list.
+  const pm = lp.insight ? postMortem(lp.insight, v) : null;
+  const orderedDrivers = pm
+    ? [...drivers].sort((a, b) => (pm.impacts[b.key]?.impact ?? 0) - (pm.impacts[a.key]?.impact ?? 0))
+    : drivers;
   const tips = generateTips(lp);
   // Fictional tech-press reviews derived from the recorded launch metrics (pure, presentation
   // only — never affects the sim). Falls back to neutral drivers for pre-insight saves.
@@ -1069,16 +1083,20 @@ function ProductDetailSheet({
           <Sparkles size={15} aria-hidden />
           <span>Why it {v === "hit" ? "won" : v === "flop" ? "flopped" : v === "solid" ? "delivered" : "performed"}</span>
         </div>
+        {pm && <p className="pd__why-headline">{pm.headline}</p>}
         <ul className="pd__drivers">
-          {drivers.map((d) => (
-            <li className="pd__driver" key={d.label}>
-              <div className="pd__driver-top">
-                <span className="pd__driver-label">{d.label}</span>
-                <span className={`pd__driver-value pd__driver-value--${d.tone} tnum`}>{d.value}</span>
-              </div>
-              <p className="pd__driver-detail">{d.detail}</p>
-            </li>
-          ))}
+          {orderedDrivers.map((d) => {
+            const key = pm?.dominant.includes(d.key);
+            return (
+              <li className={`pd__driver${key ? " pd__driver--key" : ""}`} key={d.label}>
+                <div className="pd__driver-top">
+                  <span className="pd__driver-label">{d.label}{key && <span className="pd__driver-tag">key factor</span>}</span>
+                  <span className={`pd__driver-value pd__driver-value--${d.tone} tnum`}>{d.value}</span>
+                </div>
+                <p className="pd__driver-detail">{d.detail}</p>
+              </li>
+            );
+          })}
         </ul>
         {!lp.insight && (
           <p className="pd__why-note">Detailed launch metrics weren't recorded for this older product — shown as an overall read.</p>
