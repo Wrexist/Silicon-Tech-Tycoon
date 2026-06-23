@@ -51,6 +51,7 @@ import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
+import { segmentWantsById } from "../engine/glossary.ts";
 import "./designLab.css";
 
 /** Epic A — "Who it's for": the per-segment positioning readout in the build wizard. Each bar is how
@@ -79,13 +80,17 @@ function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
             <div
               key={r.id}
               className={`wiz__seg-row${r.id === top.id ? " wiz__seg-row--top" : ""}`}
-              aria-label={`${r.name}: wins ${pct}% of the segment`}
+              aria-label={`${r.name}: wins ${pct}% of the segment. ${segmentWantsById(r.id)}`}
             >
-              <span className="wiz__seg-name">{r.name}</span>
-              <div className="wiz__seg-bar" aria-hidden>
-                <span className="wiz__seg-fill" style={{ width: `${pct}%` }} />
+              <div className="wiz__seg-main">
+                <span className="wiz__seg-name">{r.name}</span>
+                <div className="wiz__seg-bar" aria-hidden>
+                  <span className="wiz__seg-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="wiz__seg-pct tnum" aria-hidden>{pct}%</span>
               </div>
-              <span className="wiz__seg-pct tnum" aria-hidden>{pct}%</span>
+              {/* C3 — plain-language "what this buyer wants", derived live from the segment weights */}
+              <span className="wiz__seg-wants" aria-hidden>{segmentWantsById(r.id)}</span>
             </div>
           );
         })}

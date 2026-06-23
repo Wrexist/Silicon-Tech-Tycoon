@@ -1,0 +1,38 @@
+// Plain-language model explainers (Epic C3 — "the model is never hidden"). PURE.
+//
+// The genre's #1 failure is illegibility; the premium benchmarks win on "almost nothing is confusing"
+// (Two Point). We surface what each stat does and what each buyer segment wants — and the segment
+// copy is DERIVED from the live SEGMENTS weights, so it can never drift out of sync with the sim.
+import { SEGMENTS, type Segment } from "./segments.ts";
+import { STAT_KEYS, type StatKey } from "./types.ts";
+
+export const STAT_INFO: Record<StatKey, { label: string; blurb: string }> = {
+  performance: { label: "Performance", blurb: "Raw speed and power. Pros and power users pay for it; budget buyers care less." },
+  quality: { label: "Quality", blurb: "Build quality and reliability — reassures every buyer and is vital to Enterprise fleets." },
+  battery: { label: "Battery", blurb: "Endurance away from a charger. A Budget and Mainstream essential." },
+  design: { label: "Design", blurb: "Looks, finish and form. The Style segment buys on this above all else." },
+  ecosystem: { label: "Ecosystem", blurb: "Apps, services and lock-in. Pro and Enterprise value the platform around the device." },
+};
+
+/** The `n` stats a segment weights most, derived live from its weights (never stale). */
+export function segmentTopStats(seg: Segment, n = 2): StatKey[] {
+  return [...STAT_KEYS].sort((a, b) => seg.weights[b] - seg.weights[a]).slice(0, n);
+}
+
+export function segmentPriceLabel(seg: Segment): "very price-led" | "price-aware" | "price-insensitive" {
+  if (seg.priceSensitivity >= 1.4) return "very price-led";
+  if (seg.priceSensitivity >= 1.0) return "price-aware";
+  return "price-insensitive";
+}
+
+/** One-line "what this buyer wants", e.g. "Performance + Quality · price-insensitive". For the UI. */
+export function segmentWants(seg: Segment): string {
+  const tops = segmentTopStats(seg).map((k) => STAT_INFO[k].label);
+  return `${tops.join(" + ")} · ${segmentPriceLabel(seg)}`;
+}
+
+/** Lookup helper for the UI: the "wants" line for a segment id (empty string for an unknown id). */
+export function segmentWantsById(id: string): string {
+  const seg = SEGMENTS.find((s) => s.id === id);
+  return seg ? segmentWants(seg) : "";
+}
