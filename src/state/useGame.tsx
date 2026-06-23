@@ -781,7 +781,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const licenseOsToRivalCb = useCallback((rivalId: string) => setState((s) => licenseOsToRival(s, rivalId)), []);
   const revokeOsLicenseCb = useCallback((rivalId: string) => setState((s) => revokeOsLicense(s, rivalId)), []);
-  const installOsFeatureCb = useCallback((id: string) => setState((s) => installOsFeature(s, id)), []);
+  // Building an OS module spends RP (emit the spend FX) and can trip the Platform Pioneer / Walled
+  // Garden milestones — fold + celebrate them here on the value-call path, not on the next tick.
+  const installOsFeatureCb = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const built = installOsFeature(prev, id);
+    if (built === prev) return; // gated no-op (locked / unaffordable / already built)
+    const rpSpent = prev.researchPoints - built.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    setState(withLiveAchievements(built));
+  }, []);
   const placeFurnitureCb = useCallback((type: FurnitureId, c: number, r: number, rot: Rot) => setState((s) => placeFurniture(s, type, c, r, rot)), []);
   const moveFurnitureCb = useCallback((iid: string, c: number, r: number) => setState((s) => moveFurniture(s, iid, c, r)), []);
   const rotateFurnitureCb = useCallback((iid: string) => setState((s) => rotateFurniture(s, iid)), []);
