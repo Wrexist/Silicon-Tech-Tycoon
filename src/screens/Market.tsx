@@ -6,7 +6,9 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
-import { rivalDef } from "../engine/competitors.ts";
+import { rivalDef, rivalDoctrine, rivalMarketCap } from "../engine/competitors.ts";
+import { playerFranchises, rivalLines } from "../engine/franchise.ts";
+import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
 import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
@@ -88,6 +90,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   );
   const [detailId, setDetailId] = useState<string | null>(null);
   const [feedOpen, setFeedOpen] = useState(false);
+  const [rivalProfile, setRivalProfile] = useState<string | null>(null);
   const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
 
   const valuation = companyValuation(state);
@@ -219,7 +222,12 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           <SectionHeader title="Rival releases" accessory={`${state.rivalReleases.length} recent`} />
           <div className="mkt__rivals">
             {state.rivalReleases.slice(0, 6).map((r, i) => (
-              <div key={`${r.product.id}-${i}`} className="mkt__rival">
+              <button
+                key={`${r.product.id}-${i}`}
+                className="mkt__rival mkt__rival--btn"
+                onClick={() => { setRivalProfile(r.rivalId); haptic.light(); }}
+                aria-label={`View ${r.rivalName} company profile`}
+              >
                 <span className="mkt__rival-thumb"><DeviceRenderer product={r.product} size={44} /></span>
                 <span className="mkt__rival-info">
                   <span className="mkt__rival-name">{r.product.name}</span>
@@ -233,7 +241,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                     {r.contested ? "undercut" : r.tone}
                   </span>
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </Card>
@@ -326,6 +334,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           </>
         )}
       </Card>
+
+      {/* Your franchises — product lines grouped by brand equity (the IP lens over your catalog) */}
+      <FranchisesCard launched={state.launched} />
 
       {/* Portfolio revenue breakdown by category */}
       {(() => {
@@ -664,6 +675,19 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
 
       <Sheet open={!!trade} onClose={() => setTrade(null)}>
         {trade && <TradeSheet comp={comps.find((c) => c.id === trade.id) ?? trade} onClose={() => setTrade(null)} />}
+      </Sheet>
+      <Sheet open={!!rivalProfile} onClose={() => setRivalProfile(null)}>
+        {rivalProfile && (() => {
+          const comp = comps.find((c) => c.id === rivalProfile);
+          return comp ? (
+            <RivalProfileSheet
+              comp={comp}
+              releases={state.rivalReleases.filter((r) => r.rivalId === rivalProfile)}
+              onTrade={() => { setRivalProfile(null); setTrade(comp); }}
+              onClose={() => setRivalProfile(null)}
+            />
+          ) : null;
+        })()}
       </Sheet>
       <Sheet open={ipo} onClose={() => setIpo(false)}>
         {ipo && <IPOSheet onClose={() => setIpo(false)} />}
@@ -1121,6 +1145,103 @@ function ProductDetailSheet({
         </Button>
       )}
       <Button block variant="tertiary" onClick={onClose}>Close</Button>
+    </div>
+  );
+}
+
+const DOCTRINE_LABEL: Record<string, string> = {
+  defender: "Defender", trendChaser: "Trend-chaser", undercutter: "Undercutter", generalist: "Generalist",
+};
+
+function fmtCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${Math.floor(n / 1000)}k`;
+  return n.toLocaleString();
+}
+
+/** The player's product lines grouped by brand equity — the IP lens over the catalog. */
+function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
+  const lines = playerFranchises(launched);
+  if (lines.length === 0) return null;
+  return (
+    <Card>
+      <SectionHeader title="Your franchises" accessory={`${lines.length} line${lines.length > 1 ? "s" : ""}`} />
+      <div className="mkt__fr-list">
+        {lines.map((f) => (
+          <div key={f.stem} className="mkt__fr">
+            <div className="mkt__fr-head">
+              <span className="mkt__fr-name">{f.name} line</span>
+              <span className={`mkt__fr-tag mkt__fr-tag--${f.label.toLowerCase().replace(/\s+/g, "")}`}>{f.label}</span>
+            </div>
+            <div className="mkt__fr-sub">
+              {f.entries} product{f.entries > 1 ? "s" : ""} · {fmtCompact(f.unitsSold)} sold · latest {f.latestName}
+            </div>
+            <div className="mkt__fr-bar" aria-hidden><span className="mkt__fr-fill" style={{ width: `${Math.round(Math.max(0, f.equity) * 100)}%` }} /></div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/** A rival's company card + their product lines + recent releases (tap a rival release to open). */
+function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: CompetitorState; releases: RivalRelease[]; onTrade: () => void; onClose: () => void }) {
+  const cap = rivalMarketCap(comp);
+  const ch = changePct(comp.priceHistory);
+  const lines = rivalLines(releases.map((r) => ({ name: r.product.name, week: r.week, overall: r.overall, category: r.category })));
+  return (
+    <div className="rprof">
+      <div className="rprof__head">
+        <span className="rprof__brand" aria-hidden><Building2 size={20} /></span>
+        <div>
+          <h2 className="rprof__title">{comp.name}</h2>
+          <p className="rprof__sub">{comp.blurb}</p>
+        </div>
+      </div>
+      <div className="rprof__stats">
+        <StatPill label="Reputation" value={Math.round(comp.reputation)} tone={comp.reputation >= 60 ? "positive" : "neutral"} />
+        <StatPill label="Market cap" value={format(cap)} />
+        <StatPill label="Share" value={format(cents(comp.sharePrice))} tone={ch >= 0 ? "positive" : "negative"} />
+        <StatPill label="Strategy" value={DOCTRINE_LABEL[rivalDoctrine(comp.id)] ?? "—"} />
+      </div>
+
+      {lines.length > 0 && (
+        <Card>
+          <SectionHeader title="Product lines" accessory={`${lines.length}`} />
+          <div className="mkt__fr-list">
+            {lines.map((l) => (
+              <div key={l.stem} className="mkt__fr">
+                <div className="mkt__fr-head">
+                  <span className="mkt__fr-name">{l.name}</span>
+                  <span className="mkt__fr-tag">{l.entries} {l.entries > 1 ? "entries" : "entry"}</span>
+                </div>
+                <div className="mkt__fr-sub">
+                  <CategoryIcon id={l.categories[0]} size={11} /> latest {l.latestName} · avg quality {l.avgOverall}/100
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <SectionHeader title="Recent releases" accessory={`${releases.length}`} />
+        <div className="mkt__rivals">
+          {releases.slice(0, 5).map((r, i) => (
+            <div key={`${r.product.id}-${i}`} className="mkt__rival">
+              <span className="mkt__rival-thumb"><DeviceRenderer product={r.product} size={40} /></span>
+              <span className="mkt__rival-info">
+                <span className="mkt__rival-name">{r.product.name}</span>
+                <span className="mkt__rival-sub"><CategoryIcon id={r.category} size={12} /> {CATEGORY_LABEL[r.category] ?? r.category} · wk {r.week}</span>
+              </span>
+              <span className="mkt__rival-meta"><span className="mkt__rival-price tnum">{format(r.product.price)}</span></span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Button block variant="secondary" onClick={onTrade}>Trade {comp.name} shares</Button>
+      <Button block variant="tertiary" onClick={onClose}>Done</Button>
     </div>
   );
 }

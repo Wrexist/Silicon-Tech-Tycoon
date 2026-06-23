@@ -10,7 +10,7 @@
 // First-in-line products have no history → zero equity → zero bonus, so this is purely additive and
 // never changes a fresh launch. Bounded throughout: a beloved line is an edge, never an auto-win.
 import { BALANCE } from "./balance.ts";
-import type { LaunchedProduct } from "./types.ts";
+import type { CategoryId, LaunchedProduct } from "./types.ts";
 
 const NUM_WORDS = new Set([
   "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
@@ -81,4 +81,94 @@ export function brandEquityLabel(b: BrandEquity): "New line" | "Tarnished" | "Bu
   if (b.equity < 0.25) return "Building";
   if (b.equity < 0.6) return "Established";
   return "Iconic";
+}
+
+/** Title-case a lowercase stem for display ("aurora" → "Aurora"). */
+export function franchiseDisplayName(stem: string): string {
+  return stem.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// ---------- Overview aggregation (the Franchises screen + rival profiles) ----------
+
+export interface FranchiseSummary {
+  stem: string;
+  name: string;            // title-cased display name of the line
+  entries: number;         // launches in the line
+  equity: number;          // -1..1 brand equity
+  label: ReturnType<typeof brandEquityLabel>;
+  unitsSold: number;       // total units across the line
+  latestName: string;      // most recent product in the line
+  latestWeek: number;
+  categories: CategoryId[]; // distinct categories the line spans
+}
+
+/** Group the player's launched products into their franchises (lines), newest-launch first within
+ *  each, sorted by depth then brand strength. Pure. */
+export function playerFranchises(launched: readonly LaunchedProduct[]): FranchiseSummary[] {
+  const byStem = new Map<string, LaunchedProduct[]>();
+  for (const lp of launched) {
+    const stem = franchiseStem(lp.product.name);
+    if (!stem) continue;
+    const arr = byStem.get(stem);
+    if (arr) arr.push(lp);
+    else byStem.set(stem, [lp]);
+  }
+  const out: FranchiseSummary[] = [];
+  for (const [stem, lps] of byStem) {
+    const eq = brandEquity(lps, stem);
+    const latest = lps.reduce((a, b) => (b.launchedWeek > a.launchedWeek ? b : a));
+    out.push({
+      stem,
+      name: franchiseDisplayName(stem),
+      entries: lps.length,
+      equity: eq.equity,
+      label: brandEquityLabel(eq),
+      unitsSold: lps.reduce((a, b) => a + b.unitsSold, 0),
+      latestName: latest.product.name,
+      latestWeek: latest.launchedWeek,
+      categories: [...new Set(lps.map((l) => l.product.category))],
+    });
+  }
+  out.sort((a, b) => b.entries - a.entries || b.equity - a.equity);
+  return out;
+}
+
+export interface RivalLineSummary {
+  stem: string;
+  name: string;
+  entries: number;
+  latestName: string;
+  latestWeek: number;
+  avgOverall: number;       // mean perceived quality across the line (display proxy)
+  categories: CategoryId[];
+}
+
+/** Group a rival's releases into their product lines (no player-style verdicts → no equity score,
+ *  just the line's depth + average quality). Pure; accepts the minimal shape a RivalRelease provides. */
+export function rivalLines(
+  items: readonly { name: string; week: number; overall: number; category: CategoryId }[],
+): RivalLineSummary[] {
+  const byStem = new Map<string, typeof items[number][]>();
+  for (const it of items) {
+    const stem = franchiseStem(it.name);
+    if (!stem) continue;
+    const arr = byStem.get(stem);
+    if (arr) arr.push(it);
+    else byStem.set(stem, [it]);
+  }
+  const out: RivalLineSummary[] = [];
+  for (const [stem, list] of byStem) {
+    const latest = list.reduce((a, b) => (b.week > a.week ? b : a));
+    out.push({
+      stem,
+      name: franchiseDisplayName(stem),
+      entries: list.length,
+      latestName: latest.name,
+      latestWeek: latest.week,
+      avgOverall: Math.round(list.reduce((a, b) => a + b.overall, 0) / list.length),
+      categories: [...new Set(list.map((l) => l.category))],
+    });
+  }
+  out.sort((a, b) => b.entries - a.entries || b.latestWeek - a.latestWeek);
+  return out;
 }

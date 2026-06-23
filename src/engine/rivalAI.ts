@@ -77,11 +77,23 @@ const MODEL_WORDS = [
   "Vync", "Aero", "Pulse", "Edge", "Nova", "Flux", "Halo", "Vertex",
   "Orbit", "Prism", "Lumen", "Apex", "Drift", "Zephyr", "Onyx", "Vista",
 ];
-const TIER_WORDS: Record<RivalTone, string[]> = {
-  premium: ["Pro", "Ultra", "Signature", "Reserve"],
-  value: ["Lite", "Go", "Air", "Neo"],
-  balanced: ["Plus", "S", "X", "One"],
-};
+
+/** Stable 32-bit hash (FNV-1a) so a rival's line name is deterministic per rival + category. */
+function hashString(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/** A rival's FLAGSHIP LINE name for a category — stable across the whole game (e.g. Pomelo always
+ *  ships its "Lumen" phone line), so rivals build real product series the player can recognise. */
+export function rivalLineName(rivalId: string, rivalName: string, category: CategoryId): string {
+  const word = MODEL_WORDS[hashString(`${rivalId}:${category}`) % MODEL_WORDS.length];
+  return `${rivalName} ${word}`;
+}
 
 const FINISHES: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
 const CAM_LAYOUTS: CameraLayout[] = ["vertical", "horizontal", "square", "triangle"];
@@ -105,8 +117,11 @@ export function generateRivalProduct(args: {
   rng: Rng;
   /** B2 — when true (an undercutter contesting the player), the product ships aggressively cheap. */
   contested?: boolean;
+  /** How many products the rival has already shipped in this category's line — drives the series
+   *  number (0 → the base name, 1 → "… 2", …), so rivals build recognisable flagship series. */
+  seriesIndex?: number;
 }): RivalRelease {
-  const { rivalId, rivalName, category, era, strength, week, rng, contested = false } = args;
+  const { rivalId, rivalName, category, era, strength, week, rng, contested = false, seriesIndex = 0 } = args;
   const tone = rivalTone(rivalId);
   const bias = TONE_BIAS[tone];
   const slots = CATEGORIES[category].slots;
@@ -154,8 +169,10 @@ export function generateRivalProduct(args: {
   const margin = PRICE_MARGIN[tone] * (contested ? BALANCE.competitors.undercutPriceMult : 1);
   product.price = dollars(Math.max(1, Math.round(fair * margin)));
 
-  // Name: rival + a model word + a tone-appropriate tier word (no real product names — IP rule).
-  product.name = `${rivalName} ${pick(MODEL_WORDS, rng)} ${pick(TIER_WORDS[tone], rng)}`.trim();
+  // Name: the rival's stable flagship LINE for this category + a series number, so rivals build a
+  // recognisable product series ("Pomelo Lumen", "Pomelo Lumen 2", …). No real product names (IP rule).
+  const line = rivalLineName(rivalId, rivalName, category);
+  product.name = seriesIndex > 0 ? `${line} ${seriesIndex + 1}` : line;
 
   const catName = CATEGORIES[category].displayName.toLowerCase();
   const tagline = contested

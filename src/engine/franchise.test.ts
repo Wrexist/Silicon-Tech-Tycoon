@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { franchiseStem, brandEquity, equityPreorderBonus, equityHypeBonus, brandEquityLabel } from "./franchise.ts";
+import { franchiseStem, brandEquity, equityPreorderBonus, equityHypeBonus, brandEquityLabel, playerFranchises, rivalLines } from "./franchise.ts";
 import { dollars } from "./money.ts";
 import type { LaunchedProduct, Product } from "./types.ts";
 
@@ -19,6 +19,10 @@ function launched(name: string, verdict: LaunchedProduct["verdict"]): LaunchedPr
     unitCost: dollars(60), launchScore: 60, launchedWeek: 0, totalUnits: 1000, weeklyUnits: [1000],
     unitsSold: 1000, weeksElapsed: 1, revenueToDate: dollars(0), plannedUnits: 1000, verdict,
   };
+}
+
+function launched2(name: string, verdict: LaunchedProduct["verdict"], week: number): LaunchedProduct {
+  return { ...launched(name, verdict), launchedWeek: week };
 }
 
 describe("franchiseStem — grouping a product line", () => {
@@ -68,6 +72,35 @@ describe("brandEquity — a line's track record", () => {
     const mixed = [launched("Aurora One", "hit"), launched("Nova One", "hit")];
     expect(brandEquity(mixed, "aurora").entries).toBe(1);
     expect(brandEquity(mixed, "nova").entries).toBe(1);
+  });
+
+  it("playerFranchises groups launches into lines with equity, deepest first", () => {
+    const launched = [
+      launched2("Aurora Three", "hit", 30),
+      launched2("Aurora Two", "solid", 20),
+      launched2("Aurora One", "hit", 10),
+      launched2("Zephyr One", "steady", 25),
+    ];
+    const lines = playerFranchises(launched);
+    expect(lines).toHaveLength(2);
+    expect(lines[0].stem).toBe("aurora"); // 3 entries → first
+    expect(lines[0].entries).toBe(3);
+    expect(lines[0].equity).toBeGreaterThan(0);
+    expect(lines[0].latestName).toBe("Aurora Three"); // newest by week
+    expect(lines[0].unitsSold).toBe(3000);
+    expect(lines.find((l) => l.stem === "zephyr")!.entries).toBe(1);
+  });
+
+  it("rivalLines groups a rival's releases (no verdicts → quality proxy)", () => {
+    const lines = rivalLines([
+      { name: "Lumen One", week: 40, overall: 80, category: "phone" },
+      { name: "Lumen Two", week: 50, overall: 84, category: "phone" },
+      { name: "Vertex One", week: 45, overall: 60, category: "tablet" },
+    ]);
+    const lumen = lines.find((l) => l.stem === "lumen")!;
+    expect(lumen.entries).toBe(2);
+    expect(lumen.latestName).toBe("Lumen Two");
+    expect(lumen.avgOverall).toBe(82);
   });
 
   it("bonuses are bounded and never negative", () => {

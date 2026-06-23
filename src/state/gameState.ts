@@ -1022,9 +1022,14 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let rivalReleases = state.rivalReleases;
   if (launches.length) {
     const idByName = new Map(competitors.map((c) => [c.name, c.id]));
-    const fresh = launches.map((l, i) =>
-      generateRivalProduct({
-        rivalId: idByName.get(l.competitor) ?? l.competitor,
+    // How many products this rival has already shipped in this category's line → the series number,
+    // so rivals build recognisable flagship series ("Pomelo Lumen" → "Pomelo Lumen 2" → …).
+    const seriesIndex = (rivalId: string, category: CategoryId) =>
+      state.rivalReleases.filter((r) => r.rivalId === rivalId && r.category === category).length;
+    const fresh = launches.map((l, i) => {
+      const rivalId = idByName.get(l.competitor) ?? l.competitor;
+      return generateRivalProduct({
+        rivalId,
         rivalName: l.competitor,
         category: l.category,
         era: state.era,
@@ -1032,8 +1037,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         week,
         rng: makeRng(((state.rngState || state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
         contested: l.contested,
-      }),
-    );
+        seriesIndex: seriesIndex(rivalId, l.category),
+      });
+    });
     launches.forEach((l, i) => pushRivalFeed(feed, l, activePlayerCats, fresh[i].product.name, l.contested));
     rivalReleases = [...fresh, ...state.rivalReleases].slice(0, RIVAL_RELEASES_CAP);
   }
