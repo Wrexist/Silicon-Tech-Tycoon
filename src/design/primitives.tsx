@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { Sparkles } from "lucide-react";
 import { haptic } from "./haptics.ts";
 import { sfx } from "./sound.ts";
@@ -381,7 +382,11 @@ export function Sheet({
     else setOffset(0); // a short drag — snap back
   };
 
-  return (
+  // Portal to <body> so the scrim/sheet escapes the active screen's stacking context (the keyed
+  // `.app__screen` fade + per-card stagger would otherwise trap it BELOW the fixed bottom nav,
+  // hiding a sheet's trailing action button under the tab bar). Theme tokens live on
+  // documentElement, so a body portal still themes correctly.
+  return createPortal(
     <div className={`ds-sheet-scrim${closing ? " ds-sheet-scrim--closing" : ""}`} onClick={onClose}>
       <div
         ref={dialogRef}
@@ -403,6 +408,7 @@ export function Sheet({
         />
         {open ? children : lastChildren.current}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
