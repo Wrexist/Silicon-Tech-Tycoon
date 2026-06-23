@@ -890,6 +890,26 @@ and learn from (fix for Computer Tycoon's "rivals are just a color on the map").
 - [x] **UI**: Market "Rival releases" card — each rival device via DeviceRenderer (zero assets) with
       name/category/price/tone tag.
 - NOT verified on-device: Rival releases card layout.
-- **Remaining (next chapters):** B2 reactive doctrines (generalize the lead-rival-only reactivity to
-      all rivals — undercut price, chase trends, defend home turf); B3 rival M&A + mortality (acquire
-      weak rivals via the stock layer; failing rivals exit; new entrants appear).
+### Epic B — Living Rivals (phases B2 + B3) — COMPLETE (v25, 2026-06-23)
+- [x] **B2 — reactive doctrines** (`competitors.ts`): RivalDef.isLead → `doctrine`
+      (defender/trendChaser/undercutter/generalist) + `rivalDoctrine()`. A trend-chaser piles
+      category-selection weight onto the player's hot cats; a defender adds strength + cadence (the old
+      lead numbers, unchanged); an undercutter ships an aggressively cheap product (`contested` flag on
+      CompetitorLaunch + a visible price slash via rivalAI) and presses cadence — never raw strength,
+      so the contested ceiling + winnability are preserved (300-week cap guard test). Feed reads
+      "Pandacore X undercuts your Phone"; Market shows an "undercut" badge. +6 tests.
+- [x] **B3 — M&A + new entrants** (`competitors.ts` CHALLENGER_POOL + spawnChallenger; `gameState`
+      acquireRival/canAcquire/acquisitionCost; `state.acquiredRivals`). Buy out a rival (cost = market
+      cap × premium − your existing stake), removing it + absorbing its brand (+rep) and customers
+      (+fans, capped); gated on established + a field floor. The tick refills a thinned field with a
+      fresh challenger — rng drawn ONLY on that branch, so a normal game's determinism is byte-identical.
+      UI: Market TradeSheet "Acquire" action (two-tap confirm, self-explaining gate). +5 tests.
+- NOT verified on-device: Acquire control + undercut badge layout.
+- **Epic B fully shipped** (B1 visible products → B2 doctrines → B3 M&A). 416 tests, tsc 0, build+PWA.
+
+### Epics A + B — next possible chapters (open)
+- Segment playtest-tuning pass (weights/sizes/trendInfluence) once felt on device.
+- Per-segment SIZES could drift over time / by era (a Pro-heavy AI era), making positioning dynamic.
+- Rival mortality (organic exits via a rival-fortune signal) — deferred; B3's player-driven removal +
+      entrants already keeps the field churning.
+- Acquired-rival synergies (inherit their preferred categories as a launch bonus); M&A achievements.

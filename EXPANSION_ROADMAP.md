@@ -173,11 +173,13 @@ playtested. Effort: **L**.
 
 ---
 
-### EPIC B — Living Rivals ("Rival CEO") 🟠 biggest "aliveness" lever — B1 SHIPPED (v24)
+### EPIC B — Living Rivals ("Rival CEO") ✅ SHIPPED (v24–v25)
 
-> **Status:** B1 COMPLETE (rivals ship real, renderable products via `engine/rivalAI.ts`; shown in a
-> Market "Rival releases" card; visibility-only so no balance ripple). **B2** (reactive doctrines for
-> all rivals) and **B3** (M&A + mortality) remain. Original spec below.
+> **Status:** COMPLETE. **B1** rivals ship real, renderable products (`engine/rivalAI.ts`, Market
+> "Rival releases" card). **B2** per-rival doctrines (defender/trendChaser/undercutter/generalist)
+> drive reactive, distinct behaviour — variety not raw difficulty, strength ceiling preserved. **B3**
+> outright acquisitions (`acquireRival`) + a regenerating field of new entrants (`CHALLENGER_POOL`).
+> Original spec below.
 
 
 **Research basis:** Computer Tycoon's "rivals are just a color on the map" [AVOID, top complaint];
