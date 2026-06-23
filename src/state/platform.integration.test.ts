@@ -21,12 +21,32 @@ import {
   advanceOneWeek,
   setOsPhilosophy,
   licenseeHealthOf,
+  foundPlatform,
+  canFoundPlatform,
+  platformFoundingCost,
   type GameState,
 } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { rivalLicenseFee, osFeatureById } from "../engine/platform.ts";
 import { add, ZERO, dollars, toDollars } from "../engine/money.ts";
 import type { Product, LaunchedProduct } from "../engine/types.ts";
+
+describe("founding the Platform division (earned cash milestone)", () => {
+  it("is a one-time purchase that requires saving up the founding cost", () => {
+    const cost = platformFoundingCost();
+    const poor = { ...newGame(1), cash: dollars(1_000) } as GameState;
+    expect(canFoundPlatform(poor)).toBe(false);
+    expect(foundPlatform(poor)).toBe(poor); // no-op when unaffordable
+
+    const rich = { ...newGame(1), cash: add(cost, dollars(5_000)) } as GameState;
+    expect(canFoundPlatform(rich)).toBe(true);
+    const founded = foundPlatform(rich);
+    expect(founded.platformUnlocked).toBe(true);
+    expect(founded.cash).toBe(dollars(5_000)); // paid exactly the founding cost
+    expect(canFoundPlatform(founded)).toBe(false); // already founded
+    expect(foundPlatform(founded)).toBe(founded); // no-op the second time
+  });
+});
 
 describe("platform entitlement + naming", () => {
   it("defaults locked, with a derived OS name", () => {

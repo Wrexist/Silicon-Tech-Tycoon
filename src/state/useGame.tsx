@@ -67,6 +67,7 @@ import {
   withScenarioRunStars,
   setOsName,
   unlockPlatform,
+  foundPlatform,
   releaseOsVersion,
   licenseOsToRival,
   revokeOsLicense,
@@ -350,6 +351,7 @@ interface GameContextValue {
   // Platform / OS division (DLC #1)
   setOsName: (name: string) => void;
   unlockPlatform: (on: boolean) => void;
+  foundPlatform: () => void;
   releaseOsVersion: () => void;
   licenseOsToRival: (rivalId: string) => void;
   revokeOsLicense: (rivalId: string) => void;
@@ -774,6 +776,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const setAutomationCb = useCallback((patch: Partial<GameState["automation"]>) => setState((s) => setAutomation(s, patch)), []);
   const setOsNameCb = useCallback((name: string) => setState((s) => setOsName(s, name)), []);
   const unlockPlatformCb = useCallback((on: boolean) => setState((s) => unlockPlatform(s, on)), []);
+  // Found the OS division — a major cash reinvestment. Value-call path: emit the spend FX + fold
+  // achievements (so any milestone the moment trips celebrates immediately).
+  const foundPlatformCb = useCallback(() => {
+    const prev = stateRef.current;
+    const next = foundPlatform(prev);
+    if (next === prev) return; // gated no-op (already founded / can't afford)
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(withLiveAchievements(next));
+  }, []);
   const releaseOsVersionCb = useCallback(() => {
     setState((s) => {
       const next = withLiveAchievements(releaseOsVersion(s));
@@ -916,6 +928,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setAutomation: setAutomationCb,
       setOsName: setOsNameCb,
       unlockPlatform: unlockPlatformCb,
+      foundPlatform: foundPlatformCb,
       releaseOsVersion: releaseOsVersionCb,
       licenseOsToRival: licenseOsToRivalCb,
       revokeOsLicense: revokeOsLicenseCb,
@@ -942,7 +955,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

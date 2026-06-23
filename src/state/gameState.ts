@@ -1965,9 +1965,26 @@ export const osDisplayName = (s: GameState): string => (s.osName.trim() || `${s.
 /** Can a new OS version be released right now (research has advanced past the released version)? */
 export const canReleaseOsVersion = (s: GameState): boolean => canReleaseVersion(s.osVersion, s.researched.software);
 
-/** Unlock (or re-lock) the Platform division — the DLC entitlement gate. */
+/** Unlock (or re-lock) the Platform division directly (used by Creative/sandbox + tests). */
 export function unlockPlatform(state: GameState, on: boolean): GameState {
   return { ...state, platformUnlocked: on };
+}
+
+/** The one-time cash cost to found the Platform division — a major reinvestment milestone. */
+export const platformFoundingCost = (): Money => BALANCE.platform.foundingCost;
+/** Can the player found the division right now (not yet founded, and can afford it)? */
+export const canFoundPlatform = (s: GameState): boolean =>
+  !s.platformUnlocked && s.cash >= BALANCE.platform.foundingCost;
+
+/** Found the Platform division: pay the founding cost and bring your OS up as a first-class business.
+ *  No-op if already founded or unaffordable. The earned, in-game path to the OS (vs. a free toggle). */
+export function foundPlatform(state: GameState): GameState {
+  if (state.platformUnlocked) return state;
+  const cost = BALANCE.platform.foundingCost;
+  if (state.cash < cost) return state;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Founded the Platform division — ${osDisplayName(state)} is now a business in its own right.`, "positive"));
+  return { ...state, cash: sub(state.cash, cost) as Money, platformUnlocked: true, feed: trimFeed(feed) };
 }
 
 /** Rename the OS line (empty clears back to the "<Company> OS" default). */

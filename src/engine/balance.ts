@@ -525,6 +525,10 @@ export const BALANCE = {
   // services above, reframed. These constants size only the one-time OS-version-release MOMENT —
   // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
   platform: {
+    // Founding the division is a major mid-game reinvestment you SAVE UP for — a real milestone, not
+    // a free toggle. High vs. the $20k start, but payback (~28wk at typical OS income) keeps it fair.
+    // Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
+    foundingCost: dollars(250_000),
     releaseRepBonus: 4,          // one-time reputation lift per OS version release
     releaseFanBaseBonus: 2_000,  // base fans gained on release
     releaseFanPerKInstalled: 5,  // + fans per 1,000 devices in the installed base
