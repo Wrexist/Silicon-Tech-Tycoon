@@ -1049,3 +1049,16 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - OS feature: a per-licensee fee tooltip; an installed-base trend sparkline. Minor legibility.
 - Franchises: an explicit "name this line" affordance + a Franchises overview (lines + their equity)
   in Market/Company; brand-equity decay on a long lapse (currently only recency-weighted by entry).
+
+## v33 — Franchises overview + rival company profiles (DONE 2026-06-23)
+- [x] **Rivals build real series** (`rivalAI.ts`): a stable flagship line per rival+category
+      (rivalLineName, deterministic) + a series number from prior releases → "Pomelo Lumen" → "… 2" → …
+      generateRivalProduct takes seriesIndex; gameState derives it. Determinism + rival stat tests hold.
+- [x] **Franchise aggregation** (`franchise.ts`, +2 tests): playerFranchises (group launches into lines
+      with equity, deepest first) + rivalLines (group a rival's releases + avg quality) + franchiseDisplayName.
+- [x] **UI** (Market.tsx): "Your franchises" card (per line: brand-equity tag + units + latest + equity
+      bar). Rival releases are now TAPPABLE → RivalProfileSheet: company card (reputation, market cap,
+      share, strategy/doctrine) + their product lines + recent releases + a Trade-shares jump.
+- 465 tests, tsc 0, build+PWA. preview.html updated (franchises + rival profile).
+- Backlog: an explicit "name this line" affordance in DesignLab; franchise revenue totals; surface
+      a rival's licensee/acquisition status in the profile.
