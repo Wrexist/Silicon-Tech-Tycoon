@@ -311,6 +311,15 @@ export const BALANCE = {
     },
   },
 
+  // --- Delegation & ops (Epic E) ---
+  // Late-game scale shouldn't mean more taps for the same decisions (the micromanagement death of
+  // Startup Company / Computer Tycoon; touch density is fatal on a phone). Automation only does what
+  // the player already can, and is GATED on having grown a senior staffer to "delegate" the function
+  // to — so it's earned, not free. leadSkill is the headline skill (1..10) that qualifies as a lead.
+  ops: {
+    leadSkill: 5,
+  },
+
   // --- Build / manufacturing ---
   build: {
     baseWeeks: 3, // weeks to manufacture a product before it can launch

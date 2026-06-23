@@ -25,6 +25,7 @@ import {
   hasProject,
   launchRpReward,
   projectById,
+  RESEARCH_PROJECTS,
   techRpCost,
   weeklyRp,
   type ProjectId,
@@ -223,6 +224,9 @@ export interface GameState {
   /** Epic B3 — ids of rivals the player has acquired (removed from competition). Tracked so an
    *  acquired rival never re-enters as a fresh challenger, and for UI/achievements. */
   acquiredRivals: string[];
+  /** Epic E — delegation toggles. Each automates an action the player can already do, and only takes
+   *  effect while the company is capable (a senior lead). Persisted per save. */
+  automation: { autoAssign: boolean; autoResearch: boolean };
 }
 
 /** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery. */
@@ -394,6 +398,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osLicensees: [],
     rivalReleases: [],
     acquiredRivals: [],
+    automation: { autoAssign: false, autoResearch: false },
   };
 }
 
@@ -896,6 +901,10 @@ export function rdRpCostFor(s: GameState, kind: ComponentKind): number | null {
 
 export function advanceOneWeek(state: GameState, rate = 1, offline = false): GameState {
   if (state.bankrupt) return state;
+  // Delegation (Epic E): apply enabled, capability-gated automations BEFORE the week runs, so an
+  // auto-assigned staffer contributes this week and an auto-claimed project is active immediately.
+  // Pure + off by default, so a save without delegation is byte-identical (determinism preserved).
+  state = applyWeeklyAutomation(state);
   const rng = rngFrom(state);
   const week = state.week + 1;
 
@@ -1905,6 +1914,52 @@ export function revokeOsLicense(state: GameState, rivalId: string): GameState {
 /** Reassign a staff member to a different function. */
 export function assignStaff(state: GameState, id: string, assignment: Assignment): GameState {
   return { ...state, staff: state.staff.map((s) => (s.id === id ? { ...s, assignment } : s)) };
+}
+
+// ---------- Delegation & ops (Epic E): automations that only do what the player already can ----------
+
+/** Whether the company can auto-assign — it has a senior staffer (a lead) to run the floor. */
+export function canAutoAssign(state: GameState): boolean {
+  return state.staff.some((s) => s.skill >= BALANCE.ops.leadSkill);
+}
+
+/** Whether the company can auto-research — it has a senior ENGINEER (an R&D lead). */
+export function canAutoResearch(state: GameState): boolean {
+  return state.staff.some((s) => s.role === "engineer" && s.skill >= BALANCE.ops.leadSkill);
+}
+
+/** Toggle a delegation automation. Pure. */
+export function setAutomation(state: GameState, patch: Partial<GameState["automation"]>): GameState {
+  return { ...state, automation: { ...state.automation, ...patch } };
+}
+
+/** Delegation: send every idle staffer to their role's discipline (what the player does by hand).
+ *  Pure; returns the SAME state object when nobody is idle (referential stability). */
+export function autoAssignIdle(state: GameState): GameState {
+  if (!state.staff.some((s) => s.assignment === "idle")) return state;
+  return {
+    ...state,
+    staff: state.staff.map((s) => (s.assignment === "idle" ? { ...s, assignment: ROLE_ASSIGNMENT[s.role] } : s)),
+  };
+}
+
+/** Delegation: claim the cheapest affordable, in-era, not-yet-completed research project — one per
+ *  week, so RP still accrues toward bigger goals and the player can still intervene. Pure; reuses
+ *  buyProject so it can never do anything the player couldn't. Same state when nothing is affordable. */
+export function autoClaimResearch(state: GameState): GameState {
+  const next = RESEARCH_PROJECTS
+    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints)
+    .sort((a, b) => a.rpCost - b.rpCost)[0];
+  return next ? buyProject(state, next.id) : state;
+}
+
+/** Apply all ENABLED + CAPABLE weekly automations (called at the top of the tick). Pure + deterministic
+ *  (no rng). Defaults are off, so a save without delegation runs byte-identically. */
+export function applyWeeklyAutomation(state: GameState): GameState {
+  let s = state;
+  if (state.automation.autoAssign && canAutoAssign(state)) s = autoAssignIdle(s);
+  if (state.automation.autoResearch && canAutoResearch(state)) s = autoClaimResearch(s);
+  return s;
 }
 
 /** Pay to instantly raise a staff member's skill by 1. */

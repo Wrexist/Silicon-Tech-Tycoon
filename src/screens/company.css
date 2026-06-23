@@ -3,6 +3,32 @@
   flex-direction: column;
   gap: var(--sp-12);
 }
+
+/* Delegation (Epic E) */
+.co__deleg { display: flex; flex-direction: column; gap: var(--sp-8); }
+.co__deleg-row { display: flex; align-items: center; gap: var(--sp-12); }
+.co__deleg-row--locked { opacity: 0.6; }
+.co__deleg-icon {
+  width: 34px; height: 34px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: var(--fn-eng-soft); color: var(--fn-eng);
+}
+.co__deleg-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.co__deleg-label { font-weight: 600; font-size: var(--fs-body); }
+.co__deleg-sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.35; }
+.co__switch {
+  width: 48px; height: 29px; flex-shrink: 0;
+  border-radius: var(--r-pill); background: var(--bg-elevated); padding: 3px;
+  transition: background var(--spring-snappy);
+}
+.co__switch--on { background: var(--positive); }
+.co__switch:disabled { opacity: 0.5; }
+.co__switch-knob {
+  display: block; width: 23px; height: 23px;
+  border-radius: var(--r-pill); background: var(--knob); box-shadow: var(--shadow-subtle);
+  transition: transform var(--spring-snappy);
+}
+.co__switch--on .co__switch-knob { transform: translateX(19px); }
 .co__fin-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
