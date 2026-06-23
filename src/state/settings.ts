@@ -9,13 +9,16 @@ export interface Settings {
   sound: boolean;
   haptics: boolean;
   garage3d: boolean;
+  /** Accessibility: high-contrast mode — stronger borders, muted text, and focus rings on top of the
+   *  current theme (a preference, so it survives a new company — not in the game save). */
+  highContrast: boolean;
   /** First-run Decorate tutorial: shown once the first time the player opens Decorate, then
    *  remembered here (a UI preference, so it survives a new company — not in the game save). */
   decorateTutorialSeen: boolean;
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, decorateTutorialSeen: false };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, highContrast: false, decorateTutorialSeen: false };
 
 function read(): Settings {
   try {
@@ -46,6 +49,7 @@ export function setSettings(patch: Partial<Settings>): void {
     /* ignore */
   }
   if (patch.theme !== undefined) applyTheme(current.theme);
+  if (patch.highContrast !== undefined) applyContrast(current.highContrast);
   emit();
 }
 
@@ -69,8 +73,16 @@ export function applyTheme(theme: ThemePref): void {
   void syncStatusBar(resolvedTheme());
 }
 
+/** Apply the high-contrast preference by toggling the attribute the CSS tokens key off. */
+export function applyContrast(high: boolean): void {
+  const root = document.documentElement;
+  if (high) root.setAttribute("data-contrast", "high");
+  else root.removeAttribute("data-contrast");
+}
+
 export function initSettings(): void {
   applyTheme(current.theme);
+  applyContrast(current.highContrast);
   // Follow live OS theme changes while the pref is "system" (also re-syncs the status bar).
   try {
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
