@@ -116,12 +116,49 @@ export function osEcosystemBonus(featureIds: readonly string[]): number {
   return Math.min(BALANCE.platform.features.ecoBonusCap, Math.max(0, sum));
 }
 
-/** Recurring-services revenue multiplier from the OS version + installed modules (>=1, capped). */
+// ---------- OS module synergies: pairs that reinforce each other ----------
+// Building two complementary modules unlocks a synergy — an extra services bonus on top of each
+// module's own. This rewards PLANNING the OS (build these two together), not just stacking modules.
+// Bonuses are bounded and still subject to servicesMultCap. IP-safe, fictional capabilities only.
+export interface OsSynergy {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Both module ids must be installed for the synergy to activate. */
+  requires: readonly [string, string];
+  /** Extra recurring-services multiplier while active. */
+  servicesMult: number;
+}
+
+export const OS_SYNERGIES: readonly OsSynergy[] = [
+  { id: "commerce", name: "One-Tap Commerce", requires: ["appMarket", "wallet"], servicesMult: 0.10,
+    blurb: "Buy from the store and pay in a single tap — conversions soar." },
+  { id: "handoff", name: "Seamless Handoff", requires: ["cloudSync", "continuity"], servicesMult: 0.10,
+    blurb: "Your files and your tasks follow you across every device, instantly." },
+  { id: "wellbeing", name: "Proactive Wellbeing", requires: ["assistant", "health"], servicesMult: 0.08,
+    blurb: "The assistant turns your health data into gentle daily nudges." },
+];
+
+/** Synergies currently active (both required modules installed). Pure. */
+export function activeOsSynergies(featureIds: readonly string[]): OsSynergy[] {
+  return OS_SYNERGIES.filter((s) => s.requires.every((r) => featureIds.includes(r)));
+}
+
+export interface OsSynergyRow extends OsSynergy { active: boolean; }
+
+/** Every synergy with its active/locked state, for the UI. */
+export function osSynergyRows(featureIds: readonly string[]): OsSynergyRow[] {
+  return OS_SYNERGIES.map((s) => ({ ...s, active: s.requires.every((r) => featureIds.includes(r)) }));
+}
+
+/** Recurring-services revenue multiplier from the OS version + installed modules + active synergies
+ *  (>=1, capped). */
 export function osServicesMultiplier(osVersion: number, featureIds: readonly string[]): number {
   const f = BALANCE.platform.features;
   const version = Math.max(1, Math.floor(osVersion || 1));
   let mult = 1 + (version - 1) * f.versionServicesStep;
   for (const id of featureIds) mult += osFeatureById(id)?.servicesMult ?? 0;
+  for (const s of activeOsSynergies(featureIds)) mult += s.servicesMult;
   return Math.min(f.servicesMultCap, Math.max(1, mult));
 }
 

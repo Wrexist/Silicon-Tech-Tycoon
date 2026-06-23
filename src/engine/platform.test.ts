@@ -11,6 +11,9 @@ import {
   osServicesMultiplier,
   osFeatureRows,
   canInstallOsFeature,
+  OS_SYNERGIES,
+  activeOsSynergies,
+  osSynergyRows,
 } from "./platform.ts";
 import { BALANCE } from "./balance.ts";
 import { toDollars } from "./money.ts";
@@ -125,6 +128,38 @@ describe("osServicesMultiplier", () => {
     const withApp = osServicesMultiplier(1, ["appMarket"]);
     expect(withApp).toBeGreaterThan(1);
     expect(osServicesMultiplier(5, OS_FEATURES.map((x) => x.id))).toBeLessThanOrEqual(f.servicesMultCap);
+  });
+});
+
+describe("OS module synergies", () => {
+  it("each synergy requires two real, distinct modules and a positive bonus", () => {
+    const ids = new Set(OS_FEATURES.map((f) => f.id));
+    for (const s of OS_SYNERGIES) {
+      expect(s.requires[0]).not.toBe(s.requires[1]);
+      expect(ids.has(s.requires[0])).toBe(true);
+      expect(ids.has(s.requires[1])).toBe(true);
+      expect(s.servicesMult).toBeGreaterThan(0);
+    }
+  });
+  it("activates only when BOTH required modules are installed", () => {
+    const s = OS_SYNERGIES[0];
+    expect(activeOsSynergies([s.requires[0]])).toHaveLength(0); // one half → inactive
+    expect(activeOsSynergies([s.requires[0], s.requires[1]]).map((x) => x.id)).toContain(s.id);
+  });
+  it("an active synergy lifts the services multiplier beyond the two modules alone", () => {
+    const s = OS_SYNERGIES[0];
+    const both = osServicesMultiplier(1, [s.requires[0], s.requires[1]]);
+    // Same two modules but synergy disabled by removing one and adding an unrelated module isn't
+    // a clean control; instead assert the synergy bonus is included in the pair's multiplier.
+    const modulesOnly =
+      1 + (osFeatureById(s.requires[0])!.servicesMult + osFeatureById(s.requires[1])!.servicesMult);
+    expect(both).toBeCloseTo(modulesOnly + s.servicesMult, 9);
+  });
+  it("osSynergyRows reports active/locked state", () => {
+    const rows = osSynergyRows([OS_SYNERGIES[0].requires[0]]);
+    expect(rows.find((r) => r.id === OS_SYNERGIES[0].id)!.active).toBe(false);
+    const rows2 = osSynergyRows([...OS_SYNERGIES[0].requires]);
+    expect(rows2.find((r) => r.id === OS_SYNERGIES[0].id)!.active).toBe(true);
   });
 });
 

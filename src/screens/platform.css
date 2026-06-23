@@ -86,6 +86,22 @@
 }
 .plat__feat-tag--on { color: var(--positive); background: color-mix(in srgb, var(--positive) 14%, transparent); }
 
+/* OS module synergies */
+.plat__syn-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); margin: var(--sp-16) 0 var(--sp-8); }
+.plat__syn-head > span:first-child { font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.plat__syn-hint { font-size: var(--fs-nano); color: var(--ink-3); }
+.plat__syns { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); }
+.plat__syn { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); background: var(--surface-2); border: 1px dashed var(--hairline); }
+.plat__syn--on { border-style: solid; border-color: color-mix(in srgb, var(--accent) 36%, var(--hairline)); background: var(--accent-soft); }
+.plat__syn-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.plat__syn-name { display: inline-flex; align-items: center; gap: var(--sp-4); font-weight: 600; font-size: var(--fs-body); }
+.plat__syn--on .plat__syn-name { color: var(--accent); }
+.plat__syn-name svg { color: var(--accent); }
+.plat__syn-blurb { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; }
+.plat__syn-req { font-size: var(--fs-nano); font-weight: 600; color: var(--ink-3); }
+.plat__syn-eff { flex-shrink: 0; font-size: var(--fs-nano); font-weight: 700; color: var(--ink-3); }
+.plat__syn--on .plat__syn-eff { color: var(--accent); }
+
 /* OS build progress — the dopamine ladder: every build advances the bar toward a complete platform */
 .plat__os-progress { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
 .plat__os-progress-track { flex: 1; height: 8px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }

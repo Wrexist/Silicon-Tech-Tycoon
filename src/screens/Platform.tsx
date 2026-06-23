@@ -24,7 +24,7 @@ import {
   osServicesMult,
   weeklyLicenseFees,
 } from "../state/gameState.ts";
-import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift } from "../engine/platform.ts";
+import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById } from "../engine/platform.ts";
 import { format, add, toDollars } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./platform.css";
@@ -193,6 +193,25 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
               </li>
             );
           })}
+        </ul>
+
+        <div className="plat__syn-head">
+          <span>Synergies</span>
+          <span className="plat__syn-hint">pair modules for a bonus</span>
+        </div>
+        <ul className="plat__syns">
+          {osSynergyRows(state.osFeatures).map((s) => (
+            <li key={s.id} className={`plat__syn${s.active ? " plat__syn--on" : ""}`}>
+              <div className="plat__syn-main">
+                <span className="plat__syn-name">
+                  {s.active && <Check size={13} aria-hidden />}{s.name}
+                </span>
+                <span className="plat__syn-blurb">{s.blurb}</span>
+                <span className="plat__syn-req">{s.requires.map((id) => osFeatureById(id)?.name ?? id).join(" + ")}</span>
+              </div>
+              <span className="plat__syn-eff tnum">+{Math.round(s.servicesMult * 100)}% services</span>
+            </li>
+          ))}
         </ul>
       </Card>
 
