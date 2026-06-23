@@ -47,6 +47,9 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
   const rp = Math.floor(state.researchPoints);
   // OS-completion celebration: shown when the player builds the LAST remaining module.
   const [celebrate, setCelebrate] = useState(false);
+  // OS version-release celebration: captures the launch-day reward so it survives the card swapping
+  // to "up to date" the instant the version ships.
+  const [released, setReleased] = useState<{ version: number; fans: number; rep: number; base: number } | null>(null);
   const builtCount = features.filter((f) => f.status === "installed").length;
   const totalCount = features.length;
   const allBuilt = builtCount >= totalCount && totalCount > 0;
@@ -110,7 +113,11 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
               Your research has moved ahead of your released OS. Ship <strong>{tier.name} ({tier.tier}.0)</strong> to
               update the whole installed base — a goodwill moment worth <strong>+{reward.fans.toLocaleString()} fans</strong> and reputation.
             </p>
-            <Button block onClick={() => { haptic.success(); releaseOsVersion(); }}>
+            <Button block onClick={() => {
+              haptic.success();
+              releaseOsVersion();
+              setReleased({ version: tier.tier, fans: reward.fans, rep: reward.reputation, base });
+            }}>
               <Rocket size={15} /> Release {tier.name} {tier.tier}.0
             </Button>
           </>
@@ -227,6 +234,22 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
           ]}
           confirmLabel="Brilliant"
           onConfirm={() => setCelebrate(false)}
+        />
+      )}
+
+      {released && (
+        <Celebration
+          eyebrow="OS released"
+          title={`${osDisplayName(state)} ${released.version}.0`}
+          sub={`Shipped across your installed base — ${released.base.toLocaleString()} devices update overnight.`}
+          icon={<Rocket size={32} />}
+          sound="era"
+          chips={[
+            { icon: <Users size={14} />, value: `+${released.fans.toLocaleString()}`, label: "fans" },
+            { icon: <Sparkles size={14} />, value: `+${released.rep}`, label: "reputation" },
+          ]}
+          confirmLabel="Onwards"
+          onConfirm={() => setReleased(null)}
         />
       )}
     </div>
