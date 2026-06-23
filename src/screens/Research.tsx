@@ -12,7 +12,7 @@ import { eraName, maxEra } from "../engine/eras.ts";
 import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { rdRpCostFor, researchedTier, weeklyRpGen, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
+import { rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -202,6 +202,28 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           <p className="rd__bank-hint">Assign staff to R&amp;D (Company tab) to earn more Research Points.</p>
         )}
       </Card>
+
+      {/* Research income — where the weekly RP comes from, so the player can see how to grow it
+          (skilled engineers on R&D, the era multiplier). Read-only; the sum equals the banner's +/wk. */}
+      {perWeek > 0 && (() => {
+        const sources = weeklyRpSources(state).filter((s) => s.rp >= 0.05);
+        const maxRp = Math.max(...sources.map((s) => s.rp), 0.01);
+        return (
+          <Card className="rd__income">
+            <SectionHeader title="Research income" accessory={`+${perWeek.toFixed(1)}/wk`} />
+            <ul className="rd__income-list">
+              {sources.map((s) => (
+                <li key={s.id} className="rd__income-row">
+                  <span className="rd__income-label">{s.id === "founder" ? "Founder trickle" : s.label}</span>
+                  <span className="rd__income-bar" aria-hidden><i style={{ width: `${Math.round((s.rp / maxRp) * 100)}%` }} /></span>
+                  <span className="rd__income-rp tnum">+{s.rp.toFixed(1)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="rd__income-hint">Assign more skilled engineers to R&amp;D to grow this — and each era multiplies your output.</p>
+          </Card>
+        );
+      })()}
 
       {/* Design unlocks — the device-design capabilities RP buys (camera lenses + premium
           finishes), surfaced in the same hub as component tiers + projects so the RP economy

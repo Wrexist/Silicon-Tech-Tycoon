@@ -26,6 +26,7 @@ import {
   launchRpReward,
   projectById,
   RESEARCH_PROJECTS,
+  rpSources,
   techRpCost,
   weeklyRp,
   type ProjectId,
@@ -547,6 +548,18 @@ export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
   s.cash >= dollars(furnitureCost(type));
 
 export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+
+/** The global multiplier applied to base RP output (R&D upgrades × office focus × legacy perk). */
+export const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+
+/** Weekly RP itemized by source, with the global multiplier folded in — so the displayed sum equals
+ *  weeklyRpGen(s). Sorted by contribution, biggest first. For the Research "income" breakdown. */
+export const weeklyRpSources = (s: GameState) => {
+  const g = rpGlobalMult(s);
+  return rpSources(s.staff, s.era)
+    .map((src) => ({ ...src, rp: src.rp * g }))
+    .sort((a, b) => b.rp - a.rp);
+};
 export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
