@@ -1059,8 +1059,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Dividend income from rival shares the player holds (uses this week's fresh prices).
   cash = add(cash, scale(weeklyDividends(state.holdings, competitors), rate));
 
-  // Creative / sandbox mode keeps the company solvent for free experimentation.
-  if (state.sandboxUnlocked && cash < dollars(1_000_000)) cash = dollars(1_000_000);
+  // Creative / sandbox mode: top cash up to the (effectively unlimited) floor for free experimentation.
+  if (state.sandboxUnlocked && cash < BALANCE.creative.cashFloor) cash = BALANCE.creative.cashFloor;
 
   // Feed events
   const feed = [...state.feed];
@@ -1135,7 +1135,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // multiplier and, later, the legacy perk bonus — the UI lied for players who had them).
   // RP must stay a non-negative integer: partial (offline, rate=0.5) ticks accrue
   // fractional RP, so floor on accrual to keep the counter clean.
-  const researchPoints = floorRP(state.researchPoints + weeklyRpGen(state) * rate);
+  let researchPoints = floorRP(state.researchPoints + weeklyRpGen(state) * rate);
+  // Creative / sandbox mode: research is free too, so every tier + OS module is open to experiment with.
+  if (state.sandboxUnlocked && researchPoints < BALANCE.creative.rpFloor) researchPoints = BALANCE.creative.rpFloor;
 
   // Manufacturing: advance build jobs; completed ones move to the "ready" shelf
   const building: BuildJob[] = [];
@@ -1953,6 +1955,15 @@ export function setWallStyle(state: GameState, i: number): GameState {
 export function setCompanyName(state: GameState, name: string): GameState {
   const trimmed = name.trim().slice(0, 18);
   return { ...state, companyName: trimmed || "Silicon" };
+}
+
+/** Toggle Creative / Sandbox mode. Enabling it tops cash + research up to the (effectively unlimited)
+ *  Creative floors immediately, so it feels limitless right away rather than waiting for the next tick. */
+export function setSandbox(state: GameState, on: boolean): GameState {
+  if (!on) return { ...state, sandboxUnlocked: false };
+  const cash = state.cash < BALANCE.creative.cashFloor ? BALANCE.creative.cashFloor : state.cash;
+  const researchPoints = state.researchPoints < BALANCE.creative.rpFloor ? BALANCE.creative.rpFloor : state.researchPoints;
+  return { ...state, sandboxUnlocked: true, cash, researchPoints };
 }
 
 // ---------- Platform / OS division (DLC #1) ----------

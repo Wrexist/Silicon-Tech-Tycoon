@@ -355,7 +355,7 @@ function CreativeModeGroup() {
         <Row
           icon={<Sparkles size={18} />}
           label="Sandbox mode"
-          sub={state.sandboxUnlocked ? "Active — cash floor prevents bankruptcy. Design freely." : "Owned. Toggle on to design without financial limits."}
+          sub={state.sandboxUnlocked ? "Active — unlimited funds & research. Design freely." : "Owned. Toggle on to design without limits — unlimited money & research."}
         >
           <Switch label="Sandbox mode" on={state.sandboxUnlocked} onChange={(v) => { setSandboxActive(v); haptic.light(); sfx("toggle"); }} />
         </Row>

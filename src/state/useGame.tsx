@@ -52,6 +52,7 @@ import {
   sellShares,
   setAutomation,
   setCompanyName,
+  setSandbox,
   setFloorStyle,
   setLayout,
   setWallStyle,
@@ -772,7 +773,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const setCompanyNameCb = useCallback((name: string) => setState((s) => setCompanyName(s, name)), []);
   // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
   // caller (Settings only shows the toggle once the IAP entitlement is held).
-  const setSandboxActive = useCallback((on: boolean) => setState((s) => ({ ...s, sandboxUnlocked: on })), []);
+  const setSandboxActive = useCallback((on: boolean) => setState((s) => setSandbox(s, on)), []);
   const setAutomationCb = useCallback((patch: Partial<GameState["automation"]>) => setState((s) => setAutomation(s, patch)), []);
   const setOsNameCb = useCallback((name: string) => setState((s) => setOsName(s, name)), []);
   const unlockPlatformCb = useCallback((on: boolean) => setState((s) => unlockPlatform(s, on)), []);
