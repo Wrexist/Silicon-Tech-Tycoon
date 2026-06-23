@@ -14,8 +14,11 @@ import {
   startBuild,
   effectiveUnitCost,
   verdictBands,
+  weeklyEcosystemRevenue,
+  RIVAL_RELEASES_CAP,
   type GameState,
 } from "../state/gameState.ts";
+import { CATEGORIES } from "./catalogs.ts";
 
 /** Build a product to launch-ready, then return the recorded verdict. */
 function buildAndLaunch(s0: GameState, product: Product): string | undefined {
@@ -230,6 +233,116 @@ function activeLaunched(p: Product, weeks = 4): LaunchedProduct {
     verdict: "steady",
   };
 }
+
+describe("Epic A — market segments drive planning end-to-end", () => {
+  it("planProduction exposes a populated segment breakdown consistent with demandFit", () => {
+    const s = newGame(11);
+    const plan = planProduction(s, phone(), 5000, "none");
+    expect(plan.segments.perSegment).toHaveLength(5);
+    // demandFit is now the segment-weighted demand index (the override fed to scoreLaunch).
+    expect(plan.demandFit).toBeCloseTo(plan.segments.demandIndex, 5);
+    expect(["budget", "mainstream", "pro", "style", "enterprise"]).toContain(plan.segments.dominant);
+  });
+
+  it("raising the price erodes the price-sensitive Budget segment more than the Pro segment", () => {
+    const s = newGame(12);
+    const cheap = planProduction(s, { ...phone(), price: dollars(150) }, 5000, "none");
+    const dear = planProduction(s, { ...phone(), price: dollars(600) }, 5000, "none");
+    const cap = (p: typeof cheap, id: string) => p.segments.perSegment.find((x) => x.id === id)!.captured;
+    // Budget loses capture as price climbs…
+    expect(cap(cheap, "budget")).toBeGreaterThan(cap(dear, "budget"));
+    // …and it loses MORE than the price-insensitive Pro segment does (elasticity through the pipeline).
+    expect(cap(cheap, "budget") - cap(dear, "budget")).toBeGreaterThan(cap(cheap, "pro") - cap(dear, "pro"));
+  });
+
+  it("records the winning/losing segment in the launch insight (readable verdict, pillar #5)", () => {
+    const s0 = { ...newGame(13), cash: dollars(50_000_000) };
+    let s = startBuild(s0, phone(), recommendedRun(s0, phone(), "none"), "none").state;
+    const weeks = buildWeeksFor(s) + 1;
+    for (let i = 0; i < weeks; i++) s = advanceOneWeek(s);
+    const launched = launchReady(s, s.ready[0].id).state.launched[0];
+    expect(launched.insight?.dominantSegment).toBeDefined();
+    expect(launched.insight?.weakestSegment).toBeDefined();
+    expect(launched.insight?.perSegment).toHaveLength(5);
+  });
+});
+
+describe("Franchises — a proven product line launches stronger", () => {
+  const hitLaunch = (name: string): LaunchedProduct => ({
+    ...activeLaunched({ ...phone(), id: name, name }, 4),
+    weeksElapsed: 4, // lifecycle-complete → no self-cannibalization, isolating the brand effect
+    verdict: "hit",
+    unitsSold: 5000,
+  });
+
+  it("a hit line lifts pre-orders + hype vs an identical first-in-line product", () => {
+    const base: GameState = { ...newGame(21), fans: 4000, reputation: 40 };
+    const fresh = planProduction(base, phone(), 5000, "none"); // "Aurora One" — no history
+    const proven = planProduction(
+      { ...base, launched: [hitLaunch("Aurora Three"), hitLaunch("Aurora Two")] },
+      phone(), 5000, "none",
+    );
+    expect(fresh.brand.equity).toBe(0);
+    expect(proven.brand.equity).toBeGreaterThan(0);
+    expect(proven.hype).toBeGreaterThan(fresh.hype);
+    expect(proven.preOrders).toBeGreaterThanOrEqual(fresh.preOrders);
+  });
+
+  it("a different-named product does NOT inherit another line's equity", () => {
+    const base: GameState = { ...newGame(22), fans: 4000, launched: [hitLaunch("Aurora Two")] };
+    const sameLine = planProduction(base, { ...phone(), name: "Aurora Three" }, 5000, "none");
+    const offLine = planProduction(base, { ...phone(), name: "Zephyr One" }, 5000, "none");
+    expect(sameLine.brand.equity).toBeGreaterThan(0);
+    expect(offLine.brand.equity).toBe(0);
+  });
+});
+
+describe("Epic D — era-distinct mechanics shift the economy", () => {
+  // A lifecycle-complete, high-ecosystem product with a big installed base — pure ecosystem annuity.
+  const ecoProduct = (): LaunchedProduct => ({
+    ...activeLaunched(phone(), 4),
+    weeksElapsed: 4,
+    unitsSold: 50_000,
+    stats: { performance: 30, quality: 30, battery: 30, design: 30, ecosystem: 80 },
+  });
+
+  it("the Platform era pays MORE ecosystem revenue than the Garage era for the same installed base", () => {
+    const garage: GameState = { ...newGame(1), era: 1, launched: [ecoProduct()] };
+    const platform: GameState = { ...newGame(1), era: 3, launched: [ecoProduct()] };
+    expect(toDollars(weeklyEcosystemRevenue(platform))).toBeGreaterThan(toDollars(weeklyEcosystemRevenue(garage)));
+  });
+
+  it("the late eras amplify marketing reach in the launch forecast", () => {
+    const base: GameState = { ...newGame(2), reputation: 40, fans: 2000 };
+    const s1: GameState = { ...base, era: 1 };
+    const s4: GameState = { ...base, era: 4 };
+    // Same product, same marketing — the AI era's marketing multiplier lifts hype (and thus the score).
+    const p1 = planProduction(s1, phone(), 5000, "event");
+    const p4 = planProduction(s4, phone(), 5000, "event");
+    expect(p4.hype).toBeGreaterThan(p1.hype);
+  });
+});
+
+describe("Epic B — living rivals ship real, renderable products", () => {
+  it("rival launches populate rivalReleases with valid products", () => {
+    let s: GameState = { ...newGame(42), cash: dollars(50_000_000) };
+    for (let i = 0; i < 16; i++) s = advanceOneWeek(s);
+    expect(s.rivalReleases.length).toBeGreaterThan(0);
+    const r = s.rivalReleases[0];
+    expect(r.product.name.length).toBeGreaterThan(0);
+    expect(toDollars(r.product.price)).toBeGreaterThan(0);
+    for (const kind of CATEGORIES[r.category].slots) expect(r.product.tiers[kind]).toBeDefined();
+  });
+
+  it("rivalReleases stays capped and newest-first over a long run", () => {
+    let s: GameState = { ...newGame(43), cash: dollars(50_000_000) };
+    for (let i = 0; i < 200; i++) s = advanceOneWeek(s);
+    expect(s.rivalReleases.length).toBeLessThanOrEqual(RIVAL_RELEASES_CAP);
+    if (s.rivalReleases.length > 1) {
+      expect(s.rivalReleases[0].week).toBeGreaterThanOrEqual(s.rivalReleases[s.rivalReleases.length - 1].week);
+    }
+  });
+});
 
 describe("v16 balance guards (audit fixes)", () => {
   it("your own active product in the category cannibalizes a relaunch's demand", () => {

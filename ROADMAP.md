@@ -5,6 +5,11 @@ Supersedes scattered "next" notes in `TASK.md`, `RETENTION_ROADMAP.md`, `DLC_OS_
 and `OFFICE_SHOP_PLAN.md` — those remain the detailed specs; **this file is the sequence and the
 priorities.** When they disagree, this file wins; update it as work lands.
 
+> **Long-horizon companion:** `EXPANSION_ROADMAP.md` is the forward *thesis* — the big depth bets
+> (market segments, living rivals, era-distinct mechanics) and the readability/feel moat, grounded in
+> a fresh 2024–2026 competitor research pass. This file (`ROADMAP.md`) stays the near-term sequence;
+> read `EXPANSION_ROADMAP.md` for *where the game goes next* and the spec behind the Phase 7+ bullets.
+
 > **The one rule that orders everything below:** nothing post-launch matters until the game is
 > *purchasable*. Phase 0 (ship v1.0) is owner-side and is the only thing on the critical path.
 > Every other phase is goodwill, depth, or revenue — all of it gated behind being live.

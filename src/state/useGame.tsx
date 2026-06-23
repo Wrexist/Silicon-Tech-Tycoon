@@ -21,6 +21,7 @@ import {
   buyProject,
   REV_MILESTONES,
   buyShares,
+  acquireRival,
   buyUpgrade,
   buyDesktop,
   cutProductPrice,
@@ -49,6 +50,7 @@ import {
   rotateFurniture,
   sellOwnStake,
   sellShares,
+  setAutomation,
   setCompanyName,
   setFloorStyle,
   setLayout,
@@ -342,6 +344,7 @@ interface GameContextValue {
   importSave: (str: string) => boolean;
   setCompanyName: (name: string) => void;
   setSandboxActive: (on: boolean) => void;
+  setAutomation: (patch: Partial<GameState["automation"]>) => void;
   // Platform / OS division (DLC #1)
   setOsName: (name: string) => void;
   unlockPlatform: (on: boolean) => void;
@@ -362,6 +365,7 @@ interface GameContextValue {
   // equity / stock market
   buyShares: (id: string, qty: number) => void;
   sellShares: (id: string, qty: number) => void;
+  acquireRival: (id: string) => void;
   listCompany: (stake: number) => void;
   sellOwnStake: (pct: number) => void;
   cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
@@ -763,6 +767,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
   // caller (Settings only shows the toggle once the IAP entitlement is held).
   const setSandboxActive = useCallback((on: boolean) => setState((s) => ({ ...s, sandboxUnlocked: on })), []);
+  const setAutomationCb = useCallback((patch: Partial<GameState["automation"]>) => setState((s) => setAutomation(s, patch)), []);
   const setOsNameCb = useCallback((name: string) => setState((s) => setOsName(s, name)), []);
   const unlockPlatformCb = useCallback((on: boolean) => setState((s) => unlockPlatform(s, on)), []);
   const releaseOsVersionCb = useCallback(() => {
@@ -792,6 +797,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
   const sellSharesCb = useCallback((id: string, qty: number) => setState((s) => sellShares(s, id, qty)), []);
+  const acquireRivalCb = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const next = withLiveAchievements(acquireRival(prev, id));
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const listCompanyCb = useCallback((stake: number) => setState((s) => withLiveAchievements(listCompany(s, stake))), []);
   const sellOwnStakeCb = useCallback((pct: number) => setState((s) => sellOwnStake(s, pct)), []);
   const cutProductPriceCb = useCallback((productId: string, newPrice: Money) => {
@@ -886,6 +898,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       importSave,
       setCompanyName: setCompanyNameCb,
       setSandboxActive,
+      setAutomation: setAutomationCb,
       setOsName: setOsNameCb,
       unlockPlatform: unlockPlatformCb,
       releaseOsVersion: releaseOsVersionCb,
@@ -903,6 +916,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setWallStyle: setWallStyleCb,
       buyShares: buySharesCb,
       sellShares: sellSharesCb,
+      acquireRival: acquireRivalCb,
       listCompany: listCompanyCb,
       sellOwnStake: sellOwnStakeCb,
       cutProductPrice: cutProductPriceCb,
@@ -911,7 +925,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setOsNameCb, unlockPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

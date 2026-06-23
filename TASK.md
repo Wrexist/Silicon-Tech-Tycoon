@@ -850,3 +850,232 @@ engagement-farming. 333 tests, tsc 0, build+PWA green.
   (typographic — debatable vs the Lucide rule).
 **Larger projects (logged earlier, unchanged):** full state/actions context split (F36); rem-based
   type / Dynamic Type; iPad layout; more choice events / NG+ variety / component sidegrades.
+
+## v24 — post-launch depth: market segments + living rivals (Epic A + B1) (DONE 2026-06-22)
+The first post-launch feature chapter (v1.0 is live). Built from `EXPANSION_ROADMAP.md` (a fresh
+2024–2026 competitor research pass). Owner authorized Epics A + B. Engine-first, backward-compatible,
+405 tests green, tsc 0, build+PWA ok.
+
+### Epic A — Market Segments (the demand-model second axis) — COMPLETE end-to-end
+The market is split into five buyer segments, each weighting the five stats AND price differently;
+a launch wins a SHARE OF EACH segment, summed — so "who is this for?" is a real positioning decision
+(the strike at the genre's solved-recipe failure: GDT/Mad Games Tycoon).
+- [x] **Engine** (`engine/segments.ts`, PURE +9 tests): `SEGMENTS` (Budget/Mainstream/Pro/Style/
+      Enterprise); `segmentEffectiveWeights` (segment taste × category emphasis × global-trend tilt —
+      trend-drift still matters); `segmentFit`; `segmentPriceFit` (per-segment elasticity); `segmentDemand`
+      → per-segment breakdown + `demandIndex` + `effectivePriceFit` (drop-in analogs) + dominant/weakest.
+      `balance.ts` gains an additive `market.segments` block (trendInfluence, minPriceTolerance).
+- [x] **Integration** (`market.ts` PROTECTED, additive: optional `demandOverride`/`priceFitOverride` on
+      scoreLaunch — omitted = identical pre-segments behaviour; `gameState.planProduction` feeds the two
+      aggregates; `ProductionPlan.segments`; `launchReady` records dominant/weakest/per-segment in the
+      launch insight). Balance preserved: a balanced product's demandIndex averages back to the old
+      single-trend demand, so era thresholds / verdict bands / maiden-launch fairness are unchanged
+      (full suite green). Lopsided products diverge — that IS the new depth. `types.ts` SegmentId +
+      LaunchInsight optional fields. +3 production integration tests.
+- [x] **UI**: DesignLab wizard "Who it's for" bars (which segment each design wins, best-fit accented);
+      Market post-launch "Audience" driver ("strongest with Pro; weakest with Budget — priced out").
+- NOT verified on-device: segment-bar layout; live economic FEEL of lopsided builds needs a playtest
+      (mechanism pinned by tests; segment weights/sizes in segments.ts are the tuning knobs).
+
+### Epic B — Living Rivals (phase B1: rivals ship real products) — visibility layer COMPLETE
+Rivals were invisible "strength" emitters; now each launch is a real, renderable device you can see
+and learn from (fix for Computer Tycoon's "rivals are just a color on the map").
+- [x] **Engine** (`engine/rivalAI.ts`, PURE +7 tests): `generateRivalProduct` builds a full Product
+      (era-gated tiers, finish, camera, price, original name) whose quality tracks launch strength and
+      whose style/margin follow the rival's tone (premium/value/balanced from competitors.ts identity).
+- [x] **State** (`gameState.rivalReleases`, capped 24, newest-first; persistence backfill): the tick
+      converts each rival launch into a RivalRelease via a DERIVED rng (seeded from save+week+index) so
+      the MAIN sim rng stream stays byte-identical — determinism pin + all seed tests unchanged. Feed
+      lines name the device. +2 integration tests.
+- [x] **UI**: Market "Rival releases" card — each rival device via DeviceRenderer (zero assets) with
+      name/category/price/tone tag.
+- NOT verified on-device: Rival releases card layout.
+### Epic B — Living Rivals (phases B2 + B3) — COMPLETE (v25, 2026-06-23)
+- [x] **B2 — reactive doctrines** (`competitors.ts`): RivalDef.isLead → `doctrine`
+      (defender/trendChaser/undercutter/generalist) + `rivalDoctrine()`. A trend-chaser piles
+      category-selection weight onto the player's hot cats; a defender adds strength + cadence (the old
+      lead numbers, unchanged); an undercutter ships an aggressively cheap product (`contested` flag on
+      CompetitorLaunch + a visible price slash via rivalAI) and presses cadence — never raw strength,
+      so the contested ceiling + winnability are preserved (300-week cap guard test). Feed reads
+      "Pandacore X undercuts your Phone"; Market shows an "undercut" badge. +6 tests.
+- [x] **B3 — M&A + new entrants** (`competitors.ts` CHALLENGER_POOL + spawnChallenger; `gameState`
+      acquireRival/canAcquire/acquisitionCost; `state.acquiredRivals`). Buy out a rival (cost = market
+      cap × premium − your existing stake), removing it + absorbing its brand (+rep) and customers
+      (+fans, capped); gated on established + a field floor. The tick refills a thinned field with a
+      fresh challenger — rng drawn ONLY on that branch, so a normal game's determinism is byte-identical.
+      UI: Market TradeSheet "Acquire" action (two-tap confirm, self-explaining gate). +5 tests.
+- NOT verified on-device: Acquire control + undercut badge layout.
+- **Epic B fully shipped** (B1 visible products → B2 doctrines → B3 M&A). 416 tests, tsc 0, build+PWA.
+
+### Epics A + B — next possible chapters (open)
+- Segment playtest-tuning pass (weights/sizes/trendInfluence) once felt on device.
+- Per-segment SIZES could drift over time / by era (a Pro-heavy AI era), making positioning dynamic.
+- Rival mortality (organic exits via a rival-fortune signal) — deferred; B3's player-driven removal +
+      entrants already keeps the field churning.
+- Acquired-rival synergies (inherit their preferred categories as a launch bonus); M&A achievements.
+
+## v26 — Epic C: the Verdict Layer (readability moat) (DONE 2026-06-23)
+The H1 "make it legible" bet from EXPANSION_ROADMAP §4 — cheapest, lowest-risk, most review-quotable,
+and it amplifies the Epic A segments. Engine-first, additive. 428 tests, tsc 0, build+PWA.
+- [x] **C2 — converging pre-launch forecast** (`engine/forecast.ts`, pure +6 tests): forecastConfidence
+      (marketer skill + Demand Sensing, capped) → forecastBand (base→floor, monotone, never above the
+      no-knowledge band). The wizard band uses it AND the realized launch variance is remapped into the
+      same band (gameState.launchReady), so a tighter forecast is HONEST. Wizard shows a
+      "Forecast confidence: Low/Med/High" row. baseBand mirrors demandVariance (no-knowledge = old ±12%).
+- [x] **C1 — first-class ranked post-mortem** (`engine/postmortem.ts`, pure +6 tests): scores how
+      decisive each factor was (demand/price/competition/hype/audience), ranks them, writes a synthesized
+      headline (segment-aware via Epic A's perSegment). Market ProductDetailSheet orders drivers by
+      impact, flags the 2–3 "key factor"s, dims the rest, and leads with the headline. Falls back to the
+      plain list for pre-insight saves.
+- NOT verified on-device: post-mortem headline + forecast row layout.
+- **Remaining:** C3 — plain-language explainers ("what it does and who wants it") for every
+      stat/component/segment (Two Point "almost nothing is confusing"). Lower leverage; open.
+
+### Roadmap status after v26
+Shipped: A (segments), B (living rivals), C1+C2 (verdict layer). Open H1/H2/H3 epics:
+C3 (explainers), D (era-distinct mechanics — PROTECTED, needs playtest), E (delegation/ops),
+F (reactive audio + a11y), G1 (form→demand, needs A — now unblocked), G2 (surface synergy),
+G3 (new categories/era DLC). Next-best by leverage: G2 (cheap, UI over existing synergy math) or
+F (premium feel/a11y); G1 is now unblocked by segments.
+
+## v27 — Epic G: deepen the design toy (G1 + G2) (DONE 2026-06-23)
+- [x] **G2 — surface component synergy** (DesignLab, pure UI over existing componentSynergy): the live
+      view now shows a two-sided "Build" readout — "Flagship +6%" / "Balanced" / "Weak: Battery" — with
+      a one-line explanation that names the bottleneck OR celebrates the coherent-build bonus (the
+      Kairosoft combo "aha", pillar #5). No engine change.
+- [x] **G1 — form affects demand** (`engine/aesthetics.ts`, pure +5 tests): styleAppeal(product) turns
+      the previously-inert render choices (notch, camera module/layout coherence, flash) into a bounded
+      0..8 bonus that lifts the Style segment's fit ONLY (segmentDemand optional param, default 0 →
+      backward compatible; +2 segment tests). finish/designTier/refresh are NOT re-counted (already in
+      the design stat). planProduction passes it; the DesignLab live breakdown now runs through the SAME
+      segment model as the wizard/launch (fixes a post-Epic-A inconsistency where live "Fit" was the old
+      single-trend score) and shows a "Design language: Striking/Clean/Plain/Dated" readout.
+- NOT verified on-device: design-language readout + the live feel of the style weighting (playtest).
+- **Remaining:** G3 — new categories / a new era past AI as content drops (renderer already supports
+      the silhouettes; gameplay-gated). Data in catalogs.ts; S each.
+
+### Roadmap status after v27
+Shipped: A (segments), B (living rivals), C1+C2 (verdict layer), G1+G2 (design toy). Open:
+C3 (plain-language explainers), D (era-distinct mechanics — PROTECTED, playtest-heavy),
+E (delegation/ops), F (reactive audio + a11y), G3 (new categories/era DLC).
+Next-best by leverage: F (premium feel/a11y — earns the price, dodges "rip-off" reviews) or
+E (delegation — touch-critical for late-game scale). D is highest playtest cost; G3 is content cadence.
+
+## v28 — Epic F: premium feel — accessibility slice (DONE 2026-06-23)
+- [x] **High-contrast mode** (`state/settings.ts` highContrast pref + applyContrast; `design/tokens.css`
+      [data-contrast="high"] overrides for light AND dark — near-ink muted text, visible hairlines/strokes,
+      --focus-width 2→3px; `index.css` focus ring reads the token; Settings "High contrast" toggle).
+      Purely additive — off by default, scoped to the root attribute, default experience byte-identical.
+      Base theme already clears WCAG AA (text variants, reduced-motion, focus rings); this serves
+      low-vision users beyond AA. 435 tests, tsc 0, build+PWA.
+- **DEFERRED (need on-device/audio session):** F reactive-audio palette + per-action microinteractions
+      (can't be heard/felt headless; RULE #1 = don't ship polish rough). Colorblind-safe palette swap
+      also deferred (the app already pairs tone with icons/labels; a full red/green remap risks the
+      function-colour identity — do it with eyes on device).
+
+### Roadmap status after v28
+Shipped: A (segments), B (living rivals), C1+C2 (verdict layer), G1+G2 (design toy), F-a11y (high contrast).
+Open: C3 (explainers), D (era-distinct mechanics — PROTECTED, playtest-heavy), E (delegation/ops),
+F-audio + F-microinteractions (on-device), G3 (new categories/era DLC).
+STRONG RECOMMENDATION: an on-device playtest of the A→B→C→G stack before more balance-sensitive work —
+a lot has landed engine-side (segments reshape demand, rivals, forecast, style→demand) without on-device
+validation of FEEL. Next buildable-blind epic: E (delegation, low-risk, touch-critical) or C3 (explainers).
+
+## v29 — Epic E: delegation & ops (DONE 2026-06-23)
+- [x] **Delegation** (`gameState.ts` pure policies +7 tests `state/ops.test.ts`): canAutoAssign /
+      canAutoResearch (gated on a senior staffer / senior engineer, BALANCE.ops.leadSkill=5);
+      autoAssignIdle (idle → role discipline via ROLE_ASSIGNMENT); autoClaimResearch (cheapest
+      affordable in-era project via buyProject — can't exceed player capability); applyWeeklyAutomation
+      runs the enabled+capable ones at the top of advanceOneWeek. setAutomation action; state.automation
+      persisted + backfilled. OFF by default → determinism byte-identical (all prior tests unaffected).
+      Company "Delegation" card: two gated toggles with self-explaining lock states. useGame wired.
+- NOT verified on-device: delegation card layout.
+- **Future (bigger, deferred):** auto-reorder production runs + a design-lead spec drafter — both touch
+      cash/launch decisions, so they need their own balance pass + on-device validation.
+
+### Roadmap status after v29
+Shipped: A, B, C1+C2, G1+G2, F-a11y, E (delegation). Open: C3 (explainers), D (era-distinct mechanics —
+PROTECTED, playtest-heavy), F-audio + F-microinteractions (on-device), G3 (new categories/era DLC),
+E-future (auto-reorder / design lead). Next blind-buildable: C3 (explainers, low-risk UI) or G3 (content).
+STILL STRONGLY RECOMMEND an on-device playtest of the A→B→C→G→E stack before the balance-heavy D.
+
+## v30 — Epic C3: plain-language explainers → Epic C complete (DONE 2026-06-23)
+- [x] **Glossary** (`engine/glossary.ts`, pure +4 tests): STAT_INFO (plain-language for all 5 stats);
+      segmentTopStats / segmentPriceLabel / segmentWants(ById) — DERIVED from live SEGMENTS weights, so
+      copy can't drift from the sim. "Who it's for" rows now show a "what this buyer wants" line
+      ("Performance + Quality · price-insensitive"). 446 tests, tsc 0, build+PWA.
+- **Epic C COMPLETE**: C1 (ranked post-mortem) + C2 (converging forecast) + C3 (explainers).
+
+### Roadmap status after v30
+Shipped: A, B, C (full), E, G1+G2, F-a11y. Open: D (era-distinct mechanics — PROTECTED, playtest-heavy),
+F-audio + F-microinteractions (on-device), G3 (new categories/era DLC), E-future (auto-reorder/design lead).
+Most remaining work either needs on-device validation (D feel, F audio/feel) or is content cadence (G3).
+
+## v31 — Epic D: era-distinct mechanics (first slice) (DONE 2026-06-23)
+- [x] **eraModifiers** (`balance.ts` table + `engine/eras.ts` eraModifier/eraRuleSummary, +4 tests):
+      marketingHype / ecosystemRate / demandVariance per era, routed through EXISTING selectors (no new
+      system). Eras 1-2 = 1.0 baseline → early game byte-identical (all prior tests pass). Era 3 Platform
+      = ecosystem lock-in (services + marketing up); Era 4 AI = hype-driven + volatile (variance up).
+      Wired: weeklyEcosystemRevenue (both sites), planProduction marketing hype, launchReady variance
+      band; DesignLab live + wizard previews scale identically (honest forecast per era). advanceEra
+      announces the shift in the feed. +2 production tests (Platform eco rev > Garage; late-era hype up).
+- ⚠️ **WIRING tested + safe; late-era MAGNITUDES need a playtest** (isolated in balance.eraModifiers).
+- **Future D:** a genuinely new axis/mechanic per era (a new stat in the AI era; retail/supply in Growth)
+      rather than multipliers — bigger, needs design + playtest.
+
+### Roadmap status after v31
+Shipped: A, B, C (full), D (first slice), E, G1+G2, F-a11y. Open: F-audio + F-microinteractions
+(on-device only), G3 (new categories/era content), E-future, D-future. The blind-buildable roadmap is
+essentially DONE — what remains needs on-device validation (audio/feel, balance magnitudes) or is content.
+STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B→C→G→E→D stack want real eyes.
+
+## v32 — OS legibility tweak + Franchises (bigger feature) (DONE 2026-06-23)
+- [x] **OS income total** (Platform.tsx): the headline stat now sums BOTH recurring streams (ecosystem
+      services + rival licensing) instead of showing services alone — with a breakdown hint. Fixes the
+      under-read of the division's worth + the "Licensing income"/"License your OS" word overlap.
+- [x] **Product Franchises / Brand Equity** (NEW bigger feature — `engine/franchise.ts` pure +7 tests):
+      a product LINE (sequels sharing a name, built on naming.ts) accrues brand equity from its track
+      record (verdict-weighted, recency-decayed, capped). A proven line launches with loyal pre-orders
+      (×up to +40%) + anticipation hype (≤+0.15); a flop tarnishes it. First-in-line → equity 0 → zero
+      bonus (additive; all prior tests pass). planProduction.brand exposed; DesignLab wizard shows a
+      brand-equity readout ("Aurora line · Established"); live preview adds the same hype for consistency.
+      +2 production tests (a hit line beats a fresh name; a different name doesn't inherit equity).
+      ⚠️ preorder/hype caps are a launch-economy lever — flagged for playtest.
+- Emoji audit: confirmed the app is emoji-free (Lucide icons throughout); only typographic ★/→ in
+  star-ratings + comments. The preview HTML now uses inline SVG icons (no emoji).
+- 463 tests green, typecheck 0, build+PWA.
+
+### Backlog (logged, not acted — outside task scope)
+- OS feature: a per-licensee fee tooltip; an installed-base trend sparkline. Minor legibility.
+- Franchises: an explicit "name this line" affordance + a Franchises overview (lines + their equity)
+  in Market/Company; brand-equity decay on a long lapse (currently only recency-weighted by entry).
+
+## v33 — Franchises overview + rival company profiles (DONE 2026-06-23)
+- [x] **Rivals build real series** (`rivalAI.ts`): a stable flagship line per rival+category
+      (rivalLineName, deterministic) + a series number from prior releases → "Pomelo Lumen" → "… 2" → …
+      generateRivalProduct takes seriesIndex; gameState derives it. Determinism + rival stat tests hold.
+- [x] **Franchise aggregation** (`franchise.ts`, +2 tests): playerFranchises (group launches into lines
+      with equity, deepest first) + rivalLines (group a rival's releases + avg quality) + franchiseDisplayName.
+- [x] **UI** (Market.tsx): "Your franchises" card (per line: brand-equity tag + units + latest + equity
+      bar). Rival releases are now TAPPABLE → RivalProfileSheet: company card (reputation, market cap,
+      share, strategy/doctrine) + their product lines + recent releases + a Trade-shares jump.
+- 465 tests, tsc 0, build+PWA. preview.html updated (franchises + rival profile).
+- Backlog: an explicit "name this line" affordance in DesignLab; franchise revenue totals; surface
+      a rival's licensee/acquisition status in the profile.
+
+## v34 — Continue-a-line sequels + rival-profile sparkline/acquire (DONE 2026-06-23)
+- [x] **Continue a line** (DesignLab "Name & build"): one-tap chips that name the draft as the next
+      entry in an existing line (suggestNextName of the latest) + inherit its brand equity; same-category
+      lines first; equity tag on each chip. Surfaces the franchise loop where you name a product.
+- [x] **Rival profile depth** (Market RivalProfileSheet): a share-price Sparkline + change %, and an
+      Acquire action (two-tap confirm + self-explaining gate) right in the company card. Reuses
+      canAcquire/acquisitionCost/acquireRival (tested).
+- UI-only over tested engine fns. 465 tests, tsc 0, build+PWA. preview.html updated.
+
+## v35 — Franchise revenue + rival relationship status (DONE 2026-06-23)
+- [x] **Franchise revenue** (`franchise.ts` FranchiseSummary.revenue = sum of revenueToDate; shown in
+      "Your franchises"). Test updated.
+- [x] **Rival relationship status** (RivalProfileSheet): "Licenses <YourOS> · $X/wk" badge when the
+      rival licenses your OS, and "You own N shares · X%" when you hold their stock (the buyout-discount
+      stake). Reuses rivalLicenseFee/osTierInfo/holdings.
+- 465 tests, tsc 0, build+PWA. preview.html updated. Franchise chapter complete.

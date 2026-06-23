@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Award, BarChart3, Boxes, Building2, CalendarDays, Coffee, FlaskConical, Layers, PencilRuler, Megaphone, Rocket, Search, Target, TrendingDown, Trophy, Users, X } from "lucide-react";
+import { ArrowUp, Award, BarChart3, Boxes, Building2, CalendarDays, Coffee, FlaskConical, Layers, PencilRuler, Megaphone, Rocket, Search, Sparkles, Target, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ScenariosSheet } from "./Scenarios.tsx";
@@ -34,6 +34,8 @@ import {
 import type { Assignment, Candidate, LaunchedProduct, RecruitTier, Staff, StaffRole } from "../engine/types.ts";
 import {
   burn,
+  canAutoAssign,
+  canAutoResearch,
   deskCapacity,
   facilityRent,
   facility,
@@ -99,7 +101,7 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 };
 
 export function Company() {
-  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest } = useGame();
+  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation } = useGame();
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const [scenariosOpen, setScenariosOpen] = useState(false);
@@ -345,6 +347,12 @@ export function Company() {
         )}
       </Card>
 
+      {/* Delegation — only surfaced once it's relevant: a growing team, an eligible lead, or already
+          in use. Keeps it off a day-one garage where it would just be a dead, fully-locked card. */}
+      {(state.staff.length >= 2 || canAutoAssign(state) || canAutoResearch(state) || state.automation.autoAssign || state.automation.autoResearch) && (
+        <DelegationCard state={state} onToggle={setAutomation} />
+      )}
+
       {/* Recruitment — seats are PLACED desks: you hire into a desk you actually bought. */}
       <SectionHeader title="Recruitment" accessory={`${state.staff.length}/${deskCapacity(state)} desks`} />
       {(() => {
@@ -398,6 +406,60 @@ export function Company() {
 }
 
 /* ---------- Near-milestone progress tracker ---------- */
+
+/** Delegation card (Epic E): toggles that automate repetitive ops, each gated on having grown a
+ *  senior lead — so the player moves from operator to decider as the company scales. */
+function DelegationCard({ state, onToggle }: { state: GameState; onToggle: (patch: Partial<GameState["automation"]>) => void }) {
+  const lead = BALANCE.ops.leadSkill;
+  const rows: { key: "autoAssign" | "autoResearch"; icon: typeof Wand2; label: string; sub: string; can: boolean; gate: string }[] = [
+    {
+      key: "autoAssign",
+      icon: Wand2,
+      label: "Auto-assign staff",
+      sub: "Idle hires are put on their discipline each week — never a wasted seat.",
+      can: canAutoAssign(state),
+      gate: `Promote any staffer to skill ${lead}+ to delegate`,
+    },
+    {
+      key: "autoResearch",
+      icon: Sparkles,
+      label: "Auto-research",
+      sub: "Claim the cheapest affordable project each week. You can still research by hand.",
+      can: canAutoResearch(state),
+      gate: `Needs an engineer at skill ${lead}+ (an R&D lead)`,
+    },
+  ];
+  return (
+    <Card>
+      <SectionHeader title="Delegation" accessory="Ops" />
+      <div className="co__deleg">
+        {rows.map((r) => {
+          const enabled = state.automation[r.key];
+          return (
+            <div key={r.key} className={`co__deleg-row${r.can ? "" : " co__deleg-row--locked"}`}>
+              <span className="co__deleg-icon"><r.icon size={17} /></span>
+              <div className="co__deleg-text">
+                <span className="co__deleg-label">{r.label}</span>
+                <span className="co__deleg-sub">{r.can ? r.sub : r.gate}</span>
+              </div>
+              <button
+                className={`co__switch${enabled ? " co__switch--on" : ""}`}
+                role="switch"
+                aria-checked={enabled}
+                aria-label={r.label}
+                // Can always turn an automation OFF; can only turn it ON once the capability is met.
+                disabled={!r.can && !enabled}
+                onClick={() => { haptic.light(); onToggle({ [r.key]: !enabled }); }}
+              >
+                <span className="co__switch-knob" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 function NearMilestonesCard({ state }: { state: GameState }) {
   const facts = deriveFacts(state);

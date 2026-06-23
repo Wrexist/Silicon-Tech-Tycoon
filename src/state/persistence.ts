@@ -287,6 +287,25 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.osName !== "string") s.osName = "";
   if (!Number.isFinite(s.osVersion) || s.osVersion < 1) s.osVersion = 1;
   if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
+  // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
+  if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
+  // Rival series counters (added later): default empty; seed from existing releases so a mid-save
+  // upgrade doesn't restart series numbers below what's already on screen.
+  if (!s.rivalLineCounters || typeof s.rivalLineCounters !== "object") {
+    const counters: Record<string, number> = {};
+    if (Array.isArray(s.rivalReleases)) {
+      for (const r of s.rivalReleases as { rivalId?: string; category?: string }[]) {
+        const key = `${r?.rivalId}:${r?.category}`;
+        counters[key] = (counters[key] ?? 0) + 1;
+      }
+    }
+    s.rivalLineCounters = counters;
+  }
+  // Acquired rivals (Epic B3, added later): default none.
+  if (!Array.isArray(s.acquiredRivals)) s.acquiredRivals = [];
+  // Delegation toggles (Epic E, added later): default off.
+  if (!s.automation || typeof s.automation !== "object") s.automation = { autoAssign: false, autoResearch: false };
+  else s.automation = { autoAssign: !!s.automation.autoAssign, autoResearch: !!s.automation.autoResearch };
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
   if (!Number.isFinite(s.desktops) || s.desktops < 0) s.desktops = 0;
   // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at

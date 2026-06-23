@@ -7,6 +7,9 @@ import {
   initCompetitors,
   rivalMarketCap,
   rivalStrengthsFor,
+  rivalDef,
+  spawnChallenger,
+  RIVALS,
   type CompetitorLaunch,
 } from "../engine/competitors.ts";
 import {
@@ -22,6 +25,7 @@ import {
   hasProject,
   launchRpReward,
   projectById,
+  RESEARCH_PROJECTS,
   techRpCost,
   weeklyRp,
   type ProjectId,
@@ -65,7 +69,7 @@ import {
   upgradeLockedBy,
   type UpgradeId,
 } from "../engine/upgrades.ts";
-import { canAdvanceEra, eraName, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
+import { canAdvanceEra, eraModifier, eraName, eraRuleSummary, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
 import { deriveFacts, evaluateAchievements, type MasteryInput } from "../engine/achievements.ts";
 import {
   advanceTrends,
@@ -87,6 +91,11 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
+import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
+import { styleAppeal } from "../engine/aesthetics.ts";
+import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -210,7 +219,23 @@ export interface GameState {
   osVersion: number;
   /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
   osLicensees: string[];
+  /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
+   *  device the player can see and learn from, instead of an invisible "strength" number. */
+  rivalReleases: RivalRelease[];
+  /** Uncapped per-`rivalId:category` launch counts → stable rival series numbers ("Pomelo Lumen 2"…).
+   *  Kept separate from the capped `rivalReleases` gallery so series numbering never regresses when
+   *  old releases are sliced off in a long game. */
+  rivalLineCounters: Record<string, number>;
+  /** Epic B3 — ids of rivals the player has acquired (removed from competition). Tracked so an
+   *  acquired rival never re-enters as a fresh challenger, and for UI/achievements. */
+  acquiredRivals: string[];
+  /** Epic E — delegation toggles. Each automates an action the player can already do, and only takes
+   *  effect while the company is capable (a senior lead). Persisted per save. */
+  automation: { autoAssign: boolean; autoResearch: boolean };
 }
+
+/** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery. */
+export const RIVAL_RELEASES_CAP = 24;
 
 export const REV_MILESTONES = [
   10_000, 25_000, 50_000, 100_000, 250_000, 500_000,
@@ -376,6 +401,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osName: "",
     osVersion: 1,
     osLicensees: [],
+    rivalReleases: [],
+    rivalLineCounters: {},
+    acquiredRivals: [],
+    automation: { autoAssign: false, autoResearch: false },
   };
 }
 
@@ -662,6 +691,8 @@ export interface ProductionPlan {
   projectedRevenue: Money;
   projectedProfit: Money; // revenue − full production − tooling − channel (unsold = sunk cost)
   maxAffordableUnits: number;
+  segments: SegmentDemand; // Epic A — per-buyer-segment breakdown driving demand + the verdict
+  brand: BrandEquity; // product-line brand equity lifting pre-orders + launch hype
 }
 
 /** The smart demand model: fans (pre-orders) + demand-fit + how many rivals match/beat you.
@@ -683,6 +714,20 @@ export function planProduction(
   const eraScales = BALANCE.market.eraVolumeScale;
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
 
+  // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
+  // weighting the five stats AND price differently; the product wins a share of each, summed. This
+  // replaces the single global demandScore/priceFit with a positioning decision ("who is this for?").
+  // A balanced product scores ≈ the old single-trend demand (the segment sizes average back to it),
+  // so the macro-economy is preserved; lopsided products diverge — that divergence IS the new depth.
+  // G1 — the device's form (styleAppeal) lifts the Style segment, so the parametric render is a lever.
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product));
+
+  // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
+  const mktMult = eraModifier(s.era).marketingHype;
+  // Brand equity — a proven product LINE launches with loyal pre-orders + anticipation (0 for a new
+  // line, so this never changes a first-in-line launch).
+  const brand = brandEquity(s.launched, franchiseStem(product.name));
+
   // Score WITHOUT the strength-based competition term — competition is modelled below as a
   // count of rivals that match/beat you, which is clearer and is what the player sees.
   const breakdown = scoreLaunch({
@@ -691,15 +736,19 @@ export function planProduction(
     price: product.price,
     trends: s.trends,
     reputation: s.reputation,
-    marketerSkill: marketerSkill(s),
+    marketerSkill: marketerSkill(s) * mktMult,
     competitorStrength: 0,
     // Bound the combined hype bonus (studio + visionary marketers + marketing upgrade +
     // channel) before it reaches scoreLaunch, which also clamps total hype. Without this,
     // stacking many visionary marketers makes launchScore/volume explode. Safety guard.
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, hypeBonus(s) + channel.hype)),
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype) * mktMult + equityHypeBonus(brand.equity))),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: componentSynergy(product).factor,
+    // Drive demand + price reaction from the segment model (the two aggregates are on the same
+    // 0..100 / 0..maxFit scales as the originals they replace).
+    demandOverride: segments.demandIndex,
+    priceFitOverride: segments.effectivePriceFit,
   });
 
   const overall = overallScore(stats, product.category);
@@ -732,7 +781,8 @@ export function planProduction(
       selfCompeting * comp.selfPenalty);
 
   const demandFit = breakdown.demand;
-  const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
+  // A proven line's loyal followers pre-order more strongly (brand equity → preorder lift).
+  const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
   const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
   const marketDemand = Math.round(organic * competitionFactor);
   // B4 — cap fan pre-orders to a share of TOTAL demand so a huge fanbase can't single-handedly
@@ -782,6 +832,8 @@ export function planProduction(
     projectedRevenue,
     projectedProfit,
     maxAffordableUnits,
+    segments,
+    brand,
   };
 }
 
@@ -821,7 +873,8 @@ export const counts = (s: GameState) => ({ assigned: s.staff.filter((x) => x.ass
 
 /** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
 export function weeklyEcosystemRevenue(s: GameState): Money {
-  const rate = BALANCE.ecosystem.weeklyServiceRate;
+  // Epic D — the Platform/AI eras amplify ecosystem lock-in (services pay more).
+  const rate = BALANCE.ecosystem.weeklyServiceRate * eraModifier(s.era).ecosystemRate;
   const minStat = BALANCE.ecosystem.minEcosystemStat;
   let acc = 0;
   for (const lp of s.launched) {
@@ -864,6 +917,10 @@ export function rdRpCostFor(s: GameState, kind: ComponentKind): number | null {
 
 export function advanceOneWeek(state: GameState, rate = 1, offline = false): GameState {
   if (state.bankrupt) return state;
+  // Delegation (Epic E): apply enabled, capability-gated automations BEFORE the week runs, so an
+  // auto-assigned staffer contributes this week and an auto-claimed project is active immediately.
+  // Pure + off by default, so a save without delegation is byte-identical (determinism preserved).
+  state = applyWeeklyAutomation(state);
   const rng = rngFrom(state);
   const week = state.week + 1;
 
@@ -885,7 +942,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const recentPlayerHitCats = state.launched
     .filter((lp) => lp.launchedWeek >= week - hitWindow && (lp.verdict === "hit" || lp.verdict === "solid"))
     .map((lp) => lp.product.category);
-  const { competitors, launches } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
+  const { competitors: competitorsBase, launches } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
+  // `let` so B3 can append a fresh challenger that rises to refill a field thinned by acquisitions.
+  let competitors = competitorsBase;
 
   // Sales + revenue
   let cash = state.cash;
@@ -930,7 +989,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Ecosystem service revenue — recurring income from the installed base of high-ecosystem
   // products. Reads the freshly-updated `launched` (not `state.launched`) so this week's sales
   // join the installed base immediately instead of paying with a one-week lag.
-  const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate;
+  const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate * eraModifier(state.era).ecosystemRate;
   const ecoMinStat = BALANCE.ecosystem.minEcosystemStat;
   for (const lp of launched) {
     const eco = lp.stats.ecosystem;
@@ -960,7 +1019,51 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
       .map((lp) => lp.product.category),
   );
-  for (const l of launches) pushRivalFeed(feed, l, activePlayerCats);
+
+  // Epic B — turn each rival launch into a real, renderable product the player can see and learn from
+  // (visibility only; the strength number above still drives the market math, so no balance ripple).
+  // A DERIVED rng (seeded from the save + week + index) keeps the MAIN sim rng stream byte-identical,
+  // so the pinned determinism test and every seed-specific test are unaffected.
+  let rivalReleases = state.rivalReleases;
+  let rivalLineCounters = state.rivalLineCounters;
+  if (launches.length) {
+    const idByName = new Map(competitors.map((c) => [c.name, c.id]));
+    // The series number for a rival's category line comes from an UNCAPPED per-line counter (not the
+    // capped rivalReleases gallery), so "Pomelo Lumen 2/3/4" never regresses once old releases slice off.
+    const nextSeriesIndex = (rivalId: string, category: CategoryId): number => {
+      const key = `${rivalId}:${category}`;
+      const index = rivalLineCounters[key] ?? 0;
+      rivalLineCounters = { ...rivalLineCounters, [key]: index + 1 };
+      return index;
+    };
+    const fresh = launches.map((l, i) => {
+      const rivalId = idByName.get(l.competitor) ?? l.competitor;
+      return generateRivalProduct({
+        rivalId,
+        rivalName: l.competitor,
+        category: l.category,
+        era: state.era,
+        strength: l.strength,
+        week,
+        rng: makeRng(((state.rngState || state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
+        contested: l.contested,
+        seriesIndex: nextSeriesIndex(rivalId, l.category),
+      });
+    });
+    launches.forEach((l, i) => pushRivalFeed(feed, l, activePlayerCats, fresh[i].product.name, l.contested));
+    rivalReleases = [...fresh, ...state.rivalReleases].slice(0, RIVAL_RELEASES_CAP);
+  }
+
+  // B3 — refill the field: if acquisitions have thinned the roster below its starting size, a fresh
+  // challenger occasionally rises to keep the industry alive. The rng is only drawn on this branch,
+  // which a normal (no-acquisition) game never enters — so the determinism pin stays byte-identical.
+  if (competitors.length < RIVALS.length) {
+    const entrant = spawnChallenger(competitors.map((c) => c.id), state.acquiredRivals, week, rng);
+    if (entrant) {
+      competitors = [...competitors, entrant];
+      feed.push(feedItem(week, `A new challenger, ${entrant.name}, enters the market.`, "accent"));
+    }
+  }
 
   // A rival entering a category where the player is ACTIVELY selling now dents the remaining
   // sales curve (pre-fix, the "faces new competition" feed line was mechanically hollow — the
@@ -1115,6 +1218,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     launched: launchedFinal,
     cashHistory,
     feed,
+    rivalReleases,
+    rivalLineCounters,
     rngState: rng.state(),
     bankrupt,
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
@@ -1237,18 +1342,18 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
   return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
 }
 
-function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>) {
+function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>, productName?: string, contested?: boolean) {
   const catName = CATEGORIES[l.category]?.displayName ?? l.category;
   const threat = activePlayerCats?.has(l.category);
-  feed.push(
-    feedItem(
-      l.week,
-      threat
-        ? `${l.competitor} launched a new ${catName} — your active product faces new competition.`
-        : `${l.competitor} entered the ${catName} market.`,
-      threat ? "negative" : "neutral",
-    ),
-  );
+  // The product name already carries the rival's name (e.g. "Pomelo Vync Pro"), so use it as the
+  // subject; fall back to the bare rival name for callers that don't generate a product.
+  const subject = productName ?? l.competitor;
+  const text = contested
+    ? `${subject} undercuts your ${catName} on price — a value war for the segment.`
+    : threat
+      ? `${subject} launches — your active ${catName} faces new competition.`
+      : `${subject} launches into ${catName}.`;
+  feed.push(feedItem(l.week, text, threat || contested ? "negative" : "neutral"));
 }
 
 function trimFeed(feed: FeedItem[]): FeedItem[] {
@@ -1333,17 +1438,20 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const plannedUnits = product.plannedUnits ?? recommendedRun(state, product, channelId);
   const plan = planProduction(state, product, plannedUnits, channelId);
 
-  // B9 — apply seeded demand variance to the ACTUAL realized demand at launch. planProduction
-  // gives the deterministic forecast the wizard showed; the real market lands within ±demandVariance
-  // of it. This makes over/under-producing a true bet: a too-small run can leave demand unmet, a
-  // too-large run can strand stock. Driven by the persisted RNG (deterministic per seed, NOT
-  // Math.random) and we save the advanced rngState below so the outcome is reproducible.
+  // B9 / C2 — apply seeded demand variance to the ACTUAL realized demand at launch. planProduction
+  // gives the deterministic forecast the wizard showed; the real market lands within the forecast BAND
+  // of it. The band tightens with market knowledge (forecastConfidence), so investing in marketers +
+  // Demand Sensing makes the realized outcome land closer to the estimate — the wizard's band is an
+  // honest promise. Driven by the persisted RNG (deterministic per seed, NOT Math.random).
   const rng = rngFrom(state);
   const rawVariance = demandVarianceMultiplier(rng);
-  // demandSensing narrows variance by 35% (forecasts become more reliable)
-  const variance = hasProject(state.completedProjects, "demandSensing")
-    ? 1 + (rawVariance - 1) * 0.65
-    : rawVariance;
+  // Epic D — the AI era is a more volatile, hype-driven market (over/under-production is a bigger bet).
+  const band = forecastBand(forecastConfidence({
+    marketerSkill: marketerSkill(state),
+    demandSensing: hasProject(state.completedProjects, "demandSensing"),
+  })) * eraModifier(state.era).demandVariance;
+  // Remap the ±baseBand jitter into the (narrower) confidence-scaled band, keeping the seeded sign.
+  const variance = 1 + (rawVariance - 1) * (band / BALANCE.market.forecast.baseBand);
   const realizedDemand = Math.max(0, Math.round(plan.totalDemand * variance));
   // Sales are still capped by the production run — you can never sell more than you built.
   const totalUnits = Math.min(plannedUnits, realizedDemand);
@@ -1371,6 +1479,16 @@ export function launchReady(state: GameState, productId: string): ActionResult {
       matchingRivals: plan.matchingRivals,
       betterRivals: plan.betterRivals,
       competitionFactor: plan.competitionFactor,
+      // Epic A — which segments this launch won/lost (the readable verdict).
+      dominantSegment: plan.segments.dominant,
+      weakestSegment: plan.segments.weakest,
+      perSegment: plan.segments.perSegment.map((r) => ({
+        id: r.id,
+        name: r.name,
+        captured: r.captured,
+        fit: r.fit,
+        priceFit: r.priceFit,
+      })),
     },
   };
 
@@ -1827,6 +1945,52 @@ export function assignStaff(state: GameState, id: string, assignment: Assignment
   return { ...state, staff: state.staff.map((s) => (s.id === id ? { ...s, assignment } : s)) };
 }
 
+// ---------- Delegation & ops (Epic E): automations that only do what the player already can ----------
+
+/** Whether the company can auto-assign — it has a senior staffer (a lead) to run the floor. */
+export function canAutoAssign(state: GameState): boolean {
+  return state.staff.some((s) => s.skill >= BALANCE.ops.leadSkill);
+}
+
+/** Whether the company can auto-research — it has a senior ENGINEER (an R&D lead). */
+export function canAutoResearch(state: GameState): boolean {
+  return state.staff.some((s) => s.role === "engineer" && s.skill >= BALANCE.ops.leadSkill);
+}
+
+/** Toggle a delegation automation. Pure. */
+export function setAutomation(state: GameState, patch: Partial<GameState["automation"]>): GameState {
+  return { ...state, automation: { ...state.automation, ...patch } };
+}
+
+/** Delegation: send every idle staffer to their role's discipline (what the player does by hand).
+ *  Pure; returns the SAME state object when nobody is idle (referential stability). */
+export function autoAssignIdle(state: GameState): GameState {
+  if (!state.staff.some((s) => s.assignment === "idle")) return state;
+  return {
+    ...state,
+    staff: state.staff.map((s) => (s.assignment === "idle" ? { ...s, assignment: ROLE_ASSIGNMENT[s.role] } : s)),
+  };
+}
+
+/** Delegation: claim the cheapest affordable, in-era, not-yet-completed research project — one per
+ *  week, so RP still accrues toward bigger goals and the player can still intervene. Pure; reuses
+ *  buyProject so it can never do anything the player couldn't. Same state when nothing is affordable. */
+export function autoClaimResearch(state: GameState): GameState {
+  const next = RESEARCH_PROJECTS
+    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints)
+    .sort((a, b) => a.rpCost - b.rpCost)[0];
+  return next ? buyProject(state, next.id) : state;
+}
+
+/** Apply all ENABLED + CAPABLE weekly automations (called at the top of the tick). Pure + deterministic
+ *  (no rng). Defaults are off, so a save without delegation runs byte-identically. */
+export function applyWeeklyAutomation(state: GameState): GameState {
+  let s = state;
+  if (state.automation.autoAssign && canAutoAssign(state)) s = autoAssignIdle(s);
+  if (state.automation.autoResearch && canAutoResearch(state)) s = autoClaimResearch(s);
+  return s;
+}
+
 /** Pay to instantly raise a staff member's skill by 1. */
 export function trainStaff(state: GameState, id: string): GameState {
   const member = state.staff.find((s) => s.id === id);
@@ -2153,6 +2317,67 @@ export function sellShares(state: GameState, id: string, qty: number): GameState
   return { ...state, cash: add(state.cash, sellProceeds(comp.sharePrice, q)), holdings };
 }
 
+/** B3 — the all-cash cost to acquire a rival outright: its market cap × the control premium, LESS
+ *  the market value of any shares the player already holds (you only pay for the rest). Null if the
+ *  rival isn't on the board. Floored at a token amount so it's never free. */
+export function acquisitionCost(state: GameState, id: string): Money | null {
+  const c = state.competitors.find((x) => x.id === id);
+  if (!c) return null;
+  const gross = scale(rivalMarketCap(c), BALANCE.mergers.acquisitionPremium);
+  const ownedValue = cents(Math.max(0, state.holdings[id] ?? 0) * c.sharePrice);
+  const net = sub(gross, ownedValue);
+  return toDollars(net) > 0 ? (net as Money) : cents(1);
+}
+
+/** Whether the player may acquire rival `id`: established (revenue), solvent enough to pay, and the
+ *  field stays above its floor afterwards. */
+export function canAcquire(state: GameState, id: string): boolean {
+  if (state.bankrupt) return false;
+  const c = state.competitors.find((x) => x.id === id);
+  if (!c) return false;
+  if (state.competitors.length <= BALANCE.mergers.minActiveRivals) return false;
+  if (toDollars(state.cumulativeRevenue) < toDollars(BALANCE.ipo.minRevenueToList)) return false;
+  const cost = acquisitionCost(state, id);
+  return cost != null && state.cash >= cost;
+}
+
+/** B3 — acquire a rival outright: pay the buyout, remove it from competition, and absorb its brand
+ *  (a one-time reputation lift) + its customer base (fans). Settles the player's existing shares into
+ *  the deal (deleted, since their value was already credited against the price). A no-op if not allowed. */
+export function acquireRival(state: GameState, id: string): GameState {
+  if (!canAcquire(state, id)) return state;
+  const c = state.competitors.find((x) => x.id === id)!;
+  const cost = acquisitionCost(state, id)!;
+  const m = BALANCE.mergers;
+  const rivalRep = rivalDef(id)?.reputation ?? c.reputation;
+
+  const competitors = state.competitors.filter((x) => x.id !== id);
+  const holdings = { ...state.holdings };
+  delete holdings[id];
+  const osLicensees = state.osLicensees.filter((x) => x !== id);
+  const fansGain = Math.min(m.fansCap, Math.round(Math.max(0, rivalRep) * m.fansPerRepPoint));
+  const reputation = Math.min(BALANCE.reputation.max, state.reputation + m.repBonus);
+
+  const feed = [...state.feed];
+  feed.push(feedItem(
+    state.week,
+    `Acquired ${c.name} for ${format(cost)} — absorbed their brand (+${m.repBonus} rep) and ${fansGain.toLocaleString()} customers.`,
+    "positive",
+  ));
+
+  return {
+    ...state,
+    cash: sub(state.cash, cost),
+    competitors,
+    holdings,
+    osLicensees,
+    fans: state.fans + fansGain,
+    reputation,
+    acquiredRivals: [...state.acquiredRivals, id],
+    feed: trimFeed(feed),
+  };
+}
+
 /**
  * Evaluate achievements against the current state and add any newly-satisfied ids to the unlocked
  * set (union — monotonic, never un-unlocks). PURE. Returns the same state object when nothing new
@@ -2176,6 +2401,9 @@ export function advanceEraAction(state: GameState): GameState {
   const era = state.era + 1;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Entered the ${eraName(era)}. New tech unlocked.`, "positive"));
+  // Epic D — announce the era's rule shift so the change in texture is legible (pillar #5).
+  const rule = eraRuleSummary(era);
+  if (rule) feed.push(feedItem(state.week, `${eraName(era)} shift — ${rule}.`, "accent"));
   return { ...state, era, feed: trimFeed(feed) };
 }
 

@@ -204,6 +204,38 @@
   --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);
 }
 
+/* ---------------------------------------------------------------------------
+   High-contrast mode (accessibility — Epic F). Layered ON TOP of the active
+   theme via [data-contrast="high"]: stronger borders, near-ink muted text, and
+   a thicker focus ring (index.css reads --focus-width). The base theme already
+   clears WCAG AA; this serves low-vision users who need more separation. The
+   light/dark split mirrors the theme structure above (media + explicit attr).
+   --------------------------------------------------------------------------- */
+:root[data-contrast="high"] {
+  --focus-width: 3px;
+  /* Light high-contrast: muted text → near ink, hairlines → a real visible border. */
+  --ink-2: #2b2f36;
+  --ink-3: #383d45;
+  --hairline: #b4bac3;
+  --glass-stroke: #b4bac3;
+}
+/* Dark high-contrast — system dark (no explicit theme) */
+@media (prefers-color-scheme: dark) {
+  :root[data-contrast="high"]:not([data-theme="light"]) {
+    --ink-2: #e4e7eb;
+    --ink-3: #cdd2d9;
+    --hairline: #5b636f;
+    --glass-stroke: #5b636f;
+  }
+}
+/* Dark high-contrast — explicit dark toggle */
+:root[data-theme="dark"][data-contrast="high"] {
+  --ink-2: #e4e7eb;
+  --ink-3: #cdd2d9;
+  --hairline: #5b636f;
+  --glass-stroke: #5b636f;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --spring-standard: 1ms linear;

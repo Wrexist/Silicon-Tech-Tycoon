@@ -8,7 +8,7 @@ import { emitCelebrate } from "../design/celebrateFx.ts";
 import { launchOutcome } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { isCategoryUnlocked } from "../engine/eras.ts";
+import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
@@ -46,9 +46,83 @@ import {
   type GameState,
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
+import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
+import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
+import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel, playerFranchises } from "../engine/franchise.ts";
+import { segmentWantsById, STAT_INFO } from "../engine/glossary.ts";
 import "./designLab.css";
+
+/** Epic A — "Who it's for": the per-segment positioning readout in the build wizard. Each bar is how
+ *  much of that buyer segment's potential the product captures (fit × price reaction), so the player
+ *  sees the trade-offs of their design before building (pillar #5; the positioning lever Epic A adds). */
+function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
+  const rows = segments.perSegment.map((r) => ({
+    ...r,
+    winRate: r.size > 0 ? Math.min(1, r.captured / r.size) : 0,
+  }));
+  const top = rows.reduce((a, b) => (b.captured > a.captured ? b : a));
+  const low = rows.reduce((a, b) => (b.captured < a.captured ? b : a));
+  const reason = low.priceFit < 0.6 ? "priced out" : low.fit < 35 ? "specs miss" : "niche fit";
+  return (
+    <div className="wiz__segs">
+      <div className="wiz__segs-head">
+        <span className="wiz__segs-title">Who it's for</span>
+        <span className="wiz__segs-note">
+          Best fit <b>{top.name}</b> · weakest {low.name} ({reason})
+        </span>
+      </div>
+      <div className="wiz__seg-list">
+        {rows.map((r) => {
+          const pct = Math.round(r.winRate * 100);
+          return (
+            <div
+              key={r.id}
+              role="group"
+              className={`wiz__seg-row${r.id === top.id ? " wiz__seg-row--top" : ""}`}
+              aria-label={`${r.name}: wins ${pct}% of the segment. ${segmentWantsById(r.id)}`}
+            >
+              <div className="wiz__seg-main">
+                <span className="wiz__seg-name">{r.name}</span>
+                <div className="wiz__seg-bar" aria-hidden>
+                  <span className="wiz__seg-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="wiz__seg-pct tnum" aria-hidden>{pct}%</span>
+              </div>
+              {/* C3 — plain-language "what this buyer wants", derived live from the segment weights */}
+              <span className="wiz__seg-wants" aria-hidden>{segmentWantsById(r.id)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** C3 — a collapsible plain-language guide to what each stat does (Two Point's "nothing is confusing").
+ *  Self-contained toggle so it never clutters the design view until the player wants it. */
+function StatGlossary() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className="lab__glossary-toggle" aria-expanded={open} onClick={() => { setOpen((o) => !o); haptic.light(); }}>
+        {open ? "Hide stat guide" : "What the stats mean"}
+      </button>
+      {open && (
+        <div className="lab__glossary">
+          {STAT_KEYS.map((k) => (
+            <div key={k} className="lab__glossary-row">
+              <span className="lab__glossary-term">{STAT_INFO[k].label}</span>
+              <span className="lab__glossary-def">{STAT_INFO[k].blurb}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
 
 const STAT_ABBR: Record<keyof Stats, string> = {
   performance: "Perf", quality: "Qual", battery: "Bat", design: "Dsn", ecosystem: "Eco",
@@ -203,18 +277,34 @@ export function DesignLab({
     : "var(--negative)";
 
   // Component-combination synergy (weak-link penalty / coherent-build bonus) — surfaced live so the
-  // player sees how the MIX of components scores, not just each slot maxed in isolation.
+  // player sees how the MIX of components scores, not just each slot maxed in isolation. G2 — show
+  // BOTH sides: the bottleneck to fix AND the flagship bonus a coherent high-end build earns.
   const syn = componentSynergy(draft);
+  const synPct = Math.round((syn.factor - 1) * 100);
+  const synState: "flagship" | "weak" | "balanced" =
+    syn.factor > 1.001 ? "flagship" : syn.weakest ? "weak" : "balanced";
+  const capSlot = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
+  // G1 — the device's form lifts the Style segment. Drive the LIVE breakdown through the SAME segment
+  // model the wizard/launch use (demand + price overrides), so the always-visible "Fit" is consistent
+  // with the actual launch math (it was previously the old single-trend demandScore).
+  const styleAp = styleAppeal(draft);
+  const styleLabel = styleAppealLabel(styleAp);
+  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp);
+  const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
+  const mktMult = eraModifier(state.era).marketingHype; // Epic D — late eras amplify marketing reach
+  const liveBrand = brandEquity(state.launched, franchiseStem(draft.name)); // brand-line anticipation
   const breakdown = scoreLaunch({
     stats,
     category: draft.category,
     price: draft.price,
     trends: state.trends,
     reputation: state.reputation,
-    marketerSkill: marketerSkill(state),
+    marketerSkill: marketerSkill(state) * mktMult,
     competitorStrength: 0,
-    hypeBonus: hypeBonus(state),
+    hypeBonus: hypeBonus(state) * mktMult + equityHypeBonus(liveBrand.equity),
     synergy: syn.factor,
+    demandOverride: liveSegments.demandIndex,
+    priceFitOverride: liveSegments.effectivePriceFit,
   });
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
@@ -422,9 +512,28 @@ export function DesignLab({
         )}
         <div className="lab__verdict">
           <StatPill label="Fit" value={<>{fit}<span className="lab__den">/100</span></>} tone={fit >= 60 ? "positive" : "neutral"} />
-          {syn.weakest && <StatPill label="Weak link" value={`${syn.weakest[0].toUpperCase()}${syn.weakest.slice(1)}`} tone="negative" />}
+          <StatPill
+            label="Build"
+            value={synState === "flagship" ? `Flagship +${synPct}%` : synState === "weak" ? `Weak: ${capSlot(syn.weakest!)}` : "Balanced"}
+            tone={synState === "flagship" ? "positive" : synState === "weak" ? "negative" : "neutral"}
+          />
           <StatPill value={verdict.label} tone={verdict.tone} />
         </div>
+        {synState !== "balanced" && (
+          <p className="lab__verdict-note">
+            {synState === "flagship"
+              ? "Coherent high-end build — every part pulls its weight, earning a flagship bonus."
+              : `${capSlot(syn.weakest!)} is the weak link dragging this build down — raise it to lift the whole product.`}
+          </p>
+        )}
+        {formMatters && (
+          <p className={`lab__style lab__style--${styleLabel.toLowerCase()}`}>
+            <Sparkles size={12} aria-hidden /> Design language: <strong>{styleLabel}</strong>
+            <span className="lab__style-hint">
+              {styleLabel === "Striking" ? " — wins style-led buyers" : " — refine the screen + camera form for more style appeal"}
+            </span>
+          </p>
+        )}
         {competitionDrag && preview && (
           <p className="lab__verdict-note">
             {preview.betterRivals > 0
@@ -801,6 +910,7 @@ export function DesignLab({
                 ) as Record<keyof typeof stats, number>}
               />
               <p className="lab__hint">Green = what market wants most · ↑↓ = shifting demand</p>
+              <StatGlossary />
               {(() => {
                 const prev = state.launched.find((lp) => lp.product.category === draft.category);
                 if (!prev) return null;
@@ -979,6 +1089,31 @@ export function DesignLab({
 
             <Card>
               <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state)} wk to make`} />
+              {(() => {
+                // "Continue a line" — one-tap sequels: name the draft as the next entry in one of your
+                // existing lines (and inherit its brand equity). Same-category lines first.
+                const lines = playerFranchises(state.launched)
+                  .sort((a, b) => Number(b.categories.includes(draft.category)) - Number(a.categories.includes(draft.category)))
+                  .slice(0, 4);
+                if (lines.length === 0) return null;
+                return (
+                  <div className="lab__lines">
+                    <span className="lab__lines-label">Continue a line</span>
+                    <div className="lab__lines-chips">
+                      {lines.map((f) => (
+                        <button
+                          key={f.stem}
+                          className="lab__line-chip"
+                          onClick={() => { set({ name: suggestNextName(f.latestName) }); haptic.light(); }}
+                        >
+                          {f.name}
+                          <span className={`lab__line-tag lab__line-tag--${f.label.toLowerCase().replace(/\s+/g, "")}`}>{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               <input
                 className="lab__name"
                 value={draft.name}
@@ -1146,7 +1281,14 @@ function BuildWizard({
   const recommended = useMemo(() => recommendedRun(state, draft, channel), [state, draft, channel]);
   const baseDemand = useMemo(() => planProduction(state, draft, units, "none").totalDemand, [state, draft, units]);
   const affordable = state.cash >= plan.totalUpfront;
-  const variancePct = state.completedProjects.includes("demandSensing") ? 0.08 : 0.12;
+  // C2 — the forecast band tightens as the player invests in market knowledge (marketer skill +
+  // Demand Sensing). The SAME confidence scales the realized launch variance, so this band is honest.
+  const forecastConf = forecastConfidence({
+    marketerSkill: marketerSkill(state),
+    demandSensing: state.completedProjects.includes("demandSensing"),
+  });
+  const variancePct = forecastBand(forecastConf) * eraModifier(state.era).demandVariance; // Epic D — AI era is volatile
+  const confLabel = forecastConfidenceLabel(forecastConf);
   const demandLow = Math.round(plan.totalDemand * (1 - variancePct));
   const demandHigh = Math.round(plan.totalDemand * (1 + variancePct));
 
@@ -1207,6 +1349,23 @@ function BuildWizard({
             <Stat label="Unit cost" value={format(plan.unitCost)} />
             <Stat label="Run cost" value={format(plan.productionCost)} tone="negative" />
           </div>
+          <div className={`wiz__forecast wiz__forecast--${confLabel.toLowerCase()}`}>
+            <span className="wiz__forecast-label">Forecast confidence</span>
+            <span className="wiz__forecast-val">{confLabel}</span>
+            <span className="wiz__forecast-note">
+              {confLabel === "High" ? "tight, reliable demand band" : "marketers + Demand Sensing research tighten this"}
+            </span>
+          </div>
+          {plan.brand.entries > 0 && (
+            <div className={`wiz__brand wiz__brand--${brandEquityLabel(plan.brand).toLowerCase().replace(/\s+/g, "")}`}>
+              <TrendingUp size={13} aria-hidden />
+              <span className="wiz__brand-name">{plan.brand.stem.replace(/\b\w/g, (c) => c.toUpperCase())} line</span>
+              <span className="wiz__brand-tag">{brandEquityLabel(plan.brand)}</span>
+              <span className="wiz__brand-note">
+                {plan.brand.equity > 0 ? "loyal pre-orders + anticipation" : plan.brand.equity < 0 ? "a past flop is hurting this line" : "no track record yet"}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -1271,6 +1430,7 @@ function BuildWizard({
               hint={`build takes ${buildWks} wk`}
             />
           </div>
+          <SegmentBreakdown segments={plan.segments} />
           <div className="wiz__total">
             <span>Upfront cost</span>
             <span className={`rounded tnum${affordable ? "" : " wiz__total--bad"}`}>{format(plan.totalUpfront)}</span>

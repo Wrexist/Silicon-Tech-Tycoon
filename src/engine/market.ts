@@ -145,8 +145,14 @@ export function scoreLaunch(args: {
   /** Component-combination synergy multiplier (see product.componentSynergy). Defaults to 1 so
    *  callers that don't model it (and the bounds tests) are unaffected. */
   synergy?: number;
+  /** Epic A — optional segmented-demand overrides. When provided, the launch is scored against the
+   *  buyer-segment model (engine/segments.ts): demandOverride replaces the single-trend demandScore
+   *  and priceFitOverride replaces the global priceFit. Omitted by default → identical to the
+   *  pre-segments behaviour, so the bounds tests and any direct caller are unaffected. */
+  demandOverride?: number;
+  priceFitOverride?: number;
 }): LaunchBreakdown {
-  const demand = demandScore(args.stats, args.trends, args.category);
+  const demand = args.demandOverride ?? demandScore(args.stats, args.trends, args.category);
   // Total hype must be bounded: the base multiplier is already clamped to h.max, but
   // hype bonuses (brand studio + per-marketer visionary + marketing upgrade + channel)
   // are summed with no individual cap, so stacking marketers could make hype — and thus
@@ -156,7 +162,7 @@ export function scoreLaunch(args: {
   const hypeCeiling = BALANCE.market.hype.max * 2;
   const rawHype = hypeMultiplier(args.reputation, args.marketerSkill) + (args.hypeBonus ?? 0);
   const hype = Math.min(hypeCeiling, Math.max(0, rawHype));
-  const pf = priceFit(args.price, args.stats, args.category);
+  const pf = args.priceFitOverride ?? priceFit(args.price, args.stats, args.category);
   const competitionFactor = 1 / (1 + args.competitorStrength * BALANCE.market.competition.factorK);
   const synergy = args.synergy ?? 1;
   const launchScore = Math.max(0, demand * hype * pf * competitionFactor * synergy);

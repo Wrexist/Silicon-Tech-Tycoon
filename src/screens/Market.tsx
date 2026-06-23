@@ -1,23 +1,29 @@
 import { useState } from "react";
-import { ArrowRight, Building2, ChevronRight, Clock, Lightbulb, Megaphone, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, ChevronRight, Clock, Crown, Lightbulb, Megaphone, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
-import { rivalDef } from "../engine/competitors.ts";
+import { rivalDef, rivalDoctrine, rivalMarketCap } from "../engine/competitors.ts";
+import { playerFranchises, rivalLines } from "../engine/franchise.ts";
+import { rivalLicenseFee } from "../engine/platform.ts";
+import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
 import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
+import { postMortem, type FactorKey } from "../engine/postmortem.ts";
 import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
   burn,
   canList,
+  canAcquire,
+  acquisitionCost,
   companyValuation,
   founderStakeValue,
   industryLeaderboard,
@@ -25,6 +31,8 @@ import {
   marketingPushQuote,
   netWorth,
   nextWeekRevenue,
+  osDisplayName,
+  osTierInfo,
   type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -69,6 +77,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const { state } = useGame();
   const trends = state.trends;
   const comps = state.competitors;
+  // Only show releases from rivals still on the board — an acquired rival's historical releases would
+  // otherwise be clickable but open an empty profile (the competitor is gone).
+  const activeRivalIds = new Set(comps.map((c) => c.id));
+  const visibleRivalReleases = state.rivalReleases.filter((r) => activeRivalIds.has(r.rivalId));
   const feedItems = [...state.feed].slice(-12).reverse();
   const maxTrend = Math.max(...STAT_KEYS.map((k) => Math.max(trends.weights[k], trends.targetWeights[k])));
   const [trade, setTrade] = useState<CompetitorState | null>(null);
@@ -85,6 +97,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   );
   const [detailId, setDetailId] = useState<string | null>(null);
   const [feedOpen, setFeedOpen] = useState(false);
+  const [rivalProfile, setRivalProfile] = useState<string | null>(null);
   const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
 
   const valuation = companyValuation(state);
@@ -210,6 +223,37 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         );
       })()}
 
+      {/* Rival releases — the real products rivals have shipped (Epic B): see and learn from them */}
+      {visibleRivalReleases.length > 0 && (
+        <Card>
+          <SectionHeader title="Rival releases" accessory={`${visibleRivalReleases.length} recent`} />
+          <div className="mkt__rivals">
+            {visibleRivalReleases.slice(0, 6).map((r, i) => (
+              <button
+                key={`${r.product.id}-${i}`}
+                className="mkt__rival mkt__rival--btn"
+                onClick={() => { setRivalProfile(r.rivalId); haptic.light(); }}
+                aria-label={`View ${r.rivalName} company profile`}
+              >
+                <span className="mkt__rival-thumb"><DeviceRenderer product={r.product} size={44} /></span>
+                <span className="mkt__rival-info">
+                  <span className="mkt__rival-name">{r.product.name}</span>
+                  <span className="mkt__rival-sub">
+                    <CategoryIcon id={r.category} size={12} /> {CATEGORY_LABEL[r.category] ?? r.category} · wk {r.week}
+                  </span>
+                </span>
+                <span className="mkt__rival-meta">
+                  <span className="mkt__rival-price tnum">{format(r.product.price)}</span>
+                  <span className={`mkt__rival-tone mkt__rival-tone--${r.contested ? "undercut" : r.tone}`}>
+                    {r.contested ? "undercut" : r.tone}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Your launched products — tap one to see why it performed + design a successor */}
       <Card>
         <SectionHeader title="Your products" accessory={state.launched.length > 0 ? `${state.launched.length} launched` : undefined} />
@@ -297,6 +341,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           </>
         )}
       </Card>
+
+      {/* Your franchises — product lines grouped by brand equity (the IP lens over your catalog) */}
+      <FranchisesCard launched={state.launched} />
 
       {/* Portfolio revenue breakdown by category */}
       {(() => {
@@ -636,6 +683,19 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       <Sheet open={!!trade} onClose={() => setTrade(null)}>
         {trade && <TradeSheet comp={comps.find((c) => c.id === trade.id) ?? trade} onClose={() => setTrade(null)} />}
       </Sheet>
+      <Sheet open={!!rivalProfile} onClose={() => setRivalProfile(null)}>
+        {rivalProfile && (() => {
+          const comp = comps.find((c) => c.id === rivalProfile);
+          return comp ? (
+            <RivalProfileSheet
+              comp={comp}
+              releases={state.rivalReleases.filter((r) => r.rivalId === rivalProfile)}
+              onTrade={() => { setRivalProfile(null); setTrade(comp); }}
+              onClose={() => setRivalProfile(null)}
+            />
+          ) : null;
+        })()}
+      </Sheet>
       <Sheet open={ipo} onClose={() => setIpo(false)}>
         {ipo && <IPOSheet onClose={() => setIpo(false)} />}
       </Sheet>
@@ -653,6 +713,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
 
 type DriverTone = "positive" | "accent" | "negative" | "neutral";
 interface Driver {
+  key: FactorKey;
   label: string;
   value: string;
   detail: string;
@@ -670,6 +731,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
   if (ins) {
     const f = Math.round(ins.demandFit);
     drivers.push({
+      key: "demand",
       label: "Demand fit",
       value: `${f}/100`,
       detail: f >= 60 ? "Closely matched what the market wanted." : f >= 35 ? "A decent match for the trend." : "Out of step with what buyers wanted.",
@@ -679,10 +741,26 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const hi = lp.launchScore >= 76;
     const lo = lp.launchScore <= 22;
     drivers.push({
+      key: "demand",
       label: "Demand fit",
       value: hi ? "Strong" : lo ? "Weak" : "Fair",
       detail: hi ? "Read the market well at launch." : lo ? "Mistimed the market." : "An average read on the trend.",
       tone: hi ? "positive" : lo ? "negative" : "accent",
+    });
+  }
+
+  // 1b) Audience — which buyer segment this product won and which it lost (Epic A). Additive:
+  // skipped for saves written before segments existed (no dominantSegment recorded).
+  if (ins?.dominantSegment && ins.perSegment && ins.perSegment.length) {
+    const top = ins.perSegment.find((s) => s.id === ins.dominantSegment) ?? ins.perSegment[0];
+    const low = ins.perSegment.find((s) => s.id === ins.weakestSegment) ?? ins.perSegment[ins.perSegment.length - 1];
+    const lowReason = low.priceFit < 0.6 ? "priced out" : low.fit < 35 ? "specs missed" : "niche appeal";
+    drivers.push({
+      key: "audience",
+      label: "Audience",
+      value: top.name,
+      detail: `Strongest with ${top.name} buyers; weakest with ${low.name} (${lowReason}).`,
+      tone: "accent",
     });
   }
 
@@ -692,6 +770,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const over = pf < 0.8;
     const under = pf > 1.12;
     drivers.push({
+      key: "price",
       label: "Price",
       value: over ? "Overpriced" : under ? "Value buy" : "On the money",
       detail: over ? "Buyers felt it cost too much for the spec." : under ? "Priced below its perceived value — drove volume." : "Priced fairly for what it delivered.",
@@ -705,6 +784,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const matches = ins.matchingRivals;
     const kept = Math.round(ins.competitionFactor * 100);
     drivers.push({
+      key: "competition",
       label: "Competition",
       value: beats > 0 ? `${beats} ahead` : matches > 0 ? `${matches} matched` : "Clear field",
       detail: beats > 0
@@ -722,6 +802,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
     const strong = h >= 1.6;
     const weak = h < 1.1;
     drivers.push({
+      key: "hype",
       label: "Hype",
       value: strong ? "High" : weak ? "Low" : "Moderate",
       detail: strong ? "Reputation and marketing gave a big launch boost." : weak ? "Little buzz — few buyers knew it existed." : "A steady amount of launch buzz.",
@@ -774,6 +855,12 @@ function ProductDetailSheet({
   const [pushOpen, setPushOpen] = useState(false);
   const v = verdictOf(lp);
   const drivers = performanceDrivers(lp);
+  // C1 — rank the drivers by how DECISIVE each was and synthesize a headline (2–3 dominant factors,
+  // not a fog). Only when the launch-moment insight was recorded; older saves keep the plain list.
+  const pm = lp.insight ? postMortem(lp.insight, v) : null;
+  const orderedDrivers = pm
+    ? [...drivers].sort((a, b) => (pm.impacts[b.key]?.impact ?? 0) - (pm.impacts[a.key]?.impact ?? 0))
+    : drivers;
   const tips = generateTips(lp);
   // Fictional tech-press reviews derived from the recorded launch metrics (pure, presentation
   // only — never affects the sim). Falls back to neutral drivers for pre-insight saves.
@@ -1027,16 +1114,20 @@ function ProductDetailSheet({
           <Sparkles size={15} aria-hidden />
           <span>Why it {v === "hit" ? "won" : v === "flop" ? "flopped" : v === "solid" ? "delivered" : "performed"}</span>
         </div>
+        {pm && <p className="pd__why-headline">{pm.headline}</p>}
         <ul className="pd__drivers">
-          {drivers.map((d) => (
-            <li className="pd__driver" key={d.label}>
-              <div className="pd__driver-top">
-                <span className="pd__driver-label">{d.label}</span>
-                <span className={`pd__driver-value pd__driver-value--${d.tone} tnum`}>{d.value}</span>
-              </div>
-              <p className="pd__driver-detail">{d.detail}</p>
-            </li>
-          ))}
+          {orderedDrivers.map((d) => {
+            const key = pm?.dominant.includes(d.key);
+            return (
+              <li className={`pd__driver${key ? " pd__driver--key" : ""}`} key={d.label}>
+                <div className="pd__driver-top">
+                  <span className="pd__driver-label">{d.label}{key && <span className="pd__driver-tag">key factor</span>}</span>
+                  <span className={`pd__driver-value pd__driver-value--${d.tone} tnum`}>{d.value}</span>
+                </div>
+                <p className="pd__driver-detail">{d.detail}</p>
+              </li>
+            );
+          })}
         </ul>
         {!lp.insight && (
           <p className="pd__why-note">Detailed launch metrics weren't recorded for this older product — shown as an overall read.</p>
@@ -1065,10 +1156,172 @@ function ProductDetailSheet({
   );
 }
 
+const DOCTRINE_LABEL: Record<string, string> = {
+  defender: "Defender", trendChaser: "Trend-chaser", undercutter: "Undercutter", generalist: "Generalist",
+};
+
+function fmtCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${Math.floor(n / 1000)}k`;
+  return n.toLocaleString();
+}
+
+/** The player's product lines grouped by brand equity — the IP lens over the catalog. */
+function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
+  const lines = playerFranchises(launched);
+  if (lines.length === 0) return null;
+  return (
+    <Card>
+      <SectionHeader title="Your franchises" accessory={`${lines.length} line${lines.length > 1 ? "s" : ""}`} />
+      <div className="mkt__fr-list">
+        {lines.map((f) => (
+          <div key={f.stem} className="mkt__fr">
+            <div className="mkt__fr-head">
+              <span className="mkt__fr-name">{f.name} line</span>
+              <span className={`mkt__fr-tag mkt__fr-tag--${f.label.toLowerCase().replace(/\s+/g, "")}`}>{f.label}</span>
+            </div>
+            <div className="mkt__fr-sub">
+              {f.entries} product{f.entries > 1 ? "s" : ""} · {fmtCompact(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
+            </div>
+            <div className="mkt__fr-bar" aria-hidden><span className="mkt__fr-fill" style={{ width: `${Math.round(Math.max(0, f.equity) * 100)}%` }} /></div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/** A rival's company card + their product lines + recent releases (tap a rival release to open). */
+function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: CompetitorState; releases: RivalRelease[]; onTrade: () => void; onClose: () => void }) {
+  const { state, acquireRival } = useGame();
+  const [armAcquire, setArmAcquire] = useState(false);
+  const cap = rivalMarketCap(comp);
+  const ch = changePct(comp.priceHistory);
+  const lines = rivalLines(releases.map((r) => ({ name: r.product.name, week: r.week, overall: r.overall, category: r.category })));
+  const acquirable = canAcquire(state, comp.id);
+  const buyout = acquisitionCost(state, comp.id);
+  const established = toDollars(state.cumulativeRevenue) >= toDollars(BALANCE.ipo.minRevenueToList);
+  const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
+  // Your relationships with this rival: do they license your OS, and do you hold their shares?
+  const licensed = state.osLicensees.includes(comp.id);
+  const licenseFee = licensed ? rivalLicenseFee(comp.reputation, osTierInfo(state).tier) : null;
+  const held = state.holdings[comp.id] ?? 0;
+  const totalShares = rivalDef(comp.id)?.shares ?? 0;
+  const ownPct = totalShares > 0 ? (held / totalShares) * 100 : 0;
+  return (
+    <div className="rprof">
+      <div className="rprof__head">
+        <span className="rprof__brand" aria-hidden><Building2 size={20} /></span>
+        <div>
+          <h2 className="rprof__title">{comp.name}</h2>
+          <p className="rprof__sub">{comp.blurb}</p>
+        </div>
+      </div>
+      <div className="rprof__spark">
+        <Sparkline data={comp.priceHistory} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} height={40} />
+      </div>
+      <div className="rprof__stats">
+        <StatPill label="Reputation" value={Math.round(comp.reputation)} tone={comp.reputation >= 60 ? "positive" : "neutral"} />
+        <StatPill label="Market cap" value={format(cap)} />
+        <StatPill label="Share" value={`${format(cents(comp.sharePrice))} ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}%`} tone={ch >= 0 ? "positive" : "negative"} />
+        <StatPill label="Strategy" value={DOCTRINE_LABEL[rivalDoctrine(comp.id)] ?? "—"} />
+      </div>
+
+      {(licensed || held > 0) && (
+        <div className="rprof__status">
+          {licensed && licenseFee && (
+            <span className="rprof__badge rprof__badge--license">
+              Licenses {osDisplayName(state)} · {format(licenseFee)}/wk
+            </span>
+          )}
+          {held > 0 && (
+            <span className="rprof__badge">
+              You own {held.toLocaleString()} share{held !== 1 ? "s" : ""}{ownPct >= 0.1 ? ` · ${ownPct.toFixed(1)}%` : ""}
+            </span>
+          )}
+        </div>
+      )}
+
+      {lines.length > 0 && (
+        <Card>
+          <SectionHeader title="Product lines" accessory={`${lines.length}`} />
+          <div className="mkt__fr-list">
+            {lines.map((l) => (
+              <div key={l.stem} className="mkt__fr">
+                <div className="mkt__fr-head">
+                  <span className="mkt__fr-name">{l.name}</span>
+                  <span className="mkt__fr-tag">{l.entries} {l.entries > 1 ? "entries" : "entry"}</span>
+                </div>
+                <div className="mkt__fr-sub">
+                  <CategoryIcon id={l.categories[0]} size={11} /> latest {l.latestName} · avg quality {l.avgOverall}/100
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <SectionHeader title="Recent releases" accessory={`${releases.length}`} />
+        <div className="mkt__rivals">
+          {releases.slice(0, 5).map((r, i) => (
+            <div key={`${r.product.id}-${i}`} className="mkt__rival">
+              <span className="mkt__rival-thumb"><DeviceRenderer product={r.product} size={40} /></span>
+              <span className="mkt__rival-info">
+                <span className="mkt__rival-name">{r.product.name}</span>
+                <span className="mkt__rival-sub"><CategoryIcon id={r.category} size={12} /> {CATEGORY_LABEL[r.category] ?? r.category} · wk {r.week}</span>
+              </span>
+              <span className="mkt__rival-meta"><span className="mkt__rival-price tnum">{format(r.product.price)}</span></span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Button block variant="secondary" onClick={onTrade}>Trade {comp.name} shares</Button>
+
+      {established && buyout && (
+        <div className="rprof__acquire">
+          <Button
+            block
+            variant={armAcquire ? "primary" : "tertiary"}
+            disabled={!acquirable}
+            onClick={() => {
+              if (!armAcquire) { setArmAcquire(true); haptic.medium(); return; }
+              acquireRival(comp.id); haptic.success(); sfx("era");
+              showToast(`Acquired ${comp.name}`, { tone: "positive", glyph: <Crown size={15} /> });
+              onClose();
+            }}
+          >
+            <Crown size={14} />
+            {armAcquire ? `Confirm buyout · ${format(buyout)}` : `Acquire ${comp.name} · ${format(buyout)}`}
+          </Button>
+          <p className="rprof__acquire-note">
+            {acquirable
+              ? "Buy them out: remove them from competition and absorb their brand + customers."
+              : atFloor
+                ? "The market needs at least a couple of rivals — you can't acquire any more right now."
+                : state.cash < buyout
+                  ? `You need ${format(sub(buyout, state.cash))} more cash to take control.`
+                  : "Acquisitions unlock once your company is established."}
+          </p>
+        </div>
+      )}
+      <Button block variant="tertiary" onClick={onClose}>Done</Button>
+    </div>
+  );
+}
+
 function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => void }) {
-  const { state, buyShares, sellShares } = useGame();
+  const { state, buyShares, sellShares, acquireRival } = useGame();
   const [qty, setQty] = useState(1);
+  const [armAcquire, setArmAcquire] = useState(false);
   const owned = state.holdings[comp.id] ?? 0;
+  // B3 — outright acquisition. Surface once the company is established (past the revenue bar); the
+  // button explains itself when gated (field floor / not enough cash).
+  const established = toDollars(state.cumulativeRevenue) >= toDollars(BALANCE.ipo.minRevenueToList);
+  const buyout = acquisitionCost(state, comp.id);
+  const acquirable = canAcquire(state, comp.id);
+  const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
   const cost = buyCost(comp.sharePrice, qty);
   const proceeds = sellProceeds(comp.sharePrice, qty);
   const canBuy = state.cash >= cost;
@@ -1174,6 +1427,34 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         <Button block variant="tertiary" onClick={() => { sellShares(comp.id, owned); haptic.medium(); onClose(); }}>
           Sell all {owned}
         </Button>
+      )}
+
+      {established && buyout && (
+        <div className="trade__acquire">
+          <Button
+            block
+            variant={armAcquire ? "primary" : "tertiary"}
+            disabled={!acquirable}
+            onClick={() => {
+              if (!armAcquire) { setArmAcquire(true); haptic.medium(); return; }
+              acquireRival(comp.id); haptic.success(); sfx("era");
+              showToast(`Acquired ${comp.name}`, { tone: "positive", glyph: <Crown size={15} /> });
+              onClose();
+            }}
+          >
+            <Crown size={14} />
+            {armAcquire ? `Confirm buyout · ${format(buyout)}` : `Acquire ${comp.name} · ${format(buyout)}`}
+          </Button>
+          <p className="trade__acquire-note">
+            {acquirable
+              ? "Buy out the company: remove it from competition and absorb its brand + customers."
+              : atFloor
+                ? "The market needs at least a couple of rivals — you can't acquire any more right now."
+                : state.cash < buyout
+                  ? `You need ${format(sub(buyout, state.cash))} more cash to take control.`
+                  : "Acquisitions unlock once your company is established."}
+          </p>
+        </div>
       )}
     </div>
   );

@@ -141,6 +141,45 @@ export const BALANCE = {
       retargetEveryWeeks: 14,
       retargetJitter: 6,
     },
+    // --- Market segments (Epic A) ---
+    // The market is split into buyer segments (engine/segments.ts SEGMENTS), each weighting the five
+    // stats + price differently, so "who is this product for?" becomes a real positioning decision
+    // instead of a single global "what consumers want". A launch wins a SHARE OF EACH SEGMENT, summed.
+    segments: {
+      // How strongly the drifting global trend tilts each segment's taste (0 = pure segment identity,
+      // 1 = trend dominates). Keeps the existing trend-drift mechanic meaningful WITHIN segmentation:
+      // a segment still leans its way, but a hot trend shifts every segment toward it.
+      trendInfluence: 0.4,
+      // Floor on a segment's price tolerance after the priceSensitivity divide, so a very
+      // price-sensitive segment still has a usable (if narrow) pricing band, never a knife-edge.
+      minPriceTolerance: 0.18,
+    },
+    // --- Forecast confidence (Epic C2 — the converging pre-launch forecast) ---
+    // The wizard shows a demand RANGE; its width — and how far the real launch can land from the
+    // point estimate — TIGHTENS as the player invests in knowing their market (marketer skill =
+    // intuition; the Demand Sensing project = analytics). Confidence sets the displayed band AND
+    // scales the realized launch variance, so a tighter forecast is an HONEST promise, not a lie.
+    // baseBand mirrors demandVariance, so a no-knowledge forecast is the old ±12% behaviour.
+    forecast: {
+      baseBand: 0.12,                // ± band with zero market knowledge (matches demandVariance)
+      minBand: 0.05,                 // tightest achievable band at max confidence
+      skillConfidencePerPoint: 0.04, // confidence gained per effective marketer-skill point
+      demandSensingConfidence: 0.3,  // confidence from the Demand Sensing research project
+      maxConfidence: 0.85,           // hard cap — a forecast is never a certainty
+    },
+    // --- Aesthetics → demand (Epic G1: "form affects demand") ---
+    // The parametric render's purely-cosmetic choices (notch, camera module/layout, flash) carried
+    // ZERO weight before — Automation's self-inflicted "looks don't affect sales" bug, on the very
+    // toy we centre the game on. These now feed a bounded STYLE APPEAL that lifts the Style segment's
+    // fit ONLY (engine/aesthetics.ts → segments.ts), so a striking design wins design-led buyers
+    // without touching the global economy. A fully-considered design exactly reaches maxStyleAppeal.
+    aesthetics: {
+      maxStyleAppeal: 8,             // cap on form-driven Style-segment fit points
+      notch: { island: 3, punch: 2, none: 1, notch: 0 } as Record<string, number>, // modern screen treatment
+      module: { squircle: 2, pill: 2, circle: 1 } as Record<string, number>,        // camera module shape
+      coherentLayoutBonus: 2,        // a camera layout that suits the lens count reads intentional
+      flashBonus: 1,                 // a complete camera system
+    },
   },
 
   // --- Sales curve (ramp -> peak -> decline) ---
@@ -272,6 +311,15 @@ export const BALANCE = {
     },
   },
 
+  // --- Delegation & ops (Epic E) ---
+  // Late-game scale shouldn't mean more taps for the same decisions (the micromanagement death of
+  // Startup Company / Computer Tycoon; touch density is fatal on a phone). Automation only does what
+  // the player already can, and is GATED on having grown a senior staffer to "delegate" the function
+  // to — so it's earned, not free. leadSkill is the headline skill (1..10) that qualifies as a lead.
+  ops: {
+    leadSkill: 5,
+  },
+
   // --- Build / manufacturing ---
   build: {
     baseWeeks: 3, // weeks to manufacture a product before it can launch
@@ -338,6 +386,22 @@ export const BALANCE = {
     { era: 4, name: "AI Era", repToAdvance: Infinity, revToAdvance: Infinity },
   ],
 
+  // --- Era-distinct mechanics (Epic D) ---
+  // Eras shouldn't merely scale numbers — each should change the TEXTURE of play. These modifiers
+  // route through EXISTING selectors (no new systems) and are 1.0 through the Garage + Growth eras,
+  // so the tuned early game is byte-identical; the late eras gain a distinct rule shift:
+  //   • Platform era — ecosystem LOCK-IN dominates: services revenue + marketing reach amplified.
+  //   • AI era — a hype-driven, VOLATILE market: marketing pops harder and realized demand swings more
+  //     (over/under-production is a bigger bet), on top of the strongest ecosystem economy.
+  // A new player learns the baseline; a veteran must re-strategize per era. Index = era − 1.
+  // ⚠️ MAGNITUDES NEED A PLAYTEST — they reshape the late-game economy (the levers, not the wiring).
+  eraModifiers: [
+    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0 },  // 1 Garage — baseline
+    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0 },  // 2 Growth — baseline
+    { marketingHype: 1.2, ecosystemRate: 1.5, demandVariance: 1.0 },  // 3 Platform — ecosystem lock-in
+    { marketingHype: 1.35, ecosystemRate: 1.7, demandVariance: 1.4 }, // 4 AI — hype-driven + volatile
+  ],
+
   // --- Competitors ---
   // B9 — rivals are now SPECIALIZED + REACTIVE, so "which category and price to contest" is a real
   // decision instead of noise. Each rival has a posture (set per-rival in competitors.ts RIVALS):
@@ -361,6 +425,44 @@ export const BALANCE = {
     reactStrengthBonus: 14, // extra strength the reacting rival brings to the player's hot category
     reactMaxStrength: 95, // hard ceiling on any single rival launch strength (keeps it winnable)
     reactCadenceCut: 3, // weeks shaved off the reacting rival's next launch (faster counter-punch)
+    // B2 — rival DOCTRINES (per-rival behavioural posture; see competitors.ts RivalDoctrine). Tuned
+    // to add VARIETY + presence, NOT raw difficulty: only the `defender` raises launch strength (the
+    // old lead-rival counter-punch, numbers unchanged), so the contested-launch ceiling + winnability
+    // are exactly preserved. The other doctrines change WHERE a rival shows up and HOW it prices —
+    // visible personality, governed by the existing match-count + era-pressure, never new strength.
+    doctrineTargetWeight: 3, // extra category-selection weight a trend-chaser piles onto the player's hot cats
+    undercutCadenceCut: 2,   // weeks shaved off an undercutter's next launch when it contests a hot category
+    undercutPriceMult: 0.78, // visible price multiplier on an undercutter's contesting product (it ships cheap)
+  },
+
+  // --- Product franchises / brand equity (the "IP & fanbase" lever) ---
+  // A product LINE (sequels sharing a name, e.g. the "Aurora" series) builds brand equity from its
+  // track record: a run of hits makes the next launch land with loyal pre-orders + anticipation; a
+  // flop tarnishes it; lapsing lets it fade. Bounded so a strong line is an edge, never an auto-win.
+  // First-in-line products have no history → zero equity → zero bonus (purely additive). ⚠️ magnitudes
+  // want a playtest — they're a launch-economy lever, isolated here.
+  franchise: {
+    // Equity each prior launch in the line contributes, by its verdict (a flop actively tarnishes).
+    verdictEquity: { hit: 0.34, solid: 0.18, steady: 0.06, flop: -0.22 } as Record<string, number>,
+    recencyDecay: 0.82,    // older launches in the line count less (× per position back from newest)
+    maxEntries: 5,         // only the most recent N launches in the line shape equity
+    preorderBonusMax: 0.4, // a beloved line lifts pre-orders by up to this fraction
+    hypeBonusMax: 0.15,    // …and adds up to this much launch hype (anticipation for the next entry)
+  },
+
+  // --- Mergers & acquisitions (Epic B3) ---
+  // The late-game power move: buy out a rival you've been beating. You pay a control PREMIUM over its
+  // market cap (minus any shares you already hold), remove it from competition, and absorb its brand
+  // (reputation) + customer base (fans). Gated so it's an established-company play, with a field floor
+  // so the market never empties — and the field REFILLS as fresh challengers rise (entryChancePerWeek),
+  // keeping the industry alive instead of letting the player mute it permanently.
+  mergers: {
+    acquisitionPremium: 1.35, // pay this multiple of the rival's market cap to take control
+    minActiveRivals: 2,       // acquisitions can never drop the field below this many rivals
+    repBonus: 6,              // one-time reputation lift from absorbing a known brand
+    fansPerRepPoint: 220,     // fans absorbed per point of the acquired rival's reputation
+    fansCap: 80_000,          // hard cap on absorbed fans (no free faucet)
+    entryChancePerWeek: 0.06, // weekly chance a new challenger refills a thinned field (~16wk mean)
   },
 
   // --- IPO / prestige ---
