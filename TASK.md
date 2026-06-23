@@ -1130,3 +1130,18 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - Backlog (logged from the v38 survey, not acted): franchise line-naming + gallery UI; Research RP-sink
       feedback card; Challenge weekly recap + milestones; per-licensee relationship/churn; OS module
       synergies; Market feed empty state; Museum device-story blurbs.
+
+## v39 — Content drop: events, franchise detail, OS synergies (DONE 2026-06-23)
+- Survey finding: several "backlog" items were ALREADY built — Design Lab "Continue a line" chips,
+  Market "Your franchises" card (revenue/equity/entries), and the Market feed empty state all exist.
+  So this drop added the genuinely-missing pieces instead of rebuilding them.
+- [x] **+9 market events, +4 choice dilemmas** across all eras (engine/events.ts) — additive flavour
+      using existing effect kinds, no state-layer changes; invariant tests cover them.
+- [x] **Franchise detail sheet**: tapping a line in Market opens its "chapters" — every product newest
+      first with a parametric device thumbnail, verdict, units + revenue, and the line's lifetime totals.
+- [x] **OS module synergies**: pair complementary modules for an extra services bonus (One-Tap Commerce,
+      Seamless Handoff, Proactive Wellbeing). Folds into osServicesMultiplier (still capped); surfaced as
+      a "Synergies" subsection (active vs locked). 4 new engine specs.
+- 489 tests, tsc 0, build+PWA green.
+- ⚠️ Synergy + module + version services bonuses now reach ~2.56× at a full v5 build (cap 2.6) — close
+      to the rail; if more is added later, raise servicesMultCap. NOT playtested on device.
