@@ -80,6 +80,28 @@ export function weeklyRp(staff: readonly Staff[], era: number): number {
   return rp * mult;
 }
 
+/** One contributor to weekly RP, for the legibility breakdown. `id` is the staff id ("founder" for
+ *  the founder trickle); `rp` is that source's weekly RP at the era scale. */
+export interface RpSource {
+  id: string;
+  label: string;
+  rp: number;
+}
+
+/** Itemized weekly RP by source (founder trickle + each R&D-assigned staffer), at the era scale.
+ *  The sum equals weeklyRp(staff, era) exactly — a test pins this so the two never diverge. Pure. */
+export function rpSources(staff: readonly Staff[], era: number): RpSource[] {
+  const len = BALANCE.research.eraMultiplier.length;
+  const mult = BALANCE.research.eraMultiplier[Math.max(1, Math.min(era, len)) - 1];
+  const out: RpSource[] = [{ id: "founder", label: "Founder", rp: BALANCE.research.rpFounderBase * mult }];
+  for (const s of staff) {
+    if (s.assignment !== "rnd") continue;
+    const per = s.role === "engineer" ? BALANCE.research.rpPerEngineerSkill : BALANCE.research.rpPerAssignedResearcher;
+    out.push({ id: s.id, label: s.name, rp: disciplineOutput(s, "engineering") * per * mult });
+  }
+  return out;
+}
+
 /** Convert an old cash R&D cost into an RP cost for a component tier. */
 export function techRpCost(cashRdCost: number): number {
   return Math.max(BALANCE.research.minTechRp, Math.round(cashRdCost * BALANCE.research.rdCashToRp));

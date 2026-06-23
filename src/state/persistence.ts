@@ -287,6 +287,28 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.osName !== "string") s.osName = "";
   if (!Number.isFinite(s.osVersion) || s.osVersion < 1) s.osVersion = 1;
   if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
+  // Per-licensee satisfaction (added later): default empty — existing licensees fall back to startHealth.
+  // Sanitize values from an untrusted import: drop non-finite, clamp to 0..100.
+  if (!s.osLicenseeHealth || typeof s.osLicenseeHealth !== "object" || Array.isArray(s.osLicenseeHealth)) {
+    s.osLicenseeHealth = {};
+  } else {
+    const normalized: Record<string, number> = {};
+    for (const [id, v] of Object.entries(s.osLicenseeHealth as Record<string, unknown>)) {
+      if (typeof v === "number" && Number.isFinite(v)) normalized[id] = Math.max(0, Math.min(100, v));
+    }
+    s.osLicenseeHealth = normalized;
+  }
+  // OS feature modules (added later): default none — a save loads with an un-customized OS, so
+  // ecosystem bonus = 0 and services multiplier = 1 until the player builds modules. Keep only unique
+  // string ids so an import can't carry duplicates/garbage into runtime.
+  if (!Array.isArray(s.osFeatures)) s.osFeatures = [];
+  else s.osFeatures = [...new Set(s.osFeatures.filter((id: unknown): id is string => typeof id === "string"))];
+  // Installed-base history for the Platform sparkline (added later): default empty — it fills as weeks
+  // pass. Keep only finite numbers.
+  if (!Array.isArray(s.osBaseHistory)) s.osBaseHistory = [];
+  else s.osBaseHistory = s.osBaseHistory.filter((n: unknown): n is number => typeof n === "number" && Number.isFinite(n));
+  // OS philosophy (added later): default none — an un-customized OS with no tilt.
+  if (typeof s.osPhilosophy !== "string") s.osPhilosophy = null;
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

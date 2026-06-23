@@ -8,7 +8,7 @@ import { PlatformSheet } from "./Platform.tsx";
 import { MuseumSheet } from "./Museum.tsx";
 import { getMuseum } from "../state/museum.ts";
 import { getProfileAchievements } from "../state/achievementsProfile.ts";
-import { osDisplayName } from "../state/gameState.ts";
+import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
 import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { ACHIEVEMENT_COUNT, ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
@@ -49,6 +49,7 @@ import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
 import { haptic } from "../design/haptics.ts";
 import { showToast } from "../design/toast.tsx";
+import { Celebration } from "../design/Celebration.tsx";
 import type { CSSProperties } from "react";
 import "./company.css";
 
@@ -101,7 +102,8 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 };
 
 export function Company() {
-  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation } = useGame();
+  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, foundPlatform } = useGame();
+  const [foundedCelebrate, setFoundedCelebrate] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const [scenariosOpen, setScenariosOpen] = useState(false);
@@ -316,8 +318,8 @@ export function Company() {
         {museumCount > 0 && <span className="co__ach-count tnum">{museumCount}</span>}
       </button>
 
-      {/* Platform division (DLC) — only when unlocked */}
-      {state.platformUnlocked && (
+      {/* Platform division — founded in-game as a major reinvestment milestone (or its open row). */}
+      {state.platformUnlocked ? (
         <button className="co__ach-row" onClick={() => setPlatformOpen(true)} aria-label="Open the Platform division">
           <span className="co__ach-glyph" aria-hidden><Layers size={20} /></span>
           <span className="co__ach-info">
@@ -325,7 +327,34 @@ export function Company() {
             <span className="co__ach-sub">{osDisplayName(state)} · installed base & licensing</span>
           </span>
         </button>
-      )}
+      ) : (() => {
+        const cost = platformFoundingCost();
+        const can = canFoundPlatform(state);
+        const shortBy = sub(cost, state.cash);
+        return (
+          <Card className="co__found">
+            <div className="co__found-head">
+              <span className="co__found-glyph" aria-hidden><Layers size={22} /></span>
+              <div className="co__found-info">
+                <span className="co__found-title">Found the Platform division</span>
+                <span className="co__found-sub">Turn {osDisplayName(state)} into a business in its own right — recurring services, OS licensing to rivals, feature modules, and a platform identity.</span>
+              </div>
+            </div>
+            <Button
+              block
+              variant={can ? "primary" : "tertiary"}
+              disabled={!can}
+              onClick={() => {
+                haptic.success();
+                foundPlatform();
+                setFoundedCelebrate(true); // the Celebration overlay fires confetti + sound on mount
+              }}
+            >
+              {can ? <>Found · {format(cost)}</> : <>Save up {format(shortBy)} more · {format(cost)}</>}
+            </Button>
+          </Card>
+        );
+      })()}
 
       {/* Near-achievement progress */}
       <NearMilestonesCard state={state} />
@@ -397,6 +426,23 @@ export function Company() {
       <Sheet open={platformOpen} onClose={() => setPlatformOpen(false)}>
         <PlatformSheet onClose={() => setPlatformOpen(false)} />
       </Sheet>
+
+      {foundedCelebrate && (
+        <Celebration
+          eyebrow="Division founded"
+          title={`${osDisplayName(state)} is live`}
+          sub="Your operating system is now a business in its own right. Shape its identity, ship versions, build features, and license it to the industry."
+          icon={<Layers size={32} />}
+          chips={[
+            { icon: <Sparkles size={14} />, value: "New", label: "OS philosophy" },
+            { icon: <Boxes size={14} />, value: "8", label: "feature modules" },
+          ]}
+          confirmLabel="Open the division"
+          onConfirm={() => { setFoundedCelebrate(false); setPlatformOpen(true); }}
+          secondaryLabel="Later"
+          onSecondary={() => setFoundedCelebrate(false)}
+        />
+      )}
 
       <Sheet open={museumOpen} onClose={() => setMuseumOpen(false)}>
         <MuseumSheet onClose={() => setMuseumOpen(false)} />

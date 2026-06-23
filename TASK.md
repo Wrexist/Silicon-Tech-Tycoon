@@ -1079,3 +1079,99 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
       rival licenses your OS, and "You own N shares · X%" when you hold their stock (the buyout-discount
       stake). Reuses rivalLicenseFee/osTierInfo/holdings.
 - 465 tests, tsc 0, build+PWA. preview.html updated. Franchise chapter complete.
+
+## v36 — OS division deepened: feature modules + device coupling (DONE 2026-06-23)
+- [x] **Sheet bug fix**: bottom sheets now portal to `<body>` (primitives.tsx) so the trailing action
+      (e.g. Platform → "Done") clears the fixed tab bar instead of being trapped beneath it. Also drops
+      the unintended screen card-stagger fade the scrim was inheriting.
+- [x] **OS feature modules** (`engine/platform.ts` OS_FEATURES): 6 researchable capabilities (App
+      Marketplace, Cloud Sync, On-Device Assistant, Privacy Suite, Health Hub, Cross-Device Continuity),
+      each gated behind an OS version + an RP cost. `osEcosystemBonus` + `osServicesMultiplier` (both
+      bounded; caps + per-version step in `balance.platform.features`).
+- [x] **Real lever** (user's call): a built module lifts the ecosystem stat of every device you launch
+      (via `productStats`, state layer — `product.ts` untouched) AND multiplies recurring services income
+      (selector + tick). Exactly 1.0× / +0 when the division is off → base economy byte-identical.
+- [x] **State**: `osFeatures: string[]` (+persistence backfill, resets on NG+ like research, entitlement
+      carries); `installOsFeature` gated on entitlement+version+RP; `osFeatureList`/`osEcoBonus`/
+      `canInstallFeature` selectors; exposed via useGame.
+- [x] **UI**: Platform "OS features" card (build/locked/built/unaffordable states, effect readout);
+      Design Lab review note "Runs <OS> vN · +X ecosystem from N modules".
+- 477 tests, tsc 0, build+PWA green. preview-os-features.html sent.
+- ⚠️ Balance magnitudes (module RP costs, ecoBonus/servicesMult, caps) NOT playtested on device — all
+      isolated in `balance.platform.features` + the OS_FEATURES catalog for a one-file tuning pass.
+
+## v37 — OS division: more modules, achievements, completion celebration (DONE 2026-06-23)
+- [x] **Two more modules → 8 total**: Wallet & Pay (v2), Media Studio (v3). `ecoBonusCap` 20→26 so a
+      FULL build (+25 ecosystem) pays in full — the completion reward — while still bounding the sum.
+- [x] **Achievements**: "Platform Pioneer" (first module) + "Walled Garden" (every module). New pure
+      facts `osFeaturesBuilt`/`osComplete` (0/false until the division is unlocked). `installOsFeature`
+      routed through `withLiveAchievements` + the RP-spend FX so they fire the instant you build.
+- [x] **Dopamine**: live build-progress bar on the OS features card (N/total → "Complete"); sound +
+      haptic + RP-spend FX per build; and a bespoke portal "Platform complete" celebration on the final
+      build — spring-in emblem, radiating ray burst, sealing check, global confetti, the platform totals.
+      Pure vector; ray/spring choreography fully disabled under reduced motion.
+- 481 tests, tsc 0, build+PWA green. preview sent.
+- ⚠️ Still NOT playtested on device: a fully-built OS adds +25 ecosystem to every launch (intentional
+      late-game power, gated behind all 8 modules + OS v4 + ~408 RP). Tunable in one file if too strong.
+
+## v38 — Celebration system + OS depth (DONE 2026-06-23)
+- [x] **Reusable `Celebration` overlay** (design/Celebration.tsx + celebration.css): generalized the
+      OS-complete moment — portal, ray-burst emblem, sealing check, stat chips, confetti + sound on
+      mount, accent/positive tone. Reduced-motion safe. OS-complete refactored onto it.
+- [x] **(b) OS version release celebration**: launch-day beat (new version, +fans, +reputation, devices
+      updated); reward captured at click so it survives the card swap.
+- [x] **(a) New Game+ legacy celebration**: confirming prestige opens a positive-tone "Legacy N forged"
+      moment (crown emblem, the inherited cash/rep/fans/RP + founder perk); its confirm founds the next
+      run. The reset reads as a reward, not a wipe.
+- [x] **OS reach sparkline**: tick samples installed base weekly while unlocked (capped 40, backfilled);
+      Platform shows an "OS reach" Sparkline + "+N this period" trend.
+- [x] **3 OS achievements**: Going Mainstream (100k base), Ubiquitous (1M), Kingmaker (3 licensees).
+- 485 tests, tsc 0, build+PWA green. preview-os-celebrations.html sent.
+- Backlog (logged from the v38 survey, not acted): franchise line-naming + gallery UI; Research RP-sink
+      feedback card; Challenge weekly recap + milestones; per-licensee relationship/churn; OS module
+      synergies; Market feed empty state; Museum device-story blurbs.
+
+## v39 — Content drop: events, franchise detail, OS synergies (DONE 2026-06-23)
+- Survey finding: several "backlog" items were ALREADY built — Design Lab "Continue a line" chips,
+  Market "Your franchises" card (revenue/equity/entries), and the Market feed empty state all exist.
+  So this drop added the genuinely-missing pieces instead of rebuilding them.
+- [x] **+9 market events, +4 choice dilemmas** across all eras (engine/events.ts) — additive flavour
+      using existing effect kinds, no state-layer changes; invariant tests cover them.
+- [x] **Franchise detail sheet**: tapping a line in Market opens its "chapters" — every product newest
+      first with a parametric device thumbnail, verdict, units + revenue, and the line's lifetime totals.
+- [x] **OS module synergies**: pair complementary modules for an extra services bonus (One-Tap Commerce,
+      Seamless Handoff, Proactive Wellbeing). Folds into osServicesMultiplier (still capped); surfaced as
+      a "Synergies" subsection (active vs locked). 4 new engine specs.
+- 489 tests, tsc 0, build+PWA green.
+- ⚠️ Synergy + module + version services bonuses now reach ~2.56× at a full v5 build (cap 2.6) — close
+      to the rail; if more is added later, raise servicesMultCap. NOT playtested on device.
+
+## v40 — Research income legibility + OS customization & licensee churn (DONE 2026-06-23)
+- [x] **Research income card** (lowest-risk pick): read-only breakdown of weekly RP by source (founder
+      trickle + each R&D staffer) with mini bars. Pure rpSources(staff,era) engine helper (sum pinned to
+      weeklyRp by test) + weeklyRpSources(s) selector (sum == weeklyRpGen). No balance/persistence change.
+- [x] **OS philosophy** (customizable + unique): pick one lasting identity that tilts every launch +
+      services — Curated Garden (+eco), Open Platform (+services), Performance-First (+perf), Privacy-First
+      (+quality). Bounded via productStats + osServicesMult (re-capped). osPhilosophy state (backfilled
+      null; resets on NG+), setOsPhilosophy (gated, tap-to-clear), 2-up picker card.
+- [x] **Licensee relationships + churn**: per-licensee satisfaction (osLicenseeHealth) that decays with
+      your reputation lead and can churn (they drop the license) once low. Pure updateLicenseeRelations +
+      licenseeMood (balance platform.licenseeChurn). Tick advances it live-only (never offline). Platform
+      shows a relationship bar + mood per licensee. Seeded on license, pruned on revoke + acquisition.
+- 505 tests, tsc 0, build+PWA green.
+- ⚠️ Churn magnitudes (dominanceFreeGap 12, decay 0.7/pt, threshold 28, churn 14%/wk) NOT playtested —
+      all in balance.platform.licenseeChurn. Philosophy +5 stat / +20% services likewise untuned on device.
+- Note: the signing server returned intermittent 503s this session; commits succeeded on retry.
+
+## v41 — Found the OS division as an earned milestone (DONE 2026-06-23)
+- [x] **Founding cost**: the Platform division is now a major in-game reinvestment you save up for
+      (balance.platform.foundingCost = $250k), not a free Settings toggle. Discoverable "Found the
+      Platform division — $X" card on Company with an affordability state; founding deducts cash, brings
+      the division live, and fires the shared Celebration. foundPlatform reducer + canFoundPlatform /
+      platformFoundingCost selectors; useGame value-call path (spend FX + achievements).
+- [x] The free unlock moved to Creative-mode overrides in Settings (only shown while Sandbox is on),
+      so normal play earns it; Sandbox's cash floor keeps creative experimentation free. Existing
+      founded saves untouched (no retroactive charge).
+- 506 tests, tsc 0, build+PWA green.
+- ⚠️ $250k founding cost NOT playtested on device — tune in balance.platform.foundingCost. It's a
+      base-game cash gate now (not the old DLC-toggle scaffold); flag if you'd rather keep it DLC-gated.

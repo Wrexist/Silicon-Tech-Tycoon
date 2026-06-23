@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Lock, Megaphone, Minus, Plus, Rocket, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -43,6 +43,8 @@ import {
   recommendedRun,
   researchedTier,
   verdictBands,
+  osDisplayName,
+  osEcoBonus,
   type GameState,
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -1431,6 +1433,15 @@ function BuildWizard({
             />
           </div>
           <SegmentBreakdown segments={plan.segments} />
+          {state.platformUnlocked && osEcoBonus(state) > 0 && (
+            <div className="wiz__os-note">
+              <Layers size={13} aria-hidden />
+              <span>
+                Runs <strong>{osDisplayName(state)} v{state.osVersion}.0</strong> · +{osEcoBonus(state)} ecosystem
+                from {state.osFeatures.length} {state.osFeatures.length === 1 ? "module" : "modules"}
+              </span>
+            </div>
+          )}
           <div className="wiz__total">
             <span>Upfront cost</span>
             <span className={`rounded tnum${affordable ? "" : " wiz__total--bad"}`}>{format(plan.totalUpfront)}</span>

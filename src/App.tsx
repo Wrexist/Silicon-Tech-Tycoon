@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CircuitBoard, CircleX, Copy, Cpu, Layers, RotateCcw, Sparkles, TrendingUp, Trophy } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, CircuitBoard, CircleX, Copy, Cpu, Crown, FlaskConical, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud } from "./components/Hud.tsx";
@@ -10,6 +10,7 @@ import { ResultCard } from "./components/ResultCard.tsx";
 import { ToastHost } from "./design/toast.tsx";
 import { GainFX } from "./design/GainFX.tsx";
 import { Confetti } from "./design/Confetti.tsx";
+import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { Settings } from "./screens/Settings.tsx";
@@ -260,6 +261,9 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
 function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const { state, prestige } = useGame();
   const [confirmReset, setConfirmReset] = useState(false);
+  // The reset is reframed as a triumphant ascension: confirming New Game+ first shows a celebratory
+  // "legacy forged" moment (the inherited power), and only its confirm actually founds the next run.
+  const [forging, setForging] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const rank = industryRank(state);
   const nextBonus = legacyBonus(state.legacy + 1);
@@ -320,7 +324,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
         {confirmReset ? (
           <div className="ipo__confirm">
             <span className="ipo__confirm-text">Retire {state.companyName} and start fresh? This run ends now.</span>
-            <Button block variant="destructive" onClick={prestige}>Yes, start New Game+</Button>
+            <Button block variant="destructive" onClick={() => setForging(true)}>Yes, start New Game+</Button>
             <Button block variant="tertiary" onClick={() => setConfirmReset(false)}>Back</Button>
           </div>
         ) : (
@@ -330,6 +334,30 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           </>
         )}
       </div>
+
+      {forging && (
+        <Celebration
+          eyebrow={`Legacy ${state.legacy + 1} forged`}
+          title={`Empire #${state.legacy + 2} awaits`}
+          sub={
+            nextFounderPerk
+              ? `Your legacy carries forward. New founder perk — ${nextFounderPerk.name}: ${nextFounderPerk.description}`
+              : "Your legacy carries forward — found your next company stronger than the last."
+          }
+          icon={<Crown size={32} />}
+          tone="positive"
+          chips={[
+            { icon: <BadgeDollarSign size={14} />, value: `+${format(nextBonus.cash)}`, label: "starting cash" },
+            { icon: <Sparkles size={14} />, value: `+${nextBonus.reputation}`, label: "reputation" },
+            { icon: <Users size={14} />, value: `+${nextBonus.fans.toLocaleString()}`, label: "fans" },
+            { icon: <FlaskConical size={14} />, value: `+${nextBonus.rp}`, label: "research" },
+          ]}
+          confirmLabel="Found the next empire"
+          onConfirm={prestige}
+          secondaryLabel="Not yet"
+          onSecondary={() => setForging(false)}
+        />
+      )}
     </div>
   );
 }

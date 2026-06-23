@@ -1,5 +1,27 @@
 import { describe, it, expect } from "vitest";
-import { installedBase, osTier, canReleaseVersion, osReleaseReward, rivalLicenseFee } from "./platform.ts";
+import {
+  installedBase,
+  osTier,
+  canReleaseVersion,
+  osReleaseReward,
+  rivalLicenseFee,
+  OS_FEATURES,
+  osFeatureById,
+  osEcosystemBonus,
+  osServicesMultiplier,
+  osFeatureRows,
+  canInstallOsFeature,
+  OS_SYNERGIES,
+  activeOsSynergies,
+  osSynergyRows,
+  OS_PHILOSOPHIES,
+  osPhilosophyById,
+  philosophyStatBonus,
+  philosophyServicesMult,
+  philosophyEffectLabel,
+  updateLicenseeRelations,
+  licenseeMood,
+} from "./platform.ts";
 import { BALANCE } from "./balance.ts";
 import { toDollars } from "./money.ts";
 import type { LaunchedProduct } from "./types.ts";
@@ -64,5 +86,175 @@ describe("rivalLicenseFee", () => {
   it("is hard-capped (bounded income) and floors tier at 1", () => {
     expect(toDollars(rivalLicenseFee(100, 99))).toBe(p.licenseFeeCap);
     expect(toDollars(rivalLicenseFee(10, 0))).toBe(p.licenseFeeBase + 10 * 1 * p.licenseFeePerRepTier);
+  });
+});
+
+describe("OS feature modules — catalog integrity", () => {
+  it("has unique ids, sane versions and non-negative effects", () => {
+    const ids = new Set(OS_FEATURES.map((f) => f.id));
+    expect(ids.size).toBe(OS_FEATURES.length);
+    for (const f of OS_FEATURES) {
+      expect(f.minVersion).toBeGreaterThanOrEqual(1);
+      expect(f.rpCost).toBeGreaterThan(0);
+      expect(f.ecoBonus).toBeGreaterThanOrEqual(0);
+      expect(f.servicesMult).toBeGreaterThanOrEqual(0);
+      expect(f.name.length).toBeGreaterThan(0);
+      expect(f.blurb.length).toBeGreaterThan(0);
+      expect(f.icon.length).toBeGreaterThan(0);
+    }
+  });
+  it("at least one module is available from OS v1 (so the system is reachable early)", () => {
+    expect(OS_FEATURES.some((f) => f.minVersion === 1)).toBe(true);
+  });
+});
+
+describe("osEcosystemBonus", () => {
+  it("is 0 with no modules (backward compatible) and sums installed modules", () => {
+    expect(osEcosystemBonus([])).toBe(0);
+    const app = osFeatureById("appMarket")!;
+    const cloud = osFeatureById("cloudSync")!;
+    expect(osEcosystemBonus(["appMarket"])).toBe(app.ecoBonus);
+    expect(osEcosystemBonus(["appMarket", "cloudSync"])).toBe(app.ecoBonus + cloud.ecoBonus);
+  });
+  it("ignores unknown ids and is hard-capped", () => {
+    expect(osEcosystemBonus(["nope"])).toBe(0);
+    const all = OS_FEATURES.map((f) => f.id);
+    expect(osEcosystemBonus(all)).toBeLessThanOrEqual(BALANCE.platform.features.ecoBonusCap);
+  });
+});
+
+describe("osServicesMultiplier", () => {
+  it("is exactly 1 at v1 with no modules (the base economy is untouched)", () => {
+    expect(osServicesMultiplier(1, [])).toBe(1);
+    expect(osServicesMultiplier(0, [])).toBe(1);
+    expect(osServicesMultiplier(undefined as unknown as number, [])).toBe(1);
+  });
+  it("rises with version and with each installed module, and is capped", () => {
+    const f = BALANCE.platform.features;
+    expect(osServicesMultiplier(3, [])).toBeCloseTo(1 + 2 * f.versionServicesStep, 9);
+    const withApp = osServicesMultiplier(1, ["appMarket"]);
+    expect(withApp).toBeGreaterThan(1);
+    expect(osServicesMultiplier(5, OS_FEATURES.map((x) => x.id))).toBeLessThanOrEqual(f.servicesMultCap);
+  });
+});
+
+describe("OS module synergies", () => {
+  it("each synergy requires two real, distinct modules and a positive bonus", () => {
+    const ids = new Set(OS_FEATURES.map((f) => f.id));
+    for (const s of OS_SYNERGIES) {
+      expect(s.requires[0]).not.toBe(s.requires[1]);
+      expect(ids.has(s.requires[0])).toBe(true);
+      expect(ids.has(s.requires[1])).toBe(true);
+      expect(s.servicesMult).toBeGreaterThan(0);
+    }
+  });
+  it("activates only when BOTH required modules are installed", () => {
+    const s = OS_SYNERGIES[0];
+    expect(activeOsSynergies([s.requires[0]])).toHaveLength(0); // one half → inactive
+    expect(activeOsSynergies([s.requires[0], s.requires[1]]).map((x) => x.id)).toContain(s.id);
+  });
+  it("an active synergy lifts the services multiplier beyond the two modules alone", () => {
+    const s = OS_SYNERGIES[0];
+    const both = osServicesMultiplier(1, [s.requires[0], s.requires[1]]);
+    // Same two modules but synergy disabled by removing one and adding an unrelated module isn't
+    // a clean control; instead assert the synergy bonus is included in the pair's multiplier.
+    const modulesOnly =
+      1 + (osFeatureById(s.requires[0])!.servicesMult + osFeatureById(s.requires[1])!.servicesMult);
+    expect(both).toBeCloseTo(modulesOnly + s.servicesMult, 9);
+  });
+  it("osSynergyRows reports active/locked state", () => {
+    const rows = osSynergyRows([OS_SYNERGIES[0].requires[0]]);
+    expect(rows.find((r) => r.id === OS_SYNERGIES[0].id)!.active).toBe(false);
+    const rows2 = osSynergyRows([...OS_SYNERGIES[0].requires]);
+    expect(rows2.find((r) => r.id === OS_SYNERGIES[0].id)!.active).toBe(true);
+  });
+});
+
+describe("updateLicenseeRelations (churn)", () => {
+  const reps: Record<string, number> = { r1: 40 };
+  const env = (playerReputation: number, rng: () => number, health: Record<string, number> = {}) =>
+    updateLicenseeRelations({
+      licensees: ["r1"],
+      health,
+      playerReputation,
+      rivalRepById: (id) => reps[id],
+      rivalNameById: () => "Rival One",
+      rng,
+    });
+
+  it("satisfaction recovers toward 100 when you are not dominating", () => {
+    const r = env(45, () => 0.99, { r1: 50 }); // rep lead 5 < tolerated gap → recover
+    expect(r.health.r1).toBeGreaterThan(50);
+    expect(r.licensees).toEqual(["r1"]);
+    expect(r.dropped).toHaveLength(0);
+  });
+  it("satisfaction decays when your reputation lead is large", () => {
+    const r = env(100, () => 0.99, { r1: 80 }); // huge lead → decay (rng high → no churn yet)
+    expect(r.health.r1).toBeLessThan(80);
+  });
+  it("an unhappy licensee can churn (and is reported), with rng below the chance", () => {
+    const r = env(100, () => 0, { r1: 10 }); // already low + rng 0 → drops
+    expect(r.licensees).toHaveLength(0);
+    expect(r.dropped.map((d) => d.id)).toEqual(["r1"]);
+  });
+  it("prunes a licensee whose rival no longer exists", () => {
+    const r = updateLicenseeRelations({
+      licensees: ["ghost"], health: { ghost: 90 }, playerReputation: 50,
+      rivalRepById: () => undefined, rivalNameById: () => "Ghost", rng: () => 0.99,
+    });
+    expect(r.licensees).toHaveLength(0);
+    expect(r.dropped).toHaveLength(0); // silent prune, not a churn event
+  });
+  it("licenseeMood buckets satisfaction sensibly", () => {
+    expect(licenseeMood(95)).toBe("happy");
+    expect(licenseeMood(70)).toBe("content");
+    expect(licenseeMood(40)).toBe("strained");
+    expect(licenseeMood(10)).toBe("at-risk");
+  });
+});
+
+describe("OS philosophy", () => {
+  it("has unique ids, a non-empty effect, and a readable label for each", () => {
+    const ids = new Set(OS_PHILOSOPHIES.map((p) => p.id));
+    expect(ids.size).toBe(OS_PHILOSOPHIES.length);
+    for (const p of OS_PHILOSOPHIES) {
+      const hasStat = Object.keys(p.statBonus).length > 0;
+      expect(hasStat || p.servicesMult > 0).toBe(true); // every philosophy does something
+      expect(philosophyEffectLabel(p).length).toBeGreaterThan(0);
+    }
+  });
+  it("none/unknown ids are inert (backward compatible)", () => {
+    expect(philosophyStatBonus(null)).toEqual({});
+    expect(philosophyStatBonus(undefined)).toEqual({});
+    expect(philosophyStatBonus("ghost")).toEqual({});
+    expect(philosophyServicesMult(null)).toBe(0);
+    expect(osPhilosophyById(null)).toBeUndefined();
+  });
+  it("maps a chosen philosophy to its tilt", () => {
+    expect(philosophyStatBonus("performance")).toEqual({ performance: 5 });
+    expect(philosophyServicesMult("open")).toBeGreaterThan(0);
+    expect(philosophyStatBonus("open")).toEqual({});
+  });
+});
+
+describe("osFeatureRows / canInstallOsFeature — gating", () => {
+  it("locks modules behind their OS version and behind affordability", () => {
+    // v1, plenty of RP: v1 modules available, higher-version ones locked.
+    const rows = osFeatureRows([], 1, 9999);
+    const app = rows.find((r) => r.id === "appMarket")!;
+    const cont = rows.find((r) => r.id === "continuity")!; // minVersion 4
+    expect(app.status).toBe("available");
+    expect(cont.status).toBe("locked");
+    // Owned shows installed; unaffordable when RP is short.
+    expect(osFeatureRows(["appMarket"], 1, 9999).find((r) => r.id === "appMarket")!.status).toBe("installed");
+    expect(osFeatureRows([], 1, 0).find((r) => r.id === "appMarket")!.status).toBe("unaffordable");
+  });
+  it("canInstallOsFeature mirrors the gates and rejects re-install / unknown", () => {
+    const appCost = osFeatureById("appMarket")!.rpCost; // catalog-driven so tuning can't break the test
+    expect(canInstallOsFeature([], 1, appCost, "appMarket")).toBe(true);
+    expect(canInstallOsFeature([], 1, appCost - 1, "appMarket")).toBe(false); // can't afford
+    expect(canInstallOsFeature([], 1, 9999, "continuity")).toBe(false); // version too low
+    expect(canInstallOsFeature(["appMarket"], 1, 9999, "appMarket")).toBe(false); // already owned
+    expect(canInstallOsFeature([], 1, 9999, "ghost")).toBe(false); // unknown id
   });
 });

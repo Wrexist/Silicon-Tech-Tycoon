@@ -10,6 +10,7 @@ import { netWorth, scenarioResultFor } from "../state/gameState.ts";
 import { toDollars } from "./money.ts";
 import { RESEARCH_PROJECTS } from "./research.ts";
 import { maxEra } from "./eras.ts";
+import { OS_FEATURES, installedBase } from "./platform.ts";
 
 /** A Lucide icon NAME (resolved to a component in the UI layer — engine stays DOM-free). */
 export type AchievementIconName =
@@ -63,6 +64,10 @@ export interface AchievementFacts {
   wonScenario: boolean; // currently winning the active scenario (≥1★)
   completedChallenge: boolean; // a daily/weekly challenge score has locked in
   releasedOsVersion: boolean; // shipped a new OS version via the Platform division
+  osFeaturesBuilt: number; // OS feature modules built into the platform
+  osComplete: boolean; // every OS feature module built — a complete platform
+  osInstalledBase: number; // devices running your OS (0 unless the division is unlocked)
+  osLicenseeCount: number; // rivals currently licensing your OS
   // --- Mastery (cross-run profile) facts. Supplied by the state layer via MasteryInput; default to
   //     0/false in a pure run so these never false-unlock without real profile data. ---
   scenarioThreeStarRun: boolean; // the CURRENT run has 3-starred its scenario
@@ -98,6 +103,12 @@ export interface Achievement {
  *  a mastery achievement. */
 export function deriveFacts(state: GameState, mastery?: MasteryInput): AchievementFacts {
   const launched = state.launched; // newest-first
+  // Count built OS modules by UNIQUE, VALID ids — a malformed/imported save can't over-count its way
+  // to "complete".
+  const validOsFeatureIds = new Set(OS_FEATURES.map((f) => f.id));
+  const osBuiltCount = state.platformUnlocked
+    ? new Set(state.osFeatures.filter((id) => validOsFeatureIds.has(id))).size
+    : 0;
   const hits = launched.filter((lp) => lp.verdict === "hit").length;
 
   // Current hit streak: consecutive "hit" verdicts from the most recent launch backward.
@@ -154,6 +165,10 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
     wonScenario: scenarioResultFor(state)?.won ?? false,
     completedChallenge: state.challengeScore != null,
     releasedOsVersion: state.platformUnlocked && state.osVersion > 1,
+    osFeaturesBuilt: osBuiltCount,
+    osComplete: osBuiltCount >= OS_FEATURES.length,
+    osInstalledBase: state.platformUnlocked ? installedBase(state.launched) : 0,
+    osLicenseeCount: state.osLicensees.length,
     // Use the RUN-LOCKED high-water stars (monotonic, the value recorded to the profile), not a
     // live recompute — so a 3★ run still counts after the earn window closes or metrics later dip.
     scenarioThreeStarRun: (state.scenarioRunStars ?? 0) >= 3,
@@ -527,6 +542,46 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Layers",
     hint: "Build the Platform division and ship an OS version.",
     predicate: (f) => f.releasedOsVersion,
+  },
+  {
+    id: "os-first-feature",
+    title: "Platform Pioneer",
+    description: "Built your first capability into your OS — the platform takes shape.",
+    icon: "Sparkles",
+    hint: "Build a feature module in the Platform division.",
+    predicate: (f) => f.osFeaturesBuilt >= 1,
+  },
+  {
+    id: "os-complete",
+    title: "Walled Garden",
+    description: "Every capability built into your OS — a complete, self-reinforcing platform.",
+    icon: "Boxes",
+    hint: "Build every OS feature module.",
+    predicate: (f) => f.osComplete,
+  },
+  {
+    id: "os-reach-100k",
+    title: "Going Mainstream",
+    description: "A hundred thousand devices now run your OS.",
+    icon: "Users",
+    hint: "Sell enough devices to spread your platform.",
+    predicate: (f) => f.osInstalledBase >= 100_000,
+  },
+  {
+    id: "os-reach-1m",
+    title: "Ubiquitous",
+    description: "A million devices running your OS — it's everywhere.",
+    icon: "Globe",
+    hint: "Grow your installed base to a million.",
+    predicate: (f) => f.osInstalledBase >= 1_000_000,
+  },
+  {
+    id: "os-kingmaker",
+    title: "Kingmaker",
+    description: "Three rivals license your OS — the industry runs on your platform.",
+    icon: "Crown",
+    hint: "License your OS to several competitors at once.",
+    predicate: (f) => f.osLicenseeCount >= 3,
   },
   // --- Mastery tier (cross-run; the engaged-player tail, per RETENTION_ROADMAP Wave 4) ---
   {

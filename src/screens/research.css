@@ -31,6 +31,14 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
 }
+/* Research income breakdown — where the weekly RP comes from */
+.rd__income-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); margin: var(--sp-4) 0 var(--sp-12); }
+.rd__income-row { display: flex; align-items: center; gap: var(--sp-12); }
+.rd__income-label { flex: 0 0 38%; min-width: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd__income-bar { flex: 1; height: 6px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }
+.rd__income-bar i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--fn-eng); transition: width var(--spring-gentle); }
+.rd__income-rp { flex: 0 0 auto; min-width: 40px; text-align: right; font-size: var(--fs-caption); font-weight: 700; color: var(--fn-eng-text, var(--fn-eng)); }
+.rd__income-hint { font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4; }
 .rd__bank-ready {
   display: inline-flex;
   align-items: center;

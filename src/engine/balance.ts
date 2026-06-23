@@ -525,6 +525,10 @@ export const BALANCE = {
   // services above, reframed. These constants size only the one-time OS-version-release MOMENT —
   // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
   platform: {
+    // Founding the division is a major mid-game reinvestment you SAVE UP for — a real milestone, not
+    // a free toggle. High vs. the $20k start, but payback (~28wk at typical OS income) keeps it fair.
+    // Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
+    foundingCost: dollars(250_000),
     releaseRepBonus: 4,          // one-time reputation lift per OS version release
     releaseFanBaseBonus: 2_000,  // base fans gained on release
     releaseFanPerKInstalled: 5,  // + fans per 1,000 devices in the installed base
@@ -534,6 +538,30 @@ export const BALANCE = {
     licenseFeePerRepTier: 40,    // + $/wk per (rival reputation point × your OS tier)
     licenseFeeCap: 250_000,      // $/wk hard cap per licensee
     licenseStrengthUplift: 8,    // strength points a licensee rival gains in shared categories (the teeth)
+    // OS feature modules (engine/platform.ts OS_FEATURES) — capability customization. Each module is
+    // researched (RP) and gated behind an OS version; together they make the OS a real lever:
+    // a strong OS lifts the ecosystem stat of every device you launch AND multiplies recurring
+    // services income. These are the global rails; per-module effects live in the OS_FEATURES catalog
+    // (content, alongside the segments table). All gated behind platformUnlocked → 0 in the base game.
+    features: {
+      // 8 modules sum to +25 ecosystem; cap sits just above so a FULL build pays in full (the
+      // completion reward) while still bounding any future additions. A partial build never nears it.
+      ecoBonusCap: 26,          // max ecosystem-stat points the OS adds to a launched device (safety rail)
+      servicesMultCap: 2.6,     // hard cap on the recurring-services multiplier (no runaway)
+      versionServicesStep: 0.04,// + services multiplier per OS version released above v1
+    },
+    // Licensee relationships: a rival licensing your OS grows resentful if you dominate them too
+    // hard — they're paying YOU while you crush them in shared markets. Satisfaction (0..100) decays
+    // with your reputation lead and, once low, they may unilaterally drop the license (churn). The
+    // trade-off: stay licensed-rich by not steamrolling, or dominate and lose the fees.
+    licenseeChurn: {
+      startHealth: 100,        // a fresh licensee starts content
+      recoverPerWeek: 5,       // satisfaction drifts back up when you're NOT dominating them
+      dominanceFreeGap: 12,    // reputation lead a licensee tolerates before resentment sets in
+      decayPerGapPoint: 0.7,   // satisfaction lost/wk per reputation point beyond the tolerated gap
+      churnThreshold: 28,      // at/below this satisfaction, the licensee may walk
+      churnChancePerWeek: 0.14,// per-week probability they drop the license once unhappy
+    },
   },
 
   // --- Staff churn: underpaid or burnt-out staff eventually quit ---
@@ -561,6 +589,16 @@ export const BALANCE = {
   offline: {
     maxCatchUpWeeks: 8, // cap how much offline time is simulated
     rate: 0.5, // at reduced effectiveness
+  },
+
+  // --- Creative / Sandbox mode: design without limits ---
+  // Both are TOP-UP floors (never lower what you've legitimately earned). The cash floor is set high
+  // enough that any purchase — acquisitions, mega production runs, founding the OS — is trivially
+  // affordable, and the RP floor frees every research tier + OS module to experiment with. Applied
+  // each tick AND the moment Creative mode is enabled, so it feels unlimited immediately.
+  creative: {
+    cashFloor: dollars(1_000_000_000), // effectively unlimited money
+    rpFloor: 100_000,                  // effectively unlimited research points
   },
 } as const;
 

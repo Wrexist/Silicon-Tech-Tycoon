@@ -7,7 +7,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { rivalDef, rivalDoctrine, rivalMarketCap } from "../engine/competitors.ts";
-import { playerFranchises, rivalLines } from "../engine/franchise.ts";
+import { playerFranchises, rivalLines, franchiseStem, type FranchiseSummary } from "../engine/franchise.ts";
 import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
@@ -1166,28 +1166,79 @@ function fmtCompact(n: number): string {
   return n.toLocaleString();
 }
 
-/** The player's product lines grouped by brand equity — the IP lens over the catalog. */
+/** The player's product lines grouped by brand equity — the IP lens over the catalog. Each row opens
+ *  a detail sheet: the line's "chapters" (every product, newest first) with its verdict + numbers. */
 function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
   const lines = playerFranchises(launched);
+  const [open, setOpen] = useState<FranchiseSummary | null>(null);
   if (lines.length === 0) return null;
   return (
     <Card>
       <SectionHeader title="Your franchises" accessory={`${lines.length} line${lines.length > 1 ? "s" : ""}`} />
       <div className="mkt__fr-list">
         {lines.map((f) => (
-          <div key={f.stem} className="mkt__fr">
+          <button key={f.stem} className="mkt__fr mkt__fr--tap" onClick={() => { haptic.light(); setOpen(f); }}>
             <div className="mkt__fr-head">
               <span className="mkt__fr-name">{f.name} line</span>
               <span className={`mkt__fr-tag mkt__fr-tag--${f.label.toLowerCase().replace(/\s+/g, "")}`}>{f.label}</span>
+              <ChevronRight size={16} className="mkt__fr-chev" aria-hidden />
             </div>
             <div className="mkt__fr-sub">
               {f.entries} product{f.entries > 1 ? "s" : ""} · {fmtCompact(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
             </div>
             <div className="mkt__fr-bar" aria-hidden><span className="mkt__fr-fill" style={{ width: `${Math.round(Math.max(0, f.equity) * 100)}%` }} /></div>
-          </div>
+          </button>
         ))}
       </div>
+      <Sheet open={!!open} onClose={() => setOpen(null)}>
+        {open && <FranchiseDetail summary={open} launched={launched} />}
+      </Sheet>
     </Card>
+  );
+}
+
+/** A single franchise's story: every product in the line, newest first, with a device thumbnail,
+ *  verdict, units and revenue — so the brand-equity loop's payoff is visible and tangible. */
+function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; launched: LaunchedProduct[] }) {
+  const products = launched
+    .filter((lp) => franchiseStem(lp.product.name) === summary.stem)
+    .sort((a, b) => b.launchedWeek - a.launchedWeek);
+  const equityPct = Math.round(Math.max(0, summary.equity) * 100);
+  return (
+    <div className="frd">
+      <div className="frd__head">
+        <div>
+          <h2 className="frd__title">{summary.name} line</h2>
+          <p className="frd__sub">{summary.entries} chapter{summary.entries > 1 ? "s" : ""} · {summary.categories.map((c) => CATEGORY_LABEL[c] ?? c).join(" · ")}</p>
+        </div>
+        <span className={`mkt__fr-tag mkt__fr-tag--${summary.label.toLowerCase().replace(/\s+/g, "")}`}>{summary.label}</span>
+      </div>
+
+      <div className="frd__stats">
+        <Stat label="Lifetime revenue" value={format(summary.revenue)} tone="positive" />
+        <Stat label="Units sold" value={fmtCompact(summary.unitsSold)} />
+        <Stat label="Brand equity" value={`${equityPct}%`} tone="accent" />
+      </div>
+
+      <div className="frd__list">
+        {products.map((lp, i) => {
+          const v = verdictOf(lp);
+          return (
+            <div key={lp.product.id ?? `${lp.product.name}-${i}`} className="frd__row">
+              <div className="frd__thumb" aria-hidden><DeviceRenderer product={lp.product} size={48} /></div>
+              <div className="frd__row-main">
+                <span className="frd__row-name">{lp.product.name}</span>
+                <span className="frd__row-meta">{CATEGORY_LABEL[lp.product.category] ?? lp.product.category} · wk {lp.launchedWeek} · {fmtCompact(lp.unitsSold)} sold</span>
+              </div>
+              <div className="frd__row-side">
+                <span className={`frd__verdict frd__verdict--${VERDICT_TONE[v]}`}>{VERDICT_LABEL[v]}</span>
+                <span className="frd__row-rev tnum">{format(lp.revenueToDate)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

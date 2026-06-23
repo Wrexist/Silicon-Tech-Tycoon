@@ -26,6 +26,7 @@ import {
   launchRpReward,
   projectById,
   RESEARCH_PROJECTS,
+  rpSources,
   techRpCost,
   weeklyRp,
   type ProjectId,
@@ -101,7 +102,7 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
-import { canReleaseVersion, installedBase, licenseeStrengthUplift, osReleaseReward, osTier, rivalLicenseFee, type OsTierInfo } from "../engine/platform.ts";
+import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeMood, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { perkBonuses } from "../engine/perks.ts";
 import type {
   Assignment,
@@ -219,6 +220,18 @@ export interface GameState {
   osVersion: number;
   /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
   osLicensees: string[];
+  /** Per-licensee satisfaction (id → 0..100). Decays when you dominate them; low satisfaction can
+   *  make a licensee drop the license (churn). Defaults to startHealth for any licensee not present. */
+  osLicenseeHealth: Record<string, number>;
+  /** Installed OS feature modules (engine/platform.ts OS_FEATURES). Each lifts the ecosystem stat of
+   *  every device you launch AND multiplies recurring services income. Empty → no effect. */
+  osFeatures: string[];
+  /** Weekly installed-base samples for the Platform "OS reach" sparkline (capped). Only recorded
+   *  while the division is unlocked, so it reflects the OS era. */
+  osBaseHistory: number[];
+  /** Chosen OS philosophy id (engine/platform.ts OS_PHILOSOPHIES), or null. A lasting identity choice
+   *  that tilts every device you launch + your services. Null → no effect. */
+  osPhilosophy: string | null;
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
@@ -401,6 +414,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osName: "",
     osVersion: 1,
     osLicensees: [],
+    osLicenseeHealth: {},
+    osFeatures: [],
+    osBaseHistory: [],
+    osPhilosophy: null,
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
@@ -539,6 +556,18 @@ export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
   s.cash >= dollars(furnitureCost(type));
 
 export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+
+/** The global multiplier applied to base RP output (R&D upgrades × office focus × legacy perk). */
+export const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+
+/** Weekly RP itemized by source, with the global multiplier folded in — so the displayed sum equals
+ *  weeklyRpGen(s). Sorted by contribution, biggest first. For the Research "income" breakdown. */
+export const weeklyRpSources = (s: GameState) => {
+  const g = rpGlobalMult(s);
+  return rpSources(s.staff, s.era)
+    .map((src) => ({ ...src, rp: src.rp * g }))
+    .sort((a, b) => b.rp - a.rp);
+};
 export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
@@ -579,6 +608,14 @@ export function productStats(s: GameState, product: Product): Stats {
     const m = product.tuning === "premium" ? BALANCE.design.marginShift : -BALANCE.design.marginShift;
     bonus.quality = (bonus.quality ?? 0) + m;
     bonus.design = (bonus.design ?? 0) + m;
+  }
+  // Platform / OS division — the OS your devices run lifts their ecosystem stat (a strong OS makes
+  // every device you ship better), and the chosen OS philosophy tilts a stat of its own. Gated on the
+  // entitlement, so the base game is byte-identical until the player opts into the division.
+  if (s.platformUnlocked) {
+    bonus.ecosystem = (bonus.ecosystem ?? 0) + osEcosystemBonus(s.osFeatures);
+    const phil = philosophyStatBonus(s.osPhilosophy);
+    for (const k of Object.keys(phil) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (phil[k] ?? 0);
   }
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
@@ -871,6 +908,17 @@ export function recommendedRun(s: GameState, product: Product, channelId: Channe
 }
 export const counts = (s: GameState) => ({ assigned: s.staff.filter((x) => x.assignment !== "idle").length });
 
+/** Recurring-services revenue multiplier from the OS division (1 unless the division is unlocked).
+ *  Steps up with each released OS version, each installed module + synergy, and the chosen philosophy
+ *  (re-capped at servicesMultCap so the philosophy can't break the rail). */
+export const osServicesMult = (s: GameState): number =>
+  s.platformUnlocked
+    ? Math.min(
+        BALANCE.platform.features.servicesMultCap,
+        osServicesMultiplier(s.osVersion, s.osFeatures) + philosophyServicesMult(s.osPhilosophy),
+      )
+    : 1;
+
 /** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
 export function weeklyEcosystemRevenue(s: GameState): Money {
   // Epic D — the Platform/AI eras amplify ecosystem lock-in (services pay more).
@@ -881,7 +929,8 @@ export function weeklyEcosystemRevenue(s: GameState): Money {
     const eco = lp.stats.ecosystem;
     if (eco > minStat) acc += lp.unitsSold * eco * rate;
   }
-  return cents(Math.round(acc));
+  // OS feature modules + version multiply recurring services (1.0 when the division is off → unchanged).
+  return cents(Math.round(acc * osServicesMult(s)));
 }
 
 export function nextWeekRevenue(s: GameState): Money {
@@ -991,10 +1040,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // join the installed base immediately instead of paying with a one-week lag.
   const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate * eraModifier(state.era).ecosystemRate;
   const ecoMinStat = BALANCE.ecosystem.minEcosystemStat;
+  // OS feature modules + released version multiply services income (1.0 when the division is off, so
+  // this is identical to the prior calculation for the base game).
+  const osMult = osServicesMult(state);
   for (const lp of launched) {
     const eco = lp.stats.ecosystem;
     if (eco > ecoMinStat) {
-      cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * rate)));
+      cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * osMult * rate)));
     }
   }
 
@@ -1007,8 +1059,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Dividend income from rival shares the player holds (uses this week's fresh prices).
   cash = add(cash, scale(weeklyDividends(state.holdings, competitors), rate));
 
-  // Creative / sandbox mode keeps the company solvent for free experimentation.
-  if (state.sandboxUnlocked && cash < dollars(1_000_000)) cash = dollars(1_000_000);
+  // Creative / sandbox mode: top cash up to the (effectively unlimited) floor for free experimentation.
+  if (state.sandboxUnlocked && cash < BALANCE.creative.cashFloor) cash = BALANCE.creative.cashFloor;
 
   // Feed events
   const feed = [...state.feed];
@@ -1083,7 +1135,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // multiplier and, later, the legacy perk bonus — the UI lied for players who had them).
   // RP must stay a non-negative integer: partial (offline, rate=0.5) ticks accrue
   // fractional RP, so floor on accrual to keep the counter clean.
-  const researchPoints = floorRP(state.researchPoints + weeklyRpGen(state) * rate);
+  let researchPoints = floorRP(state.researchPoints + weeklyRpGen(state) * rate);
+  // Creative / sandbox mode: research is free too, so every tier + OS module is open to experiment with.
+  if (state.sandboxUnlocked && researchPoints < BALANCE.creative.rpFloor) researchPoints = BALANCE.creative.rpFloor;
 
   // Manufacturing: advance build jobs; completed ones move to the "ready" shelf
   const building: BuildJob[] = [];
@@ -1178,6 +1232,35 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const cashHistory = [...state.cashHistory, { week, cash: toDollars(cash) }];
   if (cashHistory.length > 260) cashHistory.shift();
 
+  // Installed-base history for the Platform "OS reach" sparkline — one sample per week while the
+  // division exists, capped to a sparkline-friendly window.
+  let osBaseHistory = state.osBaseHistory;
+  if (state.platformUnlocked) {
+    osBaseHistory = [...osBaseHistory, installedBase(launched)];
+    if (osBaseHistory.length > 40) osBaseHistory = osBaseHistory.slice(-40);
+  }
+
+  // Licensee relationships: a rival paying to license your OS resents being dominated. Each live week
+  // their satisfaction shifts with your reputation lead, and an unhappy licensee may walk (churn).
+  // Gated to live play (never offline) so a returning player can't lose partners while away.
+  let osLicensees = state.osLicensees;
+  let osLicenseeHealth = state.osLicenseeHealth;
+  if (!offline && state.platformUnlocked && osLicensees.length > 0) {
+    const rel = updateLicenseeRelations({
+      licensees: osLicensees,
+      health: osLicenseeHealth,
+      playerReputation: state.reputation,
+      rivalRepById: (id) => competitors.find((c) => c.id === id)?.reputation,
+      rivalNameById: (id) => competitors.find((c) => c.id === id)?.name ?? "A licensee",
+      rng: () => rng.next(),
+    });
+    osLicensees = rel.licensees;
+    osLicenseeHealth = rel.health;
+    for (const d of rel.dropped) {
+      feed.push(feedItem(week, `${d.name} dropped ${osDisplayName(state)} — they couldn't keep competing while paying to license it.`, "negative"));
+    }
+  }
+
   const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
     ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
     : BALANCE.fans.decayPerWeek;
@@ -1217,6 +1300,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     competitors,
     launched: launchedFinal,
     cashHistory,
+    osBaseHistory,
+    osLicensees,
+    osLicenseeHealth,
     feed,
     rivalReleases,
     rivalLineCounters,
@@ -1871,6 +1957,15 @@ export function setCompanyName(state: GameState, name: string): GameState {
   return { ...state, companyName: trimmed || "Silicon" };
 }
 
+/** Toggle Creative / Sandbox mode. Enabling it tops cash + research up to the (effectively unlimited)
+ *  Creative floors immediately, so it feels limitless right away rather than waiting for the next tick. */
+export function setSandbox(state: GameState, on: boolean): GameState {
+  if (!on) return { ...state, sandboxUnlocked: false };
+  const cash = state.cash < BALANCE.creative.cashFloor ? BALANCE.creative.cashFloor : state.cash;
+  const researchPoints = state.researchPoints < BALANCE.creative.rpFloor ? BALANCE.creative.rpFloor : state.researchPoints;
+  return { ...state, sandboxUnlocked: true, cash, researchPoints };
+}
+
 // ---------- Platform / OS division (DLC #1) ----------
 /** Devices in the field running your OS. */
 export const platformInstalledBase = (s: GameState): number => installedBase(s.launched);
@@ -1881,14 +1976,39 @@ export const osDisplayName = (s: GameState): string => (s.osName.trim() || `${s.
 /** Can a new OS version be released right now (research has advanced past the released version)? */
 export const canReleaseOsVersion = (s: GameState): boolean => canReleaseVersion(s.osVersion, s.researched.software);
 
-/** Unlock (or re-lock) the Platform division — the DLC entitlement gate. */
+/** Unlock (or re-lock) the Platform division directly (used by Creative/sandbox + tests). */
 export function unlockPlatform(state: GameState, on: boolean): GameState {
   return { ...state, platformUnlocked: on };
+}
+
+/** The one-time cash cost to found the Platform division — a major reinvestment milestone. */
+export const platformFoundingCost = (): Money => BALANCE.platform.foundingCost;
+/** Can the player found the division right now (not yet founded, and can afford it)? */
+export const canFoundPlatform = (s: GameState): boolean =>
+  !s.platformUnlocked && s.cash >= BALANCE.platform.foundingCost;
+
+/** Found the Platform division: pay the founding cost and bring your OS up as a first-class business.
+ *  No-op if already founded or unaffordable. The earned, in-game path to the OS (vs. a free toggle). */
+export function foundPlatform(state: GameState): GameState {
+  if (state.platformUnlocked) return state;
+  const cost = BALANCE.platform.foundingCost;
+  if (state.cash < cost) return state;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Founded the Platform division — ${osDisplayName(state)} is now a business in its own right.`, "positive"));
+  return { ...state, cash: sub(state.cash, cost) as Money, platformUnlocked: true, feed: trimFeed(feed) };
 }
 
 /** Rename the OS line (empty clears back to the "<Company> OS" default). */
 export function setOsName(state: GameState, name: string): GameState {
   return { ...state, osName: name.trim().slice(0, 22) };
+}
+
+/** Choose (or clear) the OS philosophy — a lasting identity that tilts every device you launch and
+ *  your services. No-op unless the division is unlocked. Passing the current id again clears it (toggle). */
+export function setOsPhilosophy(state: GameState, id: string | null): GameState {
+  if (!state.platformUnlocked) return state;
+  const next = id && id !== state.osPhilosophy ? id : null;
+  return { ...state, osPhilosophy: next };
 }
 
 /** Release a new OS version — a software "launch day": catches the released version up to your
@@ -1931,13 +2051,56 @@ export function licenseOsToRival(state: GameState, rivalId: string): GameState {
   const rival = state.competitors.find((c) => c.id === rivalId);
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `${rival?.name ?? "A rival"} now licenses ${osDisplayName(state)} — new revenue, but a sharper competitor.`, "accent"));
-  return { ...state, osLicensees: [...state.osLicensees, rivalId], feed: trimFeed(feed) };
+  return {
+    ...state,
+    osLicensees: [...state.osLicensees, rivalId],
+    // A new partner starts content.
+    osLicenseeHealth: { ...state.osLicenseeHealth, [rivalId]: BALANCE.platform.licenseeChurn.startHealth },
+    feed: trimFeed(feed),
+  };
 }
+
+/** A licensee's current satisfaction (0..100), defaulting to startHealth if untracked. */
+export const licenseeHealthOf = (s: GameState, id: string): number =>
+  s.osLicenseeHealth[id] ?? BALANCE.platform.licenseeChurn.startHealth;
+
+/** A licensee's mood bucket (happy/content/strained/at-risk) for the UI. */
+export const licenseeMoodOf = (s: GameState, id: string) => licenseeMood(licenseeHealthOf(s, id));
 
 /** End a rival's OS license — drops the fee, removes their competitiveness uplift. */
 export function revokeOsLicense(state: GameState, rivalId: string): GameState {
   if (!state.osLicensees.includes(rivalId)) return state;
-  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId) };
+  const osLicenseeHealth = { ...state.osLicenseeHealth };
+  delete osLicenseeHealth[rivalId];
+  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId), osLicenseeHealth };
+}
+
+/** OS feature modules with their install/locked/affordable status, for the Platform screen. */
+export const osFeatureList = (s: GameState): OsFeatureRow[] =>
+  osFeatureRows(s.osFeatures, s.osVersion, s.researchPoints);
+
+/** Ecosystem-stat points the OS currently adds to every device you launch (0 unless unlocked). */
+export const osEcoBonus = (s: GameState): number =>
+  s.platformUnlocked ? osEcosystemBonus(s.osFeatures) : 0;
+
+/** Can a specific OS feature module be installed right now? */
+export const canInstallFeature = (s: GameState, id: string): boolean =>
+  s.platformUnlocked && canInstallOsFeature(s.osFeatures, s.osVersion, s.researchPoints, id);
+
+/** Build (research) an OS feature module: spend its RP cost and ship it in the OS. No-op unless the
+ *  division is unlocked, its OS version is reached, it's affordable, and it isn't already installed. */
+export function installOsFeature(state: GameState, id: string): GameState {
+  if (!canInstallFeature(state, id)) return state;
+  const feat = osFeatureById(id);
+  if (!feat) return state;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${osDisplayName(state)} gained ${feat.name} — a new platform capability.`, "accent"));
+  return {
+    ...state,
+    researchPoints: state.researchPoints - feat.rpCost,
+    osFeatures: [...state.osFeatures, id],
+    feed: trimFeed(feed),
+  };
 }
 
 /** Reassign a staff member to a different function. */
@@ -2355,6 +2518,8 @@ export function acquireRival(state: GameState, id: string): GameState {
   const holdings = { ...state.holdings };
   delete holdings[id];
   const osLicensees = state.osLicensees.filter((x) => x !== id);
+  const osLicenseeHealth = { ...state.osLicenseeHealth };
+  delete osLicenseeHealth[id];
   const fansGain = Math.min(m.fansCap, Math.round(Math.max(0, rivalRep) * m.fansPerRepPoint));
   const reputation = Math.min(BALANCE.reputation.max, state.reputation + m.repBonus);
 
@@ -2371,6 +2536,7 @@ export function acquireRival(state: GameState, id: string): GameState {
     competitors,
     holdings,
     osLicensees,
+    osLicenseeHealth,
     fans: state.fans + fansGain,
     reputation,
     acquiredRivals: [...state.acquiredRivals, id],
