@@ -1010,3 +1010,21 @@ STILL STRONGLY RECOMMEND an on-device playtest of the A→B→C→G→E stack be
 Shipped: A, B, C (full), E, G1+G2, F-a11y. Open: D (era-distinct mechanics — PROTECTED, playtest-heavy),
 F-audio + F-microinteractions (on-device), G3 (new categories/era DLC), E-future (auto-reorder/design lead).
 Most remaining work either needs on-device validation (D feel, F audio/feel) or is content cadence (G3).
+
+## v31 — Epic D: era-distinct mechanics (first slice) (DONE 2026-06-23)
+- [x] **eraModifiers** (`balance.ts` table + `engine/eras.ts` eraModifier/eraRuleSummary, +4 tests):
+      marketingHype / ecosystemRate / demandVariance per era, routed through EXISTING selectors (no new
+      system). Eras 1-2 = 1.0 baseline → early game byte-identical (all prior tests pass). Era 3 Platform
+      = ecosystem lock-in (services + marketing up); Era 4 AI = hype-driven + volatile (variance up).
+      Wired: weeklyEcosystemRevenue (both sites), planProduction marketing hype, launchReady variance
+      band; DesignLab live + wizard previews scale identically (honest forecast per era). advanceEra
+      announces the shift in the feed. +2 production tests (Platform eco rev > Garage; late-era hype up).
+- ⚠️ **WIRING tested + safe; late-era MAGNITUDES need a playtest** (isolated in balance.eraModifiers).
+- **Future D:** a genuinely new axis/mechanic per era (a new stat in the AI era; retail/supply in Growth)
+      rather than multipliers — bigger, needs design + playtest.
+
+### Roadmap status after v31
+Shipped: A, B, C (full), D (first slice), E, G1+G2, F-a11y. Open: F-audio + F-microinteractions
+(on-device only), G3 (new categories/era content), E-future, D-future. The blind-buildable roadmap is
+essentially DONE — what remains needs on-device validation (audio/feel, balance magnitudes) or is content.
+STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B→C→G→E→D stack want real eyes.

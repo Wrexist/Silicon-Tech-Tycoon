@@ -251,7 +251,13 @@ already carries most of the data. **Lowest risk of any epic — little/no PROTEC
 
 ---
 
-### EPIC D — Era-distinct mechanics (each era *plays* differently) 🟠
+### EPIC D — Era-distinct mechanics (each era *plays* differently) ✅ SHIPPED (v31, first slice)
+
+> **Status:** first slice shipped — an additive `balance.eraModifiers` table routed through existing
+> selectors (ecosystem rate, marketing hype, demand variance). Garage + Growth eras = baseline 1.0
+> (early game byte-identical); Platform era = ecosystem lock-in, AI era = hype-driven + volatile.
+> Wiring tested + safe; **late-era MAGNITUDES need a playtest** (isolated in the table). Future: a
+> truly NEW axis/mechanic per era (vs. multipliers). Original spec below.
 
 **Research basis:** GDT/Computer Tycoon era progression keeps the puzzle fresh [STEAL]; the deferred
 "era-distinct mechanics" item flagged across v9/v23.2; reaching a new era should be a "new toy" moment.
