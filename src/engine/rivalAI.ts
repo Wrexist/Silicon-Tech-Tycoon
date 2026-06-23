@@ -35,6 +35,8 @@ export interface RivalRelease {
   strength: number; // the market strength this launch projected (what it does to YOUR launches)
   tone: RivalTone;
   tagline: string;
+  /** B2 — true when an undercutter shipped this into a category the player is winning (priced low). */
+  contested: boolean;
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -101,8 +103,10 @@ export function generateRivalProduct(args: {
   strength: number;
   week: number;
   rng: Rng;
+  /** B2 — when true (an undercutter contesting the player), the product ships aggressively cheap. */
+  contested?: boolean;
 }): RivalRelease {
-  const { rivalId, rivalName, category, era, strength, week, rng } = args;
+  const { rivalId, rivalName, category, era, strength, week, rng, contested = false } = args;
   const tone = rivalTone(rivalId);
   const bias = TONE_BIAS[tone];
   const slots = CATEGORIES[category].slots;
@@ -146,16 +150,19 @@ export function generateRivalProduct(args: {
   const stats = computeStats(product);
   const overall = overallScore(stats, category);
   const fair = Math.max(1, overall * toDollars(BALANCE.market.price.valueToPrice));
-  product.price = dollars(Math.max(1, Math.round(fair * PRICE_MARGIN[tone])));
+  // A contesting undercutter slashes the price below its usual posture to start a price war.
+  const margin = PRICE_MARGIN[tone] * (contested ? BALANCE.competitors.undercutPriceMult : 1);
+  product.price = dollars(Math.max(1, Math.round(fair * margin)));
 
   // Name: rival + a model word + a tone-appropriate tier word (no real product names — IP rule).
   product.name = `${rivalName} ${pick(MODEL_WORDS, rng)} ${pick(TIER_WORDS[tone], rng)}`.trim();
 
   const catName = CATEGORIES[category].displayName.toLowerCase();
-  const tagline =
-    tone === "premium" ? `A premium ${catName} aimed at the top of the market.`
+  const tagline = contested
+    ? `Undercutting the market with a cut-price ${catName}.`
+    : tone === "premium" ? `A premium ${catName} aimed at the top of the market.`
       : tone === "value" ? `An aggressive-value ${catName} built for volume.`
         : `A well-rounded ${catName} for the mainstream.`;
 
-  return { rivalId, rivalName, week, category, product, overall, strength, tone, tagline };
+  return { rivalId, rivalName, week, category, product, overall, strength, tone, tagline, contested };
 }

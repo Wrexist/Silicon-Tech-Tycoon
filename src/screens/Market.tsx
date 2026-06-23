@@ -226,7 +226,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 </span>
                 <span className="mkt__rival-meta">
                   <span className="mkt__rival-price tnum">{format(r.product.price)}</span>
-                  <span className={`mkt__rival-tone mkt__rival-tone--${r.tone}`}>{r.tone}</span>
+                  <span className={`mkt__rival-tone mkt__rival-tone--${r.contested ? "undercut" : r.tone}`}>
+                    {r.contested ? "undercut" : r.tone}
+                  </span>
                 </span>
               </div>
             ))}

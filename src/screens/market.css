@@ -585,6 +585,7 @@
 }
 .mkt__rival-tone--premium { color: var(--fn-design); background: var(--fn-design-soft, var(--surface-2)); }
 .mkt__rival-tone--value { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--surface-2)); }
+.mkt__rival-tone--undercut { color: var(--negative-text, var(--negative)); background: var(--negative-soft, var(--surface-2)); }
 .mkt__product {
   width: 100%;
   text-align: left;

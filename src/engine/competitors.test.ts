@@ -1,9 +1,10 @@
 // B6 — rival share prices must be mean-reverting, NOT a passive income printer.
 // Holding stock should earn ~the dividend yield; price appreciation must be ~zero-EV long-run.
 import { describe, expect, it } from "vitest";
-import { advanceCompetitors, fairSharePrice, initCompetitors, rivalDef } from "./competitors.ts";
+import { advanceCompetitors, fairSharePrice, initCompetitors, rivalDef, rivalDoctrine } from "./competitors.ts";
 import { makeRng } from "./rng.ts";
-import type { CompetitorState } from "./types.ts";
+import { BALANCE } from "./balance.ts";
+import type { CategoryId, CompetitorState } from "./types.ts";
 
 /** Run the weekly competitor sim for `weeks`, returning the final states. */
 function simulate(comps: CompetitorState[], weeks: number, rng: ReturnType<typeof makeRng>): CompetitorState[] {
@@ -75,6 +76,67 @@ describe("rival share prices (B6 — mean reversion, no income printer)", () => 
     for (const c of end) {
       expect(Number.isFinite(c.sharePrice)).toBe(true);
       expect(c.sharePrice).toBeGreaterThanOrEqual(50);
+    }
+  });
+});
+
+/** A fresh single-rival state primed to launch on week 1. */
+function primed(id: string): CompetitorState {
+  const def = rivalDef(id)!;
+  return { id, name: def.name, blurb: def.blurb, reputation: def.reputation, strengthByCategory: {}, nextLaunchWeek: 1, sharePrice: def.share * 100, priceHistory: [def.share] };
+}
+
+/** Collect one rival's first launch across many seeds (era 4 → every category available). */
+function launchesOver(id: string, hot: CategoryId[], seeds: number) {
+  const out: { category: CategoryId; strength: number; contested?: boolean }[] = [];
+  for (let seed = 0; seed < seeds; seed++) {
+    const { launches } = advanceCompetitors([primed(id)], 1, 4, makeRng(seed), hot);
+    if (launches.length) out.push(launches[0]);
+  }
+  return out;
+}
+
+describe("B2 — rival doctrines (variety + presence, not raw difficulty)", () => {
+  it("maps each rival to its doctrine, defaulting unknown ids to generalist", () => {
+    expect(rivalDoctrine("pomelo")).toBe("defender");
+    expect(rivalDoctrine("pandacore")).toBe("undercutter");
+    expect(rivalDoctrine("novaplus")).toBe("undercutter");
+    expect(rivalDoctrine("googol")).toBe("trendChaser");
+    expect(rivalDoctrine("tristar")).toBe("generalist");
+    expect(rivalDoctrine("nobody")).toBe("generalist");
+  });
+
+  it("a trend-chaser piles into the player's hot category more than when it's cold", () => {
+    // phone is NOT one of Oqular's preferred categories, so any extra phone launches are the doctrine.
+    const cold = launchesOver("googol", [], 600).filter((l) => l.category === "phone").length;
+    const hot = launchesOver("googol", ["phone"], 600).filter((l) => l.category === "phone").length;
+    expect(hot).toBeGreaterThan(cold);
+  });
+
+  it("a defender brings extra strength into a contested category (capped, still winnable)", () => {
+    const mean = (arr: { strength: number }[]) => arr.reduce((a, b) => a + b.strength, 0) / Math.max(1, arr.length);
+    const cold = launchesOver("pomelo", [], 800).filter((l) => l.category === "desktop");
+    const hot = launchesOver("pomelo", ["desktop"], 800).filter((l) => l.category === "desktop");
+    expect(mean(hot)).toBeGreaterThan(mean(cold));
+  });
+
+  it("only an undercutter flags a launch as contested, and only in the hot category", () => {
+    const panda = launchesOver("pandacore", ["phone"], 500);
+    expect(panda.some((l) => l.category === "phone" && l.contested)).toBe(true); // it does undercut
+    expect(panda.every((l) => l.contested === true ? l.category === "phone" : true)).toBe(true); // only there
+    // a defender / generalist never starts a price war
+    expect(launchesOver("pomelo", ["phone"], 300).every((l) => !l.contested)).toBe(true);
+    expect(launchesOver("tristar", ["phone"], 300).every((l) => !l.contested)).toBe(true);
+  });
+
+  it("no rival launch ever exceeds the strength ceiling, even under sustained player success", () => {
+    const rng = makeRng(5);
+    let comps = initCompetitors(rng);
+    const allCats: CategoryId[] = ["phone", "tablet", "laptop", "desktop", "monitor", "console", "wearable", "experimental"];
+    for (let w = 1; w <= 300; w++) {
+      const { competitors, launches } = advanceCompetitors(comps, w, 4, rng, allCats);
+      for (const l of launches) expect(l.strength).toBeLessThanOrEqual(BALANCE.competitors.reactMaxStrength);
+      comps = competitors;
     }
   });
 });

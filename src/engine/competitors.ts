@@ -22,21 +22,32 @@ interface RivalDef {
   shares: number;
   /** Categories this rival launches into far more often + with a strength bonus (their identity). */
   preferredCategories: readonly CategoryId[];
-  /** When true, this rival watches the player's recent hits and counter-punches in those categories. */
-  isLead: boolean;
+  /** B2 — behavioural posture when the player is winning a category (see advanceCompetitors):
+   *   • defender    — counter-punches with extra STRENGTH + faster cadence (the old lead behaviour).
+   *   • trendChaser — biases its category choice toward the player's hot categories (crowds you).
+   *   • undercutter — ships an aggressively CHEAP product there + presses cadence (price war, no strength).
+   *   • generalist  — no special reaction (a broad, steady shipper). */
+  doctrine: RivalDoctrine;
 }
 
+export type RivalDoctrine = "defender" | "trendChaser" | "undercutter" | "generalist";
+
 export const RIVALS: RivalDef[] = [
-  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, shares: 13_000_000, preferredCategories: ["phone", "wearable"],               isLead: true  },
-  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, shares: 9_500_000, preferredCategories: ["phone", "tablet", "laptop"],   isLead: false },
-  { id: "googol",    name: "Oqular",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], isLead: false },
-  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, shares: 3_500_000, preferredCategories: ["phone"],                           isLead: false },
-  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, shares: 9_000_000, preferredCategories: ["phone", "tablet", "desktop"],       isLead: false },
-  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      isLead: false },
+  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, shares: 13_000_000, preferredCategories: ["phone", "wearable"],               doctrine: "defender"    },
+  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, shares: 9_500_000, preferredCategories: ["phone", "tablet", "laptop"],   doctrine: "generalist"  },
+  { id: "googol",    name: "Oqular",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], doctrine: "trendChaser" },
+  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, shares: 3_500_000, preferredCategories: ["phone"],                           doctrine: "undercutter" },
+  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, shares: 9_000_000, preferredCategories: ["phone", "tablet", "desktop"],       doctrine: "undercutter" },
+  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      doctrine: "trendChaser" },
 ];
 
 export function rivalDef(id: string): RivalDef | undefined {
   return RIVALS.find((r) => r.id === id);
+}
+
+/** A rival's behavioural doctrine (B2). Defaults to generalist for an unknown id. */
+export function rivalDoctrine(id: string): RivalDoctrine {
+  return rivalDef(id)?.doctrine ?? "generalist";
 }
 
 /** A rival's live market capitalization for the industry leaderboard. The cap is anchored to the
@@ -58,6 +69,9 @@ export interface CompetitorLaunch {
   category: CategoryId;
   strength: number;
   week: number;
+  /** B2 — set when an `undercutter` rival launches into a category the player is winning: it ships an
+   *  aggressively cheap product there. Drives the visible price posture (rivalAI) + the feed wording. */
+  contested?: boolean;
 }
 
 export function initCompetitors(rng: Rng): CompetitorState[] {
@@ -105,10 +119,11 @@ function evolveShare(c: CompetitorState, launched: boolean, rng: Rng): { sharePr
   return { sharePrice, priceHistory };
 }
 
-/** Advance one week: decay strengths, fire due rival launches (with specialization + reactivity),
- *  and move every share price.
- *  @param recentPlayerHitCats - categories where the player scored a hit recently; the lead rival
- *    (Pomelo) reacts by boosting strength in those categories and shortening its next launch interval. */
+/** Advance one week: decay strengths, fire due rival launches (with specialization + per-rival
+ *  doctrines), and move every share price.
+ *  @param recentPlayerHitCats - categories where the player scored a hit recently. Each rival reacts
+ *    per its B2 doctrine: a defender adds strength + cadence there, a trend-chaser biases its category
+ *    choice toward those cats, an undercutter ships an aggressively cheap product + presses cadence. */
 export function advanceCompetitors(
   comps: readonly CompetitorState[],
   week: number,
@@ -132,11 +147,15 @@ export function advanceCompetitors(
     let launchedNow = false;
     if (week >= c.nextLaunchWeek && cats.length) {
       const def = rivalDef(c.id);
+      const doctrine = def?.doctrine ?? "generalist";
+      const hot = recentPlayerHitCats ?? [];
 
-      // Weighted category selection: preferred categories appear preferredCategoryWeight times, others once.
+      // Weighted category selection: preferred categories appear preferredCategoryWeight times; a
+      // trend-chaser ALSO piles extra weight onto the player's hot categories (it crowds your wins).
       const weightedCats: CategoryId[] = [];
       for (const cat of cats) {
-        const w = def && (def.preferredCategories as readonly string[]).includes(cat) ? bal.preferredCategoryWeight : 1;
+        let w = def && (def.preferredCategories as readonly string[]).includes(cat) ? bal.preferredCategoryWeight : 1;
+        if (doctrine === "trendChaser" && hot.includes(cat)) w += bal.doctrineTargetWeight;
         for (let i = 0; i < w; i++) weightedCats.push(cat);
       }
       const cat = weightedCats[rng.int(weightedCats.length)];
@@ -149,19 +168,24 @@ export function advanceCompetitors(
         strength += bal.preferredStrengthBonus;
       }
 
-      // Reactivity: the lead rival counter-punches when the player has been winning here.
-      const isReacting = !!(def?.isLead && recentPlayerHitCats?.includes(cat));
-      if (isReacting) {
+      const contestingHot = hot.includes(cat);
+      // Defender counter-punches with extra STRENGTH + faster cadence (the old lead behaviour, numbers
+      // unchanged). Undercutter contests with PRICE not strength: it ships cheap (flagged `contested`)
+      // and presses its cadence, but never raises raw strength — so the game stays winnable.
+      const isDefending = doctrine === "defender" && contestingHot;
+      const isUndercutting = doctrine === "undercutter" && contestingHot;
+      if (isDefending) {
         strength = Math.min(bal.reactMaxStrength, strength + bal.reactStrengthBonus);
       }
 
       strengthByCategory[cat] = Math.max(strengthByCategory[cat] ?? 0, strength);
-      launches.push({ competitor: c.name, category: cat, strength: Math.round(strength), week });
+      launches.push({ competitor: c.name, category: cat, strength: Math.round(strength), week, contested: isUndercutting });
       launchedNow = true;
 
-      // Schedule next launch; cut the interval if reacting to player hits.
+      // Schedule next launch; the defender + undercutter press their cadence when contesting you.
       const baseInterval = bal.launchEveryWeeks + rng.int(bal.launchJitter);
-      nextLaunchWeek = week + Math.max(1, baseInterval - (isReacting ? bal.reactCadenceCut : 0));
+      const cadenceCut = isDefending ? bal.reactCadenceCut : isUndercutting ? bal.undercutCadenceCut : 0;
+      nextLaunchWeek = week + Math.max(1, baseInterval - cadenceCut);
     }
 
     const { sharePrice, priceHistory } = evolveShare(c, launchedNow, rng);

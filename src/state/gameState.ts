@@ -999,9 +999,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         strength: l.strength,
         week,
         rng: makeRng(((state.rngState || state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
+        contested: l.contested,
       }),
     );
-    launches.forEach((l, i) => pushRivalFeed(feed, l, activePlayerCats, fresh[i].product.name));
+    launches.forEach((l, i) => pushRivalFeed(feed, l, activePlayerCats, fresh[i].product.name, l.contested));
     rivalReleases = [...fresh, ...state.rivalReleases].slice(0, RIVAL_RELEASES_CAP);
   }
 
@@ -1281,21 +1282,18 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
   return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
 }
 
-function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>, productName?: string) {
+function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>, productName?: string, contested?: boolean) {
   const catName = CATEGORIES[l.category]?.displayName ?? l.category;
   const threat = activePlayerCats?.has(l.category);
   // The product name already carries the rival's name (e.g. "Pomelo Vync Pro"), so use it as the
   // subject; fall back to the bare rival name for callers that don't generate a product.
   const subject = productName ?? l.competitor;
-  feed.push(
-    feedItem(
-      l.week,
-      threat
-        ? `${subject} launches — your active ${catName} faces new competition.`
-        : `${subject} launches into ${catName}.`,
-      threat ? "negative" : "neutral",
-    ),
-  );
+  const text = contested
+    ? `${subject} undercuts your ${catName} on price — a value war for the segment.`
+    : threat
+      ? `${subject} launches — your active ${catName} faces new competition.`
+      : `${subject} launches into ${catName}.`;
+  feed.push(feedItem(l.week, text, threat || contested ? "negative" : "neutral"));
 }
 
 function trimFeed(feed: FeedItem[]): FeedItem[] {

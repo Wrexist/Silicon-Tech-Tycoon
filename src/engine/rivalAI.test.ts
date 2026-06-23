@@ -89,6 +89,16 @@ describe("rivalAI — strength and tone shape the product", () => {
   });
 });
 
+describe("rivalAI — B2 contested undercut pricing", () => {
+  it("a contesting undercutter ships a cheaper product than the same launch uncontested", () => {
+    const base = generateRivalProduct({ rivalId: "pandacore", rivalName: "Pandacore", category: "phone", era: 3, strength: 50, week: 9, rng: makeRng(5), contested: false });
+    const cut = generateRivalProduct({ rivalId: "pandacore", rivalName: "Pandacore", category: "phone", era: 3, strength: 50, week: 9, rng: makeRng(5), contested: true });
+    expect(toDollars(cut.product.price)).toBeLessThan(toDollars(base.product.price));
+    expect(cut.contested).toBe(true);
+    expect(base.contested).toBe(false);
+  });
+});
+
 describe("rivalAI — works for every unlocked category", () => {
   it("generates a valid renderable product per category", () => {
     const cats: CategoryId[] = ["phone", "tablet", "laptop", "desktop", "monitor", "console", "wearable", "experimental"];

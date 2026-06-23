@@ -374,6 +374,14 @@ export const BALANCE = {
     reactStrengthBonus: 14, // extra strength the reacting rival brings to the player's hot category
     reactMaxStrength: 95, // hard ceiling on any single rival launch strength (keeps it winnable)
     reactCadenceCut: 3, // weeks shaved off the reacting rival's next launch (faster counter-punch)
+    // B2 — rival DOCTRINES (per-rival behavioural posture; see competitors.ts RivalDoctrine). Tuned
+    // to add VARIETY + presence, NOT raw difficulty: only the `defender` raises launch strength (the
+    // old lead-rival counter-punch, numbers unchanged), so the contested-launch ceiling + winnability
+    // are exactly preserved. The other doctrines change WHERE a rival shows up and HOW it prices —
+    // visible personality, governed by the existing match-count + era-pressure, never new strength.
+    doctrineTargetWeight: 3, // extra category-selection weight a trend-chaser piles onto the player's hot cats
+    undercutCadenceCut: 2,   // weeks shaved off an undercutter's next launch when it contests a hot category
+    undercutPriceMult: 0.78, // visible price multiplier on an undercutter's contesting product (it ships cheap)
   },
 
   // --- IPO / prestige ---
