@@ -1028,3 +1028,24 @@ Shipped: A, B, C (full), D (first slice), E, G1+G2, F-a11y. Open: F-audio + F-mi
 (on-device only), G3 (new categories/era content), E-future, D-future. The blind-buildable roadmap is
 essentially DONE — what remains needs on-device validation (audio/feel, balance magnitudes) or is content.
 STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B→C→G→E→D stack want real eyes.
+
+## v32 — OS legibility tweak + Franchises (bigger feature) (DONE 2026-06-23)
+- [x] **OS income total** (Platform.tsx): the headline stat now sums BOTH recurring streams (ecosystem
+      services + rival licensing) instead of showing services alone — with a breakdown hint. Fixes the
+      under-read of the division's worth + the "Licensing income"/"License your OS" word overlap.
+- [x] **Product Franchises / Brand Equity** (NEW bigger feature — `engine/franchise.ts` pure +7 tests):
+      a product LINE (sequels sharing a name, built on naming.ts) accrues brand equity from its track
+      record (verdict-weighted, recency-decayed, capped). A proven line launches with loyal pre-orders
+      (×up to +40%) + anticipation hype (≤+0.15); a flop tarnishes it. First-in-line → equity 0 → zero
+      bonus (additive; all prior tests pass). planProduction.brand exposed; DesignLab wizard shows a
+      brand-equity readout ("Aurora line · Established"); live preview adds the same hype for consistency.
+      +2 production tests (a hit line beats a fresh name; a different name doesn't inherit equity).
+      ⚠️ preorder/hype caps are a launch-economy lever — flagged for playtest.
+- Emoji audit: confirmed the app is emoji-free (Lucide icons throughout); only typographic ★/→ in
+  star-ratings + comments. The preview HTML now uses inline SVG icons (no emoji).
+- 463 tests green, typecheck 0, build+PWA.
+
+### Backlog (logged, not acted — outside task scope)
+- OS feature: a per-licensee fee tooltip; an installed-base trend sparkline. Minor legibility.
+- Franchises: an explicit "name this line" affordance + a Franchises overview (lines + their equity)
+  in Market/Company; brand-equity decay on a long lapse (currently only recency-weighted by entry).
