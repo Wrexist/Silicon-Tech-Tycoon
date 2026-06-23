@@ -1099,3 +1099,17 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - 477 tests, tsc 0, build+PWA green. preview-os-features.html sent.
 - ⚠️ Balance magnitudes (module RP costs, ecoBonus/servicesMult, caps) NOT playtested on device — all
       isolated in `balance.platform.features` + the OS_FEATURES catalog for a one-file tuning pass.
+
+## v37 — OS division: more modules, achievements, completion celebration (DONE 2026-06-23)
+- [x] **Two more modules → 8 total**: Wallet & Pay (v2), Media Studio (v3). `ecoBonusCap` 20→26 so a
+      FULL build (+25 ecosystem) pays in full — the completion reward — while still bounding the sum.
+- [x] **Achievements**: "Platform Pioneer" (first module) + "Walled Garden" (every module). New pure
+      facts `osFeaturesBuilt`/`osComplete` (0/false until the division is unlocked). `installOsFeature`
+      routed through `withLiveAchievements` + the RP-spend FX so they fire the instant you build.
+- [x] **Dopamine**: live build-progress bar on the OS features card (N/total → "Complete"); sound +
+      haptic + RP-spend FX per build; and a bespoke portal "Platform complete" celebration on the final
+      build — spring-in emblem, radiating ray burst, sealing check, global confetti, the platform totals.
+      Pure vector; ray/spring choreography fully disabled under reduced motion.
+- 481 tests, tsc 0, build+PWA green. preview sent.
+- ⚠️ Still NOT playtested on device: a fully-built OS adds +25 ecosystem to every launch (intentional
+      late-game power, gated behind all 8 modules + OS v4 + ~408 RP). Tunable in one file if too strong.
