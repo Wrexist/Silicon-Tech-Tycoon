@@ -9,6 +9,7 @@ import {
   type AchievementFacts,
 } from "./achievements.ts";
 import { dollars } from "./money.ts";
+import { OS_FEATURES } from "./platform.ts";
 import type { LaunchedProduct, Product } from "./types.ts";
 import { evaluateAndUnlock, newGame, type GameState } from "../state/gameState.ts";
 
@@ -39,6 +40,8 @@ function emptyFacts(): AchievementFacts {
     wonScenario: false,
     completedChallenge: false,
     releasedOsVersion: false,
+    osFeaturesBuilt: 0,
+    osComplete: false,
     scenarioThreeStarRun: false,
     scenariosThreeStarred: 0,
     allScenariosWon: false,
@@ -83,7 +86,7 @@ function launched(verdict: "hit" | "flop" | "steady", opts: Partial<LaunchedProd
 describe("achievements catalog", () => {
   it("has a healthy number of milestones with unique ids", () => {
     expect(ACHIEVEMENT_COUNT).toBeGreaterThanOrEqual(12);
-    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(52);
+    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(60);
     const ids = ACHIEVEMENTS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -149,6 +152,8 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "scenario-win", facts: { wonScenario: true } },
     { id: "challenge-done", facts: { completedChallenge: true } },
     { id: "os-release", facts: { releasedOsVersion: true } },
+    { id: "os-first-feature", facts: { osFeaturesBuilt: 1 } },
+    { id: "os-complete", facts: { osComplete: true } },
     { id: "scenario-3star", facts: { scenarioThreeStarRun: true } },
     { id: "scenarios-3starred-3", facts: { scenariosThreeStarred: 3 } },
     { id: "scenarios-all-won", facts: { allScenariosWon: true } },
@@ -185,6 +190,24 @@ describe("each predicate fires only when its real condition is met", () => {
       const f = deriveFacts(s, { totalScenarios: 6, scenariosWon: 6, scenariosThreeStarred: 3, challengesCompleted: 12 });
       expect(f.scenariosThreeStarred).toBe(3);
       expect(f.challengesCompletedTotal).toBe(12);
+    });
+  });
+
+  describe("OS feature facts derive from GameState", () => {
+    it("are 0/false until the Platform division is unlocked, then count built modules", () => {
+      const locked = deriveFacts({ ...newGame(1), platformUnlocked: false, osFeatures: ["appMarket"] } as GameState);
+      expect(locked.osFeaturesBuilt).toBe(0); // entitlement off → ignored
+      expect(locked.osComplete).toBe(false);
+
+      const some = deriveFacts({ ...newGame(1), platformUnlocked: true, osFeatures: ["appMarket", "cloudSync"] } as GameState);
+      expect(some.osFeaturesBuilt).toBe(2);
+      expect(some.osComplete).toBe(false);
+    });
+    it("osComplete is true only when every module is built", () => {
+      const all = OS_FEATURES.map((f) => f.id);
+      const full = deriveFacts({ ...newGame(1), platformUnlocked: true, osFeatures: all } as GameState);
+      expect(full.osFeaturesBuilt).toBe(all.length);
+      expect(full.osComplete).toBe(true);
     });
   });
 

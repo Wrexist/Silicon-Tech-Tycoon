@@ -10,6 +10,7 @@ import { netWorth, scenarioResultFor } from "../state/gameState.ts";
 import { toDollars } from "./money.ts";
 import { RESEARCH_PROJECTS } from "./research.ts";
 import { maxEra } from "./eras.ts";
+import { OS_FEATURES } from "./platform.ts";
 
 /** A Lucide icon NAME (resolved to a component in the UI layer — engine stays DOM-free). */
 export type AchievementIconName =
@@ -63,6 +64,8 @@ export interface AchievementFacts {
   wonScenario: boolean; // currently winning the active scenario (≥1★)
   completedChallenge: boolean; // a daily/weekly challenge score has locked in
   releasedOsVersion: boolean; // shipped a new OS version via the Platform division
+  osFeaturesBuilt: number; // OS feature modules built into the platform
+  osComplete: boolean; // every OS feature module built — a complete platform
   // --- Mastery (cross-run profile) facts. Supplied by the state layer via MasteryInput; default to
   //     0/false in a pure run so these never false-unlock without real profile data. ---
   scenarioThreeStarRun: boolean; // the CURRENT run has 3-starred its scenario
@@ -154,6 +157,8 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
     wonScenario: scenarioResultFor(state)?.won ?? false,
     completedChallenge: state.challengeScore != null,
     releasedOsVersion: state.platformUnlocked && state.osVersion > 1,
+    osFeaturesBuilt: state.platformUnlocked ? state.osFeatures.length : 0,
+    osComplete: state.platformUnlocked && state.osFeatures.length >= OS_FEATURES.length,
     // Use the RUN-LOCKED high-water stars (monotonic, the value recorded to the profile), not a
     // live recompute — so a 3★ run still counts after the earn window closes or metrics later dip.
     scenarioThreeStarRun: (state.scenarioRunStars ?? 0) >= 3,
@@ -527,6 +532,22 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Layers",
     hint: "Build the Platform division and ship an OS version.",
     predicate: (f) => f.releasedOsVersion,
+  },
+  {
+    id: "os-first-feature",
+    title: "Platform Pioneer",
+    description: "Built your first capability into your OS — the platform takes shape.",
+    icon: "Sparkles",
+    hint: "Build a feature module in the Platform division.",
+    predicate: (f) => f.osFeaturesBuilt >= 1,
+  },
+  {
+    id: "os-complete",
+    title: "Walled Garden",
+    description: "Every capability built into your OS — a complete, self-reinforcing platform.",
+    icon: "Boxes",
+    hint: "Build every OS feature module.",
+    predicate: (f) => f.osComplete,
   },
   // --- Mastery tier (cross-run; the engaged-player tail, per RETENTION_ROADMAP Wave 4) ---
   {

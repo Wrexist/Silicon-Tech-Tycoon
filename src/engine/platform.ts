@@ -95,8 +95,12 @@ export const OS_FEATURES: readonly OsFeature[] = [
     blurb: "A private voice + text assistant that makes the whole system feel smart." },
   { id: "privacy",    name: "Privacy Suite",           icon: "ShieldCheck", minVersion: 2, rpCost: 52,  ecoBonus: 3, servicesMult: 0.06,
     blurb: "On-device encryption and tracking controls. Buyers trust the platform more." },
+  { id: "wallet",     name: "Wallet & Pay",            icon: "Wallet",      minVersion: 2, rpCost: 55,  ecoBonus: 3, servicesMult: 0.16,
+    blurb: "Tap-to-pay and a built-in wallet — take a small cut of every transaction on your platform." },
   { id: "health",     name: "Health Hub",              icon: "HeartPulse",  minVersion: 3, rpCost: 70,  ecoBonus: 3, servicesMult: 0.12,
     blurb: "Activity, sleep and wellbeing tracking that pulls wearables into your ecosystem." },
+  { id: "media",      name: "Media Studio",            icon: "Music",       minVersion: 3, rpCost: 80,  ecoBonus: 3, servicesMult: 0.14,
+    blurb: "Music, film and TV subscriptions streamed to every device in your ecosystem." },
   { id: "continuity", name: "Cross-Device Continuity", icon: "Layers",      minVersion: 4, rpCost: 110, ecoBonus: 4, servicesMult: 0.18,
     blurb: "Hand off any task between your phone, tablet and laptop seamlessly — true lock-in." },
 ];

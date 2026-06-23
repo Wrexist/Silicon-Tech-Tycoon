@@ -540,7 +540,9 @@ export const BALANCE = {
     // services income. These are the global rails; per-module effects live in the OS_FEATURES catalog
     // (content, alongside the segments table). All gated behind platformUnlocked → 0 in the base game.
     features: {
-      ecoBonusCap: 20,          // max ecosystem-stat points the OS adds to a launched device (safety rail)
+      // 8 modules sum to +25 ecosystem; cap sits just above so a FULL build pays in full (the
+      // completion reward) while still bounding any future additions. A partial build never nears it.
+      ecoBonusCap: 26,          // max ecosystem-stat points the OS adds to a launched device (safety rail)
       servicesMultCap: 2.6,     // hard cap on the recurring-services multiplier (no runaway)
       versionServicesStep: 0.04,// + services multiplier per OS version released above v1
     },
