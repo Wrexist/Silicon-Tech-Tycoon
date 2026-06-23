@@ -290,6 +290,8 @@ function migrate(state: GameState): GameState | null {
   // OS feature modules (added later): default none — a save loads with an un-customized OS, so
   // ecosystem bonus = 0 and services multiplier = 1 until the player builds modules.
   if (!Array.isArray(s.osFeatures)) s.osFeatures = [];
+  // Installed-base history for the Platform sparkline (added later): default empty — it fills as weeks pass.
+  if (!Array.isArray(s.osBaseHistory)) s.osBaseHistory = [];
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

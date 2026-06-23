@@ -18,6 +18,7 @@ import {
   osServicesMult,
   productStats,
   weeklyEcosystemRevenue,
+  advanceOneWeek,
   type GameState,
 } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -168,5 +169,18 @@ describe("OS feature modules (state)", () => {
     const withApp = installOsFeature(unlocked, "appMarket");
     expect(osServicesMult(withApp)).toBeGreaterThan(1);
     expect(toDollars(weeklyEcosystemRevenue(withApp))).toBeGreaterThan(baseRev);
+  });
+
+  it("records an installed-base sample each week only while the division is unlocked", () => {
+    // Locked: history stays empty across a tick.
+    const locked = advanceOneWeek({ ...newGame(7), platformUnlocked: false });
+    expect(locked.osBaseHistory).toEqual([]);
+
+    // Unlocked with a launched product: a tick appends one sample = the installed base.
+    const sold = [soldPhone(50, 12_345)];
+    const g = unlockPlatform({ ...newGame(7), launched: sold } as GameState, true);
+    const after = advanceOneWeek(g);
+    expect(after.osBaseHistory.length).toBe(1);
+    expect(after.osBaseHistory[0]).toBeGreaterThanOrEqual(12_345); // ≥ this week's installed base
   });
 });

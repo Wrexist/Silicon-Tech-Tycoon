@@ -222,6 +222,9 @@ export interface GameState {
   /** Installed OS feature modules (engine/platform.ts OS_FEATURES). Each lifts the ecosystem stat of
    *  every device you launch AND multiplies recurring services income. Empty → no effect. */
   osFeatures: string[];
+  /** Weekly installed-base samples for the Platform "OS reach" sparkline (capped). Only recorded
+   *  while the division is unlocked, so it reflects the OS era. */
+  osBaseHistory: number[];
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
@@ -405,6 +408,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osVersion: 1,
     osLicensees: [],
     osFeatures: [],
+    osBaseHistory: [],
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
@@ -1195,6 +1199,14 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const cashHistory = [...state.cashHistory, { week, cash: toDollars(cash) }];
   if (cashHistory.length > 260) cashHistory.shift();
 
+  // Installed-base history for the Platform "OS reach" sparkline — one sample per week while the
+  // division exists, capped to a sparkline-friendly window.
+  let osBaseHistory = state.osBaseHistory;
+  if (state.platformUnlocked) {
+    osBaseHistory = [...osBaseHistory, installedBase(launched)];
+    if (osBaseHistory.length > 40) osBaseHistory = osBaseHistory.slice(-40);
+  }
+
   const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
     ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
     : BALANCE.fans.decayPerWeek;
@@ -1234,6 +1246,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     competitors,
     launched: launchedFinal,
     cashHistory,
+    osBaseHistory,
     feed,
     rivalReleases,
     rivalLineCounters,

@@ -8,6 +8,7 @@ import {
   Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Wallet, Music, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, Stat, SectionHeader } from "../design/primitives.tsx";
+import { Sparkline } from "../components/charts.tsx";
 import { haptic } from "../design/haptics.ts";
 import { showToast } from "../design/toast.tsx";
 import { sfx } from "../design/sound.ts";
@@ -55,6 +56,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
   const allBuilt = builtCount >= totalCount && totalCount > 0;
   const licenseTotal = weeklyLicenseFees(state);
   const base = platformInstalledBase(state);
+  const reachDelta = state.osBaseHistory.length >= 2 ? state.osBaseHistory[state.osBaseHistory.length - 1] - state.osBaseHistory[0] : 0;
   const weekly = weeklyEcosystemRevenue(state);
   const canRelease = canReleaseOsVersion(state);
   const reward = osReleaseReward(base);
@@ -104,6 +106,11 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
           <BadgeDollarSign size={18} className="plat__stat-icon" aria-hidden />
         </Card>
       </div>
+
+      <Card>
+        <SectionHeader title="OS reach" accessory={reachDelta > 0 ? `+${fmtBase(reachDelta)} this period` : undefined} />
+        <Sparkline data={state.osBaseHistory} label="Installed base over time" height={56} />
+      </Card>
 
       <Card>
         <SectionHeader title="OS version" accessory={`v${state.osVersion}.0`} />
