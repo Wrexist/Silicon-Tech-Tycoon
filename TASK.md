@@ -937,3 +937,26 @@ C3 (explainers), D (era-distinct mechanics — PROTECTED, needs playtest), E (de
 F (reactive audio + a11y), G1 (form→demand, needs A — now unblocked), G2 (surface synergy),
 G3 (new categories/era DLC). Next-best by leverage: G2 (cheap, UI over existing synergy math) or
 F (premium feel/a11y); G1 is now unblocked by segments.
+
+## v27 — Epic G: deepen the design toy (G1 + G2) (DONE 2026-06-23)
+- [x] **G2 — surface component synergy** (DesignLab, pure UI over existing componentSynergy): the live
+      view now shows a two-sided "Build" readout — "Flagship +6%" / "Balanced" / "Weak: Battery" — with
+      a one-line explanation that names the bottleneck OR celebrates the coherent-build bonus (the
+      Kairosoft combo "aha", pillar #5). No engine change.
+- [x] **G1 — form affects demand** (`engine/aesthetics.ts`, pure +5 tests): styleAppeal(product) turns
+      the previously-inert render choices (notch, camera module/layout coherence, flash) into a bounded
+      0..8 bonus that lifts the Style segment's fit ONLY (segmentDemand optional param, default 0 →
+      backward compatible; +2 segment tests). finish/designTier/refresh are NOT re-counted (already in
+      the design stat). planProduction passes it; the DesignLab live breakdown now runs through the SAME
+      segment model as the wizard/launch (fixes a post-Epic-A inconsistency where live "Fit" was the old
+      single-trend score) and shows a "Design language: Striking/Clean/Plain/Dated" readout.
+- NOT verified on-device: design-language readout + the live feel of the style weighting (playtest).
+- **Remaining:** G3 — new categories / a new era past AI as content drops (renderer already supports
+      the silhouettes; gameplay-gated). Data in catalogs.ts; S each.
+
+### Roadmap status after v27
+Shipped: A (segments), B (living rivals), C1+C2 (verdict layer), G1+G2 (design toy). Open:
+C3 (plain-language explainers), D (era-distinct mechanics — PROTECTED, playtest-heavy),
+E (delegation/ops), F (reactive audio + a11y), G3 (new categories/era DLC).
+Next-best by leverage: F (premium feel/a11y — earns the price, dodges "rip-off" reviews) or
+E (delegation — touch-critical for late-game scale). D is highest playtest cost; G3 is content cadence.

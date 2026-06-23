@@ -309,7 +309,13 @@ the on-device polish debt in `ROADMAP.md` Phase 1.
 
 ---
 
-### EPIC G — Deepen the design toy (the centerpiece) 🟢
+### EPIC G — Deepen the design toy (the centerpiece) 🟢 G1 + G2 SHIPPED (v27)
+
+> **Status:** G1 (`engine/aesthetics.ts` — form/design-language lifts the Style segment; the render is
+> now a demand lever) and G2 (two-sided component-synergy readout in the live design view — flagship
+> bonus + named weak link) are SHIPPED. **G3** (new categories/era as content drops) remains.
+> Original spec below.
+
 
 **Research basis:** "the product IS the toy" (Pillar #2); Automation "looks don't affect sales"
 [AVOID, fix it]; Besiege/TerraTech "each change has immediate visible consequence" [STEAL]; Kairosoft
