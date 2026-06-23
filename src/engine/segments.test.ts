@@ -6,7 +6,8 @@ import {
   segmentPriceFit,
   segmentFit,
 } from "./segments.ts";
-import { dollars } from "./money.ts";
+import { dollars, toDollars } from "./money.ts";
+import { BALANCE } from "./balance.ts";
 import { STAT_KEYS, type ConsumerTrends, type Stats } from "./types.ts";
 
 const flat: ConsumerTrends = {
@@ -82,8 +83,9 @@ describe("price sensitivity — Budget reacts harder than Enterprise", () => {
     const budget = segmentById("budget")!;
     const enterprise = segmentById("enterprise")!;
     // fair price for this fit ≈ fit × valueToPrice; overprice both by the same 1.6× ratio.
-    const fair = dollars(Math.round(60 * 7.5));
-    const over = dollars(Math.round(60 * 7.5 * 1.6));
+    const v2p = toDollars(BALANCE.market.price.valueToPrice);
+    const fair = dollars(Math.round(fit * v2p));
+    const over = dollars(Math.round(fit * v2p * 1.6));
 
     const budgetFair = segmentPriceFit(fair, fit, budget);
     const budgetOver = segmentPriceFit(over, fit, budget);

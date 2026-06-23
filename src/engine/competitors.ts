@@ -216,8 +216,11 @@ export function advanceCompetitors(
       const isDefending = doctrine === "defender" && contestingHot;
       const isUndercutting = doctrine === "undercutter" && contestingHot;
       if (isDefending) {
-        strength = Math.min(bal.reactMaxStrength, strength + bal.reactStrengthBonus);
+        strength = strength + bal.reactStrengthBonus;
       }
+      // The winnability ceiling applies to EVERY launch, not just defenders — structural, so a future
+      // baseStrength/preferredStrengthBonus bump can't silently break the documented cap.
+      strength = Math.min(bal.reactMaxStrength, strength);
 
       strengthByCategory[cat] = Math.max(strengthByCategory[cat] ?? 0, strength);
       launches.push({ competitor: c.name, category: cat, strength: Math.round(strength), week, contested: isUndercutting });

@@ -20,7 +20,7 @@ const NUM_WORDS = new Set([
 ]);
 
 function isRomanish(s: string): boolean {
-  return /^(?=[ivxlcdm]+$)m{0,3}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$/i.test(s);
+  return s.length > 0 && /^(?=[ivxlcdm]+$)m{0,3}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$/i.test(s);
 }
 
 /** The line a product belongs to: its name with the trailing series token (digits / number-word /

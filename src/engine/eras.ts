@@ -12,7 +12,7 @@ export function eraName(era: number): string {
  *  Growth eras are 1.0 (baseline); the Platform + AI eras shift the economy's texture. */
 export function eraModifier(era: number): { marketingHype: number; ecosystemRate: number; demandVariance: number } {
   const mods = BALANCE.eraModifiers;
-  return mods[Math.max(0, Math.min(era - 1, mods.length - 1))];
+  return mods[Math.max(0, Math.min(Math.floor(era) - 1, mods.length - 1))];
 }
 
 /** Plain-language summary of what the given era changes vs. the baseline (for a legible readout). */

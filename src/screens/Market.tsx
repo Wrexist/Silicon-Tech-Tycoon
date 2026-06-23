@@ -77,6 +77,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const { state } = useGame();
   const trends = state.trends;
   const comps = state.competitors;
+  // Only show releases from rivals still on the board — an acquired rival's historical releases would
+  // otherwise be clickable but open an empty profile (the competitor is gone).
+  const activeRivalIds = new Set(comps.map((c) => c.id));
+  const visibleRivalReleases = state.rivalReleases.filter((r) => activeRivalIds.has(r.rivalId));
   const feedItems = [...state.feed].slice(-12).reverse();
   const maxTrend = Math.max(...STAT_KEYS.map((k) => Math.max(trends.weights[k], trends.targetWeights[k])));
   const [trade, setTrade] = useState<CompetitorState | null>(null);
@@ -220,11 +224,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       })()}
 
       {/* Rival releases — the real products rivals have shipped (Epic B): see and learn from them */}
-      {state.rivalReleases.length > 0 && (
+      {visibleRivalReleases.length > 0 && (
         <Card>
-          <SectionHeader title="Rival releases" accessory={`${state.rivalReleases.length} recent`} />
+          <SectionHeader title="Rival releases" accessory={`${visibleRivalReleases.length} recent`} />
           <div className="mkt__rivals">
-            {state.rivalReleases.slice(0, 6).map((r, i) => (
+            {visibleRivalReleases.slice(0, 6).map((r, i) => (
               <button
                 key={`${r.product.id}-${i}`}
                 className="mkt__rival mkt__rival--btn"

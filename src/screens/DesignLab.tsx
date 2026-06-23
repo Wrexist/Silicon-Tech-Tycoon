@@ -80,6 +80,7 @@ function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
           return (
             <div
               key={r.id}
+              role="group"
               className={`wiz__seg-row${r.id === top.id ? " wiz__seg-row--top" : ""}`}
               aria-label={`${r.name}: wins ${pct}% of the segment. ${segmentWantsById(r.id)}`}
             >

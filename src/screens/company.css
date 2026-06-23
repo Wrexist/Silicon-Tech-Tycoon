@@ -23,6 +23,7 @@
 }
 .co__switch--on { background: var(--positive); }
 .co__switch:disabled { opacity: 0.5; }
+.co__switch:focus-visible { outline: var(--focus-width, 2px) solid var(--accent); outline-offset: 2px; }
 .co__switch-knob {
   display: block; width: 23px; height: 23px;
   border-radius: var(--r-pill); background: var(--knob); box-shadow: var(--shadow-subtle);

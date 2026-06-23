@@ -81,13 +81,13 @@ describe("full-stack smoke (all expansion systems together)", () => {
   });
 
   it("a multi-era playthrough with delegation, launches and an acquisition stays sane", () => {
+    const base = newGame(11);
     let s: GameState = {
-      ...newGame(11),
+      ...base,
       cash: dollars(800_000_000),
       cumulativeRevenue: dollars(3_000_000), // established → acquisitions unlocked
-      staff: undefined as unknown as Staff[],
+      staff: staffedTeam(base),
     };
-    s = { ...s, staff: staffedTeam(newGame(11)) };
     s = setAutomation(s, { autoAssign: true, autoResearch: true });
     s = autoAssignIdle(s); // delegation puts the idle team to work immediately
     expect(s.staff.every((m) => m.assignment !== "idle")).toBe(true);

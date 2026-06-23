@@ -222,6 +222,10 @@ export interface GameState {
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
+  /** Uncapped per-`rivalId:category` launch counts → stable rival series numbers ("Pomelo Lumen 2"…).
+   *  Kept separate from the capped `rivalReleases` gallery so series numbering never regresses when
+   *  old releases are sliced off in a long game. */
+  rivalLineCounters: Record<string, number>;
   /** Epic B3 — ids of rivals the player has acquired (removed from competition). Tracked so an
    *  acquired rival never re-enters as a fresh challenger, and for UI/achievements. */
   acquiredRivals: string[];
@@ -398,6 +402,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osVersion: 1,
     osLicensees: [],
     rivalReleases: [],
+    rivalLineCounters: {},
     acquiredRivals: [],
     automation: { autoAssign: false, autoResearch: false },
   };
@@ -1020,12 +1025,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // A DERIVED rng (seeded from the save + week + index) keeps the MAIN sim rng stream byte-identical,
   // so the pinned determinism test and every seed-specific test are unaffected.
   let rivalReleases = state.rivalReleases;
+  let rivalLineCounters = state.rivalLineCounters;
   if (launches.length) {
     const idByName = new Map(competitors.map((c) => [c.name, c.id]));
-    // How many products this rival has already shipped in this category's line → the series number,
-    // so rivals build recognisable flagship series ("Pomelo Lumen" → "Pomelo Lumen 2" → …).
-    const seriesIndex = (rivalId: string, category: CategoryId) =>
-      state.rivalReleases.filter((r) => r.rivalId === rivalId && r.category === category).length;
+    // The series number for a rival's category line comes from an UNCAPPED per-line counter (not the
+    // capped rivalReleases gallery), so "Pomelo Lumen 2/3/4" never regresses once old releases slice off.
+    const nextSeriesIndex = (rivalId: string, category: CategoryId): number => {
+      const key = `${rivalId}:${category}`;
+      const index = rivalLineCounters[key] ?? 0;
+      rivalLineCounters = { ...rivalLineCounters, [key]: index + 1 };
+      return index;
+    };
     const fresh = launches.map((l, i) => {
       const rivalId = idByName.get(l.competitor) ?? l.competitor;
       return generateRivalProduct({
@@ -1037,7 +1047,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         week,
         rng: makeRng(((state.rngState || state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
         contested: l.contested,
-        seriesIndex: seriesIndex(rivalId, l.category),
+        seriesIndex: nextSeriesIndex(rivalId, l.category),
       });
     });
     launches.forEach((l, i) => pushRivalFeed(feed, l, activePlayerCats, fresh[i].product.name, l.contested));
@@ -1209,6 +1219,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     cashHistory,
     feed,
     rivalReleases,
+    rivalLineCounters,
     rngState: rng.state(),
     bankrupt,
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).

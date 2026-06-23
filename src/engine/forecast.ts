@@ -28,16 +28,19 @@ export function forecastConfidence(inp: ForecastInputs): number {
 }
 
 /** The ± band fraction shown in the wizard AND the cap on realized launch variance. Lerps from the
- *  base band (no market knowledge) down to the floor band (max confidence) — never below the floor. */
+ *  base band (no market knowledge) down to the floor band (max confidence) — never below the floor.
+ *  `confidence` is normalized against maxConfidence so the mapping holds if maxConfidence is retuned. */
 export function forecastBand(confidence: number): number {
   const f = BALANCE.market.forecast;
-  const c = clamp(confidence, 0, 1);
+  const c = f.maxConfidence > 0 ? clamp(confidence / f.maxConfidence, 0, 1) : 0;
   return f.baseBand - c * (f.baseBand - f.minBand);
 }
 
 /** Plain-language confidence label for the UI. */
 export function forecastConfidenceLabel(confidence: number): "Low" | "Medium" | "High" {
-  if (confidence >= 0.5) return "High";
-  if (confidence >= 0.25) return "Medium";
+  const f = BALANCE.market.forecast;
+  const c = f.maxConfidence > 0 ? clamp(confidence / f.maxConfidence, 0, 1) : 0;
+  if (c >= 0.5) return "High";
+  if (c >= 0.25) return "Medium";
   return "Low";
 }

@@ -289,6 +289,18 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
+  // Rival series counters (added later): default empty; seed from existing releases so a mid-save
+  // upgrade doesn't restart series numbers below what's already on screen.
+  if (!s.rivalLineCounters || typeof s.rivalLineCounters !== "object") {
+    const counters: Record<string, number> = {};
+    if (Array.isArray(s.rivalReleases)) {
+      for (const r of s.rivalReleases as { rivalId?: string; category?: string }[]) {
+        const key = `${r?.rivalId}:${r?.category}`;
+        counters[key] = (counters[key] ?? 0) + 1;
+      }
+    }
+    s.rivalLineCounters = counters;
+  }
   // Acquired rivals (Epic B3, added later): default none.
   if (!Array.isArray(s.acquiredRivals)) s.acquiredRivals = [];
   // Delegation toggles (Epic E, added later): default off.

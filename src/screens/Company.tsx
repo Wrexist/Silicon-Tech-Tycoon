@@ -434,7 +434,7 @@ function DelegationCard({ state, onToggle }: { state: GameState; onToggle: (patc
       <SectionHeader title="Delegation" accessory="Ops" />
       <div className="co__deleg">
         {rows.map((r) => {
-          const on = state.automation[r.key] && r.can;
+          const enabled = state.automation[r.key];
           return (
             <div key={r.key} className={`co__deleg-row${r.can ? "" : " co__deleg-row--locked"}`}>
               <span className="co__deleg-icon"><r.icon size={17} /></span>
@@ -443,12 +443,13 @@ function DelegationCard({ state, onToggle }: { state: GameState; onToggle: (patc
                 <span className="co__deleg-sub">{r.can ? r.sub : r.gate}</span>
               </div>
               <button
-                className={`co__switch${on ? " co__switch--on" : ""}`}
+                className={`co__switch${enabled ? " co__switch--on" : ""}`}
                 role="switch"
-                aria-checked={on}
+                aria-checked={enabled}
                 aria-label={r.label}
-                disabled={!r.can}
-                onClick={() => { haptic.light(); onToggle({ [r.key]: !state.automation[r.key] }); }}
+                // Can always turn an automation OFF; can only turn it ON once the capability is met.
+                disabled={!r.can && !enabled}
+                onClick={() => { haptic.light(); onToggle({ [r.key]: !enabled }); }}
               >
                 <span className="co__switch-knob" />
               </button>

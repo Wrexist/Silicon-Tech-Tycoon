@@ -80,7 +80,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <Row icon={<Contrast size={18} />} label="High contrast" sub="Stronger borders, text and focus rings for low-vision readability.">
-          <Switch label="High contrast" on={settings.highContrast} onChange={(v) => { setSettings({ highContrast: v }); sfx("toggle"); haptic.light(); }} />
+          <Switch label="High contrast" on={settings.highContrast} onChange={(v) => { setSettings({ highContrast: v }); sfx("toggle"); }} />
         </Row>
       </div>
 
