@@ -46,6 +46,7 @@ import {
   type GameState,
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
+import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
 import type { SegmentDemand } from "../engine/segments.ts";
@@ -1188,7 +1189,14 @@ function BuildWizard({
   const recommended = useMemo(() => recommendedRun(state, draft, channel), [state, draft, channel]);
   const baseDemand = useMemo(() => planProduction(state, draft, units, "none").totalDemand, [state, draft, units]);
   const affordable = state.cash >= plan.totalUpfront;
-  const variancePct = state.completedProjects.includes("demandSensing") ? 0.08 : 0.12;
+  // C2 — the forecast band tightens as the player invests in market knowledge (marketer skill +
+  // Demand Sensing). The SAME confidence scales the realized launch variance, so this band is honest.
+  const forecastConf = forecastConfidence({
+    marketerSkill: marketerSkill(state),
+    demandSensing: state.completedProjects.includes("demandSensing"),
+  });
+  const variancePct = forecastBand(forecastConf);
+  const confLabel = forecastConfidenceLabel(forecastConf);
   const demandLow = Math.round(plan.totalDemand * (1 - variancePct));
   const demandHigh = Math.round(plan.totalDemand * (1 + variancePct));
 
@@ -1248,6 +1256,13 @@ function BuildWizard({
             <Stat label="Projected demand" value={plan.totalDemand.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "would sell out" : `${demandLow.toLocaleString()}–${demandHigh.toLocaleString()} range`} />
             <Stat label="Unit cost" value={format(plan.unitCost)} />
             <Stat label="Run cost" value={format(plan.productionCost)} tone="negative" />
+          </div>
+          <div className={`wiz__forecast wiz__forecast--${confLabel.toLowerCase()}`}>
+            <span className="wiz__forecast-label">Forecast confidence</span>
+            <span className="wiz__forecast-val">{confLabel}</span>
+            <span className="wiz__forecast-note">
+              {confLabel === "High" ? "tight, reliable demand band" : "marketers + Demand Sensing research tighten this"}
+            </span>
           </div>
         </div>
       )}

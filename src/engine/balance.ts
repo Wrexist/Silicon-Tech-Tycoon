@@ -154,6 +154,19 @@ export const BALANCE = {
       // price-sensitive segment still has a usable (if narrow) pricing band, never a knife-edge.
       minPriceTolerance: 0.18,
     },
+    // --- Forecast confidence (Epic C2 — the converging pre-launch forecast) ---
+    // The wizard shows a demand RANGE; its width — and how far the real launch can land from the
+    // point estimate — TIGHTENS as the player invests in knowing their market (marketer skill =
+    // intuition; the Demand Sensing project = analytics). Confidence sets the displayed band AND
+    // scales the realized launch variance, so a tighter forecast is an HONEST promise, not a lie.
+    // baseBand mirrors demandVariance, so a no-knowledge forecast is the old ±12% behaviour.
+    forecast: {
+      baseBand: 0.12,                // ± band with zero market knowledge (matches demandVariance)
+      minBand: 0.05,                 // tightest achievable band at max confidence
+      skillConfidencePerPoint: 0.04, // confidence gained per effective marketer-skill point
+      demandSensingConfidence: 0.3,  // confidence from the Demand Sensing research project
+      maxConfidence: 0.85,           // hard cap — a forecast is never a certainty
+    },
   },
 
   // --- Sales curve (ramp -> peak -> decline) ---

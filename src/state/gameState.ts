@@ -92,6 +92,7 @@ import {
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
+import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -1398,17 +1399,19 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const plannedUnits = product.plannedUnits ?? recommendedRun(state, product, channelId);
   const plan = planProduction(state, product, plannedUnits, channelId);
 
-  // B9 — apply seeded demand variance to the ACTUAL realized demand at launch. planProduction
-  // gives the deterministic forecast the wizard showed; the real market lands within ±demandVariance
-  // of it. This makes over/under-producing a true bet: a too-small run can leave demand unmet, a
-  // too-large run can strand stock. Driven by the persisted RNG (deterministic per seed, NOT
-  // Math.random) and we save the advanced rngState below so the outcome is reproducible.
+  // B9 / C2 — apply seeded demand variance to the ACTUAL realized demand at launch. planProduction
+  // gives the deterministic forecast the wizard showed; the real market lands within the forecast BAND
+  // of it. The band tightens with market knowledge (forecastConfidence), so investing in marketers +
+  // Demand Sensing makes the realized outcome land closer to the estimate — the wizard's band is an
+  // honest promise. Driven by the persisted RNG (deterministic per seed, NOT Math.random).
   const rng = rngFrom(state);
   const rawVariance = demandVarianceMultiplier(rng);
-  // demandSensing narrows variance by 35% (forecasts become more reliable)
-  const variance = hasProject(state.completedProjects, "demandSensing")
-    ? 1 + (rawVariance - 1) * 0.65
-    : rawVariance;
+  const band = forecastBand(forecastConfidence({
+    marketerSkill: marketerSkill(state),
+    demandSensing: hasProject(state.completedProjects, "demandSensing"),
+  }));
+  // Remap the ±baseBand jitter into the (narrower) confidence-scaled band, keeping the seeded sign.
+  const variance = 1 + (rawVariance - 1) * (band / BALANCE.market.forecast.baseBand);
   const realizedDemand = Math.max(0, Math.round(plan.totalDemand * variance));
   // Sales are still capped by the production run — you can never sell more than you built.
   const totalUnits = Math.min(plannedUnits, realizedDemand);
