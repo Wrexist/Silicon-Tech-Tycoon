@@ -291,7 +291,13 @@ automates existing actions. Effort: **M.** Low risk (it can only do what the pla
 
 ---
 
-### EPIC F — Premium feel: reactive audio + microinteractions + accessibility 🟢
+### EPIC F — Premium feel: reactive audio + microinteractions + accessibility 🟢 a11y SHIPPED (v28)
+
+> **Status:** the ACCESSIBILITY slice shipped (high-contrast mode toggle in tokens.css/settings, on
+> top of the existing AA tokens + reduced-motion + focus rings). **Reactive audio + microinteraction
+> polish DEFERRED to an on-device session** — they can't be heard/felt headless, and RULE #1 forbids
+> shipping polish rough. Original spec below.
+
 
 **Research basis:** Mini Metro's reactive/generative audio (sound *is* feedback) [STEAL]; PCBS2's
 tactile component-snap sounds "make everything satisfying" [STEAL]; Mini Motorways colorblind/dark

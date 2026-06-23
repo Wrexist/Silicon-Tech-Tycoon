@@ -960,3 +960,23 @@ C3 (plain-language explainers), D (era-distinct mechanics — PROTECTED, playtes
 E (delegation/ops), F (reactive audio + a11y), G3 (new categories/era DLC).
 Next-best by leverage: F (premium feel/a11y — earns the price, dodges "rip-off" reviews) or
 E (delegation — touch-critical for late-game scale). D is highest playtest cost; G3 is content cadence.
+
+## v28 — Epic F: premium feel — accessibility slice (DONE 2026-06-23)
+- [x] **High-contrast mode** (`state/settings.ts` highContrast pref + applyContrast; `design/tokens.css`
+      [data-contrast="high"] overrides for light AND dark — near-ink muted text, visible hairlines/strokes,
+      --focus-width 2→3px; `index.css` focus ring reads the token; Settings "High contrast" toggle).
+      Purely additive — off by default, scoped to the root attribute, default experience byte-identical.
+      Base theme already clears WCAG AA (text variants, reduced-motion, focus rings); this serves
+      low-vision users beyond AA. 435 tests, tsc 0, build+PWA.
+- **DEFERRED (need on-device/audio session):** F reactive-audio palette + per-action microinteractions
+      (can't be heard/felt headless; RULE #1 = don't ship polish rough). Colorblind-safe palette swap
+      also deferred (the app already pairs tone with icons/labels; a full red/green remap risks the
+      function-colour identity — do it with eyes on device).
+
+### Roadmap status after v28
+Shipped: A (segments), B (living rivals), C1+C2 (verdict layer), G1+G2 (design toy), F-a11y (high contrast).
+Open: C3 (explainers), D (era-distinct mechanics — PROTECTED, playtest-heavy), E (delegation/ops),
+F-audio + F-microinteractions (on-device), G3 (new categories/era DLC).
+STRONG RECOMMENDATION: an on-device playtest of the A→B→C→G stack before more balance-sensitive work —
+a lot has landed engine-side (segments reshape demand, rivals, forecast, style→demand) without on-device
+validation of FEEL. Next buildable-blind epic: E (delegation, low-risk, touch-critical) or C3 (explainers).
