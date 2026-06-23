@@ -1162,3 +1162,16 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - ⚠️ Churn magnitudes (dominanceFreeGap 12, decay 0.7/pt, threshold 28, churn 14%/wk) NOT playtested —
       all in balance.platform.licenseeChurn. Philosophy +5 stat / +20% services likewise untuned on device.
 - Note: the signing server returned intermittent 503s this session; commits succeeded on retry.
+
+## v41 — Found the OS division as an earned milestone (DONE 2026-06-23)
+- [x] **Founding cost**: the Platform division is now a major in-game reinvestment you save up for
+      (balance.platform.foundingCost = $250k), not a free Settings toggle. Discoverable "Found the
+      Platform division — $X" card on Company with an affordability state; founding deducts cash, brings
+      the division live, and fires the shared Celebration. foundPlatform reducer + canFoundPlatform /
+      platformFoundingCost selectors; useGame value-call path (spend FX + achievements).
+- [x] The free unlock moved to Creative-mode overrides in Settings (only shown while Sandbox is on),
+      so normal play earns it; Sandbox's cash floor keeps creative experimentation free. Existing
+      founded saves untouched (no retroactive charge).
+- 506 tests, tsc 0, build+PWA green.
+- ⚠️ $250k founding cost NOT playtested on device — tune in balance.platform.foundingCost. It's a
+      base-game cash gate now (not the old DLC-toggle scaffold); flag if you'd rather keep it DLC-gated.
