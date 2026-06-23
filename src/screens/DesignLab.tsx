@@ -8,7 +8,7 @@ import { emitCelebrate } from "../design/celebrateFx.ts";
 import { launchOutcome } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { isCategoryUnlocked } from "../engine/eras.ts";
+import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, toDollars } from "../engine/money.ts";
@@ -266,15 +266,16 @@ export function DesignLab({
   const styleLabel = styleAppealLabel(styleAp);
   const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp);
   const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
+  const mktMult = eraModifier(state.era).marketingHype; // Epic D — late eras amplify marketing reach
   const breakdown = scoreLaunch({
     stats,
     category: draft.category,
     price: draft.price,
     trends: state.trends,
     reputation: state.reputation,
-    marketerSkill: marketerSkill(state),
+    marketerSkill: marketerSkill(state) * mktMult,
     competitorStrength: 0,
-    hypeBonus: hypeBonus(state),
+    hypeBonus: hypeBonus(state) * mktMult,
     synergy: syn.factor,
     demandOverride: liveSegments.demandIndex,
     priceFitOverride: liveSegments.effectivePriceFit,
@@ -1234,7 +1235,7 @@ function BuildWizard({
     marketerSkill: marketerSkill(state),
     demandSensing: state.completedProjects.includes("demandSensing"),
   });
-  const variancePct = forecastBand(forecastConf);
+  const variancePct = forecastBand(forecastConf) * eraModifier(state.era).demandVariance; // Epic D — AI era is volatile
   const confLabel = forecastConfidenceLabel(forecastConf);
   const demandLow = Math.round(plan.totalDemand * (1 - variancePct));
   const demandHigh = Math.round(plan.totalDemand * (1 + variancePct));

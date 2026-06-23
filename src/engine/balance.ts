@@ -386,6 +386,22 @@ export const BALANCE = {
     { era: 4, name: "AI Era", repToAdvance: Infinity, revToAdvance: Infinity },
   ],
 
+  // --- Era-distinct mechanics (Epic D) ---
+  // Eras shouldn't merely scale numbers — each should change the TEXTURE of play. These modifiers
+  // route through EXISTING selectors (no new systems) and are 1.0 through the Garage + Growth eras,
+  // so the tuned early game is byte-identical; the late eras gain a distinct rule shift:
+  //   • Platform era — ecosystem LOCK-IN dominates: services revenue + marketing reach amplified.
+  //   • AI era — a hype-driven, VOLATILE market: marketing pops harder and realized demand swings more
+  //     (over/under-production is a bigger bet), on top of the strongest ecosystem economy.
+  // A new player learns the baseline; a veteran must re-strategize per era. Index = era − 1.
+  // ⚠️ MAGNITUDES NEED A PLAYTEST — they reshape the late-game economy (the levers, not the wiring).
+  eraModifiers: [
+    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0 },  // 1 Garage — baseline
+    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0 },  // 2 Growth — baseline
+    { marketingHype: 1.2, ecosystemRate: 1.5, demandVariance: 1.0 },  // 3 Platform — ecosystem lock-in
+    { marketingHype: 1.35, ecosystemRate: 1.7, demandVariance: 1.4 }, // 4 AI — hype-driven + volatile
+  ],
+
   // --- Competitors ---
   // B9 — rivals are now SPECIALIZED + REACTIVE, so "which category and price to contest" is a real
   // decision instead of noise. Each rival has a posture (set per-rival in competitors.ts RIVALS):

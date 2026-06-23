@@ -14,6 +14,7 @@ import {
   startBuild,
   effectiveUnitCost,
   verdictBands,
+  weeklyEcosystemRevenue,
   RIVAL_RELEASES_CAP,
   type GameState,
 } from "../state/gameState.ts";
@@ -263,6 +264,32 @@ describe("Epic A — market segments drive planning end-to-end", () => {
     expect(launched.insight?.dominantSegment).toBeDefined();
     expect(launched.insight?.weakestSegment).toBeDefined();
     expect(launched.insight?.perSegment).toHaveLength(5);
+  });
+});
+
+describe("Epic D — era-distinct mechanics shift the economy", () => {
+  // A lifecycle-complete, high-ecosystem product with a big installed base — pure ecosystem annuity.
+  const ecoProduct = (): LaunchedProduct => ({
+    ...activeLaunched(phone(), 4),
+    weeksElapsed: 4,
+    unitsSold: 50_000,
+    stats: { performance: 30, quality: 30, battery: 30, design: 30, ecosystem: 80 },
+  });
+
+  it("the Platform era pays MORE ecosystem revenue than the Garage era for the same installed base", () => {
+    const garage: GameState = { ...newGame(1), era: 1, launched: [ecoProduct()] };
+    const platform: GameState = { ...newGame(1), era: 3, launched: [ecoProduct()] };
+    expect(toDollars(weeklyEcosystemRevenue(platform))).toBeGreaterThan(toDollars(weeklyEcosystemRevenue(garage)));
+  });
+
+  it("the late eras amplify marketing reach in the launch forecast", () => {
+    const base: GameState = { ...newGame(2), reputation: 40, fans: 2000 };
+    const s1: GameState = { ...base, era: 1 };
+    const s4: GameState = { ...base, era: 4 };
+    // Same product, same marketing — the AI era's marketing multiplier lifts hype (and thus the score).
+    const p1 = planProduction(s1, phone(), 5000, "event");
+    const p4 = planProduction(s4, phone(), 5000, "event");
+    expect(p4.hype).toBeGreaterThan(p1.hype);
   });
 });
 

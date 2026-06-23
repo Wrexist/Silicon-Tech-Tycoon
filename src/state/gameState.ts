@@ -69,7 +69,7 @@ import {
   upgradeLockedBy,
   type UpgradeId,
 } from "../engine/upgrades.ts";
-import { canAdvanceEra, eraName, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
+import { canAdvanceEra, eraModifier, eraName, eraRuleSummary, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
 import { deriveFacts, evaluateAchievements, type MasteryInput } from "../engine/achievements.ts";
 import {
   advanceTrends,
@@ -715,6 +715,9 @@ export function planProduction(
   // G1 — the device's form (styleAppeal) lifts the Style segment, so the parametric render is a lever.
   const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product));
 
+  // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
+  const mktMult = eraModifier(s.era).marketingHype;
+
   // Score WITHOUT the strength-based competition term — competition is modelled below as a
   // count of rivals that match/beat you, which is clearer and is what the player sees.
   const breakdown = scoreLaunch({
@@ -723,12 +726,12 @@ export function planProduction(
     price: product.price,
     trends: s.trends,
     reputation: s.reputation,
-    marketerSkill: marketerSkill(s),
+    marketerSkill: marketerSkill(s) * mktMult,
     competitorStrength: 0,
     // Bound the combined hype bonus (studio + visionary marketers + marketing upgrade +
     // channel) before it reaches scoreLaunch, which also clamps total hype. Without this,
     // stacking many visionary marketers makes launchScore/volume explode. Safety guard.
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, hypeBonus(s) + channel.hype)),
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype) * mktMult)),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: componentSynergy(product).factor,
@@ -858,7 +861,8 @@ export const counts = (s: GameState) => ({ assigned: s.staff.filter((x) => x.ass
 
 /** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
 export function weeklyEcosystemRevenue(s: GameState): Money {
-  const rate = BALANCE.ecosystem.weeklyServiceRate;
+  // Epic D — the Platform/AI eras amplify ecosystem lock-in (services pay more).
+  const rate = BALANCE.ecosystem.weeklyServiceRate * eraModifier(s.era).ecosystemRate;
   const minStat = BALANCE.ecosystem.minEcosystemStat;
   let acc = 0;
   for (const lp of s.launched) {
@@ -973,7 +977,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Ecosystem service revenue — recurring income from the installed base of high-ecosystem
   // products. Reads the freshly-updated `launched` (not `state.launched`) so this week's sales
   // join the installed base immediately instead of paying with a one-week lag.
-  const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate;
+  const ecosystemRate = BALANCE.ecosystem.weeklyServiceRate * eraModifier(state.era).ecosystemRate;
   const ecoMinStat = BALANCE.ecosystem.minEcosystemStat;
   for (const lp of launched) {
     const eco = lp.stats.ecosystem;
@@ -1417,10 +1421,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // honest promise. Driven by the persisted RNG (deterministic per seed, NOT Math.random).
   const rng = rngFrom(state);
   const rawVariance = demandVarianceMultiplier(rng);
+  // Epic D — the AI era is a more volatile, hype-driven market (over/under-production is a bigger bet).
   const band = forecastBand(forecastConfidence({
     marketerSkill: marketerSkill(state),
     demandSensing: hasProject(state.completedProjects, "demandSensing"),
-  }));
+  })) * eraModifier(state.era).demandVariance;
   // Remap the ±baseBand jitter into the (narrower) confidence-scaled band, keeping the seeded sign.
   const variance = 1 + (rawVariance - 1) * (band / BALANCE.market.forecast.baseBand);
   const realizedDemand = Math.max(0, Math.round(plan.totalDemand * variance));
@@ -2372,6 +2377,9 @@ export function advanceEraAction(state: GameState): GameState {
   const era = state.era + 1;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Entered the ${eraName(era)}. New tech unlocked.`, "positive"));
+  // Epic D — announce the era's rule shift so the change in texture is legible (pillar #5).
+  const rule = eraRuleSummary(era);
+  if (rule) feed.push(feedItem(state.week, `${eraName(era)} shift — ${rule}.`, "accent"));
   return { ...state, era, feed: trimFeed(feed) };
 }
 
