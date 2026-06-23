@@ -250,8 +250,9 @@ describe("osFeatureRows / canInstallOsFeature — gating", () => {
     expect(osFeatureRows([], 1, 0).find((r) => r.id === "appMarket")!.status).toBe("unaffordable");
   });
   it("canInstallOsFeature mirrors the gates and rejects re-install / unknown", () => {
-    expect(canInstallOsFeature([], 1, 25, "appMarket")).toBe(true);
-    expect(canInstallOsFeature([], 1, 24, "appMarket")).toBe(false); // can't afford (rpCost 25)
+    const appCost = osFeatureById("appMarket")!.rpCost; // catalog-driven so tuning can't break the test
+    expect(canInstallOsFeature([], 1, appCost, "appMarket")).toBe(true);
+    expect(canInstallOsFeature([], 1, appCost - 1, "appMarket")).toBe(false); // can't afford
     expect(canInstallOsFeature([], 1, 9999, "continuity")).toBe(false); // version too low
     expect(canInstallOsFeature(["appMarket"], 1, 9999, "appMarket")).toBe(false); // already owned
     expect(canInstallOsFeature([], 1, 9999, "ghost")).toBe(false); // unknown id

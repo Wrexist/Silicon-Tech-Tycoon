@@ -103,6 +103,12 @@ export interface Achievement {
  *  a mastery achievement. */
 export function deriveFacts(state: GameState, mastery?: MasteryInput): AchievementFacts {
   const launched = state.launched; // newest-first
+  // Count built OS modules by UNIQUE, VALID ids — a malformed/imported save can't over-count its way
+  // to "complete".
+  const validOsFeatureIds = new Set(OS_FEATURES.map((f) => f.id));
+  const osBuiltCount = state.platformUnlocked
+    ? new Set(state.osFeatures.filter((id) => validOsFeatureIds.has(id))).size
+    : 0;
   const hits = launched.filter((lp) => lp.verdict === "hit").length;
 
   // Current hit streak: consecutive "hit" verdicts from the most recent launch backward.
@@ -159,8 +165,8 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
     wonScenario: scenarioResultFor(state)?.won ?? false,
     completedChallenge: state.challengeScore != null,
     releasedOsVersion: state.platformUnlocked && state.osVersion > 1,
-    osFeaturesBuilt: state.platformUnlocked ? state.osFeatures.length : 0,
-    osComplete: state.platformUnlocked && state.osFeatures.length >= OS_FEATURES.length,
+    osFeaturesBuilt: osBuiltCount,
+    osComplete: osBuiltCount >= OS_FEATURES.length,
     osInstalledBase: state.platformUnlocked ? installedBase(state.launched) : 0,
     osLicenseeCount: state.osLicensees.length,
     // Use the RUN-LOCKED high-water stars (monotonic, the value recorded to the profile), not a

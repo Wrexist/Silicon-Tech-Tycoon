@@ -126,8 +126,8 @@ describe("OS licensing (Phase C)", () => {
     const base = unlockPlatform(newGame(3), true);
     const rid = base.competitors[0].id;
     const g = licenseOsToRival(base, rid);
-    expect(licenseeHealthOf(g, rid)).toBe(100);
-    expect(g.osLicenseeHealth[rid]).toBe(100);
+    expect(licenseeHealthOf(g, rid)).toBe(BALANCE.platform.licenseeChurn.startHealth);
+    expect(g.osLicenseeHealth[rid]).toBe(BALANCE.platform.licenseeChurn.startHealth);
     const off = revokeOsLicense(g, rid);
     expect(off.osLicenseeHealth[rid]).toBeUndefined();
   });
@@ -140,7 +140,7 @@ describe("OS licensing (Phase C)", () => {
     g = licenseOsToRival(g, rid);
     const after = advanceOneWeek(g);
     expect(after.osLicensees).toContain(rid);                 // still licensed after one week
-    expect(licenseeHealthOf(after, rid)).toBeLessThan(100);   // but less content
+    expect(licenseeHealthOf(after, rid)).toBeLessThan(BALANCE.platform.licenseeChurn.startHealth); // but less content
   });
 
   it("offline catch-up never changes licensee relationships", () => {
@@ -149,7 +149,7 @@ describe("OS licensing (Phase C)", () => {
     const rid = g.competitors[0].id;
     g = licenseOsToRival(g, rid);
     const after = advanceOneWeek(g, 0.5, true); // offline tick
-    expect(licenseeHealthOf(after, rid)).toBe(100); // untouched while away
+    expect(licenseeHealthOf(after, rid)).toBe(BALANCE.platform.licenseeChurn.startHealth); // untouched while away
   });
 });
 

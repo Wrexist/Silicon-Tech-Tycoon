@@ -4,10 +4,10 @@
 // springs the emblem in with a radiating ray burst. Zero image assets — pure vector. The ray/spring
 // choreography is fully disabled under reduced motion (see celebration.css); the resting card stays
 // readable, and confetti self-suppresses.
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
-import { Button } from "./primitives.tsx";
+import { Button, useDialogFocus } from "./primitives.tsx";
 import { emitCelebrate } from "./celebrateFx.ts";
 import { sfx } from "./sound.ts";
 import "./celebration.css";
@@ -53,6 +53,10 @@ export function Celebration({
   sound = "mastery",
   seal = true,
 }: CelebrationProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Modal a11y: move focus into the dialog, trap Tab within it, and restore focus on close.
+  useDialogFocus(dialogRef, true);
+
   // Fire the confetti + sound exactly once when the moment appears.
   useEffect(() => {
     emitCelebrate();
@@ -60,12 +64,19 @@ export function Celebration({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // A scrim tap is a soft dismiss: prefer the secondary action (e.g. "Not yet") when present so it
-  // can never accidentally fire a destructive confirm; otherwise it dismisses via the confirm.
+  // A scrim tap (or Escape) is a soft dismiss: prefer the secondary action (e.g. "Not yet") when
+  // present so it can never accidentally fire a destructive confirm; otherwise it dismisses via confirm.
   const onScrim = () => (onSecondary ? onSecondary() : onConfirm());
 
+  // Close on Escape, like every other modal surface.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") (onSecondary ? onSecondary() : onConfirm()); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onConfirm, onSecondary]);
+
   return createPortal(
-    <div className={`cele cele--${tone}`} role="dialog" aria-modal="true" aria-label={`${eyebrow}: ${title}`} onClick={onScrim}>
+    <div ref={dialogRef} className={`cele cele--${tone}`} role="dialog" aria-modal="true" aria-label={`${eyebrow}: ${title}`} tabIndex={-1} onClick={onScrim}>
       <div className="cele__card" onClick={(e) => e.stopPropagation()}>
         <div className="cele__emblem" aria-hidden>
           <span className="cele__rays">
