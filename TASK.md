@@ -998,3 +998,15 @@ Shipped: A, B, C1+C2, G1+G2, F-a11y, E (delegation). Open: C3 (explainers), D (e
 PROTECTED, playtest-heavy), F-audio + F-microinteractions (on-device), G3 (new categories/era DLC),
 E-future (auto-reorder / design lead). Next blind-buildable: C3 (explainers, low-risk UI) or G3 (content).
 STILL STRONGLY RECOMMEND an on-device playtest of the A→B→C→G→E stack before the balance-heavy D.
+
+## v30 — Epic C3: plain-language explainers → Epic C complete (DONE 2026-06-23)
+- [x] **Glossary** (`engine/glossary.ts`, pure +4 tests): STAT_INFO (plain-language for all 5 stats);
+      segmentTopStats / segmentPriceLabel / segmentWants(ById) — DERIVED from live SEGMENTS weights, so
+      copy can't drift from the sim. "Who it's for" rows now show a "what this buyer wants" line
+      ("Performance + Quality · price-insensitive"). 446 tests, tsc 0, build+PWA.
+- **Epic C COMPLETE**: C1 (ranked post-mortem) + C2 (converging forecast) + C3 (explainers).
+
+### Roadmap status after v30
+Shipped: A, B, C (full), E, G1+G2, F-a11y. Open: D (era-distinct mechanics — PROTECTED, playtest-heavy),
+F-audio + F-microinteractions (on-device), G3 (new categories/era DLC), E-future (auto-reorder/design lead).
+Most remaining work either needs on-device validation (D feel, F audio/feel) or is content cadence (G3).
