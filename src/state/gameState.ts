@@ -102,7 +102,7 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
-import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, rivalLicenseFee, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
+import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { perkBonuses } from "../engine/perks.ts";
 import type {
   Assignment,
@@ -226,6 +226,9 @@ export interface GameState {
   /** Weekly installed-base samples for the Platform "OS reach" sparkline (capped). Only recorded
    *  while the division is unlocked, so it reflects the OS era. */
   osBaseHistory: number[];
+  /** Chosen OS philosophy id (engine/platform.ts OS_PHILOSOPHIES), or null. A lasting identity choice
+   *  that tilts every device you launch + your services. Null → no effect. */
+  osPhilosophy: string | null;
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
@@ -410,6 +413,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osLicensees: [],
     osFeatures: [],
     osBaseHistory: [],
+    osPhilosophy: null,
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
@@ -602,9 +606,13 @@ export function productStats(s: GameState, product: Product): Stats {
     bonus.design = (bonus.design ?? 0) + m;
   }
   // Platform / OS division — the OS your devices run lifts their ecosystem stat (a strong OS makes
-  // every device you ship better). Gated on the entitlement and 0 with no installed modules, so the
-  // base game is byte-identical until the player opts in and builds OS features.
-  if (s.platformUnlocked) bonus.ecosystem = (bonus.ecosystem ?? 0) + osEcosystemBonus(s.osFeatures);
+  // every device you ship better), and the chosen OS philosophy tilts a stat of its own. Gated on the
+  // entitlement, so the base game is byte-identical until the player opts into the division.
+  if (s.platformUnlocked) {
+    bonus.ecosystem = (bonus.ecosystem ?? 0) + osEcosystemBonus(s.osFeatures);
+    const phil = philosophyStatBonus(s.osPhilosophy);
+    for (const k of Object.keys(phil) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (phil[k] ?? 0);
+  }
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
     // Clamp BOTH ends (tuning can subtract): never below 0, never above statMax.
@@ -897,9 +905,15 @@ export function recommendedRun(s: GameState, product: Product, channelId: Channe
 export const counts = (s: GameState) => ({ assigned: s.staff.filter((x) => x.assignment !== "idle").length });
 
 /** Recurring-services revenue multiplier from the OS division (1 unless the division is unlocked).
- *  Steps up with each released OS version and each installed feature module. */
+ *  Steps up with each released OS version, each installed module + synergy, and the chosen philosophy
+ *  (re-capped at servicesMultCap so the philosophy can't break the rail). */
 export const osServicesMult = (s: GameState): number =>
-  s.platformUnlocked ? osServicesMultiplier(s.osVersion, s.osFeatures) : 1;
+  s.platformUnlocked
+    ? Math.min(
+        BALANCE.platform.features.servicesMultCap,
+        osServicesMultiplier(s.osVersion, s.osFeatures) + philosophyServicesMult(s.osPhilosophy),
+      )
+    : 1;
 
 /** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
 export function weeklyEcosystemRevenue(s: GameState): Money {
@@ -1932,6 +1946,14 @@ export function unlockPlatform(state: GameState, on: boolean): GameState {
 /** Rename the OS line (empty clears back to the "<Company> OS" default). */
 export function setOsName(state: GameState, name: string): GameState {
   return { ...state, osName: name.trim().slice(0, 22) };
+}
+
+/** Choose (or clear) the OS philosophy — a lasting identity that tilts every device you launch and
+ *  your services. No-op unless the division is unlocked. Passing the current id again clears it (toggle). */
+export function setOsPhilosophy(state: GameState, id: string | null): GameState {
+  if (!state.platformUnlocked) return state;
+  const next = id && id !== state.osPhilosophy ? id : null;
+  return { ...state, osPhilosophy: next };
 }
 
 /** Release a new OS version — a software "launch day": catches the released version up to your

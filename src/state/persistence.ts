@@ -292,6 +292,8 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.osFeatures)) s.osFeatures = [];
   // Installed-base history for the Platform sparkline (added later): default empty — it fills as weeks pass.
   if (!Array.isArray(s.osBaseHistory)) s.osBaseHistory = [];
+  // OS philosophy (added later): default none — an un-customized OS with no tilt.
+  if (typeof s.osPhilosophy !== "string") s.osPhilosophy = null;
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

@@ -6,7 +6,7 @@
 import { BALANCE } from "./balance.ts";
 import { tierDef } from "./catalogs.ts";
 import { dollars, type Money } from "./money.ts";
-import type { LaunchedProduct } from "./types.ts";
+import type { LaunchedProduct, StatKey } from "./types.ts";
 
 /** Devices in the field running your OS — the sum of units sold across every launched product
  *  (software is a global line, so every product you ship runs your OS). */
@@ -114,6 +114,56 @@ export function osEcosystemBonus(featureIds: readonly string[]): number {
   let sum = 0;
   for (const id of featureIds) sum += osFeatureById(id)?.ecoBonus ?? 0;
   return Math.min(BALANCE.platform.features.ecoBonusCap, Math.max(0, sum));
+}
+
+// ---------- OS philosophy: the soul of your platform (a lasting identity choice) ----------
+// The player picks ONE philosophy that tilts how their OS plays — a meaningful, changeable choice
+// that makes each empire's OS feel distinct (design pillar #3: meaningful choices). Effects are
+// small and bounded, expressed through two existing channels: a stat tilt on every device you launch
+// (productStats) and a recurring-services tilt (osServicesMult). IP-safe, fictional.
+export interface OsPhilosophy {
+  id: string;
+  name: string;
+  tagline: string;
+  blurb: string;
+  icon: string; // lucide key (UI maps it)
+  /** Stat points every device you launch gains while this philosophy is chosen. */
+  statBonus: Partial<Record<StatKey, number>>;
+  /** Added to the recurring-services multiplier. */
+  servicesMult: number;
+}
+
+export const OS_PHILOSOPHIES: readonly OsPhilosophy[] = [
+  { id: "curated", name: "Curated Garden", icon: "ShieldCheck", tagline: "Polished, controlled, premium", statBonus: { ecosystem: 5 }, servicesMult: 0,
+    blurb: "A tightly controlled experience — every device you ship feels part of one seamless whole." },
+  { id: "open", name: "Open Platform", icon: "Globe", tagline: "Third-party friendly, alive", statBonus: {}, servicesMult: 0.20,
+    blurb: "Developers and partners thrive on your OS, so recurring services revenue runs much deeper." },
+  { id: "performance", name: "Performance-First", icon: "Zap", tagline: "Lean, fast, no compromise", statBonus: { performance: 5 }, servicesMult: 0,
+    blurb: "A ruthlessly optimized core — every device you launch runs noticeably faster." },
+  { id: "privacy", name: "Privacy-First", icon: "Lock", tagline: "Trusted, principled, refined", statBonus: { quality: 5 }, servicesMult: 0,
+    blurb: "On-device by default. Buyers trust the polish — and the principles — behind every product." },
+];
+
+export function osPhilosophyById(id: string | null | undefined): OsPhilosophy | undefined {
+  return id ? OS_PHILOSOPHIES.find((p) => p.id === id) : undefined;
+}
+
+/** Stat tilt every launched device gains from the chosen philosophy ({} when none). */
+export function philosophyStatBonus(id: string | null | undefined): Partial<Record<StatKey, number>> {
+  return osPhilosophyById(id)?.statBonus ?? {};
+}
+
+/** Recurring-services multiplier the chosen philosophy adds (0 when none). */
+export function philosophyServicesMult(id: string | null | undefined): number {
+  return osPhilosophyById(id)?.servicesMult ?? 0;
+}
+
+/** A short human label of a philosophy's effect, for the UI. */
+export function philosophyEffectLabel(p: OsPhilosophy): string {
+  const parts: string[] = [];
+  for (const k of Object.keys(p.statBonus) as StatKey[]) parts.push(`+${p.statBonus[k]} ${k}`);
+  if (p.servicesMult > 0) parts.push(`+${Math.round(p.servicesMult * 100)}% services`);
+  return parts.join(" · ");
 }
 
 // ---------- OS module synergies: pairs that reinforce each other ----------

@@ -5,7 +5,7 @@
 import { useState } from "react";
 import {
   Cpu, Layers, Users, BadgeDollarSign, Rocket, FlaskConical, Check, Lock,
-  Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Wallet, Music, type LucideIcon,
+  Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Wallet, Music, Globe, Zap, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, Stat, SectionHeader } from "../design/primitives.tsx";
 import { Sparkline } from "../components/charts.tsx";
@@ -24,7 +24,7 @@ import {
   osServicesMult,
   weeklyLicenseFees,
 } from "../state/gameState.ts";
-import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById } from "../engine/platform.ts";
+import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById, OS_PHILOSOPHIES, philosophyEffectLabel } from "../engine/platform.ts";
 import { format, add, toDollars } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./platform.css";
@@ -33,6 +33,8 @@ import "./platform.css";
 const FEATURE_ICONS: Record<string, LucideIcon> = {
   Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Layers, Wallet, Music,
 };
+// OS philosophy icons (same DOM-free string→glyph indirection).
+const PHIL_ICONS: Record<string, LucideIcon> = { ShieldCheck, Globe, Zap, Lock };
 
 function fmtBase(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -41,7 +43,7 @@ function fmtBase(n: number): string {
 }
 
 export function PlatformSheet({ onClose }: { onClose: () => void }) {
-  const { state, setOsName, releaseOsVersion, licenseOsToRival, revokeOsLicense, installOsFeature } = useGame();
+  const { state, setOsName, releaseOsVersion, licenseOsToRival, revokeOsLicense, installOsFeature, setOsPhilosophy } = useGame();
   const tier = osTierInfo(state);
   const features = osFeatureList(state);
   const ecoBonus = osEcoBonus(state);
@@ -93,6 +95,37 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
         />
         <div className="plat__tierline">
           <Cpu size={14} /> {tier.name} · released v{state.osVersion}.0
+        </div>
+      </Card>
+
+      <Card>
+        <SectionHeader title="OS philosophy" accessory={state.osPhilosophy ? "chosen" : "make it yours"} />
+        <p className="plat__release-note plat__release-note--muted">
+          The soul of {osDisplayName(state)} — a lasting identity that shapes every device you ship. Tap to choose; tap again to clear.
+        </p>
+        <div className="plat__phils">
+          {OS_PHILOSOPHIES.map((p) => {
+            const Icon = PHIL_ICONS[p.icon] ?? Sparkles;
+            const on = state.osPhilosophy === p.id;
+            return (
+              <button
+                key={p.id}
+                className={`plat__phil${on ? " plat__phil--on" : ""}`}
+                aria-pressed={on}
+                onClick={() => {
+                  haptic.light();
+                  sfx(on ? "tap" : "confirm");
+                  setOsPhilosophy(p.id);
+                  if (!on) showToast(`${osDisplayName(state)} is now ${p.name}`, { tone: "positive" });
+                }}
+              >
+                <span className="plat__phil-icon" aria-hidden><Icon size={18} /></span>
+                <span className="plat__phil-name">{p.name}{on && <Check size={13} aria-hidden />}</span>
+                <span className="plat__phil-tag">{p.tagline}</span>
+                <span className="plat__phil-eff tnum">{philosophyEffectLabel(p)}</span>
+              </button>
+            );
+          })}
         </div>
       </Card>
 

@@ -19,6 +19,7 @@ import {
   productStats,
   weeklyEcosystemRevenue,
   advanceOneWeek,
+  setOsPhilosophy,
   type GameState,
 } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -169,6 +170,23 @@ describe("OS feature modules (state)", () => {
     const withApp = installOsFeature(unlocked, "appMarket");
     expect(osServicesMult(withApp)).toBeGreaterThan(1);
     expect(toDollars(weeklyEcosystemRevenue(withApp))).toBeGreaterThan(baseRev);
+  });
+
+  it("OS philosophy tilts a launch stat + services, and is gated/togglable", () => {
+    // Locked: choosing does nothing.
+    expect(setOsPhilosophy(newGame(1), "performance").osPhilosophy).toBeNull();
+
+    const g = unlockPlatform(newGame(1), true);
+    const chosen = setOsPhilosophy(g, "performance");
+    expect(chosen.osPhilosophy).toBe("performance");
+    // Performance-First lifts the performance stat of a launched device.
+    const before = productStats(g, phone()).performance;
+    const after = productStats(chosen, phone()).performance;
+    expect(after).toBe(before + 5);
+    // Choosing the same one again clears it (toggle).
+    expect(setOsPhilosophy(chosen, "performance").osPhilosophy).toBeNull();
+    // "Open" lifts the services multiplier instead.
+    expect(osServicesMult(setOsPhilosophy(g, "open"))).toBeGreaterThan(osServicesMult(g));
   });
 
   it("records an installed-base sample each week only while the division is unlocked", () => {

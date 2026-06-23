@@ -14,6 +14,11 @@ import {
   OS_SYNERGIES,
   activeOsSynergies,
   osSynergyRows,
+  OS_PHILOSOPHIES,
+  osPhilosophyById,
+  philosophyStatBonus,
+  philosophyServicesMult,
+  philosophyEffectLabel,
 } from "./platform.ts";
 import { BALANCE } from "./balance.ts";
 import { toDollars } from "./money.ts";
@@ -160,6 +165,30 @@ describe("OS module synergies", () => {
     expect(rows.find((r) => r.id === OS_SYNERGIES[0].id)!.active).toBe(false);
     const rows2 = osSynergyRows([...OS_SYNERGIES[0].requires]);
     expect(rows2.find((r) => r.id === OS_SYNERGIES[0].id)!.active).toBe(true);
+  });
+});
+
+describe("OS philosophy", () => {
+  it("has unique ids, a non-empty effect, and a readable label for each", () => {
+    const ids = new Set(OS_PHILOSOPHIES.map((p) => p.id));
+    expect(ids.size).toBe(OS_PHILOSOPHIES.length);
+    for (const p of OS_PHILOSOPHIES) {
+      const hasStat = Object.keys(p.statBonus).length > 0;
+      expect(hasStat || p.servicesMult > 0).toBe(true); // every philosophy does something
+      expect(philosophyEffectLabel(p).length).toBeGreaterThan(0);
+    }
+  });
+  it("none/unknown ids are inert (backward compatible)", () => {
+    expect(philosophyStatBonus(null)).toEqual({});
+    expect(philosophyStatBonus(undefined)).toEqual({});
+    expect(philosophyStatBonus("ghost")).toEqual({});
+    expect(philosophyServicesMult(null)).toBe(0);
+    expect(osPhilosophyById(null)).toBeUndefined();
+  });
+  it("maps a chosen philosophy to its tilt", () => {
+    expect(philosophyStatBonus("performance")).toEqual({ performance: 5 });
+    expect(philosophyServicesMult("open")).toBeGreaterThan(0);
+    expect(philosophyStatBonus("open")).toEqual({});
   });
 });
 

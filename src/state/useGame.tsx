@@ -71,6 +71,7 @@ import {
   licenseOsToRival,
   revokeOsLicense,
   installOsFeature,
+  setOsPhilosophy,
   type GameState,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
@@ -353,6 +354,7 @@ interface GameContextValue {
   licenseOsToRival: (rivalId: string) => void;
   revokeOsLicense: (rivalId: string) => void;
   installOsFeature: (id: string) => void;
+  setOsPhilosophy: (id: string | null) => void;
   // office builder
   placeFurniture: (type: FurnitureId, c: number, r: number, rot: Rot) => void;
   moveFurniture: (iid: string, c: number, r: number) => void;
@@ -791,6 +793,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (rpSpent > 0) emitRpSpend(rpSpent);
     setState(withLiveAchievements(built));
   }, []);
+  const setOsPhilosophyCb = useCallback((id: string | null) => setState((s) => setOsPhilosophy(s, id)), []);
   const placeFurnitureCb = useCallback((type: FurnitureId, c: number, r: number, rot: Rot) => setState((s) => placeFurniture(s, type, c, r, rot)), []);
   const moveFurnitureCb = useCallback((iid: string, c: number, r: number) => setState((s) => moveFurniture(s, iid, c, r)), []);
   const rotateFurnitureCb = useCallback((iid: string) => setState((s) => rotateFurniture(s, iid)), []);
@@ -917,6 +920,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       licenseOsToRival: licenseOsToRivalCb,
       revokeOsLicense: revokeOsLicenseCb,
       installOsFeature: installOsFeatureCb,
+      setOsPhilosophy: setOsPhilosophyCb,
       placeFurniture: placeFurnitureCb,
       moveFurniture: moveFurnitureCb,
       rotateFurniture: rotateFurnitureCb,
@@ -938,7 +942,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
