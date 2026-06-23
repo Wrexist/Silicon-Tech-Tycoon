@@ -1071,3 +1071,11 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
       Acquire action (two-tap confirm + self-explaining gate) right in the company card. Reuses
       canAcquire/acquisitionCost/acquireRival (tested).
 - UI-only over tested engine fns. 465 tests, tsc 0, build+PWA. preview.html updated.
+
+## v35 — Franchise revenue + rival relationship status (DONE 2026-06-23)
+- [x] **Franchise revenue** (`franchise.ts` FranchiseSummary.revenue = sum of revenueToDate; shown in
+      "Your franchises"). Test updated.
+- [x] **Rival relationship status** (RivalProfileSheet): "Licenses <YourOS> · $X/wk" badge when the
+      rival licenses your OS, and "You own N shares · X%" when you hold their stock (the buyout-discount
+      stake). Reuses rivalLicenseFee/osTierInfo/holdings.
+- 465 tests, tsc 0, build+PWA. preview.html updated. Franchise chapter complete.
