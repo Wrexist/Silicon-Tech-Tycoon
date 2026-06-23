@@ -1062,3 +1062,12 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - 465 tests, tsc 0, build+PWA. preview.html updated (franchises + rival profile).
 - Backlog: an explicit "name this line" affordance in DesignLab; franchise revenue totals; surface
       a rival's licensee/acquisition status in the profile.
+
+## v34 — Continue-a-line sequels + rival-profile sparkline/acquire (DONE 2026-06-23)
+- [x] **Continue a line** (DesignLab "Name & build"): one-tap chips that name the draft as the next
+      entry in an existing line (suggestNextName of the latest) + inherit its brand equity; same-category
+      lines first; equity tag on each chip. Surfaces the franchise loop where you name a product.
+- [x] **Rival profile depth** (Market RivalProfileSheet): a share-price Sparkline + change %, and an
+      Acquire action (two-tap confirm + self-explaining gate) right in the company card. Reuses
+      canAcquire/acquisitionCost/acquireRival (tested).
+- UI-only over tested engine fns. 465 tests, tsc 0, build+PWA. preview.html updated.
