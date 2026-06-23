@@ -435,6 +435,21 @@ export const BALANCE = {
     undercutPriceMult: 0.78, // visible price multiplier on an undercutter's contesting product (it ships cheap)
   },
 
+  // --- Product franchises / brand equity (the "IP & fanbase" lever) ---
+  // A product LINE (sequels sharing a name, e.g. the "Aurora" series) builds brand equity from its
+  // track record: a run of hits makes the next launch land with loyal pre-orders + anticipation; a
+  // flop tarnishes it; lapsing lets it fade. Bounded so a strong line is an edge, never an auto-win.
+  // First-in-line products have no history → zero equity → zero bonus (purely additive). ⚠️ magnitudes
+  // want a playtest — they're a launch-economy lever, isolated here.
+  franchise: {
+    // Equity each prior launch in the line contributes, by its verdict (a flop actively tarnishes).
+    verdictEquity: { hit: 0.34, solid: 0.18, steady: 0.06, flop: -0.22 } as Record<string, number>,
+    recencyDecay: 0.82,    // older launches in the line count less (× per position back from newest)
+    maxEntries: 5,         // only the most recent N launches in the line shape equity
+    preorderBonusMax: 0.4, // a beloved line lifts pre-orders by up to this fraction
+    hypeBonusMax: 0.15,    // …and adds up to this much launch hype (anticipation for the next entry)
+  },
+
   // --- Mergers & acquisitions (Epic B3) ---
   // The late-game power move: buy out a rival you've been beating. You pay a control PREMIUM over its
   // market cap (minus any shares you already hold), remove it from competition, and absorb its brand

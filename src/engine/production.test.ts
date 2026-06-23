@@ -267,6 +267,36 @@ describe("Epic A — market segments drive planning end-to-end", () => {
   });
 });
 
+describe("Franchises — a proven product line launches stronger", () => {
+  const hitLaunch = (name: string): LaunchedProduct => ({
+    ...activeLaunched({ ...phone(), id: name, name }, 4),
+    weeksElapsed: 4, // lifecycle-complete → no self-cannibalization, isolating the brand effect
+    verdict: "hit",
+    unitsSold: 5000,
+  });
+
+  it("a hit line lifts pre-orders + hype vs an identical first-in-line product", () => {
+    const base: GameState = { ...newGame(21), fans: 4000, reputation: 40 };
+    const fresh = planProduction(base, phone(), 5000, "none"); // "Aurora One" — no history
+    const proven = planProduction(
+      { ...base, launched: [hitLaunch("Aurora Three"), hitLaunch("Aurora Two")] },
+      phone(), 5000, "none",
+    );
+    expect(fresh.brand.equity).toBe(0);
+    expect(proven.brand.equity).toBeGreaterThan(0);
+    expect(proven.hype).toBeGreaterThan(fresh.hype);
+    expect(proven.preOrders).toBeGreaterThanOrEqual(fresh.preOrders);
+  });
+
+  it("a different-named product does NOT inherit another line's equity", () => {
+    const base: GameState = { ...newGame(22), fans: 4000, launched: [hitLaunch("Aurora Two")] };
+    const sameLine = planProduction(base, { ...phone(), name: "Aurora Three" }, 5000, "none");
+    const offLine = planProduction(base, { ...phone(), name: "Zephyr One" }, 5000, "none");
+    expect(sameLine.brand.equity).toBeGreaterThan(0);
+    expect(offLine.brand.equity).toBe(0);
+  });
+});
+
 describe("Epic D — era-distinct mechanics shift the economy", () => {
   // A lifecycle-complete, high-ecosystem product with a big installed base — pure ecosystem annuity.
   const ecoProduct = (): LaunchedProduct => ({

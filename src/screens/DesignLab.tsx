@@ -51,6 +51,7 @@ import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
+import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel } from "../engine/franchise.ts";
 import { segmentWantsById, STAT_INFO } from "../engine/glossary.ts";
 import "./designLab.css";
 
@@ -290,6 +291,7 @@ export function DesignLab({
   const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp);
   const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
   const mktMult = eraModifier(state.era).marketingHype; // Epic D — late eras amplify marketing reach
+  const liveBrand = brandEquity(state.launched, franchiseStem(draft.name)); // brand-line anticipation
   const breakdown = scoreLaunch({
     stats,
     category: draft.category,
@@ -298,7 +300,7 @@ export function DesignLab({
     reputation: state.reputation,
     marketerSkill: marketerSkill(state) * mktMult,
     competitorStrength: 0,
-    hypeBonus: hypeBonus(state) * mktMult,
+    hypeBonus: hypeBonus(state) * mktMult + equityHypeBonus(liveBrand.equity),
     synergy: syn.factor,
     demandOverride: liveSegments.demandIndex,
     priceFitOverride: liveSegments.effectivePriceFit,
@@ -1328,6 +1330,16 @@ function BuildWizard({
               {confLabel === "High" ? "tight, reliable demand band" : "marketers + Demand Sensing research tighten this"}
             </span>
           </div>
+          {plan.brand.entries > 0 && (
+            <div className={`wiz__brand wiz__brand--${brandEquityLabel(plan.brand).toLowerCase().replace(/\s+/g, "")}`}>
+              <TrendingUp size={13} aria-hidden />
+              <span className="wiz__brand-name">{plan.brand.stem.replace(/\b\w/g, (c) => c.toUpperCase())} line</span>
+              <span className="wiz__brand-tag">{brandEquityLabel(plan.brand)}</span>
+              <span className="wiz__brand-note">
+                {plan.brand.equity > 0 ? "loyal pre-orders + anticipation" : plan.brand.equity < 0 ? "a past flop is hurting this line" : "no track record yet"}
+              </span>
+            </div>
+          )}
         </div>
       )}
 

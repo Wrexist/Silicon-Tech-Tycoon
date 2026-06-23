@@ -1061,6 +1061,22 @@
   margin-left: auto;
   margin-right: auto;
 }
+/* Brand equity readout (franchise feature) */
+.wiz__brand {
+  display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap;
+  padding: var(--sp-12); border-radius: var(--r-button); background: var(--bg-elevated);
+}
+.wiz__brand svg { color: var(--fn-mkt); }
+.wiz__brand-name { font-size: var(--fs-caption); font-weight: 700; }
+.wiz__brand-tag {
+  font-size: var(--fs-nano); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: var(--r-pill); color: var(--ink-2); background: var(--surface-2);
+}
+.wiz__brand--established .wiz__brand-tag,
+.wiz__brand--iconic .wiz__brand-tag { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--surface-2)); }
+.wiz__brand--tarnished .wiz__brand-tag { color: var(--negative-text, var(--negative)); background: var(--negative-soft, var(--surface-2)); }
+.wiz__brand-note { font-size: var(--fs-micro); color: var(--ink-2); flex-basis: 100%; }
+
 /* G1 — design-language readout (form → demand) */
 .lab__style {
   margin-top: 6px;

@@ -95,6 +95,7 @@ import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
+import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -686,6 +687,7 @@ export interface ProductionPlan {
   projectedProfit: Money; // revenue − full production − tooling − channel (unsold = sunk cost)
   maxAffordableUnits: number;
   segments: SegmentDemand; // Epic A — per-buyer-segment breakdown driving demand + the verdict
+  brand: BrandEquity; // product-line brand equity lifting pre-orders + launch hype
 }
 
 /** The smart demand model: fans (pre-orders) + demand-fit + how many rivals match/beat you.
@@ -717,6 +719,9 @@ export function planProduction(
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;
+  // Brand equity — a proven product LINE launches with loyal pre-orders + anticipation (0 for a new
+  // line, so this never changes a first-in-line launch).
+  const brand = brandEquity(s.launched, franchiseStem(product.name));
 
   // Score WITHOUT the strength-based competition term — competition is modelled below as a
   // count of rivals that match/beat you, which is clearer and is what the player sees.
@@ -731,7 +736,7 @@ export function planProduction(
     // Bound the combined hype bonus (studio + visionary marketers + marketing upgrade +
     // channel) before it reaches scoreLaunch, which also clamps total hype. Without this,
     // stacking many visionary marketers makes launchScore/volume explode. Safety guard.
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype) * mktMult)),
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype) * mktMult + equityHypeBonus(brand.equity))),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: componentSynergy(product).factor,
@@ -771,7 +776,8 @@ export function planProduction(
       selfCompeting * comp.selfPenalty);
 
   const demandFit = breakdown.demand;
-  const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100));
+  // A proven line's loyal followers pre-order more strongly (brand equity → preorder lift).
+  const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
   const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
   const marketDemand = Math.round(organic * competitionFactor);
   // B4 — cap fan pre-orders to a share of TOTAL demand so a huge fanbase can't single-handedly
@@ -822,6 +828,7 @@ export function planProduction(
     projectedProfit,
     maxAffordableUnits,
     segments,
+    brand,
   };
 }
 
