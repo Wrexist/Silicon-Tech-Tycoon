@@ -242,7 +242,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
                     <div className="hq__build-head">
                       <span className="hq__ready-name">{job.product.name}</span>
                       <span className="hq__build-pct tnum">
-                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · wk {state.week + weeksLeft}</span>}
+                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft} wk left</span>}
                       </span>
                     </div>
                     <div className="hq__build-track">

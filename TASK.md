@@ -1256,3 +1256,22 @@ and the "glossary never drifts" promise was already undercut by THREE copies of 
 - 523 tests, tsc 0, build+PWA green. Pure readability/refactor — no engine/economy/balance change.
 - Tier 2 remaining: none material. Tier 3 (first-session smoothness) is next — build-wait clarity +
       Design-Lab Back/Next during the tutorial.
+
+## v45 — Tier 3: first-session smoothness (DONE 2026-06-24)
+The last audit tier. Two small first-run friction points where the new player lacks a sense of
+time/place during their first build.
+- [x] **Build-wait clarity** (audit #5): the HQ "In production" card showed the absolute target week
+      ("· wk 34") — opaque to a first-timer. Now shows "· N wk left" (`HQ.tsx`). And the Coach's
+      manufacturing step, which only said "time advances automatically", now teaches the speed
+      controls: "tap the Fast-forward button in the top bar to speed through the wait, or Pause to
+      hold." (Named, not an emoji — LOCKED no-emoji rule.) So a player who reads "automatically"
+      isn't left watching ~8s/week pass with no way to skip it.
+- [x] **Coach points at the tab strip** (audit #6): the Design Lab's Back/Next pager is suppressed
+      during the tutorial (the Coach owns that fixed bottom band — showing both would collide, RULE #1).
+      The audit's safer alternative: the Coach now names the flow — "Work left to right through the
+      tabs up top — Components, Style, Camera, then Launch" — so the first-timer knows the 4 tabs exist
+      and the order to move through them. (Copy matches the static LAB_TABS strip exactly.)
+- 523 tests, tsc 0, build+PWA green. Copy + one render change; no engine/balance/persistence touch.
+- **All four audit tiers now shipped** (v42 gating, v43 objective spine, v44 readability, v45
+      smoothness). Remaining audit-adjacent work is on-device feel only (objective-ladder pacing,
+      coach copy length on a real phone) — nothing blind-buildable left from this audit.
