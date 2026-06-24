@@ -39,3 +39,16 @@ export function segmentWantsById(id: string): string {
   const seg = SEGMENTS.find((s) => s.id === id);
   return seg ? segmentWants(seg) : "";
 }
+
+/** Plain-language definitions for the headline economic terms a new player meets outside the
+ *  Design Lab (the Bank, the HUD). Same "nothing is confusing" goal as STAT_INFO, kept here as the
+ *  single source so the copy can't drift. Ordered as they read on the Bank screen. */
+export const TERM_INFO: { term: string; def: string }[] = [
+  { term: "Cash", def: "Money you can spend right now — on builds, hires, marketing and upgrades. Hit zero for too long and you go bankrupt." },
+  { term: "Runway", def: "How many weeks your cash lasts at the current weekly loss. \"Profitable\" means you're earning more than you spend." },
+  { term: "Burn", def: "Your total spending each week — payroll, rent and overheads. Lower it or out-earn it to extend your runway." },
+  { term: "Net worth", def: "Everything you're worth: cash, the value of your stake in your own company, and any rival shares you hold." },
+  { term: "Research points", def: "RP — the research currency, earned weekly by staff in R&D. Spent on tech tiers and company research projects." },
+  { term: "Reputation", def: "How much the market trusts your brand (0–100). Rises with hits, falls with flops; gates new eras and the IPO." },
+  { term: "Fans", def: "Loyal customers who pre-order your next product. Hits grow your fanbase; flops shrink it." },
+];

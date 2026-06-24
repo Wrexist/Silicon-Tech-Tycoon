@@ -260,11 +260,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
       <Upgrades />
 
       {state.launched.length === 0 ? (
-        <Card>
-          <SectionHeader title="Get started" />
-          <p className="hq__cta-text">Your garage is ready. Design your first product and launch it into the market.</p>
-          <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
-        </Card>
+        <GetStartedCard state={state} onNavigate={onNavigate} />
       ) : (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />
@@ -790,30 +786,88 @@ function GoalBar({ label, value, target }: { label: string; value: number; targe
   );
 }
 
+/** Quick Start — the opening-moves map for a brand-new garage (no product shipped yet). A three-step
+ *  checklist (Design → Build → Launch) that tracks where the player is, so the very first session has
+ *  a clear, completable path. The In-production / Ready-to-launch cards above carry the actual build
+ *  and launch actions; this is the overview. Replaced by Performance/Insights after the first ship. */
+function GetStartedCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
+  const building = state.building.length > 0;
+  const ready = state.ready.length > 0;
+  const steps = [
+    { label: "Design a product", icon: PencilRuler, done: building || ready, active: !building && !ready },
+    { label: "Build it", icon: Factory, done: ready, active: building && !ready },
+    { label: "Launch to market", icon: Rocket, done: false, active: ready },
+  ];
+  return (
+    <Card className="hq__qs">
+      <SectionHeader title="Get started" accessory="3 steps" />
+      <p className="hq__cta-text">Your garage is ready. Follow these to ship your first product.</p>
+      <ol className="hq__qs-steps">
+        {steps.map((s, i) => (
+          <li key={i} className={`hq__qs-step${s.done ? " hq__qs-step--done" : ""}${s.active ? " hq__qs-step--active" : ""}`}>
+            <span className="hq__qs-mark" aria-hidden>
+              {s.done ? <Check size={14} strokeWidth={3} /> : <s.icon size={14} />}
+            </span>
+            <span className="hq__qs-label">{s.label}</span>
+          </li>
+        ))}
+      </ol>
+      {!building && !ready && (
+        <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
+      )}
+      {building && !ready && <p className="hq__qs-note">Building now — watch the progress above. You'll launch once it's ready.</p>}
+      {ready && <p className="hq__qs-note">Ready to launch — tap Launch above to ship it.</p>}
+    </Card>
+  );
+}
+
 const OBJECTIVE_ICONS: Record<ObjectiveIconName, LucideIcon> = {
   Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy,
 };
 
 /** The persistent next-step card: the first unfinished rung of the objective ladder, with a one-line
- *  why and a deep-link straight to the right screen. Hidden once the whole ladder is done. */
+ *  why, a progress bar, and a deep-link to the right screen. When the whole ladder is done it retires
+ *  to a quiet "free play" line (the StrategicInsightsCard below then carries ongoing guidance). The
+ *  inner block is keyed on the objective id so each new rung animates in — progress feels earned. */
 function NextMoveCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
   const progress = currentObjective(state);
-  if (!progress) return null;
+  if (!progress) {
+    // Ladder complete — only a brand-new player needs hand-holding, so don't clutter forever: show
+    // the "you're in charge now" beat only until the player has shipped a few products.
+    if (state.launched.length > 3) return null;
+    return (
+      <Card className="hq__next hq__next--done">
+        <div className="hq__next-head">
+          <span className="hq__next-glyph" aria-hidden><Sparkles size={18} /></span>
+          <div className="hq__next-titles">
+            <span className="hq__next-eyebrow">All set-up goals complete</span>
+            <span className="hq__next-label">You're running the show now</span>
+          </div>
+        </div>
+        <p className="hq__next-detail">Chase reputation, new eras and the IPO at your own pace — the Insights below flag your best next move.</p>
+      </Card>
+    );
+  }
   const { objective, step, total } = progress;
   const Icon = OBJECTIVE_ICONS[objective.icon];
   return (
     <Card className="hq__next">
-      <div className="hq__next-head">
-        <span className="hq__next-glyph" aria-hidden><Icon size={18} /></span>
-        <div className="hq__next-titles">
-          <span className="hq__next-eyebrow">Next move · {step} of {total}</span>
-          <span className="hq__next-label">{objective.label}</span>
+      <div className="hq__next-anim" key={objective.id}>
+        <div className="hq__next-head">
+          <span className="hq__next-glyph" aria-hidden><Icon size={18} /></span>
+          <div className="hq__next-titles">
+            <span className="hq__next-eyebrow">Next move · {step} of {total}</span>
+            <span className="hq__next-label">{objective.label}</span>
+          </div>
         </div>
+        <div className="hq__next-bar" aria-hidden>
+          <div className="hq__next-bar-fill" style={{ width: `${Math.round((step / total) * 100)}%` }} />
+        </div>
+        <p className="hq__next-detail">{objective.detail}</p>
+        <Button block variant="secondary" onClick={() => { onNavigate(objective.tab); haptic.light(); }}>
+          {objective.cta} <ChevronRight size={16} />
+        </Button>
       </div>
-      <p className="hq__next-detail">{objective.detail}</p>
-      <Button block variant="secondary" onClick={() => { onNavigate(objective.tab); haptic.light(); }}>
-        {objective.cta} <ChevronRight size={16} />
-      </Button>
     </Card>
   );
 }

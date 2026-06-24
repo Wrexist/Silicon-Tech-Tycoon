@@ -1253,6 +1253,96 @@
   line-height: 1.5;
   margin: 0 0 var(--sp-12);
 }
+/* Quick Start — opening-moves checklist */
+.hq__qs-steps {
+  list-style: none;
+  margin: var(--sp-4) 0 var(--sp-12);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.hq__qs-step {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+}
+.hq__qs-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--ink-3);
+  border: 1.5px solid var(--hairline);
+}
+.hq__qs-step--active .hq__qs-mark {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.hq__qs-step--active .hq__qs-label {
+  color: var(--ink);
+  font-weight: 700;
+}
+.hq__qs-step--done .hq__qs-mark {
+  color: #fff;
+  background: var(--positive);
+  border-color: var(--positive);
+}
+.hq__qs-step--done .hq__qs-label {
+  color: var(--ink-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-3);
+}
+.hq__qs-note {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Ladder progress bar */
+.hq__next-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+  margin: 0 0 var(--sp-12);
+}
+.hq__next-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width var(--spring-smooth, 0.4s ease);
+}
+/* Each new rung animates in so progress feels earned. */
+.hq__next-anim {
+  animation: hq-next-in 0.34s var(--ease-out, ease-out);
+}
+@keyframes hq-next-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.hq__next--done {
+  border-color: color-mix(in srgb, var(--positive) 35%, var(--hairline));
+}
+.hq__next--done .hq__next-glyph {
+  color: var(--positive);
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+}
+.hq__next--done .hq__next-eyebrow {
+  color: var(--positive);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hq__next-anim { animation: none; }
+  .hq__next-bar-fill { transition: none; }
+}
 
 /* Office shop: per-item price + unaffordable state */
 .hqb__item-price {

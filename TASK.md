@@ -1275,3 +1275,23 @@ time/place during their first build.
 - **All four audit tiers now shipped** (v42 gating, v43 objective spine, v44 readability, v45
       smoothness). Remaining audit-adjacent work is on-device feel only (objective-ladder pacing,
       coach copy length on a real phone) — nothing blind-buildable left from this audit.
+
+## v46 — clarity follow-ups: tap-to-define, spine polish, Quick Start (DONE 2026-06-24)
+Four follow-ups requested after the audit tiers shipped (PR on `claude/clarity-followups-tap-defs`).
+- [x] **Tap-to-define economic terms** (`engine/glossary.ts` `TERM_INFO`): Cash, Runway, Burn, Net
+      worth, Research points, Reputation, Fans — surfaced as a collapsible "What these terms mean"
+      guide in the Bank popup. The shared `StatGlossary` was generalized into a `Glossary` component
+      (any term/def list); `StatGlossary` is now a thin wrapper. Single-source copy.
+- [x] **Objective spine finished**: a slim step/total progress bar on the Next Move card; each new
+      rung's content animates in (reduced-motion safe); when the ladder completes the card retires to
+      a quiet positive "you're running the show now" beat (only while still new — gone after >3 ships)
+      instead of vanishing abruptly. +1 test (fresh company re-walks the ladder).
+- [x] **Quick Start checklist**: the "Get started" card (empty garage only) is now a 3-step
+      Design → Build → Launch checklist that tracks the player's position. Deliberately NOT a new
+      floating overlay — the Coach gives turn-by-turn, this gives the map — to avoid three competing
+      guidance systems (RULE #1).
+- [x] **Empty-state sweep — verified already comprehensive, no change made.** Market has context-aware
+      empty states with CTAs (launched===0 + feed), Research has first-open hints ("assign staff to
+      R&D…"), Decorate has a first-run tutorial + a "How Decorate works" button. No blank screens found
+      — declined to fabricate work for a solved problem.
+- 524 tests (+1), tsc 0, build+PWA green. Presentation/readability only; no engine/balance change.

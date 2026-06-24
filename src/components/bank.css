@@ -184,3 +184,8 @@
   font-weight: 600;
   color: var(--ink-2);
 }
+.bank__glossary {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--sp-12);
+}
