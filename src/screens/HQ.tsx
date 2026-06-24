@@ -260,11 +260,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
       <Upgrades />
 
       {state.launched.length === 0 ? (
-        <Card>
-          <SectionHeader title="Get started" />
-          <p className="hq__cta-text">Your garage is ready. Design your first product and launch it into the market.</p>
-          <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
-        </Card>
+        <GetStartedCard state={state} onNavigate={onNavigate} />
       ) : (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />
@@ -787,6 +783,41 @@ function GoalBar({ label, value, target }: { label: string; value: number; targe
         <div className="hq__goalbar-fill" style={{ width: `${pct}%` }} />
       </div>
     </div>
+  );
+}
+
+/** Quick Start — the opening-moves map for a brand-new garage (no product shipped yet). A three-step
+ *  checklist (Design → Build → Launch) that tracks where the player is, so the very first session has
+ *  a clear, completable path. The In-production / Ready-to-launch cards above carry the actual build
+ *  and launch actions; this is the overview. Replaced by Performance/Insights after the first ship. */
+function GetStartedCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
+  const building = state.building.length > 0;
+  const ready = state.ready.length > 0;
+  const steps = [
+    { label: "Design a product", icon: PencilRuler, done: building || ready, active: !building && !ready },
+    { label: "Build it", icon: Factory, done: ready, active: building && !ready },
+    { label: "Launch to market", icon: Rocket, done: false, active: ready },
+  ];
+  return (
+    <Card className="hq__qs">
+      <SectionHeader title="Get started" accessory="3 steps" />
+      <p className="hq__cta-text">Your garage is ready. Follow these to ship your first product.</p>
+      <ol className="hq__qs-steps">
+        {steps.map((s, i) => (
+          <li key={i} className={`hq__qs-step${s.done ? " hq__qs-step--done" : ""}${s.active ? " hq__qs-step--active" : ""}`}>
+            <span className="hq__qs-mark" aria-hidden>
+              {s.done ? <Check size={14} strokeWidth={3} /> : <s.icon size={14} />}
+            </span>
+            <span className="hq__qs-label">{s.label}</span>
+          </li>
+        ))}
+      </ol>
+      {!building && !ready && (
+        <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
+      )}
+      {building && !ready && <p className="hq__qs-note">Building now — watch the progress above. You'll launch once it's ready.</p>}
+      {ready && <p className="hq__qs-note">Ready to launch — tap Launch above to ship it.</p>}
+    </Card>
   );
 }
 
