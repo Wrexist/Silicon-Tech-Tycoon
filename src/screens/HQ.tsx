@@ -795,25 +795,48 @@ const OBJECTIVE_ICONS: Record<ObjectiveIconName, LucideIcon> = {
 };
 
 /** The persistent next-step card: the first unfinished rung of the objective ladder, with a one-line
- *  why and a deep-link straight to the right screen. Hidden once the whole ladder is done. */
+ *  why, a progress bar, and a deep-link to the right screen. When the whole ladder is done it retires
+ *  to a quiet "free play" line (the StrategicInsightsCard below then carries ongoing guidance). The
+ *  inner block is keyed on the objective id so each new rung animates in — progress feels earned. */
 function NextMoveCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
   const progress = currentObjective(state);
-  if (!progress) return null;
+  if (!progress) {
+    // Ladder complete — only a brand-new player needs hand-holding, so don't clutter forever: show
+    // the "you're in charge now" beat only until the player has shipped a few products.
+    if (state.launched.length > 3) return null;
+    return (
+      <Card className="hq__next hq__next--done">
+        <div className="hq__next-head">
+          <span className="hq__next-glyph" aria-hidden><Sparkles size={18} /></span>
+          <div className="hq__next-titles">
+            <span className="hq__next-eyebrow">All set-up goals complete</span>
+            <span className="hq__next-label">You're running the show now</span>
+          </div>
+        </div>
+        <p className="hq__next-detail">Chase reputation, new eras and the IPO at your own pace — the Insights below flag your best next move.</p>
+      </Card>
+    );
+  }
   const { objective, step, total } = progress;
   const Icon = OBJECTIVE_ICONS[objective.icon];
   return (
     <Card className="hq__next">
-      <div className="hq__next-head">
-        <span className="hq__next-glyph" aria-hidden><Icon size={18} /></span>
-        <div className="hq__next-titles">
-          <span className="hq__next-eyebrow">Next move · {step} of {total}</span>
-          <span className="hq__next-label">{objective.label}</span>
+      <div className="hq__next-anim" key={objective.id}>
+        <div className="hq__next-head">
+          <span className="hq__next-glyph" aria-hidden><Icon size={18} /></span>
+          <div className="hq__next-titles">
+            <span className="hq__next-eyebrow">Next move · {step} of {total}</span>
+            <span className="hq__next-label">{objective.label}</span>
+          </div>
         </div>
+        <div className="hq__next-bar" aria-hidden>
+          <div className="hq__next-bar-fill" style={{ width: `${Math.round((step / total) * 100)}%` }} />
+        </div>
+        <p className="hq__next-detail">{objective.detail}</p>
+        <Button block variant="secondary" onClick={() => { onNavigate(objective.tab); haptic.light(); }}>
+          {objective.cta} <ChevronRight size={16} />
+        </Button>
       </div>
-      <p className="hq__next-detail">{objective.detail}</p>
-      <Button block variant="secondary" onClick={() => { onNavigate(objective.tab); haptic.light(); }}>
-        {objective.cta} <ChevronRight size={16} />
-      </Button>
     </Card>
   );
 }

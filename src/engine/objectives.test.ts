@@ -62,6 +62,12 @@ describe("currentObjective", () => {
     expect(currentObjective(game(), allIds)).toBeNull();
   });
 
+  it("a fresh company re-walks the ladder (completion resets per run)", () => {
+    const fresh = newGame(1);
+    expect(fresh.completedObjectives).toEqual([]);
+    expect(currentObjective(fresh)?.objective.id).toBe("first-launch");
+  });
+
   it("skips out-of-order satisfied objectives to the earliest unfinished", () => {
     // Two products shipped (first + second launch done) but still a solo founder: the next move is
     // the still-unfinished hire, not the already-satisfied second-launch.
