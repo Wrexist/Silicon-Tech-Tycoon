@@ -100,6 +100,13 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const [rivalProfile, setRivalProfile] = useState<string | null>(null);
   const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
 
+  // Progressive disclosure: the Stock Exchange is a side activity with no scaffolding for a
+  // brand-new player. Introduce it once the player has shipped their first product (or already
+  // holds shares, or is a returning prestige founder) so week-one isn't a wall of tradeable rivals.
+  const hasShipped = state.launched.length >= 1 || state.legacy > 0;
+  const hasHoldings = Object.values(state.holdings).some((v) => (v ?? 0) > 0);
+  const showStocks = hasShipped || hasHoldings;
+
   const valuation = companyValuation(state);
   const stake = founderStakeValue(state);
   const net = netWorth(state);
@@ -386,9 +393,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         );
       })()}
 
-      {/* Stock exchange */}
-      <SectionHeader title="Stock exchange" accessory="trade rival shares" />
-      {Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
+      {/* Stock exchange — gated behind the first ship (see `showStocks`). */}
+      {showStocks && <SectionHeader title="Stock exchange" accessory="trade rival shares" />}
+      {showStocks && Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
         const portfolioVal = holdingsValue(state.holdings, comps);
         const divPerWk = weeklyDividends(state.holdings, comps);
         return (
@@ -401,7 +408,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           </div>
         );
       })()}
-      {comps.map((c) => {
+      {showStocks && comps.map((c) => {
         const ch = changePct(c.priceHistory);
         const owned = state.holdings[c.id] ?? 0;
         const def = rivalDef(c.id);

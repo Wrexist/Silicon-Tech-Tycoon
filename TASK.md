@@ -1175,3 +1175,31 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - 506 tests, tsc 0, build+PWA green.
 - ⚠️ $250k founding cost NOT playtested on device — tune in balance.platform.foundingCost. It's a
       base-game cash gate now (not the old DLC-toggle scaffold); flag if you'd rather keep it DLC-gated.
+
+## v42 — progressive-disclosure gating: a day-one garage isn't buried (DONE 2026-06-24)
+Kicked off by a "take it to the next level — smoothness, clarity, players understand what to do"
+ask + 4 parallel research audits (3 competitor sweeps: Game Dev Tycoon / Mad Games Tycoon 2 /
+Software Inc / Computer Tycoon / Startup Company / Capitalism Lab / Two Point / Kairosoft / FM
+Mobile / Egg Inc; + 1 code-grounded internal clarity audit). **Unanimous finding: the game is
+unusually legible PER-SCREEN; the gap is STRUCTURAL DISCLOSURE — advanced systems are present
+from day one instead of introduced when relevant.** The codebase already gates well in places
+(Platform $250k, IPO/mergers $750k, Delegation by lead) — this pass applies the same idea to the
+three worst day-one dumps. Pure presentation gating, no engine/economy/persistence change.
+- [x] **Company meta-layer gated behind first ship** (`hasShipped = launched ≥ 1 || legacy > 0`):
+      Achievements, Scenarios, Challenges, Device Museum, the Near-milestones card, and the
+      $250k Platform-founding GOAL no longer appear on an empty garage. An already-FOUNDED Platform
+      entry still always shows; returning prestige founders (legacy > 0) keep the whole layer.
+- [x] **Stock Exchange gated** (`showStocks = hasShipped || holds shares`): the Market tab no
+      longer opens onto a wall of tradeable rivals + sparklines in week 1. Holdings/portfolio still
+      show if somehow held; reappears the moment you ship.
+- [x] **Research roadmap de-walled**: project groups render only for eras you've reached (the
+      EraRoadmap above already previews what's ahead) instead of stacking every locked future-era
+      project card; a single muted "More research projects unlock as you advance eras" hint
+      (`.rd__roadmap-hint`, tokenised) replaces them. Component-tech lines were already era-filtered.
+- 511 tests, tsc 0, build+PWA green. No new tests (presentation-only gating; behaviour covered by
+      existing screen render). NOT verified on device: exact thresholds feel — first-ship may be a
+      touch early/late for stocks; flag after a playtest (one-line change to the `showStocks` rule).
+- Next slices from the audit (not done this pass): the persistent "Next Move" objective spine
+      (Tier 0 — biggest "what do I do next" lever), pre-commit synergy/market-fit hints in Design
+      Lab, glossary in the launch post-mortem + dedupe the drifting STAT_LABEL maps, build-wait
+      clarity, Design-Lab Back/Next during the tutorial.

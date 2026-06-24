@@ -288,6 +288,17 @@
   text-transform: none;
 }
 
+/* Roadmap hint shown in place of locked future-era project cards (progressive disclosure). */
+.rd__roadmap-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: var(--sp-4) var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+}
+
 /* Weeks-to-afford + action wrapper */
 .rd__project-action {
   display: flex;
