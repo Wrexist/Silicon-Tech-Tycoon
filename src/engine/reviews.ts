@@ -5,6 +5,7 @@
 // product always yields the same reviews) so it's stable across re-renders and reloads.
 import { makeRng } from "./rng.ts";
 import type { Stats } from "./types.ts";
+import { STAT_INFO } from "./glossary.ts";
 
 export type ReviewVerdict = "hit" | "flop" | "solid" | "steady";
 
@@ -36,12 +37,14 @@ export interface CriticReviews {
 // IP-clean fictional publications (no real outlet names — ship-blocker rule).
 export const OUTLETS = ["The Circuit", "Bitstream", "Field & Frame", "Teardown Weekly", "Mainboard", "Slate & Silicon"] as const;
 
+// Lowercase prose fragments for review sentences ("praises its build quality"), single-sourced from
+// the glossary so they can't drift from the UI's stat labels.
 const STAT_LABEL: Record<keyof Stats, string> = {
-  performance: "performance",
-  quality: "build quality",
-  battery: "battery life",
-  design: "design",
-  ecosystem: "ecosystem",
+  performance: STAT_INFO.performance.prose,
+  quality: STAT_INFO.quality.prose,
+  battery: STAT_INFO.battery.prose,
+  design: STAT_INFO.design.prose,
+  ecosystem: STAT_INFO.ecosystem.prose,
 };
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));

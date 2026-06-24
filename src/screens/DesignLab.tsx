@@ -54,7 +54,8 @@ import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel, playerFranchises } from "../engine/franchise.ts";
-import { segmentWantsById, STAT_INFO } from "../engine/glossary.ts";
+import { segmentWantsById } from "../engine/glossary.ts";
+import { StatGlossary } from "../components/StatGlossary.tsx";
 import "./designLab.css";
 
 /** Epic A — "Who it's for": the per-segment positioning readout in the build wizard. Each bar is how
@@ -103,28 +104,6 @@ function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
   );
 }
 
-/** C3 — a collapsible plain-language guide to what each stat does (Two Point's "nothing is confusing").
- *  Self-contained toggle so it never clutters the design view until the player wants it. */
-function StatGlossary() {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button className="lab__glossary-toggle" aria-expanded={open} onClick={() => { setOpen((o) => !o); haptic.light(); }}>
-        {open ? "Hide stat guide" : "What the stats mean"}
-      </button>
-      {open && (
-        <div className="lab__glossary">
-          {STAT_KEYS.map((k) => (
-            <div key={k} className="lab__glossary-row">
-              <span className="lab__glossary-term">{STAT_INFO[k].label}</span>
-              <span className="lab__glossary-def">{STAT_INFO[k].blurb}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
 
 const STAT_ABBR: Record<keyof Stats, string> = {
   performance: "Perf", quality: "Qual", battery: "Bat", design: "Dsn", ecosystem: "Eco",

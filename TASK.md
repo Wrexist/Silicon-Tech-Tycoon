@@ -1232,3 +1232,27 @@ architecture exactly (pure catalog + predicates + "newly satisfied" diff the sta
       ongoing guidance). No double-guidance with the Coach (gated on tutorialDone).
 - 523 tests (+12), tsc 0, build+PWA green. NOT verified on device: the card's exact placement feel
       and whether the 10 rungs pace well across a full playthrough (rung set + copy live in one file).
+
+## v44 — Tier 2: readability earlier — glossary in the post-mortem + STAT_LABEL dedupe (DONE 2026-06-24)
+Audit finding #7: a player who flops opens the launch post-mortem first and hits undefined jargon;
+and the "glossary never drifts" promise was already undercut by THREE copies of the stat-label map
+(glossary STAT_INFO, Market.tsx, reviews.ts) that had diverged ("Quality" vs "build quality").
+- [x] **Glossary owns both registers** (`engine/glossary.ts`): STAT_INFO gains a `prose` field
+      (lowercase sentence form: "build quality", "battery life", …) alongside the Title-Case `label`.
+      Single source of truth for stat copy in BOTH registers — they can't drift again.
+- [x] **Dedupe**: `engine/reviews.ts` and `screens/Market.tsx` now derive their local STAT_LABEL maps
+      from STAT_INFO (`.prose` for review sentences, `.label` for UI) instead of hand-maintained
+      literals. Review output is byte-identical (prose values unchanged) — all review tests pass as-is.
+- [x] **Shared `StatGlossary`** (`components/StatGlossary.tsx` + `statGlossary.css`): extracted the
+      Design Lab's collapsible "what the stats mean" guide into a reusable component (neutral `sg__*`
+      classes), and surfaced it in the **launch post-mortem** ("Why it performed") so the five stat
+      terms are one tap from a plain-language definition exactly where the player reads why a product
+      won or flopped. Design Lab now uses the shared component; its dead `lab__glossary*` CSS removed.
+- **Piece B (pre-commit market-fit hint) NOT done — already shipped.** Verified in source: the Design
+      Lab live hero already gives the pre-commit signal — a live `Fit /100` pill (`DesignLab.tsx:516`),
+      a projected verdict that uses the real launch gate (522), synergy/weak-link notes (524–530),
+      competition-drag explanation (539–545), and the wizard shows each segment's "wants" via
+      `segmentWantsById` (97). Adding more would clutter the best-disclosed screen for no gain.
+- 523 tests, tsc 0, build+PWA green. Pure readability/refactor — no engine/economy/balance change.
+- Tier 2 remaining: none material. Tier 3 (first-session smoothness) is next — build-wait clarity +
+      Design-Lab Back/Next during the tutorial.

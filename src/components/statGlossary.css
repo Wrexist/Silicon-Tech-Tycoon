@@ -1,0 +1,20 @@
+/* Shared stat glossary — used by the Design Lab and the launch post-mortem. */
+.sg__toggle {
+  align-self: flex-start;
+  margin-top: 2px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--accent);
+}
+.sg__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--sp-8);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+}
+.sg__row { display: flex; flex-direction: column; gap: 1px; }
+.sg__term { font-size: var(--fs-caption); font-weight: 700; }
+.sg__def { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.35; }

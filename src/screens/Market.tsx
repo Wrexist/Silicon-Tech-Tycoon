@@ -38,6 +38,8 @@ import {
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
+import { StatGlossary } from "../components/StatGlossary.tsx";
 import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import "./market.css";
@@ -58,12 +60,13 @@ function verdictOf(lp: LaunchedProduct): Verdict {
   return lp.launchScore >= 76 ? "hit" : lp.launchScore <= 22 ? "flop" : lp.launchScore >= 45 ? "solid" : "steady";
 }
 
+// Title-Case stat labels, single-sourced from the glossary (was a local duplicate that drifted).
 const STAT_LABEL: Record<keyof Stats, string> = {
-  performance: "Performance",
-  quality: "Quality",
-  battery: "Battery",
-  design: "Design",
-  ecosystem: "Ecosystem",
+  performance: STAT_INFO.performance.label,
+  quality: STAT_INFO.quality.label,
+  battery: STAT_INFO.battery.label,
+  design: STAT_INFO.design.label,
+  ecosystem: STAT_INFO.ecosystem.label,
 };
 
 function changePct(history: number[]): number {
@@ -1139,6 +1142,7 @@ function ProductDetailSheet({
         {!lp.insight && (
           <p className="pd__why-note">Detailed launch metrics weren't recorded for this older product — shown as an overall read.</p>
         )}
+        <StatGlossary label="What these stats mean" />
       </div>
 
       {tips.length > 0 && (

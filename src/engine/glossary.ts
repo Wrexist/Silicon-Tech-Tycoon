@@ -6,12 +6,15 @@
 import { SEGMENTS, type Segment } from "./segments.ts";
 import { STAT_KEYS, type StatKey } from "./types.ts";
 
-export const STAT_INFO: Record<StatKey, { label: string; blurb: string }> = {
-  performance: { label: "Performance", blurb: "Raw speed and power. Pros and power users pay for it; budget buyers care less." },
-  quality: { label: "Quality", blurb: "Build quality and reliability — reassures every buyer and is vital to Enterprise fleets." },
-  battery: { label: "Battery", blurb: "Endurance away from a charger. A Budget and Mainstream essential." },
-  design: { label: "Design", blurb: "Looks, finish and form. The Style segment buys on this above all else." },
-  ecosystem: { label: "Ecosystem", blurb: "Apps, services and lock-in. Pro and Enterprise value the platform around the device." },
+// The single source of truth for stat copy. `label` is the Title-Case UI label (chips, spec rows,
+// post-mortem); `prose` is the lowercase sentence form used inside review prose ("praises its
+// build quality"). Both live here so the two registers can never drift apart again.
+export const STAT_INFO: Record<StatKey, { label: string; prose: string; blurb: string }> = {
+  performance: { label: "Performance", prose: "performance", blurb: "Raw speed and power. Pros and power users pay for it; budget buyers care less." },
+  quality: { label: "Quality", prose: "build quality", blurb: "Build quality and reliability — reassures every buyer and is vital to Enterprise fleets." },
+  battery: { label: "Battery", prose: "battery life", blurb: "Endurance away from a charger. A Budget and Mainstream essential." },
+  design: { label: "Design", prose: "design", blurb: "Looks, finish and form. The Style segment buys on this above all else." },
+  ecosystem: { label: "Ecosystem", prose: "ecosystem", blurb: "Apps, services and lock-in. Pro and Enterprise value the platform around the device." },
 };
 
 /** The `n` stats a segment weights most, derived live from its weights (never stale). */
