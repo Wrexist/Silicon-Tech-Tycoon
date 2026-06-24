@@ -18,6 +18,7 @@ import {
   advanceOneWeek,
   assignStaff,
   evaluateAndUnlock,
+  evaluateObjectives,
   buyProject,
   REV_MILESTONES,
   buyShares,
@@ -93,7 +94,9 @@ import { clearSave, exportSaveString, importSaveString, importProfileFromString,
 import { withValidatedSandbox } from "./entitlements.ts";
 import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
+import { objectiveById } from "../engine/objectives.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
+import { CircleCheck } from "lucide-react";
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -219,6 +222,27 @@ function announceAchievements(unlocked: readonly string[]): void {
     }
   };
   setTimeout(fire, 600);
+}
+
+/** Announce newly-completed "Next Move" objectives — the soft "goal done, here's the next one"
+ *  beat. Same two rules as achievements: defer so the triggering action's toast lands first, and
+ *  collapse a burst into one toast. A gentle confirm cue (not the full upgrade fanfare). */
+function announceObjectives(completed: readonly string[]): void {
+  const done = completed
+    .map((id) => objectiveById(id))
+    .filter((o): o is NonNullable<typeof o> => !!o);
+  if (done.length === 0) return;
+  sfx("confirm");
+  setTimeout(() => {
+    try {
+      const label = done.length === 1
+        ? `Goal complete — ${done[0].label}`
+        : `${done.length} goals complete — ${done[0].label}`;
+      showToast(label, { tone: "positive", glyph: createElement(CircleCheck, { size: 15 }) });
+    } catch {
+      /* toast host not mounted (e.g. tests) */
+    }
+  }, 700);
 }
 
 /**
@@ -417,11 +441,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const scored = withScenarioRunStars(withChallengeScore(floored));
     syncChallengeBest(floored, scored, false);
     const withAch = evaluateAndUnlock(scored, readMasteryInput()).state;
-    mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
+    // Latch any objectives completed while away SILENTLY too, so the first live tick doesn't fire a
+    // backlog of "goal complete" toasts on return.
+    const withProgress = evaluateObjectives(withAch).state;
+    mergeProfileAchievements(withProgress.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
     // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
-    save({ ...withAch, lastActive: Date.now() });
-    const topProduct = weeks > 0 ? topSellerWhileAway(loaded, withAch) : null;
-    return { state: withAch, offline: weeks > 0 ? { weeks, gain, topProduct } : null };
+    save({ ...withProgress, lastActive: Date.now() });
+    const topProduct = weeks > 0 ? topSellerWhileAway(loaded, withProgress) : null;
+    return { state: withProgress, offline: weeks > 0 ? { weeks, gain, topProduct } : null };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -490,6 +517,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           syncChallengeBest(s, next, true);
         }
         const { state: out, unlocked } = evaluateAndUnlock(next, readMasteryInput());
+        const { state: out2, completed } = evaluateObjectives(out);
         if (firstThisWeek) {
           withRevToasts(s, next);
           withFanToasts(s, next);
@@ -497,9 +525,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
           withProductFinishToasts(s, next);
           announceAchievements(unlocked);
           mergeProfileAchievements(unlocked);
+          announceObjectives(completed);
           announceScenarioStars(next);
         }
-        return out;
+        return out2;
       });
     }, ms);
     return () => clearInterval(id);
@@ -552,12 +581,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const scored = withScenarioRunStars(withChallengeScore(floored));
     syncChallengeBest(floored, scored, false);
     const withAch = evaluateAndUnlock(scored, readMasteryInput()).state;
-    mergeProfileAchievements(withAch.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
+    const withProgress = evaluateObjectives(withAch).state; // latch away-completed objectives silently
+    mergeProfileAchievements(withProgress.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
     const stamped = Date.now();
-    setState(withAch);
-    save({ ...withAch, lastActive: stamped });
+    setState(withProgress);
+    save({ ...withProgress, lastActive: stamped });
     lastActiveRef.current = stamped;
-    lastSavedRef.current = withAch;
+    lastSavedRef.current = withProgress;
     // Only interrupt with the recap sheet after a genuine absence — not a quick tab glance.
     if (Date.now() - hiddenAtRef.current >= 60_000) {
       setOffline({ weeks, gain, topProduct: topSellerWhileAway(base, withAch) });

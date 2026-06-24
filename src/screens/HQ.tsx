@@ -1,8 +1,8 @@
 import {
-  ArrowUp, Check, ChevronRight, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
-  HelpCircle, LayoutGrid, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
-  RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp,
-  Undo2, Users, X, Zap, Smile, Crosshair, type LucideIcon,
+  ArrowUp, Building2, Check, ChevronRight, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
+  HelpCircle, Layers, LayoutGrid, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
+  Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -15,6 +15,7 @@ import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
+import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
 import { dollars, format, formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
@@ -179,6 +180,10 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
         );
       })()}
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
+
+      {/* The persistent "Next Move" guidance — takes over once the first-build Coach hands off, so
+          the player always has one concrete next step (see engine/objectives.ts). */}
+      {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}
 
       {/* Player-choice event card — requires a decision before advancing */}
       {state.pendingChoice && (
@@ -782,6 +787,34 @@ function GoalBar({ label, value, target }: { label: string; value: number; targe
         <div className="hq__goalbar-fill" style={{ width: `${pct}%` }} />
       </div>
     </div>
+  );
+}
+
+const OBJECTIVE_ICONS: Record<ObjectiveIconName, LucideIcon> = {
+  Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy,
+};
+
+/** The persistent next-step card: the first unfinished rung of the objective ladder, with a one-line
+ *  why and a deep-link straight to the right screen. Hidden once the whole ladder is done. */
+function NextMoveCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
+  const progress = currentObjective(state);
+  if (!progress) return null;
+  const { objective, step, total } = progress;
+  const Icon = OBJECTIVE_ICONS[objective.icon];
+  return (
+    <Card className="hq__next">
+      <div className="hq__next-head">
+        <span className="hq__next-glyph" aria-hidden><Icon size={18} /></span>
+        <div className="hq__next-titles">
+          <span className="hq__next-eyebrow">Next move · {step} of {total}</span>
+          <span className="hq__next-label">{objective.label}</span>
+        </div>
+      </div>
+      <p className="hq__next-detail">{objective.detail}</p>
+      <Button block variant="secondary" onClick={() => { onNavigate(objective.tab); haptic.light(); }}>
+        {objective.cta} <ChevronRight size={16} />
+      </Button>
+    </Card>
   );
 }
 

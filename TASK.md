@@ -1203,3 +1203,32 @@ three worst day-one dumps. Pure presentation gating, no engine/economy/persisten
       (Tier 0 — biggest "what do I do next" lever), pre-commit synergy/market-fit hints in Design
       Lab, glossary in the launch post-mortem + dedupe the drifting STAT_LABEL maps, build-wait
       clarity, Design-Lab Back/Next during the tutorial.
+
+## v43 — Tier 0: the "Next Move" objective spine (DONE 2026-06-24)
+The audit's #1 lever: the first-build Coach hands off at first launch (`tutorialDone`) and the
+player falls off a cliff — they know the loop but not what to chase next. This adds a persistent,
+ordered ladder of ONE concrete next step at a time, shown high on HQ. Mirrors the achievements
+architecture exactly (pure catalog + predicates + "newly satisfied" diff the state layer announces).
+- [x] **`engine/objectives.ts`** (pure, +12 tests): a 10-rung ordered ladder — launch → hire →
+      second launch → first research project → first hit → reach Era 2 → buy an office upgrade →
+      found the Platform division → IPO → reach the pinnacle. Each rung has an imperative label, a
+      one-line "why", a deep-link `tab`, a CTA, a Lucide icon name, and a `done(state)` predicate
+      that reads only already-tracked state. `currentObjective` returns the first rung that's neither
+      latched-complete NOR live-satisfied (so the card advances INSTANTLY after an action, before the
+      latch is even written); `satisfiedObjectiveIds` / `newlyCompletedObjectives` for the state diff.
+      Engine purity kept — declares its own `ObjectiveTab` union instead of importing the UI `Tab`.
+- [x] **State** (`gameState.ts`): `completedObjectives: string[]` (monotonic, resets per company so
+      each run re-walks the ladder) + `evaluateObjectives(state)` mirroring `evaluateAndUnlock`.
+      Persistence backfills the field AND silently seeds it from the live-satisfied set for old/mid-
+      game saves (no toast burst on first load — same pattern as the achievement backfill).
+- [x] **Wiring** (`useGame.tsx`): folded into the once-per-week tick announce gate (a gentle
+      `confirm` cue + one collapsed "Goal complete — …" toast, deferred so the action's own toast
+      lands first); folded SILENTLY into both offline-catch-up paths so a returning player isn't
+      toast-spammed for goals cleared while away.
+- [x] **HQ `NextMoveCard`**: a premium accent card (glyph chip + "Next move · N of M" eyebrow +
+      label + why + deep-link button) shown directly under the era-goal once `tutorialDone`, so the
+      first-build Coach owns the very first session and the ladder takes over after. Tokenised CSS
+      (`.hq__next*`), hidden when the whole ladder is complete (the StrategicInsightsCard then carries
+      ongoing guidance). No double-guidance with the Coach (gated on tutorialDone).
+- 523 tests (+12), tsc 0, build+PWA green. NOT verified on device: the card's exact placement feel
+      and whether the 10 rungs pace well across a full playthrough (rung set + copy live in one file).

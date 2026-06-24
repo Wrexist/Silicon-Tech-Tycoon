@@ -1208,6 +1208,52 @@
   line-height: 1.4;
 }
 
+/* "Next Move" guidance card — the persistent next-step ladder. */
+.hq__next {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline));
+}
+.hq__next-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-8);
+}
+.hq__next-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--r-button);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.hq__next-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.hq__next-eyebrow {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hq__next-label {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+.hq__next-detail {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0 0 var(--sp-12);
+}
+
 /* Office shop: per-item price + unaffordable state */
 .hqb__item-price {
   font-size: var(--fs-nano);
