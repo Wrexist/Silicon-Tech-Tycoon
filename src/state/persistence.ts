@@ -7,6 +7,7 @@ import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
+import { satisfiedObjectiveIds } from "../engine/objectives.ts";
 import { showToast } from "../design/toast.tsx";
 import { mirrorToNative } from "./nativeStore.ts";
 
@@ -268,6 +269,7 @@ function migrate(state: GameState): GameState | null {
   // backfilled SILENTLY at the end of migrate (after all fields are valid) so a returning player
   // isn't dumped a dozen toasts on first load — they're marked unlocked without a celebration.
   if (!Array.isArray(s.unlockedAchievements)) s.unlockedAchievements = [];
+  if (!Array.isArray(s.completedObjectives)) s.completedObjectives = [];
   if (s.pendingChoice === undefined) s.pendingChoice = null;
   if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
   // Scenario mode (added later): old saves are freeform runs → no active scenario.
@@ -459,6 +461,15 @@ function migrate(state: GameState): GameState | null {
       s.unlockedAchievements = evaluateAchievements(deriveFacts(state));
     } catch {
       s.unlockedAchievements = [];
+    }
+  }
+  // Same silent backfill for the "Next Move" objective ladder — an old/mid-game save resumes at the
+  // right rung without a burst of completion toasts on first load.
+  if (Array.isArray(s.completedObjectives) && s.completedObjectives.length === 0) {
+    try {
+      s.completedObjectives = satisfiedObjectiveIds(state);
+    } catch {
+      s.completedObjectives = [];
     }
   }
   /* eslint-enable @typescript-eslint/no-explicit-any */

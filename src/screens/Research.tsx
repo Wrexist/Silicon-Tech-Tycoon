@@ -382,9 +382,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       {/* Era roadmap */}
       <EraRoadmap currentEra={state.era} reputation={state.reputation} cumulativeRevenueDollars={toDollars(state.cumulativeRevenue)} />
 
-      {/* Research projects — grouped by era */}
+      {/* Research projects — grouped by era. Progressive disclosure: only the eras you've reached
+          render (the EraRoadmap above already previews what's ahead), so a first-time researcher
+          isn't staring at a wall of locked future-era project cards. */}
       <SectionHeader title="Research projects" accessory="evolve the company" />
-      {[1, 2, 3].map((era) => {
+      {[1, 2, 3].filter((era) => era <= state.era).map((era) => {
         const eraProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
         if (eraProjects.length === 0) return null;
         const eraLocked = era > state.era;
@@ -425,6 +427,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </div>
         );
       })}
+      {state.era < 3 && (
+        <p className="rd__roadmap-hint">
+          <Lock size={11} aria-hidden /> More research projects unlock as you advance eras.
+        </p>
+      )}
 
       {/* Component tech */}
       {(() => {

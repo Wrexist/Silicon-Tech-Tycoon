@@ -119,6 +119,11 @@ export function Company() {
   const storedScenarioStars = getScenarioStars();
   const scenarioStars = SCENARIOS.reduce((sum, s) => sum + (storedScenarioStars[s.id] ?? 0), 0);
   const fac = facility(state);
+  // Progressive disclosure: the meta/progression layer (achievements, scenarios, challenges,
+  // museum, the Platform-founding goal) only appears once the player has shipped their first
+  // product — or is a returning prestige founder — so a day-one garage isn't buried under
+  // systems before the core design→launch loop is learned.
+  const hasShipped = state.launched.length >= 1 || state.legacy > 0;
   const wkBurn = burn(state);
   const wkPayroll = weeklyPayroll(state.staff);
   const wkRent = facilityRent(state);
@@ -279,46 +284,52 @@ export function Company() {
       {/* All-time top products */}
       {state.launched.length >= 2 && <TopProductsCard launched={state.launched} />}
 
-      {/* Achievements entry */}
-      <button className="co__ach-row" onClick={() => setAchievementsOpen(true)} aria-label="View achievements">
-        <span className="co__ach-glyph" aria-hidden><Award size={20} /></span>
-        <span className="co__ach-info">
-          <span className="co__ach-title">Achievements</span>
-          <span className="co__ach-sub">Milestones on the road to an empire</span>
-        </span>
-        <span className="co__ach-count tnum">{achievementCount}<span className="co__ach-count-total">/{ACHIEVEMENT_COUNT}</span></span>
-      </button>
+      {/* Meta/progression layer — gated behind the first ship (see `hasShipped`). */}
+      {hasShipped && (
+        <>
+          {/* Achievements entry */}
+          <button className="co__ach-row" onClick={() => setAchievementsOpen(true)} aria-label="View achievements">
+            <span className="co__ach-glyph" aria-hidden><Award size={20} /></span>
+            <span className="co__ach-info">
+              <span className="co__ach-title">Achievements</span>
+              <span className="co__ach-sub">Milestones on the road to an empire</span>
+            </span>
+            <span className="co__ach-count tnum">{achievementCount}<span className="co__ach-count-total">/{ACHIEVEMENT_COUNT}</span></span>
+          </button>
 
-      {/* Scenarios entry */}
-      <button className="co__ach-row" onClick={() => setScenariosOpen(true)} aria-label="View scenarios">
-        <span className="co__ach-glyph" aria-hidden><Target size={20} /></span>
-        <span className="co__ach-info">
-          <span className="co__ach-title">Scenarios</span>
-          <span className="co__ach-sub">Hand-crafted challenges with star goals</span>
-        </span>
-        <span className="co__ach-count tnum">{scenarioStars}<span className="co__ach-count-total">/{SCENARIOS.length * 3}★</span></span>
-      </button>
+          {/* Scenarios entry */}
+          <button className="co__ach-row" onClick={() => setScenariosOpen(true)} aria-label="View scenarios">
+            <span className="co__ach-glyph" aria-hidden><Target size={20} /></span>
+            <span className="co__ach-info">
+              <span className="co__ach-title">Scenarios</span>
+              <span className="co__ach-sub">Hand-crafted challenges with star goals</span>
+            </span>
+            <span className="co__ach-count tnum">{scenarioStars}<span className="co__ach-count-total">/{SCENARIOS.length * 3}★</span></span>
+          </button>
 
-      {/* Challenges entry */}
-      <button className="co__ach-row" onClick={() => setChallengesOpen(true)} aria-label="View daily and weekly challenges">
-        <span className="co__ach-glyph" aria-hidden><CalendarDays size={20} /></span>
-        <span className="co__ach-info">
-          <span className="co__ach-title">Challenges</span>
-          <span className="co__ach-sub">A fresh seeded run every day — beat your best</span>
-        </span>
-      </button>
+          {/* Challenges entry */}
+          <button className="co__ach-row" onClick={() => setChallengesOpen(true)} aria-label="View daily and weekly challenges">
+            <span className="co__ach-glyph" aria-hidden><CalendarDays size={20} /></span>
+            <span className="co__ach-info">
+              <span className="co__ach-title">Challenges</span>
+              <span className="co__ach-sub">A fresh seeded run every day — beat your best</span>
+            </span>
+          </button>
 
-      {/* Device museum — your shipped-device legacy across all runs */}
-      <button className="co__ach-row" onClick={() => setMuseumOpen(true)} aria-label="Open the device museum">
-        <span className="co__ach-glyph" aria-hidden><Boxes size={20} /></span>
-        <span className="co__ach-info">
-          <span className="co__ach-title">Device Museum</span>
-          <span className="co__ach-sub">Every device you've ever shipped</span>
-        </span>
-        {museumCount > 0 && <span className="co__ach-count tnum">{museumCount}</span>}
-      </button>
+          {/* Device museum — your shipped-device legacy across all runs */}
+          <button className="co__ach-row" onClick={() => setMuseumOpen(true)} aria-label="Open the device museum">
+            <span className="co__ach-glyph" aria-hidden><Boxes size={20} /></span>
+            <span className="co__ach-info">
+              <span className="co__ach-title">Device Museum</span>
+              <span className="co__ach-sub">Every device you've ever shipped</span>
+            </span>
+            {museumCount > 0 && <span className="co__ach-count tnum">{museumCount}</span>}
+          </button>
+        </>
+      )}
 
-      {/* Platform division — founded in-game as a major reinvestment milestone (or its open row). */}
+      {/* Platform division — the unlocked entry always shows; the $250k founding GOAL waits until
+          the player has shipped (it's noise on an empty garage). */}
       {state.platformUnlocked ? (
         <button className="co__ach-row" onClick={() => setPlatformOpen(true)} aria-label="Open the Platform division">
           <span className="co__ach-glyph" aria-hidden><Layers size={20} /></span>
@@ -327,7 +338,7 @@ export function Company() {
             <span className="co__ach-sub">{osDisplayName(state)} · installed base & licensing</span>
           </span>
         </button>
-      ) : (() => {
+      ) : hasShipped ? (() => {
         const cost = platformFoundingCost();
         const can = canFoundPlatform(state);
         const shortBy = sub(cost, state.cash);
@@ -354,10 +365,10 @@ export function Company() {
             </Button>
           </Card>
         );
-      })()}
+      })() : null}
 
-      {/* Near-achievement progress */}
-      <NearMilestonesCard state={state} />
+      {/* Near-achievement progress — only once the player is chasing milestones (post first ship). */}
+      {hasShipped && <NearMilestonesCard state={state} />}
 
       {/* Team output summary */}
       <TeamOutputCard state={state} />

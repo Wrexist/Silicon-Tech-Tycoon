@@ -1175,3 +1175,103 @@ STRONGLY RECOMMEND a playtest now: the late-era D magnitudes + the whole A→B�
 - 506 tests, tsc 0, build+PWA green.
 - ⚠️ $250k founding cost NOT playtested on device — tune in balance.platform.foundingCost. It's a
       base-game cash gate now (not the old DLC-toggle scaffold); flag if you'd rather keep it DLC-gated.
+
+## v42 — progressive-disclosure gating: a day-one garage isn't buried (DONE 2026-06-24)
+Kicked off by a "take it to the next level — smoothness, clarity, players understand what to do"
+ask + 4 parallel research audits (3 competitor sweeps: Game Dev Tycoon / Mad Games Tycoon 2 /
+Software Inc / Computer Tycoon / Startup Company / Capitalism Lab / Two Point / Kairosoft / FM
+Mobile / Egg Inc; + 1 code-grounded internal clarity audit). **Unanimous finding: the game is
+unusually legible PER-SCREEN; the gap is STRUCTURAL DISCLOSURE — advanced systems are present
+from day one instead of introduced when relevant.** The codebase already gates well in places
+(Platform $250k, IPO/mergers $750k, Delegation by lead) — this pass applies the same idea to the
+three worst day-one dumps. Pure presentation gating, no engine/economy/persistence change.
+- [x] **Company meta-layer gated behind first ship** (`hasShipped = launched ≥ 1 || legacy > 0`):
+      Achievements, Scenarios, Challenges, Device Museum, the Near-milestones card, and the
+      $250k Platform-founding GOAL no longer appear on an empty garage. An already-FOUNDED Platform
+      entry still always shows; returning prestige founders (legacy > 0) keep the whole layer.
+- [x] **Stock Exchange gated** (`showStocks = hasShipped || holds shares`): the Market tab no
+      longer opens onto a wall of tradeable rivals + sparklines in week 1. Holdings/portfolio still
+      show if somehow held; reappears the moment you ship.
+- [x] **Research roadmap de-walled**: project groups render only for eras you've reached (the
+      EraRoadmap above already previews what's ahead) instead of stacking every locked future-era
+      project card; a single muted "More research projects unlock as you advance eras" hint
+      (`.rd__roadmap-hint`, tokenised) replaces them. Component-tech lines were already era-filtered.
+- 511 tests, tsc 0, build+PWA green. No new tests (presentation-only gating; behaviour covered by
+      existing screen render). NOT verified on device: exact thresholds feel — first-ship may be a
+      touch early/late for stocks; flag after a playtest (one-line change to the `showStocks` rule).
+- Next slices from the audit (not done this pass): the persistent "Next Move" objective spine
+      (Tier 0 — biggest "what do I do next" lever), pre-commit synergy/market-fit hints in Design
+      Lab, glossary in the launch post-mortem + dedupe the drifting STAT_LABEL maps, build-wait
+      clarity, Design-Lab Back/Next during the tutorial.
+
+## v43 — Tier 0: the "Next Move" objective spine (DONE 2026-06-24)
+The audit's #1 lever: the first-build Coach hands off at first launch (`tutorialDone`) and the
+player falls off a cliff — they know the loop but not what to chase next. This adds a persistent,
+ordered ladder of ONE concrete next step at a time, shown high on HQ. Mirrors the achievements
+architecture exactly (pure catalog + predicates + "newly satisfied" diff the state layer announces).
+- [x] **`engine/objectives.ts`** (pure, +12 tests): a 10-rung ordered ladder — launch → hire →
+      second launch → first research project → first hit → reach Era 2 → buy an office upgrade →
+      found the Platform division → IPO → reach the pinnacle. Each rung has an imperative label, a
+      one-line "why", a deep-link `tab`, a CTA, a Lucide icon name, and a `done(state)` predicate
+      that reads only already-tracked state. `currentObjective` returns the first rung that's neither
+      latched-complete NOR live-satisfied (so the card advances INSTANTLY after an action, before the
+      latch is even written); `satisfiedObjectiveIds` / `newlyCompletedObjectives` for the state diff.
+      Engine purity kept — declares its own `ObjectiveTab` union instead of importing the UI `Tab`.
+- [x] **State** (`gameState.ts`): `completedObjectives: string[]` (monotonic, resets per company so
+      each run re-walks the ladder) + `evaluateObjectives(state)` mirroring `evaluateAndUnlock`.
+      Persistence backfills the field AND silently seeds it from the live-satisfied set for old/mid-
+      game saves (no toast burst on first load — same pattern as the achievement backfill).
+- [x] **Wiring** (`useGame.tsx`): folded into the once-per-week tick announce gate (a gentle
+      `confirm` cue + one collapsed "Goal complete — …" toast, deferred so the action's own toast
+      lands first); folded SILENTLY into both offline-catch-up paths so a returning player isn't
+      toast-spammed for goals cleared while away.
+- [x] **HQ `NextMoveCard`**: a premium accent card (glyph chip + "Next move · N of M" eyebrow +
+      label + why + deep-link button) shown directly under the era-goal once `tutorialDone`, so the
+      first-build Coach owns the very first session and the ladder takes over after. Tokenised CSS
+      (`.hq__next*`), hidden when the whole ladder is complete (the StrategicInsightsCard then carries
+      ongoing guidance). No double-guidance with the Coach (gated on tutorialDone).
+- 523 tests (+12), tsc 0, build+PWA green. NOT verified on device: the card's exact placement feel
+      and whether the 10 rungs pace well across a full playthrough (rung set + copy live in one file).
+
+## v44 — Tier 2: readability earlier — glossary in the post-mortem + STAT_LABEL dedupe (DONE 2026-06-24)
+Audit finding #7: a player who flops opens the launch post-mortem first and hits undefined jargon;
+and the "glossary never drifts" promise was already undercut by THREE copies of the stat-label map
+(glossary STAT_INFO, Market.tsx, reviews.ts) that had diverged ("Quality" vs "build quality").
+- [x] **Glossary owns both registers** (`engine/glossary.ts`): STAT_INFO gains a `prose` field
+      (lowercase sentence form: "build quality", "battery life", …) alongside the Title-Case `label`.
+      Single source of truth for stat copy in BOTH registers — they can't drift again.
+- [x] **Dedupe**: `engine/reviews.ts` and `screens/Market.tsx` now derive their local STAT_LABEL maps
+      from STAT_INFO (`.prose` for review sentences, `.label` for UI) instead of hand-maintained
+      literals. Review output is byte-identical (prose values unchanged) — all review tests pass as-is.
+- [x] **Shared `StatGlossary`** (`components/StatGlossary.tsx` + `statGlossary.css`): extracted the
+      Design Lab's collapsible "what the stats mean" guide into a reusable component (neutral `sg__*`
+      classes), and surfaced it in the **launch post-mortem** ("Why it performed") so the five stat
+      terms are one tap from a plain-language definition exactly where the player reads why a product
+      won or flopped. Design Lab now uses the shared component; its dead `lab__glossary*` CSS removed.
+- **Piece B (pre-commit market-fit hint) NOT done — already shipped.** Verified in source: the Design
+      Lab live hero already gives the pre-commit signal — a live `Fit /100` pill (`DesignLab.tsx:516`),
+      a projected verdict that uses the real launch gate (522), synergy/weak-link notes (524–530),
+      competition-drag explanation (539–545), and the wizard shows each segment's "wants" via
+      `segmentWantsById` (97). Adding more would clutter the best-disclosed screen for no gain.
+- 523 tests, tsc 0, build+PWA green. Pure readability/refactor — no engine/economy/balance change.
+- Tier 2 remaining: none material. Tier 3 (first-session smoothness) is next — build-wait clarity +
+      Design-Lab Back/Next during the tutorial.
+
+## v45 — Tier 3: first-session smoothness (DONE 2026-06-24)
+The last audit tier. Two small first-run friction points where the new player lacks a sense of
+time/place during their first build.
+- [x] **Build-wait clarity** (audit #5): the HQ "In production" card showed the absolute target week
+      ("· wk 34") — opaque to a first-timer. Now shows "· N wk left" (`HQ.tsx`). And the Coach's
+      manufacturing step, which only said "time advances automatically", now teaches the speed
+      controls: "tap the Fast-forward button in the top bar to speed through the wait, or Pause to
+      hold." (Named, not an emoji — LOCKED no-emoji rule.) So a player who reads "automatically"
+      isn't left watching ~8s/week pass with no way to skip it.
+- [x] **Coach points at the tab strip** (audit #6): the Design Lab's Back/Next pager is suppressed
+      during the tutorial (the Coach owns that fixed bottom band — showing both would collide, RULE #1).
+      The audit's safer alternative: the Coach now names the flow — "Work left to right through the
+      tabs up top — Components, Style, Camera, then Launch" — so the first-timer knows the 4 tabs exist
+      and the order to move through them. (Copy matches the static LAB_TABS strip exactly.)
+- 523 tests, tsc 0, build+PWA green. Copy + one render change; no engine/balance/persistence touch.
+- **All four audit tiers now shipped** (v42 gating, v43 objective spine, v44 readability, v45
+      smoothness). Remaining audit-adjacent work is on-device feel only (objective-ladder pacing,
+      coach copy length on a real phone) — nothing blind-buildable left from this audit.

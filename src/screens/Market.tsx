@@ -38,6 +38,8 @@ import {
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
+import { StatGlossary } from "../components/StatGlossary.tsx";
 import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import "./market.css";
@@ -58,12 +60,13 @@ function verdictOf(lp: LaunchedProduct): Verdict {
   return lp.launchScore >= 76 ? "hit" : lp.launchScore <= 22 ? "flop" : lp.launchScore >= 45 ? "solid" : "steady";
 }
 
+// Title-Case stat labels, single-sourced from the glossary (was a local duplicate that drifted).
 const STAT_LABEL: Record<keyof Stats, string> = {
-  performance: "Performance",
-  quality: "Quality",
-  battery: "Battery",
-  design: "Design",
-  ecosystem: "Ecosystem",
+  performance: STAT_INFO.performance.label,
+  quality: STAT_INFO.quality.label,
+  battery: STAT_INFO.battery.label,
+  design: STAT_INFO.design.label,
+  ecosystem: STAT_INFO.ecosystem.label,
 };
 
 function changePct(history: number[]): number {
@@ -99,6 +102,13 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
   const [feedOpen, setFeedOpen] = useState(false);
   const [rivalProfile, setRivalProfile] = useState<string | null>(null);
   const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
+
+  // Progressive disclosure: the Stock Exchange is a side activity with no scaffolding for a
+  // brand-new player. Introduce it once the player has shipped their first product (or already
+  // holds shares, or is a returning prestige founder) so week-one isn't a wall of tradeable rivals.
+  const hasShipped = state.launched.length >= 1 || state.legacy > 0;
+  const hasHoldings = Object.values(state.holdings).some((v) => (v ?? 0) > 0);
+  const showStocks = hasShipped || hasHoldings;
 
   const valuation = companyValuation(state);
   const stake = founderStakeValue(state);
@@ -386,9 +396,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         );
       })()}
 
-      {/* Stock exchange */}
-      <SectionHeader title="Stock exchange" accessory="trade rival shares" />
-      {Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
+      {/* Stock exchange — gated behind the first ship (see `showStocks`). */}
+      {showStocks && <SectionHeader title="Stock exchange" accessory="trade rival shares" />}
+      {showStocks && Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
         const portfolioVal = holdingsValue(state.holdings, comps);
         const divPerWk = weeklyDividends(state.holdings, comps);
         return (
@@ -401,7 +411,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           </div>
         );
       })()}
-      {comps.map((c) => {
+      {showStocks && comps.map((c) => {
         const ch = changePct(c.priceHistory);
         const owned = state.holdings[c.id] ?? 0;
         const def = rivalDef(c.id);
@@ -1132,6 +1142,7 @@ function ProductDetailSheet({
         {!lp.insight && (
           <p className="pd__why-note">Detailed launch metrics weren't recorded for this older product — shown as an overall read.</p>
         )}
+        <StatGlossary label="What these stats mean" />
       </div>
 
       {tips.length > 0 && (

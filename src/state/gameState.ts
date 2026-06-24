@@ -72,6 +72,7 @@ import {
 } from "../engine/upgrades.ts";
 import { canAdvanceEra, eraModifier, eraName, eraRuleSummary, isCategoryUnlocked, maxEra } from "../engine/eras.ts";
 import { deriveFacts, evaluateAchievements, type MasteryInput } from "../engine/achievements.ts";
+import { newlyCompletedObjectives } from "../engine/objectives.ts";
 import {
   advanceTrends,
   demandVarianceMultiplier,
@@ -196,6 +197,9 @@ export interface GameState {
   // --- Achievements ---
   /** ids of celebratory milestones the player has earned (monotonic — only ever grows). */
   unlockedAchievements: string[];
+  /** ids of "Next Move" objectives the player has completed (the HQ guidance ladder). Monotonic;
+   *  resets per company (each new run re-walks the ladder). See engine/objectives.ts. */
+  completedObjectives: string[];
   /** A market event requiring a player decision — resolved via resolveChoice. */
   pendingChoice: { event: ChoiceEvent; week: number } | null;
   /** IDs of choice events already resolved — prevents repeats. */
@@ -404,6 +408,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     holdings: {},
     bestIndustryRank: 7, // a fresh garage is dead last behind the six public rivals
     unlockedAchievements: [],
+    completedObjectives: [],
     pendingChoice: null,
     resolvedChoices: [],
     activeScenario: null,
@@ -2560,6 +2565,18 @@ export function evaluateAndUnlock(
   const unlocked = satisfied.filter((id) => !had.has(id));
   if (unlocked.length === 0) return { state, unlocked: [] };
   return { state: { ...state, unlockedAchievements: [...prev, ...unlocked] }, unlocked };
+}
+
+/**
+ * Fold "Next Move" objective completion into a state transition. Returns the state with any newly
+ * satisfied objective ids latched into completedObjectives (monotonic), plus the ids that flipped
+ * this evaluation so the UI can celebrate them. Mirrors evaluateAndUnlock. Never mutates input.
+ */
+export function evaluateObjectives(state: GameState): { state: GameState; completed: string[] } {
+  const prev = state.completedObjectives ?? [];
+  const completed = newlyCompletedObjectives(prev, state);
+  if (completed.length === 0) return { state, completed: [] };
+  return { state: { ...state, completedObjectives: [...prev, ...completed] }, completed };
 }
 
 export function advanceEraAction(state: GameState): GameState {
