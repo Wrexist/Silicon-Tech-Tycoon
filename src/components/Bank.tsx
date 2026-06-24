@@ -1,6 +1,8 @@
 import { ArrowDownRight, ArrowUpRight, FlaskConical, Landmark, LineChart, PiggyBank, Wallet } from "lucide-react";
 import { Sheet } from "../design/primitives.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
+import { Glossary } from "./StatGlossary.tsx";
+import { TERM_INFO } from "../engine/glossary.ts";
 import { format, sub, toDollars } from "../engine/money.ts";
 import { holdingsValue } from "../engine/stocks.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -83,6 +85,10 @@ export function Bank({ open, onClose }: { open: boolean; onClose: () => void }) 
         <div className="bank__footer">
           <span>Lifetime earned</span>
           <span className="tnum">{format(state.cumulativeRevenue)}</span>
+        </div>
+
+        <div className="bank__glossary">
+          <Glossary entries={TERM_INFO} label="What these terms mean" />
         </div>
       </div>
     </Sheet>
