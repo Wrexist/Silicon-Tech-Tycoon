@@ -1296,6 +1296,29 @@ Four follow-ups requested after the audit tiers shipped (PR on `claude/clarity-f
       — declined to fabricate work for a solved problem.
 - 524 tests (+1), tsc 0, build+PWA green. Presentation/readability only; no engine/balance change.
 
+## v50 — "make it alive": launch reveal + milestone juice + first-launch + Research match (DONE 2026-06-27)
+User: match Research to the Design Lab, and "make the game flow fun, interactive and alive" (picked all
+four directions). Sequenced biggest-impact first.
+- [x] **Research matched to the Design Lab language**: global HUD (v49) + component-tech de-walled into
+      one card of icon-tile rows (was 6 stacked cards) + a header strip (subtitle + era badge).
+- [x] **Launch reveal moment** (`design/launchReveal.ts` bus + `components/LaunchReveal.tsx`): launching
+      plays a keynote — device on a verdict-tinted glow → critics' aggregate counts in → fictional outlet
+      scores + pull-quote → verdict banner + projected units count-up → confetti on a hit. Reuses the
+      deterministic `criticReviews` engine (scores match the detail screen); reduced-motion jumps to the
+      result; timers cleaned up on unmount. Both launch handlers emit it (computed from the pre-launch
+      plan + recorded verdict); the old toast/inline-confetti removed. VERIFIED via a driven
+      build→launch capture (reviews + "Steady seller" verdict rendered cleanly).
+- [x] **Milestone juice**: era advance (was a silent toast), go-public/IPO, and rival buyouts now fire
+      confetti + sound — button-path only, no fragile tick changes.
+- [x] **First launch is special**: a "Your first product is live!" banner + always-on confetti on the
+      debut (reuses the reveal rather than adding a competing first-run system — Coach/Quick Start/Next-
+      Move already guide).
+- 535 tests, tsc 0, build+PWA green across all commits.
+- **NOT done — Living HQ reactions (feature 4 of 4):** the deep scene work (team cheers/slumps,
+      in-room confetti, tap-for-reaction in the 3D garage) is inherently visual and NOT CI-verifiable;
+      per RULE #1 (don't ship rough/unverified scene work) it's deferred to an on-device pass. The global
+      confetti already bursts over HQ on launches/milestones as a first "living HQ" beat.
+
 ## v49 — Design Lab + HUD reconstruction to the new mockup (DONE 2026-06-27)
 User supplied a polished Design Lab mockup ("make all the design look like this"). Confirmed ZERO new
 image assets needed — locked rule (everything is Lucide glyphs + CSS); verified every icon exists in
