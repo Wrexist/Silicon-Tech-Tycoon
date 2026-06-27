@@ -154,6 +154,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
 
   return (
     <div className="rd">
+      {/* Header strip — subtitle + era badge, mirroring the Design Lab's header treatment. */}
+      <div className="rd__head">
+        <p className="rd__subtitle">Spend Research Points to unlock new tech and abilities.</p>
+        <span className="rd__era-badge"><FlaskConical size={13} aria-hidden /> {eraName(state.era)}</span>
+      </div>
       {/* RP banner */}
       <Card className="rd__bank">
         <div className="rd__bank-main">
