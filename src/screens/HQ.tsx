@@ -707,6 +707,7 @@ function Upgrades() {
           <div className="hqu__info">
             <span className="hqu__name">{fac.name}</span>
             <span className="hqu__effect">{state.staff.length}/{fac.staffCapacity} desks · {format(fac.weeklyRent)}/wk rent</span>
+            {nextFac && <span className="hqu__effect-next">Next · {nextFac.name}: {nextFac.staffCapacity} desks</span>}
           </div>
           <span className="hqu__lv tnum">Tier {state.facilityTier}</span>
         </div>
