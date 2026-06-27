@@ -1295,3 +1295,31 @@ Four follow-ups requested after the audit tiers shipped (PR on `claude/clarity-f
       R&D…"), Decorate has a first-run tutorial + a "How Decorate works" button. No blank screens found
       — declined to fabricate work for a solved problem.
 - 524 tests (+1), tsc 0, build+PWA green. Presentation/readability only; no engine/balance change.
+
+## v47 — depth + tech debt (DONE 2026-06-27)
+User asked for "post-launch depth AND tech debt." First verified the backlog against source —
+two of the four candidates were stale: **component sidegrades are already shipped** (`ProductTuning`
+balanced/performance/efficiency/value/premium, fully wired) and the **choice-event catalog is deep**
+(29 dilemmas across all four eras, incl. era-4 AI ethics/AGI/data-consent), not "only 4". So neither
+"add sidegrades" nor "add events" was real work. Did the two genuinely-open things instead:
+- [x] **Depth — New Game+ surfaces FRESH dilemmas** (the one real gap: choices reset on prestige and
+      replayed verbatim). `GameState.seenChoices` is a lifetime set carried through prestige like the
+      legacy bonus; `pickChoiceEvent(rng, era, resolvedThisRun, seenLifetime)` prefers never-seen
+      dilemmas and only recycles once the eligible pool is exhausted (events never dry up on a veteran
+      profile). rng advanced identically (one next + one int) → determinism pin unaffected. +3 new
+      dilemmas (repairability / direct-to-consumer / on-device-vs-cloud AI) to deepen the NG+ pool.
+      Old saves seed `seenChoices` from this run's resolved set. +2 events.test.ts cases.
+- [x] **Tech debt — stable actions object + fixed drifted memo deps** (NOT the F36 perf split — that
+      was debunked: every `useGame()` consumer reads `state` so all re-render on tick regardless, and
+      v16 already `React.memo`'d the costly 3D child, so a context split buys nothing here). The real
+      smell: the context `value` was memoized over a hand-maintained 60-entry dep array that had
+      drifted — 4 ref-stable callbacks (unlockLens/unlockFinish/marketingPush/rest) were missing.
+      Split the type into `GameStateValue` + `GameActionsValue`; the action list now lives in one
+      `actions` memo (complete deps), and the hot `value` depends on just the data slice + stable
+      actions. Latent stale-closure bug closed; list can't drift again. Correctness/maintainability,
+      not perf — said so plainly.
+- **Declined as low-value (logged honestly, not done):** F13 furniture instancing — the 56 pieces are
+      heterogeneous multi-mesh singletons, so true `InstancedMesh` rarely applies; the only real win is
+      geometry/material sharing across 981 lines of hand-tuned 3D, modest gain + visual-regression risk
+      that CI can't verify. Not worth it blind.
+- 526 tests (+2), tsc 0, build+PWA green. Branch `claude/app-phase-step-next-uj1uix`.
