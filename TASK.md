@@ -1295,3 +1295,98 @@ Four follow-ups requested after the audit tiers shipped (PR on `claude/clarity-f
       R&D…"), Decorate has a first-run tutorial + a "How Decorate works" button. No blank screens found
       — declined to fabricate work for a solved problem.
 - 524 tests (+1), tsc 0, build+PWA green. Presentation/readability only; no engine/balance change.
+
+## v50 — "make it alive": launch reveal + milestone juice + first-launch + Research match (DONE 2026-06-27)
+User: match Research to the Design Lab, and "make the game flow fun, interactive and alive" (picked all
+four directions). Sequenced biggest-impact first.
+- [x] **Research matched to the Design Lab language**: global HUD (v49) + component-tech de-walled into
+      one card of icon-tile rows (was 6 stacked cards) + a header strip (subtitle + era badge).
+- [x] **Launch reveal moment** (`design/launchReveal.ts` bus + `components/LaunchReveal.tsx`): launching
+      plays a keynote — device on a verdict-tinted glow → critics' aggregate counts in → fictional outlet
+      scores + pull-quote → verdict banner + projected units count-up → confetti on a hit. Reuses the
+      deterministic `criticReviews` engine (scores match the detail screen); reduced-motion jumps to the
+      result; timers cleaned up on unmount. Both launch handlers emit it (computed from the pre-launch
+      plan + recorded verdict); the old toast/inline-confetti removed. VERIFIED via a driven
+      build→launch capture (reviews + "Steady seller" verdict rendered cleanly).
+- [x] **Milestone juice**: era advance (was a silent toast), go-public/IPO, and rival buyouts now fire
+      confetti + sound — button-path only, no fragile tick changes.
+- [x] **First launch is special**: a "Your first product is live!" banner + always-on confetti on the
+      debut (reuses the reveal rather than adding a competing first-run system — Coach/Quick Start/Next-
+      Move already guide).
+- 535 tests, tsc 0, build+PWA green across all commits.
+- [x] **Living HQ reactions** (built for on-device review, user's call): `design/hqReaction.ts` bus +
+      pollable decaying intensity. On a launch result (fired as the reveal closes, so the office is
+      visible) the team cheers (hit/solid/debut) or slumps (flop) — 2D IsoScene figures bounce/dip via
+      CSS (reduced-motion safe, staggered), 3D Garage3D RobotCharacter overlays a decaying hop +
+      arms-overhead + livelier antenna (additive offsets, zero change when no reaction). Plus the global
+      confetti. **NEEDS ON-DEVICE TUNING** — cheer pose/bounce amplitudes (Garage3D / garage.css) can't
+      be verified in CI; that was the agreed plan (build it, review/iterate on a real phone).
+- Animation polish: the reveal now reads as a choreographed sequence (pulsing glow, score scale-in,
+      staged rise-in for outlets/quote/units) — all reduced-motion safe.
+
+## v49 — Design Lab + HUD reconstruction to the new mockup (DONE 2026-06-27)
+User supplied a polished Design Lab mockup ("make all the design look like this"). Confirmed ZERO new
+image assets needed — locked rule (everything is Lucide glyphs + CSS); verified every icon exists in
+lucide-react 1.17.0. Green = the existing `--fn-design` function color, so no token-system violation.
+- [x] **HUD restyle (global)**: deep-green brand badge (parametric CircuitBoard) over the cash readout;
+      cash reads green when healthy (keeps red low-runway); RP/Rep/Week chips keep pills (week gains a
+      Calendar icon); pause/fast/settings become larger circular buttons. New `--brand-deep(/shadow)`.
+- [x] **Design Lab header**: subtitle + live projected-verdict badge ("Steady Seller", ShieldCheck).
+- [x] **Hero → 2-column card**: parametric device on a green radial glow + Phone/Tablet quick-toggle
+      (left); live read-out (right) — name + Concept tag, Fit with progress bar, Build (synergy),
+      Design Language. "View back" is a divided footer button. DeviceRenderer reused untouched (protected).
+- [x] **Components → icon tiles**: `ComponentIcon` map (Cpu/Monitor/BatteryCharging/Layers3/CodeXml/
+      Camera); each row = dark charcoal tile + category + green tier pips + bold name + price + meta.
+      New `--tile-dark` token (all 3 theme blocks).
+- [x] **Build summary card**: Est. Cost / Est. Score /100 / Market Fit.
+- 535 tests, tsc 0, build+PWA green. NOT verified on-device — sending a screenshot for sign-off.
+- Deferred to keep scope: the component-row expand chevron (omitted — no detail view exists yet); the
+  summary is a bottom card, not a sticky footer (the existing Back/Next step-nav owns the sticky band).
+  Same language to roll to Research + other screens next.
+
+## v48 — global expansion: regions (DONE 2026-06-27)
+New gameplay chapter (user pick). Geography as the growth axis — "garage → global empire" was only
+thematic before; now you expand into real markets. Additive + non-invasive: ONE multiplicative hook
+on marketSize in planProduction; a home-only launch = ×1.0, so old saves / domestic play are
+bit-for-bit unchanged and market.ts / scoreLaunch / salesCurve are untouched (protected engine safe).
+- [x] **engine/regions.ts** (PURE): 5 regions (Home + North America / Europe / Asia / Emerging), each
+      with a size share, distinct stat taste, and unlock cost. `regionTasteFit` (era-independent stat
+      ratio, bounded [0.6,1.2], Home pinned 1.0), `shippableRegions` (chosen ∩ unlocked, Home floor),
+      `regionReach` (Σ share×fit). `balance.market.regions` holds the knobs.
+- [x] **State**: `Product.regions?` + `GameState.unlockedRegions`; `unlockRegion` cash reducer;
+      newGame seeds ["home"]; persistence backfills old saves to home-only; useGame exposes the action.
+- [x] **UI**: build-wizard **Markets step** (appears only after expanding — early game stays 3-step;
+      live per-region taste-fit + demand readout, threads into the built product); **Market screen
+      "Global markets" card** to unlock regions for cash. Premium tokens/patterns, no cramped states.
+- [x] Tests: regions.test.ts + planProduction integration (more regions → more demand; home-only
+      unchanged; can't ship to a locked region). **535 tests (+9)**, tsc 0, build+PWA green.
+- NOT verified: on-device feel of the picker; knob values (shares $40–150k unlock costs, tasteSpread
+      1.0, fit bounds) need a playtest. Prestige resets regions per company (expansion is per-run).
+
+## v47 — depth + tech debt (DONE 2026-06-27)
+User asked for "post-launch depth AND tech debt." First verified the backlog against source —
+two of the four candidates were stale: **component sidegrades are already shipped** (`ProductTuning`
+balanced/performance/efficiency/value/premium, fully wired) and the **choice-event catalog is deep**
+(29 dilemmas across all four eras, incl. era-4 AI ethics/AGI/data-consent), not "only 4". So neither
+"add sidegrades" nor "add events" was real work. Did the two genuinely-open things instead:
+- [x] **Depth — New Game+ surfaces FRESH dilemmas** (the one real gap: choices reset on prestige and
+      replayed verbatim). `GameState.seenChoices` is a lifetime set carried through prestige like the
+      legacy bonus; `pickChoiceEvent(rng, era, resolvedThisRun, seenLifetime)` prefers never-seen
+      dilemmas and only recycles once the eligible pool is exhausted (events never dry up on a veteran
+      profile). rng advanced identically (one next + one int) → determinism pin unaffected. +3 new
+      dilemmas (repairability / direct-to-consumer / on-device-vs-cloud AI) to deepen the NG+ pool.
+      Old saves seed `seenChoices` from this run's resolved set. +2 events.test.ts cases.
+- [x] **Tech debt — stable actions object + fixed drifted memo deps** (NOT the F36 perf split — that
+      was debunked: every `useGame()` consumer reads `state` so all re-render on tick regardless, and
+      v16 already `React.memo`'d the costly 3D child, so a context split buys nothing here). The real
+      smell: the context `value` was memoized over a hand-maintained 60-entry dep array that had
+      drifted — 4 ref-stable callbacks (unlockLens/unlockFinish/marketingPush/rest) were missing.
+      Split the type into `GameStateValue` + `GameActionsValue`; the action list now lives in one
+      `actions` memo (complete deps), and the hot `value` depends on just the data slice + stable
+      actions. Latent stale-closure bug closed; list can't drift again. Correctness/maintainability,
+      not perf — said so plainly.
+- **Declined as low-value (logged honestly, not done):** F13 furniture instancing — the 56 pieces are
+      heterogeneous multi-mesh singletons, so true `InstancedMesh` rarely applies; the only real win is
+      geometry/material sharing across 981 lines of hand-tuned 3D, modest gain + visual-regression risk
+      that CI can't verify. Not worth it blind.
+- 526 tests (+2), tsc 0, build+PWA green. Branch `claude/app-phase-step-next-uj1uix`.

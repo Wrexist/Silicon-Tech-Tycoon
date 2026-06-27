@@ -123,8 +123,26 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+/* The "ship it!" payoff card — a soft positive wash + a gentle breathing glow draws the eye to the
+   launch action (soft directional shadow, not neon; reduced-motion disables the pulse). */
 .hq__ready {
+  border-color: color-mix(in srgb, var(--positive) 45%, var(--hairline));
+  background:
+    linear-gradient(160deg, var(--positive-soft), transparent 52%),
+    var(--glass-card);
+  animation: hq-ready-pulse 2.6s ease-in-out infinite;
+}
+@keyframes hq-ready-pulse {
+  0%, 100% { box-shadow: 0 8px 22px -12px color-mix(in srgb, var(--positive) 35%, transparent); }
+  50% { box-shadow: 0 12px 30px -8px color-mix(in srgb, var(--positive) 60%, transparent); }
+}
+.hq__ready .ds-btn--primary {
+  background: var(--positive);
   border-color: var(--positive);
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--positive) 55%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hq__ready { animation: none; }
 }
 .hq__ready-row {
   display: flex;
@@ -138,10 +156,18 @@
 .hq__ready-thumb {
   flex-shrink: 0;
 }
-.hq__ready-name {
+.hq__ready-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.hq__ready-name {
   font-weight: 600;
+}
+.hq__ready-sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
 }
 .hq__build + .hq__build {
   margin-top: var(--sp-12);
@@ -661,12 +687,27 @@
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 46%),
+    linear-gradient(155deg, color-mix(in srgb, var(--accent) 13%, transparent), transparent 52%),
     var(--glass-card);
   transition: box-shadow var(--spring-standard), transform var(--spring-snappy), border-color var(--spring-snappy);
 }
+/* A thin accent edge along the top so each department card reads as its own colour at a glance. */
+.hqu__card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--accent);
+  opacity: 0.9;
+}
 .hqu__card:active {
   transform: scale(0.99);
+}
+@media (hover: hover) and (pointer: fine) {
+  .hqu__card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+  }
 }
 .hqu__card-head {
   display: flex;
@@ -675,16 +716,19 @@
   margin-bottom: var(--sp-12);
 }
 .hqu__glyph {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-radius: 13px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 12px -3px color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: transform var(--spring-snappy);
 }
+.hqu__card:active .hqu__glyph { transform: scale(0.92) rotate(-3deg); }
 .hqu__glyph--fac {
   background: var(--bg-elevated);
   color: var(--ink-2);
@@ -704,11 +748,34 @@
   color: var(--ink-2);
   line-height: 1.3;
 }
+/* When the line is owned, its live effect reads in the function colour so each card foregrounds a
+   different, vivid benefit (+15% research / +6 Design / +8% hype …) rather than grey body text. */
+.hqu__effect--active {
+  color: var(--accent);
+  font-weight: 800;
+}
 .hqu__effect-next {
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
   font-size: var(--fs-micro);
   font-weight: 700;
   color: var(--accent);
+}
+.hqu__card-head--tappable { cursor: pointer; }
+.hqu__see {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  color: var(--accent);
   opacity: 0.85;
+}
+.hqu__max {
+  font-size: var(--fs-nano);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: 1px;
 }
 .hqu__lv {
   flex-shrink: 0;
@@ -743,13 +810,21 @@
 .hqu__card--locked {
   background: var(--glass-card);
 }
+.hqu__card--locked::before {
+  background: var(--hairline);
+  opacity: 1;
+}
 .hqu__card--locked .hqu__glyph {
   color: var(--ink-3);
   background: var(--bg-elevated);
+  box-shadow: none;
 }
-.hqu__card--locked .hqu__name,
+.hqu__card--locked .hqu__name {
+  color: var(--ink-2);
+}
 .hqu__card--locked .hqu__effect-next {
   color: var(--ink-2);
+  background: var(--bg-elevated);
 }
 .hqu__locked {
   display: flex;

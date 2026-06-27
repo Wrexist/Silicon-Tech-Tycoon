@@ -46,6 +46,43 @@ describe("choice events catalog", () => {
     }
   });
 
+  it("prefers never-seen dilemmas, then falls back to the full pool once all are seen", () => {
+    const era = 4;
+    const eligible = CHOICE_EVENTS.filter((e) => e.minEra <= era).map((e) => e.id);
+    // Mark all but two dilemmas as seen across past companies; resolved-this-run is empty.
+    const fresh = eligible.slice(0, 2);
+    const seen = eligible.slice(2);
+    const rng = makeRng(99);
+    let sawFresh = 0;
+    for (let i = 0; i < 500; i++) {
+      const ev = pickChoiceEvent(rng, era, [], seen);
+      if (ev) {
+        // While unseen dilemmas remain, only those are offered.
+        expect(fresh).toContain(ev.id);
+        sawFresh++;
+      }
+    }
+    expect(sawFresh).toBeGreaterThan(0);
+    // Once EVERY eligible dilemma is seen, the full pool is used again (events never dry up).
+    const rng2 = makeRng(99);
+    let sawAnyWhenAllSeen = 0;
+    for (let i = 0; i < 500; i++) {
+      if (pickChoiceEvent(rng2, era, [], eligible)) sawAnyWhenAllSeen++;
+    }
+    expect(sawAnyWhenAllSeen).toBeGreaterThan(0);
+  });
+
+  it("still excludes resolved-this-run dilemmas even when they are unseen", () => {
+    const era = 1;
+    const eligible = CHOICE_EVENTS.filter((e) => e.minEra <= era).map((e) => e.id);
+    const resolved = [eligible[0]];
+    const rng = makeRng(5);
+    for (let i = 0; i < 500; i++) {
+      const ev = pickChoiceEvent(rng, era, resolved, []);
+      if (ev) expect(ev.id).not.toBe(eligible[0]);
+    }
+  });
+
   it("respects era gating (era-1 player never sees an era-3 dilemma)", () => {
     const rng = makeRng(7);
     for (let i = 0; i < 500; i++) {

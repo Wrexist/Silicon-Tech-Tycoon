@@ -165,7 +165,19 @@
   0%, 36%, 100% { transform: rotate(0deg); }
   48%, 60% { transform: rotate(9deg); }
 }
+/* Living-office reactions — the team cheers (bouncy hops) or briefly slumps on a launch result. */
+.g-react--cheer { animation: g-cheer 0.5s ease-in-out 4 both; }
+.g-react--slump { animation: g-slump 1.3s ease-in-out both; }
+@keyframes g-cheer {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}
+@keyframes g-slump {
+  0%, 100% { transform: translateY(0); }
+  35%, 70% { transform: translateY(2.2px); }
+}
 @media (prefers-reduced-motion: reduce) {
   .g-screen, .g-lamp, .g-print-head, .g-spark,
-  .g-person-sway, .g-person-arms, .g-person-head { animation: none; }
+  .g-person-sway, .g-person-arms, .g-person-head,
+  .g-react--cheer, .g-react--slump { animation: none; }
 }

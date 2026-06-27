@@ -10,7 +10,6 @@ import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
-import { emitCelebrate } from "../design/celebrateFx.ts";
 import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
@@ -34,9 +33,24 @@ import {
 } from "../engine/furniture.ts";
 import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
+import { emitHighlight } from "../design/hqHighlight.ts";
+
+// What each upgrade physically adds to the office — shown when you tap an owned card, tying the
+// purchase to the thing you can see in the 3D HQ (and pulsing that object via emitHighlight).
+const OFFICE_ADDITION: Record<UpgradeId, string> = {
+  computers: "dual monitors light up every desk",
+  designSuite: "a drafting easel for the design team",
+  testLab: "a glass QA test chamber",
+  marketing: "a branded wall screen",
+  amenities: "a coffee station + greenery",
+  assembly: "a faster production line",
+};
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, planProduction, productStats, type FeedItem, type GameState } from "../state/gameState.ts";
+import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
+import { emitCelebrate } from "../design/celebrateFx.ts";
+import type { ChannelId } from "../engine/marketing.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -87,15 +101,30 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
   const settings = useSettings();
   const onLaunch = (id: string) => {
     const launchedBefore = state.launched; // before launchReady records this product
+    const product = state.ready.find((p) => p.id === id);
+    // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
+    const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
     const res = launchReady(id);
     if (res.ok) {
       haptic.success();
       // Shared with the Design Lab; keys the celebration off the recorded (competition-adjusted)
       // verdict, so the launch moment can never contradict what Market/feed record.
-      const { isHit, feedback } = launchOutcome(res, launchedBefore);
+      const { isHit } = launchOutcome(res, launchedBefore);
       sfx("launch");
-      if (isHit) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
-      showToast(feedback.text, { tone: feedback.tone, glyph: <Rocket size={15} /> });
+      if (isHit) setTimeout(() => sfx("hit"), 380);
+      if (product && plan) {
+        emitLaunchReveal(buildLaunchReveal({
+          product,
+          stats: productStats(state, product),
+          verdict: res.verdict ?? "steady",
+          demandFit: plan.demandFit,
+          priceFit: plan.priceFit,
+          betterRivals: plan.betterRivals,
+          units: plan.projectedSales,
+          isHit,
+          firstLaunch: launchedBefore.length === 0,
+        }));
+      }
     }
   };
   const reducedMotion = useReducedMotionLive();
@@ -127,6 +156,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
               goPublic();
               haptic.success();
               sfx("era");
+              emitCelebrate();
             }}
           >
             <TrendingUp size={15} /> IPO
@@ -149,6 +179,8 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
             onClick={() => {
               advanceEra();
               haptic.success();
+              sfx("era");
+              emitCelebrate();
               showToast(`Welcome to the ${eraName(state.era + 1)}`, { tone: "positive", glyph: <Sparkles size={15} /> });
             }}
           >
@@ -675,6 +707,7 @@ function Upgrades() {
           <div className="hqu__info">
             <span className="hqu__name">{fac.name}</span>
             <span className="hqu__effect">{state.staff.length}/{fac.staffCapacity} desks · {format(fac.weeklyRent)}/wk rent</span>
+            {nextFac && <span className="hqu__effect-next">Next · {nextFac.name}: {nextFac.staffCapacity} desks</span>}
           </div>
           <span className="hqu__lv tnum">Tier {state.facilityTier}</span>
         </div>
@@ -726,12 +759,22 @@ function Upgrades() {
               style={{ "--accent": fn.accent, "--accent-soft": fn.soft } as CSSProperties}
             >
               {boomed && <span key={boom.n} className="hqu__burst" aria-hidden>{boom.text}</span>}
-              <div className="hqu__card-head">
+              <div
+                className={`hqu__card-head${cur > 0 ? " hqu__card-head--tappable" : ""}`}
+                onClick={cur > 0 ? () => {
+                  haptic.light();
+                  emitHighlight(line.id);
+                  showToast(`${line.name} — ${OFFICE_ADDITION[line.id]}`, { tone: "neutral", glyph: <Icon size={15} /> });
+                } : undefined}
+                role={cur > 0 ? "button" : undefined}
+                tabIndex={cur > 0 ? 0 : undefined}
+              >
                 <span className="hqu__glyph" aria-hidden>{gate ? <Lock size={16} /> : <Icon size={18} />}</span>
                 <div className="hqu__info">
-                  <span className="hqu__name">{line.name}</span>
-                  <span className="hqu__effect">{cur > 0 ? line.effectAt(cur) : line.blurb}</span>
-                  {!maxed && <span className="hqu__effect-next">→ {line.effectAt(cur + 1)}</span>}
+                  <span className="hqu__name">{line.name}{cur > 0 && <span className="hqu__see" aria-hidden> · see in office</span>}</span>
+                  <span className={`hqu__effect${cur > 0 ? " hqu__effect--active" : ""}`}>{cur > 0 ? line.effectAt(cur) : line.blurb}</span>
+                  {!maxed && <span className="hqu__effect-next">{cur > 0 ? "Next" : "Unlocks"} · {line.effectAt(cur + 1)}</span>}
+                  {!maxed && line.maxTier > 1 && <span className="hqu__max">Max Lv {line.maxTier} · {line.effectAt(line.maxTier)}</span>}
                 </div>
                 <span className="hqu__lv tnum">{maxed ? "MAX" : `Lv ${cur}`}</span>
               </div>

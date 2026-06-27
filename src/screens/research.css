@@ -570,3 +570,55 @@
   gap: 3px;
   flex-shrink: 0;
 }
+
+/* Component tech — compact tile rows (Design Lab language; de-walls the old 6 stacked cards) */
+.rd__comp-list { display: flex; flex-direction: column; }
+.rd__comp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-12) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.rd__comp-row:last-child { border-bottom: none; }
+.rd__comp-tile {
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  border-radius: var(--r-button);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--tile-dark);
+  color: #fff;
+}
+.rd__comp-info { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 2px; }
+.rd__comp-cat {
+  display: flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--fs-micro); font-weight: 600; color: var(--ink-2);
+}
+.rd__comp-pips { display: inline-flex; align-items: center; gap: 3px; }
+.rd__comp-pip { width: 5px; height: 5px; border-radius: 50%; background: color-mix(in srgb, var(--ink-3) 25%, transparent); }
+.rd__comp-pip--on { background: var(--fn-eng); }
+.rd__comp-tcount { color: var(--ink-3); font-weight: 700; }
+.rd__comp-name { font-size: var(--fs-fx); font-weight: 700; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd__comp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); font-size: var(--fs-micro); font-weight: 600; }
+.rd__comp-next { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-2); min-width: 0; }
+.rd__comp-next svg { color: var(--fn-eng); flex-shrink: 0; }
+.rd__comp-delta { color: var(--positive-text); font-weight: 700; }
+.rd__comp-done { display: inline-flex; align-items: center; gap: var(--sp-4); color: var(--positive-text); }
+.rd__comp-eralock { display: inline-flex; align-items: center; gap: var(--sp-4); color: var(--ink-3); }
+.rd__comp-buy { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+
+/* Header strip — mirrors the Design Lab header treatment */
+.rd__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  margin: calc(-1 * var(--sp-4)) 0 var(--sp-4);
+}
+.rd__subtitle { font-size: var(--fs-caption); color: var(--ink-2); }
+.rd__era-badge {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 6px 12px; border-radius: var(--r-pill);
+  background: var(--fn-eng-soft); color: var(--fn-eng);
+  font-size: var(--fs-caption); font-weight: 700;
+}

@@ -1,0 +1,174 @@
+.lreveal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.lreveal__scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.lreveal__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  border-radius: var(--r-sheet);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-floating);
+  text-align: center;
+  animation: lreveal-pop var(--spring-standard) both;
+}
+@keyframes lreveal-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+/* Staged element entrance — each part rises + fades as its stage arrives, so the reveal reads as a
+   choreographed sequence rather than a hard cut. */
+@keyframes lreveal-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lreveal-score-in {
+  0% { opacity: 0; transform: scale(0.8); }
+  60% { transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes lreveal-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes lreveal-glow-pulse {
+  0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+}
+.lreveal__close {
+  position: absolute;
+  top: var(--sp-12);
+  right: var(--sp-12);
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: none;
+  color: var(--ink-2);
+}
+
+/* Device on a verdict-tinted glow */
+.lreveal__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8) 0;
+}
+.lreveal__glow {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 220px; height: 220px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, var(--lreveal-accent-soft), transparent 70%);
+  pointer-events: none;
+  animation: lreveal-glow-pulse 3s ease-in-out infinite;
+}
+.lreveal__stage > :not(.lreveal__glow) { position: relative; z-index: 1; }
+
+.lreveal__first {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: var(--r-pill);
+  background: var(--fn-design-soft); color: var(--fn-design);
+  font-size: var(--fs-caption); font-weight: 800;
+}
+.lreveal__eyebrow {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.lreveal__eyebrow svg { color: var(--lreveal-accent); }
+
+.lreveal__score {
+  display: flex; align-items: baseline; gap: var(--sp-6);
+}
+.lreveal__score-label {
+  font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600;
+  align-self: center;
+}
+.lreveal__score-val {
+  font-size: var(--fs-large-title); font-weight: 800; letter-spacing: -0.02em;
+  color: var(--lreveal-accent);
+}
+.lreveal__score-den { font-size: var(--fs-caption); color: var(--ink-3); font-weight: 700; }
+.lreveal__score--pending .lreveal__score-val { color: var(--ink-3); }
+
+.lreveal__score-val { animation: lreveal-score-in 0.5s var(--spring-standard) both; }
+.lreveal__outlets { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-6); animation: lreveal-rise 0.4s var(--spring-standard) both; }
+.lreveal__outlet {
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  padding: 5px 10px; border-radius: var(--r-pill);
+  background: var(--surface-2); font-size: var(--fs-micro); font-weight: 600;
+}
+.lreveal__outlet-name { color: var(--ink-2); }
+.lreveal__outlet-score { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; }
+.lreveal__outlet-score svg { color: var(--warning); }
+
+.lreveal__quote {
+  font-size: var(--fs-body); font-style: italic; color: var(--ink); line-height: 1.4;
+  margin: 0 var(--sp-4);
+  animation: lreveal-rise 0.45s var(--spring-standard) 0.05s both;
+}
+
+.lreveal__verdict {
+  font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em;
+  color: var(--lreveal-accent);
+  animation: lreveal-pop var(--spring-bouncy, var(--spring-standard)) both;
+}
+.lreveal__units { display: flex; flex-direction: column; gap: 1px; animation: lreveal-rise 0.4s var(--spring-standard) 0.08s both; }
+.lreveal__units-val { font-size: var(--fs-headline); font-weight: 800; }
+.lreveal__units-label { font-size: var(--fs-caption); color: var(--ink-2); }
+
+/* Continue CTA — themed to the verdict accent (green hit / blue steady / muted flop), rounded with a
+   soft accent-tinted lift so it reads premium on the white card rather than a flat default button. */
+.lreveal__card .ds-btn--primary {
+  margin-top: var(--sp-4);
+  background: var(--lreveal-accent);
+  border-color: var(--lreveal-accent);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  border-radius: var(--r-card);
+  box-shadow: 0 10px 26px -8px color-mix(in srgb, var(--lreveal-accent) 60%, transparent);
+  animation: lreveal-rise 0.4s var(--spring-standard) 0.14s both;
+}
+.lreveal__card .ds-btn--primary:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Verdict accent palettes (mapped to one var pair so the card themes consistently) */
+.lreveal--hit { --lreveal-accent: var(--positive-text, var(--positive)); --lreveal-accent-soft: var(--positive-soft); }
+.lreveal--solid { --lreveal-accent: var(--positive-text, var(--positive)); --lreveal-accent-soft: var(--positive-soft); }
+.lreveal--steady { --lreveal-accent: var(--accent); --lreveal-accent-soft: var(--accent-soft); }
+.lreveal--flop { --lreveal-accent: var(--ink-2); --lreveal-accent-soft: var(--surface-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lreveal__card, .lreveal__verdict, .lreveal__glow, .lreveal__score-val,
+  .lreveal__outlets, .lreveal__quote, .lreveal__units,
+  .lreveal__card .ds-btn--primary { animation: none; }
+}

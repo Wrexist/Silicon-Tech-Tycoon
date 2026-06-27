@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
-import { CategoryIcon } from "../design/icons.tsx";
+import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
-import { emitCelebrate } from "../design/celebrateFx.ts";
+import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
 import { launchOutcome } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
@@ -26,8 +26,10 @@ import type {
   NotchStyle,
   Product,
   ProductTuning,
+  RegionId,
   Stats,
 } from "../engine/types.ts";
+import { REGIONS, regionTasteFit } from "../engine/regions.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import {
@@ -350,10 +352,10 @@ export function DesignLab({
     setWizard(true);
   }
 
-  function confirmBuild(units: number, channelId: ChannelId) {
+  function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[]) {
     // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the
     // completion sheet can celebrate exactly what just shipped to the factory floor.
-    const finished = draft;
+    const finished = { ...draft, regions };
     const plan = planProduction(state, finished, units, channelId);
     const weeks = buildWeeksFor(state);
     const res = build(finished, units, channelId);
@@ -383,18 +385,30 @@ export function DesignLab({
   function onLaunch(id: string) {
     // Snapshot the launched list BEFORE launchReady records this product (for first-ever/first-hit).
     const launchedBefore = state.launched;
+    const product = state.ready.find((p) => p.id === id);
+    // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
+    const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
     const res = launchReady(id);
     if (!res.ok) return;
     haptic.success();
     // launchOutcome keys the celebration off the ACTUAL recorded verdict (competition-adjusted),
     // not the raw score — and is shared with HQ so the two launch surfaces can't drift.
-    const { isHit, feedback } = launchOutcome(res, launchedBefore);
+    const { isHit } = launchOutcome(res, launchedBefore);
     sfx("launch");
-    if (isHit) {
-      setTimeout(() => sfx("hit"), 380);
-      emitCelebrate();
+    if (isHit) setTimeout(() => sfx("hit"), 380);
+    if (product && plan) {
+      emitLaunchReveal(buildLaunchReveal({
+        product,
+        stats: productStats(state, product),
+        verdict: res.verdict ?? "steady",
+        demandFit: plan.demandFit,
+        priceFit: plan.priceFit,
+        betterRivals: plan.betterRivals,
+        units: plan.projectedSales,
+        isHit,
+        firstLaunch: launchedBefore.length === 0,
+      }));
     }
-    showToast(feedback.text, { tone: feedback.tone, glyph: <Rocket size={15} /> });
   }
 
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)
@@ -408,6 +422,13 @@ export function DesignLab({
 
   return (
     <div className="lab">
+      {/* Header strip — subtitle + the live projected-verdict badge (mockup's "Steady Seller"). */}
+      <div className="lab__head">
+        <p className="lab__subtitle">Build iconic devices. Define the future.</p>
+        <span className={`lab__verdict-badge lab__verdict-badge--${verdict.tone}`}>
+          <ShieldCheck size={14} aria-hidden /> {verdict.label}
+        </span>
+      </div>
       {/* Production pipeline — launch finished products right here, so the whole loop
           (design → build → launch) stays in one place with no trip to HQ. */}
       {state.ready.length > 0 && (
@@ -477,9 +498,58 @@ export function DesignLab({
         );
       })()}
 
-      {/* Hero device — always visible, updates live as you design */}
-      <div className="lab__hero">
-        <DeviceRenderer product={draft} size={236} idle shimmer flip={flippable} face={face} />
+      {/* Hero device — always visible, updates live as you design. Two-column card:
+          device on a green glow (left), live design read-out (right). */}
+      <Card className="lab__hero">
+        <div className="lab__hero-grid">
+          <div className="lab__hero-stage">
+            <span className="lab__hero-glow" aria-hidden />
+            <DeviceRenderer product={draft} size={160} idle shimmer flip={flippable} face={face} />
+            <div className="lab__hero-cats">
+              {unlockedCats.map((c) => (
+                <button
+                  key={c.id}
+                  className={`lab__hero-cat${draft.category === c.id ? " lab__hero-cat--on" : ""}`}
+                  aria-pressed={draft.category === c.id}
+                  onClick={() => {
+                    haptic.light();
+                    const tiers: Product["tiers"] = {};
+                    for (const k of c.slots) tiers[k] = Math.min(draft.tiers[k] ?? 1, researchedTier(state, k)) || 1;
+                    set({ category: c.id, tiers });
+                  }}
+                >
+                  <CategoryIcon id={c.id} size={14} /> {c.displayName}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="lab__hero-info">
+            <div className="lab__hero-name-row">
+              <span className="lab__hero-name">{draft.name || "Untitled"}</span>
+              <span className="lab__hero-tag">Concept</span>
+            </div>
+            <div className="lab__hero-fit">
+              <span className="lab__hero-fit-label">Fit</span>
+              <span className="lab__hero-fit-val tnum">{fit} <span className="lab__den">/ 100</span></span>
+              <div className="lab__hero-bar"><div className="lab__hero-bar-fill" style={{ width: `${Math.max(0, Math.min(100, fit))}%` }} /></div>
+            </div>
+            <div className="lab__hero-line">
+              <span className="lab__hero-line-label">Build</span>
+              <span className={`lab__hero-line-val lab__hero-line-val--${synState}`}>
+                <Scale size={15} aria-hidden /> {synState === "flagship" ? `Flagship +${synPct}%` : synState === "weak" ? `Weak: ${capSlot(syn.weakest!)}` : "Balanced"}
+              </span>
+            </div>
+            {formMatters && (
+              <div className="lab__hero-line">
+                <span className="lab__hero-line-label">Design Language</span>
+                <span className="lab__hero-line-val">
+                  <Sparkles size={14} aria-hidden /> <strong>{styleLabel}</strong>
+                  <span className="lab__hero-line-hint">{styleLabel === "Striking" ? " — wins style-led buyers" : " — refine form for appeal"}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
         {flippable && (
           <button
             className="lab__flip"
@@ -491,28 +561,11 @@ export function DesignLab({
             <FlipHorizontal2 size={15} /> {face === "front" ? "View back" : "View front"}
           </button>
         )}
-        <div className="lab__verdict">
-          <StatPill label="Fit" value={<>{fit}<span className="lab__den">/100</span></>} tone={fit >= 60 ? "positive" : "neutral"} />
-          <StatPill
-            label="Build"
-            value={synState === "flagship" ? `Flagship +${synPct}%` : synState === "weak" ? `Weak: ${capSlot(syn.weakest!)}` : "Balanced"}
-            tone={synState === "flagship" ? "positive" : synState === "weak" ? "negative" : "neutral"}
-          />
-          <StatPill value={verdict.label} tone={verdict.tone} />
-        </div>
         {synState !== "balanced" && (
           <p className="lab__verdict-note">
             {synState === "flagship"
               ? "Coherent high-end build — every part pulls its weight, earning a flagship bonus."
               : `${capSlot(syn.weakest!)} is the weak link dragging this build down — raise it to lift the whole product.`}
-          </p>
-        )}
-        {formMatters && (
-          <p className={`lab__style lab__style--${styleLabel.toLowerCase()}`}>
-            <Sparkles size={12} aria-hidden /> Design language: <strong>{styleLabel}</strong>
-            <span className="lab__style-hint">
-              {styleLabel === "Striking" ? " — wins style-led buyers" : " — refine the screen + camera form for more style appeal"}
-            </span>
           </p>
         )}
         {competitionDrag && preview && (
@@ -522,7 +575,7 @@ export function DesignLab({
               : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now — they'll split this market.`}
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Category — always visible above the tab strip */}
       <Card>
@@ -617,8 +670,9 @@ export function DesignLab({
                 const atMax = tier >= maxT;
                 return (
                   <div className="lab__comp" key={kind}>
+                    <span className="lab__comp-tile" aria-hidden><ComponentIcon kind={kind} size={20} /></span>
                     <div className="lab__comp-info">
-                      <span className="lab__comp-name">
+                      <span className="lab__comp-cat">
                         {COMPONENT_LINES[kind].displayName}
                         <span className="lab__comp-pips" aria-hidden>
                           {Array.from({ length: totalT }).map((_, i) => (
@@ -629,14 +683,11 @@ export function DesignLab({
                           ))}
                         </span>
                       </span>
-                      <span className="lab__comp-tier">
-                        {def?.name ?? "—"}
-                        {def && toDollars(def.unitCost) > 0 && (
-                          // Breakable space, then a nowrap "· $price" unit (non-breaking space), so the
-                          // separator wraps WITH the price instead of orphaning at a line end on long names.
-                          <>{" "}<span className="lab__comp-cost">·{"\u00a0"}{format(def.unitCost)}</span></>
-                        )}
-                      </span>
+                      <span className="lab__comp-name">{def?.name ?? "—"}</span>
+                      <span className="lab__comp-meta">
+                      {def && toDollars(def.unitCost) > 0 && (
+                        <span className="lab__comp-cost">{format(def.unitCost)}</span>
+                      )}
                       {def && contribLabel(def.contributes) && (
                         <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
                       )}
@@ -652,6 +703,7 @@ export function DesignLab({
                           </span>
                         );
                       })()}
+                      </span>
                     </div>
                     <div className="lab__stepper">
                       <button onClick={() => setTier(kind, -1)} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
@@ -1151,6 +1203,31 @@ export function DesignLab({
 
       </div>
 
+      {/* Persistent build summary — cost / score / market fit at a glance (mockup footer bar). */}
+      <Card className="lab__summary">
+        <div className="lab__summary-cell">
+          <CircleDollarSign size={18} className="lab__summary-icon" aria-hidden />
+          <span className="lab__summary-text">
+            <span className="lab__summary-label">Est. Cost</span>
+            <span className="lab__summary-val tnum">{format(unitCost)}</span>
+          </span>
+        </div>
+        <div className="lab__summary-cell">
+          <Trophy size={18} className="lab__summary-icon" aria-hidden />
+          <span className="lab__summary-text">
+            <span className="lab__summary-label">Est. Score</span>
+            <span className="lab__summary-val tnum">{overall} <span className="lab__den">/ 100</span></span>
+          </span>
+        </div>
+        <div className="lab__summary-cell">
+          <TrendingUp size={18} className="lab__summary-icon" aria-hidden />
+          <span className="lab__summary-text">
+            <span className="lab__summary-label">Market Fit</span>
+            <span className="lab__summary-val">{fit >= 70 ? "Excellent" : fit >= 50 ? "Strong" : fit >= 35 ? "Good" : fit >= 20 ? "Fair" : "Weak"}</span>
+          </span>
+        </div>
+      </Card>
+
       {/* Sticky step nav above the tab bar — Back (left) + Next (right) so the design flow reads
           as clear steps. Fixed (stays put while the pane scrolls). The Launch step has its own
           Build CTA, so Next hides there. Suppressed during the first-build tutorial, where the
@@ -1251,16 +1328,32 @@ function BuildWizard({
 }: {
   draft: Product;
   state: GameState;
-  onConfirm: (units: number, channelId: ChannelId) => void;
+  onConfirm: (units: number, channelId: ChannelId, regions: RegionId[]) => void;
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
   const [channel, setChannel] = useState<ChannelId>("none");
-  const [units, setUnits] = useState(() => recommendedRun(state, draft, "none"));
+  // Regions this product ships to. Default to the draft's selection (filtered to what's unlocked),
+  // else Home. The Regions step only appears once the player has expanded beyond Home, so early-game
+  // builds stay a clean 3-step flow.
+  const [regions, setRegions] = useState<RegionId[]>(() => {
+    const chosen = (draft.regions ?? ["home"]).filter((id) => state.unlockedRegions.includes(id));
+    return chosen.length ? chosen : ["home"];
+  });
+  const expanded = state.unlockedRegions.length > 1;
+  const steps = useMemo<("regions" | "run" | "marketing" | "review")[]>(
+    () => (expanded ? ["regions", "run", "marketing", "review"] : ["run", "marketing", "review"]),
+    [expanded],
+  );
+  const cur = steps[step];
+  const lastStep = steps.length - 1;
+  // The product as it will actually ship, including its region selection — every forecast uses this.
+  const prod = useMemo(() => ({ ...draft, regions }), [draft, regions]);
+  const [units, setUnits] = useState(() => recommendedRun(state, prod, "none"));
 
-  const plan = useMemo(() => planProduction(state, draft, units, channel), [state, draft, units, channel]);
-  const recommended = useMemo(() => recommendedRun(state, draft, channel), [state, draft, channel]);
-  const baseDemand = useMemo(() => planProduction(state, draft, units, "none").totalDemand, [state, draft, units]);
+  const plan = useMemo(() => planProduction(state, prod, units, channel), [state, prod, units, channel]);
+  const recommended = useMemo(() => recommendedRun(state, prod, channel), [state, prod, channel]);
+  const baseDemand = useMemo(() => planProduction(state, prod, units, "none").totalDemand, [state, prod, units]);
   const affordable = state.cash >= plan.totalUpfront;
   // C2 — the forecast band tightens as the player invests in market knowledge (marketer skill +
   // Demand Sensing). The SAME confidence scales the realized launch variance, so this band is honest.
@@ -1307,12 +1400,47 @@ function BuildWizard({
         <div className="wiz__thumb"><DeviceRenderer product={draft} size={56} /></div>
         <div>
           <h2 className="wiz__title">{draft.name}</h2>
-          <p className="wiz__sub">Step {step + 1} of 3 · {step === 0 ? "Production run" : step === 1 ? "Marketing" : "Review & build"}</p>
+          <p className="wiz__sub">Step {step + 1} of {steps.length} · {cur === "regions" ? "Markets" : cur === "run" ? "Production run" : cur === "marketing" ? "Marketing" : "Review & build"}</p>
         </div>
       </div>
-      <div className="wiz__steps">{[0, 1, 2].map((i) => <span key={i} className={`wiz__step${i <= step ? " wiz__step--on" : ""}`} />)}</div>
+      <div className="wiz__steps">{steps.map((_, i) => <span key={i} className={`wiz__step${i <= step ? " wiz__step--on" : ""}`} />)}</div>
 
-      {step === 0 && (
+      {cur === "regions" && (
+        <div className="wiz__body">
+          <p className="wiz__lead">Where should <b>{draft.name}</b> sell? Each market adds demand, but buyers value different things — ship where your design fits.</p>
+          <div className="wiz__regions">
+            {REGIONS.filter((r) => state.unlockedRegions.includes(r.id)).map((r) => {
+              const on = regions.includes(r.id);
+              const fit = regionTasteFit(productStats(state, prod), r);
+              const fitLabel = r.id === "home" ? "Home" : fit >= 1.12 ? "Great fit" : fit >= 1.0 ? "Good fit" : fit >= 0.85 ? "Modest fit" : "Poor fit";
+              const fitTone = r.id === "home" ? "accent" : fit >= 1.0 ? "positive" : fit >= 0.85 ? "accent" : "negative";
+              const toggle = () => {
+                haptic.light();
+                setRegions((cur2) => {
+                  const next = cur2.includes(r.id) ? cur2.filter((x) => x !== r.id) : [...cur2, r.id];
+                  return next.length ? next : ["home"]; // never empty
+                });
+              };
+              return (
+                <button key={r.id} className={`wiz__region${on ? " wiz__region--on" : ""}`} aria-pressed={on} onClick={toggle}>
+                  <span className="wiz__region-check">{on ? <Check size={14} /> : <Globe size={14} />}</span>
+                  <div className="wiz__region-text">
+                    <span className="wiz__region-name">{r.name}</span>
+                    <span className="wiz__region-blurb">{r.blurb}</span>
+                  </div>
+                  <span className={`wiz__region-fit wiz__region-fit--${fitTone}`}>{fitLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="wiz__grid">
+            <Stat label="Markets selected" value={`${regions.length} of ${state.unlockedRegions.length}`} />
+            <Stat label="Projected demand" value={plan.totalDemand.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint="across selected markets" />
+          </div>
+        </div>
+      )}
+
+      {cur === "run" && (
         <div className="wiz__body">
           <p className="wiz__lead">How many <b>{draft.name}</b> should the factory produce? You pay for the whole run upfront, so match it to demand.</p>
           <div className="wiz__units rounded tnum">{units.toLocaleString()} <span className="wiz__units-label">units</span></div>
@@ -1350,14 +1478,14 @@ function BuildWizard({
         </div>
       )}
 
-      {step === 1 && (
+      {cur === "marketing" && (
         <div className="wiz__body">
           <p className="wiz__lead">Pick a launch campaign — bigger campaigns add hype (more demand) for an upfront cost.</p>
           <div className="wiz__channels">
             {MARKETING_CHANNELS.map((c) => {
               const Icon = WIZARD_CHANNEL_ICONS[c.icon] ?? Ban;
               const aff = state.cash >= c.cost;
-              const chanDemand = planProduction(state, draft, units, c.id).totalDemand;
+              const chanDemand = planProduction(state, prod, units, c.id).totalDemand;
               const demandDelta = chanDemand - baseDemand;
               return (
                 <button key={c.id} className={`wiz__channel${channel === c.id ? " wiz__channel--on" : ""}`} disabled={!aff && c.id !== "none"} aria-pressed={channel === c.id} onClick={() => { setChannel(c.id); haptic.light(); }}>
@@ -1379,7 +1507,7 @@ function BuildWizard({
         </div>
       )}
 
-      {step === 2 && (
+      {cur === "review" && (
         <div className="wiz__body">
           <div className="wiz__review">
             <Stat label="Demand fit" value={<>{Math.round(plan.demandFit)}<span className="lab__den">/100</span></>} tone={fitTone} hint={fitLabel} />
@@ -1440,10 +1568,10 @@ function BuildWizard({
 
       <div className="wiz__nav">
         {step > 0 && <Button variant="secondary" onClick={() => { setStep(step - 1); haptic.light(); }}>Back</Button>}
-        {step < 2 ? (
+        {step < lastStep ? (
           <Button block onClick={() => { setStep(step + 1); haptic.light(); }}>Next</Button>
         ) : (
-          <Button block disabled={!affordable} onClick={() => onConfirm(units, channel)} haptics="none">
+          <Button block disabled={!affordable} onClick={() => onConfirm(units, channel, regions)} haptics="none">
             <Factory size={16} /> Build {units.toLocaleString()} units
           </Button>
         )}

@@ -37,6 +37,9 @@ export type FinishId = "plastic" | "aluminium" | "titanium" | "gold";
  *  math live in engine/segments.ts. */
 export type SegmentId = "budget" | "mainstream" | "pro" | "style" | "enterprise";
 
+/** Geographic markets (engine/regions.ts). "home" is always unlocked; the rest are paid expansions. */
+export type RegionId = "home" | "north_america" | "europe" | "asia" | "emerging";
+
 /** Canonical finish order, cheap→premium. Doubles as the unlock ladder: the first
  *  `BALANCE.design.freeFinishes` are available from the start; the rest are RP-unlocked in order. */
 export const FINISH_ORDER: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
@@ -121,6 +124,9 @@ export interface Product {
   plannedUnits?: number; // production run size chosen in the build wizard
   channelId?: string; // marketing channel selected at launch
   tuning?: ProductTuning; // performance/efficiency trade-off (defaults "balanced" on older saves)
+  /** Geographic markets to ship this product to (engine/regions.ts). Optional — defaults to ["home"]
+   *  on read, so older saves and home-only launches are unchanged. */
+  regions?: RegionId[];
 }
 
 export function defaultCameraDesign(): CameraDesign {

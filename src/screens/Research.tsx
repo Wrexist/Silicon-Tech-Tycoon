@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Check, ChevronRight, FlaskConical, Lock, MapPin, Users } from "lucide-react";
-import { Button, Card, SectionHeader, StatPill } from "../design/primitives.tsx";
+import { Button, Card, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
-import { CategoryIcon } from "../design/icons.tsx";
+import { ComponentIcon } from "../design/icons.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
@@ -154,6 +154,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
 
   return (
     <div className="rd">
+      {/* Header strip — subtitle + era badge, mirroring the Design Lab's header treatment. */}
+      <div className="rd__head">
+        <p className="rd__subtitle">Spend Research Points to unlock new tech and abilities.</p>
+        <span className="rd__era-badge"><FlaskConical size={13} aria-hidden /> {eraName(state.era)}</span>
+      </div>
       {/* RP banner */}
       <Card className="rd__bank">
         <div className="rd__bank-main">
@@ -455,84 +460,66 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </div>
         );
       })()}
-      <SectionHeader title="Component tech" accessory="unlock higher tiers" />
-      {sortedKinds.map((kind) => {
-        const line = COMPONENT_LINES[kind];
-        const cur = researchedTier(state, kind);
-        const max = maxTier(kind);
-        const curDef = tierDef(kind, cur);
-        const nextDef = tierDef(kind, cur + 1);
-        const cost = rdRpCostFor(state, kind);
-        const eraLocked = !!nextDef && nextDef.era > state.era;
-        const maxed = cur >= max;
-        const affordable = cost !== null && rp >= cost;
+      {/* Component tech — one card of compact tile rows (was 6 stacked cards) to match the
+          Design Lab language and cut the wall-of-cards scroll. */}
+      <Card className="rd__comp-card">
+        <SectionHeader title="Component tech" accessory="unlock higher tiers" />
+        <div className="rd__comp-list">
+          {sortedKinds.map((kind) => {
+            const line = COMPONENT_LINES[kind];
+            const cur = researchedTier(state, kind);
+            const max = maxTier(kind);
+            const curDef = tierDef(kind, cur);
+            const nextDef = tierDef(kind, cur + 1);
+            const cost = rdRpCostFor(state, kind);
+            const eraLocked = !!nextDef && nextDef.era > state.era;
+            const maxed = cur >= max;
+            const affordable = cost !== null && rp >= cost;
 
-        return (
-          <Card key={kind}>
-            <SectionHeader title={line.displayName} accessory={<span className="rd__tier">T{cur}/{max}</span>} />
-            <div className="rd__tier-pips">
-              {Array.from({ length: max }).map((_, i) => (
-                <span key={i} className={`rd__tier-pip${i < cur ? " rd__tier-pip--on" : ""}`} />
-              ))}
-            </div>
-            {(() => {
-              const usedIn = CATEGORY_LIST.filter(
-                (c) => c.unlockEra <= state.era && c.slots.includes(kind),
-              );
-              if (usedIn.length === 0) return null;
-              return (
-                <div className="rd__used-in">
-                  {usedIn.map((c) => (
-                    <span key={c.id} className="rd__used-cat">
-                      <CategoryIcon id={c.id} size={10} />{c.displayName}
+            return (
+              <div className="rd__comp-row" key={kind}>
+                <span className="rd__comp-tile" aria-hidden><ComponentIcon kind={kind} size={20} /></span>
+                <div className="rd__comp-info">
+                  <span className="rd__comp-cat">
+                    {line.displayName}
+                    <span className="rd__comp-pips" aria-hidden>
+                      {Array.from({ length: max }).map((_, i) => (
+                        <span key={i} className={`rd__comp-pip${i < cur ? " rd__comp-pip--on" : ""}`} />
+                      ))}
                     </span>
-                  ))}
+                    <span className="rd__comp-tcount tnum">T{cur}/{max}</span>
+                  </span>
+                  <span className="rd__comp-name">{curDef?.name ?? "—"}</span>
+                  <span className="rd__comp-meta">
+                    {maxed ? (
+                      <span className="rd__comp-done"><Check size={12} strokeWidth={2.5} aria-hidden /> Fully researched</span>
+                    ) : eraLocked ? (
+                      <span className="rd__comp-eralock"><Lock size={11} aria-hidden /> Unlocks in the {eraName(nextDef!.era)}</span>
+                    ) : (
+                      <span className="rd__comp-next">
+                        <ChevronRight size={12} aria-hidden /> {nextDef?.name}
+                        {nextDef && (
+                          <span className="rd__comp-delta">{curDef ? deltaLabel(curDef.contributes, nextDef.contributes) : contributesLabel(nextDef.contributes)}</span>
+                        )}
+                      </span>
+                    )}
+                  </span>
                 </div>
-              );
-            })()}
-            {!maxed && !eraLocked && (() => {
-              const active = state.launched.filter(
-                (lp) =>
-                  lp.weeksElapsed < lp.weeklyUnits.length &&
-                  CATEGORY_LIST.some((c) => c.id === lp.product.category && c.slots.includes(kind)),
-              );
-              if (active.length === 0) return null;
-              const prod = active[0];
-              const prodTier = prod.product.tiers[kind] ?? 0;
-              return (
-                <p className="rd__active-hint">
-                  Active: <strong>{prod.product.name}</strong> using T{prodTier} — upgrade to unlock T{cur + 1} for your next design.
-                </p>
-              );
-            })()}
-            <div className="rd__current">
-              <StatPill label="Current" value={curDef?.name ?? "—"} />
-              {curDef && <span className="rd__contrib">{contributesLabel(curDef.contributes)}</span>}
-            </div>
-
-            {maxed ? (
-              <div className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Fully researched</div>
-            ) : eraLocked ? (
-              <div className="rd__locked"><Lock size={12} /> Unlocks in the {eraName(nextDef!.era)}</div>
-            ) : (
-              <div className="rd__next">
-                <div className="rd__next-info">
-                  <span className="rd__next-name">{nextDef?.name}</span>
-                  <span className="rd__contrib">{nextDef && (curDef ? deltaLabel(curDef.contributes, nextDef.contributes) : contributesLabel(nextDef.contributes))}</span>
-                </div>
-                <div className="rd__project-action">
-                  <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { research(kind); haptic.success(); sfx("upgrade"); }}>
-                    {cost !== null ? `${cost} RP` : "—"}
-                  </Button>
-                  {!affordable && cost !== null && perWeek > 0 && (
-                    <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)}wk</span>
-                  )}
-                </div>
+                {!maxed && !eraLocked && (
+                  <div className="rd__comp-buy">
+                    <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { research(kind); haptic.success(); sfx("upgrade"); }}>
+                      {cost !== null ? `${cost} RP` : "—"}
+                    </Button>
+                    {!affordable && cost !== null && perWeek > 0 && (
+                      <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)}wk</span>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </Card>
-        );
-      })}
+            );
+          })}
+        </div>
+      </Card>
     </div>
   );
 }

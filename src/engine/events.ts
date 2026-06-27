@@ -444,13 +444,59 @@ export const CHOICE_EVENTS: ChoiceEvent[] = [
       { id: "closed", label: "Keep them closed", description: "Hold the frontier asset and license it carefully. The board sleeps easier.", effect: { kind: "cashWindfall", cash: 150_000 } },
     ],
   },
+  // --- v47 content drop: fresh dilemmas to deepen the New Game+ pool ---
+  {
+    id: "warranty_pledge",
+    title: "The Repairability Question",
+    body: "A right-to-repair group asks you to publish schematics and sell parts at cost. It would win goodwill — but it also makes your hardware easier for anyone to clone.",
+    minEra: 1,
+    tone: "accent",
+    options: [
+      { id: "publish", label: "Back repairability", description: "Publish the guides and stock the parts. The community and the press take notice.", effect: { kind: "pressFeature", reputation: 5 } },
+      { id: "closed", label: "Keep it sealed", description: "Hold the designs close and bank the service-revenue stream instead.", effect: { kind: "cashWindfall", cash: 22_000 } },
+    ],
+  },
+  {
+    id: "direct_to_consumer",
+    title: "Cut Out the Middleman?",
+    body: "You can drop your retail partners and sell directly — fatter margins and a closer fanbase, but you forfeit the shelf space that introduced you to casual buyers.",
+    minEra: 2,
+    tone: "neutral",
+    options: [
+      { id: "direct", label: "Go direct", description: "Own the storefront and the relationship. Your most loyal fans rally hard.", effect: { kind: "fansBonus", fans: 2_200 } },
+      { id: "retail", label: "Keep the partners", description: "Stay on the shelves and pocket a healthy channel rebate this quarter.", effect: { kind: "cashWindfall", cash: 40_000 } },
+    ],
+  },
+  {
+    id: "on_device_ai",
+    title: "Where Does the AI Run?",
+    body: "Your flagship assistant could run privately on-device, or far more powerfully in your cloud. One protects users; the other dazzles reviewers — and bills them monthly.",
+    minEra: 4,
+    tone: "accent",
+    options: [
+      { id: "ondevice", label: "Keep it on-device", description: "Privacy by design — no data leaves the phone. A principled stance buyers trust.", effect: { kind: "repBoost", rep: 8 } },
+      { id: "cloud", label: "Power it from the cloud", description: "Unleash the big models. The demos are jaw-dropping and the hype is immense.", effect: { kind: "fansBonus", fans: 6_500 } },
+    ],
+  },
 ];
 
-/** Pick a choice event if one is available and hasn't been resolved yet. ~30% chance per event window. */
-export function pickChoiceEvent(rng: Rng, era: number, resolvedIds: readonly string[]): ChoiceEvent | null {
+/** Pick a choice event if one is available and hasn't been resolved yet. ~30% chance per event window.
+ *  `seenIds` is the LIFETIME set of dilemmas the player has resolved across all companies (carried
+ *  through New Game+). When supplied, never-seen dilemmas are preferred so a prestige run surfaces
+ *  fresh decisions instead of replaying the same ones; once every eligible dilemma has been seen the
+ *  full eligible pool is used again so events never dry up on a veteran profile. The rng is advanced
+ *  identically either way (one `next` gate + one `int` draw), so determinism is unaffected. */
+export function pickChoiceEvent(
+  rng: Rng,
+  era: number,
+  resolvedIds: readonly string[],
+  seenIds: readonly string[] = [],
+): ChoiceEvent | null {
   const pool = CHOICE_EVENTS.filter((e) => e.minEra <= era && !resolvedIds.includes(e.id));
   if (pool.length === 0 || rng.next() > 0.30) return null;
-  return pool[rng.int(pool.length)];
+  const unseen = pool.filter((e) => !seenIds.includes(e.id));
+  const chooseFrom = unseen.length > 0 ? unseen : pool;
+  return chooseFrom[rng.int(chooseFrom.length)];
 }
 
 export function pickEvent(rng: Rng, era: number): MarketEvent {

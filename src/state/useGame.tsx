@@ -12,7 +12,7 @@ import {
 } from "react";
 import { BALANCE } from "../engine/balance.ts";
 import { dollars, format, toDollars, type Money } from "../engine/money.ts";
-import type { ComponentKind, Product, RecruitTier, StaffRole } from "../engine/types.ts";
+import type { ComponentKind, Product, RecruitTier, RegionId, StaffRole } from "../engine/types.ts";
 import {
   advanceEraAction,
   advanceOneWeek,
@@ -25,6 +25,7 @@ import {
   acquireRival,
   buyUpgrade,
   buyDesktop,
+  unlockRegion,
   cutProductPrice,
   marketingPush,
   giveRaise,
@@ -326,19 +327,25 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
   }, 800);
 }
 
-interface GameContextValue {
+/** The per-tick DATA slice of the context — changes whenever the sim advances. */
+interface GameStateValue {
   state: GameState;
   paused: boolean;
-  setPaused: (p: boolean) => void;
   fast: boolean;
-  setFast: (f: boolean) => void;
   offline: OfflineSummary | null;
-  clearOffline: () => void;
   /** True when ANOTHER tab/window took over this save — this tab is frozen (no tick, no saves). */
   tabBlocked: boolean;
+}
+
+/** The ACTIONS slice — every callback. All entries are ref-stable for the life of the provider, so
+ *  this object keeps a stable identity (see the `actions` memo); it is the single home for the
+ *  action list, replacing the old hand-maintained 60-entry dep array that had already drifted. */
+interface GameActionsValue {
+  setPaused: (p: boolean) => void;
+  setFast: (f: boolean) => void;
+  clearOffline: () => void;
   /** Reload this tab so it boots from the freshest save and claims play back. */
   takeOverHere: () => void;
-  // actions
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
   launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady" };
   research: (kind: ComponentKind) => void;
@@ -347,6 +354,7 @@ interface GameContextValue {
   buyProject: (id: ProjectId) => void;
   buyUpgrade: (id: UpgradeId) => void;
   buyDesktop: () => void;
+  unlockRegion: (id: RegionId) => void;
   assign: (id: string, assignment: Assignment) => void;
   train: (id: string) => void;
   rest: (id: string) => void;
@@ -404,6 +412,9 @@ interface GameContextValue {
   giveRaise: (id: string) => void;
   resolveChoice: (optionId: string) => void;
 }
+
+/** Full context shape — data + actions. `useGame()` returns this (back-compat). */
+type GameContextValue = GameStateValue & GameActionsValue;
 
 const GameContext = createContext<GameContextValue | null>(null);
 
@@ -698,6 +709,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (spent > 0) emitSpend(spent);
     setState(next);
   }, []);
+  const unlockRegionCb = useCallback((id: RegionId) => {
+    const prev = stateRef.current;
+    const next = unlockRegion(prev, id);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const assign = useCallback((id: string, a: Assignment) => setState((s) => assignStaff(s, id, a)), []);
   const train = useCallback((id: string) => {
     const prev = stateRef.current;
@@ -754,8 +772,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const next = getLegacy() + 1;
     setLegacy(next);
     clearSave();
-    // New Game+ players already know the ropes — skip onboarding + the first-build coach.
-    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked });
+    // New Game+ players already know the ropes — skip onboarding + the first-build coach. The
+    // lifetime "seen dilemmas" set carries across so the new run surfaces fresh decisions first.
+    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices });
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
@@ -917,16 +936,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const clearOffline = useCallback(() => setOffline(null), []);
 
-  const value = useMemo<GameContextValue>(
+  // All callbacks below are ref-stable (useCallback []/setState setters), so this object is built
+  // once and keeps a stable identity. Co-locating the action list here replaces the old 60-entry
+  // hand-maintained dep array on `value` — which had silently drifted (4 callbacks were missing) —
+  // with a small, exhaustive-deps-checkable list, and lets the hot `value` memo depend on just the
+  // data slice. (Per-tick re-renders are unchanged: every consumer reads `state`, and the costly 3D
+  // child is already React.memo'd — this is a correctness/maintainability fix, not a perf change.)
+  const actions = useMemo<GameActionsValue>(
     () => ({
-      state,
-      paused,
       setPaused,
-      fast,
       setFast,
-      offline,
       clearOffline,
-      tabBlocked,
       takeOverHere,
       build,
       launchReady: launchReadyCb,
@@ -936,6 +956,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       buyProject: buyProjectCb,
       buyUpgrade: buyUpgradeCb,
       buyDesktop: buyDesktopCb,
+      unlockRegion: unlockRegionCb,
       assign,
       train,
       hire,
@@ -986,7 +1007,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [state, paused, fast, offline, clearOffline, tabBlocked, takeOverHere, build, launchReadyCb, research, buyProjectCb, buyUpgradeCb, buyDesktopCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, giveRaiseCb, resolveChoiceCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb],
+  );
+
+  // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer
+  // duplicated here, so it can't drift out of sync again.
+  const value = useMemo<GameContextValue>(
+    () => ({ state, paused, fast, offline, tabBlocked, ...actions }),
+    [state, paused, fast, offline, tabBlocked, actions],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

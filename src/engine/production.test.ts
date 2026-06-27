@@ -64,6 +64,25 @@ describe("production planning + smart demand", () => {
     expect(many.preOrders).toBeGreaterThan(few.preOrders);
   });
 
+  it("shipping to more regions grows market demand; home-only is unchanged", () => {
+    const base = newGame(2);
+    const homeOnly = planProduction(base, { ...phone(), regions: ["home"] }, 1_000_000, "none");
+    // Same product, but with Asia unlocked AND selected, should reach a bigger market.
+    const expanded = planProduction(
+      { ...base, unlockedRegions: ["home", "asia"] },
+      { ...phone(), regions: ["home", "asia"] },
+      1_000_000,
+      "none",
+    );
+    expect(expanded.marketDemand).toBeGreaterThan(homeOnly.marketDemand);
+    // A product with no regions field behaves exactly like an explicit home-only one (no regression).
+    const legacy = planProduction(base, { ...phone(), regions: undefined }, 1_000_000, "none");
+    expect(legacy.marketDemand).toBe(homeOnly.marketDemand);
+    // Selecting a region you haven't unlocked has no effect (can't ship there).
+    const cantShip = planProduction(base, { ...phone(), regions: ["home", "asia"] }, 1_000_000, "none");
+    expect(cantShip.marketDemand).toBe(homeOnly.marketDemand);
+  });
+
   it("a better-fitting product (vs demand) sells more", () => {
     const s = newGame(2);
     // crank trends to favour design, then a high-design vs low-design product
