@@ -272,6 +272,9 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.completedObjectives)) s.completedObjectives = [];
   if (s.pendingChoice === undefined) s.pendingChoice = null;
   if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
+  // Lifetime "seen" set (carried across New Game+). Old saves seed it from this run's resolved set
+  // so dilemmas already decided don't re-surface as "fresh" after the upgrade.
+  if (!Array.isArray(s.seenChoices)) s.seenChoices = [...s.resolvedChoices];
   // Scenario mode (added later): old saves are freeform runs → no active scenario.
   if (typeof s.activeScenario !== "string") s.activeScenario = null;
   if (!Number.isFinite(s.scenarioRunStars) || s.scenarioRunStars < 0) s.scenarioRunStars = 0;

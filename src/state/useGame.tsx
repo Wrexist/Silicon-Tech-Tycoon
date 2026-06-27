@@ -754,8 +754,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const next = getLegacy() + 1;
     setLegacy(next);
     clearSave();
-    // New Game+ players already know the ropes — skip onboarding + the first-build coach.
-    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked });
+    // New Game+ players already know the ropes — skip onboarding + the first-build coach. The
+    // lifetime "seen dilemmas" set carries across so the new run surfaces fresh decisions first.
+    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices });
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.

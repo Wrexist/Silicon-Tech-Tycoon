@@ -202,8 +202,11 @@ export interface GameState {
   completedObjectives: string[];
   /** A market event requiring a player decision — resolved via resolveChoice. */
   pendingChoice: { event: ChoiceEvent; week: number } | null;
-  /** IDs of choice events already resolved — prevents repeats. */
+  /** IDs of choice events already resolved THIS RUN — prevents repeats within a company. */
   resolvedChoices: string[];
+  /** IDs of choice events resolved across ALL companies (carried through New Game+ like the legacy
+   *  bonus) — lets pickChoiceEvent surface never-seen dilemmas first so a prestige run feels fresh. */
+  seenChoices: string[];
   /** Scenario this run is playing (id from engine/scenarios.ts), or null for a freeform game.
    *  Per-RUN only — the BEST stars earned per scenario live in the profile store (scenarioProgress). */
   activeScenario: string | null;
@@ -411,6 +414,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     completedObjectives: [],
     pendingChoice: null,
     resolvedChoices: [],
+    seenChoices: [],
     activeScenario: null,
     scenarioRunStars: 0,
     activeChallenge: null,
@@ -1344,7 +1348,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   if (!offline && !bankrupt && week >= state.nextEventWeek) {
     // Choice events also require the player to be present to resolve them.
     if (!state.pendingChoice) {
-      const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices);
+      const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices, state.seenChoices);
       if (choice) {
         const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
         return {
@@ -1814,6 +1818,9 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
     ...applied,
     pendingChoice: null,
     resolvedChoices: [...state.resolvedChoices, pc.event.id],
+    seenChoices: state.seenChoices.includes(pc.event.id)
+      ? state.seenChoices
+      : [...state.seenChoices, pc.event.id],
   };
 }
 
