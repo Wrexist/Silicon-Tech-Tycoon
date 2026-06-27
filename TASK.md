@@ -1296,6 +1296,25 @@ Four follow-ups requested after the audit tiers shipped (PR on `claude/clarity-f
       — declined to fabricate work for a solved problem.
 - 524 tests (+1), tsc 0, build+PWA green. Presentation/readability only; no engine/balance change.
 
+## v48 — global expansion: regions (DONE 2026-06-27)
+New gameplay chapter (user pick). Geography as the growth axis — "garage → global empire" was only
+thematic before; now you expand into real markets. Additive + non-invasive: ONE multiplicative hook
+on marketSize in planProduction; a home-only launch = ×1.0, so old saves / domestic play are
+bit-for-bit unchanged and market.ts / scoreLaunch / salesCurve are untouched (protected engine safe).
+- [x] **engine/regions.ts** (PURE): 5 regions (Home + North America / Europe / Asia / Emerging), each
+      with a size share, distinct stat taste, and unlock cost. `regionTasteFit` (era-independent stat
+      ratio, bounded [0.6,1.2], Home pinned 1.0), `shippableRegions` (chosen ∩ unlocked, Home floor),
+      `regionReach` (Σ share×fit). `balance.market.regions` holds the knobs.
+- [x] **State**: `Product.regions?` + `GameState.unlockedRegions`; `unlockRegion` cash reducer;
+      newGame seeds ["home"]; persistence backfills old saves to home-only; useGame exposes the action.
+- [x] **UI**: build-wizard **Markets step** (appears only after expanding — early game stays 3-step;
+      live per-region taste-fit + demand readout, threads into the built product); **Market screen
+      "Global markets" card** to unlock regions for cash. Premium tokens/patterns, no cramped states.
+- [x] Tests: regions.test.ts + planProduction integration (more regions → more demand; home-only
+      unchanged; can't ship to a locked region). **535 tests (+9)**, tsc 0, build+PWA green.
+- NOT verified: on-device feel of the picker; knob values (shares $40–150k unlock costs, tasteSpread
+      1.0, fit bounds) need a playtest. Prestige resets regions per company (expansion is per-run).
+
 ## v47 — depth + tech debt (DONE 2026-06-27)
 User asked for "post-launch depth AND tech debt." First verified the backlog against source —
 two of the four candidates were stale: **component sidegrades are already shipped** (`ProductTuning`
