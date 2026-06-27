@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -410,6 +410,13 @@ export function DesignLab({
 
   return (
     <div className="lab">
+      {/* Header strip — subtitle + the live projected-verdict badge (mockup's "Steady Seller"). */}
+      <div className="lab__head">
+        <p className="lab__subtitle">Build iconic devices. Define the future.</p>
+        <span className={`lab__verdict-badge lab__verdict-badge--${verdict.tone}`}>
+          <ShieldCheck size={14} aria-hidden /> {verdict.label}
+        </span>
+      </div>
       {/* Production pipeline — launch finished products right here, so the whole loop
           (design → build → launch) stays in one place with no trip to HQ. */}
       {state.ready.length > 0 && (
@@ -479,9 +486,58 @@ export function DesignLab({
         );
       })()}
 
-      {/* Hero device — always visible, updates live as you design */}
-      <div className="lab__hero">
-        <DeviceRenderer product={draft} size={236} idle shimmer flip={flippable} face={face} />
+      {/* Hero device — always visible, updates live as you design. Two-column card:
+          device on a green glow (left), live design read-out (right). */}
+      <Card className="lab__hero">
+        <div className="lab__hero-grid">
+          <div className="lab__hero-stage">
+            <span className="lab__hero-glow" aria-hidden />
+            <DeviceRenderer product={draft} size={160} idle shimmer flip={flippable} face={face} />
+            <div className="lab__hero-cats">
+              {unlockedCats.map((c) => (
+                <button
+                  key={c.id}
+                  className={`lab__hero-cat${draft.category === c.id ? " lab__hero-cat--on" : ""}`}
+                  aria-pressed={draft.category === c.id}
+                  onClick={() => {
+                    haptic.light();
+                    const tiers: Product["tiers"] = {};
+                    for (const k of c.slots) tiers[k] = Math.min(draft.tiers[k] ?? 1, researchedTier(state, k)) || 1;
+                    set({ category: c.id, tiers });
+                  }}
+                >
+                  <CategoryIcon id={c.id} size={14} /> {c.displayName}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="lab__hero-info">
+            <div className="lab__hero-name-row">
+              <span className="lab__hero-name">{draft.name || "Untitled"}</span>
+              <span className="lab__hero-tag">Concept</span>
+            </div>
+            <div className="lab__hero-fit">
+              <span className="lab__hero-fit-label">Fit</span>
+              <span className="lab__hero-fit-val tnum">{fit} <span className="lab__den">/ 100</span></span>
+              <div className="lab__hero-bar"><div className="lab__hero-bar-fill" style={{ width: `${Math.max(0, Math.min(100, fit))}%` }} /></div>
+            </div>
+            <div className="lab__hero-line">
+              <span className="lab__hero-line-label">Build</span>
+              <span className={`lab__hero-line-val lab__hero-line-val--${synState}`}>
+                <Scale size={15} aria-hidden /> {synState === "flagship" ? `Flagship +${synPct}%` : synState === "weak" ? `Weak: ${capSlot(syn.weakest!)}` : "Balanced"}
+              </span>
+            </div>
+            {formMatters && (
+              <div className="lab__hero-line">
+                <span className="lab__hero-line-label">Design Language</span>
+                <span className="lab__hero-line-val">
+                  <Sparkles size={14} aria-hidden /> <strong>{styleLabel}</strong>
+                  <span className="lab__hero-line-hint">{styleLabel === "Striking" ? " — wins style-led buyers" : " — refine form for appeal"}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
         {flippable && (
           <button
             className="lab__flip"
@@ -493,28 +549,11 @@ export function DesignLab({
             <FlipHorizontal2 size={15} /> {face === "front" ? "View back" : "View front"}
           </button>
         )}
-        <div className="lab__verdict">
-          <StatPill label="Fit" value={<>{fit}<span className="lab__den">/100</span></>} tone={fit >= 60 ? "positive" : "neutral"} />
-          <StatPill
-            label="Build"
-            value={synState === "flagship" ? `Flagship +${synPct}%` : synState === "weak" ? `Weak: ${capSlot(syn.weakest!)}` : "Balanced"}
-            tone={synState === "flagship" ? "positive" : synState === "weak" ? "negative" : "neutral"}
-          />
-          <StatPill value={verdict.label} tone={verdict.tone} />
-        </div>
         {synState !== "balanced" && (
           <p className="lab__verdict-note">
             {synState === "flagship"
               ? "Coherent high-end build — every part pulls its weight, earning a flagship bonus."
               : `${capSlot(syn.weakest!)} is the weak link dragging this build down — raise it to lift the whole product.`}
-          </p>
-        )}
-        {formMatters && (
-          <p className={`lab__style lab__style--${styleLabel.toLowerCase()}`}>
-            <Sparkles size={12} aria-hidden /> Design language: <strong>{styleLabel}</strong>
-            <span className="lab__style-hint">
-              {styleLabel === "Striking" ? " — wins style-led buyers" : " — refine the screen + camera form for more style appeal"}
-            </span>
           </p>
         )}
         {competitionDrag && preview && (
@@ -524,7 +563,7 @@ export function DesignLab({
               : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now — they'll split this market.`}
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Category — always visible above the tab strip */}
       <Card>
