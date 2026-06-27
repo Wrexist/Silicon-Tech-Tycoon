@@ -1,4 +1,4 @@
-import { FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, Star } from "lucide-react";
+import { Calendar, CircuitBoard, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, Star } from "lucide-react";
 import { AnimatedInt, AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
@@ -22,17 +22,25 @@ export function Hud({ onSettings, onOpenBank }: { onSettings: () => void; onOpen
   const critical = runway < 4;
   return (
     <header className="hud">
-      <button
-        type="button"
-        className="hud__cash"
-        onClick={onOpenBank}
-        aria-label={`Open Bank. Cash ${format(state.cash)}${critical ? `, ${runway} weeks of runway left` : ""}`}
-      >
-        <span className={`hud__cash-label${critical ? " hud__cash-label--danger" : ""}`} aria-hidden>
-          {critical ? `Cash · ${runway} wk left` : "Cash"}
-        </span>
-        <AnimatedMoney value={state.cash} className={`hud__cash-value rounded${critical ? " hud__cash-value--danger" : ""}`} />
-      </button>
+      {/* Left column: brand badge over the cash readout (taps to the Bank). */}
+      <div className="hud__brand">
+        <button
+          type="button"
+          className="hud__cash"
+          onClick={onOpenBank}
+          aria-label={`Open Bank. Cash ${format(state.cash)}${critical ? `, ${runway} weeks of runway left` : ""}`}
+        >
+          <span className="hud__logo" aria-hidden>
+            <CircuitBoard size={22} strokeWidth={2} />
+          </span>
+          <span className="hud__cash-text">
+            <span className={`hud__cash-label${critical ? " hud__cash-label--danger" : ""}`} aria-hidden>
+              {critical ? `Cash · ${runway} wk left` : "Cash"}
+            </span>
+            <AnimatedMoney value={state.cash} className={`hud__cash-value rounded${critical ? " hud__cash-value--danger" : ""}`} />
+          </span>
+        </button>
+      </div>
       <div className="hud__meta">
         {/* Chips and buttons wrap as GROUPS — on narrow phones the buttons drop to their own
             right-aligned row instead of splitting at an arbitrary chip boundary. */}
@@ -62,6 +70,7 @@ export function Hud({ onSettings, onOpenBank }: { onSettings: () => void; onOpen
             title={`${eraName(state.era)} · ${weekLabel(state.week)}`}
             aria-label={`Week ${state.week}`}
           >
+            <Calendar size={13} strokeWidth={2.2} aria-hidden />
             <span className="tnum" aria-hidden>Wk {state.week}</span>
             <span className="hud__chip-sep" aria-hidden>·</span>
             <span className="tnum" aria-hidden>{weekLabel(state.week)}</span>

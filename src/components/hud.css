@@ -3,7 +3,7 @@
   top: 0;
   z-index: 20;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-12);
   padding: calc(var(--sp-12) + env(safe-area-inset-top)) var(--edge) var(--sp-12);
@@ -12,12 +12,20 @@
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid var(--hairline);
 }
-.hud__cash {
+
+/* Left column: brand badge above the cash readout. */
+.hud__brand {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  gap: var(--sp-8);
   min-width: 0;
-  /* it's a real button now (opens the Bank) — strip the native chrome, keep the tap feedback */
+}
+.hud__cash {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  min-width: 0;
+  /* it's a real button (opens the Bank) — strip native chrome, keep tap feedback */
   background: none;
   border: none;
   padding: 0;
@@ -28,6 +36,24 @@
 .hud__cash:active {
   transform: scale(0.96);
 }
+.hud__logo {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--brand-deep);
+  box-shadow: 0 2px 8px var(--brand-deep-shadow);
+}
+.hud__cash-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
 .hud__cash-label {
   font-size: var(--fs-micro);
   font-weight: 600;
@@ -37,31 +63,32 @@
 }
 .hud__cash-value {
   /* Scales with the viewport so the headline number never dominates a narrow window
-     (it rendered ~half the screen wide in sub-320px windows) yet stays 24px on real phones. */
+     yet stays 24px on real phones. Green = healthy money (mockup); danger overrides red. */
   font-size: clamp(19px, 6.4vw, 24px);
   font-weight: 700;
   letter-spacing: -0.02em;
   white-space: nowrap;
+  color: var(--positive-text, var(--positive));
 }
-.hud__cash-label--danger {
-  color: var(--negative);
-}
+.hud__cash-label--danger,
 .hud__cash-value--danger {
   color: var(--negative);
 }
+
+/* Right column: chips above the control buttons. */
 .hud__meta {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--sp-6);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-8);
   min-width: 0;
 }
-/* Chips and control buttons wrap as whole groups (each row right-aligned), never mid-group. */
 .hud__chips,
 .hud__controls {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--sp-6);
 }
 .hud__chip {
@@ -84,9 +111,10 @@
 .hud__chip--rp {
   color: var(--accent);
 }
+/* Circular control buttons (mockup). */
 .hud__pause {
-  min-width: 44px;
-  min-height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 1px solid var(--hairline);
@@ -95,6 +123,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: transform var(--spring-snappy), background var(--spring-snappy);
 }
 .hud__pause:active {
   transform: scale(0.94);
