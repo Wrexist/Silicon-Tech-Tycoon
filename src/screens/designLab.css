@@ -438,12 +438,12 @@
 .lab__stepper {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-8);
+  gap: var(--sp-4);
   background: var(--bg-elevated);
   border-radius: var(--r-pill);
   padding: 3px;
   flex-shrink: 0;
-  margin-left: var(--sp-12);
+  margin-left: var(--sp-8);
 }
 .lab__stepper--wide {
   width: 100%;
@@ -451,8 +451,8 @@
   padding: 6px var(--sp-16);
 }
 .lab__stepper button {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 40px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -470,7 +470,7 @@
   transform: scale(0.9);
 }
 .lab__stepper-val {
-  min-width: 44px;
+  min-width: 28px;
   text-align: center;
   font-weight: 700;
   font-size: var(--fs-caption);
