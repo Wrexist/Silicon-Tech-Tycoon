@@ -373,8 +373,12 @@
   background: color-mix(in srgb, var(--ink-3) 55%, transparent);
 }
 .lab__comp-name {
-  font-size: var(--fs-body);
+  font-size: var(--fs-fx); /* 15px — keeps "Name · $price" on one line in the row's column */
   font-weight: 700;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lab__comp-meta {
   display: flex;

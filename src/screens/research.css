@@ -598,7 +598,7 @@
 .rd__comp-pip { width: 5px; height: 5px; border-radius: 50%; background: color-mix(in srgb, var(--ink-3) 25%, transparent); }
 .rd__comp-pip--on { background: var(--fn-eng); }
 .rd__comp-tcount { color: var(--ink-3); font-weight: 700; }
-.rd__comp-name { font-size: var(--fs-body); font-weight: 700; }
+.rd__comp-name { font-size: var(--fs-fx); font-weight: 700; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd__comp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); font-size: var(--fs-micro); font-weight: 600; }
 .rd__comp-next { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-2); min-width: 0; }
 .rd__comp-next svg { color: var(--fn-eng); flex-shrink: 0; }
