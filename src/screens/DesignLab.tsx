@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Search, Share2, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -26,8 +26,10 @@ import type {
   NotchStyle,
   Product,
   ProductTuning,
+  RegionId,
   Stats,
 } from "../engine/types.ts";
+import { REGIONS, regionTasteFit } from "../engine/regions.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import {
@@ -350,10 +352,10 @@ export function DesignLab({
     setWizard(true);
   }
 
-  function confirmBuild(units: number, channelId: ChannelId) {
+  function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[]) {
     // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the
     // completion sheet can celebrate exactly what just shipped to the factory floor.
-    const finished = draft;
+    const finished = { ...draft, regions };
     const plan = planProduction(state, finished, units, channelId);
     const weeks = buildWeeksFor(state);
     const res = build(finished, units, channelId);
@@ -1251,16 +1253,32 @@ function BuildWizard({
 }: {
   draft: Product;
   state: GameState;
-  onConfirm: (units: number, channelId: ChannelId) => void;
+  onConfirm: (units: number, channelId: ChannelId, regions: RegionId[]) => void;
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
   const [channel, setChannel] = useState<ChannelId>("none");
-  const [units, setUnits] = useState(() => recommendedRun(state, draft, "none"));
+  // Regions this product ships to. Default to the draft's selection (filtered to what's unlocked),
+  // else Home. The Regions step only appears once the player has expanded beyond Home, so early-game
+  // builds stay a clean 3-step flow.
+  const [regions, setRegions] = useState<RegionId[]>(() => {
+    const chosen = (draft.regions ?? ["home"]).filter((id) => state.unlockedRegions.includes(id));
+    return chosen.length ? chosen : ["home"];
+  });
+  const expanded = state.unlockedRegions.length > 1;
+  const steps = useMemo<("regions" | "run" | "marketing" | "review")[]>(
+    () => (expanded ? ["regions", "run", "marketing", "review"] : ["run", "marketing", "review"]),
+    [expanded],
+  );
+  const cur = steps[step];
+  const lastStep = steps.length - 1;
+  // The product as it will actually ship, including its region selection — every forecast uses this.
+  const prod = useMemo(() => ({ ...draft, regions }), [draft, regions]);
+  const [units, setUnits] = useState(() => recommendedRun(state, prod, "none"));
 
-  const plan = useMemo(() => planProduction(state, draft, units, channel), [state, draft, units, channel]);
-  const recommended = useMemo(() => recommendedRun(state, draft, channel), [state, draft, channel]);
-  const baseDemand = useMemo(() => planProduction(state, draft, units, "none").totalDemand, [state, draft, units]);
+  const plan = useMemo(() => planProduction(state, prod, units, channel), [state, prod, units, channel]);
+  const recommended = useMemo(() => recommendedRun(state, prod, channel), [state, prod, channel]);
+  const baseDemand = useMemo(() => planProduction(state, prod, units, "none").totalDemand, [state, prod, units]);
   const affordable = state.cash >= plan.totalUpfront;
   // C2 — the forecast band tightens as the player invests in market knowledge (marketer skill +
   // Demand Sensing). The SAME confidence scales the realized launch variance, so this band is honest.
@@ -1307,12 +1325,47 @@ function BuildWizard({
         <div className="wiz__thumb"><DeviceRenderer product={draft} size={56} /></div>
         <div>
           <h2 className="wiz__title">{draft.name}</h2>
-          <p className="wiz__sub">Step {step + 1} of 3 · {step === 0 ? "Production run" : step === 1 ? "Marketing" : "Review & build"}</p>
+          <p className="wiz__sub">Step {step + 1} of {steps.length} · {cur === "regions" ? "Markets" : cur === "run" ? "Production run" : cur === "marketing" ? "Marketing" : "Review & build"}</p>
         </div>
       </div>
-      <div className="wiz__steps">{[0, 1, 2].map((i) => <span key={i} className={`wiz__step${i <= step ? " wiz__step--on" : ""}`} />)}</div>
+      <div className="wiz__steps">{steps.map((_, i) => <span key={i} className={`wiz__step${i <= step ? " wiz__step--on" : ""}`} />)}</div>
 
-      {step === 0 && (
+      {cur === "regions" && (
+        <div className="wiz__body">
+          <p className="wiz__lead">Where should <b>{draft.name}</b> sell? Each market adds demand, but buyers value different things — ship where your design fits.</p>
+          <div className="wiz__regions">
+            {REGIONS.filter((r) => state.unlockedRegions.includes(r.id)).map((r) => {
+              const on = regions.includes(r.id);
+              const fit = regionTasteFit(productStats(state, prod), r);
+              const fitLabel = r.id === "home" ? "Home" : fit >= 1.12 ? "Great fit" : fit >= 1.0 ? "Good fit" : fit >= 0.85 ? "Modest fit" : "Poor fit";
+              const fitTone = r.id === "home" ? "accent" : fit >= 1.0 ? "positive" : fit >= 0.85 ? "accent" : "negative";
+              const toggle = () => {
+                haptic.light();
+                setRegions((cur2) => {
+                  const next = cur2.includes(r.id) ? cur2.filter((x) => x !== r.id) : [...cur2, r.id];
+                  return next.length ? next : ["home"]; // never empty
+                });
+              };
+              return (
+                <button key={r.id} className={`wiz__region${on ? " wiz__region--on" : ""}`} aria-pressed={on} onClick={toggle}>
+                  <span className="wiz__region-check">{on ? <Check size={14} /> : <Globe size={14} />}</span>
+                  <div className="wiz__region-text">
+                    <span className="wiz__region-name">{r.name}</span>
+                    <span className="wiz__region-blurb">{r.blurb}</span>
+                  </div>
+                  <span className={`wiz__region-fit wiz__region-fit--${fitTone}`}>{fitLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="wiz__grid">
+            <Stat label="Markets selected" value={`${regions.length} of ${state.unlockedRegions.length}`} />
+            <Stat label="Projected demand" value={plan.totalDemand.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint="across selected markets" />
+          </div>
+        </div>
+      )}
+
+      {cur === "run" && (
         <div className="wiz__body">
           <p className="wiz__lead">How many <b>{draft.name}</b> should the factory produce? You pay for the whole run upfront, so match it to demand.</p>
           <div className="wiz__units rounded tnum">{units.toLocaleString()} <span className="wiz__units-label">units</span></div>
@@ -1350,14 +1403,14 @@ function BuildWizard({
         </div>
       )}
 
-      {step === 1 && (
+      {cur === "marketing" && (
         <div className="wiz__body">
           <p className="wiz__lead">Pick a launch campaign — bigger campaigns add hype (more demand) for an upfront cost.</p>
           <div className="wiz__channels">
             {MARKETING_CHANNELS.map((c) => {
               const Icon = WIZARD_CHANNEL_ICONS[c.icon] ?? Ban;
               const aff = state.cash >= c.cost;
-              const chanDemand = planProduction(state, draft, units, c.id).totalDemand;
+              const chanDemand = planProduction(state, prod, units, c.id).totalDemand;
               const demandDelta = chanDemand - baseDemand;
               return (
                 <button key={c.id} className={`wiz__channel${channel === c.id ? " wiz__channel--on" : ""}`} disabled={!aff && c.id !== "none"} aria-pressed={channel === c.id} onClick={() => { setChannel(c.id); haptic.light(); }}>
@@ -1379,7 +1432,7 @@ function BuildWizard({
         </div>
       )}
 
-      {step === 2 && (
+      {cur === "review" && (
         <div className="wiz__body">
           <div className="wiz__review">
             <Stat label="Demand fit" value={<>{Math.round(plan.demandFit)}<span className="lab__den">/100</span></>} tone={fitTone} hint={fitLabel} />
@@ -1440,10 +1493,10 @@ function BuildWizard({
 
       <div className="wiz__nav">
         {step > 0 && <Button variant="secondary" onClick={() => { setStep(step - 1); haptic.light(); }}>Back</Button>}
-        {step < 2 ? (
+        {step < lastStep ? (
           <Button block onClick={() => { setStep(step + 1); haptic.light(); }}>Next</Button>
         ) : (
-          <Button block disabled={!affordable} onClick={() => onConfirm(units, channel)} haptics="none">
+          <Button block disabled={!affordable} onClick={() => onConfirm(units, channel, regions)} haptics="none">
             <Factory size={16} /> Build {units.toLocaleString()} units
           </Button>
         )}

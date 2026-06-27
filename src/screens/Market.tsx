@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Building2, ChevronRight, Clock, Crown, Lightbulb, Megaphone, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -38,6 +38,7 @@ import {
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
+import { REGIONS } from "../engine/regions.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { StatGlossary } from "../components/StatGlossary.tsx";
 import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
@@ -77,7 +78,7 @@ function changePct(history: number[]): number {
 }
 
 export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccessor?: (p: Product) => void; onOpenDesignLab?: () => void } = {}) {
-  const { state } = useGame();
+  const { state, unlockRegion } = useGame();
   const trends = state.trends;
   const comps = state.competitors;
   // Only show releases from rivals still on the board — an acquired rival's historical releases would
@@ -232,6 +233,34 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           </Card>
         );
       })()}
+
+      {/* Global expansion — open new markets to grow your addressable demand (engine/regions.ts) */}
+      <Card className="mkt__regions">
+        <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length} open`} />
+        <p className="mkt__regions-lead">Expand beyond your home market. Each region adds demand — but its buyers value different things, so design with your markets in mind.</p>
+        <div className="mkt__region-list">
+          {REGIONS.map((r) => {
+            const open = state.unlockedRegions.includes(r.id);
+            const afford = state.cash >= r.unlockCost;
+            return (
+              <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`}>
+                <span className="mkt__region-icon">{open ? <Globe size={16} /> : <Lock size={15} />}</span>
+                <div className="mkt__region-text">
+                  <span className="mkt__region-name">{r.name}</span>
+                  <span className="mkt__region-blurb">{r.blurb}</span>
+                </div>
+                {open ? (
+                  <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
+                ) : (
+                  <Button variant="secondary" disabled={!afford} onClick={() => unlockRegion(r.id)}>
+                    {format(r.unlockCost)}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
 
       {/* Rival releases — the real products rivals have shipped (Epic B): see and learn from them */}
       {visibleRivalReleases.length > 0 && (
