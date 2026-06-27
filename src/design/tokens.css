@@ -47,6 +47,9 @@
   --brand-deep: #0c5a3f;
   --brand-deep-shadow: rgba(12, 90, 63, 0.28);
 
+  /* Dark icon tile (Design Lab component glyphs) — charcoal square with a white glyph. */
+  --tile-dark: #1c2128;
+
   /* a11y "on-light" TEXT variants. The bright fills above stay for bars/icons/fills; these are
      the legible shades to use when the SAME colour is rendered as TEXT on a surface. In light
      theme they're darkened to clear 4.5:1; in dark theme (below) they fall back to the bright
@@ -167,6 +170,7 @@
     --fn-team-soft: #1f1638;
     --brand-deep: #0f7a55;
     --brand-deep-shadow: rgba(0, 0, 0, 0.45);
+    --tile-dark: #2a2f38;
     --glass-card: color-mix(in srgb, var(--surface) 76%, transparent);
     --glass-stroke: rgba(255, 255, 255, 0.07);
     --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -204,6 +208,7 @@
   --fn-mkt-soft: #16233d;
   --brand-deep: #0f7a55;
   --brand-deep-shadow: rgba(0, 0, 0, 0.45);
+  --tile-dark: #2a2f38;
   --glass-card: color-mix(in srgb, var(--surface) 76%, transparent);
   --glass-stroke: rgba(255, 255, 255, 0.07);
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);

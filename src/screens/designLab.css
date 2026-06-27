@@ -321,22 +321,33 @@
 .lab__comp {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--sp-8) 0;
+  gap: var(--sp-12);
+  padding: var(--sp-12) 0;
   border-bottom: 1px solid var(--hairline);
 }
 .lab__comp:last-child {
   border-bottom: none;
+}
+.lab__comp-tile {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-button);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tile-dark);
+  color: #fff;
 }
 .lab__comp-info {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  gap: 1px;
+  gap: 2px;
 }
-.lab__comp-name {
-  font-size: var(--fs-caption);
+.lab__comp-cat {
+  font-size: var(--fs-micro);
   color: var(--ink-2);
   font-weight: 600;
   display: flex;
@@ -356,43 +367,69 @@
   transition: background 0.15s;
 }
 .lab__comp-pip--on {
-  background: var(--accent);
+  background: var(--fn-design);
 }
 .lab__comp-pip--unlocked {
   background: color-mix(in srgb, var(--ink-3) 55%, transparent);
 }
-.lab__comp-tier {
+.lab__comp-name {
   font-size: var(--fs-body);
-  font-weight: 600;
+  font-weight: 700;
+}
+.lab__comp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: 1px;
 }
 .lab__comp-contrib {
-  margin-top: 2px;
   font-size: var(--fs-micro);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--positive-text);
 }
 .lab__comp-locked {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--sp-4);
-  margin-top: 3px;
   font-size: var(--fs-micro);
   font-weight: 700;
   min-width: 0;
 }
 .lab__comp-locked svg {
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--fn-design);
 }
 /* the next-tier NAME is the hook (accent); it truncates rather than wrapping into a messy
    multi-line block in the rare case it's very long. "tier gated by R&D" in the card header
    already explains HOW to unlock, so the per-row hint was dropped to cut clutter. */
 .lab__comp-locked-name {
-  color: var(--accent);
+  color: var(--fn-design);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Persistent build summary bar (cost / score / market fit) */
+.lab__summary {
+  display: flex;
+  align-items: center;
+}
+.lab__summary-cell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+.lab__summary-cell + .lab__summary-cell {
+  border-left: 1px solid var(--hairline);
+  padding-left: var(--sp-12);
+}
+.lab__summary-icon { color: var(--fn-design); flex-shrink: 0; }
+.lab__summary-text { display: flex; flex-direction: column; min-width: 0; }
+.lab__summary-label { font-size: var(--fs-micro); color: var(--ink-2); font-weight: 600; }
+.lab__summary-val { font-size: var(--fs-body); font-weight: 800; }
 .lab__comp-cost {
   font-size: var(--fs-caption);
   font-weight: 600;

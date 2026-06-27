@@ -11,9 +11,13 @@ import {
   Wrench,
   PencilRuler,
   Megaphone,
+  BatteryCharging,
+  Layers3,
+  CodeXml,
+  Camera,
   type LucideIcon,
 } from "lucide-react";
-import type { CategoryId, StaffRole } from "../engine/types.ts";
+import type { CategoryId, ComponentKind, StaffRole } from "../engine/types.ts";
 
 const CATEGORY_ICON: Record<CategoryId, LucideIcon> = {
   phone: Smartphone,
@@ -39,5 +43,20 @@ export function CategoryIcon({ id, size = 16 }: { id: CategoryId; size?: number 
 
 export function RoleIcon({ role, size = 18 }: { role: StaffRole; size?: number }) {
   const Ico = ROLE_ICON[role];
+  return <Ico size={size} strokeWidth={2} aria-hidden />;
+}
+
+// Component-line glyphs for the Design Lab tiles (chip, display, …). All Lucide, no assets.
+const COMPONENT_ICON: Record<ComponentKind, LucideIcon> = {
+  chip: Cpu,
+  display: Monitor,
+  battery: BatteryCharging,
+  materials: Layers3,
+  software: CodeXml,
+  camera: Camera,
+};
+
+export function ComponentIcon({ kind, size = 20 }: { kind: ComponentKind; size?: number }) {
+  const Ico = COMPONENT_ICON[kind];
   return <Ico size={size} strokeWidth={2} aria-hidden />;
 }

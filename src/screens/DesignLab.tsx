@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
-import { CategoryIcon } from "../design/icons.tsx";
+import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -658,8 +658,9 @@ export function DesignLab({
                 const atMax = tier >= maxT;
                 return (
                   <div className="lab__comp" key={kind}>
+                    <span className="lab__comp-tile" aria-hidden><ComponentIcon kind={kind} size={20} /></span>
                     <div className="lab__comp-info">
-                      <span className="lab__comp-name">
+                      <span className="lab__comp-cat">
                         {COMPONENT_LINES[kind].displayName}
                         <span className="lab__comp-pips" aria-hidden>
                           {Array.from({ length: totalT }).map((_, i) => (
@@ -670,7 +671,7 @@ export function DesignLab({
                           ))}
                         </span>
                       </span>
-                      <span className="lab__comp-tier">
+                      <span className="lab__comp-name">
                         {def?.name ?? "—"}
                         {def && toDollars(def.unitCost) > 0 && (
                           // Breakable space, then a nowrap "· $price" unit (non-breaking space), so the
@@ -678,6 +679,7 @@ export function DesignLab({
                           <>{" "}<span className="lab__comp-cost">·{"\u00a0"}{format(def.unitCost)}</span></>
                         )}
                       </span>
+                      <span className="lab__comp-meta">
                       {def && contribLabel(def.contributes) && (
                         <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
                       )}
@@ -693,6 +695,7 @@ export function DesignLab({
                           </span>
                         );
                       })()}
+                      </span>
                     </div>
                     <div className="lab__stepper">
                       <button onClick={() => setTier(kind, -1)} disabled={tier <= 1} aria-label="Lower tier"><Minus size={16} /></button>
@@ -1191,6 +1194,31 @@ export function DesignLab({
         )}
 
       </div>
+
+      {/* Persistent build summary — cost / score / market fit at a glance (mockup footer bar). */}
+      <Card className="lab__summary">
+        <div className="lab__summary-cell">
+          <CircleDollarSign size={18} className="lab__summary-icon" aria-hidden />
+          <span className="lab__summary-text">
+            <span className="lab__summary-label">Est. Cost</span>
+            <span className="lab__summary-val tnum">{format(unitCost)}</span>
+          </span>
+        </div>
+        <div className="lab__summary-cell">
+          <Trophy size={18} className="lab__summary-icon" aria-hidden />
+          <span className="lab__summary-text">
+            <span className="lab__summary-label">Est. Score</span>
+            <span className="lab__summary-val tnum">{overall} <span className="lab__den">/ 100</span></span>
+          </span>
+        </div>
+        <div className="lab__summary-cell">
+          <TrendingUp size={18} className="lab__summary-icon" aria-hidden />
+          <span className="lab__summary-text">
+            <span className="lab__summary-label">Market Fit</span>
+            <span className="lab__summary-val">{fit >= 70 ? "Excellent" : fit >= 50 ? "Strong" : fit >= 35 ? "Good" : fit >= 20 ? "Fair" : "Weak"}</span>
+          </span>
+        </div>
+      </Card>
 
       {/* Sticky step nav above the tab bar — Back (left) + Next (right) so the design flow reads
           as clear steps. Fixed (stays put while the pane scrolls). The Launch step has its own
