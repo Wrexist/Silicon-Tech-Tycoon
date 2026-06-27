@@ -750,8 +750,8 @@ function Upgrades() {
                 <span className="hqu__glyph" aria-hidden>{gate ? <Lock size={16} /> : <Icon size={18} />}</span>
                 <div className="hqu__info">
                   <span className="hqu__name">{line.name}</span>
-                  <span className="hqu__effect">{cur > 0 ? line.effectAt(cur) : line.blurb}</span>
-                  {!maxed && <span className="hqu__effect-next">→ {line.effectAt(cur + 1)}</span>}
+                  <span className={`hqu__effect${cur > 0 ? " hqu__effect--active" : ""}`}>{cur > 0 ? line.effectAt(cur) : line.blurb}</span>
+                  {!maxed && <span className="hqu__effect-next">{cur > 0 ? "Next" : "Unlocks"} · {line.effectAt(cur + 1)}</span>}
                 </div>
                 <span className="hqu__lv tnum">{maxed ? "MAX" : `Lv ${cur}`}</span>
               </div>
