@@ -144,6 +144,23 @@
 .lreveal__units-val { font-size: var(--fs-headline); font-weight: 800; }
 .lreveal__units-label { font-size: var(--fs-caption); color: var(--ink-2); }
 
+/* Continue CTA — themed to the verdict accent (green hit / blue steady / muted flop), rounded with a
+   soft accent-tinted lift so it reads premium on the white card rather than a flat default button. */
+.lreveal__card .ds-btn--primary {
+  margin-top: var(--sp-4);
+  background: var(--lreveal-accent);
+  border-color: var(--lreveal-accent);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  border-radius: var(--r-card);
+  box-shadow: 0 10px 26px -8px color-mix(in srgb, var(--lreveal-accent) 60%, transparent);
+  animation: lreveal-rise 0.4s var(--spring-standard) 0.14s both;
+}
+.lreveal__card .ds-btn--primary:active {
+  transform: translateY(1px) scale(0.99);
+}
+
 /* Verdict accent palettes (mapped to one var pair so the card themes consistently) */
 .lreveal--hit { --lreveal-accent: var(--positive-text, var(--positive)); --lreveal-accent-soft: var(--positive-soft); }
 .lreveal--solid { --lreveal-accent: var(--positive-text, var(--positive)); --lreveal-accent-soft: var(--positive-soft); }
@@ -152,5 +169,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .lreveal__card, .lreveal__verdict, .lreveal__glow, .lreveal__score-val,
-  .lreveal__outlets, .lreveal__quote, .lreveal__units { animation: none; }
+  .lreveal__outlets, .lreveal__quote, .lreveal__units,
+  .lreveal__card .ds-btn--primary { animation: none; }
 }

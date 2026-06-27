@@ -683,15 +683,11 @@ export function DesignLab({
                           ))}
                         </span>
                       </span>
-                      <span className="lab__comp-name">
-                        {def?.name ?? "—"}
-                        {def && toDollars(def.unitCost) > 0 && (
-                          // Breakable space, then a nowrap "· $price" unit (non-breaking space), so the
-                          // separator wraps WITH the price instead of orphaning at a line end on long names.
-                          <>{" "}<span className="lab__comp-cost">·{"\u00a0"}{format(def.unitCost)}</span></>
-                        )}
-                      </span>
+                      <span className="lab__comp-name">{def?.name ?? "—"}</span>
                       <span className="lab__comp-meta">
+                      {def && toDollars(def.unitCost) > 0 && (
+                        <span className="lab__comp-cost">{format(def.unitCost)}</span>
+                      )}
                       {def && contribLabel(def.contributes) && (
                         <span className="lab__comp-contrib">{contribLabel(def.contributes)}</span>
                       )}

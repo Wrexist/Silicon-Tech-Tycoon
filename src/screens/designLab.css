@@ -435,8 +435,8 @@
 .lab__summary-label { font-size: var(--fs-micro); color: var(--ink-2); font-weight: 600; }
 .lab__summary-val { font-size: var(--fs-body); font-weight: 800; }
 .lab__comp-cost {
-  font-size: var(--fs-caption);
-  font-weight: 600;
+  font-size: var(--fs-micro);
+  font-weight: 700;
   color: var(--ink-3);
 }
 .lab__stepper {
