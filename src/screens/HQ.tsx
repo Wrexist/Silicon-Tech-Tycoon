@@ -37,6 +37,7 @@ import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, planProduction, productStats, type FeedItem, type GameState } from "../state/gameState.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
+import { emitCelebrate } from "../design/celebrateFx.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -142,6 +143,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
               goPublic();
               haptic.success();
               sfx("era");
+              emitCelebrate();
             }}
           >
             <TrendingUp size={15} /> IPO
@@ -164,6 +166,8 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
             onClick={() => {
               advanceEra();
               haptic.success();
+              sfx("era");
+              emitCelebrate();
               showToast(`Welcome to the ${eraName(state.era + 1)}`, { tone: "positive", glyph: <Sparkles size={15} /> });
             }}
           >

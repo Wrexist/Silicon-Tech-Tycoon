@@ -39,6 +39,7 @@ import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { REGIONS } from "../engine/regions.ts";
+import { emitCelebrate } from "../design/celebrateFx.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { StatGlossary } from "../components/StatGlossary.tsx";
 import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
@@ -1378,7 +1379,7 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
             disabled={!acquirable}
             onClick={() => {
               if (!armAcquire) { setArmAcquire(true); haptic.medium(); return; }
-              acquireRival(comp.id); haptic.success(); sfx("era");
+              acquireRival(comp.id); haptic.success(); sfx("era"); emitCelebrate();
               showToast(`Acquired ${comp.name}`, { tone: "positive", glyph: <Crown size={15} /> });
               onClose();
             }}
@@ -1528,7 +1529,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
             disabled={!acquirable}
             onClick={() => {
               if (!armAcquire) { setArmAcquire(true); haptic.medium(); return; }
-              acquireRival(comp.id); haptic.success(); sfx("era");
+              acquireRival(comp.id); haptic.success(); sfx("era"); emitCelebrate();
               showToast(`Acquired ${comp.name}`, { tone: "positive", glyph: <Crown size={15} /> });
               onClose();
             }}
@@ -1571,7 +1572,7 @@ function IPOSheet({ onClose }: { onClose: () => void }) {
       <div className="trade__ipo-amount rounded tnum">+{format(dollars(Math.round(raised)))}</div>
       <Slider value={pct} min={5} max={BALANCE.ipo.maxStakePerSale * 100} step={1} ariaLabel="Stake to sell" accent="var(--accent)" onChange={setPct} />
       <p className="trade__ipo-pct">Sell {Math.round(pct)}%</p>
-      <Button block onClick={() => { listCompany(pct / 100); haptic.success(); sfx("era"); showToast(`${state.companyName} is now public!`, { tone: "positive", glyph: <Building2 size={15} /> }); onClose(); }}>
+      <Button block onClick={() => { listCompany(pct / 100); haptic.success(); sfx("era"); emitCelebrate(); showToast(`${state.companyName} is now public!`, { tone: "positive", glyph: <Building2 size={15} /> }); onClose(); }}>
         Confirm IPO
       </Button>
     </div>
