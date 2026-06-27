@@ -71,6 +71,12 @@
 }
 .lreveal__stage > :not(.lreveal__glow) { position: relative; z-index: 1; }
 
+.lreveal__first {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: var(--r-pill);
+  background: var(--fn-design-soft); color: var(--fn-design);
+  font-size: var(--fs-caption); font-weight: 800;
+}
 .lreveal__eyebrow {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);

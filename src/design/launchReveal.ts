@@ -13,6 +13,7 @@ export interface LaunchRevealData {
   headline: string;        // pull-quote
   units: number;           // projected first-run sales
   isHit: boolean;
+  firstLaunch: boolean;    // the company's very first product — gets a special beat
 }
 
 type Listener = (d: LaunchRevealData) => void;
@@ -38,6 +39,7 @@ export function buildLaunchReveal(args: {
   betterRivals: number;
   units: number;
   isHit: boolean;
+  firstLaunch: boolean;
 }): LaunchRevealData {
   const r = criticReviews({
     productId: args.product.id,
@@ -55,5 +57,6 @@ export function buildLaunchReveal(args: {
     headline: r.headline,
     units: args.units,
     isHit: args.isHit,
+    firstLaunch: args.firstLaunch,
   };
 }

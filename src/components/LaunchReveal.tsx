@@ -2,7 +2,7 @@
 // critic reviews counting in, then the verdict + projected sales, with confetti on a hit. Mounted
 // once in App; driven by the launchReveal module bus. Reduced-motion jumps straight to the result.
 import { useEffect, useRef, useState } from "react";
-import { Rocket, Star, X } from "lucide-react";
+import { Rocket, Sparkles, Star, X } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button } from "../design/primitives.tsx";
 import { onLaunchReveal, type LaunchRevealData } from "../design/launchReveal.ts";
@@ -37,7 +37,7 @@ export function LaunchReveal() {
       setStage("verdict");
       setScore(d.aggregate);
       setUnits(d.units);
-      if (d.isHit) emitCelebrate();
+      if (d.isHit || d.firstLaunch) emitCelebrate();
       return;
     }
     setStage("intro");
@@ -47,7 +47,7 @@ export function LaunchReveal() {
     t(2300, () => {
       setStage("verdict");
       countTo(d.units, setUnits, timers, 900);
-      if (d.isHit) emitCelebrate();
+      if (d.isHit || d.firstLaunch) emitCelebrate();
     });
   }), []);
 
@@ -68,6 +68,7 @@ export function LaunchReveal() {
           <DeviceRenderer product={data.product} size={150} idle shimmer />
         </div>
 
+        {data.firstLaunch && <div className="lreveal__first"><Sparkles size={13} aria-hidden /> Your first product is live!</div>}
         <div className="lreveal__eyebrow"><Rocket size={13} aria-hidden /> {data.product.name} · launched</div>
 
         {/* Critic aggregate — counts in once reviews land */}

@@ -110,6 +110,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
           betterRivals: plan.betterRivals,
           units: plan.projectedSales,
           isHit,
+          firstLaunch: launchedBefore.length === 0,
         }));
       }
     }

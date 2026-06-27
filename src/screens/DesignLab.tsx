@@ -406,6 +406,7 @@ export function DesignLab({
         betterRivals: plan.betterRivals,
         units: plan.projectedSales,
         isHit,
+        firstLaunch: launchedBefore.length === 0,
       }));
     }
   }
