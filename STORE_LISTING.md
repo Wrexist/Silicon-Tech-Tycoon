@@ -165,7 +165,9 @@ This covers:
 
 ### PrivacyInfo.xcprivacy (Xcode required-reason APIs)
 
-Add `PrivacyInfo.xcprivacy` to the iOS target. The app uses only:
+DONE — shipped in the repo at `ios/App/App/PrivacyInfo.xcprivacy` and wired into the App
+target's Copy Bundle Resources (project.pbxproj). No Xcode step needed; `cap sync` preserves it.
+It declares no tracking, no collected data, and only:
 
 | API | Reason code |
 |-----|-------------|
@@ -305,7 +307,7 @@ Recommended pre-submission checklist:
 
 - [ ] Privacy policy URL is live
 - [ ] Support URL is live
-- [ ] PrivacyInfo.xcprivacy added to Xcode target
+- [x] PrivacyInfo.xcprivacy added to Xcode target (committed + wired in project.pbxproj)
 - [ ] In-App Purchase created in App Store Connect with correct product ID
       (only if StoreKit is wired — see WHAT_YOU_NEED_TO_DO.md Step 7; otherwise skip the IAP for v1)
 - [ ] IAP attached to the app version for review (only with StoreKit wired — never attach unwired)
