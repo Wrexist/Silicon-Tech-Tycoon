@@ -4,7 +4,8 @@
 // sell, a swaying pendant lamp. The workspace grows with staff + facility tier.
 //
 // Drop in your own artwork? Put an SVG/PNG in `public/hq/` and set HQ_CUSTOM_ASSET below.
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { MOOD_COLOR, moodBand } from "../engine/staff.ts";
 import type { Staff } from "../engine/types.ts";
 import { eyeShapeFor, robotLook, ROBOT_BODY, type EyeShape } from "./robotKit.ts";
@@ -82,7 +83,7 @@ function Chair({ c, r, hue }: { c: number; r: number; hue: string }) {
 // A distinct seated robot, facing the viewer, drawn from their appearance + mood. The team are
 // mascot robots (never humans): a chassis torso with a glowing core, a metal neck ring, a rounded
 // head with a dark face-screen visor + glowing eyes that track mood, and a mood-lit antenna.
-function Person({ s, c, r }: { s: Staff; c: number; r: number }) {
+function Person({ s, c, r, reacting }: { s: Staff; c: number; r: number; reacting?: HqReaction | null }) {
   const [x, y] = iso(c, r);
   const look = robotLook(s.appearance);
   const band = moodBand(s.mood);
@@ -99,7 +100,7 @@ function Person({ s, c, r }: { s: Staff; c: number; r: number }) {
   const eyeY = hcy + 0.4;
 
   return (
-    <g>
+    <g className={reacting ? `g-react g-react--${reacting}` : undefined} style={reacting ? { animationDelay: `${(hn % 5) * 0.08}s` } : undefined}>
       <ellipse cx={x} cy={y + 1} rx={7} ry={2.6} fill="rgba(0,0,0,0.16)" />
       <g className="g-person-sway" style={{ animationDelay: dSway }}>
         {/* arms (behind torso, reaching toward the desk) */}
@@ -260,6 +261,16 @@ export function IsoScene({
   const uid = useId().replace(/:/g, "");
   const team = staff ?? [];
 
+  // Living office: the team briefly cheers/slumps when a launch result lands (driven by hqReaction).
+  const [reacting, setReacting] = useState<HqReaction | null>(null);
+  const reactTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => onHqReaction((kind) => {
+    if (reactTimer.current) clearTimeout(reactTimer.current);
+    setReacting(kind);
+    reactTimer.current = setTimeout(() => setReacting(null), HQ_REACTION_MS);
+  }), []);
+  useEffect(() => () => { if (reactTimer.current) clearTimeout(reactTimer.current); }, []);
+
   if (HQ_CUSTOM_ASSET) {
     return <img src={HQ_CUSTOM_ASSET} alt="Company headquarters" style={{ display: "block", width: "100%", height, objectFit: "contain" }} />;
   }
@@ -354,7 +365,7 @@ export function IsoScene({
     const chairR = dk.r - DESK_DR - 0.18;
     const hue = member ? ROBOT_BODY[member.appearance.shirt % ROBOT_BODY.length] : "var(--g-chair-d)";
     ents.push({ d: dk.c + chairR, k: `chair${i}`, n: <Chair c={dk.c} r={chairR} hue={hue} /> });
-    if (occupied && member) ents.push({ d: dk.c + personR, k: `person${i}`, n: <Person s={member} c={dk.c} r={personR} /> });
+    if (occupied && member) ents.push({ d: dk.c + personR, k: `person${i}`, n: <Person s={member} c={dk.c} r={personR} reacting={reacting} /> });
     ents.push({ d: dk.c + dk.r, k: `desk${i}`, n: <Desk c={dk.c} r={dk.r} /> });
     const [lx, lyBase] = iso(dk.c, dk.r + DESK_DR * 0.42);
     ents.push({ d: dk.c + dk.r + DESK_DR, k: `laptop${i}`, n: <Laptop x={lx} topY={lyBase - DESK_H} on={occupied} /> });

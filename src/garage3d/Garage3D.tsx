@@ -23,6 +23,7 @@ import { FurniturePiece } from "./furniture3d.tsx";
 import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
+import { reactionIntensity } from "../design/hqReaction.ts";
 
 type Upgrades = Partial<Record<UpgradeId, number>>;
 const tierOf = (u: Upgrades, id: UpgradeId) => u[id] ?? 0;
@@ -605,16 +606,21 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false }: { colorI
 
   useFrame((st) => {
     const t = st.clock.elapsedTime + seed;
-    if (root.current) root.current.position.y = (walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035);
+    // Living-office cheer: a decaying bouncy hop + raised arms when a launch win lands (hqReaction).
+    const cheer = reactionIntensity("cheer");
+    const baseY = walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035;
+    const hop = cheer > 0 ? Math.abs(Math.sin(st.clock.elapsedTime * 9)) * 0.14 * cheer : 0;
+    if (root.current) root.current.position.y = baseY + hop;
     if (headRef.current) {
       headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22);
       headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04;
     }
-    if (antRef.current) antRef.current.rotation.z = Math.sin(t * 2.2) * 0.18;
-    // arms + legs: brisk swing while walking, soft sway when idle
+    if (antRef.current) antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6);
+    // arms + legs: brisk swing while walking, soft sway when idle — and thrown overhead on a cheer.
     const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
-    if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm;
-    if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm;
+    const cheerArm = -2.0 * cheer; // raise both arms up
+    if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm + cheerArm;
+    if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm + cheerArm;
     const leg = walking ? Math.sin(t * 6) * 0.5 : 0;
     if (legLRef.current) legLRef.current.rotation.x = -leg;
     if (legRRef.current) legRRef.current.rotation.x = leg;

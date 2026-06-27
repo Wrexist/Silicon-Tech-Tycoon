@@ -7,6 +7,7 @@ import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button } from "../design/primitives.tsx";
 import { onLaunchReveal, type LaunchRevealData } from "../design/launchReveal.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
+import { emitHqReaction } from "../design/hqReaction.ts";
 import { prefersReducedMotion } from "../garage3d/support.ts";
 import "./launchReveal.css";
 
@@ -55,7 +56,13 @@ export function LaunchReveal() {
 
   if (!data) return null;
   const v = VERDICT_COPY[data.verdict];
-  const close = () => { timers.current.forEach(clearTimeout); setData(null); };
+  const close = () => {
+    timers.current.forEach(clearTimeout);
+    // The office reacts as you return to it: cheer on a win/debut, a brief slump on a flop.
+    if (data.isHit || data.firstLaunch || data.verdict === "solid") emitHqReaction("cheer");
+    else if (data.verdict === "flop") emitHqReaction("slump");
+    setData(null);
+  };
 
   return (
     <div className={`lreveal lreveal--${v.tone}`} role="dialog" aria-modal="true" aria-label={`Launch results for ${data.product.name}`}>
