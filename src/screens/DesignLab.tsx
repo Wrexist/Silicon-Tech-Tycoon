@@ -4,7 +4,7 @@ import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../d
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
-import { emitCelebrate } from "../design/celebrateFx.ts";
+import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
 import { launchOutcome } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
@@ -385,18 +385,29 @@ export function DesignLab({
   function onLaunch(id: string) {
     // Snapshot the launched list BEFORE launchReady records this product (for first-ever/first-hit).
     const launchedBefore = state.launched;
+    const product = state.ready.find((p) => p.id === id);
+    // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
+    const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
     const res = launchReady(id);
     if (!res.ok) return;
     haptic.success();
     // launchOutcome keys the celebration off the ACTUAL recorded verdict (competition-adjusted),
     // not the raw score — and is shared with HQ so the two launch surfaces can't drift.
-    const { isHit, feedback } = launchOutcome(res, launchedBefore);
+    const { isHit } = launchOutcome(res, launchedBefore);
     sfx("launch");
-    if (isHit) {
-      setTimeout(() => sfx("hit"), 380);
-      emitCelebrate();
+    if (isHit) setTimeout(() => sfx("hit"), 380);
+    if (product && plan) {
+      emitLaunchReveal(buildLaunchReveal({
+        product,
+        stats: productStats(state, product),
+        verdict: res.verdict ?? "steady",
+        demandFit: plan.demandFit,
+        priceFit: plan.priceFit,
+        betterRivals: plan.betterRivals,
+        units: plan.projectedSales,
+        isHit,
+      }));
     }
-    showToast(feedback.text, { tone: feedback.tone, glyph: <Rocket size={15} /> });
   }
 
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)

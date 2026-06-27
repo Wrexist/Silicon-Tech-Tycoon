@@ -1,0 +1,127 @@
+.lreveal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.lreveal__scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.lreveal__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  border-radius: var(--r-sheet);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-floating);
+  text-align: center;
+  animation: lreveal-pop var(--spring-standard) both;
+}
+@keyframes lreveal-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.lreveal__close {
+  position: absolute;
+  top: var(--sp-12);
+  right: var(--sp-12);
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: none;
+  color: var(--ink-2);
+}
+
+/* Device on a verdict-tinted glow */
+.lreveal__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8) 0;
+}
+.lreveal__glow {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 220px; height: 220px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, var(--lreveal-accent-soft), transparent 70%);
+  pointer-events: none;
+}
+.lreveal__stage > :not(.lreveal__glow) { position: relative; z-index: 1; }
+
+.lreveal__eyebrow {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.lreveal__eyebrow svg { color: var(--lreveal-accent); }
+
+.lreveal__score {
+  display: flex; align-items: baseline; gap: var(--sp-6);
+}
+.lreveal__score-label {
+  font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600;
+  align-self: center;
+}
+.lreveal__score-val {
+  font-size: var(--fs-large-title); font-weight: 800; letter-spacing: -0.02em;
+  color: var(--lreveal-accent);
+}
+.lreveal__score-den { font-size: var(--fs-caption); color: var(--ink-3); font-weight: 700; }
+.lreveal__score--pending .lreveal__score-val { color: var(--ink-3); }
+
+.lreveal__outlets { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-6); }
+.lreveal__outlet {
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  padding: 5px 10px; border-radius: var(--r-pill);
+  background: var(--surface-2); font-size: var(--fs-micro); font-weight: 600;
+}
+.lreveal__outlet-name { color: var(--ink-2); }
+.lreveal__outlet-score { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; }
+.lreveal__outlet-score svg { color: var(--warning); }
+
+.lreveal__quote {
+  font-size: var(--fs-body); font-style: italic; color: var(--ink); line-height: 1.4;
+  margin: 0 var(--sp-4);
+}
+
+.lreveal__verdict {
+  font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em;
+  color: var(--lreveal-accent);
+  animation: lreveal-pop var(--spring-bouncy, var(--spring-standard)) both;
+}
+.lreveal__units { display: flex; flex-direction: column; gap: 1px; }
+.lreveal__units-val { font-size: var(--fs-headline); font-weight: 800; }
+.lreveal__units-label { font-size: var(--fs-caption); color: var(--ink-2); }
+
+/* Verdict accent palettes (mapped to one var pair so the card themes consistently) */
+.lreveal--hit { --lreveal-accent: var(--positive-text, var(--positive)); --lreveal-accent-soft: var(--positive-soft); }
+.lreveal--solid { --lreveal-accent: var(--positive-text, var(--positive)); --lreveal-accent-soft: var(--positive-soft); }
+.lreveal--steady { --lreveal-accent: var(--accent); --lreveal-accent-soft: var(--accent-soft); }
+.lreveal--flop { --lreveal-accent: var(--ink-2); --lreveal-accent-soft: var(--surface-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lreveal__card, .lreveal__verdict { animation: none; }
+}

@@ -10,7 +10,6 @@ import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
-import { emitCelebrate } from "../design/celebrateFx.ts";
 import { launchOutcome } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
@@ -36,7 +35,9 @@ import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, planProduction, productStats, type FeedItem, type GameState } from "../state/gameState.ts";
+import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
+import type { ChannelId } from "../engine/marketing.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
@@ -87,15 +88,29 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
   const settings = useSettings();
   const onLaunch = (id: string) => {
     const launchedBefore = state.launched; // before launchReady records this product
+    const product = state.ready.find((p) => p.id === id);
+    // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
+    const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
     const res = launchReady(id);
     if (res.ok) {
       haptic.success();
       // Shared with the Design Lab; keys the celebration off the recorded (competition-adjusted)
       // verdict, so the launch moment can never contradict what Market/feed record.
-      const { isHit, feedback } = launchOutcome(res, launchedBefore);
+      const { isHit } = launchOutcome(res, launchedBefore);
       sfx("launch");
-      if (isHit) { setTimeout(() => sfx("hit"), 380); emitCelebrate(); }
-      showToast(feedback.text, { tone: feedback.tone, glyph: <Rocket size={15} /> });
+      if (isHit) setTimeout(() => sfx("hit"), 380);
+      if (product && plan) {
+        emitLaunchReveal(buildLaunchReveal({
+          product,
+          stats: productStats(state, product),
+          verdict: res.verdict ?? "steady",
+          demandFit: plan.demandFit,
+          priceFit: plan.priceFit,
+          betterRivals: plan.betterRivals,
+          units: plan.projectedSales,
+          isHit,
+        }));
+      }
     }
   };
   const reducedMotion = useReducedMotionLive();

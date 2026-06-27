@@ -10,6 +10,7 @@ import { ResultCard } from "./components/ResultCard.tsx";
 import { ToastHost } from "./design/toast.tsx";
 import { GainFX } from "./design/GainFX.tsx";
 import { Confetti } from "./design/Confetti.tsx";
+import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
@@ -118,6 +119,7 @@ function AppShell() {
 
       <GainFX />
       <Confetti />
+      <LaunchReveal />
       <SoundFX />
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
