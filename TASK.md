@@ -1296,6 +1296,26 @@ Four follow-ups requested after the audit tiers shipped (PR on `claude/clarity-f
       — declined to fabricate work for a solved problem.
 - 524 tests (+1), tsc 0, build+PWA green. Presentation/readability only; no engine/balance change.
 
+## v49 — Design Lab + HUD reconstruction to the new mockup (DONE 2026-06-27)
+User supplied a polished Design Lab mockup ("make all the design look like this"). Confirmed ZERO new
+image assets needed — locked rule (everything is Lucide glyphs + CSS); verified every icon exists in
+lucide-react 1.17.0. Green = the existing `--fn-design` function color, so no token-system violation.
+- [x] **HUD restyle (global)**: deep-green brand badge (parametric CircuitBoard) over the cash readout;
+      cash reads green when healthy (keeps red low-runway); RP/Rep/Week chips keep pills (week gains a
+      Calendar icon); pause/fast/settings become larger circular buttons. New `--brand-deep(/shadow)`.
+- [x] **Design Lab header**: subtitle + live projected-verdict badge ("Steady Seller", ShieldCheck).
+- [x] **Hero → 2-column card**: parametric device on a green radial glow + Phone/Tablet quick-toggle
+      (left); live read-out (right) — name + Concept tag, Fit with progress bar, Build (synergy),
+      Design Language. "View back" is a divided footer button. DeviceRenderer reused untouched (protected).
+- [x] **Components → icon tiles**: `ComponentIcon` map (Cpu/Monitor/BatteryCharging/Layers3/CodeXml/
+      Camera); each row = dark charcoal tile + category + green tier pips + bold name + price + meta.
+      New `--tile-dark` token (all 3 theme blocks).
+- [x] **Build summary card**: Est. Cost / Est. Score /100 / Market Fit.
+- 535 tests, tsc 0, build+PWA green. NOT verified on-device — sending a screenshot for sign-off.
+- Deferred to keep scope: the component-row expand chevron (omitted — no detail view exists yet); the
+  summary is a bottom card, not a sticky footer (the existing Back/Next step-nav owns the sticky band).
+  Same language to roll to Research + other screens next.
+
 ## v48 — global expansion: regions (DONE 2026-06-27)
 New gameplay chapter (user pick). Geography as the growth axis — "garage → global empire" was only
 thematic before; now you expand into real markets. Additive + non-invasive: ONE multiplicative hook
