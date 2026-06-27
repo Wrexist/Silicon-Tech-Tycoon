@@ -156,10 +156,18 @@
 .hq__ready-thumb {
   flex-shrink: 0;
 }
-.hq__ready-name {
+.hq__ready-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.hq__ready-name {
   font-weight: 600;
+}
+.hq__ready-sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
 }
 .hq__build + .hq__build {
   margin-top: var(--sp-12);
