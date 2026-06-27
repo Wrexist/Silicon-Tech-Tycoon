@@ -1314,10 +1314,15 @@ four directions). Sequenced biggest-impact first.
       debut (reuses the reveal rather than adding a competing first-run system — Coach/Quick Start/Next-
       Move already guide).
 - 535 tests, tsc 0, build+PWA green across all commits.
-- **NOT done — Living HQ reactions (feature 4 of 4):** the deep scene work (team cheers/slumps,
-      in-room confetti, tap-for-reaction in the 3D garage) is inherently visual and NOT CI-verifiable;
-      per RULE #1 (don't ship rough/unverified scene work) it's deferred to an on-device pass. The global
-      confetti already bursts over HQ on launches/milestones as a first "living HQ" beat.
+- [x] **Living HQ reactions** (built for on-device review, user's call): `design/hqReaction.ts` bus +
+      pollable decaying intensity. On a launch result (fired as the reveal closes, so the office is
+      visible) the team cheers (hit/solid/debut) or slumps (flop) — 2D IsoScene figures bounce/dip via
+      CSS (reduced-motion safe, staggered), 3D Garage3D RobotCharacter overlays a decaying hop +
+      arms-overhead + livelier antenna (additive offsets, zero change when no reaction). Plus the global
+      confetti. **NEEDS ON-DEVICE TUNING** — cheer pose/bounce amplitudes (Garage3D / garage.css) can't
+      be verified in CI; that was the agreed plan (build it, review/iterate on a real phone).
+- Animation polish: the reveal now reads as a choreographed sequence (pulsing glow, score scale-in,
+      staged rise-in for outlets/quote/units) — all reduced-motion safe.
 
 ## v49 — Design Lab + HUD reconstruction to the new mockup (DONE 2026-06-27)
 User supplied a polished Design Lab mockup ("make all the design look like this"). Confirmed ZERO new
