@@ -88,7 +88,7 @@ function AppShell() {
             is what made the 3D office fail on memory-constrained mobile browsers. Its render
             loop pauses while hidden (active={false}), so there's no battery cost off-screen. */}
         <div className="app__screen" hidden={tab !== "hq"}>
-          <h1 className="app__title">{TAB_TITLE.hq}</h1>
+          <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
             <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} active={tab === "hq"} />
           </ErrorBoundary>

@@ -24,6 +24,18 @@ import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../eng
 import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
 import { reactionIntensity } from "../design/hqReaction.ts";
+import { highlightIntensity } from "../design/hqHighlight.ts";
+
+/** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
+ *  decaying attention hop so the player can SEE what that upgrade added. Additive y-offset only. */
+function Pulse({ feature, children }: { feature: UpgradeId; children: ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((st) => {
+    const k = highlightIntensity(feature);
+    if (ref.current) ref.current.position.y = k > 0 ? Math.abs(Math.sin(st.clock.elapsedTime * 11)) * 0.13 * k : 0;
+  });
+  return <group ref={ref}>{children}</group>;
+}
 
 type Upgrades = Partial<Record<UpgradeId, number>>;
 const tierOf = (u: Upgrades, id: UpgradeId) => u[id] ?? 0;
@@ -1631,19 +1643,25 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* ---- Upgrades made physical: each company upgrade adds real furniture ---- */}
       {/* Marketing Suite → a branded wall screen */}
       {tierOf(upgrades, "marketing") >= 1 && (
-        <group visible={!cull.b}>
-          <WallTV name={companyName} tier={tierOf(upgrades, "marketing")} accent="#3b82f6" />
-        </group>
+        <Pulse feature="marketing">
+          <group visible={!cull.b}>
+            <WallTV name={companyName} tier={tierOf(upgrades, "marketing")} accent="#3b82f6" />
+          </group>
+        </Pulse>
       )}
       {/* Amenities → a coffee station + greenery that grows with the tier */}
-      {amenityTier >= 1 && <CoffeeStation p={p} />}
-      {amenityTier >= 2 && <Plant p={p} pos={[-3.3, 0, 3.1]} scale={0.85} />}
-      {amenityTier >= 3 && <Plant p={p} pos={[3.4, 0, 1.4]} scale={0.75} />}
-      {amenityTier >= 4 && <Plant p={p} pos={[3.5, 0, 0.0]} scale={0.7} />}
+      {amenityTier >= 1 && (
+        <Pulse feature="amenities">
+          <CoffeeStation p={p} />
+          {amenityTier >= 2 && <Plant p={p} pos={[-3.3, 0, 3.1]} scale={0.85} />}
+          {amenityTier >= 3 && <Plant p={p} pos={[3.4, 0, 1.4]} scale={0.75} />}
+          {amenityTier >= 4 && <Plant p={p} pos={[3.5, 0, 0.0]} scale={0.7} />}
+        </Pulse>
+      )}
       {/* Design Suite → a drafting easel */}
-      {tierOf(upgrades, "designSuite") >= 1 && <DesignEasel p={p} />}
+      {tierOf(upgrades, "designSuite") >= 1 && <Pulse feature="designSuite"><DesignEasel p={p} /></Pulse>}
       {/* Test Lab → a glass test chamber */}
-      {tierOf(upgrades, "testLab") >= 1 && <TestChamber p={p} />}
+      {tierOf(upgrades, "testLab") >= 1 && <Pulse feature="testLab"><TestChamber p={p} /></Pulse>}
 
       {/* The Vault is the company BANK — your money lives here; tapping it opens the finances
           popup. Kept from the start; the Kanban wall + security gate were starter clutter and

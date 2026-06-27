@@ -738,6 +738,19 @@
   font-weight: 700;
   color: var(--accent);
 }
+.hqu__card-head--tappable { cursor: pointer; }
+.hqu__see {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0.85;
+}
+.hqu__max {
+  font-size: var(--fs-nano);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
 .hqu__lv {
   flex-shrink: 0;
   align-self: flex-start;

@@ -33,6 +33,18 @@ import {
 } from "../engine/furniture.ts";
 import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
+import { emitHighlight } from "../design/hqHighlight.ts";
+
+// What each upgrade physically adds to the office — shown when you tap an owned card, tying the
+// purchase to the thing you can see in the 3D HQ (and pulsing that object via emitHighlight).
+const OFFICE_ADDITION: Record<UpgradeId, string> = {
+  computers: "dual monitors light up every desk",
+  designSuite: "a drafting easel for the design team",
+  testLab: "a glass QA test chamber",
+  marketing: "a branded wall screen",
+  amenities: "a coffee station + greenery",
+  assembly: "a faster production line",
+};
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, planProduction, productStats, type FeedItem, type GameState } from "../state/gameState.ts";
@@ -746,12 +758,22 @@ function Upgrades() {
               style={{ "--accent": fn.accent, "--accent-soft": fn.soft } as CSSProperties}
             >
               {boomed && <span key={boom.n} className="hqu__burst" aria-hidden>{boom.text}</span>}
-              <div className="hqu__card-head">
+              <div
+                className={`hqu__card-head${cur > 0 ? " hqu__card-head--tappable" : ""}`}
+                onClick={cur > 0 ? () => {
+                  haptic.light();
+                  emitHighlight(line.id);
+                  showToast(`${line.name} — ${OFFICE_ADDITION[line.id]}`, { tone: "neutral", glyph: <Icon size={15} /> });
+                } : undefined}
+                role={cur > 0 ? "button" : undefined}
+                tabIndex={cur > 0 ? 0 : undefined}
+              >
                 <span className="hqu__glyph" aria-hidden>{gate ? <Lock size={16} /> : <Icon size={18} />}</span>
                 <div className="hqu__info">
-                  <span className="hqu__name">{line.name}</span>
+                  <span className="hqu__name">{line.name}{cur > 0 && <span className="hqu__see" aria-hidden> · see in office</span>}</span>
                   <span className={`hqu__effect${cur > 0 ? " hqu__effect--active" : ""}`}>{cur > 0 ? line.effectAt(cur) : line.blurb}</span>
                   {!maxed && <span className="hqu__effect-next">{cur > 0 ? "Next" : "Unlocks"} · {line.effectAt(cur + 1)}</span>}
+                  {!maxed && line.maxTier > 1 && <span className="hqu__max">Max Lv {line.maxTier} · {line.effectAt(line.maxTier)}</span>}
                 </div>
                 <span className="hqu__lv tnum">{maxed ? "MAX" : `Lv ${cur}`}</span>
               </div>
