@@ -94,6 +94,7 @@ import {
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
@@ -117,6 +118,7 @@ import type {
   Product,
   Recruitment,
   RecruitTier,
+  RegionId,
   Staff,
   StaffRole,
   Stats,
@@ -163,6 +165,8 @@ export interface GameState {
   upgrades: Partial<Record<UpgradeId, number>>;
   researchPoints: number;
   completedProjects: ProjectId[];
+  /** Geographic markets unlocked for distribution (engine/regions.ts). Always contains "home". */
+  unlockedRegions: RegionId[];
   building: BuildJob[];
   ready: Product[]; // built, awaiting launch
   launched: LaunchedProduct[];
@@ -384,6 +388,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     upgrades: {},
     researchPoints: lb.rp,
     completedProjects: [],
+    unlockedRegions: ["home"],
     building: [],
     ready: [],
     launched: [],
@@ -686,6 +691,15 @@ export function buyDesktop(state: GameState): GameState {
   const feed = trimFeed([...state.feed, feedItem(state.week, "Set up a new office desk in the garage.", "accent")]);
   return { ...state, cash: sub(state.cash, cost), desktops: state.desktops + 1, feed };
 }
+
+/** Pay to open distribution into a new geographic market (engine/regions.ts). No-op if it's already
+ *  unlocked, unknown, or unaffordable. Sandbox/Creative cash floor still applies via the normal path. */
+export function unlockRegion(state: GameState, id: RegionId): GameState {
+  const region = regionById(id);
+  if (!region || state.unlockedRegions.includes(id) || state.cash < region.unlockCost) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Expanded into ${region.name} — a new market is open.`, "positive")]);
+  return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
+}
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
 export const buildWeeksFor = (s: GameState) =>
   Math.max(
@@ -759,6 +773,9 @@ export function planProduction(
   // Era-scaled volume — small early market (slow garage phase), grows each era.
   const eraScales = BALANCE.market.eraVolumeScale;
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
+  // Global expansion (engine/regions.ts): scale the addressable market by the regions this product
+  // ships to. Home-only is exactly ×1.0, so this never changes a domestic launch or an old save.
+  marketSize *= regionReach(s.unlockedRegions, product.regions, stats);
 
   // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
   // weighting the five stats AND price differently; the product wins a share of each, summed. This

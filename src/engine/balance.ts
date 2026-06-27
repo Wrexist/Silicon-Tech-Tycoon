@@ -154,6 +154,15 @@ export const BALANCE = {
       // price-sensitive segment still has a usable (if narrow) pricing band, never a knife-edge.
       minPriceTolerance: 0.18,
     },
+    // --- Global expansion (engine/regions.ts) ---
+    // How a region's taste turns into a market-size multiplier for a launch. tasteSpread amplifies how
+    // far a product's stat mix can swing its fit above/below 1.0; fitMin/fitMax clamp it so a region is
+    // always worth SOMETHING (never zero) but a great match is a real edge. Home is pinned to 1.0.
+    regions: {
+      tasteSpread: 1.0, // 0 = taste ignored (pure size), higher = positioning matters more
+      fitMin: 0.6,
+      fitMax: 1.2,
+    },
     // --- Forecast confidence (Epic C2 — the converging pre-launch forecast) ---
     // The wizard shows a demand RANGE; its width — and how far the real launch can land from the
     // point estimate — TIGHTENS as the player invests in knowing their market (marketer skill =

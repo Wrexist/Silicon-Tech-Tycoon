@@ -275,6 +275,9 @@ function migrate(state: GameState): GameState | null {
   // Lifetime "seen" set (carried across New Game+). Old saves seed it from this run's resolved set
   // so dilemmas already decided don't re-surface as "fresh" after the upgrade.
   if (!Array.isArray(s.seenChoices)) s.seenChoices = [...s.resolvedChoices];
+  // Global expansion (added later): old saves only ever sold to the home market.
+  if (!Array.isArray(s.unlockedRegions) || s.unlockedRegions.length === 0) s.unlockedRegions = ["home"];
+  else if (!s.unlockedRegions.includes("home")) s.unlockedRegions = ["home", ...s.unlockedRegions];
   // Scenario mode (added later): old saves are freeform runs → no active scenario.
   if (typeof s.activeScenario !== "string") s.activeScenario = null;
   if (!Number.isFinite(s.scenarioRunStars) || s.scenarioRunStars < 0) s.scenarioRunStars = 0;
