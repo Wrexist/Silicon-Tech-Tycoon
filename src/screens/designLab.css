@@ -1090,7 +1090,23 @@
 /* Production pipeline — mirrors HQ's, so the design → build → launch loop closes inside the
    Lab without a forced trip to another tab. */
 .lab__pipeline--ready {
+  border-color: color-mix(in srgb, var(--positive) 45%, var(--hairline));
+  background:
+    linear-gradient(160deg, var(--positive-soft), transparent 52%),
+    var(--glass-card);
+  animation: lab-ready-pulse 2.6s ease-in-out infinite;
+}
+@keyframes lab-ready-pulse {
+  0%, 100% { box-shadow: 0 8px 22px -12px color-mix(in srgb, var(--positive) 35%, transparent); }
+  50% { box-shadow: 0 12px 30px -8px color-mix(in srgb, var(--positive) 60%, transparent); }
+}
+.lab__pipeline--ready .ds-btn--primary {
+  background: var(--positive);
   border-color: var(--positive);
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--positive) 55%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab__pipeline--ready { animation: none; }
 }
 .lab__pipe-row {
   display: flex;
