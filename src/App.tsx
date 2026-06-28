@@ -15,6 +15,7 @@ import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { Settings } from "./screens/Settings.tsx";
+import { ProgressSheet } from "./screens/Progress.tsx";
 import { ScenariosSheet } from "./screens/Scenarios.tsx";
 import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
@@ -37,7 +38,7 @@ const TAB_TITLE: Record<Tab, string> = {
   design: "Design Lab",
   research: "Research",
   market: "Market",
-  company: "Company",
+  company: "Finance",
 };
 const TAB_TINT: Partial<Record<Tab, string>> = {
   design: "var(--fn-design)",
@@ -59,6 +60,7 @@ function AppShell() {
   const { state, offline, clearOffline, tabBlocked, takeOverHere } = useGame();
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(false);
   const [bankOpen, setBankOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
   // seenEraModal is initialized to the current era so loading an existing save never re-shows
@@ -79,9 +81,17 @@ function AppShell() {
 
   if (!state.onboarded) return <Onboarding onStart={() => setTab("design")} />;
 
+  // Progress hub (achievements/scenarios/challenges/museum) is surfaced once the player has shipped
+  // their first product — same first-ship gate the meta-layer always used, just hoisted to the HUD.
+  const hasShipped = state.launched.length >= 1 || state.legacy > 0;
+
   return (
     <div className="app">
-      <Hud onSettings={() => setSettingsOpen(true)} onOpenBank={() => setBankOpen(true)} />
+      <Hud
+        onSettings={() => setSettingsOpen(true)}
+        onOpenBank={() => setBankOpen(true)}
+        onOpenProgress={hasShipped ? () => setProgressOpen(true) : undefined}
+      />
       <main className="app__main">
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
             GPU context instead of tearing it down + re-creating it on every visit — that churn
@@ -125,6 +135,9 @@ function AppShell() {
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
         <Settings onClose={() => setSettingsOpen(false)} />
+      </Sheet>
+      <Sheet open={progressOpen} onClose={() => setProgressOpen(false)}>
+        <ProgressSheet onClose={() => setProgressOpen(false)} />
       </Sheet>
       {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} topProduct={offline.topProduct} onClose={clearOffline} />}
       {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (

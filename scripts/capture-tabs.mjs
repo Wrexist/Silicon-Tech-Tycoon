@@ -41,17 +41,28 @@ const tab = async (label) => {
 };
 const shot = async (n) => { await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(300); await p.screenshot({ path: resolve(outDir, `${n}.png`) }); console.log("shot", n); };
 
-await tab("HQ"); await shot("1-hq");
+await tab("Office"); await shot("1-office");
 await tab("Design"); await shot("2-design");
 await tab("Research"); await shot("3-research");
 await tab("Market"); await shot("4-market");
-await tab("Company"); await shot("5-company");
+await tab("Finance"); await shot("5-finance");
 
 // Settings (gear in the HUD)
 await p.click('button[aria-label="Settings"], button[aria-label="Open settings"]', { timeout: 4000 }).catch(async () => {
   await p.evaluate(() => { const b = [...document.querySelectorAll("button")].find((x) => /settings/i.test(x.getAttribute("aria-label") || "")); b?.click(); });
 });
 await p.waitForTimeout(900); await shot("6-settings");
+
+// Close settings, then open the Progress hub from the HUD trophy.
+await p.click('.ds-sheet-scrim', { timeout: 3000 }).catch(() => {});
+await p.keyboard.press("Escape").catch(() => {});
+await p.waitForTimeout(600);
+await p.click('button[aria-label="Progress, achievements and challenges"]', { timeout: 4000 }).catch(() => {});
+await p.waitForTimeout(900); await shot("7-progress");
+
+// Drill into a sub-sheet from the hub (verifies sheet-on-sheet works).
+await p.click('button[aria-label="View achievements"]', { timeout: 4000 }).catch(() => {});
+await p.waitForTimeout(900); await shot("8-achievements");
 
 await browser.close();
 console.log("done");

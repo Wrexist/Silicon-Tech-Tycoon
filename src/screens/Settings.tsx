@@ -98,12 +98,12 @@ export function Settings({ onClose }: { onClose: () => void }) {
 
       <CreativeModeGroup />
 
-      {/* The Platform division is founded in-game as an earned cash milestone (Company tab). In
+      {/* The Platform division is founded in-game as an earned cash milestone (Finance tab). In
           Creative mode it can be toggled free for experimentation. */}
       {state.sandboxUnlocked && (
         <div className="set__group">
           <span className="set__group-label">Creative overrides</span>
-          <Row icon={<Layers size={18} />} label="Platform Division" sub="Found the OS division for free (Creative only). In normal play you save up to found it from the Company tab.">
+          <Row icon={<Layers size={18} />} label="Platform Division" sub="Found the OS division for free (Creative only). In normal play you save up to found it from the Finance tab.">
             <Switch label="Platform Division" on={state.platformUnlocked} onChange={(v) => { unlockPlatform(v); sfx("toggle"); }} />
           </Row>
         </div>

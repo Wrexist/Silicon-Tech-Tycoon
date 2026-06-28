@@ -1,4 +1,4 @@
-import { Calendar, CircuitBoard, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, Star } from "lucide-react";
+import { Calendar, CircuitBoard, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, Star, Trophy } from "lucide-react";
 import { AnimatedInt, AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
@@ -13,7 +13,7 @@ export function weekLabel(week: number): string {
   return `Y${year} Q${quarter}`;
 }
 
-export function Hud({ onSettings, onOpenBank }: { onSettings: () => void; onOpenBank: () => void }) {
+export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: () => void; onOpenBank: () => void; onOpenProgress?: () => void }) {
   const { state, paused, setPaused, fast, setFast } = useGame();
   // Critical-runway signal: the HQ/Company runway pills live below the fold, so when cash will
   // run out within a month the always-visible headline number itself turns negative. Same math
@@ -93,6 +93,11 @@ export function Hud({ onSettings, onOpenBank }: { onSettings: () => void; onOpen
           >
             <FastForward size={14} fill="currentColor" />
           </button>
+          {onOpenProgress && (
+            <button className="hud__pause" onClick={onOpenProgress} aria-label="Progress, achievements and challenges">
+              <Trophy size={15} />
+            </button>
+          )}
           <button className="hud__pause" onClick={onSettings} aria-label="Settings">
             <SettingsIcon size={15} />
           </button>

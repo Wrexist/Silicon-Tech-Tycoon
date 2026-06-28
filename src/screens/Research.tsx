@@ -202,7 +202,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             </div>
           </div>
         ) : (
-          <p className="rd__bank-hint">Assign staff to R&amp;D (Company tab) to earn more Research Points.</p>
+          <p className="rd__bank-hint">Assign staff to R&amp;D (Finance tab) to earn more Research Points.</p>
         )}
       </Card>
 
