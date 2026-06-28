@@ -636,3 +636,17 @@ describe("reputation maintenance — defend your empire in the final era", () =>
     expect(s.reputation).toBe(BALANCE.reputation.decayFloor);
   });
 });
+
+describe("first-build smoothing — the debut product builds fast", () => {
+  it("the very first product of a brand-new company builds in minWeeks", () => {
+    const fresh = { ...newGame(11), cash: dollars(500_000) }; // legacy 0, nothing in flight
+    expect(buildWeeksFor(fresh)).toBe(BALANCE.build.minWeeks);
+    const s = startBuild(fresh, goodPhone(), 400, "none").state;
+    expect(s.building[0].totalWeeks).toBe(BALANCE.build.minWeeks);
+  });
+
+  it("does NOT apply to a prestige veteran (legacy > 0 keeps normal build time)", () => {
+    const veteran = { ...newGame(11), cash: dollars(500_000), legacy: 1 };
+    expect(buildWeeksFor(veteran)).toBeGreaterThan(BALANCE.build.minWeeks);
+  });
+});

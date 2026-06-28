@@ -114,6 +114,13 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
       const { isHit } = launchOutcome(res, launchedBefore);
       sfx("launch");
       if (isHit) setTimeout(() => sfx("hit"), 380);
+      // Debut peak — the first product ever ships. A heavier thump + a triumphant chime on top of
+      // the reveal's always-on confetti, so the core-loop payoff lands as a genuine high (this is
+      // also where the App Store review prompt rides in).
+      if (launchedBefore.length === 0) {
+        haptic.heavy();
+        if (!isHit) setTimeout(() => sfx("hit"), 420);
+      }
       if (product && plan) {
         emitLaunchReveal(buildLaunchReveal({
           product,

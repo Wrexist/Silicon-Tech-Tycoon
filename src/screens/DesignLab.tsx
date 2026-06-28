@@ -400,6 +400,12 @@ export function DesignLab({
     const { isHit } = launchOutcome(res, launchedBefore);
     sfx("launch");
     if (isHit) setTimeout(() => sfx("hit"), 380);
+    // Debut peak — first product ever ships (mirrors HQ): heavier thump + a triumphant chime atop
+    // the reveal's confetti so the core-loop payoff lands as a genuine high.
+    if (launchedBefore.length === 0) {
+      haptic.heavy();
+      if (!isHit) setTimeout(() => sfx("hit"), 420);
+    }
     if (product && plan) {
       emitLaunchReveal(buildLaunchReveal({
         product,

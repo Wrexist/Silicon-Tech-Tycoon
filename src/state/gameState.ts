@@ -705,12 +705,19 @@ export function unlockRegion(state: GameState, id: RegionId): GameState {
   return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
 }
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
-export const buildWeeksFor = (s: GameState) =>
-  Math.max(
+export const buildWeeksFor = (s: GameState) => {
+  // The very first product of a brand-new company builds fast (minWeeks): a first-time player
+  // reaches the launch keynote — the game's core payoff — in a beat instead of watching ~3 weeks
+  // tick by during the tutorial. So the first hit of dopamine (and the App Store review prompt that
+  // rides it) lands sooner. First playthrough only (legacy 0), first build only (nothing in flight).
+  const firstEver = s.legacy === 0 && s.launched.length === 0 && s.building.length === 0 && s.ready.length === 0;
+  if (firstEver) return BALANCE.build.minWeeks;
+  return Math.max(
     BALANCE.build.minWeeks,
     Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades))
       - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0),
   );
+};
 
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
