@@ -226,9 +226,10 @@ Pure engine → fully unit-testable (Vitest), mirroring the existing `production
 
 ## 9. Phasing (each phase independently shippable & premium)
 
-- **P1 — Suppliers MVP.** `engine/suppliers.ts` + Sourcing card + `effectiveUnitCost`/quality/lead
-  integration + crunch rerouting. Ships the "what parts" decision. (Smallest vertical slice that's
-  fun on its own.)
+- **P1 — Suppliers MVP. ✅ SHIPPED.** `engine/suppliers.ts` + Sourcing card + cost/quality/lead
+  integration (`buildCost` / `computeStats` / `buildWeeksFor`). Ships the deterministic "what parts"
+  decision. **Deferred to a fast-follow:** supplier-weighted `supplyCrunch` event risk, and per-part
+  (vs house) sourcing — both build cleanly on the P1 `supplierId`-on-product foundation.
 - **P2 — Contract factories.** `engine/factories.ts` + Build-wizard Manufacturing step + capacity
   mechanic (overtime/stretch/defects). Ships the "where you build + how hard you push it" decision.
 - **P3 — Owned lines.** Company → Operations: acquire/upkeep/utilization; era gating; converge with
