@@ -4,6 +4,9 @@
 // silent bar. Pure presentational; driven by the BuildJob's weeksElapsed / totalWeeks.
 import { Boxes, Wrench, Cog, ShieldCheck, Truck, type LucideIcon } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
+import { supplierFor } from "../engine/suppliers.ts";
+import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
+import { DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import type { BuildJob } from "../engine/types.ts";
 import "./buildProgress.css";
 
@@ -35,6 +38,13 @@ export function BuildProgress({ job }: { job: BuildJob }) {
   const stage = stageFor(frac);
   const StageIcon = stage.icon;
   const nearDone = frac >= 0.92;
+  // Surface the player's supply-chain choices in the live stage: the supplier while sourcing, the
+  // factory while tooling/assembling. Only when non-default, so a standard build stays clean.
+  const customSupplier = (job.product.supplierId ?? DEFAULT_SUPPLIER_ID) !== DEFAULT_SUPPLIER_ID;
+  const customFactory = (job.product.factoryId ?? DEFAULT_FACTORY_ID) !== DEFAULT_FACTORY_ID;
+  let stageSub = stage.sub;
+  if (stage.from < 0.2 && customSupplier) stageSub = `via ${supplierFor(job.product.supplierId).name}`;
+  else if (stage.from >= 0.2 && stage.from < 0.75 && customFactory) stageSub = `at ${factoryFor(job.product.factoryId).name}`;
   // Stroke offset draws the ring clockwise from the top; transitions smoothly between weekly ticks.
   const offset = RING_C * (1 - frac);
 
@@ -68,7 +78,7 @@ export function BuildProgress({ job }: { job: BuildJob }) {
           <span className="bprog__stage-icon"><StageIcon size={14} aria-hidden /></span>
           <span className="bprog__stage-text">
             <b>{stage.label}</b>
-            <small>{stage.sub}</small>
+            <small>{stageSub}</small>
           </span>
         </span>
         <span className="bprog__meta tnum">

@@ -145,20 +145,20 @@ const LAB_TABS: { id: LabTab; label: string }[] = [
   { id: "launch", label: "Launch" },
 ];
 
-function newestProductName(state: GameState): string | null {
-  if (state.building.length) return state.building[state.building.length - 1].product.name;
-  if (state.ready.length) return state.ready[state.ready.length - 1].name;
-  if (state.launched.length) return state.launched[0].product.name;
+function newestProduct(state: GameState): Product | null {
+  if (state.building.length) return state.building[state.building.length - 1].product;
+  if (state.ready.length) return state.ready[state.ready.length - 1];
+  if (state.launched.length) return state.launched[0].product;
   return null;
 }
 
 function freshDraft(state: GameState): Product {
   const tiers: Product["tiers"] = {};
   for (const k of CATEGORIES.phone.slots) tiers[k] = Math.min(1, researchedTier(state, k));
-  const prev = newestProductName(state);
+  const prevP = newestProduct(state);
   const base: Product = {
     id: "draft",
-    name: prev ? suggestNextName(prev) : "Aurora One",
+    name: prevP ? suggestNextName(prevP.name) : "Aurora One",
     category: "phone",
     tiers,
     finish: "aluminium",
@@ -170,6 +170,10 @@ function freshDraft(state: GameState): Product {
     refreshRate: 60,
     storage: 128,
     tuning: "balanced",
+    // Inherit the player's standing supply chain so they don't re-pick supplier/factory every design
+    // (an owned line stays owned; a contract line stays available as the era only ever rises).
+    supplierId: prevP?.supplierId,
+    factoryId: prevP?.factoryId,
   };
   // Auto-price: start at a fair market price based on actual component stats so new players
   // aren't unknowingly launching severely overpriced T1 products.
