@@ -579,10 +579,12 @@
 .hqb__placing,
 .hqb__toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  /* Stack the label above the action buttons: 4 actions (Rotate · Duplicate · Sell · Deselect)
+     don't fit on one line beside the name on a phone, so a single row pushed the last button off
+     the right edge. Full-width rows that wrap keep every action reachable. */
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--sp-8);
-  flex-wrap: wrap;
   padding: var(--sp-12);
   border-radius: var(--r-button);
   background: var(--accent-soft);
@@ -604,6 +606,7 @@
 }
 .hqb__row {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--sp-6);
 }
 .hqb__tool {
