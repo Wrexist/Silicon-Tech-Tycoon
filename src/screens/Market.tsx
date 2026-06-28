@@ -39,6 +39,8 @@ import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { REGIONS } from "../engine/regions.ts";
+import { supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
+import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { StatGlossary } from "../components/StatGlossary.tsx";
@@ -997,6 +999,16 @@ function ProductDetailSheet({
           );
         })()}
       </div>
+      {/* How it was built — the supply-chain retrospective, shown only when it wasn't a default run. */}
+      {(() => {
+        const supCustom = (lp.product.supplierId ?? DEFAULT_SUPPLIER_ID) !== DEFAULT_SUPPLIER_ID || !!lp.product.dualSource;
+        const facCustom = (lp.product.factoryId ?? DEFAULT_FACTORY_ID) !== DEFAULT_FACTORY_ID;
+        if (!supCustom && !facCustom) return null;
+        const parts: string[] = [];
+        if (facCustom) parts.push(`built at ${factoryFor(lp.product.factoryId).name}`);
+        if (supCustom) parts.push(`sourced via ${supplierFor(lp.product.supplierId).name}${lp.product.dualSource ? " (dual)" : ""}`);
+        return <p className="pd__supply"><Package size={12} aria-hidden /> {parts.join(" · ")}</p>;
+      })()}
       {/* Lifecycle phase breakdown — only for finished products with a full sales curve */}
       {!live && lp.weeklyUnits.length > 0 && (() => {
         const peakWk = BALANCE.sales.peakWeek;

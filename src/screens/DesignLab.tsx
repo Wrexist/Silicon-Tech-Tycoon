@@ -9,13 +9,16 @@ import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
+import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier, supplierLoyaltyProgress, supplierEthicsLabel, CONTRACT_TERMS, contractDiscount } from "../engine/suppliers.ts";
+import { availableFactories, factoryFor, DEFAULT_FACTORY_ID, type CapacityStrategy } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
-import { format, dollars, sub, toDollars } from "../engine/money.ts";
+import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
-import { buildCost, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
+import { componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
+import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
 import type {
@@ -29,6 +32,7 @@ import type {
   ProductTuning,
   RegionId,
   Stats,
+  SupplierId,
 } from "../engine/types.ts";
 import { REGIONS, regionTasteFit } from "../engine/regions.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
@@ -42,6 +46,9 @@ import {
   finishUnlockCost,
   marketerSkill,
   planProduction,
+  capacityPlan,
+  contractSignFee,
+  effectiveUnitCost,
   productStats,
   recommendedRun,
   researchedTier,
@@ -142,20 +149,20 @@ const LAB_TABS: { id: LabTab; label: string }[] = [
   { id: "launch", label: "Launch" },
 ];
 
-function newestProductName(state: GameState): string | null {
-  if (state.building.length) return state.building[state.building.length - 1].product.name;
-  if (state.ready.length) return state.ready[state.ready.length - 1].name;
-  if (state.launched.length) return state.launched[0].product.name;
+function newestProduct(state: GameState): Product | null {
+  if (state.building.length) return state.building[state.building.length - 1].product;
+  if (state.ready.length) return state.ready[state.ready.length - 1];
+  if (state.launched.length) return state.launched[0].product;
   return null;
 }
 
 function freshDraft(state: GameState): Product {
   const tiers: Product["tiers"] = {};
   for (const k of CATEGORIES.phone.slots) tiers[k] = Math.min(1, researchedTier(state, k));
-  const prev = newestProductName(state);
+  const prevP = newestProduct(state);
   const base: Product = {
     id: "draft",
-    name: prev ? suggestNextName(prev) : "Aurora One",
+    name: prevP ? suggestNextName(prevP.name) : "Aurora One",
     category: "phone",
     tiers,
     finish: "aluminium",
@@ -167,6 +174,10 @@ function freshDraft(state: GameState): Product {
     refreshRate: 60,
     storage: 128,
     tuning: "balanced",
+    // Inherit the player's standing supply chain so they don't re-pick supplier/factory every design
+    // (an owned line stays owned; a contract line stays available as the era only ever rises).
+    supplierId: prevP?.supplierId,
+    factoryId: prevP?.factoryId,
   };
   // Auto-price: start at a fair market price based on actual component stats so new players
   // aren't unknowingly launching severely overpriced T1 products.
@@ -209,7 +220,8 @@ export function DesignLab({
   onSeedConsumed?: () => void;
   onGoToHQ?: () => void;
 } = {}) {
-  const { state, build, launchReady, unlockLens, unlockFinish } = useGame();
+  const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract } = useGame();
+  const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
@@ -218,12 +230,17 @@ export function DesignLab({
 
   const cat = CATEGORIES[draft.category];
   const hasCamera = cat.slots.includes("camera");
+  // Form-factor realism: only a handheld with a front screen + rear glass (phone / tablet) carries a
+  // selfie cutout and a *designable* rear camera module (bump shape, position, layout, flash). Other
+  // devices that still HAVE a camera — AR glasses — get a sensor count that feeds stats, but no
+  // phone-style module or notch, so the Lab never offers controls the device can't have.
+  const handheld = draft.category === "phone" || draft.category === "tablet";
 
-  // Auto-switch device face when entering the Camera tab for a camera-capable category.
-  // Non-camera categories stay on front (no back to show).
+  // Auto-switch device face when entering the Camera tab — but only for handhelds, which are the
+  // only devices that render a back (and a designable rear module). Everything else stays on front.
   useEffect(() => {
-    setFace(labTab === "camera" && hasCamera ? "back" : "front");
-  }, [labTab, hasCamera]);
+    setFace(labTab === "camera" && handheld ? "back" : "front");
+  }, [labTab, handheld]);
 
   // A successor seed handed in from a launched product's detail sheet: adopt it as the draft, then
   // tell the parent to clear it so re-renders don't keep overwriting the player's edits.
@@ -233,14 +250,15 @@ export function DesignLab({
     setFace("front");
     onSeedConsumed?.();
   }, [seed, onSeedConsumed]);
-  const flippable = draft.category === "phone" || draft.category === "tablet";
   const unlockedCats = useMemo(
     () => Object.values(CATEGORIES).filter((c) => isCategoryUnlocked(c.id, state.era)),
     [state.era],
   );
 
   const stats = productStats(state, draft);
-  const unitCost = buildCost(draft);
+  // The TRUE per-unit cost — includes the full supply chain (supplier, dual-source, factory, loyalty
+  // and any contract) so every sourcing/manufacturing choice the player makes moves this number live.
+  const unitCost = effectiveUnitCost(state, draft);
   const margin = sub(draft.price, unitCost);
   const marginPct = toDollars(draft.price) > 0 ? Math.round((toDollars(margin) / toDollars(draft.price)) * 100) : 0;
   const overall = overallScore(stats, draft.category);
@@ -342,7 +360,7 @@ export function DesignLab({
   }
   function setCam(partial: Partial<Product["camera"]>) {
     haptic.light();
-    setFace("back");
+    if (handheld) setFace("back"); // only handhelds show a rear module to flip to
     setDraft((d) => ({ ...d, camera: { ...d.camera, ...partial } }));
   }
 
@@ -356,12 +374,15 @@ export function DesignLab({
     setWizard(true);
   }
 
-  function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[]) {
+  function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[], strategy: CapacityStrategy) {
     // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the
-    // completion sheet can celebrate exactly what just shipped to the factory floor.
-    const finished = { ...draft, regions };
+    // completion sheet can celebrate exactly what just shipped to the factory floor. Bake the chosen
+    // capacity strategy and (for "defects") its run-size-dependent quality hit onto the product.
+    const base = { ...draft, regions, capacityStrategy: strategy };
+    const penalty = strategy === "defects" ? capacityPlan(state, base, units).qualityPenalty : 0;
+    const finished = penalty > 0 ? { ...base, defectPenalty: penalty } : base;
     const plan = planProduction(state, finished, units, channelId);
-    const weeks = buildWeeksFor(state);
+    const weeks = plan.buildWeeks; // strategy-resolved (longer under "stretch")
     const res = build(finished, units, channelId);
     if (!res.ok) {
       haptic.error();
@@ -522,7 +543,7 @@ export function DesignLab({
         <div className="lab__hero-grid">
           <div className="lab__hero-stage">
             <span className="lab__hero-glow" aria-hidden />
-            <DeviceRenderer product={draft} size={160} idle shimmer flip={flippable} face={face} />
+            <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />
             <div className="lab__hero-cats">
               {unlockedCats.map((c) => (
                 <button
@@ -568,7 +589,7 @@ export function DesignLab({
             )}
           </div>
         </div>
-        {flippable && (
+        {handheld && (
           <button
             className="lab__flip"
             onClick={() => {
@@ -667,7 +688,9 @@ export function DesignLab({
             className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
             onClick={() => { haptic.light(); setLabTab(t.id); }}
           >
-            {t.id === "camera" && !hasCamera ? "Front" : t.label}
+            {/* The 3rd tab is "Camera" only when the device has one; otherwise it holds display/
+                storage specs (a monitor's refresh, a desktop's capacity), so label it "Specs". */}
+            {t.id === "camera" ? (hasCamera ? "Camera" : "Specs") : t.label}
           </button>
         ))}
       </div>
@@ -677,6 +700,7 @@ export function DesignLab({
 
         {/* ── 1: Components ───────────────────────────────── */}
         {labTab === "components" && (
+          <>
           <Card>
             <SectionHeader title="Components" accessory="tier gated by R&D" />
             <div className="lab__components">
@@ -733,6 +757,142 @@ export function DesignLab({
               })}
             </div>
           </Card>
+
+          {/* Sourcing — pick the component supplier. Trades unit cost vs build quality vs lead time;
+              the choice rides on the product and is shown again in the build wizard summary. */}
+          <Card>
+            <SectionHeader title="Sourcing" accessory="component supplier" />
+            <div className="lab__suppliers">
+              {unlockedSuppliers(state.era).map((sup) => {
+                const on = (draft.supplierId ?? DEFAULT_SUPPLIER_ID) === sup.id;
+                const costPct = Math.round((sup.costMult - 1) * 100);
+                const builds = state.supplierLoyalty?.[sup.id] ?? 0;
+                const tier = supplierLoyaltyTier(builds);
+                const toNext = buildsToNextTier(builds);
+                return (
+                  <button
+                    key={sup.id}
+                    className={`lab__supplier${on ? " lab__supplier--on" : ""}`}
+                    aria-pressed={on}
+                    onClick={() => { haptic.light(); set({ supplierId: sup.id }); }}
+                  >
+                    <span className="lab__supplier-main">
+                      <span className="lab__supplier-name">{sup.name}</span>
+                      <span className="lab__supplier-blurb">{sup.blurb}</span>
+                      <span className="lab__supplier-tags">
+                        <span className={`lab__sup-tag lab__sup-tag--${costPct > 0 ? "cost-up" : costPct < 0 ? "cost-down" : "neutral"}`}>
+                          {costPct === 0 ? "baseline cost" : `${costPct > 0 ? "+" : ""}${costPct}% cost`}
+                        </span>
+                        {sup.qualityDelta !== 0 && (
+                          <span className={`lab__sup-tag lab__sup-tag--${sup.qualityDelta > 0 ? "good" : "bad"}`}>
+                            {sup.qualityDelta > 0 ? "+" : ""}{sup.qualityDelta} quality
+                          </span>
+                        )}
+                        {sup.leadWeeks > 0 && (
+                          <span className="lab__sup-tag lab__sup-tag--bad">+{sup.leadWeeks} wk lead</span>
+                        )}
+                        {sup.crunchMult < 1 && (
+                          <span className="lab__sup-tag lab__sup-tag--good">shock-resistant</span>
+                        )}
+                        {sup.crunchMult > 1 && (
+                          <span className="lab__sup-tag lab__sup-tag--bad">crunch-exposed</span>
+                        )}
+                        {tier.discount > 0 && (
+                          <span className="lab__sup-tag lab__sup-tag--good">{tier.name} · −{Math.round(tier.discount * 100)}%</span>
+                        )}
+                        {sup.ethics >= 62 && (
+                          <span className="lab__sup-tag lab__sup-tag--good">{supplierEthicsLabel(sup.ethics)}</span>
+                        )}
+                        {sup.ethics < 45 && (
+                          <span className="lab__sup-tag lab__sup-tag--bad">{supplierEthicsLabel(sup.ethics)}</span>
+                        )}
+                      </span>
+                      {builds > 0 && (
+                        <span className="lab__rel">
+                          <span className="lab__rel-bar"><span className="lab__rel-fill" style={{ width: `${Math.round(supplierLoyaltyProgress(builds) * 100)}%` }} /></span>
+                          <span className="lab__rel-label">{toNext != null ? `${builds} build${builds === 1 ? "" : "s"} · ${toNext} to next tier` : `${builds} builds · top tier`}</span>
+                        </span>
+                      )}
+                    </span>
+                    <span className="lab__supplier-check" aria-hidden>{on && <Check size={16} />}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="lab__toggle-row lab__dual">
+              <span className="lab__dual-text">
+                <span className="lab__seg-label">Dual-source</span>
+                <small>+{Math.round(BALANCE.supply.dualSource.costPremium * 100)}% unit cost · about half the crunch risk</small>
+              </span>
+              <button
+                className={`lab__toggle${draft.dualSource ? " lab__toggle--on" : ""}`}
+                role="switch"
+                aria-label="Dual-source components"
+                aria-checked={!!draft.dualSource}
+                onClick={() => { haptic.light(); set({ dualSource: !draft.dualSource }); }}
+              >
+                <span className="lab__toggle-knob" />
+              </button>
+            </div>
+            {(() => {
+              const sid = (draft.supplierId ?? DEFAULT_SUPPLIER_ID) as SupplierId;
+              const c = state.supplierContracts?.[sid];
+              const active = !!c && c.weeksLeft > 0;
+              return (
+                <div className="lab__contract">
+                  <span className="lab__dual-text">
+                    <span className="lab__seg-label">Contract · {supplierFor(sid).name}</span>
+                    <small>{active ? `−${Math.round(c!.discount * 100)}% locked · ${c!.weeksLeft} wk left · crunch-proof` : "Lock a discounted, crunch-proof price for a term"}</small>
+                  </span>
+                  <Button size="sm" variant={active ? "tertiary" : "secondary"} onClick={() => { haptic.light(); setContractSheet(sid); }}>
+                    {active ? "Renew" : "Negotiate"}
+                  </Button>
+                </div>
+              );
+            })()}
+          </Card>
+
+          {/* Manufacturing — pick the factory. Trades tooling / per-unit cost / build speed and a
+              throughput capacity (over-capacity runs pay overtime, surfaced in the build wizard). */}
+          <Card>
+            <SectionHeader title="Manufacturing" accessory="factory" />
+            <div className="lab__suppliers">
+              {availableFactories(state.era, state.ownedFactories).map((fac) => {
+                const on = (draft.factoryId ?? DEFAULT_FACTORY_ID) === fac.id;
+                const toolPct = Math.round((fac.toolingMult - 1) * 100);
+                const unitPct = Math.round((fac.unitMult - 1) * 100);
+                return (
+                  <button
+                    key={fac.id}
+                    className={`lab__supplier${on ? " lab__supplier--on" : ""}`}
+                    aria-pressed={on}
+                    onClick={() => { haptic.light(); set({ factoryId: fac.id }); }}
+                  >
+                    <span className="lab__supplier-main">
+                      <span className="lab__supplier-name">{fac.name}</span>
+                      <span className="lab__supplier-blurb">{fac.blurb}</span>
+                      <span className="lab__supplier-tags">
+                        <span className={`lab__sup-tag lab__sup-tag--${fac.speedMult < 1 ? "good" : fac.speedMult > 1 ? "bad" : "neutral"}`}>
+                          {fac.speedMult < 1 ? "faster build" : fac.speedMult > 1 ? "slower build" : "standard speed"}
+                        </span>
+                        {toolPct !== 0 && (
+                          <span className={`lab__sup-tag lab__sup-tag--${toolPct < 0 ? "cost-down" : "cost-up"}`}>{toolPct > 0 ? "+" : ""}{toolPct}% tooling</span>
+                        )}
+                        {unitPct !== 0 && (
+                          <span className={`lab__sup-tag lab__sup-tag--${unitPct < 0 ? "cost-down" : "cost-up"}`}>{unitPct > 0 ? "+" : ""}{unitPct}% unit</span>
+                        )}
+                        <span className="lab__sup-tag">
+                          {Number.isFinite(fac.capacityPerWeek) ? `${fac.capacityPerWeek.toLocaleString()}/wk cap` : "no capacity limit"}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="lab__supplier-check" aria-hidden>{on && <Check size={16} />}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+          </>
         )}
 
         {/* ── 2: Style (finish · colour · design effort) ─── */}
@@ -835,7 +995,7 @@ export function DesignLab({
           <>
             {hasCamera && (
               <Card>
-                <SectionHeader title="Camera" accessory="back of device" />
+                <SectionHeader title="Camera" accessory={handheld ? "back of device" : "sensor array"} />
                 {(() => {
                   // Lens counts beyond the current limit are RESEARCH unlocks (RP), not free
                   // picker options — designing a triple/quad module is something you earn.
@@ -881,48 +1041,59 @@ export function DesignLab({
                     </>
                   );
                 })()}
-                <Seg<CameraLayout>
-                  label="Layout"
-                  value={draft.camera.layout}
-                  disabled={draft.camera.count < 2}
-                  options={[["vertical", "Vertical"], ["horizontal", "Row"], ["square", "Square"], ["triangle", "Triangle"]]}
-                  onPick={(v) => setCam({ layout: v })}
-                />
-                <Seg<CameraPosition>
-                  label="Position"
-                  value={draft.camera.position}
-                  options={[["topLeft", "Corner"], ["topCenter", "Top"], ["center", "Center"]]}
-                  onPick={(v) => setCam({ position: v })}
-                />
-                <Seg<CameraModuleShape>
-                  label="Module"
-                  value={draft.camera.module}
-                  options={[["squircle", "Bump"], ["circle", "Circle"], ["pill", "Pill"]]}
-                  onPick={(v) => setCam({ module: v })}
-                />
-                <div className="lab__toggle-row">
-                  <span className="lab__seg-label">Flash</span>
-                  <button
-                    className={`lab__toggle${draft.camera.flash ? " lab__toggle--on" : ""}`}
-                    role="switch"
-                    aria-label="Flash"
-                    aria-checked={draft.camera.flash}
-                    onClick={() => setCam({ flash: !draft.camera.flash })}
-                  >
-                    <span className="lab__toggle-knob" />
-                  </button>
-                </div>
+                {/* The bump shape / position / layout / flash are a phone-style rear MODULE — only
+                    handhelds render one. Devices like AR glasses just carry a sensor count (above),
+                    which still feeds the photography stat, so we hide the module-design controls. */}
+                {handheld ? (
+                  <>
+                    <Seg<CameraLayout>
+                      label="Layout"
+                      value={draft.camera.layout}
+                      disabled={draft.camera.count < 2}
+                      options={[["vertical", "Vertical"], ["horizontal", "Row"], ["square", "Square"], ["triangle", "Triangle"]]}
+                      onPick={(v) => setCam({ layout: v })}
+                    />
+                    <Seg<CameraPosition>
+                      label="Position"
+                      value={draft.camera.position}
+                      options={[["topLeft", "Corner"], ["topCenter", "Top"], ["center", "Center"]]}
+                      onPick={(v) => setCam({ position: v })}
+                    />
+                    <Seg<CameraModuleShape>
+                      label="Module"
+                      value={draft.camera.module}
+                      options={[["squircle", "Bump"], ["circle", "Circle"], ["pill", "Pill"]]}
+                      onPick={(v) => setCam({ module: v })}
+                    />
+                    <div className="lab__toggle-row">
+                      <span className="lab__seg-label">Flash</span>
+                      <button
+                        className={`lab__toggle${draft.camera.flash ? " lab__toggle--on" : ""}`}
+                        role="switch"
+                        aria-label="Flash"
+                        aria-checked={draft.camera.flash}
+                        onClick={() => setCam({ flash: !draft.camera.flash })}
+                      >
+                        <span className="lab__toggle-knob" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="lab__hint">More sensors sharpen the photography rating; this device has no rear module to style.</p>
+                )}
               </Card>
             )}
-            <Card>
-              <SectionHeader title="Front" accessory="selfie camera" />
-              <Seg<NotchStyle>
-                label="Cutout"
-                value={draft.notch}
-                options={[["punch", "Punch-hole"], ["island", "Island"], ["notch", "Notch"], ["none", "None"]]}
-                onPick={(v) => { haptic.light(); setFace("front"); set({ notch: v }); }}
-              />
-            </Card>
+            {handheld && (
+              <Card>
+                <SectionHeader title="Front" accessory="selfie camera" />
+                <Seg<NotchStyle>
+                  label="Cutout"
+                  value={draft.notch}
+                  options={[["punch", "Punch-hole"], ["island", "Island"], ["notch", "Notch"], ["none", "None"]]}
+                  onPick={(v) => { haptic.light(); setFace("front"); set({ notch: v }); }}
+                />
+              </Card>
+            )}
             {hasDisplay && (
               <Card>
                 <SectionHeader title="Display" accessory={maxHz < 144 ? `${effHz}Hz · max ${maxHz}` : `${effHz}Hz`} />
@@ -1139,7 +1310,7 @@ export function DesignLab({
             </Card>
 
             <Card>
-              <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state)} wk to make`} />
+              <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state, draft)} wk to make`} />
               {(() => {
                 // "Continue a line" — one-tap sequels: name the draft as the next entry in one of your
                 // existing lines (and inherit its brand equity). Same-category lines first.
@@ -1227,7 +1398,7 @@ export function DesignLab({
           <CircleDollarSign size={18} className="lab__summary-icon" aria-hidden />
           <span className="lab__summary-text">
             <span className="lab__summary-label">Est. Cost</span>
-            <span className="lab__summary-val tnum">{format(unitCost)}</span>
+            <AnimatedMoney value={unitCost} className="lab__summary-val tnum" />
           </span>
         </div>
         <div className="lab__summary-cell">
@@ -1270,6 +1441,17 @@ export function DesignLab({
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}
       </Sheet>
 
+      <Sheet open={!!contractSheet} onClose={() => setContractSheet(null)}>
+        {contractSheet && (
+          <ContractSheet
+            supplierId={contractSheet}
+            state={state}
+            onSign={(termId) => { negotiateContract(contractSheet, termId); haptic.success(); sfx("cash"); setContractSheet(null); }}
+            onClose={() => setContractSheet(null)}
+          />
+        )}
+      </Sheet>
+
       <Sheet open={!!completed} onClose={() => setCompleted(null)}>
         {completed && (
           <DesignCompleteCard
@@ -1300,7 +1482,9 @@ function DesignCompleteCard({
     <div className="done">
       <div className="done__badge" aria-hidden><Check size={24} strokeWidth={3} /></div>
       <h2 className="done__title">Design complete</h2>
-      <p className="done__sub">“{done.product.name}” is finished and headed to the factory.</p>
+      <p className="done__sub">
+        “{done.product.name}” is finished and headed to {done.product.factoryId && done.product.factoryId !== DEFAULT_FACTORY_ID ? factoryFor(done.product.factoryId).name : "the factory"}.
+      </p>
 
       <div className="done__hero">
         <DeviceRenderer product={done.product} size={150} idle shimmer />
@@ -1325,7 +1509,7 @@ function DesignCompleteCard({
         </div>
         <div className="done__step">
           <span className="done__step-icon"><Rocket size={16} /></span>
-          <span>When it's built, <b>launch it right here</b> — it'll appear at the top of the Lab, ready to release.</span>
+          <span>The moment it's built, a <b>launch popup</b> appears wherever you are — ship it in one tap.</span>
         </div>
       </div>
 
@@ -1337,6 +1521,68 @@ function DesignCompleteCard({
 
 const WIZARD_CHANNEL_ICONS: Record<string, LucideIcon> = { Ban, Share2, Search, Megaphone, Users, Tv, Sparkles };
 
+/** Negotiate a fixed-price supplier contract — lock a discount + crunch immunity for a term, for an
+ *  upfront fee. Reputation is the negotiating leverage (sweetens the discount). */
+function ContractSheet({
+  supplierId,
+  state,
+  onSign,
+  onClose,
+}: {
+  supplierId: SupplierId;
+  state: GameState;
+  onSign: (termId: typeof CONTRACT_TERMS[number]["id"]) => void;
+  onClose: () => void;
+}) {
+  const sup = supplierFor(supplierId);
+  const repBonusPct = Math.round((Math.min(100, Math.max(0, state.reputation)) / 100) * BALANCE.supply.contract.repDiscountMax * 100);
+  const active = state.supplierContracts?.[supplierId];
+  return (
+    <div className="ctr">
+      <h2 className="ctr__title">Contract · {sup.name}</h2>
+      <p className="ctr__sub">
+        Lock a discounted unit price for a fixed term — and while it holds, this supplier is <b>crunch-proof</b>.
+        Your reputation ({Math.round(state.reputation)}) negotiates <b>+{repBonusPct}%</b> off.
+      </p>
+      {active && active.weeksLeft > 0 && (
+        <p className="ctr__active">Current deal: −{Math.round(active.discount * 100)}% · {active.weeksLeft} wk left. Signing again replaces it.</p>
+      )}
+      {(() => {
+        // "Best value" = the most discount-weeks per dollar of upfront fee, so the highlight follows
+        // the math (it rewards a longer commitment when you'll keep building).
+        const value = (t: typeof CONTRACT_TERMS[number]) => {
+          const fee = toDollars(contractSignFee(state.era, t));
+          return fee > 0 ? (contractDiscount(t, state.reputation, BALANCE.supply.contract.repDiscountMax) * t.weeks) / fee : 0;
+        };
+        const bestId = [...CONTRACT_TERMS].sort((a, b) => value(b) - value(a))[0]?.id;
+        return (
+          <div className="ctr__terms">
+            {CONTRACT_TERMS.map((t) => {
+              const disc = Math.round(contractDiscount(t, state.reputation, BALANCE.supply.contract.repDiscountMax) * 100);
+              const fee = contractSignFee(state.era, t);
+              const afford = state.cash >= fee;
+              const best = t.id === bestId;
+              return (
+                <button key={t.id} type="button" className={`ctr__term${best ? " ctr__term--best" : ""}`} disabled={!afford} onClick={() => onSign(t.id)}>
+                  <span className="ctr__term-main">
+                    <span className="ctr__term-name">
+                      {t.name} <span className="ctr__term-disc">−{disc}%</span>
+                      {best && <span className="ctr__term-badge">Best value</span>}
+                    </span>
+                    <span className="ctr__term-meta">{t.weeks} wk · price-locked · crunch-proof</span>
+                  </span>
+                  <span className={`ctr__term-fee tnum${afford ? "" : " ctr__term-fee--bad"}`}>{format(fee)}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+      <button className="wiz__cancel" onClick={onClose}>Maybe later</button>
+    </div>
+  );
+}
+
 /** The multi-step production wizard: run size → marketing → review (with a smart demand forecast). */
 function BuildWizard({
   draft,
@@ -1346,7 +1592,7 @@ function BuildWizard({
 }: {
   draft: Product;
   state: GameState;
-  onConfirm: (units: number, channelId: ChannelId, regions: RegionId[]) => void;
+  onConfirm: (units: number, channelId: ChannelId, regions: RegionId[], strategy: CapacityStrategy) => void;
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
@@ -1365,9 +1611,21 @@ function BuildWizard({
   );
   const cur = steps[step];
   const lastStep = steps.length - 1;
-  // The product as it will actually ship, including its region selection — every forecast uses this.
-  const prod = useMemo(() => ({ ...draft, regions }), [draft, regions]);
-  const [units, setUnits] = useState(() => recommendedRun(state, prod, "none"));
+  // Capacity strategy for an over-capacity run (pay overtime / stretch the schedule / accept defects).
+  const [strategy, setStrategy] = useState<CapacityStrategy>(draft.capacityStrategy ?? "overtime");
+  // The product as it will actually ship: region selection + capacity strategy. The defect penalty
+  // (only under "defects") depends on run size, so it's baked below once `units` is known.
+  const prodBase = useMemo(() => ({ ...draft, regions, capacityStrategy: strategy }), [draft, regions, strategy]);
+  const [units, setUnits] = useState(() => recommendedRun(state, prodBase, "none"));
+  // Bake the prospective quality hit so every forecast (and the launch) reflects the chosen strategy.
+  const defectPenalty = useMemo(
+    () => (strategy === "defects" ? capacityPlan(state, prodBase, units).qualityPenalty : 0),
+    [state, prodBase, units, strategy],
+  );
+  const prod = useMemo(
+    () => (defectPenalty > 0 ? { ...prodBase, defectPenalty } : prodBase),
+    [prodBase, defectPenalty],
+  );
 
   const plan = useMemo(() => planProduction(state, prod, units, channel), [state, prod, units, channel]);
   const recommended = useMemo(() => recommendedRun(state, prod, channel), [state, prod, channel]);
@@ -1387,7 +1645,7 @@ function BuildWizard({
   // B1b — readable build-risk: cash left the instant the run is paid for, the runway that buys at
   // current burn (no revenue arrives until launch), and the build duration. If the runway can't
   // outlast the build, the run may bankrupt the player mid-manufacture — surface it, don't block it.
-  const buildWks = buildWeeksFor(state);
+  const buildWks = plan.buildWeeks; // strategy-resolved (stretch can extend it)
   const cashAfter = sub(state.cash, plan.totalUpfront);
   const weeklyBurnAfter = burn(state);
   const runway = runwayWeeks(cashAfter, weeklyBurnAfter);
@@ -1476,6 +1734,30 @@ function BuildWizard({
             <Stat label="Unit cost" value={format(plan.unitCost)} />
             <Stat label="Run cost" value={format(plan.productionCost)} tone="negative" />
           </div>
+          {plan.overCapacity && (
+            <div className="wiz__capacity">
+              <span className="wiz__capacity-head">
+                <AlertTriangle size={14} aria-hidden /> Over <b>{factoryFor(prod.factoryId).name}</b>'s capacity ({plan.factoryCapacityPerWeek.toLocaleString()}/wk) — {plan.overtimeUnits.toLocaleString()} extra units. How to handle it?
+              </span>
+              <div className="wiz__capacity-opts" role="group" aria-label="Over-capacity strategy">
+                {(["overtime", "stretch", "defects"] as CapacityStrategy[]).map((opt) => {
+                  const o = capacityPlan(state, { ...prodBase, capacityStrategy: opt }, units);
+                  const label = opt === "overtime" ? "Pay overtime" : opt === "stretch" ? "Stretch" : "Accept defects";
+                  const detail =
+                    opt === "overtime" ? `+${format(scale(plan.unitCost, o.overUnits * o.overtimeFraction))}`
+                    : opt === "stretch" ? `+${Math.max(0, o.buildWeeks - plan.assemblyWeeks)} wk`
+                    : `−${o.qualityPenalty} quality`;
+                  const on = strategy === opt;
+                  return (
+                    <button key={opt} type="button" className={`wiz__cap-opt${on ? " wiz__cap-opt--on" : ""}`} aria-pressed={on} onClick={() => { setStrategy(opt); haptic.light(); }}>
+                      <span className="wiz__cap-opt-label">{label}</span>
+                      <span className="wiz__cap-opt-detail">{detail}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className={`wiz__forecast wiz__forecast--${confLabel.toLowerCase()}`}>
             <span className="wiz__forecast-label">Forecast confidence</span>
             <span className="wiz__forecast-val">{confLabel}</span>
@@ -1542,6 +1824,21 @@ function BuildWizard({
               />
             )}
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
+            {(() => {
+              const sup = supplierFor(draft.supplierId);
+              const costPct = Math.round((sup.costMult - 1) * 100);
+              const bits = [costPct === 0 ? "baseline cost" : `${costPct > 0 ? "+" : ""}${costPct}% cost`];
+              if (sup.qualityDelta !== 0) bits.push(`${sup.qualityDelta > 0 ? "+" : ""}${sup.qualityDelta} quality`);
+              if (sup.leadWeeks > 0) bits.push(`+${sup.leadWeeks} wk lead`);
+              if (draft.dualSource) bits.push("dual-sourced");
+              return <Stat label="Sourced via" value={draft.dualSource ? `${sup.name} ×2` : sup.name} hint={bits.join(" · ")} />;
+            })()}
+            <Stat
+              label="Built at"
+              value={factoryFor(prod.factoryId).name}
+              tone={plan.overCapacity ? "negative" : undefined}
+              hint={plan.overCapacity ? `over capacity · ${plan.capacityStrategy}` : "within capacity"}
+            />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
             <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "run sells out — you could make more" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
             <Stat label="Projected profit" value={format(plan.projectedProfit)} tone={plan.projectedProfit >= 0 ? "positive" : "negative"} />
@@ -1571,6 +1868,15 @@ function BuildWizard({
             <span>Upfront cost</span>
             <span className={`rounded tnum${affordable ? "" : " wiz__total--bad"}`}>{format(plan.totalUpfront)}</span>
           </div>
+          {plan.overCapacity && (
+            <p className="wiz__warn wiz__warn--risk">
+              <AlertTriangle size={14} /> {plan.overtimeUnits.toLocaleString()} units over {factoryFor(prod.factoryId).name}'s capacity —{" "}
+              {plan.capacityStrategy === "overtime" ? <>built on overtime (<b>+{format(plan.overtimeCost)}</b>).</>
+                : plan.capacityStrategy === "stretch" ? <>schedule stretched to <b>{plan.buildWeeks} wk</b> to fit capacity.</>
+                : <>shipping with a <b>−{prod.defectPenalty ?? 0} quality</b> defect hit.</>}{" "}
+              Change it in the Run step, pick a bigger line, or trim the run.
+            </p>
+          )}
           {!affordable && (
             <p className="wiz__warn">
               Need {format(sub(plan.totalUpfront, state.cash))} more — reduce the run size or pick a cheaper campaign.
@@ -1589,7 +1895,7 @@ function BuildWizard({
         {step < lastStep ? (
           <Button block onClick={() => { setStep(step + 1); haptic.light(); }}>Next</Button>
         ) : (
-          <Button block disabled={!affordable} onClick={() => onConfirm(units, channel, regions)} haptics="none">
+          <Button block disabled={!affordable} onClick={() => onConfirm(units, channel, regions, strategy)} haptics="none">
             <Factory size={16} /> Build {units.toLocaleString()} units
           </Button>
         )}

@@ -1248,3 +1248,300 @@
   color: var(--ink-2);
   margin-top: 2px;
 }
+
+/* ---------- Sourcing (component supplier) ---------- */
+.lab__suppliers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.lab__supplier {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1.5px solid var(--hairline);
+  transition: border-color var(--spring-snappy), transform var(--spring-snappy), background var(--spring-snappy);
+}
+.lab__supplier:active { transform: scale(0.99); }
+.lab__supplier--on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.lab__supplier-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lab__supplier-name { font-weight: 700; color: var(--ink); }
+.lab__supplier-blurb { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.3; }
+.lab__supplier-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+.lab__sup-tag {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  color: var(--ink-2);
+}
+.lab__sup-tag--cost-down, .lab__sup-tag--good { color: var(--positive); background: color-mix(in srgb, var(--positive) 12%, transparent); }
+.lab__sup-tag--cost-up, .lab__sup-tag--bad { color: var(--negative); background: color-mix(in srgb, var(--negative) 12%, transparent); }
+.lab__supplier-check {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+/* ---------- Capacity strategy picker (over-capacity runs) ---------- */
+.wiz__capacity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--negative) 7%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--negative) 22%, var(--hairline));
+}
+.wiz__capacity-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-caption);
+  color: var(--ink);
+  line-height: 1.35;
+}
+.wiz__capacity-head svg { flex-shrink: 0; color: var(--negative); }
+.wiz__capacity-opts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-6);
+}
+.wiz__cap-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--sp-8) 6px;
+  border-radius: var(--r-button);
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  transition: border-color var(--spring-snappy), transform var(--spring-snappy), background var(--spring-snappy);
+}
+.wiz__cap-opt:active { transform: scale(0.97); }
+.wiz__cap-opt--on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.wiz__cap-opt-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.wiz__cap-opt-detail {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.wiz__cap-opt--on .wiz__cap-opt-detail { color: var(--accent); }
+
+.lab__dual {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
+  align-items: flex-start;
+}
+.lab__dual-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lab__dual-text small {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+.lab__supplier-rel {
+  display: block;
+  margin-top: 5px;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ---------- Supplier contract ---------- */
+.lab__contract {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
+}
+.ctr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding: var(--sp-4) 0 var(--sp-8);
+}
+.ctr__title { margin: 0; font-size: var(--fs-h2); font-weight: 800; letter-spacing: -0.02em; }
+.ctr__sub { margin: 0; font-size: var(--fs-body); color: var(--ink-2); line-height: 1.4; }
+.ctr__active {
+  margin: 0;
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+.ctr__terms { display: flex; flex-direction: column; gap: var(--sp-8); }
+.ctr__term {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1.5px solid var(--hairline);
+  text-align: left;
+  transition: border-color var(--spring-snappy), transform var(--spring-snappy);
+}
+.ctr__term:active { transform: scale(0.99); }
+.ctr__term:disabled { opacity: 0.5; }
+.ctr__term-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ctr__term-name { font-weight: 700; color: var(--ink); }
+.ctr__term-disc { color: var(--positive); font-weight: 800; margin-left: 4px; }
+.ctr__term-meta { font-size: var(--fs-micro); color: var(--ink-3); }
+.ctr__term-fee { font-weight: 800; color: var(--ink); white-space: nowrap; }
+.ctr__term-fee--bad { color: var(--negative); }
+
+/* ---------- Supply microinteractions: relationship bar, selection check, contract entrance ---------- */
+.lab__rel {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: 6px;
+}
+.lab__rel-bar {
+  flex: 1;
+  height: 5px;
+  min-width: 40px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.lab__rel-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), var(--positive));
+  transition: width var(--spring-standard);
+}
+.lab__rel-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* The selected card's check pops in (scale + fade) rather than appearing hard. */
+.lab__supplier--on .lab__supplier-check svg {
+  animation: lab-check-in var(--spring-standard) both;
+}
+@keyframes lab-check-in {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+/* The whole selected card gives a tiny confirming lift. */
+.lab__supplier--on {
+  transform: translateY(-1px);
+}
+
+/* Contract terms rise + fade in, staggered, when the sheet opens. */
+.ctr__term {
+  animation: ctr-term-in var(--spring-standard) both;
+}
+.ctr__term:nth-child(1) { animation-delay: 40ms; }
+.ctr__term:nth-child(2) { animation-delay: 100ms; }
+.ctr__term:nth-child(3) { animation-delay: 160ms; }
+@keyframes ctr-term-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab__supplier--on .lab__supplier-check svg,
+  .ctr__term { animation: none; }
+  .lab__rel-fill { transition: none; }
+}
+
+/* Contract "best value" highlight */
+.ctr__term--best {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.ctr__term-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+/* Capacity strategy picker: stagger in, and a clearer selected state (lift + accent ring + dot). */
+.wiz__cap-opt {
+  position: relative;
+  animation: wiz-cap-in var(--spring-standard) both;
+}
+.wiz__capacity-opts .wiz__cap-opt:nth-child(1) { animation-delay: 30ms; }
+.wiz__capacity-opts .wiz__cap-opt:nth-child(2) { animation-delay: 90ms; }
+.wiz__capacity-opts .wiz__cap-opt:nth-child(3) { animation-delay: 150ms; }
+@keyframes wiz-cap-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.wiz__cap-opt--on {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.wiz__cap-opt--on::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: wiz-cap-dot var(--spring-standard) both;
+}
+@keyframes wiz-cap-dot {
+  0% { opacity: 0; transform: scale(0.3); }
+  60% { transform: scale(1.3); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wiz__cap-opt, .wiz__cap-opt--on::after { animation: none; }
+}

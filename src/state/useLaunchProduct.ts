@@ -1,0 +1,63 @@
+// Shared "ship a built product" action. The Office "Ready to launch" card and the global
+// ready-to-launch popup both call this so the launch payoff (haptics, sound, the keynote reveal,
+// hit-streak escalation, the first-launch review prompt) is identical wherever you release from.
+import { useCallback } from "react";
+import { useGame } from "./useGame.tsx";
+import { BALANCE } from "../engine/balance.ts";
+import { planProduction, productStats } from "./gameState.ts";
+import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
+import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
+import { maybePromptFirstLaunchReview } from "./review.ts";
+import { haptic } from "../design/haptics.ts";
+import { sfx } from "../design/sound.ts";
+import type { ChannelId } from "../engine/marketing.ts";
+
+/** Returns `launch(productId)` — ships a product from the `ready` shelf and fires the full launch
+ *  celebration. Returns whether the launch went through (false if the id wasn't launchable). */
+export function useLaunchProduct() {
+  const { state, launchReady } = useGame();
+  return useCallback(
+    (id: string): boolean => {
+      const launchedBefore = state.launched; // before launchReady records this product
+      const product = state.ready.find((p) => p.id === id);
+      // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
+      const plan = product
+        ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none")
+        : null;
+      const res = launchReady(id);
+      if (!res.ok) return false;
+      haptic.success();
+      // Keys the celebration off the recorded (competition-adjusted) verdict so the launch moment
+      // can never contradict what Market/feed record.
+      const { isHit } = launchOutcome(res, launchedBefore);
+      sfx("launch");
+      if (isHit) setTimeout(() => sfx("hit"), 380);
+      // Debut peak — the first product ever ships: a heavier thump + a triumphant chime.
+      if (launchedBefore.length === 0) {
+        haptic.heavy();
+        if (!isHit) setTimeout(() => sfx("hit"), 420);
+      }
+      // Hit-streak dopamine: a run of consecutive hits escalates the celebration.
+      const streak = isHit ? currentHitStreak(launchedBefore) + 1 : 0;
+      if (streak >= 3) setTimeout(() => haptic.heavy(), 200);
+      if (product && plan) {
+        emitLaunchReveal(buildLaunchReveal({
+          product,
+          stats: productStats(state, product),
+          verdict: res.verdict ?? "steady",
+          demandFit: plan.demandFit,
+          priceFit: plan.priceFit,
+          betterRivals: plan.betterRivals,
+          units: plan.projectedSales,
+          isHit,
+          firstLaunch: launchedBefore.length === 0,
+          streak,
+        }));
+        // First product ever shipped — a real high point. Ask for an App Store review (once).
+        if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
+      }
+      return true;
+    },
+    [state, launchReady],
+  );
+}

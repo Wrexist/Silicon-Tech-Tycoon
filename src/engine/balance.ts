@@ -609,6 +609,26 @@ export const BALANCE = {
     crunchMaxCashShare: 0.35,
   },
 
+  // --- Supply chain (engine/suppliers.ts) ---
+  supply: {
+    // Dual-sourcing: a backup supplier costs a unit-cost premium for a fraction of the crunch risk.
+    dualSource: { costPremium: 0.06, riskMult: 0.5 },
+    // Contracts: lock a discounted, crunch-proof price with a supplier for a term. The upfront sign
+    // fee scales with the term length and the tech era; reputation adds up to repDiscountMax off.
+    contract: {
+      signFeeBase: dollars(9_000) as Money, // fee for a 13-week deal at era 1, scaled from there
+      repDiscountMax: 0.04, // extra discount at reputation 100 (your negotiating leverage)
+    },
+  },
+
+  // --- Factory manufacturing (engine/factories.ts) ---
+  // Over-capacity units cost the per-unit price PLUS this surcharge — the price of pushing a budget
+  // line past its weekly throughput on a big run.
+  factory: {
+    overtimeSurcharge: 0.6, // +60% on each over-capacity unit ("overtime" strategy)
+    defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
+  },
+
   // --- Offline catch-up ---
   offline: {
     maxCatchUpWeeks: 8, // cap how much offline time is simulated

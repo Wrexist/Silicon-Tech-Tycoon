@@ -93,6 +93,9 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
+import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
+import type { FactoryId, SupplierId } from "../engine/types.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -167,6 +170,15 @@ export interface GameState {
   completedProjects: ProjectId[];
   /** Geographic markets unlocked for distribution (engine/regions.ts). Always contains "home". */
   unlockedRegions: RegionId[];
+  /** Owned manufacturing lines the player has acquired (engine/factories.ts). Each carries weekly
+   *  upkeep and can be selected for builds. Empty for contract-only companies / older saves. */
+  ownedFactories: FactoryId[];
+  /** Builds run through each supplier — the relationship/loyalty count that earns a standing unit-
+   *  cost discount (engine/suppliers.ts). Optional; absent/0 = no relationship yet. */
+  supplierLoyalty?: Partial<Record<SupplierId, number>>;
+  /** Active fixed-price contracts per supplier: a locked discount + crunch immunity for `weeksLeft`
+   *  weeks (engine/suppliers.ts). Optional; absent = spot pricing. */
+  supplierContracts?: Partial<Record<SupplierId, { discount: number; weeksLeft: number }>>;
   building: BuildJob[];
   ready: Product[]; // built, awaiting launch
   launched: LaunchedProduct[];
@@ -393,6 +405,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     researchPoints: lb.rp,
     completedProjects: [],
     unlockedRegions: ["home"],
+    ownedFactories: [],
     building: [],
     ready: [],
     launched: [],
@@ -556,7 +569,8 @@ export const marketerSkill = (s: GameState) =>
 export const facilityRent = (s: GameState): Money =>
   BALANCE.facilities[s.facilityTier - 1].weeklyRent;
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
-export const burn = (s: GameState): Money => weeklyBurn(s.staff, facilityRent(s));
+export const burn = (s: GameState): Money =>
+  add(weeklyBurn(s.staff, facilityRent(s)), totalFactoryUpkeep(s.ownedFactories)) as Money;
 export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + perkBonuses(s.legacy).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
@@ -704,26 +718,101 @@ export function unlockRegion(state: GameState, id: RegionId): GameState {
   const feed = trimFeed([...state.feed, feedItem(state.week, `Expanded into ${region.name} — a new market is open.`, "positive")]);
   return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
 }
+
+/** Company supply-crunch exposure WITH contracts: a contracted supplier is price-locked → immune
+ *  (contributes 0); otherwise the product's crunch multiplier. Mirrors the pure sourcingExposure's
+ *  source selection (in-production builds, else last shipped, else neutral). */
+function sourcingExposureWithContracts(s: GameState): number {
+  const products = s.building.length
+    ? s.building.map((j) => j.product)
+    : s.launched.length
+      ? [s.launched[s.launched.length - 1].product]
+      : [];
+  if (!products.length) return 1;
+  const mults = products.map((p) => {
+    const sid = p.supplierId ?? DEFAULT_SUPPLIER_ID;
+    const c = s.supplierContracts?.[sid];
+    if (c && c.weeksLeft > 0) return 0; // price-locked → immune to the crunch
+    return supplierCrunchMult(p);
+  });
+  return mults.reduce((a, b) => a + b, 0) / mults.length;
+}
+
+/** Upfront fee to sign a supplier contract: scales with the term length and the tech era. */
+export function contractSignFee(era: number, term: ContractTerm): Money {
+  return scale(BALANCE.supply.contract.signFeeBase, (term.weeks / 13) * Math.max(1, era));
+}
+
+/** Negotiate a fixed-price contract with a supplier: pay the sign fee to lock a discount (your
+ *  reputation sweetens the terms) + crunch immunity for the term. No-op if the supplier is era-locked
+ *  or you can't afford the fee. Re-signing replaces the existing contract. */
+export function negotiateContract(state: GameState, supplierId: SupplierId, termId: ContractTerm["id"]): GameState {
+  const sup = supplierFor(supplierId);
+  if (sup.era > state.era) return state;
+  const term = contractTerm(termId);
+  const fee = contractSignFee(state.era, term);
+  if (state.cash < fee) return state;
+  const discount = contractDiscount(term, state.reputation, BALANCE.supply.contract.repDiscountMax);
+  const feed = trimFeed([...state.feed, feedItem(
+    state.week,
+    `Signed a ${term.name.toLowerCase()} contract with ${sup.name} — ${Math.round(discount * 100)}% off, price-locked for ${term.weeks} wk.`,
+    "positive",
+  )]);
+  return {
+    ...state,
+    cash: sub(state.cash, fee),
+    supplierContracts: { ...state.supplierContracts, [supplierId]: { discount, weeksLeft: term.weeks } },
+    feed,
+  };
+}
+
+/** Buy an OWNED manufacturing line (engine/factories.ts): pay the one-time acquire cost; from then
+ *  it carries weekly upkeep and can be selected for builds. No-op if it's not an owned line, already
+ *  owned, era-locked, or unaffordable. */
+export function acquireFactory(state: GameState, id: FactoryId): GameState {
+  const fac = factoryFor(id);
+  const owned = state.ownedFactories ?? [];
+  if (fac.kind !== "owned" || owned.includes(id) || !isFactoryUnlocked(id, state.era) || state.cash < fac.acquireCost) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Acquired ${fac.name} — your own production line (${format(fac.weeklyUpkeep)}/wk upkeep).`, "positive")]);
+  return { ...state, cash: sub(state.cash, fac.acquireCost), ownedFactories: [...owned, id], feed };
+}
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
-export const buildWeeksFor = (s: GameState) => {
+export const buildWeeksFor = (s: GameState, product?: Product) => {
+  // Supplier sourcing lead time adds weeks on top of the assembly time (a far, cheap supplier is
+  // slower to the line). Unset/standard supplier → 0, so existing callers (no product) are unchanged.
+  const lead = product ? supplierLeadWeeks(product) : 0;
   // The very first product of a brand-new company builds fast (minWeeks): a first-time player
   // reaches the launch keynote — the game's core payoff — in a beat instead of watching ~3 weeks
   // tick by during the tutorial. So the first hit of dopamine (and the App Store review prompt that
   // rides it) lands sooner. First playthrough only (legacy 0), first build only (nothing in flight).
   const firstEver = s.legacy === 0 && s.launched.length === 0 && s.building.length === 0 && s.ready.length === 0;
-  if (firstEver) return BALANCE.build.minWeeks;
-  return Math.max(
-    BALANCE.build.minWeeks,
-    Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades))
-      - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0),
-  );
+  if (firstEver) return BALANCE.build.minWeeks + lead;
+  // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1.
+  const speed = product ? factorySpeedMult(product) : 1;
+  const assembly = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * speed)
+    - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
+  return Math.max(BALANCE.build.minWeeks, assembly) + lead;
 };
+
+/** Resolve a run against its factory's capacity + the product's capacity strategy (overtime / stretch
+ *  / defects). Shared by planProduction (cost + weeks) and the build wizard (the prospective quality
+ *  hit it bakes onto the product). `assemblyWeeks` is the pre-stretch build time. */
+export function capacityPlan(s: GameState, product: Product, plannedUnits: number): CapacityOutcome {
+  return resolveCapacity({
+    plannedUnits: Math.max(0, Math.round(plannedUnits)),
+    capacityPerWeek: factoryCapacityPerWeek(product),
+    assemblyWeeks: buildWeeksFor(s, product),
+    strategy: product.capacityStrategy ?? "overtime",
+    overtimeSurcharge: BALANCE.factory.overtimeSurcharge,
+    defectMaxPenalty: BALANCE.factory.defectMaxPenalty,
+  });
+}
 
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
   const perk = 1 - perkBonuses(s.legacy).buildCostMult; // NG+ Supply Chain / Industrialist perks
-  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk);
+  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product));
   return base > BALANCE.build.minTooling ? base : BALANCE.build.minTooling;
 }
 
@@ -734,6 +823,15 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
+  unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
+  // Supplier relationship: repeat business earns a standing discount (engine/suppliers.ts). 0 when
+  // you've no history with this supplier, so it's a no-op for fresh games / older saves.
+  const sid = product.supplierId ?? DEFAULT_SUPPLIER_ID;
+  const loyaltyDiscount = supplierLoyaltyDiscount(s.supplierLoyalty?.[sid] ?? 0);
+  if (loyaltyDiscount > 0) unitCost = scale(unitCost, 1 - loyaltyDiscount);
+  // A fixed-price contract locks in a further discount on top of the relationship rate.
+  const contract = s.supplierContracts?.[sid];
+  if (contract && contract.weeksLeft > 0 && contract.discount > 0) unitCost = scale(unitCost, 1 - contract.discount);
   return scale(unitCost, buildCostMult(s.upgrades));
 }
 
@@ -744,6 +842,13 @@ export interface ProductionPlan {
   tooling: Money;
   channelCost: Money;
   totalUpfront: Money;
+  overtimeCost: Money; // surcharge for units built beyond factory capacity (0 = within capacity)
+  overtimeUnits: number; // units that exceeded capacity × build-weeks
+  overCapacity: boolean; // the run pushes the factory past its throughput
+  factoryCapacityPerWeek: number; // chosen factory's weekly throughput (Infinity = no ceiling)
+  assemblyWeeks: number; // base build duration before any capacity stretch
+  buildWeeks: number; // resolved build duration (= assemblyWeeks, or longer under the "stretch" strategy)
+  capacityStrategy: CapacityStrategy; // how an over-capacity run is being handled
   launchScore: number;
   demandFit: number; // 0..100 — how well the product matches current demand
   priceFit: number; // 0..1.35 — price fairness vs. perceived value (1 = on the money; →0 = gouging)
@@ -873,11 +978,18 @@ export function planProduction(
   const projectedSales = Math.min(planned, totalDemand);
   const sellsOut = totalDemand > planned && planned > 0;
 
+  // Factory throughput: a run beyond capacity × build-weeks is resolved by the product's capacity
+  // strategy — overtime cost, a stretched schedule, or (baked separately) defects. The neutral
+  // "standard" factory has unlimited capacity → no overage → zero ripple for old saves/default.
+  const capacityPerWeek = factoryCapacityPerWeek(product);
+  const capOutcome = capacityPlan(s, product, planned);
+  const overtimeCost = scale(unitCost, capOutcome.overUnits * capOutcome.overtimeFraction);
+
   const productionCost = scale(unitCost, planned);
   const channelCost = channel.cost;
-  const totalUpfront = add(add(tooling, productionCost), channelCost) as Money;
+  const totalUpfront = add(add(add(tooling, productionCost), channelCost), overtimeCost) as Money;
   const projectedRevenue = scale(product.price, projectedSales);
-  const projectedProfit = sub(sub(projectedRevenue, productionCost), add(tooling, channelCost)) as Money;
+  const projectedProfit = sub(sub(projectedRevenue, add(productionCost, overtimeCost)), add(tooling, channelCost)) as Money;
   const spendable = sub(s.cash, add(tooling, channelCost));
   const maxAffordableUnits = unitCost > 0 ? Math.max(0, Math.floor(toDollars(spendable) / toDollars(unitCost))) : BALANCE.build.maxRun;
 
@@ -888,6 +1000,13 @@ export function planProduction(
     tooling,
     channelCost,
     totalUpfront,
+    overtimeCost,
+    overtimeUnits: capOutcome.overUnits,
+    overCapacity: capOutcome.overUnits > 0,
+    factoryCapacityPerWeek: capacityPerWeek,
+    assemblyWeeks: buildWeeksFor(s, product),
+    buildWeeks: capOutcome.buildWeeks,
+    capacityStrategy: product.capacityStrategy ?? "overtime",
     launchScore: breakdown.launchScore,
     demandFit,
     priceFit: breakdown.priceFit,
@@ -915,15 +1034,15 @@ export function planProduction(
  *  the build (rent/payroll burn for buildWeeks, no revenue yet) + a small flat margin. B1: without
  *  this, recommending a run that spends nearly all cash on tooling+units bankrupts a fresh save
  *  before its first product ever launches. */
-export function buildSafetyReserve(s: GameState): Money {
-  const weeks = buildWeeksFor(s);
+export function buildSafetyReserve(s: GameState, product?: Product): Money {
+  const weeks = buildWeeksFor(s, product);
   return add(scale(burn(s), weeks), BALANCE.build.safetyReserveMargin) as Money;
 }
 
 /** Units you can afford while still leaving the build-through safety reserve intact. B1. */
 export function affordableRun(s: GameState, product: Product, channelId: ChannelId = "none"): number {
   const probe = planProduction(s, product, BALANCE.build.minRun, channelId);
-  const reserve = buildSafetyReserve(s);
+  const reserve = buildSafetyReserve(s, product);
   // Cash left for tooling+units after holding back the reserve, then after paying fixed costs
   // (tooling + channel) the rest funds units.
   const spendable = sub(sub(s.cash, reserve), add(probe.tooling, probe.channelCost));
@@ -1331,6 +1450,19 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
+  // Supplier contracts tick down each week; an expired one drops back to spot pricing (with a heads-up).
+  let supplierContracts = state.supplierContracts;
+  if (supplierContracts && Object.keys(supplierContracts).length) {
+    const next: NonNullable<GameState["supplierContracts"]> = {};
+    for (const [sid, c] of Object.entries(supplierContracts)) {
+      if (!c) continue;
+      const weeksLeft = c.weeksLeft - rate;
+      if (weeksLeft > 0) next[sid as SupplierId] = { ...c, weeksLeft };
+      else feed.push(feedItem(week, `Your contract with ${supplierFor(sid as SupplierId).name} expired — back to spot pricing.`, "accent"));
+    }
+    supplierContracts = next;
+  }
+
   const base: GameState = {
     ...state,
     week,
@@ -1341,6 +1473,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     researchPoints,
     building,
     ready,
+    supplierContracts,
     staff: finalStaff,
     recruitment,
     candidates,
@@ -1419,6 +1552,7 @@ export function applyEventEffect(
   feedTone: FeedTone,
 ): GameState {
   const feed = [...s.feed];
+  let text = feedText; // mutable so a supply crunch can annotate WHY it cost more / less
   let cash = s.cash;
   let reputation = s.reputation;
   let researchPoints = s.researchPoints;
@@ -1449,10 +1583,17 @@ export function applyEventEffect(
       staff = s.staff.map((m) => ({ ...m, mood: clampMood(m.mood + eff.mood) }));
       break;
     case "supplyCrunch": {
+      // P1.5 — the shock scales by your sourcing: premium suppliers on your active orders weather a
+      // crunch; bargain sourcing amplifies it. A FIXED-PRICE CONTRACT makes that supplier immune
+      // (the price is locked), so a contracted line shrugs the crunch off entirely.
+      const exposure = sourcingExposureWithContracts(s);
+      const scaledCash = eff.cash * exposure;
       // Sting, never kill: cap the hit at a share of cash on hand so a random event can't
       // push a by-the-book player below $0 (instant bankruptcy) mid-build.
       const capDollars = Math.max(0, toDollars(cash)) * BALANCE.events.crunchMaxCashShare;
-      cash = sub(cash, dollars(Math.min(eff.cash, capDollars)));
+      cash = sub(cash, dollars(Math.min(scaledCash, capDollars)));
+      if (exposure <= 0.8) text += " (resilient sourcing softened the blow)";
+      else if (exposure >= 1.2) text += " (bargain sourcing left you exposed)";
       break;
     }
     case "pressFeature":
@@ -1469,7 +1610,7 @@ export function applyEventEffect(
       break;
   }
 
-  feed.push(feedItem(week, feedText, feedTone));
+  feed.push(feedItem(week, text, feedTone));
   return { ...s, cash, reputation, researchPoints, trends, competitors, staff, fans, feed: trimFeed(feed) };
 }
 
@@ -1535,7 +1676,7 @@ export function startBuild(
     return { state, ok: false, reason: `Need ${format(plan.totalUpfront)} for tooling + ${units.toLocaleString()} units.` };
   }
 
-  const totalWeeks = buildWeeksFor(state);
+  const totalWeeks = plan.buildWeeks; // strategy-resolved (longer under "stretch")
   const job: BuildJob = {
     product: { ...product, id: `prod-${state.productCounter}`, plannedUnits: units, channelId },
     totalWeeks,
@@ -1551,12 +1692,17 @@ export function startBuild(
       "accent",
     ),
   );
+  // Deepen the relationship with this run's supplier (the discount this run got was from PRIOR
+  // history; the increment rewards the next one).
+  const sid = product.supplierId ?? DEFAULT_SUPPLIER_ID;
+  const supplierLoyalty = { ...state.supplierLoyalty, [sid]: (state.supplierLoyalty?.[sid] ?? 0) + 1 };
   return {
     state: {
       ...state,
       cash: sub(state.cash, plan.totalUpfront),
       building: [...state.building, job],
       productCounter: state.productCounter + 1,
+      supplierLoyalty,
       feed: trimFeed(feed),
     },
     ok: true,
@@ -1654,6 +1800,10 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
   if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);
+  // Ethics of the supply chain: responsible sourcing slowly builds the brand; cheap/exploitative
+  // sourcing erodes it (0 for standard sourcing → no change for older saves / default builds).
+  const ethicsRep = supplierEthicsRepDelta(product);
+  if (ethicsRep !== 0) reputation = Math.max(rep.min, Math.min(rep.max, reputation + ethicsRep));
 
   // Fanbase response — hits win fans (more for bigger sellers), flops lose them, sellouts add buzz.
   const fb = BALANCE.fans;

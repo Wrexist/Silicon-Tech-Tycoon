@@ -600,10 +600,14 @@ function shade(hex: string, amt: number): string {
   return `#${c.getHexString()}`;
 }
 
+// How high the seated robot rides above its floor pivot so its torso rests on the chair seat
+// (Chair seat top ≈ 0.58; the robot's torso underside sits ≈0.18 above its pivot → ≈0.4 lift).
+const SIT_LIFT = 0.4;
+
 // Premium mascot robot: rounded two-tone shell, dark eye-visor with glowing eyes, antenna with a
 // lit tip, little arms + hands, rounded feet, metallic neck ring. ~1.45m tall, grounded at y=0.
-// `walking` toggles a stride swing; otherwise it does a gentle idle (breathe + look around).
-function RobotCharacter({ colorIdx, seed, moodColor, walking = false }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean }) {
+// `walking` toggles a stride swing; `sitting` folds it onto a chair; otherwise a gentle idle.
+function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = false }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean; sitting?: boolean }) {
   const color = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const belly = useMemo(() => shade(color, 0.32), [color]);
   const dark = useMemo(() => shade(color, -0.5), [color]);
@@ -620,22 +624,36 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false }: { colorI
     const t = st.clock.elapsedTime + seed;
     // Living-office cheer: a decaying bouncy hop + raised arms when a launch win lands (hqReaction).
     const cheer = reactionIntensity("cheer");
-    const baseY = walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035;
-    const hop = cheer > 0 ? Math.abs(Math.sin(st.clock.elapsedTime * 9)) * 0.14 * cheer : 0;
+    // Seated robots are lifted onto the seat (SIT_LIFT above the floor pivot) and stay planted — no
+    // standing bob — with a cheer reduced to a small in-seat bounce. SIT_LIFT lives here (not on the
+    // parent) so a rigged .glb playing its own grounded "Sitting" clip isn't pushed off the chair.
+    const baseY = sitting
+      ? SIT_LIFT
+      : walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035;
+    const hop = cheer > 0 ? Math.abs(Math.sin(st.clock.elapsedTime * 9)) * (sitting ? 0.05 : 0.14) * cheer : 0;
     if (root.current) root.current.position.y = baseY + hop;
     if (headRef.current) {
       headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22);
       headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04;
     }
     if (antRef.current) antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6);
-    // arms + legs: brisk swing while walking, soft sway when idle — and thrown overhead on a cheer.
+    // arms: brisk swing while walking, soft sway when idle, drawn forward to rest at the desk when
+    // seated — and thrown overhead on a cheer.
     const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
     const cheerArm = -2.0 * cheer; // raise both arms up
-    if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm + cheerArm;
-    if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm + cheerArm;
-    const leg = walking ? Math.sin(t * 6) * 0.5 : 0;
-    if (legLRef.current) legLRef.current.rotation.x = -leg;
-    if (legRRef.current) legRRef.current.rotation.x = leg;
+    const sitArm = sitting ? -0.55 : 0; // bring hands forward onto the desk/lap
+    if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm + cheerArm + sitArm;
+    if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm + cheerArm + sitArm;
+    // legs: brisk stride while walking, still when idle, folded forward at the hip when seated so
+    // the thighs run forward over the seat and tuck under the desk (the seated "L" silhouette).
+    if (sitting) {
+      if (legLRef.current) legLRef.current.rotation.x = -1.5;
+      if (legRRef.current) legRRef.current.rotation.x = -1.5;
+    } else {
+      const leg = walking ? Math.sin(t * 6) * 0.5 : 0;
+      if (legLRef.current) legLRef.current.rotation.x = -leg;
+      if (legRRef.current) legRRef.current.rotation.x = leg;
+    }
   });
 
   return (
@@ -681,11 +699,14 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false }: { colorI
         </group>
       </group>
 
-      {/* blob shadow */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.005, 0.03]}>
-        <circleGeometry args={[0.32, 20]} />
-        <meshBasicMaterial color="#8090a8" transparent opacity={0.26} depthWrite={false} />
-      </mesh>
+      {/* blob shadow — grounds a standing robot; skipped when seated (it would float at seat
+          height, and the chair already grounds the figure). */}
+      {!sitting && (
+        <mesh rotation-x={-Math.PI / 2} position={[0, -0.005, 0.03]}>
+          <circleGeometry args={[0.32, 20]} />
+          <meshBasicMaterial color="#8090a8" transparent opacity={0.26} depthWrite={false} />
+        </mesh>
+      )}
     </group>
   );
 }
@@ -708,8 +729,8 @@ class RobotBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 /** A robot by colour index: uses a dropped-in .glb model when one exists (see robotModels.ts),
  *  otherwise the hand-built parametric robot. `clip` requests an animation by name (e.g. "Idle",
  *  "Sitting") — ignored if the model doesn't ship that clip. A blob shadow grounds the model. */
-function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean }) {
-  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} />;
+function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false, sitting = false }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean; sitting?: boolean }) {
+  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} sitting={sitting} />;
   const model = robotModelFor(colorIdx);
   if (!model) return parametric;
   return (
@@ -864,12 +885,14 @@ function Workstation({ p, staff, seed, monitors, colorIdx, powered }: { p: RoomP
           <Mug hue={hue} />
         </group>
       )}
-      {/* chair + robot standing clear behind the desk (no clipping into the tabletop) */}
+      {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
+          back so it rests against the backrest, facing the desk. The parametric robot folds into a
+          sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
       <group position={[0, 0, -0.78]}>
         <Chair p={p} hue={hue} />
         {staff && (
-          <group position={[0, 0, -0.05]}>
-            <OfficeRobot colorIdx={colorIdx} seed={seed} moodColor={moodColor} clip="Sitting" />
+          <group position={[0, 0, -0.08]}>
+            <OfficeRobot colorIdx={colorIdx} seed={seed} moodColor={moodColor} clip="Sitting" sitting />
           </group>
         )}
       </group>
@@ -889,6 +912,11 @@ const DESKTOP_SPACING = 1.95;
 // heights and never overlap into an unreadable pile when the team fills a row of desks.
 const LABEL_Y = 2.2;
 const LABEL_STAGGER = 0.62;
+// Two desk labels closer than this in BOTH world-x and world-z read as overlapping on screen, so
+// the later one is bumped up a height level. Tuned to the desk pitch (≈1.95) so same-row neighbours
+// separate while a label one full desk away is left at the base height.
+const LABEL_MIN_DX = 1.7;
+const LABEL_MIN_DZ = 1.5;
 function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
@@ -1676,19 +1704,32 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {!builder?.build && (
         <>
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Tap for finances" dot="#34c759" />
-          {/* Per-desk name + primary-discipline label for every occupied desk — placed desks
-              first, then the bought desktops, so a desktop-seated hire is labelled like the rest.
-              Heights zig-zag (LABEL_STAGGER) so a row of adjacent labels never piles up. */}
-          {seated.map((s, i) => {
-            const w = worldOf(seats[i]);
-            const { label, sub } = deskLabel(s);
-            return <OfficeLabel key={s.id ?? i} pos={[w.x, LABEL_Y + (i % 2) * LABEL_STAGGER, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[i % ROBOT_COLORS.length]} />;
-          })}
-          {podStaff.map((s, i) => {
-            const w = podWorlds[i];
-            const { label, sub } = deskLabel(s);
-            return <OfficeLabel key={s.id ?? `pod${i}`} pos={[w.x, LABEL_Y + (i % 2) * LABEL_STAGGER, w.z]} label={label} sub={sub} dot={ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length]} />;
-          })}
+          {/* Per-desk name + primary-discipline label for every occupied desk (placed desks first,
+              then the bought desktops). A flat zig-zag tied to seat ORDER let screen-adjacent labels
+              collide (a back-row name vanished behind a front-row one). Instead we sort ALL labels
+              left→right and greedily bump only the ones that would still overlap a near neighbour. */}
+          {(() => {
+            const entries = [
+              ...seated.map((s, i) => ({ s, w: worldOf(seats[i]), dot: ROBOT_COLORS[i % ROBOT_COLORS.length], key: s.id ?? `seat${i}` })),
+              ...podStaff.map((s, i) => ({ s, w: podWorlds[i], dot: ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length], key: s.id ?? `pod${i}` })),
+            ];
+            // Left→right (then back→front) so collisions are resolved in on-screen reading order.
+            entries.sort((a, b) => (a.w.x - b.w.x) || (a.w.z - b.w.z));
+            // Greedy de-clutter: a flat zig-zag tied to seat order let screen-adjacent labels collide
+            // (a name vanished behind its neighbour). Instead every label starts at the base height
+            // and is bumped UP one stagger only while it would still overlap an already-placed label
+            // that's close in BOTH x and z (i.e. near it on screen). Isolated desks stay at the base
+            // height; only a packed cluster stacks — so a full team reads cleanly with no pile-up.
+            const placed: { x: number; z: number; level: number }[] = [];
+            return entries.map((e) => {
+              const { label, sub } = deskLabel(e.s);
+              let level = 0;
+              while (placed.some((q) => q.level === level && Math.abs(q.x - e.w.x) < LABEL_MIN_DX && Math.abs(q.z - e.w.z) < LABEL_MIN_DZ)) level++;
+              placed.push({ x: e.w.x, z: e.w.z, level });
+              const y = LABEL_Y + level * LABEL_STAGGER;
+              return <OfficeLabel key={e.key} pos={[e.w.x, y, e.w.z]} label={label} sub={sub} dot={e.dot} />;
+            });
+          })()}
         </>
       )}
 

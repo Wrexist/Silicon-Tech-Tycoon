@@ -1,7 +1,8 @@
 // Product stat computation + build cost. PURE.
 import { BALANCE } from "./balance.ts";
 import { CATEGORIES, tierDef, maxTier } from "./catalogs.ts";
-import { sum, type Money, ZERO } from "./money.ts";
+import { supplierCostMult, supplierQualityDelta } from "./suppliers.ts";
+import { sum, scale, type Money, ZERO } from "./money.ts";
 import {
   STAT_KEYS,
   type Product,
@@ -102,6 +103,14 @@ export function computeStats(product: Product): Stats {
     stats.quality += stSteps * a.quality;
   }
 
+  // Supplier: premium component sourcing lifts build quality; bargain sourcing drags it (clamped
+  // below). The neutral "standard" supplier contributes 0, so an unset supplier is a no-op.
+  stats.quality += supplierQualityDelta(product);
+
+  // Manufacturing defects: a run pushed over factory capacity on the "defects" strategy bakes a
+  // quality hit onto the product at build time (0 / absent for everything else).
+  stats.quality -= product.defectPenalty ?? 0;
+
   for (const key of STAT_KEYS) {
     stats[key] = Math.round(clamp(stats[key], 0, BALANCE.statMax));
   }
@@ -137,7 +146,12 @@ export function buildCost(product: Product): Money {
   for (let i = 0; i < refreshSteps(product); i++) costs.push(BALANCE.design.refreshRate.unitCost);
   // More storage adds a per-unit cost per step above the 128GB baseline.
   for (let i = 0; i < storageSteps(product); i++) costs.push(BALANCE.design.storage.unitCost);
-  return costs.length ? sum(costs) : ZERO;
+  const base = costs.length ? sum(costs) : ZERO;
+  // Supplier sets the per-unit component price (standard = ×1, a no-op for unset/older products).
+  let unit = scale(base, supplierCostMult(product));
+  // Dual-sourcing adds a small premium for supply resilience (see supplierCrunchMult).
+  if (product.dualSource) unit = scale(unit, 1 + BALANCE.supply.dualSource.costPremium);
+  return unit;
 }
 
 /** Which component slots are still unset for this category. */

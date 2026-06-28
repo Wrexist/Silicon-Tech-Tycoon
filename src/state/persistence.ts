@@ -278,6 +278,8 @@ function migrate(state: GameState): GameState | null {
   // Global expansion (added later): old saves only ever sold to the home market.
   if (!Array.isArray(s.unlockedRegions) || s.unlockedRegions.length === 0) s.unlockedRegions = ["home"];
   else if (!s.unlockedRegions.includes("home")) s.unlockedRegions = ["home", ...s.unlockedRegions];
+  // Owned factories (added later): old saves are contract-only.
+  if (!Array.isArray(s.ownedFactories)) s.ownedFactories = [];
   // Scenario mode (added later): old saves are freeform runs → no active scenario.
   if (typeof s.activeScenario !== "string") s.activeScenario = null;
   if (!Number.isFinite(s.scenarioRunStars) || s.scenarioRunStars < 0) s.scenarioRunStars = 0;

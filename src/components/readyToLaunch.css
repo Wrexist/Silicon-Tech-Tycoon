@@ -1,0 +1,119 @@
+/* Global "Ready to launch" popup — same modal shell language as the launch reveal, tinted with the
+   positive/accent colour since a finished build is good news. Mounted once in App. */
+.rtl {
+  position: fixed;
+  inset: 0;
+  z-index: 58; /* below the launch reveal (60) so a tapped "Launch now" reveal layers on top */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.rtl__scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.rtl__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  border-radius: var(--r-sheet);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-floating);
+  text-align: center;
+  animation: rtl-pop var(--spring-standard) both;
+}
+@keyframes rtl-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.rtl__close {
+  position: absolute;
+  top: var(--sp-12);
+  right: var(--sp-12);
+  width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: none;
+  color: var(--ink-2);
+}
+.rtl__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--positive);
+}
+.rtl__title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.rtl__sub {
+  margin: 0;
+  max-width: 30ch;
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+.rtl__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8) 0;
+}
+.rtl__glow {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 200px; height: 200px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, color-mix(in srgb, var(--positive) 26%, transparent), transparent 70%);
+  pointer-events: none;
+  animation: rtl-glow 3.4s ease-in-out infinite;
+}
+@keyframes rtl-glow {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+}
+.rtl__grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-12) var(--sp-16);
+  padding: var(--sp-12) 0 var(--sp-4);
+}
+.rtl__later {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--sp-8) var(--sp-12);
+  background: none;
+  border: none;
+  color: var(--ink-2);
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rtl__card { animation: none; }
+  .rtl__glow { animation: none; }
+}

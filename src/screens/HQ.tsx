@@ -1,6 +1,6 @@
 import {
   ArrowUp, Building2, Check, ChevronRight, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
-  HelpCircle, Layers, LayoutGrid, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
+  HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
   Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
 } from "lucide-react";
@@ -10,7 +10,7 @@ import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
-import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
+import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
@@ -48,17 +48,15 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, planProduction, productStats, type FeedItem, type GameState } from "../state/gameState.ts";
-import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
-import { maybePromptFirstLaunchReview } from "../state/review.ts";
+import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import type { ChannelId } from "../engine/marketing.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useGame } from "../state/useGame.tsx";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
+import { BuildProgress } from "../components/BuildProgress.tsx";
 import { FurnitureThumb } from "../components/FurnitureThumb.tsx";
 import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
@@ -99,50 +97,12 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
 export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; active?: boolean }) {
-  const { state, advanceEra, launchReady, goPublic, resolveChoice } = useGame();
+  const { state, advanceEra, goPublic, resolveChoice } = useGame();
   const settings = useSettings();
-  const onLaunch = (id: string) => {
-    const launchedBefore = state.launched; // before launchReady records this product
-    const product = state.ready.find((p) => p.id === id);
-    // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
-    const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
-    const res = launchReady(id);
-    if (res.ok) {
-      haptic.success();
-      // Shared with the Design Lab; keys the celebration off the recorded (competition-adjusted)
-      // verdict, so the launch moment can never contradict what Market/feed record.
-      const { isHit } = launchOutcome(res, launchedBefore);
-      sfx("launch");
-      if (isHit) setTimeout(() => sfx("hit"), 380);
-      // Debut peak — the first product ever ships. A heavier thump + a triumphant chime on top of
-      // the reveal's always-on confetti, so the core-loop payoff lands as a genuine high (this is
-      // also where the App Store review prompt rides in).
-      if (launchedBefore.length === 0) {
-        haptic.heavy();
-        if (!isHit) setTimeout(() => sfx("hit"), 420);
-      }
-      // Hit-streak dopamine: a run of consecutive hits escalates the celebration (badge + a heavier
-      // thump from 3 in a row). A hit extends the pre-launch streak; anything else breaks it.
-      const streak = isHit ? currentHitStreak(launchedBefore) + 1 : 0;
-      if (streak >= 3) setTimeout(() => haptic.heavy(), 200);
-      if (product && plan) {
-        emitLaunchReveal(buildLaunchReveal({
-          product,
-          stats: productStats(state, product),
-          verdict: res.verdict ?? "steady",
-          demandFit: plan.demandFit,
-          priceFit: plan.priceFit,
-          betterRivals: plan.betterRivals,
-          units: plan.projectedSales,
-          isHit,
-          firstLaunch: launchedBefore.length === 0,
-          streak,
-        }));
-        // First product ever shipped — a real high point. Ask for an App Store review (once).
-        if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
-      }
-    }
-  };
+  // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
+  // card here and the global ready-to-launch popup release a product identically.
+  const launchProduct = useLaunchProduct();
+  const onLaunch = (id: string) => { launchProduct(id); };
   const reducedMotion = useReducedMotionLive();
   const use3d = settings.garage3d && webglSupported() && !reducedMotion;
   const ipoReady = canIPO(state);
@@ -279,29 +239,9 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
       {state.building.length > 0 && (
         <Card>
           <SectionHeader title="In production" accessory="manufacturing" />
-          {state.building.map((job) => {
-            const pct = Math.min(100, Math.round((job.weeksElapsed / job.totalWeeks) * 100));
-            const weeksLeft = Math.max(0, job.totalWeeks - job.weeksElapsed);
-            return (
-              <div className="hq__build" key={job.product.id}>
-                <div className="hq__build-row">
-                  <div className="hq__ready-thumb"><DeviceRenderer product={job.product} size={48} /></div>
-                  <div className="hq__build-body">
-                    <div className="hq__build-head">
-                      <span className="hq__ready-name">{job.product.name}</span>
-                      <span className="hq__build-pct tnum">
-                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft} wk left</span>}
-                      </span>
-                    </div>
-                    <div className="hq__build-track">
-                      <div className="hq__build-fill" style={{ width: `${pct}%`, background: pct >= 80 ? "var(--positive)" : undefined }} />
-                    </div>
-                    {job.plannedUnits != null && <span className="hq__build-units">{job.plannedUnits.toLocaleString()} units</span>}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {state.building.map((job) => (
+            <BuildProgress key={job.product.id} job={job} />
+          ))}
         </Card>
       )}
 
@@ -538,17 +478,17 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
         {use3d && !build && (
           <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
-            <LayoutGrid size={15} /> Decorate
+            <ShoppingBag size={15} /> Shop
           </button>
         )}
         {build && (
           <div className="hqb__top">
             <div className="hqb__top-id">
-              <span className="hqb__title">Decorate</span>
+              <span className="hqb__title">Shop</span>
               <span className="hqb__cash tnum">{format(state.cash)}</span>
             </div>
             <div className="hqb__top-actions">
-              <button className="hqb__icon" aria-label="How Decorate works" onClick={() => { setTutorial(true); haptic.light(); }}>
+              <button className="hqb__icon" aria-label="How the Shop works" onClick={() => { setTutorial(true); haptic.light(); }}>
                 <HelpCircle size={15} />
               </button>
               <button className="hqb__icon" aria-label="Undo" disabled={histLen === 0} onClick={undo}>
@@ -742,14 +682,14 @@ function Upgrades() {
         )}
       </Card>
 
-      {/* Seats now come from placed desks, bought in the Decorate shop above — every desk you
+      {/* Seats now come from placed desks, bought in the Shop above — every desk you
           set down is a seat a new hire sits at. This is just the pointer there. */}
       <Card className="hqu__fac hqu__seats-hint">
         <div className="hqu__card-head">
           <span className="hqu__glyph" aria-hidden><Monitor size={18} /></span>
           <div className="hqu__info">
             <span className="hqu__name">Need more seats?</span>
-            <span className="hqu__effect">Buy a desk in <strong>Decorate</strong> — each one seats another hire.</span>
+            <span className="hqu__effect">Buy a desk in the <strong>Shop</strong> — each one seats another hire.</span>
           </div>
           <span className="hqu__lv tnum">{deskCapacity(state)} {deskCapacity(state) === 1 ? "seat" : "seats"}</span>
         </div>

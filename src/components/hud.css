@@ -167,6 +167,12 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* Decorate is a full-screen editor that owns the bottom band: its category strip and the
+   selected-item toolbar live exactly where this floating dial sits (bottom-left), so the dial
+   would cover them. Hide it while decorating — Done exits back to the live sim. */
+body.hq-deco-open .speeddial {
+  display: none;
+}
 
 /* Micro-label so an icon chip reads unambiguously ("Rep 8", not a bare gold star). */
 .hud__chip-tag {
