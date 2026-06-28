@@ -1485,3 +1485,33 @@ exposed one dominant problem and one structural one:
   bankruptcy because it uses the safe `recommendedRun`). The flat late-game net worth is a deeper
   fix (outcome variance / failable bets at scale) that wants its own measured pass — the harness now
   makes that tractable. Flagged here rather than churned blind.
+
+## v52.1 — late-game variance investigation via the harness (measured; no blind change shipped)
+Follow-up to v52: used `npm run sim` (now with outcome-variance diagnostics — net-worth CV, per-run
+hit-rate spread, reputation-low-after-Era-2) to probe the "solved macro outcome" the v52 data hinted
+at. Findings, all MEASURED:
+- **Journey variance is now healthy** (the v52 win): per-run hit-rate spans p10 19% → p50 30% → p90
+  42%. Runs genuinely differ moment-to-moment.
+- **Macro outcome is structurally deterministic**: final net-worth CV ≈ 2.4% (p90/p10 = 1.06×), and
+  reputation only ever CLIMBS to 100 (no dip/setback once past the Garage era). Every run ends a
+  multi-billion-dollar empire within ±2.5%.
+- **Two experiments REFUTED the easy levers** (reverted, not shipped):
+  · AI-era `demandVariance` 1.4 → 3.0 moved net-worth CV 2.4% → 2.5% (≈nothing). Per-launch volatility
+    averages out over the ~230 launches a 10-year run produces — law of large numbers.
+  · `competition.factorK` 0.025 → 0.10 changed NOTHING (identical verdict mix + CV). Root cause: the
+    launch path passes `competitorStrength: 0` to `scoreLaunch` and models competition via match/beat
+    COUNTS (gameState.ts:798–844), so **`factorK` is a vestigial constant** (like `idealMarkup`) —
+    only `market.ts:166` reads it, always against a 0 strength. Logged, not removed (touches the
+    protected market.ts; the param may be kept for flexibility).
+- **Conclusion:** macro determinism is a function of late-game SHAPE — many high-volume,
+  near-guaranteed-profit launches + a monotonic reputation climb with no failure mode — NOT of any
+  single tunable constant. Making the late game divergent/failable is a DESIGN decision, not a tweak.
+  Three options, each its own measured pass (not shipped blind):
+  (a) Reputation maintenance/decay — rep slowly erodes without sustained hits, so a top brand is held,
+      not banked once (adds ongoing tension + setback risk).
+  (b) Fewer/bigger bets late-game — pace or cost changes so a flagship flop actually hurts (reduces the
+      averaging that flattens outcomes).
+  (c) Durable competition — make rivals able to take and HOLD share (revive the dead factorK path or
+      strengthen the count model), so contested runs diverge from uncontested ones.
+  Recommendation: the journey-level balance is good now; pursue (a) or (c) only if a more dramatic,
+  failable late-game is wanted — I can implement + measure whichever you pick.

@@ -54,11 +54,13 @@ function simulate(seed, maxWeeks = 520) {
   let minCashEarly = Infinity; // closest brush with bankruptcy in the first 60 weeks
   let countedLaunches = new Set();
   let trough = Infinity;
+  let repMinLate = Infinity; // lowest reputation observed once past the protected Garage era (adversity?)
   const effScoresByEra = { 1: [], 2: [], 3: [], 4: [] }; // effectiveScore = launchScore × compFactor
 
   for (let w = 0; w < maxWeeks; w++) {
     if (s.bankrupt) break;
     if (!eraWeek[s.era]) eraWeek[s.era] = s.week;
+    if (s.era >= 2) repMinLate = Math.min(repMinLate, s.reputation);
 
     // advance era as soon as eligible
     if (canAdvance(s)) s = advanceEraAction(s);
@@ -121,6 +123,8 @@ function simulate(seed, maxWeeks = 520) {
     finalNetWorth: toDollars(netWorth(s)),
     listed: s.listed,
     reputation: s.reputation,
+    repMinLate: repMinLate === Infinity ? s.reputation : repMinLate,
+    hitRate: countedLaunches.size ? verdicts.hit / countedLaunches.size : 0,
     effScoresByEra,
   };
 }
@@ -168,6 +172,17 @@ for (const k of ["hit", "solid", "steady", "flop"]) {
 console.log(`\nFinal net worth:     median ${money(median(agg((r) => r.finalNetWorth)))}  p10 ${money(pct(agg((r) => r.finalNetWorth), 0.1))}  p90 ${money(pct(agg((r) => r.finalNetWorth), 0.9))}`);
 console.log(`Reached IPO/listed:  ${runs.filter((r) => r.listed).length}/${runs.length}`);
 console.log(`Final reputation:    median ${median(agg((r) => r.reputation)).toFixed(0)}`);
+
+// --- "solved outcome" diagnostics: how much do runs actually DIVERGE? ---
+const nw = agg((r) => r.finalNetWorth);
+const nwMean = mean(nw);
+const nwCV = Math.sqrt(mean(nw.map((x) => (x - nwMean) ** 2))) / nwMean;
+const hitRates = agg((r) => r.hitRate);
+console.log(`\n--- outcome variance (is the late game "solved"?) ---`);
+console.log(`Net-worth CV:        ${(nwCV * 100).toFixed(1)}%  (low = every run ends the same)`);
+console.log(`Net-worth spread:    p90/p10 = ${(pct(nw, 0.9) / pct(nw, 0.1)).toFixed(2)}×`);
+console.log(`Per-run hit-rate:    p10 ${(pct(hitRates, 0.1) * 100).toFixed(0)}%  p50 ${(median(hitRates) * 100).toFixed(0)}%  p90 ${(pct(hitRates, 0.9) * 100).toFixed(0)}%`);
+console.log(`Reputation low (≥E2):median ${median(agg((r) => r.repMinLate)).toFixed(0)}  min ${Math.min(...agg((r) => r.repMinLate)).toFixed(0)}  (never dips = no adversity)`);
 
 // effectiveScore landscape vs the verdict bands, per era — the precise retune diagnostic.
 const BANDS = {
