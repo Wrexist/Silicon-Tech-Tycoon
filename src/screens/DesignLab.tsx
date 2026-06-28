@@ -218,12 +218,17 @@ export function DesignLab({
 
   const cat = CATEGORIES[draft.category];
   const hasCamera = cat.slots.includes("camera");
+  // Form-factor realism: only a handheld with a front screen + rear glass (phone / tablet) carries a
+  // selfie cutout and a *designable* rear camera module (bump shape, position, layout, flash). Other
+  // devices that still HAVE a camera — AR glasses — get a sensor count that feeds stats, but no
+  // phone-style module or notch, so the Lab never offers controls the device can't have.
+  const handheld = draft.category === "phone" || draft.category === "tablet";
 
-  // Auto-switch device face when entering the Camera tab for a camera-capable category.
-  // Non-camera categories stay on front (no back to show).
+  // Auto-switch device face when entering the Camera tab — but only for handhelds, which are the
+  // only devices that render a back (and a designable rear module). Everything else stays on front.
   useEffect(() => {
-    setFace(labTab === "camera" && hasCamera ? "back" : "front");
-  }, [labTab, hasCamera]);
+    setFace(labTab === "camera" && handheld ? "back" : "front");
+  }, [labTab, handheld]);
 
   // A successor seed handed in from a launched product's detail sheet: adopt it as the draft, then
   // tell the parent to clear it so re-renders don't keep overwriting the player's edits.
@@ -233,7 +238,6 @@ export function DesignLab({
     setFace("front");
     onSeedConsumed?.();
   }, [seed, onSeedConsumed]);
-  const flippable = draft.category === "phone" || draft.category === "tablet";
   const unlockedCats = useMemo(
     () => Object.values(CATEGORIES).filter((c) => isCategoryUnlocked(c.id, state.era)),
     [state.era],
@@ -342,7 +346,7 @@ export function DesignLab({
   }
   function setCam(partial: Partial<Product["camera"]>) {
     haptic.light();
-    setFace("back");
+    if (handheld) setFace("back"); // only handhelds show a rear module to flip to
     setDraft((d) => ({ ...d, camera: { ...d.camera, ...partial } }));
   }
 
@@ -522,7 +526,7 @@ export function DesignLab({
         <div className="lab__hero-grid">
           <div className="lab__hero-stage">
             <span className="lab__hero-glow" aria-hidden />
-            <DeviceRenderer product={draft} size={160} idle shimmer flip={flippable} face={face} />
+            <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />
             <div className="lab__hero-cats">
               {unlockedCats.map((c) => (
                 <button
@@ -568,7 +572,7 @@ export function DesignLab({
             )}
           </div>
         </div>
-        {flippable && (
+        {handheld && (
           <button
             className="lab__flip"
             onClick={() => {
@@ -667,7 +671,9 @@ export function DesignLab({
             className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
             onClick={() => { haptic.light(); setLabTab(t.id); }}
           >
-            {t.id === "camera" && !hasCamera ? "Front" : t.label}
+            {/* The 3rd tab is "Camera" only when the device has one; otherwise it holds display/
+                storage specs (a monitor's refresh, a desktop's capacity), so label it "Specs". */}
+            {t.id === "camera" ? (hasCamera ? "Camera" : "Specs") : t.label}
           </button>
         ))}
       </div>
@@ -835,7 +841,7 @@ export function DesignLab({
           <>
             {hasCamera && (
               <Card>
-                <SectionHeader title="Camera" accessory="back of device" />
+                <SectionHeader title="Camera" accessory={handheld ? "back of device" : "sensor array"} />
                 {(() => {
                   // Lens counts beyond the current limit are RESEARCH unlocks (RP), not free
                   // picker options — designing a triple/quad module is something you earn.
@@ -881,48 +887,59 @@ export function DesignLab({
                     </>
                   );
                 })()}
-                <Seg<CameraLayout>
-                  label="Layout"
-                  value={draft.camera.layout}
-                  disabled={draft.camera.count < 2}
-                  options={[["vertical", "Vertical"], ["horizontal", "Row"], ["square", "Square"], ["triangle", "Triangle"]]}
-                  onPick={(v) => setCam({ layout: v })}
-                />
-                <Seg<CameraPosition>
-                  label="Position"
-                  value={draft.camera.position}
-                  options={[["topLeft", "Corner"], ["topCenter", "Top"], ["center", "Center"]]}
-                  onPick={(v) => setCam({ position: v })}
-                />
-                <Seg<CameraModuleShape>
-                  label="Module"
-                  value={draft.camera.module}
-                  options={[["squircle", "Bump"], ["circle", "Circle"], ["pill", "Pill"]]}
-                  onPick={(v) => setCam({ module: v })}
-                />
-                <div className="lab__toggle-row">
-                  <span className="lab__seg-label">Flash</span>
-                  <button
-                    className={`lab__toggle${draft.camera.flash ? " lab__toggle--on" : ""}`}
-                    role="switch"
-                    aria-label="Flash"
-                    aria-checked={draft.camera.flash}
-                    onClick={() => setCam({ flash: !draft.camera.flash })}
-                  >
-                    <span className="lab__toggle-knob" />
-                  </button>
-                </div>
+                {/* The bump shape / position / layout / flash are a phone-style rear MODULE — only
+                    handhelds render one. Devices like AR glasses just carry a sensor count (above),
+                    which still feeds the photography stat, so we hide the module-design controls. */}
+                {handheld ? (
+                  <>
+                    <Seg<CameraLayout>
+                      label="Layout"
+                      value={draft.camera.layout}
+                      disabled={draft.camera.count < 2}
+                      options={[["vertical", "Vertical"], ["horizontal", "Row"], ["square", "Square"], ["triangle", "Triangle"]]}
+                      onPick={(v) => setCam({ layout: v })}
+                    />
+                    <Seg<CameraPosition>
+                      label="Position"
+                      value={draft.camera.position}
+                      options={[["topLeft", "Corner"], ["topCenter", "Top"], ["center", "Center"]]}
+                      onPick={(v) => setCam({ position: v })}
+                    />
+                    <Seg<CameraModuleShape>
+                      label="Module"
+                      value={draft.camera.module}
+                      options={[["squircle", "Bump"], ["circle", "Circle"], ["pill", "Pill"]]}
+                      onPick={(v) => setCam({ module: v })}
+                    />
+                    <div className="lab__toggle-row">
+                      <span className="lab__seg-label">Flash</span>
+                      <button
+                        className={`lab__toggle${draft.camera.flash ? " lab__toggle--on" : ""}`}
+                        role="switch"
+                        aria-label="Flash"
+                        aria-checked={draft.camera.flash}
+                        onClick={() => setCam({ flash: !draft.camera.flash })}
+                      >
+                        <span className="lab__toggle-knob" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="lab__hint">More sensors sharpen the photography rating; this device has no rear module to style.</p>
+                )}
               </Card>
             )}
-            <Card>
-              <SectionHeader title="Front" accessory="selfie camera" />
-              <Seg<NotchStyle>
-                label="Cutout"
-                value={draft.notch}
-                options={[["punch", "Punch-hole"], ["island", "Island"], ["notch", "Notch"], ["none", "None"]]}
-                onPick={(v) => { haptic.light(); setFace("front"); set({ notch: v }); }}
-              />
-            </Card>
+            {handheld && (
+              <Card>
+                <SectionHeader title="Front" accessory="selfie camera" />
+                <Seg<NotchStyle>
+                  label="Cutout"
+                  value={draft.notch}
+                  options={[["punch", "Punch-hole"], ["island", "Island"], ["notch", "Notch"], ["none", "None"]]}
+                  onPick={(v) => { haptic.light(); setFace("front"); set({ notch: v }); }}
+                />
+              </Card>
+            )}
             {hasDisplay && (
               <Card>
                 <SectionHeader title="Display" accessory={maxHz < 144 ? `${effHz}Hz · max ${maxHz}` : `${effHz}Hz`} />
