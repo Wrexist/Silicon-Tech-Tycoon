@@ -1453,3 +1453,35 @@ ONE at a time, with a fast-forward harness / device in hand, in `balance.ts`:
   (keep the AR/VR override) instead of a hand-kept copy; empty-state guards on a few rarely-empty `.map`s.
 - **Dead type exports (Low):** ~20 unused `export type`/`interface`s across `platform.ts`,
   `gameState.ts`, `types.ts`, etc. — drop the `export` keyword (tsc will catch any real use). Mechanical.
+
+## v52 — measured balance pass: verdict-band recalibration + fast-forward harness (DONE 2026-06-28)
+"Balance now the game." Did it the disciplined way — MEASURED, not guessed. Built a headless
+fast-forward harness (`scripts/balance-sim.mjs`, `npm run sim`) that drives the real pure engine with
+a competent auto-player across 40 seeds × 520 weeks and reports the actual balance curve. The data
+exposed one dominant problem and one structural one:
+- **Verdict monolith:** 83.5% of 9,015 launches landed "solid"; just 3.6% hit, 0.5% flop. The
+  effectiveScore landscape vs the bands showed why — a maxed competent product scores ~112–130 in the
+  AI era, but the hit bar was 145 (UNREACHABLE) and the solid floor 92 (far below the achievable
+  minimum), so every late launch collapsed onto "solid." Era 3 had the same shape.
+- **No downside / solved outcome:** 0/40 bankruptcies, ~167-wk starting runway, final net worth in a
+  ±5% band, reputation pinned to 100 for every seed (logged, not fixed this pass — see below).
+- [x] **Recalibrated `reputation.{hit,solid,flop}ThresholdByEra` to the measured landscape.** Bands now
+      sit INSIDE each era's real score range: hit `[70,88,112,145]→[70,80,116,128]`, solid
+      `[45,56,72,92]→[45,56,98,115]` (flop unchanged — flops are for genuine mistakes). Result, by the
+      harness: **28.9% hit / 35.9% solid / 34.7% steady / 0.5% flop** — a textured, skill-discriminating
+      spread. A competent player now gets a real mix; a sloppier one shifts toward steady/flop. Era
+      pacing (E2 wk72 / E3 wk118 / E4 wk175) and zero-bankruptcy survival are UNCHANGED — progression
+      didn't stall. Early eras (1–2) were already well-spread and were left essentially as-is.
+- [x] **Guard D** (`balanceGuards.test.ts`): pins band invariants (flop<solid<hit per era; bands
+      non-decreasing era-over-era) so the recalibration can't silently regress. +2 tests.
+- [x] **`scripts/balance-sim.mjs` + `npm run sim`**: a reusable measurement tool (the project has
+      repeatedly asked for a fast-forward harness). esbuild-bundled like `shots:stage`; artifact
+      gitignored. Reports bankruptcies, runway, era arrival, verdict mix, net-worth percentiles, and
+      the per-era effectiveScore landscape vs the bands — so the NEXT balance change is also measured.
+- 542 tests (+2), tsc 0, build+PWA green.
+- **Deliberately NOT touched (needs design call / would regress reasoned tuning):** the long early
+  runway + the ±5%/rep-100 "solved outcome." The early economy was tuned the other way ON PURPOSE
+  (rent lowered 200→120; safety reserve prevents unfair bricking — and the auto-player only avoids
+  bankruptcy because it uses the safe `recommendedRun`). The flat late-game net worth is a deeper
+  fix (outcome variance / failable bets at scale) that wants its own measured pass — the harness now
+  makes that tractable. Flagged here rather than churned blind.

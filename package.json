@@ -13,7 +13,8 @@
     "typecheck": "tsc -b --noEmit",
     "furniture:fetch": "node scripts/fetch-furniture.mjs",
     "assets:icons": "node scripts/gen-icons.mjs",
-    "shots:stage": "esbuild scripts/stage-save.mjs --bundle --platform=node --format=cjs --outfile=scripts/.stage.cjs --log-level=error && node scripts/.stage.cjs"
+    "shots:stage": "esbuild scripts/stage-save.mjs --bundle --platform=node --format=cjs --outfile=scripts/.stage.cjs --log-level=error && node scripts/.stage.cjs",
+    "sim": "esbuild scripts/balance-sim.mjs --bundle --platform=node --format=cjs --outfile=scripts/.sim.cjs --log-level=error && node scripts/.sim.cjs"
   },
   "dependencies": {
     "@capacitor/core": "^6.2.1",
