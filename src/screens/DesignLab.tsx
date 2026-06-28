@@ -1317,7 +1317,7 @@ function DesignCompleteCard({
       </div>
 
       <Button block onClick={onDesignAnother}><Sparkles size={16} /> Design another</Button>
-      <button className="wiz__cancel" onClick={onGoToHQ}>View in HQ</button>
+      <button className="wiz__cancel" onClick={onGoToHQ}>View in Office</button>
     </div>
   );
 }

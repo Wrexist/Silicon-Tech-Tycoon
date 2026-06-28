@@ -5,7 +5,7 @@ import "./bottomNav.css";
 export type Tab = "hq" | "design" | "research" | "market" | "company";
 
 const TABS: { id: Tab; label: string; Icon: LucideIcon; color: string }[] = [
-  { id: "hq", label: "HQ", Icon: Home, color: "var(--accent)" },
+  { id: "hq", label: "Office", Icon: Home, color: "var(--accent)" },
   { id: "design", label: "Design", Icon: PencilRuler, color: "var(--fn-design)" },
   { id: "research", label: "Research", Icon: FlaskConical, color: "var(--fn-eng)" },
   { id: "market", label: "Market", Icon: TrendingUp, color: "var(--fn-mkt)" },

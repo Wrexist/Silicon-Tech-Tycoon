@@ -109,7 +109,7 @@ export const OBJECTIVES: readonly Objective[] = [
     label: "Buy an office upgrade",
     detail: "Upgrades permanently lift your team — research, design, quality, or hype.",
     tab: "hq",
-    cta: "Open HQ upgrades",
+    cta: "Open Office upgrades",
     icon: "Wrench",
     done: ownsAnyUpgrade,
   },

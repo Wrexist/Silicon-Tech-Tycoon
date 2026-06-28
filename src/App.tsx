@@ -180,7 +180,7 @@ function ScreenError({ onHome }: { onHome: () => void }) {
         Something on this screen stopped responding. Your company is safe — head back and try again.
       </p>
       <div className="app__screen-error-actions">
-        <Button variant="secondary" onClick={onHome}>Back to HQ</Button>
+        <Button variant="secondary" onClick={onHome}>Back to Office</Button>
         <Button variant="tertiary" onClick={() => window.location.reload()}>
           <RotateCcw size={15} /> Reload
         </Button>

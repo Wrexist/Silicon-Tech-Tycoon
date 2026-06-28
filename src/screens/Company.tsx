@@ -402,7 +402,7 @@ export function Company() {
           <div className="co__fac-nudge">
             <Building2 size={15} className="co__fac-nudge-icon" aria-hidden />
             <span className="co__fac-nudge-text">
-              <strong>At facility capacity</strong> — move to {nextFac.name} from HQ Upgrades to make room for more staff ({format(nextFac.upgradeCost)}).
+              <strong>At facility capacity</strong> — move to {nextFac.name} from Office upgrades to make room for more staff ({format(nextFac.upgradeCost)}).
             </span>
           </div>
         );
@@ -411,7 +411,7 @@ export function Company() {
         <div className="co__fac-nudge">
           <PencilRuler size={15} className="co__fac-nudge-icon" aria-hidden />
           <span className="co__fac-nudge-text">
-            <strong>Every desk is taken</strong> — buy an Office Desk in HQ (or add a desk in Decorate)
+            <strong>Every desk is taken</strong> — buy a desk on the Office tab (or in Decorate)
             and your next hire sits down at it.
           </span>
         </div>
@@ -891,7 +891,7 @@ function TeamOutputCard({ state }: { state: GameState }) {
         if (amenitiesLvl === 0) {
           return (
             <p className="co__output-levelup co__output-mood-warn">
-              {avgMood < 30 ? "Morale critically low" : "Morale is low"} — upgrading <strong>Amenities</strong> in HQ will help.
+              {avgMood < 30 ? "Morale critically low" : "Morale is low"} — upgrading <strong>Amenities</strong> on the Office tab will help.
             </p>
           );
         }
@@ -1135,7 +1135,7 @@ function RecruitPanel({
     return (
       <>
         <p className="co__hint">
-          {full ? (noDesk ? "Every desk is taken — buy an Office Desk in HQ to open a seat. " : "At capacity — free up a seat to sign someone. ") : ""}
+          {full ? (noDesk ? "Every desk is taken — buy a desk on the Office tab to open a seat. " : "At capacity — free up a seat to sign someone. ") : ""}
           Shortlist available for {weeksLeft} more week{weeksLeft === 1 ? "" : "s"}.
         </p>
         {state.candidates.map((c) => (
