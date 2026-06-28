@@ -283,9 +283,16 @@ export const BALANCE = {
     // loses IPO-win eligibility (rep >= 85) until they perform again — turning the post-era-4 stretch
     // from a victory-lap into an ongoing contest. Gated to the FINAL era only, so no progression
     // gate and none of the early climb is ever touched. ⚠️ magnitudes want a device playtest.
+    // Phase 2 (Living Late Game) gave this teeth. Still FINAL-ERA ONLY (era 4 repToAdvance = Infinity,
+    // so decay can never softlock progression) — but the floor drops well below the rep-85 IPO-win
+    // gate and the slope steepens, so a top brand that coasts (stops shipping, or strings together
+    // middling launches) actually SLIPS below win-eligibility and must perform again to reclaim it.
+    // Tuned against the post-Phase-1 launch cadence (~1 launch / 3–4 wk): a competent constant-shipper
+    // earns ~0.9 rep/wk, so 0.9/wk decay means hits hold the line with visible dips between them while
+    // a slower or sloppier run erodes toward the floor — reputation becomes defended, not banked.
     decayFromEra: 4,
-    decayPerWeekLate: 0.5,
-    decayFloor: 78,
+    decayPerWeekLate: 0.9,
+    decayFloor: 62,
     gainPerHit: 8,
     // A "solid" launch earns a little reputation too, so a player who optimizes specs + price but
     // never runs marketing campaigns can still climb past the era rep gates on consistent quality

@@ -1537,10 +1537,34 @@ Acting on v52.1 option (b). MEASURED via `npm run sim` each step (40 seeds × 52
       **27/32/41/1.0** (hit/solid/steady/flop — texture restored); net-worth CV 2.5% → **3.9%**,
       p90/p10 1.07× → **1.11×** (variance up, the goal direction); **0/40 bankruptcies** preserved;
       early game byte-identical. Cost: Era-4 arrival drifted wk 171 → **202** (still 40/40 reach it +
-      win; ~27 min of ticks). `lateGame.test.ts` (+3) pins the era-scaling contract. 601 tests, tsc 0.
+      win; ~27 min of ticks). `lateGame.test.ts` (+3) pins the era-scaling contract. 598 tests, tsc 0.
 - **Honest finding carried to Phase 2:** reputation STILL pins at 99 (decay is final-era-only, floor
       78, outpaced by a constant-shipping player) — Phase 1 reshapes pace/stakes but is NOT itself the
       variance silver bullet. Reputation-as-a-defended-asset (option a) is next; durable competition
       (option c, PROTECTED market.ts/competitors.ts) is the deepest lever and needs its own go-ahead.
 - ⚠️ Magnitudes (toolingMult/leadWeeks, the new bands) are harness-tuned, NOT device-playtested —
       flag if the late game's slower cadence reads as a drag on a real phone.
+
+## v54 — Living Late Game, Phase 2: reputation is a DEFENDED asset (DONE 2026-06-28)
+Acting on v52.1 option (a), on top of v53. The maintenance mechanic existed but was inert (final-era
+only, floor 78, 0.5/wk — outpaced by any constant shipper). Gave it teeth without touching progression.
+- [x] **`reputation.decayFloor` 78 → 62, `decayPerWeekLate` 0.5 → 0.9** (kept `decayFromEra: 4` —
+      era-4 `repToAdvance` is Infinity, so decay can NEVER softlock an era gate). The floor now sits
+      well below the rep-85 IPO-win gate and the slope matches the post-Phase-1 launch cadence (~1
+      launch / 3–4 wk earns ~0.9 rep/wk), so hits hold the line with visible dips between them while a
+      coasting or middling run erodes toward the floor. Reputation becomes earned-and-kept, not banked.
+- [x] **Mechanic test** (`gameState.test.ts`): ~20 wk of not shipping in the final era drops a rep-100
+      brand below 85 — win-eligibility is actually lost until it performs again. (The existing
+      floor/no-early-decay tests reference the constant, so they held.)
+- **Measured (npm run sim, cumulative baseline → v53 → v54):** net-worth CV 2.5% → 3.9% → **4.6%**
+      (+84% vs baseline); p90/p10 1.07× → 1.11× → **1.13×**; final reputation 99 → 99 → **97** (decay
+      now bites even a perfect auto-player); verdict mix stays textured (23/31/46/1); **0/40
+      bankruptcies** and **40/40 IPO-win reached** preserved; era pacing unchanged from v53. 599 tests
+      (+1), tsc 0, full suite green.
+- **Honest limit of Phases 1–2:** macro CV is up 84% but still ~4.6% in absolute terms, because the
+      harness auto-player plays competently and constantly — it smooths most variance by construction.
+      No flat reputation/cost knob can fully break that. The deepest remaining lever is **option (c)
+      durable competition** (rivals that TAKE and HOLD share → contested vs uncontested runs genuinely
+      diverge), which touches PROTECTED `market.ts` + `competitors.ts` and needs its own go-ahead +
+      balance pass. The other true arbiter is an on-device playtest: real players make the mistakes the
+      auto-player never does, and Phases 1–2 are what make those mistakes cost something.
