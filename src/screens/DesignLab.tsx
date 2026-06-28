@@ -10,11 +10,11 @@ import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
-import { unlockedFactories, factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
+import { availableFactories, factoryFor, DEFAULT_FACTORY_ID, type CapacityStrategy } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
-import { format, dollars, sub, toDollars } from "../engine/money.ts";
+import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
 import { buildCost, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
@@ -44,6 +44,7 @@ import {
   finishUnlockCost,
   marketerSkill,
   planProduction,
+  capacityPlan,
   productStats,
   recommendedRun,
   researchedTier,
@@ -362,12 +363,15 @@ export function DesignLab({
     setWizard(true);
   }
 
-  function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[]) {
+  function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[], strategy: CapacityStrategy) {
     // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the
-    // completion sheet can celebrate exactly what just shipped to the factory floor.
-    const finished = { ...draft, regions };
+    // completion sheet can celebrate exactly what just shipped to the factory floor. Bake the chosen
+    // capacity strategy and (for "defects") its run-size-dependent quality hit onto the product.
+    const base = { ...draft, regions, capacityStrategy: strategy };
+    const penalty = strategy === "defects" ? capacityPlan(state, base, units).qualityPenalty : 0;
+    const finished = penalty > 0 ? { ...base, defectPenalty: penalty } : base;
     const plan = planProduction(state, finished, units, channelId);
-    const weeks = buildWeeksFor(state, finished);
+    const weeks = plan.buildWeeks; // strategy-resolved (longer under "stretch")
     const res = build(finished, units, channelId);
     if (!res.ok) {
       haptic.error();
@@ -793,7 +797,7 @@ export function DesignLab({
           <Card>
             <SectionHeader title="Manufacturing" accessory="factory" />
             <div className="lab__suppliers">
-              {unlockedFactories(state.era).map((fac) => {
+              {availableFactories(state.era, state.ownedFactories).map((fac) => {
                 const on = (draft.factoryId ?? DEFAULT_FACTORY_ID) === fac.id;
                 const toolPct = Math.round((fac.toolingMult - 1) * 100);
                 const unitPct = Math.round((fac.unitMult - 1) * 100);
@@ -1453,7 +1457,7 @@ function BuildWizard({
 }: {
   draft: Product;
   state: GameState;
-  onConfirm: (units: number, channelId: ChannelId, regions: RegionId[]) => void;
+  onConfirm: (units: number, channelId: ChannelId, regions: RegionId[], strategy: CapacityStrategy) => void;
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
@@ -1472,9 +1476,21 @@ function BuildWizard({
   );
   const cur = steps[step];
   const lastStep = steps.length - 1;
-  // The product as it will actually ship, including its region selection — every forecast uses this.
-  const prod = useMemo(() => ({ ...draft, regions }), [draft, regions]);
-  const [units, setUnits] = useState(() => recommendedRun(state, prod, "none"));
+  // Capacity strategy for an over-capacity run (pay overtime / stretch the schedule / accept defects).
+  const [strategy, setStrategy] = useState<CapacityStrategy>(draft.capacityStrategy ?? "overtime");
+  // The product as it will actually ship: region selection + capacity strategy. The defect penalty
+  // (only under "defects") depends on run size, so it's baked below once `units` is known.
+  const prodBase = useMemo(() => ({ ...draft, regions, capacityStrategy: strategy }), [draft, regions, strategy]);
+  const [units, setUnits] = useState(() => recommendedRun(state, prodBase, "none"));
+  // Bake the prospective quality hit so every forecast (and the launch) reflects the chosen strategy.
+  const defectPenalty = useMemo(
+    () => (strategy === "defects" ? capacityPlan(state, prodBase, units).qualityPenalty : 0),
+    [state, prodBase, units, strategy],
+  );
+  const prod = useMemo(
+    () => (defectPenalty > 0 ? { ...prodBase, defectPenalty } : prodBase),
+    [prodBase, defectPenalty],
+  );
 
   const plan = useMemo(() => planProduction(state, prod, units, channel), [state, prod, units, channel]);
   const recommended = useMemo(() => recommendedRun(state, prod, channel), [state, prod, channel]);
@@ -1494,7 +1510,7 @@ function BuildWizard({
   // B1b — readable build-risk: cash left the instant the run is paid for, the runway that buys at
   // current burn (no revenue arrives until launch), and the build duration. If the runway can't
   // outlast the build, the run may bankrupt the player mid-manufacture — surface it, don't block it.
-  const buildWks = buildWeeksFor(state, draft);
+  const buildWks = plan.buildWeeks; // strategy-resolved (stretch can extend it)
   const cashAfter = sub(state.cash, plan.totalUpfront);
   const weeklyBurnAfter = burn(state);
   const runway = runwayWeeks(cashAfter, weeklyBurnAfter);
@@ -1583,6 +1599,30 @@ function BuildWizard({
             <Stat label="Unit cost" value={format(plan.unitCost)} />
             <Stat label="Run cost" value={format(plan.productionCost)} tone="negative" />
           </div>
+          {plan.overCapacity && (
+            <div className="wiz__capacity">
+              <span className="wiz__capacity-head">
+                <AlertTriangle size={14} aria-hidden /> Over <b>{factoryFor(prod.factoryId).name}</b>'s capacity ({plan.factoryCapacityPerWeek.toLocaleString()}/wk) — {plan.overtimeUnits.toLocaleString()} extra units. How to handle it?
+              </span>
+              <div className="wiz__capacity-opts" role="group" aria-label="Over-capacity strategy">
+                {(["overtime", "stretch", "defects"] as CapacityStrategy[]).map((opt) => {
+                  const o = capacityPlan(state, { ...prodBase, capacityStrategy: opt }, units);
+                  const label = opt === "overtime" ? "Pay overtime" : opt === "stretch" ? "Stretch" : "Accept defects";
+                  const detail =
+                    opt === "overtime" ? `+${format(scale(plan.unitCost, o.overUnits * o.overtimeFraction))}`
+                    : opt === "stretch" ? `+${Math.max(0, o.buildWeeks - plan.assemblyWeeks)} wk`
+                    : `−${o.qualityPenalty} quality`;
+                  const on = strategy === opt;
+                  return (
+                    <button key={opt} type="button" className={`wiz__cap-opt${on ? " wiz__cap-opt--on" : ""}`} aria-pressed={on} onClick={() => { setStrategy(opt); haptic.light(); }}>
+                      <span className="wiz__cap-opt-label">{label}</span>
+                      <span className="wiz__cap-opt-detail">{detail}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className={`wiz__forecast wiz__forecast--${confLabel.toLowerCase()}`}>
             <span className="wiz__forecast-label">Forecast confidence</span>
             <span className="wiz__forecast-val">{confLabel}</span>
@@ -1659,9 +1699,9 @@ function BuildWizard({
             })()}
             <Stat
               label="Built at"
-              value={factoryFor(draft.factoryId).name}
+              value={factoryFor(prod.factoryId).name}
               tone={plan.overCapacity ? "negative" : undefined}
-              hint={plan.overCapacity ? `over capacity — ${plan.overtimeUnits.toLocaleString()} units on overtime` : "within capacity"}
+              hint={plan.overCapacity ? `over capacity · ${plan.capacityStrategy}` : "within capacity"}
             />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
             <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "run sells out — you could make more" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
@@ -1694,7 +1734,11 @@ function BuildWizard({
           </div>
           {plan.overCapacity && (
             <p className="wiz__warn wiz__warn--risk">
-              <AlertTriangle size={14} /> Over {factoryFor(draft.factoryId).name}'s capacity: {plan.overtimeUnits.toLocaleString()} units run on overtime (+{format(plan.overtimeCost)}). A faster or higher-capacity line — or a smaller run — avoids it.
+              <AlertTriangle size={14} /> {plan.overtimeUnits.toLocaleString()} units over {factoryFor(prod.factoryId).name}'s capacity —{" "}
+              {plan.capacityStrategy === "overtime" ? <>built on overtime (<b>+{format(plan.overtimeCost)}</b>).</>
+                : plan.capacityStrategy === "stretch" ? <>schedule stretched to <b>{plan.buildWeeks} wk</b> to fit capacity.</>
+                : <>shipping with a <b>−{prod.defectPenalty ?? 0} quality</b> defect hit.</>}{" "}
+              Change it in the Run step, pick a bigger line, or trim the run.
             </p>
           )}
           {!affordable && (
@@ -1715,7 +1759,7 @@ function BuildWizard({
         {step < lastStep ? (
           <Button block onClick={() => { setStep(step + 1); haptic.light(); }}>Next</Button>
         ) : (
-          <Button block disabled={!affordable} onClick={() => onConfirm(units, channel, regions)} haptics="none">
+          <Button block disabled={!affordable} onClick={() => onConfirm(units, channel, regions, strategy)} haptics="none">
             <Factory size={16} /> Build {units.toLocaleString()} units
           </Button>
         )}

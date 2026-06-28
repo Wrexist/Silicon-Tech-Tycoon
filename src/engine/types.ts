@@ -44,7 +44,11 @@ export type RegionId = "home" | "north_america" | "europe" | "asia" | "emerging"
 export type SupplierId = "bargain" | "standard" | "lumen" | "novacore" | "atlas" | "vertex";
 
 /** Manufacturing factory id (engine/factories.ts owns the catalog + effects). */
-export type FactoryId = "standard" | "eastwind" | "kairos" | "apex";
+export type FactoryId = "standard" | "eastwind" | "kairos" | "apex" | "homeline" | "gigafab";
+
+/** How to handle a production run that exceeds the chosen factory's throughput capacity:
+ *  pay overtime, extend the schedule, or accept a quality hit. (engine/factories.ts) */
+export type CapacityStrategy = "overtime" | "stretch" | "defects";
 
 /** Canonical finish order, cheap→premium. Doubles as the unlock ladder: the first
  *  `BALANCE.design.freeFinishes` are available from the start; the rest are RP-unlocked in order. */
@@ -140,6 +144,12 @@ export interface Product {
    *  throughput capacity. Optional — unset resolves to the neutral "standard" factory (unlimited
    *  capacity), so older saves are unchanged. */
   factoryId?: FactoryId;
+  /** How an over-capacity run is handled (overtime cost / longer schedule / quality hit). Optional —
+   *  defaults to "overtime", the pre-P3 behaviour. */
+  capacityStrategy?: CapacityStrategy;
+  /** Quality-stat penalty BAKED at build time when the "defects" capacity strategy is used (depends
+   *  on run size, so it's frozen onto the built product). Optional — absent = none. */
+  defectPenalty?: number;
 }
 
 export function defaultCameraDesign(): CameraDesign {

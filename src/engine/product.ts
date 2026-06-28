@@ -107,6 +107,10 @@ export function computeStats(product: Product): Stats {
   // below). The neutral "standard" supplier contributes 0, so an unset supplier is a no-op.
   stats.quality += supplierQualityDelta(product);
 
+  // Manufacturing defects: a run pushed over factory capacity on the "defects" strategy bakes a
+  // quality hit onto the product at build time (0 / absent for everything else).
+  stats.quality -= product.defectPenalty ?? 0;
+
   for (const key of STAT_KEYS) {
     stats[key] = Math.round(clamp(stats[key], 0, BALANCE.statMax));
   }

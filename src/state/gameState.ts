@@ -94,7 +94,8 @@ import {
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { supplierLeadWeeks, sourcingExposure } from "../engine/suppliers.ts";
-import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, overtimeUnits } from "../engine/factories.ts";
+import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
+import type { FactoryId } from "../engine/types.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -169,6 +170,9 @@ export interface GameState {
   completedProjects: ProjectId[];
   /** Geographic markets unlocked for distribution (engine/regions.ts). Always contains "home". */
   unlockedRegions: RegionId[];
+  /** Owned manufacturing lines the player has acquired (engine/factories.ts). Each carries weekly
+   *  upkeep and can be selected for builds. Empty for contract-only companies / older saves. */
+  ownedFactories: FactoryId[];
   building: BuildJob[];
   ready: Product[]; // built, awaiting launch
   launched: LaunchedProduct[];
@@ -395,6 +399,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     researchPoints: lb.rp,
     completedProjects: [],
     unlockedRegions: ["home"],
+    ownedFactories: [],
     building: [],
     ready: [],
     launched: [],
@@ -724,6 +729,20 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   return Math.max(BALANCE.build.minWeeks, assembly) + lead;
 };
 
+/** Resolve a run against its factory's capacity + the product's capacity strategy (overtime / stretch
+ *  / defects). Shared by planProduction (cost + weeks) and the build wizard (the prospective quality
+ *  hit it bakes onto the product). `assemblyWeeks` is the pre-stretch build time. */
+export function capacityPlan(s: GameState, product: Product, plannedUnits: number): CapacityOutcome {
+  return resolveCapacity({
+    plannedUnits: Math.max(0, Math.round(plannedUnits)),
+    capacityPerWeek: factoryCapacityPerWeek(product),
+    assemblyWeeks: buildWeeksFor(s, product),
+    strategy: product.capacityStrategy ?? "overtime",
+    overtimeSurcharge: BALANCE.factory.overtimeSurcharge,
+    defectMaxPenalty: BALANCE.factory.defectMaxPenalty,
+  });
+}
+
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
@@ -754,7 +773,9 @@ export interface ProductionPlan {
   overtimeUnits: number; // units that exceeded capacity × build-weeks
   overCapacity: boolean; // the run pushes the factory past its throughput
   factoryCapacityPerWeek: number; // chosen factory's weekly throughput (Infinity = no ceiling)
-  assemblyWeeks: number; // build duration the capacity check used
+  assemblyWeeks: number; // base build duration before any capacity stretch
+  buildWeeks: number; // resolved build duration (= assemblyWeeks, or longer under the "stretch" strategy)
+  capacityStrategy: CapacityStrategy; // how an over-capacity run is being handled
   launchScore: number;
   demandFit: number; // 0..100 — how well the product matches current demand
   priceFit: number; // 0..1.35 — price fairness vs. perceived value (1 = on the money; →0 = gouging)
@@ -884,12 +905,12 @@ export function planProduction(
   const projectedSales = Math.min(planned, totalDemand);
   const sellsOut = totalDemand > planned && planned > 0;
 
-  // Factory throughput: units beyond capacity × build-weeks cost an overtime surcharge. The neutral
-  // "standard" factory has unlimited capacity → overUnits 0 → zero ripple for old saves/default.
-  const assemblyWeeks = buildWeeksFor(s, product);
+  // Factory throughput: a run beyond capacity × build-weeks is resolved by the product's capacity
+  // strategy — overtime cost, a stretched schedule, or (baked separately) defects. The neutral
+  // "standard" factory has unlimited capacity → no overage → zero ripple for old saves/default.
   const capacityPerWeek = factoryCapacityPerWeek(product);
-  const overUnits = overtimeUnits(planned, capacityPerWeek, assemblyWeeks);
-  const overtimeCost = scale(unitCost, overUnits * BALANCE.factory.overtimeSurcharge);
+  const capOutcome = capacityPlan(s, product, planned);
+  const overtimeCost = scale(unitCost, capOutcome.overUnits * capOutcome.overtimeFraction);
 
   const productionCost = scale(unitCost, planned);
   const channelCost = channel.cost;
@@ -907,10 +928,12 @@ export function planProduction(
     channelCost,
     totalUpfront,
     overtimeCost,
-    overtimeUnits: overUnits,
-    overCapacity: overUnits > 0,
+    overtimeUnits: capOutcome.overUnits,
+    overCapacity: capOutcome.overUnits > 0,
     factoryCapacityPerWeek: capacityPerWeek,
-    assemblyWeeks,
+    assemblyWeeks: buildWeeksFor(s, product),
+    buildWeeks: capOutcome.buildWeeks,
+    capacityStrategy: product.capacityStrategy ?? "overtime",
     launchScore: breakdown.launchScore,
     demandFit,
     priceFit: breakdown.priceFit,
@@ -1569,7 +1592,7 @@ export function startBuild(
     return { state, ok: false, reason: `Need ${format(plan.totalUpfront)} for tooling + ${units.toLocaleString()} units.` };
   }
 
-  const totalWeeks = buildWeeksFor(state, product);
+  const totalWeeks = plan.buildWeeks; // strategy-resolved (longer under "stretch")
   const job: BuildJob = {
     product: { ...product, id: `prod-${state.productCounter}`, plannedUnits: units, channelId },
     totalWeeks,

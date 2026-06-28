@@ -8,8 +8,13 @@ import {
   unlockedFactories,
   isFactoryUnlocked,
   overtimeUnits,
+  resolveCapacity,
+  availableFactories,
+  acquirableFactories,
+  totalFactoryUpkeep,
 } from "./factories.ts";
-import { newGame, planProduction, buildWeeksFor, effectiveUnitCost, toolingCost, type GameState } from "../state/gameState.ts";
+import { computeStats } from "./product.ts";
+import { newGame, planProduction, capacityPlan, buildWeeksFor, effectiveUnitCost, toolingCost, type GameState } from "../state/gameState.ts";
 import type { Product, FactoryId } from "./types.ts";
 
 function phone(factoryId?: FactoryId): Product {
@@ -77,6 +82,63 @@ describe("factory effects through the engine", () => {
     expect(toDollars(budget.overtimeCost)).toBeGreaterThan(0);
     expect(std.overCapacity).toBe(false);
     expect(toDollars(std.overtimeCost)).toBe(0);
+  });
+});
+
+describe("capacity strategies (P3)", () => {
+  const opts = { plannedUnits: 6000, capacityPerWeek: 1500, assemblyWeeks: 3, overtimeSurcharge: 0.6, defectMaxPenalty: 18 };
+  it("overtime keeps the schedule and surcharges the excess", () => {
+    const o = resolveCapacity({ ...opts, strategy: "overtime" });
+    expect(o.buildWeeks).toBe(3);
+    expect(o.overUnits).toBe(1500);
+    expect(o.overtimeFraction).toBe(0.6);
+    expect(o.qualityPenalty).toBe(0);
+  });
+  it("stretch extends the schedule to fit capacity, no surcharge", () => {
+    const o = resolveCapacity({ ...opts, strategy: "stretch" });
+    expect(o.buildWeeks).toBe(4); // ceil(6000/1500)
+    expect(o.overtimeFraction).toBe(0);
+  });
+  it("defects keeps schedule + cost but hits quality", () => {
+    const o = resolveCapacity({ ...opts, strategy: "defects" });
+    expect(o.buildWeeks).toBe(3);
+    expect(o.overtimeFraction).toBe(0);
+    expect(o.qualityPenalty).toBeGreaterThan(0);
+  });
+  it("is a clean no-op within capacity regardless of strategy", () => {
+    for (const strategy of ["overtime", "stretch", "defects"] as const) {
+      const o = resolveCapacity({ ...opts, plannedUnits: 1000, strategy });
+      expect(o).toEqual({ overUnits: 0, buildWeeks: 3, overtimeFraction: 0, qualityPenalty: 0 });
+    }
+  });
+
+  it("threads through planProduction: stretch lengthens buildWeeks; defects bakes a quality hit", () => {
+    const s: GameState = { ...newGame(8), legacy: 1 };
+    const over = planProduction(s, { ...phone("eastwind"), capacityStrategy: "overtime" }, 60_000, "none");
+    const stretch = planProduction(s, { ...phone("eastwind"), capacityStrategy: "stretch" }, 60_000, "none");
+    expect(stretch.buildWeeks).toBeGreaterThan(over.buildWeeks);
+    expect(toDollars(stretch.overtimeCost)).toBe(0);
+
+    const penalty = capacityPlan(s, { ...phone("eastwind"), capacityStrategy: "defects" }, 60_000).qualityPenalty;
+    expect(penalty).toBeGreaterThan(0);
+    // Use a mid-tier product so the quality stat isn't already clamped at 100 (where a hit hides).
+    const mid: Product = { ...phone("eastwind"), tiers: { chip: 2, display: 2, battery: 2, materials: 2, software: 2, camera: 1 } };
+    const cleanQ = computeStats(mid).quality;
+    const defectQ = computeStats({ ...mid, defectPenalty: penalty }).quality;
+    expect(defectQ).toBe(Math.max(0, cleanQ - penalty));
+  });
+});
+
+describe("owned lines (P3)", () => {
+  it("contract lines are always available; owned lines only after acquisition", () => {
+    expect(availableFactories(3).some((f) => f.id === "homeline")).toBe(false);
+    expect(availableFactories(3, ["homeline"]).some((f) => f.id === "homeline")).toBe(true);
+    expect(acquirableFactories(3).map((f) => f.id)).toContain("homeline");
+    expect(acquirableFactories(3, ["homeline"]).map((f) => f.id)).not.toContain("homeline");
+  });
+  it("sums weekly upkeep across owned lines", () => {
+    expect(toDollars(totalFactoryUpkeep([]))).toBe(0);
+    expect(toDollars(totalFactoryUpkeep(["homeline"]))).toBe(toDollars(FACTORIES.homeline.weeklyUpkeep));
   });
 });
 

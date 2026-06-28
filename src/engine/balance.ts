@@ -613,7 +613,8 @@ export const BALANCE = {
   // Over-capacity units cost the per-unit price PLUS this surcharge — the price of pushing a budget
   // line past its weekly throughput on a big run.
   factory: {
-    overtimeSurcharge: 0.6, // +60% on each over-capacity unit
+    overtimeSurcharge: 0.6, // +60% on each over-capacity unit ("overtime" strategy)
+    defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
   },
 
   // --- Offline catch-up ---
