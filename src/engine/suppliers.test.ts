@@ -13,7 +13,11 @@ import {
   supplierLeadWeeks,
   supplierCrunchMult,
   sourcingExposure,
+  supplierLoyaltyTier,
+  supplierLoyaltyDiscount,
+  buildsToNextTier,
 } from "./suppliers.ts";
+import { newGame, startBuild, effectiveUnitCost, recommendedRun } from "../state/gameState.ts";
 import type { Product, SupplierId } from "./types.ts";
 
 function product(supplierId?: SupplierId): Product {
@@ -112,6 +116,38 @@ describe("dual-sourcing (resilience hedge)", () => {
   });
   it("does not touch quality or the supplier resolution", () => {
     expect(computeStats({ ...product("novacore"), dualSource: true }).quality).toBe(computeStats(product("novacore")).quality);
+  });
+});
+
+describe("supplier relationships (loyalty)", () => {
+  it("climbs tiers with build count and exposes the discount + next-tier countdown", () => {
+    expect(supplierLoyaltyTier(0).name).toBe("New");
+    expect(supplierLoyaltyDiscount(0)).toBe(0);
+    expect(supplierLoyaltyTier(3).name).toBe("Trusted");
+    expect(supplierLoyaltyDiscount(15)).toBeGreaterThan(supplierLoyaltyDiscount(3));
+    expect(buildsToNextTier(0)).toBe(3);
+    expect(buildsToNextTier(100)).toBeNull(); // top tier
+  });
+
+  it("starting a build deepens the supplier relationship, and the discount cuts the next run's cost", () => {
+    const s0 = { ...newGame(8), cash: dollars(50_000_000) };
+    const phone: Product = {
+      id: "p", name: "Aurora", category: "phone",
+      tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 2 },
+      finish: "aluminium", colorIndex: 0, price: dollars(499), designTier: 1,
+      camera: { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
+      notch: "punch", supplierId: "novacore",
+    };
+    // Run enough builds to reach a discounting tier.
+    let s = s0;
+    const costBefore = toDollars(effectiveUnitCost(s, phone));
+    for (let i = 0; i < 3; i++) s = startBuild(s, phone, recommendedRun(s, phone, "none"), "none").state;
+    expect(s.supplierLoyalty?.novacore).toBe(3);
+    expect(toDollars(effectiveUnitCost(s, phone))).toBeLessThan(costBefore);
+  });
+
+  it("a fresh game has no relationship, so cost is unchanged", () => {
+    expect(newGame(8).supplierLoyalty ?? {}).toEqual({});
   });
 });
 

@@ -93,9 +93,9 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
-import { supplierLeadWeeks, sourcingExposure } from "../engine/suppliers.ts";
+import { supplierLeadWeeks, sourcingExposure, supplierLoyaltyDiscount, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
-import type { FactoryId } from "../engine/types.ts";
+import type { FactoryId, SupplierId } from "../engine/types.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -173,6 +173,9 @@ export interface GameState {
   /** Owned manufacturing lines the player has acquired (engine/factories.ts). Each carries weekly
    *  upkeep and can be selected for builds. Empty for contract-only companies / older saves. */
   ownedFactories: FactoryId[];
+  /** Builds run through each supplier — the relationship/loyalty count that earns a standing unit-
+   *  cost discount (engine/suppliers.ts). Optional; absent/0 = no relationship yet. */
+  supplierLoyalty?: Partial<Record<SupplierId, number>>;
   building: BuildJob[];
   ready: Product[]; // built, awaiting launch
   launched: LaunchedProduct[];
@@ -771,6 +774,11 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
+  // Supplier relationship: repeat business earns a standing discount (engine/suppliers.ts). 0 when
+  // you've no history with this supplier, so it's a no-op for fresh games / older saves.
+  const sid = product.supplierId ?? DEFAULT_SUPPLIER_ID;
+  const loyaltyDiscount = supplierLoyaltyDiscount(s.supplierLoyalty?.[sid] ?? 0);
+  if (loyaltyDiscount > 0) unitCost = scale(unitCost, 1 - loyaltyDiscount);
   return scale(unitCost, buildCostMult(s.upgrades));
 }
 
@@ -1620,12 +1628,17 @@ export function startBuild(
       "accent",
     ),
   );
+  // Deepen the relationship with this run's supplier (the discount this run got was from PRIOR
+  // history; the increment rewards the next one).
+  const sid = product.supplierId ?? DEFAULT_SUPPLIER_ID;
+  const supplierLoyalty = { ...state.supplierLoyalty, [sid]: (state.supplierLoyalty?.[sid] ?? 0) + 1 };
   return {
     state: {
       ...state,
       cash: sub(state.cash, plan.totalUpfront),
       building: [...state.building, job],
       productCounter: state.productCounter + 1,
+      supplierLoyalty,
       feed: trimFeed(feed),
     },
     ok: true,

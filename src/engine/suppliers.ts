@@ -111,6 +111,35 @@ export function unlockedSuppliers(era: number): Supplier[] {
   return SUPPLIER_LIST.filter((s) => s.era <= era);
 }
 
+// --- Relationships: repeat business with a supplier earns a standing unit-cost discount ----------
+export interface LoyaltyTier {
+  name: string;
+  minBuilds: number; // builds run through this supplier to reach the tier
+  discount: number; // unit-cost discount at this tier (0..1)
+}
+
+/** Loyalty ladder, low→high. The active tier is the highest one your build count clears. */
+export const SUPPLIER_LOYALTY_TIERS: LoyaltyTier[] = [
+  { name: "New", minBuilds: 0, discount: 0 },
+  { name: "Trusted", minBuilds: 3, discount: 0.03 },
+  { name: "Partner", minBuilds: 7, discount: 0.06 },
+  { name: "Preferred", minBuilds: 15, discount: 0.1 },
+];
+
+export function supplierLoyaltyTier(builds: number): LoyaltyTier {
+  let tier = SUPPLIER_LOYALTY_TIERS[0];
+  for (const cand of SUPPLIER_LOYALTY_TIERS) if (builds >= cand.minBuilds) tier = cand;
+  return tier;
+}
+
+export const supplierLoyaltyDiscount = (builds: number): number => supplierLoyaltyTier(builds).discount;
+
+/** Builds remaining until the next loyalty tier (null at the top tier) — for a progress readout. */
+export function buildsToNextTier(builds: number): number | null {
+  const next = SUPPLIER_LOYALTY_TIERS.find((t) => t.minBuilds > builds);
+  return next ? next.minBuilds - builds : null;
+}
+
 export function isSupplierUnlocked(id: SupplierId, era: number): boolean {
   return supplierFor(id).era <= era;
 }

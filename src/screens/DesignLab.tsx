@@ -9,7 +9,7 @@ import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
+import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier } from "../engine/suppliers.ts";
 import { availableFactories, factoryFor, DEFAULT_FACTORY_ID, type CapacityStrategy } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
@@ -759,6 +759,9 @@ export function DesignLab({
               {unlockedSuppliers(state.era).map((sup) => {
                 const on = (draft.supplierId ?? DEFAULT_SUPPLIER_ID) === sup.id;
                 const costPct = Math.round((sup.costMult - 1) * 100);
+                const builds = state.supplierLoyalty?.[sup.id] ?? 0;
+                const tier = supplierLoyaltyTier(builds);
+                const toNext = buildsToNextTier(builds);
                 return (
                   <button
                     key={sup.id}
@@ -787,7 +790,13 @@ export function DesignLab({
                         {sup.crunchMult > 1 && (
                           <span className="lab__sup-tag lab__sup-tag--bad">crunch-exposed</span>
                         )}
+                        {tier.discount > 0 && (
+                          <span className="lab__sup-tag lab__sup-tag--good">{tier.name} · −{Math.round(tier.discount * 100)}%</span>
+                        )}
                       </span>
+                      {builds > 0 && toNext != null && (
+                        <span className="lab__supplier-rel">{builds} build{builds === 1 ? "" : "s"} together · {toNext} to next tier</span>
+                      )}
                     </span>
                     <span className="lab__supplier-check" aria-hidden>{on && <Check size={16} />}</span>
                   </button>
