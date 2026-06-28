@@ -547,14 +547,26 @@ function OperationsSection({ state, onAcquire }: { state: GameState; onAcquire: 
     <Card>
       <SectionHeader title="Manufacturing lines" accessory="operations" />
       <div className="co__lines">
-        {owned.map((f) => (
-          <div key={f.id} className="co__line co__line--owned">
-            <div className="co__line-info">
-              <span className="co__line-name">{f.name} <span className="co__line-badge">Owned</span></span>
-              <span className="co__line-meta">{capLabel(f.capacityPerWeek)} · {speedLabel(f.speedMult)} · {format(f.weeklyUpkeep)}/wk upkeep</span>
+        {owned.map((f) => {
+          // Live utilization: a line earns its upkeep only while it's building. Surfacing "idle —
+          // costing $X/wk" makes the fixed-cost tension of owning a line visceral.
+          const jobs = state.building.filter((j) => j.product.factoryId === f.id);
+          const busy = jobs.length > 0;
+          return (
+            <div key={f.id} className="co__line co__line--owned">
+              <div className="co__line-info">
+                <span className="co__line-name">
+                  {f.name} <span className="co__line-badge">Owned</span>
+                  <span className={`co__line-status co__line-status--${busy ? "busy" : "idle"}`}>
+                    <span className="co__line-dot" aria-hidden />
+                    {busy ? `Building ${jobs[0].product.name}${jobs.length > 1 ? ` +${jobs.length - 1}` : ""}` : "Idle"}
+                  </span>
+                </span>
+                <span className="co__line-meta">{capLabel(f.capacityPerWeek)} · {speedLabel(f.speedMult)} · {format(f.weeklyUpkeep)}/wk upkeep</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {acquirable.map((f) => {
           const afford = state.cash >= f.acquireCost;
           return (
