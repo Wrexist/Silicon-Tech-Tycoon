@@ -1,8 +1,9 @@
 # Supply Chain Expansion — Suppliers & Factories (Design + Build Plan)
 
-Status: **proposal / not yet built.** This doc is the complete plan for adding a supplier and
-factory layer to the manufacturing loop, plus a roadmap for expanding the supply chain further.
-It is written to drop into the existing pure-engine architecture with no rewrites.
+Status: **P1 → P3 SHIPPED.** Suppliers, supplier-weighted crunch risk, contract factories with a
+capacity/overtime mechanic, the stretch/defects capacity strategies, and owned factory lines with a
+Company → Operations screen are all live. Remaining items (§10) are the post-P4 idea bank. This doc
+is the complete plan for the supplier + factory layer plus a roadmap for expanding further.
 
 ---
 
@@ -236,10 +237,11 @@ Pure engine → fully unit-testable (Vitest), mirroring the existing `production
 - **P2 — Contract factories. ✅ SHIPPED.** `engine/factories.ts` + Manufacturing card + capacity
   mechanic via an **overtime surcharge** on over-capacity units (cost/speed/capacity trade-offs).
   **Deferred to P3:** the stretch/defects capacity strategies (the overtime path ships now).
-- **P3 — Owned lines + capacity strategies.** Company → Operations: acquire/upkeep/utilization; era
-  gating; converge with `verticalIntegration`. Plus the **stretch** (extend the schedule) and
-  **defects** (accept a quality hit) alternatives to overtime when over capacity. The tycoon "buy
-  the factory" arc.
+- **P3 — Owned lines + capacity strategies. ✅ SHIPPED.** P3a: the **stretch** (extend the schedule)
+  and **defects** (accept a quality hit) alternatives to overtime, surfaced as a wizard picker when
+  over capacity. P3b: **owned factory lines** (Homeline 1, GigaFab) with a one-time acquire cost +
+  weekly upkeep (folded into `burn`), bought in a new Company → **Operations** section and selectable
+  once owned. The tycoon "buy the factory" arc.
 - **P4 — Polish & immersion.** Supplier/factory-aware in-production ring copy; a one-screen
   "Supply Chain" overview; supplier relationship flavor (a loyal supplier's risk decays over time).
 
