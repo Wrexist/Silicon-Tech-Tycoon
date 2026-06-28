@@ -10,7 +10,7 @@ import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
-import { acquirableFactories, factoryFor } from "../engine/factories.ts";
+import { acquirableFactories, factoryFor, totalFactoryUpkeep } from "../engine/factories.ts";
 import type { FactoryId } from "../engine/types.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
@@ -109,6 +109,7 @@ export function Company() {
   const wkBurn = burn(state);
   const wkPayroll = weeklyPayroll(state.staff);
   const wkRent = facilityRent(state);
+  const wkUpkeep = totalFactoryUpkeep(state.ownedFactories);
   const wkRev = nextWeekRevenue(state);
   const ecoRev = weeklyEcosystemRevenue(state);
   const runway = runwayWeeks(state.cash, wkBurn, wkRev);
@@ -199,9 +200,9 @@ export function Company() {
             </div>
           );
         })()}
-        {state.staff.length > 0 && (
+        {(state.staff.length > 0 || wkUpkeep > 0) && (
           <p className="co__burn-breakdown">
-            Payroll {format(wkPayroll)} · Rent {format(wkRent)} weekly
+            Payroll {format(wkPayroll)} · Rent {format(wkRent)}{wkUpkeep > 0 ? ` · Lines ${format(wkUpkeep)}` : ""} weekly
           </p>
         )}
         {runway > 20 && Math.min(fac.staffCapacity, deskCapacity(state)) > state.staff.length && (

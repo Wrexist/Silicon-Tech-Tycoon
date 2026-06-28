@@ -1415,7 +1415,9 @@ function DesignCompleteCard({
     <div className="done">
       <div className="done__badge" aria-hidden><Check size={24} strokeWidth={3} /></div>
       <h2 className="done__title">Design complete</h2>
-      <p className="done__sub">“{done.product.name}” is finished and headed to the factory.</p>
+      <p className="done__sub">
+        “{done.product.name}” is finished and headed to {done.product.factoryId && done.product.factoryId !== DEFAULT_FACTORY_ID ? factoryFor(done.product.factoryId).name : "the factory"}.
+      </p>
 
       <div className="done__hero">
         <DeviceRenderer product={done.product} size={150} idle shimmer />
