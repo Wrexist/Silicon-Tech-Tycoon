@@ -1102,3 +1102,24 @@
 @media (prefers-reduced-motion: reduce) {
   .co__line-status--busy .co__line-dot { animation: none; }
 }
+
+/* The 8-week projection grows in, staggered, each time the Finance tab opens — a live forecast. */
+.co__proj-bar {
+  transform-origin: bottom;
+  animation: co-proj-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.co__proj-col:nth-child(1) .co__proj-bar { animation-delay: 20ms; }
+.co__proj-col:nth-child(2) .co__proj-bar { animation-delay: 55ms; }
+.co__proj-col:nth-child(3) .co__proj-bar { animation-delay: 90ms; }
+.co__proj-col:nth-child(4) .co__proj-bar { animation-delay: 125ms; }
+.co__proj-col:nth-child(5) .co__proj-bar { animation-delay: 160ms; }
+.co__proj-col:nth-child(6) .co__proj-bar { animation-delay: 195ms; }
+.co__proj-col:nth-child(7) .co__proj-bar { animation-delay: 230ms; }
+.co__proj-col:nth-child(8) .co__proj-bar { animation-delay: 265ms; }
+@keyframes co-proj-grow {
+  from { transform: scaleY(0); opacity: 0; }
+  to { transform: scaleY(1); opacity: 0.65; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .co__proj-bar { animation: none; }
+}

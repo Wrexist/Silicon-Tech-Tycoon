@@ -1541,22 +1541,37 @@ function ContractSheet({
       {active && active.weeksLeft > 0 && (
         <p className="ctr__active">Current deal: −{Math.round(active.discount * 100)}% · {active.weeksLeft} wk left. Signing again replaces it.</p>
       )}
-      <div className="ctr__terms">
-        {CONTRACT_TERMS.map((t) => {
-          const disc = Math.round(contractDiscount(t, state.reputation, BALANCE.supply.contract.repDiscountMax) * 100);
-          const fee = contractSignFee(state.era, t);
-          const afford = state.cash >= fee;
-          return (
-            <button key={t.id} type="button" className="ctr__term" disabled={!afford} onClick={() => onSign(t.id)}>
-              <span className="ctr__term-main">
-                <span className="ctr__term-name">{t.name} <span className="ctr__term-disc">−{disc}%</span></span>
-                <span className="ctr__term-meta">{t.weeks} wk · price-locked · crunch-proof</span>
-              </span>
-              <span className={`ctr__term-fee tnum${afford ? "" : " ctr__term-fee--bad"}`}>{format(fee)}</span>
-            </button>
-          );
-        })}
-      </div>
+      {(() => {
+        // "Best value" = the most discount-weeks per dollar of upfront fee, so the highlight follows
+        // the math (it rewards a longer commitment when you'll keep building).
+        const value = (t: typeof CONTRACT_TERMS[number]) => {
+          const fee = toDollars(contractSignFee(state.era, t));
+          return fee > 0 ? (contractDiscount(t, state.reputation, BALANCE.supply.contract.repDiscountMax) * t.weeks) / fee : 0;
+        };
+        const bestId = [...CONTRACT_TERMS].sort((a, b) => value(b) - value(a))[0]?.id;
+        return (
+          <div className="ctr__terms">
+            {CONTRACT_TERMS.map((t) => {
+              const disc = Math.round(contractDiscount(t, state.reputation, BALANCE.supply.contract.repDiscountMax) * 100);
+              const fee = contractSignFee(state.era, t);
+              const afford = state.cash >= fee;
+              const best = t.id === bestId;
+              return (
+                <button key={t.id} type="button" className={`ctr__term${best ? " ctr__term--best" : ""}`} disabled={!afford} onClick={() => onSign(t.id)}>
+                  <span className="ctr__term-main">
+                    <span className="ctr__term-name">
+                      {t.name} <span className="ctr__term-disc">−{disc}%</span>
+                      {best && <span className="ctr__term-badge">Best value</span>}
+                    </span>
+                    <span className="ctr__term-meta">{t.weeks} wk · price-locked · crunch-proof</span>
+                  </span>
+                  <span className={`ctr__term-fee tnum${afford ? "" : " ctr__term-fee--bad"}`}>{format(fee)}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
       <button className="wiz__cancel" onClick={onClose}>Maybe later</button>
     </div>
   );
