@@ -264,9 +264,9 @@ Ordered by estimated value-to-effort. Several are now SHIPPED (marked ✅); the 
    shipping lead time to that market; a far one is cheaper but slower to shelves there.
 4. **Quality tiers / yield** — a factory's *yield* (good units per batch) improves with utilization
    and the `qaLab` research; low yield = effective unit cost rises. Deepens the capacity decision.
-5. **Sustainability / ethics axis** — a "responsible sourcing" supplier costs more but lifts
-   reputation & fan loyalty; a sweatshop-cheap one risks a `scandal` event (events.ts already has
-   scandals). A values choice with real trade-offs — handled tastefully, never preachy.
+5. **Sustainability / ethics axis. ✅ SHIPPED.** Each supplier carries a responsible-sourcing rating;
+   a launch nudges reputation by its supplier's ethics (responsible builds the brand, exploitative
+   erodes it). A values choice with a real long-game trade-off, surfaced as a Sourcing-card tag.
 6. **Dual sourcing / resilience. ✅ SHIPPED.** A one-tap toggle: a small unit-cost premium for
    roughly half the crunch exposure. The textbook real-world hedge.
 7. **Disruption events with agency** — upgrade the random `supplyCrunch` into a *decision* ("pay to
