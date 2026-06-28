@@ -252,12 +252,14 @@ of the game follows.
 
 ## 10. Expanding the supply chain further (post-P4 menu — pick by fun, not completeness)
 
-Ordered by estimated value-to-effort. None are committed; this is the idea bank.
+Ordered by estimated value-to-effort. Several are now SHIPPED (marked ✅); the rest are the idea bank.
 
-1. **Supplier relationships** — repeat business lowers a supplier's cost & risk over time; a crunch
-   you weather together builds loyalty. Turns a one-off pick into an ongoing relationship.
-2. **Contracts & negotiation** — lock a price for N weeks (hedge against crunches) vs spot pricing.
-   A light, readable risk-management minigame, no dark patterns.
+1. **Supplier relationships. ✅ SHIPPED.** Repeat business with a supplier climbs loyalty tiers
+   (New → Trusted → Partner → Preferred) that earn a standing unit-cost discount. A one-off pick
+   becomes an ongoing relationship, surfaced on the Sourcing card.
+2. **Contracts & negotiation. ✅ SHIPPED.** Lock a discounted, crunch-proof price for a term
+   (Quarterly/Half-year/Annual) for an upfront fee; reputation is the negotiating leverage. A light,
+   readable risk-management decision — commit for certainty vs flexible spot pricing.
 3. **Logistics & regions** — ties into the existing `unlockedRegions`: a region-local factory cuts
    shipping lead time to that market; a far one is cheaper but slower to shelves there.
 4. **Quality tiers / yield** — a factory's *yield* (good units per batch) improves with utilization
@@ -265,8 +267,8 @@ Ordered by estimated value-to-effort. None are committed; this is the idea bank.
 5. **Sustainability / ethics axis** — a "responsible sourcing" supplier costs more but lifts
    reputation & fan loyalty; a sweatshop-cheap one risks a `scandal` event (events.ts already has
    scandals). A values choice with real trade-offs — handled tastefully, never preachy.
-6. **Dual sourcing / resilience** — split a component across two suppliers to halve crunch impact at
-   a small cost premium. The textbook real-world hedge, as a satisfying toggle.
+6. **Dual sourcing / resilience. ✅ SHIPPED.** A one-tap toggle: a small unit-cost premium for
+   roughly half the crunch exposure. The textbook real-world hedge.
 7. **Disruption events with agency** — upgrade the random `supplyCrunch` into a *decision* ("pay to
    air-freight, or slip the launch a week?") using the existing event-choice plumbing.
 8. **Factory tech tree** — robotics/automation upgrades per owned line (speed/defect/capacity),
