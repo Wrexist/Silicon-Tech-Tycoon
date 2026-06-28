@@ -148,7 +148,10 @@ export function buildCost(product: Product): Money {
   for (let i = 0; i < storageSteps(product); i++) costs.push(BALANCE.design.storage.unitCost);
   const base = costs.length ? sum(costs) : ZERO;
   // Supplier sets the per-unit component price (standard = ×1, a no-op for unset/older products).
-  return scale(base, supplierCostMult(product));
+  let unit = scale(base, supplierCostMult(product));
+  // Dual-sourcing adds a small premium for supply resilience (see supplierCrunchMult).
+  if (product.dualSource) unit = scale(unit, 1 + BALANCE.supply.dualSource.costPremium);
+  return unit;
 }
 
 /** Which component slots are still unset for this category. */

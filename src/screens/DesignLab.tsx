@@ -794,6 +794,21 @@ export function DesignLab({
                 );
               })}
             </div>
+            <div className="lab__toggle-row lab__dual">
+              <span className="lab__dual-text">
+                <span className="lab__seg-label">Dual-source</span>
+                <small>+{Math.round(BALANCE.supply.dualSource.costPremium * 100)}% unit cost · about half the crunch risk</small>
+              </span>
+              <button
+                className={`lab__toggle${draft.dualSource ? " lab__toggle--on" : ""}`}
+                role="switch"
+                aria-label="Dual-source components"
+                aria-checked={!!draft.dualSource}
+                onClick={() => { haptic.light(); set({ dualSource: !draft.dualSource }); }}
+              >
+                <span className="lab__toggle-knob" />
+              </button>
+            </div>
           </Card>
 
           {/* Manufacturing — pick the factory. Trades tooling / per-unit cost / build speed and a
@@ -1701,7 +1716,8 @@ function BuildWizard({
               const bits = [costPct === 0 ? "baseline cost" : `${costPct > 0 ? "+" : ""}${costPct}% cost`];
               if (sup.qualityDelta !== 0) bits.push(`${sup.qualityDelta > 0 ? "+" : ""}${sup.qualityDelta} quality`);
               if (sup.leadWeeks > 0) bits.push(`+${sup.leadWeeks} wk lead`);
-              return <Stat label="Sourced via" value={sup.name} hint={bits.join(" · ")} />;
+              if (draft.dualSource) bits.push("dual-sourced");
+              return <Stat label="Sourced via" value={draft.dualSource ? `${sup.name} ×2` : sup.name} hint={bits.join(" · ")} />;
             })()}
             <Stat
               label="Built at"

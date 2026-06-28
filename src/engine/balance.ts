@@ -609,6 +609,12 @@ export const BALANCE = {
     crunchMaxCashShare: 0.35,
   },
 
+  // --- Supply chain (engine/suppliers.ts) ---
+  supply: {
+    // Dual-sourcing: a backup supplier costs a unit-cost premium for a fraction of the crunch risk.
+    dualSource: { costPremium: 0.06, riskMult: 0.5 },
+  },
+
   // --- Factory manufacturing (engine/factories.ts) ---
   // Over-capacity units cost the per-unit price PLUS this surcharge — the price of pushing a budget
   // line past its weekly throughput on a big run.

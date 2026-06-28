@@ -102,6 +102,19 @@ describe("supply-crunch exposure (P1.5)", () => {
   });
 });
 
+describe("dual-sourcing (resilience hedge)", () => {
+  it("adds a unit-cost premium and halves crunch exposure", () => {
+    const single = product("novacore");
+    const dual = { ...single, dualSource: true };
+    expect(toDollars(buildCost(dual))).toBeGreaterThan(toDollars(buildCost(single)));
+    expect(supplierCrunchMult(dual)).toBeCloseTo(supplierCrunchMult(single) * 0.5, 5);
+    expect(sourcingExposure([dual])).toBeLessThan(sourcingExposure([single]));
+  });
+  it("does not touch quality or the supplier resolution", () => {
+    expect(computeStats({ ...product("novacore"), dualSource: true }).quality).toBe(computeStats(product("novacore")).quality);
+  });
+});
+
 describe("golden: an unset supplier is identical to standard and to pre-supplier behaviour", () => {
   it("unset == standard for cost and stats", () => {
     expect(toDollars(buildCost(product(undefined)))).toBe(toDollars(buildCost(product("standard"))));

@@ -6,6 +6,7 @@
 // PURE. No React/DOM. The chosen supplier id lives on the Product (product.supplierId); everything
 // here resolves an id (or undefined, for older saves / fresh drafts) to its effect. The `standard`
 // supplier is deliberately neutral (1.0 / 0 / 0) so an unset supplier behaves exactly as before.
+import { BALANCE } from "./balance.ts";
 import type { Product, SupplierId } from "./types.ts";
 
 export type { SupplierId };
@@ -118,7 +119,9 @@ export function isSupplierUnlocked(id: SupplierId, era: number): boolean {
 export const supplierCostMult = (p: Product): number => supplierFor(p.supplierId).costMult;
 export const supplierQualityDelta = (p: Product): number => supplierFor(p.supplierId).qualityDelta;
 export const supplierLeadWeeks = (p: Product): number => supplierFor(p.supplierId).leadWeeks;
-export const supplierCrunchMult = (p: Product): number => supplierFor(p.supplierId).crunchMult;
+/** A product's crunch exposure multiplier: its supplier's resilience, halved if it's dual-sourced. */
+export const supplierCrunchMult = (p: Product): number =>
+  supplierFor(p.supplierId).crunchMult * (p.dualSource ? BALANCE.supply.dualSource.riskMult : 1);
 
 /** A company's exposure to a supply-crunch shock, derived from the parts it's actually sourcing:
  *  the average resilience of in-production builds; if nothing is building, the most recent shipped

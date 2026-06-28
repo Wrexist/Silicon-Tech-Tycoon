@@ -140,6 +140,9 @@ export interface Product {
   /** Component supplier (engine/suppliers.ts) — trades unit cost / quality / lead time. Optional —
    *  unset resolves to the neutral "standard" supplier, so older saves are unchanged. */
   supplierId?: SupplierId;
+  /** Dual-source the parts across a backup supplier — a small unit-cost premium for roughly half the
+   *  supply-crunch exposure (a resilience hedge). Optional/false = single-sourced. */
+  dualSource?: boolean;
   /** Manufacturing factory (engine/factories.ts) — trades tooling / per-unit cost / build speed /
    *  throughput capacity. Optional — unset resolves to the neutral "standard" factory (unlimited
    *  capacity), so older saves are unchanged. */

@@ -1357,3 +1357,19 @@
   color: var(--ink-2);
 }
 .wiz__cap-opt--on .wiz__cap-opt-detail { color: var(--accent); }
+
+.lab__dual {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
+  align-items: flex-start;
+}
+.lab__dual-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lab__dual-text small {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
