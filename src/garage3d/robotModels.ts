@@ -55,6 +55,3 @@ export function robotModelFor(colorIdx: number): RobotAsset | undefined {
   if (sharedUrl) return { url: sharedUrl, tint: ROBOT_COLORS[i] };
   return undefined;
 }
-
-/** True when at least one robot model has been dropped in. */
-export const HAS_ROBOT_MODELS = sharedUrl !== undefined || Object.keys(byColor).length > 0;

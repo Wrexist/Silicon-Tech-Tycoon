@@ -49,31 +49,6 @@ export function StatBars({
   );
 }
 
-/** Consumer-trend demand weights as bars (what the market wants right now). */
-export function TrendBars({ weights }: { weights: Stats }) {
-  const max = Math.max(...STAT_KEYS.map((k) => weights[k]));
-  return (
-    <div className="stat-bars">
-      {STAT_KEYS.map((k) => {
-        const pct = (weights[k] / (max || 1)) * 100;
-        const hot = weights[k] === max;
-        return (
-          <div className="stat-row" key={k}>
-            <span className="stat-row__label">{STAT_LABEL[k]}</span>
-            <div className="stat-row__track">
-              <div
-                className="stat-row__fill"
-                style={{ width: `${pct}%`, background: hot ? "var(--positive)" : "var(--accent)" }}
-              />
-            </div>
-            <span className="stat-row__val tnum">{Math.round(weights[k] * 100)}%</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 /** Tiny sparkline (cash over time). */
 export function Sparkline({
   data,

@@ -33,12 +33,6 @@ export function scale(a: Money, factor: number): Money {
 export function gte(a: Money, b: Money): boolean {
   return a >= b;
 }
-export function lt(a: Money, b: Money): boolean {
-  return a < b;
-}
-export function isNegative(a: Money): boolean {
-  return a < 0;
-}
 
 export function toDollars(a: Money): number {
   return a / 100;

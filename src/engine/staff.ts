@@ -1,6 +1,5 @@
 // Staff identity — appearance, specialty, trait, mood — plus their gameplay effects. PURE.
 import type { Rng } from "./rng.ts";
-import { STAT_KEYS } from "./types.ts";
 import type {
   Accessory,
   Appearance,
@@ -167,9 +166,6 @@ export function traitOutputMult(t: Trait): number {
 export function xpMult(t: Trait): number {
   return t === "fastLearner" ? 1.5 : 1;
 }
-export function isPerfectionist(s: Staff): boolean {
-  return s.trait === "perfectionist";
-}
 
 /** A person's headline effectiveness (uses their 1..10 level). Kept for any generic use. */
 export function output(s: Staff): number {
@@ -220,5 +216,3 @@ export function visionaryHype(staff: readonly Staff[]): number {
 export function perfectionistCeilingBonus(staff: readonly Staff[]): number {
   return staff.filter((s) => s.assignment === "design" && s.trait === "perfectionist").length;
 }
-
-export { STAT_KEYS };
