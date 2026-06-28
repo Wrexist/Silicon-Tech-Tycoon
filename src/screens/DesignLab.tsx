@@ -5,6 +5,7 @@ import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
+import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
@@ -411,6 +412,8 @@ export function DesignLab({
         isHit,
         firstLaunch: launchedBefore.length === 0,
       }));
+      // First product ever shipped — a real high point. Ask for an App Store review (once).
+      if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
     }
   }
 

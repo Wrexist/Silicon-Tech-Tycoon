@@ -50,6 +50,7 @@ import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, planProduction, productStats, type FeedItem, type GameState } from "../state/gameState.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
+import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -125,6 +126,8 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
           isHit,
           firstLaunch: launchedBefore.length === 0,
         }));
+        // First product ever shipped — a real high point. Ask for an App Store review (once).
+        if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
       }
     }
   };
