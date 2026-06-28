@@ -94,7 +94,7 @@ import {
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { supplierLeadWeeks, sourcingExposure } from "../engine/suppliers.ts";
-import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
+import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId } from "../engine/types.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
@@ -563,7 +563,8 @@ export const marketerSkill = (s: GameState) =>
 export const facilityRent = (s: GameState): Money =>
   BALANCE.facilities[s.facilityTier - 1].weeklyRent;
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
-export const burn = (s: GameState): Money => weeklyBurn(s.staff, facilityRent(s));
+export const burn = (s: GameState): Money =>
+  add(weeklyBurn(s.staff, facilityRent(s)), totalFactoryUpkeep(s.ownedFactories)) as Money;
 export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + perkBonuses(s.legacy).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
@@ -710,6 +711,17 @@ export function unlockRegion(state: GameState, id: RegionId): GameState {
   if (!region || state.unlockedRegions.includes(id) || state.cash < region.unlockCost) return state;
   const feed = trimFeed([...state.feed, feedItem(state.week, `Expanded into ${region.name} — a new market is open.`, "positive")]);
   return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
+}
+
+/** Buy an OWNED manufacturing line (engine/factories.ts): pay the one-time acquire cost; from then
+ *  it carries weekly upkeep and can be selected for builds. No-op if it's not an owned line, already
+ *  owned, era-locked, or unaffordable. */
+export function acquireFactory(state: GameState, id: FactoryId): GameState {
+  const fac = factoryFor(id);
+  const owned = state.ownedFactories ?? [];
+  if (fac.kind !== "owned" || owned.includes(id) || !isFactoryUnlocked(id, state.era) || state.cash < fac.acquireCost) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Acquired ${fac.name} — your own production line (${format(fac.weeklyUpkeep)}/wk upkeep).`, "positive")]);
+  return { ...state, cash: sub(state.cash, fac.acquireCost), ownedFactories: [...owned, id], feed };
 }
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
 export const buildWeeksFor = (s: GameState, product?: Product) => {

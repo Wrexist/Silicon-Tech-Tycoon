@@ -10,6 +10,8 @@ import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { acquirableFactories, factoryFor } from "../engine/factories.ts";
+import type { FactoryId } from "../engine/types.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
 import { cents, dollars, format, formatShortDollars, sub, toDollars } from "../engine/money.ts";
@@ -94,7 +96,7 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 };
 
 export function Company() {
-  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, foundPlatform } = useGame();
+  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, foundPlatform, acquireFactory } = useGame();
   const [foundedCelebrate, setFoundedCelebrate] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
@@ -260,6 +262,9 @@ export function Company() {
           </div>
         </Card>
       )}
+
+      {/* Operations — owned manufacturing lines (engine/factories.ts) */}
+      <OperationsSection state={state} onAcquire={acquireFactory} />
 
       {/* All-time top products */}
       {state.launched.length >= 2 && <TopProductsCard launched={state.launched} />}
@@ -528,6 +533,47 @@ const VERDICT_LABEL: Record<string, VerdictLabel> = {
 const VERDICT_TONE: Record<string, "positive" | "accent" | "negative"> = {
   hit: "positive", solid: "positive", steady: "accent", flop: "negative",
 };
+
+/** Operations — your owned manufacturing lines, plus any you can acquire at this era. Owned lines
+ *  cut tooling + per-unit cost and add capacity, but carry weekly upkeep whether they run or not. */
+function OperationsSection({ state, onAcquire }: { state: GameState; onAcquire: (id: FactoryId) => void }) {
+  const owned = (state.ownedFactories ?? []).map((id) => factoryFor(id));
+  const acquirable = acquirableFactories(state.era, state.ownedFactories);
+  if (owned.length === 0 && acquirable.length === 0) return null; // nothing to show pre-era-2
+  const capLabel = (cap: number) => (Number.isFinite(cap) ? `${cap.toLocaleString()}/wk` : "unlimited");
+  const speedLabel = (m: number) => (m < 1 ? `${Math.round((1 - m) * 100)}% faster` : m > 1 ? `${Math.round((m - 1) * 100)}% slower` : "standard");
+  return (
+    <Card>
+      <SectionHeader title="Manufacturing lines" accessory="operations" />
+      <div className="co__lines">
+        {owned.map((f) => (
+          <div key={f.id} className="co__line co__line--owned">
+            <div className="co__line-info">
+              <span className="co__line-name">{f.name} <span className="co__line-badge">Owned</span></span>
+              <span className="co__line-meta">{capLabel(f.capacityPerWeek)} · {speedLabel(f.speedMult)} · {format(f.weeklyUpkeep)}/wk upkeep</span>
+            </div>
+          </div>
+        ))}
+        {acquirable.map((f) => {
+          const afford = state.cash >= f.acquireCost;
+          return (
+            <div key={f.id} className="co__line">
+              <div className="co__line-info">
+                <span className="co__line-name">{f.name}</span>
+                <span className="co__line-blurb">{f.blurb}</span>
+                <span className="co__line-meta">{capLabel(f.capacityPerWeek)} · {speedLabel(f.speedMult)} · {format(f.weeklyUpkeep)}/wk upkeep</span>
+              </div>
+              <Button size="sm" variant={afford ? "primary" : "tertiary"} disabled={!afford} onClick={() => onAcquire(f.id)}>
+                {format(f.acquireCost)}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+      <p className="co__hint">Owned lines slash tooling + per-unit cost and lift capacity — but the weekly upkeep is charged whether they build or sit idle.</p>
+    </Card>
+  );
+}
 
 function TopProductsCard({ launched }: { launched: LaunchedProduct[] }) {
   const top = [...launched].sort((a, b) => b.revenueToDate - a.revenueToDate).slice(0, 5);

@@ -14,7 +14,7 @@ import {
   totalFactoryUpkeep,
 } from "./factories.ts";
 import { computeStats } from "./product.ts";
-import { newGame, planProduction, capacityPlan, buildWeeksFor, effectiveUnitCost, toolingCost, type GameState } from "../state/gameState.ts";
+import { newGame, planProduction, capacityPlan, buildWeeksFor, effectiveUnitCost, toolingCost, acquireFactory, burn, type GameState } from "../state/gameState.ts";
 import type { Product, FactoryId } from "./types.ts";
 
 function phone(factoryId?: FactoryId): Product {
@@ -139,6 +139,23 @@ describe("owned lines (P3)", () => {
   it("sums weekly upkeep across owned lines", () => {
     expect(toDollars(totalFactoryUpkeep([]))).toBe(0);
     expect(toDollars(totalFactoryUpkeep(["homeline"]))).toBe(toDollars(FACTORIES.homeline.weeklyUpkeep));
+  });
+
+  it("acquireFactory buys the line, charges cash, and folds upkeep into weekly burn", () => {
+    const rich: GameState = { ...newGame(8), era: 3, cash: dollars(20_000_000) };
+    const before = toDollars(burn(rich));
+    const s2 = acquireFactory(rich, "homeline");
+    expect(s2.ownedFactories).toContain("homeline");
+    expect(toDollars(s2.cash)).toBe(toDollars(rich.cash) - toDollars(FACTORIES.homeline.acquireCost));
+    expect(toDollars(burn(s2))).toBeCloseTo(before + toDollars(FACTORIES.homeline.weeklyUpkeep), 0);
+  });
+
+  it("acquireFactory is a no-op when unaffordable, era-locked, or already owned", () => {
+    const rich: GameState = { ...newGame(8), era: 3, cash: dollars(20_000_000) };
+    expect(acquireFactory({ ...rich, cash: dollars(10) }, "homeline").ownedFactories).toEqual([]);
+    expect(acquireFactory({ ...newGame(8), era: 1, cash: dollars(20_000_000) }, "homeline").ownedFactories).toEqual([]);
+    const owned = acquireFactory(rich, "homeline");
+    expect(acquireFactory(owned, "homeline").ownedFactories).toEqual(["homeline"]); // unchanged
   });
 });
 
