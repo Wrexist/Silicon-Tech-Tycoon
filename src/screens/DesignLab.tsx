@@ -9,7 +9,7 @@ import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier, CONTRACT_TERMS, contractDiscount } from "../engine/suppliers.ts";
+import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier, supplierLoyaltyProgress, CONTRACT_TERMS, contractDiscount } from "../engine/suppliers.ts";
 import { availableFactories, factoryFor, DEFAULT_FACTORY_ID, type CapacityStrategy } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
@@ -17,7 +17,8 @@ import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
-import { buildCost, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
+import { componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
+import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
 import type {
@@ -47,6 +48,7 @@ import {
   planProduction,
   capacityPlan,
   contractSignFee,
+  effectiveUnitCost,
   productStats,
   recommendedRun,
   researchedTier,
@@ -254,7 +256,9 @@ export function DesignLab({
   );
 
   const stats = productStats(state, draft);
-  const unitCost = buildCost(draft);
+  // The TRUE per-unit cost — includes the full supply chain (supplier, dual-source, factory, loyalty
+  // and any contract) so every sourcing/manufacturing choice the player makes moves this number live.
+  const unitCost = effectiveUnitCost(state, draft);
   const margin = sub(draft.price, unitCost);
   const marginPct = toDollars(draft.price) > 0 ? Math.round((toDollars(margin) / toDollars(draft.price)) * 100) : 0;
   const overall = overallScore(stats, draft.category);
@@ -797,8 +801,11 @@ export function DesignLab({
                           <span className="lab__sup-tag lab__sup-tag--good">{tier.name} · −{Math.round(tier.discount * 100)}%</span>
                         )}
                       </span>
-                      {builds > 0 && toNext != null && (
-                        <span className="lab__supplier-rel">{builds} build{builds === 1 ? "" : "s"} together · {toNext} to next tier</span>
+                      {builds > 0 && (
+                        <span className="lab__rel">
+                          <span className="lab__rel-bar"><span className="lab__rel-fill" style={{ width: `${Math.round(supplierLoyaltyProgress(builds) * 100)}%` }} /></span>
+                          <span className="lab__rel-label">{toNext != null ? `${builds} build${builds === 1 ? "" : "s"} · ${toNext} to next tier` : `${builds} builds · top tier`}</span>
+                        </span>
                       )}
                     </span>
                     <span className="lab__supplier-check" aria-hidden>{on && <Check size={16} />}</span>
@@ -1385,7 +1392,7 @@ export function DesignLab({
           <CircleDollarSign size={18} className="lab__summary-icon" aria-hidden />
           <span className="lab__summary-text">
             <span className="lab__summary-label">Est. Cost</span>
-            <span className="lab__summary-val tnum">{format(unitCost)}</span>
+            <AnimatedMoney value={unitCost} className="lab__summary-val tnum" />
           </span>
         </div>
         <div className="lab__summary-cell">

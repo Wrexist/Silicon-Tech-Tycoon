@@ -16,6 +16,7 @@ import {
   supplierLoyaltyTier,
   supplierLoyaltyDiscount,
   buildsToNextTier,
+  supplierLoyaltyProgress,
   contractTerm,
   contractDiscount,
 } from "./suppliers.ts";
@@ -129,6 +130,9 @@ describe("supplier relationships (loyalty)", () => {
     expect(supplierLoyaltyDiscount(15)).toBeGreaterThan(supplierLoyaltyDiscount(3));
     expect(buildsToNextTier(0)).toBe(3);
     expect(buildsToNextTier(100)).toBeNull(); // top tier
+    expect(supplierLoyaltyProgress(3)).toBe(0); // just entered Trusted
+    expect(supplierLoyaltyProgress(5)).toBeCloseTo(0.5, 5); // halfway 3→7
+    expect(supplierLoyaltyProgress(100)).toBe(1); // top tier
   });
 
   it("starting a build deepens the supplier relationship, and the discount cuts the next run's cost", () => {

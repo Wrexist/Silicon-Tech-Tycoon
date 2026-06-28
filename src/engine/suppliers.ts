@@ -140,6 +140,16 @@ export function buildsToNextTier(builds: number): number | null {
   return next ? next.minBuilds - builds : null;
 }
 
+/** Progress (0..1) through the CURRENT loyalty tier toward the next — drives a relationship bar.
+ *  Returns 1 at the top tier. */
+export function supplierLoyaltyProgress(builds: number): number {
+  const tier = supplierLoyaltyTier(builds);
+  const next = SUPPLIER_LOYALTY_TIERS.find((t) => t.minBuilds > builds);
+  if (!next) return 1;
+  const span = next.minBuilds - tier.minBuilds;
+  return span > 0 ? Math.max(0, Math.min(1, (builds - tier.minBuilds) / span)) : 1;
+}
+
 // --- Contracts: lock a discounted, crunch-proof price with a supplier for a term, for a sign fee ----
 export interface ContractTerm {
   id: "quarter" | "half" | "annual";

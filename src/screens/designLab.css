@@ -1430,3 +1430,63 @@
 .ctr__term-meta { font-size: var(--fs-micro); color: var(--ink-3); }
 .ctr__term-fee { font-weight: 800; color: var(--ink); white-space: nowrap; }
 .ctr__term-fee--bad { color: var(--negative); }
+
+/* ---------- Supply microinteractions: relationship bar, selection check, contract entrance ---------- */
+.lab__rel {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: 6px;
+}
+.lab__rel-bar {
+  flex: 1;
+  height: 5px;
+  min-width: 40px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.lab__rel-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), var(--positive));
+  transition: width var(--spring-standard);
+}
+.lab__rel-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* The selected card's check pops in (scale + fade) rather than appearing hard. */
+.lab__supplier--on .lab__supplier-check svg {
+  animation: lab-check-in var(--spring-standard) both;
+}
+@keyframes lab-check-in {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+/* The whole selected card gives a tiny confirming lift. */
+.lab__supplier--on {
+  transform: translateY(-1px);
+}
+
+/* Contract terms rise + fade in, staggered, when the sheet opens. */
+.ctr__term {
+  animation: ctr-term-in var(--spring-standard) both;
+}
+.ctr__term:nth-child(1) { animation-delay: 40ms; }
+.ctr__term:nth-child(2) { animation-delay: 100ms; }
+.ctr__term:nth-child(3) { animation-delay: 160ms; }
+@keyframes ctr-term-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab__supplier--on .lab__supplier-check svg,
+  .ctr__term { animation: none; }
+  .lab__rel-fill { transition: none; }
+}
