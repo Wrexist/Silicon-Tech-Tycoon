@@ -46,6 +46,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
   assembly: "a faster production line",
 };
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, planProduction, productStats, type FeedItem, type GameState } from "../state/gameState.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
@@ -968,10 +969,8 @@ function EraGoalCard({ state }: { state: GameState }) {
   );
 }
 
-const INSIGHT_STAT_LABEL: Record<string, string> = {
-  performance: "Performance", quality: "Quality", battery: "Battery",
-  design: "Design", ecosystem: "Ecosystem",
-};
+// Full stat labels derive from the single source (glossary STAT_INFO) so they can't drift.
+const INSIGHT_STAT_LABEL: Record<string, string> = Object.fromEntries(STAT_KEYS.map((k) => [k, STAT_INFO[k].label]));
 
 function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
   type Insight = { icon: LucideIcon; text: string; tab?: Tab };

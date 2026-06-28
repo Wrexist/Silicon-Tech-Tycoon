@@ -1,14 +1,10 @@
 import { useId } from "react";
 import { STAT_KEYS, type Stats } from "../engine/types.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
 import "./charts.css";
 
-const STAT_LABEL: Record<string, string> = {
-  performance: "Perf",
-  quality: "Quality",
-  battery: "Battery",
-  design: "Design",
-  ecosystem: "Ecosys",
-};
+// Compact stat labels derive from the single source (glossary STAT_INFO) so they can't drift.
+const STAT_LABEL: Record<string, string> = Object.fromEntries(STAT_KEYS.map((k) => [k, STAT_INFO[k].abbr]));
 
 /** Horizontal stat bars 0..100 with optional demand-weight tint and trend arrows.
  *  trendDeltas: per-stat delta (targetWeight − currentWeight); positive = rising. */

@@ -11,18 +11,16 @@ import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/cata
 import { eraName, maxEra } from "../engine/eras.ts";
 import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
 import { rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
-const STAT_SHORT: Record<keyof Stats, string> = {
-  performance: "Perf",
-  quality: "Quality",
-  battery: "Battery",
-  design: "Design",
-  ecosystem: "Ecosys",
-};
+// Compact stat labels derive from the single source (glossary STAT_INFO) so they can't drift.
+const STAT_SHORT: Record<keyof Stats, string> = Object.fromEntries(
+  STAT_KEYS.map((k) => [k, STAT_INFO[k].abbr]),
+) as Record<keyof Stats, string>;
 
 function contributesLabel(c: Partial<Stats>): string {
   return STAT_KEYS.filter((k) => c[k]).map((k) => `+${Math.round(c[k]!)} ${STAT_SHORT[k]}`).join(" · ");

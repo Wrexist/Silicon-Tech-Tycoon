@@ -107,6 +107,9 @@ function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
 }
 
 
+// Intentionally the most compact register (denser than glossary STAT_INFO.abbr) — these feed the
+// tight inline component-contribution chips, where "Quality"/"Battery" would wrap. Kept local on
+// purpose; the canonical label/abbr/prose registers live in engine/glossary.ts STAT_INFO.
 const STAT_ABBR: Record<keyof Stats, string> = {
   performance: "Perf", quality: "Qual", battery: "Bat", design: "Dsn", ecosystem: "Eco",
 };
@@ -418,6 +421,8 @@ export function DesignLab({
     return d > bestD ? k : best;
   }, STAT_KEYS[0]);
   const topWantedDelta = state.trends.targetWeights[topWanted] - state.trends.weights[topWanted];
+  // Sentence-form labels for the "X is trending up" hint — "Battery life" reads better mid-sentence
+  // than the canonical "Battery". Kept local on purpose; canonical copy lives in glossary STAT_INFO.
   const STAT_LABEL_FULL: Record<keyof Stats, string> = { performance: "Performance", quality: "Quality", battery: "Battery life", design: "Design", ecosystem: "Ecosystem" };
 
   return (

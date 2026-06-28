@@ -1,6 +1,7 @@
 // Market events — periodic happenings that nudge the simulation and create timing decisions.
 // PURE catalog + selection; the state layer interprets each effect.
 import type { Rng } from "./rng.ts";
+import { STAT_INFO } from "./glossary.ts";
 import { STAT_KEYS, type StatKey } from "./types.ts";
 
 // ---------- Player-choice events ----------
@@ -41,13 +42,11 @@ export interface MarketEvent {
   tone: "positive" | "negative" | "neutral" | "accent";
 }
 
-const STAT_LABEL: Record<StatKey, string> = {
-  performance: "performance",
-  quality: "quality",
-  battery: "battery life",
-  design: "design",
-  ecosystem: "ecosystem",
-};
+// Sentence-form stat copy ("Consumers can't stop talking about …") from the single source
+// (glossary STAT_INFO.prose) so the feed copy can't drift from the rest of the game.
+const STAT_LABEL: Record<StatKey, string> = Object.fromEntries(
+  STAT_KEYS.map((k) => [k, STAT_INFO[k].prose]),
+) as Record<StatKey, string>;
 
 export const MARKET_EVENTS: MarketEvent[] = [
   // Era 1+
