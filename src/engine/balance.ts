@@ -457,7 +457,13 @@ export const BALANCE = {
   competitors: {
     launchEveryWeeks: 7,  // rivals are more consistently present (was 9)
     launchJitter: 3,      // less dead-air between competitor launches (was 5)
-    strengthDecayPerWeek: 0.88, // rivals persist ~25% longer — competition isn't instantly stale (was 0.85)
+    // Strength persistence, era-scaled (Living Late Game P3 — durable competition). A rival's presence
+    // in a category fades each week by this factor; HIGHER = it holds longer. Eras 1–2 keep the tuned
+    // 0.88 (byte-identical early game); the late eras decay slower so a rival that lands strongly in
+    // your category ENTRENCHES instead of evaporating in a week — sustained, not blip, pressure. The
+    // category a rival contests is seeded-random, so runs where rivals crowd your flagship category
+    // diverge from runs where they spread out — the between-run variance a perfect player can't smooth.
+    strengthDecayByEra: [0.88, 0.88, 0.90, 0.93] as const,
     baseStrength: 28,
     // Specialization: a launch in a rival's PREFERRED category is this much likelier to be chosen,
     // and lands with this flat strength bonus (its home turf is genuinely tougher to contest).
@@ -467,7 +473,20 @@ export const BALANCE = {
     // but never snowballs into an unbeatable wall.
     reactHitWindowWeeks: 10, // a player hit counts as "recent" for this many weeks
     reactStrengthBonus: 14, // extra strength the reacting rival brings to the player's hot category
-    reactMaxStrength: 95, // hard ceiling on any single rival launch strength (keeps it winnable)
+    // Winnability ceiling on any single rival launch strength, era-scaled (Living Late Game P3). The
+    // OLD flat 95 was the reason late competition was cosmetic: a maxed late-game player's `overall`
+    // outgrew 95 + beatMargin, so NO rival could ever match/beat them → competitionFactor pinned at 1
+    // (measured: the count model registered ~0 contestants in Era 4). Eras 1–2 keep 95 (winnable early
+    // game preserved); the late ceilings rise so a strong rival can genuinely contest — even beat — a
+    // top player in a category, making demand a contested resource again. Still a hard cap, so it
+    // presses without snowballing into an unbeatable wall (the era-pressure term governs the bite).
+    reactMaxStrengthByEra: [95, 95, 105, 118] as const,
+    // Era-scaled strength bump (Living Late Game P3). The launch-strength FORMULA naturally tops out
+    // ~92 (base + rep×0.4 + bonuses), BELOW the old flat-95 cap — which is why raising the cap alone
+    // was inert and late competition stayed cosmetic. This additive bump lifts late-era rivals into
+    // genuine contesting range (and lets a few BEAT a maxed player), so demand becomes a contested
+    // resource in Eras 3–4. Eras 1–2 add 0 (early game byte-identical). Bounded by reactMaxStrengthByEra.
+    lateStrengthByEra: [0, 0, 8, 18] as const,
     reactCadenceCut: 3, // weeks shaved off the reacting rival's next launch (faster counter-punch)
     // B2 — rival DOCTRINES (per-rival behavioural posture; see competitors.ts RivalDoctrine). Tuned
     // to add VARIETY + presence, NOT raw difficulty: only the `defender` raises launch strength (the

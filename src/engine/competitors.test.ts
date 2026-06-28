@@ -129,14 +129,42 @@ describe("B2 — rival doctrines (variety + presence, not raw difficulty)", () =
     expect(launchesOver("tristar", ["phone"], 300).every((l) => !l.contested)).toBe(true);
   });
 
-  it("no rival launch ever exceeds the strength ceiling, even under sustained player success", () => {
+  it("no rival launch ever exceeds the era's strength ceiling, even under sustained player success", () => {
     const rng = makeRng(5);
     let comps = initCompetitors(rng);
     const allCats: CategoryId[] = ["phone", "tablet", "laptop", "desktop", "monitor", "console", "wearable", "experimental"];
+    const era4Cap = BALANCE.competitors.reactMaxStrengthByEra[3];
     for (let w = 1; w <= 300; w++) {
       const { competitors, launches } = advanceCompetitors(comps, w, 4, rng, allCats);
-      for (const l of launches) expect(l.strength).toBeLessThanOrEqual(BALANCE.competitors.reactMaxStrength);
+      for (const l of launches) expect(l.strength).toBeLessThanOrEqual(era4Cap);
       comps = competitors;
     }
+  });
+
+  it("durable competition (P3): late eras lift the ceiling AND slow decay vs the early game", () => {
+    const cap = BALANCE.competitors.reactMaxStrengthByEra;
+    const dec = BALANCE.competitors.strengthDecayByEra;
+    // Eras 1–2 untouched; late eras strictly tougher + stickier, monotonic.
+    expect(cap[0]).toBe(95);
+    expect(cap[1]).toBe(95);
+    expect(cap[3]).toBeGreaterThan(cap[2]);
+    expect(cap[2]).toBeGreaterThan(cap[1]);
+    expect(dec[1]).toBe(dec[0]);
+    expect(dec[3]).toBeGreaterThan(dec[2]); // slower decay = higher factor = stickier presence
+    expect(dec[2]).toBeGreaterThan(dec[1]);
+  });
+
+  it("rivals can reach contesting strength (>early-game cap) in the AI era", () => {
+    const rng = makeRng(9);
+    let comps = initCompetitors(rng);
+    let maxSeen = 0;
+    for (let w = 1; w <= 300; w++) {
+      // ["phone"] = the player's hot category, so reacting rivals press there.
+      const { competitors, launches } = advanceCompetitors(comps, w, 4, rng, ["phone"]);
+      for (const l of launches) maxSeen = Math.max(maxSeen, l.strength);
+      comps = competitors;
+    }
+    // In Era 4 a reacting rival can now out-muscle the old flat-95 wall (proving late competition bites).
+    expect(maxSeen).toBeGreaterThan(95);
   });
 });

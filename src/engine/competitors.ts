@@ -173,9 +173,13 @@ export function advanceCompetitors(
   recentPlayerHitCats?: readonly CategoryId[],
 ): { competitors: CompetitorState[]; launches: CompetitorLaunch[] } {
   const launches: CompetitorLaunch[] = [];
-  const decay = BALANCE.competitors.strengthDecayPerWeek;
-  const cats = unlockedCategories(era);
   const bal = BALANCE.competitors;
+  // Era-scaled durable competition (P3): rivals decay slower AND can reach higher strength in the
+  // late eras, so they entrench and genuinely contest a maxed player. Index = era − 1 (clamped).
+  const eraIdx = Math.max(0, Math.min(Math.floor(era) - 1, bal.strengthDecayByEra.length - 1));
+  const decay = bal.strengthDecayByEra[eraIdx];
+  const maxStrength = bal.reactMaxStrengthByEra[eraIdx];
+  const cats = unlockedCategories(era);
 
   const competitors = comps.map((c) => {
     const strengthByCategory: CompetitorState["strengthByCategory"] = {};
@@ -218,9 +222,12 @@ export function advanceCompetitors(
       if (isDefending) {
         strength = strength + bal.reactStrengthBonus;
       }
+      // Durable competition (P3): late eras add a flat strength bump so rivals reach genuine
+      // contesting range against a maxed player (the formula otherwise tops out below the cap).
+      strength += bal.lateStrengthByEra[eraIdx];
       // The winnability ceiling applies to EVERY launch, not just defenders — structural, so a future
       // baseStrength/preferredStrengthBonus bump can't silently break the documented cap.
-      strength = Math.min(bal.reactMaxStrength, strength);
+      strength = Math.min(maxStrength, strength);
 
       strengthByCategory[cat] = Math.max(strengthByCategory[cat] ?? 0, strength);
       launches.push({ competitor: c.name, category: cat, strength: Math.round(strength), week, contested: isUndercutting });

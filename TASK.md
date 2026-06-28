@@ -1568,3 +1568,30 @@ only, floor 78, 0.5/wk — outpaced by any constant shipper). Gave it teeth with
       diverge), which touches PROTECTED `market.ts` + `competitors.ts` and needs its own go-ahead +
       balance pass. The other true arbiter is an on-device playtest: real players make the mistakes the
       auto-player never does, and Phases 1–2 are what make those mistakes cost something.
+
+## v55 — Living Late Game, Phase 3: durable competition (DONE 2026-06-28)
+Acting on v52.1 option (c) — the deepest lever. Rivals now CONTEST and HOLD share in the late eras,
+so demand is a contested resource and runs diverge by how rivals crowd you. PROTECTED `competitors.ts`
+touched WITH go-ahead; `market.ts` deliberately NOT touched (the launch path already models competition
+via the count model in `gameState.ts`, passing `competitorStrength: 0` to scoreLaunch).
+- [x] **Root cause found by reading + measuring:** late competition was cosmetic for THREE compounding
+      reasons — (1) the winnability cap was era-flat (95), (2) rival strength decayed fast (0.88/wk), and
+      (3) the launch-strength FORMULA naturally tops out ~92, BELOW the cap, so raising the cap alone was
+      inert. Fixed all three, era-scaled, eras 1–2 untouched (byte-identical early game):
+      `strengthDecayByEra [0.88,0.88,0.90,0.93]` (rivals entrench, not blip), `reactMaxStrengthByEra
+      [95,95,105,118]` (room to contest), `lateStrengthByEra [0,0,8,18]` (the formula now REACHES
+      contesting range — a strong rival can match or beat a maxed player). The existing era-pressure
+      term (`[0.25,1,1.2,1.45]`) and count model then apply the bite — no new systems.
+- [x] **Tests** (`competitors.test.ts` +2): late ceilings/decay are monotonic and eras 1–2 untouched;
+      an AI-era rival now reaches strength > the old flat-95 wall (proving late competition bites). The
+      existing ceiling test re-pointed at the era-4 cap.
+- **Measured (npm run sim, cumulative baseline → v55):** net-worth CV 2.5% → **5.6%** (+124%); p90/p10
+      1.07× → **1.15×**; Era-4 effectiveScore spread widened to **135–197** (competition now varies it
+      per launch/seed — the divergence the auto-player can't smooth); verdict mix 23/40/37/.5 →
+      **17/27/55/1** (hits are now EARNED against rivals); net worth median $4167M → **$2101M** (still a
+      vast empire); **0/40 bankruptcies + 40/40 IPO-win preserved** — contested, not unfair. 601 tests
+      (+2), tsc 0, full suite green.
+- ⚠️ Knobs (decay/cap/lateStrength byEra) are harness-tuned, NOT device-played. The contest pulled the
+      hit rate to ~17% (you now fight for hits); if that reads as too harsh on a phone, soften
+      `lateStrengthByEra` first (it is the bite). Living Late Game P1–P3 complete; remaining headroom is
+      an on-device playtest of the new cadence + contest.
