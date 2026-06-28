@@ -55,12 +55,14 @@ function simulate(seed, maxWeeks = 520) {
   let countedLaunches = new Set();
   let trough = Infinity;
   let repMinLate = Infinity; // lowest reputation observed once past the protected Garage era (adversity?)
+  let winWeek = null; // first week the IPO "win" is available (era 4 + reputation >= 85)
   const effScoresByEra = { 1: [], 2: [], 3: [], 4: [] }; // effectiveScore = launchScore × compFactor
 
   for (let w = 0; w < maxWeeks; w++) {
     if (s.bankrupt) break;
     if (!eraWeek[s.era]) eraWeek[s.era] = s.week;
     if (s.era >= 2) repMinLate = Math.min(repMinLate, s.reputation);
+    if (winWeek === null && s.era >= 4 && s.reputation >= 85) winWeek = s.week;
 
     // advance era as soon as eligible
     if (canAdvance(s)) s = advanceEraAction(s);
@@ -123,6 +125,7 @@ function simulate(seed, maxWeeks = 520) {
     finalNetWorth: toDollars(netWorth(s)),
     listed: s.listed,
     reputation: s.reputation,
+    winWeek,
     repMinLate: repMinLate === Infinity ? s.reputation : repMinLate,
     hitRate: countedLaunches.size ? verdicts.hit / countedLaunches.size : 0,
     effScoresByEra,
@@ -170,6 +173,9 @@ for (const k of ["hit", "solid", "steady", "flop"]) {
   console.log(`  ${k.padEnd(7)} ${String(totalV[k]).padStart(4)}  ${p}%`);
 }
 console.log(`\nFinal net worth:     median ${money(median(agg((r) => r.finalNetWorth)))}  p10 ${money(pct(agg((r) => r.finalNetWorth), 0.1))}  p90 ${money(pct(agg((r) => r.finalNetWorth), 0.9))}`);
+const winWeeks = runs.map((r) => r.winWeek).filter((w) => w != null);
+console.log(`\nIPO "win" available: median wk ${winWeeks.length ? median(winWeeks) : "—"} (${winWeeks.length}/${runs.length} reached era4+rep85)`);
+console.log(`  → real time to win: base ${(median(winWeeks) * 8 / 60).toFixed(0)} min of ticks · Fast ${(median(winWeeks) * 1 / 60).toFixed(1)} min of ticks (plus design/management time)`);
 console.log(`Reached IPO/listed:  ${runs.filter((r) => r.listed).length}/${runs.length}`);
 console.log(`Final reputation:    median ${median(agg((r) => r.reputation)).toFixed(0)}`);
 
