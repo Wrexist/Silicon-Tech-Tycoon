@@ -230,10 +230,16 @@ Pure engine → fully unit-testable (Vitest), mirroring the existing `production
   integration (`buildCost` / `computeStats` / `buildWeeksFor`). Ships the deterministic "what parts"
   decision. **Deferred to a fast-follow:** supplier-weighted `supplyCrunch` event risk, and per-part
   (vs house) sourcing — both build cleanly on the P1 `supplierId`-on-product foundation.
-- **P2 — Contract factories.** `engine/factories.ts` + Build-wizard Manufacturing step + capacity
-  mechanic (overtime/stretch/defects). Ships the "where you build + how hard you push it" decision.
-- **P3 — Owned lines.** Company → Operations: acquire/upkeep/utilization; era gating; converge with
-  `verticalIntegration`. Ships the tycoon "buy the factory" arc.
+- **P1.5 — Supplier-weighted crunch risk. ✅ SHIPPED.** `supplyCrunch` events now scale by your
+  sourcing resilience (`crunchMult` per supplier + `sourcingExposure`), with a feed annotation and a
+  "shock-resistant / crunch-exposed" tag on the Sourcing card.
+- **P2 — Contract factories. ✅ SHIPPED.** `engine/factories.ts` + Manufacturing card + capacity
+  mechanic via an **overtime surcharge** on over-capacity units (cost/speed/capacity trade-offs).
+  **Deferred to P3:** the stretch/defects capacity strategies (the overtime path ships now).
+- **P3 — Owned lines + capacity strategies.** Company → Operations: acquire/upkeep/utilization; era
+  gating; converge with `verticalIntegration`. Plus the **stretch** (extend the schedule) and
+  **defects** (accept a quality hit) alternatives to overtime when over capacity. The tycoon "buy
+  the factory" arc.
 - **P4 — Polish & immersion.** Supplier/factory-aware in-production ring copy; a one-screen
   "Supply Chain" overview; supplier relationship flavor (a loyal supplier's risk decays over time).
 
