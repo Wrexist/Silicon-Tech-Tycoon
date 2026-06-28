@@ -1,14 +1,10 @@
 import { useId } from "react";
 import { STAT_KEYS, type Stats } from "../engine/types.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
 import "./charts.css";
 
-const STAT_LABEL: Record<string, string> = {
-  performance: "Perf",
-  quality: "Quality",
-  battery: "Battery",
-  design: "Design",
-  ecosystem: "Ecosys",
-};
+// Compact stat labels derive from the single source (glossary STAT_INFO) so they can't drift.
+const STAT_LABEL: Record<string, string> = Object.fromEntries(STAT_KEYS.map((k) => [k, STAT_INFO[k].abbr]));
 
 /** Horizontal stat bars 0..100 with optional demand-weight tint and trend arrows.
  *  trendDeltas: per-stat delta (targetWeight − currentWeight); positive = rising. */
@@ -42,31 +38,6 @@ export function StatBars({
               />
             </div>
             <span className="stat-row__val tnum">{stats[k]}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Consumer-trend demand weights as bars (what the market wants right now). */
-export function TrendBars({ weights }: { weights: Stats }) {
-  const max = Math.max(...STAT_KEYS.map((k) => weights[k]));
-  return (
-    <div className="stat-bars">
-      {STAT_KEYS.map((k) => {
-        const pct = (weights[k] / (max || 1)) * 100;
-        const hot = weights[k] === max;
-        return (
-          <div className="stat-row" key={k}>
-            <span className="stat-row__label">{STAT_LABEL[k]}</span>
-            <div className="stat-row__track">
-              <div
-                className="stat-row__fill"
-                style={{ width: `${pct}%`, background: hot ? "var(--positive)" : "var(--accent)" }}
-              />
-            </div>
-            <span className="stat-row__val tnum">{Math.round(weights[k] * 100)}%</span>
           </div>
         );
       })}

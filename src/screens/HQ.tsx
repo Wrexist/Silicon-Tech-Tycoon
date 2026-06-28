@@ -10,7 +10,7 @@ import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
-import { launchOutcome } from "../design/launchFeedback.ts";
+import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
@@ -46,9 +46,11 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
   assembly: "a faster production line",
 };
 import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, planProduction, productStats, type FeedItem, type GameState } from "../state/gameState.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
+import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -112,6 +114,17 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
       const { isHit } = launchOutcome(res, launchedBefore);
       sfx("launch");
       if (isHit) setTimeout(() => sfx("hit"), 380);
+      // Debut peak — the first product ever ships. A heavier thump + a triumphant chime on top of
+      // the reveal's always-on confetti, so the core-loop payoff lands as a genuine high (this is
+      // also where the App Store review prompt rides in).
+      if (launchedBefore.length === 0) {
+        haptic.heavy();
+        if (!isHit) setTimeout(() => sfx("hit"), 420);
+      }
+      // Hit-streak dopamine: a run of consecutive hits escalates the celebration (badge + a heavier
+      // thump from 3 in a row). A hit extends the pre-launch streak; anything else breaks it.
+      const streak = isHit ? currentHitStreak(launchedBefore) + 1 : 0;
+      if (streak >= 3) setTimeout(() => haptic.heavy(), 200);
       if (product && plan) {
         emitLaunchReveal(buildLaunchReveal({
           product,
@@ -123,7 +136,10 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
           units: plan.projectedSales,
           isHit,
           firstLaunch: launchedBefore.length === 0,
+          streak,
         }));
+        // First product ever shipped — a real high point. Ask for an App Store review (once).
+        if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
       }
     }
   };
@@ -968,10 +984,8 @@ function EraGoalCard({ state }: { state: GameState }) {
   );
 }
 
-const INSIGHT_STAT_LABEL: Record<string, string> = {
-  performance: "Performance", quality: "Quality", battery: "Battery",
-  design: "Design", ecosystem: "Ecosystem",
-};
+// Full stat labels derive from the single source (glossary STAT_INFO) so they can't drift.
+const INSIGHT_STAT_LABEL: Record<string, string> = Object.fromEntries(STAT_KEYS.map((k) => [k, STAT_INFO[k].label]));
 
 function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
   type Insight = { icon: LucideIcon; text: string; tab?: Tab };

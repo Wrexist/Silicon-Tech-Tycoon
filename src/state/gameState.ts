@@ -317,7 +317,11 @@ export function seedFeedSeq(state: GameState): void {
 }
 
 function rngFrom(state: GameState): Rng {
-  return makeRng(state.rngState || state.seed);
+  // `??` not `||`: a mulberry32 state of exactly 0 is valid (rng.state() returns `a >>> 0`), and
+  // `||` would treat it as falsy and silently re-seed from `state.seed`, breaking the deterministic
+  // stream the save system + test suite depend on. newGame seeds rngState and persistence backfills
+  // it, so `??` only falls through on a genuinely absent field.
+  return makeRng(state.rngState ?? state.seed);
 }
 
 const STARTER_NAMES = ["You (Founder)"];
@@ -701,12 +705,19 @@ export function unlockRegion(state: GameState, id: RegionId): GameState {
   return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
 }
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
-export const buildWeeksFor = (s: GameState) =>
-  Math.max(
+export const buildWeeksFor = (s: GameState) => {
+  // The very first product of a brand-new company builds fast (minWeeks): a first-time player
+  // reaches the launch keynote — the game's core payoff — in a beat instead of watching ~3 weeks
+  // tick by during the tutorial. So the first hit of dopamine (and the App Store review prompt that
+  // rides it) lands sooner. First playthrough only (legacy 0), first build only (nothing in flight).
+  const firstEver = s.legacy === 0 && s.launched.length === 0 && s.building.length === 0 && s.ready.length === 0;
+  if (firstEver) return BALANCE.build.minWeeks;
+  return Math.max(
     BALANCE.build.minWeeks,
     Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades))
       - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0),
   );
+};
 
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
@@ -1123,7 +1134,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         era: state.era,
         strength: l.strength,
         week,
-        rng: makeRng(((state.rngState || state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
+        rng: makeRng(((state.rngState ?? state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
         contested: l.contested,
         seriesIndex: nextSeriesIndex(rivalId, l.category),
       });
@@ -1307,10 +1318,24 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     ));
   }
 
+  // Late-game reputation maintenance (BALANCE.reputation.decay*): in the final era a top brand
+  // erodes toward a floor each week, so it must be defended by continued hits — never touches the
+  // early climb or any progression gate (final era only). Launch/event rep gains apply on top.
+  let reputation = state.reputation;
+  {
+    const rc = BALANCE.reputation;
+    if (!bankrupt && state.era >= rc.decayFromEra && reputation > rc.decayFloor) {
+      // Scale by `rate` so a partial offline catch-up tick decays proportionally (matches the rest
+      // of the tick math, which weights offline weeks by `rate`).
+      reputation = Math.max(rc.decayFloor, reputation - rc.decayPerWeekLate * rate);
+    }
+  }
+
   const base: GameState = {
     ...state,
     week,
     cash,
+    reputation,
     cumulativeRevenue,
     fans: newFans,
     researchPoints,
@@ -2193,7 +2218,20 @@ export function trainStaff(state: GameState, id: string): GameState {
     ...state,
     cash: sub(state.cash, cost),
     staff: state.staff.map((s) =>
-      s.id === id ? { ...s, skill: s.skill + 1, salary: salaryFor(s.role, s.skill + 1) } : s,
+      s.id === id
+        ? {
+            ...s,
+            skill: s.skill + 1,
+            salary: salaryFor(s.role, s.skill + 1),
+            // Mirror the weekly level-up sync (see advanceOneWeek): all discipline OUTPUT reads
+            // s.skills, not the headline skill, so without this a paid training raised salary +
+            // burn but produced zero mechanical gain. Lift the role's primary discipline to match.
+            skills: {
+              ...s.skills,
+              [ROLE_DISCIPLINE[s.role]]: Math.min(100, Math.max(s.skills[ROLE_DISCIPLINE[s.role]], (s.skill + 1) * 10)),
+            },
+          }
+        : s,
     ),
   };
 }

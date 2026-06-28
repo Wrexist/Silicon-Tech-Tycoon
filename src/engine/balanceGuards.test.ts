@@ -15,6 +15,7 @@
 //
 // All pure-engine, seed-deterministic, zero device dependency.
 import { describe, it, expect } from "vitest";
+import { BALANCE } from "./balance.ts";
 import { dollars, toDollars } from "./money.ts";
 import { type Stats, type StatKey, STAT_KEYS } from "./types.ts";
 import {
@@ -179,5 +180,28 @@ describe("GUARD C — power still matters (strong out-earns weak at fair pricing
       weak[k] = 38;
     }
     expect(revenueAtFair(strong, trends)).toBeGreaterThan(revenueAtFair(weak, trends));
+  });
+});
+
+// GUARD D — Verdict bands stay well-formed and produce TEXTURE, not a monolith. The bands were
+// recalibrated (v52) after the fast-forward harness showed late-era launches collapsing onto
+// "solid" (the old E3/E4 hit bars sat above the achievable score ceiling). These pin the structural
+// invariants so a future edit can't reintroduce an unreachable or inverted band.
+describe("GUARD D — verdict bands are well-formed across eras", () => {
+  const { hitThresholdByEra, solidThresholdByEra, flopThresholdByEra } = BALANCE.reputation;
+
+  it("within each era: flop < solid < hit (a launch can land in every band)", () => {
+    for (let i = 0; i < hitThresholdByEra.length; i++) {
+      expect(flopThresholdByEra[i]).toBeLessThan(solidThresholdByEra[i]);
+      expect(solidThresholdByEra[i]).toBeLessThan(hitThresholdByEra[i]);
+    }
+  });
+
+  it("each band rises (or holds) era over era — later eras demand more for the same verdict", () => {
+    for (let i = 1; i < hitThresholdByEra.length; i++) {
+      expect(hitThresholdByEra[i]).toBeGreaterThanOrEqual(hitThresholdByEra[i - 1]);
+      expect(solidThresholdByEra[i]).toBeGreaterThanOrEqual(solidThresholdByEra[i - 1]);
+      expect(flopThresholdByEra[i]).toBeGreaterThanOrEqual(flopThresholdByEra[i - 1]);
+    }
   });
 });

@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import StoreKit
+import UIKit
 
 /// Minimal StoreKit 2 bridge for the single non-consumable IAP — the "Creative Mode" / Sandbox
 /// unlock (`com.wrexist.silicon.sandbox`). Deliberately NOT a third-party purchase SDK: this keeps
@@ -24,6 +25,7 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "purchase", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isOwned", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
     ]
 
     /// Watches for transactions approved outside an active purchase() call — Ask-to-Buy approvals,
@@ -120,6 +122,24 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let productId = call.getString("productId") else { return call.reject("Missing productId") }
         guard #available(iOS 15.0, *) else { return call.resolve(["owned": false]) }
         Task { call.resolve(["owned": await self.isEntitled(productId)]) }
+    }
+
+    /// Ask the system to (maybe) show the App Store rating/review prompt. The OS decides whether to
+    /// actually display it and rate-limits to a few times per year, so the JS side only ever calls
+    /// this at a genuine high point (the first product launch). Never blocks; resolves immediately.
+    @objc func requestReview(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let scene = self.bridge?.viewController?.view.window?.windowScene
+                ?? UIApplication.shared.connectedScenes
+                    .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
+            guard let windowScene = scene else { return call.resolve(["requested": false]) }
+            if #available(iOS 16.0, *) {
+                AppStore.requestReview(in: windowScene)
+            } else {
+                SKStoreReviewController.requestReview(in: windowScene)
+            }
+            call.resolve(["requested": true])
+        }
     }
 
     // MARK: - Helpers

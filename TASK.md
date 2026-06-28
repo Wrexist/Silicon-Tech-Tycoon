@@ -1390,3 +1390,128 @@ balanced/performance/efficiency/value/premium, fully wired) and the **choice-eve
       geometry/material sharing across 981 lines of hand-tuned 3D, modest gain + visual-regression risk
       that CI can't verify. Not worth it blind.
 - 526 tests (+2), tsc 0, build+PWA green. Branch `claude/app-phase-step-next-uj1uix`.
+
+## v51 — four-audit pass: correctness + save-resilience + tech-debt + a11y (DONE 2026-06-28)
+Ran four parallel read-only audits (balance/exploit, engine correctness, UI/a11y/premium-polish,
+dead-code/tech-debt) against the shipped repo, then implemented only the BLIND-SAFE, test-gated
+findings — and deliberately did NOT touch the heavily, intentionally-tuned balance constants
+(comments show several were reasoned the *opposite* way, e.g. garage rent lowered 200→120, flop
+floor lowered to 10; the project's own discipline flags balance as needing on-device playtests CI
+can't run). Branch `claude/app-roadmap-game-audits-d1m06w`. Each item below is one commit.
+- [x] **Engine correctness** (`gameState.ts`): `rngState || seed` → `??` at both sites — a mulberry32
+      state of exactly 0 is valid (`rng.state()` returns `a >>> 0`) but `||` silently re-seeded from
+      `seed`, voiding the determinism contract. AND `trainStaff` now syncs the `skills` map: all
+      discipline OUTPUT reads `s.skills` via `disciplineOutput`, not the headline `skill`, so a paid
+      training previously raised salary/burn for ZERO mechanical gain. +3 tests.
+- [x] **Save-resilience** (`persistence.ts` launched[] backfill): drop entries missing `product`
+      (the sales tick deref's `lp.product.*` unconditionally → first-tick crash on a truncated save)
+      and backfill `launchedWeek` (a required field; missing → NaN through franchise/hype math). +2.
+- [x] **Tech-debt — dead exports removed**: `lt`, `isNegative`, `totalSkill`, `isPerfectionist`,
+      `HAS_ROBOT_MODELS`, `TrendBars`, and a pointless `export { STAT_KEYS }` re-export. Verified
+      zero references (strict + noUnusedLocals don't catch unused *exports*).
+- [x] **Tech-debt — STAT label drift killed**: stat names were hand-maintained in 6 places with 3
+      different abbreviation schemes that had drifted ("Ecosys"/"Eco", "quality"/"build quality").
+      `glossary.ts STAT_INFO` gains an `abbr` register; charts/Research/HQ/events now derive from it
+      (byte-identical or a small copy improvement). The two genuinely-distinct local registers
+      (DesignLab ultra-compact chips; "Battery life" sentence form) are now ANNOTATED, not silent.
+- [x] **A11y — LaunchReveal** (shown on EVERY launch): added the shared `useDialogFocus` trap +
+      Escape-to-close; close target 36px → 44px. It was a hand-built `role="dialog"` that skipped the
+      Sheet's keyboard/focus machinery.
+- 540 tests (+5), tsc 0, build+PWA green across all commits.
+
+### Balance review — LOGGED, needs on-device playtest, NOT applied (v51 audit)
+The balance audit flagged the early game as low-pressure, but several of its headline exploits are
+already guarded in source (the audit underweighted them): fan PRE-ORDERS are capped to a fraction of
+*market* demand (`gameState.ts` preOrderCap → `1.5×marketDemand`), and the unit floor is
+`priceFit`-scaled so overpricing collapses it. The defensible, still-open tuning questions — change
+ONE at a time, with a fast-forward harness / device in hand, in `balance.ts`:
+- **Early-game runway is long** (~166wk at $20k start, free founder, $120/wk rent). If first-ship
+  pressure feels absent on device, the lever is BURN not cash (e.g. garage rent 120→~200) — but note
+  rent was *deliberately* lowered 200→120 because thin-margin early cycles went net-negative. Verify
+  before touching.
+- **Paid training is linear** (`trainCostPerSkill 1800 × skill`) while research/content costs aren't;
+  a free founder can buy maxed output cheaply. Candidate: steepen training cost. Needs a playtest.
+- **Late-era hit bars** (`hitThresholdByEra [70,88,112,145]`) may sit below a maxed product's
+  achievable score, flattening the endgame contest. Candidate: raise the top two bars. Playtest.
+- **Self-relaunch** (`selfPenalty 0.22`) may under-penalise spamming one proven design. Playtest.
+- **`idealMarkup: 2.2` is a DEAD constant** — referenced nowhere; the real fair-price anchor is
+  `valueToPrice` (perceived value), not unit cost. Either wire a cost term into priceFit or delete
+  the constant. (Left as-is this pass — touching priceFit is a balance change.)
+
+### Remaining audit backlog — deferred (lower value or needs device/design call)
+- **Correctness (Low):** debounced-save can clobber a fresh resume save (add the dirty-check guard
+  the 10s safety net already has, `useGame.tsx`); 4 actions call `withLiveAchievements` inside the
+  setState updater → StrictMode double-toast in dev (precompute like `foundPlatformCb`); completed
+  build jobs push an un-`fixProduct`'d product onto `ready` (latent — all readers have `??` defaults).
+- **A11y (Medium/Low):** `StatBars` (charts) signals the "hot" stat by FILL COLOR only — add a
+  non-color cue (DesignLab + Market); focus traps on `DecorateTutorial` + the `Challenges`/`Scenarios`
+  confirm dialogs; `Challenges` code input needs `aria-invalid` + `aria-describedby`; sub-44px targets
+  (`coach__skip`, `hqb__icon`, `co__stats-x`, `scn__hist-share`, `set__switch`).
+- **Polish (Low):** add a `--scrim` token (3 hand-rolled scrims) + an `--on-accent` token for the
+  `#fff`-on-fill labels; migrate stray `font-size` literals onto the type scale (raise the two `9px`
+  cases off sub-`--fs-nano`); `Market.tsx CATEGORY_LABEL` should derive from `CATEGORIES[id].displayName`
+  (keep the AR/VR override) instead of a hand-kept copy; empty-state guards on a few rarely-empty `.map`s.
+- **Dead type exports (Low):** ~20 unused `export type`/`interface`s across `platform.ts`,
+  `gameState.ts`, `types.ts`, etc. — drop the `export` keyword (tsc will catch any real use). Mechanical.
+
+## v52 — measured balance pass: verdict-band recalibration + fast-forward harness (DONE 2026-06-28)
+"Balance now the game." Did it the disciplined way — MEASURED, not guessed. Built a headless
+fast-forward harness (`scripts/balance-sim.mjs`, `npm run sim`) that drives the real pure engine with
+a competent auto-player across 40 seeds × 520 weeks and reports the actual balance curve. The data
+exposed one dominant problem and one structural one:
+- **Verdict monolith:** 83.5% of 9,015 launches landed "solid"; just 3.6% hit, 0.5% flop. The
+  effectiveScore landscape vs the bands showed why — a maxed competent product scores ~112–130 in the
+  AI era, but the hit bar was 145 (UNREACHABLE) and the solid floor 92 (far below the achievable
+  minimum), so every late launch collapsed onto "solid." Era 3 had the same shape.
+- **No downside / solved outcome:** 0/40 bankruptcies, ~167-wk starting runway, final net worth in a
+  ±5% band, reputation pinned to 100 for every seed (logged, not fixed this pass — see below).
+- [x] **Recalibrated `reputation.{hit,solid,flop}ThresholdByEra` to the measured landscape.** Bands now
+      sit INSIDE each era's real score range: hit `[70,88,112,145]→[70,80,116,128]`, solid
+      `[45,56,72,92]→[45,56,98,115]` (flop unchanged — flops are for genuine mistakes). Result, by the
+      harness: **28.9% hit / 35.9% solid / 34.7% steady / 0.5% flop** — a textured, skill-discriminating
+      spread. A competent player now gets a real mix; a sloppier one shifts toward steady/flop. Era
+      pacing (E2 wk72 / E3 wk118 / E4 wk175) and zero-bankruptcy survival are UNCHANGED — progression
+      didn't stall. Early eras (1–2) were already well-spread and were left essentially as-is.
+- [x] **Guard D** (`balanceGuards.test.ts`): pins band invariants (flop<solid<hit per era; bands
+      non-decreasing era-over-era) so the recalibration can't silently regress. +2 tests.
+- [x] **`scripts/balance-sim.mjs` + `npm run sim`**: a reusable measurement tool (the project has
+      repeatedly asked for a fast-forward harness). esbuild-bundled like `shots:stage`; artifact
+      gitignored. Reports bankruptcies, runway, era arrival, verdict mix, net-worth percentiles, and
+      the per-era effectiveScore landscape vs the bands — so the NEXT balance change is also measured.
+- 542 tests (+2), tsc 0, build+PWA green.
+- **Deliberately NOT touched (needs design call / would regress reasoned tuning):** the long early
+  runway + the ±5%/rep-100 "solved outcome." The early economy was tuned the other way ON PURPOSE
+  (rent lowered 200→120; safety reserve prevents unfair bricking — and the auto-player only avoids
+  bankruptcy because it uses the safe `recommendedRun`). The flat late-game net worth is a deeper
+  fix (outcome variance / failable bets at scale) that wants its own measured pass — the harness now
+  makes that tractable. Flagged here rather than churned blind.
+
+## v52.1 — late-game variance investigation via the harness (measured; no blind change shipped)
+Follow-up to v52: used `npm run sim` (now with outcome-variance diagnostics — net-worth CV, per-run
+hit-rate spread, reputation-low-after-Era-2) to probe the "solved macro outcome" the v52 data hinted
+at. Findings, all MEASURED:
+- **Journey variance is now healthy** (the v52 win): per-run hit-rate spans p10 19% → p50 30% → p90
+  42%. Runs genuinely differ moment-to-moment.
+- **Macro outcome is structurally deterministic**: final net-worth CV ≈ 2.4% (p90/p10 = 1.06×), and
+  reputation only ever CLIMBS to 100 (no dip/setback once past the Garage era). Every run ends a
+  multi-billion-dollar empire within ±2.5%.
+- **Two experiments REFUTED the easy levers** (reverted, not shipped):
+  · AI-era `demandVariance` 1.4 → 3.0 moved net-worth CV 2.4% → 2.5% (≈nothing). Per-launch volatility
+    averages out over the ~230 launches a 10-year run produces — law of large numbers.
+  · `competition.factorK` 0.025 → 0.10 changed NOTHING (identical verdict mix + CV). Root cause: the
+    launch path passes `competitorStrength: 0` to `scoreLaunch` and models competition via match/beat
+    COUNTS (gameState.ts:798–844), so **`factorK` is a vestigial constant** (like `idealMarkup`) —
+    only `market.ts:166` reads it, always against a 0 strength. Logged, not removed (touches the
+    protected market.ts; the param may be kept for flexibility).
+- **Conclusion:** macro determinism is a function of late-game SHAPE — many high-volume,
+  near-guaranteed-profit launches + a monotonic reputation climb with no failure mode — NOT of any
+  single tunable constant. Making the late game divergent/failable is a DESIGN decision, not a tweak.
+  Three options, each its own measured pass (not shipped blind):
+  (a) Reputation maintenance/decay — rep slowly erodes without sustained hits, so a top brand is held,
+      not banked once (adds ongoing tension + setback risk).
+  (b) Fewer/bigger bets late-game — pace or cost changes so a flagship flop actually hurts (reduces the
+      averaging that flattens outcomes).
+  (c) Durable competition — make rivals able to take and HOLD share (revive the dead factorK path or
+      strengthen the count model), so contested runs diverge from uncontested ones.
+  Recommendation: the journey-level balance is good now; pursue (a) or (c) only if a more dramatic,
+  failable late-game is wanted — I can implement + measure whichever you pick.

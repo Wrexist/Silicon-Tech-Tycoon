@@ -437,8 +437,17 @@ function migrate(state: GameState): GameState | null {
   // a search saved under the pre-tier shape gets the cheapest channel
   if (s.recruitment && s.recruitment.tier == null) s.recruitment.tier = "board";
   if (Array.isArray(s.launched)) {
-    s.launched = s.launched.map((lp: any) => {
-      if (lp.product) lp.product = fixProduct(lp.product);
+    s.launched = s.launched
+      // A launched entry without a USABLE product is unrecoverable — the sales tick dereferences
+      // lp.product.price / lp.product.category unconditionally (advanceOneWeek), and fixProduct does
+      // NOT backfill those two. So a truncated/hand-edited save that boots OK would crash or feed NaN
+      // into sales/rival math on the FIRST tick. Require a real product shape; drop the rest so the
+      // rest of the save loads cleanly rather than taking the app down.
+      .filter((lp: any) =>
+        lp && lp.product && typeof lp.product === "object" &&
+        Number.isFinite(lp.product.price) && typeof lp.product.category === "string")
+      .map((lp: any) => {
+      lp.product = fixProduct(lp.product);
       // Coerce the per-product fields the sales tick dereferences so a truncated/older save can't
       // crash on the first sales pass (advanceOneWeek reads lp.weeklyUnits.length and
       // lp.stats.ecosystem). Defaults are inert — an empty curve simply books no further sales.
@@ -448,6 +457,10 @@ function migrate(state: GameState): GameState | null {
       if (!Number.isFinite(lp.unitsSold)) lp.unitsSold = 0;
       if (!Number.isFinite(lp.revenueToDate)) lp.revenueToDate = 0;
       if (!Number.isFinite(lp.unitCost)) lp.unitCost = 0;
+      // launchedWeek is a required field read unguarded by the franchise (brand-equity latestWeek)
+      // and rival-reaction math; a save missing it sends `undefined` → NaN through hype/preorder
+      // calcs. Backfill to 0 (treated as "launched at the start") like the other numeric coercions.
+      if (!Number.isFinite(lp.launchedWeek)) lp.launchedWeek = 0;
       if (!lp.stats || typeof lp.stats !== "object") lp.stats = {};
       // Backfill the launch verdict for saves written before it was recorded. competitionFactor
       // wasn't stored, so approximate from the (stored) launchScore against the same thresholds —

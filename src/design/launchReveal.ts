@@ -14,6 +14,7 @@ export interface LaunchRevealData {
   units: number;           // projected first-run sales
   isHit: boolean;
   firstLaunch: boolean;    // the company's very first product — gets a special beat
+  streak: number;          // consecutive hits incl. this launch (>=2 escalates the celebration)
 }
 
 type Listener = (d: LaunchRevealData) => void;
@@ -40,6 +41,7 @@ export function buildLaunchReveal(args: {
   units: number;
   isHit: boolean;
   firstLaunch: boolean;
+  streak?: number;
 }): LaunchRevealData {
   const r = criticReviews({
     productId: args.product.id,
@@ -58,5 +60,6 @@ export function buildLaunchReveal(args: {
     units: args.units,
     isHit: args.isHit,
     firstLaunch: args.firstLaunch,
+    streak: args.streak ?? 0,
   };
 }

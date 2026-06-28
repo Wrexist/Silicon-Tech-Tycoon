@@ -29,11 +29,6 @@ export function salaryFor(role: Staff["role"], skill: number): Money {
   return add(base, scale(BALANCE.staff.salaryPerSkill, skill));
 }
 
-/** Total skill across staff of a role (used by R&D speed / design ceiling / hype). */
-export function totalSkill(staff: readonly Staff[], role: Staff["role"]): number {
-  return staff.filter((s) => s.role === role).reduce((a, s) => a + s.skill, 0);
-}
-
 /** Effective skill contributing to a function: each person assigned to it contributes their
  *  0..100 score in THAT discipline (scaled to the 1..10 output range). So a designer with strong
  *  Engineering still helps R&D — put people where their high scores are. */

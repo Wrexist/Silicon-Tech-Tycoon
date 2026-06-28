@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { launchFeedback, launchOutcome } from "./launchFeedback.ts";
+import { launchFeedback, launchOutcome, currentHitStreak } from "./launchFeedback.ts";
 
 describe("launchFeedback", () => {
   it("celebrates a hit, and gives the first hit its own line", () => {
@@ -47,5 +47,20 @@ describe("launchOutcome (shared by Design Lab + HQ)", () => {
     const r = launchOutcome({}, []);
     expect(r.isHit).toBe(false);
     expect(r.feedback.text).toMatch(/Launched/);
+  });
+});
+
+describe("currentHitStreak (launched is NEWEST-FIRST)", () => {
+  const L = (...v: string[]) => v.map((verdict) => ({ verdict }));
+  it("counts consecutive hits from the newest launch (index 0) forward", () => {
+    expect(currentHitStreak(L("hit", "hit", "hit", "solid"))).toBe(3);
+    expect(currentHitStreak(L("hit", "hit"))).toBe(2);
+  });
+  it("is 0 when the newest launch is not a hit (the streak is broken)", () => {
+    expect(currentHitStreak(L("flop", "hit", "hit"))).toBe(0);
+    expect(currentHitStreak(L("steady", "hit", "hit"))).toBe(0);
+  });
+  it("handles an empty line-up", () => {
+    expect(currentHitStreak([])).toBe(0);
   });
 });

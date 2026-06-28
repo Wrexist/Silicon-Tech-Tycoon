@@ -261,9 +261,24 @@ export const BALANCE = {
     // launch a guaranteed flop* — punishing reputation for a product the player built correctly.
     // At 10, a sensible first product lands "steady" (neutral: no rep/fan loss) and only a genuinely
     // bad bet (badly overpriced, eff ≤10) still flops. Later eras keep the rising floor for tension.
-    hitThresholdByEra: [70, 88, 112, 145],
-    solidThresholdByEra: [45, 56, 72, 92],
+    // Recalibrated to the MEASURED effectiveScore landscape (scripts/balance-sim.mjs): a maxed
+    // competent product scores ~16–21 (E1), ~26–80 (E2), ~91–122 (E3), ~112–130 (E4). The old E3/E4
+    // hit bars (112/145) sat at/above the achievable ceiling → every late launch collapsed onto
+    // "solid" (83% of all launches, ~0 hits/flops). These bands sit INSIDE each era's real range so
+    // a great launch can hit, a middling one only steadies, and outcomes spread instead of flatlining.
+    hitThresholdByEra: [70, 80, 116, 128],
+    solidThresholdByEra: [45, 56, 98, 115],
     flopThresholdByEra: [10, 21, 27, 35],
+    // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
+    // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
+    // hits rather than banked once and coasted on. A hit is +8 rep, so an active shipper (a launch
+    // every ~2 weeks) easily outpaces a 0.5/wk drip; a player who STOPS shipping slowly slips and
+    // loses IPO-win eligibility (rep >= 85) until they perform again — turning the post-era-4 stretch
+    // from a victory-lap into an ongoing contest. Gated to the FINAL era only, so no progression
+    // gate and none of the early climb is ever touched. ⚠️ magnitudes want a device playtest.
+    decayFromEra: 4,
+    decayPerWeekLate: 0.5,
+    decayFloor: 78,
     gainPerHit: 8,
     // A "solid" launch earns a little reputation too, so a player who optimizes specs + price but
     // never runs marketing campaigns can still climb past the era rep gates on consistent quality

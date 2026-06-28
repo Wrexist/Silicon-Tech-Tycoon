@@ -70,8 +70,8 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: mktBlue,
       icon: Rocket,
       title: "Built — time to launch",
-      text: "On HQ, tap Launch on your finished device. The campaign you picked when planning production kicks in now — timing matters, so launch while demand is hot.",
-      cta: tab === "hq" ? undefined : { label: "Go to HQ", tab: "hq" },
+      text: "On the Office tab, tap Launch on your finished device. The campaign you picked when planning production kicks in now — timing matters, so launch while demand is hot.",
+      cta: tab === "hq" ? undefined : { label: "Go to Office", tab: "hq" },
     };
   }
   if (state.building.length > 0) {
@@ -80,8 +80,8 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: engOrange,
       icon: Hammer,
       title: "Manufacturing started",
-      text: "Time advances automatically as it builds — tap the Fast-forward button in the top bar to speed through the wait, or Pause to hold. Watch the progress on HQ; you'll launch once it's ready.",
-      cta: tab === "hq" ? undefined : { label: "Go to HQ", tab: "hq" },
+      text: "Time advances automatically as it builds — tap the Fast-forward button in the top bar to speed through the wait, or Pause to hold. Watch the progress on the Office tab; you'll launch once it's ready.",
+      cta: tab === "hq" ? undefined : { label: "Go to Office", tab: "hq" },
     };
   }
   return {

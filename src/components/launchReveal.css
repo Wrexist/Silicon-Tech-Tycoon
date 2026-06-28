@@ -63,7 +63,8 @@
   position: absolute;
   top: var(--sp-12);
   right: var(--sp-12);
-  width: 36px; height: 36px;
+  /* 44px min touch target (iOS HIG) — the X glyph stays 18px, centred. */
+  width: 44px; height: 44px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-pill);
   background: var(--surface-2);
@@ -138,6 +139,20 @@
 .lreveal__verdict {
   font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em;
   color: var(--lreveal-accent);
+  animation: lreveal-pop var(--spring-bouncy, var(--spring-standard)) both;
+}
+/* Hit-streak badge — a warm "on fire" pill that escalates the celebration for consecutive hits. */
+.lreveal__streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: var(--sp-8);
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: var(--fs-caption);
+  font-weight: 700;
   animation: lreveal-pop var(--spring-bouncy, var(--spring-standard)) both;
 }
 .lreveal__units { display: flex; flex-direction: column; gap: 1px; animation: lreveal-rise 0.4s var(--spring-standard) 0.08s both; }

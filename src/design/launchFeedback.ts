@@ -31,6 +31,18 @@ export function launchFeedback(verdict: LaunchVerdict, firstEver: boolean, first
   return { text: "Launched into the market.", tone: "neutral" };
 }
 
+/** Consecutive "hit" verdicts from the most recent launch backward — the live hit streak. The
+ *  `launched` array is NEWEST-FIRST (`[lp, ...prev]`), so iterate from index 0 (matches the achievement
+ *  deriveFacts hitStreak). Pass the array as it is BEFORE the new launch; the caller adds 1 for a hit. */
+export function currentHitStreak(launched: readonly { verdict?: string }[]): number {
+  let n = 0;
+  for (const lp of launched) {
+    if (lp.verdict === "hit") n++;
+    else break;
+  }
+  return n;
+}
+
 export interface LaunchOutcome {
   /** Whether to fire the celebratory beat (confetti + hit SFX). */
   isHit: boolean;

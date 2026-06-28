@@ -5,7 +5,8 @@ import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
-import { launchOutcome } from "../design/launchFeedback.ts";
+import { maybePromptFirstLaunchReview } from "../state/review.ts";
+import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
@@ -107,6 +108,9 @@ function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
 }
 
 
+// Intentionally the most compact register (denser than glossary STAT_INFO.abbr) — these feed the
+// tight inline component-contribution chips, where "Quality"/"Battery" would wrap. Kept local on
+// purpose; the canonical label/abbr/prose registers live in engine/glossary.ts STAT_INFO.
 const STAT_ABBR: Record<keyof Stats, string> = {
   performance: "Perf", quality: "Qual", battery: "Bat", design: "Dsn", ecosystem: "Eco",
 };
@@ -396,6 +400,15 @@ export function DesignLab({
     const { isHit } = launchOutcome(res, launchedBefore);
     sfx("launch");
     if (isHit) setTimeout(() => sfx("hit"), 380);
+    // Debut peak — first product ever ships (mirrors HQ): heavier thump + a triumphant chime atop
+    // the reveal's confetti so the core-loop payoff lands as a genuine high.
+    if (launchedBefore.length === 0) {
+      haptic.heavy();
+      if (!isHit) setTimeout(() => sfx("hit"), 420);
+    }
+    // Hit-streak dopamine (mirrors HQ): a hit extends the pre-launch streak; anything else breaks it.
+    const streak = isHit ? currentHitStreak(launchedBefore) + 1 : 0;
+    if (streak >= 3) setTimeout(() => haptic.heavy(), 200);
     if (product && plan) {
       emitLaunchReveal(buildLaunchReveal({
         product,
@@ -407,7 +420,10 @@ export function DesignLab({
         units: plan.projectedSales,
         isHit,
         firstLaunch: launchedBefore.length === 0,
+        streak,
       }));
+      // First product ever shipped — a real high point. Ask for an App Store review (once).
+      if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
     }
   }
 
@@ -418,6 +434,8 @@ export function DesignLab({
     return d > bestD ? k : best;
   }, STAT_KEYS[0]);
   const topWantedDelta = state.trends.targetWeights[topWanted] - state.trends.weights[topWanted];
+  // Sentence-form labels for the "X is trending up" hint — "Battery life" reads better mid-sentence
+  // than the canonical "Battery". Kept local on purpose; canonical copy lives in glossary STAT_INFO.
   const STAT_LABEL_FULL: Record<keyof Stats, string> = { performance: "Performance", quality: "Quality", battery: "Battery life", design: "Design", ecosystem: "Ecosystem" };
 
   return (
@@ -1312,7 +1330,7 @@ function DesignCompleteCard({
       </div>
 
       <Button block onClick={onDesignAnother}><Sparkles size={16} /> Design another</Button>
-      <button className="wiz__cancel" onClick={onGoToHQ}>View in HQ</button>
+      <button className="wiz__cancel" onClick={onGoToHQ}>View in Office</button>
     </div>
   );
 }
