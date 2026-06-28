@@ -19,3 +19,4 @@ store-shots
 .tmp_*.json
 scripts/.stage.cjs
 scripts/.sim.cjs
+.tab-shots/
