@@ -36,18 +36,6 @@
 .hud__cash:active {
   transform: scale(0.96);
 }
-.hud__logo {
-  flex-shrink: 0;
-  width: 46px;
-  height: 46px;
-  border-radius: var(--r-pill);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  background: var(--brand-deep);
-  box-shadow: 0 2px 8px var(--brand-deep-shadow);
-}
 .hud__cash-text {
   display: flex;
   flex-direction: column;
@@ -132,6 +120,52 @@
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
+}
+
+/* Floating, thumb-reachable simulation-speed control (post-tutorial). Docked bottom-right, just
+   above the tab bar; hidden on the Design tab (App gates it) so it never fights the build wizard. */
+.speeddial {
+  position: fixed;
+  /* Bottom-LEFT: card CTAs (Advance / Unlock / IPO) are right-aligned, so the left gutter is the
+     only spot a fixed control can float without ever covering a button. Still in the thumb zone. */
+  left: var(--edge);
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  z-index: 27;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-6);
+  border-radius: var(--r-pill);
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-floating);
+  animation: speeddial-in var(--spring-standard) both;
+}
+.speeddial__btn {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--spring-snappy), background var(--spring-snappy);
+}
+.speeddial__btn:active {
+  transform: scale(0.94);
+}
+.speeddial__btn--on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+@keyframes speeddial-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Micro-label so an icon chip reads unambiguously ("Rep 8", not a bare gold star). */

@@ -1,4 +1,4 @@
-import { Calendar, CircuitBoard, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, Star, Trophy } from "lucide-react";
+import { Calendar, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, Star, Trophy } from "lucide-react";
 import { AnimatedInt, AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
@@ -30,9 +30,6 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: ()
           onClick={onOpenBank}
           aria-label={`Open Bank. Cash ${format(state.cash)}${critical ? `, ${runway} weeks of runway left` : ""}`}
         >
-          <span className="hud__logo" aria-hidden>
-            <CircuitBoard size={22} strokeWidth={2} />
-          </span>
           <span className="hud__cash-text">
             <span className={`hud__cash-label${critical ? " hud__cash-label--danger" : ""}`} aria-hidden>
               {critical ? `Cash · ${runway} wk left` : "Cash"}
@@ -77,22 +74,29 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: ()
           </div>
         </div>
         <div className="hud__controls">
-          <button
-            className="hud__pause"
-            onClick={() => setPaused(!paused)}
-            aria-label={paused ? "Resume" : "Pause"}
-            aria-pressed={paused}
-          >
-            {paused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
-          </button>
-          <button
-            className={`hud__pause${fast && !paused ? " hud__pause--on" : ""}`}
-            onClick={() => { setFast(!fast); if (!fast) setPaused(false); }}
-            aria-label={fast ? "Normal speed" : "Fast forward"}
-            aria-pressed={fast}
-          >
-            <FastForward size={14} fill="currentColor" />
-          </button>
+          {/* Time controls live up here only DURING the first-build tutorial (the Coach points at
+              "the top bar", and the bottom band is free of the Design wizard footer). Once the
+              player has finished the tutorial they move to the thumb-reachable floating SpeedDial. */}
+          {!state.tutorialDone && (
+            <>
+              <button
+                className="hud__pause"
+                onClick={() => setPaused(!paused)}
+                aria-label={paused ? "Resume" : "Pause"}
+                aria-pressed={paused}
+              >
+                {paused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
+              </button>
+              <button
+                className={`hud__pause${fast && !paused ? " hud__pause--on" : ""}`}
+                onClick={() => { setFast(!fast); if (!fast) setPaused(false); }}
+                aria-label={fast ? "Normal speed" : "Fast forward"}
+                aria-pressed={fast}
+              >
+                <FastForward size={14} fill="currentColor" />
+              </button>
+            </>
+          )}
           {onOpenProgress && (
             <button className="hud__pause" onClick={onOpenProgress} aria-label="Progress, achievements and challenges">
               <Trophy size={15} />
@@ -104,5 +108,32 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: ()
         </div>
       </div>
     </header>
+  );
+}
+
+/** Thumb-reachable floating simulation-speed control (Pause/Resume + Fast-forward). Rendered after
+ *  the tutorial, when the time controls leave the top HUD; hidden on the Design tab where the build
+ *  wizard owns the bottom band. Sits just above the tab bar at the bottom-right (App gates it). */
+export function SpeedDial() {
+  const { paused, setPaused, fast, setFast } = useGame();
+  return (
+    <div className="speeddial" role="group" aria-label="Simulation speed">
+      <button
+        className="speeddial__btn"
+        onClick={() => setPaused(!paused)}
+        aria-label={paused ? "Resume" : "Pause"}
+        aria-pressed={paused}
+      >
+        {paused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
+      </button>
+      <button
+        className={`speeddial__btn${fast && !paused ? " speeddial__btn--on" : ""}`}
+        onClick={() => { setFast(!fast); if (!fast) setPaused(false); }}
+        aria-label={fast ? "Normal speed" : "Fast forward"}
+        aria-pressed={fast}
+      >
+        <FastForward size={18} fill="currentColor" />
+      </button>
+    </div>
   );
 }

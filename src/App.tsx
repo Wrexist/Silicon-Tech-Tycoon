@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, BadgeDollarSign, CircuitBoard, CircleX, Copy, Cpu, Crown, FlaskConical, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
-import { Hud } from "./components/Hud.tsx";
+import { Hud, SpeedDial } from "./components/Hud.tsx";
 import { Bank } from "./components/Bank.tsx";
 import { BottomNav, type Tab } from "./components/BottomNav.tsx";
 import { Coach } from "./components/Coach.tsx";
@@ -120,6 +120,10 @@ function AppShell() {
       </main>
 
       <Coach tab={tab} onNavigate={setTab} />
+
+      {/* Thumb-reachable speed control, post-tutorial. Hidden on Design (the build wizard owns the
+          bottom band there) and during the tutorial (the controls stay in the top HUD then). */}
+      {state.tutorialDone && tab !== "design" && <SpeedDial />}
 
       <BottomNav
         active={tab}
