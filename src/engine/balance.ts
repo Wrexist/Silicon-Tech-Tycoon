@@ -613,6 +613,12 @@ export const BALANCE = {
   supply: {
     // Dual-sourcing: a backup supplier costs a unit-cost premium for a fraction of the crunch risk.
     dualSource: { costPremium: 0.06, riskMult: 0.5 },
+    // Contracts: lock a discounted, crunch-proof price with a supplier for a term. The upfront sign
+    // fee scales with the term length and the tech era; reputation adds up to repDiscountMax off.
+    contract: {
+      signFeeBase: dollars(9_000) as Money, // fee for a 13-week deal at era 1, scaled from there
+      repDiscountMax: 0.04, // extra discount at reputation 100 (your negotiating leverage)
+    },
   },
 
   // --- Factory manufacturing (engine/factories.ts) ---

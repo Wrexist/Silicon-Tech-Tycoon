@@ -9,7 +9,7 @@ import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier } from "../engine/suppliers.ts";
+import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier, CONTRACT_TERMS, contractDiscount } from "../engine/suppliers.ts";
 import { availableFactories, factoryFor, DEFAULT_FACTORY_ID, type CapacityStrategy } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
@@ -31,6 +31,7 @@ import type {
   ProductTuning,
   RegionId,
   Stats,
+  SupplierId,
 } from "../engine/types.ts";
 import { REGIONS, regionTasteFit } from "../engine/regions.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
@@ -45,6 +46,7 @@ import {
   marketerSkill,
   planProduction,
   capacityPlan,
+  contractSignFee,
   productStats,
   recommendedRun,
   researchedTier,
@@ -216,7 +218,8 @@ export function DesignLab({
   onSeedConsumed?: () => void;
   onGoToHQ?: () => void;
 } = {}) {
-  const { state, build, launchReady, unlockLens, unlockFinish } = useGame();
+  const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract } = useGame();
+  const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
@@ -818,6 +821,22 @@ export function DesignLab({
                 <span className="lab__toggle-knob" />
               </button>
             </div>
+            {(() => {
+              const sid = (draft.supplierId ?? DEFAULT_SUPPLIER_ID) as SupplierId;
+              const c = state.supplierContracts?.[sid];
+              const active = !!c && c.weeksLeft > 0;
+              return (
+                <div className="lab__contract">
+                  <span className="lab__dual-text">
+                    <span className="lab__seg-label">Contract · {supplierFor(sid).name}</span>
+                    <small>{active ? `−${Math.round(c!.discount * 100)}% locked · ${c!.weeksLeft} wk left · crunch-proof` : "Lock a discounted, crunch-proof price for a term"}</small>
+                  </span>
+                  <Button size="sm" variant={active ? "tertiary" : "secondary"} onClick={() => { haptic.light(); setContractSheet(sid); }}>
+                    {active ? "Renew" : "Negotiate"}
+                  </Button>
+                </div>
+              );
+            })()}
           </Card>
 
           {/* Manufacturing — pick the factory. Trades tooling / per-unit cost / build speed and a
@@ -1409,6 +1428,17 @@ export function DesignLab({
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}
       </Sheet>
 
+      <Sheet open={!!contractSheet} onClose={() => setContractSheet(null)}>
+        {contractSheet && (
+          <ContractSheet
+            supplierId={contractSheet}
+            state={state}
+            onSign={(termId) => { negotiateContract(contractSheet, termId); haptic.success(); sfx("cash"); setContractSheet(null); }}
+            onClose={() => setContractSheet(null)}
+          />
+        )}
+      </Sheet>
+
       <Sheet open={!!completed} onClose={() => setCompleted(null)}>
         {completed && (
           <DesignCompleteCard
@@ -1477,6 +1507,53 @@ function DesignCompleteCard({
 }
 
 const WIZARD_CHANNEL_ICONS: Record<string, LucideIcon> = { Ban, Share2, Search, Megaphone, Users, Tv, Sparkles };
+
+/** Negotiate a fixed-price supplier contract — lock a discount + crunch immunity for a term, for an
+ *  upfront fee. Reputation is the negotiating leverage (sweetens the discount). */
+function ContractSheet({
+  supplierId,
+  state,
+  onSign,
+  onClose,
+}: {
+  supplierId: SupplierId;
+  state: GameState;
+  onSign: (termId: typeof CONTRACT_TERMS[number]["id"]) => void;
+  onClose: () => void;
+}) {
+  const sup = supplierFor(supplierId);
+  const repBonusPct = Math.round((Math.min(100, Math.max(0, state.reputation)) / 100) * BALANCE.supply.contract.repDiscountMax * 100);
+  const active = state.supplierContracts?.[supplierId];
+  return (
+    <div className="ctr">
+      <h2 className="ctr__title">Contract · {sup.name}</h2>
+      <p className="ctr__sub">
+        Lock a discounted unit price for a fixed term — and while it holds, this supplier is <b>crunch-proof</b>.
+        Your reputation ({Math.round(state.reputation)}) negotiates <b>+{repBonusPct}%</b> off.
+      </p>
+      {active && active.weeksLeft > 0 && (
+        <p className="ctr__active">Current deal: −{Math.round(active.discount * 100)}% · {active.weeksLeft} wk left. Signing again replaces it.</p>
+      )}
+      <div className="ctr__terms">
+        {CONTRACT_TERMS.map((t) => {
+          const disc = Math.round(contractDiscount(t, state.reputation, BALANCE.supply.contract.repDiscountMax) * 100);
+          const fee = contractSignFee(state.era, t);
+          const afford = state.cash >= fee;
+          return (
+            <button key={t.id} type="button" className="ctr__term" disabled={!afford} onClick={() => onSign(t.id)}>
+              <span className="ctr__term-main">
+                <span className="ctr__term-name">{t.name} <span className="ctr__term-disc">−{disc}%</span></span>
+                <span className="ctr__term-meta">{t.weeks} wk · price-locked · crunch-proof</span>
+              </span>
+              <span className={`ctr__term-fee tnum${afford ? "" : " ctr__term-fee--bad"}`}>{format(fee)}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button className="wiz__cancel" onClick={onClose}>Maybe later</button>
+    </div>
+  );
+}
 
 /** The multi-step production wizard: run size → marketing → review (with a smart demand forecast). */
 function BuildWizard({

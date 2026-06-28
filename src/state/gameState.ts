@@ -93,7 +93,7 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
-import { supplierLeadWeeks, sourcingExposure, supplierLoyaltyDiscount, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
+import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
@@ -176,6 +176,9 @@ export interface GameState {
   /** Builds run through each supplier — the relationship/loyalty count that earns a standing unit-
    *  cost discount (engine/suppliers.ts). Optional; absent/0 = no relationship yet. */
   supplierLoyalty?: Partial<Record<SupplierId, number>>;
+  /** Active fixed-price contracts per supplier: a locked discount + crunch immunity for `weeksLeft`
+   *  weeks (engine/suppliers.ts). Optional; absent = spot pricing. */
+  supplierContracts?: Partial<Record<SupplierId, { discount: number; weeksLeft: number }>>;
   building: BuildJob[];
   ready: Product[]; // built, awaiting launch
   launched: LaunchedProduct[];
@@ -716,6 +719,53 @@ export function unlockRegion(state: GameState, id: RegionId): GameState {
   return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
 }
 
+/** Company supply-crunch exposure WITH contracts: a contracted supplier is price-locked → immune
+ *  (contributes 0); otherwise the product's crunch multiplier. Mirrors the pure sourcingExposure's
+ *  source selection (in-production builds, else last shipped, else neutral). */
+function sourcingExposureWithContracts(s: GameState): number {
+  const products = s.building.length
+    ? s.building.map((j) => j.product)
+    : s.launched.length
+      ? [s.launched[s.launched.length - 1].product]
+      : [];
+  if (!products.length) return 1;
+  const mults = products.map((p) => {
+    const sid = p.supplierId ?? DEFAULT_SUPPLIER_ID;
+    const c = s.supplierContracts?.[sid];
+    if (c && c.weeksLeft > 0) return 0; // price-locked → immune to the crunch
+    return supplierCrunchMult(p);
+  });
+  return mults.reduce((a, b) => a + b, 0) / mults.length;
+}
+
+/** Upfront fee to sign a supplier contract: scales with the term length and the tech era. */
+export function contractSignFee(era: number, term: ContractTerm): Money {
+  return scale(BALANCE.supply.contract.signFeeBase, (term.weeks / 13) * Math.max(1, era));
+}
+
+/** Negotiate a fixed-price contract with a supplier: pay the sign fee to lock a discount (your
+ *  reputation sweetens the terms) + crunch immunity for the term. No-op if the supplier is era-locked
+ *  or you can't afford the fee. Re-signing replaces the existing contract. */
+export function negotiateContract(state: GameState, supplierId: SupplierId, termId: ContractTerm["id"]): GameState {
+  const sup = supplierFor(supplierId);
+  if (sup.era > state.era) return state;
+  const term = contractTerm(termId);
+  const fee = contractSignFee(state.era, term);
+  if (state.cash < fee) return state;
+  const discount = contractDiscount(term, state.reputation, BALANCE.supply.contract.repDiscountMax);
+  const feed = trimFeed([...state.feed, feedItem(
+    state.week,
+    `Signed a ${term.name.toLowerCase()} contract with ${sup.name} — ${Math.round(discount * 100)}% off, price-locked for ${term.weeks} wk.`,
+    "positive",
+  )]);
+  return {
+    ...state,
+    cash: sub(state.cash, fee),
+    supplierContracts: { ...state.supplierContracts, [supplierId]: { discount, weeksLeft: term.weeks } },
+    feed,
+  };
+}
+
 /** Buy an OWNED manufacturing line (engine/factories.ts): pay the one-time acquire cost; from then
  *  it carries weekly upkeep and can be selected for builds. No-op if it's not an owned line, already
  *  owned, era-locked, or unaffordable. */
@@ -779,6 +829,9 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   const sid = product.supplierId ?? DEFAULT_SUPPLIER_ID;
   const loyaltyDiscount = supplierLoyaltyDiscount(s.supplierLoyalty?.[sid] ?? 0);
   if (loyaltyDiscount > 0) unitCost = scale(unitCost, 1 - loyaltyDiscount);
+  // A fixed-price contract locks in a further discount on top of the relationship rate.
+  const contract = s.supplierContracts?.[sid];
+  if (contract && contract.weeksLeft > 0 && contract.discount > 0) unitCost = scale(unitCost, 1 - contract.discount);
   return scale(unitCost, buildCostMult(s.upgrades));
 }
 
@@ -1397,6 +1450,19 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
+  // Supplier contracts tick down each week; an expired one drops back to spot pricing (with a heads-up).
+  let supplierContracts = state.supplierContracts;
+  if (supplierContracts && Object.keys(supplierContracts).length) {
+    const next: NonNullable<GameState["supplierContracts"]> = {};
+    for (const [sid, c] of Object.entries(supplierContracts)) {
+      if (!c) continue;
+      const weeksLeft = c.weeksLeft - rate;
+      if (weeksLeft > 0) next[sid as SupplierId] = { ...c, weeksLeft };
+      else feed.push(feedItem(week, `Your contract with ${supplierFor(sid as SupplierId).name} expired — back to spot pricing.`, "accent"));
+    }
+    supplierContracts = next;
+  }
+
   const base: GameState = {
     ...state,
     week,
@@ -1407,6 +1473,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     researchPoints,
     building,
     ready,
+    supplierContracts,
     staff: finalStaff,
     recruitment,
     candidates,
@@ -1517,12 +1584,9 @@ export function applyEventEffect(
       break;
     case "supplyCrunch": {
       // P1.5 — the shock scales by your sourcing: premium suppliers on your active orders weather a
-      // crunch; bargain sourcing amplifies it. Neutral (×1) when sourcing standard / nothing in
-      // flight, so prior behaviour and saves are unchanged.
-      const exposure = sourcingExposure(
-        s.building.map((j) => j.product),
-        s.launched.length ? s.launched[s.launched.length - 1].product : undefined,
-      );
+      // crunch; bargain sourcing amplifies it. A FIXED-PRICE CONTRACT makes that supplier immune
+      // (the price is locked), so a contracted line shrugs the crunch off entirely.
+      const exposure = sourcingExposureWithContracts(s);
       const scaledCash = eff.cash * exposure;
       // Sting, never kill: cap the hit at a share of cash on hand so a random event can't
       // push a by-the-book player below $0 (instant bankruptcy) mid-build.

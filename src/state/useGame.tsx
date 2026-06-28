@@ -12,7 +12,8 @@ import {
 } from "react";
 import { BALANCE } from "../engine/balance.ts";
 import { dollars, format, toDollars, type Money } from "../engine/money.ts";
-import type { ComponentKind, FactoryId, Product, RecruitTier, RegionId, StaffRole } from "../engine/types.ts";
+import type { ComponentKind, FactoryId, Product, RecruitTier, RegionId, StaffRole, SupplierId } from "../engine/types.ts";
+import type { ContractTerm } from "../engine/suppliers.ts";
 import {
   advanceEraAction,
   advanceOneWeek,
@@ -27,6 +28,7 @@ import {
   buyDesktop,
   unlockRegion,
   acquireFactory,
+  negotiateContract,
   cutProductPrice,
   marketingPush,
   giveRaise,
@@ -357,6 +359,7 @@ interface GameActionsValue {
   buyDesktop: () => void;
   unlockRegion: (id: RegionId) => void;
   acquireFactory: (id: FactoryId) => void;
+  negotiateContract: (supplierId: SupplierId, termId: ContractTerm["id"]) => void;
   assign: (id: string, assignment: Assignment) => void;
   train: (id: string) => void;
   rest: (id: string) => void;
@@ -725,6 +728,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (spent > 0) emitSpend(spent);
     setState(next);
   }, []);
+  const negotiateContractCb = useCallback((supplierId: SupplierId, termId: ContractTerm["id"]) => {
+    const prev = stateRef.current;
+    const next = negotiateContract(prev, supplierId, termId);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const assign = useCallback((id: string, a: Assignment) => setState((s) => assignStaff(s, id, a)), []);
   const train = useCallback((id: string) => {
     const prev = stateRef.current;
@@ -967,6 +977,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       buyDesktop: buyDesktopCb,
       unlockRegion: unlockRegionCb,
       acquireFactory: acquireFactoryCb,
+      negotiateContract: negotiateContractCb,
       assign,
       train,
       hire,
@@ -1017,7 +1028,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

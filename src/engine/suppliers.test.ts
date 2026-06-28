@@ -16,8 +16,10 @@ import {
   supplierLoyaltyTier,
   supplierLoyaltyDiscount,
   buildsToNextTier,
+  contractTerm,
+  contractDiscount,
 } from "./suppliers.ts";
-import { newGame, startBuild, effectiveUnitCost, recommendedRun } from "../state/gameState.ts";
+import { newGame, startBuild, effectiveUnitCost, recommendedRun, negotiateContract, contractSignFee, applyEventEffect, advanceOneWeek } from "../state/gameState.ts";
 import type { Product, SupplierId } from "./types.ts";
 
 function product(supplierId?: SupplierId): Product {
@@ -148,6 +150,53 @@ describe("supplier relationships (loyalty)", () => {
 
   it("a fresh game has no relationship, so cost is unchanged", () => {
     expect(newGame(8).supplierLoyalty ?? {}).toEqual({});
+  });
+});
+
+describe("supplier contracts (negotiation hedge)", () => {
+  const phone = (supplierId?: SupplierId): Product => ({
+    id: "p", name: "Aurora", category: "phone",
+    tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 2 },
+    finish: "aluminium", colorIndex: 0, price: dollars(499), designTier: 1,
+    camera: { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
+    notch: "punch", supplierId,
+  });
+
+  it("the contract discount is the term base plus a reputation bonus, and longer terms cost more", () => {
+    const annual = contractTerm("annual");
+    expect(contractDiscount(annual, 0, 0.04)).toBeCloseTo(annual.baseDiscount, 5);
+    expect(contractDiscount(annual, 100, 0.04)).toBeCloseTo(annual.baseDiscount + 0.04, 5);
+    expect(toDollars(contractSignFee(2, contractTerm("annual")))).toBeGreaterThan(toDollars(contractSignFee(2, contractTerm("quarter"))));
+  });
+
+  it("negotiating locks a discount that cuts unit cost; it expires after the term", () => {
+    const s0 = { ...newGame(8), era: 2, reputation: 80, cash: dollars(50_000_000) };
+    const before = toDollars(effectiveUnitCost(s0, phone("novacore")));
+    const s1 = negotiateContract(s0, "novacore", "quarter");
+    expect(s1.supplierContracts?.novacore?.weeksLeft).toBe(13);
+    expect(toDollars(s1.cash)).toBeLessThan(toDollars(s0.cash)); // paid the sign fee
+    expect(toDollars(effectiveUnitCost(s1, phone("novacore")))).toBeLessThan(before);
+    // run past the term → contract expires → back to spot pricing
+    let s = s1;
+    for (let i = 0; i < 14; i++) s = advanceOneWeek(s);
+    expect(s.supplierContracts?.novacore?.weeksLeft ?? 0).toBe(0);
+    expect(toDollars(effectiveUnitCost(s, phone("novacore")))).toBeCloseTo(before, -2);
+  });
+
+  it("a contracted supplier is immune to a supply crunch", () => {
+    const base = { ...newGame(8), era: 2, reputation: 80, cash: dollars(50_000_000),
+      building: [{ product: phone("bargain"), totalWeeks: 3, weeksElapsed: 0 }] };
+    const hitNoContract = toDollars(base.cash) - toDollars(applyEventEffect(base, { kind: "supplyCrunch", cash: 8_000 }, 10, "crunch", "negative").cash);
+    const contracted = negotiateContract(base, "bargain", "quarter");
+    const hitContracted = toDollars(contracted.cash) - toDollars(applyEventEffect(contracted, { kind: "supplyCrunch", cash: 8_000 }, 10, "crunch", "negative").cash);
+    expect(hitNoContract).toBeGreaterThan(0);
+    expect(hitContracted).toBe(0); // price-locked → crunch-proof
+  });
+
+  it("is a no-op for an era-locked supplier or when the fee is unaffordable", () => {
+    const poor = { ...newGame(8), era: 1, cash: dollars(10) };
+    expect(negotiateContract(poor, "novacore", "annual").supplierContracts ?? {}).toEqual({}); // can't afford
+    expect(negotiateContract({ ...poor, cash: dollars(50_000_000) }, "vertex", "quarter").supplierContracts ?? {}).toEqual({}); // vertex is era 4
   });
 });
 

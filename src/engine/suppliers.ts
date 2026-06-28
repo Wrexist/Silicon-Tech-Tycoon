@@ -140,6 +140,36 @@ export function buildsToNextTier(builds: number): number | null {
   return next ? next.minBuilds - builds : null;
 }
 
+// --- Contracts: lock a discounted, crunch-proof price with a supplier for a term, for a sign fee ----
+export interface ContractTerm {
+  id: "quarter" | "half" | "annual";
+  name: string;
+  weeks: number;
+  baseDiscount: number; // before the reputation negotiating bonus
+}
+
+/** Contract lengths — a longer commitment earns a deeper discount (and costs more upfront). */
+export const CONTRACT_TERMS: ContractTerm[] = [
+  { id: "quarter", name: "Quarterly", weeks: 13, baseDiscount: 0.04 },
+  { id: "half", name: "Half-year", weeks: 26, baseDiscount: 0.07 },
+  { id: "annual", name: "Annual", weeks: 52, baseDiscount: 0.11 },
+];
+
+export function contractTerm(id: ContractTerm["id"]): ContractTerm {
+  return CONTRACT_TERMS.find((t) => t.id === id) ?? CONTRACT_TERMS[0];
+}
+
+/** Your reputation is your negotiating leverage: a stronger brand earns up to repDiscountMax extra
+ *  off the contract price. Pure (reputation 0..100). */
+export function contractRepBonus(reputation: number, repDiscountMax: number): number {
+  return Math.max(0, Math.min(1, reputation / 100)) * repDiscountMax;
+}
+
+/** The discount a contract locks in: the term's base plus your reputation bonus. */
+export function contractDiscount(term: ContractTerm, reputation: number, repDiscountMax: number): number {
+  return term.baseDiscount + contractRepBonus(reputation, repDiscountMax);
+}
+
 export function isSupplierUnlocked(id: SupplierId, era: number): boolean {
   return supplierFor(id).era <= era;
 }

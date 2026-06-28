@@ -1381,3 +1381,52 @@
   font-weight: 600;
   color: var(--accent);
 }
+
+/* ---------- Supplier contract ---------- */
+.lab__contract {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
+}
+.ctr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding: var(--sp-4) 0 var(--sp-8);
+}
+.ctr__title { margin: 0; font-size: var(--fs-h2); font-weight: 800; letter-spacing: -0.02em; }
+.ctr__sub { margin: 0; font-size: var(--fs-body); color: var(--ink-2); line-height: 1.4; }
+.ctr__active {
+  margin: 0;
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+.ctr__terms { display: flex; flex-direction: column; gap: var(--sp-8); }
+.ctr__term {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1.5px solid var(--hairline);
+  text-align: left;
+  transition: border-color var(--spring-snappy), transform var(--spring-snappy);
+}
+.ctr__term:active { transform: scale(0.99); }
+.ctr__term:disabled { opacity: 0.5; }
+.ctr__term-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ctr__term-name { font-weight: 700; color: var(--ink); }
+.ctr__term-disc { color: var(--positive); font-weight: 800; margin-left: 4px; }
+.ctr__term-meta { font-size: var(--fs-micro); color: var(--ink-3); }
+.ctr__term-fee { font-weight: 800; color: var(--ink); white-space: nowrap; }
+.ctr__term-fee--bad { color: var(--negative); }
