@@ -307,6 +307,20 @@ describe("Franchises — a proven product line launches stronger", () => {
     expect(proven.preOrders).toBeGreaterThanOrEqual(fresh.preOrders);
   });
 
+  it("market fatigue: a same-spec follow-up loses open-market demand; a real upgrade doesn't", () => {
+    const week = 12;
+    const prev: LaunchedProduct = { ...activeLaunched({ ...phone(), id: "prev", name: "Aurora One" }), launchedWeek: week };
+    const base: GameState = { ...newGame(7), week, fans: 0, reputation: 50, launched: [prev] };
+    const rehash = planProduction(base, { ...phone(), id: "p2" }, 100_000, "none"); // identical specs
+    const upgrade = planProduction(base, { ...phone(), id: "p3", tiers: { chip: 6, display: 6, battery: 6, materials: 6, software: 6, camera: 6 } }, 100_000, "none");
+    expect(rehash.noveltyMult).toBeLessThan(1);
+    expect(rehash.similarTo).toBe("Aurora One");
+    expect(upgrade.noveltyMult).toBe(1); // a genuine step up reads as new
+    // Same rehash with no recent history sells more to the open market (fatigue is the difference).
+    const noHistory = planProduction({ ...base, launched: [] }, { ...phone(), id: "p2" }, 100_000, "none");
+    expect(rehash.marketDemand).toBeLessThan(noHistory.marketDemand);
+  });
+
   it("a different-named product does NOT inherit another line's equity", () => {
     const base: GameState = { ...newGame(22), fans: 4000, launched: [hitLaunch("Aurora Two")] };
     const sameLine = planProduction(base, { ...phone(), name: "Aurora Three" }, 5000, "none");

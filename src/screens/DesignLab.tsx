@@ -1823,6 +1823,14 @@ function BuildWizard({
                 hint="your own products still selling here split this demand"
               />
             )}
+            {plan.noveltyMult < 0.99 && plan.similarTo && (
+              <Stat
+                label="Market fatigue"
+                value={`−${Math.round((1 - plan.noveltyMult) * 100)}% demand`}
+                tone="negative"
+                hint={`too similar to ${plan.similarTo}${plan.similarWeeksAgo != null ? ` (${plan.similarWeeksAgo} wk ago)` : ""} — change more components or wait`}
+              />
+            )}
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
             {(() => {
               const sup = supplierFor(draft.supplierId);

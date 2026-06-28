@@ -100,6 +100,7 @@ import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
+import { noveltyFor } from "../engine/novelty.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
@@ -863,6 +864,9 @@ export interface ProductionPlan {
   betterRivals: number; // rivals clearly better than you
   selfCompeting: number; // your OWN products still selling in this category (cannibalization)
   competitionFactor: number; // 0..1 share you keep after competition
+  noveltyMult: number; // 0..1 organic-demand multiplier from market fatigue (1 = fresh)
+  similarTo?: string; // the recent too-similar product dragging novelty down (if any)
+  similarWeeksAgo?: number; // weeks since that product launched
   synergy: number; // 0.8..1.06 — component-combination balance (weak-link penalty / flagship bonus)
   preOrders: number; // guaranteed buyers from your fanbase
   marketDemand: number; // additional organic demand (after competition)
@@ -968,14 +972,21 @@ export function planProduction(
   // A proven line's loyal followers pre-order more strongly (brand equity → preorder lift).
   const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
   const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
-  const marketDemand = Math.round(organic * competitionFactor);
+  const competedOrganic = Math.round(organic * competitionFactor); // before market fatigue
+  // Market fatigue: a product too similar to a recent same-category launch loses ORGANIC demand
+  // (the broad market won't re-buy a rehash). Fans (pre-orders) are NOT fatigued — they still want
+  // the sequel — so this multiplies only the organic market, and the pre-order ceiling below is
+  // based on the un-fatigued organic. Real spec upgrades or elapsed time clear it. See novelty.ts.
+  const novelty = noveltyFor(product, s.launched, s.week);
+  const marketDemand = Math.round(competedOrganic * novelty.mult);
   // B4 — cap fan pre-orders to a share of TOTAL demand so a huge fanbase can't single-handedly
   // satisfy (and guarantee a sellout of) a token run. Pre-orders may cover at most preOrderCap of
   // (preOrders + organic market); the rest must come from the open market. Keeps fans meaningful
-  // without letting them trivialise the production bet.
+  // without letting them trivialise the production bet. Uses the un-fatigued organic so market
+  // sameness never shrinks the loyal pre-order base.
   const cap = BALANCE.fans.preOrderCap;
-  // Solve preOrders ≤ cap × (preOrders + marketDemand) → preOrders ≤ cap/(1-cap) × marketDemand.
-  const preOrderCeil = cap < 1 ? Math.round((cap / (1 - cap)) * marketDemand) : rawPreOrders;
+  // Solve preOrders ≤ cap × (preOrders + competedOrganic) → preOrders ≤ cap/(1-cap) × competedOrganic.
+  const preOrderCeil = cap < 1 ? Math.round((cap / (1 - cap)) * competedOrganic) : rawPreOrders;
   const preOrders = Math.min(rawPreOrders, preOrderCeil);
   const totalDemand = preOrders + marketDemand;
 
@@ -1021,6 +1032,9 @@ export function planProduction(
     betterRivals,
     selfCompeting,
     competitionFactor,
+    noveltyMult: novelty.mult,
+    similarTo: novelty.similarTo,
+    similarWeeksAgo: novelty.weeksAgo,
     synergy: breakdown.synergy,
     preOrders,
     marketDemand,

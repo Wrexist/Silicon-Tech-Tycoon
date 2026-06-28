@@ -359,6 +359,20 @@ export const BALANCE = {
   },
 
   // --- Build / manufacturing ---
+  // --- Market fatigue / novelty ---
+  // The market won't reward shipping the SAME product again with only cosmetic changes shortly after
+  // the last one — real buyers want a genuine step up, not a rerun. A new release is compared to your
+  // recent same-category launches; if it's too SIMILAR (component tiers barely changed) and too RECENT,
+  // organic market demand is cut. Meaningful spec upgrades OR enough elapsed time clear it. Fans still
+  // pre-order (this only dampens *organic* demand) — your loyal base buys the sequel, the broad market
+  // shrugs at a rehash. Mirrors the anti-spam intent of competition.selfPenalty, on the time axis.
+  novelty: {
+    fatigueWeeks: 30,     // how long a recent launch keeps fatiguing similar follow-ups (linear fade to 0)
+    maxPenalty: 0.55,     // organic-demand cut for an IDENTICAL launch the same week (→ keep 45%)
+    similarityFloor: 0.78, // below this spec-similarity a product reads as "new enough" → no penalty
+    tierSpan: 4,          // per-component tier distance that counts as "completely different" for that slot
+  },
+
   build: {
     baseWeeks: 3, // weeks to manufacture a product before it can launch
     minWeeks: 1,

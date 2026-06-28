@@ -1595,3 +1595,31 @@ via the count model in `gameState.ts`, passing `competitorStrength: 0` to scoreL
       hit rate to ~17% (you now fight for hits); if that reads as too harsh on a phone, soften
       `lateStrengthByEra` first (it is the bite). Living Late Game P1–P3 complete; remaining headroom is
       an on-device playtest of the new cadence + contest.
+
+## v56 — market fatigue / novelty: you can't spam near-identical devices (DONE 2026-06-28)
+Direct user ask: shipping the same type of device with minimal changes again and again should feel
+repetitive and the market shouldn't buy a too-similar product released not long ago. Engine-first,
+no PROTECTED refactor (new pure module + balance data + demand wiring + a "why" readout).
+- [x] **`engine/novelty.ts` (NEW, pure):** `productSimilarity(a,b)` (0..1, dominated by component
+      tiers + a little design tier; different category → 0) and `noveltyFor(product, history, week)`
+      → an organic-demand multiplier. A follow-up too SIMILAR to a recent same-category launch loses
+      demand; the most-similar recent product drives the cut, faded linearly over a fatigue window.
+- [x] **`balance.novelty`:** `fatigueWeeks 30`, `maxPenalty 0.55` (identical same-week re-release →
+      −55% organic), `similarityFloor 0.78` (below it a product reads as "new enough" → no penalty),
+      `tierSpan 4`. Harness-tuned; ⚠️ want a device playtest.
+- [x] **Wired into `planProduction` (gameState.ts):** novelty multiplies ONLY organic market demand;
+      the fan pre-order ceiling is computed from the un-fatigued (competition-adjusted) organic, so a
+      loyal base still pre-orders the sequel while the broad market shrugs at a rehash. New plan
+      fields `noveltyMult / similarTo / similarWeeksAgo`.
+- [x] **Readability (Epic C):** the build-wizard review shows a red "Market fatigue · −X% demand —
+      too similar to <product> (<n> wk ago) — change more components or wait" Stat, mirroring the
+      Cannibalization line. Verified live: a maxed rehash of "Aurora X" shows −27% and flips projected
+      profit negative (the spam tax is legible).
+- [x] **Tests:** `novelty.test.ts` (+6: identical/upgrade/time-heals/different-category/floor) and a
+      `production.test.ts` integration case (a same-spec follow-up loses open-market demand vs a real
+      upgrade / vs no history). 608 tests, tsc 0, full suite green.
+- **Measured (npm run sim):** the spam-happy auto-player's net worth drops ~19% ($2.10B → $1.69B) —
+      the fatigue bites a player who relaunches similar designs, while a player who diversifies avoids
+      it entirely. **0/40 bankruptcies + 40/40 IPO-win preserved**; early game byte-identical. (Macro
+      CV dipped 5.6%→4.0% because the auto-player spams uniformly across seeds — a measurement
+      artifact, not a design regression; real players vary.)
