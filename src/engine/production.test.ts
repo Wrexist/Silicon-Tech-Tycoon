@@ -391,6 +391,25 @@ describe("v16 balance guards (audit fixes)", () => {
     expect(toDollars(broke.cash)).toBe(0);
   });
 
+  it("supply-crunch hit scales with your sourcing: premium softens it, bargain amplifies it (P1.5)", () => {
+    const base: GameState = { ...newGame(8), cash: dollars(1_000_000) }; // high cash so the cap doesn't bind
+    const job = (supplierId: Product["supplierId"]) => ({
+      product: { ...phone(), supplierId },
+      totalWeeks: 3,
+      weeksElapsed: 0,
+    });
+    const cost = (s: GameState) =>
+      toDollars(s.cash) - toDollars(applyEventEffect(s, { kind: "supplyCrunch", cash: 8_000 }, 10, "crunch", "negative").cash);
+
+    const standard = cost({ ...base, building: [job("standard")] });
+    const premium = cost({ ...base, building: [job("novacore")] });
+    const bargain = cost({ ...base, building: [job("bargain")] });
+    expect(premium).toBeLessThan(standard);
+    expect(bargain).toBeGreaterThan(standard);
+    // standard sourcing is unchanged from the un-sourced baseline
+    expect(standard).toBeCloseTo(cost(base), 0);
+  });
+
   it("ecosystem services pay a meaningful weekly annuity from the installed base", () => {
     // Lifecycle-complete product (no sales revenue) with a big installed base: cash delta over
     // one tick must be ecosystem income minus burn, and the income must be real money, not noise.

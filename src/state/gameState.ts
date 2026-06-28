@@ -93,7 +93,7 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
-import { supplierLeadWeeks } from "../engine/suppliers.ts";
+import { supplierLeadWeeks, sourcingExposure } from "../engine/suppliers.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -1423,6 +1423,7 @@ export function applyEventEffect(
   feedTone: FeedTone,
 ): GameState {
   const feed = [...s.feed];
+  let text = feedText; // mutable so a supply crunch can annotate WHY it cost more / less
   let cash = s.cash;
   let reputation = s.reputation;
   let researchPoints = s.researchPoints;
@@ -1453,10 +1454,20 @@ export function applyEventEffect(
       staff = s.staff.map((m) => ({ ...m, mood: clampMood(m.mood + eff.mood) }));
       break;
     case "supplyCrunch": {
+      // P1.5 — the shock scales by your sourcing: premium suppliers on your active orders weather a
+      // crunch; bargain sourcing amplifies it. Neutral (×1) when sourcing standard / nothing in
+      // flight, so prior behaviour and saves are unchanged.
+      const exposure = sourcingExposure(
+        s.building.map((j) => j.product),
+        s.launched.length ? s.launched[s.launched.length - 1].product : undefined,
+      );
+      const scaledCash = eff.cash * exposure;
       // Sting, never kill: cap the hit at a share of cash on hand so a random event can't
       // push a by-the-book player below $0 (instant bankruptcy) mid-build.
       const capDollars = Math.max(0, toDollars(cash)) * BALANCE.events.crunchMaxCashShare;
-      cash = sub(cash, dollars(Math.min(eff.cash, capDollars)));
+      cash = sub(cash, dollars(Math.min(scaledCash, capDollars)));
+      if (exposure <= 0.8) text += " (resilient sourcing softened the blow)";
+      else if (exposure >= 1.2) text += " (bargain sourcing left you exposed)";
       break;
     }
     case "pressFeature":
@@ -1473,7 +1484,7 @@ export function applyEventEffect(
       break;
   }
 
-  feed.push(feedItem(week, feedText, feedTone));
+  feed.push(feedItem(week, text, feedTone));
   return { ...s, cash, reputation, researchPoints, trends, competitors, staff, fans, feed: trimFeed(feed) };
 }
 

@@ -11,6 +11,8 @@ import {
   supplierCostMult,
   supplierQualityDelta,
   supplierLeadWeeks,
+  supplierCrunchMult,
+  sourcingExposure,
 } from "./suppliers.ts";
 import type { Product, SupplierId } from "./types.ts";
 
@@ -80,6 +82,23 @@ describe("supplier effects on cost / quality / lead", () => {
   it("quality stays clamped to 0..100 even with a negative delta", () => {
     const low: Product = { ...product("bargain"), tiers: { chip: 1 }, designTier: 1 };
     expect(computeStats(low).quality).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("supply-crunch exposure (P1.5)", () => {
+  it("is neutral (1) with nothing sourcing, and falls back to the last shipped product", () => {
+    expect(sourcingExposure([])).toBe(1);
+    expect(sourcingExposure([], product("novacore"))).toBe(supplierCrunchMult(product("novacore")));
+  });
+
+  it("premium sourcing on active orders lowers exposure; bargain raises it", () => {
+    expect(sourcingExposure([product("novacore")])).toBeLessThan(1);
+    expect(sourcingExposure([product("bargain")])).toBeGreaterThan(1);
+  });
+
+  it("averages exposure across in-production builds (and ignores the fallback when building)", () => {
+    const avg = (supplierCrunchMult(product("bargain")) + supplierCrunchMult(product("vertex"))) / 2;
+    expect(sourcingExposure([product("bargain"), product("vertex")], product("standard"))).toBeCloseTo(avg, 5);
   });
 });
 

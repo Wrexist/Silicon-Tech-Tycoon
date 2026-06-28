@@ -19,6 +19,9 @@ export interface Supplier {
   costMult: number; // per-unit component cost multiplier (1.0 = catalog price)
   qualityDelta: number; // added to the product's `quality` stat (can be negative)
   leadWeeks: number; // extra manufacturing weeks of sourcing lead time
+  // Supply-chain resilience: multiplies the cash hit of a `supplyCrunch` event. >1 = exposed
+  // (cheap sourcing amplifies a shock), <1 = insured (premium sourcing weathers it). standard = 1.
+  crunchMult: number;
   trait: SupplierTrait;
   blurb: string; // one-line UI description
 }
@@ -34,6 +37,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     costMult: 0.82,
     qualityDelta: -5,
     leadWeeks: 1,
+    crunchMult: 1.5,
     trait: "value",
     blurb: "Cheapest parts — thinner specs and a slower boat.",
   },
@@ -44,6 +48,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     costMult: 1.0,
     qualityDelta: 0,
     leadWeeks: 0,
+    crunchMult: 1.0,
     trait: "standard",
     blurb: "Reliable mainstream sourcing. No surprises.",
   },
@@ -54,6 +59,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     costMult: 1.1,
     qualityDelta: 3,
     leadWeeks: 0,
+    crunchMult: 0.85,
     trait: "premium",
     blurb: "Better panels and cells for a modest premium.",
   },
@@ -64,6 +70,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     costMult: 1.22,
     qualityDelta: 6,
     leadWeeks: 0,
+    crunchMult: 0.7,
     trait: "premium",
     blurb: "Premium components — a real lift to build quality.",
   },
@@ -74,6 +81,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     costMult: 1.3,
     qualityDelta: 8,
     leadWeeks: 0,
+    crunchMult: 0.55,
     trait: "elite",
     blurb: "Bleeding-edge parts, sourced direct from the foundry.",
   },
@@ -84,6 +92,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     costMult: 1.4,
     qualityDelta: 10,
     leadWeeks: 0,
+    crunchMult: 0.45,
     trait: "elite",
     blurb: "The finest components money can buy. Flagship-grade.",
   },
@@ -109,3 +118,14 @@ export function isSupplierUnlocked(id: SupplierId, era: number): boolean {
 export const supplierCostMult = (p: Product): number => supplierFor(p.supplierId).costMult;
 export const supplierQualityDelta = (p: Product): number => supplierFor(p.supplierId).qualityDelta;
 export const supplierLeadWeeks = (p: Product): number => supplierFor(p.supplierId).leadWeeks;
+export const supplierCrunchMult = (p: Product): number => supplierFor(p.supplierId).crunchMult;
+
+/** A company's exposure to a supply-crunch shock, derived from the parts it's actually sourcing:
+ *  the average resilience of in-production builds; if nothing is building, the most recent shipped
+ *  product's sourcing posture; otherwise neutral (1). Premium sourcing on active orders softens a
+ *  crunch; bargain sourcing amplifies it. Pure — takes just the products it should weigh. */
+export function sourcingExposure(building: Product[], lastShipped?: Product): number {
+  const sources = building.length ? building : lastShipped ? [lastShipped] : [];
+  if (!sources.length) return 1;
+  return sources.reduce((sum, p) => sum + supplierCrunchMult(p), 0) / sources.length;
+}

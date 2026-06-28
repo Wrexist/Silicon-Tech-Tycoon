@@ -772,6 +772,12 @@ export function DesignLab({
                         {sup.leadWeeks > 0 && (
                           <span className="lab__sup-tag lab__sup-tag--bad">+{sup.leadWeeks} wk lead</span>
                         )}
+                        {sup.crunchMult < 1 && (
+                          <span className="lab__sup-tag lab__sup-tag--good">shock-resistant</span>
+                        )}
+                        {sup.crunchMult > 1 && (
+                          <span className="lab__sup-tag lab__sup-tag--bad">crunch-exposed</span>
+                        )}
                       </span>
                     </span>
                     <span className="lab__supplier-check" aria-hidden>{on && <Check size={16} />}</span>
