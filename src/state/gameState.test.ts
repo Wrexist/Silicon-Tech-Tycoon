@@ -598,6 +598,13 @@ describe("trainStaff — paid training must actually improve output", () => {
   it("is a no-op at max skill or when broke (no cash spent)", () => {
     const broke: GameState = { ...newGame(7), cash: dollars(0) };
     expect(trainStaff(broke, "s0")).toBe(broke); // can't afford → unchanged reference
+
+    const maxed: GameState = {
+      ...broke,
+      cash: dollars(1_000_000),
+      staff: broke.staff.map((m) => (m.id === "s0" ? { ...m, skill: BALANCE.staff.maxSkill } : m)),
+    };
+    expect(trainStaff(maxed, "s0")).toBe(maxed); // already maxed → unchanged reference, no cash spent
   });
 });
 

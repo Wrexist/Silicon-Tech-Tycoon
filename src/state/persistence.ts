@@ -438,11 +438,14 @@ function migrate(state: GameState): GameState | null {
   if (s.recruitment && s.recruitment.tier == null) s.recruitment.tier = "board";
   if (Array.isArray(s.launched)) {
     s.launched = s.launched
-      // A launched entry with no `product` is unrecoverable — the sales tick dereferences
-      // lp.product.price / lp.product.category unconditionally (advanceOneWeek), so a truncated or
-      // hand-edited save that boots OK would crash on the FIRST tick (after autosave may have run).
-      // Drop those entries so the rest of the save loads cleanly rather than taking the app down.
-      .filter((lp: any) => lp && lp.product)
+      // A launched entry without a USABLE product is unrecoverable — the sales tick dereferences
+      // lp.product.price / lp.product.category unconditionally (advanceOneWeek), and fixProduct does
+      // NOT backfill those two. So a truncated/hand-edited save that boots OK would crash or feed NaN
+      // into sales/rival math on the FIRST tick. Require a real product shape; drop the rest so the
+      // rest of the save loads cleanly rather than taking the app down.
+      .filter((lp: any) =>
+        lp && lp.product && typeof lp.product === "object" &&
+        Number.isFinite(lp.product.price) && typeof lp.product.category === "string")
       .map((lp: any) => {
       lp.product = fixProduct(lp.product);
       // Coerce the per-product fields the sales tick dereferences so a truncated/older save can't

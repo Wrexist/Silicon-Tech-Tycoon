@@ -1325,7 +1325,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   {
     const rc = BALANCE.reputation;
     if (!bankrupt && state.era >= rc.decayFromEra && reputation > rc.decayFloor) {
-      reputation = Math.max(rc.decayFloor, reputation - rc.decayPerWeekLate);
+      // Scale by `rate` so a partial offline catch-up tick decays proportionally (matches the rest
+      // of the tick math, which weights offline weeks by `rate`).
+      reputation = Math.max(rc.decayFloor, reputation - rc.decayPerWeekLate * rate);
     }
   }
 

@@ -80,16 +80,18 @@ export function LaunchReveal() {
   const v = VERDICT_COPY[data.verdict];
 
   return (
-    <div
-      ref={dialogRef}
-      tabIndex={-1}
-      className={`lreveal lreveal--${v.tone}`}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Launch results for ${data.product.name}`}
-    >
+    <div className={`lreveal lreveal--${v.tone}`}>
+      {/* Scrim sits OUTSIDE the focus trap (the dialog is the card below), so keyboard focus lands on
+          the dialog controls, not the invisible backdrop button. */}
       <button className="lreveal__scrim" aria-label="Dismiss" onClick={close} />
-      <div className="lreveal__card">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="lreveal__card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Launch results for ${data.product.name}`}
+      >
         <button className="lreveal__close" onClick={close} aria-label="Close"><X size={18} /></button>
 
         <div className="lreveal__stage">

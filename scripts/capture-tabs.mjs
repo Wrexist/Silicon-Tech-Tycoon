@@ -13,7 +13,7 @@ const EXE = process.env.SHOTS_CHROME || "/opt/pw-browsers/chromium-1194/chrome-l
 const outDir = resolve(root, ".tab-shots");
 await mkdir(outDir, { recursive: true });
 
-let staged = (await readFile(process.env.SHOTS_SAVE)).toString();
+let staged = (await readFile(process.env.SHOTS_SAVE || "/tmp/silicon-stage.json")).toString();
 { const sv = JSON.parse(staged); sv.lastActive = Date.now(); staged = JSON.stringify(sv); }
 
 const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] });

@@ -12,6 +12,7 @@ import {
 import { priceGuidance } from "../src/engine/market.ts";
 import { CATEGORIES } from "../src/engine/catalogs.ts";
 import { toDollars } from "../src/engine/money.ts";
+import { BALANCE } from "../src/engine/balance.ts";
 
 const SLOTS = CATEGORIES.phone.slots;
 const CHANNELS = ["none", "social", "search", "billboards", "influencer", "tv", "event"];
@@ -175,7 +176,10 @@ for (const k of ["hit", "solid", "steady", "flop"]) {
 console.log(`\nFinal net worth:     median ${money(median(agg((r) => r.finalNetWorth)))}  p10 ${money(pct(agg((r) => r.finalNetWorth), 0.1))}  p90 ${money(pct(agg((r) => r.finalNetWorth), 0.9))}`);
 const winWeeks = runs.map((r) => r.winWeek).filter((w) => w != null);
 console.log(`\nIPO "win" available: median wk ${winWeeks.length ? median(winWeeks) : "—"} (${winWeeks.length}/${runs.length} reached era4+rep85)`);
-console.log(`  → real time to win: base ${(median(winWeeks) * 8 / 60).toFixed(0)} min of ticks · Fast ${(median(winWeeks) * 1 / 60).toFixed(1)} min of ticks (plus design/management time)`);
+if (winWeeks.length) {
+  const w = median(winWeeks);
+  console.log(`  → real time to win: base ${(w * 8 / 60).toFixed(0)} min of ticks · Fast ${(w * 1 / 60).toFixed(1)} min of ticks (plus design/management time)`);
+}
 console.log(`Reached IPO/listed:  ${runs.filter((r) => r.listed).length}/${runs.length}`);
 console.log(`Final reputation:    median ${median(agg((r) => r.reputation)).toFixed(0)}`);
 
@@ -191,10 +195,11 @@ console.log(`Per-run hit-rate:    p10 ${(pct(hitRates, 0.1) * 100).toFixed(0)}% 
 console.log(`Reputation low (≥E2):median ${median(agg((r) => r.repMinLate)).toFixed(0)}  min ${Math.min(...agg((r) => r.repMinLate)).toFixed(0)}  (never dips = no adversity)`);
 
 // effectiveScore landscape vs the verdict bands, per era — the precise retune diagnostic.
-const BANDS = {
-  1: { flop: 10, solid: 45, hit: 70 }, 2: { flop: 21, solid: 56, hit: 80 },
-  3: { flop: 27, solid: 98, hit: 116 }, 4: { flop: 35, solid: 115, hit: 128 },
-};
+// Derived from the live engine tuning so the diagnostic can never drift from balance.ts.
+const { hitThresholdByEra, solidThresholdByEra, flopThresholdByEra } = BALANCE.reputation;
+const BANDS = Object.fromEntries(
+  hitThresholdByEra.map((hit, i) => [i + 1, { flop: flopThresholdByEra[i], solid: solidThresholdByEra[i], hit }]),
+);
 console.log(`\neffectiveScore landscape (launchScore × competitionFactor), per era:`);
 console.log(`  era   n     p10    p50    p90     | bands flop/solid/hit`);
 for (const era of [1, 2, 3, 4]) {

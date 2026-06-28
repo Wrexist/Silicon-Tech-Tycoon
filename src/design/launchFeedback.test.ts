@@ -50,15 +50,15 @@ describe("launchOutcome (shared by Design Lab + HQ)", () => {
   });
 });
 
-describe("currentHitStreak", () => {
+describe("currentHitStreak (launched is NEWEST-FIRST)", () => {
   const L = (...v: string[]) => v.map((verdict) => ({ verdict }));
-  it("counts consecutive hits from the most recent launch backward", () => {
-    expect(currentHitStreak(L("solid", "hit", "hit", "hit"))).toBe(3);
+  it("counts consecutive hits from the newest launch (index 0) forward", () => {
+    expect(currentHitStreak(L("hit", "hit", "hit", "solid"))).toBe(3);
     expect(currentHitStreak(L("hit", "hit"))).toBe(2);
   });
-  it("is 0 when the latest launch is not a hit (the streak is broken)", () => {
-    expect(currentHitStreak(L("hit", "hit", "flop"))).toBe(0);
-    expect(currentHitStreak(L("hit", "hit", "steady"))).toBe(0);
+  it("is 0 when the newest launch is not a hit (the streak is broken)", () => {
+    expect(currentHitStreak(L("flop", "hit", "hit"))).toBe(0);
+    expect(currentHitStreak(L("steady", "hit", "hit"))).toBe(0);
   });
   it("handles an empty line-up", () => {
     expect(currentHitStreak([])).toBe(0);

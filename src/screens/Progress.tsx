@@ -1,10 +1,11 @@
 // Progress hub — the meta/progression layer (Achievements · Scenarios · Challenges · Device Museum)
 // pulled OUT of the Finance tab's junk drawer into one discoverable surface, opened from the HUD
-// trophy. Each row opens its existing sheet; the hub stays mounted behind so closing a sub-sheet
-// returns here. Gated (in App) on the first ship, so an empty garage isn't buried under systems.
+// trophy. SINGLE-SHEET model: App wraps this in one <Sheet>; selecting a row swaps THIS content for
+// the chosen sub-sheet's content (no nested <Sheet>, so there's only ever one aria-modal + one Escape
+// handler). The sub-sheet's close returns to the hub; the hub's close (or Escape) exits Progress.
+// Gated (in App) on the first ship, so an empty garage isn't buried under systems.
 import { useState } from "react";
 import { Award, Boxes, CalendarDays, Target, Trophy, X } from "lucide-react";
-import { Sheet } from "../design/primitives.tsx";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ScenariosSheet } from "./Scenarios.tsx";
 import { ChallengesSheet } from "./Challenges.tsx";
@@ -17,18 +18,24 @@ import { SCENARIOS } from "../engine/scenarios.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./progress.css";
 
+type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum";
+
 export function ProgressSheet({ onClose }: { onClose: () => void }) {
   const { state } = useGame();
-  const [achievementsOpen, setAchievementsOpen] = useState(false);
-  const [scenariosOpen, setScenariosOpen] = useState(false);
-  const [challengesOpen, setChallengesOpen] = useState(false);
-  const [museumOpen, setMuseumOpen] = useState(false);
+  const [view, setView] = useState<View>("hub");
+  const toHub = () => setView("hub");
 
   const museumCount = getMuseum().length;
   // Lifetime (cross-company) earned set — the profile union with this run's unlocks.
   const earnedAchievements = [...new Set([...getProfileAchievements(), ...state.unlockedAchievements])];
   const storedScenarioStars = getScenarioStars();
   const scenarioStars = SCENARIOS.reduce((sum, s) => sum + (storedScenarioStars[s.id] ?? 0), 0);
+
+  // Sub-views render their content directly inside App's single Sheet (back-arrow returns to the hub).
+  if (view === "achievements") return <AchievementsSheet unlocked={earnedAchievements} onClose={toHub} />;
+  if (view === "scenarios") return <ScenariosSheet onClose={toHub} />;
+  if (view === "challenges") return <ChallengesSheet onClose={toHub} />;
+  if (view === "museum") return <MuseumSheet onClose={toHub} />;
 
   return (
     <div className="prog">
@@ -41,7 +48,7 @@ export function ProgressSheet({ onClose }: { onClose: () => void }) {
         <button className="prog__close" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </div>
 
-      <button className="prog__row" onClick={() => setAchievementsOpen(true)} aria-label="View achievements">
+      <button className="prog__row" onClick={() => setView("achievements")}>
         <span className="prog__row-glyph" aria-hidden><Award size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Achievements</span>
@@ -50,7 +57,7 @@ export function ProgressSheet({ onClose }: { onClose: () => void }) {
         <span className="prog__row-count tnum">{earnedAchievements.length}<span className="prog__row-count-total">/{ACHIEVEMENT_COUNT}</span></span>
       </button>
 
-      <button className="prog__row" onClick={() => setScenariosOpen(true)} aria-label="View scenarios">
+      <button className="prog__row" onClick={() => setView("scenarios")}>
         <span className="prog__row-glyph" aria-hidden><Target size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Scenarios</span>
@@ -59,7 +66,7 @@ export function ProgressSheet({ onClose }: { onClose: () => void }) {
         <span className="prog__row-count tnum">{scenarioStars}<span className="prog__row-count-total">/{SCENARIOS.length * 3}★</span></span>
       </button>
 
-      <button className="prog__row" onClick={() => setChallengesOpen(true)} aria-label="View daily and weekly challenges">
+      <button className="prog__row" onClick={() => setView("challenges")}>
         <span className="prog__row-glyph" aria-hidden><CalendarDays size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Challenges</span>
@@ -67,7 +74,7 @@ export function ProgressSheet({ onClose }: { onClose: () => void }) {
         </span>
       </button>
 
-      <button className="prog__row" onClick={() => setMuseumOpen(true)} aria-label="Open the device museum">
+      <button className="prog__row" onClick={() => setView("museum")}>
         <span className="prog__row-glyph" aria-hidden><Boxes size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Device Museum</span>
@@ -75,19 +82,6 @@ export function ProgressSheet({ onClose }: { onClose: () => void }) {
         </span>
         {museumCount > 0 && <span className="prog__row-count tnum">{museumCount}</span>}
       </button>
-
-      <Sheet open={achievementsOpen} onClose={() => setAchievementsOpen(false)}>
-        <AchievementsSheet unlocked={earnedAchievements} onClose={() => setAchievementsOpen(false)} />
-      </Sheet>
-      <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)}>
-        <ScenariosSheet onClose={() => setScenariosOpen(false)} />
-      </Sheet>
-      <Sheet open={challengesOpen} onClose={() => setChallengesOpen(false)}>
-        <ChallengesSheet onClose={() => setChallengesOpen(false)} />
-      </Sheet>
-      <Sheet open={museumOpen} onClose={() => setMuseumOpen(false)}>
-        <MuseumSheet onClose={() => setMuseumOpen(false)} />
-      </Sheet>
     </div>
   );
 }
