@@ -6,7 +6,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
 import { maybePromptFirstLaunchReview } from "../state/review.ts";
-import { launchOutcome } from "../design/launchFeedback.ts";
+import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
@@ -406,6 +406,9 @@ export function DesignLab({
       haptic.heavy();
       if (!isHit) setTimeout(() => sfx("hit"), 420);
     }
+    // Hit-streak dopamine (mirrors HQ): a hit extends the pre-launch streak; anything else breaks it.
+    const streak = isHit ? currentHitStreak(launchedBefore) + 1 : 0;
+    if (streak >= 3) setTimeout(() => haptic.heavy(), 200);
     if (product && plan) {
       emitLaunchReveal(buildLaunchReveal({
         product,
@@ -417,6 +420,7 @@ export function DesignLab({
         units: plan.projectedSales,
         isHit,
         firstLaunch: launchedBefore.length === 0,
+        streak,
       }));
       // First product ever shipped — a real high point. Ask for an App Store review (once).
       if (launchedBefore.length === 0) maybePromptFirstLaunchReview();

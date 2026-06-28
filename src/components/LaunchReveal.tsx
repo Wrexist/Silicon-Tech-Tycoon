@@ -2,7 +2,7 @@
 // critic reviews counting in, then the verdict + projected sales, with confetti on a hit. Mounted
 // once in App; driven by the launchReveal module bus. Reduced-motion jumps straight to the result.
 import { useEffect, useRef, useState } from "react";
-import { Rocket, Sparkles, Star, X } from "lucide-react";
+import { Flame, Rocket, Sparkles, Star, X } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { onLaunchReveal, type LaunchRevealData } from "../design/launchReveal.ts";
@@ -123,6 +123,12 @@ export function LaunchReveal() {
         {stage === "verdict" && (
           <>
             <div className={`lreveal__verdict lreveal__verdict--${v.tone}`}>{v.label}</div>
+            {data.streak >= 2 && (
+              <div className="lreveal__streak">
+                <Flame size={14} aria-hidden />
+                {data.streak >= 4 ? `${data.streak} in a row · unstoppable` : data.streak === 3 ? "3 in a row · on fire" : "2 hits in a row"}
+              </div>
+            )}
             <div className="lreveal__units">
               <span className="lreveal__units-val tnum">{units.toLocaleString()}</span>
               <span className="lreveal__units-label">units projected to sell</span>

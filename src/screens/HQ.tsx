@@ -10,7 +10,7 @@ import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
-import { launchOutcome } from "../design/launchFeedback.ts";
+import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
@@ -121,6 +121,10 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
         haptic.heavy();
         if (!isHit) setTimeout(() => sfx("hit"), 420);
       }
+      // Hit-streak dopamine: a run of consecutive hits escalates the celebration (badge + a heavier
+      // thump from 3 in a row). A hit extends the pre-launch streak; anything else breaks it.
+      const streak = isHit ? currentHitStreak(launchedBefore) + 1 : 0;
+      if (streak >= 3) setTimeout(() => haptic.heavy(), 200);
       if (product && plan) {
         emitLaunchReveal(buildLaunchReveal({
           product,
@@ -132,6 +136,7 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
           units: plan.projectedSales,
           isHit,
           firstLaunch: launchedBefore.length === 0,
+          streak,
         }));
         // First product ever shipped — a real high point. Ask for an App Store review (once).
         if (launchedBefore.length === 0) maybePromptFirstLaunchReview();

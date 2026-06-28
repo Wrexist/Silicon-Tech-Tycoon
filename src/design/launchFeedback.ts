@@ -31,6 +31,17 @@ export function launchFeedback(verdict: LaunchVerdict, firstEver: boolean, first
   return { text: "Launched into the market.", tone: "neutral" };
 }
 
+/** Consecutive "hit" verdicts from the most recent launch backward — the live hit streak. Pass the
+ *  `launched` array AFTER this launch is recorded so it includes the launch just made. */
+export function currentHitStreak(launched: readonly { verdict?: string }[]): number {
+  let n = 0;
+  for (let i = launched.length - 1; i >= 0; i--) {
+    if (launched[i].verdict === "hit") n++;
+    else break;
+  }
+  return n;
+}
+
 export interface LaunchOutcome {
   /** Whether to fire the celebratory beat (confetti + hit SFX). */
   isHit: boolean;
