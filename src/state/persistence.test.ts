@@ -265,6 +265,35 @@ describe("launched verdict — recorded on launch, backfilled for old saves", ()
     expect(back).not.toBeNull();
     expect(back!.launched[0].verdict).toBe("hit"); // 88 >= 76 threshold
   });
+
+  it("drops an unrecoverable launched entry missing its product, keeping the rest", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const good = { product: goodPhone(), stats: { performance: 50, quality: 50, battery: 50, design: 50, ecosystem: 50 }, unitCost: dollars(80), launchScore: 88, launchedWeek: 2, totalUnits: 9000, weeklyUnits: [1000], unitsSold: 9000, weeksElapsed: 5, revenueToDate: dollars(120000), verdict: "hit" };
+    const corrupt = { stats: {}, launchScore: 40, totalUnits: 0, weeklyUnits: [], unitsSold: 0, weeksElapsed: 0, revenueToDate: dollars(0) }; // no `product`
+    const legacy: GameState = {
+      ...newGame(7),
+      launched: [good, corrupt] as unknown as GameState["launched"],
+    };
+    const back = importSaveString(exportSaveString(legacy));
+    expect(back).not.toBeNull();
+    // the corrupt entry is gone; the valid one survives (no first-tick crash on lp.product.*)
+    expect(back!.launched).toHaveLength(1);
+    expect(back!.launched[0].product.category).toBe("phone");
+  });
+
+  it("backfills a missing launchedWeek to a finite value (no NaN into franchise/hype math)", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const legacy: GameState = {
+      ...newGame(7),
+      launched: [
+        // launchedWeek omitted — older builds didn't persist it
+        { product: goodPhone(), stats: { performance: 50, quality: 50, battery: 50, design: 50, ecosystem: 50 }, unitCost: dollars(80), launchScore: 88, totalUnits: 9000, weeklyUnits: [1000], unitsSold: 9000, weeksElapsed: 5, revenueToDate: dollars(120000), verdict: "hit" },
+      ] as unknown as GameState["launched"],
+    };
+    const back = importSaveString(exportSaveString(legacy));
+    expect(back).not.toBeNull();
+    expect(Number.isFinite(back!.launched[0].launchedWeek)).toBe(true);
+  });
 });
 
 describe("achievements — migrate backfills earned milestones SILENTLY on an old save", () => {
