@@ -609,6 +609,13 @@ export const BALANCE = {
     crunchMaxCashShare: 0.35,
   },
 
+  // --- Factory manufacturing (engine/factories.ts) ---
+  // Over-capacity units cost the per-unit price PLUS this surcharge — the price of pushing a budget
+  // line past its weekly throughput on a big run.
+  factory: {
+    overtimeSurcharge: 0.6, // +60% on each over-capacity unit
+  },
+
   // --- Offline catch-up ---
   offline: {
     maxCatchUpWeeks: 8, // cap how much offline time is simulated

@@ -43,6 +43,9 @@ export type RegionId = "home" | "north_america" | "europe" | "asia" | "emerging"
 /** Component supplier id (engine/suppliers.ts owns the catalog + effects). */
 export type SupplierId = "bargain" | "standard" | "lumen" | "novacore" | "atlas" | "vertex";
 
+/** Manufacturing factory id (engine/factories.ts owns the catalog + effects). */
+export type FactoryId = "standard" | "eastwind" | "kairos" | "apex";
+
 /** Canonical finish order, cheap→premium. Doubles as the unlock ladder: the first
  *  `BALANCE.design.freeFinishes` are available from the start; the rest are RP-unlocked in order. */
 export const FINISH_ORDER: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
@@ -133,6 +136,10 @@ export interface Product {
   /** Component supplier (engine/suppliers.ts) — trades unit cost / quality / lead time. Optional —
    *  unset resolves to the neutral "standard" supplier, so older saves are unchanged. */
   supplierId?: SupplierId;
+  /** Manufacturing factory (engine/factories.ts) — trades tooling / per-unit cost / build speed /
+   *  throughput capacity. Optional — unset resolves to the neutral "standard" factory (unlimited
+   *  capacity), so older saves are unchanged. */
+  factoryId?: FactoryId;
 }
 
 export function defaultCameraDesign(): CameraDesign {

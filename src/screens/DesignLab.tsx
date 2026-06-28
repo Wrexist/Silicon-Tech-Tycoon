@@ -10,6 +10,7 @@ import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
+import { unlockedFactories, factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
@@ -778,6 +779,47 @@ export function DesignLab({
                         {sup.crunchMult > 1 && (
                           <span className="lab__sup-tag lab__sup-tag--bad">crunch-exposed</span>
                         )}
+                      </span>
+                    </span>
+                    <span className="lab__supplier-check" aria-hidden>{on && <Check size={16} />}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Manufacturing — pick the factory. Trades tooling / per-unit cost / build speed and a
+              throughput capacity (over-capacity runs pay overtime, surfaced in the build wizard). */}
+          <Card>
+            <SectionHeader title="Manufacturing" accessory="factory" />
+            <div className="lab__suppliers">
+              {unlockedFactories(state.era).map((fac) => {
+                const on = (draft.factoryId ?? DEFAULT_FACTORY_ID) === fac.id;
+                const toolPct = Math.round((fac.toolingMult - 1) * 100);
+                const unitPct = Math.round((fac.unitMult - 1) * 100);
+                return (
+                  <button
+                    key={fac.id}
+                    className={`lab__supplier${on ? " lab__supplier--on" : ""}`}
+                    aria-pressed={on}
+                    onClick={() => { haptic.light(); set({ factoryId: fac.id }); }}
+                  >
+                    <span className="lab__supplier-main">
+                      <span className="lab__supplier-name">{fac.name}</span>
+                      <span className="lab__supplier-blurb">{fac.blurb}</span>
+                      <span className="lab__supplier-tags">
+                        <span className={`lab__sup-tag lab__sup-tag--${fac.speedMult < 1 ? "good" : fac.speedMult > 1 ? "bad" : "neutral"}`}>
+                          {fac.speedMult < 1 ? "faster build" : fac.speedMult > 1 ? "slower build" : "standard speed"}
+                        </span>
+                        {toolPct !== 0 && (
+                          <span className={`lab__sup-tag lab__sup-tag--${toolPct < 0 ? "cost-down" : "cost-up"}`}>{toolPct > 0 ? "+" : ""}{toolPct}% tooling</span>
+                        )}
+                        {unitPct !== 0 && (
+                          <span className={`lab__sup-tag lab__sup-tag--${unitPct < 0 ? "cost-down" : "cost-up"}`}>{unitPct > 0 ? "+" : ""}{unitPct}% unit</span>
+                        )}
+                        <span className="lab__sup-tag">
+                          {Number.isFinite(fac.capacityPerWeek) ? `${fac.capacityPerWeek.toLocaleString()}/wk cap` : "no capacity limit"}
+                        </span>
                       </span>
                     </span>
                     <span className="lab__supplier-check" aria-hidden>{on && <Check size={16} />}</span>
@@ -1615,6 +1657,12 @@ function BuildWizard({
               if (sup.leadWeeks > 0) bits.push(`+${sup.leadWeeks} wk lead`);
               return <Stat label="Sourced via" value={sup.name} hint={bits.join(" · ")} />;
             })()}
+            <Stat
+              label="Built at"
+              value={factoryFor(draft.factoryId).name}
+              tone={plan.overCapacity ? "negative" : undefined}
+              hint={plan.overCapacity ? `over capacity — ${plan.overtimeUnits.toLocaleString()} units on overtime` : "within capacity"}
+            />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
             <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "run sells out — you could make more" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
             <Stat label="Projected profit" value={format(plan.projectedProfit)} tone={plan.projectedProfit >= 0 ? "positive" : "negative"} />
@@ -1644,6 +1692,11 @@ function BuildWizard({
             <span>Upfront cost</span>
             <span className={`rounded tnum${affordable ? "" : " wiz__total--bad"}`}>{format(plan.totalUpfront)}</span>
           </div>
+          {plan.overCapacity && (
+            <p className="wiz__warn wiz__warn--risk">
+              <AlertTriangle size={14} /> Over {factoryFor(draft.factoryId).name}'s capacity: {plan.overtimeUnits.toLocaleString()} units run on overtime (+{format(plan.overtimeCost)}). A faster or higher-capacity line — or a smaller run — avoids it.
+            </p>
+          )}
           {!affordable && (
             <p className="wiz__warn">
               Need {format(sub(plan.totalUpfront, state.cash))} more — reduce the run size or pick a cheaper campaign.

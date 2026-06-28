@@ -94,6 +94,7 @@ import {
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { supplierLeadWeeks, sourcingExposure } from "../engine/suppliers.ts";
+import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, overtimeUnits } from "../engine/factories.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -716,18 +717,18 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // rides it) lands sooner. First playthrough only (legacy 0), first build only (nothing in flight).
   const firstEver = s.legacy === 0 && s.launched.length === 0 && s.building.length === 0 && s.ready.length === 0;
   if (firstEver) return BALANCE.build.minWeeks + lead;
-  return Math.max(
-    BALANCE.build.minWeeks,
-    Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades))
-      - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0),
-  ) + lead;
+  // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1.
+  const speed = product ? factorySpeedMult(product) : 1;
+  const assembly = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * speed)
+    - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
+  return Math.max(BALANCE.build.minWeeks, assembly) + lead;
 };
 
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
   const perk = 1 - perkBonuses(s.legacy).buildCostMult; // NG+ Supply Chain / Industrialist perks
-  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk);
+  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product));
   return base > BALANCE.build.minTooling ? base : BALANCE.build.minTooling;
 }
 
@@ -738,6 +739,7 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
+  unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   return scale(unitCost, buildCostMult(s.upgrades));
 }
 
@@ -748,6 +750,11 @@ export interface ProductionPlan {
   tooling: Money;
   channelCost: Money;
   totalUpfront: Money;
+  overtimeCost: Money; // surcharge for units built beyond factory capacity (0 = within capacity)
+  overtimeUnits: number; // units that exceeded capacity × build-weeks
+  overCapacity: boolean; // the run pushes the factory past its throughput
+  factoryCapacityPerWeek: number; // chosen factory's weekly throughput (Infinity = no ceiling)
+  assemblyWeeks: number; // build duration the capacity check used
   launchScore: number;
   demandFit: number; // 0..100 — how well the product matches current demand
   priceFit: number; // 0..1.35 — price fairness vs. perceived value (1 = on the money; →0 = gouging)
@@ -877,11 +884,18 @@ export function planProduction(
   const projectedSales = Math.min(planned, totalDemand);
   const sellsOut = totalDemand > planned && planned > 0;
 
+  // Factory throughput: units beyond capacity × build-weeks cost an overtime surcharge. The neutral
+  // "standard" factory has unlimited capacity → overUnits 0 → zero ripple for old saves/default.
+  const assemblyWeeks = buildWeeksFor(s, product);
+  const capacityPerWeek = factoryCapacityPerWeek(product);
+  const overUnits = overtimeUnits(planned, capacityPerWeek, assemblyWeeks);
+  const overtimeCost = scale(unitCost, overUnits * BALANCE.factory.overtimeSurcharge);
+
   const productionCost = scale(unitCost, planned);
   const channelCost = channel.cost;
-  const totalUpfront = add(add(tooling, productionCost), channelCost) as Money;
+  const totalUpfront = add(add(add(tooling, productionCost), channelCost), overtimeCost) as Money;
   const projectedRevenue = scale(product.price, projectedSales);
-  const projectedProfit = sub(sub(projectedRevenue, productionCost), add(tooling, channelCost)) as Money;
+  const projectedProfit = sub(sub(projectedRevenue, add(productionCost, overtimeCost)), add(tooling, channelCost)) as Money;
   const spendable = sub(s.cash, add(tooling, channelCost));
   const maxAffordableUnits = unitCost > 0 ? Math.max(0, Math.floor(toDollars(spendable) / toDollars(unitCost))) : BALANCE.build.maxRun;
 
@@ -892,6 +906,11 @@ export function planProduction(
     tooling,
     channelCost,
     totalUpfront,
+    overtimeCost,
+    overtimeUnits: overUnits,
+    overCapacity: overUnits > 0,
+    factoryCapacityPerWeek: capacityPerWeek,
+    assemblyWeeks,
     launchScore: breakdown.launchScore,
     demandFit,
     priceFit: breakdown.priceFit,
