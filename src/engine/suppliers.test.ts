@@ -12,6 +12,8 @@ import {
   supplierQualityDelta,
   supplierLeadWeeks,
   supplierCrunchMult,
+  supplierEthicsRepDelta,
+  supplierEthicsLabel,
   sourcingExposure,
   supplierLoyaltyTier,
   supplierLoyaltyDiscount,
@@ -20,7 +22,7 @@ import {
   contractTerm,
   contractDiscount,
 } from "./suppliers.ts";
-import { newGame, startBuild, effectiveUnitCost, recommendedRun, negotiateContract, contractSignFee, applyEventEffect, advanceOneWeek } from "../state/gameState.ts";
+import { newGame, startBuild, effectiveUnitCost, recommendedRun, negotiateContract, contractSignFee, applyEventEffect, advanceOneWeek, launchReady } from "../state/gameState.ts";
 import type { Product, SupplierId } from "./types.ts";
 
 function product(supplierId?: SupplierId): Product {
@@ -201,6 +203,36 @@ describe("supplier contracts (negotiation hedge)", () => {
     const poor = { ...newGame(8), era: 1, cash: dollars(10) };
     expect(negotiateContract(poor, "novacore", "annual").supplierContracts ?? {}).toEqual({}); // can't afford
     expect(negotiateContract({ ...poor, cash: dollars(50_000_000) }, "vertex", "quarter").supplierContracts ?? {}).toEqual({}); // vertex is era 4
+  });
+});
+
+describe("supplier ethics (sustainability axis)", () => {
+  it("rep delta is negative for cheap sourcing, zero for standard, positive for premium", () => {
+    expect(supplierEthicsRepDelta(product("bargain"))).toBeLessThan(0);
+    expect(supplierEthicsRepDelta(product("standard"))).toBe(0);
+    expect(supplierEthicsRepDelta(product("vertex"))).toBeGreaterThan(0);
+  });
+
+  it("labels the rating", () => {
+    expect(supplierEthicsLabel(88)).toBe("Exemplary");
+    expect(supplierEthicsLabel(65)).toBe("Responsible");
+    expect(supplierEthicsLabel(55)).toBe("Standard");
+    expect(supplierEthicsLabel(25)).toBe("Exploitative");
+  });
+
+  it("a launch with responsible sourcing ends with more reputation than the same launch sourced cheap", () => {
+    // Maxed, identical products → same verdict; the only reputation difference is the ethics nudge.
+    const maxed = (supplierId: SupplierId): Product => ({
+      id: `r-${supplierId}`, name: "Flagship", category: "phone",
+      tiers: { chip: 6, display: 6, battery: 6, materials: 5, software: 5, camera: 4 },
+      finish: "titanium", colorIndex: 0, price: dollars(999), designTier: 3,
+      camera: { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
+      notch: "punch", plannedUnits: 5000, supplierId,
+    });
+    const base = { ...newGame(8), era: 4, reputation: 50 };
+    const repPremium = launchReady({ ...base, ready: [maxed("vertex")] }, "r-vertex").state.reputation;
+    const repCheap = launchReady({ ...base, ready: [maxed("bargain")] }, "r-bargain").state.reputation;
+    expect(repPremium).toBeGreaterThan(repCheap);
   });
 });
 

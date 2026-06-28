@@ -9,7 +9,7 @@ import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier, supplierLoyaltyProgress, CONTRACT_TERMS, contractDiscount } from "../engine/suppliers.ts";
+import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier, supplierLoyaltyProgress, supplierEthicsLabel, CONTRACT_TERMS, contractDiscount } from "../engine/suppliers.ts";
 import { availableFactories, factoryFor, DEFAULT_FACTORY_ID, type CapacityStrategy } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
@@ -799,6 +799,12 @@ export function DesignLab({
                         )}
                         {tier.discount > 0 && (
                           <span className="lab__sup-tag lab__sup-tag--good">{tier.name} · −{Math.round(tier.discount * 100)}%</span>
+                        )}
+                        {sup.ethics >= 62 && (
+                          <span className="lab__sup-tag lab__sup-tag--good">{supplierEthicsLabel(sup.ethics)}</span>
+                        )}
+                        {sup.ethics < 45 && (
+                          <span className="lab__sup-tag lab__sup-tag--bad">{supplierEthicsLabel(sup.ethics)}</span>
                         )}
                       </span>
                       {builds > 0 && (

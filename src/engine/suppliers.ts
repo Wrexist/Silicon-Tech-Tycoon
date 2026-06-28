@@ -23,6 +23,9 @@ export interface Supplier {
   // Supply-chain resilience: multiplies the cash hit of a `supplyCrunch` event. >1 = exposed
   // (cheap sourcing amplifies a shock), <1 = insured (premium sourcing weathers it). standard = 1.
   crunchMult: number;
+  // Responsible-sourcing rating (0..100). Building with a high-ethics supplier slowly LIFTS brand
+  // reputation; a low-ethics (sweatshop-cheap) one erodes it. Neutral around 55 (= the standard).
+  ethics: number;
   trait: SupplierTrait;
   blurb: string; // one-line UI description
 }
@@ -39,6 +42,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     qualityDelta: -5,
     leadWeeks: 1,
     crunchMult: 1.5,
+    ethics: 25,
     trait: "value",
     blurb: "Cheapest parts — thinner specs and a slower boat.",
   },
@@ -50,6 +54,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     qualityDelta: 0,
     leadWeeks: 0,
     crunchMult: 1.0,
+    ethics: 55,
     trait: "standard",
     blurb: "Reliable mainstream sourcing. No surprises.",
   },
@@ -61,6 +66,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     qualityDelta: 3,
     leadWeeks: 0,
     crunchMult: 0.85,
+    ethics: 65,
     trait: "premium",
     blurb: "Better panels and cells for a modest premium.",
   },
@@ -72,6 +78,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     qualityDelta: 6,
     leadWeeks: 0,
     crunchMult: 0.7,
+    ethics: 72,
     trait: "premium",
     blurb: "Premium components — a real lift to build quality.",
   },
@@ -83,6 +90,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     qualityDelta: 8,
     leadWeeks: 0,
     crunchMult: 0.55,
+    ethics: 82,
     trait: "elite",
     blurb: "Bleeding-edge parts, sourced direct from the foundry.",
   },
@@ -94,6 +102,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     qualityDelta: 10,
     leadWeeks: 0,
     crunchMult: 0.45,
+    ethics: 88,
     trait: "elite",
     blurb: "The finest components money can buy. Flagship-grade.",
   },
@@ -188,6 +197,18 @@ export function isSupplierUnlocked(id: SupplierId, era: number): boolean {
 export const supplierCostMult = (p: Product): number => supplierFor(p.supplierId).costMult;
 export const supplierQualityDelta = (p: Product): number => supplierFor(p.supplierId).qualityDelta;
 export const supplierLeadWeeks = (p: Product): number => supplierFor(p.supplierId).leadWeeks;
+
+/** Reputation a launch nudges from its supplier's ethics: responsible sourcing (>55) lifts the brand,
+ *  exploitative sourcing (<55) erodes it. Small per-launch (≈ −1..+1); the neutral standard is 0. */
+export function supplierEthicsRepDelta(p: Product): number {
+  return Math.round((supplierFor(p.supplierId).ethics - 55) / 25);
+}
+
+/** Human label for an ethics rating — drives the Sourcing card tag. */
+export function supplierEthicsLabel(ethics: number): "Exemplary" | "Responsible" | "Standard" | "Exploitative" {
+  return ethics >= 80 ? "Exemplary" : ethics >= 62 ? "Responsible" : ethics >= 45 ? "Standard" : "Exploitative";
+}
+
 /** A product's crunch exposure multiplier: its supplier's resilience, halved if it's dual-sourced. */
 export const supplierCrunchMult = (p: Product): number =>
   supplierFor(p.supplierId).crunchMult * (p.dualSource ? BALANCE.supply.dualSource.riskMult : 1);

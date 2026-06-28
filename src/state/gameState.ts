@@ -93,7 +93,7 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
-import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
+import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
@@ -1800,6 +1800,10 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
   if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);
+  // Ethics of the supply chain: responsible sourcing slowly builds the brand; cheap/exploitative
+  // sourcing erodes it (0 for standard sourcing → no change for older saves / default builds).
+  const ethicsRep = supplierEthicsRepDelta(product);
+  if (ethicsRep !== 0) reputation = Math.max(rep.min, Math.min(rep.max, reputation + ethicsRep));
 
   // Fanbase response — hits win fans (more for bigger sellers), flops lose them, sellouts add buzz.
   const fb = BALANCE.fans;
