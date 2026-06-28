@@ -93,6 +93,7 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { supplierLeadWeeks } from "../engine/suppliers.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -705,18 +706,21 @@ export function unlockRegion(state: GameState, id: RegionId): GameState {
   return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
 }
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
-export const buildWeeksFor = (s: GameState) => {
+export const buildWeeksFor = (s: GameState, product?: Product) => {
+  // Supplier sourcing lead time adds weeks on top of the assembly time (a far, cheap supplier is
+  // slower to the line). Unset/standard supplier → 0, so existing callers (no product) are unchanged.
+  const lead = product ? supplierLeadWeeks(product) : 0;
   // The very first product of a brand-new company builds fast (minWeeks): a first-time player
   // reaches the launch keynote — the game's core payoff — in a beat instead of watching ~3 weeks
   // tick by during the tutorial. So the first hit of dopamine (and the App Store review prompt that
   // rides it) lands sooner. First playthrough only (legacy 0), first build only (nothing in flight).
   const firstEver = s.legacy === 0 && s.launched.length === 0 && s.building.length === 0 && s.ready.length === 0;
-  if (firstEver) return BALANCE.build.minWeeks;
+  if (firstEver) return BALANCE.build.minWeeks + lead;
   return Math.max(
     BALANCE.build.minWeeks,
     Math.round(buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades))
       - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0),
-  );
+  ) + lead;
 };
 
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
@@ -915,15 +919,15 @@ export function planProduction(
  *  the build (rent/payroll burn for buildWeeks, no revenue yet) + a small flat margin. B1: without
  *  this, recommending a run that spends nearly all cash on tooling+units bankrupts a fresh save
  *  before its first product ever launches. */
-export function buildSafetyReserve(s: GameState): Money {
-  const weeks = buildWeeksFor(s);
+export function buildSafetyReserve(s: GameState, product?: Product): Money {
+  const weeks = buildWeeksFor(s, product);
   return add(scale(burn(s), weeks), BALANCE.build.safetyReserveMargin) as Money;
 }
 
 /** Units you can afford while still leaving the build-through safety reserve intact. B1. */
 export function affordableRun(s: GameState, product: Product, channelId: ChannelId = "none"): number {
   const probe = planProduction(s, product, BALANCE.build.minRun, channelId);
-  const reserve = buildSafetyReserve(s);
+  const reserve = buildSafetyReserve(s, product);
   // Cash left for tooling+units after holding back the reserve, then after paying fixed costs
   // (tooling + channel) the rest funds units.
   const spendable = sub(sub(s.cash, reserve), add(probe.tooling, probe.channelCost));
@@ -1535,7 +1539,7 @@ export function startBuild(
     return { state, ok: false, reason: `Need ${format(plan.totalUpfront)} for tooling + ${units.toLocaleString()} units.` };
   }
 
-  const totalWeeks = buildWeeksFor(state);
+  const totalWeeks = buildWeeksFor(state, product);
   const job: BuildJob = {
     product: { ...product, id: `prod-${state.productCounter}`, plannedUnits: units, channelId },
     totalWeeks,

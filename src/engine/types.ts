@@ -40,6 +40,9 @@ export type SegmentId = "budget" | "mainstream" | "pro" | "style" | "enterprise"
 /** Geographic markets (engine/regions.ts). "home" is always unlocked; the rest are paid expansions. */
 export type RegionId = "home" | "north_america" | "europe" | "asia" | "emerging";
 
+/** Component supplier id (engine/suppliers.ts owns the catalog + effects). */
+export type SupplierId = "bargain" | "standard" | "lumen" | "novacore" | "atlas" | "vertex";
+
 /** Canonical finish order, cheap→premium. Doubles as the unlock ladder: the first
  *  `BALANCE.design.freeFinishes` are available from the start; the rest are RP-unlocked in order. */
 export const FINISH_ORDER: FinishId[] = ["plastic", "aluminium", "titanium", "gold"];
@@ -127,6 +130,9 @@ export interface Product {
   /** Geographic markets to ship this product to (engine/regions.ts). Optional — defaults to ["home"]
    *  on read, so older saves and home-only launches are unchanged. */
   regions?: RegionId[];
+  /** Component supplier (engine/suppliers.ts) — trades unit cost / quality / lead time. Optional —
+   *  unset resolves to the neutral "standard" supplier, so older saves are unchanged. */
+  supplierId?: SupplierId;
 }
 
 export function defaultCameraDesign(): CameraDesign {

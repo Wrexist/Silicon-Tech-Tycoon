@@ -9,6 +9,7 @@ import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
+import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
@@ -365,7 +366,7 @@ export function DesignLab({
     // completion sheet can celebrate exactly what just shipped to the factory floor.
     const finished = { ...draft, regions };
     const plan = planProduction(state, finished, units, channelId);
-    const weeks = buildWeeksFor(state);
+    const weeks = buildWeeksFor(state, finished);
     const res = build(finished, units, channelId);
     if (!res.ok) {
       haptic.error();
@@ -683,6 +684,7 @@ export function DesignLab({
 
         {/* ── 1: Components ───────────────────────────────── */}
         {labTab === "components" && (
+          <>
           <Card>
             <SectionHeader title="Components" accessory="tier gated by R&D" />
             <div className="lab__components">
@@ -739,6 +741,46 @@ export function DesignLab({
               })}
             </div>
           </Card>
+
+          {/* Sourcing — pick the component supplier. Trades unit cost vs build quality vs lead time;
+              the choice rides on the product and is shown again in the build wizard summary. */}
+          <Card>
+            <SectionHeader title="Sourcing" accessory="component supplier" />
+            <div className="lab__suppliers">
+              {unlockedSuppliers(state.era).map((sup) => {
+                const on = (draft.supplierId ?? DEFAULT_SUPPLIER_ID) === sup.id;
+                const costPct = Math.round((sup.costMult - 1) * 100);
+                return (
+                  <button
+                    key={sup.id}
+                    className={`lab__supplier${on ? " lab__supplier--on" : ""}`}
+                    aria-pressed={on}
+                    onClick={() => { haptic.light(); set({ supplierId: sup.id }); }}
+                  >
+                    <span className="lab__supplier-main">
+                      <span className="lab__supplier-name">{sup.name}</span>
+                      <span className="lab__supplier-blurb">{sup.blurb}</span>
+                      <span className="lab__supplier-tags">
+                        <span className={`lab__sup-tag lab__sup-tag--${costPct > 0 ? "cost-up" : costPct < 0 ? "cost-down" : "neutral"}`}>
+                          {costPct === 0 ? "baseline cost" : `${costPct > 0 ? "+" : ""}${costPct}% cost`}
+                        </span>
+                        {sup.qualityDelta !== 0 && (
+                          <span className={`lab__sup-tag lab__sup-tag--${sup.qualityDelta > 0 ? "good" : "bad"}`}>
+                            {sup.qualityDelta > 0 ? "+" : ""}{sup.qualityDelta} quality
+                          </span>
+                        )}
+                        {sup.leadWeeks > 0 && (
+                          <span className="lab__sup-tag lab__sup-tag--bad">+{sup.leadWeeks} wk lead</span>
+                        )}
+                      </span>
+                    </span>
+                    <span className="lab__supplier-check" aria-hidden>{on && <Check size={16} />}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+          </>
         )}
 
         {/* ── 2: Style (finish · colour · design effort) ─── */}
@@ -1156,7 +1198,7 @@ export function DesignLab({
             </Card>
 
             <Card>
-              <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state)} wk to make`} />
+              <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state, draft)} wk to make`} />
               {(() => {
                 // "Continue a line" — one-tap sequels: name the draft as the next entry in one of your
                 // existing lines (and inherit its brand equity). Same-category lines first.
@@ -1404,7 +1446,7 @@ function BuildWizard({
   // B1b — readable build-risk: cash left the instant the run is paid for, the runway that buys at
   // current burn (no revenue arrives until launch), and the build duration. If the runway can't
   // outlast the build, the run may bankrupt the player mid-manufacture — surface it, don't block it.
-  const buildWks = buildWeeksFor(state);
+  const buildWks = buildWeeksFor(state, draft);
   const cashAfter = sub(state.cash, plan.totalUpfront);
   const weeklyBurnAfter = burn(state);
   const runway = runwayWeeks(cashAfter, weeklyBurnAfter);
@@ -1559,6 +1601,14 @@ function BuildWizard({
               />
             )}
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
+            {(() => {
+              const sup = supplierFor(draft.supplierId);
+              const costPct = Math.round((sup.costMult - 1) * 100);
+              const bits = [costPct === 0 ? "baseline cost" : `${costPct > 0 ? "+" : ""}${costPct}% cost`];
+              if (sup.qualityDelta !== 0) bits.push(`${sup.qualityDelta > 0 ? "+" : ""}${sup.qualityDelta} quality`);
+              if (sup.leadWeeks > 0) bits.push(`+${sup.leadWeeks} wk lead`);
+              return <Stat label="Sourced via" value={sup.name} hint={bits.join(" · ")} />;
+            })()}
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
             <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "run sells out — you could make more" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
             <Stat label="Projected profit" value={format(plan.projectedProfit)} tone={plan.projectedProfit >= 0 ? "positive" : "negative"} />

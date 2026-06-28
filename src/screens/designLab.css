@@ -1248,3 +1248,60 @@
   color: var(--ink-2);
   margin-top: 2px;
 }
+
+/* ---------- Sourcing (component supplier) ---------- */
+.lab__suppliers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.lab__supplier {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1.5px solid var(--hairline);
+  transition: border-color var(--spring-snappy), transform var(--spring-snappy), background var(--spring-snappy);
+}
+.lab__supplier:active { transform: scale(0.99); }
+.lab__supplier--on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.lab__supplier-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lab__supplier-name { font-weight: 700; color: var(--ink); }
+.lab__supplier-blurb { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.3; }
+.lab__supplier-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+.lab__sup-tag {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  color: var(--ink-2);
+}
+.lab__sup-tag--cost-down, .lab__sup-tag--good { color: var(--positive); background: color-mix(in srgb, var(--positive) 12%, transparent); }
+.lab__sup-tag--cost-up, .lab__sup-tag--bad { color: var(--negative); background: color-mix(in srgb, var(--negative) 12%, transparent); }
+.lab__supplier-check {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
