@@ -30,6 +30,8 @@ import {
   upgradeGate,
   restStaff,
   restCost,
+  trainStaff,
+  rndSkill,
   type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
@@ -574,5 +576,40 @@ describe("marketing push (mid-life, margin-preserving)", () => {
     // No surplus: the curve already sums to the production run, so nothing to clear.
     const soldOut = surplusLaunch({ plannedUnits: 510 });
     expect(marketingPushQuote(soldOut)).toBeNull();
+  });
+});
+
+describe("trainStaff — paid training must actually improve output", () => {
+  it("raises the trained discipline's skills score (not just the headline level), so output rises", () => {
+    let s: GameState = { ...newGame(123), cash: dollars(1_000_000) };
+    const before = rndSkill(s); // founder is an engineer assigned to R&D
+    const founderBefore = s.staff.find((m) => m.id === "s0")!;
+    // Train several levels so the synced discipline clears any starting roll (skills[primary] ≤ 40
+    // at skill 3), making the assertion seed-independent.
+    for (let i = 0; i < 3; i++) s = trainStaff(s, "s0");
+    const founderAfter = s.staff.find((m) => m.id === "s0")!;
+    expect(founderAfter.skill).toBe(founderBefore.skill + 3);
+    // The regression guard: skills[primary] must track the headline skill, or disciplineOutput
+    // (and thus rndSkill / designerSkill / marketerSkill) ignores the training entirely.
+    expect(founderAfter.skills.engineering).toBeGreaterThanOrEqual(founderAfter.skill * 10);
+    expect(rndSkill(s)).toBeGreaterThan(before);
+  });
+
+  it("is a no-op at max skill or when broke (no cash spent)", () => {
+    const broke: GameState = { ...newGame(7), cash: dollars(0) };
+    expect(trainStaff(broke, "s0")).toBe(broke); // can't afford → unchanged reference
+  });
+});
+
+describe("determinism — rngState of exactly 0 must not re-seed from state.seed", () => {
+  it("two states differing only in seed but both at rngState 0 advance identically", () => {
+    // mulberry32's internal state can legitimately be 0; the old `rngState || seed` treated that
+    // as falsy and silently re-seeded from `seed`, breaking the deterministic stream. With `??`,
+    // both states draw from rng(0) regardless of seed, so a tick leaves them at the same rngState.
+    const a: GameState = { ...newGame(111), rngState: 0, seed: 111 };
+    const b: GameState = { ...newGame(111), rngState: 0, seed: 999 };
+    const a1 = advanceOneWeek(a);
+    const b1 = advanceOneWeek(b);
+    expect(a1.rngState).toBe(b1.rngState);
   });
 });

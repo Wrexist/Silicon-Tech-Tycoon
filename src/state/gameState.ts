@@ -317,7 +317,11 @@ export function seedFeedSeq(state: GameState): void {
 }
 
 function rngFrom(state: GameState): Rng {
-  return makeRng(state.rngState || state.seed);
+  // `??` not `||`: a mulberry32 state of exactly 0 is valid (rng.state() returns `a >>> 0`), and
+  // `||` would treat it as falsy and silently re-seed from `state.seed`, breaking the deterministic
+  // stream the save system + test suite depend on. newGame seeds rngState and persistence backfills
+  // it, so `??` only falls through on a genuinely absent field.
+  return makeRng(state.rngState ?? state.seed);
 }
 
 const STARTER_NAMES = ["You (Founder)"];
@@ -1123,7 +1127,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         era: state.era,
         strength: l.strength,
         week,
-        rng: makeRng(((state.rngState || state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
+        rng: makeRng(((state.rngState ?? state.seed) >>> 0) ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca77)),
         contested: l.contested,
         seriesIndex: nextSeriesIndex(rivalId, l.category),
       });
@@ -2193,7 +2197,20 @@ export function trainStaff(state: GameState, id: string): GameState {
     ...state,
     cash: sub(state.cash, cost),
     staff: state.staff.map((s) =>
-      s.id === id ? { ...s, skill: s.skill + 1, salary: salaryFor(s.role, s.skill + 1) } : s,
+      s.id === id
+        ? {
+            ...s,
+            skill: s.skill + 1,
+            salary: salaryFor(s.role, s.skill + 1),
+            // Mirror the weekly level-up sync (see advanceOneWeek): all discipline OUTPUT reads
+            // s.skills, not the headline skill, so without this a paid training raised salary +
+            // burn but produced zero mechanical gain. Lift the role's primary discipline to match.
+            skills: {
+              ...s.skills,
+              [ROLE_DISCIPLINE[s.role]]: Math.min(100, Math.max(s.skills[ROLE_DISCIPLINE[s.role]], (s.skill + 1) * 10)),
+            },
+          }
+        : s,
     ),
   };
 }
