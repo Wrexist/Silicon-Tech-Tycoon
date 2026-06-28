@@ -266,8 +266,15 @@ export const BALANCE = {
     // hit bars (112/145) sat at/above the achievable ceiling → every late launch collapsed onto
     // "solid" (83% of all launches, ~0 hits/flops). These bands sit INSIDE each era's real range so
     // a great launch can hit, a middling one only steadies, and outcomes spread instead of flatlining.
-    hitThresholdByEra: [70, 80, 116, 128],
-    solidThresholdByEra: [45, 56, 98, 115],
+    // Era-3/4 bars RE-RAISED for the Living Late Game landscape: fewer, weightier late launches
+    // (eraModifiers.toolingMult/leadWeeks) are each built by a more-developed company, so the
+    // measured effectiveScore landscape shifted UP (~E3 p50 106→153, E4 p50 124→189). The old
+    // 116/128 hit bars then sat far below achievable → ~70% of late launches collapsed onto "hit"
+    // (the same single-verdict failure v52 fixed, mirror-imaged). These bars sit back INSIDE the new
+    // per-era range (harness-measured) so a great late launch hits, a middling one steadies, and the
+    // verdict layer stays a real contest. Eras 1–2 are untouched.
+    hitThresholdByEra: [70, 80, 156, 192],
+    solidThresholdByEra: [45, 56, 135, 175],
     flopThresholdByEra: [10, 21, 27, 35],
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
@@ -419,11 +426,17 @@ export const BALANCE = {
   //     (over/under-production is a bigger bet), on top of the strongest ecosystem economy.
   // A new player learns the baseline; a veteran must re-strategize per era. Index = era − 1.
   // ⚠️ MAGNITUDES NEED A PLAYTEST — they reshape the late-game economy (the levers, not the wiring).
+  // toolingMult / leadWeeks (Living Late Game): late eras make a product a BIGGER, SLOWER bet — more
+  // upfront tooling and more weeks on the line — so the endgame is fewer, weightier launches instead
+  // of a ~2-week relaunch conveyor (the measured cause of the "solved" macro outcome: ~75% of all
+  // launches land in Era 4 and average each other's variance away). Eras 1–2 are neutral (1.0 / 0) so
+  // the early game is byte-identical. ⚠️ magnitudes are harness-tuned (scripts/balance-sim.mjs), not
+  // hand-guessed — see the per-era launch-count + net-worth-CV readout.
   eraModifiers: [
-    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0 },  // 1 Garage — baseline
-    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0 },  // 2 Growth — baseline
-    { marketingHype: 1.2, ecosystemRate: 1.5, demandVariance: 1.0 },  // 3 Platform — ecosystem lock-in
-    { marketingHype: 1.35, ecosystemRate: 1.7, demandVariance: 1.4 }, // 4 AI — hype-driven + volatile
+    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0, toolingMult: 1.0, leadWeeks: 0 },  // 1 Garage — baseline
+    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0, toolingMult: 1.0, leadWeeks: 0 },  // 2 Growth — baseline
+    { marketingHype: 1.2, ecosystemRate: 1.5, demandVariance: 1.0, toolingMult: 1.7, leadWeeks: 2 },  // 3 Platform — ecosystem lock-in; bigger bets
+    { marketingHype: 1.35, ecosystemRate: 1.7, demandVariance: 1.4, toolingMult: 2.6, leadWeeks: 3 }, // 4 AI — hype-driven + volatile; flagship-scale bets
   ],
 
   // --- Competitors ---

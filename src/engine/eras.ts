@@ -10,7 +10,7 @@ export function eraName(era: number): string {
 
 /** Era-distinct mechanic modifiers (Epic D), clamped to the table. Index = era − 1. The Garage +
  *  Growth eras are 1.0 (baseline); the Platform + AI eras shift the economy's texture. */
-export function eraModifier(era: number): { marketingHype: number; ecosystemRate: number; demandVariance: number } {
+export function eraModifier(era: number): { marketingHype: number; ecosystemRate: number; demandVariance: number; toolingMult: number; leadWeeks: number } {
   const mods = BALANCE.eraModifiers;
   return mods[Math.max(0, Math.min(Math.floor(era) - 1, mods.length - 1))];
 }
@@ -22,6 +22,8 @@ export function eraRuleSummary(era: number): string | null {
   if (m.ecosystemRate > 1) bits.push("ecosystem services pay more");
   if (m.marketingHype > 1) bits.push("marketing reaches further");
   if (m.demandVariance > 1) bits.push("demand is more volatile");
+  if (m.toolingMult > 1) bits.push("products cost more to tool up");
+  if (m.leadWeeks > 0) bits.push("builds take longer");
   return bits.length ? bits.join(" · ") : null;
 }
 

@@ -791,7 +791,10 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   const speed = product ? factorySpeedMult(product) : 1;
   const assembly = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * speed)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
-  return Math.max(BALANCE.build.minWeeks, assembly) + lead;
+  // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
+  // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
+  const eraLead = eraModifier(s.era).leadWeeks;
+  return Math.max(BALANCE.build.minWeeks, assembly) + lead + eraLead;
 };
 
 /** Resolve a run against its factory's capacity + the product's capacity strategy (overtime / stretch
@@ -812,7 +815,9 @@ export function capacityPlan(s: GameState, product: Product, plannedUnits: numbe
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
   const perk = 1 - perkBonuses(s.legacy).buildCostMult; // NG+ Supply Chain / Industrialist perks
-  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product));
+  // Living Late Game: late eras tool up bigger (eraModifier.toolingMult; 1.0 in eras 1–2 → no-op).
+  const eraTooling = eraModifier(s.era).toolingMult;
+  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product) * eraTooling);
   return base > BALANCE.build.minTooling ? base : BALANCE.build.minTooling;
 }
 

@@ -1520,3 +1520,27 @@ at. Findings, all MEASURED:
       strengthen the count model), so contested runs diverge from uncontested ones.
   Recommendation: the journey-level balance is good now; pursue (a) or (c) only if a more dramatic,
   failable late-game is wanted — I can implement + measure whichever you pick.
+
+## v53 — Living Late Game, Phase 1: fewer, bigger, costlier late bets (DONE 2026-06-28)
+Acting on v52.1 option (b). MEASURED via `npm run sim` each step (40 seeds × 520wk), not guessed.
+- [x] **Era-scaled build economics** (`balance.eraModifiers` += `toolingMult` + `leadWeeks`; wired
+      through the existing `toolingCost` + `buildWeeksFor`). Eras 1–2 neutral (1.0 / 0) so the early
+      game is byte-identical; Platform era ×1.7 tooling / +2 wk, AI era ×2.6 / +3 wk. The endgame
+      becomes fewer, weightier launches instead of a ~2-week relaunch conveyor. `eraModifier()` return
+      type + `eraRuleSummary()` extended; `eras.test.ts` clamp/equality tests still hold.
+- [x] **Verdict bands RE-RAISED for the new landscape** (`hit/solidThresholdByEra` E3/E4
+      `116/128`→`156/192`, `98/115`→`135/175`). Fewer launches → each built by a more-developed
+      company → measured effectiveScore shifted UP (E3 p50 106→153, E4 124→189), so the old bars sat
+      far below achievable and ~70% of late launches collapsed onto "hit". Re-raised INSIDE the new
+      per-era range (same method as v52). Guard D (flop<solid<hit, non-decreasing) still passes.
+- **Measured result** (baseline → v53): launches/run 231 → **117**; verdict mix 23/40/37/0.5 →
+      **27/32/41/1.0** (hit/solid/steady/flop — texture restored); net-worth CV 2.5% → **3.9%**,
+      p90/p10 1.07× → **1.11×** (variance up, the goal direction); **0/40 bankruptcies** preserved;
+      early game byte-identical. Cost: Era-4 arrival drifted wk 171 → **202** (still 40/40 reach it +
+      win; ~27 min of ticks). `lateGame.test.ts` (+3) pins the era-scaling contract. 601 tests, tsc 0.
+- **Honest finding carried to Phase 2:** reputation STILL pins at 99 (decay is final-era-only, floor
+      78, outpaced by a constant-shipping player) — Phase 1 reshapes pace/stakes but is NOT itself the
+      variance silver bullet. Reputation-as-a-defended-asset (option a) is next; durable competition
+      (option c, PROTECTED market.ts/competitors.ts) is the deepest lever and needs its own go-ahead.
+- ⚠️ Magnitudes (toolingMult/leadWeeks, the new bands) are harness-tuned, NOT device-playtested —
+      flag if the late game's slower cadence reads as a drag on a real phone.
