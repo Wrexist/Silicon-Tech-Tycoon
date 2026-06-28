@@ -613,3 +613,26 @@ describe("determinism — rngState of exactly 0 must not re-seed from state.seed
     expect(a1.rngState).toBe(b1.rngState);
   });
 });
+
+describe("reputation maintenance — defend your empire in the final era", () => {
+  const rich = (over: Partial<GameState>): GameState => ({ ...newGame(5), cash: dollars(20_000_000), nextEventWeek: 999_999, ...over });
+
+  it("erodes a top reputation toward the floor when coasting in the final era", () => {
+    let s = rich({ era: 4, reputation: 100 });
+    for (let i = 0; i < 10; i++) s = advanceOneWeek(s);
+    expect(s.reputation).toBeLessThan(100);
+    expect(s.reputation).toBeGreaterThanOrEqual(BALANCE.reputation.decayFloor);
+  });
+
+  it("does NOT decay before the final era — no progression-gate interference", () => {
+    let s = rich({ era: 2, reputation: 100 });
+    for (let i = 0; i < 10; i++) s = advanceOneWeek(s);
+    expect(s.reputation).toBe(100);
+  });
+
+  it("never falls below the maintenance floor", () => {
+    let s = rich({ era: 4, reputation: BALANCE.reputation.decayFloor });
+    for (let i = 0; i < 30; i++) s = advanceOneWeek(s);
+    expect(s.reputation).toBe(BALANCE.reputation.decayFloor);
+  });
+});

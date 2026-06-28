@@ -1311,10 +1311,22 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     ));
   }
 
+  // Late-game reputation maintenance (BALANCE.reputation.decay*): in the final era a top brand
+  // erodes toward a floor each week, so it must be defended by continued hits — never touches the
+  // early climb or any progression gate (final era only). Launch/event rep gains apply on top.
+  let reputation = state.reputation;
+  {
+    const rc = BALANCE.reputation;
+    if (!bankrupt && state.era >= rc.decayFromEra && reputation > rc.decayFloor) {
+      reputation = Math.max(rc.decayFloor, reputation - rc.decayPerWeekLate);
+    }
+  }
+
   const base: GameState = {
     ...state,
     week,
     cash,
+    reputation,
     cumulativeRevenue,
     fans: newFans,
     researchPoints,

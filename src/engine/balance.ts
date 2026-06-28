@@ -269,6 +269,16 @@ export const BALANCE = {
     hitThresholdByEra: [70, 80, 116, 128],
     solidThresholdByEra: [45, 56, 98, 115],
     flopThresholdByEra: [10, 21, 27, 35],
+    // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
+    // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
+    // hits rather than banked once and coasted on. A hit is +8 rep, so an active shipper (a launch
+    // every ~2 weeks) easily outpaces a 0.5/wk drip; a player who STOPS shipping slowly slips and
+    // loses IPO-win eligibility (rep >= 85) until they perform again — turning the post-era-4 stretch
+    // from a victory-lap into an ongoing contest. Gated to the FINAL era only, so no progression
+    // gate and none of the early climb is ever touched. ⚠️ magnitudes want a device playtest.
+    decayFromEra: 4,
+    decayPerWeekLate: 0.5,
+    decayFloor: 78,
     gainPerHit: 8,
     // A "solid" launch earns a little reputation too, so a player who optimizes specs + price but
     // never runs marketing campaigns can still climb past the era rep gates on consistent quality
