@@ -169,51 +169,7 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
 }
-.hq__build + .hq__build {
-  margin-top: var(--sp-12);
-}
-.hq__build-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-}
-.hq__build-body {
-  flex: 1;
-  min-width: 0;
-}
-.hq__build-head {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-.hq__build-units {
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--ink-3);
-  margin-top: 4px;
-  display: block;
-}
-.hq__build-pct {
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--accent);
-}
-.hq__build-eta {
-  color: var(--ink-3);
-  font-weight: 500;
-}
-.hq__build-track {
-  height: 8px;
-  border-radius: var(--r-pill);
-  background: var(--bg-elevated);
-  overflow: hidden;
-}
-.hq__build-fill {
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: linear-gradient(90deg, var(--accent), var(--positive));
-  transition: width var(--spring-standard);
-}
+/* (The in-production card now uses the circular BuildProgress component — see buildProgress.css.) */
 
 /* Era goal strip — compact hint below the stats row */
 .hq__goal {

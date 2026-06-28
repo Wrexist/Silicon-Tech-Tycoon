@@ -56,6 +56,7 @@ import { useGame } from "../state/useGame.tsx";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
+import { BuildProgress } from "../components/BuildProgress.tsx";
 import { FurnitureThumb } from "../components/FurnitureThumb.tsx";
 import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
@@ -238,29 +239,9 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
       {state.building.length > 0 && (
         <Card>
           <SectionHeader title="In production" accessory="manufacturing" />
-          {state.building.map((job) => {
-            const pct = Math.min(100, Math.round((job.weeksElapsed / job.totalWeeks) * 100));
-            const weeksLeft = Math.max(0, job.totalWeeks - job.weeksElapsed);
-            return (
-              <div className="hq__build" key={job.product.id}>
-                <div className="hq__build-row">
-                  <div className="hq__ready-thumb"><DeviceRenderer product={job.product} size={48} /></div>
-                  <div className="hq__build-body">
-                    <div className="hq__build-head">
-                      <span className="hq__ready-name">{job.product.name}</span>
-                      <span className="hq__build-pct tnum">
-                        {pct}%{weeksLeft > 0 && <span className="hq__build-eta"> · {weeksLeft} wk left</span>}
-                      </span>
-                    </div>
-                    <div className="hq__build-track">
-                      <div className="hq__build-fill" style={{ width: `${pct}%`, background: pct >= 80 ? "var(--positive)" : undefined }} />
-                    </div>
-                    {job.plannedUnits != null && <span className="hq__build-units">{job.plannedUnits.toLocaleString()} units</span>}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {state.building.map((job) => (
+            <BuildProgress key={job.product.id} job={job} />
+          ))}
         </Card>
       )}
 
