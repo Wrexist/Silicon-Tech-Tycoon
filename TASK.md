@@ -225,6 +225,11 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 ## Backlog
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
+- **[PLAN READY] Supply chain — Suppliers & Factories.** Full design + phased build plan in
+  `SUPPLY_CHAIN_PLAN.md`. Turns the opaque manufacturing step into real choices (where parts come
+  from / where you build), and gives the existing random `supplyCrunch` events a player-controlled
+  cause. Pure-engine (`engine/suppliers.ts` + `engine/factories.ts`), optional save fields, phased
+  P1→P4. Recommend building **P1 (suppliers only)** first and validating fun before P2.
 - [DONE] Early-game valuation rebalanced (cubic reputation curve + $8K base + rev×4): net worth now
   starts ~$13–36K (garage ≈ cash) and grows with real revenue instead of starting at $880K.
 - [DONE — verified + pinned v15.2] Engine (PROTECTED): `makeSkills` doesn't guarantee the role's headline discipline is the *highest* — FIXED by the "role-true skills" pass (off-disciplines roll at 35–85% of the primary, strictly below it); now pinned by `engine/staff.test.ts` property tests so it can't regress.
