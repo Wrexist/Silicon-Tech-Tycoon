@@ -350,7 +350,7 @@ export function Company() {
         <div className="co__fac-nudge">
           <PencilRuler size={15} className="co__fac-nudge-icon" aria-hidden />
           <span className="co__fac-nudge-text">
-            <strong>Every desk is taken</strong> — buy a desk on the Office tab (or in Decorate)
+            <strong>Every desk is taken</strong> — buy a desk on the Office tab (in the Shop)
             and your next hire sits down at it.
           </span>
         </div>

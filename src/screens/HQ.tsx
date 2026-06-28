@@ -1,6 +1,6 @@
 import {
   ArrowUp, Building2, Check, ChevronRight, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
-  HelpCircle, Layers, LayoutGrid, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
+  HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
   Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
 } from "lucide-react";
@@ -538,17 +538,17 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
         {use3d && !build && (
           <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
-            <LayoutGrid size={15} /> Decorate
+            <ShoppingBag size={15} /> Shop
           </button>
         )}
         {build && (
           <div className="hqb__top">
             <div className="hqb__top-id">
-              <span className="hqb__title">Decorate</span>
+              <span className="hqb__title">Shop</span>
               <span className="hqb__cash tnum">{format(state.cash)}</span>
             </div>
             <div className="hqb__top-actions">
-              <button className="hqb__icon" aria-label="How Decorate works" onClick={() => { setTutorial(true); haptic.light(); }}>
+              <button className="hqb__icon" aria-label="How the Shop works" onClick={() => { setTutorial(true); haptic.light(); }}>
                 <HelpCircle size={15} />
               </button>
               <button className="hqb__icon" aria-label="Undo" disabled={histLen === 0} onClick={undo}>
@@ -742,14 +742,14 @@ function Upgrades() {
         )}
       </Card>
 
-      {/* Seats now come from placed desks, bought in the Decorate shop above — every desk you
+      {/* Seats now come from placed desks, bought in the Shop above — every desk you
           set down is a seat a new hire sits at. This is just the pointer there. */}
       <Card className="hqu__fac hqu__seats-hint">
         <div className="hqu__card-head">
           <span className="hqu__glyph" aria-hidden><Monitor size={18} /></span>
           <div className="hqu__info">
             <span className="hqu__name">Need more seats?</span>
-            <span className="hqu__effect">Buy a desk in <strong>Decorate</strong> — each one seats another hire.</span>
+            <span className="hqu__effect">Buy a desk in the <strong>Shop</strong> — each one seats another hire.</span>
           </div>
           <span className="hqu__lv tnum">{deskCapacity(state)} {deskCapacity(state) === 1 ? "seat" : "seats"}</span>
         </div>

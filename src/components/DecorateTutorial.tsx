@@ -133,7 +133,7 @@ export function DecorateTutorial({ open, onClose }: { open: boolean; onClose: ()
         style={{ "--dtut-accent": step.accent } as CSSProperties}
         role="dialog"
         aria-modal="true"
-        aria-label="How Decorate works"
+        aria-label="How the Shop works"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
