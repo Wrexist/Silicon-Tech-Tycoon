@@ -1390,3 +1390,66 @@ balanced/performance/efficiency/value/premium, fully wired) and the **choice-eve
       geometry/material sharing across 981 lines of hand-tuned 3D, modest gain + visual-regression risk
       that CI can't verify. Not worth it blind.
 - 526 tests (+2), tsc 0, build+PWA green. Branch `claude/app-phase-step-next-uj1uix`.
+
+## v51 — four-audit pass: correctness + save-resilience + tech-debt + a11y (DONE 2026-06-28)
+Ran four parallel read-only audits (balance/exploit, engine correctness, UI/a11y/premium-polish,
+dead-code/tech-debt) against the shipped repo, then implemented only the BLIND-SAFE, test-gated
+findings — and deliberately did NOT touch the heavily, intentionally-tuned balance constants
+(comments show several were reasoned the *opposite* way, e.g. garage rent lowered 200→120, flop
+floor lowered to 10; the project's own discipline flags balance as needing on-device playtests CI
+can't run). Branch `claude/app-roadmap-game-audits-d1m06w`. Each item below is one commit.
+- [x] **Engine correctness** (`gameState.ts`): `rngState || seed` → `??` at both sites — a mulberry32
+      state of exactly 0 is valid (`rng.state()` returns `a >>> 0`) but `||` silently re-seeded from
+      `seed`, voiding the determinism contract. AND `trainStaff` now syncs the `skills` map: all
+      discipline OUTPUT reads `s.skills` via `disciplineOutput`, not the headline `skill`, so a paid
+      training previously raised salary/burn for ZERO mechanical gain. +3 tests.
+- [x] **Save-resilience** (`persistence.ts` launched[] backfill): drop entries missing `product`
+      (the sales tick deref's `lp.product.*` unconditionally → first-tick crash on a truncated save)
+      and backfill `launchedWeek` (a required field; missing → NaN through franchise/hype math). +2.
+- [x] **Tech-debt — dead exports removed**: `lt`, `isNegative`, `totalSkill`, `isPerfectionist`,
+      `HAS_ROBOT_MODELS`, `TrendBars`, and a pointless `export { STAT_KEYS }` re-export. Verified
+      zero references (strict + noUnusedLocals don't catch unused *exports*).
+- [x] **Tech-debt — STAT label drift killed**: stat names were hand-maintained in 6 places with 3
+      different abbreviation schemes that had drifted ("Ecosys"/"Eco", "quality"/"build quality").
+      `glossary.ts STAT_INFO` gains an `abbr` register; charts/Research/HQ/events now derive from it
+      (byte-identical or a small copy improvement). The two genuinely-distinct local registers
+      (DesignLab ultra-compact chips; "Battery life" sentence form) are now ANNOTATED, not silent.
+- [x] **A11y — LaunchReveal** (shown on EVERY launch): added the shared `useDialogFocus` trap +
+      Escape-to-close; close target 36px → 44px. It was a hand-built `role="dialog"` that skipped the
+      Sheet's keyboard/focus machinery.
+- 540 tests (+5), tsc 0, build+PWA green across all commits.
+
+### Balance review — LOGGED, needs on-device playtest, NOT applied (v51 audit)
+The balance audit flagged the early game as low-pressure, but several of its headline exploits are
+already guarded in source (the audit underweighted them): fan PRE-ORDERS are capped to a fraction of
+*market* demand (`gameState.ts` preOrderCap → `1.5×marketDemand`), and the unit floor is
+`priceFit`-scaled so overpricing collapses it. The defensible, still-open tuning questions — change
+ONE at a time, with a fast-forward harness / device in hand, in `balance.ts`:
+- **Early-game runway is long** (~166wk at $20k start, free founder, $120/wk rent). If first-ship
+  pressure feels absent on device, the lever is BURN not cash (e.g. garage rent 120→~200) — but note
+  rent was *deliberately* lowered 200→120 because thin-margin early cycles went net-negative. Verify
+  before touching.
+- **Paid training is linear** (`trainCostPerSkill 1800 × skill`) while research/content costs aren't;
+  a free founder can buy maxed output cheaply. Candidate: steepen training cost. Needs a playtest.
+- **Late-era hit bars** (`hitThresholdByEra [70,88,112,145]`) may sit below a maxed product's
+  achievable score, flattening the endgame contest. Candidate: raise the top two bars. Playtest.
+- **Self-relaunch** (`selfPenalty 0.22`) may under-penalise spamming one proven design. Playtest.
+- **`idealMarkup: 2.2` is a DEAD constant** — referenced nowhere; the real fair-price anchor is
+  `valueToPrice` (perceived value), not unit cost. Either wire a cost term into priceFit or delete
+  the constant. (Left as-is this pass — touching priceFit is a balance change.)
+
+### Remaining audit backlog — deferred (lower value or needs device/design call)
+- **Correctness (Low):** debounced-save can clobber a fresh resume save (add the dirty-check guard
+  the 10s safety net already has, `useGame.tsx`); 4 actions call `withLiveAchievements` inside the
+  setState updater → StrictMode double-toast in dev (precompute like `foundPlatformCb`); completed
+  build jobs push an un-`fixProduct`'d product onto `ready` (latent — all readers have `??` defaults).
+- **A11y (Medium/Low):** `StatBars` (charts) signals the "hot" stat by FILL COLOR only — add a
+  non-color cue (DesignLab + Market); focus traps on `DecorateTutorial` + the `Challenges`/`Scenarios`
+  confirm dialogs; `Challenges` code input needs `aria-invalid` + `aria-describedby`; sub-44px targets
+  (`coach__skip`, `hqb__icon`, `co__stats-x`, `scn__hist-share`, `set__switch`).
+- **Polish (Low):** add a `--scrim` token (3 hand-rolled scrims) + an `--on-accent` token for the
+  `#fff`-on-fill labels; migrate stray `font-size` literals onto the type scale (raise the two `9px`
+  cases off sub-`--fs-nano`); `Market.tsx CATEGORY_LABEL` should derive from `CATEGORIES[id].displayName`
+  (keep the AR/VR override) instead of a hand-kept copy; empty-state guards on a few rarely-empty `.map`s.
+- **Dead type exports (Low):** ~20 unused `export type`/`interface`s across `platform.ts`,
+  `gameState.ts`, `types.ts`, etc. — drop the `export` keyword (tsc will catch any real use). Mechanical.
