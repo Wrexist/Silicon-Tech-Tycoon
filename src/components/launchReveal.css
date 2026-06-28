@@ -63,7 +63,8 @@
   position: absolute;
   top: var(--sp-12);
   right: var(--sp-12);
-  width: 36px; height: 36px;
+  /* 44px min touch target (iOS HIG) — the X glyph stays 18px, centred. */
+  width: 44px; height: 44px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-pill);
   background: var(--surface-2);
