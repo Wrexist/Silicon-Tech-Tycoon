@@ -11,6 +11,7 @@
 // verdict, pillar #5) and the two aggregates planProduction needs (demandIndex + effectivePriceFit).
 import { BALANCE } from "./balance.ts";
 import { CATEGORIES } from "./catalogs.ts";
+import { segmentSizeMul } from "./climate.ts";
 import { toDollars, type Money } from "./money.ts";
 import { STAT_KEYS, type CategoryId, type ConsumerTrends, type SegmentId, type Stats } from "./types.ts";
 
@@ -177,19 +178,39 @@ export function segmentDemand(
   /** G1 — bonus to the Style segment's fit from the device's form/design language (engine/aesthetics).
    *  Defaults to 0 so callers/tests that don't model form are unaffected. Applies to Style ONLY. */
   styleAppeal = 0,
+  /** Track B — current week, to apply the market-climate segment cycle (engine/climate.ts). Omitted →
+   *  no cycle (sizes are the static base), so every existing caller/test is byte-identical. */
+  week?: number,
 ): SegmentDemand {
+  // Market climate (Track B): segment sizes swell/fade on slow cycles, RE-NORMALIZED so the cycle
+  // redistributes the mix without changing the total market — timing positioning, not free volume.
+  const sizeOf = ((): Record<SegmentId, number> => {
+    const out = {} as Record<SegmentId, number>;
+    if (week === undefined) {
+      for (const seg of SEGMENTS) out[seg.id] = seg.size;
+      return out;
+    }
+    let total = 0;
+    const cycled = {} as Record<SegmentId, number>;
+    for (const seg of SEGMENTS) { const c = seg.size * segmentSizeMul(seg.id, week); cycled[seg.id] = c; total += c; }
+    const base = SEGMENTS.reduce((a, s) => a + s.size, 0);
+    for (const seg of SEGMENTS) out[seg.id] = total > 0 ? (cycled[seg.id] / total) * base : seg.size;
+    return out;
+  })();
+
   const perSegment: SegmentResult[] = SEGMENTS.map((seg) => {
     const rawFit = segmentFit(stats, seg, category, trends);
     // A striking, coherent form lifts the design-led Style segment only (no global ripple).
     const fit = seg.id === "style" ? Math.min(100, rawFit + Math.max(0, styleAppeal)) : rawFit;
     const priceFit = segmentPriceFit(price, fit, seg);
+    const size = sizeOf[seg.id];
     return {
       id: seg.id,
       name: seg.name,
-      size: seg.size,
+      size,
       fit,
       priceFit,
-      captured: seg.size * (fit / 100) * priceFit,
+      captured: size * (fit / 100) * priceFit,
     };
   });
 

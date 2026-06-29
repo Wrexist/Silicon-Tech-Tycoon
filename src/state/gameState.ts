@@ -928,7 +928,7 @@ export function planProduction(
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
   // Global expansion (engine/regions.ts): scale the addressable market by the regions this product
   // ships to. Home-only is exactly ×1.0, so this never changes a domestic launch or an old save.
-  marketSize *= regionReach(s.unlockedRegions, product.regions, stats);
+  marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week);
 
   // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
   // weighting the five stats AND price differently; the product wins a share of each, summed. This
@@ -936,7 +936,7 @@ export function planProduction(
   // A balanced product scores ≈ the old single-trend demand (the segment sizes average back to it),
   // so the macro-economy is preserved; lopsided products diverge — that divergence IS the new depth.
   // G1 — the device's form (styleAppeal) lifts the Style segment, so the parametric render is a lever.
-  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product));
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week);
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;

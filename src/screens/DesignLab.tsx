@@ -35,6 +35,7 @@ import type {
   SupplierId,
 } from "../engine/types.ts";
 import { REGIONS, regionTasteFit } from "../engine/regions.ts";
+import { segmentTrend, regionInCrisis } from "../engine/climate.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import {
@@ -71,10 +72,11 @@ import "./designLab.css";
 /** Epic A — "Who it's for": the per-segment positioning readout in the build wizard. Each bar is how
  *  much of that buyer segment's potential the product captures (fit × price reaction), so the player
  *  sees the trade-offs of their design before building (pillar #5; the positioning lever Epic A adds). */
-function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
+function SegmentBreakdown({ segments, week }: { segments: SegmentDemand; week: number }) {
   const rows = segments.perSegment.map((r) => ({
     ...r,
     winRate: r.size > 0 ? Math.min(1, r.captured / r.size) : 0,
+    trend: segmentTrend(r.id, week),
   }));
   const top = rows.reduce((a, b) => (b.captured > a.captured ? b : a));
   const low = rows.reduce((a, b) => (b.captured < a.captured ? b : a));
@@ -98,7 +100,17 @@ function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
               aria-label={`${r.name}: wins ${pct}% of the segment. ${segmentWantsById(r.id)}`}
             >
               <div className="wiz__seg-main">
-                <span className="wiz__seg-name">{r.name}</span>
+                <span className="wiz__seg-name">
+                  {r.name}
+                  {r.trend !== "steady" && (
+                    <span
+                      className={`wiz__seg-trend wiz__seg-trend--${r.trend}`}
+                      title={r.trend === "rising" ? "This segment is swelling, a good time to court it" : "This segment is fading"}
+                    >
+                      {r.trend === "rising" ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                    </span>
+                  )}
+                </span>
                 <div className="wiz__seg-bar" aria-hidden>
                   <span className="wiz__seg-fill" style={{ width: `${pct}%` }} />
                 </div>
@@ -294,7 +306,7 @@ export function DesignLab({
   // with the actual launch math (it was previously the old single-trend demandScore).
   const styleAp = styleAppeal(draft);
   const styleLabel = styleAppealLabel(styleAp);
-  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp);
+  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week);
   const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
   const mktMult = eraModifier(state.era).marketingHype; // Epic D — late eras amplify marketing reach
   const liveBrand = brandEquity(state.launched, franchiseStem(draft.name)); // brand-line anticipation
@@ -1701,7 +1713,14 @@ function BuildWizard({
                 <button key={r.id} className={`wiz__region${on ? " wiz__region--on" : ""}`} aria-pressed={on} onClick={toggle}>
                   <span className="wiz__region-check">{on ? <Check size={14} /> : <Globe size={14} />}</span>
                   <div className="wiz__region-text">
-                    <span className="wiz__region-name">{r.name}</span>
+                    <span className="wiz__region-name">
+                      {r.name}
+                      {regionInCrisis(r.id, state.week) && (
+                        <span className="wiz__region-crisis" title="This region is in a temporary downturn, demand here is depressed right now">
+                          <TrendingDown size={10} /> Downturn
+                        </span>
+                      )}
+                    </span>
                     <span className="wiz__region-blurb">{r.blurb}</span>
                   </div>
                   <span className={`wiz__region-fit wiz__region-fit--${fitTone}`}>{fitLabel}</span>
@@ -1862,7 +1881,7 @@ function BuildWizard({
               hint={`build takes ${buildWks} wk`}
             />
           </div>
-          <SegmentBreakdown segments={plan.segments} />
+          <SegmentBreakdown segments={plan.segments} week={state.week} />
           {state.platformUnlocked && osEcoBonus(state) > 0 && (
             <div className="wiz__os-note">
               <Layers size={13} aria-hidden />

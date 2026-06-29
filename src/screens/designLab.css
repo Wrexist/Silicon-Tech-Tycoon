@@ -999,8 +999,23 @@
 .wiz__seg-row { display: flex; flex-direction: column; gap: 2px; }
 .wiz__seg-main { display: grid; grid-template-columns: 76px 1fr 34px; align-items: center; gap: var(--sp-8); }
 .wiz__seg-wants { font-size: var(--fs-nano); color: var(--ink-3, var(--ink-2)); padding-left: 0; line-height: 1.3; }
-.wiz__seg-name { font-size: var(--fs-caption); color: var(--ink-2); }
+.wiz__seg-name { font-size: var(--fs-caption); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
 .wiz__seg-row--top .wiz__seg-name { color: var(--ink); font-weight: 700; }
+.wiz__seg-trend { display: inline-flex; align-items: center; }
+.wiz__seg-trend--rising { color: var(--positive); }
+.wiz__seg-trend--falling { color: var(--warning, var(--negative)); }
+.wiz__region-crisis {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: var(--sp-8);
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro, 11px);
+  font-weight: 600;
+  color: var(--warning-text, var(--warning));
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+}
 .wiz__seg-bar { height: 6px; border-radius: var(--r-pill); background: var(--hairline); overflow: hidden; }
 .wiz__seg-fill {
   display: block; height: 100%; border-radius: var(--r-pill);

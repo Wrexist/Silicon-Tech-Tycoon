@@ -154,6 +154,17 @@ export const BALANCE = {
       // price-sensitive segment still has a usable (if narrow) pricing band, never a knife-edge.
       minPriceTolerance: 0.18,
     },
+    // --- Market climate (engine/climate.ts, Track B) — the living market ---
+    // Segment sizes swell/fade on slow seasonal cycles (REDISTRIBUTIVE: the mix is re-normalized, so
+    // the total market is unchanged — only WHO is buying shifts, a timing lever). Regions hit periodic
+    // crises that temporarily shrink their demand (home is never shocked, so a domestic launch and the
+    // solo-founder sim are unaffected). Amplitudes are modest so this adds texture, not chaos.
+    climate: {
+      segmentAmplitude: 0.18, // a segment's size swings ±18% of its base over its cycle
+      crisisWeeks: 6,         // length of a regional crisis window
+      crisisDepth: 0.3,       // a region's demand dips up to 30% at the crisis trough
+      risingBand: 0.004,      // week-over-week size delta above which a segment reads as "rising" (UI)
+    },
     // --- Global expansion (engine/regions.ts) ---
     // How a region's taste turns into a market-size multiplier for a launch. tasteSpread amplifies how
     // far a product's stat mix can swing its fit above/below 1.0; fitMin/fitMax clamp it so a region is

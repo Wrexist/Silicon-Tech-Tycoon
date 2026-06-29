@@ -31,7 +31,16 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   overlay, perk descriptions, museum copy). Many remain elsewhere; a dedicated player-copy scrub
   pass would finish it.
 
-## Track B: A world that remembers & reacts  (medium risk; some PROTECTED)
+## Track B: A world that remembers & reacts  COMPLETE (v59-v65).
+- [x] **Segment macro-cycles & regional shocks** (v65): the market is alive. Buyer SEGMENTS swell and
+  fade on slow seasonal cycles (engine/climate.ts, deterministic from the week — readable + learnable),
+  RE-NORMALIZED so the cycle redistributes the mix without inflating the total (timing positioning, not
+  free volume); REGIONS hit periodic crises that temporarily depress their demand (home is never
+  shocked). Optional `week` param on `segmentDemand`/`regionReach` (omitted → byte-identical), wired
+  into the launch path; the DesignLab "Who it's for" panel shows rising/falling chips per segment and a
+  "Downturn" badge on a region in crisis. Harness: 0/40 bankruptcies, 40/40 win, CV 4.7%, net worth
+  unchanged (the redistributive cycle barely moves a balanced auto-player; regional shocks never touch
+  the home-only sim).
 - [x] **Cascading events** (v59): events chain over weeks instead of firing one-shot. A chain opens
   with a consequence now, schedules later beats, and ends in a player CHOICE so the world reacts and
   remembers. Two chains: recall-ripple (rival recall → industry supply crunch → poach-or-promote) and
