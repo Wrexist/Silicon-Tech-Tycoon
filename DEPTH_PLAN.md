@@ -59,8 +59,13 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
 ## Track C: People & company as humans  (medium risk; mostly state)
 - [ ] **Org structure**: departments + team leads + mentorship (a veteran lead speeds juniors).
   `staff.ts`, state schema.
-- [ ] **Named departures + rival poaching** with a one-time counter-offer; churn stops being a
-  silent stat drop. `events.ts`/`staff.ts`.
+- [x] **Named departures + rival poaching** (v61): losing your best is now a DECISION, not a silent
+  stat drop. A rival ON THE RISE (ties into the story arcs) occasionally makes a run at one of your
+  content, high-skill people; you match the offer (signing bonus + market pay + a re-poach cooldown)
+  or let them walk (the team feels the loss). New pure `engine/poaching.ts` (target selection) +
+  `balance.poaching` + `gameState.ts` (pendingPoach field, derived-rng tick roll, resolvePoach) +
+  HQ counter-offer card. Golden invariant kept: optional fields, no migration. The roll uses a DERIVED
+  rng, so the economy harness is byte-identical (0/40 bankruptcies, 40/40 win, CV 5.0%, all unchanged).
 - [ ] **Morale as a decision**: offsites/bonuses/retention spend vs. cutting costs. `balance.ts`.
 - [ ] **Financing decisions**: loans/investors so runway is a bet, not a read-only timer.
   `economy.ts`, state. *(Supplier "satisfaction"/negotiation is the new layer atop shipped loyalty.)*

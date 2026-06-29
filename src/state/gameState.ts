@@ -42,6 +42,7 @@ import {
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
 import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
+import { pickPoachTarget } from "../engine/poaching.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
   addItem as addFurniture,
@@ -228,6 +229,9 @@ export interface GameState {
   completedObjectives: string[];
   /** A market event requiring a player decision — resolved via resolveChoice. */
   pendingChoice: { event: ChoiceEvent; week: number } | null;
+  /** A rival poaching one of your staff, awaiting a counter-offer decision (Track C). Resolved via
+   *  resolvePoach. Optional/null → golden-invariant safe (old saves load with no pending poach). */
+  pendingPoach?: { staffId: string; staffName: string; rivalId: string; rivalName: string; retainCost: Money; week: number } | null;
   /** IDs of choice events already resolved THIS RUN — prevents repeats within a company. */
   resolvedChoices: string[];
   /** IDs of choice events resolved across ALL companies (carried through New Game+ like the legacy
@@ -448,6 +452,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     unlockedAchievements: [],
     completedObjectives: [],
     pendingChoice: null,
+    pendingPoach: null,
     resolvedChoices: [],
     seenChoices: [],
     activeScenario: null,
@@ -1530,6 +1535,22 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
 
+  // Rival poaching (Track C): a rival on the rise occasionally tries to hire away one of your best —
+  // surfaced as a counter-offer DECISION, not a silent stat drop. A DERIVED rng keeps the main sim
+  // stream byte-identical, so the harness + determinism pin are unaffected. One decision at a time:
+  // only when nothing else is pending, online, solvent, and the team can spare the attention.
+  if (!offline && !bankrupt && !base.pendingPoach && !base.pendingChoice && base.staff.length >= BALANCE.poaching.minTeam) {
+    const prng = makeRng(((state.rngState ?? state.seed) >>> 0) ^ Math.imul(week + 1, 0x2545f491));
+    if (prng.next() < BALANCE.poaching.chancePerWeek) {
+      const target = pickPoachTarget(base.staff, base.competitors, week, prng);
+      if (target) {
+        const retainCost = scale(salaryFor(target.staff.role, target.staff.skill), BALANCE.poaching.retainWeeksSalary);
+        base.pendingPoach = { staffId: target.staff.id, staffName: target.staff.name, rivalId: target.rival.id, rivalName: target.rival.name, retainCost, week };
+        base.feed.push(feedItem(week, `${target.rival.name} is trying to poach ${target.staff.name}, one of your best. Match their offer or let them walk.`, "negative"));
+      }
+    }
+  }
+
   // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
   // the player against the six public rivals. Climbing to a new best rank (overtaking a rival, all
   // the way to #1) is the late-game chase — celebrate it. Rank is monotonic-best so a rival's share
@@ -1568,13 +1589,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Resolve an in-progress event chain (Track B) on its OWN schedule, independent of the normal
   // event cadence: each due beat applies its consequence, or hands off the terminal choice.
-  if (!offline && !bankrupt && !state.pendingChoice && base.eventChain && week >= base.eventChain.nextWeek) {
+  if (!offline && !bankrupt && !state.pendingChoice && !base.pendingPoach && base.eventChain && week >= base.eventChain.nextWeek) {
     return resolveChainStep(base, week);
   }
 
   // Market events only during live play — offline catch-up skips all events so the state stays
   // deterministic and the player isn't surprised by consequences they couldn't interact with.
-  if (!offline && !bankrupt && week >= state.nextEventWeek) {
+  if (!offline && !bankrupt && !base.pendingPoach && week >= state.nextEventWeek) {
     // Choice events also require the player to be present to resolve them.
     if (!state.pendingChoice) {
       const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices, state.seenChoices);
@@ -2119,6 +2140,50 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
     seenChoices: state.seenChoices.includes(pc.event.id)
       ? state.seenChoices
       : [...state.seenChoices, pc.event.id],
+  };
+}
+
+/** Resolve a pending rival poach (Track C): match their offer to keep your employee, or let them go.
+ *  Matching pays a signing bonus + lifts them to market pay and sets a re-poach cooldown; declining
+ *  (or failing to afford the match) removes them to the rival and dents the rest of the team's mood. */
+export function resolvePoach(state: GameState, accept: boolean): GameState {
+  const pp = state.pendingPoach;
+  if (!pp) return state;
+  const member = state.staff.find((s) => s.id === pp.staffId);
+  const feed = [...state.feed];
+  // Employee already gone (e.g. quit the same tick) — just clear the prompt.
+  if (!member) return { ...state, pendingPoach: null, feed: trimFeed(feed) };
+  const p = BALANCE.poaching;
+  const loseThem = (text: string): GameState => {
+    feed.push(feedItem(state.week, text, "negative"));
+    return {
+      ...state,
+      pendingPoach: null,
+      staff: state.staff
+        .filter((s) => s.id !== member.id)
+        .map((s) => ({ ...s, mood: clampMood(s.mood - p.declineTeamMoodHit) })),
+      feed: trimFeed(feed),
+    };
+  };
+
+  if (!accept) return loseThem(`${member.name} left to join ${pp.rivalName}.`);
+  // Can't match an offer you can't afford → they walk.
+  if (state.cash < pp.retainCost) {
+    return loseThem(`You couldn't match ${pp.rivalName}'s offer, and ${member.name} left to join them.`);
+  }
+  const marketSalary = salaryFor(member.role, member.skill);
+  const newSalary = toDollars(member.salary) >= toDollars(marketSalary) ? member.salary : marketSalary;
+  feed.push(feedItem(state.week, `You matched ${pp.rivalName}'s offer and kept ${member.name}. They feel valued.`, "positive"));
+  return {
+    ...state,
+    cash: sub(state.cash, pp.retainCost),
+    pendingPoach: null,
+    staff: state.staff.map((s) =>
+      s.id === member.id
+        ? { ...s, salary: newSalary, mood: clampMood(s.mood + p.retainMoodBoost), moodLowWeeks: 0, poachCooldownUntil: state.week + p.cooldownWeeks }
+        : s,
+    ),
+    feed: trimFeed(feed),
   };
 }
 

@@ -97,7 +97,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
 export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; active?: boolean }) {
-  const { state, advanceEra, goPublic, resolveChoice } = useGame();
+  const { state, advanceEra, goPublic, resolveChoice, resolvePoach } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
@@ -212,6 +212,40 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
                 <span className="hq__choice-opt-desc">{opt.description}</span>
               </button>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Rival poaching — keep your employee with a counter-offer, or let them walk (Track C) */}
+      {state.pendingPoach && (
+        <Card className="hq__choice">
+          <div className="hq__choice-head">
+            <Crosshair size={14} className="hq__choice-icon" aria-hidden />
+            <span className="hq__choice-title">{state.pendingPoach.rivalName} wants {state.pendingPoach.staffName}</span>
+          </div>
+          <p className="hq__choice-body">
+            {state.pendingPoach.rivalName} has made {state.pendingPoach.staffName} an offer. Match it to keep them, or wish them well.
+          </p>
+          <div className="hq__choice-options">
+            <button
+              className="hq__choice-opt"
+              disabled={state.cash < state.pendingPoach.retainCost}
+              onClick={() => { resolvePoach(true); haptic.success(); }}
+            >
+              <span className="hq__choice-opt-label">Match their offer · {format(state.pendingPoach.retainCost)}</span>
+              <span className="hq__choice-opt-desc">
+                {state.cash < state.pendingPoach.retainCost
+                  ? "You can't cover the signing bonus right now."
+                  : "Pay a signing bonus, lift them to market pay, and keep your talent."}
+              </span>
+            </button>
+            <button
+              className="hq__choice-opt"
+              onClick={() => { resolvePoach(false); haptic.medium(); }}
+            >
+              <span className="hq__choice-opt-label">Let them go</span>
+              <span className="hq__choice-opt-desc">Save the cash, but the rest of the team feels the loss.</span>
+            </button>
           </div>
         </Card>
       )}

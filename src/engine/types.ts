@@ -248,6 +248,9 @@ export interface Staff {
   trait: Trait;
   mood: number; // 0..100, drifts over time
   moodLowWeeks?: number; // consecutive weeks below the churn threshold — resets to 0 when mood recovers
+  /** Week until which this person can't be poached again (Track C): set when you win a counter-offer,
+   *  so a retained employee isn't immediately targeted a second time. Optional → old saves default 0. */
+  poachCooldownUntil?: number;
   appearance: Appearance;
 }
 

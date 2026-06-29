@@ -690,6 +690,21 @@ export const BALANCE = {
     restMinCost: 1000,        // floor on a Rest's cost so it's never free (the unpaid founder pays this)
   },
 
+  // --- Rival poaching (Track C) — a rival on the rise tries to HIRE AWAY one of your best, surfaced
+  // as a counter-offer DECISION (not a silent stat drop). Distinct from burnout churn above: this
+  // targets CONTENT, skilled people, so it's a real "fight to keep them" moment, not a consequence of
+  // neglect. Rare by design; the roll uses a DERIVED rng so it never perturbs the tuned economy sim.
+  poaching: {
+    chancePerWeek: 0.014,     // per ONLINE week, a rising rival makes a run at someone (~1 attempt / 70wk)
+    minSkill: 6,              // only your genuinely strong people (1..10 headline level) get poached
+    minMood: 45,              // a content employee — burnout exits are the churn path, not this one
+    minTeam: 3,               // never poach from a skeleton crew (keeps the early game stable)
+    retainWeeksSalary: 8,     // counter-offer signing bonus = this many weeks of their MARKET salary
+    retainMoodBoost: 14,      // being fought for is a real morale lift
+    declineTeamMoodHit: 4,    // the rest of the team dips a little when a colleague leaves for a rival
+    cooldownWeeks: 26,        // a retained employee can't be targeted again for this long
+  },
+
   // --- Market events ---
   events: {
     firstWeek: 8,
