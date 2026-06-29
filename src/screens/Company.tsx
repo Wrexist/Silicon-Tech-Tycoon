@@ -44,7 +44,7 @@ import {
   weeklyRpGen,
   type GameState,
 } from "../state/gameState.ts";
-import { totalDebt, weeklyDebtService } from "../engine/financing.ts";
+import { totalDebt, weeklyDebtService, weeklyPaymentFor } from "../engine/financing.ts";
 import { isDisciplineLead, mentorshipXpMult } from "../engine/org.ts";
 import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
@@ -420,8 +420,14 @@ function FinancingCard({ state }: { state: GameState }) {
   const available = Math.floor(toDollars(loanCreditAvailable(state))); // whole dollars of headroom
   const apr = Math.round(loanRateNow(state) * 52 * 100);
   const minLoan = BALANCE.financing.minLoan / 100; // dollars
-  const presets = [100_000, 250_000, 500_000].filter((d) => d >= minLoan && d <= available);
   const canBorrow = available >= minLoan && !state.bankrupt;
+  // Interactive borrow slider: pick any amount between the minimum and the live credit limit, with a
+  // running preview of the weekly repayment. Snapped to a tidy step that scales with the headroom.
+  const step = Math.max(5_000, Math.round(available / 40 / 5_000) * 5_000);
+  const [rawAmount, setRawAmount] = useState(100_000);
+  const amount = Math.min(Math.max(rawAmount, minLoan), Math.max(minLoan, available));
+  const fillPct = available > minLoan ? Math.round(((amount - minLoan) / (available - minLoan)) * 100) : 0;
+  const weeklyPay = weeklyPaymentFor(amount * 100, loanRateNow(state), BALANCE.financing.termWeeks);
   return (
     <Card>
       <SectionHeader title="Financing" accessory={<span className="co__stats-link"><Landmark size={14} /> Debt</span>} />
@@ -452,19 +458,31 @@ function FinancingCard({ state }: { state: GameState }) {
         <p className="co__hint">No debt. Borrow to extend runway or fund a launch, repaid weekly over a year.</p>
       )}
       {canBorrow ? (
-        <>
-          <p className="co__fin-credit">Available credit {format(dollars(available))} · ~{apr}% APR</p>
-          <div className="co__loan-presets">
-            {presets.map((d) => (
-              <Button key={d} variant="secondary" onClick={() => { takeLoan(d * 100); haptic.success(); }}>
-                Borrow {formatShortDollars(d)}
-              </Button>
-            ))}
-            <Button variant="primary" onClick={() => { takeLoan(available * 100); haptic.success(); }}>
-              Max · {formatShortDollars(available)}
-            </Button>
+        <div className="co__borrow">
+          <div className="co__borrow-head">
+            <div className="co__borrow-amount tnum">{formatShortDollars(amount)}</div>
+            <div className="co__borrow-credit">of {formatShortDollars(available)} · ~{apr}% APR</div>
           </div>
-        </>
+          <input
+            type="range"
+            className="co__borrow-slider"
+            min={minLoan}
+            max={Math.max(minLoan, available)}
+            step={step}
+            value={amount}
+            onChange={(e) => setRawAmount(Number(e.target.value))}
+            style={{ ["--fill" as string]: `${fillPct}%` }}
+            aria-label="Loan amount"
+            aria-valuetext={formatShortDollars(amount)}
+          />
+          <div className="co__borrow-preview">
+            <Landmark size={13} aria-hidden />
+            <span>Repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wks</span>
+          </div>
+          <Button block variant="primary" onClick={() => { takeLoan(amount * 100); haptic.success(); }}>
+            Borrow {formatShortDollars(amount)}
+          </Button>
+        </div>
       ) : debt > 0 ? (
         <p className="co__hint">Credit maxed out, pay down debt to borrow again.</p>
       ) : null}
