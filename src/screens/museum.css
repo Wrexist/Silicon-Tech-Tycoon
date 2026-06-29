@@ -49,6 +49,12 @@
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-card);
 }
+.mus__faces {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+}
 .mus__device {
   display: flex;
   align-items: center;

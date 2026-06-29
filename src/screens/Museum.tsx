@@ -52,7 +52,16 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
           {entries.map((e) => (
             <li key={e.key} className="mus__card">
               <div className="mus__device">
-                <DeviceRenderer product={e.product} size={120} />
+                {e.category === "phone" || e.category === "tablet" ? (
+                  // Slabs have a distinct back: show the front + the back beside it so the design
+                  // reads in full (the camera module is the back's signature).
+                  <div className="mus__faces">
+                    <DeviceRenderer product={e.product} size={92} face="front" />
+                    <DeviceRenderer product={e.product} size={92} face="back" />
+                  </div>
+                ) : (
+                  <DeviceRenderer product={e.product} size={120} />
+                )}
               </div>
               <div className="mus__meta">
                 <span className="mus__name">{e.name}</span>
