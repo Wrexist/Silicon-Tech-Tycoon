@@ -68,7 +68,7 @@ export function ResultCard({
   const sub = pm
     ? `Out of cash in the ${eraName(state.era)}${hits > 0 ? ` · ${hits} hit${hits > 1 ? "s" : ""} along the way` : ""}`
     : scn
-    ? (result?.stars === 3 ? "Mastered — all three stars" : result?.won ? `${result.stars}★ earned` : scn.tagline)
+    ? (result?.stars === 3 ? "Mastered, all three stars" : result?.won ? `${result.stars}★ earned` : scn.tagline)
     : chv
     ? `${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)}${chv.final == null ? " so far" : ""}`
     : `${state.companyName} · Year ${years}`;
@@ -76,19 +76,19 @@ export function ResultCard({
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
   const share = () => {
     const line = pm
-      ? `${state.companyName} went bankrupt after ${state.week} weeks on Silicon: Tech Tycoon — ${rev} earned, ${fmtFans(state.fans)} fans. Think you'd last longer?`
+      ? `${state.companyName} went bankrupt after ${state.week} weeks on Silicon: Tech Tycoon, ${rev} earned, ${fmtFans(state.fans)} fans. Think you'd last longer?`
       : scn
-      ? `I just earned ${result?.stars ?? 0}★ in "${scn.name}" on Silicon: Tech Tycoon — ${state.companyName}, ${rev} lifetime revenue.`
+      ? `I just earned ${result?.stars ?? 0}★ in "${scn.name}" on Silicon: Tech Tycoon, ${state.companyName}, ${rev} lifetime revenue.`
       : chv
-      ? `I scored ${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)} in a Silicon: Tech Tycoon challenge. Beat it — code ${chCode}.`
-      : `${state.companyName} on Silicon: Tech Tycoon — ${worth} net worth, ${rev} lifetime revenue, ${fmtFans(state.fans)} fans.`;
+      ? `I scored ${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)} in a Silicon: Tech Tycoon challenge. Beat it, code ${chCode}.`
+      : `${state.companyName} on Silicon: Tech Tycoon, ${worth} net worth, ${rev} lifetime revenue, ${fmtFans(state.fans)} fans.`;
     navigator.share?.({ title: "Silicon: Tech Tycoon", text: line }).catch(() => { /* user cancelled / unsupported */ });
   };
 
   return (
     <div className="rcard-wrap">
       {/* The card itself — designed to look great as a screenshot. */}
-      <div className={`rcard${pm ? " rcard--memoriam" : ""}`} role="img" aria-label={`${state.companyName} — ${headline}, ${sub}`}>
+      <div className={`rcard${pm ? " rcard--memoriam" : ""}`} role="img" aria-label={`${state.companyName}, ${headline}, ${sub}`}>
         <div className="rcard__head">
           <span className="rcard__brand"><CircuitBoard size={20} strokeWidth={1.8} /></span>
           <span className="rcard__company">{state.companyName}</span>
@@ -110,7 +110,7 @@ export function ResultCard({
         </div>
 
         {chCode && (
-          <div className="rcard__code">Challenge code <strong>{chCode}</strong> — beat my score</div>
+          <div className="rcard__code">Challenge code <strong>{chCode}</strong>, beat my score</div>
         )}
 
         <div className="rcard__foot">

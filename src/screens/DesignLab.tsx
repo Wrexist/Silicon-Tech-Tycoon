@@ -104,7 +104,7 @@ function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
                 </div>
                 <span className="wiz__seg-pct tnum" aria-hidden>{pct}%</span>
               </div>
-              {/* C3 — plain-language "what this buyer wants", derived live from the segment weights */}
+              {/* C3, plain-language "what this buyer wants", derived live from the segment weights */}
               <span className="wiz__seg-wants" aria-hidden>{segmentWantsById(r.id)}</span>
             </div>
           );
@@ -115,7 +115,7 @@ function SegmentBreakdown({ segments }: { segments: SegmentDemand }) {
 }
 
 
-// Intentionally the most compact register (denser than glossary STAT_INFO.abbr) — these feed the
+// Intentionally the most compact register (denser than glossary STAT_INFO.abbr), these feed the
 // tight inline component-contribution chips, where "Quality"/"Battery" would wrap. Kept local on
 // purpose; the canonical label/abbr/prose registers live in engine/glossary.ts STAT_INFO.
 const STAT_ABBR: Record<keyof Stats, string> = {
@@ -520,7 +520,7 @@ export function DesignLab({
         <div className="lab__market-hint">
           <span className="lab__market-hint-dot" />
           <span>
-            <strong>{STAT_LABEL_FULL[topWanted]}</strong> is trending up — build it into your next product for a demand boost.
+            <strong>{STAT_LABEL_FULL[topWanted]}</strong> is trending up, so build it into your next product for a demand boost.
           </span>
         </div>
       )}
@@ -531,7 +531,7 @@ export function DesignLab({
           <div className="lab__trend-shift">
             <span className="lab__trend-shift-dot" />
             <span>
-              Trends shift in <strong>{weeksToShift} week{weeksToShift !== 1 ? "s" : ""}</strong> — launch before the shift to ride current demand, or hold for the next cycle.
+              Trends shift in <strong>{weeksToShift} week{weeksToShift !== 1 ? "s" : ""}</strong>, so launch before the shift to ride current demand, or hold for the next cycle.
             </span>
           </div>
         );
@@ -583,7 +583,7 @@ export function DesignLab({
                 <span className="lab__hero-line-label">Design Language</span>
                 <span className="lab__hero-line-val">
                   <Sparkles size={14} aria-hidden /> <strong>{styleLabel}</strong>
-                  <span className="lab__hero-line-hint">{styleLabel === "Striking" ? " — wins style-led buyers" : " — refine form for appeal"}</span>
+                  <span className="lab__hero-line-hint">{styleLabel === "Striking" ? ", wins style-led buyers" : ", refine form for appeal"}</span>
                 </span>
               </div>
             )}
@@ -603,15 +603,15 @@ export function DesignLab({
         {synState !== "balanced" && (
           <p className="lab__verdict-note">
             {synState === "flagship"
-              ? "Coherent high-end build — every part pulls its weight, earning a flagship bonus."
-              : `${capSlot(syn.weakest!)} is the weak link dragging this build down — raise it to lift the whole product.`}
+              ? "Coherent high-end build, every part pulls its weight, earning a flagship bonus."
+              : `${capSlot(syn.weakest!)} is the weak link dragging this build down, raise it to lift the whole product.`}
           </p>
         )}
         {competitionDrag && preview && (
           <p className="lab__verdict-note">
             {preview.betterRivals > 0
-              ? `${preview.betterRivals} rival${preview.betterRivals > 1 ? "s" : ""} currently outclass this — that's pulling the forecast down, not your design.`
-              : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now — they'll split this market.`}
+              ? `${preview.betterRivals} rival${preview.betterRivals > 1 ? "s" : ""} currently outclass this, that's pulling the forecast down, not your design.`
+              : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now, they'll split this market.`}
           </p>
         )}
       </Card>
@@ -648,7 +648,7 @@ export function DesignLab({
           })}
         </div>
         <p className="lab__hint">
-          {cat.displayName} — {
+          {cat.displayName} · {
             cat.marketSize >= 0.8 ? "large market" :
             cat.marketSize >= 0.55 ? "mid-size market" : "niche market"
           } · rewards {
@@ -1204,11 +1204,11 @@ export function DesignLab({
               {preview != null && (
                 <div className={`lab__vs${preview.betterRivals > 0 ? " lab__vs--behind" : preview.matchingRivals > 0 ? " lab__vs--even" : " lab__vs--ahead"}`}>
                   {preview.betterRivals > 0 ? (
-                    <><TrendingDown size={12} aria-hidden /> {preview.betterRivals} rival{preview.betterRivals > 1 ? "s are" : " is"} stronger in {cat.displayName} — upgrade components to compete.</>
+                    <><TrendingDown size={12} aria-hidden /> {preview.betterRivals} rival{preview.betterRivals > 1 ? "s are" : " is"} stronger in {cat.displayName}, so upgrade components to compete.</>
                   ) : preview.matchingRivals > 0 ? (
-                    <><TrendingUp size={12} aria-hidden /> Matched by {preview.matchingRivals} rival{preview.matchingRivals > 1 ? "s" : ""} in {cat.displayName} — a small edge could win the market.</>
+                    <><TrendingUp size={12} aria-hidden /> Matched by {preview.matchingRivals} rival{preview.matchingRivals > 1 ? "s" : ""} in {cat.displayName}, so a small edge could win the market.</>
                   ) : (
-                    <><Check size={12} aria-hidden /> Clear field in {cat.displayName} — no strong rival competition right now.</>
+                    <><Check size={12} aria-hidden /> Clear field in {cat.displayName}, no strong rival competition right now.</>
                   )}
                 </div>
               )}
@@ -1392,7 +1392,7 @@ export function DesignLab({
 
       </div>
 
-      {/* Persistent build summary — cost / score / market fit at a glance (mockup footer bar). */}
+      {/* Persistent build summary, cost / score / market fit at a glance (mockup footer bar). */}
       <Card className="lab__summary">
         <div className="lab__summary-cell">
           <CircleDollarSign size={18} className="lab__summary-icon" aria-hidden />
@@ -1417,7 +1417,7 @@ export function DesignLab({
         </div>
       </Card>
 
-      {/* Sticky step nav above the tab bar — Back (left) + Next (right) so the design flow reads
+      {/* Sticky step nav above the tab bar, Back (left) + Next (right) so the design flow reads
           as clear steps. Fixed (stays put while the pane scrolls). The Launch step has its own
           Build CTA, so Next hides there. Suppressed during the first-build tutorial, where the
           Coach occupies the same bottom band and provides the guidance instead. */}
@@ -1505,11 +1505,11 @@ function DesignCompleteCard({
       <div className="done__next">
         <div className="done__step">
           <span className="done__step-icon"><Factory size={16} /></span>
-          <span>Manufacturing now — <b>ready in ~{done.weeks} {done.weeks === 1 ? "week" : "weeks"}</b>.</span>
+          <span>Manufacturing now, <b>ready in ~{done.weeks} {done.weeks === 1 ? "week" : "weeks"}</b>.</span>
         </div>
         <div className="done__step">
           <span className="done__step-icon"><Rocket size={16} /></span>
-          <span>The moment it's built, a <b>launch popup</b> appears wherever you are — ship it in one tap.</span>
+          <span>The moment it's built, a <b>launch popup</b> appears wherever you are, ship it in one tap.</span>
         </div>
       </div>
 
@@ -1521,7 +1521,7 @@ function DesignCompleteCard({
 
 const WIZARD_CHANNEL_ICONS: Record<string, LucideIcon> = { Ban, Share2, Search, Megaphone, Users, Tv, Sparkles };
 
-/** Negotiate a fixed-price supplier contract — lock a discount + crunch immunity for a term, for an
+/** Negotiate a fixed-price supplier contract, lock a discount + crunch immunity for a term, for an
  *  upfront fee. Reputation is the negotiating leverage (sweetens the discount). */
 function ContractSheet({
   supplierId,
@@ -1541,7 +1541,7 @@ function ContractSheet({
     <div className="ctr">
       <h2 className="ctr__title">Contract · {sup.name}</h2>
       <p className="ctr__sub">
-        Lock a discounted unit price for a fixed term — and while it holds, this supplier is <b>crunch-proof</b>.
+        Lock a discounted unit price for a fixed term, and while it holds, this supplier is <b>crunch-proof</b>.
         Your reputation ({Math.round(state.reputation)}) negotiates <b>+{repBonusPct}%</b> off.
       </p>
       {active && active.weeksLeft > 0 && (
@@ -1683,7 +1683,7 @@ function BuildWizard({
 
       {cur === "regions" && (
         <div className="wiz__body">
-          <p className="wiz__lead">Where should <b>{draft.name}</b> sell? Each market adds demand, but buyers value different things — ship where your design fits.</p>
+          <p className="wiz__lead">Where should <b>{draft.name}</b> sell? Each market adds demand, but buyers value different things, so ship where your design fits.</p>
           <div className="wiz__regions">
             {REGIONS.filter((r) => state.unlockedRegions.includes(r.id)).map((r) => {
               const on = regions.includes(r.id);
@@ -1737,7 +1737,7 @@ function BuildWizard({
           {plan.overCapacity && (
             <div className="wiz__capacity">
               <span className="wiz__capacity-head">
-                <AlertTriangle size={14} aria-hidden /> Over <b>{factoryFor(prod.factoryId).name}</b>'s capacity ({plan.factoryCapacityPerWeek.toLocaleString()}/wk) — {plan.overtimeUnits.toLocaleString()} extra units. How to handle it?
+                <AlertTriangle size={14} aria-hidden /> Over <b>{factoryFor(prod.factoryId).name}</b>'s capacity ({plan.factoryCapacityPerWeek.toLocaleString()}/wk), {plan.overtimeUnits.toLocaleString()} extra units. How to handle it?
               </span>
               <div className="wiz__capacity-opts" role="group" aria-label="Over-capacity strategy">
                 {(["overtime", "stretch", "defects"] as CapacityStrategy[]).map((opt) => {
@@ -1780,7 +1780,7 @@ function BuildWizard({
 
       {cur === "marketing" && (
         <div className="wiz__body">
-          <p className="wiz__lead">Pick a launch campaign — bigger campaigns add hype (more demand) for an upfront cost.</p>
+          <p className="wiz__lead">Pick a launch campaign, bigger campaigns add hype (more demand) for an upfront cost.</p>
           <div className="wiz__channels">
             {MARKETING_CHANNELS.map((c) => {
               const Icon = WIZARD_CHANNEL_ICONS[c.icon] ?? Ban;
@@ -1828,7 +1828,7 @@ function BuildWizard({
                 label="Market fatigue"
                 value={`−${Math.round((1 - plan.noveltyMult) * 100)}% demand`}
                 tone="negative"
-                hint={`too similar to ${plan.similarTo}${plan.similarWeeksAgo != null ? ` (${plan.similarWeeksAgo} wk ago)` : ""} — change more components or wait`}
+                hint={`too similar to ${plan.similarTo}${plan.similarWeeksAgo != null ? ` (${plan.similarWeeksAgo} wk ago)` : ""}, change more components or wait`}
               />
             )}
             <Stat label="Your fans" value={state.fans.toLocaleString()} />
@@ -1848,7 +1848,7 @@ function BuildWizard({
               hint={plan.overCapacity ? `over capacity · ${plan.capacityStrategy}` : "within capacity"}
             />
             <Stat label="Run size" value={plan.plannedUnits.toLocaleString()} />
-            <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "run sells out — you could make more" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
+            <Stat label="Projected sales" value={plan.projectedSales.toLocaleString()} tone={plan.sellsOut ? "positive" : undefined} hint={plan.sellsOut ? "run sells out, you could make more" : plan.projectedSales < plan.plannedUnits ? "some unsold" : undefined} />
             <Stat label="Projected profit" value={format(plan.projectedProfit)} tone={plan.projectedProfit >= 0 ? "positive" : "negative"} />
             <Stat
               label="Cash after build starts"
@@ -1878,7 +1878,7 @@ function BuildWizard({
           </div>
           {plan.overCapacity && (
             <p className="wiz__warn wiz__warn--risk">
-              <AlertTriangle size={14} /> {plan.overtimeUnits.toLocaleString()} units over {factoryFor(prod.factoryId).name}'s capacity —{" "}
+              <AlertTriangle size={14} /> {plan.overtimeUnits.toLocaleString()} units over {factoryFor(prod.factoryId).name}'s capacity.{" "}
               {plan.capacityStrategy === "overtime" ? <>built on overtime (<b>+{format(plan.overtimeCost)}</b>).</>
                 : plan.capacityStrategy === "stretch" ? <>schedule stretched to <b>{plan.buildWeeks} wk</b> to fit capacity.</>
                 : <>shipping with a <b>−{prod.defectPenalty ?? 0} quality</b> defect hit.</>}{" "}
@@ -1887,12 +1887,12 @@ function BuildWizard({
           )}
           {!affordable && (
             <p className="wiz__warn">
-              Need {format(sub(plan.totalUpfront, state.cash))} more — reduce the run size or pick a cheaper campaign.
+              Need {format(sub(plan.totalUpfront, state.cash))} more. Reduce the run size or pick a cheaper campaign.
             </p>
           )}
           {affordable && runwayRisky && (
             <p className="wiz__warn wiz__warn--risk">
-              <AlertTriangle size={14} /> Tight runway: at {format(weeklyBurnAfter)}/wk you have {runway} wk of cash but the build takes {buildWks} wk. No revenue arrives until launch — this run may bankrupt you mid-build. Consider a smaller run.
+              <AlertTriangle size={14} /> Tight runway: at {format(weeklyBurnAfter)}/wk you have {runway} wk of cash but the build takes {buildWks} wk. No revenue arrives until launch, so this run may bankrupt you mid-build. Consider a smaller run.
             </p>
           )}
         </div>

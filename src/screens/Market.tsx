@@ -191,13 +191,13 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 </div>
                 <div className="mkt__ipo-track"><div className="mkt__ipo-fill" style={{ width: `${pct}%` }} /></div>
                 <p className="mkt__co-hint">
-                  Unlocks at {format(BALANCE.ipo.minRevenueToList)} lifetime revenue — you're at {format(state.cumulativeRevenue)}.
+                  Unlocks at {format(BALANCE.ipo.minRevenueToList)} lifetime revenue. You're at {format(state.cumulativeRevenue)}.
                 </p>
               </div>
             );
           })()
         ) : state.ownership < 0.06 ? (
-          <p className="mkt__co-hint">You're at your minimum 5% founder stake — there are no more shares to sell.</p>
+          <p className="mkt__co-hint">You're at your minimum 5% founder stake, so there are no more shares to sell.</p>
         ) : (
           <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>
             Sell more shares
@@ -237,10 +237,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         );
       })()}
 
-      {/* Global expansion — open new markets to grow your addressable demand (engine/regions.ts) */}
+      {/* Global expansion, open new markets to grow your addressable demand (engine/regions.ts) */}
       <Card className="mkt__regions">
         <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length} open`} />
-        <p className="mkt__regions-lead">Expand beyond your home market. Each region adds demand — but its buyers value different things, so design with your markets in mind.</p>
+        <p className="mkt__regions-lead">Expand beyond your home market. Each region adds demand, but its buyers value different things, so design with your markets in mind.</p>
         <div className="mkt__region-list">
           {REGIONS.map((r) => {
             const open = state.unlockedRegions.includes(r.id);
@@ -265,7 +265,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         </div>
       </Card>
 
-      {/* Rival releases — the real products rivals have shipped (Epic B): see and learn from them */}
+      {/* Rival releases, the real products rivals have shipped (Epic B): see and learn from them */}
       {visibleRivalReleases.length > 0 && (
         <Card>
           <SectionHeader title="Rival releases" accessory={`${visibleRivalReleases.length} recent`} />
@@ -296,7 +296,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         </Card>
       )}
 
-      {/* Your launched products — tap one to see why it performed + design a successor */}
+      {/* Your launched products, tap one to see why it performed + design a successor */}
       <Card>
         <SectionHeader title="Your products" accessory={state.launched.length > 0 ? `${state.launched.length} launched` : undefined} />
         {state.launched.length === 0 ? (
@@ -372,8 +372,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
               <div className="mkt__successor-nudge">
                 <span className="mkt__successor-text">
                   {expiredHits.length === 1
-                    ? `${expiredHits[0].product.name} has run its course — time for a follow-up.`
-                    : `${expiredHits.length} products have run their cycle — design successors to keep revenue flowing.`}
+                    ? `${expiredHits[0].product.name} has run its course, time for a follow-up.`
+                    : `${expiredHits.length} products have run their cycle, design successors to keep revenue flowing.`}
                 </span>
                 <Button size="sm" variant="secondary" onClick={() => { onDesignSuccessor(expiredHits[0].product); haptic.light(); }}>
                   <Wand2 size={13} /> Redesign
@@ -384,7 +384,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         )}
       </Card>
 
-      {/* Your franchises — product lines grouped by brand equity (the IP lens over your catalog) */}
+      {/* Your franchises, product lines grouped by brand equity (the IP lens over your catalog) */}
       <FranchisesCard launched={state.launched} />
 
       {/* Portfolio revenue breakdown by category */}
@@ -428,7 +428,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
         );
       })()}
 
-      {/* Stock exchange — gated behind the first ship (see `showStocks`). */}
+      {/* Stock exchange, gated behind the first ship (see `showStocks`). */}
       {showStocks && <SectionHeader title="Stock exchange" accessory="trade rival shares" />}
       {showStocks && Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
         const portfolioVal = holdingsValue(state.holdings, comps);
@@ -605,7 +605,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
           return (
             <div className="mkt__trend-footer">
               <Clock size={11} />
-              <span>Consumer preference shifts in <strong>{wks} week{wks !== 1 ? "s" : ""}</strong> — products launched now ride the current demand curve.</span>
+              <span>Consumer preference shifts in <strong>{wks} week{wks !== 1 ? "s" : ""}</strong>, so products launched now ride the current demand curve.</span>
             </div>
           );
         })()}
@@ -630,7 +630,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 <div className="mkt__intel-row">
                   <Clock size={14} className="mkt__intel-icon mkt__intel-icon--warn" />
                   <span className="mkt__intel-text">
-                    <strong>{c.name}</strong> launches in <strong>{wks}</strong> week{wks !== 1 ? "s" : ""} — launch first to capture demand before their arrival.
+                    <strong>{c.name}</strong> launches in <strong>{wks}</strong> week{wks !== 1 ? "s" : ""}, so launch first to capture demand before their arrival.
                   </span>
                 </div>
               );
@@ -639,7 +639,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
               <div className="mkt__intel-row">
                 <TrendingUp size={14} className="mkt__intel-icon mkt__intel-icon--up" />
                 <span className="mkt__intel-text">
-                  <strong>{STAT_LABEL[hotStat]}</strong> demand is rising — lead with it in your next product.
+                  <strong>{STAT_LABEL[hotStat]}</strong> demand is rising, so lead with it in your next product.
                 </span>
               </div>
             )}
@@ -656,7 +656,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 <TrendingDown size={14} className="mkt__intel-icon mkt__intel-icon--down" />
                 <span className="mkt__intel-text">
                   <strong>{pressuredProducts[0].product.name}</strong> is under pressure in{" "}
-                  {CATEGORY_LABEL[pressuredProducts[0].product.category]} — rivals are outspeccing it. Plan a successor with higher-tier components.
+                  {CATEGORY_LABEL[pressuredProducts[0].product.category]}, rivals are outspeccing it. Plan a successor with higher-tier components.
                 </span>
               </div>
             )}
@@ -1134,7 +1134,7 @@ function ProductDetailSheet({
                 <span>Marketing push</span>
               </div>
               <p className="pd__pricecut-hint">
-                Sell ~<strong className="tnum">{pushQuote!.addedUnits.toLocaleString()}</strong> more units at full price — no margin cut. One campaign per product.
+                Sell ~<strong className="tnum">{pushQuote!.addedUnits.toLocaleString()}</strong> more units at full price, no margin cut. One campaign per product.
               </p>
               <div className="pd__pricecut-actions">
                 <Button
@@ -1183,7 +1183,7 @@ function ProductDetailSheet({
           })}
         </ul>
         {!lp.insight && (
-          <p className="pd__why-note">Detailed launch metrics weren't recorded for this older product — shown as an overall read.</p>
+          <p className="pd__why-note">Detailed launch metrics weren't recorded for this older product, shown as an overall read.</p>
         )}
         <StatGlossary label="What these stats mean" />
       </div>
@@ -1405,7 +1405,7 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
             {acquirable
               ? "Buy them out: remove them from competition and absorb their brand + customers."
               : atFloor
-                ? "The market needs at least a couple of rivals — you can't acquire any more right now."
+                ? "The market needs at least a couple of rivals, you can't acquire any more right now."
                 : state.cash < buyout
                   ? `You need ${format(sub(buyout, state.cash))} more cash to take control.`
                   : "Acquisitions unlock once your company is established."}
@@ -1487,7 +1487,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
             return (
               <span className="trade__invest-row trade__invest-row--launch">
                 <Rocket size={11} aria-hidden />
-                {wks === 0 ? "Launching this week — share price may spike" : `Launching in ${wks} week${wks !== 1 ? "s" : ""} — watch for a price bump`}
+                {wks === 0 ? "Launching this week, share price may spike" : `Launching in ${wks} week${wks !== 1 ? "s" : ""}, watch for a price bump`}
               </span>
             );
           }
@@ -1555,7 +1555,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
             {acquirable
               ? "Buy out the company: remove it from competition and absorb its brand + customers."
               : atFloor
-                ? "The market needs at least a couple of rivals — you can't acquire any more right now."
+                ? "The market needs at least a couple of rivals, you can't acquire any more right now."
                 : state.cash < buyout
                   ? `You need ${format(sub(buyout, state.cash))} more cash to take control.`
                   : "Acquisitions unlock once your company is established."}
@@ -1576,7 +1576,7 @@ function IPOSheet({ onClose }: { onClose: () => void }) {
       <div className="trade__head">
         <div>
           <h2 className="trade__title">Take {state.companyName} public</h2>
-          <p className="trade__sub">Sell a stake on the exchange for a cash infusion — you keep the rest. Going public can't be undone.</p>
+          <p className="trade__sub">Sell a stake on the exchange for a cash infusion, and you keep the rest. Going public can't be undone.</p>
         </div>
       </div>
       <div className="trade__row">

@@ -197,7 +197,7 @@ function ScreenError({ onHome }: { onHome: () => void }) {
       </div>
       <h2 className="app__screen-error-title">This screen hit a snag</h2>
       <p className="app__screen-error-text">
-        Something on this screen stopped responding. Your company is safe — head back and try again.
+        Something on this screen stopped responding. Your company is safe. Head back and try again.
       </p>
       <div className="app__screen-error-actions">
         <Button variant="secondary" onClick={onHome}>Back to Office</Button>
@@ -413,7 +413,7 @@ function Onboarding({ onStart }: { onStart: () => void }) {
           <p className="onboard__tag">Design tech. Time the market. Build an empire.</p>
           <div className="onboard__steps">
             <Step n="1" title="Design a device" text="Pick components, a finish, and a price. Watch it render live." />
-            <Step n="2" title="Read the market" text="Build toward what consumers want — and launch before the trend shifts." />
+            <Step n="2" title="Read the market" text="Build toward what consumers want, and launch before the trend shifts." />
             <Step n="3" title="Reinvest & grow" text="Fund R&D, hire a team, and expand from a garage to a global brand." />
           </div>
           <label className="onboard__name-label" htmlFor="onboard-name">Name your company</label>
@@ -509,13 +509,13 @@ function diagnoseFailure(state: GameState): string[] {
   const tips: string[] = [];
 
   if (launched.length === 0) {
-    tips.push("No product launched before cash ran out — fixed costs burn even without a team. Get to market in the first 10 weeks.");
+    tips.push("No product launched before cash ran out, fixed costs burn even without a team. Get to market in the first 10 weeks.");
   } else if (hits === 0 && launched.length >= 2) {
     tips.push("All launches flopped. Check the Market tab for rising trends and watch the competition landscape before designing.");
   }
 
   if (totalMade > 150 && totalSold < totalMade * 0.45 && tips.length < 2) {
-    tips.push("More than half of manufactured units went unsold — that's cash locked in inventory. Use 'Recommended' run sizes and plan small early.");
+    tips.push("More than half of manufactured units went unsold, that's cash locked in inventory. Use 'Recommended' run sizes and plan small early.");
   } else if (staff.length >= 4 && launched.length <= 1 && tips.length < 2) {
     tips.push("Payroll grew faster than revenue. Keep the team lean (1–2 people) until at least one product is generating consistent income.");
   }

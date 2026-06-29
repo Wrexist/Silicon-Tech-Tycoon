@@ -71,7 +71,7 @@ const STEPS: TStep[] = [
     icon: LayoutGrid,
     accent: "var(--accent)",
     title: "Welcome to your office",
-    text: "This is your real workspace. Buy furniture to fill it out — every piece you place shows up live in the 3D room.",
+    text: "This is your real workspace. Buy furniture to fill it out, every piece you place shows up live in the 3D room.",
   },
   {
     icon: Sparkles,
@@ -84,7 +84,7 @@ const STEPS: TStep[] = [
     icon: Users,
     accent: "var(--fn-team)",
     title: "Desks are seats",
-    text: "Every desk you buy here is a seat your next hire sits down at. Place more desks to grow the team — no upgrade menu needed.",
+    text: "Every desk you buy here is a seat your next hire sits down at. Place more desks to grow the team, no upgrade menu needed.",
     visual: <SeatVisual />,
   },
   {

@@ -57,7 +57,7 @@ export const REGIONS: readonly Region[] = [
   {
     id: "asia",
     name: "Asia",
-    blurb: "The largest market — fast-moving, design-aware and performance-hungry.",
+    blurb: "The largest market, fast-moving, design-aware and performance-hungry.",
     share: 1.15,
     weights: { performance: 1.2, quality: 1.0, battery: 1.1, design: 1.2, ecosystem: 0.9 },
     unlockCost: dollars(150_000),
@@ -65,7 +65,7 @@ export const REGIONS: readonly Region[] = [
   {
     id: "emerging",
     name: "Emerging Markets",
-    blurb: "Huge volume for durable, long-lasting value — design matters less here.",
+    blurb: "Huge volume for durable, long-lasting value, design matters less here.",
     share: 0.85,
     weights: { performance: 1.0, quality: 1.2, battery: 1.3, design: 0.7, ecosystem: 0.8 },
     unlockCost: dollars(110_000),

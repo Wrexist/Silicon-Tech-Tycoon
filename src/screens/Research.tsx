@@ -69,7 +69,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
             const label = repPct >= revPct
               ? `${Math.round(reputation)} / ${repGoal} rep`
               : `${formatShortDollars(cumulativeRevenueDollars)} / ${formatShortDollars(revGoalD!)} rev`;
-            progressLabel = `${bestPct}% — ${label}`;
+            progressLabel = `${bestPct}%, ${label}`;
           }
 
           return (
@@ -181,7 +181,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         </div>
         {perWeek === 0 ? (
           <div className="rd__bank-cta">
-            <p className="rd__bank-hint">No R&amp;D output yet — assign staff to the R&amp;D task to start earning Research Points.</p>
+            <p className="rd__bank-hint">No R&amp;D output yet. Assign staff to the R&amp;D task to start earning Research Points.</p>
             {onNavigate && (
               <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>
                 <Users size={14} /> Manage team
@@ -225,7 +225,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 </li>
               ))}
             </ul>
-            <p className="rd__income-hint">Assign more skilled engineers to R&amp;D to grow this — and each era multiplies your output.</p>
+            <p className="rd__income-hint">Assign more skilled engineers to R&amp;D to grow this, and each era multiplies your output.</p>
           </Card>
         );
       })()}
@@ -246,7 +246,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             <div className="rd__unlock-list">
               <UnlockTrack
                 name="Camera lenses"
-                sub={lensCost === null ? "Quad-lens array — maxed" : `Designs use up to ${lensLimit} lenses · more = sharper photos`}
+                sub={lensCost === null ? "Quad-lens array, maxed" : `Designs use up to ${lensLimit} lenses · more = sharper photos`}
                 cta={lensCost === null ? null : `Unlock ${lensLimit + 1}-lens`}
                 cost={lensCost}
                 rp={rp}
@@ -254,7 +254,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               />
               <UnlockTrack
                 name="Premium finishes"
-                sub={finishCost === null ? "Gold — maxed" : `${finishLimit + 1} of ${FINISH_ORDER.length} materials · premium = +design appeal`}
+                sub={finishCost === null ? "Gold, maxed" : `${finishLimit + 1} of ${FINISH_ORDER.length} materials · premium = +design appeal`}
                 cta={finishCost === null ? null : `Unlock ${cap(FINISH_ORDER[finishLimit + 1])}`}
                 cost={finishCost}
                 rp={rp}

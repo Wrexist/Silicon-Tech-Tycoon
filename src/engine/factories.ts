@@ -59,7 +59,7 @@ export const FACTORIES: Record<FactoryId, Factory> = {
     capacityPerWeek: 1500,
     acquireCost: ZERO,
     weeklyUpkeep: ZERO,
-    blurb: "Cheap tooling and units, but slow and capacity-limited — best for smaller runs.",
+    blurb: "Cheap tooling and units, but slow and capacity-limited, best for smaller runs.",
   },
   kairos: {
     id: "kairos",
@@ -72,7 +72,7 @@ export const FACTORIES: Record<FactoryId, Factory> = {
     capacityPerWeek: Infinity,
     acquireCost: ZERO,
     weeklyUpkeep: ZERO,
-    blurb: "Fast turnaround for a premium — first to market.",
+    blurb: "Fast turnaround for a premium, first to market.",
   },
   apex: {
     id: "apex",
@@ -85,7 +85,7 @@ export const FACTORIES: Record<FactoryId, Factory> = {
     capacityPerWeek: Infinity,
     acquireCost: ZERO,
     weeklyUpkeep: ZERO,
-    blurb: "Automated line — fast and cheap per unit at scale, but a steep setup.",
+    blurb: "Automated line, fast and cheap per unit at scale, but a steep setup.",
   },
   homeline: {
     id: "homeline",
@@ -111,7 +111,7 @@ export const FACTORIES: Record<FactoryId, Factory> = {
     capacityPerWeek: Infinity,
     acquireCost: dollars(9_000_000),
     weeklyUpkeep: dollars(60_000),
-    blurb: "A flagship in-house megafab: fastest, cheapest at scale, unlimited capacity — at a price.",
+    blurb: "A flagship in-house megafab: fastest, cheapest at scale, unlimited capacity, at a price.",
   },
 };
 

@@ -29,11 +29,11 @@ export interface Mutator {
 /** Catalog of start-condition mutators (the ones expressible without sim changes). */
 export const MUTATORS: readonly Mutator[] = [
   { id: "lean", name: "Lean Start", description: "Begin with half the usual capital.", cashMult: 0.5 },
-  { id: "shoestring", name: "Shoestring", description: "A third of the usual capital — every dollar counts.", cashMult: 0.34 },
-  { id: "warchest", name: "War Chest", description: "Triple starting capital — spend it wisely.", cashMult: 3 },
+  { id: "shoestring", name: "Shoestring", description: "A third of the usual capital, every dollar counts.", cashMult: 0.34 },
+  { id: "warchest", name: "War Chest", description: "Triple starting capital, spend it wisely.", cashMult: 3 },
   { id: "bruised", name: "Bruised Brand", description: "Start with a damaged reputation to rebuild.", reputation: 6 },
-  { id: "renowned", name: "Renowned", description: "Start with a strong reputation — but the bar is high.", reputation: 55 },
-  { id: "unknown", name: "Total Unknown", description: "No fans, no recognition — earn every one.", fans: 0 },
+  { id: "renowned", name: "Renowned", description: "Start with a strong reputation, but the bar is high.", reputation: 55 },
+  { id: "unknown", name: "Total Unknown", description: "No fans, no recognition, earn every one.", fans: 0 },
   { id: "cult", name: "Cult Following", description: "Begin with a devoted fanbase already in your corner.", fans: 25_000 },
   { id: "frugal", name: "Frugal Founder", description: "Modest capital and a quiet brand. Prove the model.", cashMult: 0.6, reputation: 12, fans: 0 },
 ] as const;

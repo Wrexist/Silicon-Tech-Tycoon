@@ -42,7 +42,7 @@ export function ChallengeTracker() {
 
       {done ? (
         <div className="scn-track__banner scn-track__banner--win">
-          Challenge complete — scored {formatScore(metric, final)}{best != null && final >= best ? " (your best!)" : ""}.
+          Challenge complete, scored {formatScore(metric, final)}{best != null && final >= best ? " (your best!)" : ""}.
         </div>
       ) : (
         <div className="scn-track__obj-row">

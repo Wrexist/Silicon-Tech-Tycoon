@@ -55,7 +55,7 @@ export function save(state: GameState): void {
         quotaWarned = true;
         try {
           // showToast is a pure UI util — no dependency back on the state layer, so no cycle.
-          showToast("Storage full — progress may not be saved.", { tone: "negative" });
+          showToast("Storage full, progress may not be saved.", { tone: "negative" });
         } catch {
           /* toast host not mounted (e.g. tests) */
         }

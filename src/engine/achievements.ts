@@ -193,7 +193,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "first-hit",
     title: "Breakout",
-    description: "Your first genuine hit — the market fell in love.",
+    description: "Your first genuine hit, the market fell in love.",
     icon: "Sparkles",
     hint: "Launch a product that lands as a hit.",
     predicate: (f) => f.hits >= 1,
@@ -209,7 +209,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "hat-trick",
     title: "Hat Trick",
-    description: "Three hits in a row — you've found your rhythm.",
+    description: "Three hits in a row, you've found your rhythm.",
     icon: "Star",
     hint: "String together consecutive hits.",
     predicate: (f) => f.hitStreak >= 3,
@@ -225,7 +225,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "ship-25",
     title: "Prolific",
-    description: "Twenty-five products — a real catalog.",
+    description: "Twenty-five products, a real catalog.",
     icon: "Factory",
     hint: "A steady cadence of launches.",
     predicate: (f) => f.productsShipped >= 25,
@@ -281,7 +281,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "fans-1m",
     title: "Movement",
-    description: "A million fans — a cultural force.",
+    description: "A million fans, a cultural force.",
     icon: "Globe",
     hint: "Reach the whole world.",
     predicate: (f) => f.fans >= 1_000_000,
@@ -289,7 +289,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "rep-50",
     title: "Respected",
-    description: "Reputation reached 50 — a name people trust.",
+    description: "Reputation reached 50, a name people trust.",
     icon: "Star",
     hint: "Earn the market's respect.",
     predicate: (f) => f.reputation >= 50,
@@ -297,7 +297,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "rep-85",
     title: "Iconic",
-    description: "Reputation reached 85 — an industry icon.",
+    description: "Reputation reached 85, an industry icon.",
     icon: "Crown",
     hint: "Become a household name.",
     predicate: (f) => f.reputation >= 85,
@@ -345,7 +345,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "first-hire",
     title: "Team of Two",
-    description: "Recruited your first employee — the founding team grows.",
+    description: "Recruited your first employee, the founding team grows.",
     icon: "UserPlus",
     hint: "Hire someone beyond the founder.",
     predicate: (f) => f.staffCount >= 2,
@@ -353,7 +353,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "team-5",
     title: "Small Studio",
-    description: "Five people on the payroll — a real team.",
+    description: "Five people on the payroll, a real team.",
     icon: "Users",
     hint: "Build a crew of five or more.",
     predicate: (f) => f.staffCount >= 5,
@@ -369,7 +369,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "research-4",
     title: "Research Lab",
-    description: "Four research projects completed — the R&D engine is running.",
+    description: "Four research projects completed, the R&D engine is running.",
     icon: "FlaskConical",
     hint: "Complete multiple research projects.",
     predicate: (f) => f.completedProjects >= 4,
@@ -395,14 +395,14 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     title: "Legend",
     description: "Reached the industry pinnacle. A legacy in silicon.",
     icon: "Trophy",
-    hint: "Complete the full journey — from garage to public icon.",
+    hint: "Complete the full journey, from garage to public icon.",
     predicate: (f) => f.wentPublic,
   },
   // --- New milestones ---
   {
     id: "first-research",
     title: "Eureka",
-    description: "The lab is open — you've completed your first research project.",
+    description: "The lab is open, you've completed your first research project.",
     icon: "FlaskConical",
     hint: "Invest RP and complete a research project.",
     predicate: (f) => f.completedProjects >= 1,
@@ -418,7 +418,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "era-3",
     title: "Platform Play",
-    description: "The industry is watching — you've entered the Platform Era.",
+    description: "The industry is watching, you've entered the Platform Era.",
     icon: "Layers",
     hint: "Push beyond the Growth Era.",
     predicate: (f) => f.era3reached,
@@ -434,7 +434,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "diversified-mfg",
     title: "Full Portfolio",
-    description: "Products in three different categories — you're no one-trick company.",
+    description: "Products in three different categories, you're no one-trick company.",
     icon: "Boxes",
     hint: "Ship products across multiple categories.",
     predicate: (f) => f.categoriesShipped >= 3,
@@ -450,7 +450,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "team-10",
     title: "Growing Fast",
-    description: "Ten people on the payroll — a company, not a crew.",
+    description: "Ten people on the payroll, a company, not a crew.",
     icon: "Users",
     hint: "Grow your headcount to ten or more.",
     predicate: (f) => f.staffCount >= 10,
@@ -474,7 +474,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "dual-category",
     title: "Two-Front War",
-    description: "Products launched in two distinct categories — the portfolio expands.",
+    description: "Products launched in two distinct categories, the portfolio expands.",
     icon: "Layers",
     hint: "Ship into more than one product category.",
     predicate: (f) => f.categoriesShipped >= 2,
@@ -506,7 +506,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "flop-proof",
     title: "Perfect Record",
-    description: "Ten or more products shipped with zero flops — pure consistency.",
+    description: "Ten or more products shipped with zero flops, pure consistency.",
     icon: "Star",
     hint: "Launch many products without a single flop.",
     predicate: (f) => f.productsShipped >= 10 && f.flops === 0,
@@ -514,7 +514,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "rep-75",
     title: "Celebrated",
-    description: "Reputation reached 75 — your brand is widely admired.",
+    description: "Reputation reached 75, your brand is widely admired.",
     icon: "Sparkles",
     hint: "Keep delivering hits and the world notices.",
     predicate: (f) => f.reputation >= 75,
@@ -522,7 +522,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "scenario-win",
     title: "Goal Oriented",
-    description: "Won a Scenario — you met a hand-crafted challenge's objectives.",
+    description: "Won a Scenario, you met a hand-crafted challenge's objectives.",
     icon: "Star",
     hint: "Take on a Scenario and hit its goal.",
     predicate: (f) => f.wonScenario,
@@ -530,7 +530,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "challenge-done",
     title: "Daily Grind",
-    description: "Completed a daily or weekly Challenge — scored under the mutators.",
+    description: "Completed a daily or weekly Challenge, scored under the mutators.",
     icon: "Zap",
     hint: "Play a Challenge through to its scoring week.",
     predicate: (f) => f.completedChallenge,
@@ -546,7 +546,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "os-first-feature",
     title: "Platform Pioneer",
-    description: "Built your first capability into your OS — the platform takes shape.",
+    description: "Built your first capability into your OS, the platform takes shape.",
     icon: "Sparkles",
     hint: "Build a feature module in the Platform division.",
     predicate: (f) => f.osFeaturesBuilt >= 1,
@@ -554,7 +554,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "os-complete",
     title: "Walled Garden",
-    description: "Every capability built into your OS — a complete, self-reinforcing platform.",
+    description: "Every capability built into your OS, a complete, self-reinforcing platform.",
     icon: "Boxes",
     hint: "Build every OS feature module.",
     predicate: (f) => f.osComplete,
@@ -570,7 +570,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "os-reach-1m",
     title: "Ubiquitous",
-    description: "A million devices running your OS — it's everywhere.",
+    description: "A million devices running your OS, it's everywhere.",
     icon: "Globe",
     hint: "Grow your installed base to a million.",
     predicate: (f) => f.osInstalledBase >= 1_000_000,
@@ -578,7 +578,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "os-kingmaker",
     title: "Kingmaker",
-    description: "Three rivals license your OS — the industry runs on your platform.",
+    description: "Three rivals license your OS, the industry runs on your platform.",
     icon: "Crown",
     hint: "License your OS to several competitors at once.",
     predicate: (f) => f.osLicenseeCount >= 3,
@@ -587,7 +587,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "scenario-3star",
     title: "Flawless Run",
-    description: "Three-starred a Scenario — every objective, every tier, in a single run.",
+    description: "Three-starred a Scenario, every objective, every tier, in a single run.",
     icon: "Star",
     hint: "Master a Scenario's hardest tier.",
     predicate: (f) => f.scenarioThreeStarRun,

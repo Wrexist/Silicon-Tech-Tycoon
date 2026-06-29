@@ -147,7 +147,7 @@ function withFanToasts(prev: GameState, next: GameState): void {
   for (const m of FAN_TOAST_THRESHOLDS) {
     if (prev.fans < m && next.fans >= m) {
       try {
-        showToast(`${fmtFans(m)} fans — your brand is growing!`, { tone: "positive" });
+        showToast(`${fmtFans(m)} fans, your brand is growing!`, { tone: "positive" });
       } catch { /* toast host not mounted */ }
     }
   }
@@ -175,7 +175,7 @@ function withProductFinishToasts(prev: GameState, next: GameState): void {
     const tone = v === "hit" || v === "solid" ? "positive" : v === "flop" ? "negative" : "neutral";
     try {
       showToast(
-        `${nlp.product.name} finished its run — ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
+        `${nlp.product.name} finished its run, ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
         { tone },
       );
     } catch { /* toast host not mounted */ }
@@ -189,7 +189,7 @@ function withRevToasts(prev: GameState, next: GameState): void {
   for (const m of REV_MILESTONES) {
     if (prevD < m && nextD >= m) {
       try {
-        showToast(`Revenue milestone — ${fmtMilestone(m)} earned lifetime!`, { tone: "positive" });
+        showToast(`Revenue milestone, ${fmtMilestone(m)} earned lifetime!`, { tone: "positive" });
       } catch { /* toast host not mounted */ }
     }
   }
@@ -209,14 +209,14 @@ function announceAchievements(unlocked: readonly string[]): void {
     try {
       if (earned.length === 1) {
         const a = earned[0];
-        showToast(`Achievement unlocked — ${a.title}`, {
+        showToast(`Achievement unlocked, ${a.title}`, {
           tone: "positive",
           glyph: createElement(achievementIcon(a.icon), { size: 15 }),
         });
       } else {
         const names = earned.slice(0, 2).map((a) => a.title).join(" · ");
         const extra = earned.length > 2 ? ` +${earned.length - 2} more` : "";
-        showToast(`${earned.length} milestones unlocked — ${names}${extra}`, {
+        showToast(`${earned.length} milestones unlocked, ${names}${extra}`, {
           tone: "positive",
           glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
         });
@@ -240,8 +240,8 @@ function announceObjectives(completed: readonly string[]): void {
   setTimeout(() => {
     try {
       const label = done.length === 1
-        ? `Goal complete — ${done[0].label}`
-        : `${done.length} goals complete — ${done[0].label}`;
+        ? `Goal complete, ${done[0].label}`
+        : `${done.length} goals complete, ${done[0].label}`;
       showToast(label, { tone: "positive", glyph: createElement(CircleCheck, { size: 15 }) });
     } catch {
       /* toast host not mounted (e.g. tests) */
@@ -297,7 +297,7 @@ function announceScenarioStars(state: GameState): void {
   const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
   setTimeout(() => {
     try {
-      showToast(`${best}★ earned — ${name}`, {
+      showToast(`${best}★ earned, ${name}`, {
         tone: "positive",
         glyph: createElement(achievementIcon("Star"), { size: 15 }),
       });
@@ -317,10 +317,10 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
   sfx("mastery");
   const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
   const scored = formatScore(ch.scoreMetric, next.challengeScore);
-  const tail = improved ? " — new best!" : ` · best ${formatScore(ch.scoreMetric, best)}`;
+  const tail = improved ? ", new best!" : ` · best ${formatScore(ch.scoreMetric, best)}`;
   setTimeout(() => {
     try {
-      showToast(`${label} complete — ${scored}${tail}`, {
+      showToast(`${label} complete, ${scored}${tail}`, {
         tone: "positive",
         glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
       });
@@ -699,7 +699,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (next.completedProjects.length > prev.completedProjects.length) {
       emitCelebrate();
       sfx("confirm");
-      showToast(`Breakthrough — ${projectById(id).name}`, { tone: "positive" });
+      showToast(`Breakthrough, ${projectById(id).name}`, { tone: "positive" });
     }
     setState(next);
   }, []);

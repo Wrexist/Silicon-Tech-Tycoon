@@ -207,7 +207,7 @@ export function Company() {
         )}
         {runway > 20 && Math.min(fac.staffCapacity, deskCapacity(state)) > state.staff.length && (
           <p className="co__hire-hint">
-            {deskCapacity(state) - state.staff.length} open desk{deskCapacity(state) - state.staff.length > 1 ? "s" : ""} — runway supports a new hire
+            {deskCapacity(state) - state.staff.length} open desk{deskCapacity(state) - state.staff.length > 1 ? "s" : ""}, runway supports a new hire
           </p>
         )}
         {state.launched.length > 0 && (
@@ -293,7 +293,7 @@ export function Company() {
               <span className="co__found-glyph" aria-hidden><Layers size={22} /></span>
               <div className="co__found-info">
                 <span className="co__found-title">Found the Platform division</span>
-                <span className="co__found-sub">Turn {osDisplayName(state)} into a business in its own right — recurring services, OS licensing to rivals, feature modules, and a platform identity.</span>
+                <span className="co__found-sub">Turn {osDisplayName(state)} into a business in its own right: recurring services, OS licensing to rivals, feature modules, and a platform identity.</span>
               </div>
             </div>
             <Button
@@ -347,7 +347,7 @@ export function Company() {
           <div className="co__fac-nudge">
             <Building2 size={15} className="co__fac-nudge-icon" aria-hidden />
             <span className="co__fac-nudge-text">
-              <strong>At facility capacity</strong> — move to {nextFac.name} from Office upgrades to make room for more staff ({format(nextFac.upgradeCost)}).
+              <strong>At facility capacity</strong>. Move to {nextFac.name} from Office upgrades to make room for more staff ({format(nextFac.upgradeCost)}).
             </span>
           </div>
         );
@@ -356,7 +356,7 @@ export function Company() {
         <div className="co__fac-nudge">
           <PencilRuler size={15} className="co__fac-nudge-icon" aria-hidden />
           <span className="co__fac-nudge-text">
-            <strong>Every desk is taken</strong> — buy a desk on the Office tab (in the Shop)
+            <strong>Every desk is taken</strong>. Buy a desk on the Office tab (in the Shop)
             and your next hire sits down at it.
           </span>
         </div>
@@ -403,7 +403,7 @@ function DelegationCard({ state, onToggle }: { state: GameState; onToggle: (patc
       key: "autoAssign",
       icon: Wand2,
       label: "Auto-assign staff",
-      sub: "Idle hires are put on their discipline each week — never a wasted seat.",
+      sub: "Idle hires are put on their discipline each week, never a wasted seat.",
       can: canAutoAssign(state),
       gate: `Promote any staffer to skill ${lead}+ to delegate`,
     },
@@ -583,7 +583,7 @@ function OperationsSection({ state, onAcquire }: { state: GameState; onAcquire: 
           );
         })}
       </div>
-      <p className="co__hint">Owned lines slash tooling + per-unit cost and lift capacity — but the weekly upkeep is charged whether they build or sit idle.</p>
+      <p className="co__hint">Owned lines slash tooling + per-unit cost and lift capacity, but the weekly upkeep is charged whether they build or sit idle.</p>
     </Card>
   );
 }
@@ -848,7 +848,7 @@ function TeamOutputCard({ state }: { state: GameState }) {
         );
       })()}
       {idleCount > 0 && (
-        <p className="co__output-idle">{idleCount} staff idle — assign them to a function to generate output.</p>
+        <p className="co__output-idle">{idleCount} staff idle, assign them to a function to generate output.</p>
       )}
       {(() => {
         const soonest = state.staff
@@ -874,14 +874,14 @@ function TeamOutputCard({ state }: { state: GameState }) {
         if (amenitiesLvl === 0) {
           return (
             <p className="co__output-levelup co__output-mood-warn">
-              {avgMood < 30 ? "Morale critically low" : "Morale is low"} — upgrading <strong>Amenities</strong> on the Office tab will help.
+              {avgMood < 30 ? "Morale critically low" : "Morale is low"}. Upgrading <strong>Amenities</strong> on the Office tab will help.
             </p>
           );
         }
         if (recentFlops >= 2) {
           return (
             <p className="co__output-levelup co__output-mood-warn">
-              Recent flops are weighing on the team — landing a hit will bounce morale back.
+              Recent flops are weighing on the team; landing a hit will bounce morale back.
             </p>
           );
         }
@@ -1064,10 +1064,10 @@ function Member({
         <button
           className={`co__rest-btn${isLowMood ? " co__rest-btn--urgent" : ""}`}
           disabled={cash < restCost(s)}
-          title="Paid time off — restores morale and eases burnout"
+          title="Paid time off, restores morale and eases burnout"
           onClick={() => onRest(s.id)}
         >
-          <Coffee size={12} aria-hidden /> {isLowMood ? "Rest — recharge morale" : "Rest"} · {format(restCost(s))}
+          <Coffee size={12} aria-hidden /> {isLowMood ? "Rest, recharge morale" : "Rest"} · {format(restCost(s))}
         </button>
       )}
     </li>
@@ -1118,7 +1118,7 @@ function RecruitPanel({
     return (
       <>
         <p className="co__hint">
-          {full ? (noDesk ? "Every desk is taken — buy a desk on the Office tab to open a seat. " : "At capacity — free up a seat to sign someone. ") : ""}
+          {full ? (noDesk ? "Every desk is taken, buy a desk on the Office tab to open a seat. " : "At capacity, free up a seat to sign someone. ") : ""}
           Shortlist available for {weeksLeft} more week{weeksLeft === 1 ? "" : "s"}.
         </p>
         {state.candidates.map((c) => (

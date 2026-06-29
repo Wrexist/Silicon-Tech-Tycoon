@@ -71,7 +71,7 @@ export const OBJECTIVES: readonly Objective[] = [
   {
     id: "second-launch",
     label: "Ship a second product",
-    detail: "Reinvest your earnings into the next device — momentum compounds.",
+    detail: "Reinvest your earnings into the next device, momentum compounds.",
     tab: "design",
     cta: "Open the Design Lab",
     icon: "Repeat",
@@ -107,7 +107,7 @@ export const OBJECTIVES: readonly Objective[] = [
   {
     id: "first-upgrade",
     label: "Buy an office upgrade",
-    detail: "Upgrades permanently lift your team — research, design, quality, or hype.",
+    detail: "Upgrades permanently lift your team, research, design, quality, or hype.",
     tab: "hq",
     cta: "Open Office upgrades",
     icon: "Wrench",
@@ -116,7 +116,7 @@ export const OBJECTIVES: readonly Objective[] = [
   {
     id: "found-platform",
     label: "Found the Platform division",
-    detail: "Turn your OS into a business of its own — recurring services and licensing.",
+    detail: "Turn your OS into a business of its own, recurring services and licensing.",
     tab: "company",
     cta: "Go to Finance",
     icon: "Layers",

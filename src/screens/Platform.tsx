@@ -105,7 +105,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
       <Card>
         <SectionHeader title="OS philosophy" accessory={state.osPhilosophy ? "chosen" : "make it yours"} />
         <p className="plat__release-note plat__release-note--muted">
-          The soul of {osDisplayName(state)} — a lasting identity that shapes every device you ship. Tap to choose; tap again to clear.
+          The soul of {osDisplayName(state)}, a lasting identity that shapes every device you ship. Tap to choose; tap again to clear.
         </p>
         <div className="plat__phils">
           {OS_PHILOSOPHIES.map((p) => {
@@ -155,7 +155,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
           <>
             <p className="plat__release-note">
               Your research has moved ahead of your released OS. Ship <strong>{tier.name} ({tier.tier}.0)</strong> to
-              update the whole installed base — a goodwill moment worth <strong>+{reward.fans.toLocaleString()} fans</strong> and reputation.
+              update the whole installed base, a goodwill moment worth <strong>+{reward.fans.toLocaleString()} fans</strong> and reputation.
             </p>
             <Button block onClick={() => {
               haptic.success();
@@ -176,7 +176,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
         <SectionHeader title="OS features" accessory={ecoBonus > 0 ? `+${ecoBonus} ecosystem` : undefined} />
         <p className="plat__release-note plat__release-note--muted">
           Build platform capabilities into {osDisplayName(state)}. Each ships in every device you
-          launch — lifting its ecosystem and your recurring services. <strong>{rp.toLocaleString()} RP</strong> available.
+          launch, lifting its ecosystem and your recurring services. <strong>{rp.toLocaleString()} RP</strong> available.
         </p>
         <div className={`plat__os-progress${allBuilt ? " plat__os-progress--done" : ""}`}>
           <div className="plat__os-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={totalCount} aria-valuenow={builtCount}>
@@ -255,7 +255,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
       <Card>
         <SectionHeader title="License your OS" accessory={licenseTotal > 0 ? `${format(licenseTotal)}/wk` : undefined} />
         <p className="plat__release-note plat__release-note--muted">
-          Rivals pay a weekly fee to run {osDisplayName(state)} — but a licensee competes
+          Rivals pay a weekly fee to run {osDisplayName(state)}, but a licensee competes
           ~+{licenseeStrengthUplift()} stronger in your shared markets. A real bet: reach vs. rivalry.
         </p>
         <ul className="plat__rivals">
@@ -275,7 +275,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
                     onClick={() => {
                       haptic.light();
                       if (licensed) { revokeOsLicense(c.id); showToast(`${c.name} no longer licenses ${osDisplayName(state)}`, { tone: "neutral" }); }
-                      else { licenseOsToRival(c.id); showToast(`${c.name} now licenses ${osDisplayName(state)} — +${format(fee)}/wk, but stronger in your markets`, { tone: "neutral" }); }
+                      else { licenseOsToRival(c.id); showToast(`${c.name} now licenses ${osDisplayName(state)}, +${format(fee)}/wk, but stronger in your markets`, { tone: "neutral" }); }
                     }}
                   >
                     {licensed ? "Revoke" : "License"}
@@ -291,7 +291,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
             );
           })}
         </ul>
-        <p className="plat__rel-note">Licensees grow restless if you dominate them too hard — keep them content, or push for share and risk losing the fees.</p>
+        <p className="plat__rel-note">Licensees grow restless if you dominate them too hard, keep them content, or push for share and risk losing the fees.</p>
       </Card>
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>
@@ -300,7 +300,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
         <Celebration
           eyebrow="Platform complete"
           title={`${osDisplayName(state)} is whole`}
-          sub="Every capability now ships in your OS — a complete, self-reinforcing platform."
+          sub="Every capability now ships in your OS, a complete, self-reinforcing platform."
           icon={<Layers size={34} />}
           chips={[
             { icon: <Sparkles size={14} />, value: `+${osEcoBonus(state)}`, label: "ecosystem", sub: "every device" },
@@ -315,7 +315,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
         <Celebration
           eyebrow="OS released"
           title={`${osDisplayName(state)} ${released.version}.0`}
-          sub={`Shipped across your installed base — ${released.base.toLocaleString()} devices update overnight.`}
+          sub={`Shipped across your installed base, ${released.base.toLocaleString()} devices update overnight.`}
           icon={<Rocket size={32} />}
           sound="era"
           chips={[

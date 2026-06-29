@@ -289,12 +289,12 @@ function revMilestoneItems(prev: Money, next: Money, week: number): FeedItem[] {
 }
 
 const FAN_MILESTONES: { fans: number; text: string; repBonus: number }[] = [
-  { fans:     1_000, text: "1,000 fans — your brand is gaining recognition.", repBonus: 1 },
-  { fans:     5_000, text: "5,000 fans — a real community is forming.", repBonus: 1 },
+  { fans:     1_000, text: "1,000 fans, your brand is gaining recognition.", repBonus: 1 },
+  { fans:     5_000, text: "5,000 fans, a real community is forming.", repBonus: 1 },
   { fans:    10_000, text: "10,000 fans! You're becoming a household name.", repBonus: 2 },
-  { fans:    50_000, text: "50,000 fans — a major following. Brands take notice.", repBonus: 2 },
+  { fans:    50_000, text: "50,000 fans, a major following. Brands take notice.", repBonus: 2 },
   { fans:   100_000, text: "100,000 fans! You're a leader in the market.", repBonus: 3 },
-  { fans:   500_000, text: "500,000 fans — half a million people follow you.", repBonus: 3 },
+  { fans:   500_000, text: "500,000 fans, half a million people follow you.", repBonus: 3 },
   { fans: 1_000_000, text: "One million fans! Your brand is iconic.", repBonus: 5 },
 ];
 
@@ -481,7 +481,7 @@ export function newChallengeGame(kind: ChallengeKind, dateKey: string): GameStat
     activeChallenge: { kind: ch.kind, dateKey: ch.dateKey, scoreMetric: ch.scoreMetric, scoreWeek: ch.scoreWeek },
     challengeScore: null,
     cashHistory: [{ week: 0, cash: toDollars(cash) }],
-    feed: [feedItem(0, `${kind === "weekly" ? "Weekly" : "Daily"} challenge — ${ch.mutators.map((m) => m.name).join(" + ")}. Score: best ${ch.scoreMetric} by week ${ch.scoreWeek}.`, "accent")],
+    feed: [feedItem(0, `${kind === "weekly" ? "Weekly" : "Daily"} challenge, ${ch.mutators.map((m) => m.name).join(" + ")}. Score: best ${ch.scoreMetric} by week ${ch.scoreWeek}.`, "accent")],
   };
 }
 
@@ -536,7 +536,7 @@ export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 **
     onboarded: true,
     tutorialDone: true,
     cashHistory: [{ week: 0, cash: toDollars(startCash) }],
-    feed: [feedItem(0, `Scenario started — ${scn.name}. ${scn.tagline}`, "accent")],
+    feed: [feedItem(0, `Scenario started, ${scn.name}. ${scn.tagline}`, "accent")],
   };
 }
 
@@ -716,7 +716,7 @@ export function buyDesktop(state: GameState): GameState {
 export function unlockRegion(state: GameState, id: RegionId): GameState {
   const region = regionById(id);
   if (!region || state.unlockedRegions.includes(id) || state.cash < region.unlockCost) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Expanded into ${region.name} — a new market is open.`, "positive")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Expanded into ${region.name}, a new market is open.`, "positive")]);
   return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
 }
 
@@ -756,7 +756,7 @@ export function negotiateContract(state: GameState, supplierId: SupplierId, term
   const discount = contractDiscount(term, state.reputation, BALANCE.supply.contract.repDiscountMax);
   const feed = trimFeed([...state.feed, feedItem(
     state.week,
-    `Signed a ${term.name.toLowerCase()} contract with ${sup.name} — ${Math.round(discount * 100)}% off, price-locked for ${term.weeks} wk.`,
+    `Signed a ${term.name.toLowerCase()} contract with ${sup.name}, ${Math.round(discount * 100)}% off, price-locked for ${term.weeks} wk.`,
     "positive",
   )]);
   return {
@@ -774,7 +774,7 @@ export function acquireFactory(state: GameState, id: FactoryId): GameState {
   const fac = factoryFor(id);
   const owned = state.ownedFactories ?? [];
   if (fac.kind !== "owned" || owned.includes(id) || !isFactoryUnlocked(id, state.era) || state.cash < fac.acquireCost) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Acquired ${fac.name} — your own production line (${format(fac.weeklyUpkeep)}/wk upkeep).`, "positive")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Acquired ${fac.name}, your own production line (${format(fac.weeklyUpkeep)}/wk upkeep).`, "positive")]);
   return { ...state, cash: sub(state.cash, fac.acquireCost), ownedFactories: [...owned, id], feed };
 }
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
@@ -1191,7 +1191,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         : 100;
       productsFeed.push(feedItem(
         week,
-        `"${lp.product.name}" lifecycle complete — ${newUnitsSold.toLocaleString()} sold (${sellThrough}% sell-through), ${format(newRevenue)} total.`,
+        `"${lp.product.name}" lifecycle complete, ${newUnitsSold.toLocaleString()} sold (${sellThrough}% sell-through), ${format(newRevenue)} total.`,
         sellThrough >= 85 ? "positive" : "neutral",
       ));
     }
@@ -1321,7 +1321,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const weeksElapsed = job.weeksElapsed + rate;
     if (weeksElapsed >= job.totalWeeks) {
       ready.push(job.product);
-      feed.push(feedItem(week, `“${job.product.name}” finished manufacturing — ready to launch.`, "accent"));
+      feed.push(feedItem(week, `“${job.product.name}” finished manufacturing, ready to launch.`, "accent"));
     } else {
       building.push({ ...job, weeksElapsed });
     }
@@ -1372,7 +1372,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const q = finalStaff.find((m) => m.id === qid);
     if (!q) continue;
     finalStaff = finalStaff.filter((m) => m.id !== qid);
-    feed.push(feedItem(week, `${q.name} quit — sustained burnout pushed them to leave.`, "negative"));
+    feed.push(feedItem(week, `${q.name} quit, sustained burnout pushed them to leave.`, "negative"));
   }
 
   // Recruitment search progress — resolves into a candidate shortlist when the timer runs out,
@@ -1432,7 +1432,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     osLicensees = rel.licensees;
     osLicenseeHealth = rel.health;
     for (const d of rel.dropped) {
-      feed.push(feedItem(week, `${d.name} dropped ${osDisplayName(state)} — they couldn't keep competing while paying to license it.`, "negative"));
+      feed.push(feedItem(week, `${d.name} dropped ${osDisplayName(state)}, they couldn't keep competing while paying to license it.`, "negative"));
     }
   }
 
@@ -1451,7 +1451,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const fansStr = newFans >= 1000 ? `${(newFans / 1000).toFixed(1)}k` : String(newFans);
     feed.push(feedItem(
       week,
-      `Q${qNum} complete — ${format(cash)} cash · Rep ${Math.round(state.reputation)} · ${fansStr} fans.`,
+      `Q${qNum} complete, ${format(cash)} cash · Rep ${Math.round(state.reputation)} · ${fansStr} fans.`,
       "accent",
     ));
   }
@@ -1477,7 +1477,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       if (!c) continue;
       const weeksLeft = c.weeksLeft - rate;
       if (weeksLeft > 0) next[sid as SupplierId] = { ...c, weeksLeft };
-      else feed.push(feedItem(week, `Your contract with ${supplierFor(sid as SupplierId).name} expired — back to spot pricing.`, "accent"));
+      else feed.push(feedItem(week, `Your contract with ${supplierFor(sid as SupplierId).name} expired, back to spot pricing.`, "accent"));
     }
     supplierContracts = next;
   }
@@ -1527,7 +1527,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
           .slice(newRank, Math.min(state.bestIndustryRank, board.length))
           .filter((e) => !e.isPlayer);
         for (const r of overtaken) {
-          base.feed.push(feedItem(week, `${base.companyName} overtook ${r.name} — now #${newRank} in the industry.`, "positive"));
+          base.feed.push(feedItem(week, `${base.companyName} overtook ${r.name}, now #${newRank} in the industry.`, "positive"));
         }
         if (newRank === 1) {
           base.feed.push(feedItem(week, `${base.companyName} is now the #1 company in the industry. The throne is yours.`, "positive"));
@@ -1646,9 +1646,9 @@ function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?:
   // subject; fall back to the bare rival name for callers that don't generate a product.
   const subject = productName ?? l.competitor;
   const text = contested
-    ? `${subject} undercuts your ${catName} on price — a value war for the segment.`
+    ? `${subject} undercuts your ${catName} on price, a value war for the segment.`
     : threat
-      ? `${subject} launches — your active ${catName} faces new competition.`
+      ? `${subject} launches, your active ${catName} faces new competition.`
       : `${subject} launches into ${catName}.`;
   feed.push(feedItem(l.week, text, threat || contested ? "negative" : "neutral"));
 }
@@ -1707,7 +1707,7 @@ export function startBuild(
   feed.push(
     feedItem(
       state.week,
-      `Started a ${units.toLocaleString()}-unit run of “${product.name}” — ${format(plan.totalUpfront)} (${totalWeeks} wk).`,
+      `Started a ${units.toLocaleString()}-unit run of “${product.name}”, ${format(plan.totalUpfront)} (${totalWeeks} wk).`,
       "accent",
     ),
   );
@@ -1867,22 +1867,22 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // A flop verdict can coexist with a sellout (the verdict is market reception of the product
   // itself; sales are capped by the run size) — so the flop line must carry its cause, and the
   // sellout line must not read as a pure celebration next to it, or the two contradict each other.
-  const verdict = isHit ? 'a hit' : isFlop ? 'a flop — out of step with what buyers wanted' : isSolid ? 'a solid performer' : 'a steady seller';
+  const verdict = isHit ? 'a hit' : isFlop ? 'a flop, out of step with what buyers wanted' : isSolid ? 'a solid performer' : 'a steady seller';
   feed.push(
     feedItem(
       state.week,
-      `Launched “${product.name}” — ${verdict} (~${totalUnits.toLocaleString()} of ${plannedUnits.toLocaleString()} units forecast).${deltaStr}`,
+      `Launched “${product.name}”, ${verdict} (~${totalUnits.toLocaleString()} of ${plannedUnits.toLocaleString()} units forecast).${deltaStr}`,
       isHit ? 'positive' : isFlop ? 'negative' : isSolid ? 'positive' : 'accent',
     ),
   );
   if (sellsOut) {
     if (isFlop) {
-      feed.push(feedItem(state.week, `“${product.name}” will sell out its small run — but the wider market wasn't won over. Tap it on Market for the full story.`, "accent"));
+      feed.push(feedItem(state.week, `“${product.name}” will sell out its small run, but the wider market wasn't won over. Tap it on Market for the full story.`, "accent"));
     } else {
-      feed.push(feedItem(state.week, `“${product.name}” is selling out — demand outstrips your run.`, "positive"));
+      feed.push(feedItem(state.week, `“${product.name}” is selling out, demand outstrips your run.`, "positive"));
     }
   } else if (plannedUnits - totalUnits > plannedUnits * 0.35) {
-    feed.push(feedItem(state.week, `Overproduced “${product.name}” — unsold stock is a write-off.`, "negative"));
+    feed.push(feedItem(state.week, `Overproduced “${product.name}”, unsold stock is a write-off.`, "negative"));
   }
   for (const item of fanMilestones.feed) feed.push(item);
 
@@ -1932,7 +1932,7 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
   );
 
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Price cut on "${lp.product.name}" — ${format(lp.product.price)} → ${format(newPrice)}.`, "accent"));
+  feed.push(feedItem(state.week, `Price cut on "${lp.product.name}", ${format(lp.product.price)} → ${format(newPrice)}.`, "accent"));
 
   return {
     state: {
@@ -1979,7 +1979,7 @@ export function marketingPush(state: GameState, productId: string): ActionResult
   const newTotalUnits = Math.min(cap, newWeeklyUnits.reduce((a, b) => a + b, 0));
 
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Marketing push on "${lp.product.name}" — ${quote.addedUnits.toLocaleString()} more units in the pipeline.`, "accent"));
+  feed.push(feedItem(state.week, `Marketing push on "${lp.product.name}", ${quote.addedUnits.toLocaleString()} more units in the pipeline.`, "accent"));
 
   return {
     state: {
@@ -2023,7 +2023,7 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
   if (!pc) return state;
   const option = (pc.event.options as readonly ChoiceOption[]).find((o) => o.id === optionId);
   if (!option) return state;
-  const feedText = `${pc.event.title} — you chose: "${option.label}".`;
+  const feedText = `${pc.event.title}, you chose: "${option.label}".`;
   const applied = applyEventEffect(state, option.effect, state.week, feedText, pc.event.tone as FeedTone);
   return {
     ...applied,
@@ -2217,7 +2217,7 @@ export function foundPlatform(state: GameState): GameState {
   const cost = BALANCE.platform.foundingCost;
   if (state.cash < cost) return state;
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Founded the Platform division — ${osDisplayName(state)} is now a business in its own right.`, "positive"));
+  feed.push(feedItem(state.week, `Founded the Platform division, ${osDisplayName(state)} is now a business in its own right.`, "positive"));
   return { ...state, cash: sub(state.cash, cost) as Money, platformUnlocked: true, feed: trimFeed(feed) };
 }
 
@@ -2242,7 +2242,7 @@ export function releaseOsVersion(state: GameState): GameState {
   const newVersion = osTierInfo(state).tier;
   const reward = osReleaseReward(platformInstalledBase(state));
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `${osDisplayName(state)} ${newVersion}.0 released — the installed base updated. +${reward.fans.toLocaleString()} fans.`, "positive"));
+  feed.push(feedItem(state.week, `${osDisplayName(state)} ${newVersion}.0 released, the installed base updated. +${reward.fans.toLocaleString()} fans.`, "positive"));
   return {
     ...state,
     osVersion: newVersion,
@@ -2273,7 +2273,7 @@ export function licenseOsToRival(state: GameState, rivalId: string): GameState {
   if (!state.competitors.some((c) => c.id === rivalId)) return state;
   const rival = state.competitors.find((c) => c.id === rivalId);
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `${rival?.name ?? "A rival"} now licenses ${osDisplayName(state)} — new revenue, but a sharper competitor.`, "accent"));
+  feed.push(feedItem(state.week, `${rival?.name ?? "A rival"} now licenses ${osDisplayName(state)}, new revenue, but a sharper competitor.`, "accent"));
   return {
     ...state,
     osLicensees: [...state.osLicensees, rivalId],
@@ -2317,7 +2317,7 @@ export function installOsFeature(state: GameState, id: string): GameState {
   const feat = osFeatureById(id);
   if (!feat) return state;
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `${osDisplayName(state)} gained ${feat.name} — a new platform capability.`, "accent"));
+  feed.push(feedItem(state.week, `${osDisplayName(state)} gained ${feat.name}, a new platform capability.`, "accent"));
   return {
     ...state,
     researchPoints: state.researchPoints - feat.rpCost,
@@ -2470,7 +2470,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     ...identity,
   };
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Hired ${name} — ${role}.`, "accent"));
+  feed.push(feedItem(state.week, `Hired ${name}, ${role}.`, "accent"));
   return {
     ...state,
     rngState: rng.state(),
@@ -2548,7 +2548,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     mood: cand.mood,
     appearance: cand.appearance,
   };
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name} — ${cand.role}.`, "positive")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name}, ${cand.role}.`, "positive")]);
   return {
     ...state,
     cash: sub(state.cash, cand.hireFee),
@@ -2680,7 +2680,7 @@ export function listCompany(state: GameState, stake: number): GameState {
   const pct = Math.max(0.05, Math.min(BALANCE.ipo.maxStakePerSale, stake));
   const raised = scale(companyValuation(state), pct);
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `${state.companyName} IPO'd — raised ${format(raised)} for ${Math.round(pct * 100)}%.`, "positive"));
+  feed.push(feedItem(state.week, `${state.companyName} IPO'd, raised ${format(raised)} for ${Math.round(pct * 100)}%.`, "positive"));
   return { ...state, listed: true, ownership: 1 - pct, cash: add(state.cash, raised), feed: trimFeed(feed) };
 }
 
@@ -2762,7 +2762,7 @@ export function acquireRival(state: GameState, id: string): GameState {
   const feed = [...state.feed];
   feed.push(feedItem(
     state.week,
-    `Acquired ${c.name} for ${format(cost)} — absorbed their brand (+${m.repBonus} rep) and ${fansGain.toLocaleString()} customers.`,
+    `Acquired ${c.name} for ${format(cost)}, absorbed their brand (+${m.repBonus} rep) and ${fansGain.toLocaleString()} customers.`,
     "positive",
   ));
 
@@ -2817,7 +2817,7 @@ export function advanceEraAction(state: GameState): GameState {
   feed.push(feedItem(state.week, `Entered the ${eraName(era)}. New tech unlocked.`, "positive"));
   // Epic D — announce the era's rule shift so the change in texture is legible (pillar #5).
   const rule = eraRuleSummary(era);
-  if (rule) feed.push(feedItem(state.week, `${eraName(era)} shift — ${rule}.`, "accent"));
+  if (rule) feed.push(feedItem(state.week, `${eraName(era)} shift, ${rule}.`, "accent"));
   return { ...state, era, feed: trimFeed(feed) };
 }
 

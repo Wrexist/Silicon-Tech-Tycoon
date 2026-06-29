@@ -49,7 +49,7 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   { id: "globalDistribution", name: "Global Distribution",  blurb: "Reach 25% more customers.",                  rpCost: 96,  era: 3 },
   { id: "marketingAutomation",name: "Marketing Automation", blurb: "All launches get a free +20% hype boost.",   rpCost: 90,  era: 3 },
   { id: "verticalIntegration",name: "Vertical Integration", blurb: "Manufacturing costs 20% lower.",             rpCost: 115, era: 3 },
-  { id: "hitFactory",         name: "Hit Factory",          blurb: "Hit threshold lowers — more products qualify.", rpCost: 130, era: 3 },
+  { id: "hitFactory",         name: "Hit Factory",          blurb: "Hit threshold lowers, more products qualify.", rpCost: 130, era: 3 },
   { id: "megaLaunch",         name: "Mega Launch",          blurb: "+0.3 hype multiplier stacked on every launch.", rpCost: 140, era: 3 },
   // Expansion projects — new unlocks across all eras
   { id: "componentStandards", name: "Component Standards",  blurb: "Component tier R&D costs 15% less RP.",      rpCost: 30,  era: 1 },

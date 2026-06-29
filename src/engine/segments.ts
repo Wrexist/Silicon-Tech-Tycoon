@@ -43,7 +43,7 @@ export const SEGMENTS: readonly Segment[] = [
   {
     id: "mainstream",
     name: "Mainstream",
-    blurb: "The broad middle — a balanced, dependable all-rounder.",
+    blurb: "The broad middle, a balanced, dependable all-rounder.",
     weights: { performance: 1.0, quality: 1.0, battery: 1.0, design: 0.9, ecosystem: 0.9 },
     priceSensitivity: 1.0,
     size: 0.32,
