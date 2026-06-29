@@ -116,6 +116,22 @@
   justify-content: space-between;
   gap: var(--sp-12);
 }
+.rd__project--fork {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.rd__fork-tag {
+  display: inline-block;
+  margin-left: var(--sp-8);
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro, 10px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  vertical-align: middle;
+}
 .rd__project-info {
   display: flex;
   flex-direction: column;

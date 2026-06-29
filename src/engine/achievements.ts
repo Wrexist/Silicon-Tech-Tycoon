@@ -8,7 +8,7 @@
 import type { GameState } from "../state/gameState.ts";
 import { netWorth, scenarioResultFor } from "../state/gameState.ts";
 import { toDollars } from "./money.ts";
-import { RESEARCH_PROJECTS } from "./research.ts";
+import { completableProjectCount } from "./research.ts";
 import { maxEra } from "./eras.ts";
 import { OS_FEATURES, installedBase } from "./platform.ts";
 
@@ -380,7 +380,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     description: "Every available research project completed. No stone unturned.",
     icon: "FlaskConical",
     hint: "Research your way to the frontier.",
-    predicate: (f) => f.completedProjects >= RESEARCH_PROJECTS.length,
+    predicate: (f) => f.completedProjects >= completableProjectCount(),
   },
   {
     id: "big-run",

@@ -23,6 +23,7 @@ import {
   weeklyPayroll,
 } from "../engine/economy.ts";
 import {
+  forkLockedBy,
   hasProject,
   launchRpReward,
   projectById,
@@ -654,6 +655,11 @@ export function productStats(s: GameState, product: Product): Stats {
   // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
+  // Engineering Doctrine fork (Track D): the chosen house stamps a permanent stat identity on every
+  // product. Mutually exclusive, so at most one of these ever applies.
+  if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
+  if (hasProject(s.completedProjects, "effHouse")) bonus.battery = (bonus.battery ?? 0) + 5;
+  if (hasProject(s.completedProjects, "qualityHouse")) bonus.quality = (bonus.quality ?? 0) + 5;
   // Performance/efficiency tuning — trades points between performance and battery (a real build
   // choice that depends on what the market wants). Neutral when balanced/undefined → no ripple.
   const shift = BALANCE.design.tuningShift;
@@ -2331,6 +2337,8 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
   if (hasProject(state.completedProjects, id)) return state;
   const proj = projectById(id);
   if (proj.era > state.era || state.researchPoints < proj.rpCost) return state;
+  // Research-tree fork (Track D): refuse if a mutually-exclusive sibling doctrine is already chosen.
+  if (forkLockedBy(state.completedProjects, id)) return state;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Completed research project: ${proj.name}.`, "positive"));
   return {

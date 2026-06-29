@@ -10,7 +10,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { eraContext, eraName, maxEra } from "../engine/eras.ts";
 import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
-import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
 import { rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
@@ -406,18 +406,25 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             {eraProjects.map((p) => {
               const done = state.completedProjects.includes(p.id);
               const locked = p.era > state.era;
-              const affordable = rp >= p.rpCost && !locked;
-              const weeksAway = !affordable && !locked && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
+              // Research-tree fork (Track D): a forked project is locked once a sibling doctrine is chosen.
+              const forkLock = !done ? forkLockedBy(state.completedProjects, p.id) : null;
+              const affordable = rp >= p.rpCost && !locked && !forkLock;
+              const weeksAway = !affordable && !locked && !forkLock && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
               return (
-                <Card key={p.id} className="rd__project">
+                <Card key={p.id} className={`rd__project${p.fork ? " rd__project--fork" : ""}`}>
                   <div className="rd__project-info">
-                    <span className="rd__next-name">{p.name}</span>
+                    <span className="rd__next-name">
+                      {p.name}
+                      {p.fork && <span className="rd__fork-tag" title="A doctrine — choosing one locks out the others">Pick one</span>}
+                    </span>
                     <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
                   </div>
                   {done ? (
-                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Done</span>
+                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Chosen</span>
                   ) : locked ? (
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
+                  ) : forkLock ? (
+                    <span className="rd__locked" title={`You chose ${projectById(forkLock).name}`}><Lock size={12} /> Locked</span>
                   ) : (
                     <div className="rd__project-action">
                       <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { buyProject(p.id); haptic.success(); sfx("upgrade"); }}>
