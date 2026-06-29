@@ -66,4 +66,30 @@ describe("post-mortem ranking (Epic C1)", () => {
     // a perfectly neutral launch has no decisive factor
     expect(pm.dominant.length).toBe(0);
   });
+
+  it("writes an authored narrative that reflects the verdict + the audience, em-dash-free (Track A)", () => {
+    const pm = postMortem(
+      insight({
+        demandFit: 95, hype: 2.0, competitionFactor: 1,
+        perSegment: [
+          { id: "pro", name: "Pro", captured: 0.9, fit: 90, priceFit: 1 },
+          { id: "budget", name: "Budget", captured: 0.05, fit: 20, priceFit: 0.3 },
+        ],
+        dominantSegment: "pro", weakestSegment: "budget",
+      }),
+      "hit",
+    );
+    expect(pm.narrative.length).toBeGreaterThan(20);
+    expect(pm.narrative).not.toContain("—"); // house style: no em dashes
+    expect(pm.narrative.toLowerCase()).toContain("breakout"); // hit framing
+    expect(pm.narrative).toContain("Pro"); // audience coda names the winning segment
+    // The headline likewise carries no em dash.
+    expect(pm.headline).not.toContain("—");
+  });
+
+  it("narrative is deterministic", () => {
+    const a = postMortem(insight({ betterRivals: 2, competitionFactor: 0.4 }), "steady");
+    const b = postMortem(insight({ betterRivals: 2, competitionFactor: 0.4 }), "steady");
+    expect(a.narrative).toBe(b.narrative);
+  });
 });

@@ -815,7 +815,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
       key: "price",
       label: "Price",
       value: over ? "Overpriced" : under ? "Value buy" : "On the money",
-      detail: over ? "Buyers felt it cost too much for the spec." : under ? "Priced below its perceived value — drove volume." : "Priced fairly for what it delivered.",
+      detail: over ? "Buyers felt it cost too much for the spec." : under ? "Priced below its perceived value, which drove volume." : "Priced fairly for what it delivered.",
       tone: over ? "negative" : under ? "positive" : "accent",
     });
   }
@@ -830,10 +830,10 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
       label: "Competition",
       value: beats > 0 ? `${beats} ahead` : matches > 0 ? `${matches} matched` : "Clear field",
       detail: beats > 0
-        ? `Rivals outclassed you — you kept ~${kept}% of demand.`
+        ? `Rivals outclassed you; you kept ~${kept}% of demand.`
         : matches > 0
-          ? `Rivals split the market — you kept ~${kept}% of demand.`
-          : "No rival came close — you owned the category.",
+          ? `Rivals split the market; you kept ~${kept}% of demand.`
+          : "No rival came close; you owned the category.",
       tone: beats > 0 ? "negative" : matches > 0 ? "accent" : "positive",
     });
   }
@@ -847,7 +847,7 @@ function performanceDrivers(lp: LaunchedProduct): Driver[] {
       key: "hype",
       label: "Hype",
       value: strong ? "High" : weak ? "Low" : "Moderate",
-      detail: strong ? "Reputation and marketing gave a big launch boost." : weak ? "Little buzz — few buyers knew it existed." : "A steady amount of launch buzz.",
+      detail: strong ? "Reputation and marketing gave a big launch boost." : weak ? "Little buzz; few buyers knew it existed." : "A steady amount of launch buzz.",
       tone: strong ? "positive" : weak ? "negative" : "accent",
     });
   }
@@ -862,23 +862,23 @@ function generateTips(lp: LaunchedProduct): string[] {
   const v = verdictOf(lp);
   const tips: string[] = [];
   if (ins.demandFit < 40) {
-    tips.push("Poor trend match — check the Market tab before designing and build toward what consumers are currently demanding.");
+    tips.push("Poor trend match: check the Market tab before designing and build toward what consumers are currently demanding.");
   }
   if (ins.priceFit < 0.8) {
     tips.push("Buyers found this overpriced. Try the 'Suggest' button in the Design Lab to dial in a fairer price next time.");
   } else if (ins.priceFit > 1.12 && v !== "hit") {
-    tips.push("Underpriced — the quality supported a higher price. Charging a bit more improves margins without hurting demand.");
+    tips.push("Underpriced: the quality supported a higher price. Charging a bit more improves margins without hurting demand.");
   }
   if (ins.betterRivals >= 2) {
-    tips.push("Multiple rivals outclassed this product — upgrade components to higher tiers and invest in R&D to unlock better tech.");
+    tips.push("Multiple rivals outclassed this product: upgrade components to higher tiers and invest in R&D to unlock better tech.");
   } else if (ins.betterRivals === 1) {
-    tips.push("One rival edged you out — a single component upgrade or a tighter price could swing the category your way.");
+    tips.push("One rival edged you out: a single component upgrade or a tighter price could swing the category your way.");
   }
   if (ins.hype < 1.05 && tips.length < 3) {
     tips.push("Very little launch buzz. Put a team member on Marketing for an ongoing hype boost, or run a paid campaign (Social, Search, or TV) to multiply demand at the next launch.");
   }
   if (tips.length === 0 && v === "hit") {
-    tips.push("Strong launch — maintain momentum by designing a successor before this product finishes its run.");
+    tips.push("Strong launch: maintain momentum by designing a successor before this product finishes its run.");
   }
   return tips.slice(0, 3);
 }
@@ -1167,6 +1167,7 @@ function ProductDetailSheet({
           <span>Why it {v === "hit" ? "won" : v === "flop" ? "flopped" : v === "solid" ? "delivered" : "performed"}</span>
         </div>
         {pm && <p className="pd__why-headline">{pm.headline}</p>}
+        {pm && <p className="pd__why-story">{pm.narrative}</p>}
         <ul className="pd__drivers">
           {orderedDrivers.map((d) => {
             const key = pm?.dominant.includes(d.key);

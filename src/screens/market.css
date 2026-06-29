@@ -1030,6 +1030,13 @@
   letter-spacing: -0.01em;
   color: var(--ink);
 }
+/* Authored launch story (Track A): the voiced "why it landed that way" under the headline. */
+.pd__why-story {
+  margin: 0 0 var(--sp-12);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
 .pd__drivers {
   list-style: none;
   display: flex;
