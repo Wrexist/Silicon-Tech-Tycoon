@@ -11,7 +11,8 @@ import { deviceLegacy } from "../engine/deviceLegacy.ts";
 import { postMortem, type Verdict, type FactorKey, type FactorTone } from "../engine/postmortem.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { format } from "../engine/money.ts";
-import type { CategoryId } from "../engine/types.ts";
+import { useGame } from "../state/useGame.tsx";
+import type { CategoryId, LaunchedProduct } from "../engine/types.ts";
 import "./museum.css";
 
 const VERDICT_LABEL: Record<string, string> = { hit: "Hit", solid: "Solid", flop: "Flop", steady: "Steady" };
@@ -59,9 +60,12 @@ function MuseumCard({ e, onSelect }: { e: MuseumEntry; onSelect: (e: MuseumEntry
 
 /** Per-device detail: the design (front + back), its legacy line, and a launch analytics breakdown
  *  of how it did and what went well or poorly. */
-function MuseumDetail({ e, onBack }: { e: MuseumEntry; onBack: () => void }) {
+function MuseumDetail({ e, live, onBack }: { e: MuseumEntry; live: LaunchedProduct | null; onBack: () => void }) {
   const slab = e.category === "phone" || e.category === "tablet";
   const pm = e.insight ? postMortem(e.insight, (e.verdict ?? "steady") as Verdict) : null;
+  // Real performance if this device is from the current run (matched live in the save); otherwise
+  // the launch-moment snapshot is all we have for a cross-run device.
+  const sellThrough = live && live.plannedUnits ? Math.round((live.unitsSold / live.plannedUnits) * 100) : null;
   return (
     <div className="mdt">
       <button className="mdt__back" onClick={onBack}><ChevronLeft size={16} aria-hidden /> All devices</button>
@@ -87,9 +91,19 @@ function MuseumDetail({ e, onBack }: { e: MuseumEntry; onBack: () => void }) {
       <p className="mdt__legacy">{deviceLegacy(e)}</p>
 
       <div className="mdt__stats">
-        <div className="mdt__stat"><span className="mdt__stat-label">Launch score</span><span className="mdt__stat-value tnum">{e.launchScore != null ? Math.round(e.launchScore) : "—"}</span></div>
-        <div className="mdt__stat"><span className="mdt__stat-label">Projected sales</span><span className="mdt__stat-value tnum">{e.forecastUnits != null ? e.forecastUnits.toLocaleString() : "—"}</span></div>
-        <div className="mdt__stat"><span className="mdt__stat-label">Launch price</span><span className="mdt__stat-value tnum">{format(e.product.price)}</span></div>
+        {live ? (
+          <>
+            <div className="mdt__stat"><span className="mdt__stat-label">Units sold</span><span className="mdt__stat-value tnum">{live.unitsSold.toLocaleString()}</span></div>
+            <div className="mdt__stat"><span className="mdt__stat-label">Revenue</span><span className="mdt__stat-value tnum">{format(live.revenueToDate)}</span></div>
+            <div className="mdt__stat"><span className="mdt__stat-label">{sellThrough != null ? "Sell-through" : "Launch score"}</span><span className="mdt__stat-value tnum">{sellThrough != null ? `${sellThrough}%` : (e.launchScore != null ? Math.round(e.launchScore) : "—")}</span></div>
+          </>
+        ) : (
+          <>
+            <div className="mdt__stat"><span className="mdt__stat-label">Launch score</span><span className="mdt__stat-value tnum">{e.launchScore != null ? Math.round(e.launchScore) : "—"}</span></div>
+            <div className="mdt__stat"><span className="mdt__stat-label">Projected sales</span><span className="mdt__stat-value tnum">{e.forecastUnits != null ? e.forecastUnits.toLocaleString() : "—"}</span></div>
+            <div className="mdt__stat"><span className="mdt__stat-label">Launch price</span><span className="mdt__stat-value tnum">{format(e.product.price)}</span></div>
+          </>
+        )}
       </div>
 
       {pm ? (
@@ -118,11 +132,17 @@ function MuseumDetail({ e, onBack }: { e: MuseumEntry; onBack: () => void }) {
 }
 
 export function MuseumSheet({ onClose }: { onClose: () => void }) {
+  const { state } = useGame();
   const all = getMuseum();
   const [filter, setFilter] = useState<CategoryId | "all">("all");
   const [selected, setSelected] = useState<MuseumEntry | null>(null);
 
-  if (selected) return <MuseumDetail e={selected} onBack={() => setSelected(null)} />;
+  if (selected) {
+    // Devices from the CURRENT run are matched live in the save for real sales/revenue; cross-run
+    // devices fall back to their launch-moment snapshot.
+    const live = state.launched.find((l) => l.product.id === selected.product.id) ?? null;
+    return <MuseumDetail e={selected} live={live} onBack={() => setSelected(null)} />;
+  }
   // Categories actually present, in catalog order, so the filter only offers what you own.
   const present = (Object.keys(CATEGORIES) as CategoryId[]).filter((c) => all.some((e) => e.category === c));
   const entries = filter === "all" ? all : all.filter((e) => e.category === filter);
