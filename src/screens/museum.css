@@ -64,3 +64,11 @@
   font-size: var(--fs-caption); color: var(--ink-2);
 }
 .mus__detail--sub { color: var(--ink-3); font-size: var(--fs-nano); }
+/* Authored one-line legacy story per device (Track A). */
+.mus__legacy {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--ink-2);
+}

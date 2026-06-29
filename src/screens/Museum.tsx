@@ -6,6 +6,7 @@ import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { getMuseum } from "../state/museum.ts";
 import { eraName } from "../engine/eras.ts";
+import { deviceLegacy } from "../engine/deviceLegacy.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import type { CategoryId } from "../engine/types.ts";
 import "./museum.css";
@@ -24,7 +25,7 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
       <div className="mus__head">
         <div>
           <h2 className="mus__title">Device Museum</h2>
-          <p className="mus__sub">Every device you've shipped — across every company you've built.</p>
+          <p className="mus__sub">Every device you've shipped, across every company you've built.</p>
         </div>
         <span className="mus__count tnum" aria-label={`${all.length} devices`}>{all.length}</span>
       </div>
@@ -44,7 +45,7 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
         <EmptyState
           glyph={<CategoryIcon id="phone" size={28} />}
           title="No devices yet"
-          sub="Design and launch your first product — it'll be enshrined here forever."
+          sub="Design and launch your first product, and it'll be enshrined here forever."
         />
       ) : (
         <ul className="mus__grid">
@@ -61,6 +62,7 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
                 <span className="mus__detail mus__detail--sub">
                   {e.companyName}{e.verdict ? ` · ${VERDICT_LABEL[e.verdict] ?? e.verdict}` : ""}
                 </span>
+                <span className="mus__legacy">{deviceLegacy(e)}</span>
               </div>
             </li>
           ))}
