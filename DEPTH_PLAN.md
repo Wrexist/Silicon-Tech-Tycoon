@@ -38,8 +38,9 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   decision; ties into durable competition. `competitors.ts` (PROTECTED).
 - [ ] **Segment macro-cycles & regional shocks**: segments grow/shrink on cycles; regions get
   4-week crises. `segments.ts`/`regions.ts`/`market.ts` (PROTECTED) + balance pass.
-- [ ] **Performance-reactive player stock**: launches pop it, scandals dent it, #1 sustains it
-  (today a static formula). `stocks.ts`.
+- [x] **Performance-reactive company value** (v58): bounded, mean-reverting momentum overlay on
+  valuation; hit pops it, flop dents it, #1 holds a premium; sparkline on the Market company card.
+  Does NOT touch cash/reputation, so bankruptcy + win gate are safe (harness-verified). `gameState.ts`.
 
 ## Track C: People & company as humans  (medium risk; mostly state)
 - [ ] **Org structure**: departments + team leads + mentorship (a veteran lead speeds juniors).
