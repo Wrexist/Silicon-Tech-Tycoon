@@ -163,6 +163,22 @@
   gap: var(--sp-8);
   margin-bottom: var(--sp-16);
 }
+/* Performance-reactive company value: a sparkline + change pill (Track B). */
+.mkt__co-spark {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin: var(--sp-4) 0 var(--sp-12);
+}
+.mkt__co-spark > :first-child { flex: 1; min-width: 0; }
+.mkt__co-change {
+  flex-shrink: 0;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.mkt__co-change--up { color: var(--positive); }
+.mkt__co-change--down { color: var(--negative); }
 .mkt__co-hint {
   font-size: var(--fs-caption);
   color: var(--ink-2);

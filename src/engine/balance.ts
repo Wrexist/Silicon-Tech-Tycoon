@@ -559,6 +559,22 @@ export const BALANCE = {
     valuationGrowthPerWeek: 0.004, // company value drifts up with momentum
   },
 
+  // --- Performance-reactive company value (Track B) ---
+  // A bounded, mean-reverting MOMENTUM overlay on the company's fundamental valuation, so net worth
+  // and the leaderboard visibly REACT to what you ship: a hit pops the value, a flop dents it, and
+  // sitting at #1 holds a small standing premium. The overlay decays back toward the fundamental, so
+  // a transient pop can never compound. Cash (bankruptcy) and reputation (the win gate) are NOT
+  // affected — this only colours the displayed value. Eras/old saves: momentum defaults to 0.
+  valuationMomentum: {
+    cap: 0.15,                // max +/- swing on the fundamental value (±15%)
+    decayPerWeek: 0.82,       // mean-reversion toward 0 each week (half-life ~3.5 wk)
+    popOnHit: 0.10,           // a hit launch pops the value
+    popOnSolid: 0.04,
+    dipOnFlop: 0.08,          // a flop dents it (applied negative)
+    rankOnePremiumFloor: 0.03, // while #1 in the industry, momentum holds at least this (a premium)
+    historyLength: 26,        // weeks of valuation history kept for the sparkline
+  },
+
   // --- Stock market (rival equities the player can trade) ---
   stocks: {
     tradeFeePct: 0.008, // 0.8% brokerage on buys + sells

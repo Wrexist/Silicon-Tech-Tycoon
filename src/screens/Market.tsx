@@ -167,6 +167,16 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
       {/* Your company (equity) */}
       <Card className="mkt__co">
         <SectionHeader title={state.companyName} accessory={state.listed ? "publicly traded" : "private"} />
+        {(state.valuationHistory?.length ?? 0) >= 2 && (() => {
+          const hist = state.valuationHistory!;
+          const ch = changePct(hist);
+          return (
+            <div className="mkt__co-spark">
+              <Sparkline data={hist} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} height={38} />
+              <span className={`mkt__co-change mkt__co-change--${ch >= 0 ? "up" : "down"}`}>{ch >= 0 ? "▲" : "▼"} {Math.abs(ch).toFixed(1)}%</span>
+            </div>
+          );
+        })()}
         <div className="mkt__co-grid">
           <Stat label="Valuation" value={format(valuation)} />
           <Stat label="You own" value={`${Math.round(state.ownership * 100)}%`} />

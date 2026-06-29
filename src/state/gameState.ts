@@ -206,6 +206,11 @@ export interface GameState {
   // --- Equity / stock market ---
   listed: boolean; // the player's company has IPO'd (is publicly traded)
   ownership: number; // founder's fraction of the company (1 = fully private)
+  /** Performance-reactive momentum overlay on the company's value (Track B): a fractional swing
+   *  (±cap) bumped by launch verdicts + the #1 premium, decaying back to 0. Optional → 0 on old saves. */
+  valuationMomentum?: number;
+  /** Recent company-valuation samples for the sparkline (newest last). Optional on old saves. */
+  valuationHistory?: number[];
   holdings: Holdings; // shares owned in rival companies, by id
   /** Best (lowest) industry-leaderboard rank ever reached (1 = biggest company in the industry).
    *  Starts at 7 (a fresh garage is dead last behind the six rivals); each time the player climbs
@@ -431,6 +436,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     legacy,
     listed: false,
     ownership: 1,
+    valuationMomentum: 0,
+    valuationHistory: [],
     holdings: {},
     bestIndustryRank: 7, // a fresh garage is dead last behind the six public rivals
     unlockedAchievements: [],
@@ -1535,6 +1542,19 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       }
       base.bestIndustryRank = newRank;
     }
+
+    // Performance-reactive company value (Track B): the launch-driven momentum overlay decays back
+    // toward the fundamental each week; while you sit at #1 it holds a small standing premium. Then
+    // record a valuation sample for the sparkline. Bounded, so a pop can never compound; cash +
+    // reputation are untouched, so bankruptcy and the win gate are unaffected.
+    {
+      const vm = BALANCE.valuationMomentum;
+      let m = (base.valuationMomentum ?? 0) * Math.pow(vm.decayPerWeek, rate);
+      if (newRank === 1) m = Math.max(m, vm.rankOnePremiumFloor);
+      base.valuationMomentum = Math.max(-vm.cap, Math.min(vm.cap, m));
+      const sample = toDollars(companyValuation(base));
+      base.valuationHistory = [...(base.valuationHistory ?? []), sample].slice(-vm.historyLength);
+    }
   }
 
   // Market events only during live play — offline catch-up skips all events so the state stays
@@ -1852,6 +1872,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 
   // Record the verdict the player saw on the launched product, so the history screen can report it.
   lp.verdict = isHit ? "hit" : isFlop ? "flop" : isSolid ? "solid" : "steady";
+  // Performance-reactive company value (Track B): the launch pops or dents the momentum overlay.
+  // Bounded; decays back to 0 over the following weeks. Does not touch cash or reputation.
+  const vm = BALANCE.valuationMomentum;
+  let valuationMomentum = (state.valuationMomentum ?? 0) + (isHit ? vm.popOnHit : isSolid ? vm.popOnSolid : isFlop ? -vm.dipOnFlop : 0);
+  valuationMomentum = Math.max(-vm.cap, Math.min(vm.cap, valuationMomentum));
   // Research excitement: a strong launch funds the next breakthrough (RP earned through play).
   const rpReward = launchRpReward(lp.verdict);
 
@@ -1892,6 +1917,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
       ready: state.ready.filter((p) => p.id !== productId),
       launched: [lp, ...state.launched],
       reputation,
+      valuationMomentum,
       fans,
       researchPoints: state.researchPoints + rpReward,
       staff,
@@ -2614,9 +2640,13 @@ export function goPublic(state: GameState): GameState {
 
 // ---------- Equity: company valuation, IPO/listing, ownership, rival share trading ----------
 
-/** The company's live market valuation (grows with lifetime revenue + reputation; floored). */
+/** The company's live market valuation (grows with lifetime revenue + reputation; floored). The
+ *  performance-reactive momentum overlay (Track B) swings it within ±cap around that fundamental. */
 export function companyValuation(state: GameState): Money {
-  return add(BALANCE.ipo.baseValuation, ipoValuation(state)) as Money;
+  const fundamental = add(BALANCE.ipo.baseValuation, ipoValuation(state)) as Money;
+  const cap = BALANCE.valuationMomentum.cap;
+  const m = Math.max(-cap, Math.min(cap, state.valuationMomentum ?? 0));
+  return scale(fundamental, 1 + m);
 }
 
 /** Founder's stake value = valuation × ownership. */
