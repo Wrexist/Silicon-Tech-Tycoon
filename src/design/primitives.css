@@ -187,53 +187,69 @@
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 28px;
+  height: 30px;
   background: transparent;
-  cursor: pointer;
+  cursor: grab;
 }
+.ds-slider:active {
+  cursor: grabbing;
+}
+/* Track — an inset groove that fills with a glossy accent gradient up to the thumb (depth + life). */
 .ds-slider::-webkit-slider-runnable-track {
-  height: 8px;
+  height: 12px;
   border-radius: var(--r-pill);
   background: linear-gradient(
-    to right,
-    var(--accent-local, var(--accent)) 0%,
-    var(--accent-local, var(--accent)) var(--pct),
-    var(--bg-elevated) var(--pct),
-    var(--bg-elevated) 100%
-  );
+      to right,
+      color-mix(in srgb, var(--accent-local, var(--accent)) 78%, #fff) 0%,
+      var(--accent-local, var(--accent)) var(--pct),
+      var(--bg-elevated) var(--pct),
+      var(--bg-elevated) 100%
+    );
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.4);
 }
 .ds-slider::-moz-range-track {
-  height: 8px;
+  height: 12px;
   border-radius: var(--r-pill);
   background: var(--bg-elevated);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 .ds-slider::-moz-range-progress {
-  height: 8px;
+  height: 12px;
   border-radius: var(--r-pill);
-  background: var(--accent-local, var(--accent));
+  background: linear-gradient(to right, color-mix(in srgb, var(--accent-local, var(--accent)) 78%, #fff), var(--accent-local, var(--accent)));
 }
+/* Thumb — a raised, glowing control that scales as you grab it. */
 .ds-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   margin-top: -8px;
-  border-radius: var(--r-pill);
-  background: var(--surface);
-  border: 2px solid var(--accent-local, var(--accent));
-  box-shadow: var(--shadow-card);
-  transition: transform var(--spring-snappy);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #ffffff, #f1f5ff 42%, var(--accent-local, var(--accent)) 125%);
+  border: 2px solid #fff;
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent-local, var(--accent)) 40%, transparent), 0 1px 2px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.ds-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.08);
 }
 .ds-slider::-moz-range-thumb {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--r-pill);
-  background: var(--surface);
-  border: 2px solid var(--accent-local, var(--accent));
-  box-shadow: var(--shadow-card);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #ffffff, #f1f5ff 42%, var(--accent-local, var(--accent)) 125%);
+  border: 2px solid #fff;
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent-local, var(--accent)) 40%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.9);
 }
 .ds-slider:active::-webkit-slider-thumb {
-  transform: scale(1.15);
+  transform: scale(1.18);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-local, var(--accent)) 52%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--accent-local, var(--accent)) 18%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+.ds-slider:active::-moz-range-thumb {
+  transform: scale(1.18);
 }
 
 /* Sheet / modal */

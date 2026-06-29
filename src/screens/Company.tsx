@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
-import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
+import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
 import { ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
@@ -426,7 +426,6 @@ function FinancingCard({ state }: { state: GameState }) {
   const step = Math.max(5_000, Math.round(available / 40 / 5_000) * 5_000);
   const [rawAmount, setRawAmount] = useState(100_000);
   const amount = Math.min(Math.max(rawAmount, minLoan), Math.max(minLoan, available));
-  const fillPct = available > minLoan ? Math.round(((amount - minLoan) / (available - minLoan)) * 100) : 0;
   const weeklyPay = weeklyPaymentFor(amount * 100, loanRateNow(state), BALANCE.financing.termWeeks);
   return (
     <Card>
@@ -463,17 +462,13 @@ function FinancingCard({ state }: { state: GameState }) {
             <div className="co__borrow-amount tnum">{formatShortDollars(amount)}</div>
             <div className="co__borrow-credit">of {formatShortDollars(available)} · ~{apr}% APR</div>
           </div>
-          <input
-            type="range"
-            className="co__borrow-slider"
+          <Slider
+            value={amount}
             min={minLoan}
             max={Math.max(minLoan, available)}
             step={step}
-            value={amount}
-            onChange={(e) => setRawAmount(Number(e.target.value))}
-            style={{ ["--fill" as string]: `${fillPct}%` }}
-            aria-label="Loan amount"
-            aria-valuetext={formatShortDollars(amount)}
+            ariaLabel="Loan amount"
+            onChange={setRawAmount}
           />
           <div className="co__borrow-preview">
             <Landmark size={13} aria-hidden />
