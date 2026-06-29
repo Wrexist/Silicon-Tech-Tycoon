@@ -66,7 +66,13 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   `balance.poaching` + `gameState.ts` (pendingPoach field, derived-rng tick roll, resolvePoach) +
   HQ counter-offer card. Golden invariant kept: optional fields, no migration. The roll uses a DERIVED
   rng, so the economy harness is byte-identical (0/40 bankruptcies, 40/40 win, CV 5.0%, all unchanged).
-- [ ] **Morale as a decision**: offsites/bonuses/retention spend vs. cutting costs. `balance.ts`.
+- [x] **Morale as a decision** (v63): a PROACTIVE, company-wide morale lever to complement the reactive
+  per-person Rest/raise. A team bonus (cheaper, +12 mood) or a company offsite (pricier, +24) lifts
+  EVERY teammate's mood and clears burnout counters, for a payroll-scaled cost on a shared cooldown, so
+  it's a real spend-vs-save decision (happy teams build faster via moodMult and are harder to poach).
+  `balance.morale` + `gameState.ts` (moraleCooldownUntil, boostMorale/moraleCost/canBoostMorale) +
+  a Team morale card on the Company screen (avg-mood bar + the two options). Golden invariant kept
+  (optional field, no migration); the harness never spends, so the economy is byte-identical.
 - [x] **Financing decisions** (v62): debt financing (loans) makes runway a BET, not a read-only timer.
   Borrow cash now (less a 1% origination fee), owe fixed weekly service amortized over a year; good
   reputation earns a cheaper rate (a new place rep matters), leverage makes the next loan pricier, and

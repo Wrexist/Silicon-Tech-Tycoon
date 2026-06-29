@@ -20,6 +20,7 @@ import {
   salaryFor,
   trainCost,
   weeklyBurn,
+  weeklyPayroll,
 } from "../engine/economy.ts";
 import {
   hasProject,
@@ -236,6 +237,9 @@ export interface GameState {
   /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
    *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
   loans?: Loan[];
+  /** Week until which another company-wide morale spend (offsite/bonus) is unavailable (Track C).
+   *  Optional → old saves default 0 (available immediately). */
+  moraleCooldownUntil?: number;
   /** IDs of choice events already resolved THIS RUN — prevents repeats within a company. */
   resolvedChoices: string[];
   /** IDs of choice events resolved across ALL companies (carried through New Game+ like the legacy
@@ -458,6 +462,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingChoice: null,
     pendingPoach: null,
     loans: [],
+    moraleCooldownUntil: 0,
     resolvedChoices: [],
     seenChoices: [],
     activeScenario: null,
@@ -2643,6 +2648,45 @@ export function restStaff(state: GameState, id: string): GameState {
         ? { ...s, mood: Math.min(100, s.mood + BALANCE.churn.restMoodBoost), moodLowWeeks: 0 }
         : s,
     ),
+  };
+}
+
+export type MoraleKind = "bonus" | "offsite";
+
+/** The cash cost of a company-wide morale spend (Track C): a multiple of weekly payroll, floored so a
+ *  garage with an unpaid founder still pays something real. */
+export function moraleCost(state: GameState, kind: MoraleKind): Money {
+  const m = BALANCE.morale;
+  const weeks = kind === "offsite" ? m.offsiteCostWeeks : m.bonusCostWeeks;
+  const scaled = scale(weeklyPayroll(state.staff), weeks);
+  const floor = dollars(m.minCost);
+  return scaled > floor ? scaled : floor;
+}
+
+/** Whether a company-wide morale spend is available right now (off cooldown, solvent, has a team). */
+export function canBoostMorale(state: GameState, kind: MoraleKind): boolean {
+  if (state.bankrupt || state.staff.length === 0) return false;
+  if (state.week < (state.moraleCooldownUntil ?? 0)) return false;
+  return state.cash >= moraleCost(state, kind);
+}
+
+/** Invest in the whole team's morale (Track C): a bonus or an offsite lifts EVERY teammate's mood and
+ *  clears their burnout danger counter, for a cash cost scaled to payroll, then starts a cooldown. The
+ *  proactive counterpart to the reactive per-person Rest — spend to keep the team happy (and harder to
+ *  poach) instead of pocketing the cash. No-op when on cooldown or unaffordable. */
+export function boostMorale(state: GameState, kind: MoraleKind): GameState {
+  if (!canBoostMorale(state, kind)) return state;
+  const m = BALANCE.morale;
+  const lift = kind === "offsite" ? m.offsiteMoodLift : m.bonusMoodLift;
+  const cost = moraleCost(state, kind);
+  const label = kind === "offsite" ? "company offsite" : "team bonus";
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Ran a ${label} (${format(cost)}). The whole team feels it.`, "positive")]);
+  return {
+    ...state,
+    cash: sub(state.cash, cost),
+    moraleCooldownUntil: state.week + m.cooldownWeeks,
+    staff: state.staff.map((s) => ({ ...s, mood: clampMood(s.mood + lift), moodLowWeeks: 0 })),
+    feed,
   };
 }
 

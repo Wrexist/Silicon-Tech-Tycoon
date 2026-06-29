@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
@@ -35,6 +35,9 @@ import {
   facility,
   loanCreditAvailable,
   loanRateNow,
+  moraleCost,
+  canBoostMorale,
+  type MoraleKind,
   nextWeekRevenue,
   restCost,
   weeklyEcosystemRevenue,
@@ -326,6 +329,9 @@ export function Company() {
       {/* Team output summary */}
       <TeamOutputCard state={state} />
 
+      {/* Team morale — a proactive, company-wide spend vs. saving cash (Track C) */}
+      {(hasShipped || state.staff.length >= 2) && <MoraleCard state={state} />}
+
       {/* Staff roster */}
       <Card>
         <SectionHeader title="Team" accessory={`${state.staff.length} ${state.staff.length === 1 ? "bot" : "bots"}`} />
@@ -461,6 +467,52 @@ function FinancingCard({ state }: { state: GameState }) {
       ) : debt > 0 ? (
         <p className="co__hint">Credit maxed out, pay down debt to borrow again.</p>
       ) : null}
+    </Card>
+  );
+}
+
+/* ---------- Team morale (Track C) ---------- */
+
+/** A proactive, company-wide morale lever: a bonus or an offsite lifts the whole team's mood (which
+ *  raises output and makes them harder to poach), for a payroll-scaled cost on a cooldown. The spend-
+ *  vs-save decision, opposite the reactive per-person Rest. */
+function MoraleCard({ state }: { state: GameState }) {
+  const { boostMorale } = useGame();
+  const avg = state.staff.length
+    ? Math.round(state.staff.reduce((a, s) => a + s.mood, 0) / state.staff.length)
+    : 0;
+  const band = moodBand(avg);
+  const cooldownLeft = Math.max(0, (state.moraleCooldownUntil ?? 0) - state.week);
+  const options: { kind: MoraleKind; label: string; lift: number }[] = [
+    { kind: "bonus", label: "Team bonus", lift: BALANCE.morale.bonusMoodLift },
+    { kind: "offsite", label: "Company offsite", lift: BALANCE.morale.offsiteMoodLift },
+  ];
+  return (
+    <Card>
+      <SectionHeader
+        title="Team morale"
+        accessory={<span className="co__stats-link" style={{ color: MOOD_COLOR[band] }}><Smile size={14} /> {MOOD_LABEL[band]}</span>}
+      />
+      <div className="co__morale-bar" role="img" aria-label={`Average mood ${avg} of 100`}>
+        <div className="co__morale-fill" style={{ width: `${avg}%`, background: MOOD_COLOR[band] }} />
+      </div>
+      <p className="co__hint">Average mood {avg}/100. Happy teams build faster and are harder to poach.</p>
+      {cooldownLeft > 0 ? (
+        <p className="co__hint">Next company morale spend available in {cooldownLeft} wk.</p>
+      ) : (
+        <div className="co__loan-presets">
+          {options.map((o) => (
+            <Button
+              key={o.kind}
+              variant={o.kind === "offsite" ? "primary" : "secondary"}
+              disabled={!canBoostMorale(state, o.kind)}
+              onClick={() => { boostMorale(o.kind); haptic.success(); }}
+            >
+              {o.label} · +{o.lift} · {format(moraleCost(state, o.kind))}
+            </Button>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

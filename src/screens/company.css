@@ -82,6 +82,18 @@
 .co__loan-presets > * {
   flex: 1 1 auto;
 }
+.co__morale-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+  margin: var(--sp-4) 0 var(--sp-8);
+}
+.co__morale-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width var(--motion-medium, 240ms) ease;
+}
 
 /* ---------- Product track record strip ---------- */
 .co__track {

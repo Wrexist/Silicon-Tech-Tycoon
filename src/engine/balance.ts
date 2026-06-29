@@ -722,6 +722,19 @@ export const BALANCE = {
     originationFee: 0.01,         // 1% taken off the top on drawdown (you receive principal × 0.99)
   },
 
+  // --- Team morale spend (Track C) — a PROACTIVE, company-wide lever to invest in the whole team's
+  // mood (vs. the reactive per-person Rest / raise, and vs. just pocketing the cash). Two tiers: a
+  // quick bonus or a bigger offsite. Cost scales with payroll (a bigger team costs more to delight)
+  // and a shared cooldown makes it a periodic decision, not a spammable mood button.
+  morale: {
+    bonusMoodLift: 12,     // a cash bonus pool lifts every teammate's mood by this
+    bonusCostWeeks: 1.5,   // …and costs this many weeks of total payroll
+    offsiteMoodLift: 24,   // a company offsite lifts more
+    offsiteCostWeeks: 3.5, // …for a steeper cost
+    minCost: 4_000,        // floor so an unpaid-founder garage still pays something real
+    cooldownWeeks: 12,     // weeks before another company-wide morale spend is available
+  },
+
   // --- Market events ---
   events: {
     firstWeek: 8,
