@@ -8,7 +8,7 @@ import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { eraName, maxEra } from "../engine/eras.ts";
+import { eraContext, eraName, maxEra } from "../engine/eras.ts";
 import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
@@ -92,6 +92,8 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
                     </span>
                   )}
                 </div>
+                <p className="rd__roadmap-flavor">{eraContext(eraDef.era).tagline}</p>
+                {active && <p className="rd__roadmap-story">{eraContext(eraDef.era).story}</p>}
                 {active && progressLabel && (
                   <p className="rd__roadmap-progress">{progressLabel}</p>
                 )}

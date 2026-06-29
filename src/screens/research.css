@@ -379,6 +379,20 @@
   font-weight: 600;
   margin: 0 0 var(--sp-6);
 }
+/* Era narrative context (Track A): a tagline on every era + the fuller story on the active one. */
+.rd__roadmap-flavor {
+  font-size: var(--fs-caption);
+  font-style: italic;
+  color: var(--ink-2);
+  margin: var(--sp-2) 0 0;
+}
+.rd__roadmap-row--future .rd__roadmap-flavor { color: var(--ink-3); }
+.rd__roadmap-story {
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin: var(--sp-6) 0 var(--sp-8);
+}
 .rd__roadmap-unlocks {
   display: flex;
   flex-wrap: wrap;
