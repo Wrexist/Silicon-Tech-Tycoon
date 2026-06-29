@@ -1,22 +1,35 @@
 // Device Museum — a permanent, cross-run gallery of every device you've shipped, re-rendered
 // parametrically from the stored Product (zero image assets). Collection-as-meta-progression.
 import { useState } from "react";
+import { ChevronLeft } from "lucide-react";
 import { Button, EmptyState } from "../design/primitives.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { getMuseum, type MuseumEntry } from "../state/museum.ts";
 import { eraName } from "../engine/eras.ts";
 import { deviceLegacy } from "../engine/deviceLegacy.ts";
+import { postMortem, type Verdict, type FactorKey, type FactorTone } from "../engine/postmortem.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
+import { format } from "../engine/money.ts";
 import type { CategoryId } from "../engine/types.ts";
 import "./museum.css";
 
 const VERDICT_LABEL: Record<string, string> = { hit: "Hit", solid: "Solid", flop: "Flop", steady: "Steady" };
 
-function MuseumCard({ e }: { e: MuseumEntry }) {
+// The five launch factors, in a fixed reading order, with friendly labels for the analytics view.
+const FACTOR_ORDER: FactorKey[] = ["demand", "price", "competition", "hype", "audience"];
+const FACTOR_LABEL: Record<FactorKey, string> = {
+  demand: "Market fit", price: "Pricing", competition: "Competition", hype: "Launch buzz", audience: "Audience",
+};
+const TONE_WORD: Record<FactorTone, string> = {
+  positive: "Strong", negative: "Weak", accent: "Mixed", neutral: "Neutral",
+};
+
+function MuseumCard({ e, onSelect }: { e: MuseumEntry; onSelect: (e: MuseumEntry) => void }) {
   const slab = e.category === "phone" || e.category === "tablet";
   return (
-    <li className="mus__card">
+    <li>
+      <button className="mus__card" onClick={() => onSelect(e)} aria-label={`${e.name} details`}>
       <div className="mus__device">
         {slab ? (
           // Slabs have a distinct back: show the front + the back beside it so the design
@@ -39,13 +52,77 @@ function MuseumCard({ e }: { e: MuseumEntry }) {
         </span>
         <span className="mus__legacy">{deviceLegacy(e)}</span>
       </div>
+      </button>
     </li>
+  );
+}
+
+/** Per-device detail: the design (front + back), its legacy line, and a launch analytics breakdown
+ *  of how it did and what went well or poorly. */
+function MuseumDetail({ e, onBack }: { e: MuseumEntry; onBack: () => void }) {
+  const slab = e.category === "phone" || e.category === "tablet";
+  const pm = e.insight ? postMortem(e.insight, (e.verdict ?? "steady") as Verdict) : null;
+  return (
+    <div className="mdt">
+      <button className="mdt__back" onClick={onBack}><ChevronLeft size={16} aria-hidden /> All devices</button>
+
+      <div className="mdt__hero">
+        {slab ? (
+          <div className="mus__faces">
+            <DeviceRenderer product={e.product} size={132} face="front" />
+            <DeviceRenderer product={e.product} size={132} face="back" />
+          </div>
+        ) : (
+          <DeviceRenderer product={e.product} size={150} />
+        )}
+      </div>
+
+      <div className="mdt__title-row">
+        <h2 className="mdt__name">{e.name}</h2>
+        {e.verdict && <span className={`mdt__verdict mdt__verdict--${e.verdict}`}>{VERDICT_LABEL[e.verdict] ?? e.verdict}</span>}
+      </div>
+      <p className="mdt__meta">
+        <CategoryIcon id={e.category} size={13} /> {CATEGORIES[e.category]?.displayName ?? e.category} · {eraName(e.era)} · {e.companyName}
+      </p>
+      <p className="mdt__legacy">{deviceLegacy(e)}</p>
+
+      <div className="mdt__stats">
+        <div className="mdt__stat"><span className="mdt__stat-label">Launch score</span><span className="mdt__stat-value tnum">{e.launchScore != null ? Math.round(e.launchScore) : "—"}</span></div>
+        <div className="mdt__stat"><span className="mdt__stat-label">Projected sales</span><span className="mdt__stat-value tnum">{e.forecastUnits != null ? e.forecastUnits.toLocaleString() : "—"}</span></div>
+        <div className="mdt__stat"><span className="mdt__stat-label">Launch price</span><span className="mdt__stat-value tnum">{format(e.product.price)}</span></div>
+      </div>
+
+      {pm ? (
+        <div className="mdt__why">
+          <h3 className="mdt__why-title">How it did</h3>
+          <p className="mdt__headline">{pm.headline}</p>
+          <p className="mdt__story">{pm.narrative}</p>
+          <div className="mdt__factors">
+            {FACTOR_ORDER.map((k) => {
+              const f = pm.impacts[k];
+              const key = pm.dominant.includes(k);
+              return (
+                <div key={k} className={`mdt__factor mdt__factor--${f.tone}${key ? " mdt__factor--key" : ""}`}>
+                  <span className="mdt__factor-label">{FACTOR_LABEL[k]}</span>
+                  <span className="mdt__factor-tone">{TONE_WORD[f.tone]}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="mdt__note">Detailed launch analytics were not recorded for this device.</p>
+      )}
+    </div>
   );
 }
 
 export function MuseumSheet({ onClose }: { onClose: () => void }) {
   const all = getMuseum();
   const [filter, setFilter] = useState<CategoryId | "all">("all");
+  const [selected, setSelected] = useState<MuseumEntry | null>(null);
+
+  if (selected) return <MuseumDetail e={selected} onBack={() => setSelected(null)} />;
   // Categories actually present, in catalog order, so the filter only offers what you own.
   const present = (Object.keys(CATEGORIES) as CategoryId[]).filter((c) => all.some((e) => e.category === c));
   const entries = filter === "all" ? all : all.filter((e) => e.category === filter);
@@ -92,7 +169,7 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
                 <span className="mus__group-count tnum">{items.length}</span>
               </div>
               <ul className="mus__grid">
-                {items.map((e) => <MuseumCard key={e.key} e={e} />)}
+                {items.map((e) => <MuseumCard key={e.key} e={e} onSelect={setSelected} />)}
               </ul>
             </section>
           ))}

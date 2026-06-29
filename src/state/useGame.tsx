@@ -658,6 +658,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
           companyName: next.companyName,
           week: lp.launchedWeek,
           verdict: lp.verdict,
+          insight: lp.insight,
+          launchScore: lp.launchScore,
+          forecastUnits: lp.totalUnits,
         });
       }
       setState(next);
