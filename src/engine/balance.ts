@@ -676,6 +676,10 @@ export const BALANCE = {
     // RNG cost events (supply crunches) must sting, never kill: each hit is capped to this
     // share of cash on hand, so a random feed item can't bankrupt a by-the-book player mid-build.
     crunchMaxCashShare: 0.35,
+    // Cascading events (Track B): chance, in an event window with no chain already running, that a
+    // multi-beat CHAIN starts instead of a single one-shot event. Each chain plays out over a few
+    // weeks and ends in a player choice. Bounded by the same crunch cap, so it can't bankrupt.
+    chainChance: 0.16,
   },
 
   // --- Supply chain (engine/suppliers.ts) ---

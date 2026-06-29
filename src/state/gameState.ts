@@ -41,6 +41,7 @@ import {
   visionaryHype,
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
+import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
   addItem as addFurniture,
@@ -211,6 +212,9 @@ export interface GameState {
   valuationMomentum?: number;
   /** Recent company-valuation samples for the sparkline (newest last). Optional on old saves. */
   valuationHistory?: number[];
+  /** An in-progress cascading event chain (Track B): which chain, the next beat to fire, and when.
+   *  null/undefined when no chain is running. Optional on old saves. */
+  eventChain?: { id: string; step: number; nextWeek: number } | null;
   holdings: Holdings; // shares owned in rival companies, by id
   /** Best (lowest) industry-leaderboard rank ever reached (1 = biggest company in the industry).
    *  Starts at 7 (a fresh garage is dead last behind the six rivals); each time the player climbs
@@ -438,6 +442,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     ownership: 1,
     valuationMomentum: 0,
     valuationHistory: [],
+    eventChain: null,
     holdings: {},
     bestIndustryRank: 7, // a fresh garage is dead last behind the six public rivals
     unlockedAchievements: [],
@@ -1557,6 +1562,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
+  // Resolve an in-progress event chain (Track B) on its OWN schedule, independent of the normal
+  // event cadence: each due beat applies its consequence, or hands off the terminal choice.
+  if (!offline && !bankrupt && !state.pendingChoice && base.eventChain && week >= base.eventChain.nextWeek) {
+    return resolveChainStep(base, week);
+  }
+
   // Market events only during live play — offline catch-up skips all events so the state stays
   // deterministic and the player isn't surprised by consequences they couldn't interact with.
   if (!offline && !bankrupt && week >= state.nextEventWeek) {
@@ -1572,6 +1583,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
           feed: trimFeed([...base.feed, feedItem(week, `Decision required: ${choice.title}`, choice.tone as FeedTone)]),
           rngState: rng.state(),
         };
+      }
+      // Otherwise, a cascading chain may start instead of a one-shot event (Track B).
+      if (!base.eventChain) {
+        const chain = pickChain(rng, state.era);
+        if (chain) return startChain(base, chain, week, rng);
       }
     }
     const ev = pickEvent(rng, state.era);
@@ -1657,6 +1673,47 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
   const applied = applyEventEffect(s, ev.effect, week, ev.title, ev.tone as FeedTone);
   const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
   return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
+}
+
+/** Start a cascading event chain (Track B): fire its opening beat now and schedule the next. */
+function startChain(s: GameState, chain: EventChain, week: number, rng: ReturnType<typeof rngFrom>): GameState {
+  const step0 = chain.steps[0];
+  const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
+  const applied = step0.kind === "effect"
+    ? applyEventEffect(s, step0.effect, week, step0.title, step0.tone as FeedTone)
+    : s;
+  const next = chain.steps[1];
+  return {
+    ...applied,
+    eventChain: next ? { id: chain.id, step: 1, nextWeek: week + Math.max(1, next.delayWeeks) } : null,
+    nextEventWeek,
+    rngState: rng.state(),
+  };
+}
+
+/** Resolve the due beat of an in-progress chain: apply its effect + schedule the next, or hand the
+ *  terminal choice off to the pending-choice system. Deterministic (no rng draw). */
+function resolveChainStep(s: GameState, week: number): GameState {
+  const ec = s.eventChain;
+  const chain = ec ? chainById(ec.id) : undefined;
+  const step = chain && ec ? chain.steps[ec.step] : undefined;
+  if (!chain || !ec || !step) return { ...s, eventChain: null, feed: trimFeed(s.feed) };
+  if (step.kind === "choice") {
+    if (s.resolvedChoices.includes(step.choice.id)) return { ...s, eventChain: null, feed: trimFeed(s.feed) };
+    return {
+      ...s,
+      eventChain: null,
+      pendingChoice: { event: step.choice, week },
+      feed: trimFeed([...s.feed, feedItem(week, `Decision required: ${step.choice.title}`, step.choice.tone as FeedTone)]),
+    };
+  }
+  const applied = applyEventEffect(s, step.effect, week, step.title, step.tone as FeedTone);
+  const nextIdx = ec.step + 1;
+  const next = chain.steps[nextIdx];
+  return {
+    ...applied,
+    eventChain: next ? { id: ec.id, step: nextIdx, nextWeek: week + Math.max(1, next.delayWeeks) } : null,
+  };
 }
 
 function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>, productName?: string, contested?: boolean) {

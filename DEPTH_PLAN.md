@@ -32,8 +32,13 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   pass would finish it.
 
 ## Track B: A world that remembers & reacts  (medium risk; some PROTECTED)
-- [ ] **Cascading events**: events gain prerequisites and chain (rival recall → industry supply
-  crunch → "poach their engineers?"). `events.ts` + state.
+- [x] **Cascading events** (v59): events chain over weeks instead of firing one-shot. A chain opens
+  with a consequence now, schedules later beats, and ends in a player CHOICE so the world reacts and
+  remembers. Two chains: recall-ripple (rival recall → industry supply crunch → poach-or-promote) and
+  viral-spiral (clip blows up → support backlog → ride-or-steady). `engine/eventChains.ts` (pure
+  catalog + gated selection) + `gameState.ts` (startChain/resolveChainStep, wired into the tick).
+  Supply-crunch beat is capped to a share of cash, so a chain can sting but never bankrupt
+  (harness-verified: 0/40 bankruptcies, 40/40 win, CV 5.1%).
 - [ ] **Rival story arcs**: ascent/peak/decline trajectories with feed beats + acquire-at-peak
   decision; ties into durable competition. `competitors.ts` (PROTECTED).
 - [ ] **Segment macro-cycles & regional shocks**: segments grow/shrink on cycles; regions get
