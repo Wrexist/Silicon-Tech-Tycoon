@@ -79,6 +79,28 @@ export function segmentById(id: SegmentId): Segment | undefined {
   return SEGMENTS.find((s) => s.id === id);
 }
 
+/** Category-specific buyer mixes (Track D): the SAME recipe shouldn't win everywhere. Each category
+ *  weights the five segments differently — a wearable is Style-led, a desktop/AR rig is Pro-led, a
+ *  console is value-and-style, a laptop leans Pro+Enterprise. Each row sums to 1.00. Phone (and any
+ *  category not listed) keeps the default global sizes, so the core phone loop + the sim are unchanged. */
+const CATEGORY_MIX: Partial<Record<CategoryId, Partial<Record<SegmentId, number>>>> = {
+  tablet: { budget: 0.26, mainstream: 0.34, pro: 0.14, style: 0.18, enterprise: 0.08 },
+  laptop: { budget: 0.18, mainstream: 0.30, pro: 0.26, style: 0.10, enterprise: 0.16 },
+  desktop: { budget: 0.14, mainstream: 0.24, pro: 0.35, style: 0.07, enterprise: 0.20 },
+  monitor: { budget: 0.22, mainstream: 0.34, pro: 0.26, style: 0.10, enterprise: 0.08 },
+  console: { budget: 0.34, mainstream: 0.34, pro: 0.16, style: 0.14, enterprise: 0.02 },
+  wearable: { budget: 0.22, mainstream: 0.26, pro: 0.12, style: 0.35, enterprise: 0.05 },
+  experimental: { budget: 0.10, mainstream: 0.22, pro: 0.34, style: 0.24, enterprise: 0.10 },
+};
+
+/** A segment's base share of a CATEGORY's market (Track D). Falls back to the default global size for
+ *  phone and any category without an override. */
+export function categorySegmentSize(category: CategoryId, seg: Segment): number {
+  const mix = CATEGORY_MIX[category];
+  const v = mix?.[seg.id];
+  return v === undefined ? seg.size : v;
+}
+
 function clamp(n: number, lo: number, hi: number): number {
   return n < lo ? lo : n > hi ? hi : n;
 }
@@ -185,16 +207,18 @@ export function segmentDemand(
   // Market climate (Track B): segment sizes swell/fade on slow cycles, RE-NORMALIZED so the cycle
   // redistributes the mix without changing the total market — timing positioning, not free volume.
   const sizeOf = ((): Record<SegmentId, number> => {
-    const out = {} as Record<SegmentId, number>;
-    if (week === undefined) {
-      for (const seg of SEGMENTS) out[seg.id] = seg.size;
-      return out;
-    }
+    // Base mix is category-specific (Track D buyer mixes); phone/unlisted use the default sizes.
+    const baseSizes = {} as Record<SegmentId, number>;
+    let baseTotal = 0;
+    for (const seg of SEGMENTS) { const b = categorySegmentSize(category, seg); baseSizes[seg.id] = b; baseTotal += b; }
+    if (week === undefined) return baseSizes;
+    // Market climate (Track B): apply the seasonal cycle, then re-normalize back to the category's
+    // total so the cycle only redistributes the mix (timing), never inflates the category's volume.
     let total = 0;
     const cycled = {} as Record<SegmentId, number>;
-    for (const seg of SEGMENTS) { const c = seg.size * segmentSizeMul(seg.id, week); cycled[seg.id] = c; total += c; }
-    const base = SEGMENTS.reduce((a, s) => a + s.size, 0);
-    for (const seg of SEGMENTS) out[seg.id] = total > 0 ? (cycled[seg.id] / total) * base : seg.size;
+    for (const seg of SEGMENTS) { const c = baseSizes[seg.id] * segmentSizeMul(seg.id, week); cycled[seg.id] = c; total += c; }
+    const out = {} as Record<SegmentId, number>;
+    for (const seg of SEGMENTS) out[seg.id] = total > 0 ? (cycled[seg.id] / total) * baseTotal : baseSizes[seg.id];
     return out;
   })();
 

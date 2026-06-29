@@ -102,8 +102,12 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
 ## Track D: Decisions with trade-offs  (deepest; PROTECTED engine + measured balance pass)
 - [ ] **Component variants** (same tier, perf-vs-efficiency) + **synergy archetypes** (Chip6+
   Display6 = "Flagship Integration") → component choice becomes 2D. `catalogs.ts`/`product.ts`.
-- [ ] **Category-specific buyer mixes**: a wearable is 35% Style, a desktop 35% Pro; the same
-  recipe shouldn't win everywhere. `segments.ts`.
+- [x] **Category-specific buyer mixes** (v66): the same recipe no longer wins everywhere. Each category
+  weights the five buyer segments differently (wearable Style-led, desktop/AR Pro-led, console value-and-
+  style, laptop Pro+Enterprise), so a Pro-tuned rig wins desktop but loses wearable, and vice-versa.
+  `segments.ts` CATEGORY_MIX + `categorySegmentSize`, threaded through segmentDemand's size resolver (so
+  it composes with the climate cycle). Phone keeps the default sizes, so the core loop + the phone-only
+  sim are byte-identical (harness unchanged: 0/40 bankruptcies, 40/40 win, CV 4.7%).
 - [ ] **Category subsystems** (laptop cooling, wearable sensors) + **research-tree forks**
   (mutually-exclusive paths → distinct playstyles). `catalogs.ts`/`research.ts`.
 
