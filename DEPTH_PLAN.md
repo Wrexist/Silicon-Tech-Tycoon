@@ -19,19 +19,17 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
 
 ---
 
-## Track A: Narrative & Voice  (highest leverage, lowest risk, ~zero PROTECTED math)
-Pure text/data; no balance risk; amplifies every existing mechanic; what reviews quote.
-- [~] **Era world-context**: each era gets an authored "what the world looks like now" passage
-  (today `eraRuleSummary` is mechanics-only). `eras.ts` + EraRoadmap. *(slice 1, in progress)*
-- [ ] **Rival biographies + doctrine explainer + head-to-head memory**: bios beyond the one-line
-  blurb; "Defender: counter-punches when you win their categories"; "you've beaten Oqular 3×".
-  `competitors.ts` (additive data) + Market rival profile + a head-to-head state field.
-- [ ] **Authored launch verdicts**: promote `postmortem.ts` from templated phrases to authored
-  micro-stories keyed on category/era/rival/fit. Pure.
-- [ ] **Campaign epilogue**: "Five Years Later" branched on size/reputation/archetype/rivalries
-  when the pinnacle (`wentPublic`) is reached (today a silent flag). New component.
-- [ ] **Device Museum legacy notes + founder-archetype voice** through objectives. `museum.ts`/
-  new `deviceLegacy.ts`, `objectives.ts`.
+## Track A: Narrative & Voice  COMPLETE (v57, 2026-06-28). Pure text/data, no balance/PROTECTED math.
+- [x] **Era world-context** (`eras.ts` ERA_CONTEXT + EraRoadmap): tagline per era + story on the active one.
+- [x] **Rival biographies + doctrine explainer** (`competitors.ts` bio + DOCTRINE_EXPLAINER, Market profile).
+- [x] **Authored launch verdicts** (`postmortem.ts` `narrative`, shown in the product detail).
+- [x] **Campaign epilogue** (`engine/epilogue.ts`, "Five years later" in the IPO win overlay).
+- [x] **Device Museum legacy notes** (`engine/deviceLegacy.ts`, one line per device in the Museum).
+- [ ] *Deferred:* head-to-head rival memory ("you've beaten Oqular 3×") + founder-archetype voice
+  through objectives (both want a small state field; left for a focused follow-up).
+- NOTE: scrubbed pre-existing em dashes from every player-facing area touched (verdict panel, IPO
+  overlay, perk descriptions, museum copy). Many remain elsewhere; a dedicated player-copy scrub
+  pass would finish it.
 
 ## Track B: A world that remembers & reacts  (medium risk; some PROTECTED)
 - [ ] **Cascading events**: events gain prerequisites and chain (rival recall → industry supply
