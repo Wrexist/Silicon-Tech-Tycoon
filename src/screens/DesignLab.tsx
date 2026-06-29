@@ -17,7 +17,7 @@ import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
-import { componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
+import { activeArchetypes, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
@@ -298,6 +298,7 @@ export function DesignLab({
   // BOTH sides: the bottleneck to fix AND the flagship bonus a coherent high-end build earns.
   const syn = componentSynergy(draft);
   const synPct = Math.round((syn.factor - 1) * 100);
+  const archetypes = activeArchetypes(draft); // Track D — named high-end synergy combos unlocked
   const synState: "flagship" | "weak" | "balanced" =
     syn.factor > 1.001 ? "flagship" : syn.weakest ? "weak" : "balanced";
   const capSlot = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
@@ -597,6 +598,15 @@ export function DesignLab({
                   <Sparkles size={14} aria-hidden /> <strong>{styleLabel}</strong>
                   <span className="lab__hero-line-hint">{styleLabel === "Striking" ? ", wins style-led buyers" : ", refine form for appeal"}</span>
                 </span>
+              </div>
+            )}
+            {archetypes.length > 0 && (
+              <div className="lab__archetypes">
+                {archetypes.map((a) => (
+                  <span key={a.id} className="lab__archetype" title={a.blurb}>
+                    <Sparkles size={11} aria-hidden /> {a.name}
+                  </span>
+                ))}
               </div>
             )}
           </div>

@@ -100,8 +100,15 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   separate shipped layer.)*
 
 ## Track D: Decisions with trade-offs  (deepest; PROTECTED engine + measured balance pass)
-- [ ] **Component variants** (same tier, perf-vs-efficiency) + **synergy archetypes** (Chip6+
-  Display6 = "Flagship Integration") → component choice becomes 2D. `catalogs.ts`/`product.ts`.
+- [x] **Component variants + synergy archetypes** (v67). The perf-vs-efficiency variant + the generic
+  weak-link/flagship synergy ALREADY shipped (ProductTuning + componentSynergy). This adds the missing
+  piece: NAMED archetypes (Flagship Integration = top chip+display, Imaging Pipeline = camera+chip,
+  All-Day Platform = battery+software, Crafted Premium = materials+display, Unified Ecosystem =
+  software+chip). A high-end pairing unlocks a themed, CAPPED stat bonus surfaced as a badge in the
+  design lab, so a coherent flagship earns a recognisable identity, not just bigger numbers.
+  `product.ts` SYNERGY_ARCHETYPES/activeArchetypes/archetypeBonus + `balance.design.archetype`
+  (cap tuned to +3 via the sim: late-game hit-rate 19.0→20.5%, net worth +1.4%, 0/40 bankruptcies,
+  40/40 win — a real reward for mastery that keeps the late game contestable).
 - [x] **Category-specific buyer mixes** (v66): the same recipe no longer wins everywhere. Each category
   weights the five buyer segments differently (wearable Style-led, desktop/AR Pro-led, console value-and-
   style, laptop Pro+Enterprise), so a Pro-tuned rig wins desktop but loses wearable, and vice-versa.

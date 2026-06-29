@@ -97,7 +97,7 @@ import {
   ZERO,
   type Money,
 } from "../engine/money.ts";
-import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { archetypeBonus, buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
@@ -670,6 +670,11 @@ export function productStats(s: GameState, product: Product): Stats {
     bonus.quality = (bonus.quality ?? 0) + m;
     bonus.design = (bonus.design ?? 0) + m;
   }
+  // Named synergy archetypes (Track D): high-end component pairings unlock a themed, capped stat
+  // bonus. Neutral (empty) until a build hits the high tiers, so early/old products are unchanged.
+  const arche = archetypeBonus(product);
+  for (const k of Object.keys(arche) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (arche[k] ?? 0);
+
   // Platform / OS division — the OS your devices run lifts their ecosystem stat (a strong OS makes
   // every device you ship better), and the chosen OS philosophy tilts a stat of its own. Gated on the
   // entitlement, so the base game is byte-identical until the player opts into the division.

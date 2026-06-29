@@ -165,6 +165,20 @@
 .lab__hero-line-val--weak { color: var(--negative-text, var(--negative)); }
 .lab__hero-line-val--flagship svg, .lab__hero-line-val--weak svg { color: currentColor; }
 .lab__hero-line-hint { font-weight: 500; color: var(--ink-2); }
+.lab__archetypes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--sp-8); }
+.lab__archetype {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro, 11px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
 
 /* View back — divided footer button inside the hero card */
 .lab__flip {

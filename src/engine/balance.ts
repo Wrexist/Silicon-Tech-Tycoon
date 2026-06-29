@@ -47,6 +47,11 @@ export const BALANCE = {
     // tooling + unit cost (pure engine, tuningCostMultiplier). Magnitudes need a playtest (⚠️).
     marginShift: 6,
     tuningCostMult: { value: 0.85, premium: 1.18 } as Record<string, number>,
+    // Named synergy archetypes (Track D, engine/product.ts SYNERGY_ARCHETYPES) — high-end component
+    // pairings unlock a themed stat bonus. highTierFrac sets how close to a line's max counts as
+    // "high"; maxTotalBonus caps the summed bonus so even a fully-maxed flagship can't stack past a
+    // sane ceiling (keeps the late game contestable). Applied in the state layer (productStats).
+    archetype: { highTierFrac: 0.8, maxTotalBonus: 3 },
     // Screen refresh rate (Hz) — a customizable display spec. Higher Hz adds a small appeal bump
     // and a per-unit cost, but is GATED by the display tier (a budget panel can't drive 144Hz), so
     // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).
