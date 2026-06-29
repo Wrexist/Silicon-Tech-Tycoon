@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, Layers, PencilRuler, Megaphone, Rocket, Search, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
@@ -33,12 +33,15 @@ import {
   deskCapacity,
   facilityRent,
   facility,
+  loanCreditAvailable,
+  loanRateNow,
   nextWeekRevenue,
   restCost,
   weeklyEcosystemRevenue,
   weeklyRpGen,
   type GameState,
 } from "../state/gameState.ts";
+import { totalDebt, weeklyDebtService } from "../engine/financing.ts";
 import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -232,6 +235,11 @@ export function Company() {
         <p className="co__hint">Lifetime revenue {format(state.cumulativeRevenue)}.</p>
       </Card>
 
+      {/* Financing — borrow to extend runway or fund a bet; pay it back weekly (Track C) */}
+      {(hasShipped || (state.loans?.length ?? 0) > 0 || (runway !== Infinity && runway <= 30)) && (
+        <FinancingCard state={state} />
+      )}
+
       {/* Selling now */}
       {activeSales.length > 0 && (
         <Card>
@@ -389,6 +397,71 @@ export function Company() {
       )}
 
     </div>
+  );
+}
+
+/* ---------- Financing (Track C) ---------- */
+
+/** Debt financing: borrow against revenue + reputation to extend runway or fund a bet, repaid weekly.
+ *  Good reputation earns a cheaper rate; leverage makes it pricier. A loan is a real bet — it can buy
+ *  the runway to land a launch, or sink you faster if the bet misses. */
+function FinancingCard({ state }: { state: GameState }) {
+  const { takeLoan, repayLoan } = useGame();
+  const loans = state.loans ?? [];
+  const debt = totalDebt(loans);
+  const service = weeklyDebtService(loans);
+  const available = Math.floor(toDollars(loanCreditAvailable(state))); // whole dollars of headroom
+  const apr = Math.round(loanRateNow(state) * 52 * 100);
+  const minLoan = BALANCE.financing.minLoan / 100; // dollars
+  const presets = [100_000, 250_000, 500_000].filter((d) => d >= minLoan && d <= available);
+  const canBorrow = available >= minLoan && !state.bankrupt;
+  return (
+    <Card>
+      <SectionHeader title="Financing" accessory={<span className="co__stats-link"><Landmark size={14} /> Debt</span>} />
+      {debt > 0 ? (
+        <>
+          <div className="co__fin-grid">
+            <Stat label="Outstanding debt" value={format(cents(Math.round(debt)))} tone="negative" />
+            <Stat label="Weekly service" value={format(cents(service))} tone="negative" hint="/wk" />
+          </div>
+          <div className="co__loan-list">
+            {loans.map((l) => {
+              const payoff = cents(Math.round(l.balance));
+              return (
+                <div key={l.id} className="co__loan-row">
+                  <div className="co__loan-info">
+                    <span className="co__loan-bal">{format(payoff)}</span>
+                    <span className="co__loan-meta">{format(cents(l.weeklyPayment))}/wk · {Math.round(l.ratePerWeek * 52 * 100)}% APR</span>
+                  </div>
+                  <Button variant="secondary" disabled={state.cash < payoff} onClick={() => { repayLoan(l.id); haptic.medium(); }}>
+                    Pay off
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <p className="co__hint">No debt. Borrow to extend runway or fund a launch, repaid weekly over a year.</p>
+      )}
+      {canBorrow ? (
+        <>
+          <p className="co__fin-credit">Available credit {format(dollars(available))} · ~{apr}% APR</p>
+          <div className="co__loan-presets">
+            {presets.map((d) => (
+              <Button key={d} variant="secondary" onClick={() => { takeLoan(d * 100); haptic.success(); }}>
+                Borrow {formatShortDollars(d)}
+              </Button>
+            ))}
+            <Button variant="primary" onClick={() => { takeLoan(available * 100); haptic.success(); }}>
+              Max · {formatShortDollars(available)}
+            </Button>
+          </div>
+        </>
+      ) : debt > 0 ? (
+        <p className="co__hint">Credit maxed out, pay down debt to borrow again.</p>
+      ) : null}
+    </Card>
   );
 }
 

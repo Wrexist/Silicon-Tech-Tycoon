@@ -43,6 +43,7 @@ import {
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
 import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
 import { pickPoachTarget } from "../engine/poaching.ts";
+import { accrueLoans, creditLimit, loanRate, makeLoan, type Loan } from "../engine/financing.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
   addItem as addFurniture,
@@ -232,6 +233,9 @@ export interface GameState {
   /** A rival poaching one of your staff, awaiting a counter-offer decision (Track C). Resolved via
    *  resolvePoach. Optional/null → golden-invariant safe (old saves load with no pending poach). */
   pendingPoach?: { staffId: string; staffName: string; rivalId: string; rivalName: string; retainCost: Money; week: number } | null;
+  /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
+   *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
+  loans?: Loan[];
   /** IDs of choice events already resolved THIS RUN — prevents repeats within a company. */
   resolvedChoices: string[];
   /** IDs of choice events resolved across ALL companies (carried through New Game+ like the legacy
@@ -453,6 +457,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     completedObjectives: [],
     pendingChoice: null,
     pendingPoach: null,
+    loans: [],
     resolvedChoices: [],
     seenChoices: [],
     activeScenario: null,
@@ -1248,6 +1253,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Burn
   cash = sub(cash, scale(burn(state), rate));
 
+  // Loan debt service (Track C financing): amortize outstanding loans + take this week's payment.
+  // Defaults to a no-op when the player has no debt, so a never-borrows game (and the harness) is
+  // byte-identical. Scaled by `rate` so a partial offline catch-up tick services debt proportionally.
+  let loans = state.loans ?? [];
+  if (loans.length) {
+    const serviced = accrueLoans(loans, rate);
+    loans = serviced.loans;
+    cash = sub(cash, cents(serviced.payment));
+  }
+
   // Dividend income from rival shares the player holds (uses this week's fresh prices).
   cash = add(cash, scale(weeklyDividends(state.holdings, competitors), rate));
 
@@ -1530,6 +1545,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     feed,
     rivalReleases,
     rivalLineCounters,
+    loans,
     rngState: rng.state(),
     bankrupt,
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
@@ -2185,6 +2201,53 @@ export function resolvePoach(state: GameState, accept: boolean): GameState {
     ),
     feed: trimFeed(feed),
   };
+}
+
+/** Recent weekly revenue in CENTS — the creditworthiness signal for financing (engine/financing.ts). */
+function weeklyRevenueCents(state: GameState): number {
+  return Math.round(toDollars(nextWeekRevenue(state)) * 100);
+}
+
+/** How much the player can still borrow right now (Money). Exposed for the financing UI. */
+export function loanCreditAvailable(state: GameState): Money {
+  return cents(creditLimit(weeklyRevenueCents(state), state.loans ?? []));
+}
+
+/** The weekly interest rate the player would be offered for a new loan right now (0..1). */
+export function loanRateNow(state: GameState): number {
+  return loanRate(state.reputation, weeklyRevenueCents(state), state.loans ?? []);
+}
+
+/** Take on a debt-financing loan (Track C): receive the principal (less a small origination fee) as
+ *  cash now, in exchange for fixed weekly debt service amortized over the term. Rejected if bankrupt,
+ *  below the minimum, or beyond the current credit limit. */
+export function takeLoan(state: GameState, principalCents: number): GameState {
+  if (state.bankrupt) return state;
+  const loans = state.loans ?? [];
+  const f = BALANCE.financing;
+  const principal = Math.round(principalCents);
+  const limit = creditLimit(weeklyRevenueCents(state), loans);
+  if (principal < f.minLoan || principal > limit) return state;
+  const loan = makeLoan(`loan-${state.week}-${loans.length}`, principal, state.reputation, weeklyRevenueCents(state), loans, state.week);
+  const proceeds = Math.round(principal * (1 - f.originationFee));
+  const aprPct = Math.round(loan.ratePerWeek * 52 * 100);
+  const feed = trimFeed([
+    ...state.feed,
+    feedItem(state.week, `Borrowed ${format(cents(principal))} at ~${aprPct}% APR, repaying ${format(cents(loan.weeklyPayment))}/wk for ${loan.termWeeks} weeks.`, "accent"),
+  ]);
+  return { ...state, cash: add(state.cash, cents(proceeds)) as Money, loans: [...loans, loan], feed };
+}
+
+/** Pay off a loan early in full (Track C): clears the remaining balance from cash, ending its weekly
+ *  service. Rejected if the player can't cover the payoff. */
+export function repayLoan(state: GameState, id: string): GameState {
+  const loans = state.loans ?? [];
+  const loan = loans.find((l) => l.id === id);
+  if (!loan) return state;
+  const payoff = cents(Math.round(loan.balance));
+  if (state.cash < payoff) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Paid off a loan early (${format(payoff)}).`, "positive")]);
+  return { ...state, cash: sub(state.cash, payoff), loans: loans.filter((l) => l.id !== id), feed };
 }
 
 export function researchNext(state: GameState, kind: ComponentKind): GameState {

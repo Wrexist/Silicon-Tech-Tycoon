@@ -67,8 +67,16 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   HQ counter-offer card. Golden invariant kept: optional fields, no migration. The roll uses a DERIVED
   rng, so the economy harness is byte-identical (0/40 bankruptcies, 40/40 win, CV 5.0%, all unchanged).
 - [ ] **Morale as a decision**: offsites/bonuses/retention spend vs. cutting costs. `balance.ts`.
-- [ ] **Financing decisions**: loans/investors so runway is a bet, not a read-only timer.
-  `economy.ts`, state. *(Supplier "satisfaction"/negotiation is the new layer atop shipped loyalty.)*
+- [x] **Financing decisions** (v62): debt financing (loans) makes runway a BET, not a read-only timer.
+  Borrow cash now (less a 1% origination fee), owe fixed weekly service amortized over a year; good
+  reputation earns a cheaper rate (a new place rep matters), leverage makes the next loan pricier, and
+  the credit limit scales with recent revenue off a garage-friendly floor. New pure `engine/financing.ts`
+  (credit/rate/amortization) + `balance.financing` + `gameState.ts` (loans field, weekly debt service in
+  the tick, takeLoan/repayLoan) + a Financing card on the Company screen (outstanding loans + borrow
+  presets + pay-off). Equity financing already exists (IPO/stake sale), so this adds the missing debt
+  lever. Golden invariant kept (optional `loans`, no migration); the harness never borrows, so the
+  economy is byte-identical (0/40 bankruptcies, 40/40 win, CV 5.0%). *(Supplier negotiation is a
+  separate shipped layer.)*
 
 ## Track D: Decisions with trade-offs  (deepest; PROTECTED engine + measured balance pass)
 - [ ] **Component variants** (same tier, perf-vs-efficiency) + **synergy archetypes** (Chip6+

@@ -705,6 +705,23 @@ export const BALANCE = {
     cooldownWeeks: 26,        // a retained employee can't be targeted again for this long
   },
 
+  // --- Debt financing (Track C) — borrow cash now, owe weekly service. Reputation earns cheaper
+  // credit (a new place rep matters); leverage makes the next loan pricier. Tuned so a loan is a
+  // genuine BET: it can buy the runway to land a launch, or sink you faster if the bet misses.
+  // Amounts in CENTS to match the engine/financing.ts pure layer.
+  financing: {
+    baseRatePerWeek: 0.0035,      // ~20%/yr base before adjustments
+    minRatePerWeek: 0.0012,       // floor — credit is never free money
+    rateRepDiscount: 0.00003,     // weekly-rate cut per reputation point above 50 (good rep = cheap credit)
+    rateLeveragePremium: 0.0025,  // added to the rate at the credit ceiling (linear with leverage)
+    termWeeks: 52,                // 1-year amortization
+    minLoan: 25_000 * 100,        // smallest drawdown ($25K)
+    creditFloor: 75_000 * 100,    // a garage can borrow at least this (before subtracting existing debt)
+    creditRevenueWeeks: 16,       // + this many weeks of recent revenue as borrowing headroom
+    maxCredit: 8_000_000 * 100,   // hard ceiling on total outstanding debt ($8M)
+    originationFee: 0.01,         // 1% taken off the top on drawdown (you receive principal × 0.99)
+  },
+
   // --- Market events ---
   events: {
     firstWeek: 8,

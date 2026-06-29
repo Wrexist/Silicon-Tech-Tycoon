@@ -34,6 +34,8 @@ import {
   giveRaise,
   resolveChoice,
   resolvePoach,
+  takeLoan,
+  repayLoan,
   catchUpOffline,
   clearCandidates,
   duplicateFurniture,
@@ -418,6 +420,8 @@ interface GameActionsValue {
   giveRaise: (id: string) => void;
   resolveChoice: (optionId: string) => void;
   resolvePoach: (accept: boolean) => void;
+  takeLoan: (principalCents: number) => void;
+  repayLoan: (id: string) => void;
 }
 
 /** Full context shape — data + actions. `useGame()` returns this (back-compat). */
@@ -925,6 +929,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const giveRaiseCb = useCallback((id: string) => setState((s) => giveRaise(s, id)), []);
   const resolveChoiceCb = useCallback((optionId: string) => setState((s) => resolveChoice(s, optionId)), []);
   const resolvePoachCb = useCallback((accept: boolean) => setState((s) => resolvePoach(s, accept)), []);
+  const takeLoanCb = useCallback((principalCents: number) => setState((s) => takeLoan(s, principalCents)), []);
+  const repayLoanCb = useCallback((id: string) => setState((s) => repayLoan(s, id)), []);
 
   const restart = useCallback(() => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good
@@ -1032,10 +1038,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       marketingPush: marketingPushCb,
       giveRaise: giveRaiseCb,
       resolvePoach: resolvePoachCb,
+      takeLoan: takeLoanCb,
+      repayLoan: repayLoanCb,
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer
