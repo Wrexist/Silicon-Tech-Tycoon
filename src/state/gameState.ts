@@ -44,6 +44,7 @@ import {
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
 import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
 import { pickPoachTarget } from "../engine/poaching.ts";
+import { mentorshipXpMult } from "../engine/org.ts";
 import { accrueLoans, creditLimit, loanRate, makeLoan, type Loan } from "../engine/financing.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
@@ -1374,7 +1375,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const churnCfg = BALANCE.churn;
   const quitIds: string[] = [];
   const staff = state.staff.map((s) => {
-    const { staff: levelResult, leveledUp } = gainWeeklyXp(s);
+    const { staff: levelResult, leveledUp } = gainWeeklyXp(s, mentorshipXpMult(s, state.staff));
     if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${levelResult.skill}.`, "positive"));
     // Salary is NOT auto-updated on level-up — player must give a raise manually.
     // Underpaid staff drift unhappy over time and may eventually quit.

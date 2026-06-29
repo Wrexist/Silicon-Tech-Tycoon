@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
@@ -45,6 +45,7 @@ import {
   type GameState,
 } from "../state/gameState.ts";
 import { totalDebt, weeklyDebtService } from "../engine/financing.ts";
+import { isDisciplineLead, mentorshipXpMult } from "../engine/org.ts";
 import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -340,7 +341,7 @@ export function Company() {
         ) : (
           <ul className="co__roster">
             {state.staff.map((s) => (
-              <Member key={s.id} s={s} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} onRest={rest} />
+              <Member key={s.id} s={s} staff={state.staff} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} onRest={rest} />
             ))}
           </ul>
         )}
@@ -1020,6 +1021,7 @@ const ASSIGNMENTS: Assignment[] = ["rnd", "design", "marketing", "idle"];
 
 function Member({
   s,
+  staff,
   cash,
   era,
   onAssign,
@@ -1029,6 +1031,7 @@ function Member({
   onRest,
 }: {
   s: Staff;
+  staff: readonly Staff[];
   cash: number;
   era: number;
   onAssign: (id: string, a: Assignment) => void;
@@ -1041,7 +1044,12 @@ function Member({
   const maxed = s.skill >= BALANCE.staff.maxSkill;
   const cost = trainCost(s.skill);
   const xpPct = maxed ? 100 : Math.min(100, Math.round((s.xp / xpToNext(s.skill)) * 100));
-  const weeklyXpRate = maxed ? 0 : (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait);
+  // Org structure (Track C): the discipline lead mentors juniors → their XP rate (and so the
+  // displayed time-to-level) reflects the mentorship boost.
+  const isLead = isDisciplineLead(s, staff);
+  const mentorMult = mentorshipXpMult(s, staff);
+  const isMentored = mentorMult > 1;
+  const weeklyXpRate = maxed ? 0 : (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait) * mentorMult;
   const weeksToLevel = !maxed && weeklyXpRate > 0 ? Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate) : null;
   const band = moodBand(s.mood);
   // Best-fit: find the discipline this person scores highest in. Only flag a misfit when their
@@ -1106,6 +1114,16 @@ function Member({
         )}
         {isLowMood && (
           <span className="co__tag co__tag--burnout">Burnout risk</span>
+        )}
+        {isLead && (
+          <span className="co__tag co__tag--lead" title="Strongest in their discipline — mentors the juniors working alongside them">
+            <GraduationCap size={11} aria-hidden /> Lead
+          </span>
+        )}
+        {isMentored && (
+          <span className="co__tag co__tag--mentored" title={`Learning faster under the lead (+${Math.round((mentorMult - 1) * 100)}% XP)`}>
+            <Sparkles size={11} aria-hidden /> Mentored
+          </span>
         )}
       </div>
       <div className="co__mood-bar" aria-label={`Morale ${Math.round(s.mood)}%`}>

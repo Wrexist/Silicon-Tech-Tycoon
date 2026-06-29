@@ -1030,6 +1030,14 @@
   color: var(--negative-text, var(--negative));
   background: color-mix(in srgb, var(--negative) 12%, transparent);
 }
+.co__tag--lead {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.co__tag--mentored {
+  color: var(--positive-text, var(--positive));
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
+}
 .co__raise-btn {
   display: inline-flex;
   align-items: center;

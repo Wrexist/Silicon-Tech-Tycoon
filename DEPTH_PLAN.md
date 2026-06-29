@@ -56,9 +56,15 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   valuation; hit pops it, flop dents it, #1 holds a premium; sparkline on the Market company card.
   Does NOT touch cash/reputation, so bankruptcy + win gate are safe (harness-verified). `gameState.ts`.
 
-## Track C: People & company as humans  (medium risk; mostly state)
-- [ ] **Org structure**: departments + team leads + mentorship (a veteran lead speeds juniors).
-  `staff.ts`, state schema.
+## Track C: People & company as humans  COMPLETE (v60-v64). Mostly state; one measured leveling tweak.
+- [x] **Org structure / mentorship** (v64): each discipline has a LEAD (its strongest active worker),
+  who speeds up the juniors working alongside them — a junior under a far-stronger lead gains up to
+  +50% XP, scaled by the skill gap. Building a team around a senior anchor pays off and a high-skill
+  veteran gains a second purpose beyond raw output. New pure `engine/org.ts` (disciplineLead,
+  mentorshipXpMult, isDisciplineLead) + `balance.org` + a `mentorMult` param on `economy.gainWeeklyXp`
+  (defaults to 1) wired through the tick + Lead/Mentored badges and a corrected time-to-level on the
+  roster. Harness byte-identical: the auto-player is a solo founder, so mentorship never triggers
+  there (0/40 bankruptcies, 40/40 win, CV 5.0%, all unchanged); the math is unit-tested directly.
 - [x] **Named departures + rival poaching** (v61): losing your best is now a DECISION, not a silent
   stat drop. A rival ON THE RISE (ties into the story arcs) occasionally makes a run at one of your
   content, high-skill people; you match the offer (signing bonus + market pay + a re-poach cooldown)

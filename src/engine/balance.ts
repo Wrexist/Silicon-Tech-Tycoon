@@ -735,6 +735,16 @@ export const BALANCE = {
     cooldownWeeks: 12,     // weeks before another company-wide morale spend is available
   },
 
+  // --- Org structure / mentorship (Track C) — a discipline LEAD (the strongest person working a
+  // discipline) speeds up the juniors working alongside them: a big skill gap means a strong mentor,
+  // so building a team around a senior anchor pays off and high-skill veterans gain a second purpose
+  // beyond raw output. Bounded so it accelerates growth, never trivializes it.
+  org: {
+    minMentorGap: 15,        // the lead must be at least this many discipline points stronger to mentor
+    mentorPerGapPoint: 0.012, // bonus XP rate per point of gap beyond the threshold
+    mentorMaxBonus: 0.5,     // cap — a junior under a far-stronger lead learns up to 50% faster
+  },
+
   // --- Market events ---
   events: {
     firstWeek: 8,
