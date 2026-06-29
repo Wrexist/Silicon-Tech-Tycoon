@@ -15,7 +15,7 @@ export function eraModifier(era: number): { marketingHype: number; ecosystemRate
   return mods[Math.max(0, Math.min(Math.floor(era) - 1, mods.length - 1))];
 }
 
-/** Authored "what the world looks like now" context per era — flavour, not mechanics (Track A:
+/** Authored "what the world looks like now" context per era: flavour, not mechanics (Track A:
  *  narrative & voice). Eras were economically named but never narratively lived; this gives each one
  *  a tagline + a couple of sentences that frame the strategic moment. IP-safe, no real brands/dates.
  *  Consistent with eraModifiers (Platform = ecosystem lock-in; AI = hype-driven + volatile). */

@@ -622,6 +622,16 @@
 .rprof__sub { font-size: var(--fs-caption); color: var(--ink-2); margin-top: var(--sp-2); line-height: 1.4; }
 .rprof__stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
 .rprof__spark { padding: var(--sp-8) 0; }
+/* Rival narrative (Track A): biography + a plain-language explainer of the rival's strategy. */
+.rprof__bio { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-12) 0 0; }
+.rprof__doctrine {
+  display: flex; align-items: flex-start; gap: var(--sp-6);
+  font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45;
+  margin: var(--sp-8) 0 0; padding: var(--sp-8) var(--sp-12);
+  background: var(--bg-elevated); border-radius: var(--r-button);
+}
+.rprof__doctrine strong { color: var(--ink); font-weight: 700; }
+.rprof__doctrine svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
 .rprof__acquire { display: flex; flex-direction: column; gap: 6px; }
 .rprof__acquire-note { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; text-align: center; }
 .rprof__status { display: flex; flex-wrap: wrap; gap: var(--sp-8); }

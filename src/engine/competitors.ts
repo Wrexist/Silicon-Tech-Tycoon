@@ -22,6 +22,9 @@ interface RivalDef {
   shares: number;
   /** Categories this rival launches into far more often + with a strength bonus (their identity). */
   preferredCategories: readonly CategoryId[];
+  /** A 1-2 sentence biography (Track A: narrative & voice): surfaced in the Market rival profile so
+   *  each rival reads as a character with a thesis, not just a strength number + a stock ticker. */
+  bio: string;
   /** B2 — behavioural posture when the player is winning a category (see advanceCompetitors):
    *   • defender    — counter-punches with extra STRENGTH + faster cadence (the old lead behaviour).
    *   • trendChaser — biases its category choice toward the player's hot categories (crowds you).
@@ -33,21 +36,21 @@ interface RivalDef {
 export type RivalDoctrine = "defender" | "trendChaser" | "undercutter" | "generalist";
 
 export const RIVALS: RivalDef[] = [
-  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, shares: 13_000_000, preferredCategories: ["phone", "wearable"],               doctrine: "defender"    },
-  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, shares: 9_500_000, preferredCategories: ["phone", "tablet", "laptop"],   doctrine: "generalist"  },
-  { id: "googol",    name: "Oqular",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], doctrine: "trendChaser" },
-  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, shares: 3_500_000, preferredCategories: ["phone"],                           doctrine: "undercutter" },
-  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, shares: 9_000_000, preferredCategories: ["phone", "tablet", "desktop"],       doctrine: "undercutter" },
-  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      doctrine: "trendChaser" },
+  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, shares: 13_000_000, preferredCategories: ["phone", "wearable"],               doctrine: "defender",    bio: "Founded by a designer obsessed with the seam between hardware and soul. Pomelo set the premium standard and guards it ferociously: win a category it owns and a sharper, pricier answer arrives within weeks." },
+  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, shares: 9_500_000, preferredCategories: ["phone", "tablet", "laptop"],   doctrine: "generalist",  bio: "A sprawling conglomerate that makes everything from chips to dishwashers. Tristar rarely leads on taste, but its scale and supply chain let it flood any category you open." },
+  { id: "googol",    name: "Oqular",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], doctrine: "trendChaser", bio: "A search-and-services giant that treats hardware as a doorway to its platform. Oqular chases whatever is hot, betting that owning your attention beats owning the device." },
+  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, shares: 3_500_000, preferredCategories: ["phone"],                           doctrine: "undercutter", bio: "Built on one promise: flagship specifications at half the price. NovaPlus wins the spec sheet and dares you to justify your margins." },
+  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, shares: 9_000_000, preferredCategories: ["phone", "tablet", "desktop"],       doctrine: "undercutter", bio: "A relentless value manufacturer that wins on sheer volume and razor-thin margins. Pandacore does not want to be loved; it wants to be everywhere, cheaply." },
+  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      doctrine: "trendChaser", bio: "A scrappy upstart betting the company on the next wave. Quantyx is small and volatile, but one well-timed bet on an emerging category can vault it overnight." },
 ];
 
 /** B3 — reserve challengers that rise to refill the field after the player acquires rivals, so the
  *  industry never goes quiet. Not present at game start; they enter via spawnChallenger. */
 export const CHALLENGER_POOL: RivalDef[] = [
-  { id: "vortex",  name: "Vortex",  blurb: "A venture-backed upstart chasing every hot trend.",   reputation: 38, share: 26, vol: 1.5, shares: 5_000_000, preferredCategories: ["phone", "wearable", "experimental"], doctrine: "trendChaser" },
-  { id: "lumina",  name: "Lumina",  blurb: "A contract manufacturer turned cut-price brand.",      reputation: 34, share: 18, vol: 1.5, shares: 8_000_000, preferredCategories: ["phone", "tablet", "laptop"],        doctrine: "undercutter" },
-  { id: "kestrel", name: "Kestrel", blurb: "A steady mid-market generalist with broad reach.",      reputation: 50, share: 58, vol: 1.0, shares: 7_000_000, preferredCategories: ["laptop", "desktop", "monitor"],     doctrine: "generalist"  },
-  { id: "axion",   name: "Axion",   blurb: "A premium newcomer betting on design and ecosystem.",   reputation: 58, share: 96, vol: 0.8, shares: 6_000_000, preferredCategories: ["phone", "tablet", "wearable"],      doctrine: "defender"    },
+  { id: "vortex",  name: "Vortex",  blurb: "A venture-backed upstart chasing every hot trend.",   reputation: 38, share: 26, vol: 1.5, shares: 5_000_000, preferredCategories: ["phone", "wearable", "experimental"], doctrine: "trendChaser", bio: "Venture cash and big ambitions. Vortex chases every hot trend with someone else's money, burning bright and fast in whatever category is fashionable this quarter." },
+  { id: "lumina",  name: "Lumina",  blurb: "A contract manufacturer turned cut-price brand.",      reputation: 34, share: 18, vol: 1.5, shares: 8_000_000, preferredCategories: ["phone", "tablet", "laptop"],        doctrine: "undercutter", bio: "Once the factory behind other people's phones, Lumina learned the playbook and turned cut-price brand. It knows exactly what a device costs to build, and prices accordingly." },
+  { id: "kestrel", name: "Kestrel", blurb: "A steady mid-market generalist with broad reach.",      reputation: 50, share: 58, vol: 1.0, shares: 7_000_000, preferredCategories: ["laptop", "desktop", "monitor"],     doctrine: "generalist",  bio: "A dependable mid-market generalist with broad retail reach. Kestrel never dazzles, but it is always on the shelf, quietly taking the customers who just want something that works." },
+  { id: "axion",   name: "Axion",   blurb: "A premium newcomer betting on design and ecosystem.",   reputation: 58, share: 96, vol: 0.8, shares: 6_000_000, preferredCategories: ["phone", "tablet", "wearable"],      doctrine: "defender",    bio: "A premium newcomer betting that design and a tight ecosystem can unseat the incumbents. Axion is young, well-funded, and unafraid to defend the categories it stakes out." },
 ];
 
 /** Lookup across the starting roster AND the reserve challenger pool (so an entered challenger has a
@@ -90,6 +93,21 @@ export function spawnChallenger(
 export function rivalDoctrine(id: string): RivalDoctrine {
   return rivalDef(id)?.doctrine ?? "generalist";
 }
+
+/** Plain-language label + "what it means for you" for each doctrine (Track A: make the rival's
+ *  strategy legible, not just a hidden behaviour). Used by the Market rival profile. */
+export const DOCTRINE_LABEL: Record<RivalDoctrine, string> = {
+  defender: "Defender",
+  trendChaser: "Trend-chaser",
+  undercutter: "Undercutter",
+  generalist: "Generalist",
+};
+export const DOCTRINE_EXPLAINER: Record<RivalDoctrine, string> = {
+  defender: "Counter-punches with stronger, faster launches when you win the categories it owns.",
+  trendChaser: "Piles into whatever category is hot, including the ones you've just proven.",
+  undercutter: "Fights on price, not specs: ships aggressively cheap to bleed your margins.",
+  generalist: "No special reaction: a broad, steady shipper across many categories.",
+};
 
 /** A rival's live market capitalization for the industry leaderboard. The cap is anchored to the
  *  rival's fundamental size (starting share price × float) and nudged by its LIVE share price within

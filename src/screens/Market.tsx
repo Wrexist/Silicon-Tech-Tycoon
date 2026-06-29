@@ -6,7 +6,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
-import { rivalDef, rivalDoctrine, rivalMarketCap } from "../engine/competitors.ts";
+import { rivalDef, rivalDoctrine, rivalMarketCap, DOCTRINE_LABEL, DOCTRINE_EXPLAINER } from "../engine/competitors.ts";
 import { playerFranchises, rivalLines, franchiseStem, type FranchiseSummary } from "../engine/franchise.ts";
 import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
@@ -1209,10 +1209,6 @@ function ProductDetailSheet({
   );
 }
 
-const DOCTRINE_LABEL: Record<string, string> = {
-  defender: "Defender", trendChaser: "Trend-chaser", undercutter: "Undercutter", generalist: "Generalist",
-};
-
 function fmtCompact(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 10_000) return `${Math.floor(n / 1000)}k`;
@@ -1330,6 +1326,11 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
         <StatPill label="Share" value={`${format(cents(comp.sharePrice))} ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}%`} tone={ch >= 0 ? "positive" : "negative"} />
         <StatPill label="Strategy" value={DOCTRINE_LABEL[rivalDoctrine(comp.id)] ?? "—"} />
       </div>
+
+      {rivalDef(comp.id)?.bio && <p className="rprof__bio">{rivalDef(comp.id)!.bio}</p>}
+      <p className="rprof__doctrine">
+        <Building2 size={13} aria-hidden /> <strong>{DOCTRINE_LABEL[rivalDoctrine(comp.id)]}:</strong> {DOCTRINE_EXPLAINER[rivalDoctrine(comp.id)]}
+      </p>
 
       {(licensed || held > 0) && (
         <div className="rprof__status">
