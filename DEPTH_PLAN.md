@@ -115,8 +115,16 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   `segments.ts` CATEGORY_MIX + `categorySegmentSize`, threaded through segmentDemand's size resolver (so
   it composes with the climate cycle). Phone keeps the default sizes, so the core loop + the phone-only
   sim are byte-identical (harness unchanged: 0/40 bankruptcies, 40/40 win, CV 4.7%).
-- [ ] **Category subsystems** (laptop cooling, wearable sensors) + **research-tree forks**
-  (mutually-exclusive paths → distinct playstyles). `catalogs.ts`/`research.ts`.
+- [x] **Research-tree forks** (v68): the Engineering Doctrine — a mutually-exclusive fork (Performance
+  / Efficiency / Reliability house). Pick one, the others lock; the chosen house stamps a permanent
+  stat identity on every product, pairing with the category buyer mixes for a real playstyle.
+  `research.ts` fork field + forkLockedBy, `buyProject` gate, productStats effects, research-screen
+  lock UI, completableProjectCount for the "Full R&D" achievement. Harness-invisible (sim never buys
+  projects).
+- [x] **Category subsystems** (v69): category-specific signature specs — laptops/desktops/consoles get
+  COOLING (→ performance), wearables get SENSORS (→ ecosystem+quality), as tiered upgrades with a
+  per-unit cost (engine/subsystems.ts), surfaced as a spec control in the design lab. Phones have none,
+  so the core loop + phone-only sim are byte-identical (harness unchanged: hit 20.5%, 0/40 bankruptcies).
 
 ---
 

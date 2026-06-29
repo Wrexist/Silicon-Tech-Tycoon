@@ -36,6 +36,7 @@ import type {
 } from "../engine/types.ts";
 import { REGIONS, regionTasteFit } from "../engine/regions.ts";
 import { segmentTrend, regionInCrisis } from "../engine/climate.ts";
+import { subsystemFor, effectiveSubsystemStep } from "../engine/subsystems.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import {
@@ -343,6 +344,13 @@ export function DesignLab({
   const storOptions = BALANCE.design.storage.options
     .filter((g) => g <= maxStor)
     .map((g) => [g, storLabel(g)] as [number, string]);
+  // Category subsystem (Track D): a laptop's cooling, a wearable's sensors — a category-specific spec.
+  const subsystem = subsystemFor(draft.category);
+  const effSub = effectiveSubsystemStep(draft.category, draft.subsystem);
+  const subOptions = subsystem ? subsystem.optionLabels.map((label, i) => [i, label] as [number, string]) : [];
+  const subHint = subsystem && effSub > 0
+    ? Object.entries(subsystem.perStep).map(([k, v]) => `+${(v ?? 0) * effSub} ${STAT_ABBR[k as keyof Stats] ?? k}`).join(" · ")
+    : subsystem?.optionLabels[0] ?? "";
 
   // B7 — the lab's projected verdict must use the SAME gate the launch actually applies:
   // effectiveScore = launchScore × competitionFactor, compared to the era-scaled verdict bands.
@@ -1135,6 +1143,17 @@ export function DesignLab({
                   value={effStor}
                   options={storOptions}
                   onPick={(v) => { haptic.light(); set({ storage: v }); }}
+                />
+              </Card>
+            )}
+            {subsystem && (
+              <Card>
+                <SectionHeader title={subsystem.name} accessory={subHint} />
+                <Seg<number>
+                  label={subsystem.name}
+                  value={effSub}
+                  options={subOptions}
+                  onPick={(v) => { haptic.light(); set({ subsystem: v }); }}
                 />
               </Card>
             )}

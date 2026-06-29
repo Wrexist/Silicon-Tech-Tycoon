@@ -2,6 +2,7 @@
 import { BALANCE } from "./balance.ts";
 import { CATEGORIES, tierDef, maxTier } from "./catalogs.ts";
 import { supplierCostMult, supplierQualityDelta } from "./suppliers.ts";
+import { subsystemFor, subsystemStatBonus, subsystemCostSteps } from "./subsystems.ts";
 import { sum, scale, type Money, ZERO } from "./money.ts";
 import {
   STAT_KEYS,
@@ -103,6 +104,13 @@ export function computeStats(product: Product): Stats {
     stats.quality += stSteps * a.quality;
   }
 
+  // Category subsystem (Track D): a laptop's cooling, a wearable's sensors — a category-specific spec
+  // that lifts a stat per upgrade step. Empty for phones / categories without one, so a no-op there.
+  {
+    const sub = subsystemStatBonus(product.category, product.subsystem);
+    for (const key of STAT_KEYS) if (sub[key]) stats[key] += sub[key]!;
+  }
+
   // Supplier: premium component sourcing lifts build quality; bargain sourcing drags it (clamped
   // below). The neutral "standard" supplier contributes 0, so an unset supplier is a no-op.
   stats.quality += supplierQualityDelta(product);
@@ -146,6 +154,11 @@ export function buildCost(product: Product): Money {
   for (let i = 0; i < refreshSteps(product); i++) costs.push(BALANCE.design.refreshRate.unitCost);
   // More storage adds a per-unit cost per step above the 128GB baseline.
   for (let i = 0; i < storageSteps(product); i++) costs.push(BALANCE.design.storage.unitCost);
+  // Category subsystem (cooling / sensors) adds a per-unit cost per upgrade step.
+  {
+    const sub = subsystemFor(product.category);
+    for (let i = 0; i < subsystemCostSteps(product.category, product.subsystem); i++) if (sub) costs.push(sub.unitCost);
+  }
   const base = costs.length ? sum(costs) : ZERO;
   // Supplier sets the per-unit component price (standard = ×1, a no-op for unset/older products).
   let unit = scale(base, supplierCostMult(product));

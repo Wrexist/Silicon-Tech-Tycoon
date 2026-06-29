@@ -131,6 +131,9 @@ export interface Product {
   /** On-board storage in GB (128/256/512/1024). Optional — defaults to 128 on read; capped by the
    *  software/OS tier (see product.effectiveStorage). */
   storage?: number;
+  /** Category subsystem step (Track D, engine/subsystems.ts) — e.g. a laptop's cooling or a wearable's
+   *  sensors. 0/undefined = the free baseline; categories without a subsystem ignore it. */
+  subsystem?: number;
   plannedUnits?: number; // production run size chosen in the build wizard
   channelId?: string; // marketing channel selected at launch
   tuning?: ProductTuning; // performance/efficiency trade-off (defaults "balanced" on older saves)
