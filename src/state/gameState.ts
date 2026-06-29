@@ -1178,7 +1178,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const recentPlayerHitCats = state.launched
     .filter((lp) => lp.launchedWeek >= week - hitWindow && (lp.verdict === "hit" || lp.verdict === "solid"))
     .map((lp) => lp.product.category);
-  const { competitors: competitorsBase, launches } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
+  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
   // `let` so B3 can append a fresh challenger that rises to refill a field thinned by acquisitions.
   let competitors = competitorsBase;
 
@@ -1292,6 +1292,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     launches.forEach((l, i) => pushRivalFeed(feed, l, activePlayerCats, fresh[i].product.name, l.contested));
     rivalReleases = [...fresh, ...state.rivalReleases].slice(0, RIVAL_RELEASES_CAP);
   }
+
+  // Rival story-arc beats (Track B): a rival rising/peaking/faltering speaks in the feed so the world
+  // visibly turns. Bootstrap rolls are silent (no beat), so this only fires at real lifecycle turns.
+  for (const b of arcBeats) feed.push(feedItem(b.week, b.text, b.tone as FeedTone));
 
   // B3 — refill the field: if acquisitions have thinned the roster below its starting size, a fresh
   // challenger occasionally rises to keep the industry alive. The rng is only drawn on this branch,

@@ -308,4 +308,9 @@ export interface CompetitorState {
   nextLaunchWeek: number;
   sharePrice: number; // current share price in cents
   priceHistory: number[]; // recent share-price points (dollars) for the sparkline
+  /** Rival story arc (Track B): current lifecycle phase + the week it re-rolls. Both optional and
+   *  absent at game start / on old saves — the arc bootstraps (silently) on the first tick after load,
+   *  so newGame stays byte-identical and no migration is needed. */
+  arcPhase?: "ascending" | "peaking" | "declining" | "stable";
+  arcUntil?: number;
 }

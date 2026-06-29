@@ -510,6 +510,28 @@ export const BALANCE = {
     doctrineTargetWeight: 3, // extra category-selection weight a trend-chaser piles onto the player's hot cats
     undercutCadenceCut: 2,   // weeks shaved off an undercutter's next launch when it contests a hot category
     undercutPriceMult: 0.78, // visible price multiplier on an undercutter's contesting product (it ships cheap)
+    // Rival STORY ARCS (Track B): each rival drifts through a lifecycle instead of sitting at a fixed
+    // stature. The phase nudges its reputation a little each week WITHIN a bounded envelope around the
+    // rival's calibrated base (repBand) — and reputation already drives stock fair value, launch
+    // strength, and market cap (→ acquisition cost). So a rising rival's stock climbs and it contests
+    // harder + costs more to buy; a faltering one slides and goes cheap. The band makes the drift
+    // mean-reverting by construction, so the stock market stays ~zero-EV long-run (pinned by tests).
+    arc: {
+      driftPerWeek: { ascending: 0.55, peaking: 0.18, declining: -0.62, stable: 0 } as Record<string, number>,
+      repBand: 16,        // max reputation deviation (±) from the rival's calibrated base
+      repFloor: 8,        // hard floor/ceiling so a drift can never reach the 0/100 extremes
+      repCeil: 96,
+      phaseWeeksMin: 16,  // a phase lasts this..max weeks before it re-rolls (long → the feed isn't spammy)
+      phaseWeeksMax: 34,
+      // Transition weights from each phase → the next. The dominant ascending→peaking→declining cycle
+      // balances up-drift against down-drift, keeping the long-run reputation mean ≈ base.
+      transitions: {
+        stable:    { ascending: 0.42, declining: 0.32, stable: 0.26 },
+        ascending: { peaking: 0.62, stable: 0.38 },
+        peaking:   { declining: 0.55, stable: 0.45 },
+        declining: { stable: 0.6, ascending: 0.4 },
+      } as Record<string, Record<string, number>>,
+    },
   },
 
   // --- Product franchises / brand equity (the "IP & fanbase" lever) ---

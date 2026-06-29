@@ -39,8 +39,17 @@ bigger late bets); rival doctrines + blurb ARE already surfaced in the Market ri
   catalog + gated selection) + `gameState.ts` (startChain/resolveChainStep, wired into the tick).
   Supply-crunch beat is capped to a share of cash, so a chain can sting but never bankrupt
   (harness-verified: 0/40 bankruptcies, 40/40 win, CV 5.1%).
-- [ ] **Rival story arcs**: ascent/peak/decline trajectories with feed beats + acquire-at-peak
-  decision; ties into durable competition. `competitors.ts` (PROTECTED).
+- [x] **Rival story arcs** (v60): rivals are no longer static stat-bags. Each drifts through a
+  lifecycle (ascending → peaking → declining → stable) that nudges its reputation within a bounded,
+  mean-reverting envelope (±16 around its calibrated base). Reputation already drives stock fair
+  value, launch strength, and market cap, so a rising rival's stock climbs + it contests harder +
+  costs more to acquire, while a faltering one slides and goes cheap — that IS the acquire-at-peak vs
+  acquire-in-decline timing decision (the buyout mechanic already exists). Feed beats fire at the
+  turns ("on a tear" / "at the height of its powers" / "faltering"). `competitors.ts` (PROTECTED:
+  advanceArc, ArcBeat) + `balance.competitors.arc` + `types.ts` (optional arcPhase/arcUntil) +
+  `gameState.ts` (beats → feed). Golden invariant kept: initCompetitors untouched, arc bootstraps
+  silently on the first tick, no migration. Harness: 0/40 bankruptcies, 40/40 win, CV 5.0%; the drift
+  shifts hit-rate 19.0%→17.8% and era-4 arrival +3wk (slightly tougher late competition, as intended).
 - [ ] **Segment macro-cycles & regional shocks**: segments grow/shrink on cycles; regions get
   4-week crises. `segments.ts`/`regions.ts`/`market.ts` (PROTECTED) + balance pass.
 - [x] **Performance-reactive company value** (v58): bounded, mean-reverting momentum overlay on

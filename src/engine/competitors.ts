@@ -123,6 +123,65 @@ export function rivalMarketCap(c: CompetitorState): Money {
   return cents(Math.round(baseShare * 100 * shares * ratio));
 }
 
+export type RivalArcPhase = "ascending" | "peaking" | "declining" | "stable";
+
+/** A feed beat emitted when a rival crosses into a new arc phase (Track B story arcs). */
+export interface ArcBeat {
+  competitor: string;
+  text: string;
+  tone: "positive" | "negative" | "accent";
+  week: number;
+}
+
+/** Weighted pick of the next arc phase from the current one (deterministic: one rng.next() draw). */
+function pickNextPhase(from: RivalArcPhase, rng: Rng): RivalArcPhase {
+  const weights = BALANCE.competitors.arc.transitions[from] ?? BALANCE.competitors.arc.transitions.stable;
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  let roll = rng.next() * total;
+  for (const [phase, w] of Object.entries(weights)) {
+    roll -= w;
+    if (roll <= 0) return phase as RivalArcPhase;
+  }
+  return "stable";
+}
+
+/** The feed beat for entering a phase (player POV: a rival rising is bad news, faltering is good).
+ *  Returns null for "stable" (a quiet phase) so the feed only speaks at the dramatic turns. */
+function arcBeatFor(name: string, phase: RivalArcPhase, week: number): ArcBeat | null {
+  switch (phase) {
+    case "ascending":
+      return { competitor: name, week, tone: "negative", text: `${name} is on a tear, analysts are calling it the company to beat.` };
+    case "peaking":
+      return { competitor: name, week, tone: "negative", text: `${name} is at the height of its powers, its valuation has never been richer.` };
+    case "declining":
+      return { competitor: name, week, tone: "positive", text: `${name} is faltering, its last launch landed flat and its stock is sliding.` };
+    default:
+      return null;
+  }
+}
+
+/** Advance a rival's story arc one week: re-roll its phase when due (or bootstrap a missing one
+ *  silently), then drift its reputation toward the phase direction, clamped to a bounded envelope
+ *  around the rival's calibrated base so the drift is mean-reverting (the stock market stays
+ *  zero-EV long-run). Draws rng ONLY on a transition week (phase pick + next duration). */
+function advanceArc(c: CompetitorState, week: number, rng: Rng): { reputation: number; arcPhase: RivalArcPhase; arcUntil: number; beat: ArcBeat | null } {
+  const arc = BALANCE.competitors.arc;
+  const base = rivalDef(c.id)?.reputation ?? c.reputation;
+  const bootstrap = c.arcPhase === undefined;
+  let phase: RivalArcPhase = c.arcPhase ?? "stable";
+  let until = c.arcUntil ?? 0;
+  let beat: ArcBeat | null = null;
+  if (bootstrap || week >= until) {
+    phase = pickNextPhase(c.arcPhase ?? "stable", rng);
+    until = week + arc.phaseWeeksMin + rng.int(arc.phaseWeeksMax - arc.phaseWeeksMin + 1);
+    if (!bootstrap) beat = arcBeatFor(c.name, phase, week); // bootstrap roll is silent (no week-1 spam)
+  }
+  const lo = Math.max(arc.repFloor, base - arc.repBand);
+  const hi = Math.min(arc.repCeil, base + arc.repBand);
+  const reputation = Math.max(lo, Math.min(hi, c.reputation + (arc.driftPerWeek[phase] ?? 0)));
+  return { reputation, arcPhase: phase, arcUntil: until, beat };
+}
+
 export interface CompetitorLaunch {
   competitor: string;
   category: CategoryId;
@@ -189,8 +248,9 @@ export function advanceCompetitors(
   era: number,
   rng: Rng,
   recentPlayerHitCats?: readonly CategoryId[],
-): { competitors: CompetitorState[]; launches: CompetitorLaunch[] } {
+): { competitors: CompetitorState[]; launches: CompetitorLaunch[]; arcBeats: ArcBeat[] } {
   const launches: CompetitorLaunch[] = [];
+  const arcBeats: ArcBeat[] = [];
   const bal = BALANCE.competitors;
   // Era-scaled durable competition (P3): rivals decay slower AND can reach higher strength in the
   // late eras, so they entrench and genuinely contest a maxed player. Index = era − 1 (clamped).
@@ -257,11 +317,17 @@ export function advanceCompetitors(
       nextLaunchWeek = week + Math.max(1, baseInterval - cadenceCut);
     }
 
-    const { sharePrice, priceHistory } = evolveShare(c, launchedNow, rng);
-    return { ...c, strengthByCategory, nextLaunchWeek, sharePrice, priceHistory };
+    // Story arc (Track B): re-roll the rival's phase when due + drift its reputation. Drawn AFTER the
+    // launch block (so a launch uses the week's opening reputation) and BEFORE evolveShare (so a rising
+    // rival's stock pops via its lifted fair value). The drifted reputation carries into next week.
+    const { reputation, arcPhase, arcUntil, beat } = advanceArc(c, week, rng);
+    if (beat) arcBeats.push(beat);
+    const evolved = { ...c, reputation };
+    const { sharePrice, priceHistory } = evolveShare(evolved, launchedNow, rng);
+    return { ...c, reputation, arcPhase, arcUntil, strengthByCategory, nextLaunchWeek, sharePrice, priceHistory };
   });
 
-  return { competitors, launches };
+  return { competitors, launches, arcBeats };
 }
 
 /** Strongest rival presence in a category right now (0 if none). */
