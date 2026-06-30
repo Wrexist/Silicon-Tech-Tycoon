@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Building2, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -908,6 +908,10 @@ function ProductDetailSheet({
   const { cutProductPrice, marketingPush } = useGame();
   const [priceCutOpen, setPriceCutOpen] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
+  // Only phones & tablets are flat slabs with a real back face (camera module); for those, let the
+  // player flip the hardware to inspect the rear.
+  const canFlip = lp.product.category === "phone" || lp.product.category === "tablet";
+  const [face, setFace] = useState<"front" | "back">("front");
   const v = verdictOf(lp);
   const drivers = performanceDrivers(lp);
   // C1 — rank the drivers by how DECISIVE each was and synthesize a headline (2–3 dominant factors,
@@ -950,7 +954,17 @@ function ProductDetailSheet({
       </div>
 
       <div className="pd__hero">
-        <DeviceRenderer product={lp.product} size={150} idle />
+        <DeviceRenderer product={lp.product} size={150} idle flip={canFlip} face={face} />
+        {canFlip && (
+          <button
+            className="pd__flip"
+            onClick={() => { setFace((f) => (f === "front" ? "back" : "front")); haptic.light(); }}
+            aria-label={face === "front" ? "Flip to see the back" : "Flip to see the front"}
+          >
+            <RotateCw size={15} aria-hidden />
+            <span>{face === "front" ? "Back" : "Front"}</span>
+          </button>
+        )}
       </div>
 
       {/* Press reception — the buzz, surfaced right under the device (it's the fun payoff) */}

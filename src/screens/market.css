@@ -857,11 +857,32 @@
   color: var(--ink-2);
 }
 .pd__hero {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--sp-8) 0;
 }
+/* Flip-to-see-the-back control, beside the device. Phones/tablets only (they have a real rear). */
+.pd__flip {
+  position: absolute;
+  right: var(--sp-8);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--hairline));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  box-shadow: 0 2px 8px -3px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform var(--motion-fast, 120ms) ease;
+}
+.pd__flip:active { transform: translateY(-50%) scale(0.94); }
 .pd__curve {
   display: flex;
   flex-direction: column;
