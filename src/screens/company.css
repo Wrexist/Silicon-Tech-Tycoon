@@ -587,6 +587,13 @@
   border-radius: var(--r-pill);
   transition: width 0.5s ease;
 }
+/* C5: the dominant mood cause, a muted caption sitting just under the mood bar. */
+.co__mood-cause {
+  margin: calc(-1 * var(--sp-8)) 0 var(--sp-12);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--warning-text, var(--warning));
+}
 .co__xp {
   margin-bottom: var(--sp-12);
 }

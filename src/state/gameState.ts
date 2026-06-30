@@ -2187,6 +2187,47 @@ function clampMood(m: number): number {
   return Math.max(0, Math.min(100, m));
 }
 
+export type MoodDriverKey = "underpaid" | "cash" | "comfort" | "flop" | "hustler";
+
+/** C5: the dominant NEGATIVE influence on a staffer's mood right now, so the player knows WHICH fix
+ *  applies (Raise / ship a hit / a comfier office / steady the finances). Reads the SAME inputs the
+ *  weekly mood tick uses: underpay vs market (mediated by a People Lead), falling cash, a cramped
+ *  office, a recent flop, and the restless "hustler" trait. Pure. Returns null when nothing weighs on
+ *  them (a content teammate gets no nagging label). */
+export function dominantMoodDriver(state: GameState, staff: Staff): { key: MoodDriverKey; label: string } | null {
+  const churnCfg = BALANCE.churn;
+  const hasPeopleLead = state.staff.some((m) => m.role === "hr");
+  const drivers: { key: MoodDriverKey; label: string; weight: number }[] = [];
+
+  // Underpay vs the market rate for their role/skill (the founder is never "underpaid"). A People
+  // Lead absorbs part of the sting, exactly as the tick does, so the read tracks the mechanic.
+  if (staff.id !== "s0" && toDollars(staff.salary) < toDollars(salaryFor(staff.role, staff.skill))) {
+    drivers.push({ key: "underpaid", label: "Underpaid vs market", weight: churnCfg.underpaidMoodPenalty * (hasPeopleLead ? 1 - BALANCE.hr.underpaidRelief : 1) });
+  }
+  // Falling cash (the company is burning), read from the recent cash history, the persisted analog
+  // of the tick's nextCash < cash signal.
+  const ch = state.cashHistory;
+  if (ch.length >= 2 && ch[ch.length - 1].cash < ch[ch.length - 2].cash) {
+    drivers.push({ key: "cash", label: "Worried by falling cash", weight: 12 });
+  }
+  // A cramped office (the comfort mood bonus sits well below its cap). Kept the LOWEST-priority cause
+  // (a flat, modest weight) so the more actionable, urgent ones (underpay, a flop) surface first, and
+  // a bare early-game garage does not drown them out.
+  if (BALANCE.shop.comfortCap - officeComfortMoodBonus(state) >= 7) {
+    drivers.push({ key: "comfort", label: "Cramped office", weight: 8 });
+  }
+  // A recent flop stings the whole team (mirrors the launch mood swing).
+  if (state.launched.some((lp) => lp.verdict === "flop" && state.week - lp.launchedWeek <= 4)) {
+    drivers.push({ key: "flop", label: "Stung by a recent flop", weight: 12 });
+  }
+  // The restless "hustler" is never quite satisfied.
+  if (staff.trait === "hustler") drivers.push({ key: "hustler", label: "Restless by nature", weight: 12 });
+
+  if (drivers.length === 0) return null;
+  const top = drivers.reduce((a, b) => (b.weight > a.weight ? b : a));
+  return { key: top.key, label: top.label };
+}
+
 /** Give a staff member a salary raise to match their current skill level. */
 export function giveRaise(state: GameState, id: string): GameState {
   const member = state.staff.find((s) => s.id === id);

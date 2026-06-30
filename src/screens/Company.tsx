@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
-import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
+import { osDisplayName, canFoundPlatform, platformFoundingCost, dominantMoodDriver } from "../state/gameState.ts";
 import { ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
 import { Avatar } from "../components/Avatar.tsx";
@@ -374,7 +374,7 @@ export function Company() {
         ) : (
           <ul className="co__roster">
             {state.staff.map((s) => (
-              <Member key={s.id} s={s} staff={state.staff} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} onRest={rest} />
+              <Member key={s.id} s={s} staff={state.staff} cash={state.cash} era={state.era} moodCause={dominantMoodDriver(state, s)?.label ?? null} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} onRest={rest} />
             ))}
           </ul>
         )}
@@ -1120,6 +1120,7 @@ function Member({
   staff,
   cash,
   era,
+  moodCause,
   onAssign,
   onTrain,
   onFire,
@@ -1130,6 +1131,8 @@ function Member({
   staff: readonly Staff[];
   cash: number;
   era: number;
+  /** C5: the dominant negative mood cause (null when content), shown under the mood bar. */
+  moodCause: string | null;
   onAssign: (id: string, a: Assignment) => void;
   onTrain: (id: string) => void;
   onFire: (id: string) => void;
@@ -1225,6 +1228,8 @@ function Member({
       <div className="co__mood-bar" role="progressbar" aria-valuenow={Math.round(s.mood)} aria-valuemin={0} aria-valuemax={100} aria-label={`Morale ${Math.round(s.mood)}%`}>
         <div className="co__mood-bar-fill" style={{ width: `${s.mood}%`, background: MOOD_COLOR[band] }} />
       </div>
+      {/* C5: the dominant cause behind a less-than-content mood, so the player knows which fix applies. */}
+      {moodCause && s.mood < 60 && <p className="co__mood-cause">{moodCause}</p>}
 
       {/* per-discipline skills (0..100) — the active one (matching their assignment) is highlighted */}
       <div className="co__cand-skills">
