@@ -539,6 +539,19 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+/* Q3: first-run teaching line: a soft accent-tinted coach note that reads as guidance, not chrome.
+   --inset sits inside a Card (tighter margins); the bare form stands between cards/tab strip. */
+.lab__coach {
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.lab__coach b { color: var(--ink); font-weight: 700; }
+.lab__coach--inset { margin: var(--sp-8) 0 0; padding: var(--sp-8) var(--sp-10); }
 /* Previous product in category — benchmark reference inside the Category card */
 .lab__prev-product {
   display: flex;

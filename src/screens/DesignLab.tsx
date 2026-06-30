@@ -312,6 +312,11 @@ export function DesignLab({
   // D1: feed the same tier bottleneck into the live preview so the "who it's for" panel reflects the
   // coherence discount as the player adjusts tiers (a lopsided build visibly loses the broad market).
   const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week, syn.bottleneck);
+  // Q3: first-run literacy: show a few teaching hints until the player ships their first product.
+  // Derived (no persisted flag) and gated to a fresh playthrough, so NG+ veterans get a clean screen.
+  const isFirstRun = state.legacy === 0 && state.launched.length === 0;
+  const buildTierWord = overall >= 75 ? "flagship" : overall >= 55 ? "strong" : overall >= 35 ? "mid-tier" : "entry";
+  const dominantSegName = segmentById(liveSegments.dominant)?.name ?? "Mainstream";
   const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
   const mktMult = eraModifier(state.era).marketingHype; // Epic D — late eras amplify marketing reach
   const liveBrand = brandEquity(state.launched, franchiseStem(draft.name)); // brand-line anticipation
@@ -726,6 +731,11 @@ export function DesignLab({
         })()}
       </Card>
 
+      {/* Q3: first-run wayfinding: name the flow once, until the debut product ships. */}
+      {isFirstRun && (
+        <p className="lab__coach">Pick the parts, refine the look, set the specs, then forecast and build.</p>
+      )}
+
       {/* ── Section tab strip ───────────────────────────────── */}
       <div className="lab__tabs" role="tablist" aria-label="Design sections">
         {LAB_TABS.map((t) => (
@@ -751,6 +761,10 @@ export function DesignLab({
           <>
           <Card>
             <SectionHeader title="Components" accessory="tier gated by R&D" />
+            {/* Q3: first-run hint: the core tier/price trade, taught once. */}
+            {isFirstRun && (
+              <p className="lab__coach lab__coach--inset">Higher tiers boost stats but cost more to build. Balance them against the price you can charge.</p>
+            )}
             <div className="lab__components">
               {cat.slots.map((kind) => {
                 const tier = draft.tiers[kind] ?? 1;
@@ -1181,6 +1195,13 @@ export function DesignLab({
         {/* ── 4: Launch (stats · price · name · build) ─────── */}
         {labTab === "launch" && (
           <>
+            {/* Q3: first-run read: name what this design IS and who it is for, so the debut isn't a
+                blind guess. Clears once the player has shipped. */}
+            {isFirstRun && missing.length === 0 && (
+              <p className="lab__coach">
+                Reads as a <b>{buildTierWord}</b> build · <b>{dominantSegName}</b> buyers want this most. Ship where your design fits.
+              </p>
+            )}
             <Card>
               <SectionHeader title="Stats" accessory={`Overall ${overall}`} />
               <StatBars
@@ -1191,6 +1212,10 @@ export function DesignLab({
                 ) as Record<keyof typeof stats, number>}
               />
               <p className="lab__hint">Green = what market wants most · ↑↓ = shifting demand</p>
+              {/* Q3: the least-obvious stat, explained once: ecosystem is a recurring annuity. */}
+              {isFirstRun && (
+                <p className="lab__coach lab__coach--inset">Ecosystem drives recurring services income from every device in the field. Build it through the Software tier and, later, the Platform division.</p>
+              )}
               <StatGlossary />
               {(() => {
                 const prev = state.launched.find((lp) => lp.product.category === draft.category);
