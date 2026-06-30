@@ -32,8 +32,14 @@ export function franchiseStem(name: string): string {
   n = n.replace(/\s*\d+\s*$/i, "").trim(); // trailing digits (e.g. "Aurora 2")
   const parts = n.split(/\s+/);
   if (parts.length > 1) {
-    const last = parts[parts.length - 1].toLowerCase();
-    if (NUM_WORDS.has(last) || isRomanish(last)) parts.pop();
+    const lastRaw = parts[parts.length - 1];
+    const last = lastRaw.toLowerCase();
+    // A Roman-numeral series marker only counts when written in the conventional UPPERCASE form
+    // ("Aurora II"); otherwise common English words that happen to be valid Roman numerals
+    // ("Studio Mix" → MIX, "Audio Div" → DIV) would be mistaken for sequels and wrongly merged
+    // into one franchise line, pooling unrelated products' brand equity.
+    const isRomanMarker = isRomanish(lastRaw) && lastRaw === lastRaw.toUpperCase();
+    if (NUM_WORDS.has(last) || isRomanMarker) parts.pop();
   }
   return parts.join(" ").toLowerCase();
 }

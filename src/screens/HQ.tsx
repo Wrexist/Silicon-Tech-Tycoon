@@ -1299,7 +1299,7 @@ function PerformanceCard({ state, onNavigate }: { state: GameState; onNavigate: 
               <div className="hq__forecast-bar-wrap">
                 <div
                   className="hq__forecast-bar"
-                  style={{ height: `${Math.round((rev / forecastPeak) * 100)}%`, opacity: i === 0 ? 1 : 0.6 + i * 0.0 }}
+                  style={{ height: `${Math.round((rev / forecastPeak) * 100)}%`, opacity: 1 - i * 0.14 }}
                 />
               </div>
               <span className="hq__forecast-label tnum">{i === 0 ? "Now" : `+${i}`}</span>

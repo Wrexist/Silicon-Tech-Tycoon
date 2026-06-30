@@ -6,6 +6,7 @@ import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
+import { toDollars } from "../engine/money.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { satisfiedObjectiveIds } from "../engine/objectives.ts";
 import { showToast } from "../design/toast.tsx";
@@ -242,7 +243,9 @@ function migrate(state: GameState): GameState | null {
   if (!Number.isFinite(s.lastActive)) s.lastActive = Date.now();
   if (!s.researched || typeof s.researched !== "object") s.researched = { chip: 1, display: 1, battery: 1, materials: 1, software: 1, camera: 1 };
   if (!Array.isArray(s.launched)) s.launched = [];
-  if (!Array.isArray(s.cashHistory)) s.cashHistory = [{ week: s.week ?? 0, cash: 0 }];
+  // Seed the sparkline from the company's ACTUAL cash (entries store whole dollars), not a false
+  // $0 baseline, so a save missing cashHistory doesn't misrepresent its finances for a render cycle.
+  if (!Array.isArray(s.cashHistory)) s.cashHistory = [{ week: s.week ?? 0, cash: Number.isFinite(s.cash) ? toDollars(s.cash) : 0 }];
   if (!Array.isArray(s.feed)) s.feed = [];
   if (s.productCounter == null) s.productCounter = 1;
   if (s.staffCounter == null) s.staffCounter = s.staff?.length ?? 1;

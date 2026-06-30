@@ -1196,7 +1196,7 @@ function Member({
           </span>
         )}
       </div>
-      <div className="co__mood-bar" aria-label={`Morale ${Math.round(s.mood)}%`}>
+      <div className="co__mood-bar" role="progressbar" aria-valuenow={Math.round(s.mood)} aria-valuemin={0} aria-valuemax={100} aria-label={`Morale ${Math.round(s.mood)}%`}>
         <div className="co__mood-bar-fill" style={{ width: `${s.mood}%`, background: MOOD_COLOR[band] }} />
       </div>
 
@@ -1223,7 +1223,7 @@ function Member({
             </span>
           )}
         </div>
-        <div className="co__xp-track"><div className="co__xp-fill" style={{ width: `${xpPct}%` }} /></div>
+        <div className="co__xp-track" role="progressbar" aria-valuenow={xpPct} aria-valuemin={0} aria-valuemax={100} aria-label={`Skill progress ${xpPct}%`}><div className="co__xp-fill" style={{ width: `${xpPct}%` }} /></div>
       </div>
 
       <div className="co__member-actions">

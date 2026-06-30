@@ -955,8 +955,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const restart = useCallback(() => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good
     clearSave();
-    // Platform is an entitlement, not run progress — keep it across a fresh company.
-    setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked });
+    // Platform is an entitlement, not run progress, so it stays across a fresh company. The lifetime
+    // "seen dilemmas" set carries across too (as it does in prestige), so a restart surfaces fresh
+    // decisions first instead of re-asking ones the player already resolved.
+    setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices });
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
