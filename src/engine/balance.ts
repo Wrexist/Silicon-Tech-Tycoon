@@ -194,6 +194,13 @@ export const BALANCE = {
       // Modest so matching the channel to the product's audience is a real edge but a mismatch is only
       // suboptimal, never useless (the base hype still applies globally). Sim-verified.
       channelAffinityBonus: 0.07,
+      // D3 (brand price band): reputation WIDENS the segment price-tolerance, so an established brand
+      // can sustainably charge a premium while a no-name brand is punished for the same overprice. The
+      // widening is reputation-driven and CAPPED (this is the bonus at reputation 100) and only ADDS
+      // tolerance (rep 0 = no change), so it never punishes a beginner harder than today and never
+      // becomes a free money printer. It pays off only when you deliberately price ABOVE fair value, so
+      // an on-the-money player (and the sim) is ~unaffected. Sim-verified vs the late-game-rep landscape.
+      brandToleranceAtMaxRep: 0.25,
     },
     // --- Market climate (engine/climate.ts, Track B) — the living market ---
     // Segment sizes swell/fade on slow seasonal cycles (REDISTRIBUTIVE: the mix is re-normalized, so

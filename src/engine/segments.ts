@@ -87,6 +87,13 @@ export function segmentById(id: SegmentId): Segment | undefined {
   return SEGMENTS.find((s) => s.id === id);
 }
 
+/** D3: the brand price-tolerance multiplier (>= 1) from reputation: a no-name brand (rep 0) gets no
+ *  widening, a top brand (rep 100) gets the full capped bonus, scaling linearly between. Pure. */
+export function brandPriceToleranceMult(reputation: number): number {
+  const r = reputation < 0 ? 0 : reputation > 100 ? 100 : reputation;
+  return 1 + (r / 100) * BALANCE.market.segments.brandToleranceAtMaxRep;
+}
+
 /** Category-specific buyer mixes (Track D): the SAME recipe shouldn't win everywhere. Each category
  *  weights the five segments differently — a wearable is Style-led, a desktop/AR rig is Pro-led, a
  *  console is value-and-style, a laptop leans Pro+Enterprise. Each row sums to 1.00. Phone (and any
@@ -161,12 +168,14 @@ export function segmentFit(
  *  price-sensitive segment has a NARROWER tolerance (deviation bites harder) and rewards a bargain
  *  more; an insensitive segment barely reacts to price at all. Mirrors market.priceFit's asymmetry
  *  (overpricing punished harder than underpricing) so the two models read consistently. */
-export function segmentPriceFit(price: Money, fit: number, seg: Segment): number {
+export function segmentPriceFit(price: Money, fit: number, seg: Segment, brandTolMult = 1): number {
   const p = BALANCE.market.price;
   const fairDollars = Math.max(1, fit * toDollars(p.valueToPrice));
   const ratio = toDollars(price) / fairDollars;
-  // Sensitive segments have a tighter pricing band (floored so it's never a knife-edge).
-  const tol = Math.max(BALANCE.market.segments.minPriceTolerance, p.tolerance / seg.priceSensitivity);
+  // Sensitive segments have a tighter pricing band (floored so it's never a knife-edge). D3: a strong
+  // brand (high reputation) WIDENS the band (brandTolMult >= 1), so it can sustainably charge a premium
+  // a no-name brand could not. Default 1 = no brand effect (byte-identical for callers that omit it).
+  const tol = Math.max(BALANCE.market.segments.minPriceTolerance, p.tolerance / seg.priceSensitivity) * brandTolMult;
   let dev = ratio - 1;
   if (dev > 0) dev *= p.overpriceHarshness; // overpricing always hurts more than underpricing
   const fitCurve = Math.exp(-(dev * dev) / (2 * tol * tol));
@@ -220,6 +229,10 @@ export function segmentDemand(
    *  by channelAffinityBonus (a targeted-reach lift), so matching the channel to the product's audience
    *  matters. Undefined (no campaign / neutral channel) → no effect, byte-identical to pre-D2. */
   affinitySegment?: SegmentId,
+  /** D3: reputation-driven multiplier (>= 1) that WIDENS every segment's price-tolerance, so a strong
+   *  brand can sustainably overprice. Default 1 = no brand effect, byte-identical to pre-D3. Use
+   *  brandPriceToleranceMult(reputation) to derive it. */
+  brandTolMult = 1,
 ): SegmentDemand {
   // Market climate (Track B): segment sizes swell/fade on slow cycles, RE-NORMALIZED so the cycle
   // redistributes the mix without changing the total market — timing positioning, not free volume.
@@ -245,7 +258,7 @@ export function segmentDemand(
     const rawFit = segmentFit(stats, seg, category, trends);
     // A striking, coherent form lifts the design-led Style segment only (no global ripple).
     const fit = seg.id === "style" ? Math.min(100, rawFit + Math.max(0, styleAppeal)) : rawFit;
-    const priceFit = segmentPriceFit(price, fit, seg);
+    const priceFit = segmentPriceFit(price, fit, seg, brandTolMult);
     const size = sizeOf[seg.id];
     // D1: tier-coherence desirability: a lopsided build discounts THIS segment's realized demand by
     // how much it values coherence. Only the bottleneck ABOVE the deadzone counts, so an ordinary

@@ -4,6 +4,7 @@ import {
   segmentById,
   segmentDemand,
   segmentPriceFit,
+  brandPriceToleranceMult,
   segmentFit,
 } from "./segments.ts";
 import { dollars, toDollars } from "./money.ts";
@@ -205,5 +206,31 @@ describe("no universal recipe — the anti-solved-game guard", () => {
     const min = Math.min(...fits);
     const max = Math.max(...fits);
     expect(max - min).toBeGreaterThan(5); // distinct tastes produce distinct fits
+  });
+});
+
+describe("D3: brand widens the acceptable price band", () => {
+  const fit = 60;
+  const pro = segmentById("pro")!;
+  const v2p = toDollars(BALANCE.market.price.valueToPrice);
+  const over = dollars(Math.round(fit * v2p * 1.4)); // a 40% overprice
+
+  it("brandPriceToleranceMult scales from 1 (no brand) to the capped bonus at max reputation", () => {
+    expect(brandPriceToleranceMult(0)).toBe(1);
+    expect(brandPriceToleranceMult(100)).toBeCloseTo(1 + BALANCE.market.segments.brandToleranceAtMaxRep, 9);
+    expect(brandPriceToleranceMult(50)).toBeCloseTo(1 + BALANCE.market.segments.brandToleranceAtMaxRep / 2, 9);
+    // clamped outside 0..100
+    expect(brandPriceToleranceMult(-20)).toBe(1);
+    expect(brandPriceToleranceMult(200)).toBe(brandPriceToleranceMult(100));
+  });
+
+  it("a strong brand holds more price-fit at the same overprice than a no-name brand", () => {
+    const noBrand = segmentPriceFit(over, fit, pro, brandPriceToleranceMult(0));
+    const strong = segmentPriceFit(over, fit, pro, brandPriceToleranceMult(100));
+    expect(strong).toBeGreaterThan(noBrand);
+  });
+
+  it("default (no brand arg) is byte-identical to brand 0, old callers unaffected", () => {
+    expect(segmentPriceFit(over, fit, pro)).toBe(segmentPriceFit(over, fit, pro, brandPriceToleranceMult(0)));
   });
 });

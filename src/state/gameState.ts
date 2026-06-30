@@ -105,7 +105,7 @@ import { archetypeBonus, buildCost, componentSynergy, computeStats, missingSlots
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
-import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { segmentDemand, brandPriceToleranceMult, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
@@ -959,9 +959,10 @@ export function planProduction(
   // D1: the build's tier bottleneck feeds the segment model's coherence discount (computed once here
   // and reused for the global synergy factor below, so the two never diverge).
   const synergy = componentSynergy(product);
-  // D2: the chosen campaign's segment affinity amplifies that segment's reach, so matching the
-  // channel to the product's audience is a real launch decision.
-  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, synergy.bottleneck, channel.affinity);
+  // D2: the chosen campaign's segment affinity amplifies that segment's reach, so matching the channel
+  // to the product's audience is a real launch decision. D3: reputation widens the price band, so an
+  // established brand can sustainably charge a premium a no-name brand could not.
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, synergy.bottleneck, channel.affinity, brandPriceToleranceMult(s.reputation));
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;
