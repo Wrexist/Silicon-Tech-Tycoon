@@ -272,26 +272,35 @@ export const BALANCE = {
     // not a guaranteed-hit victory lap. The player reaches the win-reputation in eras 2-3 under the
     // gentler early bars, so scaling the late bars keeps tension without blocking the endgame.
     // Index = era - 1. effectiveScore = launchScore × competitionFactor is compared to these.
-    // ERA-1 FLOP FLOOR (10): a brand-new company's hype is tiny, so even a competently-built,
-    // well-priced tier-1 product can only score ~13–17 (measured). A 17 floor made the *maiden
-    // launch a guaranteed flop* — punishing reputation for a product the player built correctly.
-    // At 10, a sensible first product lands "steady" (neutral: no rep/fan loss) and only a genuinely
-    // bad bet (badly overpriced, eff ≤10) still flops. Later eras keep the rising floor for tension.
-    // Recalibrated to the MEASURED effectiveScore landscape (scripts/balance-sim.mjs): a maxed
-    // competent product scores ~16–21 (E1), ~26–80 (E2), ~91–122 (E3), ~112–130 (E4). The old E3/E4
-    // hit bars (112/145) sat at/above the achievable ceiling → every late launch collapsed onto
-    // "solid" (83% of all launches, ~0 hits/flops). These bands sit INSIDE each era's real range so
-    // a great launch can hit, a middling one only steadies, and outcomes spread instead of flatlining.
-    // Era-3/4 bars RE-RAISED for the Living Late Game landscape: fewer, weightier late launches
-    // (eraModifiers.toolingMult/leadWeeks) are each built by a more-developed company, so the
-    // measured effectiveScore landscape shifted UP (~E3 p50 106→153, E4 p50 124→189). The old
-    // 116/128 hit bars then sat far below achievable → ~70% of late launches collapsed onto "hit"
-    // (the same single-verdict failure v52 fixed, mirror-imaged). These bars sit back INSIDE the new
-    // per-era range (harness-measured) so a great late launch hits, a middling one steadies, and the
-    // verdict layer stays a real contest. Eras 1–2 are untouched.
-    hitThresholdByEra: [70, 80, 156, 192],
-    solidThresholdByEra: [45, 56, 135, 175],
-    flopThresholdByEra: [10, 21, 27, 35],
+    // Bands are calibrated to the MEASURED effectiveScore landscape (scripts/balance-sim.mjs): a
+    // competent product scores ~16/20/24 (E1 p10/p50/p90), ~31/59/95 (E2), ~115/151/174 (E3),
+    // ~132/172/195 (E4). Each era's hit / solid / flop bar sits INSIDE that real range so the verdict
+    // layer spreads (a great launch hits, a middling one steadies, a bad one flops) instead of
+    // collapsing onto a single outcome. The late-era hit bars were RE-RAISED for the Living Late Game
+    // landscape (fewer, weightier launches by a more-developed company shifted E3/E4 scores up), so a
+    // great late launch still earns its hit rather than every launch defaulting to "hit".
+    // L1+L2 (verdict spread): era 1 was UNWINNABLE. Measured effectiveScore sits around 16/20/24
+    // (p10/p50/p90) but the solid bar was 45 and the hit bar 70, so EVERY maiden-era launch flat-
+    // lined on "steady" (100% of era-1 launches, 0 hits / 0 flops) with no signal that a better
+    // product was better. The era-1 solid + hit bars now sit INSIDE that real range (solid 20 at the
+    // median, hit 26 just over p90) so era 1 finally spreads: a competent product steadies, an above-
+    // median one is solid, and an exceptional uncontested launch lands a (rare) hit. The hit bar is
+    // held HIGH on purpose: era-1 hits feed RP and reputation, so a lower bar snowballs progression
+    // (era-2 arrival collapsed from wk64 to wk24 in the harness when hits were common). The era-1 FLOP
+    // floor stays LOW (12) on purpose: a competent maiden launch scores only ~13-17 (tiny hype), so a
+    // higher floor would flop a correctly-built first product (a demoralizing opener the production
+    // tests pin against). Only a genuinely bad era-1 bet (badly overpriced) drops below 12 and flops.
+    // Separately, the higher-era flop FLOORS were far below each era's p10 (a flop was nearly
+    // impossible: ~1% across all launches), so launches had no real downside. Those floors now sit
+    // just under each era's measured p10 (e2 26 -> 24, e3 111 -> 95,
+    // e4 132 -> 120), turning the bottom decile of badly-timed / overpriced / outclassed launches
+    // into real flops and adding the failure pressure the late game lacked, without touching the
+    // achievable ceiling. Harness (40 seeds): steady 52% -> 43%, solid 26% -> 34%, flop 1% -> 4%,
+    // hit ~20% held, era-2 arrival wk67 -> wk64 (progression preserved), 0 bankruptcies. Bands stay
+    // flop < solid < hit and non-decreasing across eras (balanceGuards pins both).
+    hitThresholdByEra: [26, 80, 156, 192],
+    solidThresholdByEra: [20, 56, 135, 175],
+    flopThresholdByEra: [12, 24, 95, 120],
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
     // hits rather than banked once and coasted on. A hit is +8 rep, so an active shipper (a launch
