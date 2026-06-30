@@ -314,6 +314,12 @@
 .lab__chip--locked:active {
   transform: none;
 }
+/* C8: category demand-trend arrow (rising/cooling). Inherits the chip's accent ink when selected so
+   it never clashes with the active fill; muted positive/warning tints otherwise. */
+.lab__chip-trend { display: inline-flex; align-items: center; margin-left: -1px; }
+.lab__chip-trend--rising { color: var(--positive); }
+.lab__chip-trend--cooling { color: var(--warning, var(--negative)); }
+.lab__chip--on .lab__chip-trend { color: inherit; opacity: 0.9; }
 .lab__chip-gen {
   font-size: var(--fs-nano);
   font-weight: 800;

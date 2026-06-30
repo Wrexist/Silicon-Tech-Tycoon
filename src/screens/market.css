@@ -1320,12 +1320,16 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  min-width: 82px;
+  min-width: 96px;
   flex-shrink: 0;
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
 }
+/* C8: category demand-trend arrow (shared cue with the Design Lab picker). */
+.mkt__compmap-trend { display: inline-flex; align-items: center; }
+.mkt__compmap-trend--rising { color: var(--positive); }
+.mkt__compmap-trend--cooling { color: var(--warning, var(--negative)); }
 .mkt__compmap-dot {
   width: 6px;
   height: 6px;

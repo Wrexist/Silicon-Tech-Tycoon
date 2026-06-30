@@ -52,6 +52,26 @@ export function effectiveWeights(trends: ConsumerTrends, category: CategoryId): 
   return normalize(blended);
 }
 
+export type TrendDirection = "rising" | "flat" | "cooling";
+
+/** C8: which way a CATEGORY's demand is drifting, for the timing game. The market eases its taste
+ *  (trends.weights) toward a target; this reads the emphasis-weighted AVERAGE drift of the stats this
+ *  category values (Σ emphasis·(target−current) ÷ Σ emphasis). Positive = the market is moving toward
+ *  what this category is about (a good time to launch here); negative = cooling. Pure + deterministic. */
+export function categoryTrendDirection(trends: ConsumerTrends, category: CategoryId): TrendDirection {
+  const emphasis = CATEGORIES[category].statEmphasis;
+  let momentum = 0;
+  let totalEmphasis = 0;
+  for (const k of STAT_KEYS) {
+    const e = emphasis[k] ?? 0.7;
+    momentum += e * (trends.targetWeights[k] - trends.weights[k]);
+    totalEmphasis += e;
+  }
+  const avg = totalEmphasis > 0 ? momentum / totalEmphasis : 0;
+  const t = BALANCE.market.trendDrift.directionThreshold;
+  return avg > t ? "rising" : avg < -t ? "cooling" : "flat";
+}
+
 /** 0..100 — how well the product matches what consumers want right now. */
 export function demandScore(stats: Stats, trends: ConsumerTrends, category: CategoryId): number {
   const w = effectiveWeights(trends, category);

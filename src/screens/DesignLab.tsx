@@ -15,7 +15,7 @@ import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
-import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
+import { categoryTrendDirection, effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
 import { activeArchetypes, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
@@ -662,6 +662,8 @@ export function DesignLab({
             const activeSelling = state.launched.some(
               (lp) => lp.product.category === c.id && lp.weeksElapsed < lp.weeklyUnits.length,
             );
+            // C8: is this category's demand drifting toward or away from what it rewards? A timing cue.
+            const trend = categoryTrendDirection(state.trends, c.id);
             return (
               <button
                 key={c.id}
@@ -675,6 +677,15 @@ export function DesignLab({
                 }}
               >
                 <CategoryIcon id={c.id} size={15} /> {c.displayName}
+                {trend !== "flat" && (
+                  <span
+                    className={`lab__chip-trend lab__chip-trend--${trend}`}
+                    title={trend === "rising" ? "Demand here is heating up, a good time to launch" : "Demand here is cooling"}
+                    aria-label={trend === "rising" ? "demand rising" : "demand cooling"}
+                  >
+                    {trend === "rising" ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  </span>
+                )}
                 {genCount > 0 && (
                   <span className={`lab__chip-gen${activeSelling ? " lab__chip-gen--live" : ""}`}>
                     G{genCount + 1}

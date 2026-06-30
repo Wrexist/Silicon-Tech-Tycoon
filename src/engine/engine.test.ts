@@ -10,6 +10,7 @@ import {
   priceGuidance,
   scoreLaunch,
   randomTrendTarget,
+  categoryTrendDirection,
 } from "./market.ts";
 import { forecast } from "./salesCurve.ts";
 import { launchRpReward } from "./research.ts";
@@ -273,6 +274,17 @@ describe("market simulation", () => {
     for (const k of Object.keys(target) as (keyof Stats)[]) {
       expect(Math.abs(t.weights[k] - target[k])).toBeLessThan(0.05);
     }
+  });
+
+  it("C8: category trend direction reads the drift of a category's valued stats", () => {
+    const flat = { performance: 0.2, quality: 0.2, battery: 0.2, design: 0.2, ecosystem: 0.2 };
+    // phone emphasises performance + design; push the target toward them → rising, away → cooling.
+    const toward = { performance: 0.35, quality: 0.1, battery: 0.1, design: 0.35, ecosystem: 0.1 };
+    const away = { performance: 0.1, quality: 0.3, battery: 0.3, design: 0.1, ecosystem: 0.2 };
+    expect(categoryTrendDirection({ weights: flat, targetWeights: toward }, "phone")).toBe("rising");
+    expect(categoryTrendDirection({ weights: flat, targetWeights: away }, "phone")).toBe("cooling");
+    // no drift (already at target) reads flat
+    expect(categoryTrendDirection({ weights: flat, targetWeights: flat }, "phone")).toBe("flat");
   });
 });
 

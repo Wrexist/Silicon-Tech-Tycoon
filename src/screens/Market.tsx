@@ -15,7 +15,7 @@ import { overallScore } from "../engine/product.ts";
 import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { priceFit } from "../engine/market.ts";
+import { categoryTrendDirection, priceFit } from "../engine/market.ts";
 import { postMortem, type FactorKey } from "../engine/postmortem.ts";
 import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
@@ -562,6 +562,20 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                       <span className="mkt__compmap-cat">
                         <span className={`mkt__compmap-dot${youHere ? " mkt__compmap-dot--on" : ""}`} aria-hidden />
                         <CategoryIcon id={cat.id} size={11} />{cat.displayName}
+                        {(() => {
+                          // C8: the same timing cue the Design Lab category picker shows.
+                          const dir = categoryTrendDirection(state.trends, cat.id);
+                          if (dir === "flat") return null;
+                          return (
+                            <span
+                              className={`mkt__compmap-trend mkt__compmap-trend--${dir}`}
+                              title={dir === "rising" ? "Demand here is heating up" : "Demand here is cooling"}
+                              aria-label={dir === "rising" ? "demand rising" : "demand cooling"}
+                            >
+                              {dir === "rising" ? <TrendingUp size={11} aria-hidden /> : <TrendingDown size={11} aria-hidden />}
+                            </span>
+                          );
+                        })()}
                       </span>
                       <div className="mkt__compmap-bars">
                         <div className="mkt__compmap-barrow">

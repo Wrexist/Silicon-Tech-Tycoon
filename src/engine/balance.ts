@@ -145,6 +145,11 @@ export const BALANCE = {
       easing: 0.06, // how fast current weights ease toward target each week
       retargetEveryWeeks: 14,
       retargetJitter: 6,
+      // C8: deadzone for the per-category trend-direction arrow (rising / flat / cooling). The signal
+      // is the emphasis-weighted average drift of a category's valued stats toward their target; below
+      // this magnitude the market reads "flat". Matches the per-stat arrow's 0.03 feel at the category
+      // scale (the emphasis-weighted average is a smaller number than a single raw stat delta).
+      directionThreshold: 0.012,
     },
     // --- Market segments (Epic A) ---
     // The market is split into buyer segments (engine/segments.ts SEGMENTS), each weighting the five
