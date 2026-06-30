@@ -44,3 +44,15 @@ export function forecastConfidenceLabel(confidence: number): "Low" | "Medium" | 
   if (c >= 0.25) return "Medium";
   return "Low";
 }
+
+export type ForecastStanding = "within" | "above" | "below";
+
+/** C6: where an actual/launch-time figure lands against the build-time forecast band. Pure. Used to
+ *  reconcile the wizard's promise ("you forecast 10k-14k") with what the launch actually projects, so
+ *  the player learns whether their read was good. A null band (older save) yields null. */
+export function forecastStanding(actual: number, band: { low: number; high: number } | undefined): ForecastStanding | null {
+  if (!band) return null;
+  if (actual > band.high) return "above";
+  if (actual < band.low) return "below";
+  return "within";
+}

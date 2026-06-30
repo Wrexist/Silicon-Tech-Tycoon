@@ -165,6 +165,16 @@
 .lreveal__units { display: flex; flex-direction: column; gap: 1px; animation: lreveal-rise 0.4s var(--spring-standard) 0.08s both; }
 .lreveal__units-val { font-size: var(--fs-headline); font-weight: 800; }
 .lreveal__units-label { font-size: var(--fs-caption); color: var(--ink-2); }
+/* C6: forecast reconciliation pill under the projected units. */
+.lreveal__forecast {
+  align-self: center;
+  margin-top: var(--sp-6);
+  font-size: var(--fs-micro); font-weight: 700;
+  padding: 3px 10px; border-radius: var(--r-pill);
+}
+.lreveal__forecast--within { background: color-mix(in srgb, var(--ink-3) 16%, transparent); color: var(--ink-2); }
+.lreveal__forecast--above { background: color-mix(in srgb, var(--positive) 16%, transparent); color: var(--positive-text, var(--positive)); }
+.lreveal__forecast--below { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning-text, var(--warning)); }
 
 /* Continue CTA — themed to the verdict accent (green hit / blue steady / muted flop), rounded with a
    soft accent-tinted lift so it reads premium on the white card rather than a flat default button. */

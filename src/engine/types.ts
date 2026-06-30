@@ -136,6 +136,10 @@ export interface Product {
   subsystem?: number;
   plannedUnits?: number; // production run size chosen in the build wizard
   channelId?: string; // marketing channel selected at launch
+  /** C6: the projected-sales band shown in the build wizard, stashed at build time so the launch can
+   *  reconcile the actual against the promise ("within / above / below forecast"). Absent on older
+   *  saves and products built before C6. */
+  forecast?: { low: number; high: number };
   tuning?: ProductTuning; // performance/efficiency trade-off (defaults "balanced" on older saves)
   /** Geographic markets to ship this product to (engine/regions.ts). Optional — defaults to ["home"]
    *  on read, so older saves and home-only launches are unchanged. */

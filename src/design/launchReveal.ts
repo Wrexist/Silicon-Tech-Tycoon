@@ -3,6 +3,7 @@
 // fire-and-forget pattern as celebrateFx/spendFx — no prop drilling, no re-renders on the bus itself.
 import { criticReviews, type OutletScore } from "../engine/reviews.ts";
 import { postMortem } from "../engine/postmortem.ts";
+import { forecastStanding, type ForecastStanding } from "../engine/forecast.ts";
 import type { LaunchInsight, Product, Stats } from "../engine/types.ts";
 import type { LaunchVerdict } from "./launchFeedback.ts";
 
@@ -16,6 +17,9 @@ export interface LaunchRevealData {
    *  analysis the Market detail shows. One tasteful line under the verdict. Absent if no insight. */
   why?: string;
   units: number;           // projected first-run sales
+  /** C6: how this launch's projected sales land against the band promised at build (within / above /
+   *  below). Null when the product carries no stashed band (older save). */
+  forecastStanding?: ForecastStanding | null;
   isHit: boolean;
   firstLaunch: boolean;    // the company's very first product — gets a special beat
   streak: number;          // consecutive hits incl. this launch (>=2 escalates the celebration)
@@ -66,6 +70,7 @@ export function buildLaunchReveal(args: {
     headline: r.headline,
     why: args.insight ? postMortem(args.insight, args.verdict).headline : undefined,
     units: args.units,
+    forecastStanding: forecastStanding(args.units, args.product.forecast),
     isHit: args.isHit,
     firstLaunch: args.firstLaunch,
     streak: args.streak ?? 0,

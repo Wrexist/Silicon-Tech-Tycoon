@@ -61,3 +61,20 @@ describe("C2: launch reveal carries the postmortem why", () => {
     expect(data.headline.length).toBeGreaterThan(0);
   });
 });
+
+describe("C6: launch reveal reconciles units against the build-time forecast band", () => {
+  it("reports the standing of the projected units vs the stashed band", () => {
+    const withinProduct = { ...product(), forecast: { low: 800, high: 1200 } };
+    const within = buildLaunchReveal({ ...base(), product: withinProduct, units: 1000 });
+    expect(within.forecastStanding).toBe("within");
+    const below = buildLaunchReveal({ ...base(), product: withinProduct, units: 500 });
+    expect(below.forecastStanding).toBe("below");
+    const above = buildLaunchReveal({ ...base(), product: withinProduct, units: 2000 });
+    expect(above.forecastStanding).toBe("above");
+  });
+
+  it("is null when the product carries no band (older save)", () => {
+    const data = buildLaunchReveal({ ...base(), units: 1000 });
+    expect(data.forecastStanding).toBeNull();
+  });
+});

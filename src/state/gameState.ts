@@ -1870,8 +1870,18 @@ export function startBuild(
   }
 
   const totalWeeks = plan.buildWeeks; // strategy-resolved (longer under "stretch")
+  // C6: stash the SAME projected-sales band the wizard showed, so the launch can reconcile the
+  // actual against this promise (tightens with marketer skill + Demand Sensing, exactly as the wizard).
+  const variancePct = forecastBand(forecastConfidence({
+    marketerSkill: marketerSkill(state),
+    demandSensing: state.completedProjects.includes("demandSensing"),
+  })) * eraModifier(state.era).demandVariance;
+  const forecast = {
+    low: Math.round(plan.projectedSales * (1 - variancePct)),
+    high: Math.round(plan.projectedSales * (1 + variancePct)),
+  };
   const job: BuildJob = {
-    product: { ...product, id: `prod-${state.productCounter}`, plannedUnits: units, channelId },
+    product: { ...product, id: `prod-${state.productCounter}`, plannedUnits: units, channelId, forecast },
     totalWeeks,
     weeksElapsed: 0,
     plannedUnits: units,

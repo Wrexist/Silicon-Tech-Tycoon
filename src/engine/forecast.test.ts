@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "./forecast.ts";
+import { forecastConfidence, forecastBand, forecastConfidenceLabel, forecastStanding } from "./forecast.ts";
 import { BALANCE } from "./balance.ts";
 
 const F = BALANCE.market.forecast;
@@ -51,5 +51,19 @@ describe("forecast confidence label", () => {
     expect(forecastConfidenceLabel(0.1)).toBe("Low");
     expect(forecastConfidenceLabel(0.3)).toBe("Medium");
     expect(forecastConfidenceLabel(0.6)).toBe("High");
+  });
+});
+
+describe("C6: forecast standing reconciles actual vs the build-time band", () => {
+  const band = { low: 1000, high: 1400 };
+  it("classifies within / above / below the band", () => {
+    expect(forecastStanding(1200, band)).toBe("within");
+    expect(forecastStanding(1000, band)).toBe("within"); // inclusive at the edges
+    expect(forecastStanding(1400, band)).toBe("within");
+    expect(forecastStanding(1500, band)).toBe("above");
+    expect(forecastStanding(800, band)).toBe("below");
+  });
+  it("returns null when there is no band (older save)", () => {
+    expect(forecastStanding(1200, undefined)).toBeNull();
   });
 });

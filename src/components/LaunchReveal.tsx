@@ -135,6 +135,12 @@ export function LaunchReveal() {
             <div className="lreveal__units">
               <span className="lreveal__units-val tnum">{units.toLocaleString()}</span>
               <span className="lreveal__units-label">units projected to sell</span>
+              {/* C6: reconcile against the band promised at build, so the player learns their read. */}
+              {data.forecastStanding && (
+                <span className={`lreveal__forecast lreveal__forecast--${data.forecastStanding}`}>
+                  {data.forecastStanding === "above" ? "Above forecast" : data.forecastStanding === "below" ? "Below your forecast" : "Within forecast"}
+                </span>
+              )}
             </div>
             <Button block onClick={close}>Continue</Button>
           </>
