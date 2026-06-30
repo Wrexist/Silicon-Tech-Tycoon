@@ -9,7 +9,9 @@ import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button, Stat, useDialogFocus } from "../design/primitives.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
-import { planProduction } from "../state/gameState.ts";
+import { planProduction, marketerSkill } from "../state/gameState.ts";
+import { forecastBand, forecastConfidence, forecastConfidenceLabel } from "../engine/forecast.ts";
+import { eraModifier } from "../engine/eras.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { format, toDollars } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
@@ -85,6 +87,15 @@ export function ReadyToLaunch() {
   );
   const profitDollars = toDollars(plan.projectedProfit);
   const overallHint = plan.overall >= 75 ? "flagship tier" : plan.overall >= 55 ? "strong build" : plan.overall >= 35 ? "mid-tier" : "entry tier";
+  // Q5: the SAME demand band + confidence the wizard showed, so "Est. sales" reads as the range it
+  // is, not a promise launch variance will break. Tightens with marketer skill + Demand Sensing.
+  const conf = forecastConfidence({ marketerSkill: marketerSkill(state), demandSensing: state.completedProjects.includes("demandSensing") });
+  const variancePct = forecastBand(conf) * eraModifier(state.era).demandVariance;
+  const abbr = (n: number) => (n >= 10_000 ? `${Math.round(n / 1_000)}k` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}k` : `${n}`);
+  const salesLow = Math.round(plan.projectedSales * (1 - variancePct));
+  const salesHigh = Math.round(plan.projectedSales * (1 + variancePct));
+  const salesRange = plan.sellsOut ? plan.projectedSales.toLocaleString() : `${abbr(salesLow)}–${abbr(salesHigh)}`;
+  const confLabel = forecastConfidenceLabel(conf);
   const more = queue.length - 1;
 
   const dequeue = () => setQueue((q) => q.slice(1));
@@ -122,9 +133,9 @@ export function ReadyToLaunch() {
           <Stat label="Run size" value={(product.plannedUnits ?? plan.plannedUnits).toLocaleString()} />
           <Stat
             label="Est. sales"
-            value={plan.projectedSales.toLocaleString()}
+            value={salesRange}
             tone={plan.sellsOut ? "positive" : "neutral"}
-            hint={plan.sellsOut ? "would sell out" : undefined}
+            hint={plan.sellsOut ? "would sell out" : `${confLabel} confidence`}
           />
           <Stat label="Est. profit" value={format(plan.projectedProfit)} tone={profitDollars >= 0 ? "positive" : "negative"} />
         </div>
