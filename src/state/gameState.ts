@@ -1439,7 +1439,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const q = finalStaff.find((m) => m.id === qid);
     if (!q) continue;
     finalStaff = finalStaff.filter((m) => m.id !== qid);
-    feed.push(feedItem(week, `${q.name} quit, sustained burnout pushed them to leave.`, "negative"));
+    // C3: name the real reason. Underpay reads differently from burnout (and matches the "Wants
+    // raise" tag the player saw), so don't always blame burnout.
+    const underpaid = q.id !== "s0" && toDollars(q.salary) < toDollars(salaryFor(q.role, q.skill));
+    feed.push(feedItem(week, underpaid
+      ? `${q.name} quit for a better offer, their pay had fallen behind the market.`
+      : `${q.name} quit, sustained burnout pushed them to leave.`, "negative"));
   }
 
   // Recruitment search progress — resolves into a candidate shortlist when the timer runs out,
@@ -1737,7 +1742,16 @@ export function applyEventEffect(
       break;
   }
 
-  feed.push(feedItem(week, text, feedTone));
+  // C1: append the realized magnitude (cash / rep / fans delta) so the player can ATTRIBUTE the
+  // swing to the event instead of watching the numbers move with no stated cause.
+  const parts: string[] = [];
+  const cashD = toDollars(cash) - toDollars(s.cash);
+  if (Math.round(cashD) !== 0) parts.push(`${cashD > 0 ? "+" : "-"}${format(dollars(Math.abs(cashD)))}`);
+  const repD = Math.round(reputation - s.reputation);
+  if (repD !== 0) parts.push(`${repD > 0 ? "+" : ""}${repD} rep`);
+  const fansD = Math.round(fans - s.fans);
+  if (fansD !== 0) parts.push(`${fansD > 0 ? "+" : ""}${fansD.toLocaleString()} fans`);
+  feed.push(feedItem(week, parts.length ? `${text} · ${parts.join(", ")}` : text, feedTone));
   return { ...s, cash, reputation, researchPoints, trends, competitors, staff, fans, feed: trimFeed(feed) };
 }
 

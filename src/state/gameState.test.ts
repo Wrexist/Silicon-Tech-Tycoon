@@ -32,6 +32,7 @@ import {
   restCost,
   trainStaff,
   rndSkill,
+  applyEventEffect,
   type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
@@ -661,5 +662,30 @@ describe("first-build smoothing — the debut product builds fast", () => {
   it("does NOT apply to a prestige veteran (legacy > 0 keeps normal build time)", () => {
     const veteran = { ...newGame(11), cash: dollars(500_000), legacy: 1 };
     expect(buildWeeksFor(veteran)).toBeGreaterThan(BALANCE.build.minWeeks);
+  });
+});
+
+describe("C1: event feed states the realized magnitude", () => {
+  it("a cash windfall annotates the feed with the dollar swing", () => {
+    const s = newGame(1);
+    const next = applyEventEffect(s, { kind: "cashWindfall", cash: 200_000 }, 4, "Grant awarded", "positive");
+    const last = next.feed[next.feed.length - 1].text;
+    expect(last).toContain("Grant awarded");
+    expect(last).toContain("+$");
+    expect(last).toContain("·");
+  });
+
+  it("a reputation boost annotates the feed with the rep swing", () => {
+    const s = newGame(2);
+    const next = applyEventEffect(s, { kind: "repBoost", rep: 5 }, 4, "Glowing review", "positive");
+    const last = next.feed[next.feed.length - 1].text;
+    expect(last).toContain("rep");
+  });
+
+  it("a no-op effect leaves the feed text unannotated", () => {
+    const s = newGame(3);
+    const next = applyEventEffect(s, { kind: "rpBonus", amount: 10 }, 4, "Lab breakthrough", "positive");
+    const last = next.feed[next.feed.length - 1].text;
+    expect(last).toBe("Lab breakthrough");
   });
 });
