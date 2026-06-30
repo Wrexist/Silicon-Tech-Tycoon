@@ -807,87 +807,23 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1 }: { colorIdx: number
   );
 }
 
-// A desktop monitor on a stand. The panel's screen faces the person (−z); we see the back.
-// `bright` (high Workstation tiers) gives crisper, more saturated screens.
-function Monitor({ p, on, bright }: { p: RoomPalette; on: boolean; bright: boolean }) {
-  return (
-    <group>
-      {/* foot + neck */}
-      <mesh position={[0, 0.01, 0.04]}>
-        <cylinderGeometry args={[0.12, 0.14, 0.02, 18]} />
-        <meshStandardMaterial color={p.metalDark} roughness={0.4} metalness={0.5} />
-      </mesh>
-      <mesh position={[0, 0.18, 0.04]}>
-        <boxGeometry args={[0.05, 0.34, 0.05]} />
-        <meshStandardMaterial color={p.metalDark} roughness={0.4} metalness={0.5} />
-      </mesh>
-      {/* panel — back toward camera (+z) */}
-      <RoundedBox args={[0.66, 0.42, 0.04]} radius={0.02} smoothness={2} position={[0, 0.45, 0]}>
-        <meshStandardMaterial color={p.metalDark} roughness={0.45} metalness={0.4} />
-      </RoundedBox>
-      {/* glowing screen facing the person (−z) */}
-      <mesh position={[0, 0.45, -0.022]} rotation-y={Math.PI}>
-        <planeGeometry args={[0.6, 0.36]} />
-        <meshStandardMaterial
-          color={on ? p.screen : p.screenOff}
-          emissive={on ? p.screen : "#0a0d12"}
-          emissiveIntensity={on ? (bright ? 1.5 : 1.1) : 0}
-          toneMapped={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-// A workstation = desk + computer (monitor/keyboard/mouse) + the employee's robot, rendered at
-// the local origin facing +z. Callers position/rotate it. Each hired employee gets exactly one.
-function Workstation({ p, staff, seed, monitors, colorIdx, powered }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean }) {
+// A workstation = the player's placed desk model (which carries its own monitor) + the employee's
+// robot, rendered at the local origin facing +z. Callers position/rotate it (via the SAME worldOf
+// transform the Decorate editor uses), so an occupied desk is identical in the office and the editor.
+// Each hired employee gets exactly one.
+function Workstation({ p, staff, seed, colorIdx, deskType = "desk" }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId }) {
   const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
-  const on = !!staff || !!powered;
-  const bright = monitors >= 2;
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
-  // 1 or 2 monitors clustered on the RIGHT side of the desk, angled toward the person.
-  const monX = monitors >= 2 ? [0.2, 0.64] : [0.42];
   return (
     <group>
-      {/* desk */}
-      <RoundedBox args={[1.7, 0.12, 1.0]} radius={0.05} smoothness={3} position={[0, 0.9, 0]}>
-        <meshStandardMaterial color={p.desk} roughness={0.7} />
-      </RoundedBox>
-      {[[-0.75, -0.4], [0.75, -0.4], [-0.75, 0.4], [0.75, 0.4]].map((l, i) => (
-        <mesh key={i} position={[l[0], 0.45, l[1]]}>
-          <boxGeometry args={[0.1, 0.9, 0.1]} />
-          <meshStandardMaterial color={p.deskDark} />
-        </mesh>
-      ))}
-      {/* desktop monitor(s) on the right, facing the person */}
-      {monX.map((mx, i) => (
-        <group key={i} position={[mx, 0.96, -0.06]} rotation-y={-0.18 * (i - (monX.length - 1) / 2)}>
-          <Monitor p={p} on={on} bright={bright} />
-        </group>
-      ))}
-      {/* keyboard in front of the person (left-of-centre, under the monitors) */}
-      <RoundedBox args={[0.5, 0.02, 0.18]} radius={0.01} smoothness={2} position={[-0.05, 0.965, 0.2]}>
-        <meshStandardMaterial color={p.metalDark} roughness={0.5} metalness={0.3} />
-      </RoundedBox>
-      <mesh position={[-0.05, 0.978, 0.2]} rotation-x={-Math.PI / 2}>
-        <planeGeometry args={[0.46, 0.14]} />
-        <meshStandardMaterial color="#14171c" roughness={0.8} />
-      </mesh>
-      {/* mouse */}
-      <mesh position={[0.28, 0.972, 0.22]}>
-        <capsuleGeometry args={[0.03, 0.04, 3, 8]} />
-        <meshStandardMaterial color={p.metal} roughness={0.4} />
-      </mesh>
-      {/* mug on the left */}
-      {staff && (
-        <group position={[-0.62, 0.96, 0.1]}>
-          <Mug hue={hue} />
-        </group>
-      )}
+      {/* The player's ACTUAL placed desk model (each desk model carries its own monitor), drawn
+          through the SAME FurniturePiece + transform the Decorate editor uses, so an occupied desk
+          looks identical in the live office and in edit mode. A standing desk stays a standing desk,
+          an L-desk stays an L-desk, etc. The seated robot + chair are layered on behind it. */}
+      <FurniturePiece type={deskType} p={p} />
       {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
-          back so it rests against the backrest, facing the desk. The parametric robot folds into a
-          sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
+          back so it rests against the backrest, facing the desk (+z, toward the camera). The
+          parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
       <group position={[0, 0, -0.78]}>
         <Chair p={p} hue={hue} />
         {staff && (
@@ -1639,7 +1575,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         const w = worldOf(seats[i]);
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
