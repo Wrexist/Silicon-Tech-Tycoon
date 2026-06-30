@@ -441,8 +441,8 @@ function FinancingCard({ state }: { state: GameState }) {
       {debt > 0 ? (
         <>
           <div className="co__fin-grid">
-            <Stat label="Outstanding debt" value={format(cents(Math.round(debt)))} tone="negative" />
-            <Stat label="Weekly service" value={format(cents(service))} tone="negative" hint="/wk" />
+            <Stat label="Outstanding debt" value={format(cents(Math.round(debt)))} tone="negative" tile />
+            <Stat label="Weekly service" value={format(cents(service))} tone="negative" hint="/wk" tile />
           </div>
           <div className="co__loan-list">
             {loans.map((l) => {
