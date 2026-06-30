@@ -567,7 +567,7 @@ export function DesignLab({
           <div className="lab__hero-stage">
             <span className="lab__hero-backdrop" aria-hidden>
               <span className="lab__hero-glow" />
-              <span className="lab__hero-grid" />
+              <span className="lab__hero-dots" />
               <CircuitMotif className="lab__hero-circuit" />
             </span>
             <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />

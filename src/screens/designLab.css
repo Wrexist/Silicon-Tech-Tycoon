@@ -135,7 +135,7 @@
   transform: translate(-50%, -50%);
   background: radial-gradient(50% 50% at 50% 50%, var(--fn-design-soft), transparent 70%);
 }
-.lab__hero-grid {
+.lab__hero-dots {
   position: absolute;
   inset: 0;
   background-image: radial-gradient(circle at center, color-mix(in srgb, var(--fn-design) 16%, transparent) 1px, transparent 1.4px);
