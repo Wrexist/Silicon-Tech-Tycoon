@@ -1355,6 +1355,12 @@ export function DesignLab({
               })()}
             </Card>
 
+            {/* C7/C9: the live "who it's for" read, recomputed from the current components + price +
+                trends, so the player sees which buyer segments this design wins or prices out BEFORE
+                committing. Rendered as the same self-contained panel the wizard review shows (it
+                carries its own surface + padding), so nothing changes at commit. */}
+            {missing.length === 0 && <SegmentBreakdown segments={liveSegments} week={state.week} />}
+
             <Card>
               <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state, draft)} wk to make`} />
               {(() => {
