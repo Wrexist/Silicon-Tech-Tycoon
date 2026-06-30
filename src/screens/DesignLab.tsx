@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, RotateCcw, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -1719,6 +1719,23 @@ function BuildWizard({
   const balanceLabel = plan.synergy >= 1.0 ? "Balanced" : plan.synergy >= 0.95 ? "Slightly off" : "Unbalanced";
   const balanceTone = plan.synergy >= 1.0 ? "positive" : plan.synergy >= 0.95 ? "accent" : "negative";
 
+  // Q1: one-tap "repeat last plan". Refill the run size, campaign, markets and capacity strategy
+  // from the previous build and jump straight to review. Only offered on the first step once the
+  // player has shipped something. An unaffordable saved campaign falls back to no campaign (review
+  // still validates the rest), and saved markets are filtered to what's currently unlocked.
+  const last = state.lastBuildPlan;
+  function applyLastPlan() {
+    if (!last) return;
+    haptic.light();
+    const regs = last.regions.filter((id) => state.unlockedRegions.includes(id));
+    setRegions(regs.length ? regs : ["home"]);
+    const chanCost = MARKETING_CHANNELS.find((c) => c.id === last.channelId)?.cost ?? 0;
+    setChannel(state.cash >= chanCost ? last.channelId : "none");
+    setStrategy(last.strategy);
+    setUnits(Math.min(BALANCE.build.maxRun, Math.max(BALANCE.build.minRun, Math.round(last.units))));
+    setStep(lastStep);
+  }
+
   return (
     <div className="wiz">
       <div className="wiz__head">
@@ -1729,6 +1746,16 @@ function BuildWizard({
         </div>
       </div>
       <div className="wiz__steps">{steps.map((_, i) => <span key={i} className={`wiz__step${i <= step ? " wiz__step--on" : ""}`} />)}</div>
+
+      {step === 0 && last && (
+        <button type="button" className="wiz__repeat" onClick={applyLastPlan}>
+          <RotateCcw size={14} aria-hidden />
+          <span className="wiz__repeat-text">
+            Repeat last plan
+            <span className="wiz__repeat-sub">{last.units.toLocaleString()} units · {MARKETING_CHANNELS.find((c) => c.id === last.channelId)?.name ?? "No campaign"}</span>
+          </span>
+        </button>
+      )}
 
       {cur === "regions" && (
         <div className="wiz__body">

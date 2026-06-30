@@ -940,6 +940,10 @@
 .wiz__steps { display: flex; gap: var(--sp-6); }
 .wiz__step { flex: 1; height: 4px; border-radius: var(--r-pill); background: var(--bg-elevated); transition: background var(--spring-standard); }
 .wiz__step--on { background: var(--fn-design); }
+.wiz__repeat { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--fn-design-soft); color: var(--fn-design); text-align: left; transition: all var(--spring-snappy); }
+.wiz__repeat:active { transform: scale(0.98); }
+.wiz__repeat-text { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; font-weight: 600; font-size: var(--fs-caption); }
+.wiz__repeat-sub { font-weight: 500; font-size: var(--fs-caption); color: var(--ink-2); }
 .wiz__body { display: flex; flex-direction: column; gap: var(--sp-12); }
 .wiz__lead { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
 .wiz__units { text-align: center; font-size: var(--fs-large-title); font-weight: 800; }

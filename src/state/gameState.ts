@@ -187,6 +187,10 @@ export interface GameState {
   /** Active fixed-price contracts per supplier: a locked discount + crunch immunity for `weeksLeft`
    *  weeks (engine/suppliers.ts). Optional; absent = spot pricing. */
   supplierContracts?: Partial<Record<SupplierId, { discount: number; weeksLeft: number }>>;
+  /** The production plan from the most recent build, so the wizard can offer a one-tap "repeat last
+   *  plan" (Q1). Optional; absent on a fresh company / older saves (the wizard simply hides the
+   *  shortcut until the player ships their first product). */
+  lastBuildPlan?: { units: number; channelId: ChannelId; regions: RegionId[]; strategy: CapacityStrategy };
   building: BuildJob[];
   ready: Product[]; // built, awaiting launch
   launched: LaunchedProduct[];
@@ -1885,6 +1889,13 @@ export function startBuild(
       building: [...state.building, job],
       productCounter: state.productCounter + 1,
       supplierLoyalty,
+      // Q1: remember this run's plan so the next build can repeat it in one tap.
+      lastBuildPlan: {
+        units,
+        channelId,
+        regions: product.regions ?? ["home"],
+        strategy: product.capacityStrategy ?? "overtime",
+      },
       feed: trimFeed(feed),
     },
     ok: true,
