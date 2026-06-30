@@ -13,7 +13,7 @@ import { STAT_KEYS, type StatKey } from "./types.ts";
 // different abbreviation schemes existed across the screens before this was consolidated.
 export const STAT_INFO: Record<StatKey, { label: string; abbr: string; prose: string; blurb: string }> = {
   performance: { label: "Performance", abbr: "Perf", prose: "performance", blurb: "Raw speed and power. Pros and power users pay for it; budget buyers care less." },
-  quality: { label: "Quality", abbr: "Quality", prose: "build quality", blurb: "Build quality and reliability — reassures every buyer and is vital to Enterprise fleets." },
+  quality: { label: "Quality", abbr: "Quality", prose: "build quality", blurb: "Build quality and reliability, reassures every buyer and is vital to Enterprise fleets." },
   battery: { label: "Battery", abbr: "Battery", prose: "battery life", blurb: "Endurance away from a charger. A Budget and Mainstream essential." },
   design: { label: "Design", abbr: "Design", prose: "design", blurb: "Looks, finish and form. The Style segment buys on this above all else." },
   ecosystem: { label: "Ecosystem", abbr: "Ecosys", prose: "ecosystem", blurb: "Apps, services and lock-in. Pro and Enterprise value the platform around the device." },
@@ -46,11 +46,11 @@ export function segmentWantsById(id: string): string {
  *  Design Lab (the Bank, the HUD). Same "nothing is confusing" goal as STAT_INFO, kept here as the
  *  single source so the copy can't drift. Ordered as they read on the Bank screen. */
 export const TERM_INFO: { term: string; def: string }[] = [
-  { term: "Cash", def: "Money you can spend right now — on builds, hires, marketing and upgrades. Hit zero for too long and you go bankrupt." },
+  { term: "Cash", def: "Money you can spend right now, on builds, hires, marketing and upgrades. Hit zero for too long and you go bankrupt." },
   { term: "Runway", def: "How many weeks your cash lasts at the current weekly loss. \"Profitable\" means you're earning more than you spend." },
-  { term: "Burn", def: "Your total spending each week — payroll, rent and overheads. Lower it or out-earn it to extend your runway." },
+  { term: "Burn", def: "Your total spending each week, payroll, rent and overheads. Lower it or out-earn it to extend your runway." },
   { term: "Net worth", def: "Everything you're worth: cash, the value of your stake in your own company, and any rival shares you hold." },
-  { term: "Research points", def: "RP — the research currency, earned weekly by staff in R&D. Spent on tech tiers and company research projects." },
+  { term: "Research points", def: "RP, the research currency, earned weekly by staff in R&D. Spent on tech tiers and company research projects." },
   { term: "Reputation", def: "How much the market trusts your brand (0–100). Rises with hits, falls with flops; gates new eras and the IPO." },
   { term: "Fans", def: "Loyal customers who pre-order your next product. Hits grow your fanbase; flops shrink it." },
 ];

@@ -97,7 +97,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
 export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; active?: boolean }) {
-  const { state, advanceEra, goPublic, resolveChoice } = useGame();
+  const { state, advanceEra, goPublic, resolveChoice, resolvePoach } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
@@ -216,6 +216,40 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
         </Card>
       )}
 
+      {/* Rival poaching — keep your employee with a counter-offer, or let them walk (Track C) */}
+      {state.pendingPoach && (
+        <Card className="hq__choice">
+          <div className="hq__choice-head">
+            <Crosshair size={14} className="hq__choice-icon" aria-hidden />
+            <span className="hq__choice-title">{state.pendingPoach.rivalName} wants {state.pendingPoach.staffName}</span>
+          </div>
+          <p className="hq__choice-body">
+            {state.pendingPoach.rivalName} has made {state.pendingPoach.staffName} an offer. Match it to keep them, or wish them well.
+          </p>
+          <div className="hq__choice-options">
+            <button
+              className="hq__choice-opt"
+              disabled={state.cash < state.pendingPoach.retainCost}
+              onClick={() => { resolvePoach(true); haptic.success(); }}
+            >
+              <span className="hq__choice-opt-label">Match their offer · {format(state.pendingPoach.retainCost)}</span>
+              <span className="hq__choice-opt-desc">
+                {state.cash < state.pendingPoach.retainCost
+                  ? "You can't cover the signing bonus right now."
+                  : "Pay a signing bonus, lift them to market pay, and keep your talent."}
+              </span>
+            </button>
+            <button
+              className="hq__choice-opt"
+              onClick={() => { resolvePoach(false); haptic.medium(); }}
+            >
+              <span className="hq__choice-opt-label">Let them go</span>
+              <span className="hq__choice-opt-desc">Save the cash, but the rest of the team feels the loss.</span>
+            </button>
+          </div>
+        </Card>
+      )}
+
       {/* Ready to launch */}
       {state.ready.length > 0 && (
         <Card className="hq__ready">
@@ -288,7 +322,7 @@ function OfficeOverview({ state }: { state: GameState }) {
       </div>
       <div className="hqb__office-seats">
         <Users size={12} aria-hidden /> Seats <b className="tnum">{state.staff.length}/{deskCapacity(state)}</b>
-        <span className="hqb__office-seats-hint">— buy a desk to add one</span>
+        <span className="hqb__office-seats-hint">· buy a desk to add one</span>
       </div>
     </div>
   );
@@ -359,7 +393,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
     onPlaceCell: (c, r) => {
       if (!placingType) return;
       if (!canAffordFurniture(state, placingType)) {
-        showToast(`Can't afford — ${furnitureDef(placingType).name} costs ${format(dollars(furnitureCost(placingType)))}`, { tone: "negative" });
+        showToast(`Can't afford, ${furnitureDef(placingType).name} costs ${format(dollars(furnitureCost(placingType)))}`, { tone: "negative" });
         haptic.error();
         return;
       }
@@ -411,7 +445,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   // immediately drag it where they want.
   const pick = (type: FurnitureId) => {
     if (!canAffordFurniture(state, type)) {
-      showToast(`Can't afford — ${furnitureDef(type).name} costs ${format(dollars(furnitureCost(type)))}`, { tone: "negative" });
+      showToast(`Can't afford, ${furnitureDef(type).name} costs ${format(dollars(furnitureCost(type)))}`, { tone: "negative" });
       haptic.error();
       return;
     }
@@ -431,7 +465,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         }
       }
     }
-    showToast("No room — remove something first.", { tone: "negative" });
+    showToast("No room, remove something first.", { tone: "negative" });
     haptic.error();
   };
 
@@ -572,7 +606,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 <>
               {placingType && (
                 <div className="hqb__placing">
-                  <span className="hqb__placing-text">Placing <b>{furnitureDef(placingType).name}</b> — tap the floor</span>
+                  <span className="hqb__placing-text">Placing <b>{furnitureDef(placingType).name}</b>, tap the floor</span>
                   <div className="hqb__row">
                     <button className="hqb__tool" onClick={() => { setPlaceRot((r) => ((r + 1) % 4) as Rot); haptic.light(); }}><RotateCw size={15} /> Rotate</button>
                     <button className="hqb__tool" onClick={() => setPlacingType(null)}><X size={15} /> Cancel</button>
@@ -689,7 +723,7 @@ function Upgrades() {
           <span className="hqu__glyph" aria-hidden><Monitor size={18} /></span>
           <div className="hqu__info">
             <span className="hqu__name">Need more seats?</span>
-            <span className="hqu__effect">Buy a desk in the <strong>Shop</strong> — each one seats another hire.</span>
+            <span className="hqu__effect">Buy a desk in the <strong>Shop</strong>, each one seats another hire.</span>
           </div>
           <span className="hqu__lv tnum">{deskCapacity(state)} {deskCapacity(state) === 1 ? "seat" : "seats"}</span>
         </div>
@@ -720,7 +754,7 @@ function Upgrades() {
                 onClick={cur > 0 ? () => {
                   haptic.light();
                   emitHighlight(line.id);
-                  showToast(`${line.name} — ${OFFICE_ADDITION[line.id]}`, { tone: "neutral", glyph: <Icon size={15} /> });
+                  showToast(`${line.name}, ${OFFICE_ADDITION[line.id]}`, { tone: "neutral", glyph: <Icon size={15} /> });
                 } : undefined}
                 role={cur > 0 ? "button" : undefined}
                 tabIndex={cur > 0 ? 0 : undefined}
@@ -814,8 +848,8 @@ function GetStartedCard({ state, onNavigate }: { state: GameState; onNavigate: (
       {!building && !ready && (
         <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
       )}
-      {building && !ready && <p className="hq__qs-note">Building now — watch the progress above. You'll launch once it's ready.</p>}
-      {ready && <p className="hq__qs-note">Ready to launch — tap Launch above to ship it.</p>}
+      {building && !ready && <p className="hq__qs-note">Building now. Watch the progress above; you'll launch once it's ready.</p>}
+      {ready && <p className="hq__qs-note">Ready to launch, tap Launch above to ship it.</p>}
     </Card>
   );
 }
@@ -843,7 +877,7 @@ function NextMoveCard({ state, onNavigate }: { state: GameState; onNavigate: (t:
             <span className="hq__next-label">You're running the show now</span>
           </div>
         </div>
-        <p className="hq__next-detail">Chase reputation, new eras and the IPO at your own pace — the Insights below flag your best next move.</p>
+        <p className="hq__next-detail">Chase reputation, new eras and the IPO at your own pace, the Insights below flag your best next move.</p>
       </Card>
     );
   }
@@ -936,7 +970,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   if (idleCount > 0) {
     insights.push({
       icon: Users,
-      text: `${idleCount} staff member${idleCount > 1 ? "s are" : " is"} unassigned — assign them to R&D or Marketing to compound output.`,
+      text: `${idleCount} staff member${idleCount > 1 ? "s are" : " is"} unassigned, assign them to R&D or Marketing to compound output.`,
       tab: "company",
     });
   }
@@ -949,7 +983,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   if (nextProject) {
     insights.push({
       icon: FlaskConical,
-      text: `You have ${rp} RP — enough to unlock "${nextProject.name}". Head to Research to claim it.`,
+      text: `You have ${rp} RP, enough to unlock "${nextProject.name}". Head to Research to claim it.`,
       tab: "research",
     });
   }
@@ -970,19 +1004,19 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
       if (ins.betterRivals >= 1) {
         insights.push({
           icon: FlaskConical,
-          text: 'Your launches keep landing "steady" because rivals outclass them — raise component tiers in R&D to break out with a "solid" or a hit.',
+          text: 'Your launches keep landing "steady" because rivals outclass them, raise component tiers in R&D to break out with a "solid" or a hit.',
           tab: "research",
         });
       } else if (ins.hype < 1.15) {
         insights.push(
           hasMarketer
-            ? { icon: Megaphone, text: 'Your products sell steadily but lack buzz — add a launch campaign to push the next one past "steady".', tab: "market" }
-            : { icon: Megaphone, text: 'Your products sell steadily but lack buzz — put someone on Marketing to lift launch hype and break past "steady".', tab: "company" },
+            ? { icon: Megaphone, text: 'Your products sell steadily but lack buzz, add a launch campaign to push the next one past "steady".', tab: "market" }
+            : { icon: Megaphone, text: 'Your products sell steadily but lack buzz, put someone on Marketing to lift launch hype and break past "steady".', tab: "company" },
         );
       } else if (ins.demandFit < 45) {
         insights.push({
           icon: TrendingUp,
-          text: 'Your launches keep just missing the trend — check Market demand before your next design to land a "solid".',
+          text: 'Your launches keep just missing the trend, check Market demand before your next design to land a "solid".',
           tab: "market",
         });
       }
@@ -993,7 +1027,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     if (active.length === 0 && !inPipeline) {
       insights.push({
         icon: Rocket,
-        text: "All products have finished their run — design and launch a new one to keep revenue flowing.",
+        text: "All products have finished their run, design and launch a new one to keep revenue flowing.",
         tab: "design",
       });
     }
@@ -1006,7 +1040,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
       const name = endingSoon.length === 1 ? endingSoon[0].product.name : `${endingSoon.length} products`;
       insights.push({
         icon: Clock,
-        text: `${name} ${endingSoon.length === 1 ? "finishes" : "finish"} selling in ≤4 weeks — start a successor now to keep revenue continuous.`,
+        text: `${name} ${endingSoon.length === 1 ? "finishes" : "finish"} selling in ≤4 weeks, start a successor now to keep revenue continuous.`,
         tab: "design",
       });
     }
@@ -1018,7 +1052,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     if (unhappy.length > 0) {
       insights.push({
         icon: Users,
-        text: `${unhappy[0].name} has very low morale (${Math.round(unhappy[0].mood)}%) — upgrade Amenities or reduce workload to prevent an output slump.`,
+        text: `${unhappy[0].name} has very low morale (${Math.round(unhappy[0].mood)}%), upgrade Amenities or reduce workload to prevent an output slump.`,
         tab: "company",
       });
     }
@@ -1037,7 +1071,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
       const cost = upgradeCost(state, affordableUpgrade.id)!;
       insights.push({
         icon: ArrowUp,
-        text: `Your ${affordableUpgrade.name} can be upgraded to "${affordableUpgrade.tierNames[cur]}" for ${format(cost)} — unlocks ${affordableUpgrade.effectAt(cur + 1)}.`,
+        text: `Your ${affordableUpgrade.name} can be upgraded to "${affordableUpgrade.tierNames[cur]}" for ${format(cost)}, unlocks ${affordableUpgrade.effectAt(cur + 1)}.`,
       });
     }
   }
@@ -1053,7 +1087,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     if (top && topDelta > 0.025) {
       insights.push({
         icon: TrendingUp,
-        text: `${INSIGHT_STAT_LABEL[top]} demand is climbing — your next product should prioritize it to ride the wave.`,
+        text: `${INSIGHT_STAT_LABEL[top]} demand is climbing, your next product should prioritize it to ride the wave.`,
         tab: "design",
       });
     }
@@ -1066,7 +1100,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     if (unshipped.length > 0) {
       insights.push({
         icon: Shapes,
-        text: `You haven't shipped a ${unshipped[0].displayName} yet — an open market segment with no competition from you.`,
+        text: `You haven't shipped a ${unshipped[0].displayName} yet, an open market segment with no competition from you.`,
         tab: "design",
       });
     }
@@ -1091,7 +1125,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
       const strength = Math.round(threatComp.strengthByCategory[threatCat] ?? 0);
       insights.push({
         icon: TrendingDown,
-        text: `${threatComp.name} (strength ${strength}) is a strong rival in ${catDef?.displayName ?? threatCat}s — spec up your next launch to stay ahead.`,
+        text: `${threatComp.name} (strength ${strength}) is a strong rival in ${catDef?.displayName ?? threatCat}s, spec up your next launch to stay ahead.`,
         tab: "market",
       });
     }
@@ -1099,15 +1133,16 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
 
   // 7. Open desks + healthy runway = good time to hire
   if (insights.length < 3 && state.staff.length >= 1) {
-    const facH = facility(state);
-    const openDesks = facH.staffCapacity - state.staff.length;
+    // Hiring is gated by PLACED desks, not raw facility headcount, so count actual open seats
+    // (deskCapacity) — otherwise this could claim desks that haven't been placed yet.
+    const openDesks = deskCapacity(state) - state.staff.length;
     const wkBurnH = burn(state);
     const wkRevH = nextWeekRevenue(state);
     const runwayH = runwayWeeks(state.cash, wkBurnH, wkRevH);
     if (openDesks >= 1 && runwayH > 30) {
       insights.push({
         icon: Users,
-        text: `${openDesks} desk${openDesks > 1 ? "s" : ""} open and ${runwayH === Infinity ? "you are profitable" : `${runwayH}+ weeks of runway`} — a strong time to recruit.`,
+        text: `${openDesks} desk${openDesks > 1 ? "s" : ""} open and ${runwayH === Infinity ? "you are profitable" : `${runwayH}+ weeks of runway`}, a strong time to recruit.`,
         tab: "company",
       });
     }
@@ -1120,7 +1155,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     if (!hasAnyMarketer && hasLaunched) {
       insights.push({
         icon: Megaphone,
-        text: "No one is assigned to Marketing — each launch is missing a hype bonus that boosts sales velocity. Assign a team member or hire a marketer.",
+        text: "No one is assigned to Marketing, each launch is missing a hype bonus that boosts sales velocity. Assign a team member or hire a marketer.",
         tab: "company",
       });
     }
@@ -1133,7 +1168,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     if (allDecline) {
       insights.push({
         icon: Rocket,
-        text: `All ${active.length === 1 ? "your active product has" : `${active.length} active products have`} passed their sales peak — launch something new now to capture fresh demand before revenue fades.`,
+        text: `All ${active.length === 1 ? "your active product has" : `${active.length} active products have`} passed their sales peak, launch something new now to capture fresh demand before revenue fades.`,
         tab: "design",
       });
     }

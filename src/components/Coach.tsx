@@ -69,8 +69,8 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       id: "ready",
       color: mktBlue,
       icon: Rocket,
-      title: "Built — time to launch",
-      text: "On the Office tab, tap Launch on your finished device. The campaign you picked when planning production kicks in now — timing matters, so launch while demand is hot.",
+      title: "Built, time to launch",
+      text: "On the Office tab, tap Launch on your finished device. The campaign you picked when planning production kicks in now, timing matters, so launch while demand is hot.",
       cta: tab === "hq" ? undefined : { label: "Go to Office", tab: "hq" },
     };
   }
@@ -80,7 +80,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: engOrange,
       icon: Hammer,
       title: "Manufacturing started",
-      text: "Time advances automatically as it builds — tap the Fast-forward button in the top bar to speed through the wait, or Pause to hold. Watch the progress on the Office tab; you'll launch once it's ready.",
+      text: "Time advances automatically as it builds, tap the Fast-forward button in the top bar to speed through the wait, or Pause to hold. Watch the progress on the Office tab; you'll launch once it's ready.",
       cta: tab === "hq" ? undefined : { label: "Go to Office", tab: "hq" },
     };
   }
@@ -89,7 +89,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
     color: designGreen,
     icon: PencilRuler,
     title: "Design your first device",
-    text: "Work left to right through the tabs up top — Components, Style, Camera, then Launch — to pick parts, a finish, and a price. Then tap Plan production to set a run size and campaign; you pay for the whole run upfront, so keep a cash cushion.",
+    text: "Work left to right through the tabs up top, Components, Style, Camera, then Launch, to pick parts, a finish, and a price. Then tap Plan production to set a run size and campaign; you pay for the whole run upfront, so keep a cash cushion.",
     cta: tab === "design" ? undefined : { label: "Open Design Lab", tab: "design" },
   };
 }

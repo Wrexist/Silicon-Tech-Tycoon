@@ -631,6 +631,12 @@ describe("reputation maintenance — defend your empire in the final era", () =>
     expect(s.reputation).toBeGreaterThanOrEqual(BALANCE.reputation.decayFloor);
   });
 
+  it("a coasting top brand slips below the rep-85 IPO-win gate (Phase 2 teeth)", () => {
+    let s = rich({ era: 4, reputation: 100 });
+    for (let i = 0; i < 20; i++) s = advanceOneWeek(s); // ~20wk of not shipping
+    expect(s.reputation).toBeLessThan(85); // win-eligibility actually lost until they perform again
+  });
+
   it("does NOT decay before the final era — no progression-gate interference", () => {
     let s = rich({ era: 2, reputation: 100 });
     for (let i = 0; i < 10; i++) s = advanceOneWeek(s);

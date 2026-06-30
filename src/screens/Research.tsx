@@ -8,9 +8,9 @@ import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
-import { eraName, maxEra } from "../engine/eras.ts";
+import { eraContext, eraName, maxEra } from "../engine/eras.ts";
 import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
-import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
 import { rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
@@ -69,7 +69,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
             const label = repPct >= revPct
               ? `${Math.round(reputation)} / ${repGoal} rep`
               : `${formatShortDollars(cumulativeRevenueDollars)} / ${formatShortDollars(revGoalD!)} rev`;
-            progressLabel = `${bestPct}% — ${label}`;
+            progressLabel = `${bestPct}%, ${label}`;
           }
 
           return (
@@ -92,6 +92,8 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
                     </span>
                   )}
                 </div>
+                <p className="rd__roadmap-flavor">{eraContext(eraDef.era).tagline}</p>
+                {active && <p className="rd__roadmap-story">{eraContext(eraDef.era).story}</p>}
                 {active && progressLabel && (
                   <p className="rd__roadmap-progress">{progressLabel}</p>
                 )}
@@ -143,9 +145,10 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
     return priority(a) - priority(b);
   });
 
-  // Find the cheapest unaffordable project the player could save toward
+  // Find the cheapest unaffordable project the player could save toward (excluding fork-locked
+  // doctrine siblings, which can't be researched once a doctrine is chosen).
   const nextGoal = RESEARCH_PROJECTS
-    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost)
+    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost && !forkLockedBy(state.completedProjects, p.id))
     .sort((a, b) => a.rpCost - b.rpCost)[0] ?? null;
   const goalPct = nextGoal ? Math.min(100, Math.round((rp / nextGoal.rpCost) * 100)) : 0;
   const goalWeeks = nextGoal && perWeek > 0 ? Math.ceil((nextGoal.rpCost - rp) / perWeek) : null;
@@ -167,7 +170,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </div>
           {(() => {
             const buyableNow = RESEARCH_PROJECTS.filter(
-              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost,
+              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id),
             ).length;
             if (buyableNow === 0) return null;
             return (
@@ -179,7 +182,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         </div>
         {perWeek === 0 ? (
           <div className="rd__bank-cta">
-            <p className="rd__bank-hint">No R&amp;D output yet — assign staff to the R&amp;D task to start earning Research Points.</p>
+            <p className="rd__bank-hint">No R&amp;D output yet. Assign staff to the R&amp;D task to start earning Research Points.</p>
             {onNavigate && (
               <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>
                 <Users size={14} /> Manage team
@@ -223,7 +226,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 </li>
               ))}
             </ul>
-            <p className="rd__income-hint">Assign more skilled engineers to R&amp;D to grow this — and each era multiplies your output.</p>
+            <p className="rd__income-hint">Assign more skilled engineers to R&amp;D to grow this, and each era multiplies your output.</p>
           </Card>
         );
       })()}
@@ -244,7 +247,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             <div className="rd__unlock-list">
               <UnlockTrack
                 name="Camera lenses"
-                sub={lensCost === null ? "Quad-lens array — maxed" : `Designs use up to ${lensLimit} lenses · more = sharper photos`}
+                sub={lensCost === null ? "Quad-lens array, maxed" : `Designs use up to ${lensLimit} lenses · more = sharper photos`}
                 cta={lensCost === null ? null : `Unlock ${lensLimit + 1}-lens`}
                 cost={lensCost}
                 rp={rp}
@@ -252,7 +255,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               />
               <UnlockTrack
                 name="Premium finishes"
-                sub={finishCost === null ? "Gold — maxed" : `${finishLimit + 1} of ${FINISH_ORDER.length} materials · premium = +design appeal`}
+                sub={finishCost === null ? "Gold, maxed" : `${finishLimit + 1} of ${FINISH_ORDER.length} materials · premium = +design appeal`}
                 cta={finishCost === null ? null : `Unlock ${cap(FINISH_ORDER[finishLimit + 1])}`}
                 cost={finishCost}
                 rp={rp}
@@ -404,18 +407,25 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             {eraProjects.map((p) => {
               const done = state.completedProjects.includes(p.id);
               const locked = p.era > state.era;
-              const affordable = rp >= p.rpCost && !locked;
-              const weeksAway = !affordable && !locked && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
+              // Research-tree fork (Track D): a forked project is locked once a sibling doctrine is chosen.
+              const forkLock = !done ? forkLockedBy(state.completedProjects, p.id) : null;
+              const affordable = rp >= p.rpCost && !locked && !forkLock;
+              const weeksAway = !affordable && !locked && !forkLock && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
               return (
-                <Card key={p.id} className="rd__project">
+                <Card key={p.id} className={`rd__project${p.fork ? " rd__project--fork" : ""}`}>
                   <div className="rd__project-info">
-                    <span className="rd__next-name">{p.name}</span>
+                    <span className="rd__next-name">
+                      {p.name}
+                      {p.fork && <span className="rd__fork-tag" title="A doctrine — choosing one locks out the others">Pick one</span>}
+                    </span>
                     <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
                   </div>
                   {done ? (
-                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Done</span>
+                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> {p.fork ? "Chosen" : "Done"}</span>
                   ) : locked ? (
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
+                  ) : forkLock ? (
+                    <span className="rd__locked" title={`You chose ${projectById(forkLock).name}`}><Lock size={12} /> Locked</span>
                   ) : (
                     <div className="rd__project-action">
                       <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { buyProject(p.id); haptic.success(); sfx("upgrade"); }}>

@@ -19,6 +19,9 @@ export interface FactorImpact {
 export interface PostMortem {
   /** A screenshot-worthy one-liner synthesizing the launch. */
   headline: string;
+  /** An authored 1-2 sentence story of WHY it landed that way (Track A: narrative & voice) —
+   *  fuller and more voiced than the headline, keyed on the decisive factors + the audience. */
+  narrative: string;
   /** Per-factor decisiveness + tone, for ordering/emphasis in the UI. */
   impacts: Record<FactorKey, FactorImpact>;
   /** The factors that actually mattered (highest impact first, above a small floor). */
@@ -90,6 +93,46 @@ function phrase(f: FactorImpact, ins: LaunchInsight): string {
   }
 }
 
+function cap(s: string): string {
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+/** A fuller, voiced clause for the authored narrative (richer than the terse headline `phrase`). */
+function richClause(f: FactorImpact, ins: LaunchInsight): string {
+  switch (f.key) {
+    case "demand":
+      return f.tone === "positive"
+        ? "it read the moment perfectly, matching exactly what buyers wanted"
+        : "it misjudged what buyers were actually after";
+    case "price":
+      return f.tone === "positive"
+        ? "the price was pitched just right, and the volume followed"
+        : "shoppers balked at the price";
+    case "competition":
+      if (f.tone === "negative") {
+        return ins.betterRivals > 1
+          ? `${ins.betterRivals} rivals simply outclassed it`
+          : "a stronger rival simply outclassed it";
+      }
+      return ins.matchingRivals > 0
+        ? "rivals were trading blows for the same buyers"
+        : "it walked into an open field with no real challenger";
+    case "hype":
+      return f.tone === "positive" ? "launch-day buzz was enormous" : "it launched to near silence";
+    case "audience":
+      return `${segName(ins, ins.dominantSegment)} buyers embraced it`;
+  }
+}
+
+/** A short "who bought it / who didn't" coda, when the audience isn't already the lead factor. */
+function audienceTail(ins: LaunchInsight): string {
+  const won = ins.dominantSegment ? segName(ins, ins.dominantSegment) : null;
+  const lost = ins.weakestSegment ? segName(ins, ins.weakestSegment) : null;
+  if (won && lost && won !== lost) return ` It won over ${won} buyers but never reached ${lost}.`;
+  if (won) return ` ${cap(won)} buyers were its champions.`;
+  return "";
+}
+
 /** Score every factor, rank them, and synthesize the verdict headline. Pure + deterministic. */
 export function postMortem(ins: LaunchInsight, verdict: Verdict): PostMortem {
   const list = [
@@ -112,19 +155,47 @@ export function postMortem(ins: LaunchInsight, verdict: Verdict): PostMortem {
   let headline: string;
   switch (verdict) {
     case "hit":
-      headline = `A hit — ${pos ?? "a strong, well-rounded launch"}` + (topNeg && topNeg.impact > 0.4 ? `, despite ${neg}` : ".");
-      headline = headline.endsWith(".") ? headline : headline + ".";
+      headline = `A hit: ${pos ?? "a strong, well-rounded launch"}` + (topNeg && topNeg.impact > 0.4 ? `, despite ${neg}` : "") + ".";
       break;
     case "solid":
-      headline = `Solid — ${pos ?? "a dependable launch"}.`;
+      headline = `Solid: ${pos ?? "a dependable launch"}.`;
       break;
     case "steady":
-      headline = neg ? `Steady — held back because ${neg}.` : "A steady, dependable seller.";
+      headline = neg ? `Steady: held back because ${neg}.` : "A steady, dependable seller.";
       break;
     case "flop":
-      headline = `Flopped — ${neg ?? "it missed the market"}.`;
+      headline = `Flopped: ${neg ?? "it missed the market"}.`;
       break;
   }
 
-  return { headline, impacts, dominant };
+  // The authored story (richer + voiced), keyed on the decisive factors and the audience.
+  const rPos = topPos ? richClause(topPos, ins) : null;
+  const rNeg = topNeg ? richClause(topNeg, ins) : null;
+  const aud = topPos?.key !== "audience" && topNeg?.key !== "audience" ? audienceTail(ins) : "";
+  let narrative: string;
+  switch (verdict) {
+    case "hit":
+      narrative = rPos
+        ? `A breakout. ${cap(rPos)}${rNeg ? `, and even though ${rNeg}, the market could not ignore it` : ""}.`
+        : "A breakout: a strong, well-rounded launch the market could not ignore.";
+      break;
+    case "solid":
+      narrative = rPos
+        ? `A solid showing. ${cap(rPos)}${rNeg ? `, though ${rNeg}` : ""}.`
+        : "A solid, dependable showing that did its job without fireworks.";
+      break;
+    case "steady":
+      narrative = rNeg
+        ? `It held steady rather than soared: ${rNeg}${rPos ? `, even though ${rPos}` : ""}.`
+        : "A steady seller that neither soared nor stumbled.";
+      break;
+    case "flop":
+      narrative = rNeg
+        ? `It stumbled. ${cap(rNeg)}, and the numbers never recovered.`
+        : "It stumbled: the product missed the market and never recovered.";
+      break;
+  }
+  narrative += aud;
+
+  return { headline, narrative, impacts, dominant };
 }

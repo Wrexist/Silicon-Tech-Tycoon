@@ -20,8 +20,10 @@ import {
   salaryFor,
   trainCost,
   weeklyBurn,
+  weeklyPayroll,
 } from "../engine/economy.ts";
 import {
+  forkLockedBy,
   hasProject,
   launchRpReward,
   projectById,
@@ -41,6 +43,10 @@ import {
   visionaryHype,
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
+import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
+import { pickPoachTarget } from "../engine/poaching.ts";
+import { mentorshipXpMult } from "../engine/org.ts";
+import { accrueLoans, creditLimit, loanRate, makeLoan, type Loan } from "../engine/financing.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
   addItem as addFurniture,
@@ -92,7 +98,7 @@ import {
   ZERO,
   type Money,
 } from "../engine/money.ts";
-import { buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { archetypeBonus, buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
@@ -100,6 +106,7 @@ import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
+import { noveltyFor } from "../engine/novelty.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
 import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
@@ -205,6 +212,14 @@ export interface GameState {
   // --- Equity / stock market ---
   listed: boolean; // the player's company has IPO'd (is publicly traded)
   ownership: number; // founder's fraction of the company (1 = fully private)
+  /** Performance-reactive momentum overlay on the company's value (Track B): a fractional swing
+   *  (±cap) bumped by launch verdicts + the #1 premium, decaying back to 0. Optional → 0 on old saves. */
+  valuationMomentum?: number;
+  /** Recent company-valuation samples for the sparkline (newest last). Optional on old saves. */
+  valuationHistory?: number[];
+  /** An in-progress cascading event chain (Track B): which chain, the next beat to fire, and when.
+   *  null/undefined when no chain is running. Optional on old saves. */
+  eventChain?: { id: string; step: number; nextWeek: number } | null;
   holdings: Holdings; // shares owned in rival companies, by id
   /** Best (lowest) industry-leaderboard rank ever reached (1 = biggest company in the industry).
    *  Starts at 7 (a fresh garage is dead last behind the six rivals); each time the player climbs
@@ -218,6 +233,15 @@ export interface GameState {
   completedObjectives: string[];
   /** A market event requiring a player decision — resolved via resolveChoice. */
   pendingChoice: { event: ChoiceEvent; week: number } | null;
+  /** A rival poaching one of your staff, awaiting a counter-offer decision (Track C). Resolved via
+   *  resolvePoach. Optional/null → golden-invariant safe (old saves load with no pending poach). */
+  pendingPoach?: { staffId: string; staffName: string; rivalId: string; rivalName: string; retainCost: Money; week: number } | null;
+  /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
+   *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
+  loans?: Loan[];
+  /** Week until which another company-wide morale spend (offsite/bonus) is unavailable (Track C).
+   *  Optional → old saves default 0 (available immediately). */
+  moraleCooldownUntil?: number;
   /** IDs of choice events already resolved THIS RUN — prevents repeats within a company. */
   resolvedChoices: string[];
   /** IDs of choice events resolved across ALL companies (carried through New Game+ like the legacy
@@ -288,12 +312,12 @@ function revMilestoneItems(prev: Money, next: Money, week: number): FeedItem[] {
 }
 
 const FAN_MILESTONES: { fans: number; text: string; repBonus: number }[] = [
-  { fans:     1_000, text: "1,000 fans — your brand is gaining recognition.", repBonus: 1 },
-  { fans:     5_000, text: "5,000 fans — a real community is forming.", repBonus: 1 },
+  { fans:     1_000, text: "1,000 fans, your brand is gaining recognition.", repBonus: 1 },
+  { fans:     5_000, text: "5,000 fans, a real community is forming.", repBonus: 1 },
   { fans:    10_000, text: "10,000 fans! You're becoming a household name.", repBonus: 2 },
-  { fans:    50_000, text: "50,000 fans — a major following. Brands take notice.", repBonus: 2 },
+  { fans:    50_000, text: "50,000 fans, a major following. Brands take notice.", repBonus: 2 },
   { fans:   100_000, text: "100,000 fans! You're a leader in the market.", repBonus: 3 },
-  { fans:   500_000, text: "500,000 fans — half a million people follow you.", repBonus: 3 },
+  { fans:   500_000, text: "500,000 fans, half a million people follow you.", repBonus: 3 },
   { fans: 1_000_000, text: "One million fans! Your brand is iconic.", repBonus: 5 },
 ];
 
@@ -430,11 +454,17 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     legacy,
     listed: false,
     ownership: 1,
+    valuationMomentum: 0,
+    valuationHistory: [],
+    eventChain: null,
     holdings: {},
     bestIndustryRank: 7, // a fresh garage is dead last behind the six public rivals
     unlockedAchievements: [],
     completedObjectives: [],
     pendingChoice: null,
+    pendingPoach: null,
+    loans: [],
+    moraleCooldownUntil: 0,
     resolvedChoices: [],
     seenChoices: [],
     activeScenario: null,
@@ -480,7 +510,7 @@ export function newChallengeGame(kind: ChallengeKind, dateKey: string): GameStat
     activeChallenge: { kind: ch.kind, dateKey: ch.dateKey, scoreMetric: ch.scoreMetric, scoreWeek: ch.scoreWeek },
     challengeScore: null,
     cashHistory: [{ week: 0, cash: toDollars(cash) }],
-    feed: [feedItem(0, `${kind === "weekly" ? "Weekly" : "Daily"} challenge — ${ch.mutators.map((m) => m.name).join(" + ")}. Score: best ${ch.scoreMetric} by week ${ch.scoreWeek}.`, "accent")],
+    feed: [feedItem(0, `${kind === "weekly" ? "Weekly" : "Daily"} challenge, ${ch.mutators.map((m) => m.name).join(" + ")}. Score: best ${ch.scoreMetric} by week ${ch.scoreWeek}.`, "accent")],
   };
 }
 
@@ -535,7 +565,7 @@ export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 **
     onboarded: true,
     tutorialDone: true,
     cashHistory: [{ week: 0, cash: toDollars(startCash) }],
-    feed: [feedItem(0, `Scenario started — ${scn.name}. ${scn.tagline}`, "accent")],
+    feed: [feedItem(0, `Scenario started, ${scn.name}. ${scn.tagline}`, "accent")],
   };
 }
 
@@ -625,6 +655,11 @@ export function productStats(s: GameState, product: Product): Stats {
   // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
+  // Engineering Doctrine fork (Track D): the chosen house stamps a permanent stat identity on every
+  // product. Mutually exclusive, so at most one of these ever applies.
+  if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
+  if (hasProject(s.completedProjects, "effHouse")) bonus.battery = (bonus.battery ?? 0) + 5;
+  if (hasProject(s.completedProjects, "qualityHouse")) bonus.quality = (bonus.quality ?? 0) + 5;
   // Performance/efficiency tuning — trades points between performance and battery (a real build
   // choice that depends on what the market wants). Neutral when balanced/undefined → no ripple.
   const shift = BALANCE.design.tuningShift;
@@ -641,6 +676,11 @@ export function productStats(s: GameState, product: Product): Stats {
     bonus.quality = (bonus.quality ?? 0) + m;
     bonus.design = (bonus.design ?? 0) + m;
   }
+  // Named synergy archetypes (Track D): high-end component pairings unlock a themed, capped stat
+  // bonus. Neutral (empty) until a build hits the high tiers, so early/old products are unchanged.
+  const arche = archetypeBonus(product);
+  for (const k of Object.keys(arche) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (arche[k] ?? 0);
+
   // Platform / OS division — the OS your devices run lifts their ecosystem stat (a strong OS makes
   // every device you ship better), and the chosen OS philosophy tilts a stat of its own. Gated on the
   // entitlement, so the base game is byte-identical until the player opts into the division.
@@ -715,7 +755,7 @@ export function buyDesktop(state: GameState): GameState {
 export function unlockRegion(state: GameState, id: RegionId): GameState {
   const region = regionById(id);
   if (!region || state.unlockedRegions.includes(id) || state.cash < region.unlockCost) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Expanded into ${region.name} — a new market is open.`, "positive")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Expanded into ${region.name}, a new market is open.`, "positive")]);
   return { ...state, cash: sub(state.cash, region.unlockCost), unlockedRegions: [...state.unlockedRegions, id], feed };
 }
 
@@ -755,7 +795,7 @@ export function negotiateContract(state: GameState, supplierId: SupplierId, term
   const discount = contractDiscount(term, state.reputation, BALANCE.supply.contract.repDiscountMax);
   const feed = trimFeed([...state.feed, feedItem(
     state.week,
-    `Signed a ${term.name.toLowerCase()} contract with ${sup.name} — ${Math.round(discount * 100)}% off, price-locked for ${term.weeks} wk.`,
+    `Signed a ${term.name.toLowerCase()} contract with ${sup.name}, ${Math.round(discount * 100)}% off, price-locked for ${term.weeks} wk.`,
     "positive",
   )]);
   return {
@@ -773,7 +813,7 @@ export function acquireFactory(state: GameState, id: FactoryId): GameState {
   const fac = factoryFor(id);
   const owned = state.ownedFactories ?? [];
   if (fac.kind !== "owned" || owned.includes(id) || !isFactoryUnlocked(id, state.era) || state.cash < fac.acquireCost) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Acquired ${fac.name} — your own production line (${format(fac.weeklyUpkeep)}/wk upkeep).`, "positive")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Acquired ${fac.name}, your own production line (${format(fac.weeklyUpkeep)}/wk upkeep).`, "positive")]);
   return { ...state, cash: sub(state.cash, fac.acquireCost), ownedFactories: [...owned, id], feed };
 }
 export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
@@ -791,7 +831,10 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   const speed = product ? factorySpeedMult(product) : 1;
   const assembly = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * speed)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
-  return Math.max(BALANCE.build.minWeeks, assembly) + lead;
+  // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
+  // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
+  const eraLead = eraModifier(s.era).leadWeeks;
+  return Math.max(BALANCE.build.minWeeks, assembly) + lead + eraLead;
 };
 
 /** Resolve a run against its factory's capacity + the product's capacity strategy (overtime / stretch
@@ -812,7 +855,9 @@ export function capacityPlan(s: GameState, product: Product, plannedUnits: numbe
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
   const perk = 1 - perkBonuses(s.legacy).buildCostMult; // NG+ Supply Chain / Industrialist perks
-  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product));
+  // Living Late Game: late eras tool up bigger (eraModifier.toolingMult; 1.0 in eras 1–2 → no-op).
+  const eraTooling = eraModifier(s.era).toolingMult;
+  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product) * eraTooling);
   return base > BALANCE.build.minTooling ? base : BALANCE.build.minTooling;
 }
 
@@ -858,6 +903,9 @@ export interface ProductionPlan {
   betterRivals: number; // rivals clearly better than you
   selfCompeting: number; // your OWN products still selling in this category (cannibalization)
   competitionFactor: number; // 0..1 share you keep after competition
+  noveltyMult: number; // 0..1 organic-demand multiplier from market fatigue (1 = fresh)
+  similarTo?: string; // the recent too-similar product dragging novelty down (if any)
+  similarWeeksAgo?: number; // weeks since that product launched
   synergy: number; // 0.8..1.06 — component-combination balance (weak-link penalty / flagship bonus)
   preOrders: number; // guaranteed buyers from your fanbase
   marketDemand: number; // additional organic demand (after competition)
@@ -891,7 +939,7 @@ export function planProduction(
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
   // Global expansion (engine/regions.ts): scale the addressable market by the regions this product
   // ships to. Home-only is exactly ×1.0, so this never changes a domestic launch or an old save.
-  marketSize *= regionReach(s.unlockedRegions, product.regions, stats);
+  marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week);
 
   // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
   // weighting the five stats AND price differently; the product wins a share of each, summed. This
@@ -899,7 +947,7 @@ export function planProduction(
   // A balanced product scores ≈ the old single-trend demand (the segment sizes average back to it),
   // so the macro-economy is preserved; lopsided products diverge — that divergence IS the new depth.
   // G1 — the device's form (styleAppeal) lifts the Style segment, so the parametric render is a lever.
-  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product));
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week);
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;
@@ -963,14 +1011,21 @@ export function planProduction(
   // A proven line's loyal followers pre-order more strongly (brand equity → preorder lift).
   const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
   const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
-  const marketDemand = Math.round(organic * competitionFactor);
+  const competedOrganic = Math.round(organic * competitionFactor); // before market fatigue
+  // Market fatigue: a product too similar to a recent same-category launch loses ORGANIC demand
+  // (the broad market won't re-buy a rehash). Fans (pre-orders) are NOT fatigued — they still want
+  // the sequel — so this multiplies only the organic market, and the pre-order ceiling below is
+  // based on the un-fatigued organic. Real spec upgrades or elapsed time clear it. See novelty.ts.
+  const novelty = noveltyFor(product, s.launched, s.week);
+  const marketDemand = Math.round(competedOrganic * novelty.mult);
   // B4 — cap fan pre-orders to a share of TOTAL demand so a huge fanbase can't single-handedly
   // satisfy (and guarantee a sellout of) a token run. Pre-orders may cover at most preOrderCap of
   // (preOrders + organic market); the rest must come from the open market. Keeps fans meaningful
-  // without letting them trivialise the production bet.
+  // without letting them trivialise the production bet. Uses the un-fatigued organic so market
+  // sameness never shrinks the loyal pre-order base.
   const cap = BALANCE.fans.preOrderCap;
-  // Solve preOrders ≤ cap × (preOrders + marketDemand) → preOrders ≤ cap/(1-cap) × marketDemand.
-  const preOrderCeil = cap < 1 ? Math.round((cap / (1 - cap)) * marketDemand) : rawPreOrders;
+  // Solve preOrders ≤ cap × (preOrders + competedOrganic) → preOrders ≤ cap/(1-cap) × competedOrganic.
+  const preOrderCeil = cap < 1 ? Math.round((cap / (1 - cap)) * competedOrganic) : rawPreOrders;
   const preOrders = Math.min(rawPreOrders, preOrderCeil);
   const totalDemand = preOrders + marketDemand;
 
@@ -1016,6 +1071,9 @@ export function planProduction(
     betterRivals,
     selfCompeting,
     competitionFactor,
+    noveltyMult: novelty.mult,
+    similarTo: novelty.similarTo,
+    similarWeeksAgo: novelty.weeksAgo,
     synergy: breakdown.synergy,
     preOrders,
     marketDemand,
@@ -1147,7 +1205,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const recentPlayerHitCats = state.launched
     .filter((lp) => lp.launchedWeek >= week - hitWindow && (lp.verdict === "hit" || lp.verdict === "solid"))
     .map((lp) => lp.product.category);
-  const { competitors: competitorsBase, launches } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
+  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
   // `let` so B3 can append a fresh challenger that rises to refill a field thinned by acquisitions.
   let competitors = competitorsBase;
 
@@ -1172,7 +1230,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         : 100;
       productsFeed.push(feedItem(
         week,
-        `"${lp.product.name}" lifecycle complete — ${newUnitsSold.toLocaleString()} sold (${sellThrough}% sell-through), ${format(newRevenue)} total.`,
+        `"${lp.product.name}" lifecycle complete, ${newUnitsSold.toLocaleString()} sold (${sellThrough}% sell-through), ${format(newRevenue)} total.`,
         sellThrough >= 85 ? "positive" : "neutral",
       ));
     }
@@ -1211,6 +1269,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Burn
   cash = sub(cash, scale(burn(state), rate));
+
+  // Loan debt service (Track C financing): amortize outstanding loans + take this week's payment.
+  // Defaults to a no-op when the player has no debt, so a never-borrows game (and the harness) is
+  // byte-identical. Scaled by `rate` so a partial offline catch-up tick services debt proportionally.
+  let loans = state.loans ?? [];
+  if (loans.length) {
+    const serviced = accrueLoans(loans, rate);
+    loans = serviced.loans;
+    cash = sub(cash, cents(serviced.payment));
+  }
 
   // Dividend income from rival shares the player holds (uses this week's fresh prices).
   cash = add(cash, scale(weeklyDividends(state.holdings, competitors), rate));
@@ -1262,6 +1330,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     rivalReleases = [...fresh, ...state.rivalReleases].slice(0, RIVAL_RELEASES_CAP);
   }
 
+  // Rival story-arc beats (Track B): a rival rising/peaking/faltering speaks in the feed so the world
+  // visibly turns. Bootstrap rolls are silent (no beat), so this only fires at real lifecycle turns.
+  for (const b of arcBeats) feed.push(feedItem(b.week, b.text, b.tone as FeedTone));
+
   // B3 — refill the field: if acquisitions have thinned the roster below its starting size, a fresh
   // challenger occasionally rises to keep the industry alive. The rng is only drawn on this branch,
   // which a normal (no-acquisition) game never enters — so the determinism pin stays byte-identical.
@@ -1302,7 +1374,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const weeksElapsed = job.weeksElapsed + rate;
     if (weeksElapsed >= job.totalWeeks) {
       ready.push(job.product);
-      feed.push(feedItem(week, `“${job.product.name}” finished manufacturing — ready to launch.`, "accent"));
+      feed.push(feedItem(week, `“${job.product.name}” finished manufacturing, ready to launch.`, "accent"));
     } else {
       building.push({ ...job, weeksElapsed });
     }
@@ -1314,7 +1386,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const churnCfg = BALANCE.churn;
   const quitIds: string[] = [];
   const staff = state.staff.map((s) => {
-    const { staff: levelResult, leveledUp } = gainWeeklyXp(s);
+    const { staff: levelResult, leveledUp } = gainWeeklyXp(s, mentorshipXpMult(s, state.staff));
     if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${levelResult.skill}.`, "positive"));
     // Salary is NOT auto-updated on level-up — player must give a raise manually.
     // Underpaid staff drift unhappy over time and may eventually quit.
@@ -1353,7 +1425,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const q = finalStaff.find((m) => m.id === qid);
     if (!q) continue;
     finalStaff = finalStaff.filter((m) => m.id !== qid);
-    feed.push(feedItem(week, `${q.name} quit — sustained burnout pushed them to leave.`, "negative"));
+    feed.push(feedItem(week, `${q.name} quit, sustained burnout pushed them to leave.`, "negative"));
   }
 
   // Recruitment search progress — resolves into a candidate shortlist when the timer runs out,
@@ -1413,7 +1485,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     osLicensees = rel.licensees;
     osLicenseeHealth = rel.health;
     for (const d of rel.dropped) {
-      feed.push(feedItem(week, `${d.name} dropped ${osDisplayName(state)} — they couldn't keep competing while paying to license it.`, "negative"));
+      feed.push(feedItem(week, `${d.name} dropped ${osDisplayName(state)}, they couldn't keep competing while paying to license it.`, "negative"));
     }
   }
 
@@ -1432,7 +1504,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const fansStr = newFans >= 1000 ? `${(newFans / 1000).toFixed(1)}k` : String(newFans);
     feed.push(feedItem(
       week,
-      `Q${qNum} complete — ${format(cash)} cash · Rep ${Math.round(state.reputation)} · ${fansStr} fans.`,
+      `Q${qNum} complete, ${format(cash)} cash · Rep ${Math.round(state.reputation)} · ${fansStr} fans.`,
       "accent",
     ));
   }
@@ -1458,7 +1530,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       if (!c) continue;
       const weeksLeft = c.weeksLeft - rate;
       if (weeksLeft > 0) next[sid as SupplierId] = { ...c, weeksLeft };
-      else feed.push(feedItem(week, `Your contract with ${supplierFor(sid as SupplierId).name} expired — back to spot pricing.`, "accent"));
+      else feed.push(feedItem(week, `Your contract with ${supplierFor(sid as SupplierId).name} expired, back to spot pricing.`, "accent"));
     }
     supplierContracts = next;
   }
@@ -1490,10 +1562,27 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     feed,
     rivalReleases,
     rivalLineCounters,
+    loans,
     rngState: rng.state(),
     bankrupt,
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
+
+  // Rival poaching (Track C): a rival on the rise occasionally tries to hire away one of your best —
+  // surfaced as a counter-offer DECISION, not a silent stat drop. A DERIVED rng keeps the main sim
+  // stream byte-identical, so the harness + determinism pin are unaffected. One decision at a time:
+  // only when nothing else is pending, online, solvent, and the team can spare the attention.
+  if (!offline && !bankrupt && !base.pendingPoach && !base.pendingChoice && base.staff.length >= BALANCE.poaching.minTeam) {
+    const prng = makeRng(((state.rngState ?? state.seed) >>> 0) ^ Math.imul(week + 1, 0x2545f491));
+    if (prng.next() < BALANCE.poaching.chancePerWeek) {
+      const target = pickPoachTarget(base.staff, base.competitors, week, prng);
+      if (target) {
+        const retainCost = scale(salaryFor(target.staff.role, target.staff.skill), BALANCE.poaching.retainWeeksSalary);
+        base.pendingPoach = { staffId: target.staff.id, staffName: target.staff.name, rivalId: target.rival.id, rivalName: target.rival.name, retainCost, week };
+        base.feed.push(feedItem(week, `${target.rival.name} is trying to poach ${target.staff.name}, one of your best. Match their offer or let them walk.`, "negative"));
+      }
+    }
+  }
 
   // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
   // the player against the six public rivals. Climbing to a new best rank (overtaking a rival, all
@@ -1508,7 +1597,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
           .slice(newRank, Math.min(state.bestIndustryRank, board.length))
           .filter((e) => !e.isPlayer);
         for (const r of overtaken) {
-          base.feed.push(feedItem(week, `${base.companyName} overtook ${r.name} — now #${newRank} in the industry.`, "positive"));
+          base.feed.push(feedItem(week, `${base.companyName} overtook ${r.name}, now #${newRank} in the industry.`, "positive"));
         }
         if (newRank === 1) {
           base.feed.push(feedItem(week, `${base.companyName} is now the #1 company in the industry. The throne is yours.`, "positive"));
@@ -1516,11 +1605,30 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       }
       base.bestIndustryRank = newRank;
     }
+
+    // Performance-reactive company value (Track B): the launch-driven momentum overlay decays back
+    // toward the fundamental each week; while you sit at #1 it holds a small standing premium. Then
+    // record a valuation sample for the sparkline. Bounded, so a pop can never compound; cash +
+    // reputation are untouched, so bankruptcy and the win gate are unaffected.
+    {
+      const vm = BALANCE.valuationMomentum;
+      let m = (base.valuationMomentum ?? 0) * Math.pow(vm.decayPerWeek, rate);
+      if (newRank === 1) m = Math.max(m, vm.rankOnePremiumFloor);
+      base.valuationMomentum = Math.max(-vm.cap, Math.min(vm.cap, m));
+      const sample = toDollars(companyValuation(base));
+      base.valuationHistory = [...(base.valuationHistory ?? []), sample].slice(-vm.historyLength);
+    }
+  }
+
+  // Resolve an in-progress event chain (Track B) on its OWN schedule, independent of the normal
+  // event cadence: each due beat applies its consequence, or hands off the terminal choice.
+  if (!offline && !bankrupt && !state.pendingChoice && !base.pendingPoach && base.eventChain && week >= base.eventChain.nextWeek) {
+    return resolveChainStep(base, week);
   }
 
   // Market events only during live play — offline catch-up skips all events so the state stays
   // deterministic and the player isn't surprised by consequences they couldn't interact with.
-  if (!offline && !bankrupt && week >= state.nextEventWeek) {
+  if (!offline && !bankrupt && !base.pendingPoach && week >= state.nextEventWeek) {
     // Choice events also require the player to be present to resolve them.
     if (!state.pendingChoice) {
       const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices, state.seenChoices);
@@ -1533,6 +1641,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
           feed: trimFeed([...base.feed, feedItem(week, `Decision required: ${choice.title}`, choice.tone as FeedTone)]),
           rngState: rng.state(),
         };
+      }
+      // Otherwise, a cascading chain may start instead of a one-shot event (Track B).
+      if (!base.eventChain) {
+        const chain = pickChain(rng, state.era);
+        if (chain) return startChain(base, chain, week, rng);
       }
     }
     const ev = pickEvent(rng, state.era);
@@ -1620,6 +1733,47 @@ function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: Retu
   return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
 }
 
+/** Start a cascading event chain (Track B): fire its opening beat now and schedule the next. */
+function startChain(s: GameState, chain: EventChain, week: number, rng: ReturnType<typeof rngFrom>): GameState {
+  const step0 = chain.steps[0];
+  const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
+  const applied = step0.kind === "effect"
+    ? applyEventEffect(s, step0.effect, week, step0.title, step0.tone as FeedTone)
+    : s;
+  const next = chain.steps[1];
+  return {
+    ...applied,
+    eventChain: next ? { id: chain.id, step: 1, nextWeek: week + Math.max(1, next.delayWeeks) } : null,
+    nextEventWeek,
+    rngState: rng.state(),
+  };
+}
+
+/** Resolve the due beat of an in-progress chain: apply its effect + schedule the next, or hand the
+ *  terminal choice off to the pending-choice system. Deterministic (no rng draw). */
+function resolveChainStep(s: GameState, week: number): GameState {
+  const ec = s.eventChain;
+  const chain = ec ? chainById(ec.id) : undefined;
+  const step = chain && ec ? chain.steps[ec.step] : undefined;
+  if (!chain || !ec || !step) return { ...s, eventChain: null, feed: trimFeed(s.feed) };
+  if (step.kind === "choice") {
+    if (s.resolvedChoices.includes(step.choice.id)) return { ...s, eventChain: null, feed: trimFeed(s.feed) };
+    return {
+      ...s,
+      eventChain: null,
+      pendingChoice: { event: step.choice, week },
+      feed: trimFeed([...s.feed, feedItem(week, `Decision required: ${step.choice.title}`, step.choice.tone as FeedTone)]),
+    };
+  }
+  const applied = applyEventEffect(s, step.effect, week, step.title, step.tone as FeedTone);
+  const nextIdx = ec.step + 1;
+  const next = chain.steps[nextIdx];
+  return {
+    ...applied,
+    eventChain: next ? { id: ec.id, step: nextIdx, nextWeek: week + Math.max(1, next.delayWeeks) } : null,
+  };
+}
+
 function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>, productName?: string, contested?: boolean) {
   const catName = CATEGORIES[l.category]?.displayName ?? l.category;
   const threat = activePlayerCats?.has(l.category);
@@ -1627,9 +1781,9 @@ function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?:
   // subject; fall back to the bare rival name for callers that don't generate a product.
   const subject = productName ?? l.competitor;
   const text = contested
-    ? `${subject} undercuts your ${catName} on price — a value war for the segment.`
+    ? `${subject} undercuts your ${catName} on price, a value war for the segment.`
     : threat
-      ? `${subject} launches — your active ${catName} faces new competition.`
+      ? `${subject} launches, your active ${catName} faces new competition.`
       : `${subject} launches into ${catName}.`;
   feed.push(feedItem(l.week, text, threat || contested ? "negative" : "neutral"));
 }
@@ -1688,7 +1842,7 @@ export function startBuild(
   feed.push(
     feedItem(
       state.week,
-      `Started a ${units.toLocaleString()}-unit run of “${product.name}” — ${format(plan.totalUpfront)} (${totalWeeks} wk).`,
+      `Started a ${units.toLocaleString()}-unit run of “${product.name}”, ${format(plan.totalUpfront)} (${totalWeeks} wk).`,
       "accent",
     ),
   );
@@ -1833,6 +1987,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 
   // Record the verdict the player saw on the launched product, so the history screen can report it.
   lp.verdict = isHit ? "hit" : isFlop ? "flop" : isSolid ? "solid" : "steady";
+  // Performance-reactive company value (Track B): the launch pops or dents the momentum overlay.
+  // Bounded; decays back to 0 over the following weeks. Does not touch cash or reputation.
+  const vm = BALANCE.valuationMomentum;
+  let valuationMomentum = (state.valuationMomentum ?? 0) + (isHit ? vm.popOnHit : isSolid ? vm.popOnSolid : isFlop ? -vm.dipOnFlop : 0);
+  valuationMomentum = Math.max(-vm.cap, Math.min(vm.cap, valuationMomentum));
   // Research excitement: a strong launch funds the next breakthrough (RP earned through play).
   const rpReward = launchRpReward(lp.verdict);
 
@@ -1848,22 +2007,22 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // A flop verdict can coexist with a sellout (the verdict is market reception of the product
   // itself; sales are capped by the run size) — so the flop line must carry its cause, and the
   // sellout line must not read as a pure celebration next to it, or the two contradict each other.
-  const verdict = isHit ? 'a hit' : isFlop ? 'a flop — out of step with what buyers wanted' : isSolid ? 'a solid performer' : 'a steady seller';
+  const verdict = isHit ? 'a hit' : isFlop ? 'a flop, out of step with what buyers wanted' : isSolid ? 'a solid performer' : 'a steady seller';
   feed.push(
     feedItem(
       state.week,
-      `Launched “${product.name}” — ${verdict} (~${totalUnits.toLocaleString()} of ${plannedUnits.toLocaleString()} units forecast).${deltaStr}`,
+      `Launched “${product.name}”, ${verdict} (~${totalUnits.toLocaleString()} of ${plannedUnits.toLocaleString()} units forecast).${deltaStr}`,
       isHit ? 'positive' : isFlop ? 'negative' : isSolid ? 'positive' : 'accent',
     ),
   );
   if (sellsOut) {
     if (isFlop) {
-      feed.push(feedItem(state.week, `“${product.name}” will sell out its small run — but the wider market wasn't won over. Tap it on Market for the full story.`, "accent"));
+      feed.push(feedItem(state.week, `“${product.name}” will sell out its small run, but the wider market wasn't won over. Tap it on Market for the full story.`, "accent"));
     } else {
-      feed.push(feedItem(state.week, `“${product.name}” is selling out — demand outstrips your run.`, "positive"));
+      feed.push(feedItem(state.week, `“${product.name}” is selling out, demand outstrips your run.`, "positive"));
     }
   } else if (plannedUnits - totalUnits > plannedUnits * 0.35) {
-    feed.push(feedItem(state.week, `Overproduced “${product.name}” — unsold stock is a write-off.`, "negative"));
+    feed.push(feedItem(state.week, `Overproduced “${product.name}”, unsold stock is a write-off.`, "negative"));
   }
   for (const item of fanMilestones.feed) feed.push(item);
 
@@ -1873,6 +2032,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
       ready: state.ready.filter((p) => p.id !== productId),
       launched: [lp, ...state.launched],
       reputation,
+      valuationMomentum,
       fans,
       researchPoints: state.researchPoints + rpReward,
       staff,
@@ -1913,7 +2073,7 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
   );
 
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Price cut on "${lp.product.name}" — ${format(lp.product.price)} → ${format(newPrice)}.`, "accent"));
+  feed.push(feedItem(state.week, `Price cut on "${lp.product.name}", ${format(lp.product.price)} → ${format(newPrice)}.`, "accent"));
 
   return {
     state: {
@@ -1960,7 +2120,7 @@ export function marketingPush(state: GameState, productId: string): ActionResult
   const newTotalUnits = Math.min(cap, newWeeklyUnits.reduce((a, b) => a + b, 0));
 
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Marketing push on "${lp.product.name}" — ${quote.addedUnits.toLocaleString()} more units in the pipeline.`, "accent"));
+  feed.push(feedItem(state.week, `Marketing push on "${lp.product.name}", ${quote.addedUnits.toLocaleString()} more units in the pipeline.`, "accent"));
 
   return {
     state: {
@@ -2004,7 +2164,7 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
   if (!pc) return state;
   const option = (pc.event.options as readonly ChoiceOption[]).find((o) => o.id === optionId);
   if (!option) return state;
-  const feedText = `${pc.event.title} — you chose: "${option.label}".`;
+  const feedText = `${pc.event.title}, you chose: "${option.label}".`;
   const applied = applyEventEffect(state, option.effect, state.week, feedText, pc.event.tone as FeedTone);
   return {
     ...applied,
@@ -2014,6 +2174,97 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
       ? state.seenChoices
       : [...state.seenChoices, pc.event.id],
   };
+}
+
+/** Resolve a pending rival poach (Track C): match their offer to keep your employee, or let them go.
+ *  Matching pays a signing bonus + lifts them to market pay and sets a re-poach cooldown; declining
+ *  (or failing to afford the match) removes them to the rival and dents the rest of the team's mood. */
+export function resolvePoach(state: GameState, accept: boolean): GameState {
+  const pp = state.pendingPoach;
+  if (!pp) return state;
+  const member = state.staff.find((s) => s.id === pp.staffId);
+  const feed = [...state.feed];
+  // Employee already gone (e.g. quit the same tick) — just clear the prompt.
+  if (!member) return { ...state, pendingPoach: null, feed: trimFeed(feed) };
+  const p = BALANCE.poaching;
+  const loseThem = (text: string): GameState => {
+    feed.push(feedItem(state.week, text, "negative"));
+    return {
+      ...state,
+      pendingPoach: null,
+      staff: state.staff
+        .filter((s) => s.id !== member.id)
+        .map((s) => ({ ...s, mood: clampMood(s.mood - p.declineTeamMoodHit) })),
+      feed: trimFeed(feed),
+    };
+  };
+
+  if (!accept) return loseThem(`${member.name} left to join ${pp.rivalName}.`);
+  // Can't match an offer you can't afford → they walk.
+  if (state.cash < pp.retainCost) {
+    return loseThem(`You couldn't match ${pp.rivalName}'s offer, and ${member.name} left to join them.`);
+  }
+  const marketSalary = salaryFor(member.role, member.skill);
+  const newSalary = toDollars(member.salary) >= toDollars(marketSalary) ? member.salary : marketSalary;
+  feed.push(feedItem(state.week, `You matched ${pp.rivalName}'s offer and kept ${member.name}. They feel valued.`, "positive"));
+  return {
+    ...state,
+    cash: sub(state.cash, pp.retainCost),
+    pendingPoach: null,
+    staff: state.staff.map((s) =>
+      s.id === member.id
+        ? { ...s, salary: newSalary, mood: clampMood(s.mood + p.retainMoodBoost), moodLowWeeks: 0, poachCooldownUntil: state.week + p.cooldownWeeks }
+        : s,
+    ),
+    feed: trimFeed(feed),
+  };
+}
+
+/** Recent weekly revenue in CENTS — the creditworthiness signal for financing (engine/financing.ts). */
+function weeklyRevenueCents(state: GameState): number {
+  return Math.round(toDollars(nextWeekRevenue(state)) * 100);
+}
+
+/** How much the player can still borrow right now (Money). Exposed for the financing UI. */
+export function loanCreditAvailable(state: GameState): Money {
+  return cents(creditLimit(weeklyRevenueCents(state), state.loans ?? []));
+}
+
+/** The weekly interest rate the player would be offered for a new loan right now (0..1). */
+export function loanRateNow(state: GameState): number {
+  return loanRate(state.reputation, weeklyRevenueCents(state), state.loans ?? []);
+}
+
+/** Take on a debt-financing loan (Track C): receive the principal (less a small origination fee) as
+ *  cash now, in exchange for fixed weekly debt service amortized over the term. Rejected if bankrupt,
+ *  below the minimum, or beyond the current credit limit. */
+export function takeLoan(state: GameState, principalCents: number): GameState {
+  if (state.bankrupt) return state;
+  const loans = state.loans ?? [];
+  const f = BALANCE.financing;
+  const principal = Math.round(principalCents);
+  const limit = creditLimit(weeklyRevenueCents(state), loans);
+  if (principal < f.minLoan || principal > limit) return state;
+  const loan = makeLoan(`loan-${state.week}-${loans.length}`, principal, state.reputation, weeklyRevenueCents(state), loans, state.week);
+  const proceeds = Math.round(principal * (1 - f.originationFee));
+  const aprPct = Math.round(loan.ratePerWeek * 52 * 100);
+  const feed = trimFeed([
+    ...state.feed,
+    feedItem(state.week, `Borrowed ${format(cents(principal))} at ~${aprPct}% APR, repaying ${format(cents(loan.weeklyPayment))}/wk for ${loan.termWeeks} weeks.`, "accent"),
+  ]);
+  return { ...state, cash: add(state.cash, cents(proceeds)) as Money, loans: [...loans, loan], feed };
+}
+
+/** Pay off a loan early in full (Track C): clears the remaining balance from cash, ending its weekly
+ *  service. Rejected if the player can't cover the payoff. */
+export function repayLoan(state: GameState, id: string): GameState {
+  const loans = state.loans ?? [];
+  const loan = loans.find((l) => l.id === id);
+  if (!loan) return state;
+  const payoff = cents(Math.round(loan.balance));
+  if (state.cash < payoff) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Paid off a loan early (${format(payoff)}).`, "positive")]);
+  return { ...state, cash: sub(state.cash, payoff), loans: loans.filter((l) => l.id !== id), feed };
 }
 
 export function researchNext(state: GameState, kind: ComponentKind): GameState {
@@ -2086,6 +2337,8 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
   if (hasProject(state.completedProjects, id)) return state;
   const proj = projectById(id);
   if (proj.era > state.era || state.researchPoints < proj.rpCost) return state;
+  // Research-tree fork (Track D): refuse if a mutually-exclusive sibling doctrine is already chosen.
+  if (forkLockedBy(state.completedProjects, id)) return state;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Completed research project: ${proj.name}.`, "positive"));
   return {
@@ -2198,7 +2451,7 @@ export function foundPlatform(state: GameState): GameState {
   const cost = BALANCE.platform.foundingCost;
   if (state.cash < cost) return state;
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Founded the Platform division — ${osDisplayName(state)} is now a business in its own right.`, "positive"));
+  feed.push(feedItem(state.week, `Founded the Platform division, ${osDisplayName(state)} is now a business in its own right.`, "positive"));
   return { ...state, cash: sub(state.cash, cost) as Money, platformUnlocked: true, feed: trimFeed(feed) };
 }
 
@@ -2223,7 +2476,7 @@ export function releaseOsVersion(state: GameState): GameState {
   const newVersion = osTierInfo(state).tier;
   const reward = osReleaseReward(platformInstalledBase(state));
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `${osDisplayName(state)} ${newVersion}.0 released — the installed base updated. +${reward.fans.toLocaleString()} fans.`, "positive"));
+  feed.push(feedItem(state.week, `${osDisplayName(state)} ${newVersion}.0 released, the installed base updated. +${reward.fans.toLocaleString()} fans.`, "positive"));
   return {
     ...state,
     osVersion: newVersion,
@@ -2254,7 +2507,7 @@ export function licenseOsToRival(state: GameState, rivalId: string): GameState {
   if (!state.competitors.some((c) => c.id === rivalId)) return state;
   const rival = state.competitors.find((c) => c.id === rivalId);
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `${rival?.name ?? "A rival"} now licenses ${osDisplayName(state)} — new revenue, but a sharper competitor.`, "accent"));
+  feed.push(feedItem(state.week, `${rival?.name ?? "A rival"} now licenses ${osDisplayName(state)}, new revenue, but a sharper competitor.`, "accent"));
   return {
     ...state,
     osLicensees: [...state.osLicensees, rivalId],
@@ -2298,7 +2551,7 @@ export function installOsFeature(state: GameState, id: string): GameState {
   const feat = osFeatureById(id);
   if (!feat) return state;
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `${osDisplayName(state)} gained ${feat.name} — a new platform capability.`, "accent"));
+  feed.push(feedItem(state.week, `${osDisplayName(state)} gained ${feat.name}, a new platform capability.`, "accent"));
   return {
     ...state,
     researchPoints: state.researchPoints - feat.rpCost,
@@ -2344,7 +2597,9 @@ export function autoAssignIdle(state: GameState): GameState {
  *  buyProject so it can never do anything the player couldn't. Same state when nothing is affordable. */
 export function autoClaimResearch(state: GameState): GameState {
   const next = RESEARCH_PROJECTS
-    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints)
+    // Skip fork-locked doctrine siblings: buyProject would no-op on them, stalling the automation on a
+    // permanently-unbuyable cheapest pick. Doctrine choices stay a manual decision (a real fork).
+    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints && !p.fork)
     .sort((a, b) => a.rpCost - b.rpCost)[0];
   return next ? buyProject(state, next.id) : state;
 }
@@ -2412,6 +2667,45 @@ export function restStaff(state: GameState, id: string): GameState {
   };
 }
 
+export type MoraleKind = "bonus" | "offsite";
+
+/** The cash cost of a company-wide morale spend (Track C): a multiple of weekly payroll, floored so a
+ *  garage with an unpaid founder still pays something real. */
+export function moraleCost(state: GameState, kind: MoraleKind): Money {
+  const m = BALANCE.morale;
+  const weeks = kind === "offsite" ? m.offsiteCostWeeks : m.bonusCostWeeks;
+  const scaled = scale(weeklyPayroll(state.staff), weeks);
+  const floor = dollars(m.minCost);
+  return scaled > floor ? scaled : floor;
+}
+
+/** Whether a company-wide morale spend is available right now (off cooldown, solvent, has a team). */
+export function canBoostMorale(state: GameState, kind: MoraleKind): boolean {
+  if (state.bankrupt || state.staff.length === 0) return false;
+  if (state.week < (state.moraleCooldownUntil ?? 0)) return false;
+  return state.cash >= moraleCost(state, kind);
+}
+
+/** Invest in the whole team's morale (Track C): a bonus or an offsite lifts EVERY teammate's mood and
+ *  clears their burnout danger counter, for a cash cost scaled to payroll, then starts a cooldown. The
+ *  proactive counterpart to the reactive per-person Rest — spend to keep the team happy (and harder to
+ *  poach) instead of pocketing the cash. No-op when on cooldown or unaffordable. */
+export function boostMorale(state: GameState, kind: MoraleKind): GameState {
+  if (!canBoostMorale(state, kind)) return state;
+  const m = BALANCE.morale;
+  const lift = kind === "offsite" ? m.offsiteMoodLift : m.bonusMoodLift;
+  const cost = moraleCost(state, kind);
+  const label = kind === "offsite" ? "company offsite" : "team bonus";
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Ran a ${label} (${format(cost)}). The whole team feels it.`, "positive")]);
+  return {
+    ...state,
+    cash: sub(state.cash, cost),
+    moraleCooldownUntil: state.week + m.cooldownWeeks,
+    staff: state.staff.map((s) => ({ ...s, mood: clampMood(s.mood + lift), moodLowWeeks: 0 })),
+    feed,
+  };
+}
+
 export function hireCostFor(role: StaffRole, skill: number, discounted = false): Money {
   // One-time hiring fee = 3 weeks of salary (Talent Network cuts it 40%).
   const base = scale(salaryFor(role, skill), 3);
@@ -2451,7 +2745,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     ...identity,
   };
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Hired ${name} — ${role}.`, "accent"));
+  feed.push(feedItem(state.week, `Hired ${name}, ${role}.`, "accent"));
   return {
     ...state,
     rngState: rng.state(),
@@ -2529,7 +2823,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     mood: cand.mood,
     appearance: cand.appearance,
   };
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name} — ${cand.role}.`, "positive")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name}, ${cand.role}.`, "positive")]);
   return {
     ...state,
     cash: sub(state.cash, cand.hireFee),
@@ -2595,9 +2889,13 @@ export function goPublic(state: GameState): GameState {
 
 // ---------- Equity: company valuation, IPO/listing, ownership, rival share trading ----------
 
-/** The company's live market valuation (grows with lifetime revenue + reputation; floored). */
+/** The company's live market valuation (grows with lifetime revenue + reputation; floored). The
+ *  performance-reactive momentum overlay (Track B) swings it within ±cap around that fundamental. */
 export function companyValuation(state: GameState): Money {
-  return add(BALANCE.ipo.baseValuation, ipoValuation(state)) as Money;
+  const fundamental = add(BALANCE.ipo.baseValuation, ipoValuation(state)) as Money;
+  const cap = BALANCE.valuationMomentum.cap;
+  const m = Math.max(-cap, Math.min(cap, state.valuationMomentum ?? 0));
+  return scale(fundamental, 1 + m);
 }
 
 /** Founder's stake value = valuation × ownership. */
@@ -2661,7 +2959,7 @@ export function listCompany(state: GameState, stake: number): GameState {
   const pct = Math.max(0.05, Math.min(BALANCE.ipo.maxStakePerSale, stake));
   const raised = scale(companyValuation(state), pct);
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `${state.companyName} IPO'd — raised ${format(raised)} for ${Math.round(pct * 100)}%.`, "positive"));
+  feed.push(feedItem(state.week, `${state.companyName} IPO'd, raised ${format(raised)} for ${Math.round(pct * 100)}%.`, "positive"));
   return { ...state, listed: true, ownership: 1 - pct, cash: add(state.cash, raised), feed: trimFeed(feed) };
 }
 
@@ -2743,7 +3041,7 @@ export function acquireRival(state: GameState, id: string): GameState {
   const feed = [...state.feed];
   feed.push(feedItem(
     state.week,
-    `Acquired ${c.name} for ${format(cost)} — absorbed their brand (+${m.repBonus} rep) and ${fansGain.toLocaleString()} customers.`,
+    `Acquired ${c.name} for ${format(cost)}, absorbed their brand (+${m.repBonus} rep) and ${fansGain.toLocaleString()} customers.`,
     "positive",
   ));
 
@@ -2798,7 +3096,7 @@ export function advanceEraAction(state: GameState): GameState {
   feed.push(feedItem(state.week, `Entered the ${eraName(era)}. New tech unlocked.`, "positive"));
   // Epic D — announce the era's rule shift so the change in texture is legible (pillar #5).
   const rule = eraRuleSummary(era);
-  if (rule) feed.push(feedItem(state.week, `${eraName(era)} shift — ${rule}.`, "accent"));
+  if (rule) feed.push(feedItem(state.week, `${eraName(era)} shift, ${rule}.`, "accent"));
   return { ...state, era, feed: trimFeed(feed) };
 }
 

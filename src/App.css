@@ -634,6 +634,17 @@
   line-height: 1.5;
   margin: var(--sp-4) 0;
 }
+/* "Five years later" campaign epilogue (Track A): the authored send-off for this company. */
+.ipo__epilogue {
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  color: var(--ink);
+  margin: var(--sp-8) 0 var(--sp-12);
+  padding: var(--sp-12) var(--sp-16);
+  background: var(--surface-2, var(--bg-elevated));
+  border-radius: var(--r-card);
+  border: 1px solid var(--hairline);
+}
 /* Confirm step before the irreversible New Game+ reset (replaces the two action buttons). */
 .ipo__confirm {
   display: flex;

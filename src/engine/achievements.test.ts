@@ -133,7 +133,7 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "team-5", facts: { staffCount: 5 } },
     { id: "hit-streak-5", facts: { hitStreak: 5 } },
     { id: "research-4", facts: { completedProjects: 4 } },
-    { id: "research-all", facts: { completedProjects: 19 } },
+    { id: "research-all", facts: { completedProjects: 20 } },
     { id: "big-run", facts: { biggestRun: 50_000 } },
     { id: "gg", facts: { wentPublic: true } },
     { id: "first-research", facts: { completedProjects: 1 } },

@@ -1520,3 +1520,106 @@ at. Findings, all MEASURED:
       strengthen the count model), so contested runs diverge from uncontested ones.
   Recommendation: the journey-level balance is good now; pursue (a) or (c) only if a more dramatic,
   failable late-game is wanted — I can implement + measure whichever you pick.
+
+## v53 — Living Late Game, Phase 1: fewer, bigger, costlier late bets (DONE 2026-06-28)
+Acting on v52.1 option (b). MEASURED via `npm run sim` each step (40 seeds × 520wk), not guessed.
+- [x] **Era-scaled build economics** (`balance.eraModifiers` += `toolingMult` + `leadWeeks`; wired
+      through the existing `toolingCost` + `buildWeeksFor`). Eras 1–2 neutral (1.0 / 0) so the early
+      game is byte-identical; Platform era ×1.7 tooling / +2 wk, AI era ×2.6 / +3 wk. The endgame
+      becomes fewer, weightier launches instead of a ~2-week relaunch conveyor. `eraModifier()` return
+      type + `eraRuleSummary()` extended; `eras.test.ts` clamp/equality tests still hold.
+- [x] **Verdict bands RE-RAISED for the new landscape** (`hit/solidThresholdByEra` E3/E4
+      `116/128`→`156/192`, `98/115`→`135/175`). Fewer launches → each built by a more-developed
+      company → measured effectiveScore shifted UP (E3 p50 106→153, E4 124→189), so the old bars sat
+      far below achievable and ~70% of late launches collapsed onto "hit". Re-raised INSIDE the new
+      per-era range (same method as v52). Guard D (flop<solid<hit, non-decreasing) still passes.
+- **Measured result** (baseline → v53): launches/run 231 → **117**; verdict mix 23/40/37/0.5 →
+      **27/32/41/1.0** (hit/solid/steady/flop — texture restored); net-worth CV 2.5% → **3.9%**,
+      p90/p10 1.07× → **1.11×** (variance up, the goal direction); **0/40 bankruptcies** preserved;
+      early game byte-identical. Cost: Era-4 arrival drifted wk 171 → **202** (still 40/40 reach it +
+      win; ~27 min of ticks). `lateGame.test.ts` (+3) pins the era-scaling contract. 598 tests, tsc 0.
+- **Honest finding carried to Phase 2:** reputation STILL pins at 99 (decay is final-era-only, floor
+      78, outpaced by a constant-shipping player) — Phase 1 reshapes pace/stakes but is NOT itself the
+      variance silver bullet. Reputation-as-a-defended-asset (option a) is next; durable competition
+      (option c, PROTECTED market.ts/competitors.ts) is the deepest lever and needs its own go-ahead.
+- ⚠️ Magnitudes (toolingMult/leadWeeks, the new bands) are harness-tuned, NOT device-playtested —
+      flag if the late game's slower cadence reads as a drag on a real phone.
+
+## v54 — Living Late Game, Phase 2: reputation is a DEFENDED asset (DONE 2026-06-28)
+Acting on v52.1 option (a), on top of v53. The maintenance mechanic existed but was inert (final-era
+only, floor 78, 0.5/wk — outpaced by any constant shipper). Gave it teeth without touching progression.
+- [x] **`reputation.decayFloor` 78 → 62, `decayPerWeekLate` 0.5 → 0.9** (kept `decayFromEra: 4` —
+      era-4 `repToAdvance` is Infinity, so decay can NEVER softlock an era gate). The floor now sits
+      well below the rep-85 IPO-win gate and the slope matches the post-Phase-1 launch cadence (~1
+      launch / 3–4 wk earns ~0.9 rep/wk), so hits hold the line with visible dips between them while a
+      coasting or middling run erodes toward the floor. Reputation becomes earned-and-kept, not banked.
+- [x] **Mechanic test** (`gameState.test.ts`): ~20 wk of not shipping in the final era drops a rep-100
+      brand below 85 — win-eligibility is actually lost until it performs again. (The existing
+      floor/no-early-decay tests reference the constant, so they held.)
+- **Measured (npm run sim, cumulative baseline → v53 → v54):** net-worth CV 2.5% → 3.9% → **4.6%**
+      (+84% vs baseline); p90/p10 1.07× → 1.11× → **1.13×**; final reputation 99 → 99 → **97** (decay
+      now bites even a perfect auto-player); verdict mix stays textured (23/31/46/1); **0/40
+      bankruptcies** and **40/40 IPO-win reached** preserved; era pacing unchanged from v53. 599 tests
+      (+1), tsc 0, full suite green.
+- **Honest limit of Phases 1–2:** macro CV is up 84% but still ~4.6% in absolute terms, because the
+      harness auto-player plays competently and constantly — it smooths most variance by construction.
+      No flat reputation/cost knob can fully break that. The deepest remaining lever is **option (c)
+      durable competition** (rivals that TAKE and HOLD share → contested vs uncontested runs genuinely
+      diverge), which touches PROTECTED `market.ts` + `competitors.ts` and needs its own go-ahead +
+      balance pass. The other true arbiter is an on-device playtest: real players make the mistakes the
+      auto-player never does, and Phases 1–2 are what make those mistakes cost something.
+
+## v55 — Living Late Game, Phase 3: durable competition (DONE 2026-06-28)
+Acting on v52.1 option (c) — the deepest lever. Rivals now CONTEST and HOLD share in the late eras,
+so demand is a contested resource and runs diverge by how rivals crowd you. PROTECTED `competitors.ts`
+touched WITH go-ahead; `market.ts` deliberately NOT touched (the launch path already models competition
+via the count model in `gameState.ts`, passing `competitorStrength: 0` to scoreLaunch).
+- [x] **Root cause found by reading + measuring:** late competition was cosmetic for THREE compounding
+      reasons — (1) the winnability cap was era-flat (95), (2) rival strength decayed fast (0.88/wk), and
+      (3) the launch-strength FORMULA naturally tops out ~92, BELOW the cap, so raising the cap alone was
+      inert. Fixed all three, era-scaled, eras 1–2 untouched (byte-identical early game):
+      `strengthDecayByEra [0.88,0.88,0.90,0.93]` (rivals entrench, not blip), `reactMaxStrengthByEra
+      [95,95,105,118]` (room to contest), `lateStrengthByEra [0,0,8,18]` (the formula now REACHES
+      contesting range — a strong rival can match or beat a maxed player). The existing era-pressure
+      term (`[0.25,1,1.2,1.45]`) and count model then apply the bite — no new systems.
+- [x] **Tests** (`competitors.test.ts` +2): late ceilings/decay are monotonic and eras 1–2 untouched;
+      an AI-era rival now reaches strength > the old flat-95 wall (proving late competition bites). The
+      existing ceiling test re-pointed at the era-4 cap.
+- **Measured (npm run sim, cumulative baseline → v55):** net-worth CV 2.5% → **5.6%** (+124%); p90/p10
+      1.07× → **1.15×**; Era-4 effectiveScore spread widened to **135–197** (competition now varies it
+      per launch/seed — the divergence the auto-player can't smooth); verdict mix 23/40/37/.5 →
+      **17/27/55/1** (hits are now EARNED against rivals); net worth median $4167M → **$2101M** (still a
+      vast empire); **0/40 bankruptcies + 40/40 IPO-win preserved** — contested, not unfair. 601 tests
+      (+2), tsc 0, full suite green.
+- ⚠️ Knobs (decay/cap/lateStrength byEra) are harness-tuned, NOT device-played. The contest pulled the
+      hit rate to ~17% (you now fight for hits); if that reads as too harsh on a phone, soften
+      `lateStrengthByEra` first (it is the bite). Living Late Game P1–P3 complete; remaining headroom is
+      an on-device playtest of the new cadence + contest.
+
+## v56 — market fatigue / novelty: you can't spam near-identical devices (DONE 2026-06-28)
+Direct user ask: shipping the same type of device with minimal changes again and again should feel
+repetitive and the market shouldn't buy a too-similar product released not long ago. Engine-first,
+no PROTECTED refactor (new pure module + balance data + demand wiring + a "why" readout).
+- [x] **`engine/novelty.ts` (NEW, pure):** `productSimilarity(a,b)` (0..1, dominated by component
+      tiers + a little design tier; different category → 0) and `noveltyFor(product, history, week)`
+      → an organic-demand multiplier. A follow-up too SIMILAR to a recent same-category launch loses
+      demand; the most-similar recent product drives the cut, faded linearly over a fatigue window.
+- [x] **`balance.novelty`:** `fatigueWeeks 30`, `maxPenalty 0.55` (identical same-week re-release →
+      −55% organic), `similarityFloor 0.78` (below it a product reads as "new enough" → no penalty),
+      `tierSpan 4`. Harness-tuned; ⚠️ want a device playtest.
+- [x] **Wired into `planProduction` (gameState.ts):** novelty multiplies ONLY organic market demand;
+      the fan pre-order ceiling is computed from the un-fatigued (competition-adjusted) organic, so a
+      loyal base still pre-orders the sequel while the broad market shrugs at a rehash. New plan
+      fields `noveltyMult / similarTo / similarWeeksAgo`.
+- [x] **Readability (Epic C):** the build-wizard review shows a red "Market fatigue · −X% demand —
+      too similar to <product> (<n> wk ago) — change more components or wait" Stat, mirroring the
+      Cannibalization line. Verified live: a maxed rehash of "Aurora X" shows −27% and flips projected
+      profit negative (the spam tax is legible).
+- [x] **Tests:** `novelty.test.ts` (+6: identical/upgrade/time-heals/different-category/floor) and a
+      `production.test.ts` integration case (a same-spec follow-up loses open-market demand vs a real
+      upgrade / vs no history). 608 tests, tsc 0, full suite green.
+- **Measured (npm run sim):** the spam-happy auto-player's net worth drops ~19% ($2.10B → $1.69B) —
+      the fatigue bites a player who relaunches similar designs, while a player who diversifies avoids
+      it entirely. **0/40 bankruptcies + 40/40 IPO-win preserved**; early game byte-identical. (Macro
+      CV dipped 5.6%→4.0% because the auto-player spams uniformly across seeds — a measurement
+      artifact, not a design regression; real players vary.)

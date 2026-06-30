@@ -165,6 +165,20 @@
 .lab__hero-line-val--weak { color: var(--negative-text, var(--negative)); }
 .lab__hero-line-val--flagship svg, .lab__hero-line-val--weak svg { color: currentColor; }
 .lab__hero-line-hint { font-weight: 500; color: var(--ink-2); }
+.lab__archetypes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--sp-8); }
+.lab__archetype {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro, 11px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
 
 /* View back — divided footer button inside the hero card */
 .lab__flip {
@@ -999,8 +1013,23 @@
 .wiz__seg-row { display: flex; flex-direction: column; gap: 2px; }
 .wiz__seg-main { display: grid; grid-template-columns: 76px 1fr 34px; align-items: center; gap: var(--sp-8); }
 .wiz__seg-wants { font-size: var(--fs-nano); color: var(--ink-3, var(--ink-2)); padding-left: 0; line-height: 1.3; }
-.wiz__seg-name { font-size: var(--fs-caption); color: var(--ink-2); }
+.wiz__seg-name { font-size: var(--fs-caption); color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
 .wiz__seg-row--top .wiz__seg-name { color: var(--ink); font-weight: 700; }
+.wiz__seg-trend { display: inline-flex; align-items: center; }
+.wiz__seg-trend--rising { color: var(--positive); }
+.wiz__seg-trend--falling { color: var(--warning, var(--negative)); }
+.wiz__region-crisis {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: var(--sp-8);
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro, 11px);
+  font-weight: 600;
+  color: var(--warning-text, var(--warning));
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+}
 .wiz__seg-bar { height: 6px; border-radius: var(--r-pill); background: var(--hairline); overflow: hidden; }
 .wiz__seg-fill {
   display: block; height: 100%; border-radius: var(--r-pill);

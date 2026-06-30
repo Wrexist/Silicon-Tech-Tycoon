@@ -44,11 +44,13 @@ export function xpToNext(skill: number): number {
   return Math.round(BALANCE.staff.xpToLevel * Math.pow(BALANCE.staff.xpLevelScaling, skill - 1));
 }
 
-/** Apply one week of XP to a staff member, leveling up skill (and salary) at the threshold. */
-export function gainWeeklyXp(s: Staff): { staff: Staff; leveledUp: boolean } {
+/** Apply one week of XP to a staff member, leveling up skill (and salary) at the threshold. The
+ *  optional `mentorMult` (>= 1, from engine/org.ts) accelerates a junior working under a stronger
+ *  discipline lead; it defaults to 1 so every existing caller and the solo-founder sim are unchanged. */
+export function gainWeeklyXp(s: Staff, mentorMult = 1): { staff: Staff; leveledUp: boolean } {
   if (s.skill >= BALANCE.staff.maxSkill) return { staff: s, leveledUp: false };
   const base = s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask;
-  const rate = base * xpMult(s.trait);
+  const rate = base * xpMult(s.trait) * mentorMult;
   let xp = s.xp + rate;
   let skill = s.skill;
   let leveledUp = false;

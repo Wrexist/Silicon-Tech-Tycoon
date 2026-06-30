@@ -407,6 +407,9 @@
   display: flex;
   gap: var(--sp-8);
   overflow-x: auto;
+  /* Same scroll-container min-height:0 collapse as .hqb__cats — keep the swatch row from being
+     squeezed by the Shop's flex-column panel. */
+  flex-shrink: 0;
   scrollbar-width: none;
   padding-bottom: 2px;
 }
@@ -449,6 +452,12 @@
   display: flex;
   gap: var(--sp-6);
   overflow-x: auto;
+  /* overflow-x:auto makes this a scroll container, so its automatic min-height resolves to 0 — in
+     the Shop's flex-column panel (.hqb__panel) the layout then collapsed this row to a sliver (only
+     the accent scrollbar + a hair of the labels showed). flex-shrink:0 + a min-height keep the
+     category strip at full, tappable height. */
+  flex-shrink: 0;
+  min-height: 38px;
   /* A visible, premium scroll affordance — the category strip is the main way to browse the
      shop, so it must read as scrollable. Slim styled bar + edge fades that hint "more →". */
   scrollbar-width: thin;

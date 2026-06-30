@@ -47,6 +47,11 @@ export const BALANCE = {
     // tooling + unit cost (pure engine, tuningCostMultiplier). Magnitudes need a playtest (⚠️).
     marginShift: 6,
     tuningCostMult: { value: 0.85, premium: 1.18 } as Record<string, number>,
+    // Named synergy archetypes (Track D, engine/product.ts SYNERGY_ARCHETYPES) — high-end component
+    // pairings unlock a themed stat bonus. highTierFrac sets how close to a line's max counts as
+    // "high"; maxTotalBonus caps the summed bonus so even a fully-maxed flagship can't stack past a
+    // sane ceiling (keeps the late game contestable). Applied in the state layer (productStats).
+    archetype: { highTierFrac: 0.8, maxTotalBonus: 3 },
     // Screen refresh rate (Hz) — a customizable display spec. Higher Hz adds a small appeal bump
     // and a per-unit cost, but is GATED by the display tier (a budget panel can't drive 144Hz), so
     // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).
@@ -153,6 +158,17 @@ export const BALANCE = {
       // Floor on a segment's price tolerance after the priceSensitivity divide, so a very
       // price-sensitive segment still has a usable (if narrow) pricing band, never a knife-edge.
       minPriceTolerance: 0.18,
+    },
+    // --- Market climate (engine/climate.ts, Track B) — the living market ---
+    // Segment sizes swell/fade on slow seasonal cycles (REDISTRIBUTIVE: the mix is re-normalized, so
+    // the total market is unchanged — only WHO is buying shifts, a timing lever). Regions hit periodic
+    // crises that temporarily shrink their demand (home is never shocked, so a domestic launch and the
+    // solo-founder sim are unaffected). Amplitudes are modest so this adds texture, not chaos.
+    climate: {
+      segmentAmplitude: 0.18, // a segment's size swings ±18% of its base over its cycle
+      crisisWeeks: 6,         // length of a regional crisis window
+      crisisDepth: 0.3,       // a region's demand dips up to 30% at the crisis trough
+      risingBand: 0.004,      // week-over-week size delta above which a segment reads as "rising" (UI)
     },
     // --- Global expansion (engine/regions.ts) ---
     // How a region's taste turns into a market-size multiplier for a launch. tasteSpread amplifies how
@@ -266,8 +282,15 @@ export const BALANCE = {
     // hit bars (112/145) sat at/above the achievable ceiling → every late launch collapsed onto
     // "solid" (83% of all launches, ~0 hits/flops). These bands sit INSIDE each era's real range so
     // a great launch can hit, a middling one only steadies, and outcomes spread instead of flatlining.
-    hitThresholdByEra: [70, 80, 116, 128],
-    solidThresholdByEra: [45, 56, 98, 115],
+    // Era-3/4 bars RE-RAISED for the Living Late Game landscape: fewer, weightier late launches
+    // (eraModifiers.toolingMult/leadWeeks) are each built by a more-developed company, so the
+    // measured effectiveScore landscape shifted UP (~E3 p50 106→153, E4 p50 124→189). The old
+    // 116/128 hit bars then sat far below achievable → ~70% of late launches collapsed onto "hit"
+    // (the same single-verdict failure v52 fixed, mirror-imaged). These bars sit back INSIDE the new
+    // per-era range (harness-measured) so a great late launch hits, a middling one steadies, and the
+    // verdict layer stays a real contest. Eras 1–2 are untouched.
+    hitThresholdByEra: [70, 80, 156, 192],
+    solidThresholdByEra: [45, 56, 135, 175],
     flopThresholdByEra: [10, 21, 27, 35],
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
@@ -276,9 +299,16 @@ export const BALANCE = {
     // loses IPO-win eligibility (rep >= 85) until they perform again — turning the post-era-4 stretch
     // from a victory-lap into an ongoing contest. Gated to the FINAL era only, so no progression
     // gate and none of the early climb is ever touched. ⚠️ magnitudes want a device playtest.
+    // Phase 2 (Living Late Game) gave this teeth. Still FINAL-ERA ONLY (era 4 repToAdvance = Infinity,
+    // so decay can never softlock progression) — but the floor drops well below the rep-85 IPO-win
+    // gate and the slope steepens, so a top brand that coasts (stops shipping, or strings together
+    // middling launches) actually SLIPS below win-eligibility and must perform again to reclaim it.
+    // Tuned against the post-Phase-1 launch cadence (~1 launch / 3–4 wk): a competent constant-shipper
+    // earns ~0.9 rep/wk, so 0.9/wk decay means hits hold the line with visible dips between them while
+    // a slower or sloppier run erodes toward the floor — reputation becomes defended, not banked.
     decayFromEra: 4,
-    decayPerWeekLate: 0.5,
-    decayFloor: 78,
+    decayPerWeekLate: 0.9,
+    decayFloor: 62,
     gainPerHit: 8,
     // A "solid" launch earns a little reputation too, so a player who optimizes specs + price but
     // never runs marketing campaigns can still climb past the era rep gates on consistent quality
@@ -345,6 +375,20 @@ export const BALANCE = {
   },
 
   // --- Build / manufacturing ---
+  // --- Market fatigue / novelty ---
+  // The market won't reward shipping the SAME product again with only cosmetic changes shortly after
+  // the last one — real buyers want a genuine step up, not a rerun. A new release is compared to your
+  // recent same-category launches; if it's too SIMILAR (component tiers barely changed) and too RECENT,
+  // organic market demand is cut. Meaningful spec upgrades OR enough elapsed time clear it. Fans still
+  // pre-order (this only dampens *organic* demand) — your loyal base buys the sequel, the broad market
+  // shrugs at a rehash. Mirrors the anti-spam intent of competition.selfPenalty, on the time axis.
+  novelty: {
+    fatigueWeeks: 30,     // how long a recent launch keeps fatiguing similar follow-ups (linear fade to 0)
+    maxPenalty: 0.55,     // organic-demand cut for an IDENTICAL launch the same week (→ keep 45%)
+    similarityFloor: 0.78, // below this spec-similarity a product reads as "new enough" → no penalty
+    tierSpan: 4,          // per-component tier distance that counts as "completely different" for that slot
+  },
+
   build: {
     baseWeeks: 3, // weeks to manufacture a product before it can launch
     minWeeks: 1,
@@ -419,11 +463,17 @@ export const BALANCE = {
   //     (over/under-production is a bigger bet), on top of the strongest ecosystem economy.
   // A new player learns the baseline; a veteran must re-strategize per era. Index = era − 1.
   // ⚠️ MAGNITUDES NEED A PLAYTEST — they reshape the late-game economy (the levers, not the wiring).
+  // toolingMult / leadWeeks (Living Late Game): late eras make a product a BIGGER, SLOWER bet — more
+  // upfront tooling and more weeks on the line — so the endgame is fewer, weightier launches instead
+  // of a ~2-week relaunch conveyor (the measured cause of the "solved" macro outcome: ~75% of all
+  // launches land in Era 4 and average each other's variance away). Eras 1–2 are neutral (1.0 / 0) so
+  // the early game is byte-identical. ⚠️ magnitudes are harness-tuned (scripts/balance-sim.mjs), not
+  // hand-guessed — see the per-era launch-count + net-worth-CV readout.
   eraModifiers: [
-    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0 },  // 1 Garage — baseline
-    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0 },  // 2 Growth — baseline
-    { marketingHype: 1.2, ecosystemRate: 1.5, demandVariance: 1.0 },  // 3 Platform — ecosystem lock-in
-    { marketingHype: 1.35, ecosystemRate: 1.7, demandVariance: 1.4 }, // 4 AI — hype-driven + volatile
+    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0, toolingMult: 1.0, leadWeeks: 0 },  // 1 Garage — baseline
+    { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0, toolingMult: 1.0, leadWeeks: 0 },  // 2 Growth — baseline
+    { marketingHype: 1.2, ecosystemRate: 1.5, demandVariance: 1.0, toolingMult: 1.7, leadWeeks: 2 },  // 3 Platform — ecosystem lock-in; bigger bets
+    { marketingHype: 1.35, ecosystemRate: 1.7, demandVariance: 1.4, toolingMult: 2.6, leadWeeks: 3 }, // 4 AI — hype-driven + volatile; flagship-scale bets
   ],
 
   // --- Competitors ---
@@ -437,7 +487,13 @@ export const BALANCE = {
   competitors: {
     launchEveryWeeks: 7,  // rivals are more consistently present (was 9)
     launchJitter: 3,      // less dead-air between competitor launches (was 5)
-    strengthDecayPerWeek: 0.88, // rivals persist ~25% longer — competition isn't instantly stale (was 0.85)
+    // Strength persistence, era-scaled (Living Late Game P3 — durable competition). A rival's presence
+    // in a category fades each week by this factor; HIGHER = it holds longer. Eras 1–2 keep the tuned
+    // 0.88 (byte-identical early game); the late eras decay slower so a rival that lands strongly in
+    // your category ENTRENCHES instead of evaporating in a week — sustained, not blip, pressure. The
+    // category a rival contests is seeded-random, so runs where rivals crowd your flagship category
+    // diverge from runs where they spread out — the between-run variance a perfect player can't smooth.
+    strengthDecayByEra: [0.88, 0.88, 0.90, 0.93] as const,
     baseStrength: 28,
     // Specialization: a launch in a rival's PREFERRED category is this much likelier to be chosen,
     // and lands with this flat strength bonus (its home turf is genuinely tougher to contest).
@@ -447,7 +503,20 @@ export const BALANCE = {
     // but never snowballs into an unbeatable wall.
     reactHitWindowWeeks: 10, // a player hit counts as "recent" for this many weeks
     reactStrengthBonus: 14, // extra strength the reacting rival brings to the player's hot category
-    reactMaxStrength: 95, // hard ceiling on any single rival launch strength (keeps it winnable)
+    // Winnability ceiling on any single rival launch strength, era-scaled (Living Late Game P3). The
+    // OLD flat 95 was the reason late competition was cosmetic: a maxed late-game player's `overall`
+    // outgrew 95 + beatMargin, so NO rival could ever match/beat them → competitionFactor pinned at 1
+    // (measured: the count model registered ~0 contestants in Era 4). Eras 1–2 keep 95 (winnable early
+    // game preserved); the late ceilings rise so a strong rival can genuinely contest — even beat — a
+    // top player in a category, making demand a contested resource again. Still a hard cap, so it
+    // presses without snowballing into an unbeatable wall (the era-pressure term governs the bite).
+    reactMaxStrengthByEra: [95, 95, 105, 118] as const,
+    // Era-scaled strength bump (Living Late Game P3). The launch-strength FORMULA naturally tops out
+    // ~92 (base + rep×0.4 + bonuses), BELOW the old flat-95 cap — which is why raising the cap alone
+    // was inert and late competition stayed cosmetic. This additive bump lifts late-era rivals into
+    // genuine contesting range (and lets a few BEAT a maxed player), so demand becomes a contested
+    // resource in Eras 3–4. Eras 1–2 add 0 (early game byte-identical). Bounded by reactMaxStrengthByEra.
+    lateStrengthByEra: [0, 0, 8, 18] as const,
     reactCadenceCut: 3, // weeks shaved off the reacting rival's next launch (faster counter-punch)
     // B2 — rival DOCTRINES (per-rival behavioural posture; see competitors.ts RivalDoctrine). Tuned
     // to add VARIETY + presence, NOT raw difficulty: only the `defender` raises launch strength (the
@@ -457,6 +526,28 @@ export const BALANCE = {
     doctrineTargetWeight: 3, // extra category-selection weight a trend-chaser piles onto the player's hot cats
     undercutCadenceCut: 2,   // weeks shaved off an undercutter's next launch when it contests a hot category
     undercutPriceMult: 0.78, // visible price multiplier on an undercutter's contesting product (it ships cheap)
+    // Rival STORY ARCS (Track B): each rival drifts through a lifecycle instead of sitting at a fixed
+    // stature. The phase nudges its reputation a little each week WITHIN a bounded envelope around the
+    // rival's calibrated base (repBand) — and reputation already drives stock fair value, launch
+    // strength, and market cap (→ acquisition cost). So a rising rival's stock climbs and it contests
+    // harder + costs more to buy; a faltering one slides and goes cheap. The band makes the drift
+    // mean-reverting by construction, so the stock market stays ~zero-EV long-run (pinned by tests).
+    arc: {
+      driftPerWeek: { ascending: 0.55, peaking: 0.18, declining: -0.62, stable: 0 } as Record<string, number>,
+      repBand: 16,        // max reputation deviation (±) from the rival's calibrated base
+      repFloor: 8,        // hard floor/ceiling so a drift can never reach the 0/100 extremes
+      repCeil: 96,
+      phaseWeeksMin: 16,  // a phase lasts this..max weeks before it re-rolls (long → the feed isn't spammy)
+      phaseWeeksMax: 34,
+      // Transition weights from each phase → the next. The dominant ascending→peaking→declining cycle
+      // balances up-drift against down-drift, keeping the long-run reputation mean ≈ base.
+      transitions: {
+        stable:    { ascending: 0.42, declining: 0.32, stable: 0.26 },
+        ascending: { peaking: 0.62, stable: 0.38 },
+        peaking:   { declining: 0.55, stable: 0.45 },
+        declining: { stable: 0.6, ascending: 0.4 },
+      } as Record<string, Record<string, number>>,
+    },
   },
 
   // --- Product franchises / brand equity (the "IP & fanbase" lever) ---
@@ -504,6 +595,22 @@ export const BALANCE = {
     defaultStake: 0.2, // 20% sold by default at IPO
     maxStakePerSale: 0.49, // never sell majority control in one go
     valuationGrowthPerWeek: 0.004, // company value drifts up with momentum
+  },
+
+  // --- Performance-reactive company value (Track B) ---
+  // A bounded, mean-reverting MOMENTUM overlay on the company's fundamental valuation, so net worth
+  // and the leaderboard visibly REACT to what you ship: a hit pops the value, a flop dents it, and
+  // sitting at #1 holds a small standing premium. The overlay decays back toward the fundamental, so
+  // a transient pop can never compound. Cash (bankruptcy) and reputation (the win gate) are NOT
+  // affected — this only colours the displayed value. Eras/old saves: momentum defaults to 0.
+  valuationMomentum: {
+    cap: 0.15,                // max +/- swing on the fundamental value (±15%)
+    decayPerWeek: 0.82,       // mean-reversion toward 0 each week (half-life ~3.5 wk)
+    popOnHit: 0.10,           // a hit launch pops the value
+    popOnSolid: 0.04,
+    dipOnFlop: 0.08,          // a flop dents it (applied negative)
+    rankOnePremiumFloor: 0.03, // while #1 in the industry, momentum holds at least this (a premium)
+    historyLength: 26,        // weeks of valuation history kept for the sparkline
   },
 
   // --- Stock market (rival equities the player can trade) ---
@@ -599,6 +706,61 @@ export const BALANCE = {
     restMinCost: 1000,        // floor on a Rest's cost so it's never free (the unpaid founder pays this)
   },
 
+  // --- Rival poaching (Track C) — a rival on the rise tries to HIRE AWAY one of your best, surfaced
+  // as a counter-offer DECISION (not a silent stat drop). Distinct from burnout churn above: this
+  // targets CONTENT, skilled people, so it's a real "fight to keep them" moment, not a consequence of
+  // neglect. Rare by design; the roll uses a DERIVED rng so it never perturbs the tuned economy sim.
+  poaching: {
+    chancePerWeek: 0.014,     // per ONLINE week, a rising rival makes a run at someone (~1 attempt / 70wk)
+    minSkill: 6,              // only your genuinely strong people (1..10 headline level) get poached
+    minMood: 45,              // a content employee — burnout exits are the churn path, not this one
+    minTeam: 3,               // never poach from a skeleton crew (keeps the early game stable)
+    retainWeeksSalary: 8,     // counter-offer signing bonus = this many weeks of their MARKET salary
+    retainMoodBoost: 14,      // being fought for is a real morale lift
+    declineTeamMoodHit: 4,    // the rest of the team dips a little when a colleague leaves for a rival
+    cooldownWeeks: 26,        // a retained employee can't be targeted again for this long
+  },
+
+  // --- Debt financing (Track C) — borrow cash now, owe weekly service. Reputation earns cheaper
+  // credit (a new place rep matters); leverage makes the next loan pricier. Tuned so a loan is a
+  // genuine BET: it can buy the runway to land a launch, or sink you faster if the bet misses.
+  // Amounts in CENTS to match the engine/financing.ts pure layer.
+  financing: {
+    baseRatePerWeek: 0.0035,      // ~20%/yr base before adjustments
+    minRatePerWeek: 0.0012,       // floor — credit is never free money
+    rateRepDiscount: 0.00003,     // weekly-rate cut per reputation point above 50 (good rep = cheap credit)
+    rateLeveragePremium: 0.0025,  // added to the rate at the credit ceiling (linear with leverage)
+    termWeeks: 52,                // 1-year amortization
+    minLoan: 25_000 * 100,        // smallest drawdown ($25K)
+    creditFloor: 75_000 * 100,    // a garage can borrow at least this (before subtracting existing debt)
+    creditRevenueWeeks: 16,       // + this many weeks of recent revenue as borrowing headroom
+    maxCredit: 8_000_000 * 100,   // hard ceiling on total outstanding debt ($8M)
+    originationFee: 0.01,         // 1% taken off the top on drawdown (you receive principal × 0.99)
+  },
+
+  // --- Team morale spend (Track C) — a PROACTIVE, company-wide lever to invest in the whole team's
+  // mood (vs. the reactive per-person Rest / raise, and vs. just pocketing the cash). Two tiers: a
+  // quick bonus or a bigger offsite. Cost scales with payroll (a bigger team costs more to delight)
+  // and a shared cooldown makes it a periodic decision, not a spammable mood button.
+  morale: {
+    bonusMoodLift: 12,     // a cash bonus pool lifts every teammate's mood by this
+    bonusCostWeeks: 1.5,   // …and costs this many weeks of total payroll
+    offsiteMoodLift: 24,   // a company offsite lifts more
+    offsiteCostWeeks: 3.5, // …for a steeper cost
+    minCost: 4_000,        // floor so an unpaid-founder garage still pays something real
+    cooldownWeeks: 12,     // weeks before another company-wide morale spend is available
+  },
+
+  // --- Org structure / mentorship (Track C) — a discipline LEAD (the strongest person working a
+  // discipline) speeds up the juniors working alongside them: a big skill gap means a strong mentor,
+  // so building a team around a senior anchor pays off and high-skill veterans gain a second purpose
+  // beyond raw output. Bounded so it accelerates growth, never trivializes it.
+  org: {
+    minMentorGap: 15,        // the lead must be at least this many discipline points stronger to mentor
+    mentorPerGapPoint: 0.012, // bonus XP rate per point of gap beyond the threshold
+    mentorMaxBonus: 0.5,     // cap — a junior under a far-stronger lead learns up to 50% faster
+  },
+
   // --- Market events ---
   events: {
     firstWeek: 8,
@@ -607,6 +769,10 @@ export const BALANCE = {
     // RNG cost events (supply crunches) must sting, never kill: each hit is capped to this
     // share of cash on hand, so a random feed item can't bankrupt a by-the-book player mid-build.
     crunchMaxCashShare: 0.35,
+    // Cascading events (Track B): chance, in an event window with no chain already running, that a
+    // multi-beat CHAIN starts instead of a single one-shot event. Each chain plays out over a few
+    // weeks and ends in a player choice. Bounded by the same crunch cap, so it can't bankrupt.
+    chainChance: 0.16,
   },
 
   // --- Supply chain (engine/suppliers.ts) ---

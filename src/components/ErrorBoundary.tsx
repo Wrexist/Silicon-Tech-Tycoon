@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: R
   report(): string {
     const e = this.state.error;
     return [
-      `Silicon: Tech Tycoon — error report`,
+      `Silicon: Tech Tycoon, error report`,
       `When: ${new Date().toISOString()}`,
       `Page: ${typeof location !== "undefined" ? location.href : "?"}`,
       `UA: ${typeof navigator !== "undefined" ? navigator.userAgent : "?"}`,

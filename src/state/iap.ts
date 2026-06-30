@@ -27,7 +27,7 @@ const NATIVE_IAP_WIRED = true;
 const SANDBOX_FALLBACK: ProductInfo = {
   id: SANDBOX_PRODUCT_ID,
   title: "Creative Mode",
-  description: "Design freely with no financial limits — an unlimited cash floor so you can never go bankrupt.",
+  description: "Design freely with no financial limits. An unlimited cash floor means you can never go bankrupt.",
   price: "$2.99",
 };
 

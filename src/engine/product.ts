@@ -2,6 +2,7 @@
 import { BALANCE } from "./balance.ts";
 import { CATEGORIES, tierDef, maxTier } from "./catalogs.ts";
 import { supplierCostMult, supplierQualityDelta } from "./suppliers.ts";
+import { subsystemFor, subsystemStatBonus, subsystemCostSteps } from "./subsystems.ts";
 import { sum, scale, type Money, ZERO } from "./money.ts";
 import {
   STAT_KEYS,
@@ -103,6 +104,13 @@ export function computeStats(product: Product): Stats {
     stats.quality += stSteps * a.quality;
   }
 
+  // Category subsystem (Track D): a laptop's cooling, a wearable's sensors — a category-specific spec
+  // that lifts a stat per upgrade step. Empty for phones / categories without one, so a no-op there.
+  {
+    const sub = subsystemStatBonus(product.category, product.subsystem);
+    for (const key of STAT_KEYS) if (sub[key]) stats[key] += sub[key]!;
+  }
+
   // Supplier: premium component sourcing lifts build quality; bargain sourcing drags it (clamped
   // below). The neutral "standard" supplier contributes 0, so an unset supplier is a no-op.
   stats.quality += supplierQualityDelta(product);
@@ -146,6 +154,11 @@ export function buildCost(product: Product): Money {
   for (let i = 0; i < refreshSteps(product); i++) costs.push(BALANCE.design.refreshRate.unitCost);
   // More storage adds a per-unit cost per step above the 128GB baseline.
   for (let i = 0; i < storageSteps(product); i++) costs.push(BALANCE.design.storage.unitCost);
+  // Category subsystem (cooling / sensors) adds a per-unit cost per upgrade step.
+  {
+    const sub = subsystemFor(product.category);
+    for (let i = 0; i < subsystemCostSteps(product.category, product.subsystem); i++) if (sub) costs.push(sub.unitCost);
+  }
   const base = costs.length ? sum(costs) : ZERO;
   // Supplier sets the per-unit component price (standard = ×1, a no-op for unset/older products).
   let unit = scale(base, supplierCostMult(product));
@@ -202,4 +215,57 @@ export function componentSynergy(product: Product): { factor: number; weakest: C
   if (mean >= s.flagshipMeanFloor && bottleneck <= s.flagshipMaxGap) factor += s.flagshipBonus;
   factor = clamp(factor, s.minFactor, s.maxFactor);
   return { factor, weakest: bottleneck > s.weakestThreshold ? weakest.kind : null };
+}
+
+/** Named synergy ARCHETYPES (Track D): specific high-end component pairings unlock a named, themed
+ *  stat bonus, so a coherent flagship build isn't just "high numbers" — it earns an identity the
+ *  player recognises ("Flagship Integration unlocked"). Additive + content-defined; the magnitudes are
+ *  modest and the total is capped (see archetypeBonus) so this rewards mastery without trivialising. */
+export interface SynergyArchetype {
+  id: string;
+  name: string;
+  blurb: string;
+  kinds: ComponentKind[]; // every one must be a category slot AND at a high tier to unlock
+  bonus: Partial<Stats>;
+}
+
+export const SYNERGY_ARCHETYPES: readonly SynergyArchetype[] = [
+  { id: "flagship", name: "Flagship Integration", blurb: "A top chip and display tuned as one — fast and gorgeous.", kinds: ["chip", "display"], bonus: { performance: 3, design: 2 } },
+  { id: "imaging", name: "Imaging Pipeline", blurb: "A pro camera fed by a powerful chip — computational photography.", kinds: ["camera", "chip"], bonus: { quality: 3, design: 2 } },
+  { id: "endurance", name: "All-Day Platform", blurb: "A dense battery + an efficient OS — it just keeps going.", kinds: ["battery", "software"], bonus: { battery: 3, ecosystem: 2 } },
+  { id: "crafted", name: "Crafted Premium", blurb: "Exotic materials wrapped around a flagship display — jewel-like.", kinds: ["materials", "display"], bonus: { quality: 2, design: 3 } },
+  { id: "unified", name: "Unified Ecosystem", blurb: "A deep OS tightly bound to the silicon — everything in sync.", kinds: ["software", "chip"], bonus: { ecosystem: 3, quality: 2 } },
+];
+
+/** Whether a slot is at a "high" tier (≥ highTierFrac of its line's max) — era-robust, since lines
+ *  have different lengths. */
+function isHighTier(product: Product, kind: ComponentKind): boolean {
+  const max = maxTier(kind);
+  if (max <= 0) return false;
+  const tier = product.tiers[kind] ?? 0;
+  if (!Number.isFinite(tier)) return false;
+  return tier >= Math.ceil(max * BALANCE.design.archetype.highTierFrac);
+}
+
+/** The synergy archetypes currently unlocked by this build (all of an archetype's component kinds are
+ *  category slots AND at a high tier). Drives the readable "unlocked" badges in the design lab. */
+export function activeArchetypes(product: Product): SynergyArchetype[] {
+  const slots = new Set(CATEGORIES[product.category].slots);
+  return SYNERGY_ARCHETYPES.filter((a) => a.kinds.every((k) => slots.has(k) && isHighTier(product, k)));
+}
+
+/** The summed archetype stat bonus, capped so even a fully-maxed build can't stack past a sane
+ *  ceiling (the cap scales every stat down proportionally if the total exceeds maxTotalBonus). */
+export function archetypeBonus(product: Product): Partial<Stats> {
+  const out: Partial<Stats> = {};
+  let total = 0;
+  for (const a of activeArchetypes(product)) {
+    for (const k of Object.keys(a.bonus) as (keyof Stats)[]) { out[k] = (out[k] ?? 0) + (a.bonus[k] ?? 0); total += a.bonus[k] ?? 0; }
+  }
+  const cap = BALANCE.design.archetype.maxTotalBonus;
+  if (total > cap && total > 0) {
+    const scale = cap / total;
+    for (const k of Object.keys(out) as (keyof Stats)[]) out[k] = Math.round((out[k] ?? 0) * scale);
+  }
+  return out;
 }

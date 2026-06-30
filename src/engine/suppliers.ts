@@ -44,7 +44,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     crunchMult: 1.5,
     ethics: 25,
     trait: "value",
-    blurb: "Cheapest parts — thinner specs and a slower boat.",
+    blurb: "Cheapest parts, thinner specs and a slower boat.",
   },
   standard: {
     id: "standard",
@@ -80,7 +80,7 @@ export const SUPPLIERS: Record<SupplierId, Supplier> = {
     crunchMult: 0.7,
     ethics: 72,
     trait: "premium",
-    blurb: "Premium components — a real lift to build quality.",
+    blurb: "Premium components, a real lift to build quality.",
   },
   atlas: {
     id: "atlas",

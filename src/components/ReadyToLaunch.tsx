@@ -110,7 +110,7 @@ export function ReadyToLaunch() {
 
         <div className="rtl__eyebrow"><Factory size={13} aria-hidden /> Manufacturing complete</div>
         <h2 className="rtl__title">Ready to launch</h2>
-        <p className="rtl__sub">“{product.name}” rolled off the line. Ship it now — no need to leave this screen.</p>
+        <p className="rtl__sub">“{product.name}” rolled off the line. Ship it now, no need to leave this screen.</p>
 
         <div className="rtl__stage">
           <span className="rtl__glow" aria-hidden />

@@ -36,7 +36,7 @@ export function AchievementsSheet({
       </div>
 
       {total === 0 ? (
-        <EmptyState title="No milestones yet" sub="Keep building — achievements will appear here." />
+        <EmptyState title="No milestones yet" sub="Keep building, achievements will appear here." />
       ) : (
         <ul className="ach__grid">
           {ACHIEVEMENTS.map((a) => {

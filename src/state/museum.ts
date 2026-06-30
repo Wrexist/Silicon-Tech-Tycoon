@@ -4,7 +4,7 @@
 // so the museum re-renders them from the stored Product with no assets. Retention via collection,
 // not engagement-farming (RETENTION_ROADMAP §3, "new thinking").
 import { mirrorToNative } from "./nativeStore.ts";
-import type { CategoryId, Product } from "../engine/types.ts";
+import type { CategoryId, LaunchInsight, Product } from "../engine/types.ts";
 
 const KEY = "silicon.museum.v1";
 const CAP = 60; // keep the most recent N shipped devices (bounds localStorage)
@@ -18,6 +18,11 @@ export interface MuseumEntry {
   companyName: string;
   week: number;
   verdict?: string; // "hit" | "solid" | "flop" | "steady"
+  // Launch-moment analytics snapshot (added later; optional so older entries still load). Powers the
+  // museum device detail's "how it did / what went good or bad" breakdown without needing the live save.
+  insight?: LaunchInsight;
+  launchScore?: number;
+  forecastUnits?: number; // projected lifetime volume at launch
 }
 
 export function getMuseum(): MuseumEntry[] {

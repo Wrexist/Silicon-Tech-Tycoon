@@ -22,6 +22,9 @@ interface RivalDef {
   shares: number;
   /** Categories this rival launches into far more often + with a strength bonus (their identity). */
   preferredCategories: readonly CategoryId[];
+  /** A 1-2 sentence biography (Track A: narrative & voice): surfaced in the Market rival profile so
+   *  each rival reads as a character with a thesis, not just a strength number + a stock ticker. */
+  bio: string;
   /** B2 — behavioural posture when the player is winning a category (see advanceCompetitors):
    *   • defender    — counter-punches with extra STRENGTH + faster cadence (the old lead behaviour).
    *   • trendChaser — biases its category choice toward the player's hot categories (crowds you).
@@ -33,21 +36,21 @@ interface RivalDef {
 export type RivalDoctrine = "defender" | "trendChaser" | "undercutter" | "generalist";
 
 export const RIVALS: RivalDef[] = [
-  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, shares: 13_000_000, preferredCategories: ["phone", "wearable"],               doctrine: "defender"    },
-  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, shares: 9_500_000, preferredCategories: ["phone", "tablet", "laptop"],   doctrine: "generalist"  },
-  { id: "googol",    name: "Oqular",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], doctrine: "trendChaser" },
-  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, shares: 3_500_000, preferredCategories: ["phone"],                           doctrine: "undercutter" },
-  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, shares: 9_000_000, preferredCategories: ["phone", "tablet", "desktop"],       doctrine: "undercutter" },
-  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      doctrine: "trendChaser" },
+  { id: "pomelo",    name: "Pomelo",    blurb: "Premium design & a walled-garden ecosystem.", reputation: 72, share: 188, vol: 0.7, shares: 13_000_000, preferredCategories: ["phone", "wearable"],               doctrine: "defender",    bio: "Founded by a designer obsessed with the seam between hardware and soul. Pomelo set the premium standard and guards it ferociously: win a category it owns and a sharper, pricier answer arrives within weeks." },
+  { id: "tristar",   name: "Tristar",   blurb: "A broad electronics giant that ships everything.", reputation: 64, share: 96, vol: 0.9, shares: 9_500_000, preferredCategories: ["phone", "tablet", "laptop"],   doctrine: "generalist",  bio: "A sprawling conglomerate that makes everything from chips to dishwashers. Tristar rarely leads on taste, but its scale and supply chain let it flood any category you open." },
+  { id: "googol",    name: "Oqular",    blurb: "Search, services and a platform play.",        reputation: 67, share: 142, vol: 1.0, shares: 10_000_000, preferredCategories: ["tablet", "laptop", "experimental"], doctrine: "trendChaser", bio: "A search-and-services giant that treats hardware as a doorway to its platform. Oqular chases whatever is hot, betting that owning your attention beats owning the device." },
+  { id: "novaplus",  name: "NovaPlus",  blurb: "Flagship specs at a fraction of the price.",  reputation: 46, share: 34,  vol: 1.3, shares: 3_500_000, preferredCategories: ["phone"],                           doctrine: "undercutter", bio: "Built on one promise: flagship specifications at half the price. NovaPlus wins the spec sheet and dares you to justify your margins." },
+  { id: "pandacore", name: "Pandacore", blurb: "Aggressive value and relentless volume.",     reputation: 41, share: 22,  vol: 1.4, shares: 9_000_000, preferredCategories: ["phone", "tablet", "desktop"],       doctrine: "undercutter", bio: "A relentless value manufacturer that wins on sheer volume and razor-thin margins. Pandacore does not want to be loved; it wants to be everywhere, cheaply." },
+  { id: "quantyx",   name: "Quantyx",   blurb: "A scrappy challenger betting on the next wave.", reputation: 30, share: 11, vol: 1.6, shares: 4_100_000, preferredCategories: ["experimental", "wearable"],      doctrine: "trendChaser", bio: "A scrappy upstart betting the company on the next wave. Quantyx is small and volatile, but one well-timed bet on an emerging category can vault it overnight." },
 ];
 
 /** B3 — reserve challengers that rise to refill the field after the player acquires rivals, so the
  *  industry never goes quiet. Not present at game start; they enter via spawnChallenger. */
 export const CHALLENGER_POOL: RivalDef[] = [
-  { id: "vortex",  name: "Vortex",  blurb: "A venture-backed upstart chasing every hot trend.",   reputation: 38, share: 26, vol: 1.5, shares: 5_000_000, preferredCategories: ["phone", "wearable", "experimental"], doctrine: "trendChaser" },
-  { id: "lumina",  name: "Lumina",  blurb: "A contract manufacturer turned cut-price brand.",      reputation: 34, share: 18, vol: 1.5, shares: 8_000_000, preferredCategories: ["phone", "tablet", "laptop"],        doctrine: "undercutter" },
-  { id: "kestrel", name: "Kestrel", blurb: "A steady mid-market generalist with broad reach.",      reputation: 50, share: 58, vol: 1.0, shares: 7_000_000, preferredCategories: ["laptop", "desktop", "monitor"],     doctrine: "generalist"  },
-  { id: "axion",   name: "Axion",   blurb: "A premium newcomer betting on design and ecosystem.",   reputation: 58, share: 96, vol: 0.8, shares: 6_000_000, preferredCategories: ["phone", "tablet", "wearable"],      doctrine: "defender"    },
+  { id: "vortex",  name: "Vortex",  blurb: "A venture-backed upstart chasing every hot trend.",   reputation: 38, share: 26, vol: 1.5, shares: 5_000_000, preferredCategories: ["phone", "wearable", "experimental"], doctrine: "trendChaser", bio: "Venture cash and big ambitions. Vortex chases every hot trend with someone else's money, burning bright and fast in whatever category is fashionable this quarter." },
+  { id: "lumina",  name: "Lumina",  blurb: "A contract manufacturer turned cut-price brand.",      reputation: 34, share: 18, vol: 1.5, shares: 8_000_000, preferredCategories: ["phone", "tablet", "laptop"],        doctrine: "undercutter", bio: "Once the factory behind other people's phones, Lumina learned the playbook and turned cut-price brand. It knows exactly what a device costs to build, and prices accordingly." },
+  { id: "kestrel", name: "Kestrel", blurb: "A steady mid-market generalist with broad reach.",      reputation: 50, share: 58, vol: 1.0, shares: 7_000_000, preferredCategories: ["laptop", "desktop", "monitor"],     doctrine: "generalist",  bio: "A dependable mid-market generalist with broad retail reach. Kestrel never dazzles, but it is always on the shelf, quietly taking the customers who just want something that works." },
+  { id: "axion",   name: "Axion",   blurb: "A premium newcomer betting on design and ecosystem.",   reputation: 58, share: 96, vol: 0.8, shares: 6_000_000, preferredCategories: ["phone", "tablet", "wearable"],      doctrine: "defender",    bio: "A premium newcomer betting that design and a tight ecosystem can unseat the incumbents. Axion is young, well-funded, and unafraid to defend the categories it stakes out." },
 ];
 
 /** Lookup across the starting roster AND the reserve challenger pool (so an entered challenger has a
@@ -91,6 +94,21 @@ export function rivalDoctrine(id: string): RivalDoctrine {
   return rivalDef(id)?.doctrine ?? "generalist";
 }
 
+/** Plain-language label + "what it means for you" for each doctrine (Track A: make the rival's
+ *  strategy legible, not just a hidden behaviour). Used by the Market rival profile. */
+export const DOCTRINE_LABEL: Record<RivalDoctrine, string> = {
+  defender: "Defender",
+  trendChaser: "Trend-chaser",
+  undercutter: "Undercutter",
+  generalist: "Generalist",
+};
+export const DOCTRINE_EXPLAINER: Record<RivalDoctrine, string> = {
+  defender: "Counter-punches with stronger, faster launches when you win the categories it owns.",
+  trendChaser: "Piles into whatever category is hot, including the ones you've just proven.",
+  undercutter: "Fights on price, not specs: ships aggressively cheap to bleed your margins.",
+  generalist: "No special reaction: a broad, steady shipper across many categories.",
+};
+
 /** A rival's live market capitalization for the industry leaderboard. The cap is anchored to the
  *  rival's fundamental size (starting share price × float) and nudged by its LIVE share price within
  *  a bounded band. Share prices now mean-revert around their fair value (B6), so they can no longer
@@ -103,6 +121,65 @@ export function rivalMarketCap(c: CompetitorState): Money {
   const baseShare = def?.share ?? 50; // starting share price in dollars
   const ratio = Math.max(0.4, Math.min(2.5, c.sharePrice / 100 / baseShare));
   return cents(Math.round(baseShare * 100 * shares * ratio));
+}
+
+export type RivalArcPhase = "ascending" | "peaking" | "declining" | "stable";
+
+/** A feed beat emitted when a rival crosses into a new arc phase (Track B story arcs). */
+export interface ArcBeat {
+  competitor: string;
+  text: string;
+  tone: "positive" | "negative" | "accent";
+  week: number;
+}
+
+/** Weighted pick of the next arc phase from the current one (deterministic: one rng.next() draw). */
+function pickNextPhase(from: RivalArcPhase, rng: Rng): RivalArcPhase {
+  const weights = BALANCE.competitors.arc.transitions[from] ?? BALANCE.competitors.arc.transitions.stable;
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  let roll = rng.next() * total;
+  for (const [phase, w] of Object.entries(weights)) {
+    roll -= w;
+    if (roll <= 0) return phase as RivalArcPhase;
+  }
+  return "stable";
+}
+
+/** The feed beat for entering a phase (player POV: a rival rising is bad news, faltering is good).
+ *  Returns null for "stable" (a quiet phase) so the feed only speaks at the dramatic turns. */
+function arcBeatFor(name: string, phase: RivalArcPhase, week: number): ArcBeat | null {
+  switch (phase) {
+    case "ascending":
+      return { competitor: name, week, tone: "negative", text: `${name} is on a tear, analysts are calling it the company to beat.` };
+    case "peaking":
+      return { competitor: name, week, tone: "negative", text: `${name} is at the height of its powers, its valuation has never been richer.` };
+    case "declining":
+      return { competitor: name, week, tone: "positive", text: `${name} is faltering, its last launch landed flat and its stock is sliding.` };
+    default:
+      return null;
+  }
+}
+
+/** Advance a rival's story arc one week: re-roll its phase when due (or bootstrap a missing one
+ *  silently), then drift its reputation toward the phase direction, clamped to a bounded envelope
+ *  around the rival's calibrated base so the drift is mean-reverting (the stock market stays
+ *  zero-EV long-run). Draws rng ONLY on a transition week (phase pick + next duration). */
+function advanceArc(c: CompetitorState, week: number, rng: Rng): { reputation: number; arcPhase: RivalArcPhase; arcUntil: number; beat: ArcBeat | null } {
+  const arc = BALANCE.competitors.arc;
+  const base = rivalDef(c.id)?.reputation ?? c.reputation;
+  const bootstrap = c.arcPhase === undefined;
+  let phase: RivalArcPhase = c.arcPhase ?? "stable";
+  let until = c.arcUntil ?? 0;
+  let beat: ArcBeat | null = null;
+  if (bootstrap || week >= until) {
+    phase = pickNextPhase(c.arcPhase ?? "stable", rng);
+    until = week + arc.phaseWeeksMin + rng.int(arc.phaseWeeksMax - arc.phaseWeeksMin + 1);
+    if (!bootstrap) beat = arcBeatFor(c.name, phase, week); // bootstrap roll is silent (no week-1 spam)
+  }
+  const lo = Math.max(arc.repFloor, base - arc.repBand);
+  const hi = Math.min(arc.repCeil, base + arc.repBand);
+  const reputation = Math.max(lo, Math.min(hi, c.reputation + (arc.driftPerWeek[phase] ?? 0)));
+  return { reputation, arcPhase: phase, arcUntil: until, beat };
 }
 
 export interface CompetitorLaunch {
@@ -171,11 +248,16 @@ export function advanceCompetitors(
   era: number,
   rng: Rng,
   recentPlayerHitCats?: readonly CategoryId[],
-): { competitors: CompetitorState[]; launches: CompetitorLaunch[] } {
+): { competitors: CompetitorState[]; launches: CompetitorLaunch[]; arcBeats: ArcBeat[] } {
   const launches: CompetitorLaunch[] = [];
-  const decay = BALANCE.competitors.strengthDecayPerWeek;
-  const cats = unlockedCategories(era);
+  const arcBeats: ArcBeat[] = [];
   const bal = BALANCE.competitors;
+  // Era-scaled durable competition (P3): rivals decay slower AND can reach higher strength in the
+  // late eras, so they entrench and genuinely contest a maxed player. Index = era − 1 (clamped).
+  const eraIdx = Math.max(0, Math.min(Math.floor(era) - 1, bal.strengthDecayByEra.length - 1));
+  const decay = bal.strengthDecayByEra[eraIdx];
+  const maxStrength = bal.reactMaxStrengthByEra[eraIdx];
+  const cats = unlockedCategories(era);
 
   const competitors = comps.map((c) => {
     const strengthByCategory: CompetitorState["strengthByCategory"] = {};
@@ -218,9 +300,12 @@ export function advanceCompetitors(
       if (isDefending) {
         strength = strength + bal.reactStrengthBonus;
       }
+      // Durable competition (P3): late eras add a flat strength bump so rivals reach genuine
+      // contesting range against a maxed player (the formula otherwise tops out below the cap).
+      strength += bal.lateStrengthByEra[eraIdx];
       // The winnability ceiling applies to EVERY launch, not just defenders — structural, so a future
       // baseStrength/preferredStrengthBonus bump can't silently break the documented cap.
-      strength = Math.min(bal.reactMaxStrength, strength);
+      strength = Math.min(maxStrength, strength);
 
       strengthByCategory[cat] = Math.max(strengthByCategory[cat] ?? 0, strength);
       launches.push({ competitor: c.name, category: cat, strength: Math.round(strength), week, contested: isUndercutting });
@@ -232,11 +317,17 @@ export function advanceCompetitors(
       nextLaunchWeek = week + Math.max(1, baseInterval - cadenceCut);
     }
 
-    const { sharePrice, priceHistory } = evolveShare(c, launchedNow, rng);
-    return { ...c, strengthByCategory, nextLaunchWeek, sharePrice, priceHistory };
+    // Story arc (Track B): re-roll the rival's phase when due + drift its reputation. Drawn AFTER the
+    // launch block (so a launch uses the week's opening reputation) and BEFORE evolveShare (so a rising
+    // rival's stock pops via its lifted fair value). The drifted reputation carries into next week.
+    const { reputation, arcPhase, arcUntil, beat } = advanceArc(c, week, rng);
+    if (beat) arcBeats.push(beat);
+    const evolved = { ...c, reputation };
+    const { sharePrice, priceHistory } = evolveShare(evolved, launchedNow, rng);
+    return { ...c, reputation, arcPhase, arcUntil, strengthByCategory, nextLaunchWeek, sharePrice, priceHistory };
   });
 
-  return { competitors, launches };
+  return { competitors, launches, arcBeats };
 }
 
 /** Strongest rival presence in a category right now (0 if none). */

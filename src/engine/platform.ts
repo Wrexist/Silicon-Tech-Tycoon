@@ -145,13 +145,13 @@ export const OS_FEATURES: readonly OsFeature[] = [
   { id: "privacy",    name: "Privacy Suite",           icon: "ShieldCheck", minVersion: 2, rpCost: 52,  ecoBonus: 3, servicesMult: 0.06,
     blurb: "On-device encryption and tracking controls. Buyers trust the platform more." },
   { id: "wallet",     name: "Wallet & Pay",            icon: "Wallet",      minVersion: 2, rpCost: 55,  ecoBonus: 3, servicesMult: 0.16,
-    blurb: "Tap-to-pay and a built-in wallet — take a small cut of every transaction on your platform." },
+    blurb: "Tap-to-pay and a built-in wallet, take a small cut of every transaction on your platform." },
   { id: "health",     name: "Health Hub",              icon: "HeartPulse",  minVersion: 3, rpCost: 70,  ecoBonus: 3, servicesMult: 0.12,
     blurb: "Activity, sleep and wellbeing tracking that pulls wearables into your ecosystem." },
   { id: "media",      name: "Media Studio",            icon: "Music",       minVersion: 3, rpCost: 80,  ecoBonus: 3, servicesMult: 0.14,
     blurb: "Music, film and TV subscriptions streamed to every device in your ecosystem." },
   { id: "continuity", name: "Cross-Device Continuity", icon: "Layers",      minVersion: 4, rpCost: 110, ecoBonus: 4, servicesMult: 0.18,
-    blurb: "Hand off any task between your phone, tablet and laptop seamlessly — true lock-in." },
+    blurb: "Hand off any task between your phone, tablet and laptop seamlessly, true lock-in." },
 ];
 
 export function osFeatureById(id: string): OsFeature | undefined {
@@ -184,13 +184,13 @@ export interface OsPhilosophy {
 
 export const OS_PHILOSOPHIES: readonly OsPhilosophy[] = [
   { id: "curated", name: "Curated Garden", icon: "ShieldCheck", tagline: "Polished, controlled, premium", statBonus: { ecosystem: 5 }, servicesMult: 0,
-    blurb: "A tightly controlled experience — every device you ship feels part of one seamless whole." },
+    blurb: "A tightly controlled experience, every device you ship feels part of one seamless whole." },
   { id: "open", name: "Open Platform", icon: "Globe", tagline: "Third-party friendly, alive", statBonus: {}, servicesMult: 0.20,
     blurb: "Developers and partners thrive on your OS, so recurring services revenue runs much deeper." },
   { id: "performance", name: "Performance-First", icon: "Zap", tagline: "Lean, fast, no compromise", statBonus: { performance: 5 }, servicesMult: 0,
-    blurb: "A ruthlessly optimized core — every device you launch runs noticeably faster." },
+    blurb: "A ruthlessly optimized core, every device you launch runs noticeably faster." },
   { id: "privacy", name: "Privacy-First", icon: "Lock", tagline: "Trusted, principled, refined", statBonus: { quality: 5 }, servicesMult: 0,
-    blurb: "On-device by default. Buyers trust the polish — and the principles — behind every product." },
+    blurb: "On-device by default. Buyers trust the polish, and the principles, behind every product." },
 ];
 
 export function osPhilosophyById(id: string | null | undefined): OsPhilosophy | undefined {
@@ -231,7 +231,7 @@ export interface OsSynergy {
 
 export const OS_SYNERGIES: readonly OsSynergy[] = [
   { id: "commerce", name: "One-Tap Commerce", requires: ["appMarket", "wallet"], servicesMult: 0.10,
-    blurb: "Buy from the store and pay in a single tap — conversions soar." },
+    blurb: "Buy from the store and pay in a single tap, conversions soar." },
   { id: "handoff", name: "Seamless Handoff", requires: ["cloudSync", "continuity"], servicesMult: 0.10,
     blurb: "Your files and your tasks follow you across every device, instantly." },
   { id: "wellbeing", name: "Proactive Wellbeing", requires: ["assistant", "health"], servicesMult: 0.08,

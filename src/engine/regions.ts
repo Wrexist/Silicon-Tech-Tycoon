@@ -10,6 +10,7 @@
 // planProduction. A HOME-ONLY launch computes a reach of exactly 1.0, so existing/old-save play is
 // bit-for-bit unchanged — the entire market.ts / scoreLaunch / salesCurve machinery is untouched.
 import { BALANCE } from "./balance.ts";
+import { regionShockMul } from "./climate.ts";
 import { dollars, type Money } from "./money.ts";
 import { STAT_KEYS, type RegionId, type Stats } from "./types.ts";
 
@@ -57,7 +58,7 @@ export const REGIONS: readonly Region[] = [
   {
     id: "asia",
     name: "Asia",
-    blurb: "The largest market — fast-moving, design-aware and performance-hungry.",
+    blurb: "The largest market, fast-moving, design-aware and performance-hungry.",
     share: 1.15,
     weights: { performance: 1.2, quality: 1.0, battery: 1.1, design: 1.2, ecosystem: 0.9 },
     unlockCost: dollars(150_000),
@@ -65,7 +66,7 @@ export const REGIONS: readonly Region[] = [
   {
     id: "emerging",
     name: "Emerging Markets",
-    blurb: "Huge volume for durable, long-lasting value — design matters less here.",
+    blurb: "Huge volume for durable, long-lasting value, design matters less here.",
     share: 0.85,
     weights: { performance: 1.0, quality: 1.2, battery: 1.3, design: 0.7, ecosystem: 0.8 },
     unlockCost: dollars(110_000),
@@ -131,12 +132,16 @@ export function regionReach(
   unlocked: readonly RegionId[],
   chosen: readonly RegionId[] | undefined,
   stats: Stats,
+  /** Track B — current week, to apply periodic regional crises (engine/climate.ts). Omitted → no
+   *  shock, and Home is never shocked anyway, so a domestic launch and old saves are byte-identical. */
+  week?: number,
 ): number {
   const ships = shippableRegions(unlocked, chosen);
   let reach = 0;
   for (const id of ships) {
     const r = regionById(id)!;
-    reach += r.share * regionTasteFit(stats, r);
+    const shock = week === undefined ? 1 : regionShockMul(id, week);
+    reach += r.share * regionTasteFit(stats, r) * shock;
   }
   return reach;
 }

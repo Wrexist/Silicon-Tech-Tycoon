@@ -33,6 +33,11 @@ import {
   marketingPush,
   giveRaise,
   resolveChoice,
+  resolvePoach,
+  takeLoan,
+  repayLoan,
+  boostMorale,
+  type MoraleKind,
   catchUpOffline,
   clearCandidates,
   duplicateFurniture,
@@ -147,7 +152,7 @@ function withFanToasts(prev: GameState, next: GameState): void {
   for (const m of FAN_TOAST_THRESHOLDS) {
     if (prev.fans < m && next.fans >= m) {
       try {
-        showToast(`${fmtFans(m)} fans — your brand is growing!`, { tone: "positive" });
+        showToast(`${fmtFans(m)} fans, your brand is growing!`, { tone: "positive" });
       } catch { /* toast host not mounted */ }
     }
   }
@@ -175,7 +180,7 @@ function withProductFinishToasts(prev: GameState, next: GameState): void {
     const tone = v === "hit" || v === "solid" ? "positive" : v === "flop" ? "negative" : "neutral";
     try {
       showToast(
-        `${nlp.product.name} finished its run — ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
+        `${nlp.product.name} finished its run, ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
         { tone },
       );
     } catch { /* toast host not mounted */ }
@@ -189,7 +194,7 @@ function withRevToasts(prev: GameState, next: GameState): void {
   for (const m of REV_MILESTONES) {
     if (prevD < m && nextD >= m) {
       try {
-        showToast(`Revenue milestone — ${fmtMilestone(m)} earned lifetime!`, { tone: "positive" });
+        showToast(`Revenue milestone, ${fmtMilestone(m)} earned lifetime!`, { tone: "positive" });
       } catch { /* toast host not mounted */ }
     }
   }
@@ -209,14 +214,14 @@ function announceAchievements(unlocked: readonly string[]): void {
     try {
       if (earned.length === 1) {
         const a = earned[0];
-        showToast(`Achievement unlocked — ${a.title}`, {
+        showToast(`Achievement unlocked, ${a.title}`, {
           tone: "positive",
           glyph: createElement(achievementIcon(a.icon), { size: 15 }),
         });
       } else {
         const names = earned.slice(0, 2).map((a) => a.title).join(" · ");
         const extra = earned.length > 2 ? ` +${earned.length - 2} more` : "";
-        showToast(`${earned.length} milestones unlocked — ${names}${extra}`, {
+        showToast(`${earned.length} milestones unlocked, ${names}${extra}`, {
           tone: "positive",
           glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
         });
@@ -240,8 +245,8 @@ function announceObjectives(completed: readonly string[]): void {
   setTimeout(() => {
     try {
       const label = done.length === 1
-        ? `Goal complete — ${done[0].label}`
-        : `${done.length} goals complete — ${done[0].label}`;
+        ? `Goal complete, ${done[0].label}`
+        : `${done.length} goals complete, ${done[0].label}`;
       showToast(label, { tone: "positive", glyph: createElement(CircleCheck, { size: 15 }) });
     } catch {
       /* toast host not mounted (e.g. tests) */
@@ -297,7 +302,7 @@ function announceScenarioStars(state: GameState): void {
   const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
   setTimeout(() => {
     try {
-      showToast(`${best}★ earned — ${name}`, {
+      showToast(`${best}★ earned, ${name}`, {
         tone: "positive",
         glyph: createElement(achievementIcon("Star"), { size: 15 }),
       });
@@ -317,10 +322,10 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
   sfx("mastery");
   const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
   const scored = formatScore(ch.scoreMetric, next.challengeScore);
-  const tail = improved ? " — new best!" : ` · best ${formatScore(ch.scoreMetric, best)}`;
+  const tail = improved ? ", new best!" : ` · best ${formatScore(ch.scoreMetric, best)}`;
   setTimeout(() => {
     try {
-      showToast(`${label} complete — ${scored}${tail}`, {
+      showToast(`${label} complete, ${scored}${tail}`, {
         tone: "positive",
         glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
       });
@@ -416,6 +421,10 @@ interface GameActionsValue {
   marketingPush: (productId: string) => { ok: boolean; reason?: string };
   giveRaise: (id: string) => void;
   resolveChoice: (optionId: string) => void;
+  resolvePoach: (accept: boolean) => void;
+  takeLoan: (principalCents: number) => void;
+  repayLoan: (id: string) => void;
+  boostMorale: (kind: MoraleKind) => void;
 }
 
 /** Full context shape — data + actions. `useGame()` returns this (back-compat). */
@@ -658,6 +667,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
           companyName: next.companyName,
           week: lp.launchedWeek,
           verdict: lp.verdict,
+          insight: lp.insight,
+          launchScore: lp.launchScore,
+          forecastUnits: lp.totalUnits,
         });
       }
       setState(next);
@@ -696,7 +708,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (next.completedProjects.length > prev.completedProjects.length) {
       emitCelebrate();
       sfx("confirm");
-      showToast(`Breakthrough — ${projectById(id).name}`, { tone: "positive" });
+      showToast(`Breakthrough, ${projectById(id).name}`, { tone: "positive" });
     }
     setState(next);
   }, []);
@@ -919,6 +931,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const giveRaiseCb = useCallback((id: string) => setState((s) => giveRaise(s, id)), []);
   const resolveChoiceCb = useCallback((optionId: string) => setState((s) => resolveChoice(s, optionId)), []);
+  // These three can lower cash, so they route the drop through emitSpend like build/hire/upgrade do
+  // (consistent spend feedback). takeLoan ADDS cash, so it stays a plain setState.
+  const spendThrough = useCallback((next: GameState) => {
+    const spent = (stateRef.current.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
+  const resolvePoachCb = useCallback((accept: boolean) => spendThrough(resolvePoach(stateRef.current, accept)), [spendThrough]);
+  const takeLoanCb = useCallback((principalCents: number) => setState((s) => takeLoan(s, principalCents)), []);
+  const repayLoanCb = useCallback((id: string) => spendThrough(repayLoan(stateRef.current, id)), [spendThrough]);
+  const boostMoraleCb = useCallback((kind: MoraleKind) => spendThrough(boostMorale(stateRef.current, kind)), [spendThrough]);
 
   const restart = useCallback(() => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good
@@ -1025,10 +1048,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       cutProductPrice: cutProductPriceCb,
       marketingPush: marketingPushCb,
       giveRaise: giveRaiseCb,
+      resolvePoach: resolvePoachCb,
+      takeLoan: takeLoanCb,
+      repayLoan: repayLoanCb,
+      boostMorale: boostMoraleCb,
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

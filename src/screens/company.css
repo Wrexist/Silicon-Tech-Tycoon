@@ -40,6 +40,98 @@
   margin: var(--sp-8) 0;
 }
 
+/* ---------- Financing (Track C) ---------- */
+.co__fin-credit {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: var(--sp-4) 0 var(--sp-8);
+}
+.co__loan-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-12);
+}
+.co__loan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+}
+.co__loan-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.co__loan-bal {
+  font-weight: 600;
+  font-size: var(--fs-caption);
+}
+.co__loan-meta {
+  font-size: var(--fs-micro, var(--fs-caption));
+  color: var(--ink-2);
+}
+.co__loan-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+}
+.co__loan-presets > * {
+  flex: 1 1 auto;
+}
+.co__morale-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+  margin: var(--sp-4) 0 var(--sp-8);
+}
+.co__morale-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width var(--motion-medium, 240ms) ease;
+}
+
+/* Interactive borrow slider — a tactile, "alive" control instead of fixed preset buttons. */
+.co__borrow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.co__borrow-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.co__borrow-amount {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 62%, #1e3a8a));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.co__borrow-credit {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.co__borrow-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.co__borrow-preview b {
+  color: var(--ink-1);
+}
+
 /* ---------- Product track record strip ---------- */
 .co__track {
   display: flex;
@@ -974,6 +1066,14 @@
 .co__tag--burnout {
   color: var(--negative-text, var(--negative));
   background: color-mix(in srgb, var(--negative) 12%, transparent);
+}
+.co__tag--lead {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.co__tag--mentored {
+  color: var(--positive-text, var(--positive));
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
 }
 .co__raise-btn {
   display: inline-flex;

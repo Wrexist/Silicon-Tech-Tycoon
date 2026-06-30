@@ -131,6 +131,9 @@ export interface Product {
   /** On-board storage in GB (128/256/512/1024). Optional — defaults to 128 on read; capped by the
    *  software/OS tier (see product.effectiveStorage). */
   storage?: number;
+  /** Category subsystem step (Track D, engine/subsystems.ts) — e.g. a laptop's cooling or a wearable's
+   *  sensors. 0/undefined = the free baseline; categories without a subsystem ignore it. */
+  subsystem?: number;
   plannedUnits?: number; // production run size chosen in the build wizard
   channelId?: string; // marketing channel selected at launch
   tuning?: ProductTuning; // performance/efficiency trade-off (defaults "balanced" on older saves)
@@ -248,6 +251,9 @@ export interface Staff {
   trait: Trait;
   mood: number; // 0..100, drifts over time
   moodLowWeeks?: number; // consecutive weeks below the churn threshold — resets to 0 when mood recovers
+  /** Week until which this person can't be poached again (Track C): set when you win a counter-offer,
+   *  so a retained employee isn't immediately targeted a second time. Optional → old saves default 0. */
+  poachCooldownUntil?: number;
   appearance: Appearance;
 }
 
@@ -308,4 +314,9 @@ export interface CompetitorState {
   nextLaunchWeek: number;
   sharePrice: number; // current share price in cents
   priceHistory: number[]; // recent share-price points (dollars) for the sparkline
+  /** Rival story arc (Track B): current lifecycle phase + the week it re-rolls. Both optional and
+   *  absent at game start / on old saves — the arc bootstraps (silently) on the first tick after load,
+   *  so newGame stays byte-identical and no migration is needed. */
+  arcPhase?: "ascending" | "peaking" | "declining" | "stable";
+  arcUntil?: number;
 }

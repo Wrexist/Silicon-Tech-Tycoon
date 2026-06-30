@@ -203,7 +203,7 @@ function ImportPanel({ onDone, onCancel }: { onDone: () => void; onCancel: () =>
       {confirming ? (
         <>
           <p className="set__import-text">
-            Importing replaces your current company. This can't be undone — export a backup first if
+            Importing replaces your current company. This can't be undone. Export a backup first if
             you want to keep it.
           </p>
           <div className="set__pair">
@@ -285,11 +285,11 @@ function downloadText(text: string, filename: string): void {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch {
-    /* download unsupported — the clipboard copy still gives the player their backup */
+    /* download unsupported, the clipboard copy still gives the player their backup */
   }
 }
 
-/** Creative mode — the single v1 IAP. Locked behind a one-time purchase (the device-level
+/** Creative mode, the single v1 IAP. Locked behind a one-time purchase (the device-level
  *  entitlement); once owned, a free toggle activates/deactivates it for the current game. */
 function CreativeModeGroup() {
   const { state, setSandboxActive } = useGame();
@@ -337,7 +337,7 @@ function CreativeModeGroup() {
     if (res.restored) {
       setOwned(true);
       haptic.success();
-      showToast("Purchases restored — Creative Mode unlocked.", { tone: "positive" });
+      showToast("Purchases restored, Creative Mode unlocked.", { tone: "positive" });
     } else {
       showToast("No previous purchases found.", { tone: "neutral" });
     }
@@ -355,7 +355,7 @@ function CreativeModeGroup() {
         <Row
           icon={<Sparkles size={18} />}
           label="Sandbox mode"
-          sub={state.sandboxUnlocked ? "Active — unlimited funds & research. Design freely." : "Owned. Toggle on to design without limits — unlimited money & research."}
+          sub={state.sandboxUnlocked ? "Active, unlimited funds & research. Design freely." : "Owned. Toggle on to design without limits, unlimited money & research."}
         >
           <Switch label="Sandbox mode" on={state.sandboxUnlocked} onChange={(v) => { setSandboxActive(v); haptic.light(); sfx("toggle"); }} />
         </Row>
@@ -367,7 +367,7 @@ function CreativeModeGroup() {
             <span className="set__row-icon"><Lock size={18} /></span>
             <div className="set__row-text">
               <span className="set__row-label">Creative Mode</span>
-              <span className="set__row-sub">Design freely with no financial limits — an unlimited cash floor so you can never go bankrupt.</span>
+              <span className="set__row-sub">Design freely with no financial limits: an unlimited cash floor so you can never go bankrupt.</span>
             </div>
           </div>
           <Button block onClick={buy} disabled={busy}>

@@ -18,15 +18,15 @@ export type LaunchVerdict = "hit" | "solid" | "flop" | "steady";
  */
 export function launchFeedback(verdict: LaunchVerdict, firstEver: boolean, firstHit: boolean): LaunchFeedback {
   if (verdict === "hit") {
-    return { text: firstHit ? "Your first hit — the market loves it!" : "Launched — it's a hit!", tone: "positive" };
+    return { text: firstHit ? "Your first hit, the market loves it!" : "Launched, it's a hit!", tone: "positive" };
   }
-  if (verdict === "solid") return { text: "Launched — solid performance.", tone: "positive" };
+  if (verdict === "solid") return { text: "Launched, solid performance.", tone: "positive" };
   if (verdict === "flop") {
     // Constructive, not deflating — and never red for a debut. Point the player at the Market
     // post-mortem so a slow start reads as "here's how to improve", not "you failed".
     return firstEver
-      ? { text: "Launched! A modest debut — open Market to see how to level up.", tone: "neutral" }
-      : { text: "Launched — slow start. Open Market to see why.", tone: "neutral" };
+      ? { text: "Launched! A modest debut, open Market to see how to level up.", tone: "neutral" }
+      : { text: "Launched, slow start. Open Market to see why.", tone: "neutral" };
   }
   return { text: "Launched into the market.", tone: "neutral" };
 }

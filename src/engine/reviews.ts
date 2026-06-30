@@ -78,14 +78,14 @@ function aggregateScore(inp: ReviewInputs): number {
 
 const HEADLINES: Record<ReviewVerdict, string[]> = {
   hit: [
-    "A standout — the one to beat this season.",
+    "A standout, the one to beat this season.",
     "Easily one of the year's most exciting releases.",
     "Rare is the product that delivers on the hype. This one does.",
   ],
   solid: [
     "A confident, polished release that gets the fundamentals right.",
     "No fireworks, but very few compromises.",
-    "Dependable and well-built — an easy recommendation.",
+    "Dependable and well-built, an easy recommendation.",
   ],
   steady: [
     "Competent, if a little safe.",
@@ -119,7 +119,7 @@ export function criticReviews(inp: ReviewInputs): CriticReviews {
   const pros: string[] = [];
   const cons: string[] = [];
   if (best.v >= 55) pros.push(`Class-leading ${STAT_LABEL[best.key]}`);
-  if (inp.demandFit >= 65) pros.push("Reads the moment — exactly what buyers want");
+  if (inp.demandFit >= 65) pros.push("Reads the moment, exactly what buyers want");
   if (inp.priceFit >= 1.1) pros.push("Genuinely good value");
   else if (inp.priceFit <= 0.78) cons.push("Hard to justify the price");
   if (worst.v <= 38) cons.push(`Underwhelming ${STAT_LABEL[worst.key]}`);

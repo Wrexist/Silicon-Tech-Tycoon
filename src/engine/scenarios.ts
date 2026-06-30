@@ -167,7 +167,7 @@ export const SCENARIOS: readonly Scenario[] = [
     name: "First Light",
     tagline: "Found a company and ship your first hits.",
     description:
-      "A clean garage start. Learn the loop — design, build, time the market, launch — and turn a " +
+      "A clean garage start. Learn the loop, design, build, time the market, launch, and turn a " +
       "few good products into real revenue.",
     difficulty: "intro",
     setup: {},
@@ -188,7 +188,7 @@ export const SCENARIOS: readonly Scenario[] = [
     name: "Bootstrapped",
     tagline: "No investors. Half the runway. Make it work.",
     description:
-      "You turned down the cheque. Starting capital is tight, so every build is a real bet — grow a " +
+      "You turned down the cheque. Starting capital is tight, so every build is a real bet, grow a " +
       "profitable company on conviction alone.",
     difficulty: "standard",
     setup: { cash: dollars(12_000) },
@@ -207,7 +207,7 @@ export const SCENARIOS: readonly Scenario[] = [
     tagline: "An established brand in the Growth Era. Push for the platform.",
     description:
       "You begin mid-journey: a funded company with a reputation to defend. Skip the garage and play " +
-      "the scaling game — reach the Platform Era and beyond.",
+      "the scaling game, reach the Platform Era and beyond.",
     difficulty: "standard",
     setup: { era: 2, cash: dollars(2_000_000), reputation: 55, fans: 40_000 },
     tiers: [
@@ -228,7 +228,7 @@ export const SCENARIOS: readonly Scenario[] = [
     name: "Underdog",
     tagline: "Low cash, low trust, a ticking clock. Prove them wrong.",
     description:
-      "Nobody believes in you yet. Start lean with a bruised reputation and a hard deadline — race to " +
+      "Nobody believes in you yet. Start lean with a bruised reputation and a hard deadline, race to " +
       "your first million before the runway runs out.",
     difficulty: "hard",
     setup: { cash: dollars(10_000), reputation: 10 },
@@ -250,7 +250,7 @@ export const SCENARIOS: readonly Scenario[] = [
     name: "The Long Game",
     tagline: "No shortcuts. Build a respected industry leader.",
     description:
-      "Patience over hype. A standard start, but the goal is mastery of the full arc — reach the final " +
+      "Patience over hype. A standard start, but the goal is mastery of the full arc, reach the final " +
       "era with a reputation that lasts.",
     difficulty: "hard",
     setup: {},
@@ -272,7 +272,7 @@ export const SCENARIOS: readonly Scenario[] = [
     name: "Empire",
     tagline: "A giant already. Now leave a legacy.",
     description:
-      "You command a Platform-Era powerhouse. The only thing left is dominance — colossal revenue, " +
+      "You command a Platform-Era powerhouse. The only thing left is dominance, colossal revenue, " +
       "an iconic brand, the biggest company in the industry.",
     difficulty: "expert",
     setup: { era: 3, cash: dollars(20_000_000), reputation: 70, fans: 200_000 },

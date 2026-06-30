@@ -27,7 +27,7 @@ interface Target { kind: ChallengeKind; dateKey: string; }
 
 function shareCode(kind: ChallengeKind, dateKey: string): void {
   const code = encodeChallengeCode(kind, dateKey);
-  const onCopied = () => showToast(`Code copied — ${code}`, { tone: "positive", glyph: <Share2 size={15} /> });
+  const onCopied = () => showToast(`Code copied, ${code}`, { tone: "positive", glyph: <Share2 size={15} /> });
   // Clipboard unavailable or denied → surface the code so the player can copy it manually.
   const onFallback = () => showToast(`Share code: ${code}`, { tone: "neutral", glyph: <Share2 size={15} /> });
   try {
@@ -58,7 +58,7 @@ function ChallengeCard({ challenge, onPlay }: { challenge: Challenge; onPlay: ()
         {challenge.mutators.map((m) => (
           <li key={m.id} className="scn__tier scn__tier--met">
             <Target size={12} />
-            <span className="scn__tier-objs"><strong>{m.name}</strong> — {m.description}</span>
+            <span className="scn__tier-objs"><strong>{m.name}</strong> · {m.description}</span>
           </li>
         ))}
       </ul>
@@ -102,7 +102,7 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
       <div className="scn__head">
         <div>
           <h2 className="scn__title">Challenges</h2>
-          <p className="scn__sub">A fresh, seeded challenge every day. One run — beat your own best, or share a code.</p>
+          <p className="scn__sub">A fresh, seeded challenge every day. One run, beat your own best, or share a code.</p>
         </div>
       </div>
 

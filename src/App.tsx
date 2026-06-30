@@ -20,7 +20,8 @@ import { ProgressSheet } from "./screens/Progress.tsx";
 import { ScenariosSheet } from "./screens/Scenarios.tsx";
 import { Button, Card } from "./design/primitives.tsx";
 import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
-import { format, type Money } from "./engine/money.ts";
+import { format, toDollars, type Money } from "./engine/money.ts";
+import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
 import { canAdvance, ipoValuation, legacyBonus, industryRank, type GameState } from "./state/gameState.ts";
 import { nextPerk } from "./engine/perks.ts";
@@ -196,7 +197,7 @@ function ScreenError({ onHome }: { onHome: () => void }) {
       </div>
       <h2 className="app__screen-error-title">This screen hit a snag</h2>
       <p className="app__screen-error-text">
-        Something on this screen stopped responding. Your company is safe — head back and try again.
+        Something on this screen stopped responding. Your company is safe. Head back and try again.
       </p>
       <div className="app__screen-error-actions">
         <Button variant="secondary" onClick={onHome}>Back to Office</Button>
@@ -324,8 +325,19 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             </span>
           </Card>
         </div>
+        <p className="ipo__epilogue">
+          {campaignEpilogue({
+            companyName: state.companyName,
+            reputation: state.reputation,
+            rank,
+            valuationDollars: toDollars(ipoValuation(state)),
+            products: state.launched.length,
+            fans: state.fans,
+            legacy: state.legacy,
+          })}
+        </p>
         <Card variant="inset" className="ipo__legacy">
-          <span className="ipo__legacy-head">New Game+ legacy bonus — your next company starts with</span>
+          <span className="ipo__legacy-head">New Game+ legacy bonus, your next company starts with</span>
           <div className="ipo__legacy-grid">
             <span className="ipo__legacy-item"><b>+{format(nextBonus.cash)}</b> cash</span>
             <span className="ipo__legacy-item"><b>+{nextBonus.reputation}</b> reputation</span>
@@ -334,12 +346,12 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           </div>
           {nextFounderPerk && (
             <span className="ipo__legacy-perk">
-              New founder perk — <b>{nextFounderPerk.name}</b>: {nextFounderPerk.description}
+              New founder perk, <b>{nextFounderPerk.name}</b>: {nextFounderPerk.description}
             </span>
           )}
         </Card>
         <p className="ipo__sub">
-          Each empire you build leaves a bigger legacy — found your next one stronger, or keep
+          Each empire you build leaves a bigger legacy. Found your next one stronger, or keep
           building this one.
         </p>
         {confirmReset ? (
@@ -362,8 +374,8 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           title={`Empire #${state.legacy + 2} awaits`}
           sub={
             nextFounderPerk
-              ? `Your legacy carries forward. New founder perk — ${nextFounderPerk.name}: ${nextFounderPerk.description}`
-              : "Your legacy carries forward — found your next company stronger than the last."
+              ? `Your legacy carries forward. New founder perk, ${nextFounderPerk.name}: ${nextFounderPerk.description}`
+              : "Your legacy carries forward. Found your next company stronger than the last."
           }
           icon={<Crown size={32} />}
           tone="positive"
@@ -401,7 +413,7 @@ function Onboarding({ onStart }: { onStart: () => void }) {
           <p className="onboard__tag">Design tech. Time the market. Build an empire.</p>
           <div className="onboard__steps">
             <Step n="1" title="Design a device" text="Pick components, a finish, and a price. Watch it render live." />
-            <Step n="2" title="Read the market" text="Build toward what consumers want — and launch before the trend shifts." />
+            <Step n="2" title="Read the market" text="Build toward what consumers want, and launch before the trend shifts." />
             <Step n="3" title="Reinvest & grow" text="Fund R&D, hire a team, and expand from a garage to a global brand." />
           </div>
           <label className="onboard__name-label" htmlFor="onboard-name">Name your company</label>
@@ -497,13 +509,13 @@ function diagnoseFailure(state: GameState): string[] {
   const tips: string[] = [];
 
   if (launched.length === 0) {
-    tips.push("No product launched before cash ran out — fixed costs burn even without a team. Get to market in the first 10 weeks.");
+    tips.push("No product launched before cash ran out, fixed costs burn even without a team. Get to market in the first 10 weeks.");
   } else if (hits === 0 && launched.length >= 2) {
     tips.push("All launches flopped. Check the Market tab for rising trends and watch the competition landscape before designing.");
   }
 
   if (totalMade > 150 && totalSold < totalMade * 0.45 && tips.length < 2) {
-    tips.push("More than half of manufactured units went unsold — that's cash locked in inventory. Use 'Recommended' run sizes and plan small early.");
+    tips.push("More than half of manufactured units went unsold, that's cash locked in inventory. Use 'Recommended' run sizes and plan small early.");
   } else if (staff.length >= 4 && launched.length <= 1 && tips.length < 2) {
     tips.push("Payroll grew faster than revenue. Keep the team lean (1–2 people) until at least one product is generating consistent income.");
   }

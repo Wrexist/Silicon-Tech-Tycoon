@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, Layers, PencilRuler, Megaphone, Rocket, Search, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
-import { Button, Card, EmptyState, SectionHeader, Sheet, Stat, StatPill } from "../design/primitives.tsx";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
+import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
 import { ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
@@ -33,12 +33,19 @@ import {
   deskCapacity,
   facilityRent,
   facility,
+  loanCreditAvailable,
+  loanRateNow,
+  moraleCost,
+  canBoostMorale,
+  type MoraleKind,
   nextWeekRevenue,
   restCost,
   weeklyEcosystemRevenue,
   weeklyRpGen,
   type GameState,
 } from "../state/gameState.ts";
+import { totalDebt, weeklyDebtService, weeklyPaymentFor } from "../engine/financing.ts";
+import { isDisciplineLead, mentorshipXpMult } from "../engine/org.ts";
 import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -207,7 +214,7 @@ export function Company() {
         )}
         {runway > 20 && Math.min(fac.staffCapacity, deskCapacity(state)) > state.staff.length && (
           <p className="co__hire-hint">
-            {deskCapacity(state) - state.staff.length} open desk{deskCapacity(state) - state.staff.length > 1 ? "s" : ""} — runway supports a new hire
+            {deskCapacity(state) - state.staff.length} open desk{deskCapacity(state) - state.staff.length > 1 ? "s" : ""}, runway supports a new hire
           </p>
         )}
         {state.launched.length > 0 && (
@@ -231,6 +238,11 @@ export function Company() {
         )}
         <p className="co__hint">Lifetime revenue {format(state.cumulativeRevenue)}.</p>
       </Card>
+
+      {/* Financing — borrow to extend runway or fund a bet; pay it back weekly (Track C) */}
+      {(hasShipped || (state.loans?.length ?? 0) > 0 || (runway !== Infinity && runway <= 30)) && (
+        <FinancingCard state={state} />
+      )}
 
       {/* Selling now */}
       {activeSales.length > 0 && (
@@ -293,7 +305,7 @@ export function Company() {
               <span className="co__found-glyph" aria-hidden><Layers size={22} /></span>
               <div className="co__found-info">
                 <span className="co__found-title">Found the Platform division</span>
-                <span className="co__found-sub">Turn {osDisplayName(state)} into a business in its own right — recurring services, OS licensing to rivals, feature modules, and a platform identity.</span>
+                <span className="co__found-sub">Turn {osDisplayName(state)} into a business in its own right: recurring services, OS licensing to rivals, feature modules, and a platform identity.</span>
               </div>
             </div>
             <Button
@@ -318,6 +330,9 @@ export function Company() {
       {/* Team output summary */}
       <TeamOutputCard state={state} />
 
+      {/* Team morale — a proactive, company-wide spend vs. saving cash (Track C) */}
+      {(hasShipped || state.staff.length >= 2) && <MoraleCard state={state} />}
+
       {/* Staff roster */}
       <Card>
         <SectionHeader title="Team" accessory={`${state.staff.length} ${state.staff.length === 1 ? "bot" : "bots"}`} />
@@ -326,7 +341,7 @@ export function Company() {
         ) : (
           <ul className="co__roster">
             {state.staff.map((s) => (
-              <Member key={s.id} s={s} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} onRest={rest} />
+              <Member key={s.id} s={s} staff={state.staff} cash={state.cash} era={state.era} onAssign={assign} onTrain={train} onFire={fire} onRaise={giveRaise} onRest={rest} />
             ))}
           </ul>
         )}
@@ -347,7 +362,7 @@ export function Company() {
           <div className="co__fac-nudge">
             <Building2 size={15} className="co__fac-nudge-icon" aria-hidden />
             <span className="co__fac-nudge-text">
-              <strong>At facility capacity</strong> — move to {nextFac.name} from Office upgrades to make room for more staff ({format(nextFac.upgradeCost)}).
+              <strong>At facility capacity</strong>. Move to {nextFac.name} from Office upgrades to make room for more staff ({format(nextFac.upgradeCost)}).
             </span>
           </div>
         );
@@ -356,7 +371,7 @@ export function Company() {
         <div className="co__fac-nudge">
           <PencilRuler size={15} className="co__fac-nudge-icon" aria-hidden />
           <span className="co__fac-nudge-text">
-            <strong>Every desk is taken</strong> — buy a desk on the Office tab (in the Shop)
+            <strong>Every desk is taken</strong>. Buy a desk on the Office tab (in the Shop)
             and your next hire sits down at it.
           </span>
         </div>
@@ -392,6 +407,134 @@ export function Company() {
   );
 }
 
+/* ---------- Financing (Track C) ---------- */
+
+/** Debt financing: borrow against revenue + reputation to extend runway or fund a bet, repaid weekly.
+ *  Good reputation earns a cheaper rate; leverage makes it pricier. A loan is a real bet — it can buy
+ *  the runway to land a launch, or sink you faster if the bet misses. */
+function FinancingCard({ state }: { state: GameState }) {
+  const { takeLoan, repayLoan } = useGame();
+  const loans = state.loans ?? [];
+  const debt = totalDebt(loans);
+  const service = weeklyDebtService(loans);
+  const available = Math.floor(toDollars(loanCreditAvailable(state))); // whole dollars of headroom
+  const apr = Math.round(loanRateNow(state) * 52 * 100);
+  const minLoan = BALANCE.financing.minLoan / 100; // dollars
+  const canBorrow = available >= minLoan && !state.bankrupt;
+  // Interactive borrow slider: pick any amount between the minimum and the live credit limit, with a
+  // running preview of the weekly repayment. Snapped to a tidy step that scales with the headroom.
+  const step = Math.max(5_000, Math.round(available / 40 / 5_000) * 5_000);
+  const [rawAmount, setRawAmount] = useState(100_000);
+  const amount = Math.min(Math.max(rawAmount, minLoan), Math.max(minLoan, available));
+  const weeklyPay = weeklyPaymentFor(amount * 100, loanRateNow(state), BALANCE.financing.termWeeks);
+  return (
+    <Card>
+      <SectionHeader title="Financing" accessory={<span className="co__stats-link"><Landmark size={14} /> Debt</span>} />
+      {debt > 0 ? (
+        <>
+          <div className="co__fin-grid">
+            <Stat label="Outstanding debt" value={format(cents(Math.round(debt)))} tone="negative" />
+            <Stat label="Weekly service" value={format(cents(service))} tone="negative" hint="/wk" />
+          </div>
+          <div className="co__loan-list">
+            {loans.map((l) => {
+              const payoff = cents(Math.round(l.balance));
+              return (
+                <div key={l.id} className="co__loan-row">
+                  <div className="co__loan-info">
+                    <span className="co__loan-bal">{format(payoff)}</span>
+                    <span className="co__loan-meta">{format(cents(l.weeklyPayment))}/wk · {Math.round(l.ratePerWeek * 52 * 100)}% APR</span>
+                  </div>
+                  <Button variant="secondary" disabled={state.cash < payoff} onClick={() => { repayLoan(l.id); haptic.medium(); }}>
+                    Pay off
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <p className="co__hint">No debt. Borrow to extend runway or fund a launch, repaid weekly over a year.</p>
+      )}
+      {canBorrow ? (
+        <div className="co__borrow">
+          <div className="co__borrow-head">
+            <div className="co__borrow-amount tnum">{formatShortDollars(amount)}</div>
+            <div className="co__borrow-credit">of {formatShortDollars(available)} · ~{apr}% APR</div>
+          </div>
+          <Slider
+            value={amount}
+            min={minLoan}
+            max={Math.max(minLoan, available)}
+            step={step}
+            ariaLabel="Loan amount"
+            onChange={setRawAmount}
+          />
+          <div className="co__borrow-preview">
+            <Landmark size={13} aria-hidden />
+            <span>
+              You receive <b className="tnum">{formatShortDollars(Math.round(amount * (1 - BALANCE.financing.originationFee)))}</b>
+              {BALANCE.financing.originationFee > 0 ? ` after a ${Math.round(BALANCE.financing.originationFee * 100)}% fee` : ""},
+              repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wks
+            </span>
+          </div>
+          <Button block variant="primary" onClick={() => { takeLoan(amount * 100); haptic.success(); }}>
+            Borrow {formatShortDollars(amount)}
+          </Button>
+        </div>
+      ) : debt > 0 ? (
+        <p className="co__hint">Credit maxed out, pay down debt to borrow again.</p>
+      ) : null}
+    </Card>
+  );
+}
+
+/* ---------- Team morale (Track C) ---------- */
+
+/** A proactive, company-wide morale lever: a bonus or an offsite lifts the whole team's mood (which
+ *  raises output and makes them harder to poach), for a payroll-scaled cost on a cooldown. The spend-
+ *  vs-save decision, opposite the reactive per-person Rest. */
+function MoraleCard({ state }: { state: GameState }) {
+  const { boostMorale } = useGame();
+  const avg = state.staff.length
+    ? Math.round(state.staff.reduce((a, s) => a + s.mood, 0) / state.staff.length)
+    : 0;
+  const band = moodBand(avg);
+  const cooldownLeft = Math.max(0, (state.moraleCooldownUntil ?? 0) - state.week);
+  const options: { kind: MoraleKind; label: string; lift: number }[] = [
+    { kind: "bonus", label: "Team bonus", lift: BALANCE.morale.bonusMoodLift },
+    { kind: "offsite", label: "Company offsite", lift: BALANCE.morale.offsiteMoodLift },
+  ];
+  return (
+    <Card>
+      <SectionHeader
+        title="Team morale"
+        accessory={<span className="co__stats-link" style={{ color: MOOD_COLOR[band] }}><Smile size={14} /> {MOOD_LABEL[band]}</span>}
+      />
+      <div className="co__morale-bar" role="img" aria-label={`Average mood ${avg} of 100`}>
+        <div className="co__morale-fill" style={{ width: `${avg}%`, background: MOOD_COLOR[band] }} />
+      </div>
+      <p className="co__hint">Average mood {avg}/100. Happy teams build faster and are harder to poach.</p>
+      {cooldownLeft > 0 ? (
+        <p className="co__hint">Next company morale spend available in {cooldownLeft} wk.</p>
+      ) : (
+        <div className="co__loan-presets">
+          {options.map((o) => (
+            <Button
+              key={o.kind}
+              variant={o.kind === "offsite" ? "primary" : "secondary"}
+              disabled={!canBoostMorale(state, o.kind)}
+              onClick={() => { boostMorale(o.kind); haptic.success(); }}
+            >
+              {o.label} · +{o.lift} · {format(moraleCost(state, o.kind))}
+            </Button>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ---------- Near-milestone progress tracker ---------- */
 
 /** Delegation card (Epic E): toggles that automate repetitive ops, each gated on having grown a
@@ -403,7 +546,7 @@ function DelegationCard({ state, onToggle }: { state: GameState; onToggle: (patc
       key: "autoAssign",
       icon: Wand2,
       label: "Auto-assign staff",
-      sub: "Idle hires are put on their discipline each week — never a wasted seat.",
+      sub: "Idle hires are put on their discipline each week, never a wasted seat.",
       can: canAutoAssign(state),
       gate: `Promote any staffer to skill ${lead}+ to delegate`,
     },
@@ -583,7 +726,7 @@ function OperationsSection({ state, onAcquire }: { state: GameState; onAcquire: 
           );
         })}
       </div>
-      <p className="co__hint">Owned lines slash tooling + per-unit cost and lift capacity — but the weekly upkeep is charged whether they build or sit idle.</p>
+      <p className="co__hint">Owned lines slash tooling + per-unit cost and lift capacity, but the weekly upkeep is charged whether they build or sit idle.</p>
     </Card>
   );
 }
@@ -848,13 +991,15 @@ function TeamOutputCard({ state }: { state: GameState }) {
         );
       })()}
       {idleCount > 0 && (
-        <p className="co__output-idle">{idleCount} staff idle — assign them to a function to generate output.</p>
+        <p className="co__output-idle">{idleCount} staff idle, assign them to a function to generate output.</p>
       )}
       {(() => {
         const soonest = state.staff
           .filter((s) => s.skill < BALANCE.staff.maxSkill)
           .map((s) => {
-            const weeklyXpRate = (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait);
+            // Mirror the roster card's rate, including the mentorship bonus, so the summary and the
+            // per-person ETA can't disagree about who levels next.
+            const weeklyXpRate = (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait) * mentorshipXpMult(s, state.staff);
             if (weeklyXpRate <= 0) return null;
             const weeksToLevel = Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate);
             return { name: s.name, weeksToLevel, skill: s.skill };
@@ -874,14 +1019,14 @@ function TeamOutputCard({ state }: { state: GameState }) {
         if (amenitiesLvl === 0) {
           return (
             <p className="co__output-levelup co__output-mood-warn">
-              {avgMood < 30 ? "Morale critically low" : "Morale is low"} — upgrading <strong>Amenities</strong> on the Office tab will help.
+              {avgMood < 30 ? "Morale critically low" : "Morale is low"}. Upgrading <strong>Amenities</strong> on the Office tab will help.
             </p>
           );
         }
         if (recentFlops >= 2) {
           return (
             <p className="co__output-levelup co__output-mood-warn">
-              Recent flops are weighing on the team — landing a hit will bounce morale back.
+              Recent flops are weighing on the team; landing a hit will bounce morale back.
             </p>
           );
         }
@@ -895,6 +1040,7 @@ const ASSIGNMENTS: Assignment[] = ["rnd", "design", "marketing", "idle"];
 
 function Member({
   s,
+  staff,
   cash,
   era,
   onAssign,
@@ -904,6 +1050,7 @@ function Member({
   onRest,
 }: {
   s: Staff;
+  staff: readonly Staff[];
   cash: number;
   era: number;
   onAssign: (id: string, a: Assignment) => void;
@@ -916,7 +1063,12 @@ function Member({
   const maxed = s.skill >= BALANCE.staff.maxSkill;
   const cost = trainCost(s.skill);
   const xpPct = maxed ? 100 : Math.min(100, Math.round((s.xp / xpToNext(s.skill)) * 100));
-  const weeklyXpRate = maxed ? 0 : (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait);
+  // Org structure (Track C): the discipline lead mentors juniors → their XP rate (and so the
+  // displayed time-to-level) reflects the mentorship boost.
+  const isLead = isDisciplineLead(s, staff);
+  const mentorMult = mentorshipXpMult(s, staff);
+  const isMentored = mentorMult > 1;
+  const weeklyXpRate = maxed ? 0 : (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait) * mentorMult;
   const weeksToLevel = !maxed && weeklyXpRate > 0 ? Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate) : null;
   const band = moodBand(s.mood);
   // Best-fit: find the discipline this person scores highest in. Only flag a misfit when their
@@ -981,6 +1133,16 @@ function Member({
         )}
         {isLowMood && (
           <span className="co__tag co__tag--burnout">Burnout risk</span>
+        )}
+        {isLead && (
+          <span className="co__tag co__tag--lead" title="Strongest in their discipline — mentors the juniors working alongside them">
+            <GraduationCap size={11} aria-hidden /> Lead
+          </span>
+        )}
+        {isMentored && (
+          <span className="co__tag co__tag--mentored" title={`Learning faster under the lead (+${Math.round((mentorMult - 1) * 100)}% XP)`}>
+            <Sparkles size={11} aria-hidden /> Mentored
+          </span>
         )}
       </div>
       <div className="co__mood-bar" aria-label={`Morale ${Math.round(s.mood)}%`}>
@@ -1064,10 +1226,10 @@ function Member({
         <button
           className={`co__rest-btn${isLowMood ? " co__rest-btn--urgent" : ""}`}
           disabled={cash < restCost(s)}
-          title="Paid time off — restores morale and eases burnout"
+          title="Paid time off, restores morale and eases burnout"
           onClick={() => onRest(s.id)}
         >
-          <Coffee size={12} aria-hidden /> {isLowMood ? "Rest — recharge morale" : "Rest"} · {format(restCost(s))}
+          <Coffee size={12} aria-hidden /> {isLowMood ? "Rest, recharge morale" : "Rest"} · {format(restCost(s))}
         </button>
       )}
     </li>
@@ -1118,7 +1280,7 @@ function RecruitPanel({
     return (
       <>
         <p className="co__hint">
-          {full ? (noDesk ? "Every desk is taken — buy a desk on the Office tab to open a seat. " : "At capacity — free up a seat to sign someone. ") : ""}
+          {full ? (noDesk ? "Every desk is taken, buy a desk on the Office tab to open a seat. " : "At capacity, free up a seat to sign someone. ") : ""}
           Shortlist available for {weeksLeft} more week{weeksLeft === 1 ? "" : "s"}.
         </p>
         {state.candidates.map((c) => (
