@@ -6,6 +6,25 @@ export interface SalesForecast {
   weeklyUnits: number[]; // length = sales.totalWeeks
 }
 
+export type SalesPhase = "ramping" | "peak" | "declining" | "ended";
+
+/** C4: where a launched product sits on its ramp->peak->decline curve right now, derived purely from
+ *  its weeklyUnits + how many weeks have elapsed. "ended" once the curve is spent. Used to tag the
+ *  "Selling now" rows so a melting hit reads as Declining, not just a shrinking number. Pure. */
+export function salesPhase(weeklyUnits: readonly number[], weeksElapsed: number): SalesPhase {
+  const n = weeklyUnits.length;
+  if (n === 0 || weeksElapsed >= n) return "ended";
+  let peakIdx = 0;
+  let peak = -Infinity;
+  for (let i = 0; i < n; i++) {
+    if (weeklyUnits[i] > peak) { peak = weeklyUnits[i]; peakIdx = i; }
+  }
+  const cur = Math.max(0, weeksElapsed);
+  if (cur < peakIdx) return "ramping";
+  if (cur > peakIdx) return "declining";
+  return "peak";
+}
+
 /** Shape weights per week (unnormalized). */
 function curveWeights(): number[] {
   const { totalWeeks, rampPow, declinePow } = BALANCE.sales;

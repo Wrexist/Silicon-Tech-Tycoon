@@ -26,6 +26,7 @@ import {
   TRAIT_INFO,
 } from "../engine/staff.ts";
 import type { Assignment, Candidate, LaunchedProduct, RecruitTier, Staff, StaffRole } from "../engine/types.ts";
+import { salesPhase } from "../engine/salesCurve.ts";
 import {
   burn,
   canAutoAssign,
@@ -263,9 +264,21 @@ export function Company() {
                 ? cents(lp.weeklyUnits[nextIdx] * (lp.product.price - lp.unitCost))
                 : null;
               const trend = nextWkRevenue !== null ? Math.sign(nextWkRevenue - weeklyRevenue) : 0;
+              // C4: lifecycle + pressure state. A fresh rival haircut (within 3 weeks) reads as
+              // "Contested"; otherwise the curve phase (Ramping / Peak / Declining).
+              const contested = lp.contestedWeek !== undefined && state.week - lp.contestedWeek <= 3;
+              const phase = salesPhase(lp.weeklyUnits, lp.weeksElapsed);
+              const stateTag = contested
+                ? { label: "Contested", tone: "contested" }
+                : phase === "ramping" ? { label: "Ramping", tone: "ramping" }
+                : phase === "peak" ? { label: "Peak", tone: "peak" }
+                : { label: "Declining", tone: "declining" };
               return (
                 <div key={lp.product.id} className="co__active-row">
-                  <span className="co__active-name">{lp.product.name}</span>
+                  <span className="co__active-name">
+                    <span className="co__active-name-text">{lp.product.name}</span>
+                    <span className={`co__active-phase co__active-phase--${stateTag.tone}`}>{stateTag.label}</span>
+                  </span>
                   <span className="co__active-meta">
                     <span className="co__active-rev">{format(weeklyRevenue)}/wk</span>
                     {nextWkRevenue !== null && trend !== 0 && (

@@ -12,7 +12,7 @@ import {
   randomTrendTarget,
   categoryTrendDirection,
 } from "./market.ts";
-import { forecast } from "./salesCurve.ts";
+import { forecast, salesPhase } from "./salesCurve.ts";
 import { launchRpReward } from "./research.ts";
 import { runwayWeeks, isBankrupt, salaryFor, discountedRd } from "./economy.ts";
 import { canAdvanceEra, isCategoryUnlocked, unlockedCategories } from "./eras.ts";
@@ -302,6 +302,15 @@ describe("sales curve", () => {
     const peak = Math.max(...f.weeklyUnits);
     expect(f.weeklyUnits[0]).toBeLessThan(peak);
     expect(f.weeklyUnits[f.weeklyUnits.length - 1]).toBeLessThan(peak);
+  });
+  it("C4: salesPhase tracks ramp -> peak -> decline -> ended along the curve", () => {
+    const f = forecast(150, 1);
+    const peakIdx = f.weeklyUnits.indexOf(Math.max(...f.weeklyUnits));
+    expect(salesPhase(f.weeklyUnits, 0)).toBe("ramping"); // a fresh launch is climbing
+    expect(salesPhase(f.weeklyUnits, peakIdx)).toBe("peak");
+    expect(salesPhase(f.weeklyUnits, peakIdx + 1)).toBe("declining");
+    expect(salesPhase(f.weeklyUnits, f.weeklyUnits.length)).toBe("ended"); // curve spent
+    expect(salesPhase([], 0)).toBe("ended"); // empty curve is never "selling"
   });
 });
 

@@ -1365,7 +1365,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const haircut = 1 - BALANCE.market.competition.rivalEntrySalesHaircut;
     const weeklyUnits = lp.weeklyUnits.map((u, i) => (i >= lp.weeksElapsed ? Math.round(u * haircut) : u));
     const remaining = weeklyUnits.slice(lp.weeksElapsed).reduce((a, b) => a + b, 0);
-    return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
+    // C4: record WHEN a rival dented this product's curve, so the "Selling now" row can flag it as
+    // "Contested" while the pressure is fresh (optional field; absent on older saves).
+    return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining, contestedWeek: week };
   });
 
   // Research points generated this week — accrue through the SAME selector the UI shows, so the

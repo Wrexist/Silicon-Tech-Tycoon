@@ -202,6 +202,9 @@ export interface LaunchedProduct {
   priceCuts?: number;
   /** Number of mid-lifecycle marketing pushes run (max 1). Old saves: undefined → treated as 0. */
   marketingPushes?: number;
+  /** C4: the week a rival's entry last dented this product's remaining sales curve, so the UI can flag
+   *  it "Contested" while the pressure is fresh. Absent = never contested / older save. */
+  contestedWeek?: number;
 }
 
 // engineer/designer/marketer build products; hr (People Lead) + researcher (Lead Researcher) are

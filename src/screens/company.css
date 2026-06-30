@@ -210,10 +210,31 @@
   font-size: var(--fs-caption);
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.co__active-name-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* C4: lifecycle / pressure tag on a selling product. Tones: Ramping (accent, still climbing),
+   Peak (positive), Declining (muted), Contested (warning, a rival is denting it now). */
+.co__active-phase {
+  flex-shrink: 0;
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: var(--r-pill);
+  letter-spacing: 0.02em;
+}
+.co__active-phase--ramping { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.co__active-phase--peak { background: color-mix(in srgb, var(--positive) 16%, transparent); color: var(--positive-text, var(--positive)); }
+.co__active-phase--declining { background: color-mix(in srgb, var(--ink-3) 16%, transparent); color: var(--ink-3); }
+.co__active-phase--contested { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning-text, var(--warning)); }
 .co__active-meta {
   display: flex;
   align-items: center;
