@@ -16,6 +16,7 @@ import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { categoryTrendDirection, effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
+import { rivalDoctrine, countersDoctrine, DOCTRINE_LABEL, DOCTRINE_COUNTER } from "../engine/competitors.ts";
 import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
 import { activeArchetypes, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
@@ -1296,6 +1297,30 @@ export function DesignLab({
                   )}
                 </div>
               )}
+              {/* D5: the strongest contesting rival's doctrine + how to counter it, live: a ✓ when the
+                  current price / timing already exploits it (so the rival presses less hard). */}
+              {preview != null && (preview.betterRivals > 0 || preview.matchingRivals > 0) && (() => {
+                let top: typeof state.competitors[number] | null = null;
+                let topStr = 0;
+                for (const c of state.competitors) {
+                  const st = (c.strengthByCategory as Record<string, number>)[draft.category] ?? 0;
+                  if (st > topStr) { topStr = st; top = c; }
+                }
+                if (!top) return null;
+                const doc = rivalDoctrine(top.id);
+                if (doc === "generalist") return null;
+                const fair = Math.max(1, overall * toDollars(BALANCE.market.price.valueToPrice));
+                const pos = { priceRatio: toDollars(draft.price) / fair, trendRising: categoryTrendDirection(state.trends, draft.category) === "rising" };
+                const countered = countersDoctrine(doc, pos, BALANCE.market.competition.doctrine);
+                return (
+                  <div className={`lab__doctrine${countered ? " lab__doctrine--countered" : ""}`}>
+                    {countered ? <Check size={12} aria-hidden /> : <AlertTriangle size={12} aria-hidden />}
+                    <span>
+                      <strong>{top.name}</strong> ({DOCTRINE_LABEL[doc]}) · {countered ? "your positioning counters them, so they press less hard." : DOCTRINE_COUNTER[doc]}
+                    </span>
+                  </div>
+                );
+              })()}
               {(() => {
                 const STAT_FULL: Record<keyof Stats, string> = { performance: "Perf", quality: "Quality", battery: "Battery", design: "Design", ecosystem: "Ecosys" };
                 const top2 = STAT_KEYS

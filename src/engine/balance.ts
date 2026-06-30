@@ -140,6 +140,17 @@ export const BALANCE = {
       // contested launch only lands "solid" while an uncontested, maxed product still triumphs —
       // keeping the endgame a contest rather than a guaranteed-hit victory lap. Index = era - 1.
       eraPressure: [0.25, 1.0, 1.2, 1.45] as const,
+      // D5 (rival-doctrine counters): when the player POSITIONS against a rival's doctrine, that rival
+      // presses less hard. Undercut a premium defender (price/fair <= undercut), go premium against a
+      // spec-warring undercutter (>= premium), or out-time a trend-chaser (launch into the rising
+      // trend). A countered rival's competitive penalty is scaled by `relief`. Bounded + opt-in (you
+      // must choose the positioning), so it is a real edge a thinking player earns, never mandatory,
+      // and never relaxes the strength cap (winnability is preserved). Sim-verified.
+      doctrine: {
+        relief: 0.5,    // a countered rival's match/beat penalty is scaled by this (0.5 = halved)
+        undercut: 0.9,  // price/fair ratio at/below which you "undercut" a defender
+        premium: 1.12,  // price/fair ratio at/above which you go "premium" vs an undercutter
+      },
     },
     trendDrift: {
       easing: 0.06, // how fast current weights ease toward target each week

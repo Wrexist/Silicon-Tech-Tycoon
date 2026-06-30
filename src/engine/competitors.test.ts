@@ -1,7 +1,7 @@
 // B6 — rival share prices must be mean-reverting, NOT a passive income printer.
 // Holding stock should earn ~the dividend yield; price appreciation must be ~zero-EV long-run.
 import { describe, expect, it } from "vitest";
-import { advanceCompetitors, fairSharePrice, initCompetitors, rivalDef, rivalDoctrine } from "./competitors.ts";
+import { advanceCompetitors, fairSharePrice, initCompetitors, rivalDef, rivalDoctrine, countersDoctrine } from "./competitors.ts";
 import { makeRng } from "./rng.ts";
 import { BALANCE } from "./balance.ts";
 import type { CategoryId, CompetitorState } from "./types.ts";
@@ -166,5 +166,34 @@ describe("B2 — rival doctrines (variety + presence, not raw difficulty)", () =
     }
     // In Era 4 a reacting rival can now out-muscle the old flat-95 wall (proving late competition bites).
     expect(maxSeen).toBeGreaterThan(95);
+  });
+});
+
+describe("D5: rival-doctrine counters", () => {
+  const cfg = BALANCE.market.competition.doctrine;
+  const rising = { priceRatio: 1.0, trendRising: true };
+  const onMoney = { priceRatio: 1.0, trendRising: false };
+  const cheap = { priceRatio: cfg.undercut - 0.01, trendRising: false };
+  const dear = { priceRatio: cfg.premium + 0.01, trendRising: false };
+
+  it("undercutting counters a defender, not a premium build", () => {
+    expect(countersDoctrine("defender", cheap, cfg)).toBe(true);
+    expect(countersDoctrine("defender", dear, cfg)).toBe(false);
+  });
+
+  it("going premium counters an undercutter, not a cheap build", () => {
+    expect(countersDoctrine("undercutter", dear, cfg)).toBe(true);
+    expect(countersDoctrine("undercutter", cheap, cfg)).toBe(false);
+  });
+
+  it("a rising-trend launch counters a trend-chaser", () => {
+    expect(countersDoctrine("trendChaser", rising, cfg)).toBe(true);
+    expect(countersDoctrine("trendChaser", onMoney, cfg)).toBe(false);
+  });
+
+  it("a generalist has no exploitable doctrine, and on-the-money pricing counters nobody", () => {
+    expect(countersDoctrine("generalist", cheap, cfg)).toBe(false);
+    expect(countersDoctrine("defender", onMoney, cfg)).toBe(false);
+    expect(countersDoctrine("undercutter", onMoney, cfg)).toBe(false);
   });
 });

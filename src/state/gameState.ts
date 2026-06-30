@@ -6,8 +6,9 @@ import {
   advanceCompetitors,
   initCompetitors,
   rivalMarketCap,
-  rivalStrengthsFor,
   rivalDef,
+  rivalDoctrine,
+  countersDoctrine,
   spawnChallenger,
   RIVALS,
   type CompetitorLaunch,
@@ -82,6 +83,7 @@ import { deriveFacts, evaluateAchievements, type MasteryInput } from "../engine/
 import { newlyCompletedObjectives } from "../engine/objectives.ts";
 import {
   advanceTrends,
+  categoryTrendDirection,
   demandVarianceMultiplier,
   initialTrends,
   priceFit,
@@ -991,15 +993,28 @@ export function planProduction(
   });
 
   const overall = overallScore(stats, product.category);
-  // Licensees of your OS compete harder in shared categories (the Phase-C trade-off for their fee).
-  const rivals = rivalStrengthsFor(s.competitors, product.category, { licenseeIds: s.osLicensees, uplift: licenseeStrengthUplift() });
   const comp = BALANCE.market.competition;
   const margin = comp.beatMargin;
+  // D5: the player's positioning, read by the rival-doctrine counters: a build priced under fair
+  // value undercuts; priced over it goes premium; launching into a rising category out-times a
+  // trend-chaser. A rival whose doctrine is countered presses less hard (penalty scaled by relief).
+  const fairValueDollars = Math.max(1, overall * toDollars(BALANCE.market.price.valueToPrice));
+  const positioning = {
+    priceRatio: toDollars(product.price) / fairValueDollars,
+    trendRising: categoryTrendDirection(s.trends, product.category) === "rising",
+  };
+  const up = licenseeStrengthUplift();
   let matchingRivals = 0;
   let betterRivals = 0;
-  for (const r of rivals) {
-    if (r > overall + margin) betterRivals++;
-    else if (r >= overall - margin) matchingRivals++;
+  let rivalPenalty = 0;
+  for (const c of s.competitors) {
+    const base = c.strengthByCategory[product.category];
+    if (!base || base <= 0) continue;
+    // Licensees of your OS compete harder in shared categories (the Phase-C trade-off for their fee).
+    const strength = s.osLicensees?.includes(c.id) ? base + up : base;
+    const relief = countersDoctrine(rivalDoctrine(c.id), positioning, comp.doctrine) ? comp.doctrine.relief : 1;
+    if (strength > overall + margin) { betterRivals++; rivalPenalty += comp.beatPenalty * relief; }
+    else if (strength >= overall - margin) { matchingRivals++; rivalPenalty += comp.matchPenalty * relief; }
   }
   // Self-competition: your OWN products still selling in this category split the same buyers.
   // Without this, relaunching one proven design back-to-back farmed a fresh, full demand pool
@@ -1015,7 +1030,9 @@ export function planProduction(
   const competitionFactor =
     1 /
     (1 +
-      (matchingRivals * comp.matchPenalty + betterRivals * comp.beatPenalty) * pressure +
+      // D5: rivalPenalty is the per-rival match/beat penalty sum WITH doctrine-counter relief folded
+      // in (equals matchingRivals*matchPenalty + betterRivals*beatPenalty when nothing is countered).
+      rivalPenalty * pressure +
       // Self-competition is era-independent: cannibalization is about YOUR line-up, not rivals.
       selfCompeting * comp.selfPenalty);
 

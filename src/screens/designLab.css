@@ -716,6 +716,27 @@
   background: color-mix(in srgb, var(--negative) 10%, transparent);
   color: var(--negative-text, var(--negative));
 }
+/* D5: rival-doctrine counter hint: neutral/opportunity by default, positive once your positioning
+   exploits the doctrine. Sits just under the vs-rivals readout. */
+.lab__doctrine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  padding: var(--sp-8) var(--sp-10);
+  border-radius: var(--r-button);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.lab__doctrine svg { flex-shrink: 0; margin-top: 2px; }
+.lab__doctrine strong { color: var(--ink); font-weight: 700; }
+.lab__doctrine--countered {
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
+  color: var(--positive-text, var(--positive));
+}
+.lab__doctrine--countered strong { color: inherit; }
 .lab__cat-focus {
   display: flex;
   align-items: center;

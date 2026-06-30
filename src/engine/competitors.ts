@@ -94,6 +94,32 @@ export function rivalDoctrine(id: string): RivalDoctrine {
   return rivalDef(id)?.doctrine ?? "generalist";
 }
 
+/** The player's positioning relative to fair value + the category trend, read by the doctrine-counter. */
+export interface RivalPositioning {
+  /** price / fair-value (1 = on the money; < 1 = undercutting, > 1 = premium). */
+  priceRatio: number;
+  /** the category's demand is rising right now (you're riding the wave early). */
+  trendRising: boolean;
+}
+
+/** D5: does the player's positioning COUNTER this rival's doctrine? Slip a cheaper answer under a
+ *  premium defender, go upmarket where an undercutter's price war can't follow, or out-time a
+ *  trend-chaser by launching into the rising trend before it pivots in. A countered rival presses
+ *  less hard (the caller relieves its competitive penalty). A generalist has no exploitable doctrine.
+ *  Pure. */
+export function countersDoctrine(
+  doctrine: RivalDoctrine,
+  pos: RivalPositioning,
+  cfg: { undercut: number; premium: number },
+): boolean {
+  switch (doctrine) {
+    case "defender": return pos.priceRatio <= cfg.undercut;
+    case "undercutter": return pos.priceRatio >= cfg.premium;
+    case "trendChaser": return pos.trendRising;
+    default: return false;
+  }
+}
+
 /** Plain-language label + "what it means for you" for each doctrine (Track A: make the rival's
  *  strategy legible, not just a hidden behaviour). Used by the Market rival profile. */
 export const DOCTRINE_LABEL: Record<RivalDoctrine, string> = {
@@ -107,6 +133,14 @@ export const DOCTRINE_EXPLAINER: Record<RivalDoctrine, string> = {
   trendChaser: "Piles into whatever category is hot, including the ones you've just proven.",
   undercutter: "Fights on price, not specs: ships aggressively cheap to bleed your margins.",
   generalist: "No special reaction: a broad, steady shipper across many categories.",
+};
+/** D5: the actionable counter for each doctrine: the positioning that makes that rival press less
+ *  hard (engine reads it via countersDoctrine). Surfaced in the design read so the choice is real. */
+export const DOCTRINE_COUNTER: Record<RivalDoctrine, string> = {
+  defender: "Undercut them: price below fair value to slip under their premium guard.",
+  trendChaser: "Out-time them: launch into a rising category before they pivot in.",
+  undercutter: "Go premium: a refined, higher-priced build their price war can't follow.",
+  generalist: "No doctrine to exploit here, just out-build them on specs.",
 };
 
 /** A rival's live market capitalization for the industry leaderboard. The cap is anchored to the
