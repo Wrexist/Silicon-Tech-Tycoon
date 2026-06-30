@@ -957,7 +957,9 @@ export function planProduction(
   // D1: the build's tier bottleneck feeds the segment model's coherence discount (computed once here
   // and reused for the global synergy factor below, so the two never diverge).
   const synergy = componentSynergy(product);
-  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, synergy.bottleneck);
+  // D2: the chosen campaign's segment affinity amplifies that segment's reach, so matching the
+  // channel to the product's audience is a real launch decision.
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, synergy.bottleneck, channel.affinity);
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;

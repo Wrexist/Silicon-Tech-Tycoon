@@ -216,6 +216,10 @@ export function segmentDemand(
    *  Enterprise) while Pro shrugs it off. Defaults to 0 (a perfectly coherent build) so every existing
    *  caller/test that doesn't model tiers is byte-identical. */
   bottleneck = 0,
+  /** D2: the marketing channel's affinity segment, if any. That segment's captured demand is amplified
+   *  by channelAffinityBonus (a targeted-reach lift), so matching the channel to the product's audience
+   *  matters. Undefined (no campaign / neutral channel) → no effect, byte-identical to pre-D2. */
+  affinitySegment?: SegmentId,
 ): SegmentDemand {
   // Market climate (Track B): segment sizes swell/fade on slow cycles, RE-NORMALIZED so the cycle
   // redistributes the mix without changing the total market — timing positioning, not free volume.
@@ -249,13 +253,16 @@ export function segmentDemand(
     // ≤ threshold → mult 1 → no effect (byte-identical to pre-D1). Floored so it stays a tie-breaker.
     const excess = Math.max(0, bn - cs.coherenceThreshold);
     const cohMult = 1 - Math.min(cs.coherenceMaxDiscount, cs.coherenceStrength * seg.coherencePref * excess);
+    // D2: a channel whose affinity matches THIS segment amplifies its reach (targeted campaign). No
+    // match (or no campaign) → mult 1, byte-identical to pre-D2.
+    const affMult = seg.id === affinitySegment ? 1 + cs.channelAffinityBonus : 1;
     return {
       id: seg.id,
       name: seg.name,
       size,
       fit,
       priceFit,
-      captured: size * (fit / 100) * priceFit * cohMult,
+      captured: size * (fit / 100) * priceFit * cohMult * affMult,
     };
   });
 

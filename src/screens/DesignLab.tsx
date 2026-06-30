@@ -63,7 +63,7 @@ import { runwayWeeks } from "../engine/economy.ts";
 import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { useGame } from "../state/useGame.tsx";
 import { StatBars } from "../components/charts.tsx";
-import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { segmentById, segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel, playerFranchises } from "../engine/franchise.ts";
 import { segmentWantsById } from "../engine/glossary.ts";
@@ -1884,17 +1884,28 @@ function BuildWizard({
       {cur === "marketing" && (
         <div className="wiz__body">
           <p className="wiz__lead">Pick a launch campaign, bigger campaigns add hype (more demand) for an upfront cost.</p>
+          <p className="wiz__lead wiz__lead--sub">Each campaign reaches its own audience best. Match it to your strongest segment, <b>{segmentById(plan.segments.dominant)?.name ?? "your"}</b> buyers, for extra reach.</p>
           <div className="wiz__channels">
             {MARKETING_CHANNELS.map((c) => {
               const Icon = WIZARD_CHANNEL_ICONS[c.icon] ?? Ban;
               const aff = state.cash >= c.cost;
               const chanDemand = planProduction(state, prod, units, c.id).totalDemand;
               const demandDelta = chanDemand - baseDemand;
+              // D2: this channel's target segment, and whether it matches the product's strongest one.
+              const affSeg = c.affinity ? segmentById(c.affinity) : undefined;
+              const matchesAudience = c.affinity !== undefined && c.affinity === plan.segments.dominant;
               return (
                 <button key={c.id} className={`wiz__channel${channel === c.id ? " wiz__channel--on" : ""}`} disabled={!aff && c.id !== "none"} aria-pressed={channel === c.id} onClick={() => { setChannel(c.id); haptic.light(); }}>
                   <span className="wiz__channel-icon"><Icon size={18} /></span>
                   <div className="wiz__channel-text">
-                    <span className="wiz__channel-name">{c.name}</span>
+                    <span className="wiz__channel-name">
+                      {c.name}
+                      {affSeg && (
+                        <span className={`wiz__channel-aff${matchesAudience ? " wiz__channel-aff--match" : ""}`}>
+                          {matchesAudience && <Check size={9} aria-hidden />} {affSeg.name}
+                        </span>
+                      )}
+                    </span>
                     <span className="wiz__channel-blurb">{c.blurb}</span>
                   </div>
                   <div className="wiz__channel-meta">

@@ -964,8 +964,20 @@
 .wiz__channel--on { border-color: var(--fn-mkt); background: var(--fn-mkt-soft); }
 .wiz__channel-icon { width: 36px; height: 36px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); background: var(--fn-mkt-soft); color: var(--fn-mkt); }
 .wiz__channel-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.wiz__channel-name { font-weight: 600; }
+.wiz__channel-name { font-weight: 600; display: inline-flex; align-items: center; gap: var(--sp-6); flex-wrap: wrap; }
 .wiz__channel-blurb { font-size: var(--fs-caption); color: var(--ink-2); }
+/* D2: the channel's target-segment tag; highlighted when it matches the product's strongest segment. */
+.wiz__channel-aff {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: var(--fs-nano); font-weight: 700; line-height: 1;
+  padding: 2px 7px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink-3) 16%, transparent); color: var(--ink-3);
+}
+.wiz__channel-aff--match {
+  background: color-mix(in srgb, var(--fn-mkt) 18%, transparent); color: var(--fn-mkt);
+}
+.wiz__lead--sub { margin-top: calc(-1 * var(--sp-4)); }
+.wiz__lead--sub b { color: var(--ink); font-weight: 700; }
 .wiz__channel-meta { display: flex; flex-direction: column; align-items: flex-end; font-weight: 700; font-size: var(--fs-caption); }
 .wiz__channel-hype { font-size: var(--fs-micro); color: var(--fn-mkt-text); }
 .wiz__channel-demand { font-size: var(--fs-micro); font-weight: 800; color: var(--positive-text, var(--positive)); }

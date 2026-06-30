@@ -178,6 +178,11 @@ export const BALANCE = {
       coherenceStrength: 0.7,
       coherenceThreshold: 0.32, // builds at/below this bottleneck are "coherent enough" (no discount)
       coherenceMaxDiscount: 0.3, // a lopsided build loses at most this share of a segment's demand
+      // D2 (segment-affinity channels): when the chosen marketing channel's affinity segment matches a
+      // segment, that segment's captured demand is amplified by this fraction (a targeted-reach lift).
+      // Modest so matching the channel to the product's audience is a real edge but a mismatch is only
+      // suboptimal, never useless (the base hype still applies globally). Sim-verified.
+      channelAffinityBonus: 0.07,
     },
     // --- Market climate (engine/climate.ts, Track B) — the living market ---
     // Segment sizes swell/fade on slow seasonal cycles (REDISTRIBUTIVE: the mix is re-normalized, so

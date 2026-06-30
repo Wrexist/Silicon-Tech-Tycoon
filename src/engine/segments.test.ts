@@ -115,6 +115,29 @@ describe("D1: tier coherence: a lopsided build loses the broad market, not Pro",
   });
 });
 
+describe("D2: a channel's segment affinity amplifies that segment's reach", () => {
+  const s = stats({ performance: 70, quality: 70, battery: 70, design: 70, ecosystem: 70 });
+  const price = dollars(600);
+  const capOf = (d: ReturnType<typeof segmentDemand>, id: string) => d.perSegment.find((x) => x.id === id)!.captured;
+  const neutral = segmentDemand(s, price, flat, "phone", 0, undefined, 0, undefined);
+  const proMatched = segmentDemand(s, price, flat, "phone", 0, undefined, 0, "pro");
+
+  it("lifts the matched segment's captured demand", () => {
+    expect(capOf(proMatched, "pro")).toBeGreaterThan(capOf(neutral, "pro"));
+    expect(capOf(proMatched, "pro") / capOf(neutral, "pro")).toBeCloseTo(1 + BALANCE.market.segments.channelAffinityBonus, 5);
+  });
+
+  it("leaves the OTHER segments untouched (a targeted lift, not global hype)", () => {
+    expect(capOf(proMatched, "mainstream")).toBeCloseTo(capOf(neutral, "mainstream"), 9);
+    expect(capOf(proMatched, "budget")).toBeCloseTo(capOf(neutral, "budget"), 9);
+  });
+
+  it("no affinity (no campaign / neutral channel) is byte-identical to pre-D2", () => {
+    expect(proMatched).not.toEqual(neutral); // sanity: the matched call DID change something
+    expect(segmentDemand(s, price, flat, "phone", 0, undefined, 0, undefined)).toEqual(neutral);
+  });
+});
+
 describe("price sensitivity — Budget reacts harder than Enterprise", () => {
   it("the same overpricing costs Budget more price-fit than Enterprise", () => {
     const fit = 60;
