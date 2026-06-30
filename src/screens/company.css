@@ -235,6 +235,22 @@
 .co__active-phase--peak { background: color-mix(in srgb, var(--positive) 16%, transparent); color: var(--positive-text, var(--positive)); }
 .co__active-phase--declining { background: color-mix(in srgb, var(--ink-3) 16%, transparent); color: var(--ink-3); }
 .co__active-phase--contested { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning-text, var(--warning)); }
+
+/* Q2: one-tap "assign idle to best-fit", lives in the Team section header accessory slot. */
+.co__assign-idle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  transition: transform var(--spring-snappy);
+}
+.co__assign-idle:active { transform: scale(0.96); }
 .co__active-meta {
   display: flex;
   align-items: center;

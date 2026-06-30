@@ -111,7 +111,7 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 };
 
 export function Company() {
-  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, hireSpecialist, foundPlatform, acquireFactory } = useGame();
+  const { state, fire, assign, assignIdle, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, hireSpecialist, foundPlatform, acquireFactory } = useGame();
   const [foundedCelebrate, setFoundedCelebrate] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
@@ -355,7 +355,20 @@ export function Company() {
 
       {/* Staff roster */}
       <Card>
-        <SectionHeader title="Team" accessory={`${state.staff.length} ${state.staff.length === 1 ? "bot" : "bots"}`} />
+        <SectionHeader
+          title="Team"
+          accessory={(() => {
+            // Q2: one-tap "assign all idle to best-fit". Always available (distinct from the gated
+            // continuous Auto-assign); hidden when nobody is idle so it never nags.
+            const idle = state.staff.filter((s) => s.assignment === "idle").length;
+            if (idle === 0) return `${state.staff.length} ${state.staff.length === 1 ? "bot" : "bots"}`;
+            return (
+              <button type="button" className="co__assign-idle" onClick={() => { haptic.success(); assignIdle(); }}>
+                <Sparkles size={12} aria-hidden /> Assign {idle} idle
+              </button>
+            );
+          })()}
+        />
         {state.staff.length === 0 ? (
           <EmptyState glyph={<Users size={36} strokeWidth={1.6} />} title="No staff" sub="Hire your first team member below." />
         ) : (

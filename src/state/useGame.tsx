@@ -18,6 +18,7 @@ import {
   advanceEraAction,
   advanceOneWeek,
   assignStaff,
+  autoAssignIdle,
   evaluateAndUnlock,
   evaluateObjectives,
   buyProject,
@@ -367,6 +368,7 @@ interface GameActionsValue {
   acquireFactory: (id: FactoryId) => void;
   negotiateContract: (supplierId: SupplierId, termId: ContractTerm["id"]) => void;
   assign: (id: string, assignment: Assignment) => void;
+  assignIdle: () => void;
   train: (id: string) => void;
   rest: (id: string) => void;
   hire: (role: StaffRole, skill: number, name: string) => void;
@@ -753,6 +755,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
   const assign = useCallback((id: string, a: Assignment) => setState((s) => assignStaff(s, id, a)), []);
+  // Q2: one-shot manual "assign all idle staff to best fit" (distinct from the gated continuous
+  // automation). autoAssignIdle is referentially stable, so this is a no-op when nobody is idle.
+  const assignIdle = useCallback(() => {
+    const prev = stateRef.current;
+    const next = autoAssignIdle(prev);
+    if (next !== prev) { setState(next); sfx("confirm"); }
+  }, []);
   const train = useCallback((id: string) => {
     const prev = stateRef.current;
     const next = trainStaff(prev, id);
@@ -1016,6 +1025,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       acquireFactory: acquireFactoryCb,
       negotiateContract: negotiateContractCb,
       assign,
+      assignIdle,
       train,
       hire,
       hireSpecialist: hireSpecialistCb,
@@ -1070,7 +1080,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, assignIdle, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer
