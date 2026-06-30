@@ -14,6 +14,7 @@ import {
   footprint,
   furnitureDef,
   GRID,
+  isDeskType,
   worldOf,
   type FurnitureId,
   type PlacedItem,
@@ -153,10 +154,14 @@ function CameraRig({ build = false }: { build?: boolean }) {
     if (ks.has("e") || ks.has("f")) o.lift = Math.max(-3, o.lift - liftSpd); // lower
 
     const k = Math.min(1, dt * 2.5);
-    const px = build ? 6.4 : 15.5;
-    const py = build ? 10.6 : 13.0;
-    const pz = build ? 8.4 : 17.5;
-    const ty = build ? 0.4 : 0.7;
+    // Decorate view was framed close (baseR ≈ 10.6) for precise placement, but that cropped the
+    // room's edges off-screen (and the shop panel hides the front row), so furniture near the walls
+    // was unreachable. Pull back + raise the angle so the WHOLE grid sits in the visible area above
+    // the panel; W/S (or a pinch, if added) still let you dolly in for fine placement.
+    const px = build ? 9.5 : 15.5;
+    const py = build ? 13.6 : 13.0;
+    const pz = build ? 12.5 : 17.5;
+    const ty = build ? 0.5 : 0.7;
 
     // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
     // and W/S dollies in/out, while pointer parallax + smoothing are preserved.
@@ -1428,6 +1433,14 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
             }
           >
             <FurniturePiece type={it.type} p={p} />
+            {/* A desk always reads as a workstation: render its chair at the same offset the seated
+                Workstation uses, so an EMPTY desk shows a chair too (occupied desks are swapped for
+                the live Workstation, which provides its own chair + robot, so no double-up). */}
+            {isDeskType(it.type) && (
+              <group position={[0, 0, -0.78]}>
+                <Chair p={p} hue={p.metalDark} />
+              </group>
+            )}
             {selected && (
               <mesh rotation-x={-Math.PI / 2} position={[0, 0.035, 0]}>
                 <planeGeometry args={[def.w * GRID.cell, def.d * GRID.cell]} />
