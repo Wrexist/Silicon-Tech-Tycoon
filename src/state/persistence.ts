@@ -4,7 +4,7 @@ import { makeRng } from "../engine/rng.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
-import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
+import { defaultCameraDesign, FINISH_ORDER, STAT_KEYS, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
@@ -31,6 +31,7 @@ export type LoadResult =
   | { status: "ok"; state: GameState };
 
 let quotaWarned = false;
+let quotaTrimWarned = false;
 
 /**
  * F3 — quota-safe save. On a QuotaExceededError, retry with a trimmed copy (drop the heavy
@@ -51,6 +52,17 @@ export function save(state: GameState): void {
     if (!isQuotaError(e)) return; // storage unavailable — fail silent, in-memory game continues
     try {
       write(trimState(state));
+      // A successful trim still shed sales history, so tell the player ONCE. Previously a successful
+      // trim was silent, hiding the fact that data was summarized away under storage pressure.
+      if (!quotaTrimWarned) {
+        quotaTrimWarned = true;
+        try {
+          showToast("Storage was full, so older sales history was summarized to keep your save.", { tone: "neutral" });
+        } catch {
+          /* toast host not mounted (e.g. tests) */
+        }
+        console.warn("[silicon] Storage near full: saved a trimmed state (finished-product sales history dropped).");
+      }
     } catch {
       if (!quotaWarned) {
         quotaWarned = true;
@@ -66,12 +78,32 @@ export function save(state: GameState): void {
   }
 }
 
-/** Trimmed save: drop the heaviest, least-critical fields so a near-full quota still fits. */
-function trimState(state: GameState): GameState {
+/** Trimmed save: shed the heaviest, least-critical BYTES so a near-full quota still fits, WITHOUT
+ *  dropping live progress. Order of sacrifice: cashHistory + old feed, then the per-week sales
+ *  HISTORY on FINISHED products (their unit/revenue totals are kept, so the product stays in the
+ *  museum/ledger), and only as a backstop the OLDEST finished products. Live (still-selling) products
+ *  and the most recent finished ones are always kept. The old code did `launched.slice(0, 12)`, which
+ *  kept the OLDEST 12 and dropped the recent, still-selling ones, the exact wrong half to lose. */
+export function trimState(state: GameState): GameState {
+  type LP = GameState["launched"][number];
+  const isLive = (lp: LP) => lp.weeksElapsed < lp.weeklyUnits.length;
+  // Finished products keep their totals but shed per-week history (the heavy field); live ones are
+  // untouched so the sales curve a player is actively watching is never blanked.
+  let launched: LP[] = state.launched.map((lp) => (isLive(lp) ? lp : { ...lp, weeklyUnits: [] }));
+  // Backstop cap if a save somehow carries a huge catalog: keep ALL live products plus the most
+  // recent finished ones, never the oldest.
+  const CAP = 40;
+  if (launched.length > CAP) {
+    const live = launched.filter(isLive);
+    const finished = launched
+      .filter((lp) => !isLive(lp))
+      .sort((a, b) => (b.launchedWeek ?? 0) - (a.launchedWeek ?? 0));
+    launched = [...live, ...finished].slice(0, Math.max(CAP, live.length));
+  }
   return {
     ...state,
     cashHistory: state.cashHistory.slice(-1),
-    launched: state.launched.slice(0, 12),
+    launched,
     feed: state.feed.slice(-20),
   };
 }
@@ -484,7 +516,9 @@ function migrate(state: GameState): GameState | null {
       // and rival-reaction math; a save missing it sends `undefined` → NaN through hype/preorder
       // calcs. Backfill to 0 (treated as "launched at the start") like the other numeric coercions.
       if (!Number.isFinite(lp.launchedWeek)) lp.launchedWeek = 0;
-      if (!lp.stats || typeof lp.stats !== "object") lp.stats = {};
+      // Backfill missing stats to a ZEROED full Stats object (not {}), so any future read of
+      // lp.stats.<key> stays finite instead of yielding NaN into demand/cash.
+      if (!lp.stats || typeof lp.stats !== "object") lp.stats = Object.fromEntries(STAT_KEYS.map((k) => [k, 0]));
       // Backfill the launch verdict for saves written before it was recorded. competitionFactor
       // wasn't stored, so approximate from the (stored) launchScore against the same thresholds —
       // a reasonable design-quality read for old history rather than crashing or showing blanks.

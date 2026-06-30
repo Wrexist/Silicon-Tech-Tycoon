@@ -15,6 +15,7 @@ import {
   canAutoAssign,
   type GameState,
 } from "./gameState.ts";
+import { trimState } from "./persistence.ts";
 import type { Product } from "../engine/types.ts";
 
 // --- Minimal localStorage stub (node env has no DOM) ---
@@ -148,6 +149,20 @@ describe("F2 — unreadable / newer save is preserved, not destroyed", () => {
     const r = loadResult();
     expect(r.status).toBe("ok");
     if (r.status === "ok") expect(r.state.cash).toBe(dollars(123456));
+  });
+});
+
+describe("B1: quota trim keeps live + recent products, sheds only finished sales history", () => {
+  it("keeps a live product's weeklyUnits, blanks a finished product's history but keeps its totals", () => {
+    const live = { weeksElapsed: 2, weeklyUnits: [100, 90, 80, 70, 60], unitsSold: 400, revenueToDate: 999, launchedWeek: 10 };
+    const done = { weeksElapsed: 16, weeklyUnits: Array.from({ length: 16 }, () => 50), unitsSold: 800, revenueToDate: 1200, launchedWeek: 3 };
+    const out = trimState({ ...newGame(1), launched: [done, live] as unknown as GameState["launched"] });
+    const liveOut = out.launched.find((l) => l.launchedWeek === 10)!;
+    const doneOut = out.launched.find((l) => l.launchedWeek === 3)!;
+    expect(liveOut.weeklyUnits.length).toBe(5);   // live product untouched
+    expect(doneOut.weeklyUnits.length).toBe(0);   // finished history shed
+    expect(doneOut.unitsSold).toBe(800);          // ...but totals kept (stays in the ledger)
+    expect(doneOut.revenueToDate).toBe(1200);
   });
 });
 

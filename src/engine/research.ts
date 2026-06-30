@@ -92,7 +92,9 @@ export function forkLockedBy(completed: readonly ProjectId[], id: ProjectId): Pr
 }
 
 export function projectById(id: ProjectId): ResearchProject {
-  return RESEARCH_PROJECTS.find((p) => p.id === id)!;
+  // Never throw on an unknown id (a future content/gate pointing at a missing project): return a
+  // safe placeholder (the id stands in as the name, visible in dev) instead of a hard crash.
+  return RESEARCH_PROJECTS.find((p) => p.id === id) ?? { id, name: id, blurb: "", rpCost: 0, era: 1 };
 }
 
 /** The maximum number of projects a single company can ever complete: every non-forked project, plus

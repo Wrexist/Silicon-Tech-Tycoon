@@ -513,7 +513,7 @@ export function DesignLab({
         <Card className="lab__pipeline">
           <SectionHeader title="In production" accessory="manufacturing" />
           {state.building.map((job) => {
-            const pct = Math.min(100, Math.round((job.weeksElapsed / job.totalWeeks) * 100));
+            const pct = Math.min(100, Math.round((job.weeksElapsed / Math.max(1, job.totalWeeks)) * 100));
             const weeksLeft = Math.max(0, job.totalWeeks - job.weeksElapsed);
             return (
               <div className="lab__pipe-build" key={job.product.id}>
@@ -938,7 +938,7 @@ export function DesignLab({
                 // Premium finishes (titanium, gold) are RP-unlocked — locked chips render masked
                 // with a lock, and an inline research buy unlocks + selects the next material.
                 const finishLimit = state.finishLimit ?? (BALANCE.design.freeFinishes - 1);
-                const nextIdx = finishLimit + 1;
+                const nextIdx = Math.min(finishLimit + 1, FINISHES.length - 1); // bound: never index past the last finish
                 const nextCost = finishUnlockCost(state);
                 const rp = Math.floor(state.researchPoints);
                 return (
