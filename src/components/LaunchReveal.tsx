@@ -125,6 +125,7 @@ export function LaunchReveal() {
         {stage === "verdict" && (
           <>
             <div className={`lreveal__verdict lreveal__verdict--${v.tone}`}>{v.label}</div>
+            {data.why && <p className="lreveal__why">{data.why}</p>}
             {data.streak >= 2 && (
               <div className="lreveal__streak">
                 <Flame size={14} aria-hidden />

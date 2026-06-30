@@ -12,7 +12,7 @@ import {
 } from "react";
 import { BALANCE } from "../engine/balance.ts";
 import { dollars, format, toDollars, type Money } from "../engine/money.ts";
-import type { ComponentKind, FactoryId, Product, RecruitTier, RegionId, StaffRole, SupplierId } from "../engine/types.ts";
+import type { ComponentKind, FactoryId, LaunchInsight, Product, RecruitTier, RegionId, StaffRole, SupplierId } from "../engine/types.ts";
 import type { ContractTerm } from "../engine/suppliers.ts";
 import {
   advanceEraAction,
@@ -356,7 +356,7 @@ interface GameActionsValue {
   /** Reload this tab so it boots from the freshest save and claims play back. */
   takeOverHere: () => void;
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
-  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady" };
+  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady"; insight?: LaunchInsight };
   research: (kind: ComponentKind) => void;
   unlockLens: () => void;
   unlockFinish: () => void;
@@ -675,6 +675,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
         });
       }
       setState(next);
+      // C2: expose the recorded insight (newest is launched[0]) so the reveal can show the same
+      // postmortem "why" the Market detail does, from one authoritative source.
+      return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict, insight: next.launched[0]?.insight };
     }
     return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
   }, []);

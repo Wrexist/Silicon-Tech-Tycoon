@@ -141,6 +141,13 @@
   color: var(--lreveal-accent);
   animation: lreveal-pop var(--spring-bouncy, var(--spring-standard)) both;
 }
+/* C2: the postmortem "why", one tasteful line of analysis under the verdict label. Muted so it
+   reads as a caption beneath the headline verdict, never competing with it. */
+.lreveal__why {
+  margin: var(--sp-4) var(--sp-8) 0;
+  font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4;
+  animation: lreveal-rise 0.4s var(--spring-standard) 0.1s both;
+}
 /* Hit-streak badge — a warm "on fire" pill that escalates the celebration for consecutive hits. */
 .lreveal__streak {
   display: inline-flex;

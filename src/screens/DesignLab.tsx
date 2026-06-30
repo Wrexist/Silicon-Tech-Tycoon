@@ -464,6 +464,7 @@ export function DesignLab({
         isHit,
         firstLaunch: launchedBefore.length === 0,
         streak,
+        insight: res.insight,
       }));
       // First product ever shipped — a real high point. Ask for an App Store review (once).
       if (launchedBefore.length === 0) maybePromptFirstLaunchReview();

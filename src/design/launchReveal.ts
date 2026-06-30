@@ -2,7 +2,8 @@
 // overlay (mounted once in App) subscribes and plays the keynote-style reveal. Module singleton, same
 // fire-and-forget pattern as celebrateFx/spendFx — no prop drilling, no re-renders on the bus itself.
 import { criticReviews, type OutletScore } from "../engine/reviews.ts";
-import type { Product, Stats } from "../engine/types.ts";
+import { postMortem } from "../engine/postmortem.ts";
+import type { LaunchInsight, Product, Stats } from "../engine/types.ts";
 import type { LaunchVerdict } from "./launchFeedback.ts";
 
 export interface LaunchRevealData {
@@ -11,6 +12,9 @@ export interface LaunchRevealData {
   aggregate: number;       // 0..100 critic aggregate
   outlets: OutletScore[];  // 3 fictional outlet scores
   headline: string;        // pull-quote
+  /** C2: the postmortem "why" (e.g. "Won on Design + price; hurt by 1 stronger rival"), the same
+   *  analysis the Market detail shows. One tasteful line under the verdict. Absent if no insight. */
+  why?: string;
   units: number;           // projected first-run sales
   isHit: boolean;
   firstLaunch: boolean;    // the company's very first product — gets a special beat
@@ -42,6 +46,9 @@ export function buildLaunchReveal(args: {
   isHit: boolean;
   firstLaunch: boolean;
   streak?: number;
+  /** The recorded launch insight (drivers behind the verdict). When present, the reveal carries the
+   *  postmortem "why" line (the SAME analysis Market shows, so the two never disagree). */
+  insight?: LaunchInsight;
 }): LaunchRevealData {
   const r = criticReviews({
     productId: args.product.id,
@@ -57,6 +64,7 @@ export function buildLaunchReveal(args: {
     aggregate: r.aggregate,
     outlets: r.outlets,
     headline: r.headline,
+    why: args.insight ? postMortem(args.insight, args.verdict).headline : undefined,
     units: args.units,
     isHit: args.isHit,
     firstLaunch: args.firstLaunch,
