@@ -12,6 +12,7 @@ import {
   launchReady,
   startBuild,
   buildWeeksFor,
+  canAutoAssign,
   type GameState,
 } from "./gameState.ts";
 import type { Product } from "../engine/types.ts";
@@ -357,6 +358,21 @@ describe("v17 — desks are seats: migrate grants missing desks to old teams", (
       acc = addItem(acc, it.iid, it.type, it.c, it.r, it.rot);
     }
     expect(acc.length).toBe(back!.layout.length);
+  });
+});
+
+describe("delegation gating: migrate grandfathers a pre-gating automation that was already on", () => {
+  it("an old save with auto-assign on (no *Free fields) keeps it free of the new prerequisites", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const base = newGame(21);
+    // A save from before the premium gating: only the two original booleans, no *Free flags.
+    const legacy: GameState = { ...base, automation: { autoAssign: true, autoResearch: false } };
+    const back = importSaveString(exportSaveString(legacy));
+    expect(back).not.toBeNull();
+    expect(back!.automation.autoAssign).toBe(true);
+    expect(back!.automation.autoAssignFree).toBe(true);    // grandfathered, keeps working
+    expect(back!.automation.autoResearchFree).toBe(false); // was off → must still be earned
+    expect(canAutoAssign(back!)).toBe(true);
   });
 });
 

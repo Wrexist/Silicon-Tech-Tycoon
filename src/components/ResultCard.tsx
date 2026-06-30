@@ -5,6 +5,7 @@
 // enhancement — no fragile canvas rasterization that would need on-device verification).
 import { CircuitBoard, Star, Share2 } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
+import { CircuitMotif } from "../design/CircuitMotif.tsx";
 import { netWorth, challengeViewFor, type GameState } from "../state/gameState.ts";
 import type { ScenarioResult } from "../engine/scenarios.ts";
 import { scenarioById } from "../engine/scenarios.ts";
@@ -29,6 +30,7 @@ function Stars({ n }: { n: number }) {
     </span>
   );
 }
+
 
 export function ResultCard({
   state,
@@ -89,33 +91,42 @@ export function ResultCard({
     <div className="rcard-wrap">
       {/* The card itself — designed to look great as a screenshot. */}
       <div className={`rcard${pm ? " rcard--memoriam" : ""}`} role="img" aria-label={`${state.companyName}, ${headline}, ${sub}`}>
-        <div className="rcard__head">
-          <span className="rcard__brand"><CircuitBoard size={20} strokeWidth={1.8} /></span>
-          <span className="rcard__company">{state.companyName}</span>
-          {scn && <Stars n={result?.stars ?? 0} />}
+        {/* Layered, immersive backdrop: accent glow + dot texture + a parametric circuit motif. */}
+        <div className="rcard__backdrop" aria-hidden="true">
+          <span className="rcard__glow" />
+          <span className="rcard__grid" />
+          <CircuitMotif className="rcard__circuit" />
         </div>
 
-        <div className="rcard__hero">
-          <span className="rcard__headline">{headline}</span>
-          <span className="rcard__sub">{sub}</span>
-        </div>
+        <div className="rcard__content">
+          <div className="rcard__head">
+            <span className="rcard__brand"><CircuitBoard size={22} strokeWidth={1.8} /></span>
+            <span className="rcard__company">{state.companyName}</span>
+            {scn && <Stars n={result?.stars ?? 0} />}
+          </div>
 
-        <div className="rcard__stats">
-          {stats.map((s) => (
-            <div key={s.label} className="rcard__stat">
-              <span className="rcard__stat-val tnum">{s.value}</span>
-              <span className="rcard__stat-label">{s.label}</span>
-            </div>
-          ))}
-        </div>
+          <div className="rcard__hero">
+            <span className="rcard__headline">{headline}</span>
+            <span className="rcard__sub">{sub}</span>
+          </div>
 
-        {chCode && (
-          <div className="rcard__code">Challenge code <strong>{chCode}</strong>, beat my score</div>
-        )}
+          <div className="rcard__stats">
+            {stats.map((s) => (
+              <div key={s.label} className="rcard__stat">
+                <span className="rcard__stat-val tnum">{s.value}</span>
+                <span className="rcard__stat-label">{s.label}</span>
+              </div>
+            ))}
+          </div>
 
-        <div className="rcard__foot">
-          <span className="rcard__wordmark">SILICON</span>
-          <span className="rcard__wordmark-sub">Tech Tycoon · Wk {state.week}</span>
+          {chCode && (
+            <div className="rcard__code">Challenge code <strong>{chCode}</strong>, beat my score</div>
+          )}
+
+          <div className="rcard__foot">
+            <span className="rcard__wordmark">SILICON</span>
+            <span className="rcard__wordmark-sub">Tech Tycoon · Wk {state.week}</span>
+          </div>
         </div>
       </div>
 

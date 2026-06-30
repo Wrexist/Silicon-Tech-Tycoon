@@ -1,17 +1,77 @@
-/* Shareable result card. Tokens + 8pt grid only (RULE #1). Designed to look premium as a screenshot. */
+/* Shareable result card. Tokens + 8pt grid only (RULE #1). Designed to look premium as a screenshot:
+   a layered, immersive surface (accent glow + dot texture + a parametric circuit motif) under a
+   gradient-lettered hero and glass stat tiles. Zero image assets: every graphic is drawn in code. */
 .rcard-wrap {
   display: flex;
   flex-direction: column;
   gap: var(--sp-12);
 }
 .rcard {
+  position: relative;
+  overflow: hidden;
   border-radius: var(--r-sheet, 24px);
   padding: var(--sp-24);
-  background: linear-gradient(160deg,
-    color-mix(in srgb, var(--accent) 14%, var(--surface)) 0%,
-    var(--surface) 46%);
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--hairline));
-  box-shadow: var(--shadow-card);
+  background:
+    radial-gradient(125% 80% at 16% -8%, color-mix(in srgb, var(--accent) 20%, var(--surface)) 0%, transparent 56%),
+    linear-gradient(165deg,
+      color-mix(in srgb, var(--accent) 11%, var(--surface)) 0%,
+      var(--surface) 52%,
+      color-mix(in srgb, var(--accent) 7%, var(--surface)) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--hairline));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent),
+    var(--shadow-card),
+    0 30px 64px -30px color-mix(in srgb, var(--accent) 46%, transparent);
+}
+
+/* ---------- Immersive backdrop (behind the content) ---------- */
+.rcard__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.rcard__glow {
+  position: absolute;
+  top: -34%;
+  right: -22%;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 40%, transparent) 0%, transparent 68%);
+  filter: blur(6px);
+}
+.rcard__grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at center, color-mix(in srgb, var(--ink) 9%, transparent) 1.1px, transparent 1.5px);
+  background-size: 15px 15px;
+  -webkit-mask-image: linear-gradient(175deg, #000 6%, transparent 72%);
+  mask-image: linear-gradient(175deg, #000 6%, transparent 72%);
+}
+.rcard__circuit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+}
+.rcard__circuit .circuitm__traces path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.rcard__circuit .circuitm__nodes circle {
+  fill: color-mix(in srgb, var(--accent) 75%, transparent);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+
+/* ---------- Content (above the backdrop) ---------- */
+.rcard__content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: var(--sp-24);
@@ -19,17 +79,24 @@
 .rcard__head {
   display: flex;
   align-items: center;
-  gap: var(--sp-8);
+  gap: var(--sp-10);
 }
 .rcard__brand {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--r-button);
-  background: var(--accent-soft);
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--accent) 26%, var(--surface)),
+    color-mix(in srgb, var(--accent) 12%, var(--surface)));
   color: var(--accent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent),
+    0 8px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .rcard__company {
   font-size: var(--fs-headline);
@@ -42,7 +109,7 @@
   white-space: nowrap;
 }
 .rcard__stars { display: inline-flex; gap: 3px; color: var(--ink-3); flex-shrink: 0; }
-.rcard__star--on { color: var(--mat-gold); }
+.rcard__star--on { color: var(--mat-gold); filter: drop-shadow(0 1px 4px color-mix(in srgb, var(--mat-gold) 55%, transparent)); }
 
 .rcard__hero {
   display: flex;
@@ -52,9 +119,15 @@
 .rcard__headline {
   font-size: var(--fs-display, 30px);
   font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  color: var(--ink);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg,
+    var(--ink) 0%,
+    color-mix(in srgb, var(--accent) 58%, var(--ink)) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 .rcard__sub {
   font-size: var(--fs-body);
@@ -68,17 +141,34 @@
   gap: var(--sp-12);
 }
 .rcard__stat {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  padding: var(--sp-12);
+  padding: var(--sp-16) var(--sp-12);
   border-radius: var(--r-button);
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  border: 1px solid var(--hairline);
+  background: linear-gradient(165deg,
+    color-mix(in srgb, var(--surface-2) 94%, transparent),
+    color-mix(in srgb, var(--surface-2) 62%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--hairline));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 42%, transparent);
+}
+/* A hairline accent tick anchoring each tile: a small, premium graphic detail. */
+.rcard__stat::before {
+  content: "";
+  position: absolute;
+  top: var(--sp-12);
+  left: 0;
+  width: 3px;
+  height: calc(100% - var(--sp-24));
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 30%, transparent));
 }
 .rcard__stat-val {
   font-size: var(--fs-title);
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 .rcard__stat-label {
@@ -91,7 +181,8 @@
   color: var(--ink-2);
   padding: var(--sp-8) var(--sp-12);
   border-radius: var(--r-button);
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  border: 1px solid var(--hairline);
   letter-spacing: 0.02em;
 }
 .rcard__code strong { color: var(--accent); font-weight: 800; letter-spacing: 0.06em; }
@@ -101,7 +192,7 @@
   justify-content: space-between;
   gap: var(--sp-8);
   padding-top: var(--sp-12);
-  border-top: 1px solid var(--hairline);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 14%, var(--hairline));
 }
 .rcard__wordmark {
   font-size: var(--fs-caption);
@@ -121,14 +212,46 @@
   text-align: center;
 }
 
-/* Post-mortem (bankruptcy) — a calm, dignified epitaph rather than a celebratory accent gradient. */
+/* Post-mortem (bankruptcy): a calm, dignified epitaph rather than a celebratory accent gradient.
+   The same immersive layers, recoloured to a muted graphite so failure still feels considered. */
 .rcard--memoriam {
-  background: linear-gradient(160deg,
-    color-mix(in srgb, var(--ink-3) 10%, var(--surface)) 0%,
-    var(--surface) 46%);
-  border-color: color-mix(in srgb, var(--ink-3) 22%, var(--hairline));
+  background:
+    radial-gradient(125% 80% at 16% -8%, color-mix(in srgb, var(--ink-3) 14%, var(--surface)) 0%, transparent 56%),
+    linear-gradient(165deg,
+      color-mix(in srgb, var(--ink-3) 9%, var(--surface)) 0%,
+      var(--surface) 52%,
+      color-mix(in srgb, var(--ink-3) 6%, var(--surface)) 100%);
+  border-color: color-mix(in srgb, var(--ink-3) 24%, var(--hairline));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent),
+    var(--shadow-card),
+    0 30px 64px -30px color-mix(in srgb, var(--ink-3) 40%, transparent);
 }
-.rcard--memoriam .rcard__brand,
-.rcard--memoriam .rcard__wordmark {
+.rcard--memoriam .rcard__glow {
+  background: radial-gradient(circle, color-mix(in srgb, var(--ink-3) 32%, transparent) 0%, transparent 68%);
+}
+.rcard--memoriam .rcard__circuit .circuitm__traces path { stroke: color-mix(in srgb, var(--ink-3) 38%, transparent); }
+.rcard--memoriam .rcard__circuit .circuitm__nodes circle {
+  fill: color-mix(in srgb, var(--ink-3) 55%, transparent);
+  filter: none;
+}
+.rcard--memoriam .rcard__brand {
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--ink-3) 20%, var(--surface)),
+    color-mix(in srgb, var(--ink-3) 10%, var(--surface)));
   color: var(--ink-2);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ink-3) 28%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 36%, transparent);
 }
+.rcard--memoriam .rcard__headline {
+  background: linear-gradient(135deg, var(--ink) 0%, var(--ink-2) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.rcard--memoriam .rcard__stat::before {
+  background: linear-gradient(180deg, var(--ink-3), color-mix(in srgb, var(--ink-3) 30%, transparent));
+}
+.rcard--memoriam .rcard__wordmark { color: var(--ink-2); }

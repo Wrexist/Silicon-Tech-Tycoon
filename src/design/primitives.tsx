@@ -86,16 +86,20 @@ export function Stat({
   value,
   tone = "neutral",
   hint,
+  tile = false,
   className = "",
 }: {
   label: string;
   value: ReactNode;
   tone?: StatTone;
   hint?: string;
+  /** Opt-in premium presentation: wraps the stat in a glass tile with an accent tick. Default off,
+   *  so the bare text primitive used inside other cards is unchanged. */
+  tile?: boolean;
   className?: string;
 }) {
   return (
-    <div className={`ds-stat ${className}`.trim()}>
+    <div className={`ds-stat${tile ? " ds-stat--tile" : ""} ${className}`.trim()}>
       <span className="ds-stat__label">{label}</span>
       <span className="ds-stat__value tnum" style={{ color: STAT_TONE_COLOR[tone] }}>{value}</span>
       {hint && <span className="ds-stat__hint">{hint}</span>}

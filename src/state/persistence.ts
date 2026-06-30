@@ -6,6 +6,7 @@ import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
+import { toDollars } from "../engine/money.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { satisfiedObjectiveIds } from "../engine/objectives.ts";
 import { showToast } from "../design/toast.tsx";
@@ -242,7 +243,9 @@ function migrate(state: GameState): GameState | null {
   if (!Number.isFinite(s.lastActive)) s.lastActive = Date.now();
   if (!s.researched || typeof s.researched !== "object") s.researched = { chip: 1, display: 1, battery: 1, materials: 1, software: 1, camera: 1 };
   if (!Array.isArray(s.launched)) s.launched = [];
-  if (!Array.isArray(s.cashHistory)) s.cashHistory = [{ week: s.week ?? 0, cash: 0 }];
+  // Seed the sparkline from the company's ACTUAL cash (entries store whole dollars), not a false
+  // $0 baseline, so a save missing cashHistory doesn't misrepresent its finances for a render cycle.
+  if (!Array.isArray(s.cashHistory)) s.cashHistory = [{ week: s.week ?? 0, cash: Number.isFinite(s.cash) ? toDollars(s.cash) : 0 }];
   if (!Array.isArray(s.feed)) s.feed = [];
   if (s.productCounter == null) s.productCounter = 1;
   if (s.staffCounter == null) s.staffCounter = s.staff?.length ?? 1;
@@ -336,8 +339,26 @@ function migrate(state: GameState): GameState | null {
   // Acquired rivals (Epic B3, added later): default none.
   if (!Array.isArray(s.acquiredRivals)) s.acquiredRivals = [];
   // Delegation toggles (Epic E, added later): default off.
-  if (!s.automation || typeof s.automation !== "object") s.automation = { autoAssign: false, autoResearch: false };
-  else s.automation = { autoAssign: !!s.automation.autoAssign, autoResearch: !!s.automation.autoResearch };
+  if (!s.automation || typeof s.automation !== "object") {
+    s.automation = { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false };
+  } else {
+    const a = s.automation;
+    const aa = !!a.autoAssign, ar = !!a.autoResearch;
+    // GRANDFATHER: when the premium specialist/research gating shipped, the `*Free` fields appeared.
+    // A save that PREDATES the gating (no `*Free` field) and already had an automation ON keeps it
+    // working free of the new prerequisites. Post-gating saves carry the fields, so re-loading never
+    // re-grandfathers them (idempotent) and firing the specialist correctly re-locks the toggle.
+    // Each flag is decided independently on its OWN field's presence, so a partial import/migration
+    // that carries only one `*Free` key doesn't drop grandfathering for the other enabled automation.
+    const hadAutoAssignFree = "autoAssignFree" in a;
+    const hadAutoResearchFree = "autoResearchFree" in a;
+    s.automation = {
+      autoAssign: aa,
+      autoResearch: ar,
+      autoAssignFree: hadAutoAssignFree ? !!a.autoAssignFree : aa,
+      autoResearchFree: hadAutoResearchFree ? !!a.autoResearchFree : ar,
+    };
+  }
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
   if (!Number.isFinite(s.desktops) || s.desktops < 0) s.desktops = 0;
   // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at

@@ -130,6 +130,32 @@
   font-size: var(--fs-micro);
   color: var(--ink-3);
 }
+/* Opt-in premium tile: a glass surface with an accent tick. Mirrors the share-card stat tiles so the
+   same language reads across HQ, Company, and anywhere a Stat opts in. */
+.ds-stat--tile {
+  position: relative;
+  overflow: hidden;
+  gap: var(--sp-2);
+  padding: var(--sp-12) var(--sp-12) var(--sp-12) var(--sp-16);
+  border-radius: var(--r-button);
+  background: linear-gradient(165deg,
+    color-mix(in srgb, var(--surface-2) 94%, transparent),
+    color-mix(in srgb, var(--surface-2) 60%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--hairline));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 42%, transparent);
+}
+.ds-stat--tile::before {
+  content: "";
+  position: absolute;
+  top: var(--sp-12);
+  left: 0;
+  width: 3px;
+  height: calc(100% - var(--sp-24));
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 30%, transparent));
+}
+.ds-stat--tile .ds-stat__value { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.01em; }
+.ds-stat--tile .ds-stat__label { font-size: var(--fs-caption); }
 
 /* Section header */
 .ds-section {
@@ -168,9 +194,28 @@
   color: var(--ink-2);
 }
 .ds-empty__glyph {
-  font-size: 40px;
-  line-height: 1;
-  opacity: 0.5;
+  position: relative;
+  width: 76px;
+  height: 76px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--accent);
+  background:
+    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%),
+    color-mix(in srgb, var(--accent) 8%, var(--surface-2));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent),
+    0 10px 26px -12px color-mix(in srgb, var(--accent) 50%, transparent);
+  animation: ds-empty-breathe 4.2s ease-in-out infinite;
+}
+@keyframes ds-empty-breathe {
+  0%, 100% { transform: translateY(0); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent), 0 10px 26px -12px color-mix(in srgb, var(--accent) 45%, transparent); }
+  50% { transform: translateY(-3px); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent), 0 18px 34px -12px color-mix(in srgb, var(--accent) 60%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-empty__glyph { animation: none; }
 }
 .ds-empty__title {
   font-size: var(--fs-body);

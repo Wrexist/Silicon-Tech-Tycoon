@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -38,6 +38,7 @@ import { REGIONS, regionTasteFit } from "../engine/regions.ts";
 import { segmentTrend, regionInCrisis } from "../engine/climate.ts";
 import { subsystemFor, effectiveSubsystemStep } from "../engine/subsystems.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
+import { CircuitMotif } from "../design/CircuitMotif.tsx";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import {
   buildWeeksFor,
@@ -564,7 +565,11 @@ export function DesignLab({
       <Card className="lab__hero">
         <div className="lab__hero-grid">
           <div className="lab__hero-stage">
-            <span className="lab__hero-glow" aria-hidden />
+            <span className="lab__hero-backdrop" aria-hidden>
+              <span className="lab__hero-glow" />
+              <span className="lab__hero-grid" />
+              <CircuitMotif className="lab__hero-circuit" />
+            </span>
             <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />
             <div className="lab__hero-cats">
               {unlockedCats.map((c) => (
@@ -1500,6 +1505,7 @@ export function DesignLab({
             done={completed}
             onGoToHQ={() => { setCompleted(null); onGoToHQ?.(); }}
             onDesignAnother={() => setCompleted(null)}
+            onClose={() => setCompleted(null)}
           />
         )}
       </Sheet>
@@ -1514,14 +1520,17 @@ function DesignCompleteCard({
   done,
   onGoToHQ,
   onDesignAnother,
+  onClose,
 }: {
   done: CompletedBuild;
   onGoToHQ: () => void;
   onDesignAnother: () => void;
+  onClose: () => void;
 }) {
   const profD = toDollars(done.projectedProfit);
   return (
     <div className="done">
+      <button className="done__close" onClick={onClose} aria-label="Close"><X size={18} /></button>
       <div className="done__badge" aria-hidden><Check size={24} strokeWidth={3} /></div>
       <h2 className="done__title">Design complete</h2>
       <p className="done__sub">
@@ -1555,8 +1564,8 @@ function DesignCompleteCard({
         </div>
       </div>
 
-      <Button block onClick={onDesignAnother}><Sparkles size={16} /> Design another</Button>
-      <button className="wiz__cancel" onClick={onGoToHQ}>View in Office</button>
+      <Button block onClick={onGoToHQ}><Factory size={16} /> View building progress</Button>
+      <button className="wiz__cancel" onClick={onDesignAnother}>Design another</button>
     </div>
   );
 }

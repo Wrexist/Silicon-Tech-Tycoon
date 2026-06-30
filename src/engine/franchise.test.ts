@@ -41,6 +41,17 @@ describe("franchiseStem — grouping a product line", () => {
     expect(stems.size).toBe(1);
     expect([...stems][0]).toBe("aurora");
   });
+
+  it("does NOT treat a lowercase English word that happens to be Roman-valid as a series marker", () => {
+    // "Mix" (M·I·X), "Div" (D·I·V) are valid Roman numerals but obviously real words: a Roman series
+    // token only counts when written UPPERCASE ("Aurora II"), so these keep their full name and don't
+    // merge into an unrelated "Studio"/"Audio" line.
+    expect(franchiseStem("Studio Mix")).toBe("studio mix");
+    expect(franchiseStem("Audio Div")).toBe("audio div");
+    expect(franchiseStem("Studio Mix")).not.toBe(franchiseStem("Studio Pro"));
+    // The genuine uppercase series marker still strips.
+    expect(franchiseStem("Studio II")).toBe("studio");
+  });
 });
 
 describe("brandEquity — a line's track record", () => {

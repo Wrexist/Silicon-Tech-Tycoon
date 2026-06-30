@@ -40,6 +40,7 @@ import {
   makeSkills,
   perfectionistCeilingBonus,
   ROLE_DISCIPLINE,
+  ROLE_TITLE,
   visionaryHype,
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
@@ -289,9 +290,11 @@ export interface GameState {
   /** Epic B3 — ids of rivals the player has acquired (removed from competition). Tracked so an
    *  acquired rival never re-enters as a fresh challenger, and for UI/achievements. */
   acquiredRivals: string[];
-  /** Epic E — delegation toggles. Each automates an action the player can already do, and only takes
-   *  effect while the company is capable (a senior lead). Persisted per save. */
-  automation: { autoAssign: boolean; autoResearch: boolean };
+  /** Epic E delegation toggles. Each automates an action the player can already do, gated behind a
+   *  premium research division + a recruited specialist (whose salary is the standing weekly cost).
+   *  The `*Free` flags grandfather saves that already had an automation ON before the gating shipped,
+   *  so they keep working without the new prerequisites. Persisted per save. */
+  automation: { autoAssign: boolean; autoResearch: boolean; autoAssignFree?: boolean; autoResearchFree?: boolean };
 }
 
 /** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery. */
@@ -482,7 +485,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
-    automation: { autoAssign: false, autoResearch: false },
+    automation: { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false },
   };
 }
 
@@ -1384,6 +1387,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const cashDropping = cash < state.cash;
   const teamPlayers = state.staff.filter((s) => s.trait === "teamPlayer").length;
   const churnCfg = BALANCE.churn;
+  // People Operations: a People Lead (hr) keeps the whole team happy and resolves burnout before it
+  // forces anyone out. The strongest lead drives the effect; presence (not count) gates the no-quit
+  // safety, so a roster with no People Lead is byte-identical to before this shipped.
+  const hrCfg = BALANCE.hr;
+  const peopleLeadSkill = state.staff.reduce((best, m) => (m.role === "hr" ? Math.max(best, m.skill) : best), 0);
+  const hasPeopleLead = state.staff.some((m) => m.role === "hr");
+  const hrTargetLift = hasPeopleLead ? Math.min(hrCfg.maxTargetLift, hrCfg.moodTargetBase + peopleLeadSkill * hrCfg.perSkillTarget) : 0;
   const quitIds: string[] = [];
   const staff = state.staff.map((s) => {
     const { staff: levelResult, leveledUp } = gainWeeklyXp(s, mentorshipXpMult(s, state.staff));
@@ -1395,15 +1405,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const skills = leveledUp
       ? { ...next.skills, [ROLE_DISCIPLINE[next.role]]: Math.min(100, Math.max(next.skills[ROLE_DISCIPLINE[next.role]], next.skill * 10)) }
       : next.skills;
-    let target = 60 + moodBonus(state.upgrades) + officeComfortMoodBonus(state);
+    let target = 60 + moodBonus(state.upgrades) + officeComfortMoodBonus(state) + hrTargetLift;
     if (s.trait === "hustler") target -= 12;
     if (cashDropping) target -= 12;
     else target += 6;
-    const lift = teamPlayers * 1.5;
-    // Underpaid penalty: salary lagging behind skill level pulls mood target down.
+    const lift = teamPlayers * 1.5 + (hasPeopleLead ? hrCfg.weeklyMoodLift : 0);
+    // Underpaid penalty: salary lagging behind skill level pulls mood target down. A People Lead
+    // mediates, absorbing part of the sting (they can't fix the player's wallet, only the morale).
     const marketSalary = salaryFor(next.role, next.skill);
     const isUnderpaid = next.id !== "s0" && toDollars(next.salary) < toDollars(marketSalary);
-    if (isUnderpaid) target -= churnCfg.underpaidMoodPenalty;
+    if (isUnderpaid) target -= churnCfg.underpaidMoodPenalty * (hasPeopleLead ? 1 - hrCfg.underpaidRelief : 1);
     const mood = clampMood(next.mood + (target - next.mood) * 0.12 + lift + rng.range(-1.5, 1.5));
     // Track consecutive weeks in the danger zone.
     const newLowWeeks = mood < churnCfg.moodQuitThreshold
@@ -1414,7 +1425,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     // (mirrors the fan-decay offline protection). At-risk staff can still quit on the next ONLINE
     // tick, giving the player a chance to intervene (e.g. a raise). `!offline` is first so the
     // active path's rng consumption is unchanged (the determinism test runs active-only).
-    if (!offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && rng.next() < churnCfg.quitChancePerWeek) {
+    // A People Lead resolves burnout before it forces anyone out: while one is employed, sustained
+    // low mood never triggers a quit. `!hasPeopleLead` is placed BEFORE rng.next() so a roster with
+    // no People Lead consumes the rng exactly as before (determinism preserved for old saves).
+    if (!offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && !hasPeopleLead && rng.next() < churnCfg.quitChancePerWeek) {
       quitIds.push(next.id);
     }
     return { ...next, skills, mood, moodLowWeeks: newLowWeeks };
@@ -2567,14 +2581,26 @@ export function assignStaff(state: GameState, id: string, assignment: Assignment
 
 // ---------- Delegation & ops (Epic E): automations that only do what the player already can ----------
 
-/** Whether the company can auto-assign — it has a senior staffer (a lead) to run the floor. */
+/** The premium research division each delegation requires, and the specialist role it lets you hire. */
+export const DELEGATION_REQ = {
+  autoAssign: { project: "peopleOps" as ProjectId, role: "hr" as StaffRole },
+  autoResearch: { project: "researchDivision" as ProjectId, role: "researcher" as StaffRole },
+} as const;
+
+/** Whether the company can auto-assign: it opened People Operations AND employs a People Lead (or a
+ *  pre-gating save that already had it on, grandfathered). The People Lead's salary is the weekly cost. */
 export function canAutoAssign(state: GameState): boolean {
-  return state.staff.some((s) => s.skill >= BALANCE.ops.leadSkill);
+  if (state.automation.autoAssignFree) return true;
+  const { project, role } = DELEGATION_REQ.autoAssign;
+  return hasProject(state.completedProjects, project) && state.staff.some((s) => s.role === role);
 }
 
-/** Whether the company can auto-research — it has a senior ENGINEER (an R&D lead). */
+/** Whether the company can auto-research: it stood up a Research Division AND employs a Lead Researcher
+ *  (or a grandfathered save). The Lead Researcher's salary is the standing weekly cost. */
 export function canAutoResearch(state: GameState): boolean {
-  return state.staff.some((s) => s.role === "engineer" && s.skill >= BALANCE.ops.leadSkill);
+  if (state.automation.autoResearchFree) return true;
+  const { project, role } = DELEGATION_REQ.autoResearch;
+  return hasProject(state.completedProjects, project) && state.staff.some((s) => s.role === role);
 }
 
 /** Toggle a delegation automation. Pure. */
@@ -2716,6 +2742,10 @@ const ROLE_ASSIGNMENT: Record<StaffRole, Assignment> = {
   engineer: "rnd",
   designer: "design",
   marketer: "marketing",
+  // A Lead Researcher naturally sits in R&D (and trickles RP); a People Lead defaults to marketing
+  // (people/comms), but both earn their keep by UNLOCKING delegation, not their seat output.
+  researcher: "rnd",
+  hr: "marketing",
 };
 
 /** One placed desk = one seat. Hiring is desk-gated: the team can never outgrow the desks
@@ -2745,7 +2775,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     ...identity,
   };
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Hired ${name}, ${role}.`, "accent"));
+  feed.push(feedItem(state.week, `Hired ${name}, ${ROLE_TITLE[role]}.`, "accent"));
   return {
     ...state,
     rngState: rng.state(),
@@ -2754,6 +2784,24 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     staffCounter: state.staffCounter + 1,
     feed: trimFeed(feed),
   };
+}
+
+/** The senior skill a recruited delegation specialist (People Lead / Lead Researcher) signs at. */
+export const SPECIALIST_SKILL = 6;
+
+/** One-time fee to recruit a delegation specialist (Talent Network discounts it, like any hire). */
+export function specialistHireFee(state: GameState, which: "autoAssign" | "autoResearch"): Money {
+  return hireCostFor(DELEGATION_REQ[which].role, SPECIALIST_SKILL, hasProject(state.completedProjects, "talentNetwork"));
+}
+
+/** Recruit a delegation specialist. Gated on having opened the matching premium research division (it
+ *  "establishes the desk" the specialist fills). Reuses hireStaff, so desk/capacity/cash rules and the
+ *  spawned avatar all apply, and their weekly salary becomes the automation's standing cost. Pure. */
+export function hireSpecialist(state: GameState, which: "autoAssign" | "autoResearch"): GameState {
+  const { project, role } = DELEGATION_REQ[which];
+  if (!hasProject(state.completedProjects, project)) return state; // division not opened yet
+  const name = NAMES[(state.staffCounter * 7) % NAMES.length];
+  return hireStaff(state, role, SPECIALIST_SKILL, name);
 }
 
 // ---------- Recruitment: search → candidates → sign ----------
@@ -2823,7 +2871,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     mood: cand.mood,
     appearance: cand.appearance,
   };
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name}, ${cand.role}.`, "positive")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name}, ${ROLE_TITLE[cand.role]}.`, "positive")]);
   return {
     ...state,
     cash: sub(state.cash, cand.hireFee),

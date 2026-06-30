@@ -61,6 +61,7 @@ import {
   sellOwnStake,
   sellShares,
   setAutomation,
+  hireSpecialist,
   setCompanyName,
   setSandbox,
   setFloorStyle,
@@ -369,6 +370,7 @@ interface GameActionsValue {
   train: (id: string) => void;
   rest: (id: string) => void;
   hire: (role: StaffRole, skill: number, name: string) => void;
+  hireSpecialist: (which: "autoAssign" | "autoResearch") => void;
   recruit: (tier: RecruitTier) => void;
   hireCandidate: (candidateId: string) => void;
   dismissCandidates: () => void;
@@ -770,6 +772,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (spent > 0) emitSpend(spent);
     setState(next);
   }, []);
+  const hireSpecialistCb = useCallback((which: "autoAssign" | "autoResearch") => {
+    const prev = stateRef.current;
+    const next = hireSpecialist(prev, which);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const recruit = useCallback((tier: RecruitTier) => {
     const prev = stateRef.current;
     const next = startRecruitment(prev, tier);
@@ -946,8 +955,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const restart = useCallback(() => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good
     clearSave();
-    // Platform is an entitlement, not run progress — keep it across a fresh company.
-    setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked });
+    // Platform is an entitlement, not run progress, so it stays across a fresh company. The lifetime
+    // "seen dilemmas" set carries across too (as it does in prestige), so a restart surfaces fresh
+    // decisions first instead of re-asking ones the player already resolved.
+    setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices });
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
@@ -1004,6 +1015,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       assign,
       train,
       hire,
+      hireSpecialist: hireSpecialistCb,
       recruit,
       hireCandidate: hireCandidateCb,
       dismissCandidates,
@@ -1055,7 +1067,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

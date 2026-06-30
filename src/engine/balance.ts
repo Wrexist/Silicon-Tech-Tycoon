@@ -338,7 +338,7 @@ export const BALANCE = {
 
   // --- Employees: XP & leveling ---
   staff: {
-    baseSalary: { engineer: dollars(900), designer: dollars(850), marketer: dollars(800) },
+    baseSalary: { engineer: dollars(900), designer: dollars(850), marketer: dollars(800), hr: dollars(950), researcher: dollars(1_000) },
     salaryPerSkill: dollars(140),
     engineerRdSpeedPerSkill: 0.06,
     designerCeilingPerSkill: 1.6,
@@ -368,11 +368,9 @@ export const BALANCE = {
   // --- Delegation & ops (Epic E) ---
   // Late-game scale shouldn't mean more taps for the same decisions (the micromanagement death of
   // Startup Company / Computer Tycoon; touch density is fatal on a phone). Automation only does what
-  // the player already can, and is GATED on having grown a senior staffer to "delegate" the function
-  // to — so it's earned, not free. leadSkill is the headline skill (1..10) that qualifies as a lead.
-  ops: {
-    leadSkill: 5,
-  },
+  // the player already can, and is EARNED: each toggle is gated on a premium research division
+  // (engine/research.ts: peopleOps / researchDivision) plus a recruited specialist whose salary is
+  // the standing weekly cost (see DELEGATION_REQ + canAutoAssign/canAutoResearch in state/gameState).
 
   // --- Build / manufacturing ---
   // --- Market fatigue / novelty ---
@@ -704,6 +702,20 @@ export const BALANCE = {
     raiseMoodBoost: 15,       // mood bump when player gives a raise
     restMoodBoost: 30,        // mood bump when player sends someone on paid time off (Rest)
     restMinCost: 1000,        // floor on a Rest's cost so it's never free (the unpaid founder pays this)
+  },
+
+  // --- People Operations (the People Lead / hr role) ---
+  // A People Lead actively keeps the team happy: lifts everyone's mood TARGET (steady-state
+  // happiness), nudges mood up a little every week, cushions the underpaid penalty, and (the headline)
+  // while one is on staff, sustained burnout never forces a quit. The STRONGEST People Lead drives it;
+  // extra leads don't stack (bounded). Gated on employing one, so no People Lead = byte-identical
+  // mood/churn. This is what justifies the People Lead's seat + salary beyond unlocking Auto-assign.
+  hr: {
+    moodTargetBase: 8,      // flat lift to every teammate's mood target while a People Lead is employed
+    perSkillTarget: 1.4,    // + target lift per skill point of the strongest People Lead
+    maxTargetLift: 24,      // cap on the combined target lift (a fully-leveled lead, no runaway)
+    weeklyMoodLift: 2.5,    // steady weekly mood nudge for the whole team (people ops in action)
+    underpaidRelief: 0.6,   // fraction of the underpaid mood penalty a People Lead absorbs
   },
 
   // --- Rival poaching (Track C) — a rival on the rise tries to HIRE AWAY one of your best, surfaced

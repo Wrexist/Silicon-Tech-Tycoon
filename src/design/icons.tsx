@@ -15,6 +15,8 @@ import {
   Layers3,
   CodeXml,
   Camera,
+  Users,
+  FlaskConical,
   type LucideIcon,
 } from "lucide-react";
 import type { CategoryId, ComponentKind, StaffRole } from "../engine/types.ts";
@@ -34,6 +36,8 @@ const ROLE_ICON: Record<StaffRole, LucideIcon> = {
   engineer: Wrench,
   designer: PencilRuler,
   marketer: Megaphone,
+  hr: Users,
+  researcher: FlaskConical,
 };
 
 export function CategoryIcon({ id, size = 16 }: { id: CategoryId; size?: number }) {

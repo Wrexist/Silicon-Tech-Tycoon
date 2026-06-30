@@ -14,6 +14,7 @@ import {
   footprint,
   furnitureDef,
   GRID,
+  isDeskType,
   worldOf,
   type FurnitureId,
   type PlacedItem,
@@ -108,12 +109,26 @@ function roamHomeFor(i: number): [number, number] {
 // Build mode lifts the camera to a higher, more overhead angle so the whole floor grid is
 // readable; otherwise it's the cozy parallax view. WASD lets the player drive the view:
 // A/D orbit around the room, W/S zoom in/out, Q/E (or R/F) raise/lower the eye height.
+// Shared camera dolly offset (in the same units as baseR): written by both the W/S keys and the
+// pinch-to-zoom handler, read by CameraRig every frame. A plain module singleton (no React state) so
+// the render loop stays allocation-free and the DOM touch handler can drive it without re-renders.
+// Mirrors the hqReaction event-bus pattern used elsewhere in this scene.
+const CAM_ZOOM_MIN = -6;
+const CAM_ZOOM_MAX = 13;
+let camZoomOffset = 0;
+function getCamZoom(): number { return camZoomOffset; }
+function setCamZoom(v: number): void { camZoomOffset = Math.max(CAM_ZOOM_MIN, Math.min(CAM_ZOOM_MAX, v)); }
+
 function CameraRig({ build = false }: { build?: boolean }) {
   const { camera, pointer } = useThree();
   const target = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
   const keys = useRef<Set<string>>(new Set());
-  const orbit = useRef({ yaw: 0, zoom: 0, lift: 0 }); // player camera offsets
+  const orbit = useRef({ yaw: 0, lift: 0 }); // player camera offsets (zoom lives in the shared singleton)
   const lastPointer = useRef({ x: 0, y: 0 }); // for the settle check
+
+  // Each mode (decorate vs. normal) has its own default framing, so reset the dolly when the mode
+  // flips, otherwise a big pinch-out in Decorate would leave the normal office zoomed out too.
+  useEffect(() => { setCamZoom(0); }, [build]);
 
   useEffect(() => {
     const MOVE = new Set(["w", "a", "s", "d", "q", "e", "r", "f"]);
@@ -147,21 +162,25 @@ function CameraRig({ build = false }: { build?: boolean }) {
     const liftSpd = dt * 5;
     if (ks.has("a")) o.yaw -= rotSpd;
     if (ks.has("d")) o.yaw += rotSpd;
-    if (ks.has("w")) o.zoom = Math.max(-5, o.zoom - zoomSpd); // closer
-    if (ks.has("s")) o.zoom = Math.min(9, o.zoom + zoomSpd); // farther
+    if (ks.has("w")) setCamZoom(getCamZoom() - zoomSpd); // closer
+    if (ks.has("s")) setCamZoom(getCamZoom() + zoomSpd); // farther
     if (ks.has("q") || ks.has("r")) o.lift = Math.min(7, o.lift + liftSpd); // higher
     if (ks.has("e") || ks.has("f")) o.lift = Math.max(-3, o.lift - liftSpd); // lower
 
     const k = Math.min(1, dt * 2.5);
-    const px = build ? 6.4 : 15.5;
-    const py = build ? 10.6 : 13.0;
-    const pz = build ? 8.4 : 17.5;
-    const ty = build ? 0.4 : 0.7;
+    // Decorate view was framed close (baseR ≈ 10.6) for precise placement, but that cropped the
+    // room's edges off-screen (and the shop panel hides the front row), so furniture near the walls
+    // was unreachable. Pull back + raise the angle so the WHOLE grid sits in the visible area above
+    // the panel; W/S (or a pinch, if added) still let you dolly in for fine placement.
+    const px = build ? 9.5 : 15.5;
+    const py = build ? 13.6 : 13.0;
+    const pz = build ? 12.5 : 17.5;
+    const ty = build ? 0.5 : 0.7;
 
     // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
     // and W/S dollies in/out, while pointer parallax + smoothing are preserved.
     const baseR = Math.hypot(px, pz);
-    const r = Math.max(4, baseR + o.zoom);
+    const r = Math.max(4, baseR + getCamZoom());
     const ang = Math.atan2(px, pz) + o.yaw;
     const desiredX = Math.sin(ang) * r + pointer.x * (build ? 0.5 : 1.3);
     const desiredZ = Math.cos(ang) * r;
@@ -186,6 +205,48 @@ function CameraRig({ build = false }: { build?: boolean }) {
     target.y += (ty - target.y) * k;
     camera.lookAt(target);
   });
+  return null;
+}
+
+// Pinch-to-zoom: a two-finger gesture on the canvas dollies the camera in/out via the shared zoom
+// offset. Single-finger gestures are untouched (they still pan / drag furniture). Listeners are
+// non-passive so the pinch can preventDefault the browser's native page zoom; only acts on exactly
+// two active touches, so it never fights a one-finger drag.
+function PinchZoom() {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    const el = gl.domElement;
+    let active = false;
+    let startDist = 0;
+    let startZoom = 0;
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const start = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        active = true;
+        startDist = dist(e.touches);
+        startZoom = getCamZoom();
+      }
+    };
+    const move = (e: TouchEvent) => {
+      if (!active || e.touches.length !== 2) return;
+      e.preventDefault(); // own the pinch, stop the page's native zoom/scroll under it
+      const d = dist(e.touches);
+      // Spreading the fingers (d > startDist) reduces the offset → camera dollies closer (zoom in);
+      // pinching together pushes it farther (zoom out). 0.04 maps finger travel to a comfortable range.
+      setCamZoom(startZoom + (startDist - d) * 0.04);
+    };
+    const end = (e: TouchEvent) => { if (e.touches.length < 2) active = false; };
+    el.addEventListener("touchstart", start, { passive: false });
+    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchend", end);
+    el.addEventListener("touchcancel", end);
+    return () => {
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchmove", move);
+      el.removeEventListener("touchend", end);
+      el.removeEventListener("touchcancel", end);
+    };
+  }, [gl]);
   return null;
 }
 
@@ -807,87 +868,23 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1 }: { colorIdx: number
   );
 }
 
-// A desktop monitor on a stand. The panel's screen faces the person (−z); we see the back.
-// `bright` (high Workstation tiers) gives crisper, more saturated screens.
-function Monitor({ p, on, bright }: { p: RoomPalette; on: boolean; bright: boolean }) {
-  return (
-    <group>
-      {/* foot + neck */}
-      <mesh position={[0, 0.01, 0.04]}>
-        <cylinderGeometry args={[0.12, 0.14, 0.02, 18]} />
-        <meshStandardMaterial color={p.metalDark} roughness={0.4} metalness={0.5} />
-      </mesh>
-      <mesh position={[0, 0.18, 0.04]}>
-        <boxGeometry args={[0.05, 0.34, 0.05]} />
-        <meshStandardMaterial color={p.metalDark} roughness={0.4} metalness={0.5} />
-      </mesh>
-      {/* panel — back toward camera (+z) */}
-      <RoundedBox args={[0.66, 0.42, 0.04]} radius={0.02} smoothness={2} position={[0, 0.45, 0]}>
-        <meshStandardMaterial color={p.metalDark} roughness={0.45} metalness={0.4} />
-      </RoundedBox>
-      {/* glowing screen facing the person (−z) */}
-      <mesh position={[0, 0.45, -0.022]} rotation-y={Math.PI}>
-        <planeGeometry args={[0.6, 0.36]} />
-        <meshStandardMaterial
-          color={on ? p.screen : p.screenOff}
-          emissive={on ? p.screen : "#0a0d12"}
-          emissiveIntensity={on ? (bright ? 1.5 : 1.1) : 0}
-          toneMapped={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-// A workstation = desk + computer (monitor/keyboard/mouse) + the employee's robot, rendered at
-// the local origin facing +z. Callers position/rotate it. Each hired employee gets exactly one.
-function Workstation({ p, staff, seed, monitors, colorIdx, powered }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean }) {
+// A workstation = the player's placed desk model (which carries its own monitor) + the employee's
+// robot, rendered at the local origin facing +z. Callers position/rotate it (via the SAME worldOf
+// transform the Decorate editor uses), so an occupied desk is identical in the office and the editor.
+// Each hired employee gets exactly one.
+function Workstation({ p, staff, seed, colorIdx, deskType = "desk" }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId }) {
   const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
-  const on = !!staff || !!powered;
-  const bright = monitors >= 2;
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
-  // 1 or 2 monitors clustered on the RIGHT side of the desk, angled toward the person.
-  const monX = monitors >= 2 ? [0.2, 0.64] : [0.42];
   return (
     <group>
-      {/* desk */}
-      <RoundedBox args={[1.7, 0.12, 1.0]} radius={0.05} smoothness={3} position={[0, 0.9, 0]}>
-        <meshStandardMaterial color={p.desk} roughness={0.7} />
-      </RoundedBox>
-      {[[-0.75, -0.4], [0.75, -0.4], [-0.75, 0.4], [0.75, 0.4]].map((l, i) => (
-        <mesh key={i} position={[l[0], 0.45, l[1]]}>
-          <boxGeometry args={[0.1, 0.9, 0.1]} />
-          <meshStandardMaterial color={p.deskDark} />
-        </mesh>
-      ))}
-      {/* desktop monitor(s) on the right, facing the person */}
-      {monX.map((mx, i) => (
-        <group key={i} position={[mx, 0.96, -0.06]} rotation-y={-0.18 * (i - (monX.length - 1) / 2)}>
-          <Monitor p={p} on={on} bright={bright} />
-        </group>
-      ))}
-      {/* keyboard in front of the person (left-of-centre, under the monitors) */}
-      <RoundedBox args={[0.5, 0.02, 0.18]} radius={0.01} smoothness={2} position={[-0.05, 0.965, 0.2]}>
-        <meshStandardMaterial color={p.metalDark} roughness={0.5} metalness={0.3} />
-      </RoundedBox>
-      <mesh position={[-0.05, 0.978, 0.2]} rotation-x={-Math.PI / 2}>
-        <planeGeometry args={[0.46, 0.14]} />
-        <meshStandardMaterial color="#14171c" roughness={0.8} />
-      </mesh>
-      {/* mouse */}
-      <mesh position={[0.28, 0.972, 0.22]}>
-        <capsuleGeometry args={[0.03, 0.04, 3, 8]} />
-        <meshStandardMaterial color={p.metal} roughness={0.4} />
-      </mesh>
-      {/* mug on the left */}
-      {staff && (
-        <group position={[-0.62, 0.96, 0.1]}>
-          <Mug hue={hue} />
-        </group>
-      )}
+      {/* The player's ACTUAL placed desk model (each desk model carries its own monitor), drawn
+          through the SAME FurniturePiece + transform the Decorate editor uses, so an occupied desk
+          looks identical in the live office and in edit mode. A standing desk stays a standing desk,
+          an L-desk stays an L-desk, etc. The seated robot + chair are layered on behind it. */}
+      <FurniturePiece type={deskType} p={p} />
       {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
-          back so it rests against the backrest, facing the desk. The parametric robot folds into a
-          sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
+          back so it rests against the backrest, facing the desk (+z, toward the camera). The
+          parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
       <group position={[0, 0, -0.78]}>
         <Chair p={p} hue={hue} />
         {staff && (
@@ -1492,6 +1489,14 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
             }
           >
             <FurniturePiece type={it.type} p={p} />
+            {/* A desk always reads as a workstation: render its chair at the same offset the seated
+                Workstation uses, so an EMPTY desk shows a chair too (occupied desks are swapped for
+                the live Workstation, which provides its own chair + robot, so no double-up). */}
+            {isDeskType(it.type) && (
+              <group position={[0, 0, -0.78]}>
+                <Chair p={p} hue={p.metalDark} />
+              </group>
+            )}
             {selected && (
               <mesh rotation-x={-Math.PI / 2} position={[0, 0.035, 0]}>
                 <planeGeometry args={[def.w * GRID.cell, def.d * GRID.cell]} />
@@ -1578,6 +1583,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       <VisibilityPause />
       {!dark && <EnableShadows />}
       <CameraRig build={!!builder?.build} />
+      <PinchZoom />
       <ambientLight intensity={dark ? 0.55 : 0.62} color={dark ? "#ffffff" : "#f6f8ff"} />
       {/* soft sky/ground fill — gives the clean diorama an ambient-occlusion-like gradient */}
       {!dark && <hemisphereLight args={["#ffffff", "#dfe4ec", 0.85]} />}
@@ -1639,7 +1645,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         const w = worldOf(seats[i]);
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (

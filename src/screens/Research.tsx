@@ -4,6 +4,7 @@ import { Button, Card, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { ComponentIcon } from "../design/icons.tsx";
+import { CircuitMotif } from "../design/CircuitMotif.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
@@ -162,6 +163,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       </div>
       {/* RP banner */}
       <Card className="rd__bank">
+        <div className="rd__bank-backdrop" aria-hidden>
+          <span className="rd__bank-glow" />
+          <span className="rd__bank-grid" />
+          <CircuitMotif className="rd__bank-circuit" />
+        </div>
         <div className="rd__bank-main">
           <FlaskConical size={22} style={{ color: "var(--fn-eng)", flexShrink: 0 }} />
           <div>
