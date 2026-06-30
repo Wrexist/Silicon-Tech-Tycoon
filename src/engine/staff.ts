@@ -54,6 +54,10 @@ function rollSpecialty(rng: Rng, role: StaffRole): Specialty {
     engineer: ["performance", "performance", "battery", "ecosystem", "quality"],
     designer: ["design", "design", "quality", "performance", "battery"],
     marketer: ["ecosystem", "ecosystem", "design", "quality", "performance"],
+    // Specialists lean into their function's flavour: a Lead Researcher skews to raw tech, a People
+    // Lead toward the ecosystem/people side. (Cosmetic: specialists don't build products directly.)
+    researcher: ["performance", "ecosystem", "performance", "battery", "quality"],
+    hr: ["ecosystem", "ecosystem", "quality", "design", "performance"],
   };
   return pick(rng, weighted[role]);
 }
@@ -99,6 +103,10 @@ export const ROLE_DISCIPLINE: Record<StaffRole, Discipline> = {
   engineer: "engineering",
   designer: "design",
   marketer: "marketing",
+  // Specialists still headline a discipline for the skill model: a Lead Researcher is an R&D mind
+  // (engineering); a People Lead headlines the people/comms side (marketing).
+  researcher: "engineering",
+  hr: "marketing",
 };
 
 const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));

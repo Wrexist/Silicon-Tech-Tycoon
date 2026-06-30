@@ -9,7 +9,7 @@ import { Avatar } from "../components/Avatar.tsx";
 import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { RESEARCH_PROJECTS } from "../engine/research.ts";
+import { RESEARCH_PROJECTS, projectById, hasProject } from "../engine/research.ts";
 import { acquirableFactories, factoryFor, totalFactoryUpkeep } from "../engine/factories.ts";
 import type { FactoryId } from "../engine/types.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
@@ -30,6 +30,9 @@ import {
   burn,
   canAutoAssign,
   canAutoResearch,
+  DELEGATION_REQ,
+  specialistHireFee,
+  SPECIALIST_SKILL,
   deskCapacity,
   facilityRent,
   facility,
@@ -58,6 +61,8 @@ const ROLE_LABEL: Record<StaffRole, string> = {
   engineer: "Engineer",
   designer: "Designer",
   marketer: "Marketer",
+  hr: "People Lead",
+  researcher: "Lead Researcher",
 };
 
 function runwayTone(weeks: number): "positive" | "negative" | "neutral" {
@@ -95,6 +100,8 @@ const ROLE_COLOR: Record<StaffRole, string> = {
   engineer: "var(--fn-eng)",
   designer: "var(--fn-design)",
   marketer: "var(--fn-mkt)",
+  researcher: "var(--fn-eng)",
+  hr: "var(--accent)",
 };
 const DISCIPLINE_COLOR: Record<Discipline, string> = {
   engineering: "var(--fn-eng)",
@@ -103,7 +110,7 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 };
 
 export function Company() {
-  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, foundPlatform, acquireFactory } = useGame();
+  const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, hireSpecialist, foundPlatform, acquireFactory } = useGame();
   const [foundedCelebrate, setFoundedCelebrate] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
@@ -349,8 +356,9 @@ export function Company() {
 
       {/* Delegation — only surfaced once it's relevant: a growing team, an eligible lead, or already
           in use. Keeps it off a day-one garage where it would just be a dead, fully-locked card. */}
-      {(state.staff.length >= 2 || canAutoAssign(state) || canAutoResearch(state) || state.automation.autoAssign || state.automation.autoResearch) && (
-        <DelegationCard state={state} onToggle={setAutomation} />
+      {(state.staff.length >= 2 || canAutoAssign(state) || canAutoResearch(state) || state.automation.autoAssign || state.automation.autoResearch
+        || hasProject(state.completedProjects, DELEGATION_REQ.autoAssign.project) || hasProject(state.completedProjects, DELEGATION_REQ.autoResearch.project)) && (
+        <DelegationCard state={state} onToggle={setAutomation} onHireSpecialist={hireSpecialist} />
       )}
 
       {/* Recruitment — seats are PLACED desks: you hire into a desk you actually bought. */}
@@ -537,18 +545,26 @@ function MoraleCard({ state }: { state: GameState }) {
 
 /* ---------- Near-milestone progress tracker ---------- */
 
-/** Delegation card (Epic E): toggles that automate repetitive ops, each gated on having grown a
- *  senior lead — so the player moves from operator to decider as the company scales. */
-function DelegationCard({ state, onToggle }: { state: GameState; onToggle: (patch: Partial<GameState["automation"]>) => void }) {
-  const lead = BALANCE.ops.leadSkill;
-  const rows: { key: "autoAssign" | "autoResearch"; icon: typeof Wand2; label: string; sub: string; can: boolean; gate: string }[] = [
+/** Delegation card (Epic E): toggles that automate repetitive ops. Each is a premium, EARNED
+ *  capability: open a research division (high RP), then recruit the specialist who runs it (their
+ *  salary is the standing weekly cost), so the player moves from operator to decider deliberately.
+ *  Pre-gating saves keep whatever they already had on (grandfathered). */
+function DelegationCard({
+  state,
+  onToggle,
+  onHireSpecialist,
+}: {
+  state: GameState;
+  onToggle: (patch: Partial<GameState["automation"]>) => void;
+  onHireSpecialist: (which: "autoAssign" | "autoResearch") => void;
+}) {
+  const rows: { key: "autoAssign" | "autoResearch"; icon: typeof Wand2; label: string; sub: string; can: boolean }[] = [
     {
       key: "autoAssign",
       icon: Wand2,
       label: "Auto-assign staff",
       sub: "Idle hires are put on their discipline each week, never a wasted seat.",
       can: canAutoAssign(state),
-      gate: `Promote any staffer to skill ${lead}+ to delegate`,
     },
     {
       key: "autoResearch",
@@ -556,21 +572,52 @@ function DelegationCard({ state, onToggle }: { state: GameState; onToggle: (patc
       label: "Auto-research",
       sub: "Claim the cheapest affordable project each week. You can still research by hand.",
       can: canAutoResearch(state),
-      gate: `Needs an engineer at skill ${lead}+ (an R&D lead)`,
     },
   ];
+  const seats = Math.min(facility(state).staffCapacity, deskCapacity(state));
   return (
     <Card>
       <SectionHeader title="Delegation" accessory="Ops" />
       <div className="co__deleg">
         {rows.map((r) => {
           const enabled = state.automation[r.key];
+          const req = DELEGATION_REQ[r.key];
+          const project = projectById(req.project);
+          const hasDivision = hasProject(state.completedProjects, req.project);
+          const roleLabel = ROLE_LABEL[req.role];
+          // Stage of the unlock ladder this row sits at.
+          const needsDivision = !r.can && !hasDivision;
+          const needsHire = !r.can && hasDivision;
+          const fee = specialistHireFee(state, r.key);
+          const salary = salaryFor(req.role, SPECIALIST_SKILL);
+          const seatFree = state.staff.length < seats;
+          const canHire = seatFree && state.cash >= fee;
           return (
-            <div key={r.key} className={`co__deleg-row${r.can ? "" : " co__deleg-row--locked"}`}>
+            <div key={r.key} className={`co__deleg-row${needsDivision ? " co__deleg-row--locked" : ""}`}>
               <span className="co__deleg-icon"><r.icon size={17} /></span>
               <div className="co__deleg-text">
                 <span className="co__deleg-label">{r.label}</span>
-                <span className="co__deleg-sub">{r.can ? r.sub : r.gate}</span>
+                <span className="co__deleg-sub">
+                  {r.can
+                    ? r.sub
+                    : needsDivision
+                      ? <>Research <b>{project.name}</b> ({project.rpCost} RP) to open this division.</>
+                      : <><b>{project.name}</b> is open. Recruit a {roleLabel} to run it.</>}
+                </span>
+                {needsHire && (
+                  <button
+                    className="co__deleg-hire"
+                    disabled={!canHire}
+                    onClick={() => { haptic.medium(); onHireSpecialist(r.key); }}
+                  >
+                    <RoleIcon role={req.role} size={13} />
+                    <span>Recruit {roleLabel}</span>
+                    <span className="co__deleg-hire-cost">{format(fee)} + {format(salary)}/wk</span>
+                  </button>
+                )}
+                {needsHire && !canHire && (
+                  <span className="co__deleg-gate">{seatFree ? "Not enough cash to sign them." : "Buy a desk on the Office tab to seat them."}</span>
+                )}
               </div>
               <button
                 className={`co__switch${enabled ? " co__switch--on" : ""}`}

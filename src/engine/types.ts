@@ -204,7 +204,10 @@ export interface LaunchedProduct {
   marketingPushes?: number;
 }
 
-export type StaffRole = "engineer" | "designer" | "marketer";
+// engineer/designer/marketer build products; hr (People Lead) + researcher (Lead Researcher) are
+// specialists you recruit to UNLOCK delegation (Auto-assign / Auto-research). Their weekly salary is
+// the standing cost of that automation.
+export type StaffRole = "engineer" | "designer" | "marketer" | "hr" | "researcher";
 export type Assignment = "rnd" | "design" | "marketing" | "idle";
 
 /** What a person is exceptional at — boosts the matching product stat. */

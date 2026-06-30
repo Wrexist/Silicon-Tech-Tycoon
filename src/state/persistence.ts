@@ -336,8 +336,23 @@ function migrate(state: GameState): GameState | null {
   // Acquired rivals (Epic B3, added later): default none.
   if (!Array.isArray(s.acquiredRivals)) s.acquiredRivals = [];
   // Delegation toggles (Epic E, added later): default off.
-  if (!s.automation || typeof s.automation !== "object") s.automation = { autoAssign: false, autoResearch: false };
-  else s.automation = { autoAssign: !!s.automation.autoAssign, autoResearch: !!s.automation.autoResearch };
+  if (!s.automation || typeof s.automation !== "object") {
+    s.automation = { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false };
+  } else {
+    const a = s.automation;
+    const aa = !!a.autoAssign, ar = !!a.autoResearch;
+    // GRANDFATHER: when the premium specialist/research gating shipped, the `*Free` fields appeared.
+    // A save that PREDATES the gating (no `*Free` field) and already had an automation ON keeps it
+    // working free of the new prerequisites. Post-gating saves carry the fields, so re-loading never
+    // re-grandfathers them (idempotent) and firing the specialist correctly re-locks the toggle.
+    const hadFreeFields = "autoAssignFree" in a || "autoResearchFree" in a;
+    s.automation = {
+      autoAssign: aa,
+      autoResearch: ar,
+      autoAssignFree: hadFreeFields ? !!a.autoAssignFree : aa,
+      autoResearchFree: hadFreeFields ? !!a.autoResearchFree : ar,
+    };
+  }
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
   if (!Number.isFinite(s.desktops) || s.desktops < 0) s.desktops = 0;
   // Lens unlocks (added later): pre-gating saves could design 1–4 lenses freely, so grant at

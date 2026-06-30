@@ -25,7 +25,9 @@ export type ProjectId =
   | "crisisComms"
   | "perfHouse"
   | "effHouse"
-  | "qualityHouse";
+  | "qualityHouse"
+  | "peopleOps"
+  | "researchDivision";
 
 export interface ResearchProject {
   id: ProjectId;
@@ -70,6 +72,11 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   { id: "perfHouse",    name: "Performance House",  blurb: "Commit to raw power: +5 Performance on every product (locks the other doctrines).", rpCost: 70, era: 2, fork: "engDoctrine" },
   { id: "effHouse",     name: "Efficiency House",   blurb: "Commit to endurance: +5 Battery on every product (locks the other doctrines).",     rpCost: 70, era: 2, fork: "engDoctrine" },
   { id: "qualityHouse", name: "Reliability House",  blurb: "Commit to craft: +5 Quality on every product (locks the other doctrines).",         rpCost: 70, era: 2, fork: "engDoctrine" },
+  // Delegation divisions: premium, late-tree investments that OPEN a specialist hire. Each only pays
+  // off once you recruit the matching specialist (whose salary is the standing weekly cost), so the RP
+  // here buys the right to delegate, not the automation itself.
+  { id: "peopleOps",        name: "People Operations", blurb: "Open a People Ops desk: recruit a People Lead to delegate staffing (Auto-assign).", rpCost: 120, era: 2 },
+  { id: "researchDivision", name: "Research Division",  blurb: "Stand up an R&D division: recruit a Lead Researcher to delegate the tree (Auto-research).", rpCost: 120, era: 2 },
 ];
 
 /** The completed project that LOCKS a forked project `id` (a sibling in the same fork already chosen),

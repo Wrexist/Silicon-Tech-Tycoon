@@ -338,7 +338,7 @@ export const BALANCE = {
 
   // --- Employees: XP & leveling ---
   staff: {
-    baseSalary: { engineer: dollars(900), designer: dollars(850), marketer: dollars(800) },
+    baseSalary: { engineer: dollars(900), designer: dollars(850), marketer: dollars(800), hr: dollars(950), researcher: dollars(1_000) },
     salaryPerSkill: dollars(140),
     engineerRdSpeedPerSkill: 0.06,
     designerCeilingPerSkill: 1.6,
@@ -368,11 +368,9 @@ export const BALANCE = {
   // --- Delegation & ops (Epic E) ---
   // Late-game scale shouldn't mean more taps for the same decisions (the micromanagement death of
   // Startup Company / Computer Tycoon; touch density is fatal on a phone). Automation only does what
-  // the player already can, and is GATED on having grown a senior staffer to "delegate" the function
-  // to — so it's earned, not free. leadSkill is the headline skill (1..10) that qualifies as a lead.
-  ops: {
-    leadSkill: 5,
-  },
+  // the player already can, and is EARNED: each toggle is gated on a premium research division
+  // (engine/research.ts: peopleOps / researchDivision) plus a recruited specialist whose salary is
+  // the standing weekly cost (see DELEGATION_REQ + canAutoAssign/canAutoResearch in state/gameState).
 
   // --- Build / manufacturing ---
   // --- Market fatigue / novelty ---

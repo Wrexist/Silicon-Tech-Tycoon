@@ -289,9 +289,11 @@ export interface GameState {
   /** Epic B3 — ids of rivals the player has acquired (removed from competition). Tracked so an
    *  acquired rival never re-enters as a fresh challenger, and for UI/achievements. */
   acquiredRivals: string[];
-  /** Epic E — delegation toggles. Each automates an action the player can already do, and only takes
-   *  effect while the company is capable (a senior lead). Persisted per save. */
-  automation: { autoAssign: boolean; autoResearch: boolean };
+  /** Epic E delegation toggles. Each automates an action the player can already do, gated behind a
+   *  premium research division + a recruited specialist (whose salary is the standing weekly cost).
+   *  The `*Free` flags grandfather saves that already had an automation ON before the gating shipped,
+   *  so they keep working without the new prerequisites. Persisted per save. */
+  automation: { autoAssign: boolean; autoResearch: boolean; autoAssignFree?: boolean; autoResearchFree?: boolean };
 }
 
 /** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery. */
@@ -482,7 +484,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
-    automation: { autoAssign: false, autoResearch: false },
+    automation: { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false },
   };
 }
 
@@ -2567,14 +2569,26 @@ export function assignStaff(state: GameState, id: string, assignment: Assignment
 
 // ---------- Delegation & ops (Epic E): automations that only do what the player already can ----------
 
-/** Whether the company can auto-assign — it has a senior staffer (a lead) to run the floor. */
+/** The premium research division each delegation requires, and the specialist role it lets you hire. */
+export const DELEGATION_REQ = {
+  autoAssign: { project: "peopleOps" as ProjectId, role: "hr" as StaffRole },
+  autoResearch: { project: "researchDivision" as ProjectId, role: "researcher" as StaffRole },
+} as const;
+
+/** Whether the company can auto-assign: it opened People Operations AND employs a People Lead (or a
+ *  pre-gating save that already had it on, grandfathered). The People Lead's salary is the weekly cost. */
 export function canAutoAssign(state: GameState): boolean {
-  return state.staff.some((s) => s.skill >= BALANCE.ops.leadSkill);
+  if (state.automation.autoAssignFree) return true;
+  const { project, role } = DELEGATION_REQ.autoAssign;
+  return hasProject(state.completedProjects, project) && state.staff.some((s) => s.role === role);
 }
 
-/** Whether the company can auto-research — it has a senior ENGINEER (an R&D lead). */
+/** Whether the company can auto-research: it stood up a Research Division AND employs a Lead Researcher
+ *  (or a grandfathered save). The Lead Researcher's salary is the standing weekly cost. */
 export function canAutoResearch(state: GameState): boolean {
-  return state.staff.some((s) => s.role === "engineer" && s.skill >= BALANCE.ops.leadSkill);
+  if (state.automation.autoResearchFree) return true;
+  const { project, role } = DELEGATION_REQ.autoResearch;
+  return hasProject(state.completedProjects, project) && state.staff.some((s) => s.role === role);
 }
 
 /** Toggle a delegation automation. Pure. */
@@ -2716,6 +2730,10 @@ const ROLE_ASSIGNMENT: Record<StaffRole, Assignment> = {
   engineer: "rnd",
   designer: "design",
   marketer: "marketing",
+  // A Lead Researcher naturally sits in R&D (and trickles RP); a People Lead defaults to marketing
+  // (people/comms), but both earn their keep by UNLOCKING delegation, not their seat output.
+  researcher: "rnd",
+  hr: "marketing",
 };
 
 /** One placed desk = one seat. Hiring is desk-gated: the team can never outgrow the desks
@@ -2754,6 +2772,24 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     staffCounter: state.staffCounter + 1,
     feed: trimFeed(feed),
   };
+}
+
+/** The senior skill a recruited delegation specialist (People Lead / Lead Researcher) signs at. */
+export const SPECIALIST_SKILL = 6;
+
+/** One-time fee to recruit a delegation specialist (Talent Network discounts it, like any hire). */
+export function specialistHireFee(state: GameState, which: "autoAssign" | "autoResearch"): Money {
+  return hireCostFor(DELEGATION_REQ[which].role, SPECIALIST_SKILL, hasProject(state.completedProjects, "talentNetwork"));
+}
+
+/** Recruit a delegation specialist. Gated on having opened the matching premium research division (it
+ *  "establishes the desk" the specialist fills). Reuses hireStaff, so desk/capacity/cash rules and the
+ *  spawned avatar all apply, and their weekly salary becomes the automation's standing cost. Pure. */
+export function hireSpecialist(state: GameState, which: "autoAssign" | "autoResearch"): GameState {
+  const { project, role } = DELEGATION_REQ[which];
+  if (!hasProject(state.completedProjects, project)) return state; // division not opened yet
+  const name = NAMES[(state.staffCounter * 7) % NAMES.length];
+  return hireStaff(state, role, SPECIALIST_SKILL, name);
 }
 
 // ---------- Recruitment: search → candidates → sign ----------

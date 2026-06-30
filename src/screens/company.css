@@ -16,6 +16,22 @@
 .co__deleg-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .co__deleg-label { font-weight: 600; font-size: var(--fs-body); }
 .co__deleg-sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.35; }
+.co__deleg-sub b { color: var(--ink); font-weight: 700; }
+/* Recruit-specialist CTA: appears once the division is researched but the seat is empty. */
+.co__deleg-hire {
+  margin-top: var(--sp-8);
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-10);
+  border: none; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-ink, #fff);
+  font-size: var(--fs-caption); font-weight: 700;
+  transition: transform var(--motion-fast, 120ms) ease, opacity var(--motion-fast, 120ms) ease;
+}
+.co__deleg-hire:active { transform: scale(0.97); }
+.co__deleg-hire:disabled { opacity: 0.5; background: var(--bg-elevated); color: var(--ink-3); }
+.co__deleg-hire-cost { font-weight: 600; opacity: 0.85; }
+.co__deleg-gate { margin-top: 3px; font-size: var(--fs-caption); color: var(--warning); }
 .co__switch {
   width: 48px; height: 29px; flex-shrink: 0;
   border-radius: var(--r-pill); background: var(--bg-elevated); padding: 3px;

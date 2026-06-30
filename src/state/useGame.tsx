@@ -61,6 +61,7 @@ import {
   sellOwnStake,
   sellShares,
   setAutomation,
+  hireSpecialist,
   setCompanyName,
   setSandbox,
   setFloorStyle,
@@ -369,6 +370,7 @@ interface GameActionsValue {
   train: (id: string) => void;
   rest: (id: string) => void;
   hire: (role: StaffRole, skill: number, name: string) => void;
+  hireSpecialist: (which: "autoAssign" | "autoResearch") => void;
   recruit: (tier: RecruitTier) => void;
   hireCandidate: (candidateId: string) => void;
   dismissCandidates: () => void;
@@ -770,6 +772,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (spent > 0) emitSpend(spent);
     setState(next);
   }, []);
+  const hireSpecialistCb = useCallback((which: "autoAssign" | "autoResearch") => {
+    const prev = stateRef.current;
+    const next = hireSpecialist(prev, which);
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
   const recruit = useCallback((tier: RecruitTier) => {
     const prev = stateRef.current;
     const next = startRecruitment(prev, tier);
@@ -1004,6 +1013,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       assign,
       train,
       hire,
+      hireSpecialist: hireSpecialistCb,
       recruit,
       hireCandidate: hireCandidateCb,
       dismissCandidates,
