@@ -38,7 +38,6 @@ import { REGIONS, regionTasteFit } from "../engine/regions.ts";
 import { segmentTrend, regionInCrisis } from "../engine/climate.ts";
 import { subsystemFor, effectiveSubsystemStep } from "../engine/subsystems.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
-import { CircuitMotif } from "../design/CircuitMotif.tsx";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import {
   buildWeeksFor,
@@ -568,7 +567,6 @@ export function DesignLab({
             <span className="lab__hero-backdrop" aria-hidden>
               <span className="lab__hero-glow" />
               <span className="lab__hero-dots" />
-              <CircuitMotif className="lab__hero-circuit" />
             </span>
             <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />
             <div className="lab__hero-cats">
