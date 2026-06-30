@@ -194,7 +194,7 @@ export function overallScore(stats: Stats, category: Product["category"]): numbe
  * Returns the multiplier plus the weakest slot (for a readable "weak link" callout), or null when
  * the build is coherent enough not to flag one.
  */
-export function componentSynergy(product: Product): { factor: number; weakest: ComponentKind | null } {
+export function componentSynergy(product: Product): { factor: number; weakest: ComponentKind | null; bottleneck: number } {
   const slots = CATEGORIES[product.category].slots;
   // Clamp the chosen tier to its line's range before normalising: a corrupt/forward-compat save
   // with an out-of-range tier would otherwise push level > 1 and skew the mean / weak-link readout.
@@ -206,7 +206,7 @@ export function componentSynergy(product: Product): { factor: number; weakest: C
     const safe = Number.isFinite(tier) ? tier : 0;
     return { kind, level: max > 0 ? clamp(safe, 0, max) / max : 0 };
   });
-  if (levels.length === 0) return { factor: 1, weakest: null };
+  if (levels.length === 0) return { factor: 1, weakest: null, bottleneck: 0 };
   const mean = levels.reduce((a, b) => a + b.level, 0) / levels.length;
   const weakest = levels.reduce((a, b) => (b.level < a.level ? b : a));
   const bottleneck = Math.max(0, mean - weakest.level); // 0..1 — how far the weakest link sits below the build
@@ -214,7 +214,9 @@ export function componentSynergy(product: Product): { factor: number; weakest: C
   let factor = 1 - bottleneck * s.bottleneckPenalty;
   if (mean >= s.flagshipMeanFloor && bottleneck <= s.flagshipMaxGap) factor += s.flagshipBonus;
   factor = clamp(factor, s.minFactor, s.maxFactor);
-  return { factor, weakest: bottleneck > s.weakestThreshold ? weakest.kind : null };
+  // `bottleneck` is also the D1 tier-coherence input the segment model reads (a per-segment demand
+  // discount): one authoritative measure of "how lopsided is this build", shared by both.
+  return { factor, weakest: bottleneck > s.weakestThreshold ? weakest.kind : null, bottleneck };
 }
 
 /** Named synergy ARCHETYPES (Track D): specific high-end component pairings unlock a named, themed

@@ -77,6 +77,44 @@ describe("positioning matters — the new strategic axis", () => {
   });
 });
 
+describe("D1: tier coherence: a lopsided build loses the broad market, not Pro", () => {
+  // SAME stats + price; the only difference is the build's tier bottleneck (how lopsided it is). This
+  // isolates the coherence mechanic from stat-fit, proving the tier MIX is its own decision axis.
+  const s = stats({ performance: 80, quality: 75, battery: 70, design: 65, ecosystem: 70 });
+  const price = dollars(700);
+  const capOf = (d: ReturnType<typeof segmentDemand>, id: string) => d.perSegment.find((x) => x.id === id)!.captured;
+  const coherent = segmentDemand(s, price, flat, "phone", 0, undefined, 0.0);
+  const lopsided = segmentDemand(s, price, flat, "phone", 0, undefined, 0.6);
+
+  it("discounts Mainstream demand for a lopsided build", () => {
+    expect(capOf(lopsided, "mainstream")).toBeLessThan(capOf(coherent, "mainstream"));
+  });
+
+  it("barely touches Pro (it bought the peak)", () => {
+    const proDrop = 1 - capOf(lopsided, "pro") / capOf(coherent, "pro");
+    const mainDrop = 1 - capOf(lopsided, "mainstream") / capOf(coherent, "mainstream");
+    expect(proDrop).toBeLessThan(mainDrop * 0.4); // Pro loses far less share than the broad market
+  });
+
+  it("a bottleneck inside the deadzone changes nothing (ordinary builds untouched)", () => {
+    const tiny = segmentDemand(s, price, flat, "phone", 0, undefined, BALANCE.market.segments.coherenceThreshold);
+    expect(tiny).toEqual(coherent);
+  });
+
+  it("the discount is capped (never a wipeout, even at maximum lopsidedness)", () => {
+    const extreme = segmentDemand(s, price, flat, "phone", 0, undefined, 1);
+    const worst = 1 - capOf(extreme, "mainstream") / capOf(coherent, "mainstream");
+    expect(worst).toBeLessThanOrEqual(BALANCE.market.segments.coherenceMaxDiscount + 1e-9);
+  });
+
+  it("can flip the winning segment: a balanced build wins Mainstream, a lopsided one tilts to Pro", () => {
+    // Relative to the broad market, a lopsided build shifts its best-captured weight toward Pro.
+    const coherentProShare = capOf(coherent, "pro") / capOf(coherent, "mainstream");
+    const lopsidedProShare = capOf(lopsided, "pro") / capOf(lopsided, "mainstream");
+    expect(lopsidedProShare).toBeGreaterThan(coherentProShare);
+  });
+});
+
 describe("price sensitivity — Budget reacts harder than Enterprise", () => {
   it("the same overpricing costs Budget more price-fit than Enterprise", () => {
     const fit = 60;

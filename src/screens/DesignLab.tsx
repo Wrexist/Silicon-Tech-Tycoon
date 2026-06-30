@@ -309,7 +309,9 @@ export function DesignLab({
   // with the actual launch math (it was previously the old single-trend demandScore).
   const styleAp = styleAppeal(draft);
   const styleLabel = styleAppealLabel(styleAp);
-  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week);
+  // D1: feed the same tier bottleneck into the live preview so the "who it's for" panel reflects the
+  // coherence discount as the player adjusts tiers (a lopsided build visibly loses the broad market).
+  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week, syn.bottleneck);
   const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
   const mktMult = eraModifier(state.era).marketingHype; // Epic D — late eras amplify marketing reach
   const liveBrand = brandEquity(state.launched, franchiseStem(draft.name)); // brand-line anticipation

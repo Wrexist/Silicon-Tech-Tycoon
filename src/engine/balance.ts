@@ -158,6 +158,21 @@ export const BALANCE = {
       // Floor on a segment's price tolerance after the priceSensitivity divide, so a very
       // price-sensitive segment still has a usable (if narrow) pricing band, never a knife-edge.
       minPriceTolerance: 0.18,
+      // D1 (tradeoff tiers): tier-coherence desirability. A lopsided build (one component far below
+      // the build's level, e.g. a flagship chip behind a budget screen) reads as unbalanced to
+      // coherence-valuing segments and discounts their realized demand, while Pro shrugs it off (it
+      // bought the peak). Per-segment appetite for coherence lives in SEGMENTS[].coherencePref; this
+      // is the GLOBAL strength that scales it. The realized discount is
+      //   coherenceStrength × seg.coherencePref × max(0, bottleneck − coherenceThreshold)
+      // (bottleneck 0..1 from componentSynergy), floored by coherenceMaxDiscount so it stays a
+      // tie-breaker, never a wipeout. The THRESHOLD is a deadzone: a normally-built product carries a
+      // little tier spread, so only a GENUINELY lopsided build (a real weak link) is discounted,
+      // without it the discount taxed every launch and collapsed the verdict spread (hits 20%→8% in
+      // the harness). Tuned so a balanced mid-tier build BEATS a lopsided flagship for the broad
+      // market while ordinary play is untouched (sim-verified).
+      coherenceStrength: 0.7,
+      coherenceThreshold: 0.32, // builds at/below this bottleneck are "coherent enough" (no discount)
+      coherenceMaxDiscount: 0.3, // a lopsided build loses at most this share of a segment's demand
     },
     // --- Market climate (engine/climate.ts, Track B) — the living market ---
     // Segment sizes swell/fade on slow seasonal cycles (REDISTRIBUTIVE: the mix is re-normalized, so

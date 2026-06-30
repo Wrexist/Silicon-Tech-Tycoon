@@ -27,6 +27,9 @@ export interface Segment {
   priceSensitivity: number;
   /** Relative share of a category's market. The five sizes sum to ~1. */
   size: number;
+  /** D1: how much this segment values a COHERENT build (no weak link). 0 = ignores lopsidedness (Pro
+   *  bought the peak); 1 = fully discounts a lopsided build. Scales the global coherenceStrength. */
+  coherencePref: number;
 }
 
 /** The five buyer segments. Identities are deliberately distinct so no single build wins them all:
@@ -40,6 +43,7 @@ export const SEGMENTS: readonly Segment[] = [
     weights: { performance: 0.9, quality: 1.0, battery: 1.2, design: 0.5, ecosystem: 0.5 },
     priceSensitivity: 1.7,
     size: 0.30,
+    coherencePref: 0.6,
   },
   {
     id: "mainstream",
@@ -48,6 +52,7 @@ export const SEGMENTS: readonly Segment[] = [
     weights: { performance: 1.0, quality: 1.0, battery: 1.0, design: 0.9, ecosystem: 0.9 },
     priceSensitivity: 1.0,
     size: 0.32,
+    coherencePref: 0.9,
   },
   {
     id: "pro",
@@ -56,6 +61,7 @@ export const SEGMENTS: readonly Segment[] = [
     weights: { performance: 1.4, quality: 1.2, battery: 0.9, design: 0.8, ecosystem: 1.1 },
     priceSensitivity: 0.6,
     size: 0.15,
+    coherencePref: 0.1,
   },
   {
     id: "style",
@@ -64,6 +70,7 @@ export const SEGMENTS: readonly Segment[] = [
     weights: { performance: 0.7, quality: 1.0, battery: 0.7, design: 1.6, ecosystem: 1.0 },
     priceSensitivity: 0.75,
     size: 0.14,
+    coherencePref: 0.5,
   },
   {
     id: "enterprise",
@@ -72,6 +79,7 @@ export const SEGMENTS: readonly Segment[] = [
     weights: { performance: 0.9, quality: 1.3, battery: 1.1, design: 0.6, ecosystem: 1.5 },
     priceSensitivity: 0.55,
     size: 0.09,
+    coherencePref: 0.9,
   },
 ];
 
@@ -203,6 +211,11 @@ export function segmentDemand(
   /** Track B — current week, to apply the market-climate segment cycle (engine/climate.ts). Omitted →
    *  no cycle (sizes are the static base), so every existing caller/test is byte-identical. */
   week?: number,
+  /** D1: the build's tier bottleneck (0..1, from componentSynergy): how far the weakest component
+   *  sits below the build's level. Discounts demand for coherence-valuing segments (Mainstream,
+   *  Enterprise) while Pro shrugs it off. Defaults to 0 (a perfectly coherent build) so every existing
+   *  caller/test that doesn't model tiers is byte-identical. */
+  bottleneck = 0,
 ): SegmentDemand {
   // Market climate (Track B): segment sizes swell/fade on slow cycles, RE-NORMALIZED so the cycle
   // redistributes the mix without changing the total market — timing positioning, not free volume.
@@ -222,19 +235,27 @@ export function segmentDemand(
     return out;
   })();
 
+  const cs = BALANCE.market.segments;
+  const bn = clamp(bottleneck, 0, 1);
   const perSegment: SegmentResult[] = SEGMENTS.map((seg) => {
     const rawFit = segmentFit(stats, seg, category, trends);
     // A striking, coherent form lifts the design-led Style segment only (no global ripple).
     const fit = seg.id === "style" ? Math.min(100, rawFit + Math.max(0, styleAppeal)) : rawFit;
     const priceFit = segmentPriceFit(price, fit, seg);
     const size = sizeOf[seg.id];
+    // D1: tier-coherence desirability: a lopsided build discounts THIS segment's realized demand by
+    // how much it values coherence. Only the bottleneck ABOVE the deadzone counts, so an ordinary
+    // build (a little tier spread) is untouched and only a real weak link is discounted. bottleneck
+    // ≤ threshold → mult 1 → no effect (byte-identical to pre-D1). Floored so it stays a tie-breaker.
+    const excess = Math.max(0, bn - cs.coherenceThreshold);
+    const cohMult = 1 - Math.min(cs.coherenceMaxDiscount, cs.coherenceStrength * seg.coherencePref * excess);
     return {
       id: seg.id,
       name: seg.name,
       size,
       fit,
       priceFit,
-      captured: size * (fit / 100) * priceFit,
+      captured: size * (fit / 100) * priceFit * cohMult,
     };
   });
 
@@ -242,7 +263,8 @@ export function segmentDemand(
   let priceWeighted = 0;
   for (const r of perSegment) {
     demandIndex += r.size * r.fit;
-    priceWeighted += r.size * (r.fit / 100) * r.priceFit;
+    // Sum the coherence-adjusted capture (when bottleneck is 0 this equals the old size×fit×priceFit).
+    priceWeighted += r.captured;
   }
   const effectivePriceFit = demandIndex > 0 ? priceWeighted / (demandIndex / 100) : 0;
 

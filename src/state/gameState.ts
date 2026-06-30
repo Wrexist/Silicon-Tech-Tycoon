@@ -954,7 +954,10 @@ export function planProduction(
   // A balanced product scores ≈ the old single-trend demand (the segment sizes average back to it),
   // so the macro-economy is preserved; lopsided products diverge — that divergence IS the new depth.
   // G1 — the device's form (styleAppeal) lifts the Style segment, so the parametric render is a lever.
-  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week);
+  // D1: the build's tier bottleneck feeds the segment model's coherence discount (computed once here
+  // and reused for the global synergy factor below, so the two never diverge).
+  const synergy = componentSynergy(product);
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, synergy.bottleneck);
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;
@@ -978,7 +981,7 @@ export function planProduction(
     hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype) * mktMult + equityHypeBonus(brand.equity))),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
-    synergy: componentSynergy(product).factor,
+    synergy: synergy.factor,
     // Drive demand + price reaction from the segment model (the two aggregates are on the same
     // 0..100 / 0..maxFit scales as the originals they replace).
     demandOverride: segments.demandIndex,

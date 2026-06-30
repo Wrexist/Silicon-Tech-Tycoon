@@ -159,6 +159,13 @@ describe("market simulation", () => {
     expect(balanced.weakest).toBeNull();
     // a maxed, coherent flagship earns the small bonus
     expect(flagship.factor).toBeGreaterThan(1);
+    // D1: the exposed bottleneck (the segment model's coherence input): the weak-link build is far
+    // more lopsided than the balanced one, and a balanced/flagship build sits inside the deadzone so
+    // ordinary play is never coherence-discounted.
+    expect(bottleneck.bottleneck).toBeGreaterThan(balanced.bottleneck);
+    expect(bottleneck.bottleneck).toBeGreaterThan(BALANCE.market.segments.coherenceThreshold);
+    expect(balanced.bottleneck).toBeLessThanOrEqual(BALANCE.market.segments.coherenceThreshold);
+    expect(flagship.bottleneck).toBeLessThanOrEqual(BALANCE.market.segments.coherenceThreshold);
     // everything stays bounded
     const s = BALANCE.market.synergy;
     for (const r of [balanced, bottleneck, flagship]) {
