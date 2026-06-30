@@ -43,6 +43,16 @@ export const TRAIT_INFO: Record<Trait, TraitInfo> = {
 
 const ALL_TRAITS: Trait[] = ["perfectionist", "fastLearner", "hustler", "visionary", "veteran", "teamPlayer"];
 
+/** Human-readable role title for feed/log lines. The three product roles keep their lowercase wording
+ *  (existing copy unchanged); the specialists get a proper title so "Hired Riley, hr." never ships. */
+export const ROLE_TITLE: Record<StaffRole, string> = {
+  engineer: "engineer",
+  designer: "designer",
+  marketer: "marketer",
+  hr: "People Lead",
+  researcher: "Lead Researcher",
+};
+
 // ---------- Generation ----------
 function pick<T>(rng: Rng, arr: readonly T[]): T {
   return arr[rng.int(arr.length)];

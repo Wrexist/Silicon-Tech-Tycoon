@@ -40,6 +40,7 @@ import {
   makeSkills,
   perfectionistCeilingBonus,
   ROLE_DISCIPLINE,
+  ROLE_TITLE,
   visionaryHype,
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
@@ -1386,6 +1387,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const cashDropping = cash < state.cash;
   const teamPlayers = state.staff.filter((s) => s.trait === "teamPlayer").length;
   const churnCfg = BALANCE.churn;
+  // People Operations: a People Lead (hr) keeps the whole team happy and resolves burnout before it
+  // forces anyone out. The strongest lead drives the effect; presence (not count) gates the no-quit
+  // safety, so a roster with no People Lead is byte-identical to before this shipped.
+  const hrCfg = BALANCE.hr;
+  const peopleLeadSkill = state.staff.reduce((best, m) => (m.role === "hr" ? Math.max(best, m.skill) : best), 0);
+  const hasPeopleLead = state.staff.some((m) => m.role === "hr");
+  const hrTargetLift = hasPeopleLead ? Math.min(hrCfg.maxTargetLift, hrCfg.moodTargetBase + peopleLeadSkill * hrCfg.perSkillTarget) : 0;
   const quitIds: string[] = [];
   const staff = state.staff.map((s) => {
     const { staff: levelResult, leveledUp } = gainWeeklyXp(s, mentorshipXpMult(s, state.staff));
@@ -1397,15 +1405,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const skills = leveledUp
       ? { ...next.skills, [ROLE_DISCIPLINE[next.role]]: Math.min(100, Math.max(next.skills[ROLE_DISCIPLINE[next.role]], next.skill * 10)) }
       : next.skills;
-    let target = 60 + moodBonus(state.upgrades) + officeComfortMoodBonus(state);
+    let target = 60 + moodBonus(state.upgrades) + officeComfortMoodBonus(state) + hrTargetLift;
     if (s.trait === "hustler") target -= 12;
     if (cashDropping) target -= 12;
     else target += 6;
-    const lift = teamPlayers * 1.5;
-    // Underpaid penalty: salary lagging behind skill level pulls mood target down.
+    const lift = teamPlayers * 1.5 + (hasPeopleLead ? hrCfg.weeklyMoodLift : 0);
+    // Underpaid penalty: salary lagging behind skill level pulls mood target down. A People Lead
+    // mediates, absorbing part of the sting (they can't fix the player's wallet, only the morale).
     const marketSalary = salaryFor(next.role, next.skill);
     const isUnderpaid = next.id !== "s0" && toDollars(next.salary) < toDollars(marketSalary);
-    if (isUnderpaid) target -= churnCfg.underpaidMoodPenalty;
+    if (isUnderpaid) target -= churnCfg.underpaidMoodPenalty * (hasPeopleLead ? 1 - hrCfg.underpaidRelief : 1);
     const mood = clampMood(next.mood + (target - next.mood) * 0.12 + lift + rng.range(-1.5, 1.5));
     // Track consecutive weeks in the danger zone.
     const newLowWeeks = mood < churnCfg.moodQuitThreshold
@@ -1416,7 +1425,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     // (mirrors the fan-decay offline protection). At-risk staff can still quit on the next ONLINE
     // tick, giving the player a chance to intervene (e.g. a raise). `!offline` is first so the
     // active path's rng consumption is unchanged (the determinism test runs active-only).
-    if (!offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && rng.next() < churnCfg.quitChancePerWeek) {
+    // A People Lead resolves burnout before it forces anyone out: while one is employed, sustained
+    // low mood never triggers a quit. `!hasPeopleLead` is placed BEFORE rng.next() so a roster with
+    // no People Lead consumes the rng exactly as before (determinism preserved for old saves).
+    if (!offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && !hasPeopleLead && rng.next() < churnCfg.quitChancePerWeek) {
       quitIds.push(next.id);
     }
     return { ...next, skills, mood, moodLowWeeks: newLowWeeks };
@@ -2763,7 +2775,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     ...identity,
   };
   const feed = [...state.feed];
-  feed.push(feedItem(state.week, `Hired ${name}, ${role}.`, "accent"));
+  feed.push(feedItem(state.week, `Hired ${name}, ${ROLE_TITLE[role]}.`, "accent"));
   return {
     ...state,
     rngState: rng.state(),
@@ -2859,7 +2871,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     mood: cand.mood,
     appearance: cand.appearance,
   };
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name}, ${cand.role}.`, "positive")]);
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name}, ${ROLE_TITLE[cand.role]}.`, "positive")]);
   return {
     ...state,
     cash: sub(state.cash, cand.hireFee),

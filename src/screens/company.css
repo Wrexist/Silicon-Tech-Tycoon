@@ -32,6 +32,11 @@
 .co__deleg-hire:disabled { opacity: 0.5; background: var(--bg-elevated); color: var(--ink-3); }
 .co__deleg-hire-cost { font-weight: 600; opacity: 0.85; }
 .co__deleg-gate { margin-top: 3px; font-size: var(--fs-caption); color: var(--warning); }
+.co__deleg-perk {
+  margin-top: var(--sp-6);
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-caption); color: var(--positive);
+}
 .co__switch {
   width: 48px; height: 29px; flex-shrink: 0;
   border-radius: var(--r-pill); background: var(--bg-elevated); padding: 3px;

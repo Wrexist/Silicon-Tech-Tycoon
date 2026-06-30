@@ -704,6 +704,20 @@ export const BALANCE = {
     restMinCost: 1000,        // floor on a Rest's cost so it's never free (the unpaid founder pays this)
   },
 
+  // --- People Operations (the People Lead / hr role) ---
+  // A People Lead actively keeps the team happy: lifts everyone's mood TARGET (steady-state
+  // happiness), nudges mood up a little every week, cushions the underpaid penalty, and (the headline)
+  // while one is on staff, sustained burnout never forces a quit. The STRONGEST People Lead drives it;
+  // extra leads don't stack (bounded). Gated on employing one, so no People Lead = byte-identical
+  // mood/churn. This is what justifies the People Lead's seat + salary beyond unlocking Auto-assign.
+  hr: {
+    moodTargetBase: 8,      // flat lift to every teammate's mood target while a People Lead is employed
+    perSkillTarget: 1.4,    // + target lift per skill point of the strongest People Lead
+    maxTargetLift: 24,      // cap on the combined target lift (a fully-leveled lead, no runaway)
+    weeklyMoodLift: 2.5,    // steady weekly mood nudge for the whole team (people ops in action)
+    underpaidRelief: 0.6,   // fraction of the underpaid mood penalty a People Lead absorbs
+  },
+
   // --- Rival poaching (Track C) — a rival on the rise tries to HIRE AWAY one of your best, surfaced
   // as a counter-offer DECISION (not a silent stat drop). Distinct from burnout churn above: this
   // targets CONTENT, skilled people, so it's a real "fight to keep them" moment, not a consequence of

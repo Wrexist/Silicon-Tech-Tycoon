@@ -108,3 +108,40 @@ describe("Epic E — delegation policies", () => {
     expect(advanceOneWeek(g).staff.find((m) => m.role === "engineer")!.assignment).toBe("rnd");
   });
 });
+
+describe("People Operations: a People Lead keeps the team happy", () => {
+  const proto = (seed: number) => newGame(seed).staff[0];
+
+  it("lifts a teammate's weekly mood vs an otherwise-identical HR-less roster", () => {
+    const p = proto(31);
+    const withHr: GameState = {
+      ...newGame(31), cash: dollars(5_000_000), onboarded: true,
+      staff: [
+        { ...p, id: "e1", role: "engineer", mood: 40, assignment: "rnd" },
+        { ...p, id: "h1", role: "hr", skill: 8, mood: 70, assignment: "marketing" },
+      ],
+    };
+    const noHr: GameState = { ...withHr, staff: [withHr.staff[0]] };
+    // The engineer is staff[0] in both, so its mood-noise rng draw is identical; the only difference
+    // is the People Lead's target lift + weekly nudge.
+    const engWith = advanceOneWeek(withHr).staff.find((m) => m.id === "e1")!.mood;
+    const engWithout = advanceOneWeek(noHr).staff.find((m) => m.id === "e1")!.mood;
+    expect(engWith).toBeGreaterThan(engWithout);
+  });
+
+  it("resolves burnout: a People Lead on staff means sustained low mood never forces a quit, and they recover", () => {
+    const p = proto(32);
+    let s: GameState = {
+      ...newGame(32), cash: dollars(5_000_000), onboarded: true,
+      staff: [
+        // A burned-out, underpaid engineer already deep in the danger zone…
+        { ...p, id: "e1", role: "engineer", mood: 5, moodLowWeeks: 10, salary: dollars(1), skill: 5, assignment: "rnd" },
+        // …with a strong People Lead employed.
+        { ...p, id: "h1", role: "hr", skill: 9, mood: 80, assignment: "marketing" },
+      ],
+    };
+    for (let i = 0; i < 30; i++) s = advanceOneWeek(s);
+    expect(s.staff.some((m) => m.id === "e1")).toBe(true);                 // never quit
+    expect(s.staff.find((m) => m.id === "e1")!.mood).toBeGreaterThan(22);  // climbed out of the danger zone
+  });
+});

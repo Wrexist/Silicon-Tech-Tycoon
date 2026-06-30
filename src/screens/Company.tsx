@@ -558,13 +558,14 @@ function DelegationCard({
   onToggle: (patch: Partial<GameState["automation"]>) => void;
   onHireSpecialist: (which: "autoAssign" | "autoResearch") => void;
 }) {
-  const rows: { key: "autoAssign" | "autoResearch"; icon: typeof Wand2; label: string; sub: string; can: boolean }[] = [
+  const rows: { key: "autoAssign" | "autoResearch"; icon: typeof Wand2; label: string; sub: string; can: boolean; perk?: string }[] = [
     {
       key: "autoAssign",
       icon: Wand2,
       label: "Auto-assign staff",
       sub: "Idle hires are put on their discipline each week, never a wasted seat.",
       can: canAutoAssign(state),
+      perk: "Your People Lead also keeps the whole team happy and heads off burnout.",
     },
     {
       key: "autoResearch",
@@ -617,6 +618,9 @@ function DelegationCard({
                 )}
                 {needsHire && !canHire && (
                   <span className="co__deleg-gate">{seatFree ? "Not enough cash to sign them." : "Buy a desk on the Office tab to seat them."}</span>
+                )}
+                {r.perk && (r.can || needsHire) && (
+                  <span className="co__deleg-perk"><Smile size={12} /> {r.perk}</span>
                 )}
               </div>
               <button
