@@ -1041,7 +1041,17 @@
 .wiz__seg-row--top .wiz__seg-pct { color: var(--fn-design); }
 
 /* ---------- Design-complete sheet ---------- */
-.done { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); text-align: center; }
+.done { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); text-align: center; }
+.done__close {
+  position: absolute;
+  top: calc(-1 * var(--sp-4)); right: 0;
+  width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: none;
+  color: var(--ink-2);
+}
 .done__badge {
   width: 52px; height: 52px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
