@@ -931,10 +931,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const giveRaiseCb = useCallback((id: string) => setState((s) => giveRaise(s, id)), []);
   const resolveChoiceCb = useCallback((optionId: string) => setState((s) => resolveChoice(s, optionId)), []);
-  const resolvePoachCb = useCallback((accept: boolean) => setState((s) => resolvePoach(s, accept)), []);
+  // These three can lower cash, so they route the drop through emitSpend like build/hire/upgrade do
+  // (consistent spend feedback). takeLoan ADDS cash, so it stays a plain setState.
+  const spendThrough = useCallback((next: GameState) => {
+    const spent = (stateRef.current.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(next);
+  }, []);
+  const resolvePoachCb = useCallback((accept: boolean) => spendThrough(resolvePoach(stateRef.current, accept)), [spendThrough]);
   const takeLoanCb = useCallback((principalCents: number) => setState((s) => takeLoan(s, principalCents)), []);
-  const repayLoanCb = useCallback((id: string) => setState((s) => repayLoan(s, id)), []);
-  const boostMoraleCb = useCallback((kind: MoraleKind) => setState((s) => boostMorale(s, kind)), []);
+  const repayLoanCb = useCallback((id: string) => spendThrough(repayLoan(stateRef.current, id)), [spendThrough]);
+  const boostMoraleCb = useCallback((kind: MoraleKind) => spendThrough(boostMorale(stateRef.current, kind)), [spendThrough]);
 
   const restart = useCallback(() => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good

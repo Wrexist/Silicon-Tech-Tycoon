@@ -20,7 +20,14 @@ const outDir = resolve(root, "app-store-screenshots", "store");
 await mkdir(rawDir, { recursive: true });
 await mkdir(outDir, { recursive: true });
 
-const baseSave = JSON.parse((await readFile("/tmp/silicon-stage.json")).toString());
+const stagePath = "/tmp/silicon-stage.json";
+let baseSave;
+try {
+  baseSave = JSON.parse((await readFile(stagePath)).toString());
+} catch {
+  console.error(`Staging save not found at ${stagePath}. Run: npm run shots:stage`);
+  process.exit(1);
+}
 const withMut = (mut) => { const s = structuredClone(baseSave); s.lastActive = Date.now(); mut?.(s); return JSON.stringify(s); };
 
 // A loan to show the financing card's debt state + slider; a doctrine already chosen; a wearable.
@@ -81,13 +88,15 @@ const FRAMES = [
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(700); await top(p); } },
 ];
 
-const shotW = 390 * 3, shotH = 844 * 3;
 for (const fr of FRAMES) {
   const { ctx, p } = await page(withMut(fr.mut));
-  await fr.shoot(p);
-  await p.screenshot({ path: resolve(rawDir, `${fr.raw}.png`), clip: { x: 0, y: 0, width: 390, height: 844 } });
-  await ctx.close();
-  console.log("captured", fr.raw);
+  try {
+    await fr.shoot(p);
+    await p.screenshot({ path: resolve(rawDir, `${fr.raw}.png`), clip: { x: 0, y: 0, width: 390, height: 844 } });
+    console.log("captured", fr.raw);
+  } finally {
+    await ctx.close().catch(() => {});
+  }
 }
 
 // ---- compose each into the 3D marketing frame ----

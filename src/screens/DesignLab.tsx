@@ -98,7 +98,7 @@ function SegmentBreakdown({ segments, week }: { segments: SegmentDemand; week: n
               key={r.id}
               role="group"
               className={`wiz__seg-row${r.id === top.id ? " wiz__seg-row--top" : ""}`}
-              aria-label={`${r.name}: wins ${pct}% of the segment. ${segmentWantsById(r.id)}`}
+              aria-label={`${r.name}: wins ${pct}% of the segment.${r.trend === "rising" ? " Demand rising." : r.trend === "falling" ? " Demand falling." : ""} ${segmentWantsById(r.id)}`}
             >
               <div className="wiz__seg-main">
                 <span className="wiz__seg-name">
@@ -106,6 +106,7 @@ function SegmentBreakdown({ segments, week }: { segments: SegmentDemand; week: n
                   {r.trend !== "steady" && (
                     <span
                       className={`wiz__seg-trend wiz__seg-trend--${r.trend}`}
+                      aria-hidden
                       title={r.trend === "rising" ? "This segment is swelling, a good time to court it" : "This segment is fading"}
                     >
                       {r.trend === "rising" ? <TrendingUp size={11} /> : <TrendingDown size={11} />}

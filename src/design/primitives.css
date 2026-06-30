@@ -191,6 +191,17 @@
   background: transparent;
   cursor: grab;
 }
+/* Keyboard focus: a clear ring on the thumb so keyboard users can track the control. */
+.ds-slider:focus-visible {
+  outline: none;
+}
+.ds-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent-local, var(--accent)) 40%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--accent-local, var(--accent)) 35%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+.ds-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-local, var(--accent)) 35%, transparent);
+}
 .ds-slider:active {
   cursor: grabbing;
 }

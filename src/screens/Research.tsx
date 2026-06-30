@@ -145,9 +145,10 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
     return priority(a) - priority(b);
   });
 
-  // Find the cheapest unaffordable project the player could save toward
+  // Find the cheapest unaffordable project the player could save toward (excluding fork-locked
+  // doctrine siblings, which can't be researched once a doctrine is chosen).
   const nextGoal = RESEARCH_PROJECTS
-    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost)
+    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost && !forkLockedBy(state.completedProjects, p.id))
     .sort((a, b) => a.rpCost - b.rpCost)[0] ?? null;
   const goalPct = nextGoal ? Math.min(100, Math.round((rp / nextGoal.rpCost) * 100)) : 0;
   const goalWeeks = nextGoal && perWeek > 0 ? Math.ceil((nextGoal.rpCost - rp) / perWeek) : null;
@@ -169,7 +170,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </div>
           {(() => {
             const buyableNow = RESEARCH_PROJECTS.filter(
-              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost,
+              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id),
             ).length;
             if (buyableNow === 0) return null;
             return (
@@ -420,7 +421,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
                   </div>
                   {done ? (
-                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Chosen</span>
+                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> {p.fork ? "Chosen" : "Done"}</span>
                   ) : locked ? (
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
                   ) : forkLock ? (

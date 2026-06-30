@@ -309,7 +309,9 @@ describe("Franchises — a proven product line launches stronger", () => {
 
   it("market fatigue: a same-spec follow-up loses open-market demand; a real upgrade doesn't", () => {
     const week = 12;
-    const prev: LaunchedProduct = { ...activeLaunched({ ...phone(), id: "prev", name: "Aurora One" }), launchedWeek: week };
+    // Sold-out (weeksElapsed past its run) so it no longer self-competes, but still recently launched
+    // so novelty/fatigue applies. This isolates fatigue from self-cannibalization.
+    const prev: LaunchedProduct = { ...activeLaunched({ ...phone(), id: "prev", name: "Aurora One" }), launchedWeek: week, weeksElapsed: 999 };
     const base: GameState = { ...newGame(7), week, fans: 0, reputation: 50, launched: [prev] };
     const rehash = planProduction(base, { ...phone(), id: "p2" }, 100_000, "none"); // identical specs
     const upgrade = planProduction(base, { ...phone(), id: "p3", tiers: { chip: 6, display: 6, battery: 6, materials: 6, software: 6, camera: 6 } }, 100_000, "none");

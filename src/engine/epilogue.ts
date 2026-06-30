@@ -14,9 +14,12 @@ export interface EpilogueInput {
 }
 
 function fmtFans(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1000)}k`;
-  return String(Math.max(0, Math.round(n)));
+  const rounded = Math.max(0, Math.round(n));
+  if (rounded >= 1_000_000) return `${(rounded / 1_000_000).toFixed(1)}M`;
+  // Guard the 999.5k..999.999k band: rounding to thousands would render "1000k". Promote to "1.0M".
+  if (Math.round(rounded / 1000) >= 1000) return "1.0M";
+  if (rounded >= 1_000) return `${Math.round(rounded / 1000)}k`;
+  return String(rounded);
 }
 
 /** An authored 2-4 sentence "five years later" send-off, keyed on the run's outcome. */

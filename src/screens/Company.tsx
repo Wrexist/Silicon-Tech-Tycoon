@@ -472,7 +472,11 @@ function FinancingCard({ state }: { state: GameState }) {
           />
           <div className="co__borrow-preview">
             <Landmark size={13} aria-hidden />
-            <span>Repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wks</span>
+            <span>
+              You receive <b className="tnum">{formatShortDollars(Math.round(amount * (1 - BALANCE.financing.originationFee)))}</b>
+              {BALANCE.financing.originationFee > 0 ? ` after a ${Math.round(BALANCE.financing.originationFee * 100)}% fee` : ""},
+              repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wks
+            </span>
           </div>
           <Button block variant="primary" onClick={() => { takeLoan(amount * 100); haptic.success(); }}>
             Borrow {formatShortDollars(amount)}
@@ -993,7 +997,9 @@ function TeamOutputCard({ state }: { state: GameState }) {
         const soonest = state.staff
           .filter((s) => s.skill < BALANCE.staff.maxSkill)
           .map((s) => {
-            const weeklyXpRate = (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait);
+            // Mirror the roster card's rate, including the mentorship bonus, so the summary and the
+            // per-person ETA can't disagree about who levels next.
+            const weeklyXpRate = (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait) * mentorshipXpMult(s, state.staff);
             if (weeklyXpRate <= 0) return null;
             const weeksToLevel = Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate);
             return { name: s.name, weeksToLevel, skill: s.skill };

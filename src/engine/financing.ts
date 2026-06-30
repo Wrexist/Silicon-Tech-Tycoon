@@ -71,12 +71,14 @@ export function accrueLoans(loans: readonly Loan[], rate = 1): { loans: Loan[]; 
   let payment = 0;
   const next: Loan[] = [];
   for (const l of loans) {
-    const interest = l.balance * l.ratePerWeek * rate;
-    const due = l.weeklyPayment * rate;
+    // Keep every amount in whole cents (the module's contract) so Loan.balance, totalDebt() and
+    // creditLimit() never accumulate fractional money or persist non-integer state.
+    const interest = Math.round(l.balance * l.ratePerWeek * rate);
+    const due = Math.round(l.weeklyPayment * rate);
     const pay = Math.min(due, l.balance + interest); // never overpay the final stub
     const balance = l.balance + interest - pay;
     payment += pay;
-    if (balance > 1) next.push({ ...l, balance });
+    if (balance > 0) next.push({ ...l, balance });
   }
-  return { loans: next, payment: Math.round(payment) };
+  return { loans: next, payment };
 }

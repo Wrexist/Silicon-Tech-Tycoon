@@ -29,10 +29,12 @@ describe("performance-reactive company value (Track B)", () => {
 
   it("does NOT touch cash or reputation (bankruptcy + win gate are independent)", () => {
     const base = { ...newGame(4), onboarded: true, cash: dollars(5_000_000), reputation: 50, valuationMomentum: 0.12 };
-    const next = advanceOneWeek(base);
-    expect(next.reputation).toBe(base.reputation); // a quiet week with no launch/event leaves rep alone
-    // cash only moves by ordinary burn, never by the valuation overlay
-    expect(toDollars(next.cash)).toBeLessThanOrEqual(toDollars(base.cash));
+    // Compare against an identical week with ZERO momentum: cash + reputation must match exactly, so
+    // the overlay provably moves neither (a bare "cash went down" check would pass on ordinary burn).
+    const withMomentum = advanceOneWeek(base);
+    const withoutMomentum = advanceOneWeek({ ...base, valuationMomentum: 0 });
+    expect(withMomentum.reputation).toBe(withoutMomentum.reputation);
+    expect(toDollars(withMomentum.cash)).toBe(toDollars(withoutMomentum.cash));
   });
 
   it("old saves (no momentum field) read as a neutral fundamental valuation", () => {

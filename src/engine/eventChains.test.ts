@@ -21,9 +21,12 @@ describe("event chains (Track B)", () => {
       const c = pickChain(rng, 1); // era 1 — only chains with minEra <= 1 are eligible
       if (c) { fired++; expect(c.minEra).toBeLessThanOrEqual(1); }
     }
-    // ~16% of 400 ≈ 64; allow a wide band so the test isn't flaky.
-    expect(fired).toBeGreaterThan(30);
-    expect(fired).toBeLessThan(110);
+    // Derive the band from the configured chance so a legitimate balance retune doesn't fail this.
+    const n = 400;
+    const expected = n * BALANCE.events.chainChance;
+    const tolerance = Math.ceil(5 * Math.sqrt(n * BALANCE.events.chainChance * (1 - BALANCE.events.chainChance)));
+    expect(fired).toBeGreaterThanOrEqual(Math.floor(expected - tolerance));
+    expect(fired).toBeLessThanOrEqual(Math.ceil(expected + tolerance));
   });
 
   it("a due chain beat fires through the tick and advances the chain", () => {
@@ -45,10 +48,14 @@ describe("event chains (Track B)", () => {
   });
 
   it("a chain never bankrupts: its supply-crunch beat is capped to a share of cash", () => {
-    const before: GameState = { ...newGame(7), onboarded: true, era: 2, week: 12, cash: dollars(20_000),
+    const before: GameState = { ...newGame(7), onboarded: true, era: 2, week: 12, cash: dollars(20_000), nextEventWeek: 999,
       eventChain: { id: "recall-ripple", step: 1, nextWeek: 12 } };
+    // The chain's extra cash drop (vs. an identical week with no chain) must not exceed the configured
+    // crunch cap, AND it must stay solvent. `nextEventWeek: 999` holds ordinary events constant.
+    const control = advanceOneWeek({ ...before, eventChain: null });
     const after = advanceOneWeek(before);
-    expect(toDollars(after.cash)).toBeGreaterThan(0); // the crunch cap (BALANCE.events.crunchMaxCashShare) protects solvency
-    expect(BALANCE.events.chainChance).toBeGreaterThan(0);
+    const extraDrop = toDollars(control.cash) - toDollars(after.cash);
+    expect(extraDrop).toBeLessThanOrEqual(toDollars(before.cash) * BALANCE.events.crunchMaxCashShare + 1);
+    expect(toDollars(after.cash)).toBeGreaterThan(0);
   });
 });

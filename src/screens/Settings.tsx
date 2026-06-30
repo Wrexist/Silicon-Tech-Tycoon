@@ -203,7 +203,7 @@ function ImportPanel({ onDone, onCancel }: { onDone: () => void; onCancel: () =>
       {confirming ? (
         <>
           <p className="set__import-text">
-            Importing replaces your current company. This can't be undone, export a backup first if
+            Importing replaces your current company. This can't be undone. Export a backup first if
             you want to keep it.
           </p>
           <div className="set__pair">

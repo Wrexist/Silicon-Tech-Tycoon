@@ -1133,8 +1133,9 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
 
   // 7. Open desks + healthy runway = good time to hire
   if (insights.length < 3 && state.staff.length >= 1) {
-    const facH = facility(state);
-    const openDesks = facH.staffCapacity - state.staff.length;
+    // Hiring is gated by PLACED desks, not raw facility headcount, so count actual open seats
+    // (deskCapacity) — otherwise this could claim desks that haven't been placed yet.
+    const openDesks = deskCapacity(state) - state.staff.length;
     const wkBurnH = burn(state);
     const wkRevH = nextWeekRevenue(state);
     const runwayH = runwayWeeks(state.cash, wkBurnH, wkRevH);

@@ -291,7 +291,7 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
             );
           })}
         </ul>
-        <p className="plat__rel-note">Licensees grow restless if you dominate them too hard, keep them content, or push for share and risk losing the fees.</p>
+        <p className="plat__rel-note">Licensees grow restless if you dominate them too hard. Keep them content, or push for share and risk losing the fees.</p>
       </Card>
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>

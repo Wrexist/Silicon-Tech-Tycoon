@@ -62,7 +62,11 @@ function MuseumCard({ e, onSelect }: { e: MuseumEntry; onSelect: (e: MuseumEntry
  *  of how it did and what went well or poorly. */
 function MuseumDetail({ e, live, onBack }: { e: MuseumEntry; live: LaunchedProduct | null; onBack: () => void }) {
   const slab = e.category === "phone" || e.category === "tablet";
-  const pm = e.insight ? postMortem(e.insight, (e.verdict ?? "steady") as Verdict) : null;
+  // Normalize the persisted verdict (a plain string) to a known Verdict before postMortem, so a stale
+  // or corrupt localStorage value can't flow in and misrender the detail view.
+  const verdict: Verdict =
+    e.verdict === "hit" || e.verdict === "solid" || e.verdict === "steady" || e.verdict === "flop" ? e.verdict : "steady";
+  const pm = e.insight ? postMortem(e.insight, verdict) : null;
   // Real performance if this device is from the current run (matched live in the save); otherwise
   // the launch-moment snapshot is all we have for a cross-run device.
   const sellThrough = live && live.plannedUnits ? Math.round((live.unitsSold / live.plannedUnits) * 100) : null;

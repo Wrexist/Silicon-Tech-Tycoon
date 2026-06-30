@@ -2597,7 +2597,9 @@ export function autoAssignIdle(state: GameState): GameState {
  *  buyProject so it can never do anything the player couldn't. Same state when nothing is affordable. */
 export function autoClaimResearch(state: GameState): GameState {
   const next = RESEARCH_PROJECTS
-    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints)
+    // Skip fork-locked doctrine siblings: buyProject would no-op on them, stalling the automation on a
+    // permanently-unbuyable cheapest pick. Doctrine choices stay a manual decision (a real fork).
+    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints && !p.fork)
     .sort((a, b) => a.rpCost - b.rpCost)[0];
   return next ? buyProject(state, next.id) : state;
 }
