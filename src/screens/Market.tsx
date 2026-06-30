@@ -326,12 +326,15 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
                 return (
                   <button
                     key={lp.product.id}
-                    className="mkt__product"
+                    className={`mkt__product${live ? " mkt__product--live" : ""}`}
                     onClick={() => { setDetailId(lp.product.id); haptic.light(); }}
                     aria-label={`View ${lp.product.name} performance`}
                   >
                     <span className="mkt__product-row">
-                      <span className="mkt__product-thumb"><DeviceRenderer product={lp.product} size={44} /></span>
+                      <span className="mkt__product-thumb">
+                        <DeviceRenderer product={lp.product} size={44} />
+                        {live && <span className="mkt__product-livedot" aria-hidden />}
+                      </span>
                       <span className="mkt__product-info">
                         <span className="mkt__product-name">{lp.product.name}</span>
                         <span className="mkt__product-sub">

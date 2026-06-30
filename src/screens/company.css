@@ -111,9 +111,20 @@
   margin: var(--sp-4) 0 var(--sp-8);
 }
 .co__morale-fill {
+  position: relative;
   height: 100%;
   border-radius: 999px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 35%, transparent);
   transition: width var(--motion-medium, 240ms) ease;
+}
+/* A glossy top sheen turns the flat mood bar into a lustrous, living surface (keeps the dynamic
+   mood colour set inline; the width already animates as mood shifts). */
+.co__morale-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, #fff 24%, transparent), transparent 62%);
 }
 
 /* Interactive borrow slider — a tactile, "alive" control instead of fixed preset buttons. */

@@ -680,6 +680,7 @@
 .mkt__rival-tone--value { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--surface-2)); }
 .mkt__rival-tone--undercut { color: var(--negative-text, var(--negative)); background: var(--negative-soft, var(--surface-2)); }
 .mkt__product {
+  position: relative;
   width: 100%;
   text-align: left;
   display: flex;
@@ -689,6 +690,35 @@
   border-radius: var(--r-card);
   background: var(--bg-elevated);
   transition: background var(--spring-snappy), transform var(--spring-snappy);
+}
+/* A still-selling product is alive: a positive left edge + a pulsing "live" dot on its render. */
+.mkt__product--live::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--sp-8);
+  bottom: var(--sp-8);
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(180deg, var(--positive), color-mix(in srgb, var(--positive) 30%, transparent));
+}
+.mkt__product-livedot {
+  position: absolute;
+  top: -1px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--positive);
+  box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 0 color-mix(in srgb, var(--positive) 55%, transparent);
+  animation: mkt-live-ping 1.9s ease-in-out infinite;
+}
+@keyframes mkt-live-ping {
+  0%, 100% { box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 0 color-mix(in srgb, var(--positive) 50%, transparent); }
+  50% { box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 5px color-mix(in srgb, var(--positive) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mkt__product-livedot { animation: none; }
 }
 .mkt__product-row {
   display: flex;
@@ -706,6 +736,7 @@
   background: var(--surface);
 }
 .mkt__product-thumb {
+  position: relative;
   flex-shrink: 0;
   width: 48px;
   display: flex;

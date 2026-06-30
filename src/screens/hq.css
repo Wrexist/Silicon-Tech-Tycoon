@@ -1083,7 +1083,8 @@
   width: 100%;
   min-height: 2px;
   border-radius: 3px 3px 0 0;
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 62%, transparent));
+  box-shadow: 0 0 6px -1px color-mix(in srgb, var(--accent) 35%, transparent);
   transition: height 0.4s ease;
 }
 .hq__forecast-label {
