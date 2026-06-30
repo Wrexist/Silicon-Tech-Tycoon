@@ -2,7 +2,8 @@ import { useState } from "react";
 import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
-import { osDisplayName, canFoundPlatform, platformFoundingCost, dominantMoodDriver } from "../state/gameState.ts";
+import { osDisplayName, canFoundPlatform, platformFoundingCost, dominantMoodDriver, weeklyLicenseFees } from "../state/gameState.ts";
+import { installedBase } from "../engine/platform.ts";
 import { ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
 import { Avatar } from "../components/Avatar.tsx";
@@ -14,7 +15,7 @@ import { acquirableFactories, factoryFor, totalFactoryUpkeep } from "../engine/f
 import type { FactoryId } from "../engine/types.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
-import { cents, dollars, format, formatShortDollars, sub, toDollars } from "../engine/money.ts";
+import { add, cents, dollars, format, formatShortDollars, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
@@ -157,6 +158,16 @@ export function Company() {
           {toDollars(ecoRev) > 0 && (
             <Stat label="Services" value={format(ecoRev)} tone="positive" hint="/wk" />
           )}
+          {/* Q6: surface the Platform division's headline number (install base) + its full weekly
+              annuity (services + OS licensing) in the main Finance view, not buried in a sub-sheet. */}
+          {state.platformUnlocked && (() => {
+            const base = installedBase(state.launched);
+            const platformRev = add(ecoRev, weeklyLicenseFees(state));
+            const fmtBase = base >= 1_000_000 ? `${(base / 1_000_000).toFixed(1)}M` : base >= 1_000 ? `${(base / 1_000).toFixed(0)}k` : `${base}`;
+            return (
+              <Stat label="Install base" value={fmtBase} tone="accent" hint={`${format(platformRev)}/wk platform`} />
+            );
+          })()}
           <Stat
             label="Runway"
             value={runway === Infinity ? "Profitable" : `${runway} wk`}
