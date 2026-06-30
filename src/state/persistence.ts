@@ -348,12 +348,15 @@ function migrate(state: GameState): GameState | null {
     // A save that PREDATES the gating (no `*Free` field) and already had an automation ON keeps it
     // working free of the new prerequisites. Post-gating saves carry the fields, so re-loading never
     // re-grandfathers them (idempotent) and firing the specialist correctly re-locks the toggle.
-    const hadFreeFields = "autoAssignFree" in a || "autoResearchFree" in a;
+    // Each flag is decided independently on its OWN field's presence, so a partial import/migration
+    // that carries only one `*Free` key doesn't drop grandfathering for the other enabled automation.
+    const hadAutoAssignFree = "autoAssignFree" in a;
+    const hadAutoResearchFree = "autoResearchFree" in a;
     s.automation = {
       autoAssign: aa,
       autoResearch: ar,
-      autoAssignFree: hadFreeFields ? !!a.autoAssignFree : aa,
-      autoResearchFree: hadFreeFields ? !!a.autoResearchFree : ar,
+      autoAssignFree: hadAutoAssignFree ? !!a.autoAssignFree : aa,
+      autoResearchFree: hadAutoResearchFree ? !!a.autoResearchFree : ar,
     };
   }
   // Garage desktops (added later): default to none. Clamp to the valid 0–max range.
