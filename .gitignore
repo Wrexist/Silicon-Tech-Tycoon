@@ -13,6 +13,8 @@ ios/App/App/public
 .furniture-tmp
 store-shots
 .shots-raw
+.store-raw
+.ipad-raw
 
 # scratch from research tooling
 .tmp_ss/
