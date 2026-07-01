@@ -82,8 +82,8 @@
 .hud__chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-10);
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 1px solid var(--hairline);

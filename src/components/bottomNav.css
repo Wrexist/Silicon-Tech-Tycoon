@@ -24,7 +24,7 @@
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 4px 0;
+  padding: var(--sp-4) 0;
   min-height: 48px;
   color: var(--ink-3);
   transition: color var(--spring-snappy), transform var(--spring-snappy);
