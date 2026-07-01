@@ -73,7 +73,24 @@ Found your company. Ship something great. Run the industry.
 
 ---
 
-## 5. What's New (release notes for v1.0)
+## 5. What's New (release notes for v1.0.2)
+
+```
+Silicon just got a lot more alive.
+
+• Rivals now have backstories — read their doctrine, and watch their fortunes rise, peak, and fade as their story arc unfolds.
+• Every launch earns an authored verdict explaining exactly why it won or flopped.
+• The Device Museum is reorganised into category shelves — click any device for its legacy note, front-and-back design, and full launch analytics.
+• A living market: multi-week event chains with real choices, seasonal demand cycles by buyer segment, and regional shocks.
+• New people decisions: mentor your team, fend off rival poaching offers, boost company morale, and take out loans to fund growth.
+• Design trade-offs run deeper — named synergy archetypes, category-specific buyer tastes, and an Engineering Doctrine research fork that gives your products identity.
+• Reach the #1 spot and your IPO win now closes with a "Five years later" epilogue.
+• A big polish pass across the Design Lab, Company screen, and 3D office, plus a more tactile production-run slider.
+```
+
+---
+
+## 5b. Previous release notes (v1.0 — first release)
 
 ```
 Welcome to Silicon. Design devices down to the chip, launch them into a living market, build your team and 3D HQ, research the next era, and race six rivals to #1. Premium, offline, no ads.

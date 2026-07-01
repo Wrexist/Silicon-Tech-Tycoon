@@ -225,6 +225,11 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 ## Backlog
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
+- **TASK.md is stale again**: last dated entry is v56 (2026-06-28), but 52 commits since then shipped
+  all of DEPTH_PLAN.md Tracks A–D (v57–v69: narrative/voice, cascading events, rival story arcs,
+  mentorship/poaching/morale/loans, synergy archetypes/buyer mixes/research forks/subsystems) plus
+  several polish waves — none logged here. 1.0.2's App Store "What's New" was written straight from
+  `git log` + `DEPTH_PLAN.md` instead. Needs a v14-style reconciliation pass to bring TASK.md current.
 - **CSS bug — `src/screens/designLab.css`:** `.lab__hero-grid` is declared twice — as the Design Lab's two-column layout (~L121) AND as the dot-texture backdrop with `position:absolute;inset:0` (~L138). The absolute leaks onto the layout grid, pulling it out of flow, so at the app's 540px max width the Design Lab hero overlaps the Category selector (invisible on ≤430px phones). Fix: rename the backdrop-texture class (e.g. `.lab__hero-dots`) in the CSS + `DesignLab.tsx`. Worked around at capture-time in `shots-store.mjs`/`shots-ipad.mjs`; the real fix belongs in source.
 - **[PLAN READY] Supply chain — Suppliers & Factories.** Full design + phased build plan in
   `SUPPLY_CHAIN_PLAN.md`. Turns the opaque manufacturing step into real choices (where parts come

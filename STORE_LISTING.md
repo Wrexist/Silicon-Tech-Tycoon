@@ -77,6 +77,29 @@ Character count: ~1,650 (well within 4,000)
 
 ---
 
+## What's New (v1.0.2)
+
+```
+Silicon just got a lot more alive.
+
+• Rivals now have backstories — read their doctrine, and watch their fortunes rise,
+  peak, and fade as their story arc unfolds.
+• Every launch earns an authored verdict explaining exactly why it won or flopped.
+• The Device Museum is reorganised into category shelves — click any device for its
+  legacy note, front-and-back design, and full launch analytics.
+• A living market: multi-week event chains with real choices, seasonal demand cycles
+  by buyer segment, and regional shocks.
+• New people decisions: mentor your team, fend off rival poaching offers, boost
+  company morale, and take out loans to fund growth.
+• Design trade-offs run deeper — named synergy archetypes, category-specific buyer
+  tastes, and an Engineering Doctrine research fork that gives your products identity.
+• Reach the #1 spot and your IPO win now closes with a "Five years later" epilogue.
+• A big polish pass across the Design Lab, Company screen, and 3D office, plus a more
+  tactile production-run slider.
+```
+
+---
+
 ## What's New (v1.0 — first release)
 
 ```
