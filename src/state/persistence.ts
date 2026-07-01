@@ -57,7 +57,7 @@ export function save(state: GameState): void {
       if (!quotaTrimWarned) {
         quotaTrimWarned = true;
         try {
-          showToast("Storage was full, so older sales history was summarized to keep your save.", { tone: "neutral" });
+          showToast("Storage was full, so older sales history was summarized to keep your save.", { tone: "negative" });
         } catch {
           /* toast host not mounted (e.g. tests) */
         }
@@ -492,6 +492,7 @@ function migrate(state: GameState): GameState | null {
   // a search saved under the pre-tier shape gets the cheapest channel
   if (s.recruitment && s.recruitment.tier == null) s.recruitment.tier = "board";
   if (Array.isArray(s.launched)) {
+    const beforeCount = s.launched.length;
     s.launched = s.launched
       // A launched entry without a USABLE product is unrecoverable — the sales tick dereferences
       // lp.product.price / lp.product.category unconditionally (advanceOneWeek), and fixProduct does
@@ -527,6 +528,13 @@ function migrate(state: GameState): GameState | null {
       }
       return lp;
     });
+    // Dropping an unrecoverable product is the correct safety move (better than crashing the tick),
+    // but doing it silently hid real launch-history loss. Log the count so a corrupted save is
+    // diagnosable instead of just quietly shorter.
+    const dropped = beforeCount - s.launched.length;
+    if (dropped > 0) {
+      console.warn(`[silicon] Migration dropped ${dropped} launched product(s) with an unusable shape (missing price/category).`);
+    }
   }
   // Silent achievement backfill — now that every field is valid, mark milestones the player has
   // ALREADY earned as unlocked WITHOUT firing toasts. Only fill when empty (first migrate of an old
