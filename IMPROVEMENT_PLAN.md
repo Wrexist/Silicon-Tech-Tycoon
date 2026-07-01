@@ -519,6 +519,24 @@ off segments/rivals), then D3/D6. Each is engine-first with a sim check.
 ## Phase G: Bigger bets (do last, each is a project with a playtest)
 
 ### L4: Late game is "solved" (every run ends within ~15% of the same net worth)  `[balance · L · HIGH]`
+- **L5 FINDINGS (now instrumented, do NOT re-diagnose from the single-profile CV):** the harness runs
+  five strategy profiles. The old ~5% CV was RNG noise of ONE playstyle; the real picture across
+  strategies (post D1/D2/D3/D5/D6):
+  - `balanced` (max tiers, fair price): 40/40 win, ~$1.87B, 24% hits; the dominant recipe.
+  - `premium` (overprice ~1.28x, event): 40/40 win, ~$1.16B, ALREADY a viable, divergent alternative.
+  - `value` (cheaper build + undercut): 40/40 BANKRUPT, non-viable (lower stats AND thin margin).
+  - `specialist` (lopsided Pro + Performance house): 0/40 win, ~$0.23B, survives, never competitive.
+  - `reckless` (over-produce 1.9x): 40/40 BANKRUPT, confirms real failure pressure (see L3).
+- **Reframed problem:** it is NOT "every run ends the same", it is "broad-market VOLUME (balanced
+  maxing) dominates; niche/margin strategies can't offset lost breadth." `premium` already diverges
+  and wins; the open work is making `value` + `specialist` winnable-but-different.
+- **Direction (playtest-gated, next dedicated pass):** a compounding economy axis, NOT another
+  per-launch bolt-on. Best candidates from the data: (a) per-category demand SATURATION so a broad
+  maxer hits diminishing returns and diversification/specialization pays; (b) price-insensitive niches
+  (Pro/Enterprise) carrying materially higher per-unit value so dominating 15% at high margin ~
+  competing broadly. Prototype in the harness FIRST; ship only if `value`+`specialist` reach the win
+  while `balanced` stays 40/40 and the L1+L2 verdict spread holds.
+
 - **Problem:** net-worth CV 5.3%, p90/p10 1.15x. The verdict-layer divergence landed (eras 3/4 have
   real per-launch spread), but the MACRO outcome still converges: ~119 launches/run average each
   other's variance away and competition recovers identically every seed.
