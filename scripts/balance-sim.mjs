@@ -29,6 +29,10 @@ const PROFILES = {
   premium:    { tierBias: "even",      priceMult: 1.28, channel: "event" },      // strong brand overprices (D3), enterprise/style reach (D2)
   value:      { tierBias: "cheap",     priceMult: 0.88, channel: "social" },     // undercut defenders (D5), budget reach (D2)
   specialist: { tierBias: "chipHeavy", priceMult: 1.14, channel: "billboards", doctrine: "perfHouse" }, // lopsided Pro build (D1 Pro-tolerance), Performance house teeth (D6), premium vs undercutters (D5), pro reach (D2)
+  // L3 probe: a competent BUILD but reckless SIZING, over-produces every run (sinks cash into
+  // inventory it may not sell). If the early economy has real failure pressure, this should risk
+  // bankruptcy where the disciplined "balanced" profile survives.
+  reckless:   { tierBias: "even",      priceMult: 1.00, channel: "priciest", runMult: 1.9 },
 };
 
 let nameSeq = 0;
@@ -124,7 +128,7 @@ function simulate(seed, profile = PROFILES.balanced, maxWeeks = 520) {
     if (s.building.length === 0 && s.ready.length === 0) {
       const product = designProduct(s, profile);
       const channel = pickChannelFor(s, profile);
-      const run = recommendedRun(s, product, channel);
+      const run = Math.round(recommendedRun(s, product, channel) * (profile.runMult ?? 1));
       if (run > 0) {
         const res = startBuild(s, product, run, channel);
         if (res.ok) s = res.state;
