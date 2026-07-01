@@ -56,6 +56,11 @@ export default function GltfFurniture({
     const baseScale = Math.min(horizScale, heightScale);
 
     // Wrap the clone so we can transform it without mutating shared geometry/material refs.
+    // TRIPWIRE: scene.clone(true) SHARES geometries and materials across every placed instance, so
+    // this path only ever touches transforms (position/scale). If a per-instance material edit is
+    // ever added here (a tint, emissive, or opacity per piece), clone the materials FIRST
+    // (clone.traverse(o => { if (o.isMesh) o.material = o.material.clone(); })) or every copy in the
+    // room mutates together.
     const wrapper = new THREE.Group();
     wrapper.add(clone);
     wrapper.scale.setScalar(baseScale);
