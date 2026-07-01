@@ -83,6 +83,14 @@ export const BALANCE = {
   market: {
     // demandScore is Σ weight*stat (0..100). Converted to base units via this scale.
     baseUnitsAtScore: 1200, // units of volume per demandScore point at marketSize 1.0
+    // D4 (per-era mechanic) + L4 (divergence axis): the ECOSYSTEM SUITE. From the Platform era on, a
+    // company that has shipped across MULTIPLE product categories earns a compounding launch-hype
+    // bonus (a cross-device halo, e.g. a phone that pairs with your tablet + wearable), introducing a
+    // new era-3 verb: expand your lineup, not just iterate one device. It is breadth-scaled and gated,
+    // so a single-category (phone-only) company gets ZERO, keeping the balanced baseline + the sim
+    // byte-identical, while a diversifier gets a divergent growth path (the L4 open problem). Bounded
+    // by maxCategories so it never becomes a runaway.
+    ecosystemSuite: { fromEra: 3, perCategoryHype: 0.04, maxCategories: 4 },
     // Era-scaled market volume: the Garage era is a tiny market you slowly grow into; each later
     // era opens it up. Multiplies demand (→ recommended run size → revenue) by era, so the early
     // game is deliberately slow + hand-built while the end-game still scales. Index = era - 1.

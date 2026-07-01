@@ -59,6 +59,7 @@ import {
   osDisplayName,
   osEcoBonus,
   doctrineAlignHype,
+  ecosystemSuiteHype,
   type GameState,
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -316,6 +317,9 @@ export function DesignLab({
   const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week, syn.bottleneck);
   // D6: does this build lean into the company's engineering doctrine (earning the compounding hype)?
   const doctrineAligned = doctrineAlignHype(state.completedProjects, stats) > 0;
+  // D4: an ecosystem suite (multiple product categories shipped, era 3+) earns compounding launch hype.
+  const ecoSuiteHype = ecosystemSuiteHype(state.launched, state.era);
+  const ecoSuiteCats = new Set(state.launched.map((lp) => lp.product.category)).size;
   // Q3: first-run literacy: show a few teaching hints until the player ships their first product.
   // Derived (no persisted flag) and gated to a fresh playthrough, so NG+ veterans get a clean screen.
   const isFirstRun = state.legacy === 0 && state.launched.length === 0;
@@ -1330,6 +1334,14 @@ export function DesignLab({
                 <div className="lab__doctrine lab__doctrine--countered">
                   <Sparkles size={12} aria-hidden />
                   <span>Your engineering doctrine is aligned with this build, earning extra launch hype.</span>
+                </div>
+              )}
+              {/* D4: your product ecosystem: shipping across categories (era 3+) compounds launch hype
+                  as buyers reward a broad, coherent platform. */}
+              {ecoSuiteHype > 0 && (
+                <div className="lab__doctrine lab__doctrine--countered">
+                  <Sparkles size={12} aria-hidden />
+                  <span>Your ecosystem spans {ecoSuiteCats} product categories, lifting launch hype by {Math.round(ecoSuiteHype * 100)}%.</span>
                 </div>
               )}
               {(() => {

@@ -668,6 +668,18 @@ export function doctrineAlignHype(completedProjects: readonly ProjectId[], stats
   return stats[doc] >= mean + BALANCE.design.doctrineLeadMargin ? BALANCE.design.doctrineAlignHype : 0;
 }
 
+/** D4 / L4: the Ecosystem Suite launch-hype bonus: from the Platform era on, shipping across MULTIPLE
+ *  product categories earns a compounding cross-device halo (each distinct category beyond the first
+ *  adds perCategoryHype, capped at maxCategories). A single-category company earns 0, so the phone-only
+ *  baseline is untouched; a diversifier gets a divergent growth path. Pure. */
+export function ecosystemSuiteHype(launched: readonly GameState["launched"][number][], era: number): number {
+  const cfg = BALANCE.market.ecosystemSuite;
+  if (era < cfg.fromEra) return 0;
+  const cats = new Set(launched.map((lp) => lp.product.category));
+  const breadth = Math.min(cfg.maxCategories, cats.size);
+  return Math.max(0, breadth - 1) * cfg.perCategoryHype;
+}
+
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
  * upgrade + channel). scoreLaunch clamps total hype too; this caps the bonus side so
  * stacking marketers can't drive the launch score to absurd volumes. Safety guard, not a
@@ -1007,7 +1019,8 @@ export function planProduction(
     // channel) before it reaches scoreLaunch, which also clamps total hype. Without this,
     // stacking many visionary marketers makes launchScore/volume explode. Safety guard.
     // D6: a committed engineering doctrine adds compounding hype when the build leans into its stat.
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype + doctrineAlignHype(s.completedProjects, stats)) * mktMult + equityHypeBonus(brand.equity))),
+    // D4/L4: the Ecosystem Suite adds a cross-device halo once you ship across multiple categories.
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype + doctrineAlignHype(s.completedProjects, stats) + ecosystemSuiteHype(s.launched, s.era)) * mktMult + equityHypeBonus(brand.equity))),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: synergy.factor,

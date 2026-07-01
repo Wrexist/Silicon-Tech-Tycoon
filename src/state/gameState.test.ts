@@ -34,6 +34,7 @@ import {
   rndSkill,
   applyEventEffect,
   doctrineAlignHype,
+  ecosystemSuiteHype,
   type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
@@ -714,5 +715,26 @@ describe("D6: engineering doctrine teeth (aligned build earns compounding hype)"
     expect(doctrineAlignHype(["qualityHouse"], leaning)).toBe(0);
     const qualityLean = { performance: 50, quality: 90, battery: 50, design: 50, ecosystem: 50 };
     expect(doctrineAlignHype(["qualityHouse"], qualityLean)).toBeGreaterThan(0);
+  });
+});
+
+describe("D4/L4: Ecosystem Suite hype scales with category breadth (era-gated)", () => {
+  const lp = (category: Product["category"]) => ({ product: { ...goodPhone(), category } }) as GameState["launched"][number];
+  const cfg = BALANCE.market.ecosystemSuite;
+
+  it("is zero before the Platform era, whatever the breadth", () => {
+    expect(ecosystemSuiteHype([lp("phone"), lp("tablet"), lp("laptop")], cfg.fromEra - 1)).toBe(0);
+  });
+
+  it("a single-category (phone-only) company earns nothing (baseline untouched)", () => {
+    expect(ecosystemSuiteHype([lp("phone"), lp("phone"), lp("phone")], cfg.fromEra)).toBe(0);
+  });
+
+  it("each distinct category beyond the first adds the per-category hype, capped", () => {
+    expect(ecosystemSuiteHype([lp("phone"), lp("tablet")], cfg.fromEra)).toBeCloseTo(cfg.perCategoryHype, 9);
+    expect(ecosystemSuiteHype([lp("phone"), lp("tablet"), lp("laptop")], cfg.fromEra)).toBeCloseTo(2 * cfg.perCategoryHype, 9);
+    // capped at maxCategories distinct categories
+    const many = ["phone", "tablet", "laptop", "desktop", "monitor", "console"].map((c) => lp(c as Product["category"]));
+    expect(ecosystemSuiteHype(many, cfg.fromEra)).toBeCloseTo((cfg.maxCategories - 1) * cfg.perCategoryHype, 9);
   });
 });

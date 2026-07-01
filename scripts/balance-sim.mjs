@@ -11,10 +11,12 @@ import {
 } from "../src/state/gameState.ts";
 import { priceGuidance } from "../src/engine/market.ts";
 import { CATEGORIES } from "../src/engine/catalogs.ts";
+import { unlockedCategories } from "../src/engine/eras.ts";
 import { toDollars } from "../src/engine/money.ts";
 import { BALANCE } from "../src/engine/balance.ts";
 
 const SLOTS = CATEGORIES.phone.slots;
+const RND_SLOTS = ["chip", "display", "battery", "materials", "software", "camera"]; // slots to push research on
 const CHANNELS = ["none", "social", "search", "billboards", "influencer", "tv", "event"];
 const CHANNEL_COST = { none: 0, social: 4000, search: 9000, billboards: 15000, influencer: 20000, tv: 30000, event: 45000 };
 
@@ -33,14 +35,24 @@ const PROFILES = {
   // inventory it may not sell). If the early economy has real failure pressure, this should risk
   // bankruptcy where the disciplined "balanced" profile survives.
   reckless:   { tierBias: "even",      priceMult: 1.00, channel: "priciest", runMult: 1.9 },
+  // D4/L4 axis: a diversifier that SPREADS across product categories (rotating through what's
+  // unlocked) to earn the Ecosystem Suite cross-device halo. A divergent growth path vs the phone-only
+  // maxer; the phone-only "balanced" profile gets no ecosystem bonus, so it stays byte-identical.
+  diversify:  { tierBias: "even",      priceMult: 1.00, channel: "priciest", diversify: true },
 };
 
 let nameSeq = 0;
 /** The product this profile builds now: researched tiers shaped by the profile's tierBias, priced by
- *  its priceMult against fair value. */
-function designProduct(s, profile = PROFILES.balanced) {
+ *  its priceMult against fair value. A diversifier rotates the CATEGORY through what's unlocked. */
+function designProduct(s, profile = PROFILES.balanced, buildIdx = 0) {
+  let category = "phone";
+  if (profile.diversify) {
+    const cats = unlockedCategories(s.era);
+    category = cats[buildIdx % cats.length];
+  }
+  const slots = CATEGORIES[category].slots;
   const tiers = {};
-  for (const slot of SLOTS) {
+  for (const slot of slots) {
     const top = Math.max(1, researchedTier(s, slot));
     if (profile.tierBias === "cheap") tiers[slot] = Math.max(1, top - 1);
     else if (profile.tierBias === "chipHeavy") tiers[slot] = (slot === "chip" || slot === "display") ? top : Math.max(1, top - 2);
@@ -49,7 +61,7 @@ function designProduct(s, profile = PROFILES.balanced) {
   const product = {
     id: `p${nameSeq}`,
     name: `Aurora ${++nameSeq}`,
-    category: "phone",
+    category,
     tiers,
     finish: "aluminium",
     colorIndex: 0,
@@ -58,7 +70,7 @@ function designProduct(s, profile = PROFILES.balanced) {
     camera: { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
     notch: "punch",
   };
-  product.price = Math.round(priceGuidance(productStats(s, product), "phone").fair * profile.priceMult);
+  product.price = Math.round(priceGuidance(productStats(s, product), category).fair * profile.priceMult);
   return product;
 }
 
@@ -92,6 +104,7 @@ function simulate(seed, profile = PROFILES.balanced, maxWeeks = 520) {
   let repMinLate = Infinity; // lowest reputation observed once past the protected Garage era (adversity?)
   let winWeek = null; // first week the IPO "win" is available (era 4 + reputation >= 85)
   const effScoresByEra = { 1: [], 2: [], 3: [], 4: [] }; // effectiveScore = launchScore × compFactor
+  let buildIdx = 0; // rotates the diversifier through categories
 
   for (let w = 0; w < maxWeeks; w++) {
     if (s.bankrupt) break;
@@ -105,9 +118,10 @@ function simulate(seed, profile = PROFILES.balanced, maxWeeks = 520) {
     // D6: a profile committed to an engineering doctrine buys it once affordable (it's an era-2 fork).
     if (profile.doctrine && !s.completedProjects.includes(profile.doctrine)) s = buyProject(s, profile.doctrine);
 
-    // research: push the weakest-researched slot up a tier when RP allows
-    let weakest = SLOTS[0];
-    for (const slot of SLOTS) if (researchedTier(s, slot) < researchedTier(s, weakest)) weakest = slot;
+    // research: push the weakest-researched component up a tier when RP allows (all kinds, so a
+    // diversifier's non-phone categories are covered too)
+    let weakest = RND_SLOTS[0];
+    for (const slot of RND_SLOTS) if (researchedTier(s, slot) < researchedTier(s, weakest)) weakest = slot;
     s = researchNext(s, weakest);
 
     // train the founder occasionally once there's a war chest (now that training actually works)
@@ -126,7 +140,7 @@ function simulate(seed, profile = PROFILES.balanced, maxWeeks = 520) {
 
     // start a build if the line is idle
     if (s.building.length === 0 && s.ready.length === 0) {
-      const product = designProduct(s, profile);
+      const product = designProduct(s, profile, buildIdx++);
       const channel = pickChannelFor(s, profile);
       const run = Math.round(recommendedRun(s, product, channel) * (profile.runMult ?? 1));
       if (run > 0) {
