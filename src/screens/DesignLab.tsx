@@ -58,6 +58,7 @@ import {
   verdictBands,
   osDisplayName,
   osEcoBonus,
+  doctrineAlignHype,
   type GameState,
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -313,6 +314,8 @@ export function DesignLab({
   // D1: feed the same tier bottleneck into the live preview so the "who it's for" panel reflects the
   // coherence discount as the player adjusts tiers (a lopsided build visibly loses the broad market).
   const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week, syn.bottleneck);
+  // D6: does this build lean into the company's engineering doctrine (earning the compounding hype)?
+  const doctrineAligned = doctrineAlignHype(state.completedProjects, stats) > 0;
   // Q3: first-run literacy: show a few teaching hints until the player ships their first product.
   // Derived (no persisted flag) and gated to a fresh playthrough, so NG+ veterans get a clean screen.
   const isFirstRun = state.legacy === 0 && state.launched.length === 0;
@@ -1321,6 +1324,14 @@ export function DesignLab({
                   </div>
                 );
               })()}
+              {/* D6: your own engineering doctrine, when this build leans into it: a compounding hype
+                  reward for committing to a house AND building aligned products. */}
+              {doctrineAligned && (
+                <div className="lab__doctrine lab__doctrine--countered">
+                  <Sparkles size={12} aria-hidden />
+                  <span>Your engineering doctrine is aligned with this build, earning extra launch hype.</span>
+                </div>
+              )}
               {(() => {
                 const STAT_FULL: Record<keyof Stats, string> = { performance: "Perf", quality: "Quality", battery: "Battery", design: "Design", ecosystem: "Ecosys" };
                 const top2 = STAT_KEYS

@@ -52,6 +52,14 @@ export const BALANCE = {
     // "high"; maxTotalBonus caps the summed bonus so even a fully-maxed flagship can't stack past a
     // sane ceiling (keeps the late game contestable). Applied in the state layer (productStats).
     archetype: { highTierFrac: 0.8, maxTotalBonus: 3 },
+    // D6 (research doctrine teeth): the engineering doctrine (Performance / Efficiency / Reliability
+    // house) is more than a static +5. When a product LEANS INTO the house's stat (that stat stands
+    // clearly above the build's average), it earns a compounding launch-hype bonus, so committing to a
+    // house AND building aligned products is a real company identity that pays off over a run. A
+    // balanced build (no stat stands out) keeps the +5 but not this bonus, so it rewards specialization
+    // specifically. doctrineLeadMargin = how far above the build's mean the stat must sit to count.
+    doctrineAlignHype: 0.28,
+    doctrineLeadMargin: 8,
     // Screen refresh rate (Hz) — a customizable display spec. Higher Hz adds a small appeal bump
     // and a per-unit cost, but is GATED by the display tier (a budget panel can't drive 144Hz), so
     // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).

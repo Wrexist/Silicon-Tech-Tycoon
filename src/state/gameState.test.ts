@@ -33,6 +33,7 @@ import {
   trainStaff,
   rndSkill,
   applyEventEffect,
+  doctrineAlignHype,
   type GameState,
 } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
@@ -690,5 +691,28 @@ describe("C1: event feed states the realized magnitude", () => {
     const next = applyEventEffect(s, { kind: "rpBonus", amount: 10 }, 4, "Lab breakthrough", "positive");
     const last = next.feed[next.feed.length - 1].text;
     expect(last).toBe("Lab breakthrough");
+  });
+});
+
+describe("D6: engineering doctrine teeth (aligned build earns compounding hype)", () => {
+  const leaning = { performance: 90, quality: 50, battery: 50, design: 50, ecosystem: 50 }; // performance stands out
+  const balanced = { performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 }; // nothing stands out
+
+  it("no doctrine owned yields no bonus", () => {
+    expect(doctrineAlignHype([], leaning)).toBe(0);
+  });
+
+  it("a Performance house rewards a performance-leaning build", () => {
+    expect(doctrineAlignHype(["perfHouse"], leaning)).toBeGreaterThan(0);
+  });
+
+  it("a balanced build earns nothing even with a doctrine (rewards specialization, not maxing)", () => {
+    expect(doctrineAlignHype(["perfHouse"], balanced)).toBe(0);
+  });
+
+  it("the house must match the standout stat (a perf lean does not satisfy the Reliability house)", () => {
+    expect(doctrineAlignHype(["qualityHouse"], leaning)).toBe(0);
+    const qualityLean = { performance: 50, quality: 90, battery: 50, design: 50, ecosystem: 50 };
+    expect(doctrineAlignHype(["qualityHouse"], qualityLean)).toBeGreaterThan(0);
   });
 });

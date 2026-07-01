@@ -7,7 +7,7 @@
 // Imports TypeScript engine modules, so it's bundled with esbuild before running (see package.json).
 import {
   newGame, advanceOneWeek, planProduction, startBuild, launchReady, recommendedRun, // eslint-disable-line
-  productStats, researchedTier, researchNext, canAdvance, advanceEraAction, netWorth, trainStaff,
+  productStats, researchedTier, researchNext, canAdvance, advanceEraAction, netWorth, trainStaff, buyProject,
 } from "../src/state/gameState.ts";
 import { priceGuidance } from "../src/engine/market.ts";
 import { CATEGORIES } from "../src/engine/catalogs.ts";
@@ -28,7 +28,7 @@ const PROFILES = {
   balanced:   { tierBias: "even",      priceMult: 1.00, channel: "priciest" },
   premium:    { tierBias: "even",      priceMult: 1.28, channel: "event" },      // strong brand overprices (D3), enterprise/style reach (D2)
   value:      { tierBias: "cheap",     priceMult: 0.88, channel: "social" },     // undercut defenders (D5), budget reach (D2)
-  specialist: { tierBias: "chipHeavy", priceMult: 1.14, channel: "billboards" }, // lopsided Pro build (D1 Pro-tolerance), premium vs undercutters (D5), pro reach (D2)
+  specialist: { tierBias: "chipHeavy", priceMult: 1.14, channel: "billboards", doctrine: "perfHouse" }, // lopsided Pro build (D1 Pro-tolerance), Performance house teeth (D6), premium vs undercutters (D5), pro reach (D2)
 };
 
 let nameSeq = 0;
@@ -97,6 +97,9 @@ function simulate(seed, profile = PROFILES.balanced, maxWeeks = 520) {
 
     // advance era as soon as eligible
     if (canAdvance(s)) s = advanceEraAction(s);
+
+    // D6: a profile committed to an engineering doctrine buys it once affordable (it's an era-2 fork).
+    if (profile.doctrine && !s.completedProjects.includes(profile.doctrine)) s = buyProject(s, profile.doctrine);
 
     // research: push the weakest-researched slot up a tier when RP allows
     let weakest = SLOTS[0];

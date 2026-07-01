@@ -645,6 +645,29 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
   visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype;
 
+/** Which stat each engineering-doctrine house is built around (Track D fork). */
+const DOCTRINE_STAT: Partial<Record<ProjectId, keyof Stats>> = {
+  perfHouse: "performance",
+  effHouse: "battery",
+  qualityHouse: "quality",
+};
+
+/** D6: the engineering doctrine's "teeth": once a house is committed, a product that LEANS INTO its
+ *  stat (that stat stands clearly above the build's average) earns a compounding launch-hype bonus, so
+ *  the doctrine is a specialize-AND-build-aligned identity rather than a static +5. A balanced build
+ *  (no stat stands out) keeps the +5 stat but earns nothing here, so this rewards specialization
+ *  specifically. Pure; 0 when no doctrine is owned or the build does not lean into it. */
+export function doctrineAlignHype(completedProjects: readonly ProjectId[], stats: Stats): number {
+  let doc: keyof Stats | undefined;
+  for (const proj of Object.keys(DOCTRINE_STAT) as ProjectId[]) {
+    if (hasProject(completedProjects, proj)) { doc = DOCTRINE_STAT[proj]; break; }
+  }
+  if (!doc) return 0;
+  const vals = Object.values(stats);
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  return stats[doc] >= mean + BALANCE.design.doctrineLeadMargin ? BALANCE.design.doctrineAlignHype : 0;
+}
+
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
  * upgrade + channel). scoreLaunch clamps total hype too; this caps the bonus side so
  * stacking marketers can't drive the launch score to absurd volumes. Safety guard, not a
@@ -983,7 +1006,8 @@ export function planProduction(
     // Bound the combined hype bonus (studio + visionary marketers + marketing upgrade +
     // channel) before it reaches scoreLaunch, which also clamps total hype. Without this,
     // stacking many visionary marketers makes launchScore/volume explode. Safety guard.
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype) * mktMult + equityHypeBonus(brand.equity))),
+    // D6: a committed engineering doctrine adds compounding hype when the build leans into its stat.
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype + doctrineAlignHype(s.completedProjects, stats)) * mktMult + equityHypeBonus(brand.equity))),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: synergy.factor,
