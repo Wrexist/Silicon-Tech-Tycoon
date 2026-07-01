@@ -119,7 +119,9 @@ export function priceGuidance(stats: Stats, category: CategoryId): { lo: Money; 
   const perceived = overallScore(stats, category); // 0..100
   const fairDollars = Math.max(1, perceived * toDollars(p.valueToPrice));
   // fit = exp(−dev²/(2·tol²)) ≥ floor  ⇔  |dev| ≤ tol·√(2·ln(1/floor))
-  const halfWidth = p.tolerance * Math.sqrt(2 * Math.log(1 / p.guidanceFitFloor));
+  // guidanceFitFloor must be in (0, 1]; the sqrt argument is floored at 0 so a value >= 1 (which
+  // makes ln(1/floor) <= 0) yields a zero-width band instead of NaN.
+  const halfWidth = p.tolerance * Math.sqrt(Math.max(0, 2 * Math.log(1 / p.guidanceFitFloor)));
   const lo = Math.max(1, Math.round(fairDollars * (1 - halfWidth)));
   const hi = Math.max(lo, Math.round(fairDollars * (1 + halfWidth / p.overpriceHarshness)));
   return { lo: dollars(lo), fair: dollars(Math.round(fairDollars)), hi: dollars(hi) };

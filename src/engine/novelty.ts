@@ -59,8 +59,9 @@ export function noveltyFor(
     const weeksAgo = currentWeek - lp.launchedWeek;
     if (weeksAgo < 0 || weeksAgo >= nb.fatigueWeeks) continue;
     const sim = productSimilarity(product, lp.product);
-    // Only products above the floor read as "too similar"; remap floor→0, identical→1.
-    const over = sim <= nb.similarityFloor ? 0 : (sim - nb.similarityFloor) / (1 - nb.similarityFloor);
+    // Only products above the floor read as "too similar"; remap floor->0, identical->1. The
+    // denominator is floored so a misconfigured similarityFloor of 1 can't divide by zero into NaN.
+    const over = sim <= nb.similarityFloor ? 0 : (sim - nb.similarityFloor) / Math.max(1e-6, 1 - nb.similarityFloor);
     if (over <= 0) continue;
     const recency = 1 - weeksAgo / nb.fatigueWeeks; // 1 just-released → 0 at the window edge
     const fatigue = over * recency;

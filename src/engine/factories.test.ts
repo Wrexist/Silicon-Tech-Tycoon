@@ -105,6 +105,13 @@ describe("capacity strategies (P3)", () => {
     expect(o.overtimeFraction).toBe(0);
     expect(o.qualityPenalty).toBeGreaterThan(0);
   });
+  it("stretch stays finite if a factory is misconfigured to zero capacity (defensive guard)", () => {
+    // Not reachable with real factory constants (overUnits > 0 implies finite capacity), but a bad
+    // capacityPerWeek of 0 must not divide into Infinity buildWeeks. The floored divisor keeps it finite.
+    const o = resolveCapacity({ ...opts, capacityPerWeek: 0, strategy: "stretch" });
+    expect(Number.isFinite(o.buildWeeks)).toBe(true);
+    expect(o.buildWeeks).toBeGreaterThanOrEqual(opts.assemblyWeeks);
+  });
   it("is a clean no-op within capacity regardless of strategy", () => {
     for (const strategy of ["overtime", "stretch", "defects"] as const) {
       const o = resolveCapacity({ ...opts, plannedUnits: 1000, strategy });

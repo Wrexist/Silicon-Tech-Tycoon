@@ -184,7 +184,9 @@ export function resolveCapacity(opts: {
     return { overUnits: 0, buildWeeks: assemblyWeeks, overtimeFraction: 0, qualityPenalty: 0 };
   }
   if (strategy === "stretch") {
-    const needed = Math.ceil(Math.max(0, Math.round(plannedUnits)) / capacityPerWeek);
+    // capacityPerWeek is finite and > 0 here (overUnits > 0 guarantees it), but floor the divisor
+    // defensively so a factory misconfigured to capacityPerWeek 0 yields a large week count, not Infinity.
+    const needed = Math.ceil(Math.max(0, Math.round(plannedUnits)) / Math.max(1, capacityPerWeek));
     return { overUnits, buildWeeks: Math.max(assemblyWeeks, needed), overtimeFraction: 0, qualityPenalty: 0 };
   }
   if (strategy === "defects") {
