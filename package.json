@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
+    "lint": "node scripts/check-emdash.mjs",
     "furniture:fetch": "node scripts/fetch-furniture.mjs",
     "assets:icons": "node scripts/gen-icons.mjs",
     "shots:stage": "esbuild scripts/stage-save.mjs --bundle --platform=node --format=cjs --outfile=scripts/.stage.cjs --log-level=error && node scripts/.stage.cjs",
