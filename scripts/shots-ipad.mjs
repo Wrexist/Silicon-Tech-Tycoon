@@ -14,13 +14,30 @@
 //   npm run shots:stage
 //   node scripts/shots-ipad.mjs
 import { mkdir, readFile } from "node:fs/promises";
+import { existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { chromium } from "playwright-core";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const URL = process.env.SHOTS_URL || "http://localhost:5199";
-const EXE = process.env.SHOTS_CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+// Resolve a Chromium binary revision-agnostically: SHOTS_CHROME override → the newest
+// /opt/pw-browsers/chromium-<rev>/chrome-linux/chrome → a clear error (playwright-core has no
+// managed browser to fall back to). Hard-coding a revision breaks the moment Playwright bumps it.
+function resolveChrome() {
+  if (process.env.SHOTS_CHROME) return process.env.SHOTS_CHROME;
+  const base = "/opt/pw-browsers";
+  if (existsSync(base)) {
+    const dir = readdirSync(base)
+      .filter((d) => /^chromium-\d+$/.test(d))
+      .sort((a, b) => Number(a.slice(9)) - Number(b.slice(9)))
+      .pop();
+    const exe = dir && resolve(base, dir, "chrome-linux/chrome");
+    if (exe && existsSync(exe)) return exe;
+  }
+  throw new Error("No Chromium found under /opt/pw-browsers — set SHOTS_CHROME=/path/to/chrome");
+}
+const EXE = resolveChrome();
 const SIZE = { w: 2064, h: 2752 };            // 13" iPad portrait (App Store "iPad 13-inch" slot)
 const CAP = { w: 540, h: 720 };               // capture viewport — app's max width, 3:4 aspect
 const rawDir = resolve(root, ".ipad-raw");
@@ -64,13 +81,16 @@ async function page(saveJson) {
   // cross-fade or card-stagger (which at 540px width overlapped two wizard steps). This mirrors
   // the app's own prefers-reduced-motion end-state — but injected as a plain <style> so it does
   // NOT trip matchMedia("prefers-reduced-motion"), leaving the WebGL 3D garage rendering normally.
-  await p.addStyleTag({ content: "*,*::before,*::after{animation-duration:1ms!important;animation-delay:-1ms!important;transition-duration:1ms!important;transition-delay:0ms!important}" }).catch(() => {});
+  // Both style injections below are load-bearing for capture correctness (not best-effort like the
+  // dismissals above) — let them throw so a broken injection fails the run instead of silently
+  // shipping an overlapping or mid-transition asset.
+  await p.addStyleTag({ content: "*,*::before,*::after{animation-duration:1ms!important;animation-delay:-1ms!important;transition-duration:1ms!important;transition-delay:0ms!important}" });
   // Capture-only fix for a latent CSS class collision at the app's 540px max width: `.lab__hero-grid`
   // is defined both as the Design Lab's two-column layout AND (elsewhere) as the dot-texture backdrop
   // (position:absolute;inset:0). At 540px the absolute leaks onto the layout grid, pulling it out of
   // flow so the Category selector slides up underneath it. Re-assert the layout grid as in-flow. This
   // does not touch app source; the shipped app renders on <430px phones where it doesn't manifest.
-  await p.addStyleTag({ content: ".lab__hero-grid:has(> .lab__hero-info){position:static!important;inset:auto!important;grid-template-columns:1fr!important}" }).catch(() => {});
+  await p.addStyleTag({ content: ".lab__hero-grid:has(> .lab__hero-info){position:static!important;inset:auto!important;grid-template-columns:1fr!important}" });
   await p.waitForTimeout(300);
   return { ctx, p };
 }
@@ -93,7 +113,7 @@ const FRAMES = [
   { raw: "hq", head: 'Garage to <span class="ac">global empire</span>', sub: "Watch your studio grow in real-time 3D as you scale.", hue: 200,
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(700); await top(p); } },
   { raw: "decorate", head: 'Make it <span class="ac">yours</span>', sub: "Design your studio. Drag in 60+ pieces of parametric furniture.", hue: 168,
-    shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(500); await top(p); await p.evaluate(() => document.querySelector(".hq__decorate")?.click()); await p.waitForTimeout(2400); } },
+    shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(500); await top(p); await p.evaluate(() => { const el = document.querySelector(".hq__decorate"); if (!(el instanceof HTMLElement)) throw new Error("Missing .hq__decorate — cannot open the studio editor"); el.click(); }); await p.waitForTimeout(2400); } },
   { raw: "research", head: 'Choose your <span class="ac">doctrine</span>', sub: "Mutually-exclusive research forks shape a company that plays like no other.", hue: 188,
     shoot: async (p) => { await tab(p, "Research"); await p.evaluate(() => [...document.querySelectorAll(".ds-card")].find((c) => /Performance House|Reliability House/.test(c.textContent || ""))?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
   { raw: "finance", head: 'Master your <span class="ac">finances</span>', sub: "Borrow to fund a bet, invest in morale. Runway is a decision, not a timer.", hue: 150, mut: addLoan,

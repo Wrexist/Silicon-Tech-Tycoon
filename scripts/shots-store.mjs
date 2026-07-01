@@ -53,14 +53,16 @@ async function page(saveJson) {
   await p.click('.ds-sheet button:has-text("Continue")', { timeout: 2200 }).catch(() => {});
   for (let i = 0; i < 8; i++) { const sk = await p.$(".coach__skip"); if (!sk) break; await sk.click().catch(() => {}); await p.waitForTimeout(220); }
   await p.click('button[aria-label="Pause"]', { timeout: 4000 }).catch(() => {});
-  // Neutralize CSS animations so a capture can never land mid step-transition.
-  await p.addStyleTag({ content: "*,*::before,*::after{animation-duration:1ms!important;animation-delay:-1ms!important;transition-duration:1ms!important;transition-delay:0ms!important}" }).catch(() => {});
+  // Both style injections below are load-bearing for capture correctness (not best-effort like the
+  // dismissals above) — let them throw so a broken injection fails the run instead of silently
+  // shipping an overlapping or mid-transition asset.
+  await p.addStyleTag({ content: "*,*::before,*::after{animation-duration:1ms!important;animation-delay:-1ms!important;transition-duration:1ms!important;transition-delay:0ms!important}" });
   // Capture-only fix for a latent `.lab__hero-grid` class collision: the class is defined both as the
   // Design Lab's two-column layout AND as the dot-texture backdrop (position:absolute;inset:0), so the
   // absolute leaks onto the layout grid, pulling it out of flow → the Category selector overlaps it.
   // Re-assert the layout grid as an in-flow single column (device render over the read-out). Does not
   // touch app source. Without this the Design frame renders as overlapping panels.
-  await p.addStyleTag({ content: ".lab__hero-grid:has(> .lab__hero-info){position:static!important;inset:auto!important;grid-template-columns:1fr!important}" }).catch(() => {});
+  await p.addStyleTag({ content: ".lab__hero-grid:has(> .lab__hero-info){position:static!important;inset:auto!important;grid-template-columns:1fr!important}" });
   await p.waitForTimeout(300);
   return { ctx, p };
 }
@@ -83,7 +85,7 @@ const FRAMES = [
   { raw: "hq", head: 'Garage to <span class="ac">global empire</span>', sub: "Watch your studio grow in real-time 3D as you scale.", hue: 200,
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(700); await top(p); } },
   { raw: "decorate", head: 'Make it <span class="ac">yours</span>', sub: "Design your studio. Drag in 60+ pieces of parametric furniture.", hue: 168,
-    shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(500); await top(p); await p.evaluate(() => document.querySelector(".hq__decorate")?.click()); await p.waitForTimeout(2200); } },
+    shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(500); await top(p); await p.evaluate(() => { const el = document.querySelector(".hq__decorate"); if (!(el instanceof HTMLElement)) throw new Error("Missing .hq__decorate — cannot open the studio editor"); el.click(); }); await p.waitForTimeout(2200); } },
   { raw: "research", head: 'Choose your <span class="ac">doctrine</span>', sub: "Mutually-exclusive research forks shape a company that plays like no other.", hue: 188,
     shoot: async (p) => { await tab(p, "Research"); await p.evaluate(() => [...document.querySelectorAll(".ds-card")].find((c) => /Performance House|Reliability House/.test(c.textContent || ""))?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
   { raw: "finance", head: 'Master your <span class="ac">finances</span>', sub: "Borrow to fund a bet, invest in morale. Runway is a decision, not a timer.", hue: 150, mut: addLoan,
