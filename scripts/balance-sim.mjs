@@ -18,11 +18,30 @@ const SLOTS = CATEGORIES.phone.slots;
 const CHANNELS = ["none", "social", "search", "billboards", "influencer", "tv", "event"];
 const CHANNEL_COST = { none: 0, social: 4000, search: 9000, billboards: 15000, influencer: 20000, tv: 30000, event: 45000 };
 
+// L5: strategy PROFILES. The old harness drove ONE fixed strategy (balanced maxer, fair price), so
+// its net-worth CV measured only RNG noise of a single playstyle, not strategic divergence. These
+// profiles each lean on a different depth axis (D1 coherence, D2 channel affinity, D3 brand band,
+// D5 doctrine counters), so the cross-profile spread MEASURES whether strategy actually matters
+// (the real "is the late game solved?" question). tierBias shapes the build; priceMult positions vs
+// fair value; channel picks the campaign.
+const PROFILES = {
+  balanced:   { tierBias: "even",      priceMult: 1.00, channel: "priciest" },
+  premium:    { tierBias: "even",      priceMult: 1.28, channel: "event" },      // strong brand overprices (D3), enterprise/style reach (D2)
+  value:      { tierBias: "cheap",     priceMult: 0.88, channel: "social" },     // undercut defenders (D5), budget reach (D2)
+  specialist: { tierBias: "chipHeavy", priceMult: 1.14, channel: "billboards" }, // lopsided Pro build (D1 Pro-tolerance), premium vs undercutters (D5), pro reach (D2)
+};
+
 let nameSeq = 0;
-/** Best product the player can currently build: best researched tier per slot, fair price. */
-function designProduct(s) {
+/** The product this profile builds now: researched tiers shaped by the profile's tierBias, priced by
+ *  its priceMult against fair value. */
+function designProduct(s, profile = PROFILES.balanced) {
   const tiers = {};
-  for (const slot of SLOTS) tiers[slot] = Math.max(1, researchedTier(s, slot));
+  for (const slot of SLOTS) {
+    const top = Math.max(1, researchedTier(s, slot));
+    if (profile.tierBias === "cheap") tiers[slot] = Math.max(1, top - 1);
+    else if (profile.tierBias === "chipHeavy") tiers[slot] = (slot === "chip" || slot === "display") ? top : Math.max(1, top - 2);
+    else tiers[slot] = top;
+  }
   const product = {
     id: `p${nameSeq}`,
     name: `Aurora ${++nameSeq}`,
@@ -35,7 +54,7 @@ function designProduct(s) {
     camera: { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
     notch: "punch",
   };
-  product.price = priceGuidance(productStats(s, product), "phone").fair;
+  product.price = Math.round(priceGuidance(productStats(s, product), "phone").fair * profile.priceMult);
   return product;
 }
 
@@ -47,7 +66,18 @@ function pickChannel(s) {
   return best;
 }
 
-function simulate(seed, maxWeeks = 520) {
+/** The channel this profile wants: "priciest" = the old costliest-affordable pick; otherwise the
+ *  profile's named channel if affordable (≤ ~12% of cash), stepping down to a cheaper one if not. */
+function pickChannelFor(s, profile) {
+  if (profile.channel === "priciest") return pickChannel(s);
+  const budget = toDollars(s.cash) * 0.12;
+  const order = ["event", "tv", "influencer", "billboards", "search", "social", "none"];
+  const wantIdx = order.indexOf(profile.channel);
+  for (let i = wantIdx; i < order.length; i++) if (CHANNEL_COST[order[i]] <= budget) return order[i];
+  return "none";
+}
+
+function simulate(seed, profile = PROFILES.balanced, maxWeeks = 520) {
   let s = newGame(seed);
   const runwayWeek0 = toDollars(s.cash) / Math.max(1, weeklyBurnApprox(s));
   const verdicts = { hit: 0, solid: 0, steady: 0, flop: 0 };
@@ -89,8 +119,8 @@ function simulate(seed, maxWeeks = 520) {
 
     // start a build if the line is idle
     if (s.building.length === 0 && s.ready.length === 0) {
-      const product = designProduct(s);
-      const channel = pickChannel(s);
+      const product = designProduct(s, profile);
+      const channel = pickChannelFor(s, profile);
       const run = recommendedRun(s, product, channel);
       if (run > 0) {
         const res = startBuild(s, product, run, channel);
@@ -140,7 +170,12 @@ function weeklyBurnApprox(s) {
 
 // ---- run the cohort ----
 const SEEDS = Array.from({ length: 40 }, (_, i) => i * 101 + 7);
-const runs = SEEDS.map((seed) => simulate(seed));
+// L5: every profile across every seed, so we can measure strategic divergence, not just RNG noise.
+const profileRuns = Object.fromEntries(
+  Object.entries(PROFILES).map(([name, p]) => [name, SEEDS.map((seed) => simulate(seed, p))]),
+);
+// The default report stays on the "balanced" profile so historical baselines remain comparable.
+const runs = profileRuns.balanced;
 
 const agg = (f) => runs.map(f);
 const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -210,4 +245,30 @@ for (const era of [1, 2, 3, 4]) {
     `  ${era}   ${String(xs.length).padStart(4)}  ${pct(xs, 0.1).toFixed(0).padStart(5)}  ${median(xs).toFixed(0).padStart(5)}  ${pct(xs, 0.9).toFixed(0).padStart(5)}    | ${b.flop} / ${b.solid} / ${b.hit}`,
   );
 }
+
+// --- L5/L4: strategic divergence: do DIFFERENT strategies reach DIFFERENT outcomes? The single-
+// profile CV above measures RNG noise of one playstyle; THIS measures whether the choice of strategy
+// matters. Per-profile medians + the WITHIN-SEED spread across profiles (for the same seed/RNG, how
+// far apart do the four strategies land) are the real "is the late game solved?" signal.
+console.log(`\n--- strategic divergence (L4/L5): does the strategy you pick matter? ---`);
+console.log(`  profile      bankrupt   win     net worth p50     hit%`);
+for (const name of Object.keys(PROFILES)) {
+  const rs = profileRuns[name];
+  const nwv = rs.map((r) => r.finalNetWorth);
+  const wins = rs.filter((r) => r.winWeek != null).length;
+  const bk = rs.filter((r) => r.bankrupt).length;
+  const hr = 100 * mean(rs.map((r) => r.hitRate));
+  console.log(`  ${name.padEnd(11)}  ${String(bk).padStart(2)}/${rs.length}      ${String(wins).padStart(2)}/${rs.length}   ${money(median(nwv)).padStart(9)}         ${hr.toFixed(0)}%`);
+}
+// Within-seed cross-profile spread: for each seed, max/min of the four profiles' net worth.
+const perSeedSpread = SEEDS.map((_, i) => {
+  const vals = Object.keys(PROFILES).map((name) => profileRuns[name][i].finalNetWorth).filter((v) => v > 0);
+  if (vals.length < 2) return 1;
+  return Math.max(...vals) / Math.min(...vals);
+});
+const profileMedians = Object.keys(PROFILES).map((name) => median(profileRuns[name].map((r) => r.finalNetWorth)));
+const crossMean = mean(profileMedians);
+const crossCV = Math.sqrt(mean(profileMedians.map((x) => (x - crossMean) ** 2))) / crossMean;
+console.log(`\n  Cross-profile net-worth CV: ${(crossCV * 100).toFixed(1)}%  (spread BETWEEN strategies, high = strategy matters)`);
+console.log(`  Within-seed spread:         median ${median(perSeedSpread).toFixed(2)}×  best ${Math.max(...perSeedSpread).toFixed(2)}×  (same RNG; best vs worst strategy)`);
 console.log("");
