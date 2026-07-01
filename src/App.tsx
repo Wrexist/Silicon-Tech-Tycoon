@@ -123,9 +123,10 @@ function AppShell() {
 
       <Coach tab={tab} onNavigate={setTab} />
 
-      {/* Thumb-reachable speed control, post-tutorial. Hidden on Design (the build wizard owns the
-          bottom band there) and during the tutorial (the controls stay in the top HUD then). */}
-      {state.tutorialDone && tab !== "design" && <SpeedDial />}
+      {/* Q4: thumb-reachable speed control, post-tutorial, in ONE persistent home (bottom-left) on
+          EVERY screen so a player never loses it. On Design it's raised to clear the section-nav
+          band; during the tutorial the controls stay in the top HUD. */}
+      {state.tutorialDone && <SpeedDial raised={tab === "design"} />}
 
       <BottomNav
         active={tab}

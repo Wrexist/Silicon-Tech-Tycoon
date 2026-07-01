@@ -173,6 +173,12 @@
 body.hq-deco-open .speeddial {
   display: none;
 }
+/* Q4: on the Design tab the section-nav band (Back / Next, ~48px tall at bottom 60px) shares the
+   bottom-left corner, so raise the dial to sit clear above it. Keeps ONE persistent home (bottom-
+   left) on every screen instead of vanishing on Design. */
+.speeddial--raised {
+  bottom: calc(120px + env(safe-area-inset-bottom));
+}
 
 /* Micro-label so an icon chip reads unambiguously ("Rep 8", not a bare gold star). */
 .hud__chip-tag {

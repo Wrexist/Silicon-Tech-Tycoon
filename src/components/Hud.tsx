@@ -114,10 +114,10 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: ()
 /** Thumb-reachable floating simulation-speed control (Pause/Resume + Fast-forward). Rendered after
  *  the tutorial, when the time controls leave the top HUD; hidden on the Design tab where the build
  *  wizard owns the bottom band. Sits just above the tab bar at the bottom-right (App gates it). */
-export function SpeedDial() {
+export function SpeedDial({ raised = false }: { raised?: boolean }) {
   const { paused, setPaused, fast, setFast } = useGame();
   return (
-    <div className="speeddial" role="group" aria-label="Simulation speed">
+    <div className={`speeddial${raised ? " speeddial--raised" : ""}`} role="group" aria-label="Simulation speed">
       <button
         className="speeddial__btn"
         onClick={() => setPaused(!paused)}
