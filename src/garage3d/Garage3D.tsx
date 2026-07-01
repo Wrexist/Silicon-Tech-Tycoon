@@ -91,6 +91,12 @@ const ROAM_HOMES: [number, number][] = [
   [0.8, -0.6],
   [-0.2, 0.6],
 ];
+// Perf ceiling on simultaneously-rendered roaming robots (each is an animated, obstacle-avoiding
+// actor). This MUST stay >= the largest facility staffCapacity in balance.ts (currently 16), because
+// headcount is hard-capped at that value by hireStaff/hireCandidate: keeping the ceiling at/above it
+// means no employee is ever silently dropped from the floor. If a future facility tier raises
+// staffCapacity past this number, raise this too (roamHomeFor already fans any count out safely).
+const ROAM_RENDER_CAP = 16;
 
 /** Roam anchor for overflow employee i. The 5th+ roamer used to land EXACTLY on an earlier one's
  *  home (i % 4) and the pair would jitter against each other (no roamer-roamer separation, only
@@ -1588,7 +1594,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   const podCount = Math.max(0, Math.min(4, desktops));
   const podWorlds = desktopWorlds(podCount);
   const podStaff = overflow.slice(0, podCount);
-  const roaming = overflow.slice(podCount, 16);
+  const roaming = overflow.slice(podCount, ROAM_RENDER_CAP);
   // Occupied desks render as full live workstations, so hide their plain furniture models
   // (cozy view only — in Decorate mode the editable furniture pieces must stay visible).
   const occupiedIids = new Set(seated.map((_, i) => seats[i].iid));
