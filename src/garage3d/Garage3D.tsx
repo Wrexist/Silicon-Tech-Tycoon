@@ -1452,8 +1452,22 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
         setDragCell(null);
       }
     };
+    // On touch, the browser fires pointercancel (a system gesture, notification, or palm rejection
+    // interrupting the drag) INSTEAD of pointerup. Without handling it the piece stays lifted and
+    // stuck to nothing until a stray pointerup. Cancel resets the drag WITHOUT committing, so an
+    // interrupted drag snaps the piece back to where it started.
+    const cancel = () => {
+      if (live.current.iid) {
+        setDragIid(null);
+        setDragCell(null);
+      }
+    };
     window.addEventListener("pointerup", up);
-    return () => window.removeEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+    };
   }, []);
 
   const placeOk = hover && b.placingType ? canPlace(b.layout, b.placingType, hover.c, hover.r, b.placeRot) : false;
