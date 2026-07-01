@@ -225,6 +225,7 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 ## Backlog
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
+- **CSS bug — `src/screens/designLab.css`:** `.lab__hero-grid` is declared twice — as the Design Lab's two-column layout (~L121) AND as the dot-texture backdrop with `position:absolute;inset:0` (~L138). The absolute leaks onto the layout grid, pulling it out of flow, so at the app's 540px max width the Design Lab hero overlaps the Category selector (invisible on ≤430px phones). Fix: rename the backdrop-texture class (e.g. `.lab__hero-dots`) in the CSS + `DesignLab.tsx`. Worked around at capture-time in `shots-store.mjs`/`shots-ipad.mjs`; the real fix belongs in source.
 - **[PLAN READY] Supply chain — Suppliers & Factories.** Full design + phased build plan in
   `SUPPLY_CHAIN_PLAN.md`. Turns the opaque manufacturing step into real choices (where parts come
   from / where you build), and gives the existing random `supplyCrunch` events a player-controlled
