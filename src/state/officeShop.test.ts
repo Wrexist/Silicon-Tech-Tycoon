@@ -50,7 +50,7 @@ describe("office shop — economics", () => {
   });
 
   it("a broke player can recover by selling furniture back", () => {
-    let s = placeFurniture(rich(), "executiveDesk", 0, 0, 0);
+    let s = placeFurniture(rich(), "executiveDesk", 0, 1, 0); // desks start at row 1
     const iid = s.layout[s.layout.length - 1].iid;
     s = { ...s, cash: dollars(0) }; // went broke after buying
     s = removeFurniture(s, iid);

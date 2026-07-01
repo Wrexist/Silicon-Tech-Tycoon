@@ -14,6 +14,8 @@ import {
   officeAttrs,
   removeItem,
   rotateItem,
+  reseatBackRowDesks,
+  MIN_DESK_ROW,
   worldOf,
   type PlacedItem,
 } from "./furniture.ts";
@@ -42,8 +44,8 @@ describe("furniture grid model", () => {
   });
 
   it("moves and rotates only when valid, and removes", () => {
-    let layout = addItem([], "a", "desk", 0, 0, 0);
-    layout = addItem(layout, "b", "cabinet", 0, 2, 0);
+    let layout = addItem([], "a", "desk", 0, 1, 0); // desks start at row 1 (back row reserved)
+    layout = addItem(layout, "b", "cabinet", 0, 3, 0);
     layout = moveItem(layout, "a", 3, 3); // free → moves
     expect(layout.find((x) => x.iid === "a")).toMatchObject({ c: 3, r: 3 });
     layout = rotateItem(layout, "a");
@@ -58,6 +60,38 @@ describe("furniture grid model", () => {
     expect(c0.c + 2).toBeLessThanOrEqual(GRID.n);
     const w = worldOf({ iid: "x", type: "desk", c: c0.c, r: c0.r, rot: 0 });
     expect(Math.abs(w.x)).toBeLessThan(GRID.n * GRID.cell);
+  });
+
+  it("desks cannot be placed in the reserved back row (would seat a robot in the wall)", () => {
+    expect(canPlace([], "desk", 0, 0, 0)).toBe(false);
+    expect(canPlace([], "executiveDesk", 0, MIN_DESK_ROW - 1, 0)).toBe(false);
+    expect(canPlace([], "desk", 0, MIN_DESK_ROW, 0)).toBe(true);
+    // non-desk furniture may still sit against the back wall
+    expect(canPlace([], "plantPot", 0, 0, 0)).toBe(true);
+    // addItem enforces it too (the editor path)
+    expect(addItem([], "a", "desk", 2, 0, 0)).toHaveLength(0);
+  });
+
+  it("reseatBackRowDesks moves back-row desks forward, keeps iids, leaves others put", () => {
+    const layout: PlacedItem[] = [
+      { iid: "d1", type: "desk", c: 0, r: 0, rot: 0 },
+      { iid: "d2", type: "desk", c: 3, r: 0, rot: 0 },
+      { iid: "d3", type: "desk", c: 0, r: 3, rot: 0 }, // already legal
+      { iid: "p1", type: "plantPot", c: 6, r: 0, rot: 0 }, // non-desk, may stay in back row
+    ];
+    const healed = reseatBackRowDesks(layout);
+    for (const d of healed.filter((it) => it.type === "desk")) {
+      expect(d.r).toBeGreaterThanOrEqual(MIN_DESK_ROW);
+    }
+    // iids are preserved (employees keep their seat)
+    expect(new Set(healed.map((h) => h.iid))).toEqual(new Set(["d1", "d2", "d3", "p1"]));
+    // the already-legal desk is untouched; the plant stays against the wall
+    expect(healed.find((h) => h.iid === "d3")).toMatchObject({ r: 3 });
+    expect(healed.find((h) => h.iid === "p1")).toMatchObject({ r: 0 });
+    // healed layout is internally valid
+    for (const it of healed) {
+      expect(canPlace(healed, it.type, it.c, it.r, it.rot, it.iid)).toBe(true);
+    }
   });
 
   it("default layout is internally valid (no overlaps, all in bounds)", () => {

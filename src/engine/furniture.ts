@@ -220,6 +220,12 @@ export function inBounds(c: number, r: number, w: number, d: number): boolean {
   return c >= 0 && r >= 0 && c + w <= GRID.n && r + d <= GRID.n;
 }
 
+// The back grid row sits against the room's back wall. A seated employee renders ~0.86m BEHIND their
+// desk (facing the camera), so a desk in row 0 would seat its robot inside/through the back wall. Desks
+// therefore start at row 1, which leaves the occupant clearance in front of the wall. Non-desk items
+// (plants, decor) may still go anywhere, including against the wall.
+export const MIN_DESK_ROW = 1;
+
 function cellsOf(item: PlacedItem): string[] {
   const { w, d } = footprint(furnitureDef(item.type), item.rot);
   const out: string[] = [];
@@ -240,6 +246,8 @@ export function canPlace(
   const def = furnitureDef(type);
   const { w, d } = footprint(def, rot);
   if (!inBounds(c, r, w, d)) return false;
+  // Desks can't sit in the reserved back row(s): their seated robot would clip the back wall.
+  if (def.category === "desks" && r < MIN_DESK_ROW) return false;
   if (def.flat) return true; // rugs go anywhere
   const want = new Set<string>();
   for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) want.add(`${c + dc},${r + dr}`);
@@ -303,6 +311,25 @@ export function rotateItem(layout: PlacedItem[], iid: string): PlacedItem[] {
 }
 export function removeItem(layout: PlacedItem[], iid: string): PlacedItem[] {
   return layout.filter((x) => x.iid !== iid);
+}
+
+/** Relocate any desk stuck in the reserved back row(s) forward to the nearest legal free row in the
+ *  same column, so old or auto-granted layouts stop seating robots inside the back wall. Preserves
+ *  iids (employees keep their seat) and leaves a desk put if no forward cell is free. Pure; returns a
+ *  new array only when something moved. */
+export function reseatBackRowDesks(layout: PlacedItem[]): PlacedItem[] {
+  let out = layout;
+  for (const it of layout) {
+    if (!isDeskType(it.type) || it.r >= MIN_DESK_ROW) continue;
+    const { d } = footprint(furnitureDef(it.type), it.rot);
+    for (let r = MIN_DESK_ROW; r + d <= GRID.n; r++) {
+      if (canPlace(out, it.type, it.c, r, it.rot, it.iid)) {
+        out = moveItem(out, it.iid, it.c, r);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 /** The starting garage is deliberately BARE — just the founder's desk and a single plant.

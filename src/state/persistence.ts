@@ -2,7 +2,7 @@
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
+import { canPlace, defaultLayout, deskItems, reseatBackRowDesks, GRID } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, STAT_KEYS, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
@@ -461,6 +461,10 @@ function migrate(state: GameState): GameState | null {
       if (!placed) break; // no free cell — overflow staff roam instead
     }
   }
+  // Heal saves from before desks reserved the back row: an auto-granted or hand-placed desk in row 0
+  // seats its robot inside the back wall, so nudge those desks forward. New placements are already
+  // blocked by canPlace, so this only ever changes a legacy save (and only once).
+  s.layout = reseatBackRowDesks(s.layout);
   s.ready = s.ready.map((p: Product) => fixProduct(p));
   if (Array.isArray(s.staff)) {
     s.staff = s.staff.map((m: any) => {

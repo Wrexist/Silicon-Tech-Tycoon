@@ -27,8 +27,8 @@ for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; 
 // A full, tidy office: two rows of desks (each desk = one seat) + warm decor. Coords are grid
 // cells (c,r); desk footprint is 2×1 so columns step by 3 to avoid collisions.
 const layout = [
-  ["desk", 0, 0], ["desk", 3, 0], ["desk", 6, 0],
-  ["desk", 0, 2], ["desk", 3, 2], ["desk", 6, 2],
+  ["desk", 0, 1], ["desk", 3, 1], ["desk", 6, 1],
+  ["desk", 0, 3], ["desk", 3, 3], ["desk", 6, 3],
   ["plantTall", 8, 0], ["bookshelf", 8, 2], ["arcade", 8, 4],
   ["rug", 2, 5], ["sofa", 0, 5], ["coffeeTable", 0, 7],
   ["meetingTable", 5, 5], ["plantPot", 8, 6], ["serverRack", 8, 7],
