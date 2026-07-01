@@ -518,7 +518,13 @@ off segments/rivals), then D3/D6. Each is engine-first with a sim check.
 
 ## Phase G: Bigger bets (do last, each is a project with a playtest)
 
-### L4: Late game is "solved" (every run ends within ~15% of the same net worth)  `[balance · L · HIGH]`
+### L4: Late game is "solved" (every run ends within ~15% of the same net worth)  `[balance · L · HIGH]`  **PARTIAL**
+- **Progress (via D4, commit 2b631aa):** the Ecosystem Suite added a THIRD winning strategy
+  (`diversify`, ~$2.6B) that diverges from and beats `balanced`. Cross-strategy divergence is now
+  large (median within-seed spread ~75000x). But L4's CORE remains open: `value` and `specialist`
+  are still non-viable (value bankrupts 40/40; specialist survives but never wins). Making those two
+  winnable-but-different needs the compounding saturation/niche-value economy below, which is a
+  dedicated playtest-gated pass, not a bolt-on. Leaving OPEN.
 - **L5 FINDINGS (now instrumented, do NOT re-diagnose from the single-profile CV):** the harness runs
   five strategy profiles. The old ~5% CV was RNG noise of ONE playstyle; the real picture across
   strategies (post D1/D2/D3/D5/D6):
@@ -551,9 +557,19 @@ off segments/rivals), then D3/D6. Each is engine-first with a sim check.
 - **Risks:** large; can destabilize the whole economy. Sim-driven, behind the L5 harness, last.
 - **Depends:** L5; informed by D1/D6 (the divergence may come from the depth items compounding).
 
-### D4 (O9): Per-era distinct mechanic (each era plays differently, not just bigger)  `[depth · L · MED]`
-- **Problem:** eras shift pacing/economics but not the decision loop; era 4 is the era 1 loop with
-  bigger numbers.
+### D4 (O9): Per-era distinct mechanic (each era plays differently, not just bigger)  `[depth · L · MED]`  **DONE**
+- **Shipped (commit 2b631aa):** the era-3 "Ecosystem Suite" fork. From the Platform era on, shipping
+  across MULTIPLE product categories earns a compounding launch-hype bonus (`ecosystemSuiteHype`,
+  `perCategoryHype` per distinct category beyond the first, capped at `maxCategories`). A single-
+  category company earns 0, so the phone-only baseline is byte-identical; a diversifier gets a
+  divergent growth path. Surfaced live in the Design Lab Launch tab.
+- **Sim result:** the new `diversify` profile wins 40/40 at ~$2.6B (75% hits) while `balanced` stays
+  byte-identical ($1865.7M). This is the FIRST profile to beat balanced, so it doubles as the L4
+  divergence axis below. Caveat: the diversifier's edge is partly STRUCTURAL (fresh markets have no
+  saturation/competition yet), not purely the hype bonus; a true saturation economy (L4) is still the
+  cleaner long-term fix.
+- **Problem (original):** eras shift pacing/economics but not the decision loop; era 4 is the era 1 loop
+  with bigger numbers.
 - **Where:** `engine/eras.ts` `eraModifiers`/`eraRuleSummary`; the launch path.
 - **Plan:** add one era-gated investment fork that introduces a new recurring verb (e.g. an era-3
   "ecosystem suite" bonus for shipping 2+ aligned categories, or an era-4 RP-gated capability products
