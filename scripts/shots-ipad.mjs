@@ -85,12 +85,6 @@ async function page(saveJson) {
   // dismissals above) — let them throw so a broken injection fails the run instead of silently
   // shipping an overlapping or mid-transition asset.
   await p.addStyleTag({ content: "*,*::before,*::after{animation-duration:1ms!important;animation-delay:-1ms!important;transition-duration:1ms!important;transition-delay:0ms!important}" });
-  // Capture-only fix for a latent CSS class collision at the app's 540px max width: `.lab__hero-grid`
-  // is defined both as the Design Lab's two-column layout AND (elsewhere) as the dot-texture backdrop
-  // (position:absolute;inset:0). At 540px the absolute leaks onto the layout grid, pulling it out of
-  // flow so the Category selector slides up underneath it. Re-assert the layout grid as in-flow. This
-  // does not touch app source; the shipped app renders on <430px phones where it doesn't manifest.
-  await p.addStyleTag({ content: ".lab__hero-grid:has(> .lab__hero-info){position:static!important;inset:auto!important;grid-template-columns:1fr!important}" });
   await p.waitForTimeout(300);
   return { ctx, p };
 }

@@ -25,7 +25,7 @@ where first-session conversion and day-7 retention leak.
 | F2 | **The player is dropped into the deepest screen first.** `found()` jumps straight to the Design Lab: 4 tabs, unset component steppers (build blocked until every slot is picked), tuning axes, refresh/storage/camera specs — *and supply-chain controls (supplier, dual-source, contracts, factory) sitting inside the Components tab*, which silently move unit cost and are never flagged as optional-advanced. Progressive disclosure (v42) gated the meta layer well but never reached inside the Design Lab itself. | `DesignLab.tsx:159-164, 813-905` | High |
 | F3 | **The wizard Review step is a wall of ~15 stat rows** (demand fit, price fit, competition, balance, cannibalization, fatigue, sourcing, factory, …) shown on the very first build, before any of these terms have been taught. The glossary exists but is elsewhere. First-build Review should be a progressive subset. | `DesignLab.tsx:1868-1922` | High |
 | F4 | **Two price vocabularies one screen apart.** The Launch tab prices with `priceGuidance` zones (Underpriced / Good value / Fair / Premium / Overpriced); the wizard Review re-derives price fit from a *different* ratio with *different* labels ("Overpriced −X% / On the money / Value buy"). Same concept, two models, adjacent steps — the exact "wait, which is right?" moment a readability-first game can't afford. | `DesignLab.tsx:287` vs `:1707-1712` | Medium |
-| F5 | **Shipped layout bug on the flagship screen:** `.lab__hero-grid` is declared twice in `designLab.css` (layout grid ~L121 AND absolute dot-texture backdrop ~L138); the absolute leaks onto the layout grid so at ≤430px the Design Lab hero overlaps the Category selector. Known and logged in TASK.md's backlog since the screenshot pass — it is live on real phones and only worked around in the capture scripts. | `screens/designLab.css` | High |
+| F5 | **Shipped layout bug on the flagship screen:** `.lab__hero-grid` is declared twice in `designLab.css` (layout grid ~L121 AND absolute dot-texture backdrop ~L138); the absolute leaks onto the layout grid so at the app's 540px max width (iPad / web / wide phones) the Design Lab hero overlaps the Category selector. Known and logged in TASK.md's backlog since the screenshot pass — only worked around in the capture scripts, never fixed in source. | `screens/designLab.css` | High |
 
 ### Minute 5–30: first build → first launch → first verdict
 
@@ -142,8 +142,8 @@ All ideas change player behavior or decisions (per brief), respect the LOCKED co
 ## 3. QUICK WINS — top 3 under 2 hours each
 
 ### QW1 — Fix the `.lab__hero-grid` CSS collision (≈30 min, highest impact-per-minute in the repo)
-The Design Lab hero overlaps the Category selector on ≤430px phones — i.e. on most iPhones,
-on the game's flagship screen, right now (F5). Rename the dot-texture backdrop class
+The Design Lab hero overlaps the Category selector at the app's 540px max width (iPad /
+web / wide phones) — on the game's flagship screen (F5). Rename the dot-texture backdrop class
 (e.g. `.lab__hero-dots`) in `designLab.css` + `DesignLab.tsx`. Already root-caused in
 TASK.md's backlog; it's been worked around in the screenshot scripts instead of fixed in
 source. Nothing else on this list matters if the first screen renders broken.
