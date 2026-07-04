@@ -1,0 +1,30 @@
+/* "Today in Silicon" daily-challenge card on HQ. One tappable row: glyph, goal + twist, best. */
+.dailyc { padding: 0; overflow: hidden; }
+.dailyc__body {
+  display: flex; align-items: center; gap: var(--sp-12);
+  width: 100%; min-height: 44px;
+  padding: var(--sp-12) var(--sp-16);
+  border: none; background: none; cursor: pointer;
+  text-align: left; color: inherit;
+}
+.dailyc__glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex: none;
+  border-radius: var(--r-button);
+  background: var(--accent-soft); color: var(--accent);
+}
+.dailyc__info { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; flex: 1; }
+.dailyc__title { font-size: var(--fs-caption); font-weight: 700; }
+.dailyc__goal { font-size: var(--fs-caption); color: var(--ink-2); }
+.dailyc__twist {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  font-size: var(--fs-micro); font-weight: 600; color: var(--accent);
+}
+.dailyc__side { display: inline-flex; align-items: center; gap: var(--sp-6); flex: none; }
+.dailyc__best {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  padding: 3px 8px; border-radius: var(--r-pill);
+  background: var(--warning-soft); color: var(--warning-text);
+  font-size: var(--fs-micro); font-weight: 700;
+}
+.dailyc__caret { color: var(--ink-2); }

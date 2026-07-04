@@ -125,6 +125,7 @@ import type {
   ComponentKind,
   ConsumerTrends,
   CompetitorState,
+  LaunchInsight,
   LaunchedProduct,
   Product,
   Recruitment,
@@ -623,7 +624,7 @@ export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
 export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
 
 /** The global multiplier applied to base RP output (R&D upgrades × office focus × legacy perk). */
-export const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
 
 /** Weekly RP itemized by source, with the global multiplier folded in — so the displayed sum equals
  *  weeklyRpGen(s). Sorted by contribution, biggest first. For the Research "income" breakdown. */
@@ -739,7 +740,7 @@ export function buyUpgrade(state: GameState, id: UpgradeId): GameState {
 }
 
 /** Price of the next garage desktop, or null when the player already owns the maximum. */
-export function desktopCost(owned: number): Money | null {
+function desktopCost(owned: number): Money | null {
   if (owned >= BALANCE.desktops.max) return null;
   const tiers = BALANCE.desktops.cost;
   return tiers[owned] ?? tiers[tiers.length - 1];
@@ -819,7 +820,7 @@ export function acquireFactory(state: GameState, id: FactoryId): GameState {
   const feed = trimFeed([...state.feed, feedItem(state.week, `Acquired ${fac.name}, your own production line (${format(fac.weeklyUpkeep)}/wk upkeep).`, "positive")]);
   return { ...state, cash: sub(state.cash, fac.acquireCost), ownedFactories: [...owned, id], feed };
 }
-export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
+const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
 export const buildWeeksFor = (s: GameState, product?: Product) => {
   // Supplier sourcing lead time adds weeks on top of the assembly time (a far, cheap supplier is
   // slower to the line). Unset/standard supplier → 0, so existing callers (no product) are unchanged.
@@ -1101,7 +1102,7 @@ export function buildSafetyReserve(s: GameState, product?: Product): Money {
 }
 
 /** Units you can afford while still leaving the build-through safety reserve intact. B1. */
-export function affordableRun(s: GameState, product: Product, channelId: ChannelId = "none"): number {
+function affordableRun(s: GameState, product: Product, channelId: ChannelId = "none"): number {
   const probe = planProduction(s, product, BALANCE.build.minRun, channelId);
   const reserve = buildSafetyReserve(s, product);
   // Cash left for tooling+units after holding back the reserve, then after paying fixed costs
@@ -1880,6 +1881,30 @@ export function startBuild(
 /** Launch a built product into the market. Production + marketing were already paid at build;
  *  the timing of THIS launch decides how the product meets current demand. Sales are capped to
  *  the production run, so over/under-producing matters. */
+/** Snapshot the launch-moment drivers from a production plan (pillar #5: readable simulation).
+ *  Shared by launchReady (records it on the launched product) and the launch reveal (renders the
+ *  "why" line from the same data) so the two can never drift. */
+export function insightFromPlan(plan: ProductionPlan): LaunchInsight {
+  return {
+    demandFit: plan.demandFit,
+    priceFit: plan.priceFit,
+    hype: plan.hype,
+    matchingRivals: plan.matchingRivals,
+    betterRivals: plan.betterRivals,
+    competitionFactor: plan.competitionFactor,
+    // Epic A — which segments this launch won/lost (the readable verdict).
+    dominantSegment: plan.segments.dominant,
+    weakestSegment: plan.segments.weakest,
+    perSegment: plan.segments.perSegment.map((r) => ({
+      id: r.id,
+      name: r.name,
+      captured: r.captured,
+      fit: r.fit,
+      priceFit: r.priceFit,
+    })),
+  };
+}
+
 export function launchReady(state: GameState, productId: string): ActionResult {
   const product = state.ready.find((p) => p.id === productId);
   if (!product) return { state, ok: false, reason: "Not ready yet." };
@@ -1923,24 +1948,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     revenueToDate: ZERO,
     // Snapshot the launch-moment drivers so the post-launch detail screen can explain the outcome
     // (pillar #5: readable simulation). These reflect the market the instant this product shipped.
-    insight: {
-      demandFit: plan.demandFit,
-      priceFit: plan.priceFit,
-      hype: plan.hype,
-      matchingRivals: plan.matchingRivals,
-      betterRivals: plan.betterRivals,
-      competitionFactor: plan.competitionFactor,
-      // Epic A — which segments this launch won/lost (the readable verdict).
-      dominantSegment: plan.segments.dominant,
-      weakestSegment: plan.segments.weakest,
-      perSegment: plan.segments.perSegment.map((r) => ({
-        id: r.id,
-        name: r.name,
-        captured: r.captured,
-        fit: r.fit,
-        priceFit: r.priceFit,
-      })),
-    },
+    insight: insightFromPlan(plan),
   };
 
   // Reputation response (QA Lab softens flops, boosts hits).
@@ -2732,7 +2740,7 @@ export function boostMorale(state: GameState, kind: MoraleKind): GameState {
   };
 }
 
-export function hireCostFor(role: StaffRole, skill: number, discounted = false): Money {
+function hireCostFor(role: StaffRole, skill: number, discounted = false): Money {
   // One-time hiring fee = 3 weeks of salary (Talent Network cuts it 40%).
   const base = scale(salaryFor(role, skill), 3);
   return discounted ? scale(base, 0.6) : base;
@@ -2905,6 +2913,25 @@ export function upgradeFacility(state: GameState): GameState {
     facilityTier: state.facilityTier + 1,
     feed: trimFeed(feed),
   };
+}
+
+/** "Skip to next decision" — did this week's tick produce something that needs the player's
+ *  input? Returns a short reason to show when time auto-pauses, or null to keep skipping.
+ *  PURE prev→next diff; the checks mirror the moments the UI already treats as decision points
+ *  (ready shelf, choice/poach cards, era goal, finished sales runs, the red low-runway HUD). */
+export function skipInterrupt(prev: GameState, next: GameState): string | null {
+  if (next.ready.length > prev.ready.length) return "A build is ready to launch";
+  if (!prev.pendingChoice && next.pendingChoice) return "An event needs your call";
+  if (!prev.pendingPoach && next.pendingPoach) return "A rival is poaching your staff";
+  if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";
+  const finished = (s: GameState) => s.launched.filter((l) => l.weeksElapsed >= l.weeklyUnits.length).length;
+  if (finished(next) > finished(prev)) return "A product finished its run";
+  const lowRunway = (s: GameState) => {
+    const b = toDollars(burn(s));
+    return b > 0 && toDollars(s.cash) / b < 4;
+  };
+  if (!lowRunway(prev) && lowRunway(next)) return "Cash is running low";
+  return null;
 }
 
 export function canAdvance(state: GameState): boolean {

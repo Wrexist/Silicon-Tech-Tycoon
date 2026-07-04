@@ -7,6 +7,7 @@ import { App } from "./App.tsx";
 import { initSettings, resolvedTheme } from "./state/settings.ts";
 import { initNative } from "./native.ts";
 import { hydrateFromNative } from "./state/nativeStore.ts";
+import { refreshDailyReminders } from "./state/notifications.ts";
 
 async function boot(): Promise<void> {
   // NATIVE ONLY: restore any save/entitlement/prestige keys that WKWebView storage eviction
@@ -29,6 +30,10 @@ async function boot(): Promise<void> {
 
   // Capacitor native init (status bar style per theme + splash hide). No-op on web, never throws.
   void initNative(resolvedTheme());
+
+  // Keep the opted-in daily-challenge reminder window topped up (next 7 days, real mutator names).
+  // No-op on web or while the preference is off; best-effort, never blocks boot.
+  void refreshDailyReminders();
 
   // Hand the boot splash off to the live app: complete the loading bar, hold a brief minimum so the
   // intro never flashes, then fade it out. Lives here (not in the splash) so it only clears once

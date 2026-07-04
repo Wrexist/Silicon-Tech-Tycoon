@@ -90,7 +90,7 @@ function hashString(s: string): number {
 
 /** A rival's FLAGSHIP LINE name for a category — stable across the whole game (e.g. Pomelo always
  *  ships its "Lumen" phone line), so rivals build real product series the player can recognise. */
-export function rivalLineName(rivalId: string, rivalName: string, category: CategoryId): string {
+function rivalLineName(rivalId: string, rivalName: string, category: CategoryId): string {
   const word = MODEL_WORDS[hashString(`${rivalId}:${category}`) % MODEL_WORDS.length];
   return `${rivalName} ${word}`;
 }

@@ -135,7 +135,7 @@
   transform: translate(-50%, -50%);
   background: radial-gradient(50% 50% at 50% 50%, var(--fn-design-soft), transparent 70%);
 }
-.lab__hero-grid {
+.lab__hero-dots {
   position: absolute;
   inset: 0;
   background-image: radial-gradient(circle at center, color-mix(in srgb, var(--fn-design) 16%, transparent) 1px, transparent 1.4px);
@@ -1607,3 +1607,22 @@
 @media (prefers-reduced-motion: reduce) {
   .wiz__cap-opt, .wiz__cap-opt--on::after { animation: none; }
 }
+
+/* Advanced-sourcing disclosure — collapsed supplier/factory power levers on the Components tab. */
+.lab__advsrc { padding: 0; overflow: hidden; }
+.lab__advsrc-toggle {
+  display: flex; align-items: center; gap: var(--sp-12);
+  width: 100%; min-height: 44px;
+  padding: var(--sp-12) var(--sp-16);
+  border: none; background: none; cursor: pointer;
+  text-align: left; color: inherit;
+}
+.lab__advsrc-main { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; flex: 1; }
+.lab__advsrc-title {
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--fs-caption); font-weight: 700;
+}
+.lab__advsrc-sub { font-size: var(--fs-micro); color: var(--ink-2); }
+.lab__advsrc-caret { color: var(--ink-2); transition: transform 0.2s ease; }
+.lab__advsrc-caret--open { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .lab__advsrc-caret { transition: none; } }

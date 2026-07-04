@@ -11,7 +11,7 @@ import {
   type ComponentKind,
 } from "./types.ts";
 
-export function emptyStats(): Stats {
+function emptyStats(): Stats {
   return { performance: 0, quality: 0, battery: 0, design: 0, ecosystem: 0 };
 }
 

@@ -216,7 +216,7 @@ export function footprint(def: FurnitureDef, rot: Rot): { w: number; d: number }
   return rot % 2 === 0 ? { w: def.w, d: def.d } : { w: def.d, d: def.w };
 }
 
-export function inBounds(c: number, r: number, w: number, d: number): boolean {
+function inBounds(c: number, r: number, w: number, d: number): boolean {
   return c >= 0 && r >= 0 && c + w <= GRID.n && r + d <= GRID.n;
 }
 

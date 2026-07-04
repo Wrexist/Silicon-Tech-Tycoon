@@ -15,10 +15,12 @@ export interface Settings {
   /** First-run Decorate tutorial: shown once the first time the player opens Decorate, then
    *  remembered here (a UI preference, so it survives a new company — not in the game save). */
   decorateTutorialSeen: boolean;
+  /** Opt-in daily-challenge reminder (native local notification, 10:00 local). Off by default. */
+  dailyReminder: boolean;
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, highContrast: false, decorateTutorialSeen: false };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, highContrast: false, decorateTutorialSeen: false, dailyReminder: false };
 
 function read(): Settings {
   try {
@@ -74,7 +76,7 @@ export function applyTheme(theme: ThemePref): void {
 }
 
 /** Apply the high-contrast preference by toggling the attribute the CSS tokens key off. */
-export function applyContrast(high: boolean): void {
+function applyContrast(high: boolean): void {
   const root = document.documentElement;
   if (high) root.setAttribute("data-contrast", "high");
   else root.removeAttribute("data-contrast");

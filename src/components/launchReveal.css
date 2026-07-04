@@ -159,6 +159,35 @@
 .lreveal__units-val { font-size: var(--fs-headline); font-weight: 800; }
 .lreveal__units-label { font-size: var(--fs-caption); color: var(--ink-2); }
 
+/* "Biggest factor" — the post-mortem's #1 driver, surfaced the moment the verdict lands. */
+.lreveal__why {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  margin-top: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--lreveal-accent-soft);
+  animation: lreveal-rise 0.4s var(--spring-standard) 0.11s both;
+}
+.lreveal__why-label {
+  font-size: var(--fs-micro); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+.lreveal__why-text { font-size: var(--fs-caption); font-weight: 600; color: var(--ink); line-height: 1.35; }
+
+/* Quiet deep-link to the Market post-mortem — secondary to Continue, still a 44px target. */
+.lreveal__breakdown {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-4);
+  min-height: 44px;
+  margin-top: var(--sp-2);
+  padding: 0 var(--sp-12);
+  border: none; background: none; cursor: pointer;
+  font-size: var(--fs-caption); font-weight: 700;
+  color: var(--lreveal-accent);
+  border-radius: var(--r-button);
+  animation: lreveal-rise 0.4s var(--spring-standard) 0.18s both;
+}
+
 /* Continue CTA — themed to the verdict accent (green hit / blue steady / muted flop), rounded with a
    soft accent-tinted lift so it reads premium on the white card rather than a flat default button. */
 .lreveal__card .ds-btn--primary {
@@ -185,5 +214,6 @@
 @media (prefers-reduced-motion: reduce) {
   .lreveal__card, .lreveal__verdict, .lreveal__glow, .lreveal__score-val,
   .lreveal__outlets, .lreveal__quote, .lreveal__units,
+  .lreveal__why, .lreveal__breakdown,
   .lreveal__card .ds-btn--primary { animation: none; }
 }

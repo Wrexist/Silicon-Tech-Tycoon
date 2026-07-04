@@ -1,4 +1,4 @@
-import { Calendar, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, Star, Trophy } from "lucide-react";
+import { Calendar, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, SkipForward, Star, Trophy } from "lucide-react";
 import { AnimatedInt, AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
@@ -7,7 +7,7 @@ import { burn, nextWeekRevenue } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./hud.css";
 
-export function weekLabel(week: number): string {
+function weekLabel(week: number): string {
   const year = Math.floor(week / 52) + 1;
   const quarter = Math.floor((week % 52) / 13) + 1;
   return `Y${year} Q${quarter}`;
@@ -115,12 +115,12 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: ()
  *  the tutorial, when the time controls leave the top HUD; hidden on the Design tab where the build
  *  wizard owns the bottom band. Sits just above the tab bar at the bottom-right (App gates it). */
 export function SpeedDial() {
-  const { paused, setPaused, fast, setFast } = useGame();
+  const { paused, setPaused, fast, setFast, skipping, setSkipping } = useGame();
   return (
     <div className="speeddial" role="group" aria-label="Simulation speed">
       <button
         className="speeddial__btn"
-        onClick={() => setPaused(!paused)}
+        onClick={() => { if (!paused) setSkipping(false); setPaused(!paused); }}
         aria-label={paused ? "Resume" : "Pause"}
         aria-pressed={paused}
       >
@@ -128,11 +128,22 @@ export function SpeedDial() {
       </button>
       <button
         className={`speeddial__btn${fast && !paused ? " speeddial__btn--on" : ""}`}
-        onClick={() => { setFast(!fast); if (!fast) setPaused(false); }}
+        onClick={() => { setFast(!fast); if (!fast) { setPaused(false); setSkipping(false); } }}
         aria-label={fast ? "Normal speed" : "Fast forward"}
         aria-pressed={fast}
       >
         <FastForward size={18} fill="currentColor" />
+      </button>
+      {/* Skip to next decision — run fast until the sim produces something that needs input
+          (build ready, event, era goal, finished run, low cash), then auto-pause with the
+          reason. Time becomes decision-paced instead of clock-watching. */}
+      <button
+        className={`speeddial__btn${skipping && !paused ? " speeddial__btn--on" : ""}`}
+        onClick={() => { setSkipping(!skipping); if (!skipping) { setPaused(false); setFast(false); } }}
+        aria-label={skipping ? "Stop skipping" : "Skip to next event"}
+        aria-pressed={skipping}
+      >
+        <SkipForward size={18} fill="currentColor" />
       </button>
     </div>
   );

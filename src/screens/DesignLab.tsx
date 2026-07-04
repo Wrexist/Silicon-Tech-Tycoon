@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, ChevronDown, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -47,6 +47,7 @@ import {
   hypeBonus,
   lensUnlockCost,
   finishUnlockCost,
+  insightFromPlan,
   marketerSkill,
   planProduction,
   capacityPlan,
@@ -238,6 +239,12 @@ export function DesignLab({
   const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract } = useGame();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
+  // Advanced sourcing (supplier/factory/contracts) is collapsed by default so the Components tab
+  // isn't a day-one wall — but opens itself when the draft already carries a non-default choice.
+  const [sourcingOpen, setSourcingOpen] = useState<boolean>(() => {
+    const d = seed ? successorDraft(seed) : freshDraft(state); // same pure builder as the draft init
+    return (d.supplierId ?? DEFAULT_SUPPLIER_ID) !== DEFAULT_SUPPLIER_ID || (d.factoryId ?? DEFAULT_FACTORY_ID) !== DEFAULT_FACTORY_ID;
+  });
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
   const [completed, setCompleted] = useState<CompletedBuild | null>(null);
@@ -465,6 +472,7 @@ export function DesignLab({
         isHit,
         firstLaunch: launchedBefore.length === 0,
         streak,
+        insight: insightFromPlan(plan),
       }));
       // First product ever shipped — a real high point. Ask for an App Store review (once).
       if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
@@ -567,7 +575,7 @@ export function DesignLab({
           <div className="lab__hero-stage">
             <span className="lab__hero-backdrop" aria-hidden>
               <span className="lab__hero-glow" />
-              <span className="lab__hero-grid" />
+              <span className="lab__hero-dots" />
               <CircuitMotif className="lab__hero-circuit" />
             </span>
             <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />
@@ -794,6 +802,26 @@ export function DesignLab({
             </div>
           </Card>
 
+          {/* Advanced sourcing disclosure — supplier/factory/contracts are power levers that
+              silently move unit cost; collapsed so they don't wall a first-timer, one tap away
+              for everyone else. The current choices stay visible on the closed row. */}
+          <Card className="lab__advsrc">
+            <button
+              className="lab__advsrc-toggle"
+              aria-expanded={sourcingOpen}
+              onClick={() => { haptic.light(); setSourcingOpen((v) => !v); }}
+            >
+              <span className="lab__advsrc-main">
+                <span className="lab__advsrc-title"><Factory size={15} aria-hidden /> Advanced sourcing</span>
+                <span className="lab__advsrc-sub">
+                  {supplierFor(draft.supplierId).name} · {factoryFor(draft.factoryId).name}
+                </span>
+              </span>
+              <ChevronDown size={16} className={`lab__advsrc-caret${sourcingOpen ? " lab__advsrc-caret--open" : ""}`} aria-hidden />
+            </button>
+          </Card>
+
+          {sourcingOpen && (<>
           {/* Sourcing — pick the component supplier. Trades unit cost vs build quality vs lead time;
               the choice rides on the product and is shown again in the build wizard summary. */}
           <Card>
@@ -928,6 +956,7 @@ export function DesignLab({
               })}
             </div>
           </Card>
+          </>)}
           </>
         )}
 
@@ -1702,14 +1731,17 @@ function BuildWizard({
   const runway = runwayWeeks(cashAfter, weeklyBurnAfter);
   const runwayRisky = affordable && runway < buildWks;
 
-  // B8 — price-fit indicator (Overpriced / On the money / Value buy) alongside demand-fit. Derived
-  // from price vs the fair value the market expects (same valueToPrice scale market.ts uses).
+  // B8 — price-fit indicator alongside demand-fit. Same fair-price anchor AND the same five zone
+  // labels/thresholds as the Launch tab's price slider (one vocabulary across the whole flow —
+  // the two previously used different cut-offs and words for the same concept).
   const fairDollars = Math.max(1, plan.overall * toDollars(BALANCE.market.price.valueToPrice));
   const priceRatio = toDollars(draft.price) / fairDollars;
   const priceFit =
-    priceRatio > 1.18 ? { label: `Overpriced −${Math.round((priceRatio - 1) * 100)}%`, tone: "negative" as const }
-      : priceRatio < 0.82 ? { label: "Value buy", tone: "positive" as const }
-        : { label: "On the money", tone: "accent" as const };
+    priceRatio < 0.65 ? { label: "Underpriced", tone: "accent" as const }
+      : priceRatio < 0.95 ? { label: "Good value", tone: "positive" as const }
+        : priceRatio < 1.3 ? { label: "Fair", tone: "positive" as const }
+          : priceRatio < 1.8 ? { label: "Premium", tone: "neutral" as const }
+            : { label: `Overpriced −${Math.round((priceRatio - 1) * 100)}%`, tone: "negative" as const };
 
   const fitLabel = plan.demandFit >= 60 ? "Strong fit" : plan.demandFit >= 35 ? "Decent fit" : "Weak fit";
   const fitTone = plan.demandFit >= 60 ? "positive" : plan.demandFit >= 35 ? "accent" : "negative";

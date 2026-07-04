@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Bell,
   Boxes,
   Check,
   Contrast,
@@ -22,6 +23,7 @@ import { sfx } from "../design/sound.ts";
 import { format, toDollars } from "../engine/money.ts";
 import { netWorth } from "../state/gameState.ts";
 import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
+import { disableDailyReminders, enableDailyReminders, notificationsAvailable } from "../state/notifications.ts";
 import { hasSandboxEntitlement } from "../state/entitlements.ts";
 import { getSandboxProduct, iapAvailable, purchaseSandbox, restoreSandbox, IAP_ENTITLEMENT_EVENT, type ProductInfo } from "../state/iap.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -94,16 +96,33 @@ export function Settings({ onClose }: { onClose: () => void }) {
         <Row icon={<Smartphone size={18} />} label="Haptics">
           <Switch label="Haptics" on={settings.haptics} onChange={(v) => { setSettings({ haptics: v }); if (v) haptic.light(); }} />
         </Row>
+        {/* Native-only (hidden on web, like the IAP row): one opt-in, event-driven reminder —
+            the daily challenge reset. Off by default; no streaks or marketing pings, ever. */}
+        {notificationsAvailable() && (
+          <Row icon={<Bell size={18} />} label="Daily challenge reminder" sub="One notification at 10:00 when a new challenge is live.">
+            <Switch
+              label="Daily challenge reminder"
+              on={settings.dailyReminder}
+              onChange={(v) => {
+                sfx("toggle");
+                if (!v) { void disableDailyReminders(); return; }
+                void enableDailyReminders().then((granted) => {
+                  if (!granted) showToast("Notifications are off for Silicon in iOS Settings", { tone: "neutral" });
+                });
+              }}
+            />
+          </Row>
+        )}
       </div>
 
       <CreativeModeGroup />
 
-      {/* The Platform division is founded in-game as an earned cash milestone (Finance tab). In
+      {/* The Platform division is founded in-game as an earned cash milestone (Company tab). In
           Creative mode it can be toggled free for experimentation. */}
       {state.sandboxUnlocked && (
         <div className="set__group">
           <span className="set__group-label">Creative overrides</span>
-          <Row icon={<Layers size={18} />} label="Platform Division" sub="Found the OS division for free (Creative only). In normal play you save up to found it from the Finance tab.">
+          <Row icon={<Layers size={18} />} label="Platform Division" sub="Found the OS division for free (Creative only). In normal play you save up to found it from the Company tab.">
             <Switch label="Platform Division" on={state.platformUnlocked} onChange={(v) => { unlockPlatform(v); sfx("toggle"); }} />
           </Row>
         </div>

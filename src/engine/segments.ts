@@ -120,7 +120,7 @@ function normalize(w: Stats): Stats {
 /** A segment's effective taste: its own weights, modulated by the category emphasis AND tilted toward
  *  the drifting global trend (so trend-drift still moves demand). trends.weights[k] is ~1/5 when flat;
  *  ×STAT_KEYS.length re-centers it at 1, then trendInfluence lerps how far the trend pulls. */
-export function segmentEffectiveWeights(
+function segmentEffectiveWeights(
   seg: Segment,
   category: CategoryId,
   trends: ConsumerTrends,

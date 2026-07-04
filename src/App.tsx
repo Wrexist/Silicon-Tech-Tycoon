@@ -40,7 +40,7 @@ const TAB_TITLE: Record<Tab, string> = {
   design: "Design Lab",
   research: "Research",
   market: "Market",
-  company: "Finance",
+  company: "Company",
 };
 const TAB_TINT: Partial<Record<Tab, string>> = {
   design: "var(--fn-design)",
@@ -63,6 +63,12 @@ function AppShell() {
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
+  // Which view the Progress sheet opens on — "challenges" when HQ's daily-challenge card deep-links.
+  const [progressView, setProgressView] = useState<"hub" | "challenges">("hub");
+  const openProgress = (view: "hub" | "challenges" = "hub") => {
+    setProgressView(view);
+    setProgressOpen(true);
+  };
   const [bankOpen, setBankOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
   // seenEraModal is initialized to the current era so loading an existing save never re-shows
@@ -75,6 +81,13 @@ function AppShell() {
   const designSuccessor = (p: Product) => {
     setSuccessorSeed(p);
     setTab("design");
+  };
+  // Transient "open this product's post-mortem" hand-off — set by the launch reveal's
+  // "See the full breakdown" action, consumed by Market on mount (same pattern as successorSeed).
+  const [marketFocusId, setMarketFocusId] = useState<string | null>(null);
+  const seeBreakdown = (productId: string) => {
+    setMarketFocusId(productId);
+    setTab("market");
   };
   // Allow the IPO celebration to show again after a New Game+ (wentPublic resets to false).
   useEffect(() => {
@@ -92,7 +105,7 @@ function AppShell() {
       <Hud
         onSettings={() => setSettingsOpen(true)}
         onOpenBank={() => setBankOpen(true)}
-        onOpenProgress={hasShipped ? () => setProgressOpen(true) : undefined}
+        onOpenProgress={hasShipped ? () => openProgress() : undefined}
       />
       <main className="app__main">
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
@@ -102,7 +115,7 @@ function AppShell() {
         <div className="app__screen" hidden={tab !== "hq"}>
           <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-            <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} active={tab === "hq"} />
+            <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} onOpenChallenges={() => openProgress("challenges")} active={tab === "hq"} />
           </ErrorBoundary>
         </div>
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
@@ -113,7 +126,14 @@ function AppShell() {
             <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
               {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onGoToHQ={() => setTab("hq")} />}
               {tab === "research" && <Research onNavigate={setTab} />}
-              {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
+              {tab === "market" && (
+                <Market
+                  onDesignSuccessor={designSuccessor}
+                  onOpenDesignLab={() => setTab("design")}
+                  focusProductId={marketFocusId}
+                  onFocusConsumed={() => setMarketFocusId(null)}
+                />
+              )}
               {tab === "company" && <Company />}
             </ErrorBoundary>
           </div>
@@ -136,7 +156,7 @@ function AppShell() {
       <GainFX />
       <Confetti />
       <ReadyToLaunch />
-      <LaunchReveal />
+      <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
@@ -144,7 +164,7 @@ function AppShell() {
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)}>
-        <ProgressSheet onClose={() => setProgressOpen(false)} />
+        <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
       </Sheet>
       {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} topProduct={offline.topProduct} onClose={clearOffline} />}
       {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (

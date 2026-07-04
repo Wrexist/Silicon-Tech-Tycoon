@@ -2,7 +2,7 @@
 // critic reviews counting in, then the verdict + projected sales, with confetti on a hit. Mounted
 // once in App; driven by the launchReveal module bus. Reduced-motion jumps straight to the result.
 import { useEffect, useRef, useState } from "react";
-import { Flame, Rocket, Sparkles, Star, X } from "lucide-react";
+import { ChevronRight, Flame, Rocket, Sparkles, Star, X } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { onLaunchReveal, type LaunchRevealData } from "../design/launchReveal.ts";
@@ -20,7 +20,7 @@ const VERDICT_COPY: Record<LaunchRevealData["verdict"], { label: string; tone: s
   flop: { label: "Slow start", tone: "flop" },
 };
 
-export function LaunchReveal() {
+export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: string) => void } = {}) {
   const [data, setData] = useState<LaunchRevealData | null>(null);
   const [stage, setStage] = useState<Stage>("intro");
   const [score, setScore] = useState(0);
@@ -135,7 +135,27 @@ export function LaunchReveal() {
               <span className="lreveal__units-val tnum">{units.toLocaleString()}</span>
               <span className="lreveal__units-label">units projected to sell</span>
             </div>
+            {/* The outcome's WHY, at the moment it lands — the post-mortem's #1 ranked driver
+                (pillar #5). The full breakdown lives in the Market detail; deep-link it. */}
+            {data.why && (
+              <div className="lreveal__why">
+                <span className="lreveal__why-label">Biggest factor</span>
+                <span className="lreveal__why-text">{data.why}</span>
+              </div>
+            )}
             <Button block onClick={close}>Continue</Button>
+            {onSeeBreakdown && (
+              <button
+                className="lreveal__breakdown"
+                onClick={() => {
+                  const id = data.product.id;
+                  close();
+                  onSeeBreakdown(id);
+                }}
+              >
+                See the full breakdown <ChevronRight size={14} aria-hidden />
+              </button>
+            )}
           </>
         )}
       </div>
