@@ -1656,3 +1656,30 @@ mechanically per the v51 precedent). Branch `claude/game-design-ux-review-22ojj9
       ambiguous value exports needing per-call-site reads (`dollars` ×2, `demandScore`, `staff.output`,
       `MODEL_ASSETS`, `gameState.counts`, `designerSkill`, `applyTheme`) — knip flags them, but the
       names collide with common words/test usage, so each needs an eyes-on check before acting.
+
+## v71 — Factory World P1: the living 2.5D manufacturing floor (DONE 2026-07-04)
+User ask: a second 2.5D world beside the company name showing the factory — conveyor belts,
+immersive, fullscreen-able — growing into a factory-tycoon layer. Full phased plan in
+`FACTORY_WORLD_PLAN.md` (P1 visualization → P2 detail/aliveness → P3 interactivity → P4
+engine-touching tycoon depth, each P4 slice harness-measured). P1 shipped this pass:
+- [x] **`components/FactoryWorld.tsx` + `factoryWorld.css`**: parametric SVG factory floor
+      (zero assets) — wall/windows/trusses, pendant lights (dim when idle), factory signage,
+      steam vent, LED control panel, an elevated conveyor with plumb legs + animated tread,
+      three stations (robotic arm w/ two-joint articulation, press stamper w/ spark, QA scan
+      arch w/ sweeping beam; the "hot" station follows real build progress), crates traveling
+      the belt, pallet stacks sized by the ready shelf, a SHIP truck that idles while products
+      sell, amber OVERTIME mood (faster belt/crates, warning LEDs) when the run exceeds the
+      line's weekly capacity. Idle state stops everything + quiet hint. All animation gated on
+      sim state and disabled under reduced motion.
+- [x] **World tabs** beside the company name on the Office screen (Office | Factory,
+      aria-pressed, haptic). The 3D office stays MOUNTED (hidden, active=false) during the
+      swap so its WebGL context survives — same rule as cross-tab.
+- [x] **Fullscreen immersion**: body-portal overlay (dodges the screen-enter transform that
+      would break position:fixed), close ✕ 44px top-right safe-area aware, Escape closes.
+- [x] **Status chips**: factory name + contract/owned, runs in production w/ lead product +
+      week, capacity utilisation (overtime flagged), ready-to-ship count.
+- [x] **Verified in a real browser** (vite + playwright-core/chromium): idle scene renders,
+      world tabs swap, fullscreen opens/closes, zero console errors; screenshots reviewed
+      (first pass leaned the legs/stations with the belt tilt — counter-rotated to plumb).
+- NOT verified: the RUNNING-state choreography (crates/arm/press/scan need a live build —
+      check on device or in a played session) and dark-theme/scene contrast on device.

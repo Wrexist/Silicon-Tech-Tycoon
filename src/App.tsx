@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, BadgeDollarSign, CircuitBoard, CircleX, Copy, Cpu, Crown, FlaskConical, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
@@ -8,6 +8,7 @@ import { BottomNav, type Tab } from "./components/BottomNav.tsx";
 import { Coach } from "./components/Coach.tsx";
 import { ResultCard } from "./components/ResultCard.tsx";
 import { ToastHost } from "./design/toast.tsx";
+import { haptic } from "./design/haptics.ts";
 import { GainFX } from "./design/GainFX.tsx";
 import { Confetti } from "./design/Confetti.tsx";
 import { LaunchReveal } from "./components/LaunchReveal.tsx";
@@ -85,6 +86,8 @@ function AppShell() {
   // Transient "open this product's post-mortem" hand-off — set by the launch reveal's
   // "See the full breakdown" action, consumed by Market on mount (same pattern as successorSeed).
   const [marketFocusId, setMarketFocusId] = useState<string | null>(null);
+  // Which living scene the Office screen shows — the office or the manufacturing floor.
+  const [hqWorld, setHqWorld] = useState<"office" | "factory">("office");
   const seeBreakdown = (productId: string) => {
     setMarketFocusId(productId);
     setTab("market");
@@ -113,9 +116,29 @@ function AppShell() {
             is what made the 3D office fail on memory-constrained mobile browsers. Its render
             loop pauses while hidden (active={false}), so there's no battery cost off-screen. */}
         <div className="app__screen" hidden={tab !== "hq"}>
-          <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
+          {/* World tabs beside the company name — swap the living scene between the office
+              and the manufacturing floor (FACTORY_WORLD_PLAN.md P1). */}
+          <div className="app__titlerow">
+            <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
+            <div className="worldtabs" role="group" aria-label="Headquarters world">
+              <button
+                className={`worldtabs__tab${hqWorld === "office" ? " worldtabs__tab--on" : ""}`}
+                aria-pressed={hqWorld === "office"}
+                onClick={() => { haptic.light(); setHqWorld("office"); }}
+              >
+                <Home size={14} aria-hidden /> Office
+              </button>
+              <button
+                className={`worldtabs__tab${hqWorld === "factory" ? " worldtabs__tab--on" : ""}`}
+                aria-pressed={hqWorld === "factory"}
+                onClick={() => { haptic.light(); setHqWorld("factory"); }}
+              >
+                <Factory size={14} aria-hidden /> Factory
+              </button>
+            </div>
+          </div>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-            <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} onOpenChallenges={() => openProgress("challenges")} active={tab === "hq"} />
+            <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} onOpenChallenges={() => openProgress("challenges")} active={tab === "hq"} world={hqWorld} />
           </ErrorBoundary>
         </div>
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
