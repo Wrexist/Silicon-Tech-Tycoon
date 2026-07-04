@@ -2915,6 +2915,25 @@ export function upgradeFacility(state: GameState): GameState {
   };
 }
 
+/** "Skip to next decision" — did this week's tick produce something that needs the player's
+ *  input? Returns a short reason to show when time auto-pauses, or null to keep skipping.
+ *  PURE prev→next diff; the checks mirror the moments the UI already treats as decision points
+ *  (ready shelf, choice/poach cards, era goal, finished sales runs, the red low-runway HUD). */
+export function skipInterrupt(prev: GameState, next: GameState): string | null {
+  if (next.ready.length > prev.ready.length) return "A build is ready to launch";
+  if (!prev.pendingChoice && next.pendingChoice) return "An event needs your call";
+  if (!prev.pendingPoach && next.pendingPoach) return "A rival is poaching your staff";
+  if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";
+  const finished = (s: GameState) => s.launched.filter((l) => l.weeksElapsed >= l.weeklyUnits.length).length;
+  if (finished(next) > finished(prev)) return "A product finished its run";
+  const lowRunway = (s: GameState) => {
+    const b = toDollars(burn(s));
+    return b > 0 && toDollars(s.cash) / b < 4;
+  };
+  if (!lowRunway(prev) && lowRunway(next)) return "Cash is running low";
+  return null;
+}
+
 export function canAdvance(state: GameState): boolean {
   return (
     state.era < maxEra() &&

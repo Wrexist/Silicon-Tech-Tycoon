@@ -8,6 +8,7 @@ import {
   buildWeeksFor,
   buildSafetyReserve,
   startBuild,
+  skipInterrupt,
   launchReady,
   catchUpOffline,
   newGame,
@@ -661,5 +662,24 @@ describe("first-build smoothing — the debut product builds fast", () => {
   it("does NOT apply to a prestige veteran (legacy > 0 keeps normal build time)", () => {
     const veteran = { ...newGame(11), cash: dollars(500_000), legacy: 1 };
     expect(buildWeeksFor(veteran)).toBeGreaterThan(BALANCE.build.minWeeks);
+  });
+});
+
+describe("skipInterrupt — skip-to-next-decision stop conditions", () => {
+  it("null when nothing decision-worthy changed", () => {
+    const s = newGame(21);
+    expect(skipInterrupt(s, s)).toBeNull();
+  });
+
+  it("stops when a build lands on the ready shelf", () => {
+    const s = newGame(21);
+    const next = { ...s, ready: [goodPhone()] };
+    expect(skipInterrupt(s, next)).toMatch(/ready to launch/i);
+  });
+
+  it("stops when a choice event appears", () => {
+    const s = newGame(21);
+    const next = { ...s, pendingChoice: { event: { id: "x", title: "t", body: "b", minEra: 1, tone: "neutral", options: [] } as unknown as import("../engine/events.ts").ChoiceEvent, week: s.week } };
+    expect(skipInterrupt(s, next)).toMatch(/event/i);
   });
 });

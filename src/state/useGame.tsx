@@ -18,6 +18,7 @@ import {
   advanceEraAction,
   advanceOneWeek,
   assignStaff,
+  skipInterrupt,
   evaluateAndUnlock,
   evaluateObjectives,
   buyProject,
@@ -341,6 +342,7 @@ interface GameStateValue {
   state: GameState;
   paused: boolean;
   fast: boolean;
+  skipping: boolean;
   offline: OfflineSummary | null;
   /** True when ANOTHER tab/window took over this save — this tab is frozen (no tick, no saves). */
   tabBlocked: boolean;
@@ -352,6 +354,7 @@ interface GameStateValue {
 interface GameActionsValue {
   setPaused: (p: boolean) => void;
   setFast: (f: boolean) => void;
+  setSkipping: (v: boolean) => void;
   clearOffline: () => void;
   /** Reload this tab so it boots from the freshest save and claims play back. */
   takeOverHere: () => void;
@@ -482,6 +485,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GameState>(boot.state);
   const [paused, setPaused] = useState(false);
   const [fast, setFast] = useState(false);
+  // "Skip to next decision" — run at Fast speed until a week produces something that needs the
+  // player's input (skipInterrupt), then auto-pause with a one-line reason. Decision-paced time.
+  const [skipping, setSkipping] = useState(false);
   const [offline, setOffline] = useState<OfflineSummary | null>(boot.offline);
   const [tabBlocked, setTabBlocked] = useState(false);
   const stateRef = useRef(state);
@@ -532,7 +538,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const announcedWeekRef = useRef(-1);
   useEffect(() => {
     if (paused || hidden || state.bankrupt || tabBlocked || !state.onboarded) return;
-    const ms = (BALANCE.secondsPerTick / (fast ? BALANCE.fastMultiplier : 1)) * 1000;
+    const ms = (BALANCE.secondsPerTick / (fast || skipping ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
         const next = withScenarioRunStars(withChallengeScore(advanceOneWeek(s)));
@@ -542,6 +548,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
           // Record this week's challenge best BEFORE mastery is read, so a challenge that locks
           // this tick is counted now (no one-cycle lag for challenges-10). Idempotent.
           syncChallengeBest(s, next, true);
+          // Skip-to-next-decision: the week produced something that needs input → stop time and
+          // say why. Gated to once per simulated week like every other tick side-effect.
+          if (skipping) {
+            const why = skipInterrupt(s, next);
+            if (why) {
+              setSkipping(false);
+              setPaused(true);
+              showToast(`Paused, ${why.toLowerCase()}`, { tone: "neutral" });
+            }
+          }
         }
         const { state: out, unlocked } = evaluateAndUnlock(next, readMasteryInput());
         const { state: out2, completed } = evaluateObjectives(out);
@@ -559,7 +575,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       });
     }, ms);
     return () => clearInterval(id);
-  }, [paused, hidden, fast, state.bankrupt, tabBlocked, state.onboarded]);
+  }, [paused, hidden, fast, skipping, state.bankrupt, tabBlocked, state.onboarded]);
 
   // One write path for every persistence trigger below: skip while another tab owns the save,
   // and always stamp lastActive so offline catch-up measures time since the last write. The old
@@ -818,6 +834,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
+    setSkipping(false);
   }, []);
   // Serialize the live state PLUS profile-level progression (legacy, scenario stars, challenge
   // bests, museum) so a backup is complete and survives a device migration.
@@ -854,6 +871,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setOffline(null);
     setPaused(false);
     setFast(false);
+    setSkipping(false);
     return true;
   }, []);
 
@@ -962,6 +980,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setOffline(null);
     setPaused(false);
     setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
+    setSkipping(false);
   }, []);
 
   // Scenarios are a level playing field: they deliberately do NOT inherit the prestige legacy bonus
@@ -974,6 +993,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setOffline(null);
     setPaused(false);
     setFast(false);
+    setSkipping(false);
   }, []);
 
   // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this
@@ -985,6 +1005,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setOffline(null);
     setPaused(false);
     setFast(false);
+    setSkipping(false);
   }, []);
 
   const clearOffline = useCallback(() => setOffline(null), []);
@@ -999,6 +1020,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     () => ({
       setPaused,
       setFast,
+      setSkipping,
       clearOffline,
       takeOverHere,
       build,
@@ -1073,8 +1095,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer
   // duplicated here, so it can't drift out of sync again.
   const value = useMemo<GameContextValue>(
-    () => ({ state, paused, fast, offline, tabBlocked, ...actions }),
-    [state, paused, fast, offline, tabBlocked, actions],
+    () => ({ state, paused, fast, skipping, offline, tabBlocked, ...actions }),
+    [state, paused, fast, skipping, offline, tabBlocked, actions],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
