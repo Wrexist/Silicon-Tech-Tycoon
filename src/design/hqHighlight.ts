@@ -4,7 +4,7 @@
 // hqReaction — presentation only, no prop-drilling into the scene.
 import type { UpgradeId } from "../engine/upgrades.ts";
 
-export const HQ_HIGHLIGHT_MS = 1800;
+const HQ_HIGHLIGHT_MS = 1800;
 
 let active: { id: UpgradeId; start: number } | null = null;
 

@@ -7,7 +7,7 @@ import type { CompetitorState } from "./types.ts";
 export type Holdings = Partial<Record<string, number>>;
 
 /** A fixed float for the player's company so a valuation maps to a clean per-share price. */
-export const PLAYER_TOTAL_SHARES = 1_000_000;
+const PLAYER_TOTAL_SHARES = 1_000_000;
 
 /** Coerce a share quantity to a finite, non-negative integer. */
 function safeQty(qty: number): number {

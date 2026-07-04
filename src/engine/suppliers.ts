@@ -128,7 +128,7 @@ export interface LoyaltyTier {
 }
 
 /** Loyalty ladder, low→high. The active tier is the highest one your build count clears. */
-export const SUPPLIER_LOYALTY_TIERS: LoyaltyTier[] = [
+const SUPPLIER_LOYALTY_TIERS: LoyaltyTier[] = [
   { name: "New", minBuilds: 0, discount: 0 },
   { name: "Trusted", minBuilds: 3, discount: 0.03 },
   { name: "Partner", minBuilds: 7, discount: 0.06 },
@@ -180,7 +180,7 @@ export function contractTerm(id: ContractTerm["id"]): ContractTerm {
 
 /** Your reputation is your negotiating leverage: a stronger brand earns up to repDiscountMax extra
  *  off the contract price. Pure (reputation 0..100). */
-export function contractRepBonus(reputation: number, repDiscountMax: number): number {
+function contractRepBonus(reputation: number, repDiscountMax: number): number {
   return Math.max(0, Math.min(1, reputation / 100)) * repDiscountMax;
 }
 

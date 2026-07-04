@@ -13,11 +13,11 @@ import type {
 } from "./types.ts";
 
 // ---------- Character palettes (intrinsic to a person, not theme-dependent) ----------
-export const SKIN_TONES = ["#f4c9a8", "#e8b48c", "#d39b6e", "#b97a4e", "#8d5524", "#5c3a1e"];
-export const HAIR_COLORS = ["#2a2623", "#4a3526", "#6b4a2f", "#b07b3e", "#d9c08a", "#9aa0a6", "#3b6fd4", "#c84e8f"];
-export const SHIRT_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#14b8a6", "#ec4899", "#64748b"];
-export const HAIRSTYLE_COUNT = 6; // 0 short,1 buzz,2 bun,3 long,4 curly,5 bald (interpreted by renderer)
-export const ACCESSORIES: Accessory[] = ["none", "glasses", "headphones", "cap", "beanie", "earrings"];
+const SKIN_TONES = ["#f4c9a8", "#e8b48c", "#d39b6e", "#b97a4e", "#8d5524", "#5c3a1e"];
+const HAIR_COLORS = ["#2a2623", "#4a3526", "#6b4a2f", "#b07b3e", "#d9c08a", "#9aa0a6", "#3b6fd4", "#c84e8f"];
+const SHIRT_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#14b8a6", "#ec4899", "#64748b"];
+const HAIRSTYLE_COUNT = 6; // 0 short,1 buzz,2 bun,3 long,4 curly,5 bald (interpreted by renderer)
+const ACCESSORIES: Accessory[] = ["none", "glasses", "headphones", "cap", "beanie", "earrings"];
 
 // ---------- Flavor ----------
 export const SPECIALTY_TITLE: Record<Specialty, string> = {
@@ -75,7 +75,7 @@ function rollSpecialty(rng: Rng, role: StaffRole): Specialty {
 /** Safe fallback so a corrupt/partial save never crashes the character renderers. */
 export const DEFAULT_APPEARANCE: Appearance = { skin: 1, hair: 0, hairColor: 0, shirt: 0, accessory: "none" };
 
-export function makeAppearance(rng: Rng): Appearance {
+function makeAppearance(rng: Rng): Appearance {
   return {
     skin: rng.int(SKIN_TONES.length),
     hair: rng.int(HAIRSTYLE_COUNT),
@@ -171,12 +171,12 @@ export const MOOD_COLOR: Record<MoodBand, string> = {
 };
 
 /** 0.82 (burned out) .. 1.18 (thriving) multiplier on a person's output. */
-export function moodMult(mood: number): number {
+function moodMult(mood: number): number {
   return 0.82 + (Math.max(0, Math.min(100, mood)) / 100) * 0.36;
 }
 
 // ---------- Trait effects ----------
-export function traitOutputMult(t: Trait): number {
+function traitOutputMult(t: Trait): number {
   if (t === "hustler") return 1.2;
   if (t === "veteran") return 1.05;
   return 1;

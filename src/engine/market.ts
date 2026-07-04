@@ -60,7 +60,7 @@ export function demandScore(stats: Stats, trends: ConsumerTrends, category: Cate
   return acc;
 }
 
-export function hypeMultiplier(reputation: number, marketerSkill: number): number {
+function hypeMultiplier(reputation: number, marketerSkill: number): number {
   const h = BALANCE.market.hype;
   const raw =
     h.base + reputation * h.reputationWeight + marketerSkill * h.marketerWeight;

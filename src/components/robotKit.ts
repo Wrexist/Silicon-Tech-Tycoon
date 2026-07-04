@@ -16,7 +16,7 @@ export const ROBOT_BODY = [
 ];
 
 // Antenna-tip / trim accents, indexed by appearance.hairColor.
-export const ROBOT_TRIM = [
+const ROBOT_TRIM = [
   "#cfeaff", "#ffd9a8", "#bff0cf", "#e0cffb", "#fff0b8", "#b8f0f0", "#ffd0e6", "#dde3ec",
 ];
 

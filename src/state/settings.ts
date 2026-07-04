@@ -76,7 +76,7 @@ export function applyTheme(theme: ThemePref): void {
 }
 
 /** Apply the high-contrast preference by toggling the attribute the CSS tokens key off. */
-export function applyContrast(high: boolean): void {
+function applyContrast(high: boolean): void {
   const root = document.documentElement;
   if (high) root.setAttribute("data-contrast", "high");
   else root.removeAttribute("data-contrast");

@@ -91,7 +91,7 @@ export function brandEquityLabel(b: BrandEquity): "New line" | "Tarnished" | "Bu
 }
 
 /** Title-case a lowercase stem for display ("aurora" → "Aurora"). */
-export function franchiseDisplayName(stem: string): string {
+function franchiseDisplayName(stem: string): string {
   return stem.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 

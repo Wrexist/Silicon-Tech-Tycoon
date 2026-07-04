@@ -7,7 +7,7 @@ import { burn, nextWeekRevenue } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./hud.css";
 
-export function weekLabel(week: number): string {
+function weekLabel(week: number): string {
   const year = Math.floor(week / 52) + 1;
   const quarter = Math.floor((week % 52) / 13) + 1;
   return `Y${year} Q${quarter}`;

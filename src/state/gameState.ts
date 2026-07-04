@@ -624,7 +624,7 @@ export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
 export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
 
 /** The global multiplier applied to base RP output (R&D upgrades × office focus × legacy perk). */
-export const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
 
 /** Weekly RP itemized by source, with the global multiplier folded in — so the displayed sum equals
  *  weeklyRpGen(s). Sorted by contribution, biggest first. For the Research "income" breakdown. */
@@ -740,7 +740,7 @@ export function buyUpgrade(state: GameState, id: UpgradeId): GameState {
 }
 
 /** Price of the next garage desktop, or null when the player already owns the maximum. */
-export function desktopCost(owned: number): Money | null {
+function desktopCost(owned: number): Money | null {
   if (owned >= BALANCE.desktops.max) return null;
   const tiers = BALANCE.desktops.cost;
   return tiers[owned] ?? tiers[tiers.length - 1];
@@ -820,7 +820,7 @@ export function acquireFactory(state: GameState, id: FactoryId): GameState {
   const feed = trimFeed([...state.feed, feedItem(state.week, `Acquired ${fac.name}, your own production line (${format(fac.weeklyUpkeep)}/wk upkeep).`, "positive")]);
   return { ...state, cash: sub(state.cash, fac.acquireCost), ownedFactories: [...owned, id], feed };
 }
-export const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
+const projectBuildFast = (s: GameState) => hasProject(s.completedProjects, "assemblyLine");
 export const buildWeeksFor = (s: GameState, product?: Product) => {
   // Supplier sourcing lead time adds weeks on top of the assembly time (a far, cheap supplier is
   // slower to the line). Unset/standard supplier → 0, so existing callers (no product) are unchanged.
@@ -1102,7 +1102,7 @@ export function buildSafetyReserve(s: GameState, product?: Product): Money {
 }
 
 /** Units you can afford while still leaving the build-through safety reserve intact. B1. */
-export function affordableRun(s: GameState, product: Product, channelId: ChannelId = "none"): number {
+function affordableRun(s: GameState, product: Product, channelId: ChannelId = "none"): number {
   const probe = planProduction(s, product, BALANCE.build.minRun, channelId);
   const reserve = buildSafetyReserve(s, product);
   // Cash left for tooling+units after holding back the reserve, then after paying fixed costs
@@ -2740,7 +2740,7 @@ export function boostMorale(state: GameState, kind: MoraleKind): GameState {
   };
 }
 
-export function hireCostFor(role: StaffRole, skill: number, discounted = false): Money {
+function hireCostFor(role: StaffRole, skill: number, discounted = false): Money {
   // One-time hiring fee = 3 weeks of salary (Talent Network cuts it 40%).
   const base = scale(salaryFor(role, skill), 3);
   return discounted ? scale(base, 0.6) : base;
