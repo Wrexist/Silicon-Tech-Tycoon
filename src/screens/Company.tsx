@@ -52,6 +52,7 @@ import { isDisciplineLead, mentorshipXpMult } from "../engine/org.ts";
 import { useGame } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
 import { haptic } from "../design/haptics.ts";
+import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { Celebration } from "../design/Celebration.tsx";
 import type { CSSProperties } from "react";
@@ -486,7 +487,7 @@ function FinancingCard({ state }: { state: GameState }) {
               repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wks
             </span>
           </div>
-          <Button block variant="primary" onClick={() => { takeLoan(amount * 100); haptic.success(); }}>
+          <Button block variant="primary" onClick={() => { takeLoan(amount * 100); haptic.success(); sfx("cash"); }}>
             Borrow {formatShortDollars(amount)}
           </Button>
         </div>
@@ -1235,13 +1236,13 @@ function Member({
               style={s.assignment === a ? { background: ASSIGN_COLOR[a] } : undefined}
               aria-pressed={s.assignment === a}
               aria-label={`Assign ${s.name} to ${ASSIGN_LABEL[a]}`}
-              onClick={() => onAssign(s.id, a)}
+              onClick={() => { onAssign(s.id, a); haptic.light(); }}
             >
               {ASSIGN_LABEL[a]}
             </button>
           ))}
         </div>
-        <Button size="sm" variant={cash >= cost && !maxed ? "secondary" : "tertiary"} disabled={maxed || cash < cost} onClick={() => onTrain(s.id)}>
+        <Button size="sm" variant={cash >= cost && !maxed ? "secondary" : "tertiary"} disabled={maxed || cash < cost} onClick={() => { onTrain(s.id); haptic.medium(); }}>
           <ArrowUp size={13} /> {maxed ? "Max skill" : `Train · ${format(cost)}`}
         </Button>
       </div>
@@ -1267,7 +1268,7 @@ function Member({
         return label ? <p className="co__member-contrib">{label}</p> : null;
       })()}
       {isUnderpaid && (
-        <button className="co__raise-btn" onClick={() => onRaise(s.id)}>
+        <button className="co__raise-btn" onClick={() => { onRaise(s.id); haptic.success(); sfx("confirm"); }}>
           <ArrowUp size={12} aria-hidden /> Raise to {format(marketSalary)}/wk
         </button>
       )}
@@ -1278,7 +1279,7 @@ function Member({
           className={`co__rest-btn${isLowMood ? " co__rest-btn--urgent" : ""}`}
           disabled={cash < restCost(s)}
           title="Paid time off, restores morale and eases burnout"
-          onClick={() => onRest(s.id)}
+          onClick={() => { onRest(s.id); haptic.success(); }}
         >
           <Coffee size={12} aria-hidden /> {isLowMood ? "Rest, recharge morale" : "Rest"} · {format(restCost(s))}
         </button>
