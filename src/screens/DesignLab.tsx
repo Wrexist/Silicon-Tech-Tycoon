@@ -1704,14 +1704,17 @@ function BuildWizard({
   const runway = runwayWeeks(cashAfter, weeklyBurnAfter);
   const runwayRisky = affordable && runway < buildWks;
 
-  // B8 — price-fit indicator (Overpriced / On the money / Value buy) alongside demand-fit. Derived
-  // from price vs the fair value the market expects (same valueToPrice scale market.ts uses).
+  // B8 — price-fit indicator alongside demand-fit. Same fair-price anchor AND the same five zone
+  // labels/thresholds as the Launch tab's price slider (one vocabulary across the whole flow —
+  // the two previously used different cut-offs and words for the same concept).
   const fairDollars = Math.max(1, plan.overall * toDollars(BALANCE.market.price.valueToPrice));
   const priceRatio = toDollars(draft.price) / fairDollars;
   const priceFit =
-    priceRatio > 1.18 ? { label: `Overpriced −${Math.round((priceRatio - 1) * 100)}%`, tone: "negative" as const }
-      : priceRatio < 0.82 ? { label: "Value buy", tone: "positive" as const }
-        : { label: "On the money", tone: "accent" as const };
+    priceRatio < 0.65 ? { label: "Underpriced", tone: "accent" as const }
+      : priceRatio < 0.95 ? { label: "Good value", tone: "positive" as const }
+        : priceRatio < 1.3 ? { label: "Fair", tone: "positive" as const }
+          : priceRatio < 1.8 ? { label: "Premium", tone: "neutral" as const }
+            : { label: `Overpriced −${Math.round((priceRatio - 1) * 100)}%`, tone: "negative" as const };
 
   const fitLabel = plan.demandFit >= 60 ? "Strong fit" : plan.demandFit >= 35 ? "Decent fit" : "Weak fit";
   const fitTone = plan.demandFit >= 60 ? "positive" : plan.demandFit >= 35 ? "accent" : "negative";
