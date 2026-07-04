@@ -2,7 +2,8 @@
 // overlay (mounted once in App) subscribes and plays the keynote-style reveal. Module singleton, same
 // fire-and-forget pattern as celebrateFx/spendFx — no prop drilling, no re-renders on the bus itself.
 import { criticReviews, type OutletScore } from "../engine/reviews.ts";
-import type { Product, Stats } from "../engine/types.ts";
+import { topFactorSummary } from "../engine/postmortem.ts";
+import type { LaunchInsight, Product, Stats } from "../engine/types.ts";
 import type { LaunchVerdict } from "./launchFeedback.ts";
 
 export interface LaunchRevealData {
@@ -15,6 +16,9 @@ export interface LaunchRevealData {
   isHit: boolean;
   firstLaunch: boolean;    // the company's very first product — gets a special beat
   streak: number;          // consecutive hits incl. this launch (>=2 escalates the celebration)
+  /** The #1 post-mortem driver ("Biggest factor: …") — the outcome's WHY, surfaced at the moment
+   *  it matters most instead of only in the Market detail sheet. Null = nothing decisive. */
+  why: string | null;
 }
 
 type Listener = (d: LaunchRevealData) => void;
@@ -42,6 +46,8 @@ export function buildLaunchReveal(args: {
   isHit: boolean;
   firstLaunch: boolean;
   streak?: number;
+  /** Launch-moment drivers (insightFromPlan) — powers the reveal's "Biggest factor" line. */
+  insight?: LaunchInsight;
 }): LaunchRevealData {
   const r = criticReviews({
     productId: args.product.id,
@@ -61,5 +67,6 @@ export function buildLaunchReveal(args: {
     isHit: args.isHit,
     firstLaunch: args.firstLaunch,
     streak: args.streak ?? 0,
+    why: args.insight ? (topFactorSummary(args.insight, args.verdict)?.text ?? null) : null,
   };
 }

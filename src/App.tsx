@@ -76,6 +76,13 @@ function AppShell() {
     setSuccessorSeed(p);
     setTab("design");
   };
+  // Transient "open this product's post-mortem" hand-off — set by the launch reveal's
+  // "See the full breakdown" action, consumed by Market on mount (same pattern as successorSeed).
+  const [marketFocusId, setMarketFocusId] = useState<string | null>(null);
+  const seeBreakdown = (productId: string) => {
+    setMarketFocusId(productId);
+    setTab("market");
+  };
   // Allow the IPO celebration to show again after a New Game+ (wentPublic resets to false).
   useEffect(() => {
     if (!state.wentPublic) setIpoSeen(false);
@@ -113,7 +120,14 @@ function AppShell() {
             <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
               {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onGoToHQ={() => setTab("hq")} />}
               {tab === "research" && <Research onNavigate={setTab} />}
-              {tab === "market" && <Market onDesignSuccessor={designSuccessor} onOpenDesignLab={() => setTab("design")} />}
+              {tab === "market" && (
+                <Market
+                  onDesignSuccessor={designSuccessor}
+                  onOpenDesignLab={() => setTab("design")}
+                  focusProductId={marketFocusId}
+                  onFocusConsumed={() => setMarketFocusId(null)}
+                />
+              )}
               {tab === "company" && <Company />}
             </ErrorBoundary>
           </div>
@@ -136,7 +150,7 @@ function AppShell() {
       <GainFX />
       <Confetti />
       <ReadyToLaunch />
-      <LaunchReveal />
+      <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />

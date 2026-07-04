@@ -125,6 +125,7 @@ import type {
   ComponentKind,
   ConsumerTrends,
   CompetitorState,
+  LaunchInsight,
   LaunchedProduct,
   Product,
   Recruitment,
@@ -1880,6 +1881,30 @@ export function startBuild(
 /** Launch a built product into the market. Production + marketing were already paid at build;
  *  the timing of THIS launch decides how the product meets current demand. Sales are capped to
  *  the production run, so over/under-producing matters. */
+/** Snapshot the launch-moment drivers from a production plan (pillar #5: readable simulation).
+ *  Shared by launchReady (records it on the launched product) and the launch reveal (renders the
+ *  "why" line from the same data) so the two can never drift. */
+export function insightFromPlan(plan: ProductionPlan): LaunchInsight {
+  return {
+    demandFit: plan.demandFit,
+    priceFit: plan.priceFit,
+    hype: plan.hype,
+    matchingRivals: plan.matchingRivals,
+    betterRivals: plan.betterRivals,
+    competitionFactor: plan.competitionFactor,
+    // Epic A — which segments this launch won/lost (the readable verdict).
+    dominantSegment: plan.segments.dominant,
+    weakestSegment: plan.segments.weakest,
+    perSegment: plan.segments.perSegment.map((r) => ({
+      id: r.id,
+      name: r.name,
+      captured: r.captured,
+      fit: r.fit,
+      priceFit: r.priceFit,
+    })),
+  };
+}
+
 export function launchReady(state: GameState, productId: string): ActionResult {
   const product = state.ready.find((p) => p.id === productId);
   if (!product) return { state, ok: false, reason: "Not ready yet." };
@@ -1923,24 +1948,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     revenueToDate: ZERO,
     // Snapshot the launch-moment drivers so the post-launch detail screen can explain the outcome
     // (pillar #5: readable simulation). These reflect the market the instant this product shipped.
-    insight: {
-      demandFit: plan.demandFit,
-      priceFit: plan.priceFit,
-      hype: plan.hype,
-      matchingRivals: plan.matchingRivals,
-      betterRivals: plan.betterRivals,
-      competitionFactor: plan.competitionFactor,
-      // Epic A — which segments this launch won/lost (the readable verdict).
-      dominantSegment: plan.segments.dominant,
-      weakestSegment: plan.segments.weakest,
-      perSegment: plan.segments.perSegment.map((r) => ({
-        id: r.id,
-        name: r.name,
-        captured: r.captured,
-        fit: r.fit,
-        priceFit: r.priceFit,
-      })),
-    },
+    insight: insightFromPlan(plan),
   };
 
   // Reputation response (QA Lab softens flops, boosts hits).

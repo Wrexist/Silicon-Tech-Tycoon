@@ -47,6 +47,7 @@ import {
   hypeBonus,
   lensUnlockCost,
   finishUnlockCost,
+  insightFromPlan,
   marketerSkill,
   planProduction,
   capacityPlan,
@@ -465,6 +466,7 @@ export function DesignLab({
         isHit,
         firstLaunch: launchedBefore.length === 0,
         streak,
+        insight: insightFromPlan(plan),
       }));
       // First product ever shipped — a real high point. Ask for an App Store review (once).
       if (launchedBefore.length === 0) maybePromptFirstLaunchReview();

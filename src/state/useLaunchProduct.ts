@@ -4,7 +4,7 @@
 import { useCallback } from "react";
 import { useGame } from "./useGame.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { planProduction, productStats } from "./gameState.ts";
+import { insightFromPlan, planProduction, productStats } from "./gameState.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { maybePromptFirstLaunchReview } from "./review.ts";
@@ -52,6 +52,7 @@ export function useLaunchProduct() {
           isHit,
           firstLaunch: launchedBefore.length === 0,
           streak,
+          insight: insightFromPlan(plan),
         }));
         // First product ever shipped — a real high point. Ask for an App Store review (once).
         if (launchedBefore.length === 0) maybePromptFirstLaunchReview();

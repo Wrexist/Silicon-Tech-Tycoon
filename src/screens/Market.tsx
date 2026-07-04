@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Building2, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
@@ -80,7 +80,14 @@ function changePct(history: number[]): number {
   return a > 0 ? ((b - a) / a) * 100 : 0;
 }
 
-export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccessor?: (p: Product) => void; onOpenDesignLab?: () => void } = {}) {
+export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onFocusConsumed }: {
+  onDesignSuccessor?: (p: Product) => void;
+  onOpenDesignLab?: () => void;
+  /** Transient deep-link from the launch reveal's "See the full breakdown" — opens this product's
+   *  post-mortem sheet on mount, then is consumed (same hand-off pattern as the successor seed). */
+  focusProductId?: string | null;
+  onFocusConsumed?: () => void;
+} = {}) {
   const { state, unlockRegion } = useGame();
   const trends = state.trends;
   const comps = state.competitors;
@@ -103,6 +110,14 @@ export function Market({ onDesignSuccessor, onOpenDesignLab }: { onDesignSuccess
     (lp) => lp.weeksElapsed >= lp.weeklyUnits.length && (lp.verdict === "hit" || lp.verdict === "solid"),
   );
   const [detailId, setDetailId] = useState<string | null>(null);
+  // Deep-link hand-off from the launch reveal: open the named product's post-mortem once, consume.
+  useEffect(() => {
+    if (!focusProductId) return;
+    if (state.launched.some((l) => l.product.id === focusProductId)) setDetailId(focusProductId);
+    onFocusConsumed?.();
+    // Consume-once on mount/prop-change; state.launched is read fresh at that moment by design.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusProductId]);
   const [feedOpen, setFeedOpen] = useState(false);
   const [rivalProfile, setRivalProfile] = useState<string | null>(null);
   const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
@@ -1551,13 +1566,13 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
           block
           variant="secondary"
           disabled={owned <= 0}
-          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); showToast(`Sold ${q} ${comp.name}`, { tone: "neutral" }); }}
+          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); sfx("cash"); showToast(`Sold ${q} ${comp.name}`, { tone: "neutral" }); }}
         >
           Sell · {format(proceeds)}
         </Button>
       </div>
       {owned > 0 && (
-        <Button block variant="tertiary" onClick={() => { sellShares(comp.id, owned); haptic.medium(); onClose(); }}>
+        <Button block variant="tertiary" onClick={() => { sellShares(comp.id, owned); haptic.medium(); sfx("cash"); onClose(); }}>
           Sell all {owned}
         </Button>
       )}
@@ -1641,7 +1656,7 @@ function SellStakeSheet({ onClose }: { onClose: () => void }) {
       <div className="trade__ipo-amount rounded tnum">+{format(dollars(Math.round(raised)))}</div>
       <Slider value={pct} min={1} max={Math.max(1, maxSell)} step={1} ariaLabel="Stake to sell" accent="var(--accent)" onChange={setPct} />
       <p className="trade__ipo-pct">Sell {Math.round(pct)}%</p>
-      <Button block onClick={() => { sellOwnStake(pct / 100); haptic.success(); showToast(`Sold ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); }}>
+      <Button block onClick={() => { sellOwnStake(pct / 100); haptic.success(); sfx("cash"); showToast(`Sold ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); }}>
         Confirm sale
       </Button>
     </div>

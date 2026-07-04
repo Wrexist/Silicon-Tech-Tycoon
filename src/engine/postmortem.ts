@@ -133,6 +133,19 @@ function audienceTail(ins: LaunchInsight): string {
   return "";
 }
 
+/** The single most decisive factor, as a short capitalised phrase — the launch reveal's "why"
+ *  line. Null when nothing crosses the dominant floor (a balanced, unremarkable launch). Pure. */
+export function topFactorSummary(
+  ins: LaunchInsight,
+  verdict: Verdict,
+): { key: FactorKey; tone: FactorTone; text: string } | null {
+  const pm = postMortem(ins, verdict);
+  const key = pm.dominant[0];
+  if (!key) return null;
+  const f = pm.impacts[key];
+  return { key, tone: f.tone, text: cap(phrase(f, ins)) };
+}
+
 /** Score every factor, rank them, and synthesize the verdict headline. Pure + deterministic. */
 export function postMortem(ins: LaunchInsight, verdict: Verdict): PostMortem {
   const list = [

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { postMortem, type FactorKey } from "./postmortem.ts";
+import { postMortem, topFactorSummary, type FactorKey } from "./postmortem.ts";
 import type { LaunchInsight } from "./types.ts";
 
 function insight(p: Partial<LaunchInsight>): LaunchInsight {
@@ -91,5 +91,22 @@ describe("post-mortem ranking (Epic C1)", () => {
     const a = postMortem(insight({ betterRivals: 2, competitionFactor: 0.4 }), "steady");
     const b = postMortem(insight({ betterRivals: 2, competitionFactor: 0.4 }), "steady");
     expect(a.narrative).toBe(b.narrative);
+  });
+
+  it("topFactorSummary surfaces the #1 driver as a capitalised phrase (the reveal's why line)", () => {
+    const top = topFactorSummary(insight({ priceFit: 0.4, demandFit: 52 }), "flop");
+    expect(top?.key).toBe("price");
+    expect(top?.tone).toBe("negative");
+    expect(top?.text.toLowerCase()).toContain("price");
+    expect(top?.text[0]).toBe(top?.text[0].toUpperCase()); // reads as a standalone line
+  });
+
+  it("topFactorSummary is null for a balanced, unremarkable launch (nothing decisive)", () => {
+    // Every factor sits near its neutral point, below the dominant floor.
+    const top = topFactorSummary(
+      insight({ demandFit: 50, priceFit: 1, hype: 1.15, competitionFactor: 1 }),
+      "steady",
+    );
+    expect(top).toBeNull();
   });
 });
