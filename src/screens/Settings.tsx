@@ -158,7 +158,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      <p className="set__about">Silicon: Tech Tycoon · v1.0.0</p>
+      <p className="set__about">Silicon: Tech Tycoon · v1.0.3</p>
       <Button block onClick={onClose}>Done</Button>
 
       <Sheet open={importOpen} onClose={() => setImportOpen(false)}>
