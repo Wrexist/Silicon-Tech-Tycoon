@@ -169,6 +169,21 @@ string, but do it with the icon/copy pass it deserves).
 
 ---
 
+## Status (updated after the implementation pass on this branch)
+
+**Shipped here:** QW1 (hero-grid collision fixed in source, capture workarounds removed),
+QW2 (reveal "Biggest factor" line + post-mortem deep link, `topFactorSummary` +2 tests),
+QW3 (assign/train/raise/rest/borrow/sell feedback — note: fire, sell-stake and price-cut
+turned out to already have haptic+toast; the audit's list overstated those), Idea #2
+(HQ "Today's challenge" card + Progress deep-link), and Idea #1 with one design correction:
+**build-complete notifications are impossible here** — the sim only advances while the app
+is open, so the only honest wall-clock hook is the daily challenge reset. Since challenges
+are date-seeded and pure, the next 7 days are pre-scheduled with each day's real mutator
+names (native-only, opt-in, off by default). All gates green: tsc 0, 707 tests, build+PWA.
+**Needs on-device eyes:** the reveal why-line/breakdown layout, the HQ card placement, and
+the iOS notification permission prompt + delivery. **Not attempted:** Idea #3
+(skip-to-next-decision) — sim-tick surgery that deserves its own focused session.
+
 ## Priority synthesis (if only three things get built)
 
 1. **QW1–QW3 immediately** — broken flagship layout, the missing "why," silent actions.
