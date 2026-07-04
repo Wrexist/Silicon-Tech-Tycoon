@@ -1629,3 +1629,30 @@ no PROTECTED refactor (new pure module + balance data + demand wiring + a "why" 
       it entirely. **0/40 bankruptcies + 40/40 IPO-win preserved**; early game byte-identical. (Macro
       CV dipped 5.6%→4.0% because the auto-player spams uniformly across seeds — a measurement
       artifact, not a design regression; real players vary.)
+
+## v70 — codebase health pass (DONE 2026-07-04)
+Full gate sweep + dead-code audit (knip 5 + per-symbol grep verification, engine touched only
+mechanically per the v51 precedent). Branch `claude/game-design-ux-review-22ojj9`.
+- [x] **Gates verified clean at start AND end**: `tsc -b` 0 errors; vitest **707/707**; `npm run build`
+      + PWA green. No ESLint config exists in the repo (nothing to lint — flagging, not adding one blind).
+      The only build warning is Rollup's >500KB chunk advisory (the known AUDIT 0.5 main-chunk item).
+- [x] **`three-stdlib` declared as a direct dependency** (^2.36.1): `garage3d/gltfRobot.tsx` imports it
+      directly but it was only present transitively via drei — a drei upgrade could have silently broken
+      the build.
+- [x] **27 internal-only exports un-exported** (Hud.weekLabel, robotKit.ROBOT_TRIM, hqHighlight.HQ_HIGHLIGHT_MS,
+      engine: competitors/franchise/furniture/market/product/rivalAI/segments/staff×8/stocks/suppliers×2,
+      state: gameState×5, settings.applyContrast) — each verified used ONLY inside its own module. That
+      exposed **`competitorStrengthFor` as fully dead** (superseded by `rivalStrengthsFor`) — deleted.
+- **Needs manual repro (none confirmed)**: no runtime bugs were verified by code-path reading this pass.
+- **Flagged, deliberately NOT deleted (knip false positives / manual tools)**:
+      `docs/assets/site.js` (referenced from docs/index.html — knip doesn't parse HTML);
+      `@capacitor/ios` devDependency (used by `cap sync`, not imported);
+      `scripts/shots.mjs` + `scripts/capture-tabs.mjs` (manually-run capture tools, documented in
+      stage-save.mjs's usage header, maintained as recently as PR #37);
+      `@resvg/resvg-js` is imported by `scripts/gen-icons.mjs` but UNLISTED in package.json — the script
+      fails on a fresh `npm ci`; add it as a devDependency next time icons are regenerated.
+- **Backlog carried (larger, verified-real but deferred)**: knip reports **67 unused exported types**
+      (drop the `export` keyword; some will then be fully dead — let tsc decide) and a handful of
+      ambiguous value exports needing per-call-site reads (`dollars` ×2, `demandScore`, `staff.output`,
+      `MODEL_ASSETS`, `gameState.counts`, `designerSkill`, `applyTheme`) — knip flags them, but the
+      names collide with common words/test usage, so each needs an eyes-on check before acting.
