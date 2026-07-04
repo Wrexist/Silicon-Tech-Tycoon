@@ -1,5 +1,5 @@
 // Progress hub — the meta/progression layer (Achievements · Scenarios · Challenges · Device Museum)
-// pulled OUT of the Finance tab's junk drawer into one discoverable surface, opened from the HUD
+// pulled OUT of the Company tab's junk drawer into one discoverable surface, opened from the HUD
 // trophy. SINGLE-SHEET model: App wraps this in one <Sheet>; selecting a row swaps THIS content for
 // the chosen sub-sheet's content (no nested <Sheet>, so there's only ever one aria-modal + one Escape
 // handler). The sub-sheet's close returns to the hub; the hub's close (or Escape) exits Progress.
