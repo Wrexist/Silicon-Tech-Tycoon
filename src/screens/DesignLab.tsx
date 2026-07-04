@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, ChevronDown, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -239,6 +239,12 @@ export function DesignLab({
   const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract } = useGame();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
+  // Advanced sourcing (supplier/factory/contracts) is collapsed by default so the Components tab
+  // isn't a day-one wall — but opens itself when the draft already carries a non-default choice.
+  const [sourcingOpen, setSourcingOpen] = useState<boolean>(() => {
+    const d = seed ? successorDraft(seed) : freshDraft(state); // same pure builder as the draft init
+    return (d.supplierId ?? DEFAULT_SUPPLIER_ID) !== DEFAULT_SUPPLIER_ID || (d.factoryId ?? DEFAULT_FACTORY_ID) !== DEFAULT_FACTORY_ID;
+  });
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
   const [completed, setCompleted] = useState<CompletedBuild | null>(null);
@@ -796,6 +802,26 @@ export function DesignLab({
             </div>
           </Card>
 
+          {/* Advanced sourcing disclosure — supplier/factory/contracts are power levers that
+              silently move unit cost; collapsed so they don't wall a first-timer, one tap away
+              for everyone else. The current choices stay visible on the closed row. */}
+          <Card className="lab__advsrc">
+            <button
+              className="lab__advsrc-toggle"
+              aria-expanded={sourcingOpen}
+              onClick={() => { haptic.light(); setSourcingOpen((v) => !v); }}
+            >
+              <span className="lab__advsrc-main">
+                <span className="lab__advsrc-title"><Factory size={15} aria-hidden /> Advanced sourcing</span>
+                <span className="lab__advsrc-sub">
+                  {supplierFor(draft.supplierId).name} · {factoryFor(draft.factoryId).name}
+                </span>
+              </span>
+              <ChevronDown size={16} className={`lab__advsrc-caret${sourcingOpen ? " lab__advsrc-caret--open" : ""}`} aria-hidden />
+            </button>
+          </Card>
+
+          {sourcingOpen && (<>
           {/* Sourcing — pick the component supplier. Trades unit cost vs build quality vs lead time;
               the choice rides on the product and is shown again in the build wizard summary. */}
           <Card>
@@ -930,6 +956,7 @@ export function DesignLab({
               })}
             </div>
           </Card>
+          </>)}
           </>
         )}
 
