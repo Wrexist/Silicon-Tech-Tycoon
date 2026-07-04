@@ -1240,7 +1240,7 @@
   .co__line-status--busy .co__line-dot { animation: none; }
 }
 
-/* The 8-week projection grows in, staggered, each time the Finance tab opens — a live forecast. */
+/* The 8-week projection grows in, staggered, each time the Company tab opens — a live forecast. */
 .co__proj-bar {
   transform-origin: bottom;
   animation: co-proj-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
