@@ -169,6 +169,33 @@ string, but do it with the icon/copy pass it deserves).
 
 ---
 
+## Second review pass (2026-07-04) — what changed, what's now on top
+
+Re-reviewed after the implementation + health passes on this branch. **Resolved since the
+first pass:** F5 (hero-grid collision fixed in source), F6 (reveal now shows the #1 driver +
+deep-links the post-mortem), F8 (silent actions wired), F12 (daily challenge surfaced on HQ),
+and F11 is half-closed (opt-in daily-challenge reminders shipped, native-only; build-done
+pings were proven dishonest for this sim and correctly dropped).
+
+**The remaining top of the audit, re-ranked by impact/effort:**
+1. **F7 — dead waiting** is now the single biggest feel problem. Idea #3 (skip to next
+   decision) is the highest-leverage unbuilt item in this document.
+2. **F1/F2/F3 — the untaught first 15 minutes** (Market never taught; supply chain buried in
+   the Components tab; the 15-stat Review wall). All presentation-layer, no engine risk.
+3. **F13 — no early stakes** and **F18 — solved late game**: both need measured/playtested
+   passes (the harness exists); Idea #10 (moonshots) remains the honest answer to F18.
+4. **F15/F16 — inert stock market and one-shot dilemmas**: Ideas #9 and #6 stand as written.
+
+**NEW top-3 quick wins (<2h each), since the originals shipped:**
+1. **Unify the two price-fit vocabularies (F4)** — make the wizard Review reuse
+   `priceGuidance`'s zone labels instead of its own ratio thresholds. One screen, one model.
+2. **Rename the "Finance" tab (F10)** — it's the Team/Ops/Financing hub; players hunting
+   "where do I hire?" have no scent trail. One label + title, with a matching icon check.
+3. **Collapse the Design Lab's supply-chain block behind an "Advanced sourcing" disclosure
+   (F2, partial)** — supplier/factory/contract controls silently move unit cost and greet a
+   first-timer inside the Components tab; a collapsed-by-default section keeps the power,
+   removes the day-one wall.
+
 ## Status (updated after the implementation pass on this branch)
 
 **Shipped here:** QW1 (hero-grid collision fixed in source, capture workarounds removed),
