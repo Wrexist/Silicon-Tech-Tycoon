@@ -9,7 +9,7 @@ const TABS: { id: Tab; label: string; Icon: LucideIcon; color: string }[] = [
   { id: "design", label: "Design", Icon: PencilRuler, color: "var(--fn-design)" },
   { id: "research", label: "Research", Icon: FlaskConical, color: "var(--fn-eng)" },
   { id: "market", label: "Market", Icon: TrendingUp, color: "var(--fn-mkt)" },
-  { id: "company", label: "Finance", Icon: Building2, color: "var(--accent)" },
+  { id: "company", label: "Company", Icon: Building2, color: "var(--accent)" },
 ];
 
 export function BottomNav({

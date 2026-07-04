@@ -40,7 +40,7 @@ const TAB_TITLE: Record<Tab, string> = {
   design: "Design Lab",
   research: "Research",
   market: "Market",
-  company: "Finance",
+  company: "Company",
 };
 const TAB_TINT: Partial<Record<Tab, string>> = {
   design: "var(--fn-design)",
