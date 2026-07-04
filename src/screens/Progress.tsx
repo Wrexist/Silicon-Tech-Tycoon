@@ -20,9 +20,11 @@ import "./progress.css";
 
 type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum";
 
-export function ProgressSheet({ onClose }: { onClose: () => void }) {
+export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () => void; initialView?: View }) {
   const { state } = useGame();
-  const [view, setView] = useState<View>("hub");
+  // The sheet unmounts when closed, so the initial view is honoured fresh on every open — this is
+  // how HQ's daily-challenge card deep-links straight to Challenges.
+  const [view, setView] = useState<View>(initialView);
   const toHub = () => setView("hub");
 
   const museumCount = getMuseum().length;

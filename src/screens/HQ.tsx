@@ -7,6 +7,7 @@ import {
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
 import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
+import { DailyChallengeCard } from "../components/DailyChallengeCard.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
@@ -96,7 +97,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 // place the WASD camera hint makes sense. Touch phones report a coarse pointer and get no hint.
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
-export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; active?: boolean }) {
+export function HQ({ onNavigate, onOpenBank, onOpenChallenges, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; active?: boolean }) {
   const { state, advanceEra, goPublic, resolveChoice, resolvePoach } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
@@ -119,6 +120,9 @@ export function HQ({ onNavigate, onOpenBank, active = true }: { onNavigate: (t: 
 
       <ScenarioTracker />
       <ChallengeTracker />
+      {/* The daily hook, surfaced where sessions start — hidden while a challenge run is active
+          (the tracker above owns this slot then). Deep-links into the Challenges sheet. */}
+      {onOpenChallenges && <DailyChallengeCard onOpen={onOpenChallenges} />}
 
       {ipoReady && (
         <Card className="hq__era hq__ipo">

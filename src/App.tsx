@@ -63,6 +63,12 @@ function AppShell() {
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
+  // Which view the Progress sheet opens on — "challenges" when HQ's daily-challenge card deep-links.
+  const [progressView, setProgressView] = useState<"hub" | "challenges">("hub");
+  const openProgress = (view: "hub" | "challenges" = "hub") => {
+    setProgressView(view);
+    setProgressOpen(true);
+  };
   const [bankOpen, setBankOpen] = useState(false);
   const [ipoSeen, setIpoSeen] = useState(false);
   // seenEraModal is initialized to the current era so loading an existing save never re-shows
@@ -99,7 +105,7 @@ function AppShell() {
       <Hud
         onSettings={() => setSettingsOpen(true)}
         onOpenBank={() => setBankOpen(true)}
-        onOpenProgress={hasShipped ? () => setProgressOpen(true) : undefined}
+        onOpenProgress={hasShipped ? () => openProgress() : undefined}
       />
       <main className="app__main">
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
@@ -109,7 +115,7 @@ function AppShell() {
         <div className="app__screen" hidden={tab !== "hq"}>
           <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-            <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} active={tab === "hq"} />
+            <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} onOpenChallenges={() => openProgress("challenges")} active={tab === "hq"} />
           </ErrorBoundary>
         </div>
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
@@ -158,7 +164,7 @@ function AppShell() {
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)}>
-        <ProgressSheet onClose={() => setProgressOpen(false)} />
+        <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
       </Sheet>
       {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} topProduct={offline.topProduct} onClose={clearOffline} />}
       {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (
