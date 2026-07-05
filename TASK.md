@@ -1760,3 +1760,24 @@ office's three bundle — Factory3D itself is 8.8KB):
       design), and whether two canvases (office + factory mode) coexist happily on old iPhones
       — the office canvas stays mounted while the mode is open; if memory bites, unmount the
       office scene while fmode is up (one-line follow-up).
+
+## v75 — Factory 3D: a production line that makes sense (DONE 2026-07-04)
+User: "make the three.js make sense, add conveyor belts / robot arms / machines that look
+good and cool." Rebuilt the scene as ONE coherent S-shaped production line:
+- [x] **The story on the floor**: intake hopper (Sourcing, falling material puffs) → gantry
+      press straddling the belt (Tooling, dual-cylinder sharp-stamp ram + emissive status
+      strip) → TWO industrial robot arms (Assembly, turntable/shoulder/elbow/wrist/two-finger
+      gripper rigs, mirrored + phase-offset) → glass QA scan tunnel (Quality, translucent
+      housing + sweeping scan sheet) → packer (Packaging, folding plates) → crate stacks +
+      dock truck. The REAL build stage's machine glows + gets its point light.
+- [x] **The item visibly transforms as it travels**: raw metal slab → green logic board →
+      the dark device with an emissive screen → banded shipping crate, switched by arc
+      position along the path (4 items riding the line, 2× on overtime).
+- [x] **Belt quality**: beds + metal side rails + support legs + ~40 rollers along the whole
+      path; hazard-striped safety bases under every machine; AGVs now carry a crate and orbit
+      the line with heading; 6-wheel truck with windshield.
+- [x] Camera pull-back tuned via screenshot (portrait fov 50) so the WHOLE line frames on a
+      phone. Verified live (chromium+ANGLE): zero console errors, QA tunnel correctly hot
+      during the staged run's QA week. 713 tests, tsc 0, build+PWA green.
+- NOT verified on-device: GPU cost of ~130 meshes + 6 useFrame rigs on old iPhones (drop
+      roller count / shadow map first if it stutters); light-theme is intentionally dark.
