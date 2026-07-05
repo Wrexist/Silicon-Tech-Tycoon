@@ -264,7 +264,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* Ready to launch */}
       {state.ready.length > 0 && (
         <Card className="hq__ready">
-          <SectionHeader title="Ready to launch" accessory="market & release" />
+          <SectionHeader title="Ready to launch" accessory={`${state.ready.length} ready`} />
           {state.ready.map((p) => (
             <div className="hq__ready-row" key={p.id}>
               <div className="hq__ready-thumb"><DeviceRenderer product={p} size={52} /></div>
@@ -298,7 +298,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       <Upgrades />
 
       {state.launched.length === 0 ? (
-        <GetStartedCard state={state} onNavigate={onNavigate} />
+        // While the first-run Coach is walking design→build→launch, don't also show the identical
+        // checklist here; it takes over once the tutorial is skipped or finished.
+        state.tutorialDone ? <GetStartedCard state={state} onNavigate={onNavigate} /> : null
       ) : (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />

@@ -188,7 +188,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           return (
             <div className="mkt__co-spark">
               <Sparkline data={hist} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} height={38} />
-              <span className={`mkt__co-change mkt__co-change--${ch >= 0 ? "up" : "down"}`}>{ch >= 0 ? "▲" : "▼"} {Math.abs(ch).toFixed(1)}%</span>
+              <span className={`mkt__co-change mkt__co-change--${ch >= 0 ? "up" : "down"}`}>
+                {ch >= 0 ? <TrendingUp size={12} aria-hidden /> : <TrendingDown size={12} aria-hidden />} {Math.abs(ch).toFixed(1)}%
+              </span>
             </div>
           );
         })()}
@@ -243,7 +245,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
             <div className="mkt__board-list">
               {board.map((e, i) => (
                 <div key={e.id} className={`mkt__board-row${e.isPlayer ? " mkt__board-row--me" : ""}`}>
-                  <span className={`mkt__board-rank${i === 0 ? " mkt__board-rank--first" : ""}`}>{i + 1}</span>
+                  <span className={`mkt__board-rank${i === 0 ? " mkt__board-rank--first" : ""}`}>{i === 0 ? <Crown size={13} aria-hidden /> : i + 1}</span>
                   <span className="mkt__board-name">{e.name}{e.isPlayer ? " · you" : ""}</span>
                   <span className="mkt__board-val tnum">{format(e.valuation)}</span>
                 </div>
@@ -281,7 +283,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                   <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
                 ) : (
                   <Button variant="secondary" disabled={!afford} onClick={() => unlockRegion(r.id)}>
-                    {format(r.unlockCost)}
+                    <Globe size={14} aria-hidden /> Unlock · {format(r.unlockCost)}
                   </Button>
                 )}
               </div>
@@ -386,6 +388,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                           </span>
                         )}
                       </span>
+                      <ChevronRight size={16} className="mkt__product-chev" aria-hidden />
                     </span>
                     {live && lp.weeklyUnits.length > 0 && (
                       <span className="mkt__product-lc" aria-hidden>
@@ -1366,7 +1369,7 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
       <div className="rprof__stats">
         <StatPill label="Reputation" value={Math.round(comp.reputation)} tone={comp.reputation >= 60 ? "positive" : "neutral"} />
         <StatPill label="Market cap" value={format(cap)} />
-        <StatPill label="Share" value={`${format(cents(comp.sharePrice))} ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}%`} tone={ch >= 0 ? "positive" : "negative"} />
+        <StatPill label="Share" value={`${format(cents(comp.sharePrice))} · ${ch >= 0 ? "+" : "−"}${Math.abs(ch).toFixed(1)}%`} tone={ch >= 0 ? "positive" : "negative"} />
         <StatPill label="Strategy" value={DOCTRINE_LABEL[rivalDoctrine(comp.id)] ?? "—"} />
       </div>
 

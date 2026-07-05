@@ -1487,8 +1487,8 @@ export function DesignLab({
         <div className="lab__summary-cell">
           <TrendingUp size={18} className="lab__summary-icon" aria-hidden />
           <span className="lab__summary-text">
-            <span className="lab__summary-label">Market Fit</span>
-            <span className="lab__summary-val">{fit >= 70 ? "Excellent" : fit >= 50 ? "Strong" : fit >= 35 ? "Good" : fit >= 20 ? "Fair" : "Weak"}</span>
+            <span className="lab__summary-label">Market Fit · {fit >= 70 ? "Excellent" : fit >= 50 ? "Strong" : fit >= 35 ? "Good" : fit >= 20 ? "Fair" : "Weak"}</span>
+            <span className="lab__summary-val tnum">{fit} <span className="lab__den">/ 100</span></span>
           </span>
         </div>
       </Card>

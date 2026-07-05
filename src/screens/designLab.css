@@ -162,7 +162,7 @@
   font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2);
   transition: all var(--spring-snappy);
 }
-.lab__hero-cat--on { border-color: var(--fn-design); background: var(--fn-design); color: #fff; }
+.lab__hero-cat--on { border-color: var(--fn-design); background: var(--fn-design); color: var(--accent-ink); }
 .lab__hero-info { display: flex; flex-direction: column; gap: var(--sp-12); min-width: 0; }
 .lab__hero-name-row { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; }
 .lab__hero-name { font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.01em; }
@@ -243,9 +243,13 @@
 }
 .lab__seg-opt {
   flex: 1;
-  padding: 8px 4px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8) var(--sp-4);
   border-radius: 9px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
   transition: all var(--spring-snappy);
@@ -975,7 +979,7 @@
 .wiz__region { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); text-align: left; transition: all var(--spring-snappy); }
 .wiz__region--on { border-color: var(--accent); background: var(--accent-soft); }
 .wiz__region-check { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent); }
-.wiz__region--on .wiz__region-check { background: var(--accent); color: #fff; }
+.wiz__region--on .wiz__region-check { background: var(--accent); color: var(--accent-ink); }
 .wiz__region-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .wiz__region-name { font-weight: 600; }
 .wiz__region-blurb { font-size: var(--fs-caption); color: var(--ink-2); }
@@ -1122,7 +1126,11 @@
 }
 .lab__tab {
   flex: 1;
-  padding: 8px 4px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8) var(--sp-4);
   border-radius: calc(var(--r-pill) - 2px);
   font-size: var(--fs-micro);
   font-weight: 700;
