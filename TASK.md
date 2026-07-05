@@ -1736,3 +1736,27 @@ FACTORY_MODE_PLAN.md F1 shipped: the reference guide's layout, wired to the real
       (reverted to meet — F2's pan/zoom owns filling). 713 tests, tsc 0, build+PWA green.
 - NOT verified on-device: portrait dead-space feel below the map (F2 pan/zoom addresses);
       panel widths on small phones; light-theme map contrast.
+
+## v74 — Factory Mode goes three.js (DONE 2026-07-04)
+User verdict on the flat SVG map: looks bad — use three.js. Correct call: the 3D office
+already proves the stack. `components/Factory3D.tsx` (r3f + drei, lazy chunk SHARING the
+office's three bundle — Factory3D itself is 8.8KB):
+- [x] Tycoon-tilt 3D floor: grass field, asphalt pad + grid, conveyor loop (RoundedBox belts
+      w/ emissive amber lanes), crates riding the loop via useFrame arc-length param, machine
+      rigs (assembler piston, two-joint robot arm, QA gate w/ sweeping beam plane) where the
+      HOT machine follows the real build stage (emissive + point light), crate stacks =
+      ready shelf w/ packing bounce, dock road + wheeled truck (bobs while selling), AGVs
+      per Robotics tier patrolling outside the loop, overtime = amber key light + 2× speeds.
+- [x] House perf discipline: lazy import (three stays chunked), dpr [1,1.75], context-lost →
+      SVG fallback; gated on garage3d setting + webglSupported + !reduced-motion (SVG map
+      kept as the fallback + the Office-tab minimap).
+- [x] **Portrait framing solved by rotating the WORLD 90°** (long axis into screen depth) +
+      fov 46 on portrait / 27 landscape (FitCamera) — a fixed camera simply cannot frame a
+      wide pad on a narrow phone (measured through 3 screenshot iterations).
+- [x] Verified live (chromium+ANGLE): canvas mounts, stage-hot machine correct (QA glowing
+      during the staged run's QA week), zero console errors; 4 screenshot iterations drove
+      the camera/lighting/lane fixes. 713 tests, tsc 0, build+PWA green.
+- NOT verified on-device: real-phone GPU feel, light-theme contrast (scene is dark-first by
+      design), and whether two canvases (office + factory mode) coexist happily on old iPhones
+      — the office canvas stays mounted while the mode is open; if memory bites, unmount the
+      office scene while fmode is up (one-line follow-up).

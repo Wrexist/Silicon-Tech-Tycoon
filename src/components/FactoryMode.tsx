@@ -4,7 +4,7 @@
 // lever), truck and Shop along the bottom. Fully data-driven off the live sim; the map
 // itself is an authored starter layout until Build mode lands in F2.
 // Parametric SVG only (zero image assets); every animation sim-gated + reduced-motion safe.
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   BarChart3, BatteryCharging, Bot, Camera, CodeXml, Cpu, FlaskConical, Hammer, Layers3,
@@ -25,6 +25,12 @@ import { Sheet, useDialogFocus } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
+import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
+import { useSettings } from "../state/settings.ts";
+
+// three.js stays in its own lazy chunk (the garage3d rule); the SVG map is the fallback for
+// no-WebGL / reduced-motion / 3D-off, and the Suspense placeholder while the chunk loads.
+const Factory3D = lazy(() => import("./Factory3D.tsx"));
 import "./factoryMode.css";
 
 /* ------------------------------- shared data ------------------------------- */
@@ -244,6 +250,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const { state } = d;
   const { buyUpgrade } = d.game;
   const [sheet, setSheet] = useState<null | "upgrades" | "stats" | "shop">(null);
+  const settings = useSettings();
+  const [glLost, setGlLost] = useState(false);
+  const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
 
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
@@ -265,7 +274,23 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
   return createPortal(
     <div ref={ref} tabIndex={-1} className="fmode" role="dialog" aria-modal="true" aria-label="Factory mode">
-      <FactoryMap />
+      <div className="fmode__stage">
+        {use3d ? (
+          <Suspense fallback={<FactoryMap />}>
+            <Factory3D
+              active={d.active}
+              stageIdx={d.stageIdx}
+              robotTier={d.robotTier}
+              readyCount={d.readyCount}
+              selling={d.selling}
+              overtime={d.overtime}
+              onContextLost={() => setGlLost(true)}
+            />
+          </Suspense>
+        ) : (
+          <FactoryMap />
+        )}
+      </div>
 
       {/* top bar */}
       <div className="fmode__top">
