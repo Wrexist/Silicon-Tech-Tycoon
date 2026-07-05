@@ -20,7 +20,8 @@ import { CATEGORIES } from "../engine/catalogs.ts";
 import { format, sub, toDollars } from "../engine/money.ts";
 import type { ComponentKind, FactoryId } from "../engine/types.ts";
 import type { Tab } from "./BottomNav.tsx";
-import { STAGES, stageFor } from "./BuildProgress.tsx";
+import { StageTrail } from "./BuildProgress.tsx";
+import { stageForLine } from "../engine/assemblyLine.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Sheet, useDialogFocus } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -57,8 +58,8 @@ function useFactoryData() {
   const lead = state.building[0] ?? null;
   const active = state.building.length > 0;
   const progress = lead ? Math.min(1, lead.weeksElapsed / Math.max(1, lead.totalWeeks)) : 0;
-  const stage = lead ? stageFor(progress) : null;
-  const stageIdx = stage ? STAGES.indexOf(stage) : -1;
+  const stage = lead ? stageForLine(lead.product.category, progress) : null;
+  const stageIdx = stage ? stage.machineStage : -1;
   const weeksLeft = lead ? Math.max(0, Math.ceil(lead.totalWeeks - lead.weeksElapsed)) : 0;
   const readyCount = state.ready.length;
   const liveProducts = state.launched.filter((l) => l.weeksElapsed < l.weeklyUnits.length);
@@ -261,6 +262,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 <span className="fmode__order-units tnum">{(d.lead.plannedUnits ?? 0).toLocaleString()} units</span>
                 <span className="fmode__order-track"><span className="fmode__order-fill" style={{ width: `${Math.round(d.progress * 100)}%` }} /></span>
                 <span className="fmode__order-eta">{d.stage?.label} · {d.weeksLeft} wk left</span>
+                <StageTrail category={d.lead.product.category} frac={d.progress} />
                 {d.util != null && (
                   <span className={`fmode__cap-line${d.overtime ? " fmode__cap-line--hot" : ""}`}>
                     <span className="fmode__cap-bar"><span className="fmode__cap-fill" style={{ width: `${Math.min(100, Math.round(d.util * 100))}%` }} /></span>

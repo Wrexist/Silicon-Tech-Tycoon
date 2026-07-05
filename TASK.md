@@ -1907,3 +1907,32 @@ Executed `FACTORY_POLISH_PROMPT.md` (Fable-5 handoff) as the polish pass. 3D sce
       clean tiles, zero console errors. 723 tests, tsc 0, build+PWA green.
 - Left for on-device tuning: rail label/badge micro-copy pass (#3), FactoryCard chip tidy (#6),
       and a motion-timing audit (#7) — all cosmetic, none blocking.
+
+## v82 — Device-specific manufacturing lines + a "nice to follow" stage stepper (DONE 2026-07-05)
+User: "Add machines needed for specific devices — iPhone & iPad are the same machines but iPhone
+and laptop are completely different. Also add a progress visual that's nice to follow like [the
+In-production ring]."
+- [x] **`engine/assemblyLine.ts` (PURE, +6 tests)** — per-category build recipes. `FAMILY_OF` maps
+      each `CategoryId` to a `LineFamily`: phone+tablet share `slab`; laptop is `clamshell`;
+      desktop+console `tower`; monitor `display`; wearable `wearable`; experimental falls back to
+      slab. Each recipe is an ordered list of `LineStage`s (label/sub/icon-key + a `machineStage`
+      0..4 that maps the step to the physical floor machine that lights up, so a recipe can name
+      more sub-steps than there are machines without touching the 3D scene). A laptop's line
+      (Sourcing → Chassis milling → Board & hinge → Keyboard & deck → Burn-in QA → Pack) is
+      genuinely different from a phone's (Sourcing → Board press → Screen bond → QA → Pack).
+- [x] **`StageTrail` stepper (BuildProgress.tsx + buildProgress.css)** — the whole pipeline as a
+      row of icon nodes that fill left→right as the run progresses: done = quiet accent tint,
+      active = accent-filled + soft pulse, todo = outlined. Device-specific (laptop shows 6 nodes,
+      phone 5). Reduced-motion safe, `aria-label`/`aria-current`. Shown in the HQ "In production"
+      card (under the ring) and in Factory Mode's Current Order card (scoped to read on the dark
+      panel). Ring stage label + sub are now recipe-driven too.
+- [x] **Generalised the stage logic off the universal 5-STAGE list** — `BuildProgress` and
+      `FactoryMode` now call `stageForLine(category, frac)`; Factory3D's `stageIdx` comes from the
+      active step's `machineStage`, so the correct machine still lights for any recipe length.
+- [x] Verified live over two running runs (staged save, Chromium 430×900 dark): HQ card renders
+      laptop=6 / phone=5 node trails with correct device-specific stage names ("Board & hinge" vs
+      "Board press"); Factory Mode order card shows the same trail on the dark panel; 3D scene
+      untouched; zero app errors. 728 tests (+5), tsc 0, build+PWA green.
+- Note: literal per-category 3D machine *geometry* (a distinct chassis mill / keyboard station on
+      the floor) stays out of scope — that's the gated F4 on-floor pass. This slice makes the build
+      *process* device-specific and legible; the floor machines remain the shared 5.

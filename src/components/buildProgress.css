@@ -161,6 +161,79 @@
   font-weight: 600;
 }
 
+/* Stage stepper — the whole build pipeline as icon nodes filling left→right. Device-specific:
+   a laptop shows more nodes (chassis, keyboard) than a phone. "Nice to follow" without shouting. */
+.strail {
+  display: flex;
+  align-items: center;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.strail__step {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.strail__step:not(:last-child) {
+  flex: 1;
+}
+.strail__node {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--hairline);
+  background: var(--surface);
+  color: var(--ink-3);
+  transition: color 240ms ease, background 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+.strail__bar {
+  flex: 1;
+  height: 2px;
+  min-width: 6px;
+  margin: 0 3px;
+  border-radius: 2px;
+  background: var(--hairline);
+  transition: background 320ms ease;
+}
+/* done — quietly filled */
+.strail__step--done .strail__node {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+.strail__bar--done {
+  background: color-mix(in srgb, var(--accent) 55%, var(--hairline));
+}
+/* active — the one node that reads as "now" */
+.strail__step--active .strail__node {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  animation: strail-pulse 2.4s ease-in-out infinite;
+}
+/* positive tone once the run is nearly done, matching the ring */
+.strail--positive .strail__step--done .strail__node {
+  background: color-mix(in srgb, var(--positive) 16%, transparent);
+  color: var(--positive);
+}
+.strail--positive .strail__bar--done {
+  background: color-mix(in srgb, var(--positive) 55%, var(--hairline));
+}
+.strail--positive .strail__step--active .strail__node {
+  background: var(--positive);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 22%, transparent);
+}
+
+@keyframes strail-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--accent-soft); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 12%, transparent); }
+}
+
 @keyframes bprog-spin {
   to { transform: rotate(360deg); }
 }
@@ -173,6 +246,6 @@
   to { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bprog__sweep, .bprog__halo, .bprog__stage { animation: none; }
+  .bprog__sweep, .bprog__halo, .bprog__stage, .strail__step--active .strail__node { animation: none; }
   .bprog__fill { transition: none; }
 }

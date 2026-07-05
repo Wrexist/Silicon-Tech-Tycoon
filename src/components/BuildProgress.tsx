@@ -2,31 +2,54 @@
 // progress ring (a glowing "factory halo") that fills as the run is built, with a live stage label
 // — Sourcing → Tooling → Assembly → QA → Packaging — so the wait reads as a real process, not a
 // silent bar. Pure presentational; driven by the BuildJob's weeksElapsed / totalWeeks.
-import { Boxes, Wrench, Cog, ShieldCheck, Truck, type LucideIcon } from "lucide-react";
+import {
+  Boxes, Stamp, Layers3, Cog, ShieldCheck, Truck, Wrench, Keyboard, Fan, Watch,
+  Monitor, ScanLine, CircuitBoard, type LucideIcon,
+} from "lucide-react";
+import type { CategoryId } from "../engine/types.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { supplierFor } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
+import { lineFor, stageForLine, stageIndexForLine } from "../engine/assemblyLine.ts";
 import type { BuildJob } from "../engine/types.ts";
 import "./buildProgress.css";
 
-export type Stage = { from: number; label: string; sub: string; icon: LucideIcon };
+// Icon key → glyph. The engine's recipes are icon-free (pure data); the presentation layer owns
+// the glyphs. One map shared by the ring's stage label and the StageTrail stepper.
+export const STAGE_ICONS: Record<string, LucideIcon> = {
+  source: Boxes, press: Stamp, bond: Layers3, board: CircuitBoard, chassis: Wrench,
+  keyboard: Keyboard, cooling: Fan, sensor: Watch, panel: Monitor, calibrate: ScanLine,
+  qa: ShieldCheck, pack: Truck,
+};
+const stageIcon = (key: string): LucideIcon => STAGE_ICONS[key] ?? Cog;
 
-// Ordered manufacturing stages, keyed off the build's completion fraction. The last stage whose
-// `from` is ≤ progress is the active one, so adding/retiming stages stays a one-line edit.
-// Exported: the Factory World mirrors these exact stages on its floor (one source of truth).
-export const STAGES: Stage[] = [
-  { from: 0.0, label: "Sourcing components", sub: "Chips, panels & cells inbound", icon: Boxes },
-  { from: 0.2, label: "Tooling & setup", sub: "Calibrating the line", icon: Wrench },
-  { from: 0.45, label: "Assembly", sub: "Units coming together", icon: Cog },
-  { from: 0.75, label: "Quality assurance", sub: "Testing every unit", icon: ShieldCheck },
-  { from: 0.92, label: "Packaging & shipping", sub: "Boxing the run", icon: Truck },
-];
-
-export function stageFor(frac: number): Stage {
-  let s = STAGES[0];
-  for (const cand of STAGES) if (frac >= cand.from) s = cand;
-  return s;
+/** The stage stepper — the device's whole build pipeline as a row of icon nodes that fill left to
+ *  right as the run progresses, so the wait is "nice to follow": you see every step, which are
+ *  done, and which is happening now. Device-specific (a laptop shows chassis/keyboard steps a phone
+ *  never does). Compact + reduced-motion safe; the active stage's name is shown by the caller. */
+export function StageTrail({ category, frac, tone = "accent" }: { category: CategoryId; frac: number; tone?: "accent" | "positive" }) {
+  const stages = lineFor(category);
+  const activeIdx = stageIndexForLine(category, frac);
+  return (
+    <ol className={`strail strail--${tone}`} aria-label="Build stages">
+      {stages.map((s, i) => {
+        const Icon = stageIcon(s.icon);
+        const state = i < activeIdx ? "done" : i === activeIdx ? "active" : "todo";
+        return (
+          <li
+            key={s.key}
+            className={`strail__step strail__step--${state}`}
+            aria-current={state === "active" ? "step" : undefined}
+            title={s.label}
+          >
+            <span className="strail__node"><Icon size={12} aria-hidden /></span>
+            {i < stages.length - 1 && <span className={`strail__bar${i < activeIdx ? " strail__bar--done" : ""}`} aria-hidden />}
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 const RING_R = 33; // radius in the 80×80 viewBox
@@ -36,8 +59,8 @@ export function BuildProgress({ job }: { job: BuildJob }) {
   const frac = Math.max(0, Math.min(1, job.weeksElapsed / Math.max(1e-6, job.totalWeeks)));
   const pct = Math.round(frac * 100);
   const weeksLeft = Math.max(0, Math.ceil(job.totalWeeks - job.weeksElapsed));
-  const stage = stageFor(frac);
-  const StageIcon = stage.icon;
+  const stage = stageForLine(job.product.category, frac);
+  const StageIcon = stageIcon(stage.icon);
   const nearDone = frac >= 0.92;
   // Surface the player's supply-chain choices in the live stage: the supplier while sourcing, the
   // factory while tooling/assembling. Only when non-default, so a standard build stays clean.
@@ -86,6 +109,7 @@ export function BuildProgress({ job }: { job: BuildJob }) {
           {weeksLeft > 0 ? `${weeksLeft} wk left` : "Finishing up"}
           {job.plannedUnits != null && <span className="bprog__units"> · {job.plannedUnits.toLocaleString()} units</span>}
         </span>
+        <StageTrail category={job.product.category} frac={frac} tone={nearDone ? "positive" : "accent"} />
       </div>
     </div>
   );

@@ -94,6 +94,14 @@
 .fmode__order { display: flex; gap: var(--sp-10); align-items: center; }
 .fmode__order-thumb { flex: none; }
 .fmode__order-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* Stage stepper sits on the always-dark factory panel, so it reads off white-on-dark values
+   rather than the theme surface (which would blend or glare depending on light/dark). */
+.fmode .strail { margin-top: 4px; }
+.fmode .strail__node { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16); color: rgba(255,255,255,0.5); }
+.fmode .strail__bar { background: rgba(255,255,255,0.14); }
+.fmode .strail__step--done .strail__node { background: color-mix(in srgb, var(--accent) 30%, transparent); border-color: transparent; color: #fff; }
+.fmode .strail__step--done .strail__bar--done { background: color-mix(in srgb, var(--accent) 60%, rgba(255,255,255,0.14)); }
+.fmode .strail__step--active .strail__node { color: #fff; }
 .fmode__order-name { font-size: var(--fs-caption); font-weight: 800; }
 .fmode__order-units { font-size: var(--fs-micro); color: rgba(255,255,255,0.6); }
 .fmode__order-track { display: block; height: 6px; border-radius: var(--r-pill); background: rgba(255,255,255,0.14); overflow: hidden; }
