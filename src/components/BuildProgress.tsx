@@ -25,14 +25,15 @@ export const STAGE_ICONS: Record<string, LucideIcon> = {
 const stageIcon = (key: string): LucideIcon => STAGE_ICONS[key] ?? Cog;
 
 /** The stage stepper — the device's whole build pipeline as a row of icon nodes that fill left to
- *  right as the run progresses, so the wait is "nice to follow": you see every step, which are
- *  done, and which is happening now. Device-specific (a laptop shows chassis/keyboard steps a phone
- *  never does). Compact + reduced-motion safe; the active stage's name is shown by the caller. */
-export function StageTrail({ category, frac, tone = "accent" }: { category: CategoryId; frac: number; tone?: "accent" | "positive" }) {
+ *  right as the run progresses, so the wait is "nice to follow": you see every machine, which are
+ *  done, and which is running now. Device-specific (a laptop shows a Chassis Mill + Keyboard Deck a
+ *  phone never does). With `labeled`, each node captions its machine's name — a clean readout of
+ *  exactly which machines the device needs. Compact + reduced-motion safe. */
+export function StageTrail({ category, frac, tone = "accent", labeled = false }: { category: CategoryId; frac: number; tone?: "accent" | "positive"; labeled?: boolean }) {
   const stages = lineFor(category);
   const activeIdx = stageIndexForLine(category, frac);
   return (
-    <ol className={`strail strail--${tone}`} aria-label="Build stages">
+    <ol className={`strail strail--${tone}${labeled ? " strail--labeled" : ""}`} aria-label={`Machines for this ${category}`}>
       {stages.map((s, i) => {
         const Icon = stageIcon(s.icon);
         const state = i < activeIdx ? "done" : i === activeIdx ? "active" : "todo";
@@ -41,10 +42,13 @@ export function StageTrail({ category, frac, tone = "accent" }: { category: Cate
             key={s.key}
             className={`strail__step strail__step--${state}`}
             aria-current={state === "active" ? "step" : undefined}
-            title={s.label}
+            title={s.machine}
           >
-            <span className="strail__node"><Icon size={12} aria-hidden /></span>
-            {i < stages.length - 1 && <span className={`strail__bar${i < activeIdx ? " strail__bar--done" : ""}`} aria-hidden />}
+            <span className="strail__row">
+              <span className="strail__node"><Icon size={12} aria-hidden /></span>
+              {i < stages.length - 1 && <span className={`strail__bar${i < activeIdx ? " strail__bar--done" : ""}`} aria-hidden />}
+            </span>
+            {labeled && <span className="strail__cap">{s.short}</span>}
           </li>
         );
       })}
@@ -109,7 +113,7 @@ export function BuildProgress({ job }: { job: BuildJob }) {
           {weeksLeft > 0 ? `${weeksLeft} wk left` : "Finishing up"}
           {job.plannedUnits != null && <span className="bprog__units"> · {job.plannedUnits.toLocaleString()} units</span>}
         </span>
-        <StageTrail category={job.product.category} frac={frac} tone={nearDone ? "positive" : "accent"} />
+        <StageTrail category={job.product.category} frac={frac} tone={nearDone ? "positive" : "accent"} labeled />
       </div>
     </div>
   );

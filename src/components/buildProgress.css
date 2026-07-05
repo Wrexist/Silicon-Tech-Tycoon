@@ -165,19 +165,42 @@
    a laptop shows more nodes (chassis, keyboard) than a phone. "Nice to follow" without shouting. */
 .strail {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   margin: 2px 0 0;
   padding: 0;
   list-style: none;
 }
 .strail__step {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
 }
 .strail__step:not(:last-child) {
   flex: 1;
 }
+.strail__row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+/* machine-name caption under each node (the `labeled` variant) — a clean readout of exactly
+   which machines this device needs, in order. */
+.strail__cap {
+  align-self: flex-start;
+  margin-top: 6px;
+  /* centre the caption under its node (node centre sits 10px in from the step's left edge) */
+  transform: translateX(calc(10px - 50%));
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.strail__step--done .strail__cap { color: var(--ink-2); }
+.strail__step--active .strail__cap { color: var(--accent); font-weight: 700; }
+.strail--positive .strail__step--active .strail__cap { color: var(--positive); }
 .strail__node {
   flex-shrink: 0;
   width: 20px;

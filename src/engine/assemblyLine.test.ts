@@ -22,6 +22,13 @@ describe("assemblyLine recipes", () => {
     const phoneKeys = lineFor("phone").map((s) => s.key).join(",");
     const laptopKeys = lineFor("laptop").map((s) => s.key).join(",");
     expect(laptopKeys).not.toBe(phoneKeys);
+    // The machines are device-specific: a laptop's line names stations a phone's never does.
+    const phoneMachines = new Set(lineFor("phone").map((s) => s.machine));
+    const laptopMachines = lineFor("laptop").map((s) => s.machine);
+    expect(laptopMachines.some((m) => !phoneMachines.has(m))).toBe(true);
+    expect(laptopMachines).toContain("CNC Chassis Mill");
+    expect(laptopMachines).toContain("Keyboard Deck");
+    expect([...phoneMachines]).not.toContain("CNC Chassis Mill");
   });
 
   it("maps every category to a defined recipe", () => {
@@ -43,6 +50,9 @@ describe("assemblyLine recipes", () => {
         expect(s.machineStage).toBeLessThanOrEqual(4);
         expect(s.from).toBeGreaterThanOrEqual(0);
         expect(s.from).toBeLessThanOrEqual(1);
+        // Every step names the machine that performs it (device-specific) + a compact caption.
+        expect(s.machine.length).toBeGreaterThan(0);
+        expect(s.short.length).toBeGreaterThan(0);
       }
       // First step feeds the intake (0), last packs (4).
       expect(stages[0].machineStage).toBe(0);
