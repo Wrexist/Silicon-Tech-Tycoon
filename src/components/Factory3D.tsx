@@ -11,7 +11,7 @@ import { ContactShadows, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import {
   FLOOR, beltPath, formMarks, machineCenter, worldOf,
-  type BeltDir, type FactoryFloor,
+  type BeltDir, type FactoryFloor, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import type { CategoryId, Product } from "../engine/types.ts";
@@ -46,7 +46,9 @@ const C = {
 
 export interface Factory3DProps {
   active: boolean;
-  stageIdx: number;   // -1 none · 0 sourcing · 1 tooling · 2 assembly · 3 qa · 4 packaging
+  /** Which machine kind the current build stage is working (null when idle) — only that machine
+   *  animates; every other machine on the floor stays still. */
+  activeKind: MachineKind | null;
   robotTier: number;
   readyCount: number;
   selling: boolean;
@@ -606,48 +608,143 @@ function Packer({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolea
   );
 }
 
+/** CNC mill — a milling cell the chassis passes through; the spindle traverses + plunges + spins
+ *  to cut the unibody (used for laptop / desktop chassis). */
+function CncMill({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+  const spindle = useRef<THREE.Group>(null);
+  const bit = useRef<THREE.Mesh>(null);
+  const eng = useRef(0);
+  useFrame(({ clock }) => {
+    const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
+    const target = active && hot ? Math.max(0, 1 - d / 1.0) : 0;   // only cuts during its own (milling) stage
+    eng.current += (target - eng.current) * 0.3;
+    const c = eng.current;
+    if (spindle.current) {
+      spindle.current.position.x = Math.sin(clock.elapsedTime * 2.2) * 0.45 * c; // traverses across the work
+      spindle.current.position.y = 1.15 - c * 0.33;                              // plunges onto it
+    }
+    if (bit.current) bit.current.rotation.y += 0.6 * c;                          // tool spins while cutting
+  });
+  return (
+    <group position={position} rotation={[0, yaw, 0]}>
+      {/* side walls form a cell the belt runs through */}
+      {[-0.85, 0.85].map((x) => (
+        <mesh key={x} position={[x, 0.85, 0]} castShadow>
+          <boxGeometry args={[0.22, 1.7, 1.2]} />
+          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
+        </mesh>
+      ))}
+      {/* top gantry beam + status strip */}
+      <RoundedBox args={[2.0, 0.28, 0.5]} radius={0.06} position={[0, 1.75, 0]} castShadow>
+        <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.45} />
+      </RoundedBox>
+      <mesh position={[0, 1.75, 0.27]}><boxGeometry args={[1.5, 0.08, 0.02]} /><meshStandardMaterial color={hot ? C.accent : C.amber} emissive={hot ? C.accent : C.amber} emissiveIntensity={1.0} /></mesh>
+      {/* spindle head — traverses + plunges; the bit spins */}
+      <group ref={spindle} position={[0, 1.15, 0]}>
+        <mesh castShadow><boxGeometry args={[0.3, 0.42, 0.32]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.55} /></mesh>
+        <mesh ref={bit} position={[0, -0.34, 0]}><cylinderGeometry args={[0.05, 0.018, 0.3, 12]} /><meshStandardMaterial color="#c9ced6" roughness={0.25} metalness={0.85} /></mesh>
+      </group>
+      <HazardBase w={2.2} d={1.5} />
+      <HotLight on={hot} y={2.2} />
+    </group>
+  );
+}
+
+/** Screen bonder — a laminating head lowers a display panel onto the device and cures it (used for
+ *  phone / tablet screen bonding + monitor panel lamination). */
+function ScreenBonder({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+  const head = useRef<THREE.Group>(null);
+  const glow = useRef<THREE.Mesh>(null);
+  const eng = useRef(0);
+  useFrame(() => {
+    const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
+    const target = active && hot ? Math.max(0, 1 - d / 0.9) : 0;   // only bonds during its own (screen) stage
+    eng.current += (target - eng.current) * 0.35;
+    const c = eng.current;
+    if (head.current) head.current.position.y = 1.5 - c * 0.92;                                  // lowers the panel
+    if (glow.current) (glow.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.25 + c * 1.7; // cure glow
+  });
+  return (
+    <group position={position} rotation={[0, yaw, 0]}>
+      {/* uprights + crossbeam */}
+      {[-0.8, 0.8].map((x) => (
+        <mesh key={x} position={[x, 0.9, 0]} castShadow>
+          <boxGeometry args={[0.18, 1.8, 0.3]} />
+          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
+        </mesh>
+      ))}
+      <RoundedBox args={[1.9, 0.26, 0.55]} radius={0.06} position={[0, 1.85, 0]} castShadow>
+        <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.4} />
+      </RoundedBox>
+      <mesh position={[0, 1.85, 0.29]}><boxGeometry args={[1.4, 0.08, 0.02]} /><meshStandardMaterial color={hot ? C.accent : C.amber} emissive={hot ? C.accent : C.amber} emissiveIntensity={1.0} /></mesh>
+      {/* descending laminator head holding a glass panel */}
+      <group ref={head} position={[0, 1.5, 0]}>
+        <RoundedBox args={[1.1, 0.16, 0.7]} radius={0.04} castShadow><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></RoundedBox>
+        <mesh ref={glow} position={[0, -0.1, 0]}><boxGeometry args={[0.9, 0.04, 0.6]} /><meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.25} transparent opacity={0.85} roughness={0.15} metalness={0.1} /></mesh>
+      </group>
+      <HazardBase w={2.0} d={1.3} />
+      <HotLight on={hot} y={2.2} />
+    </group>
+  );
+}
+
 /* ------------------------------ dock & extras ------------------------------ */
 
-function CrateStacks({ count }: { count: number }) {
-  const stacks = Math.max(0, Math.min(4, count));
+/** The loading pallet at the line's end — a wooden pallet the packed crates stack onto (growing
+ *  with the ready count), sitting right where the belt tail runs off, beside the delivery truck. */
+function Pallet({ position, yaw = 0, count }: { position: [number, number, number]; yaw?: number; count: number }) {
+  const stacks = Math.max(0, Math.min(6, count));
   return (
-    <group position={[6.6, 0, -2.6]}>
+    <group position={position} rotation={[0, yaw, 0]}>
+      {/* wooden pallet base + top slats */}
+      <mesh position={[0, 0.06, 0]} receiveShadow castShadow>
+        <boxGeometry args={[1.3, 0.12, 1.3]} />
+        <meshStandardMaterial color="#5f4c2f" roughness={0.92} />
+      </mesh>
+      {[-0.45, 0, 0.45].map((z) => (
+        <mesh key={z} position={[0, 0.15, z]} receiveShadow>
+          <boxGeometry args={[1.3, 0.05, 0.3]} />
+          <meshStandardMaterial color="#7d6743" roughness={0.9} />
+        </mesh>
+      ))}
+      {/* finished-goods crates stack up with the ready count */}
       {Array.from({ length: Math.max(1, stacks) }, (_, i) => (
-        <group key={i} position={[(i % 2) * 0.8, 0, Math.floor(i / 2) * 0.8]}>
-          {[0, 1].map((lvl) => (
-            <RoundedBox key={lvl} args={[0.62, 0.44, 0.62]} radius={0.05} position={[0, 0.26 + lvl * 0.48, 0]} castShadow receiveShadow>
-              <meshStandardMaterial color={C.crate} roughness={0.8} transparent={stacks === 0} opacity={stacks === 0 ? 0.25 : 1} />
-            </RoundedBox>
-          ))}
-        </group>
+        <RoundedBox key={i} args={[0.5, 0.4, 0.5]} radius={0.04}
+          position={[((i % 2) - 0.5) * 0.56, 0.38 + Math.floor(i / 4) * 0.42, (Math.floor(i / 2) % 2 - 0.5) * 0.56]}
+          castShadow receiveShadow>
+          <meshStandardMaterial color={C.crate} roughness={0.8} transparent={stacks === 0} opacity={stacks === 0 ? 0.22 : 1} />
+        </RoundedBox>
       ))}
     </group>
   );
 }
 
-function Truck({ selling }: { selling: boolean }) {
+function Truck({ selling, position, yaw = 0 }: { selling: boolean; position: [number, number, number]; yaw?: number }) {
   const grp = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
-    if (grp.current && selling) grp.current.position.x = 8.6 + Math.sin(clock.elapsedTime * 3) * 0.02;
+    if (grp.current) grp.current.position.y = selling ? Math.abs(Math.sin(clock.elapsedTime * 3)) * 0.012 : 0; // subtle idle rumble while shipping
   });
   return (
-    <group ref={grp} position={[8.6, 0, 1.6]}>
-      <RoundedBox args={[1.0, 1.1, 2.3]} radius={0.08} position={[0, 0.78, -0.35]} castShadow>
-        <meshStandardMaterial color={C.truck} roughness={0.55} />
-      </RoundedBox>
-      <RoundedBox args={[0.95, 0.85, 0.8]} radius={0.1} position={[0, 0.65, 1.25]} castShadow>
-        <meshStandardMaterial color={C.cab} roughness={0.5} />
-      </RoundedBox>
-      <mesh position={[0, 0.72, 1.66]}>
-        <boxGeometry args={[0.8, 0.3, 0.02]} />
-        <meshStandardMaterial color={C.screen} roughness={0.2} metalness={0.3} />
-      </mesh>
-      {[[-0.55, -1.0], [0.55, -1.0], [-0.55, 0.2], [0.55, 0.2], [-0.55, 1.15], [0.55, 1.15]].map(([wx, wz], i) => (
-        <mesh key={i} position={[wx, 0.28, wz]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.28, 0.28, 0.18, 18]} />
-          <meshStandardMaterial color="#15181d" roughness={0.9} />
+    <group position={position} rotation={[0, yaw, 0]}>
+      <group ref={grp}>
+        {/* box body (rear, toward the pallet) + cab (front) */}
+        <RoundedBox args={[1.0, 1.1, 2.3]} radius={0.08} position={[0, 0.78, -0.35]} castShadow>
+          <meshStandardMaterial color={C.truck} roughness={0.55} />
+        </RoundedBox>
+        <RoundedBox args={[0.95, 0.85, 0.8]} radius={0.1} position={[0, 0.65, 1.25]} castShadow>
+          <meshStandardMaterial color={C.cab} roughness={0.5} />
+        </RoundedBox>
+        <mesh position={[0, 0.72, 1.66]}>
+          <boxGeometry args={[0.8, 0.3, 0.02]} />
+          <meshStandardMaterial color={C.screen} roughness={0.2} metalness={0.3} />
         </mesh>
-      ))}
+        {[[-0.55, -1.0], [0.55, -1.0], [-0.55, 0.2], [0.55, 0.2], [-0.55, 1.15], [0.55, 1.15]].map(([wx, wz], i) => (
+          <mesh key={i} position={[wx, 0.28, wz]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.28, 0.28, 0.18, 18]} />
+            <meshStandardMaterial color="#15181d" roughness={0.9} />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 }
@@ -723,26 +820,29 @@ function TapFlash({ flash }: { flash: { c: number; r: number; ok: boolean; n: nu
   );
 }
 
-function MachineAt({ m, active, stageIdx, pl, itemsT }: {
-  m: FactoryFloor["machines"][number]; active: boolean; stageIdx: number; pl: Polyline; itemsT: ItemsRef;
+function MachineAt({ m, active, activeKind, pl, itemsT }: {
+  m: FactoryFloor["machines"][number]; active: boolean; activeKind: MachineKind | null; pl: Polyline; itemsT: ItemsRef;
 }) {
   const [cx, cz] = machineCenter(m);
-  // Snap the machine ONTO the belt so the product runs through it. Straddlers (press / QA / packer /
-  // intake) sit centred on the line and face along it; the robot arm stands beside the belt and
-  // reaches over. If there's no line yet, fall back to the raw cell centre so it still shows.
+  // Snap the machine ONTO the belt so the product runs through it. Straddlers (mill / press / screen
+  // / QA / packer / intake) sit centred on the line and face along it; the robot arm stands beside
+  // the belt and reaches over. If there's no line yet, fall back to the raw cell centre.
   const snap = snapToBelt(pl, cx, cz);
   const onBelt: [number, number, number] = snap ? [snap.x, 0, snap.z] : [cx, 0, cz];
   const yaw = snap ? snap.yaw : 0;
+  const hot = active && activeKind === m.kind; // only the machine working the current step animates
   switch (m.kind) {
-    case "intake": return <Intake active={active} hot={stageIdx === 0} position={onBelt} yaw={yaw} />;
-    case "press": return <GantryPress active={active} hot={stageIdx === 1} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
-    case "qa": return <QaTunnel active={active} hot={stageIdx === 3} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
-    case "packer": return <Packer active={active} hot={stageIdx === 4} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "intake": return <Intake active={active} hot={hot} position={onBelt} yaw={yaw} />;
+    case "mill": return <CncMill active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "press": return <GantryPress active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "screen": return <ScreenBonder active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "qa": return <QaTunnel active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "packer": return <Packer active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
     case "arm": {
       // beside the belt on the side it was placed, reaching over the line
       const side = snap ? Math.sign((cx - snap.x) * snap.nx + (cz - snap.z) * snap.nz) || 1 : 1;
       const armPos: [number, number, number] = snap ? [snap.x + snap.nx * side * 0.95, 0, snap.z + snap.nz * side * 0.95] : [cx, 0, cz];
-      return <RobotArm active={active} hot={stageIdx === 2} position={armPos} pl={pl} itemsT={itemsT} />;
+      return <RobotArm active={active} hot={hot} position={armPos} pl={pl} itemsT={itemsT} />;
     }
   }
 }
@@ -755,6 +855,24 @@ function Scene(p: Factory3DProps) {
   // The belts ARE the path: chain them, then derive where the item transforms.
   const pl = useMemo(() => makePolyline(beltPath(p.floor.belts)), [p.floor.belts]);
   const marks = useMemo(() => formMarks(p.floor, pl.pts), [p.floor, pl.pts]);
+
+  // The line ENDS at a dock: a pallet just past the belt tail with the delivery truck behind it,
+  // both aimed along the tail's flow — so wherever the player routes the line, it ships from its end.
+  const dock = useMemo(() => {
+    const n = pl.pts.length;
+    if (n < 2) return null;
+    const [tx, tz] = pl.pts[n - 1];
+    const [px, pz] = pl.pts[n - 2];
+    let dx = tx - px, dz = tz - pz;
+    const len = Math.hypot(dx, dz) || 1;
+    dx /= len; dz /= len;
+    return {
+      yaw: Math.atan2(dx, dz),
+      pallet: [tx + dx * 1.15, 0, tz + dz * 1.15] as [number, number, number],
+      truck: [tx + dx * 3.1, 0, tz + dz * 3.1] as [number, number, number],
+      road: [tx + dx * 2.4, 0, tz + dz * 2.4] as [number, number, number],
+    };
+  }, [pl]);
 
   const look = useMemo(() => productLook(p.product), [p.product]);
   const itemsT = useRef<number[]>([0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total)));
@@ -796,20 +914,23 @@ function Scene(p: Factory3DProps) {
         <planeGeometry args={[FLOOR.w, FLOOR.h]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      {/* dock road along the east edge */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[8.6, 0.001, 0]} receiveShadow>
-        <planeGeometry args={[1.9, 30]} />
-        <meshStandardMaterial color={C.road} roughness={0.95} />
-      </mesh>
+      {/* dock apron under the truck, at the line's end */}
+      {dock && (
+        <mesh rotation={[-Math.PI / 2, 0, dock.yaw]} position={[dock.road[0], 0.001, dock.road[2]]} receiveShadow>
+          <planeGeometry args={[3.0, 5.2]} />
+          <meshStandardMaterial color={C.road} roughness={0.95} />
+        </mesh>
+      )}
 
       <BeltTiles floor={p.floor} lineOk={p.lineOk} />
       {p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} look={look} />)}
       {p.flash && <TapFlash flash={p.flash} />}
 
-      {p.floor.machines.map((m) => <MachineAt key={m.id} m={m} active={p.active && p.lineOk} stageIdx={p.stageIdx} pl={pl} itemsT={itemsT} />)}
+      {p.floor.machines.map((m) => <MachineAt key={m.id} m={m} active={p.active && p.lineOk} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />)}
 
-      <CrateStacks count={p.readyCount} />
-      <Truck selling={p.selling} />
+      {/* the belt ends at a pallet beside the delivery truck (the dock) */}
+      {dock && <Pallet position={dock.pallet} yaw={dock.yaw} count={p.readyCount} />}
+      {dock && <Truck selling={p.selling} position={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} />
 
       <ContactShadows position={[0, 0.11, 0]} opacity={0.5} scale={26} blur={2.2} far={4} frames={60} />

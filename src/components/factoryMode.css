@@ -5,8 +5,8 @@
 
 /* ------------- layout-driven minimap (card + no-WebGL fallback) ------------- */
 :root {
-  --fmini-intake: #6b7686; --fmini-press: #3b82f6; --fmini-arm: #f59e0b;
-  --fmini-qa: #7fb2ff; --fmini-packer: #34d399;
+  --fmini-intake: #6b7686; --fmini-mill: #a78bfa; --fmini-press: #3b82f6; --fmini-screen: #22d3ee;
+  --fmini-arm: #f59e0b; --fmini-qa: #7fb2ff; --fmini-packer: #34d399;
 }
 .fmini { display: block; width: 100%; height: auto; }
 .fmini__pad { fill: color-mix(in srgb, var(--ink) 16%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 2; }

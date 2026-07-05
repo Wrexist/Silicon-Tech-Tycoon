@@ -5,27 +5,27 @@
 // (BuildProgress / Factory Mode) maps `icon` keys to Lucide glyphs and drives the visuals off the
 // build's completion fraction. The sim never reads this — it's a truthful readout of a run's stage.
 import type { CategoryId } from "./types.ts";
+import type { MachineKind } from "./factoryFloor.ts";
 
 /** Families of device that share a build process. Categories map onto one of these. */
 export type LineFamily = "slab" | "clamshell" | "tower" | "wearable" | "display";
 
 /** One named step in a device's build — and the machine that performs it.
  *  - `from` — completion fraction (0–1) at which this step becomes the active one.
- *  - `machine` — the station's name (device-specific: a laptop's "CNC Chassis Mill" is not a
- *    phone's "Board Press"). `short` is the compact form used as a stepper caption.
+ *  - `kind` — which physical Factory-floor machine works this step; that machine lights up and
+ *    animates while the stage is active (and stays still for devices that never use it).
+ *  - `machine` — the station's display name (device-specific: a laptop's "CNC Chassis Mill" reads
+ *    differently from a desktop's "Chassis Framer" though both are `mill`). `short` is the caption.
  *  - `label` / `sub` — the process happening now (shown as the live stage text).
- *  - `machineStage` — 0..4, which physical Factory-floor machine (intake/press/arm/qa/packer)
- *    lights up during it. Lets a recipe name more machines than there are floor slots (e.g. a
- *    laptop's Keyboard Deck still runs on the assembly arm) without changing the 3D scene.
  *  - `icon` — a stable key the presentation layer maps to a glyph (the engine stays icon-free). */
 export interface LineStage {
   from: number;
   key: string;
+  kind: MachineKind;
   machine: string;
   short: string;
   label: string;
   sub: string;
-  machineStage: 0 | 1 | 2 | 3 | 4;
   icon: string;
 }
 
@@ -46,46 +46,46 @@ export const FAMILY_OF: Record<CategoryId, LineFamily> = {
 export const LINE_RECIPES: Record<LineFamily, LineStage[]> = {
   // Phone / tablet — a bonded glass-and-metal slab.
   slab: [
-    { from: 0.0, key: "source", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Chips, panels & cells inbound", machineStage: 0, icon: "source" },
-    { from: 0.2, key: "press", machine: "Board Press", short: "Press", label: "Board press", sub: "Stamping the logic boards", machineStage: 1, icon: "press" },
-    { from: 0.45, key: "bond", machine: "Screen Bonder", short: "Bond", label: "Screen bond", sub: "Fusing the display to the chassis", machineStage: 2, icon: "bond" },
-    { from: 0.75, key: "qa", machine: "QA Tunnel", short: "QA", label: "Quality assurance", sub: "Testing every unit", machineStage: 3, icon: "qa" },
-    { from: 0.92, key: "pack", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", machineStage: 4, icon: "pack" },
+    { from: 0.0, key: "source", kind: "intake", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Chips, panels & cells inbound", icon: "source" },
+    { from: 0.2, key: "press", kind: "press", machine: "Board Press", short: "Press", label: "Board press", sub: "Stamping the logic boards", icon: "press" },
+    { from: 0.45, key: "bond", kind: "screen", machine: "Screen Bonder", short: "Screen", label: "Screen bond", sub: "Fusing the display to the chassis", icon: "bond" },
+    { from: 0.75, key: "qa", kind: "qa", machine: "Test Station", short: "Test", label: "Quality assurance", sub: "Testing every unit", icon: "qa" },
+    { from: 0.92, key: "pack", kind: "packer", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", icon: "pack" },
   ],
   // Laptop — milled unibody with a hinge and a keyboard deck. Different machines from a phone.
   clamshell: [
-    { from: 0.0, key: "source", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Alloy, panels & cells inbound", machineStage: 0, icon: "source" },
-    { from: 0.16, key: "chassis", machine: "CNC Chassis Mill", short: "Mill", label: "Chassis milling", sub: "CNC-cutting the unibody", machineStage: 1, icon: "chassis" },
-    { from: 0.4, key: "board", machine: "Board & Hinge Cell", short: "Hinge", label: "Board & hinge", sub: "Mounting mainboard and hinge", machineStage: 2, icon: "board" },
-    { from: 0.62, key: "keyboard", machine: "Keyboard Deck", short: "Deck", label: "Keyboard & deck", sub: "Fitting deck, keys & trackpad", machineStage: 2, icon: "keyboard" },
-    { from: 0.8, key: "qa", machine: "Burn-in QA", short: "QA", label: "Burn-in & QA", sub: "Stress-testing every unit", machineStage: 3, icon: "qa" },
-    { from: 0.93, key: "pack", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", machineStage: 4, icon: "pack" },
+    { from: 0.0, key: "source", kind: "intake", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Alloy, panels & cells inbound", icon: "source" },
+    { from: 0.16, key: "chassis", kind: "mill", machine: "CNC Chassis Mill", short: "Mill", label: "Chassis milling", sub: "CNC-cutting the unibody", icon: "chassis" },
+    { from: 0.4, key: "board", kind: "arm", machine: "Board & Hinge Cell", short: "Hinge", label: "Board & hinge", sub: "Mounting mainboard and hinge", icon: "board" },
+    { from: 0.62, key: "keyboard", kind: "arm", machine: "Keyboard Deck", short: "Deck", label: "Keyboard & deck", sub: "Fitting deck, keys & trackpad", icon: "keyboard" },
+    { from: 0.8, key: "qa", kind: "qa", machine: "Burn-in Test", short: "Test", label: "Burn-in & QA", sub: "Stress-testing every unit", icon: "qa" },
+    { from: 0.93, key: "pack", kind: "packer", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", icon: "pack" },
   ],
   // Desktop / console — a framed enclosure with wiring and cooling.
   tower: [
-    { from: 0.0, key: "source", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Boards, drives & cooling inbound", machineStage: 0, icon: "source" },
-    { from: 0.18, key: "chassis", machine: "Chassis Framer", short: "Frame", label: "Chassis build", sub: "Framing the enclosure", machineStage: 1, icon: "chassis" },
-    { from: 0.42, key: "board", machine: "Board Installer", short: "Board", label: "Board install", sub: "Seating the board & modules", machineStage: 2, icon: "board" },
-    { from: 0.62, key: "cooling", machine: "Cooling & Cabling", short: "Cooling", label: "Cabling & cooling", sub: "Wiring the loom and fans", machineStage: 2, icon: "cooling" },
-    { from: 0.8, key: "qa", machine: "Burn-in QA", short: "QA", label: "Burn-in & QA", sub: "Power-cycling every unit", machineStage: 3, icon: "qa" },
-    { from: 0.93, key: "pack", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", machineStage: 4, icon: "pack" },
+    { from: 0.0, key: "source", kind: "intake", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Boards, drives & cooling inbound", icon: "source" },
+    { from: 0.18, key: "chassis", kind: "mill", machine: "Chassis Framer", short: "Frame", label: "Chassis build", sub: "Framing the enclosure", icon: "chassis" },
+    { from: 0.42, key: "board", kind: "arm", machine: "Board Installer", short: "Board", label: "Board install", sub: "Seating the board & modules", icon: "board" },
+    { from: 0.62, key: "cooling", kind: "arm", machine: "Cooling & Cabling", short: "Cooling", label: "Cabling & cooling", sub: "Wiring the loom and fans", icon: "cooling" },
+    { from: 0.8, key: "qa", kind: "qa", machine: "Burn-in Test", short: "Test", label: "Burn-in & QA", sub: "Power-cycling every unit", icon: "qa" },
+    { from: 0.93, key: "pack", kind: "packer", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", icon: "pack" },
   ],
   // Wearable — a sealed micro-module with sensors and a band.
   wearable: [
-    { from: 0.0, key: "source", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Micro-cells & sensors inbound", machineStage: 0, icon: "source" },
-    { from: 0.24, key: "board", machine: "SiP Placer", short: "Board", label: "Micro-board", sub: "Placing the SiP module", machineStage: 1, icon: "board" },
-    { from: 0.5, key: "sensor", machine: "Sensor & Band Cell", short: "Sensor", label: "Sensors & band", sub: "Fitting sensors and straps", machineStage: 2, icon: "sensor" },
-    { from: 0.76, key: "qa", machine: "QA Tunnel", short: "QA", label: "Quality assurance", sub: "Water & fit testing", machineStage: 3, icon: "qa" },
-    { from: 0.92, key: "pack", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", machineStage: 4, icon: "pack" },
+    { from: 0.0, key: "source", kind: "intake", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Micro-cells & sensors inbound", icon: "source" },
+    { from: 0.24, key: "board", kind: "press", machine: "SiP Placer", short: "Board", label: "Micro-board", sub: "Placing the SiP module", icon: "board" },
+    { from: 0.5, key: "sensor", kind: "arm", machine: "Sensor & Band Cell", short: "Sensor", label: "Sensors & band", sub: "Fitting sensors and straps", icon: "sensor" },
+    { from: 0.76, key: "qa", kind: "qa", machine: "Test Station", short: "Test", label: "Quality assurance", sub: "Water & fit testing", icon: "qa" },
+    { from: 0.92, key: "pack", kind: "packer", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", icon: "pack" },
   ],
   // Monitor — a laminated panel stack with a driver board and colour calibration.
   display: [
-    { from: 0.0, key: "source", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Panels & driver ICs inbound", machineStage: 0, icon: "source" },
-    { from: 0.2, key: "panel", machine: "Panel Laminator", short: "Panel", label: "Panel lamination", sub: "Bonding the display stack", machineStage: 1, icon: "panel" },
-    { from: 0.44, key: "board", machine: "Driver Board Cell", short: "Driver", label: "Driver board", sub: "Mounting driver & ports", machineStage: 2, icon: "board" },
-    { from: 0.66, key: "calibrate", machine: "Colour Calibrator", short: "Cal.", label: "Colour calibration", sub: "Tuning every panel", machineStage: 2, icon: "calibrate" },
-    { from: 0.82, key: "qa", machine: "QA Tunnel", short: "QA", label: "Quality assurance", sub: "Dead-pixel & QA scan", machineStage: 3, icon: "qa" },
-    { from: 0.93, key: "pack", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", machineStage: 4, icon: "pack" },
+    { from: 0.0, key: "source", kind: "intake", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Panels & driver ICs inbound", icon: "source" },
+    { from: 0.2, key: "panel", kind: "screen", machine: "Panel Laminator", short: "Panel", label: "Panel lamination", sub: "Bonding the display stack", icon: "panel" },
+    { from: 0.44, key: "board", kind: "arm", machine: "Driver Board Cell", short: "Driver", label: "Driver board", sub: "Mounting driver & ports", icon: "board" },
+    { from: 0.66, key: "calibrate", kind: "qa", machine: "Colour Calibrator", short: "Cal.", label: "Colour calibration", sub: "Tuning every panel", icon: "calibrate" },
+    { from: 0.82, key: "qa", kind: "qa", machine: "QA Scan", short: "Test", label: "Quality assurance", sub: "Dead-pixel & QA scan", icon: "qa" },
+    { from: 0.93, key: "pack", kind: "packer", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", icon: "pack" },
   ],
 };
 

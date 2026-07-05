@@ -5,7 +5,9 @@ import { dollars, type Money } from "./money.ts";
 
 export const FLOOR = { w: 16, h: 10 } as const; // cells; world = (c - 7.5, r - 4.5)
 
-export type MachineKind = "intake" | "press" | "arm" | "qa" | "packer";
+// The machines a factory can build. Devices need different subsets (a phone bonds a screen; a
+// laptop mills a chassis) — engine/assemblyLine.ts maps each build stage to the kind that works it.
+export type MachineKind = "intake" | "mill" | "press" | "screen" | "arm" | "qa" | "packer";
 export type BeltDir = "e" | "w" | "n" | "s";
 
 export interface MachineDef {
@@ -13,18 +15,18 @@ export interface MachineDef {
   name: string;
   blurb: string;
   cost: Money;
-  /** Which BuildProgress stage this machine works (lights up when the real build is there). */
-  stageIdx: number;
   w: number;
   d: number;
 }
 
 export const MACHINE_DEFS: Record<MachineKind, MachineDef> = {
-  intake: { kind: "intake", name: "Intake Hopper", blurb: "Feeds raw material onto the line.", cost: dollars(6_000) as Money, stageIdx: 0, w: 2, d: 2 },
-  press: { kind: "press", name: "Gantry Press", blurb: "Stamps slabs into logic boards.", cost: dollars(14_000) as Money, stageIdx: 1, w: 3, d: 2 },
-  arm: { kind: "arm", name: "Assembly Arm", blurb: "Robot cell that builds the device.", cost: dollars(18_000) as Money, stageIdx: 2, w: 2, d: 2 },
-  qa: { kind: "qa", name: "QA Tunnel", blurb: "Scans every unit before packing.", cost: dollars(12_000) as Money, stageIdx: 3, w: 2, d: 2 },
-  packer: { kind: "packer", name: "Packing Station", blurb: "Boxes finished devices for the dock.", cost: dollars(9_000) as Money, stageIdx: 4, w: 2, d: 2 },
+  intake: { kind: "intake", name: "Intake Hopper", blurb: "Feeds raw material onto the line.", cost: dollars(6_000) as Money, w: 2, d: 2 },
+  mill: { kind: "mill", name: "CNC Mill", blurb: "Cuts chassis & unibodies from billet.", cost: dollars(16_000) as Money, w: 2, d: 2 },
+  press: { kind: "press", name: "Board Press", blurb: "Stamps & populates logic boards.", cost: dollars(14_000) as Money, w: 3, d: 2 },
+  screen: { kind: "screen", name: "Screen Bonder", blurb: "Laminates & bonds display panels.", cost: dollars(15_000) as Money, w: 2, d: 2 },
+  arm: { kind: "arm", name: "Assembly Arm", blurb: "Robot cell that assembles the device.", cost: dollars(18_000) as Money, w: 2, d: 2 },
+  qa: { kind: "qa", name: "Test Station", blurb: "Scans & tests every finished unit.", cost: dollars(12_000) as Money, w: 2, d: 2 },
+  packer: { kind: "packer", name: "Packing Station", blurb: "Boxes finished devices for the dock.", cost: dollars(9_000) as Money, w: 2, d: 2 },
 };
 
 export const BELT_COST: Money = dollars(400) as Money;
@@ -163,11 +165,15 @@ export function starterFloor(): FactoryFloor {
   for (let c = 13; c >= 2; c--) belts.push({ c, r: 6, dir: "w" });
   return {
     machines: [
+      // top lane, in build order: material → mill → press → screen bonder
       { id: "st-intake", kind: "intake", c: 0, r: 1 }, // feeds the head at (2,2)
-      { id: "st-press", kind: "press", c: 4, r: 0 },   // straddles the top lane, early
-      { id: "st-arm", kind: "arm", c: 9, r: 7 },        // beside the bottom lane, reaches over
-      { id: "st-qa", kind: "qa", c: 4, r: 7 },          // straddles the bottom lane, late
-      { id: "st-packer", kind: "packer", c: 0, r: 6 },  // boxes at the tail (2,6)
+      { id: "st-mill", kind: "mill", c: 3, r: 0 },
+      { id: "st-press", kind: "press", c: 6, r: 0 },
+      { id: "st-screen", kind: "screen", c: 10, r: 0 },
+      // bottom lane: assembly → test → pack (at the dock tail)
+      { id: "st-arm", kind: "arm", c: 10, r: 7 },       // beside the bottom lane, reaches over
+      { id: "st-qa", kind: "qa", c: 5, r: 7 },
+      { id: "st-packer", kind: "packer", c: 0, r: 6 },  // boxes at the tail (2,6), by the dock
     ],
     belts,
   };

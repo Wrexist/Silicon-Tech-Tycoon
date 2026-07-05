@@ -7,9 +7,9 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowUp, BarChart3, BatteryCharging, Bot, Boxes, Camera, ChevronDown, CodeXml, Cpu, Eraser,
-  FlaskConical, Hammer, Layers3, Lock, Maximize2, Monitor, PackageCheck, RotateCw, ScanLine,
-  ShoppingCart, Stamp, Truck, Wrench, X, Zap, type LucideIcon,
+  ArrowUp, BarChart3, BatteryCharging, Bot, Boxes, Camera, ChevronDown, CodeXml, Cpu, Drill, Eraser,
+  FlaskConical, Hammer, Layers3, Lock, Maximize2, Monitor, MonitorSmartphone, PackageCheck, RotateCw,
+  ScanLine, ShoppingCart, Stamp, Truck, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue } from "../state/gameState.ts";
@@ -45,10 +45,10 @@ const MATERIAL_ICONS: Record<ComponentKind, typeof Cpu> = {
 
 // Build-palette icons + short labels, so the toolbar reads as tiles, not a wall of text.
 const MACHINE_ICONS: Record<MachineKind, LucideIcon> = {
-  intake: Boxes, press: Stamp, arm: Bot, qa: ScanLine, packer: PackageCheck,
+  intake: Boxes, mill: Drill, press: Stamp, screen: MonitorSmartphone, arm: Bot, qa: ScanLine, packer: PackageCheck,
 };
 const MACHINE_SHORT: Record<MachineKind, string> = {
-  intake: "Intake", press: "Press", arm: "Arm", qa: "QA", packer: "Packer",
+  intake: "Intake", mill: "Mill", press: "Press", screen: "Screen", arm: "Arm", qa: "Test", packer: "Packer",
 };
 const DIR_ROT: Record<BeltDir, number> = { n: 0, e: 90, s: 180, w: 270 };
 
@@ -59,7 +59,7 @@ function useFactoryData() {
   const active = state.building.length > 0;
   const progress = lead ? Math.min(1, lead.weeksElapsed / Math.max(1, lead.totalWeeks)) : 0;
   const stage = lead ? stageForLine(lead.product.category, progress) : null;
-  const stageIdx = stage ? stage.machineStage : -1;
+  const activeKind = stage ? stage.kind : null;
   const weeksLeft = lead ? Math.max(0, Math.ceil(lead.totalWeeks - lead.weeksElapsed)) : 0;
   const readyCount = state.ready.length;
   const liveProducts = state.launched.filter((l) => l.weeksElapsed < l.weeklyUnits.length);
@@ -88,7 +88,7 @@ function useFactoryData() {
   }
 
   return {
-    game, state, lead, active, progress, stage, stageIdx, weeksLeft, readyCount, selling,
+    game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
     floor: state.factoryFloor,
   };
@@ -107,7 +107,9 @@ function fmtCount(n: number): string {
 
 const MACHINE_TINT: Record<MachineKind, string> = {
   intake: "var(--fmini-intake)",
+  mill: "var(--fmini-mill)",
   press: "var(--fmini-press)",
+  screen: "var(--fmini-screen)",
   arm: "var(--fmini-arm)",
   qa: "var(--fmini-qa)",
   packer: "var(--fmini-packer)",
@@ -209,7 +211,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <Suspense fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} />}>
             <Factory3D
               active={d.active}
-              stageIdx={d.stageIdx}
+              activeKind={d.activeKind}
               robotTier={d.robotTier}
               readyCount={d.readyCount}
               selling={d.selling}

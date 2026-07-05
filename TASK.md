@@ -1936,3 +1936,33 @@ In-production ring]."
 - Note: literal per-category 3D machine *geometry* (a distinct chassis mill / keyboard station on
       the floor) stays out of scope — that's the gated F4 on-floor pass. This slice makes the build
       *process* device-specific and legible; the floor machines remain the shared 5.
+
+## v83 — Factory 3D realism: machines on the belt, calm motion, smooth conveyor (DONE 2026-07-05)
+User: machines should sit over/between the belts and move realistically; only animate when used;
+belts should look symmetrical, smooth and higher-quality.
+- [x] **Machines snap onto the belt** (`snapToBelt`): the press/QA/screen/mill straddle the line and
+      the product runs through them; the packer folds around it; the intake feeds the head; the arm
+      stands beside and reaches over. Each orients to the belt's heading.
+- [x] **Starter floor** redesigned as a clean horseshoe with machines placed in stage order.
+- [x] **Motion discipline**: a machine only animates while its own stage is the one being worked
+      (`active && hot`); removed ambient idle sway/sweep so unused machines are perfectly still.
+- [x] **Conveyor rebuilt**: one consistent bed (flush, symmetric joins), dark rubber surface framed
+      by metal rails, polished seam rollers, and small painted chevrons pointing along the flow
+      (replacing the chunky cones). Corners share the bed and curve the arrows.
+- [x] Widened the portrait camera so the whole line frames.
+
+## v84 — Per-device machines + the line ships from a dock pallet (DONE 2026-07-05)
+User: "add machines needed for each device — assembly arm, screen machine, test machine and more";
+"the conveyor must end at a pallet beside the truck".
+- [x] **New machine kinds** `mill` (CNC Mill) + `screen` (Screen Bonder) added to MACHINE_DEFS (7
+      kinds total: intake · mill · press · screen · arm · qa · packer), each with its own 3D rig —
+      the mill's spindle traverses/plunges/spins; the screen bonder lowers a glowing panel and cures.
+- [x] **Recipes route to machine kinds** (`LineStage.kind` replaces `machineStage`): a phone bonds a
+      screen, a laptop mills a chassis, a monitor laminates a panel, etc. A machine lights + animates
+      only when the current stage uses its kind — so for a phone the mill sits idle, for a laptop the
+      screen bonder sits idle. Starter floor now seeds all seven machines in build order.
+- [x] **The line ends at a dock**: a wooden pallet just past the belt tail (finished crates stack on
+      it with the ready count) with the delivery truck behind it, both aimed along the tail's flow —
+      so wherever the player routes the line, it ships from its end.
+- [x] Build palette + minimap gained mill/screen tiles + tints. Verified live (phone → screen bonder
+      glows; laptop → mill glows; others still). tsc 0, 729 tests, build+PWA green.

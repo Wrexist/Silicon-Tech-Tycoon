@@ -94,7 +94,7 @@ describe("F3 — line completeness + demolition refund", () => {
   it("demolition refunds half the occupant's cost, zero for empty cells", async () => {
     const { demolitionRefund, BELT_COST, MACHINE_DEFS } = await import("./factoryFloor.ts");
     const f = starterFloor();
-    expect(demolitionRefund(f, 5, 0)).toBe(Math.round(MACHINE_DEFS.press.cost / 2)); // press cell
+    expect(demolitionRefund(f, 7, 0)).toBe(Math.round(MACHINE_DEFS.press.cost / 2)); // press cell
     expect(demolitionRefund(f, 5, 2)).toBe(Math.round(BELT_COST / 2)); // belt tile
     expect(demolitionRefund(f, 9, 9)).toBe(0); // empty
   });

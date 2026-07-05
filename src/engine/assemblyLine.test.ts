@@ -38,7 +38,7 @@ describe("assemblyLine recipes", () => {
     }
   });
 
-  it("keeps every recipe well-formed: starts at 0, ascending, machineStage 0..4", () => {
+  it("keeps every recipe well-formed: starts at 0, ascending, intake→…→packer", () => {
     for (const fam of Object.keys(LINE_RECIPES) as LineFamily[]) {
       const stages = LINE_RECIPES[fam];
       expect(stages[0].from).toBe(0);
@@ -46,18 +46,25 @@ describe("assemblyLine recipes", () => {
         expect(stages[i].from).toBeGreaterThan(stages[i - 1].from);
       }
       for (const s of stages) {
-        expect(s.machineStage).toBeGreaterThanOrEqual(0);
-        expect(s.machineStage).toBeLessThanOrEqual(4);
         expect(s.from).toBeGreaterThanOrEqual(0);
         expect(s.from).toBeLessThanOrEqual(1);
         // Every step names the machine that performs it (device-specific) + a compact caption.
         expect(s.machine.length).toBeGreaterThan(0);
         expect(s.short.length).toBeGreaterThan(0);
+        expect(s.kind.length).toBeGreaterThan(0);
       }
-      // First step feeds the intake (0), last packs (4).
-      expect(stages[0].machineStage).toBe(0);
-      expect(stages[stages.length - 1].machineStage).toBe(4);
+      // First step feeds the intake, last packs.
+      expect(stages[0].kind).toBe("intake");
+      expect(stages[stages.length - 1].kind).toBe("packer");
     }
+  });
+
+  it("routes device-specific steps to the right machine kinds", () => {
+    // A phone bonds a screen; a laptop mills a chassis — distinct machine kinds.
+    expect(lineFor("phone").some((s) => s.kind === "screen")).toBe(true);
+    expect(lineFor("phone").some((s) => s.kind === "mill")).toBe(false);
+    expect(lineFor("laptop").some((s) => s.kind === "mill")).toBe(true);
+    expect(lineFor("laptop").some((s) => s.kind === "screen")).toBe(false);
   });
 
   it("selects the active stage monotonically as the build progresses", () => {
