@@ -1883,3 +1883,27 @@ User: "clean navigation/UI/buttons, nothing noisy; integrate into the game well.
       loop, not just the world toggle. (onViewFactory threaded App→HQ.)
 - [x] Verified live: materials tray + top capacity meter gone, floor unobstructed, zero console
       errors. 723 tests, tsc 0, build+PWA green.
+
+## v81 — Factory Mode: final noise cut, one button system, calm Build palette (DONE 2026-07-05)
+Executed `FACTORY_POLISH_PROMPT.md` (Fable-5 handoff) as the polish pass. 3D scene untouched
+(signed off v79); only the 2D HUD/nav/buttons changed.
+- [x] **#1 Noise cut**: dropped the top-bar RP chip (RP isn't spent in this mode, so it was
+      dead weight next to cash/flow). Top bar is now era badge + cash/flow + close only.
+- [x] **#2 One button system**: introduced `--fmode-btn-bg` / `--fmode-btn-line` tokens on
+      `.fmode` and pointed every surface (close, rail `.fmode__tool`, side buttons) at them, so
+      all quiet buttons share one radius/fill/border. Active rail state calmed to a soft
+      accent-mix instead of a hand-rolled `rgba()`; the affordable-dot now whispers in accent.
+- [x] **#4 Build palette redesign**: replaced the text-chip toolbar (hint paragraph + belt/dir +
+      5 machine chips + erase + Done) with a compact scrollable icon palette — `.fmode__palette`
+      of `.fmode__ptile` tiles (icon + short name + cost): Belt (rotating ArrowUp shows
+      direction), Turn (RotateCw), Intake/Press/Arm/QA/Packer (Lucide glyphs), Erase (Eraser).
+      Selected tile highlights; a one-line rule ("Connect the Intake to the Packer. Erase
+      refunds half.") + a clear Done exit replace the paragraph.
+- [x] **#5 Gentle states**: the red "Line stopped" warn panel is now a calm "Line paused" card
+      (Wrench glyph, neutral surface) with a direct "Fix in Build" button that arms the belt tool
+      — guidance, not an alarm.
+- [x] Removed dead `.fmode__buildhint` / `.fmode__chip` CSS.
+- [x] Verified live over a running line (staged save, Chromium): RP chip gone, palette renders 8
+      clean tiles, zero console errors. 723 tests, tsc 0, build+PWA green.
+- Left for on-device tuning: rail label/badge micro-copy pass (#3), FactoryCard chip tidy (#6),
+      and a motion-timing audit (#7) — all cosmetic, none blocking.

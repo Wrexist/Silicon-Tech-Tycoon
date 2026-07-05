@@ -20,6 +20,8 @@
 
 /* ---------------- fullscreen shell ---------------- */
 .fmode {
+  --fmode-btn-bg: rgba(15, 18, 24, 0.88);
+  --fmode-btn-line: rgba(255, 255, 255, 0.12);
   position: fixed; inset: 0; z-index: 60;
   display: flex; align-items: center; justify-content: center;
   background: rgba(9, 11, 15, 0.99);
@@ -44,12 +46,6 @@
 .fmode__cash-val { font-size: var(--fs-body); font-weight: 800; color: #fff; }
 .fmode__cash-flow { font-size: var(--fs-micro); font-weight: 700; color: var(--positive); }
 .fmode__cash-flow--neg { color: var(--negative); }
-.fmode__chip {
-  display: inline-flex; align-items: center; gap: var(--sp-4);
-  padding: 5px 10px; border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.1); color: #fff;
-  font-size: var(--fs-micro); font-weight: 700;
-}
 /* Calm capacity line inside the order card — a slim bar + a word, never a scary percentage. */
 .fmode__cap-line {
   display: inline-flex; align-items: center; gap: var(--sp-6);
@@ -63,8 +59,9 @@
   margin-left: auto;
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; flex: none; border-radius: var(--r-pill);
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(255,255,255,0.1); color: #fff; cursor: pointer;
+  border: 1px solid var(--fmode-btn-line);
+  background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
+  backdrop-filter: blur(8px);
 }
 
 .fmode__left {
@@ -89,11 +86,6 @@
 .fmode__panel-caret { color: rgba(255,255,255,0.5); transition: transform 0.2s ease; }
 .fmode__panel-caret--open { transform: rotate(180deg); }
 .fmode__panel-head .fmode__panel-title { margin-bottom: 0; }
-.fmode__buildhint {
-  width: 100%; margin: 0 0 var(--sp-4);
-  font-size: var(--fs-nano); font-weight: 600; line-height: 1.35;
-  color: rgba(255,255,255,0.65);
-}
 .fmode__panel-title {
   display: block; margin-bottom: var(--sp-6);
   font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
@@ -126,13 +118,14 @@
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   width: 58px; padding: var(--sp-8) 0;
   border-radius: var(--r-button);
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(15, 18, 24, 0.88); color: #fff; cursor: pointer;
+  border: 1px solid var(--fmode-btn-line);
+  background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
   font-size: var(--fs-nano); font-weight: 700;
   backdrop-filter: blur(8px);
 }
 .fmode__tool--soon { opacity: 0.55; }
-.fmode__dot { position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--negative); }
+.fmode__dot { position: absolute; top: 6px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.fmode__tool--on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--fmode-btn-bg)); }
 
 .fmode__bottom {
   position: fixed; left: 0; right: 0;
@@ -165,8 +158,8 @@
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; flex: none;
   border-radius: var(--r-button);
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(15, 18, 24, 0.88); color: #fff; cursor: pointer;
+  border: 1px solid var(--fmode-btn-line);
+  background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
 }
 .fmode__side-n {
   position: absolute; top: -5px; right: -5px;
@@ -236,32 +229,54 @@
 .fmode__stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: var(--r-card); overflow: hidden; }
 .fmode__stage > canvas { border-radius: var(--r-card); }
 
-/* ---------------- F2 build toolbar ---------------- */
-.fmode__bottom--build { flex-wrap: wrap; }
-.fmode__tools { display: flex; gap: var(--sp-4); flex-wrap: wrap; min-width: 0; flex: 1; }
-.fmode__toolchip {
-  min-height: 34px; padding: 0 var(--sp-10);
-  border-radius: var(--r-pill);
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(15, 18, 24, 0.9); color: #fff; cursor: pointer;
-  font-size: var(--fs-nano); font-weight: 700;
+/* ---------------- build mode: a calm icon palette ---------------- */
+.fmode__build {
+  position: fixed; left: 0; right: 0;
+  bottom: env(safe-area-inset-bottom);
+  padding: var(--sp-8) var(--sp-12);
 }
-.fmode__toolchip--on { background: var(--accent); border-color: var(--accent); }
-.fmode__toolchip--danger { color: #ff9d9d; }
-.fmode__toolchip--danger.fmode__toolchip--on { background: var(--negative); border-color: var(--negative); color: #fff; }
-.fmode__tool--on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 30%, rgba(15,18,24,0.9)); }
-.fmode__panel--warn { border-color: color-mix(in srgb, var(--warning) 55%, transparent); }
-.fmode__panel--warn .fmode__panel-head {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
-  width: 100%; min-height: 28px;
-  padding: 0; border: none; background: none; cursor: pointer; color: inherit;
+.fmode__build-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
+  margin-bottom: var(--sp-6);
 }
-.fmode__panel-caret { color: rgba(255,255,255,0.5); transition: transform 0.2s ease; }
-.fmode__panel-caret--open { transform: rotate(180deg); }
-.fmode__panel-head .fmode__panel-title { margin-bottom: 0; }
-.fmode__buildhint {
-  width: 100%; margin: 0 0 var(--sp-4);
-  font-size: var(--fs-nano); font-weight: 600; line-height: 1.35;
-  color: rgba(255,255,255,0.65);
+.fmode__build-rule { font-size: var(--fs-nano); font-weight: 600; color: rgba(255,255,255,0.6); min-width: 0; }
+.fmode__build-done {
+  flex: none; min-height: 34px; padding: 0 var(--sp-16);
+  border: none; border-radius: var(--r-pill);
+  background: var(--accent); color: #fff; cursor: pointer;
+  font-size: var(--fs-caption); font-weight: 800;
 }
-.fmode__panel-title { color: var(--warning); }
+.fmode__palette {
+  display: flex; gap: var(--sp-6); overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.fmode__palette::-webkit-scrollbar { display: none; }
+.fmode__ptile {
+  flex: none;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  width: 62px; min-height: 62px; padding: var(--sp-8) 0;
+  border-radius: var(--r-button);
+  border: 1px solid var(--fmode-btn-line);
+  background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.fmode__ptile-icon { display: inline-flex; color: rgba(255,255,255,0.85); transition: transform 0.15s ease; }
+.fmode__ptile-name { font-size: var(--fs-nano); font-weight: 700; }
+.fmode__ptile-cost { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.55); }
+.fmode__ptile--on { background: var(--accent); border-color: var(--accent); }
+.fmode__ptile--on .fmode__ptile-icon, .fmode__ptile--on .fmode__ptile-cost { color: rgba(255,255,255,0.9); }
+.fmode__ptile--util { width: 54px; }
+.fmode__ptile--erase.fmode__ptile--on { background: var(--negative); border-color: var(--negative); }
+
+/* ---------------- gentle "line paused" card (not an error) ---------------- */
+.fmode__stopped { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.fmode__stopped-title {
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--fs-caption); font-weight: 800; color: var(--accent);
+}
+.fmode__stopped-fix {
+  margin-top: var(--sp-8); min-height: 34px; padding: 0 var(--sp-14);
+  border: none; border-radius: var(--r-pill);
+  background: var(--accent); color: #fff; cursor: pointer;
+  font-size: var(--fs-micro); font-weight: 800;
+}

@@ -7,8 +7,9 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  BarChart3, BatteryCharging, Bot, Camera, ChevronDown, CodeXml, Cpu, FlaskConical, Hammer,
-  Layers3, Lock, Maximize2, Monitor, ShoppingCart, Truck, X, Zap,
+  ArrowUp, BarChart3, BatteryCharging, Bot, Boxes, Camera, ChevronDown, CodeXml, Cpu, Eraser,
+  FlaskConical, Hammer, Layers3, Lock, Maximize2, Monitor, PackageCheck, RotateCw, ScanLine,
+  ShoppingCart, Stamp, Truck, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue } from "../state/gameState.ts";
@@ -40,6 +41,15 @@ const MATERIAL_ICONS: Record<ComponentKind, typeof Cpu> = {
   chip: Cpu, display: Monitor, battery: BatteryCharging,
   materials: Layers3, software: CodeXml, camera: Camera,
 };
+
+// Build-palette icons + short labels, so the toolbar reads as tiles, not a wall of text.
+const MACHINE_ICONS: Record<MachineKind, LucideIcon> = {
+  intake: Boxes, press: Stamp, arm: Bot, qa: ScanLine, packer: PackageCheck,
+};
+const MACHINE_SHORT: Record<MachineKind, string> = {
+  intake: "Intake", press: "Press", arm: "Arm", qa: "QA", packer: "Packer",
+};
+const DIR_ROT: Record<BeltDir, number> = { n: 0, e: 90, s: 180, w: 270 };
 
 function useFactoryData() {
   const game = useGame();
@@ -226,16 +236,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             {flowD >= 0 ? "+" : ""}{format(flow)}/wk
           </span>
         </span>
-        <span className="fmode__chip tnum"><FlaskConical size={12} aria-hidden /> {Math.floor(state.researchPoints)}</span>
         <button className="fmode__close" aria-label="Close factory" onClick={() => { haptic.light(); onClose(); }}><X size={20} /></button>
       </div>
 
       {/* left panels */}
       <div className="fmode__left">
         {!lineOk && (
-          <div className="fmode__panel fmode__panel--warn">
-            <span className="fmode__panel-title">Line stopped</span>
-            <p className="fmode__empty">The conveyor doesn't connect the Intake Hopper to the Packing Station. Fix it in Build.</p>
+          <div className="fmode__panel fmode__stopped">
+            <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line paused</span>
+            <p className="fmode__empty">The belts don't reach from the Intake to the Packer yet.</p>
+            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
         <div className="fmode__panel">
@@ -289,39 +299,50 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
       {/* bottom strip — swaps to the build toolbar while a tool is armed */}
       {buildTool != null && (
-        <div className="fmode__bottom fmode__bottom--build">
-          <p className="fmode__buildhint">Belts carry the line from the Intake Hopper to the Packing Station. Tap a belt again to re-aim it; Erase refunds half.</p>
-          <div className="fmode__tools">
+        <div className="fmode__build">
+          <div className="fmode__build-head">
+            <span className="fmode__build-rule">Connect the Intake to the Packer. Erase refunds half.</span>
+            <button className="fmode__build-done" onClick={() => { haptic.light(); setBuildTool(null); }}>Done</button>
+          </div>
+          <div className="fmode__palette">
             <button
-              className={`fmode__toolchip${buildTool === "belt" ? " fmode__toolchip--on" : ""}`}
+              className={`fmode__ptile${buildTool === "belt" ? " fmode__ptile--on" : ""}`}
               onClick={() => { haptic.light(); setBuildTool("belt"); }}
             >
-              Belt · {format(BELT_COST)}
+              <span className="fmode__ptile-icon" style={{ transform: `rotate(${DIR_ROT[beltDir]}deg)` }}><ArrowUp size={20} /></span>
+              <span className="fmode__ptile-name">Belt</span>
+              <span className="fmode__ptile-cost">{format(BELT_COST)}</span>
             </button>
             <button
-              className="fmode__toolchip"
-              aria-label="Belt direction"
+              className="fmode__ptile fmode__ptile--util"
+              aria-label="Rotate belt direction"
               onClick={() => { haptic.light(); setBeltDir(beltDir === "e" ? "s" : beltDir === "s" ? "w" : beltDir === "w" ? "n" : "e"); setBuildTool("belt"); }}
             >
-              {beltDir === "e" ? "→" : beltDir === "s" ? "↓" : beltDir === "w" ? "←" : "↑"}
+              <span className="fmode__ptile-icon"><RotateCw size={20} /></span>
+              <span className="fmode__ptile-name">Turn</span>
             </button>
-            {(Object.keys(MACHINE_DEFS) as MachineKind[]).map((k) => (
-              <button
-                key={k}
-                className={`fmode__toolchip${buildTool === k ? " fmode__toolchip--on" : ""}`}
-                onClick={() => { haptic.light(); setBuildTool(k); }}
-              >
-                {MACHINE_DEFS[k].name.split(" ")[0]} · {format(MACHINE_DEFS[k].cost)}
-              </button>
-            ))}
+            {(Object.keys(MACHINE_DEFS) as MachineKind[]).map((k) => {
+              const Icon = MACHINE_ICONS[k];
+              return (
+                <button
+                  key={k}
+                  className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}`}
+                  onClick={() => { haptic.light(); setBuildTool(k); }}
+                >
+                  <span className="fmode__ptile-icon"><Icon size={20} /></span>
+                  <span className="fmode__ptile-name">{MACHINE_SHORT[k]}</span>
+                  <span className="fmode__ptile-cost">{format(MACHINE_DEFS[k].cost)}</span>
+                </button>
+              );
+            })}
             <button
-              className={`fmode__toolchip fmode__toolchip--danger${buildTool === "erase" ? " fmode__toolchip--on" : ""}`}
+              className={`fmode__ptile fmode__ptile--erase${buildTool === "erase" ? " fmode__ptile--on" : ""}`}
               onClick={() => { haptic.light(); setBuildTool("erase"); }}
             >
-              Erase
+              <span className="fmode__ptile-icon"><Eraser size={20} /></span>
+              <span className="fmode__ptile-name">Erase</span>
             </button>
           </div>
-          <button className="fmode__boost" onClick={() => { haptic.light(); setBuildTool(null); }}>Done</button>
         </div>
       )}
       {buildTool == null && (
