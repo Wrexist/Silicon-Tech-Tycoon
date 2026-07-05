@@ -26,7 +26,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { MACHINE_DEFS, BELT_COST, type BeltDir, type MachineKind } from "../engine/factoryFloor.ts";
+import { MACHINE_DEFS, BELT_COST, lineComplete, type BeltDir, type MachineKind } from "../engine/factoryFloor.ts";
 import { useSettings } from "../state/settings.ts";
 
 // three.js stays in its own lazy chunk (the garage3d rule); the SVG map is the fallback for
@@ -258,11 +258,19 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // F2 Build mode — the selected tool paints cells on the 3D pad.
   const [buildTool, setBuildTool] = useState<null | MachineKind | "belt" | "erase">(null);
   const [beltDir, setBeltDir] = useState<BeltDir>("e");
+  const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
   const { buyFloorMachine, buyFloorBelt, clearFloorCell } = d.game;
+  const lineOk = lineComplete(d.floor);
   const onTapCell = (c: number, r: number) => {
     if (!buildTool) return;
-    if (buildTool === "erase") { clearFloorCell(c, r); haptic.light(); return; }
+    if (buildTool === "erase") {
+      clearFloorCell(c, r);
+      haptic.light();
+      setFlash((f) => ({ c, r, ok: true, n: (f?.n ?? 0) + 1 }));
+      return;
+    }
     const res = buildTool === "belt" ? buyFloorBelt(c, r, beltDir) : buyFloorMachine(buildTool, c, r);
+    setFlash((f) => ({ c, r, ok: res.ok, n: (f?.n ?? 0) + 1 }));
     if (res.ok) { haptic.light(); if (buildTool !== "belt") { sfx("build"); haptic.success(); } }
     else { haptic.warning(); showToast(res.reason ?? "Can't build there", { tone: "negative" }); }
   };
@@ -298,8 +306,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               selling={d.selling}
               overtime={d.overtime}
               floor={d.floor}
+              lineOk={lineOk}
               buildMode={buildTool != null}
               onTapCell={onTapCell}
+              flash={flash}
               onContextLost={() => setGlLost(true)}
             />
           </Suspense>
@@ -330,6 +340,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
       {/* left panels */}
       <div className="fmode__left">
+        {!lineOk && (
+          <div className="fmode__panel fmode__panel--warn">
+            <span className="fmode__panel-title">Line stopped</span>
+            <p className="fmode__empty">The conveyor doesn't connect the Intake Hopper to the Packing Station. Fix it in Build.</p>
+          </div>
+        )}
         <div className="fmode__panel">
           <span className="fmode__panel-title">Current order</span>
           {d.lead ? (

@@ -1810,3 +1810,19 @@ scene + item flow render from it.
 - Known gaps (logged): SVG fallback map still draws the hardcoded starter line (fallback
       only); no pan/zoom yet; no sell-refund on demolition; ghost preview (tap commits
       directly, engine validates). NOT verified on-device: tap precision on a real phone.
+
+## v77 — Factory Mode F3: the line must actually connect (DONE 2026-07-04)
+The factory-tycoon rule that makes layouts meaningful, plus F2's UX gaps.
+- [x] **`lineComplete(floor)`** (pure, +3 tests): the longest belt chain must START beside an
+      Intake Hopper and END beside a Packing Station; `beltChain` extracted from beltPath so
+      completeness reasons about tiles. Items only ride the belts while the line is complete;
+      breaking it mid-chain stops production visuals and raises an amber "Line stopped" panel
+      naming the fix ("connect the Intake to the Packing Station in Build").
+- [x] **Demolition refunds half** (`demolitionRefund`, engine + clearFloorCell wiring) — erase
+      is no longer a pure loss, so experimenting with layouts is safe.
+- [x] **Tap flash**: every build-mode tap pulses its CELL green (accepted) or red (refused) on
+      the pad — placement feedback you can aim by on a phone.
+- [x] **Verified live** (chromium): starter line = no warning; erasing a mid-chain tile via
+      tap → warning appears + items halt; zero console errors. 723 tests, tsc 0, build+PWA.
+- Still open for F3+: pan/zoom, machines requiring belt adjacency to animate, and the F4
+      engine slice (placed machines grant real capacity — needs the sim-harness pass).

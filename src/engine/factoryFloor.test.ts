@@ -75,3 +75,27 @@ describe("factory floor grid (F2)", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });
 });
+
+describe("F3 — line completeness + demolition refund", () => {
+  it("the starter line is complete (intake feeds the head, packer catches the tail)", async () => {
+    const { lineComplete } = await import("./factoryFloor.ts");
+    expect(lineComplete(starterFloor())).toBe(true);
+  });
+
+  it("breaking the chain mid-line makes it incomplete; repairing restores it", async () => {
+    const { lineComplete } = await import("./factoryFloor.ts");
+    const f = starterFloor();
+    const broken = removeAt(f, 7, 4); // a middle tile of the return row
+    expect(lineComplete(broken)).toBe(false);
+    const repaired = placeBelt(broken, 7, 4, "w")!;
+    expect(lineComplete(repaired)).toBe(true);
+  });
+
+  it("demolition refunds half the occupant's cost, zero for empty cells", async () => {
+    const { demolitionRefund, BELT_COST, MACHINE_DEFS } = await import("./factoryFloor.ts");
+    const f = starterFloor();
+    expect(demolitionRefund(f, 6, 2)).toBe(Math.round(MACHINE_DEFS.press.cost / 2)); // press cell
+    expect(demolitionRefund(f, 5, 1)).toBe(Math.round(BELT_COST / 2)); // belt tile
+    expect(demolitionRefund(f, 9, 9)).toBe(0); // empty
+  });
+});

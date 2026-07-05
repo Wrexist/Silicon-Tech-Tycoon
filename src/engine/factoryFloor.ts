@@ -87,9 +87,8 @@ export function removeAt(floor: FactoryFloor, c: number, r: number): FactoryFloo
 
 const STEP: Record<BeltDir, [number, number]> = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] };
 
-/** Chain directed belt tiles into the LONGEST path (world points) — the items' route.
- *  A start is any tile no other tile feeds into; walks follow each tile's own direction. */
-export function beltPath(belts: BeltTile[]): [number, number][] {
+/** The LONGEST chain of directed belt tiles (each start = a tile nothing feeds into). */
+export function beltChain(belts: BeltTile[]): BeltTile[] {
   if (belts.length === 0) return [];
   const at = new Map(belts.map((b) => [`${b.c},${b.r}`, b]));
   const fedInto = new Set(
@@ -110,6 +109,13 @@ export function beltPath(belts: BeltTile[]): [number, number][] {
     }
     if (chain.length > best.length) best = chain;
   }
+  return best;
+}
+
+/** Chain directed belt tiles into the LONGEST path (world points) — the items' route. */
+export function beltPath(belts: BeltTile[]): [number, number][] {
+  const best = beltChain(belts);
+  if (best.length === 0) return [];
   const pts = best.map((b) => worldOf(b.c, b.r));
   // extend half a cell past the last tile in its direction so items run off the end cleanly
   if (best.length > 0) {
@@ -160,4 +166,36 @@ export function starterFloor(): FactoryFloor {
     ],
     belts,
   };
+}
+
+/** Is a tile within one cell (incl. diagonals) of any cell of a machine of `kind`? */
+function nearMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: number): boolean {
+  for (const m of floor.machines) {
+    if (m.kind !== kind) continue;
+    for (const cell of machineCells(m)) {
+      const [mc, mr] = cell.split(",").map(Number);
+      if (Math.abs(mc - c) <= 1 && Math.abs(mr - r) <= 1) return true;
+    }
+  }
+  return false;
+}
+
+/** A line RUNS only when the longest belt chain starts beside an Intake and ends beside a
+ *  Packer — the factory-tycoon rule that makes layouts meaningful (F3). */
+export function lineComplete(floor: FactoryFloor): boolean {
+  const chain = beltChain(floor.belts);
+  if (chain.length < 2) return false;
+  const head = chain[0];
+  const tail = chain[chain.length - 1];
+  return nearMachine(floor, "intake", head.c, head.r) && nearMachine(floor, "packer", tail.c, tail.r);
+}
+
+/** Demolition pays back half of what the cell's occupant cost (never more). */
+export function demolitionRefund(floor: FactoryFloor, c: number, r: number): Money {
+  const key = `${c},${r}`;
+  for (const m of floor.machines) {
+    if (machineCells(m).includes(key)) return Math.round(MACHINE_DEFS[m.kind].cost / 2) as Money;
+  }
+  if (floor.belts.some((b) => b.c === c && b.r === r)) return Math.round(BELT_COST / 2) as Money;
+  return 0 as Money;
 }

@@ -48,9 +48,13 @@ export interface Factory3DProps {
   overtime: boolean;
   /** The player-built layout (F2) — every belt tile and machine renders from this. */
   floor: FactoryFloor;
+  /** The belt chain connects Intake → Packer, so the line actually runs (F3). */
+  lineOk: boolean;
   /** Build mode: taps on the pad report the grid cell instead of doing nothing. */
   buildMode?: boolean;
   onTapCell?: (c: number, r: number) => void;
+  /** Last tap's cell + validity — flashed green/red on the pad for placement feedback. */
+  flash?: { c: number; r: number; ok: boolean; n: number } | null;
   onContextLost?: () => void;
 }
 
@@ -481,6 +485,28 @@ function FitCamera() {
   return null;
 }
 
+/** Brief green/red pulse on the last-tapped cell — placement feedback you can aim by. */
+function TapFlash({ flash }: { flash: { c: number; r: number; ok: boolean; n: number } }) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const born = useRef(0);
+  const seen = useRef(-1);
+  useFrame(({ clock }) => {
+    if (!mesh.current) return;
+    if (seen.current !== flash.n) { seen.current = flash.n; born.current = clock.elapsedTime; }
+    const age = clock.elapsedTime - born.current;
+    const a = Math.max(0, 0.75 - age * 1.6);
+    (mesh.current.material as THREE.MeshBasicMaterial).opacity = a;
+    mesh.current.visible = a > 0.01;
+  });
+  const [x, z] = worldOf(flash.c, flash.r);
+  return (
+    <mesh ref={mesh} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.13, z]}>
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial color={flash.ok ? "#34d399" : "#ef4444"} transparent opacity={0} depthWrite={false} />
+    </mesh>
+  );
+}
+
 function MachineAt({ m, p }: { m: FactoryFloor["machines"][number]; p: Factory3DProps }) {
   const [x, z] = machineCenter(m);
   const pos: [number, number, number] = [x, 0, z];
@@ -548,7 +574,8 @@ function Scene(p: Factory3DProps) {
       </mesh>
 
       <BeltTiles floor={p.floor} />
-      {pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} />)}
+      {p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} />)}
+      {p.flash && <TapFlash flash={p.flash} />}
 
       {p.floor.machines.map((m) => <MachineAt key={m.id} m={m} p={p} />)}
 

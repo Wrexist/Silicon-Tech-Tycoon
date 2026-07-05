@@ -297,3 +297,5 @@
 .fmode__toolchip--danger { color: #ff9d9d; }
 .fmode__toolchip--danger.fmode__toolchip--on { background: var(--negative); border-color: var(--negative); color: #fff; }
 .fmode__tool--on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 30%, rgba(15,18,24,0.9)); }
+.fmode__panel--warn { border-color: color-mix(in srgb, var(--warning) 55%, transparent); }
+.fmode__panel--warn .fmode__panel-title { color: var(--warning); }

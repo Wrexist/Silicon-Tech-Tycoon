@@ -104,7 +104,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, placeBelt as floorPlaceBelt, placeMachine as floorPlaceMachine,
+  BELT_COST, MACHINE_DEFS, demolitionRefund, placeBelt as floorPlaceBelt, placeMachine as floorPlaceMachine,
   removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
@@ -2101,10 +2101,12 @@ export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDi
   return { state: { ...state, cash: existing ? state.cash : sub(state.cash, BELT_COST), factoryFloor: next }, ok: true };
 }
 
-/** Clear whatever occupies the cell (no refund — demolition, not a return). */
+/** Clear whatever occupies the cell; demolition pays back half its cost (F3). */
 export function clearFloorCell(state: GameState, c: number, r: number): GameState {
+  const refund = demolitionRefund(state.factoryFloor, c, r);
   const next = floorRemoveAt(state.factoryFloor, c, r);
-  return next === state.factoryFloor ? state : { ...state, factoryFloor: next };
+  if (next === state.factoryFloor) return state;
+  return { ...state, factoryFloor: next, cash: add(state.cash, refund) };
 }
 
 export function rushBuild(state: GameState, productId: string): ActionResult {
