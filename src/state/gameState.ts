@@ -103,6 +103,11 @@ import { archetypeBonus, buildCost, componentSynergy, computeStats, missingSlots
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
+import {
+  BELT_COST, MACHINE_DEFS, placeBelt as floorPlaceBelt, placeMachine as floorPlaceMachine,
+  removeAt as floorRemoveAt, starterFloor,
+  type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
+} from "../engine/factoryFloor.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -204,6 +209,8 @@ export interface GameState {
   furnitureCounter: number;
   /** room theming — indices into FLOOR_FINISHES / WALL_STYLES */
   roomStyle: { floor: number; wall: number };
+  /** Player-built Factory Mode layout (machines + directed conveyor tiles). */
+  factoryFloor: FloorPlan;
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -448,6 +455,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     layout: defaultLayout(),
     furnitureCounter: 3, // starter layout uses f1 (desk) + f2 (plant)
     roomStyle: { floor: 0, wall: 0 },
+    factoryFloor: starterFloor(),
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -2075,6 +2083,30 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 /** Factory Mode BOOST — rush the lead production run: pay an overtime premium (a fraction of
  *  the run's production cost) and one week of work completes instantly. Repeatable while weeks
  *  remain; each press pays again. Pure; the caller owns the spend FX. */
+/** Factory Mode Build: buy + place a machine on the floor grid (cash-gated, overlap-checked). */
+export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, r: number): ActionResult {
+  const def = MACHINE_DEFS[kind];
+  if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
+  const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryFloor.machines.length}`);
+  if (!next) return { state, ok: false, reason: "Doesn't fit there." };
+  return { state: { ...state, cash: sub(state.cash, def.cost), factoryFloor: next }, ok: true };
+}
+
+/** Buy + lay a conveyor tile. Re-aiming an existing tile is free; new tiles cost BELT_COST. */
+export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDir): ActionResult {
+  const existing = state.factoryFloor.belts.some((b) => b.c === c && b.r === r);
+  if (!existing && state.cash < BELT_COST) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
+  const next = floorPlaceBelt(state.factoryFloor, c, r, dir);
+  if (!next) return { state, ok: false, reason: "Can't lay a belt there." };
+  return { state: { ...state, cash: existing ? state.cash : sub(state.cash, BELT_COST), factoryFloor: next }, ok: true };
+}
+
+/** Clear whatever occupies the cell (no refund — demolition, not a return). */
+export function clearFloorCell(state: GameState, c: number, r: number): GameState {
+  const next = floorRemoveAt(state.factoryFloor, c, r);
+  return next === state.factoryFloor ? state : { ...state, factoryFloor: next };
+}
+
 export function rushBuild(state: GameState, productId: string): ActionResult {
   const job = state.building.find((b) => b.product.id === productId);
   if (!job) return { state, ok: false, reason: "No such build in production." };

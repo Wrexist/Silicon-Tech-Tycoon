@@ -9,6 +9,10 @@ import { useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
+import {
+  FLOOR, beltPath, formMarks, machineCenter, worldOf,
+  type BeltDir, type FactoryFloor,
+} from "../engine/factoryFloor.ts";
 
 /* palette — intrinsic object colours, the garage3d precedent */
 const C = {
@@ -42,40 +46,42 @@ export interface Factory3DProps {
   readyCount: number;
   selling: boolean;
   overtime: boolean;
+  /** The player-built layout (F2) — every belt tile and machine renders from this. */
+  floor: FactoryFloor;
+  /** Build mode: taps on the pad report the grid cell instead of doing nothing. */
+  buildMode?: boolean;
+  onTapCell?: (c: number, r: number) => void;
   onContextLost?: () => void;
 }
 
-/* ------------------------- the production path (S-line) ------------------------- */
-/* A(-6.5,-3) →E B(5.5,-3) →S C(5.5,0) →W D(-5.5,0) →S E(-5.5,3) →E F(6.5,3) */
-const PATH: [number, number][] = [[-6.5, -3], [5.5, -3], [5.5, 0], [-5.5, 0], [-5.5, 3], [6.5, 3]];
-const SEGS = PATH.slice(0, -1).map((p, i) => {
-  const q = PATH[i + 1];
-  return { p, q, len: Math.hypot(q[0] - p[0], q[1] - p[1]) };
-});
-const PATH_LEN = SEGS.reduce((a, s) => a + s.len, 0); // 41
+/* ---------------- generic polyline walking (the belts define the path) ---------------- */
 
-function pathAt(t: number): [number, number] {
-  let d = ((t % PATH_LEN) + PATH_LEN) % PATH_LEN;
-  for (const s of SEGS) {
-    if (d <= s.len) {
-      const f = d / s.len;
-      return [s.p[0] + (s.q[0] - s.p[0]) * f, s.p[1] + (s.q[1] - s.p[1]) * f];
-    }
-    d -= s.len;
+interface Polyline { pts: [number, number][]; lens: number[]; total: number }
+
+function makePolyline(pts: [number, number][]): Polyline {
+  const lens: number[] = [];
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    lens.push(l);
+    total += l;
   }
-  return PATH[0];
+  return { pts, lens, total };
 }
 
-/* Arc positions of the stations along the line (measured on the path above). */
-const S_PRESS = 6.5;   // (0,-3)
-const S_ARMS = 20.5;   // (0, 0)
-const S_QA = 32.5;     // (-2, 3)
-/* Item form by progress along the line: slab → board → device → crate. */
-function formAt(t: number): 0 | 1 | 2 | 3 {
-  if (t < S_PRESS) return 0;
-  if (t < S_ARMS) return 1;
-  if (t < S_QA) return 2;
-  return 3;
+function polyAt(pl: Polyline, t: number): [number, number] {
+  if (pl.pts.length === 0) return [0, 0];
+  let d = ((t % pl.total) + pl.total) % pl.total;
+  for (let i = 0; i < pl.lens.length; i++) {
+    if (d <= pl.lens[i]) {
+      const f = pl.lens[i] === 0 ? 0 : d / pl.lens[i];
+      const [ax, az] = pl.pts[i];
+      const [bx, bz] = pl.pts[i + 1];
+      return [ax + (bx - ax) * f, az + (bz - az) * f];
+    }
+    d -= pl.lens[i];
+  }
+  return pl.pts[pl.pts.length - 1];
 }
 
 /* ------------------------------- conveyor ------------------------------- */
@@ -93,72 +99,50 @@ function HazardBase({ w, d }: { w: number; d: number }) {
   );
 }
 
-function Belts() {
-  const rollers = useMemo(() => {
-    const out: { x: number; z: number; horiz: boolean }[] = [];
-    for (let t = 0.5; t < PATH_LEN; t += 1.0) {
-      const [x, z] = pathAt(t);
-      const [x2] = pathAt(Math.min(t + 0.01, PATH_LEN - 0.01));
-      out.push({ x, z, horiz: Math.abs(x2 - x) > 0.001 });
-    }
-    return out;
-  }, []);
+const DIR_HORIZ: Record<BeltDir, boolean> = { e: true, w: true, n: false, s: false };
+
+function BeltTiles({ floor }: { floor: FactoryFloor }) {
   return (
     <group>
-      {SEGS.map((s, i) => {
-        const cx = (s.p[0] + s.q[0]) / 2;
-        const cz = (s.p[1] + s.q[1]) / 2;
-        const horiz = s.p[1] === s.q[1];
-        const L = s.len + 0.8;
+      {floor.belts.map((b) => {
+        const [x, z] = worldOf(b.c, b.r);
+        const horiz = DIR_HORIZ[b.dir];
         return (
-          <group key={i} position={[cx, 0, cz]}>
-            {/* bed */}
-            <RoundedBox args={[horiz ? L : 0.9, 0.3, horiz ? 0.9 : L]} radius={0.06} position={[0, 0.2, 0]} castShadow receiveShadow>
+          <group key={`${b.c},${b.r}`} position={[x, 0, z]}>
+            <RoundedBox args={[horiz ? 1.06 : 0.9, 0.3, horiz ? 0.9 : 1.06]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
               <meshStandardMaterial color={C.beltBed} roughness={0.8} metalness={0.15} />
             </RoundedBox>
-            {/* side rails */}
             {[-0.42, 0.42].map((off) => (
-              <mesh key={off} position={horiz ? [0, 0.42, off] : [off, 0.42, 0]} castShadow>
-                <boxGeometry args={horiz ? [L, 0.1, 0.06] : [0.06, 0.1, L]} />
+              <mesh key={off} position={horiz ? [0, 0.42, off] : [off, 0.42, 0]}>
+                <boxGeometry args={horiz ? [1.06, 0.1, 0.06] : [0.06, 0.1, 1.06]} />
                 <meshStandardMaterial color={C.rail} roughness={0.5} metalness={0.4} />
               </mesh>
             ))}
-            {/* legs */}
-            {Array.from({ length: Math.max(2, Math.round(s.len / 3)) }, (_, k) => {
-              const f = (k + 0.5) / Math.max(2, Math.round(s.len / 3));
-              const lx = s.p[0] + (s.q[0] - s.p[0]) * f;
-              const lz = s.p[1] + (s.q[1] - s.p[1]) * f;
-              return (
-                <mesh key={k} position={[lx - cx, 0.08, lz - cz]}>
-                  <boxGeometry args={[0.14, 0.16, 0.14]} />
-                  <meshStandardMaterial color={C.dark} roughness={0.9} />
-                </mesh>
-              );
-            })}
+            <mesh position={[0, 0.37, 0]} rotation={horiz ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.055, 0.055, 0.72, 10]} />
+              <meshStandardMaterial color={C.roller} roughness={0.4} metalness={0.5} />
+            </mesh>
           </group>
         );
       })}
-      {/* rollers along the whole line */}
-      {rollers.map((r, i) => (
-        <mesh key={i} position={[r.x, 0.37, r.z]} rotation={r.horiz ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.055, 0.055, 0.72, 10]} />
-          <meshStandardMaterial color={C.roller} roughness={0.4} metalness={0.5} />
-        </mesh>
-      ))}
     </group>
   );
 }
 
-/* The product, in its four forms — one group per traveling item, form toggled by visibility. */
-function TravelingItem({ index, itemsT }: { index: number; itemsT: React.MutableRefObject<number[]> }) {
+/* The product, in its four forms — one group per traveling item, form toggled by arc
+   position against the machine-derived transform marks (slab → board → device → crate). */
+function TravelingItem({ index, itemsT, pl, marks }: {
+  index: number; itemsT: React.MutableRefObject<number[]>; pl: Polyline; marks: [number, number, number];
+}) {
   const grp = useRef<THREE.Group>(null);
   const forms = useRef<THREE.Group[]>([]);
   useFrame(() => {
     const t = itemsT.current[index];
-    if (t == null || !grp.current) return;
-    const [x, z] = pathAt(t);
+    if (t == null || !grp.current || pl.total === 0) return;
+    const [x, z] = polyAt(pl, t);
     grp.current.position.set(x, 0.46, z);
-    const f = formAt(t);
+    const frac = (t % pl.total) / pl.total;
+    const f = frac < marks[0] ? 0 : frac < marks[1] ? 1 : frac < marks[2] ? 2 : 3;
     forms.current.forEach((g, i) => { if (g) g.visible = i === f; });
   });
   return (
@@ -200,7 +184,7 @@ function HotLight({ on, y = 2.4 }: { on: boolean; y?: number }) {
 }
 
 /** Intake hopper — raw material funnels onto the line (Sourcing). */
-function Intake({ hot }: { hot: boolean }) {
+function Intake({ hot, position }: { hot: boolean; position: [number, number, number] }) {
   const puff = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (!puff.current) return;
@@ -209,7 +193,7 @@ function Intake({ hot }: { hot: boolean }) {
     (puff.current.material as THREE.MeshStandardMaterial).opacity = 0.75 * (1 - f);
   });
   return (
-    <group position={[-6.5, 0, -3]}>
+    <group position={position}>
       {/* frame */}
       {[-0.55, 0.55].map((dx) => (
         <mesh key={dx} position={[dx, 1.1, 0]} castShadow>
@@ -233,7 +217,7 @@ function Intake({ hot }: { hot: boolean }) {
 }
 
 /** Gantry press straddling the line — dual pistons stamp passing boards (Tooling). */
-function GantryPress({ active, hot }: { active: boolean; hot: boolean }) {
+function GantryPress({ active, hot, position }: { active: boolean; hot: boolean; position: [number, number, number] }) {
   const ram = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     if (!ram.current) return;
@@ -242,7 +226,7 @@ function GantryPress({ active, hot }: { active: boolean; hot: boolean }) {
     ram.current.position.y = 1.55 - cycle * 0.75;
   });
   return (
-    <group position={[0, 0, -3]}>
+    <group position={position}>
       {[-0.9, 0.9].map((dx) => (
         <mesh key={dx} position={[dx, 1.0, 0]} castShadow>
           <boxGeometry args={[0.28, 2.0, 0.5]} />
@@ -341,14 +325,14 @@ function RobotArm({ active, hot, position, mirror = false, phase = 0 }: {
 }
 
 /** QA tunnel — a glass scanner the finished device passes through (Quality). */
-function QaTunnel({ active, hot }: { active: boolean; hot: boolean }) {
+function QaTunnel({ active, hot, position }: { active: boolean; hot: boolean; position: [number, number, number] }) {
   const beam = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (!beam.current) return;
     beam.current.position.x = Math.sin(clock.elapsedTime * (active ? 2.6 : 0.4)) * 0.55;
   });
   return (
-    <group position={[-2, 0, 3]}>
+    <group position={position}>
       <RoundedBox args={[2.0, 1.15, 1.25]} radius={0.1} position={[0, 0.85, 0]} castShadow>
         <meshStandardMaterial color={C.glass} transparent opacity={0.22} roughness={0.15} metalness={0.1} />
       </RoundedBox>
@@ -375,7 +359,7 @@ function QaTunnel({ active, hot }: { active: boolean; hot: boolean }) {
 }
 
 /** Packer at the end of the line — folding plates box the device (Packaging). */
-function Packer({ active, hot }: { active: boolean; hot: boolean }) {
+function Packer({ active, hot, position }: { active: boolean; hot: boolean; position: [number, number, number] }) {
   const l = useRef<THREE.Mesh>(null);
   const r = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
@@ -384,7 +368,7 @@ function Packer({ active, hot }: { active: boolean; hot: boolean }) {
     if (r.current) r.current.rotation.z = 0.2 + c * 0.9;
   });
   return (
-    <group position={[4.6, 0, 3]}>
+    <group position={position}>
       <RoundedBox args={[1.5, 0.5, 1.2]} radius={0.07} position={[0, 0.55, 0]} castShadow>
         <meshStandardMaterial color={C.machine} roughness={0.6} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
       </RoundedBox>
@@ -497,17 +481,47 @@ function FitCamera() {
   return null;
 }
 
+function MachineAt({ m, p }: { m: FactoryFloor["machines"][number]; p: Factory3DProps }) {
+  const [x, z] = machineCenter(m);
+  const pos: [number, number, number] = [x, 0, z];
+  switch (m.kind) {
+    case "intake": return <Intake hot={p.stageIdx === 0} position={pos} />;
+    case "press": return <GantryPress active={p.active} hot={p.stageIdx === 1} position={pos} />;
+    case "arm": return <RobotArm active={p.active} hot={p.stageIdx === 2} position={pos} phase={(m.c * 7 + m.r) % 6} mirror={(m.c + m.r) % 2 === 0} />;
+    case "qa": return <QaTunnel active={p.active} hot={p.stageIdx === 3} position={pos} />;
+    case "packer": return <Packer active={p.active} hot={p.stageIdx === 4} position={pos} />;
+  }
+}
+
 function Scene(p: Factory3DProps) {
   const { size } = useThree();
   const portrait = size.height > size.width;
-  const itemsT = useRef<number[]>([0, PATH_LEN * 0.25, PATH_LEN * 0.5, PATH_LEN * 0.75]);
+  const world = useRef<THREE.Group>(null);
+
+  // The belts ARE the path: chain them, then derive where the item transforms.
+  const pl = useMemo(() => makePolyline(beltPath(p.floor.belts)), [p.floor.belts]);
+  const marks = useMemo(() => formMarks(p.floor, pl.pts), [p.floor, pl.pts]);
+
+  const itemsT = useRef<number[]>([0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total)));
   useFrame((_, dt) => {
-    if (!p.active) return;
+    if (!p.active || pl.total === 0) return;
     const v = (p.overtime ? 2.1 : 1.25) * dt;
-    itemsT.current = itemsT.current.map((t) => (t + v) % PATH_LEN);
+    itemsT.current = itemsT.current.map((t) => (t + v) % pl.total);
   });
+
+  // Build mode: taps on the pad plane report the grid cell (in the WORLD group's local space,
+  // so the portrait rotation can't skew the mapping).
+  const onTapPad = (e: { point: THREE.Vector3; stopPropagation: () => void }) => {
+    if (!p.buildMode || !p.onTapCell || !world.current) return;
+    e.stopPropagation();
+    const local = world.current.worldToLocal(e.point.clone());
+    const c = Math.round(local.x + (FLOOR.w - 1) / 2);
+    const r = Math.round(local.z + (FLOOR.h - 1) / 2);
+    if (c >= 0 && c < FLOOR.w && r >= 0 && r < FLOOR.h) p.onTapCell(c, r);
+  };
+
   return (
-    <group rotation={[0, portrait ? Math.PI / 2 : 0, 0]}>
+    <group ref={world} rotation={[0, portrait ? Math.PI / 2 : 0, 0]}>
       <ambientLight intensity={0.85} />
       <directionalLight position={[7, 12, 5]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
       <pointLight position={[0, 7, 0]} intensity={p.overtime ? 34 : 20} distance={18} color={p.overtime ? C.amber : "#ffffff"} />
@@ -521,22 +535,22 @@ function Scene(p: Factory3DProps) {
         <meshStandardMaterial color={C.pad} roughness={0.95} />
       </RoundedBox>
       <gridHelper args={[16, 16, "#3a4048", "#343a42"]} position={[0, 0.1, 0]} />
+      {/* tap-catcher for build mode (invisible, above the pad) */}
+      {/* raycast skips visible={false}, so the tap-catcher is transparent instead of hidden */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.12, 0]} onPointerDown={onTapPad}>
+        <planeGeometry args={[FLOOR.w, FLOOR.h]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
       {/* dock road along the east edge */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[8.6, 0.001, 0]} receiveShadow>
         <planeGeometry args={[1.9, 30]} />
         <meshStandardMaterial color={C.road} roughness={0.95} />
       </mesh>
 
-      <Belts />
-      {[0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} />)}
+      <BeltTiles floor={p.floor} />
+      {pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} />)}
 
-      {/* the line, in real stage order */}
-      <Intake hot={p.stageIdx === 0} />
-      <GantryPress active={p.active} hot={p.stageIdx === 1} />
-      <RobotArm active={p.active} hot={p.stageIdx === 2} position={[-0.2, 0, -1.2]} phase={0} />
-      <RobotArm active={p.active} hot={p.stageIdx === 2} position={[0.6, 0, 1.15]} mirror phase={1.7} />
-      <QaTunnel active={p.active} hot={p.stageIdx === 3} />
-      <Packer active={p.active} hot={p.stageIdx === 4} />
+      {p.floor.machines.map((m) => <MachineAt key={m.id} m={m} p={p} />)}
 
       <CrateStacks count={p.readyCount} />
       <Truck selling={p.selling} />

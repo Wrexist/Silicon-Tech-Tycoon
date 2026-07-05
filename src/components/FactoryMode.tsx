@@ -26,6 +26,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
+import { MACHINE_DEFS, BELT_COST, type BeltDir, type MachineKind } from "../engine/factoryFloor.ts";
 import { useSettings } from "../state/settings.ts";
 
 // three.js stays in its own lazy chunk (the garage3d rule); the SVG map is the fallback for
@@ -78,6 +79,7 @@ function useFactoryData() {
   return {
     game, state, lead, active, progress, stage, stageIdx, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
+    floor: state.factoryFloor,
   };
 }
 
@@ -253,6 +255,17 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const settings = useSettings();
   const [glLost, setGlLost] = useState(false);
   const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
+  // F2 Build mode — the selected tool paints cells on the 3D pad.
+  const [buildTool, setBuildTool] = useState<null | MachineKind | "belt" | "erase">(null);
+  const [beltDir, setBeltDir] = useState<BeltDir>("e");
+  const { buyFloorMachine, buyFloorBelt, clearFloorCell } = d.game;
+  const onTapCell = (c: number, r: number) => {
+    if (!buildTool) return;
+    if (buildTool === "erase") { clearFloorCell(c, r); haptic.light(); return; }
+    const res = buildTool === "belt" ? buyFloorBelt(c, r, beltDir) : buyFloorMachine(buildTool, c, r);
+    if (res.ok) { haptic.light(); if (buildTool !== "belt") { sfx("build"); haptic.success(); } }
+    else { haptic.warning(); showToast(res.reason ?? "Can't build there", { tone: "negative" }); }
+  };
 
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
@@ -284,6 +297,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               readyCount={d.readyCount}
               selling={d.selling}
               overtime={d.overtime}
+              floor={d.floor}
+              buildMode={buildTool != null}
+              onTapCell={onTapCell}
               onContextLost={() => setGlLost(true)}
             />
           </Suspense>
@@ -341,7 +357,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
       {/* right tool rail */}
       <div className="fmode__rail">
-        <button className="fmode__tool fmode__tool--soon" onClick={() => showToast("Build mode arrives with the next factory update", { tone: "neutral" })}>
+        <button
+          className={`fmode__tool${buildTool != null ? " fmode__tool--on" : ""}`}
+          onClick={() => { haptic.light(); setBuildTool(buildTool != null ? null : "belt"); }}
+        >
           <Hammer size={18} /><span>Build</span>
         </button>
         <button className="fmode__tool" onClick={() => { haptic.light(); setSheet("upgrades"); }}>
@@ -358,7 +377,43 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         </button>
       </div>
 
-      {/* bottom strip */}
+      {/* bottom strip — swaps to the build toolbar while a tool is armed */}
+      {buildTool != null && (
+        <div className="fmode__bottom fmode__bottom--build">
+          <div className="fmode__tools">
+            <button
+              className={`fmode__toolchip${buildTool === "belt" ? " fmode__toolchip--on" : ""}`}
+              onClick={() => { haptic.light(); setBuildTool("belt"); }}
+            >
+              Belt · {format(BELT_COST)}
+            </button>
+            <button
+              className="fmode__toolchip"
+              aria-label="Belt direction"
+              onClick={() => { haptic.light(); setBeltDir(beltDir === "e" ? "s" : beltDir === "s" ? "w" : beltDir === "w" ? "n" : "e"); setBuildTool("belt"); }}
+            >
+              {beltDir === "e" ? "→" : beltDir === "s" ? "↓" : beltDir === "w" ? "←" : "↑"}
+            </button>
+            {(Object.keys(MACHINE_DEFS) as MachineKind[]).map((k) => (
+              <button
+                key={k}
+                className={`fmode__toolchip${buildTool === k ? " fmode__toolchip--on" : ""}`}
+                onClick={() => { haptic.light(); setBuildTool(k); }}
+              >
+                {MACHINE_DEFS[k].name.split(" ")[0]} · {format(MACHINE_DEFS[k].cost)}
+              </button>
+            ))}
+            <button
+              className={`fmode__toolchip fmode__toolchip--danger${buildTool === "erase" ? " fmode__toolchip--on" : ""}`}
+              onClick={() => { haptic.light(); setBuildTool("erase"); }}
+            >
+              Erase
+            </button>
+          </div>
+          <button className="fmode__boost" onClick={() => { haptic.light(); setBuildTool(null); }}>Done</button>
+        </div>
+      )}
+      {buildTool == null && (
       <div className="fmode__bottom">
         <div className="fmode__mats" aria-label="Raw materials committed to production">
           {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {
@@ -383,6 +438,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <ShoppingCart size={16} aria-hidden />
         </button>
       </div>
+      )}
 
       {/* sheets */}
       <Sheet open={sheet === "upgrades"} onClose={() => setSheet(null)}>

@@ -1781,3 +1781,32 @@ good and cool." Rebuilt the scene as ONE coherent S-shaped production line:
       during the staged run's QA week. 713 tests, tsc 0, build+PWA green.
 - NOT verified on-device: GPU cost of ~130 meshes + 6 useFrame rigs on old iPhones (drop
       roller count / shadow map first if it stutters); light-theme is intentionally dark.
+
+## v76 — Factory Mode F2: the floor is player-built (DONE 2026-07-04)
+Build mode ships: machines and conveyors are now DATA the player lays down, and the 3D
+scene + item flow render from it.
+- [x] **`engine/factoryFloor.ts`** (PURE, +7 tests): 16×10 grid, 5-machine catalog
+      (intake/press/arm/qa/packer w/ footprints + costs + stage mapping), directed belt
+      tiles, placement validation (bounds/overlap/no-belt-under-machine, re-aim replaces),
+      `beltPath` (chains directed tiles from the unfed start into the longest path + run-off),
+      `formMarks` (item transform points derived from where press/arm/qa actually sit along
+      the PLAYER's path), authored `starterFloor()` (the S-line, validated by test).
+- [x] **State**: `GameState.factoryFloor` (+newGame default, persistence backfill);
+      `buyFloorMachine` (cash-gated) / `buyFloorBelt` ($400/tile, re-aim free) /
+      `clearFloorCell` (demolition, no refund); useGame cbs w/ spend FX. Determinism pin +
+      all 206 state tests unaffected (the floor is inert to the tick). 720 tests total.
+- [x] **Factory3D is layout-driven**: belts render per-tile (bed/rails/roller), items ride
+      the CHAINED player path (generic polyline walker) and transform at the machine-derived
+      marks; machines render at their placed positions (multiple arms supported, phase-offset
+      by cell). Tap-to-build: a transparent raycast plane maps taps to grid cells IN THE
+      WORLD GROUP'S LOCAL SPACE (portrait rotation can't skew it).
+- [x] **Build UI**: the rail's Build button arms a toolbar (Belt+direction cycler, the 5
+      machines w/ costs, Erase, Done) replacing the bottom strip; invalid placements toast
+      the engine's reason.
+- [x] **Verified live end-to-end** (chromium+ANGLE): a tap-sweep BOUGHT AND PLACED 5 arms
+      (persisted 10 machines / starter 5), cash deducted, scene re-rendered them; occupied
+      cells correctly refused. Found + fixed: r3f raycast skips visible={false} — the tap
+      plane is transparent-visible instead.
+- Known gaps (logged): SVG fallback map still draws the hardcoded starter line (fallback
+      only); no pan/zoom yet; no sell-refund on demolition; ghost preview (tap commits
+      directly, engine validates). NOT verified on-device: tap precision on a real phone.

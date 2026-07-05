@@ -1,6 +1,7 @@
 // localStorage persistence with schema versioning + migration. The save is the
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
+import { starterFloor } from "../engine/factoryFloor.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
@@ -400,6 +401,10 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.layout)) s.layout = defaultLayout();
   if (!s.roomStyle || typeof s.roomStyle !== "object" || typeof s.roomStyle.floor !== "number" || typeof s.roomStyle.wall !== "number") {
     s.roomStyle = { floor: s.roomStyle?.floor ?? 0, wall: s.roomStyle?.wall ?? 0 };
+  }
+  // Factory Mode floor (F2) — old saves get the authored starter line.
+  if (!s.factoryFloor || !Array.isArray(s.factoryFloor.machines) || !Array.isArray(s.factoryFloor.belts)) {
+    s.factoryFloor = starterFloor();
   }
   if (typeof s.furnitureCounter !== "number") {
     s.furnitureCounter = s.layout.reduce((m: number, it: { iid?: string }) => {
