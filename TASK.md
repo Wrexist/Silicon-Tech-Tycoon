@@ -1869,3 +1869,17 @@ smart corners, more detail." All three, one pass.
       shares the three bundle). 723 tests, tsc 0, build+PWA green.
 - NOT verified on-device: the reactive timing FEEL (press/arm sync to item) + GPU cost of the extra
       chevron/slat meshes on old iPhones (drop chevrons to 1/tile or slats first if it stutters).
+
+## v80 — Factory Mode: declutter the HUD + integrate with production (DONE 2026-07-04)
+User: "clean navigation/UI/buttons, nothing noisy; integrate into the game well."
+- [x] **Removed the noisiest chrome**: the 6-chip raw-materials tray (moved to a quiet "parts
+      committed" row inside the Stats sheet), and the top-bar capacity meter that shouted "333%".
+      Capacity is now a calm slim bar + a word ("On schedule" / "Overtime") inside the order card.
+- [x] **One left card, not three**: dropped the separate collapsible Factory Stats panel (it
+      duplicated the rail's Stats sheet); the left is just Current Order (+ the warn card when
+      the line is broken). Bottom strip is now centred on BOOST with two quiet side buttons.
+- [x] **Integration**: the HQ "In production" card gets a quiet "Watch it on the line ›" link
+      that switches to the Factory world — so the factory is reachable from the core production
+      loop, not just the world toggle. (onViewFactory threaded App→HQ.)
+- [x] Verified live: materials tray + top capacity meter gone, floor unobstructed, zero console
+      errors. 723 tests, tsc 0, build+PWA green.

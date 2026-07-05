@@ -98,7 +98,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 // place the WASD camera hint makes sense. Touch phones report a coarse pointer and get no hint.
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
-export function HQ({ onNavigate, onOpenBank, onOpenChallenges, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; active?: boolean; world?: "office" | "factory" }) {
+export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
   const { state, advanceEra, goPublic, resolveChoice, resolvePoach } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
@@ -287,6 +287,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, active = true, wo
           {state.building.map((job) => (
             <BuildProgress key={job.product.id} job={job} />
           ))}
+          {onViewFactory && world === "office" && (
+            <button className="hq__viewline" onClick={onViewFactory}>
+              Watch it on the line <ChevronRight size={15} aria-hidden />
+            </button>
+          )}
         </Card>
       )}
 

@@ -153,7 +153,6 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
-  const [statsOpen, setStatsOpen] = useState(false);
   const { buyFloorMachine, buyFloorBelt, clearFloorCell } = d.game;
   const lineOk = lineComplete(d.floor);
   const onTapCell = (c: number, r: number) => {
@@ -228,13 +227,6 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </span>
         </span>
         <span className="fmode__chip tnum"><FlaskConical size={12} aria-hidden /> {Math.floor(state.researchPoints)}</span>
-        {d.util != null && (
-          <span className={`fmode__cap${d.overtime ? " fmode__cap--hot" : ""}`} title="Line capacity this week">
-            <Zap size={12} aria-hidden />
-            <span className="fmode__cap-bar"><span className="fmode__cap-fill" style={{ width: `${Math.min(100, Math.round(d.util * 100))}%` }} /></span>
-            <span className="tnum">{Math.round(d.util * 100)}%</span>
-          </span>
-        )}
         <button className="fmode__close" aria-label="Close factory" onClick={() => { haptic.light(); onClose(); }}><X size={20} /></button>
       </div>
 
@@ -259,23 +251,17 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 <span className="fmode__order-units tnum">{(d.lead.plannedUnits ?? 0).toLocaleString()} units</span>
                 <span className="fmode__order-track"><span className="fmode__order-fill" style={{ width: `${Math.round(d.progress * 100)}%` }} /></span>
                 <span className="fmode__order-eta">{d.stage?.label} · {d.weeksLeft} wk left</span>
+                {d.util != null && (
+                  <span className={`fmode__cap-line${d.overtime ? " fmode__cap-line--hot" : ""}`}>
+                    <span className="fmode__cap-bar"><span className="fmode__cap-fill" style={{ width: `${Math.min(100, Math.round(d.util * 100))}%` }} /></span>
+                    {d.overtime ? "Overtime" : "On schedule"}
+                  </span>
+                )}
               </div>
             </div>
           ) : (
             <p className="fmode__empty">No active order. Plan a production run in the Design Lab.</p>
           )}
-        </div>
-        <div className="fmode__panel">
-          <button className="fmode__panel-head" aria-expanded={statsOpen} onClick={() => { haptic.light(); setStatsOpen(!statsOpen); }}>
-            <span className="fmode__panel-title">Factory stats</span>
-            <ChevronDown size={14} className={`fmode__panel-caret${statsOpen ? " fmode__panel-caret--open" : ""}`} aria-hidden />
-          </button>
-          {statsOpen && (<>
-          <div className="fmode__stat"><span>Units/wk</span><span className="tnum">{d.unitsWk.toLocaleString()}</span></div>
-          <div className="fmode__stat"><span>Revenue/wk</span><span className="tnum">{format(d.revenueWk)}</span></div>
-          <div className="fmode__stat"><span>Expenses/wk</span><span className="tnum">{format(d.expensesWk)}</span></div>
-          <div className="fmode__stat"><span>Profit/wk</span><span className={`tnum ${toDollars(d.profitWk) >= 0 ? "fmode__pos" : "fmode__neg"}`}>{format(d.profitWk)}</span></div>
-          </>)}
         </div>
       </div>
 
@@ -340,17 +326,6 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       )}
       {buildTool == null && (
       <div className="fmode__bottom">
-        <div className="fmode__mats" aria-label="Raw materials committed to production">
-          {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {
-            const Icon = MATERIAL_ICONS[kind];
-            const n = d.materials.get(kind) ?? 0;
-            return (
-              <span key={kind} className={`fmode__mat${n === 0 ? " fmode__mat--zero" : ""}`} title={kind}>
-                <Icon size={14} aria-hidden /><span className="tnum">{fmtCount(n)}</span>
-              </span>
-            );
-          })}
-        </div>
         <BoostButton />
         <button
           className="fmode__side"
@@ -404,6 +379,17 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__stat"><span>Expenses/wk</span><span className="tnum">{format(d.expensesWk)}</span></div>
           <div className="fmode__stat"><span>Profit/wk</span><span className={`tnum ${toDollars(d.profitWk) >= 0 ? "fmode__pos" : "fmode__neg"}`}>{format(d.profitWk)}</span></div>
           {d.util != null && <div className="fmode__stat"><span>Capacity used</span><span className="tnum">{Math.round(d.util * 100)}%</span></div>}
+          <div className="fmode__matsline" aria-label="Parts committed to production">
+            {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {
+              const Icon = MATERIAL_ICONS[kind];
+              const n = d.materials.get(kind) ?? 0;
+              return (
+                <span key={kind} className={`fmode__matschip${n === 0 ? " fmode__matschip--zero" : ""}`} title={kind}>
+                  <Icon size={13} aria-hidden /><span className="tnum">{fmtCount(n)}</span>
+                </span>
+              );
+            })}
+          </div>
         </div>
       </Sheet>
 

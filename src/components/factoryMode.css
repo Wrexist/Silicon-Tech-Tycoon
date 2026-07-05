@@ -50,16 +50,15 @@
   background: rgba(255, 255, 255, 0.1); color: #fff;
   font-size: var(--fs-micro); font-weight: 700;
 }
-.fmode__cap {
+/* Calm capacity line inside the order card — a slim bar + a word, never a scary percentage. */
+.fmode__cap-line {
   display: inline-flex; align-items: center; gap: var(--sp-6);
-  padding: 5px 10px; border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.1); color: #fff;
-  font-size: var(--fs-micro); font-weight: 700;
+  font-size: var(--fs-nano); font-weight: 700; color: rgba(255,255,255,0.7);
 }
-.fmode__cap-bar { width: 44px; height: 5px; border-radius: var(--r-pill); background: rgba(255,255,255,0.18); overflow: hidden; }
+.fmode__cap-bar { width: 40px; height: 4px; border-radius: var(--r-pill); background: rgba(255,255,255,0.16); overflow: hidden; flex: none; }
 .fmode__cap-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); }
-.fmode__cap--hot .fmode__cap-fill { background: var(--warning); }
-.fmode__cap--hot { color: var(--warning); }
+.fmode__cap-line--hot { color: var(--warning); }
+.fmode__cap-line--hot .fmode__cap-fill { background: var(--warning); }
 .fmode__close {
   margin-left: auto;
   display: inline-flex; align-items: center; justify-content: center;
@@ -138,17 +137,19 @@
 .fmode__bottom {
   position: fixed; left: 0; right: 0;
   bottom: env(safe-area-inset-bottom);
-  display: flex; align-items: center; gap: var(--sp-8);
+  display: flex; align-items: center; justify-content: center; gap: var(--sp-8);
   padding: var(--sp-8) var(--sp-12);
 }
-.fmode__mats { display: flex; gap: var(--sp-4); flex-wrap: wrap; min-width: 0; }
-.fmode__mat {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 8px; border-radius: var(--r-button);
-  background: rgba(15, 18, 24, 0.88); border: 1px solid rgba(255,255,255,0.1);
-  color: #fff; font-size: var(--fs-nano); font-weight: 700;
+.fmode__bottom .fmode__boost { margin-left: 0; }
+/* Parts committed — a quiet inline row inside the Stats sheet (not overlaying the floor). */
+.fmode__matsline { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-4); }
+.fmode__matschip {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  padding: 4px 9px; border-radius: var(--r-pill);
+  background: var(--surface-2); color: var(--ink);
+  font-size: var(--fs-micro); font-weight: 700;
 }
-.fmode__mat--zero { opacity: 0.4; }
+.fmode__matschip--zero { opacity: 0.4; }
 .fmode__boost {
   display: inline-flex; align-items: center; gap: var(--sp-6);
   margin-left: auto;
