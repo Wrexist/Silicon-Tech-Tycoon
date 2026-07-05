@@ -301,6 +301,9 @@
 .fmode__ptile--on .fmode__ptile-icon, .fmode__ptile--on .fmode__ptile-cost { color: rgba(255,255,255,0.9); }
 .fmode__ptile--util { width: 54px; }
 .fmode__ptile--erase.fmode__ptile--on { background: var(--negative); border-color: var(--negative); }
+/* can't afford this yet — dimmed with a warning-tinted price (still selectable; placement toasts) */
+.fmode__ptile--broke:not(.fmode__ptile--on) { opacity: 0.5; }
+.fmode__ptile--broke:not(.fmode__ptile--on) .fmode__ptile-cost { color: color-mix(in srgb, var(--warning) 80%, #fff); }
 
 /* ---------------- gentle "line paused" card (not an error) ---------------- */
 .fmode__stopped { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }

@@ -333,7 +333,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </div>
           <div className="fmode__palette">
             <button
-              className={`fmode__ptile${buildTool === "belt" ? " fmode__ptile--on" : ""}`}
+              className={`fmode__ptile${buildTool === "belt" ? " fmode__ptile--on" : ""}${state.cash < BELT_COST ? " fmode__ptile--broke" : ""}`}
               onClick={() => { haptic.light(); setBuildTool("belt"); }}
             >
               <span className="fmode__ptile-icon" style={{ transform: `rotate(${DIR_ROT[beltDir]}deg)` }}><ArrowUp size={20} /></span>
@@ -350,10 +350,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             </button>
             {(Object.keys(MACHINE_DEFS) as MachineKind[]).map((k) => {
               const Icon = MACHINE_ICONS[k];
+              const broke = state.cash < MACHINE_DEFS[k].cost;
               return (
                 <button
                   key={k}
-                  className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}`}
+                  className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
+                  title={MACHINE_DEFS[k].blurb}
                   onClick={() => { haptic.light(); setBuildTool(k); }}
                 >
                   <span className="fmode__ptile-icon"><Icon size={20} /></span>
