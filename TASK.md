@@ -1826,3 +1826,22 @@ The factory-tycoon rule that makes layouts meaningful, plus F2's UX gaps.
       tap → warning appears + items halt; zero console errors. 723 tests, tsc 0, build+PWA.
 - Still open for F3+: pan/zoom, machines requiring belt adjacency to animate, and the F4
       engine slice (placed machines grant real capacity — needs the sim-harness pass).
+
+## v78 — Factory Mode polish pass: truthful minimap, foldable chrome, taught rules (DONE 2026-07-04)
+"Look through it, improve it, make it make sense, premium UX." Critical review found and fixed:
+- [x] **The stale hand-drawn SVG map is GONE** — the compact card and the no-WebGL fallback
+      showed a hardcoded line regardless of the player's layout (actively false after F2).
+      New `FloorMinimap`: a layout-driven SVG rendering the REAL floor — belts coloured by
+      chain membership (amber = live chain w/ gentle pulse while producing, red = broken,
+      gray = orphan tiles), machines tinted by kind. ~150 lines of dead map code + its whole
+      CSS block deleted.
+- [x] **Regression caught by screenshot review**: the Office|Factory world-tab styles were
+      orphaned when factoryWorld.css was superseded in F1 — the tabs had been rendering as
+      unstyled text since. Re-homed in App.css (their proper app-chrome home).
+- [x] **Panels fold** so the floor stays the star on portrait: Current Order and Factory
+      Stats get chevron headers (stats collapsed by default); aria-expanded, 28px+ targets.
+- [x] **Build mode teaches its rule**: a micro hint line in the toolbar ("Belts carry the
+      line from the Intake Hopper to the Packing Station… Erase refunds half"). **Escape now
+      exits Build first**, then closes the mode on the second press.
+- [x] Verified live: card minimap truthful, fold/hint/Escape-order all exercised, zero
+      console errors. 723 tests, tsc 0, build+PWA green.

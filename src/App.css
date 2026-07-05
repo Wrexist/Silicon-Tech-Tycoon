@@ -712,3 +712,19 @@
   font-size: var(--fs-title);
   font-weight: 700;
 }
+
+/* World tabs beside the company name on the Office screen (Office | Factory). App-level chrome —
+   these were orphaned when factoryWorld.css (their first home) was superseded; they live here now. */
+.app__titlerow { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
+.app__titlerow .app__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.worldtabs { display: inline-flex; gap: var(--sp-4); flex: none; }
+.worldtabs__tab {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  min-height: 34px; padding: 0 var(--sp-12);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);
+  cursor: pointer;
+}
+.worldtabs__tab--on { background: var(--accent); border-color: var(--accent); color: #fff; }

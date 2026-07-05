@@ -7,8 +7,8 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  BarChart3, BatteryCharging, Bot, Camera, CodeXml, Cpu, FlaskConical, Hammer, Layers3,
-  Lock, Maximize2, Monitor, ShoppingCart, Truck, X, Zap,
+  BarChart3, BatteryCharging, Bot, Camera, ChevronDown, CodeXml, Cpu, FlaskConical, Hammer,
+  Layers3, Lock, Maximize2, Monitor, ShoppingCart, Truck, X, Zap,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue } from "../state/gameState.ts";
@@ -26,7 +26,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { MACHINE_DEFS, BELT_COST, lineComplete, type BeltDir, type MachineKind } from "../engine/factoryFloor.ts";
+import { MACHINE_DEFS, BELT_COST, beltChain, lineComplete, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { useSettings } from "../state/settings.ts";
 
 // three.js stays in its own lazy chunk (the garage3d rule); the SVG map is the fallback for
@@ -89,161 +89,53 @@ function fmtCount(n: number): string {
   return String(n);
 }
 
-/* ------------------------------ the tile map ------------------------------ */
+/* --------------------- layout-driven minimap (SVG, zero assets) --------------------- */
+/* Renders the PLAYER'S floor — belts coloured by whether they're part of the running chain,
+   machines by kind — so the card and the no-WebGL fallback always tell the truth (F3.5).
+   Replaces the old hand-drawn map, which showed a hardcoded line regardless of the layout. */
 
-const T = 48; // tile size
+const MACHINE_TINT: Record<MachineKind, string> = {
+  intake: "var(--fmini-intake)",
+  press: "var(--fmini-press)",
+  arm: "var(--fmini-arm)",
+  qa: "var(--fmini-qa)",
+  packer: "var(--fmini-packer)",
+};
 
-/** A top-view machine block: rounded body, inner detail, status LED, soft shadow. */
-function Machine({ x, y, w = 1.6, kind, hot }: { x: number; y: number; w?: number; kind: "assembler" | "arm" | "qa" | "charger"; hot: boolean }) {
-  const s = w * T;
+export function FloorMinimap({ floor, lineOk, running }: { floor: GameFloor; lineOk: boolean; running: boolean }) {
+  const K = 20; // px per cell in the 320×200 viewBox
+  const chain = new Set(beltChain(floor.belts).map((b) => `${b.c},${b.r}`));
   return (
-    <g transform={`translate(${x * T} ${y * T})`} className={`fm__machine${hot ? " fm__machine--hot" : ""}`}>
-      <rect x={4} y={s * 0.12} width={s} height={s * 0.92} rx={10} className="fm__m-shadow" />
-      <rect x={0} y={0} width={s} height={s} rx={10} className="fm__m-body" />
-      <rect x={5} y={5} width={s - 10} height={s - 10} rx={7} className="fm__m-inner" />
-      {kind === "assembler" && (
-        <>
-          <rect x={s * 0.2} y={s * 0.22} width={s * 0.6} height={s * 0.2} rx={4} className="fm__m-slot" />
-          <g className="fm__m-press"><rect x={s * 0.32} y={s * 0.5} width={s * 0.36} height={s * 0.26} rx={4} className="fm__m-tool" /></g>
-        </>
-      )}
-      {kind === "arm" && (
-        <>
-          <circle cx={s / 2} cy={s / 2} r={s * 0.2} className="fm__m-hub" />
-          <g className="fm__m-rot" style={{ transformOrigin: `${s / 2}px ${s / 2}px` }}>
-            <rect x={s / 2 - 4} y={s * 0.1} width={8} height={s * 0.4} rx={4} className="fm__m-armseg" />
-            <circle cx={s / 2} cy={s * 0.12} r={6} className="fm__m-claw" />
-          </g>
-        </>
-      )}
-      {kind === "qa" && (
-        <>
-          <rect x={s * 0.16} y={s * 0.42} width={s * 0.68} height={s * 0.16} rx={4} className="fm__m-slot" />
-          <line x1={s * 0.2} y1={s * 0.5} x2={s * 0.8} y2={s * 0.5} className="fm__m-scan" />
-        </>
-      )}
-      {kind === "charger" && (
-        <>
-          <rect x={s * 0.3} y={s * 0.2} width={s * 0.4} height={s * 0.6} rx={5} className="fm__m-slot" />
-          <path d={`M ${s * 0.52} ${s * 0.3} l -10 ${s * 0.22} h 8 l -4 ${s * 0.18} l 14 -${s * 0.24} h -8 z`} className="fm__m-bolt" />
-        </>
-      )}
-      <circle cx={s - 10} cy={10} r={4} className="fm__m-led" />
-    </g>
-  );
-}
-
-/** A straight belt segment (tiles), horizontal or vertical, with animated lane + chevrons. */
-function Belt({ x, y, len, dir }: { x: number; y: number; len: number; dir: "e" | "w" | "s" | "n" }) {
-  const horiz = dir === "e" || dir === "w";
-  const wpx = horiz ? len * T : T;
-  const hpx = horiz ? T : len * T;
-  const rev = dir === "w" || dir === "n";
-  const chevrons = Array.from({ length: len }, (_, i) => i * T + T / 2);
-  return (
-    <g transform={`translate(${x * T} ${y * T})`}>
-      <rect x={0} y={0} width={wpx} height={hpx} rx={8} className="fm__belt" />
-      {horiz ? (
-        <line x1={8} y1={T / 2} x2={wpx - 8} y2={T / 2} className={`fm__lane${rev ? " fm__lane--rev" : ""}`} strokeDasharray="10 10" />
-      ) : (
-        <line x1={T / 2} y1={8} x2={T / 2} y2={hpx - 8} className={`fm__lane${rev ? " fm__lane--rev" : ""}`} strokeDasharray="10 10" />
-      )}
-      {chevrons.map((c) => (
-        <path
-          key={c}
-          className="fm__chev"
-          d={horiz ? `M ${c - 4} ${T / 2 - 6} l 8 6 l -8 6` : `M ${T / 2 - 6} ${c - 4} l 6 8 l 6 -8`}
-          transform={rev ? (horiz ? `rotate(180 ${c} ${T / 2})` : `rotate(180 ${T / 2} ${c})`) : undefined}
+    <svg className={`fmini${running ? " fmini--run" : ""}`} viewBox="0 0 320 200" role="img"
+      aria-label={lineOk ? "Factory layout, line connected" : "Factory layout, line incomplete"}>
+      <rect x={0} y={0} width={320} height={200} rx={10} className="fmini__pad" />
+      {Array.from({ length: 15 }, (_, i) => (
+        <line key={`v${i}`} x1={(i + 1) * K} y1={0} x2={(i + 1) * K} y2={200} className="fmini__grid" />
+      ))}
+      {Array.from({ length: 9 }, (_, i) => (
+        <line key={`h${i}`} x1={0} y1={(i + 1) * K} x2={320} y2={(i + 1) * K} className="fmini__grid" />
+      ))}
+      {floor.belts.map((b) => (
+        <rect
+          key={`${b.c},${b.r}`}
+          x={b.c * K + 2} y={b.r * K + 2} width={K - 4} height={K - 4} rx={4}
+          className={`fmini__belt${chain.has(`${b.c},${b.r}`) ? (lineOk ? " fmini__belt--live" : " fmini__belt--broken") : ""}`}
         />
       ))}
-    </g>
-  );
-}
-
-function Storage({ x, y, stacks }: { x: number; y: number; stacks: number }) {
-  return (
-    <g transform={`translate(${x * T} ${y * T})`}>
-      {Array.from({ length: Math.max(1, Math.min(4, stacks)) }, (_, i) => (
-        <g key={i} transform={`translate(${(i % 2) * 30} ${Math.floor(i / 2) * 30})`} className={stacks > 0 ? undefined : "fm__dimmed"}>
-          <rect x={0} y={0} width={26} height={26} rx={4} className="fm__crate" />
-          <line x1={0} y1={13} x2={26} y2={13} className="fm__crate-line" />
-          <line x1={13} y1={0} x2={13} y2={26} className="fm__crate-line" />
-        </g>
-      ))}
-    </g>
-  );
-}
-
-export function FactoryMap({ compact = false, fill = false }: { compact?: boolean; fill?: boolean }) {
-  const { active, stageIdx, overtime, readyCount, selling, robotTier, fac } = useFactoryData();
-  const mood = overtime ? " fm--overtime" : active ? " fm--running" : " fm--idle";
-  return (
-    <svg
-      className={`fm${mood}${compact ? " fm--compact" : ""}`}
-      viewBox="0 0 720 480"
-      preserveAspectRatio={fill ? "xMidYMid slice" : "xMidYMid meet"}
-      role="img"
-      aria-label={active ? `Factory map at ${fac.name}: production running` : `Factory map at ${fac.name}: lines idle`}
-    >
-      {/* ground: grass fringe → asphalt pad → tile grid */}
-      <rect x={0} y={0} width={720} height={480} className="fm__grass" />
-      {[[40, 26], [640, 40], [80, 430], [660, 420]].map(([bx, by], i) => (
-        <circle key={i} cx={bx} cy={by} r={10 + (i % 2) * 4} className="fm__bush" />
-      ))}
-      <rect x={24} y={24} width={672} height={432} rx={14} className="fm__pad" />
-      {Array.from({ length: 13 }, (_, i) => (
-        <line key={`v${i}`} x1={(i + 1) * T + 24} y1={24} x2={(i + 1) * T + 24} y2={456} className="fm__grid" />
-      ))}
-      {Array.from({ length: 8 }, (_, i) => (
-        <line key={`h${i}`} x1={24} y1={(i + 1) * T + 24} x2={696} y2={(i + 1) * T + 24} className="fm__grid" />
-      ))}
-
-      {/* authored starter layout (F2 makes this player-built) */}
-      <g transform="translate(24 24)">
-        {/* main conveyor loop */}
-        <Belt x={1.5} y={1.5} len={9} dir="e" />
-        <Belt x={10.5} y={2.5} len={4} dir="s" />
-        <Belt x={2.5} y={6.5} len={9} dir="w" />
-        <Belt x={1.5} y={2.5} len={4} dir="n" />
-        {/* spur to the dock */}
-        <Belt x={11.5} y={5} len={2} dir="e" />
-
-        {/* machines around the loop; the active build stage lights its machine */}
-        <Machine x={3.2} y={2.9} kind="assembler" hot={stageIdx === 1} />
-        <Machine x={6.2} y={2.9} kind="arm" hot={stageIdx === 2} />
-        <Machine x={8.6} y={2.9} kind="qa" hot={stageIdx === 3} />
-        <Machine x={11.6} y={0.6} w={1.1} kind="charger" hot={false} />
-
-        {/* storage corner — pallet grid tracks the ready shelf */}
-        <g className={stageIdx === 4 && active ? "fm__pack" : undefined}>
-          <Storage x={0.6} y={7.9} stacks={readyCount + 1} />
-        </g>
-
-        {/* items flowing on the top belt while running */}
-        {active && [0, 1, 2].map((i) => (
-          <g key={i} className="fm__item" style={{ animationDelay: `${i * 2.4}s` }}>
-            <rect x={-8} y={84} width={16} height={16} rx={3} className="fm__crate" />
-          </g>
-        ))}
-
-        {/* AGVs: one per Robotics tier, patrolling the bottom lane */}
-        {Array.from({ length: Math.min(3, robotTier) }, (_, i) => (
-          <g key={i} className="fm__agv" style={{ animationDelay: `${i * 4.2}s` }}>
-            <rect x={-10} y={-7} width={20} height={14} rx={5} className="fm__agv-body" />
-            <circle cx={0} cy={0} r={2.6} className="fm__agv-dot" />
-          </g>
-        ))}
-
-        {/* dock road + truck (idles while anything is selling) */}
-        <rect x={13 * T + 2} y={4.6 * T} width={T - 4} height={4.4 * T} rx={8} className="fm__road" />
-        <g className={`fm__truck${selling ? " fm__truck--live" : ""}`}>
-          <rect x={0} y={0} width={26} height={44} rx={6} className="fm__truck-trailer" />
-          <rect x={2} y={44} width={22} height={14} rx={5} className="fm__truck-cab" />
-        </g>
-      </g>
+      {floor.machines.map((m) => {
+        const def = MACHINE_DEFS[m.kind];
+        return (
+          <rect
+            key={m.id}
+            x={m.c * K + 1.5} y={m.r * K + 1.5} width={def.w * K - 3} height={def.d * K - 3} rx={5}
+            className="fmini__machine" style={{ fill: MACHINE_TINT[m.kind] }}
+          />
+        );
+      })}
     </svg>
   );
 }
+
 
 /* ----------------------------- fullscreen mode ----------------------------- */
 
@@ -259,6 +151,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [buildTool, setBuildTool] = useState<null | MachineKind | "belt" | "erase">(null);
   const [beltDir, setBeltDir] = useState<BeltDir>("e");
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
+  // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
+  const [orderOpen, setOrderOpen] = useState(true);
+  const [statsOpen, setStatsOpen] = useState(false);
   const { buyFloorMachine, buyFloorBelt, clearFloorCell } = d.game;
   const lineOk = lineComplete(d.floor);
   const onTapCell = (c: number, r: number) => {
@@ -278,12 +173,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (buildTool != null) setBuildTool(null);
+      else onClose();
+    };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
+  }, [onClose, buildTool]);
 
   const flow = sub(d.revenueWk, d.expensesWk);
   const flowD = toDollars(flow);
@@ -297,7 +196,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     <div ref={ref} tabIndex={-1} className="fmode" role="dialog" aria-modal="true" aria-label="Factory mode">
       <div className="fmode__stage">
         {use3d ? (
-          <Suspense fallback={<FactoryMap />}>
+          <Suspense fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} />}>
             <Factory3D
               active={d.active}
               stageIdx={d.stageIdx}
@@ -314,7 +213,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             />
           </Suspense>
         ) : (
-          <FactoryMap />
+          <FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} />
         )}
       </div>
 
@@ -347,8 +246,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </div>
         )}
         <div className="fmode__panel">
-          <span className="fmode__panel-title">Current order</span>
-          {d.lead ? (
+          <button className="fmode__panel-head" aria-expanded={orderOpen} onClick={() => { haptic.light(); setOrderOpen(!orderOpen); }}>
+            <span className="fmode__panel-title">Current order</span>
+            <ChevronDown size={14} className={`fmode__panel-caret${orderOpen ? " fmode__panel-caret--open" : ""}`} aria-hidden />
+          </button>
+          {!orderOpen ? null : d.lead ? (
             <div className="fmode__order">
               <span className="fmode__order-thumb"><DeviceRenderer product={d.lead.product} size={42} /></span>
               <div className="fmode__order-info">
@@ -363,11 +265,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           )}
         </div>
         <div className="fmode__panel">
-          <span className="fmode__panel-title">Factory stats</span>
+          <button className="fmode__panel-head" aria-expanded={statsOpen} onClick={() => { haptic.light(); setStatsOpen(!statsOpen); }}>
+            <span className="fmode__panel-title">Factory stats</span>
+            <ChevronDown size={14} className={`fmode__panel-caret${statsOpen ? " fmode__panel-caret--open" : ""}`} aria-hidden />
+          </button>
+          {statsOpen && (<>
           <div className="fmode__stat"><span>Units/wk</span><span className="tnum">{d.unitsWk.toLocaleString()}</span></div>
           <div className="fmode__stat"><span>Revenue/wk</span><span className="tnum">{format(d.revenueWk)}</span></div>
           <div className="fmode__stat"><span>Expenses/wk</span><span className="tnum">{format(d.expensesWk)}</span></div>
           <div className="fmode__stat"><span>Profit/wk</span><span className={`tnum ${toDollars(d.profitWk) >= 0 ? "fmode__pos" : "fmode__neg"}`}>{format(d.profitWk)}</span></div>
+          </>)}
         </div>
       </div>
 
@@ -396,6 +303,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       {/* bottom strip — swaps to the build toolbar while a tool is armed */}
       {buildTool != null && (
         <div className="fmode__bottom fmode__bottom--build">
+          <p className="fmode__buildhint">Belts carry the line from the Intake Hopper to the Packing Station. Tap a belt again to re-aim it; Erase refunds half.</p>
           <div className="fmode__tools">
             <button
               className={`fmode__toolchip${buildTool === "belt" ? " fmode__toolchip--on" : ""}`}
@@ -551,10 +459,11 @@ function BoostButton() {
 export function FactoryCard({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const d = useFactoryData();
   const [open, setOpen] = useState(false);
+  const cardLineOk = lineComplete(d.floor);
   return (
     <div className="fcard">
       <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode">
-        <FactoryMap compact />
+        <FloorMinimap floor={d.floor} lineOk={cardLineOk} running={d.active} />
         <span className="fcard__expand" aria-hidden><Maximize2 size={16} /></span>
       </button>
       <div className="fcard__chips">
