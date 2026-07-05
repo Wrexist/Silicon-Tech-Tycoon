@@ -4,13 +4,14 @@
 // and the floor goes amber when a run exceeds the line's weekly capacity (overtime).
 // Pure parametric SVG (zero image assets, the IsoScene discipline); every animation is
 // class-gated on real sim state and fully disabled under prefers-reduced-motion.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2, PackageCheck, TrendingUp, Wrench, X } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import type { FactoryId } from "../engine/types.ts";
 import { haptic } from "../design/haptics.ts";
+import { useDialogFocus } from "../design/primitives.tsx";
 import "./factoryWorld.css";
 
 /* ---------------------------------- scene ---------------------------------- */
@@ -91,8 +92,8 @@ export function FactoryScene({ active, progress, readyCount, selling, overtime, 
       ))}
 
       {/* ---- pendant industrial lights (dim when idle) ---- */}
-      {[150, 380, 610].map((lx, i) => (
-        <g key={lx} className="fw__lamp" style={{ animationDelay: `${i * 0.9}s` }}>
+      {[150, 380, 610].map((lx) => (
+        <g key={lx} className="fw__lamp">
           <line x1={lx} y1={0} x2={lx} y2={40} className="fw__lamp-cord" />
           <path d={`M ${lx - 16} 40 h32 l-6 10 h-20 z`} className="fw__lamp-shade" />
           <polygon points={`${lx - 26},52 ${lx + 26},52 ${lx + 52},220 ${lx - 52},220`} className="fw__lamp-cone" />
@@ -183,8 +184,8 @@ export function FactoryScene({ active, progress, readyCount, selling, overtime, 
 
       {/* ---- idle hint ---- */}
       {!active && (
-        <text x={380} y={402} textAnchor="middle" className="fw__idle-hint">
-          Lines idle — plan a production run in the Design Lab
+        <text x={380} y={268} textAnchor="middle" className="fw__idle-hint">
+          Lines idle, plan a production run in the Design Lab
         </text>
       )}
     </svg>
@@ -213,11 +214,20 @@ export function FactoryWorld() {
   const util = Number.isFinite(fac.capacityPerWeek) && fac.capacityPerWeek > 0 ? weeklyLoad / fac.capacityPerWeek : null;
   const overtime = util != null && util > 1;
 
+  // Fullscreen is a hand-built modal, so it carries the same machinery as the shared Sheet
+  // (the LaunchReveal rule): focus trapped inside, Escape closes, page scroll locked behind it.
+  const fullRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(fullRef, full);
   useEffect(() => {
     if (!full) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFull(false); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [full]);
 
   const body = (
@@ -260,7 +270,7 @@ export function FactoryWorld() {
 
   if (full) {
     return createPortal(
-      <div className="fworld__full" role="dialog" aria-modal="true" aria-label="Factory floor, fullscreen">
+      <div ref={fullRef} tabIndex={-1} className="fworld__full" role="dialog" aria-modal="true" aria-label="Factory floor, fullscreen">
         {body}
         <button className="fworld__close" aria-label="Close fullscreen" onClick={() => { haptic.light(); setFull(false); }}>
           <X size={20} />

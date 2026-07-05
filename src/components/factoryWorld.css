@@ -53,7 +53,9 @@
 .fw--overtime .fw__tread { animation-duration: 0.7s; }
 @keyframes fw-tread { to { stroke-dashoffset: -28; } }
 
-.fw__crate { animation: fw-crate 8.4s linear infinite; }
+/* fill-mode both: the 0% frame (opacity 0) applies DURING each crate's stagger delay,
+   so delayed crates don't sit piled at the belt start before their first run. */
+.fw__crate { animation: fw-crate 8.4s linear infinite both; }
 .fw--overtime .fw__crate { animation-duration: 5.6s; }
 @keyframes fw-crate {
   0% { transform: translateX(2px); opacity: 0; }
@@ -133,7 +135,9 @@
 .fworld__full {
   position: fixed; inset: 0; z-index: 60;
   display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--ink) 88%, var(--bg));
+  /* Hand-rolled near-black (matches the dark bg family): --ink flips light in dark theme,
+     so an ink-based mix would invert the cinema backdrop there. */
+  background: rgba(9, 11, 15, 0.93);
   padding: max(var(--sp-16), env(safe-area-inset-top)) var(--sp-8) max(var(--sp-16), env(safe-area-inset-bottom));
 }
 .fworld__full .fworld__frame { width: min(1100px, 100%); }
@@ -150,7 +154,7 @@
 
 /* ---------- world tabs (beside the company name on the Office screen) ---------- */
 .app__titlerow { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
-.app__titlerow .app__title { margin: 0; min-width: 0; }
+.app__titlerow .app__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .worldtabs { display: inline-flex; gap: var(--sp-4); flex: none; }
 .worldtabs__tab {
   display: inline-flex; align-items: center; gap: var(--sp-4);

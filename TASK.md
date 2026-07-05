@@ -1681,5 +1681,12 @@ engine-touching tycoon depth, each P4 slice harness-measured). P1 shipped this p
 - [x] **Verified in a real browser** (vite + playwright-core/chromium): idle scene renders,
       world tabs swap, fullscreen opens/closes, zero console errors; screenshots reviewed
       (first pass leaned the legs/stations with the belt tilt — counter-rotated to plumb).
-- NOT verified: the RUNNING-state choreography (crates/arm/press/scan need a live build —
-      check on device or in a played session) and dark-theme/scene contrast on device.
+- [x] **Review pass (same session)**: drove the RUNNING + OVERTIME state live (staged save +
+      injected mid-progress build on a capacity-limited line, dark theme) — amber mood, 4 crates,
+      real signage/chips, zero console errors. Fixed 6 findings: fullscreen backdrop inverted in
+      dark theme (ink-based mix → hand-rolled near-black scrim); crates piled at the belt start
+      during their stagger delay (fill-mode: both); fullscreen lacked the house dialog machinery
+      (useDialogFocus trap + body scroll lock added, focus-inside verified); long company names
+      could crowd the world tabs (title ellipsis); dead lamp animationDelay removed; idle hint
+      collided with the chips row (moved to the wall band, em dash scrubbed per house style).
+- NOT verified on-device: animation FEEL/timing (belt/arm/press cadence) wants real eyes.
