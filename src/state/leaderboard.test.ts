@@ -12,13 +12,13 @@ import {
 } from "./gameState.ts";
 
 describe("industry leaderboard", () => {
-  it("a fresh garage company ranks dead last behind the six public rivals", () => {
+  it("a fresh garage company ranks dead last behind the public rivals", () => {
     const s = newGame(1);
     const board = industryLeaderboard(s);
-    expect(board).toHaveLength(7); // player + 6 rivals
-    expect(industryRank(s)).toBe(7);
+    expect(board).toHaveLength(13); // player + 12 rivals
+    expect(industryRank(s)).toBe(13);
     expect(board[board.length - 1].isPlayer).toBe(true); // player is last
-    expect(s.bestIndustryRank).toBe(7);
+    expect(s.bestIndustryRank).toBe(13);
   });
 
   it("rival market caps are ordered (the premium giant is worth far more than the scrappy challenger)", () => {

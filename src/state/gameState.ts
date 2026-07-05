@@ -470,7 +470,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     valuationHistory: [],
     eventChain: null,
     holdings: {},
-    bestIndustryRank: 7, // a fresh garage is dead last behind the six public rivals
+    bestIndustryRank: RIVALS.length + 1, // a fresh garage is dead last behind the public rivals
     unlockedAchievements: [],
     completedObjectives: [],
     pendingChoice: null,

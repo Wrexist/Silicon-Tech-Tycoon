@@ -345,9 +345,10 @@ describe("offline catch-up", () => {
     s = startBuild(s, goodPhone(), 800, "none").state;
     for (let i = 0; i < buildWeeksFor(s) + 1; i++) s = advanceOneWeek(s);
     s = launchReady(s, s.ready[0].id).state;
-    // Freeze rivals so no mid-life rival-entry haircut perturbs the sales curve — this isolates
-    // the offline mechanic (the two timelines below would otherwise evolve rivals differently).
-    return { ...s, competitors: [] };
+    // Freeze rivals so no mid-life rival-entry haircut perturbs the sales curve — this isolates the
+    // offline mechanic. Keep the roster at full size (so the "refill the field" branch never fires)
+    // but set every rival to never launch, so nothing contests the player's category.
+    return { ...s, competitors: s.competitors.map((c) => ({ ...c, nextLaunchWeek: Number.POSITIVE_INFINITY })) };
   }
 
   it("never skips a product's sales — offline catch-up sells through the same as active play", () => {
