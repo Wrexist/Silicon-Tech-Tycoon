@@ -2072,6 +2072,29 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 /** Mid-lifecycle price cut: reduces price on an active product, scaling up demand for remaining
  *  weeks proportionally to the improved priceFit. Limited to one cut per product — used when rivals
  *  enter your category and you want to defend market share at the cost of margin. */
+/** Factory Mode BOOST — rush the lead production run: pay an overtime premium (a fraction of
+ *  the run's production cost) and one week of work completes instantly. Repeatable while weeks
+ *  remain; each press pays again. Pure; the caller owns the spend FX. */
+export function rushBuild(state: GameState, productId: string): ActionResult {
+  const job = state.building.find((b) => b.product.id === productId);
+  if (!job) return { state, ok: false, reason: "No such build in production." };
+  const weeksLeft = job.totalWeeks - job.weeksElapsed;
+  if (weeksLeft <= 0) return { state, ok: false, reason: "This run is already finishing." };
+  const units = job.plannedUnits ?? BALANCE.build.minRun;
+  const cost = Math.round(effectiveUnitCost(state, job.product) * units * BALANCE.build.rushCostPct) as Money;
+  if (state.cash < cost) return { state, ok: false, reason: "Not enough cash to rush the line." };
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Rushed the ${job.product.name} line, one week saved.`, "neutral")]);
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, cost),
+      building: state.building.map((b) => (b === job ? { ...b, weeksElapsed: b.weeksElapsed + 1 } : b)),
+      feed,
+    },
+    ok: true,
+  };
+}
+
 export function cutProductPrice(state: GameState, productId: string, newPrice: Money): ActionResult {
   const lp = state.launched.find((l) => l.product.id === productId);
   if (!lp) return { state, ok: false, reason: "Product not found." };
