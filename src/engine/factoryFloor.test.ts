@@ -85,17 +85,17 @@ describe("F3 — line completeness + demolition refund", () => {
   it("breaking the chain mid-line makes it incomplete; repairing restores it", async () => {
     const { lineComplete } = await import("./factoryFloor.ts");
     const f = starterFloor();
-    const broken = removeAt(f, 7, 4); // a middle tile of the return row
+    const broken = removeAt(f, 7, 6); // a middle tile of the bottom lane
     expect(lineComplete(broken)).toBe(false);
-    const repaired = placeBelt(broken, 7, 4, "w")!;
+    const repaired = placeBelt(broken, 7, 6, "w")!;
     expect(lineComplete(repaired)).toBe(true);
   });
 
   it("demolition refunds half the occupant's cost, zero for empty cells", async () => {
     const { demolitionRefund, BELT_COST, MACHINE_DEFS } = await import("./factoryFloor.ts");
     const f = starterFloor();
-    expect(demolitionRefund(f, 6, 2)).toBe(Math.round(MACHINE_DEFS.press.cost / 2)); // press cell
-    expect(demolitionRefund(f, 5, 1)).toBe(Math.round(BELT_COST / 2)); // belt tile
+    expect(demolitionRefund(f, 5, 0)).toBe(Math.round(MACHINE_DEFS.press.cost / 2)); // press cell
+    expect(demolitionRefund(f, 5, 2)).toBe(Math.round(BELT_COST / 2)); // belt tile
     expect(demolitionRefund(f, 9, 9)).toBe(0); // empty
   });
 });

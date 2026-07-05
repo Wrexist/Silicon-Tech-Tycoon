@@ -21,6 +21,9 @@ const C = {
   grass: "#1d2b22",
   pad: "#2a2f37",
   beltBed: "#454c57",
+  beltFrame: "#3d4552",   // metal side frame of the conveyor
+  beltRubber: "#20242b",  // dark rubber belt surface
+  rollerHi: "#7b8592",    // polished metal roller
   rail: "#5a626e",
   roller: "#31363e",
   machine: "#3f4754",
@@ -105,6 +108,32 @@ function nearestItemDist(pl: Polyline, itemsT: number[], cx: number, cz: number)
   return best;
 }
 
+/** Closest point on the belt to (x,z) + the belt's heading there (yaw so a +Z-forward shape aims
+ *  down the belt). Lets a machine sit ON the line and face along it, so the product runs THROUGH it
+ *  — a gantry press straddles the belt, a QA tunnel encloses it, the packer folds around it. */
+function snapToBelt(pl: Polyline, x: number, z: number): { x: number; z: number; yaw: number; nx: number; nz: number } | null {
+  if (pl.pts.length < 2) return null;
+  let best = Infinity, bx = x, bz = z, byaw = 0, bnx = 0, bnz = 0;
+  for (let i = 0; i < pl.pts.length - 1; i++) {
+    const [ax, az] = pl.pts[i];
+    const [cx, cz] = pl.pts[i + 1];
+    const dx = cx - ax, dz = cz - az;
+    const len2 = dx * dx + dz * dz;
+    if (len2 === 0) continue;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
+    const px = ax + dx * t, pz = az + dz * t;
+    const d = Math.hypot(px - x, pz - z);
+    if (d < best) {
+      best = d;
+      bx = px; bz = pz;
+      const len = Math.sqrt(len2);
+      byaw = Math.atan2(dx, dz);        // +Z-forward shape → aims along the segment
+      bnx = dz / len; bnz = -dx / len;  // in-plane normal (belt's side), for placing things beside it
+    }
+  }
+  return { x: bx, z: bz, yaw: byaw, nx: bnx, nz: bnz };
+}
+
 type ItemsRef = React.MutableRefObject<number[]>;
 
 /* ------------------------------- conveyor ------------------------------- */
@@ -122,33 +151,46 @@ function HazardBase({ w, d }: { w: number; d: number }) {
   );
 }
 
-const DIR_HORIZ: Record<BeltDir, boolean> = { e: true, w: true, n: false, s: false };
 const DIR_STEP: Record<BeltDir, [number, number]> = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] };
 const OPP: Record<BeltDir, BeltDir> = { e: "w", w: "e", s: "n", n: "s" };
 /** Yaw so a shape whose "forward" is +Z aims down the belt direction. */
 const DIR_YAW: Record<BeltDir, number> = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
 
-/** A flat chevron arrow-head lying on the belt, pointing along `dir`. Emissive so direction
- *  reads at a glance even on an idle line; brighter on the live chain. */
-function Chevron({ dir, x = 0, z = 0, live }: { dir: BeltDir; x?: number; z?: number; live: boolean }) {
+// One consistent bed so every tile sits flush and the line reads as one smooth conveyor.
+const BED = 1.06;          // bed footprint (slightly over 1 cell → seamless joins)
+const RUBBER_W = 0.78;     // dark belt-surface width; frame shows on either side as the rails
+const SURF_Y = 0.35;       // belt surface height
+
+/** Painted directional chevron lying flush on the belt, pointing +Z (canonical flow). Two thin
+ *  angled bars — a tasteful "›", not a chunky cone — brighter on the live chain. */
+function FlowArrow({ live, z = 0 }: { live: boolean; z?: number }) {
+  const col = live ? C.hazard : "#5c636d";
   return (
-    <group position={[x, 0.34, z]} rotation={[0, DIR_YAW[dir], 0]}>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.2, 0.28, 3]} />
-        <meshStandardMaterial
-          color={live ? C.hazard : "#8a8f98"}
-          emissive={live ? C.hazard : "#000000"}
-          emissiveIntensity={live ? 0.85 : 0}
-          roughness={0.5}
-        />
-      </mesh>
+    <group position={[0, SURF_Y + 0.012, z]}>
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * 0.09, 0, 0.03]} rotation={[0, -s * 0.7, 0]}>
+          <boxGeometry args={[0.05, 0.014, 0.24]} />
+          <meshStandardMaterial color={col} emissive={live ? C.hazard : "#000"} emissiveIntensity={live ? 0.5 : 0} roughness={0.6} metalness={0.1} />
+        </mesh>
+      ))}
     </group>
   );
 }
 
-/** Belt tiles rendered from the layout with SMART CORNERS: a tile whose inflow direction differs
- *  from its own direction renders as an L-bend (square bed, outer rails, a turning arrow) so
- *  corners visually connect; straight tiles get flow chevrons + cross-slats + end rollers. */
+/** A polished metal cross-roller lying across the flow (canonical: along X). */
+function Roller({ z = 0, len = RUBBER_W + 0.03 }: { z?: number; len?: number }) {
+  return (
+    <mesh position={[0, SURF_Y + 0.004, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
+      <cylinderGeometry args={[0.042, 0.042, len, 16]} />
+      <meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} />
+    </mesh>
+  );
+}
+
+/** Belt tiles rendered from the layout with SMART CORNERS. Every tile shares one bed footprint so
+ *  the line joins flush and symmetric; straight tiles are authored flow-forward (+Z) then rotated,
+ *  a framed rubber belt with seam rollers and subtle painted chevrons. Corners keep the same bed +
+ *  frame and curve the flow arrows around the turn. */
 function BeltTiles({ floor, lineOk }: { floor: FactoryFloor; lineOk: boolean }) {
   const at = useMemo(() => new Map(floor.belts.map((b) => [`${b.c},${b.r}`, b])), [floor.belts]);
   /** The direction of the neighbour that flows INTO this tile (null if it's a head). */
@@ -166,21 +208,22 @@ function BeltTiles({ floor, lineOk }: { floor: FactoryFloor; lineOk: boolean }) 
         const [x, z] = worldOf(b.c, b.r);
         const inDir = inflowDir(b);
         const isCorner = inDir != null && inDir !== b.dir && inDir !== OPP[b.dir];
-        const horiz = DIR_HORIZ[b.dir];
         const live = lineOk;
 
         if (isCorner && inDir) {
-          // Entry edge normal = -STEP[inDir] (toward the feeder); exit edge normal = +STEP[dir].
-          const [ex, ez] = DIR_STEP[inDir];      // item enters travelling this way
-          const [ox, oz] = DIR_STEP[b.dir];      // and leaves this way
-          const entryMid: [number, number] = [-ex * 0.42, -ez * 0.42];
-          const exitMid: [number, number] = [ox * 0.42, oz * 0.42];
+          const [ix, iz] = DIR_STEP[inDir]; // item enters travelling this way
+          const [ox, oz] = DIR_STEP[b.dir]; // and leaves this way
           return (
             <group key={`${b.c},${b.r}`} position={[x, 0, z]}>
-              {/* square bed connects flush to both neighbours */}
-              <RoundedBox args={[1.06, 0.3, 1.06]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
-                <meshStandardMaterial color={C.beltBed} roughness={0.8} metalness={0.15} />
+              {/* same bed + frame as a straight tile → flush, symmetric join */}
+              <RoundedBox args={[BED, 0.3, BED]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
+                <meshStandardMaterial color={C.beltFrame} roughness={0.5} metalness={0.45} />
               </RoundedBox>
+              {/* rubber turn pad */}
+              <mesh position={[0, SURF_Y - 0.01, 0]} receiveShadow>
+                <boxGeometry args={[0.84, 0.04, 0.84]} />
+                <meshStandardMaterial color={C.beltRubber} roughness={0.9} metalness={0.05} />
+              </mesh>
               {/* outer rails: the two edges that are NOT entry or exit */}
               {(["e", "w", "s", "n"] as BeltDir[])
                 .filter((d) => d !== inDir && d !== OPP[b.dir])
@@ -188,50 +231,39 @@ function BeltTiles({ floor, lineOk }: { floor: FactoryFloor; lineOk: boolean }) 
                   const [nx, nz] = DIR_STEP[d];
                   const vert = nx !== 0;
                   return (
-                    <mesh key={d} position={[nx * 0.5, 0.42, nz * 0.5]}>
-                      <boxGeometry args={vert ? [0.06, 0.1, 1.06] : [1.06, 0.1, 0.06]} />
-                      <meshStandardMaterial color={C.rail} roughness={0.5} metalness={0.4} />
+                    <mesh key={d} position={[nx * 0.5, 0.4, nz * 0.5]} castShadow>
+                      <boxGeometry args={vert ? [0.08, 0.16, BED] : [BED, 0.16, 0.08]} />
+                      <meshStandardMaterial color={C.beltFrame} roughness={0.45} metalness={0.5} />
                     </mesh>
                   );
                 })}
-              {/* turning arrow: enter → centre → exit */}
-              <Chevron dir={inDir} x={entryMid[0]} z={entryMid[1]} live={live} />
-              <Chevron dir={b.dir} x={exitMid[0]} z={exitMid[1]} live={live} />
-              {/* corner roller cluster */}
-              <mesh position={[0, 0.37, 0]}><cylinderGeometry args={[0.07, 0.07, 0.5, 10]} /><meshStandardMaterial color={C.roller} roughness={0.4} metalness={0.5} /></mesh>
+              {/* curved flow: entry arrow → corner roller → exit arrow */}
+              <group position={[-ix * 0.3, 0, -iz * 0.3]} rotation={[0, DIR_YAW[inDir], 0]}><FlowArrow live={live} /></group>
+              <mesh position={[0, SURF_Y + 0.01, 0]}><cylinderGeometry args={[0.06, 0.06, 0.1, 16]} /><meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} /></mesh>
+              <group position={[ox * 0.3, 0, oz * 0.3]} rotation={[0, DIR_YAW[b.dir], 0]}><FlowArrow live={live} /></group>
             </group>
           );
         }
 
-        // straight tile
-        const [dx, dz] = DIR_STEP[b.dir];
+        // straight tile — authored flow-forward (+Z), rotated into place
         return (
-          <group key={`${b.c},${b.r}`} position={[x, 0, z]}>
-            <RoundedBox args={[horiz ? 1.06 : 0.9, 0.3, horiz ? 0.9 : 1.06]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
-              <meshStandardMaterial color={C.beltBed} roughness={0.8} metalness={0.15} />
+          <group key={`${b.c},${b.r}`} position={[x, 0, z]} rotation={[0, DIR_YAW[b.dir], 0]}>
+            {/* metal frame bed */}
+            <RoundedBox args={[BED, 0.3, BED]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
+              <meshStandardMaterial color={C.beltFrame} roughness={0.5} metalness={0.45} />
             </RoundedBox>
-            {/* side rails along the flow */}
-            {[-0.42, 0.42].map((off) => (
-              <mesh key={off} position={horiz ? [0, 0.42, off] : [off, 0.42, 0]}>
-                <boxGeometry args={horiz ? [1.06, 0.1, 0.06] : [0.06, 0.1, 1.06]} />
-                <meshStandardMaterial color={C.rail} roughness={0.5} metalness={0.4} />
-              </mesh>
-            ))}
-            {/* cross-slats for belt texture (perpendicular to flow) */}
-            {[-0.28, 0.28].map((o) => (
-              <mesh key={o} position={horiz ? [o, 0.355, 0] : [0, 0.355, o]}>
-                <boxGeometry args={horiz ? [0.05, 0.02, 0.72] : [0.72, 0.02, 0.05]} />
-                <meshStandardMaterial color={C.roller} roughness={0.7} />
-              </mesh>
-            ))}
-            {/* end rollers */}
-            <mesh position={[0, 0.37, 0]} rotation={horiz ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.055, 0.055, 0.72, 10]} />
-              <meshStandardMaterial color={C.roller} roughness={0.4} metalness={0.5} />
+            {/* dark rubber belt surface, full length → seamless between tiles; the frame either
+                side reads as the rails */}
+            <mesh position={[0, SURF_Y - 0.01, 0]} receiveShadow>
+              <boxGeometry args={[RUBBER_W, 0.05, BED]} />
+              <meshStandardMaterial color={C.beltRubber} roughness={0.9} metalness={0.05} />
             </mesh>
-            {/* direction arrows */}
-            <Chevron dir={b.dir} x={-dx * 0.22} z={-dz * 0.22} live={live} />
-            <Chevron dir={b.dir} x={dx * 0.22} z={dz * 0.22} live={live} />
+            {/* polished seam rollers — pair up at each tile join */}
+            <Roller z={-0.45} />
+            <Roller z={0.45} />
+            {/* subtle painted chevrons */}
+            <FlowArrow live={live} z={-0.18} />
+            <FlowArrow live={live} z={0.18} />
           </group>
         );
       })}
@@ -343,17 +375,17 @@ function HotLight({ on, y = 2.4 }: { on: boolean; y?: number }) {
 }
 
 /** Intake hopper — raw material funnels onto the line (Sourcing). */
-function Intake({ active, hot, position }: { active: boolean; hot: boolean; position: [number, number, number] }) {
+function Intake({ active, hot, position, yaw = 0 }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number }) {
   const puff = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (!puff.current) return;
     const f = (clock.elapsedTime % 1.4) / 1.4;
     puff.current.position.y = 1.7 - f * 0.9;
-    // Material puffs only while the line is producing — the hopper is the source of the item.
-    (puff.current.material as THREE.MeshStandardMaterial).opacity = active ? 0.75 * (1 - f) : 0;
+    // Material puffs only while sourcing (its own stage) is the active step — otherwise the hopper is still.
+    (puff.current.material as THREE.MeshStandardMaterial).opacity = active && hot ? 0.75 * (1 - f) : 0;
   });
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, yaw, 0]}>
       {/* frame */}
       {[-0.55, 0.55].map((dx) => (
         <mesh key={dx} position={[dx, 1.1, 0]} castShadow>
@@ -377,19 +409,19 @@ function Intake({ active, hot, position }: { active: boolean; hot: boolean; posi
 }
 
 /** Gantry press straddling the line — dual pistons stamp passing boards (Tooling). */
-function GantryPress({ active, hot, position, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef }) {
+function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const ram = useRef<THREE.Group>(null);
   const eng = useRef(0);
   useFrame(() => {
     if (!ram.current) return;
-    // Engage = how close the nearest item is to the ram → the press slams DOWN onto it.
+    // Only the machine working the current stage moves; it slams DOWN as the item reaches the ram.
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
-    const target = active ? Math.max(0, 1 - d / 0.95) : 0;
+    const target = active && hot ? Math.max(0, 1 - d / 0.95) : 0;
     eng.current += (target - eng.current) * 0.5;
     ram.current.position.y = 1.55 - (eng.current ** 1.4) * 0.82;
   });
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, yaw, 0]}>
       {[-0.9, 0.9].map((dx) => (
         <mesh key={dx} position={[dx, 1.0, 0]} castShadow>
           <boxGeometry args={[0.28, 2.0, 0.5]} />
@@ -422,8 +454,8 @@ function GantryPress({ active, hot, position, pl, itemsT }: { active: boolean; h
 }
 
 /** Industrial robot arm — turntable, shoulder, elbow, wrist, two-finger gripper. */
-function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
-  active: boolean; hot: boolean; position: [number, number, number]; phase?: number; pl?: Polyline; itemsT?: ItemsRef;
+function RobotArm({ active, hot, position, pl, itemsT }: {
+  active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef;
 }) {
   const yaw = useRef<THREE.Group>(null);
   const shoulder = useRef<THREE.Group>(null);
@@ -440,13 +472,13 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
         if (dd < d) { d = dd; ix = x; iz = z; }
       }
     }
-    const target = active ? Math.max(0, 1 - d / 1.7) : 0;
+    // Only works during its own (assembly) stage; otherwise it rests, perfectly still.
+    const target = active && hot ? Math.max(0, 1 - d / 1.7) : 0;
     eng.current += (target - eng.current) * 0.22;
     const reach = eng.current;
-    const idle = Math.sin(clock.elapsedTime * 0.5 + phase) * 0.4 * (1 - reach); // slow home sway when nothing's there
-    const face = Math.atan2(ix - position[0], iz - position[2]); // yaw toward the item
-    if (yaw.current) yaw.current.rotation.y = idle + face * reach;
-    if (shoulder.current) shoulder.current.rotation.x = -0.3 - reach * 0.7 + Math.sin(clock.elapsedTime * 4) * 0.06 * reach; // dip to the belt + work jitter
+    const face = Math.atan2(ix - position[0], iz - position[2]); // yaw toward the item, only while reaching
+    if (yaw.current) yaw.current.rotation.y = face * reach;
+    if (shoulder.current) shoulder.current.rotation.x = -0.3 - reach * 0.7 + Math.sin(clock.elapsedTime * 4) * 0.06 * reach; // dip to the belt + work jitter (only while reaching)
     if (elbow.current) elbow.current.rotation.x = 0.85 + reach * 0.55;
     if (wrist.current) wrist.current.rotation.x = -0.45 - reach * 0.35;
   });
@@ -502,21 +534,21 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
 }
 
 /** QA tunnel — a glass scanner the finished device passes through (Quality). */
-function QaTunnel({ active, hot, position, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef }) {
+function QaTunnel({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const beam = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
   useFrame(({ clock }) => {
     if (!beam.current) return;
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
-    const target = active ? Math.max(0, 1 - d / 1.1) : 0;
+    const target = active && hot ? Math.max(0, 1 - d / 1.1) : 0;   // only scans during its own (QA) stage
     eng.current += (target - eng.current) * 0.3;
-    beam.current.position.x = Math.sin(clock.elapsedTime * 3) * 0.55; // sweeps
+    beam.current.position.x = Math.sin(clock.elapsedTime * 3) * 0.55 * eng.current; // sweeps only while a unit is inside
     const mat = beam.current.material as THREE.MeshStandardMaterial;
-    mat.opacity = 0.12 + eng.current * 0.6;         // the scan lights up while a device is inside
-    mat.emissiveIntensity = 0.5 + eng.current * 1.8;
+    mat.opacity = 0.08 + eng.current * 0.62;        // the scan lights up while a device is inside, dark otherwise
+    mat.emissiveIntensity = eng.current * 2.1;
   });
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, yaw, 0]}>
       <RoundedBox args={[2.0, 1.15, 1.25]} radius={0.1} position={[0, 0.85, 0]} castShadow>
         <meshStandardMaterial color={C.glass} transparent opacity={0.22} roughness={0.15} metalness={0.1} />
       </RoundedBox>
@@ -543,20 +575,20 @@ function QaTunnel({ active, hot, position, pl, itemsT }: { active: boolean; hot:
 }
 
 /** Packer at the end of the line — folding plates box the device (Packaging). */
-function Packer({ active, hot, position, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef }) {
+function Packer({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const l = useRef<THREE.Mesh>(null);
   const r = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
   useFrame(() => {
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
-    const target = active ? Math.max(0, 1 - d / 0.95) : 0;
+    const target = active && hot ? Math.max(0, 1 - d / 0.95) : 0;   // only folds during its own (packaging) stage
     eng.current += (target - eng.current) * 0.4;
     const c = eng.current; // plates fold shut around the device as it reaches the packer
     if (l.current) l.current.rotation.z = -0.2 - c * 0.95;
     if (r.current) r.current.rotation.z = 0.2 + c * 0.95;
   });
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, yaw, 0]}>
       <RoundedBox args={[1.5, 0.5, 1.2]} radius={0.07} position={[0, 0.55, 0]} castShadow>
         <meshStandardMaterial color={C.machine} roughness={0.6} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
       </RoundedBox>
@@ -661,10 +693,10 @@ function FitCamera() {
   const { camera, size } = useThree();
   const cam = camera as THREE.PerspectiveCamera;
   const portrait = size.height > size.width;
-  cam.fov = portrait ? 50 : 28;
-  if (portrait) cam.position.set(11.2, 15.6, 12.4);
-  else cam.position.set(10.0, 12.5, 11.0);
-  cam.lookAt(0, 0, 0);
+  cam.fov = portrait ? 54 : 30;
+  if (portrait) cam.position.set(12.2, 16.6, 13.4);
+  else cam.position.set(10.6, 13.1, 11.6);
+  cam.lookAt(0, -0.3, 0);
   cam.updateProjectionMatrix();
   return null;
 }
@@ -694,14 +726,24 @@ function TapFlash({ flash }: { flash: { c: number; r: number; ok: boolean; n: nu
 function MachineAt({ m, active, stageIdx, pl, itemsT }: {
   m: FactoryFloor["machines"][number]; active: boolean; stageIdx: number; pl: Polyline; itemsT: ItemsRef;
 }) {
-  const [x, z] = machineCenter(m);
-  const pos: [number, number, number] = [x, 0, z];
+  const [cx, cz] = machineCenter(m);
+  // Snap the machine ONTO the belt so the product runs through it. Straddlers (press / QA / packer /
+  // intake) sit centred on the line and face along it; the robot arm stands beside the belt and
+  // reaches over. If there's no line yet, fall back to the raw cell centre so it still shows.
+  const snap = snapToBelt(pl, cx, cz);
+  const onBelt: [number, number, number] = snap ? [snap.x, 0, snap.z] : [cx, 0, cz];
+  const yaw = snap ? snap.yaw : 0;
   switch (m.kind) {
-    case "intake": return <Intake active={active} hot={stageIdx === 0} position={pos} />;
-    case "press": return <GantryPress active={active} hot={stageIdx === 1} position={pos} pl={pl} itemsT={itemsT} />;
-    case "arm": return <RobotArm active={active} hot={stageIdx === 2} position={pos} phase={(m.c * 7 + m.r) % 6} pl={pl} itemsT={itemsT} />;
-    case "qa": return <QaTunnel active={active} hot={stageIdx === 3} position={pos} pl={pl} itemsT={itemsT} />;
-    case "packer": return <Packer active={active} hot={stageIdx === 4} position={pos} pl={pl} itemsT={itemsT} />;
+    case "intake": return <Intake active={active} hot={stageIdx === 0} position={onBelt} yaw={yaw} />;
+    case "press": return <GantryPress active={active} hot={stageIdx === 1} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "qa": return <QaTunnel active={active} hot={stageIdx === 3} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "packer": return <Packer active={active} hot={stageIdx === 4} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "arm": {
+      // beside the belt on the side it was placed, reaching over the line
+      const side = snap ? Math.sign((cx - snap.x) * snap.nx + (cz - snap.z) * snap.nz) || 1 : 1;
+      const armPos: [number, number, number] = snap ? [snap.x + snap.nx * side * 0.95, 0, snap.z + snap.nz * side * 0.95] : [cx, 0, cz];
+      return <RobotArm active={active} hot={stageIdx === 2} position={armPos} pl={pl} itemsT={itemsT} />;
+    }
   }
 }
 

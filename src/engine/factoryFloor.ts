@@ -148,21 +148,26 @@ export function formMarks(floor: FactoryFloor, path: [number, number][]): [numbe
   return [a, b, c];
 }
 
-/** The hand-authored starter factory — the S-line the mode ships with (F2 default + backfill). */
+/** The hand-authored starter factory — a clean horseshoe conveyor the mode ships with (F2 default
+ *  + backfill). Two long lanes joined by a right-hand turn: material enters top-left, runs east,
+ *  turns down, then runs west to the packer at bottom-left. Machines sit just off each lane in
+ *  stage order (intake → press on the top lane, arm → QA → packer on the bottom lane); the 3D scene
+ *  snaps them onto the belt so the product runs straight through each one. */
 export function starterFloor(): FactoryFloor {
   const belts: BeltTile[] = [];
-  for (let c = 2; c <= 12; c++) belts.push({ c, r: 1, dir: "e" });
-  belts.push({ c: 13, r: 1, dir: "s" }, { c: 13, r: 2, dir: "s" }, { c: 13, r: 3, dir: "s" }, { c: 13, r: 4, dir: "w" });
-  for (let c = 12; c >= 3; c--) belts.push({ c, r: 4, dir: "w" });
-  belts.push({ c: 2, r: 4, dir: "s" }, { c: 2, r: 5, dir: "s" }, { c: 2, r: 6, dir: "s" }, { c: 2, r: 7, dir: "e" });
-  for (let c = 3; c <= 13; c++) belts.push({ c, r: 7, dir: "e" });
+  // top lane, west→east
+  for (let c = 2; c <= 12; c++) belts.push({ c, r: 2, dir: "e" });
+  // right-hand turn, down
+  belts.push({ c: 13, r: 2, dir: "s" }, { c: 13, r: 3, dir: "s" }, { c: 13, r: 4, dir: "s" }, { c: 13, r: 5, dir: "s" });
+  // bottom lane, east→west
+  for (let c = 13; c >= 2; c--) belts.push({ c, r: 6, dir: "w" });
   return {
     machines: [
-      { id: "st-intake", kind: "intake", c: 0, r: 0 },
-      { id: "st-press", kind: "press", c: 5, r: 2 },
-      { id: "st-arm", kind: "arm", c: 6, r: 5 },
-      { id: "st-qa", kind: "qa", c: 4, r: 8 },
-      { id: "st-packer", kind: "packer", c: 14, r: 6 },
+      { id: "st-intake", kind: "intake", c: 0, r: 1 }, // feeds the head at (2,2)
+      { id: "st-press", kind: "press", c: 4, r: 0 },   // straddles the top lane, early
+      { id: "st-arm", kind: "arm", c: 9, r: 7 },        // beside the bottom lane, reaches over
+      { id: "st-qa", kind: "qa", c: 4, r: 7 },          // straddles the bottom lane, late
+      { id: "st-packer", kind: "packer", c: 0, r: 6 },  // boxes at the tail (2,6)
     ],
     belts,
   };
