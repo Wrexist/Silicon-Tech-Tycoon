@@ -1690,3 +1690,26 @@ engine-touching tycoon depth, each P4 slice harness-measured). P1 shipped this p
       could crowd the world tabs (title ellipsis); dead lamp animationDelay removed; idle hint
       collided with the chips row (moved to the wall band, em dash scrubbed per house style).
 - NOT verified on-device: animation FEEL/timing (belt/arm/press cadence) wants real eyes.
+
+## v72 — Factory World P2: every step visible + buyable robotics (DONE 2026-07-04)
+User ask (with the In-production card as the design reference): show every manufacturing step
+in the factory with that card's language, add purchasable robots that make the factory faster,
+more 2.5D furniture. All presentational over EXISTING mechanics — zero engine change.
+- [x] **Stage strip on the floor**: BuildProgress's STAGES/stageFor are now exported (single
+      source of truth) and the factory shows all 5 steps as icon dots with the active stage
+      carried in the card's exact language (icon in a soft circle + label + sub + "N wk left ·
+      M units"). Stations now work their REAL stage: press=Tooling, arm=Assembly, arch=QA,
+      and Packaging pulses the dock (the old progress-threshold mapping had the order wrong).
+- [x] **Robotics = the Assembly upgrade line made physical + buyable in-world**: AGV robots
+      (body/beacon/wheels, floor patrol loop, beacon goes amber on overtime) appear one per
+      Assembly tier (cap 3); a chip-button buys the next tier from the floor via the existing
+      buyUpgrade("assembly") (which already cuts build weeks/cost) with the upgrade fanfare;
+      research-locked tiers name the blocking project (Lock chip); maxed hides the control.
+- [x] **More parametric furniture**: shelving rack w/ stocked boxes, barrel pair, forklift.
+- [x] **Layout fix caught on screenshot review**: overlays were burying the compact scene —
+      chips now flow BELOW the art in card mode and only overlay in fullscreen.
+- [x] **Verified live** (vite + chromium, staged save w/ mid-Assembly overtime build, tier 2):
+      strip reads "Assembly · 2 wk left · 20,000 units", 2 robots patrol, tapping the buy chip
+      REALLY purchases tier 3 (third robot appeared), zero console errors. 710 tests, tsc 0,
+      build+PWA green.
+- NOT verified on-device: AGV patrol path/speed feel; stage-strip width on the smallest phones.

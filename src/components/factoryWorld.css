@@ -106,11 +106,18 @@
 .fw__idle-hint { fill: color-mix(in srgb, var(--ink) 55%, var(--bg)); font-size: 13px; font-weight: 600; }
 
 /* ---------- status chips ---------- */
+/* Compact card: chips flow BELOW the scene so overlays never bury the art; fullscreen has
+   the room to overlay them on the floor. */
 .fworld__chips {
-  position: absolute; left: var(--sp-8); bottom: var(--sp-8); right: var(--sp-8);
   display: flex; flex-wrap: wrap; gap: var(--sp-6);
+  padding: var(--sp-8) var(--sp-2) var(--sp-2);
+}
+.fworld__full .fworld__chips {
+  position: absolute; left: var(--sp-8); bottom: var(--sp-8); right: var(--sp-8);
+  padding: 0;
   pointer-events: none;
 }
+.fworld__full .fworld__chip--buy { pointer-events: auto; }
 .fworld__chip {
   display: inline-flex; align-items: center; gap: var(--sp-4);
   padding: 4px 10px; border-radius: var(--r-pill);
@@ -172,3 +179,72 @@
   .fw__press, .fw__spark, .fw__scanline, .fw__truck--live { animation: none !important; }
 }
 .fw__floorline { stroke: color-mix(in srgb, var(--ink) 7%, transparent); stroke-width: 2; }
+
+/* ---------- floor furniture ---------- */
+.fw__rack-post { fill: color-mix(in srgb, var(--ink) 44%, var(--bg)); }
+.fw__rack-shelf { fill: color-mix(in srgb, var(--ink) 56%, var(--bg)); }
+.fw__barrel { fill: color-mix(in srgb, var(--accent) 32%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 38%, transparent); stroke-width: 1.5; }
+.fw__barrel-ring { stroke: color-mix(in srgb, var(--ink) 34%, transparent); stroke-width: 1.5; }
+.fw__lift-body { fill: color-mix(in srgb, var(--warning) 55%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: 1.5; }
+.fw__lift-cage { fill: color-mix(in srgb, var(--ink) 30%, var(--bg)); }
+.fw__lift-mast { fill: color-mix(in srgb, var(--ink) 52%, var(--bg)); }
+.fw__lift-fork { fill: color-mix(in srgb, var(--ink) 60%, var(--bg)); }
+
+/* ---------- AGV robots (Assembly tier made physical) ---------- */
+.fw__agv { transform: translate(210px, 400px); }
+.fw--running .fw__agv, .fw--idle .fw__agv { animation: fw-agv 14s ease-in-out infinite both; }
+@keyframes fw-agv {
+  0%   { transform: translate(210px, 400px); }
+  45%  { transform: translate(540px, 372px); }
+  50%  { transform: translate(540px, 372px); }
+  95%  { transform: translate(210px, 400px); }
+  100% { transform: translate(210px, 400px); }
+}
+.fw__agv-body { fill: color-mix(in srgb, var(--accent) 52%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 42%, transparent); stroke-width: 1.5; }
+.fw__agv-mast { stroke: color-mix(in srgb, var(--ink) 50%, var(--bg)); stroke-width: 2; }
+.fw__agv-beacon { fill: var(--positive); }
+.fw--overtime .fw__agv-beacon { fill: var(--warning); }
+
+/* ---------- packaging stage: the dock works ---------- */
+.fw__dock--packing { animation: fw-pack 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes fw-pack { 50% { transform: translateY(-3px); } }
+
+/* ---------- live stage strip (the In-production card's language, on the floor) ---------- */
+.fworld__stages {
+  position: absolute; top: var(--sp-8); left: var(--sp-8);
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-6) var(--sp-10);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  border: 1px solid var(--hairline);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  max-width: calc(100% - 64px); /* clear the expand control */
+}
+.fworld__stage-dots { display: inline-flex; gap: var(--sp-4); flex: none; }
+.fworld__stage-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--surface-2); color: var(--ink-2);
+}
+.fworld__stage-dot--done { color: var(--positive-text, var(--positive)); }
+.fworld__stage-dot--on { background: var(--accent-soft); color: var(--accent); }
+.fworld__stage-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fworld__stage-label { font-size: var(--fs-caption); font-weight: 800; line-height: 1.2; }
+.fworld__stage-sub { font-size: var(--fs-micro); color: var(--ink-2); }
+.fworld__stage-meta { font-size: var(--fs-micro); font-weight: 700; }
+
+/* ---------- interactive chips (the chips row itself is pointer-events:none) ---------- */
+.fworld__chip--buy {
+  pointer-events: auto; cursor: pointer;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--hairline));
+  min-height: 30px;
+}
+.fworld__chip--buy:active { transform: translateY(1px); }
+.fworld__chip--dim { opacity: 0.55; cursor: default; }
+.fworld__chip--lock { color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fw__agv, .fw__dock--packing { animation: none !important; }
+}

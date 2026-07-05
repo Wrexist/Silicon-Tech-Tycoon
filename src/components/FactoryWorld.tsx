@@ -6,9 +6,14 @@
 // class-gated on real sim state and fully disabled under prefers-reduced-motion.
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Maximize2, PackageCheck, TrendingUp, Wrench, X } from "lucide-react";
+import { Bot, Lock, Maximize2, PackageCheck, TrendingUp, Wrench, X } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
+import { nextUpgradeCost, upgradeLockedBy } from "../engine/upgrades.ts";
+import { projectById } from "../engine/research.ts";
+import { format } from "../engine/money.ts";
+import { STAGES, stageFor } from "./BuildProgress.tsx";
+import { sfx } from "../design/sound.ts";
 import type { FactoryId } from "../engine/types.ts";
 import { haptic } from "../design/haptics.ts";
 import { useDialogFocus } from "../design/primitives.tsx";
@@ -19,8 +24,10 @@ import "./factoryWorld.css";
 interface SceneProps {
   /** A production run is live — belt, crates, arm, press and scanner work. */
   active: boolean;
-  /** 0..1 progress of the lead build (lights up the matching station harder). */
-  progress: number;
+  /** Index into STAGES for the lead build — the matching station works harder. -1 = none. */
+  stageIdx: number;
+  /** Assembly upgrade tier → AGV robots patrol the floor (the upgrade made physical). */
+  robotTier: number;
   /** Ready-to-launch products → pallet stacks at the dock (0..3 rendered). */
   readyCount: number;
   /** Any launched product still selling → the truck is docked and idling. */
@@ -53,10 +60,11 @@ function PalletStack({ x, y, layers }: { x: number; y: number; layers: number })
   );
 }
 
-export function FactoryScene({ active, progress, readyCount, selling, overtime, factoryName }: SceneProps) {
+export function FactoryScene({ active, stageIdx, robotTier, readyCount, selling, overtime, factoryName }: SceneProps) {
   const mood = overtime ? " fw--overtime" : active ? " fw--running" : " fw--idle";
-  // Which station is "hot" right now, mapped from real build progress (P2 refines to stages).
-  const hot = progress < 0.4 ? 0 : progress < 0.75 ? 1 : 2;
+  // Stations mirror the REAL manufacturing stages (BuildProgress STAGES): the press works the
+  // Tooling stage, the arm works Assembly, the arch works QA; Packaging pulses the dock.
+  const pressHot = stageIdx === 1, armHot = stageIdx === 2, archHot = stageIdx === 3, packing = stageIdx === 4;
   return (
     <svg
       className={`fw${mood}`}
@@ -110,6 +118,43 @@ export function FactoryScene({ active, progress, readyCount, selling, overtime, 
         <circle key={i} cx={51} cy={190} r={7 + i * 2} className="fw__steam" style={{ animationDelay: `${i * 1.1}s` }} />
       ))}
 
+      {/* ---- floor furniture: shelving rack, barrels, forklift (parametric, zero assets) ---- */}
+      <g transform="translate(18 246)">
+        {[0, 30].map((rx) => <rect key={rx} x={rx} y={0} width={5} height={70} className="fw__rack-post" />)}
+        {[10, 32, 54].map((ry) => <rect key={ry} x={-2} y={ry} width={39} height={4} rx={1.5} className="fw__rack-shelf" />)}
+        {[[2, -1], [18, -1], [8, 21], [20, 43], [4, 43]].map(([bx, by], i) => (
+          <rect key={i} x={bx} y={by} width={12} height={10} rx={1.5} className="fw__crate-box" />
+        ))}
+      </g>
+      <g transform="translate(80 300)">
+        {[0, 15].map((bx) => (
+          <g key={bx} transform={`translate(${bx} 0)`}>
+            <rect x={0} y={0} width={13} height={18} rx={2.5} className="fw__barrel" />
+            <line x1={0} y1={6} x2={13} y2={6} className="fw__barrel-ring" />
+            <line x1={0} y1={12} x2={13} y2={12} className="fw__barrel-ring" />
+          </g>
+        ))}
+      </g>
+      <g transform="translate(120 372)">
+        <rect x={14} y={-14} width={34} height={22} rx={4} className="fw__lift-body" />
+        <rect x={20} y={-26} width={20} height={13} rx={3} className="fw__lift-cage" />
+        <rect x={4} y={-30} width={4} height={38} className="fw__lift-mast" />
+        <rect x={-8} y={4} width={14} height={4} rx={1.5} className="fw__lift-fork" />
+        <circle cx={20} cy={10} r={6} className="fw__wheel" />
+        <circle cx={42} cy={10} r={6} className="fw__wheel" />
+      </g>
+
+      {/* ---- AGV robots: the Assembly upgrade made physical (one per tier, capped 3) ---- */}
+      {Array.from({ length: Math.min(3, Math.max(0, robotTier)) }, (_, i) => (
+        <g key={i} className="fw__agv" style={{ animationDelay: `${i * 3.4}s` }}>
+          <rect x={-13} y={-10} width={26} height={12} rx={4} className="fw__agv-body" />
+          <line x1={8} y1={-10} x2={8} y2={-17} className="fw__agv-mast" />
+          <circle cx={8} cy={-18.5} r={2.4} className="fw__agv-beacon" />
+          <circle cx={-7} cy={3} r={3.6} className="fw__wheel" />
+          <circle cx={7} cy={3} r={3.6} className="fw__wheel" />
+        </g>
+      ))}
+
       {/* ---- control panel with blinking LEDs ---- */}
       <g transform="translate(668 176)">
         <rect x={0} y={0} width={54} height={64} rx={5} className="fw__panel" />
@@ -139,7 +184,7 @@ export function FactoryScene({ active, progress, readyCount, selling, overtime, 
         {active && [0, 1, 2, 3].map((i) => <Crate key={i} x={0} delay={i * 2.1} />)}
 
         {/* station 1 — robotic assembly arm */}
-        <g transform="translate(120 -12) rotate(11)" className={`fw__station${hot === 0 ? " fw__station--hot" : ""}`}>
+        <g transform="translate(120 -12) rotate(11)" className={`fw__station${armHot ? " fw__station--hot" : ""}`}>
           <rect x={-12} y={-6} width={24} height={8} rx={3} className="fw__arm-base" />
           <g className="fw__arm">
             <rect x={-4} y={-40} width={8} height={36} rx={3.5} className="fw__arm-seg" />
@@ -151,7 +196,7 @@ export function FactoryScene({ active, progress, readyCount, selling, overtime, 
         </g>
 
         {/* station 2 — press stamper */}
-        <g transform="translate(255 -12) rotate(11)" className={`fw__station${hot === 1 ? " fw__station--hot" : ""}`}>
+        <g transform="translate(255 -12) rotate(11)" className={`fw__station${pressHot ? " fw__station--hot" : ""}`}>
           <rect x={-20} y={-78} width={8} height={70} className="fw__press-post" />
           <rect x={12} y={-78} width={8} height={70} className="fw__press-post" />
           <rect x={-24} y={-84} width={48} height={10} rx={3} className="fw__press-head" />
@@ -163,13 +208,14 @@ export function FactoryScene({ active, progress, readyCount, selling, overtime, 
         </g>
 
         {/* station 3 — QA scan arch */}
-        <g transform="translate(390 -12) rotate(11)" className={`fw__station${hot === 2 ? " fw__station--hot" : ""}`}>
+        <g transform="translate(390 -12) rotate(11)" className={`fw__station${archHot ? " fw__station--hot" : ""}`}>
           <path d="M -26 4 v-58 a 26 24 0 0 1 52 0 v58" className="fw__arch" />
           <line x1={-20} y1={-30} x2={20} y2={-30} className="fw__scanline" />
         </g>
       </g>
 
       {/* ---- shipping dock: pallets + truck ---- */}
+      <g className={packing && active ? "fw__dock--packing" : undefined}>
       {readyCount > 0 && <PalletStack x={568} y={330} layers={Math.min(3, readyCount)} />}
       {readyCount > 1 && <PalletStack x={620} y={352} layers={Math.min(2, readyCount - 1)} />}
       <g className={`fw__truck${selling ? " fw__truck--live" : ""}`} transform="translate(636 268)">
@@ -180,6 +226,7 @@ export function FactoryScene({ active, progress, readyCount, selling, overtime, 
         {[16, 62, 100].map((wx) => (
           <circle key={wx} cx={wx} cy={47} r={7.5} className="fw__wheel" />
         ))}
+      </g>
       </g>
 
       {/* ---- idle hint ---- */}
@@ -197,15 +244,26 @@ export function FactoryScene({ active, progress, readyCount, selling, overtime, 
 /** Derives everything the scene needs from live game state, renders the status chips and
  *  the fullscreen (body-portal) immersion mode with its close control. */
 export function FactoryWorld() {
-  const { state } = useGame();
+  const { state, buyUpgrade } = useGame();
   const [full, setFull] = useState(false);
 
   const building = state.building;
   const active = building.length > 0;
   const lead = building[0] ?? null;
   const progress = lead ? Math.min(1, lead.weeksElapsed / Math.max(1, lead.totalWeeks)) : 0;
+  // The SAME stage model the In-production card uses — the floor shows every step of the build.
+  const stage = lead ? stageFor(progress) : null;
+  const stageIdx = stage ? STAGES.indexOf(stage) : -1;
+  const weeksLeft = lead ? Math.max(0, Math.ceil(lead.totalWeeks - lead.weeksElapsed)) : 0;
   const readyCount = state.ready.length;
   const selling = state.launched.some((l) => l.weeksElapsed < l.weeklyUnits.length);
+
+  // Robotics: the Assembly office-upgrade line already makes builds faster and cheaper —
+  // here it's made physical (AGV robots) and buyable in-world.
+  const robotTier = state.upgrades.assembly ?? 0;
+  const robotCost = nextUpgradeCost("assembly", robotTier);
+  const robotLock = upgradeLockedBy("assembly", robotTier + 1, state.completedProjects);
+  const canBuyRobot = robotCost != null && !robotLock && state.cash >= robotCost;
 
   const facId = (lead?.product.factoryId ?? state.ownedFactories[0] ?? DEFAULT_FACTORY_ID) as FactoryId;
   const fac = factoryFor(facId);
@@ -234,12 +292,36 @@ export function FactoryWorld() {
     <div className="fworld__frame">
       <FactoryScene
         active={active}
-        progress={progress}
+        stageIdx={stageIdx}
+        robotTier={robotTier}
         readyCount={readyCount}
         selling={selling}
         overtime={overtime}
         factoryName={fac.name}
       />
+      {/* Live stage strip — the In-production card's language, on the floor: every step
+          visible, the active one carried with icon + label + "N wk left · M units". */}
+      {active && stage && lead && (
+        <div className="fworld__stages">
+          <div className="fworld__stage-dots" aria-hidden>
+            {STAGES.map((st, i) => {
+              const Icon = st.icon;
+              return (
+                <span key={st.label} className={`fworld__stage-dot${i < stageIdx ? " fworld__stage-dot--done" : ""}${i === stageIdx ? " fworld__stage-dot--on" : ""}`}>
+                  <Icon size={12} />
+                </span>
+              );
+            })}
+          </div>
+          <div className="fworld__stage-info">
+            <span className="fworld__stage-label">{stage.label}</span>
+            <span className="fworld__stage-sub">{stage.sub}</span>
+            <span className="fworld__stage-meta tnum">
+              {weeksLeft} wk left · {(lead.plannedUnits ?? 0).toLocaleString()} units
+            </span>
+          </div>
+        </div>
+      )}
       <div className="fworld__chips">
         <span className="fworld__chip fworld__chip--name">
           <Wrench size={12} aria-hidden /> {fac.name} · {fac.kind === "owned" ? "owned" : "contract"}
@@ -259,6 +341,25 @@ export function FactoryWorld() {
             <PackageCheck size={12} aria-hidden /> {readyCount} ready to ship
           </span>
         )}
+        {/* Robotics upgrade — buy the next Assembly tier right from the floor. Locked tiers
+            name the research that opens them; maxed hides the control. */}
+        {robotCost != null && (robotLock ? (
+          <span className="fworld__chip fworld__chip--lock">
+            <Lock size={12} aria-hidden /> Robotics: research {projectById(robotLock)?.name ?? robotLock}
+          </span>
+        ) : (
+          <button
+            className={`fworld__chip fworld__chip--buy${canBuyRobot ? "" : " fworld__chip--dim"}`}
+            disabled={!canBuyRobot}
+            onClick={() => {
+              buyUpgrade("assembly");
+              haptic.success();
+              sfx("upgrade");
+            }}
+          >
+            <Bot size={12} aria-hidden /> Robotics {robotTier + 1} · {format(robotCost)} — faster builds
+          </button>
+        ))}
       </div>
       {!full && (
         <button className="fworld__expand" aria-label="Fullscreen factory view" onClick={() => { haptic.light(); setFull(true); }}>

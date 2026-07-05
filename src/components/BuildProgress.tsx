@@ -10,11 +10,12 @@ import { DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import type { BuildJob } from "../engine/types.ts";
 import "./buildProgress.css";
 
-type Stage = { from: number; label: string; sub: string; icon: LucideIcon };
+export type Stage = { from: number; label: string; sub: string; icon: LucideIcon };
 
 // Ordered manufacturing stages, keyed off the build's completion fraction. The last stage whose
 // `from` is ≤ progress is the active one, so adding/retiming stages stays a one-line edit.
-const STAGES: Stage[] = [
+// Exported: the Factory World mirrors these exact stages on its floor (one source of truth).
+export const STAGES: Stage[] = [
   { from: 0.0, label: "Sourcing components", sub: "Chips, panels & cells inbound", icon: Boxes },
   { from: 0.2, label: "Tooling & setup", sub: "Calibrating the line", icon: Wrench },
   { from: 0.45, label: "Assembly", sub: "Units coming together", icon: Cog },
@@ -22,7 +23,7 @@ const STAGES: Stage[] = [
   { from: 0.92, label: "Packaging & shipping", sub: "Boxing the run", icon: Truck },
 ];
 
-function stageFor(frac: number): Stage {
+export function stageFor(frac: number): Stage {
   let s = STAGES[0];
   for (const cand of STAGES) if (frac >= cand.from) s = cand;
   return s;
