@@ -8,7 +8,7 @@ import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/pri
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
 import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { DailyChallengeCard } from "../components/DailyChallengeCard.tsx";
-import { FactoryWorld } from "../components/FactoryWorld.tsx";
+import { FactoryCard } from "../components/FactoryMode.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
@@ -123,7 +123,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, active = true, wo
       <div hidden={world === "factory"}>
         <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
-      {world === "factory" && <FactoryWorld />}
+      {world === "factory" && <FactoryCard onNavigate={onNavigate} />}
 
       <ScenarioTracker />
       <ChallengeTracker />

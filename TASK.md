@@ -1713,3 +1713,26 @@ more 2.5D furniture. All presentational over EXISTING mechanics — zero engine 
       REALLY purchases tier 3 (third robot appeared), zero console errors. 710 tests, tsc 0,
       build+PWA green.
 - NOT verified on-device: AGV patrol path/speed feel; stage-strip width on the smallest phones.
+
+## v73 — Factory Mode F1: the top-down tile factory (DONE 2026-07-04)
+FACTORY_MODE_PLAN.md F1 shipped: the reference guide's layout, wired to the real sim.
+- [x] **rushBuild** (state layer, +3 tests): the reference's paid time boost translated
+      honestly — pay rushCostPct (0.08 ⚠ playtest) of the run's production cost, one week of
+      the lead build completes instantly; cash-gated, refuses past completion, spend FX.
+- [x] **`components/FactoryMode.tsx` + css** (supersedes FactoryWorld side-view, deleted):
+      top-down SVG tile map (grass fringe, asphalt pad + grid, conveyor loop w/ animated
+      lanes + chevrons, top-view machines — assembler/arm/QA/charger — whose HOT machine
+      follows the real build stage, storage pallets = ready shelf, dock road + truck, AGVs
+      per Robotics tier, overtime mood). Fullscreen shell: top bar (era badge, cash + real
+      $/wk flow, RP chip in the gems slot, capacity meter w/ amber overtime), CURRENT ORDER
+      (device thumb/progress/stage/wk left) + FACTORY STATS (per-week truth) panels, right
+      rail (Build="soon", Upgrades sheet w/ Robotics buy + affordable-dot, Research deep-link,
+      Stats sheet), bottom strip (6-kind materials tray from committed parts, BOOST=rushBuild,
+      ready-truck badge, machine Shop sheet). Dialog focus trap + scroll lock + Escape.
+      Compact card in the Office tab = live minimap that opens the mode.
+- [x] **Verified live** (chromium, staged overtime build, dark): BOOST advanced the build a
+      real week (Assembly→QA on screen), close/reopen clean, zero console errors. Screenshot
+      review caught 2: backdrop ghosting (scrim 0.99) and slice-fill over-zooming portrait
+      (reverted to meet — F2's pan/zoom owns filling). 713 tests, tsc 0, build+PWA green.
+- NOT verified on-device: portrait dead-space feel below the map (F2 pan/zoom addresses);
+      panel widths on small phones; light-theme map contrast.
