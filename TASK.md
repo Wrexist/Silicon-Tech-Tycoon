@@ -1966,3 +1966,23 @@ User: "add machines needed for each device — assembly arm, screen machine, tes
       so wherever the player routes the line, it ships from its end.
 - [x] Build palette + minimap gained mill/screen tiles + tints. Verified live (phone → screen bonder
       glows; laptop → mill glows; others still). tsc 0, 729 tests, build+PWA green.
+
+## v85 — Factory touch camera + build affordability (DONE 2026-07-05)
+- [x] **Touch camera** (drei OrbitControls): one-finger drag orbits, pinch zooms; pan off, polar
+      clamped above the floor, distance 8–32. Build placement now fires on a TAP (down+up, little
+      movement) so drag-to-orbit never drops a machine. Recenter button in the top bar (CameraReset
+      watches a bumped signal) + a one-time auto-fading "drag to look around · pinch to zoom" hint.
+- [x] **Build palette**: tiles dim (warning-tinted price) when cash is short; machine tiles carry
+      their blurb as a tooltip.
+
+## v86 — Whole-game UX sweep (DONE 2026-07-05)
+Audit-driven cosmetic pass over onboarding, HQ, Design Lab, Market (no gameplay changes).
+- [x] **Touch targets → 44px**: Office/Factory world tabs, HQ Shop FAB + editor icon buttons,
+      Design Lab tab strip + segmented options, onboarding scenario link.
+- [x] **Token consistency**: hardcoded `#fff` → `var(--accent-ink)` on the world tab, HQ upgrade
+      glyph, Design Lab category/region checks, Market open-region icon.
+- [x] **Affordances/clarity**: Market valuation/share use Lucide TrendingUp/Down (not ▲/▼); #1
+      rank shows a Crown; region-unlock reads "Unlock · $X" with a Globe; live product rows get a
+      ChevronRight. Design Lab summary Market Fit shows the number (word moved to the label). HQ
+      "Ready to launch" accessory shows a count; the first-run GetStartedCard is hidden while the
+      Coach tutorial runs (was a duplicate checklist). Onboarding scenario link joins the stagger.
