@@ -8,8 +8,8 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowUp, BarChart3, BatteryCharging, Bot, Boxes, Camera, ChevronDown, CodeXml, Cpu, Drill, Eraser,
-  FlaskConical, Hammer, Layers3, Lock, Maximize2, Monitor, MonitorSmartphone, PackageCheck, RotateCw,
-  ScanLine, ShoppingCart, Stamp, Truck, Wrench, X, Zap, type LucideIcon,
+  FlaskConical, Hammer, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
+  PackageCheck, RotateCw, ScanLine, ShoppingCart, Stamp, Truck, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue } from "../state/gameState.ts";
@@ -166,6 +166,18 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
+  // Camera: drag/touch to orbit, pinch to zoom (Factory3D owns OrbitControls); the recenter button
+  // bumps this to re-frame. A one-time hint teaches the gesture on first open.
+  const [resetView, setResetView] = useState(0);
+  const [camHint, setCamHint] = useState(false);
+  useEffect(() => {
+    if (!use3d) return;
+    try { if (localStorage.getItem("silicon.factory.camhint") === "1") return; } catch { /* ignore */ }
+    setCamHint(true);
+    try { localStorage.setItem("silicon.factory.camhint", "1"); } catch { /* ignore */ }
+    const t = setTimeout(() => setCamHint(false), 4200);
+    return () => clearTimeout(t);
+  }, [use3d]);
   const { buyFloorMachine, buyFloorBelt, clearFloorCell } = d.game;
   const lineOk = lineComplete(d.floor);
   const onTapCell = (c: number, r: number) => {
@@ -220,6 +232,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               product={d.lead?.product ?? null}
               lineOk={lineOk}
               buildMode={buildTool != null}
+              resetView={resetView}
               onTapCell={onTapCell}
               flash={flash}
               onContextLost={() => setGlLost(true)}
@@ -239,8 +252,18 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             {flowD >= 0 ? "+" : ""}{format(flow)}/wk
           </span>
         </span>
+        {use3d && (
+          <button className="fmode__icons" aria-label="Recenter view" title="Recenter view" onClick={() => { haptic.light(); setResetView((v) => v + 1); }}>
+            <Locate size={18} />
+          </button>
+        )}
         <button className="fmode__close" aria-label="Close factory" onClick={() => { haptic.light(); onClose(); }}><X size={20} /></button>
       </div>
+      {camHint && (
+        <div className="fmode__camhint" role="status">
+          <Move3d size={15} aria-hidden /> Drag to look around · pinch to zoom
+        </div>
+      )}
 
       {/* left panels */}
       <div className="fmode__left">

@@ -42,7 +42,7 @@
   background: var(--accent); color: #fff;
   font-size: var(--fs-caption); font-weight: 800;
 }
-.fmode__cash { display: flex; flex-direction: column; min-width: 0; }
+.fmode__cash { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .fmode__cash-val { font-size: var(--fs-body); font-weight: 800; color: #fff; }
 .fmode__cash-flow { font-size: var(--fs-micro); font-weight: 700; color: var(--positive); }
 .fmode__cash-flow--neg { color: var(--negative); }
@@ -55,13 +55,35 @@
 .fmode__cap-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); }
 .fmode__cap-line--hot { color: var(--warning); }
 .fmode__cap-line--hot .fmode__cap-fill { background: var(--warning); }
-.fmode__close {
-  margin-left: auto;
+.fmode__close, .fmode__icons {
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; flex: none; border-radius: var(--r-pill);
   border: 1px solid var(--fmode-btn-line);
   background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
   backdrop-filter: blur(8px);
+}
+.fmode__icons { color: rgba(255,255,255,0.82); }
+.fmode__icons:active { transform: scale(0.94); }
+
+/* one-time camera gesture hint — a calm centred pill that fades itself out */
+.fmode__camhint {
+  position: fixed; left: 50%; top: calc(58px + env(safe-area-inset-top));
+  transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  padding: 8px 14px; border-radius: var(--r-pill);
+  background: var(--fmode-btn-bg); border: 1px solid var(--fmode-btn-line);
+  color: rgba(255,255,255,0.9); font-size: var(--fs-caption); font-weight: 600;
+  white-space: nowrap; backdrop-filter: blur(8px); pointer-events: none;
+  box-shadow: var(--shadow-subtle);
+  animation: fmode-camhint 4.2s ease forwards;
+}
+@keyframes fmode-camhint {
+  0% { opacity: 0; transform: translate(-50%, -6px); }
+  7%, 85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fmode__camhint { animation: none; }
 }
 
 .fmode__left {

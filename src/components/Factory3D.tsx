@@ -7,7 +7,7 @@
 // context-loss downgrade. Zero image assets.
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, RoundedBox } from "@react-three/drei";
+import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import {
   FLOOR, beltPath, formMarks, machineCenter, worldOf,
@@ -61,6 +61,8 @@ export interface Factory3DProps {
   lineOk: boolean;
   /** Build mode: taps on the pad report the grid cell instead of doing nothing. */
   buildMode?: boolean;
+  /** Bumped by the HUD's recenter button — re-frames the camera to its default. */
+  resetView?: number;
   onTapCell?: (c: number, r: number) => void;
   /** Last tap's cell + validity — flashed green/red on the pad for placement feedback. */
   flash?: { c: number; r: number; ok: boolean; n: number } | null;
@@ -786,15 +788,29 @@ function Agvs({ tier, overtime }: { tier: number; overtime: boolean }) {
 
 /* --------------------------------- scene --------------------------------- */
 
-function FitCamera() {
-  const { camera, size } = useThree();
-  const cam = camera as THREE.PerspectiveCamera;
-  const portrait = size.height > size.width;
+/** Default framing for the floor — set ONCE at creation by aspect, then OrbitControls owns the
+ *  camera so the player can orbit/zoom with touch. */
+const CAM_TARGET: [number, number, number] = [0, -0.3, 0];
+function frameCamera(cam: THREE.PerspectiveCamera, portrait: boolean) {
   cam.fov = portrait ? 54 : 30;
   if (portrait) cam.position.set(12.2, 16.6, 13.4);
   else cam.position.set(10.6, 13.1, 11.6);
-  cam.lookAt(0, -0.3, 0);
+  cam.lookAt(...CAM_TARGET);
   cam.updateProjectionMatrix();
+}
+
+/** Re-frames the camera to its default when the HUD's recenter button bumps `signal`. */
+function CameraReset({ signal }: { signal: number }) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as { target: THREE.Vector3; update: () => void } | null;
+  const size = useThree((s) => s.size);
+  const seen = useRef(signal);
+  useFrame(() => {
+    if (seen.current === signal) return;
+    seen.current = signal;
+    frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width);
+    if (controls) { controls.target.set(...CAM_TARGET); controls.update(); }
+  });
   return null;
 }
 
@@ -882,11 +898,18 @@ function Scene(p: Factory3DProps) {
     itemsT.current = itemsT.current.map((t) => (t + v) % pl.total);
   });
 
-  // Build mode: taps on the pad plane report the grid cell (in the WORLD group's local space,
-  // so the portrait rotation can't skew the mapping).
-  const onTapPad = (e: { point: THREE.Vector3; stopPropagation: () => void }) => {
-    if (!p.buildMode || !p.onTapCell || !world.current) return;
-    e.stopPropagation();
+  // Build mode: a TAP on the pad places (a drag orbits the camera instead). Record the pointer-down
+  // screen position; on release, only place if the pointer barely moved — so drag-to-rotate never
+  // drops a machine. Cell is read in the WORLD group's local space, so the framing can't skew it.
+  const padDown = useRef<{ x: number; y: number } | null>(null);
+  const onPadDown = (e: { nativeEvent: PointerEvent }) => {
+    padDown.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY };
+  };
+  const onPadUp = (e: { point: THREE.Vector3; nativeEvent: PointerEvent }) => {
+    const start = padDown.current;
+    padDown.current = null;
+    if (!p.buildMode || !p.onTapCell || !world.current || !start) return;
+    if (Math.hypot(e.nativeEvent.clientX - start.x, e.nativeEvent.clientY - start.y) > 10) return; // a drag, not a tap
     const local = world.current.worldToLocal(e.point.clone());
     const c = Math.round(local.x + (FLOOR.w - 1) / 2);
     const r = Math.round(local.z + (FLOOR.h - 1) / 2);
@@ -910,7 +933,7 @@ function Scene(p: Factory3DProps) {
       <gridHelper args={[16, 16, "#3a4048", "#343a42"]} position={[0, 0.1, 0]} />
       {/* tap-catcher for build mode (invisible, above the pad) */}
       {/* raycast skips visible={false}, so the tap-catcher is transparent instead of hidden */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.12, 0]} onPointerDown={onTapPad}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.12, 0]} onPointerDown={onPadDown} onPointerUp={onPadUp}>
         <planeGeometry args={[FLOOR.w, FLOOR.h]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
@@ -948,8 +971,8 @@ export default function Factory3D(p: Factory3DProps) {
       shadows
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       camera={{ position: [10, 12.5, 11], fov: 28 }}
-      onCreated={({ gl, camera }) => {
-        camera.lookAt(0, 0, 0);
+      onCreated={({ gl, camera, size }) => {
+        frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width);
         gl.domElement.addEventListener(
           "webglcontextlost",
           (e) => { e.preventDefault(); p.onContextLost?.(); },
@@ -957,8 +980,22 @@ export default function Factory3D(p: Factory3DProps) {
         );
       }}
     >
-      <FitCamera />
       <Scene {...p} />
+      <CameraReset signal={p.resetView ?? 0} />
+      {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor */}
+      <OrbitControls
+        makeDefault
+        target={CAM_TARGET}
+        enablePan={false}
+        enableDamping
+        dampingFactor={0.12}
+        rotateSpeed={0.55}
+        zoomSpeed={0.8}
+        minDistance={8}
+        maxDistance={32}
+        minPolarAngle={0.18}
+        maxPolarAngle={Math.PI / 2 - 0.06}
+      />
     </Canvas>
   );
 }
