@@ -13,6 +13,8 @@ import {
   FLOOR, beltPath, formMarks, machineCenter, worldOf,
   type BeltDir, type FactoryFloor,
 } from "../engine/factoryFloor.ts";
+import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
+import type { CategoryId, Product } from "../engine/types.ts";
 
 /* palette — intrinsic object colours, the garage3d precedent */
 const C = {
@@ -48,6 +50,8 @@ export interface Factory3DProps {
   overtime: boolean;
   /** The player-built layout (F2) — every belt tile and machine renders from this. */
   floor: FactoryFloor;
+  /** The product currently in production — its real category + finish ride the belt. */
+  product?: Product | null;
   /** The belt chain connects Intake → Packer, so the line actually runs (F3). */
   lineOk: boolean;
   /** Build mode: taps on the pad report the grid cell instead of doing nothing. */
@@ -88,6 +92,21 @@ function polyAt(pl: Polyline, t: number): [number, number] {
   return pl.pts[pl.pts.length - 1];
 }
 
+/** Distance from the closest traveling item to a floor point (Infinity if the line is empty).
+ *  Machines use this to react to the item passing THROUGH them, instead of a free clock. */
+function nearestItemDist(pl: Polyline, itemsT: number[], cx: number, cz: number): number {
+  if (pl.total === 0) return Infinity;
+  let best = Infinity;
+  for (const t of itemsT) {
+    const [x, z] = polyAt(pl, t);
+    const d = Math.hypot(x - cx, z - cz);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+type ItemsRef = React.MutableRefObject<number[]>;
+
 /* ------------------------------- conveyor ------------------------------- */
 
 function HazardBase({ w, d }: { w: number; d: number }) {
@@ -104,28 +123,115 @@ function HazardBase({ w, d }: { w: number; d: number }) {
 }
 
 const DIR_HORIZ: Record<BeltDir, boolean> = { e: true, w: true, n: false, s: false };
+const DIR_STEP: Record<BeltDir, [number, number]> = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] };
+const OPP: Record<BeltDir, BeltDir> = { e: "w", w: "e", s: "n", n: "s" };
+/** Yaw so a shape whose "forward" is +Z aims down the belt direction. */
+const DIR_YAW: Record<BeltDir, number> = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
 
-function BeltTiles({ floor }: { floor: FactoryFloor }) {
+/** A flat chevron arrow-head lying on the belt, pointing along `dir`. Emissive so direction
+ *  reads at a glance even on an idle line; brighter on the live chain. */
+function Chevron({ dir, x = 0, z = 0, live }: { dir: BeltDir; x?: number; z?: number; live: boolean }) {
+  return (
+    <group position={[x, 0.34, z]} rotation={[0, DIR_YAW[dir], 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.2, 0.28, 3]} />
+        <meshStandardMaterial
+          color={live ? C.hazard : "#8a8f98"}
+          emissive={live ? C.hazard : "#000000"}
+          emissiveIntensity={live ? 0.85 : 0}
+          roughness={0.5}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/** Belt tiles rendered from the layout with SMART CORNERS: a tile whose inflow direction differs
+ *  from its own direction renders as an L-bend (square bed, outer rails, a turning arrow) so
+ *  corners visually connect; straight tiles get flow chevrons + cross-slats + end rollers. */
+function BeltTiles({ floor, lineOk }: { floor: FactoryFloor; lineOk: boolean }) {
+  const at = useMemo(() => new Map(floor.belts.map((b) => [`${b.c},${b.r}`, b])), [floor.belts]);
+  /** The direction of the neighbour that flows INTO this tile (null if it's a head). */
+  const inflowDir = (b: FactoryFloor["belts"][number]): BeltDir | null => {
+    for (const dir of ["e", "w", "s", "n"] as BeltDir[]) {
+      const nb = at.get(`${b.c - DIR_STEP[dir][0]},${b.r - DIR_STEP[dir][1]}`);
+      if (nb && nb.dir === dir) return dir;
+    }
+    return null;
+  };
+
   return (
     <group>
       {floor.belts.map((b) => {
         const [x, z] = worldOf(b.c, b.r);
+        const inDir = inflowDir(b);
+        const isCorner = inDir != null && inDir !== b.dir && inDir !== OPP[b.dir];
         const horiz = DIR_HORIZ[b.dir];
+        const live = lineOk;
+
+        if (isCorner && inDir) {
+          // Entry edge normal = -STEP[inDir] (toward the feeder); exit edge normal = +STEP[dir].
+          const [ex, ez] = DIR_STEP[inDir];      // item enters travelling this way
+          const [ox, oz] = DIR_STEP[b.dir];      // and leaves this way
+          const entryMid: [number, number] = [-ex * 0.42, -ez * 0.42];
+          const exitMid: [number, number] = [ox * 0.42, oz * 0.42];
+          return (
+            <group key={`${b.c},${b.r}`} position={[x, 0, z]}>
+              {/* square bed connects flush to both neighbours */}
+              <RoundedBox args={[1.06, 0.3, 1.06]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
+                <meshStandardMaterial color={C.beltBed} roughness={0.8} metalness={0.15} />
+              </RoundedBox>
+              {/* outer rails: the two edges that are NOT entry or exit */}
+              {(["e", "w", "s", "n"] as BeltDir[])
+                .filter((d) => d !== inDir && d !== OPP[b.dir])
+                .map((d) => {
+                  const [nx, nz] = DIR_STEP[d];
+                  const vert = nx !== 0;
+                  return (
+                    <mesh key={d} position={[nx * 0.5, 0.42, nz * 0.5]}>
+                      <boxGeometry args={vert ? [0.06, 0.1, 1.06] : [1.06, 0.1, 0.06]} />
+                      <meshStandardMaterial color={C.rail} roughness={0.5} metalness={0.4} />
+                    </mesh>
+                  );
+                })}
+              {/* turning arrow: enter → centre → exit */}
+              <Chevron dir={inDir} x={entryMid[0]} z={entryMid[1]} live={live} />
+              <Chevron dir={b.dir} x={exitMid[0]} z={exitMid[1]} live={live} />
+              {/* corner roller cluster */}
+              <mesh position={[0, 0.37, 0]}><cylinderGeometry args={[0.07, 0.07, 0.5, 10]} /><meshStandardMaterial color={C.roller} roughness={0.4} metalness={0.5} /></mesh>
+            </group>
+          );
+        }
+
+        // straight tile
+        const [dx, dz] = DIR_STEP[b.dir];
         return (
           <group key={`${b.c},${b.r}`} position={[x, 0, z]}>
             <RoundedBox args={[horiz ? 1.06 : 0.9, 0.3, horiz ? 0.9 : 1.06]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
               <meshStandardMaterial color={C.beltBed} roughness={0.8} metalness={0.15} />
             </RoundedBox>
+            {/* side rails along the flow */}
             {[-0.42, 0.42].map((off) => (
               <mesh key={off} position={horiz ? [0, 0.42, off] : [off, 0.42, 0]}>
                 <boxGeometry args={horiz ? [1.06, 0.1, 0.06] : [0.06, 0.1, 1.06]} />
                 <meshStandardMaterial color={C.rail} roughness={0.5} metalness={0.4} />
               </mesh>
             ))}
+            {/* cross-slats for belt texture (perpendicular to flow) */}
+            {[-0.28, 0.28].map((o) => (
+              <mesh key={o} position={horiz ? [o, 0.355, 0] : [0, 0.355, o]}>
+                <boxGeometry args={horiz ? [0.05, 0.02, 0.72] : [0.72, 0.02, 0.05]} />
+                <meshStandardMaterial color={C.roller} roughness={0.7} />
+              </mesh>
+            ))}
+            {/* end rollers */}
             <mesh position={[0, 0.37, 0]} rotation={horiz ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0]}>
               <cylinderGeometry args={[0.055, 0.055, 0.72, 10]} />
               <meshStandardMaterial color={C.roller} roughness={0.4} metalness={0.5} />
             </mesh>
+            {/* direction arrows */}
+            <Chevron dir={b.dir} x={-dx * 0.22} z={-dz * 0.22} live={live} />
+            <Chevron dir={b.dir} x={dx * 0.22} z={dz * 0.22} live={live} />
           </group>
         );
       })}
@@ -133,10 +239,65 @@ function BeltTiles({ floor }: { floor: FactoryFloor }) {
   );
 }
 
-/* The product, in its four forms — one group per traveling item, form toggled by arc
-   position against the machine-derived transform marks (slab → board → device → crate). */
-function TravelingItem({ index, itemsT, pl, marks }: {
-  index: number; itemsT: React.MutableRefObject<number[]>; pl: Polyline; marks: [number, number, number];
+/* The device the player designed, as a small 3D model: silhouette by category, body colour by
+   finish swatch, glowing screen. The "product IS the toy" pillar, on the belt (pillar #2). */
+interface DeviceLook { body: string; accent: string; metallic: boolean; category: CategoryId | string }
+
+export function productLook(product?: Product | null): DeviceLook {
+  const finish = product?.finish ?? "aluminium";
+  const sw = FINISH_SWATCHES[finish] ?? FINISH_SWATCHES.aluminium;
+  const s = sw[(product?.colorIndex ?? 0) % sw.length] ?? sw[0];
+  return { body: s.body, accent: s.accent, metallic: finish !== "plastic", category: product?.category ?? "phone" };
+}
+
+function DeviceForm({ look }: { look: DeviceLook }) {
+  const bodyMat = (
+    <meshStandardMaterial color={look.body} roughness={look.metallic ? 0.3 : 0.5} metalness={look.metallic ? 0.72 : 0.08} />
+  );
+  const Screen = ({ w, d, y = 0.045 }: { w: number; d: number; y?: number }) => (
+    <mesh position={[0, y, 0]}>
+      <boxGeometry args={[w, 0.008, d]} />
+      <meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.9} roughness={0.25} />
+    </mesh>
+  );
+  switch (look.category) {
+    case "tablet":
+      return (<group><RoundedBox args={[0.46, 0.06, 0.62]} radius={0.03} castShadow>{bodyMat}</RoundedBox><Screen w={0.38} d={0.54} /></group>);
+    case "laptop":
+      return (
+        <group>
+          <RoundedBox args={[0.6, 0.05, 0.42]} radius={0.03} position={[0, 0, 0.1]} castShadow>{bodyMat}</RoundedBox>
+          <group position={[0, 0.02, -0.11]} rotation={[-1.15, 0, 0]}>
+            <RoundedBox args={[0.6, 0.04, 0.4]} radius={0.03} position={[0, 0, -0.2]} castShadow>{bodyMat}</RoundedBox>
+            <mesh position={[0, 0.025, -0.2]}><boxGeometry args={[0.5, 0.008, 0.32]} /><meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.8} /></mesh>
+          </group>
+        </group>
+      );
+    case "wearable":
+      return (
+        <group>
+          <RoundedBox args={[0.28, 0.09, 0.32]} radius={0.06} castShadow>{bodyMat}</RoundedBox>
+          <Screen w={0.2} d={0.22} y={0.05} />
+          {[-0.22, 0.22].map((dz) => (<mesh key={dz} position={[0, -0.01, dz]}><boxGeometry args={[0.22, 0.05, 0.16]} /><meshStandardMaterial color={look.accent} roughness={0.6} /></mesh>))}
+        </group>
+      );
+    case "console":
+      return (<group><RoundedBox args={[0.6, 0.12, 0.4]} radius={0.04} castShadow>{bodyMat}</RoundedBox><mesh position={[0, 0.07, 0.1]}><boxGeometry args={[0.3, 0.01, 0.02]} /><meshStandardMaterial color={look.accent} emissive={look.accent} emissiveIntensity={0.8} /></mesh></group>);
+    case "desktop":
+      return (<group><RoundedBox args={[0.28, 0.5, 0.42]} radius={0.03} position={[0, 0.2, 0]} castShadow>{bodyMat}</RoundedBox><mesh position={[0.145, 0.28, 0]}><boxGeometry args={[0.01, 0.16, 0.1]} /><meshStandardMaterial color={look.accent} emissive={look.accent} emissiveIntensity={0.7} /></mesh></group>);
+    case "monitor":
+      return (<group><RoundedBox args={[0.62, 0.36, 0.05]} radius={0.02} position={[0, 0.28, 0]} castShadow>{bodyMat}</RoundedBox><mesh position={[0, 0.28, 0.03]}><boxGeometry args={[0.54, 0.28, 0.006]} /><meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.8} /></mesh><mesh position={[0, 0.06, 0]}><boxGeometry args={[0.18, 0.12, 0.08]} />{bodyMat}</mesh></group>);
+    case "experimental": // AR glasses
+      return (<group><mesh position={[0, 0.08, 0]}><boxGeometry args={[0.6, 0.04, 0.06]} />{bodyMat}</mesh>{[-0.16, 0.16].map((dx) => (<mesh key={dx} position={[dx, 0.08, 0.04]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.1, 0.1, 0.02, 16]} /><meshStandardMaterial color={look.accent} transparent opacity={0.55} emissive={look.accent} emissiveIntensity={0.5} /></mesh>))}</group>);
+    default: // phone
+      return (<group><RoundedBox args={[0.3, 0.07, 0.58]} radius={0.04} castShadow>{bodyMat}</RoundedBox><Screen w={0.24} d={0.5} /></group>);
+  }
+}
+
+/* One traveling item, four forms — slab → board → THE DEVICE (real product) → crate — toggled
+   by arc position against the machine-derived transform marks. */
+function TravelingItem({ index, itemsT, pl, marks, look }: {
+  index: number; itemsT: ItemsRef; pl: Polyline; marks: [number, number, number]; look: DeviceLook;
 }) {
   const grp = useRef<THREE.Group>(null);
   const forms = useRef<THREE.Group[]>([]);
@@ -160,22 +321,16 @@ function TravelingItem({ index, itemsT, pl, marks }: {
         <mesh castShadow><boxGeometry args={[0.44, 0.06, 0.34]} /><meshStandardMaterial color={C.board} roughness={0.6} /></mesh>
         <mesh position={[0.08, 0.05, 0]}><boxGeometry args={[0.12, 0.05, 0.12]} /><meshStandardMaterial color={C.dark} roughness={0.5} /></mesh>
       </group>
-      {/* 2 — the device (emissive screen) */}
+      {/* 2 — THE DEVICE the player designed */}
       <group ref={(g) => { if (g) forms.current[2] = g; }}>
-        <RoundedBox args={[0.3, 0.07, 0.56]} radius={0.03} castShadow>
-          <meshStandardMaterial color={C.device} roughness={0.35} metalness={0.4} />
-        </RoundedBox>
-        <mesh position={[0, 0.045, 0]}>
-          <boxGeometry args={[0.24, 0.01, 0.48]} />
-          <meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.9} roughness={0.3} />
-        </mesh>
+        <DeviceForm look={look} />
       </group>
-      {/* 3 — boxed crate */}
+      {/* 3 — boxed crate (band tinted by the product accent for continuity) */}
       <group ref={(g) => { if (g) forms.current[3] = g; }}>
         <RoundedBox args={[0.44, 0.36, 0.44]} radius={0.04} castShadow>
           <meshStandardMaterial color={C.crate} roughness={0.8} />
         </RoundedBox>
-        <mesh position={[0, 0, 0]}><boxGeometry args={[0.46, 0.07, 0.46]} /><meshStandardMaterial color={C.hazard} roughness={0.7} /></mesh>
+        <mesh position={[0, 0, 0]}><boxGeometry args={[0.46, 0.07, 0.46]} /><meshStandardMaterial color={look.accent} roughness={0.7} /></mesh>
       </group>
     </group>
   );
@@ -188,13 +343,14 @@ function HotLight({ on, y = 2.4 }: { on: boolean; y?: number }) {
 }
 
 /** Intake hopper — raw material funnels onto the line (Sourcing). */
-function Intake({ hot, position }: { hot: boolean; position: [number, number, number] }) {
+function Intake({ active, hot, position }: { active: boolean; hot: boolean; position: [number, number, number] }) {
   const puff = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (!puff.current) return;
     const f = (clock.elapsedTime % 1.4) / 1.4;
     puff.current.position.y = 1.7 - f * 0.9;
-    (puff.current.material as THREE.MeshStandardMaterial).opacity = 0.75 * (1 - f);
+    // Material puffs only while the line is producing — the hopper is the source of the item.
+    (puff.current.material as THREE.MeshStandardMaterial).opacity = active ? 0.75 * (1 - f) : 0;
   });
   return (
     <group position={position}>
@@ -221,13 +377,16 @@ function Intake({ hot, position }: { hot: boolean; position: [number, number, nu
 }
 
 /** Gantry press straddling the line — dual pistons stamp passing boards (Tooling). */
-function GantryPress({ active, hot, position }: { active: boolean; hot: boolean; position: [number, number, number] }) {
+function GantryPress({ active, hot, position, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef }) {
   const ram = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
+  const eng = useRef(0);
+  useFrame(() => {
     if (!ram.current) return;
-    const t = clock.elapsedTime * (active ? 2.0 : 0);
-    const cycle = Math.max(0, Math.sin(t)) ** 6; // sharp stamp, long dwell
-    ram.current.position.y = 1.55 - cycle * 0.75;
+    // Engage = how close the nearest item is to the ram → the press slams DOWN onto it.
+    const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
+    const target = active ? Math.max(0, 1 - d / 0.95) : 0;
+    eng.current += (target - eng.current) * 0.5;
+    ram.current.position.y = 1.55 - (eng.current ** 1.4) * 0.82;
   });
   return (
     <group position={position}>
@@ -263,19 +422,33 @@ function GantryPress({ active, hot, position }: { active: boolean; hot: boolean;
 }
 
 /** Industrial robot arm — turntable, shoulder, elbow, wrist, two-finger gripper. */
-function RobotArm({ active, hot, position, mirror = false, phase = 0 }: {
-  active: boolean; hot: boolean; position: [number, number, number]; mirror?: boolean; phase?: number;
+function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
+  active: boolean; hot: boolean; position: [number, number, number]; phase?: number; pl?: Polyline; itemsT?: ItemsRef;
 }) {
   const yaw = useRef<THREE.Group>(null);
   const shoulder = useRef<THREE.Group>(null);
   const elbow = useRef<THREE.Group>(null);
   const wrist = useRef<THREE.Group>(null);
+  const eng = useRef(0);
   useFrame(({ clock }) => {
-    const t = clock.elapsedTime * (active ? 1 : 0.15) + phase;
-    if (yaw.current) yaw.current.rotation.y = (mirror ? -1 : 1) * (Math.sin(t * 0.8) * 0.7);
-    if (shoulder.current) shoulder.current.rotation.x = -0.5 + Math.sin(t * 1.6) * 0.28;
-    if (elbow.current) elbow.current.rotation.x = 1.15 + Math.sin(t * 1.6 + 1.2) * 0.35;
-    if (wrist.current) wrist.current.rotation.x = -0.6 + Math.sin(t * 3.2) * 0.2;
+    // Find the nearest item + its offset, so the arm can turn TOWARD it and reach down as it arrives.
+    let d = Infinity, ix = position[0], iz = position[2];
+    if (pl && itemsT) {
+      for (const t of itemsT.current) {
+        const [x, z] = polyAt(pl, t);
+        const dd = Math.hypot(x - position[0], z - position[2]);
+        if (dd < d) { d = dd; ix = x; iz = z; }
+      }
+    }
+    const target = active ? Math.max(0, 1 - d / 1.7) : 0;
+    eng.current += (target - eng.current) * 0.22;
+    const reach = eng.current;
+    const idle = Math.sin(clock.elapsedTime * 0.5 + phase) * 0.4 * (1 - reach); // slow home sway when nothing's there
+    const face = Math.atan2(ix - position[0], iz - position[2]); // yaw toward the item
+    if (yaw.current) yaw.current.rotation.y = idle + face * reach;
+    if (shoulder.current) shoulder.current.rotation.x = -0.3 - reach * 0.7 + Math.sin(clock.elapsedTime * 4) * 0.06 * reach; // dip to the belt + work jitter
+    if (elbow.current) elbow.current.rotation.x = 0.85 + reach * 0.55;
+    if (wrist.current) wrist.current.rotation.x = -0.45 - reach * 0.35;
   });
   return (
     <group position={position}>
@@ -329,11 +502,18 @@ function RobotArm({ active, hot, position, mirror = false, phase = 0 }: {
 }
 
 /** QA tunnel — a glass scanner the finished device passes through (Quality). */
-function QaTunnel({ active, hot, position }: { active: boolean; hot: boolean; position: [number, number, number] }) {
+function QaTunnel({ active, hot, position, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef }) {
   const beam = useRef<THREE.Mesh>(null);
+  const eng = useRef(0);
   useFrame(({ clock }) => {
     if (!beam.current) return;
-    beam.current.position.x = Math.sin(clock.elapsedTime * (active ? 2.6 : 0.4)) * 0.55;
+    const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
+    const target = active ? Math.max(0, 1 - d / 1.1) : 0;
+    eng.current += (target - eng.current) * 0.3;
+    beam.current.position.x = Math.sin(clock.elapsedTime * 3) * 0.55; // sweeps
+    const mat = beam.current.material as THREE.MeshStandardMaterial;
+    mat.opacity = 0.12 + eng.current * 0.6;         // the scan lights up while a device is inside
+    mat.emissiveIntensity = 0.5 + eng.current * 1.8;
   });
   return (
     <group position={position}>
@@ -363,13 +543,17 @@ function QaTunnel({ active, hot, position }: { active: boolean; hot: boolean; po
 }
 
 /** Packer at the end of the line — folding plates box the device (Packaging). */
-function Packer({ active, hot, position }: { active: boolean; hot: boolean; position: [number, number, number] }) {
+function Packer({ active, hot, position, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef }) {
   const l = useRef<THREE.Mesh>(null);
   const r = useRef<THREE.Mesh>(null);
-  useFrame(({ clock }) => {
-    const c = active ? (Math.sin(clock.elapsedTime * 2.4) + 1) / 2 : 0.15;
-    if (l.current) l.current.rotation.z = -0.2 - c * 0.9;
-    if (r.current) r.current.rotation.z = 0.2 + c * 0.9;
+  const eng = useRef(0);
+  useFrame(() => {
+    const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
+    const target = active ? Math.max(0, 1 - d / 0.95) : 0;
+    eng.current += (target - eng.current) * 0.4;
+    const c = eng.current; // plates fold shut around the device as it reaches the packer
+    if (l.current) l.current.rotation.z = -0.2 - c * 0.95;
+    if (r.current) r.current.rotation.z = 0.2 + c * 0.95;
   });
   return (
     <group position={position}>
@@ -507,15 +691,17 @@ function TapFlash({ flash }: { flash: { c: number; r: number; ok: boolean; n: nu
   );
 }
 
-function MachineAt({ m, p }: { m: FactoryFloor["machines"][number]; p: Factory3DProps }) {
+function MachineAt({ m, active, stageIdx, pl, itemsT }: {
+  m: FactoryFloor["machines"][number]; active: boolean; stageIdx: number; pl: Polyline; itemsT: ItemsRef;
+}) {
   const [x, z] = machineCenter(m);
   const pos: [number, number, number] = [x, 0, z];
   switch (m.kind) {
-    case "intake": return <Intake hot={p.stageIdx === 0} position={pos} />;
-    case "press": return <GantryPress active={p.active} hot={p.stageIdx === 1} position={pos} />;
-    case "arm": return <RobotArm active={p.active} hot={p.stageIdx === 2} position={pos} phase={(m.c * 7 + m.r) % 6} mirror={(m.c + m.r) % 2 === 0} />;
-    case "qa": return <QaTunnel active={p.active} hot={p.stageIdx === 3} position={pos} />;
-    case "packer": return <Packer active={p.active} hot={p.stageIdx === 4} position={pos} />;
+    case "intake": return <Intake active={active} hot={stageIdx === 0} position={pos} />;
+    case "press": return <GantryPress active={active} hot={stageIdx === 1} position={pos} pl={pl} itemsT={itemsT} />;
+    case "arm": return <RobotArm active={active} hot={stageIdx === 2} position={pos} phase={(m.c * 7 + m.r) % 6} pl={pl} itemsT={itemsT} />;
+    case "qa": return <QaTunnel active={active} hot={stageIdx === 3} position={pos} pl={pl} itemsT={itemsT} />;
+    case "packer": return <Packer active={active} hot={stageIdx === 4} position={pos} pl={pl} itemsT={itemsT} />;
   }
 }
 
@@ -528,6 +714,7 @@ function Scene(p: Factory3DProps) {
   const pl = useMemo(() => makePolyline(beltPath(p.floor.belts)), [p.floor.belts]);
   const marks = useMemo(() => formMarks(p.floor, pl.pts), [p.floor, pl.pts]);
 
+  const look = useMemo(() => productLook(p.product), [p.product]);
   const itemsT = useRef<number[]>([0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total)));
   useFrame((_, dt) => {
     if (!p.active || pl.total === 0) return;
@@ -573,11 +760,11 @@ function Scene(p: Factory3DProps) {
         <meshStandardMaterial color={C.road} roughness={0.95} />
       </mesh>
 
-      <BeltTiles floor={p.floor} />
-      {p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} />)}
+      <BeltTiles floor={p.floor} lineOk={p.lineOk} />
+      {p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} look={look} />)}
       {p.flash && <TapFlash flash={p.flash} />}
 
-      {p.floor.machines.map((m) => <MachineAt key={m.id} m={m} p={p} />)}
+      {p.floor.machines.map((m) => <MachineAt key={m.id} m={m} active={p.active && p.lineOk} stageIdx={p.stageIdx} pl={pl} itemsT={itemsT} />)}
 
       <CrateStacks count={p.readyCount} />
       <Truck selling={p.selling} />

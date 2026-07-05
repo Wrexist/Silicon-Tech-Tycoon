@@ -205,6 +205,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               selling={d.selling}
               overtime={d.overtime}
               floor={d.floor}
+              product={d.lead?.product ?? null}
               lineOk={lineOk}
               buildMode={buildTool != null}
               onTapCell={onTapCell}

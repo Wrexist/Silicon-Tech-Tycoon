@@ -1845,3 +1845,27 @@ The factory-tycoon rule that makes layouts meaningful, plus F2's UX gaps.
       exits Build first**, then closes the mode on the second press.
 - [x] Verified live: card minimap truthful, fold/hint/Escape-order all exercised, zero
       console errors. 723 tests, tsc 0, build+PWA green.
+
+## v79 — Factory 3D: machines react to items + real product on the belt + arrow belts (DONE 2026-07-04)
+User: "Do machines move realistically? Put the produced product on the belt. Make belts arrows,
+smart corners, more detail." All three, one pass.
+- [x] **Machines now ACT ON the passing item** (was: free-clock motion decoupled from items).
+      Each machine reads `nearestItemDist` to the traveling items and drives its rig by proximity:
+      the gantry press SLAMS DOWN onto the slab beneath it, the robot arm turns TOWARD the nearest
+      item and reaches to the belt (slow home-sway when idle), the QA scan BRIGHTENS while a device
+      is inside the tunnel, the packer folds its plates shut as the device arrives, the intake puffs
+      only while producing. Smoothed engage refs; idle when the line is stopped.
+- [x] **The real product rides the belt** (pillar #2, "the product IS the toy"): the device form is
+      now `DeviceForm` — a parametric 3D model whose SILHOUETTE follows the product category (phone/
+      tablet/laptop-with-lid/wearable-with-straps/console/desktop/monitor/AR-glasses) and whose BODY
+      COLOUR + metalness come from the real finish swatch (`productLook` reads FINISH_SWATCHES). A gold
+      flagship literally rides as a gold device; the crate band tints to the product accent.
+- [x] **Belts are directional + smart-cornered**: bright emissive chevron **arrows** on every tile
+      show flow direction at a glance; a tile whose inflow direction differs from its own renders as
+      an **L-bend** (square bed that connects flush to both neighbours, rails on the two OUTER edges,
+      a turning enter→exit arrow) so corners auto-sync. Straight tiles gain cross-slats + end rollers.
+- [x] Verified live (chromium+ANGLE, gold phone staged): arrows flow + turn at corners, arm reaching,
+      QA glass lit, gold device on the belt, zero console errors. Factory3D chunk 8.8→21KB (still lazy,
+      shares the three bundle). 723 tests, tsc 0, build+PWA green.
+- NOT verified on-device: the reactive timing FEEL (press/arm sync to item) + GPU cost of the extra
+      chevron/slat meshes on old iPhones (drop chevrons to 1/tile or slats first if it stutters).
