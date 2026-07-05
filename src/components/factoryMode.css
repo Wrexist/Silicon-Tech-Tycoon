@@ -207,6 +207,15 @@
 .fmode__sheet { display: flex; flex-direction: column; gap: var(--sp-10); }
 .fmode__sheet-title { margin: 0; font-size: var(--fs-headline); font-weight: 800; }
 .fmode__sheet-note { margin: 0; font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
+.fmode__decor-label { font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.fmode__swatches { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.fmode__swatch {
+  width: 44px; height: 44px; flex: none; border-radius: var(--r-button);
+  border: 2px solid var(--hairline); cursor: pointer;
+  box-shadow: var(--shadow-subtle); transition: transform var(--spring-snappy), border-color var(--spring-snappy);
+}
+.fmode__swatch--on { border-color: var(--accent); transform: scale(1.06); }
+.fmode__swatch:active { transform: scale(0.94); }
 .fmode__upline {
   display: flex; align-items: center; gap: var(--sp-10);
   padding: var(--sp-10); border-radius: var(--r-button);

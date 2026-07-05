@@ -20,6 +20,10 @@ import type { CategoryId, Product } from "../engine/types.ts";
 const C = {
   grass: "#1d2b22",
   pad: "#2a2f37",
+  concrete: "#7c828c",      // poured-concrete factory floor
+  concreteJoint: "#5c626b", // expansion joints / build grid
+  wallTrim: "#3c424b",      // wall skirting / base course
+  wallTop: "#aeb4bd",       // capping rail on the walls
   beltBed: "#454c57",
   beltFrame: "#3d4552",   // metal side frame of the conveyor
   beltRubber: "#20242b",  // dark rubber belt surface
@@ -61,6 +65,9 @@ export interface Factory3DProps {
   lineOk: boolean;
   /** Build mode: taps on the pad report the grid cell instead of doing nothing. */
   buildMode?: boolean;
+  /** Painted wall colour + floor tint from the player's factory decor (customisable). */
+  wallColor?: string;
+  floorColor?: string;
   /** Bumped by the HUD's recenter button — re-frames the camera to its default. */
   resetView?: number;
   onTapCell?: (c: number, r: number) => void;
@@ -690,6 +697,55 @@ function ScreenBonder({ active, hot, position, yaw = 0, pl, itemsT }: { active: 
   );
 }
 
+/* ------------------------------ building shell ------------------------------ */
+
+const SHELL = { w: 16.6, d: 10.6, wallH: 1.35, t: 0.24 };
+
+/** The factory building: a poured-concrete floor inside painted perimeter walls with a capping
+ *  rail and a dark skirting. Walls are kept low so machines rise above them and the camera sees in;
+ *  the front-left corner (the dock) is left open so the line ships out to the truck. The wall colour
+ *  and floor tint are player-customisable (decor). */
+function FactoryShell({ wallColor, floorColor }: { wallColor: string; floorColor: string }) {
+  const { w, d, wallH, t } = SHELL;
+  const wall = (key: string, args: [number, number, number], pos: [number, number, number]) => (
+    <group key={key} position={pos}>
+      <mesh position={[0, wallH / 2 + 0.14, 0]} castShadow receiveShadow>
+        <boxGeometry args={args} />
+        <meshStandardMaterial color={wallColor} roughness={0.92} metalness={0.02} />
+      </mesh>
+      {/* dark skirting along the base */}
+      <mesh position={[0, 0.28, 0]}>
+        <boxGeometry args={[args[0] + 0.02, 0.34, args[2] + 0.02]} />
+        <meshStandardMaterial color={C.wallTrim} roughness={0.85} />
+      </mesh>
+      {/* pale capping rail along the top */}
+      <mesh position={[0, wallH + 0.16, 0]}>
+        <boxGeometry args={[args[0] + 0.05, 0.1, args[2] + 0.05]} />
+        <meshStandardMaterial color={C.wallTop} roughness={0.6} metalness={0.1} />
+      </mesh>
+    </group>
+  );
+  return (
+    <group>
+      {/* concrete floor slab */}
+      <RoundedBox args={[w, 0.16, d]} radius={0.1} position={[0, 0.02, 0]} receiveShadow>
+        <meshStandardMaterial color={floorColor} roughness={0.97} metalness={0.02} />
+      </RoundedBox>
+      {/* painted safety border just inside the walls */}
+      {[[w - 1.0, 0.06, d / 2 - 0.55], [w - 1.0, 0.06, -(d / 2 - 0.55)]].map(([bw, , bz], i) => (
+        <mesh key={`bx${i}`} position={[0, 0.11, bz as number]}><boxGeometry args={[bw as number, 0.02, 0.08]} /><meshStandardMaterial color={C.hazard} roughness={0.7} emissive={C.hazard} emissiveIntensity={0.12} /></mesh>
+      ))}
+      {[[0.08, 0.06, d - 1.1, w / 2 - 0.55], [0.08, 0.06, d - 1.1, -(w / 2 - 0.55)]].map(([, , bd, bx], i) => (
+        <mesh key={`bz${i}`} position={[bx as number, 0.11, 0]}><boxGeometry args={[0.08, 0.02, bd as number]} /><meshStandardMaterial color={C.hazard} roughness={0.7} emissive={C.hazard} emissiveIntensity={0.12} /></mesh>
+      ))}
+      {/* three walls; the front-left (dock corner) stays open */}
+      {wall("back", [w + t, wallH, t], [0, 0, -d / 2])}
+      {wall("right", [t, wallH, d + t], [w / 2, 0, 0])}
+      {wall("front", [w + t, wallH, t], [0, 0, d / 2])}
+    </group>
+  );
+}
+
 /* ------------------------------ dock & extras ------------------------------ */
 
 /** The loading pallet at the line's end — a wooden pallet the packed crates stack onto (growing
@@ -927,10 +983,10 @@ function Scene(p: Factory3DProps) {
         <planeGeometry args={[44, 32]} />
         <meshStandardMaterial color={C.grass} roughness={1} />
       </mesh>
-      <RoundedBox args={[16.4, 0.14, 10.4]} radius={0.15} position={[0, 0.02, 0]} receiveShadow>
-        <meshStandardMaterial color={C.pad} roughness={0.95} />
-      </RoundedBox>
-      <gridHelper args={[16, 16, "#3a4048", "#343a42"]} position={[0, 0.1, 0]} />
+      {/* the building: concrete floor + painted walls (player-customisable) */}
+      <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} />
+      {/* expansion joints double as the build grid, subtle on the concrete */}
+      <gridHelper args={[16, 16, C.concreteJoint, C.concreteJoint]} position={[0, 0.11, 0]} />
       {/* tap-catcher for build mode (invisible, above the pad) */}
       {/* raycast skips visible={false}, so the tap-catcher is transparent instead of hidden */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.12, 0]} onPointerDown={onPadDown} onPointerUp={onPadUp}>

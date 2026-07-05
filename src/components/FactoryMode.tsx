@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import {
   ArrowUp, BarChart3, BatteryCharging, Bot, Boxes, Camera, ChevronDown, CodeXml, Cpu, Drill, Eraser,
   FlaskConical, Hammer, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
-  PackageCheck, RotateCw, ScanLine, ShoppingCart, Stamp, Truck, Wrench, X, Zap, type LucideIcon,
+  PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Stamp, Truck, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue } from "../state/gameState.ts";
@@ -51,6 +51,17 @@ const MACHINE_SHORT: Record<MachineKind, string> = {
   intake: "Intake", mill: "Mill", press: "Press", screen: "Screen", arm: "Arm", qa: "Test", packer: "Packer",
 };
 const DIR_ROT: Record<BeltDir, number> = { n: 0, e: 90, s: 180, w: 270 };
+
+// Factory building decor palettes — parametric colours (3D uses intrinsic colours, not theme
+// tokens). Indices are stored in state.factoryDecor so the paint job persists.
+const FACTORY_WALLS: { name: string; hex: string }[] = [
+  { name: "Slate", hex: "#8a9099" }, { name: "Ocean", hex: "#4a6fa5" }, { name: "Forest", hex: "#4f8f6b" },
+  { name: "Sand", hex: "#b4966a" }, { name: "Charcoal", hex: "#484d55" }, { name: "Chalk", hex: "#d6dae0" },
+];
+const FACTORY_FLOORS: { name: string; hex: string }[] = [
+  { name: "Concrete", hex: "#7c828c" }, { name: "Warm", hex: "#8a7f6f" }, { name: "Cool", hex: "#6d7885" },
+  { name: "Graphite", hex: "#565b63" }, { name: "Pale", hex: "#9aa1a9" },
+];
 
 function useFactoryData() {
   const game = useGame();
@@ -156,7 +167,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const d = useFactoryData();
   const { state } = d;
   const { buyUpgrade } = d.game;
-  const [sheet, setSheet] = useState<null | "upgrades" | "stats" | "shop">(null);
+  const [sheet, setSheet] = useState<null | "upgrades" | "stats" | "shop" | "decor">(null);
   const settings = useSettings();
   const [glLost, setGlLost] = useState(false);
   const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
@@ -199,14 +210,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (buildTool != null) setBuildTool(null);
+      // Escape peels back one layer at a time: an open sheet, then the build tool, then the mode.
+      if (sheet != null) setSheet(null);
+      else if (buildTool != null) setBuildTool(null);
       else onClose();
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose, buildTool]);
+  }, [onClose, buildTool, sheet]);
 
   const flow = sub(d.revenueWk, d.expensesWk);
   const flowD = toDollars(flow);
@@ -233,6 +246,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               lineOk={lineOk}
               buildMode={buildTool != null}
               resetView={resetView}
+              wallColor={(FACTORY_WALLS[state.factoryDecor.wall] ?? FACTORY_WALLS[0]).hex}
+              floorColor={(FACTORY_FLOORS[state.factoryDecor.floor] ?? FACTORY_FLOORS[0]).hex}
               onTapCell={onTapCell}
               flash={flash}
               onContextLost={() => setGlLost(true)}
@@ -319,6 +334,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <FlaskConical size={18} /><span>Research</span>
           </button>
         )}
+        <button className="fmode__tool" onClick={() => { haptic.light(); setSheet("decor"); }}>
+          <Palette size={18} /><span>Style</span>
+        </button>
         <button className="fmode__tool" onClick={() => { haptic.light(); setSheet("stats"); }}>
           <BarChart3 size={18} /><span>Stats</span>
         </button>
@@ -460,6 +478,41 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             </div>
           ))}
           <p className="fmode__sheet-note">Placeable machines arrive with Build mode.</p>
+        </div>
+      </Sheet>
+
+      <Sheet open={sheet === "decor"} onClose={() => setSheet(null)}>
+        <div className="fmode__sheet">
+          <h3 className="fmode__sheet-title">Style the building</h3>
+          <span className="fmode__decor-label">Wall paint</span>
+          <div className="fmode__swatches">
+            {FACTORY_WALLS.map((w, i) => (
+              <button
+                key={w.hex}
+                className={`fmode__swatch${state.factoryDecor.wall === i ? " fmode__swatch--on" : ""}`}
+                style={{ background: w.hex }}
+                aria-label={`Wall: ${w.name}`}
+                aria-pressed={state.factoryDecor.wall === i}
+                title={w.name}
+                onClick={() => { haptic.light(); d.game.setFactoryDecor({ wall: i }); }}
+              />
+            ))}
+          </div>
+          <span className="fmode__decor-label">Floor finish</span>
+          <div className="fmode__swatches">
+            {FACTORY_FLOORS.map((f, i) => (
+              <button
+                key={f.hex}
+                className={`fmode__swatch${state.factoryDecor.floor === i ? " fmode__swatch--on" : ""}`}
+                style={{ background: f.hex }}
+                aria-label={`Floor: ${f.name}`}
+                aria-pressed={state.factoryDecor.floor === i}
+                title={f.name}
+                onClick={() => { haptic.light(); d.game.setFactoryDecor({ floor: i }); }}
+              />
+            ))}
+          </div>
+          <p className="fmode__sheet-note">Repaint anytime — free, and it saves with your factory.</p>
         </div>
       </Sheet>
     </div>,

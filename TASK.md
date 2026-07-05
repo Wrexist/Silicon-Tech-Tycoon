@@ -1986,3 +1986,19 @@ Audit-driven cosmetic pass over onboarding, HQ, Design Lab, Market (no gameplay 
       ChevronRight. Design Lab summary Market Fit shows the number (word moved to the label). HQ
       "Ready to launch" accessory shows a count; the first-run GetStartedCard is hidden while the
       Coach tutorial runs (was a duplicate checklist). Onboarding scenario link joins the stagger.
+
+## v87 — Deeper industry + a real factory building you can repaint (DONE 2026-07-05)
+- [x] **12 competitors** (was 6): added Zenith, Bytewave, Meridian, Corsa, Voltix, Nimbus with
+      distinct bios/doctrines/caps so a fresh company starts dead last at #13. `bestIndustryRank`
+      derives from `RIVALS.length`. Fixed the offline-catch-up test's rival freeze (it let the
+      "refill the field" branch respawn challengers) — pure test isolation, no gameplay change.
+- [x] **Factory building shell** (Factory3D): a poured-concrete floor with expansion joints and a
+      painted safety border, inside low perimeter walls (skirting + capping rail) with the dock
+      corner left open so the line ships to the truck. Machines rise above the walls; the camera
+      sees in.
+- [x] **Repaint / customise**: `factoryDecor { wall, floor }` state (+ setter, persistence backfill)
+      drives the wall paint and floor finish from palettes. A new "Style" rail button opens a sheet
+      of 6 wall + 5 floor swatches; picking one repaints the building live and saves. Escape now
+      peels back one layer (sheet → build tool → mode) instead of closing everything.
+- Left for a follow-up: placeable factory furniture/props (full decorate) and a floor-size expansion
+      — larger features; the repaint is the first customisation slice.

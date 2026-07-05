@@ -211,6 +211,8 @@ export interface GameState {
   roomStyle: { floor: number; wall: number };
   /** Player-built Factory Mode layout (machines + directed conveyor tiles). */
   factoryFloor: FloorPlan;
+  /** Factory building decor — indices into the wall-paint / floor-finish palettes (customisable). */
+  factoryDecor: { wall: number; floor: number };
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -456,6 +458,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     furnitureCounter: 3, // starter layout uses f1 (desk) + f2 (plant)
     roomStyle: { floor: 0, wall: 0 },
     factoryFloor: starterFloor(),
+    factoryDecor: { wall: 0, floor: 0 },
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -2485,6 +2488,10 @@ export function setFloorStyle(state: GameState, i: number): GameState {
 }
 export function setWallStyle(state: GameState, i: number): GameState {
   return { ...state, roomStyle: { ...state.roomStyle, wall: i } };
+}
+/** Repaint the factory building (wall paint + floor finish palette indices). */
+export function setFactoryDecor(state: GameState, patch: Partial<{ wall: number; floor: number }>): GameState {
+  return { ...state, factoryDecor: { ...state.factoryDecor, ...patch } };
 }
 
 /** Rename the company (used on the marketing TV + HQ). Falls back to "Silicon" if blank. */

@@ -406,6 +406,9 @@ function migrate(state: GameState): GameState | null {
   if (!s.factoryFloor || !Array.isArray(s.factoryFloor.machines) || !Array.isArray(s.factoryFloor.belts)) {
     s.factoryFloor = starterFloor();
   }
+  if (!s.factoryDecor || typeof s.factoryDecor !== "object" || typeof s.factoryDecor.wall !== "number" || typeof s.factoryDecor.floor !== "number") {
+    s.factoryDecor = { wall: s.factoryDecor?.wall ?? 0, floor: s.factoryDecor?.floor ?? 0 };
+  }
   if (typeof s.furnitureCounter !== "number") {
     s.furnitureCounter = s.layout.reduce((m: number, it: { iid?: string }) => {
       const n = parseInt(String(it.iid ?? "").replace(/\D/g, ""), 10);
