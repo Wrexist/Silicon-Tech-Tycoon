@@ -22,7 +22,11 @@
 .fmode {
   --fmode-btn-bg: rgba(15, 18, 24, 0.88);
   --fmode-btn-line: rgba(255, 255, 255, 0.12);
-  position: fixed; inset: 0; z-index: 60;
+  /* Above the base app (nav 30, HQ decorate 45) but BELOW the sheet scrim (50): Sheet portals to
+     <body>, so if the factory sat at 60 its own Upgrades/Style/Stats/Shop sheets opened INVISIBLY
+     behind this near-opaque overlay. 46 keeps sheets (50), toasts (60), the ready-to-launch modal
+     (58) and tutorials (70) all correctly on top. */
+  position: fixed; inset: 0; z-index: 46;
   display: flex; align-items: center; justify-content: center;
   background: rgba(9, 11, 15, 0.99);
   padding: calc(56px + env(safe-area-inset-top)) var(--sp-8) calc(64px + env(safe-area-inset-bottom));
@@ -144,7 +148,9 @@
   display: flex; justify-content: space-between; gap: var(--sp-8);
   padding: 3px 0; font-size: var(--fs-micro); font-weight: 600;
 }
-.fmode__stat > span:first-child { color: rgba(255,255,255,0.6); }
+/* Stat rows live INSIDE the light glass sheet (not the dark HUD), so labels use the ink token —
+   the old white-alpha was invisible on the sheet surface. */
+.fmode__stat > span:first-child { color: var(--ink-2); }
 .fmode__pos { color: var(--positive); }
 .fmode__neg { color: var(--negative); }
 
