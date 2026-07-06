@@ -410,6 +410,7 @@ function migrate(state: GameState): GameState | null {
     s.factoryDecor = { wall: s.factoryDecor?.wall ?? 0, floor: s.factoryDecor?.floor ?? 0 };
   }
   if (!Array.isArray(s.factoryProps)) s.factoryProps = [];
+  if (typeof s.factoryExpansion !== "number") s.factoryExpansion = 0;
   if (typeof s.furnitureCounter !== "number") {
     s.furnitureCounter = s.layout.reduce((m: number, it: { iid?: string }) => {
       const n = parseInt(String(it.iid ?? "").replace(/\D/g, ""), 10);

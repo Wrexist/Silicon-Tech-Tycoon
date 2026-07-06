@@ -71,6 +71,21 @@ describe("factory floor grid (F2)", () => {
     expect(c).toBeLessThan(1);
   });
 
+  it("floor expansion widens the buildable grid east while the base bound stays put", async () => {
+    const { canPlaceBelt, canPlaceMachine, floorWidth, EXPAND_STEP } = await import("./factoryFloor.ts");
+    const empty = { machines: [], belts: [] };
+    // Column 17 is off the base 16-wide grid...
+    expect(canPlaceBelt(empty, 17, 5)).toBe(false);
+    expect(canPlaceMachine(empty, "qa", 17, 5)).toBe(false);
+    // ...but placeable once one expansion widens it.
+    const w1 = floorWidth(1);
+    expect(w1).toBe(16 + EXPAND_STEP);
+    expect(canPlaceBelt(empty, 17, 5, w1)).toBe(true);
+    expect(canPlaceMachine(empty, "qa", 17, 5, w1)).toBe(true);
+    // The expansion is capped.
+    expect(floorWidth(99)).toBe(floorWidth(3));
+  });
+
   it("machineCells matches the def footprint", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });

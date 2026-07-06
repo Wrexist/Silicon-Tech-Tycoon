@@ -42,9 +42,9 @@ export function propCenter(p: PlacedProp): [number, number] {
 }
 
 /** A prop may sit only on empty cells — never overlapping a machine, a belt, or another prop. */
-export function canPlaceProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKind, c: number, r: number): boolean {
+export function canPlaceProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKind, c: number, r: number, maxW: number = FLOOR.w): boolean {
   const def = PROP_DEFS[kind];
-  if (c < 0 || r < 0 || c + def.w > FLOOR.w || r + def.d > FLOOR.h) return false;
+  if (c < 0 || r < 0 || c + def.w > maxW || r + def.d > FLOOR.h) return false;
   const want = new Set(propCells({ kind, c, r }));
   for (const m of floor.machines) for (const cell of machineCells(m)) if (want.has(cell)) return false;
   for (const b of floor.belts) if (want.has(`${b.c},${b.r}`)) return false;
@@ -52,8 +52,8 @@ export function canPlaceProp(floor: FactoryFloor, props: PlacedProp[], kind: Pro
   return true;
 }
 
-export function placeProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKind, c: number, r: number, id: string): PlacedProp[] | null {
-  if (!canPlaceProp(floor, props, kind, c, r)) return null;
+export function placeProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKind, c: number, r: number, id: string, maxW: number = FLOOR.w): PlacedProp[] | null {
+  if (!canPlaceProp(floor, props, kind, c, r, maxW)) return null;
   return [...props, { id, kind, c, r }];
 }
 

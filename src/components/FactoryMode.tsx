@@ -13,7 +13,7 @@ import {
   TrafficCone, TriangleAlert, Truck, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
-import { burn, industryRank, nextWeekRevenue } from "../state/gameState.ts";
+import { burn, industryRank, nextWeekRevenue, nextExpansionCost } from "../state/gameState.ts";
 import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.ts";
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
@@ -29,7 +29,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { MACHINE_DEFS, BELT_COST, beltChain, lineComplete, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
 import { useSettings } from "../state/settings.ts";
 
@@ -260,6 +260,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               wallColor={(FACTORY_WALLS[state.factoryDecor.wall] ?? FACTORY_WALLS[0]).hex}
               floorColor={(FACTORY_FLOORS[state.factoryDecor.floor] ?? FACTORY_FLOORS[0]).hex}
               props={state.factoryProps}
+              floorW={floorWidth(state.factoryExpansion)}
               onTapCell={onTapCell}
               flash={flash}
               onContextLost={() => setGlLost(true)}
@@ -549,6 +550,25 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             ))}
           </div>
           <p className="fmode__sheet-note">Repaint anytime — free, and it saves with your factory.</p>
+          <span className="fmode__decor-label">Floor size</span>
+          <div className="fmode__upline">
+            <span className="fmode__upline-glyph" aria-hidden><Maximize2 size={16} /></span>
+            <div className="fmode__upline-info">
+              <span className="fmode__upline-name">Expand the floor</span>
+              <span className="fmode__upline-sub">Adds a bay of build space to the east.</span>
+            </div>
+            {(() => {
+              const cost = nextExpansionCost(state.factoryExpansion);
+              if (cost == null) return <span className="fmode__upline-max">Max size</span>;
+              return (
+                <button className="fmode__buy" disabled={state.cash < cost} onClick={() => {
+                  const res = d.game.buyFloorExpansion();
+                  if (res.ok) { haptic.success(); sfx("build"); showToast("Factory floor expanded", { tone: "positive" }); }
+                  else { haptic.warning(); showToast(res.reason ?? "Can't expand", { tone: "negative" }); }
+                }}>{format(cost)}</button>
+              );
+            })()}
+          </div>
         </div>
       </Sheet>
     </div>,

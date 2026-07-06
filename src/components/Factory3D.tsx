@@ -71,6 +71,8 @@ export interface Factory3DProps {
   floorColor?: string;
   /** Decorative props the player has placed on the floor. */
   props?: PlacedProp[];
+  /** Current buildable width in cells (grows east with floor expansions; default = base width). */
+  floorW?: number;
   /** Bumped by the HUD's recenter button — re-frames the camera to its default. */
   resetView?: number;
   onTapCell?: (c: number, r: number) => void;
@@ -789,14 +791,16 @@ function PropAt({ prop }: { prop: PlacedProp }) {
 
 /* ------------------------------ building shell ------------------------------ */
 
-const SHELL = { w: 16.6, d: 10.6, wallH: 1.35, t: 0.24 };
+const SHELL = { d: 10.6, wallH: 1.35, t: 0.24 };
 
 /** The factory building: a poured-concrete floor inside painted perimeter walls with a capping
  *  rail and a dark skirting. Walls are kept low so machines rise above them and the camera sees in;
- *  the front-left corner (the dock) is left open so the line ships out to the truck. The wall colour
- *  and floor tint are player-customisable (decor). */
-function FactoryShell({ wallColor, floorColor }: { wallColor: string; floorColor: string }) {
-  const { w, d, wallH, t } = SHELL;
+ *  the front-left corner (the dock) is left open so the line ships out to the truck. Grows EAST with
+ *  floor expansions (origin fixed). The wall colour and floor tint are player-customisable (decor). */
+function FactoryShell({ wallColor, floorColor, floorW }: { wallColor: string; floorColor: string; floorW: number }) {
+  const { d, wallH, t } = SHELL;
+  const w = floorW + 0.6;              // slab a touch wider than the cells
+  const cx = (floorW - FLOOR.w) / 2;   // east shift as the grid widens (base = 0)
   const wall = (key: string, args: [number, number, number], pos: [number, number, number]) => (
     <group key={key} position={pos}>
       <mesh position={[0, wallH / 2 + 0.14, 0]} castShadow receiveShadow>
@@ -816,17 +820,17 @@ function FactoryShell({ wallColor, floorColor }: { wallColor: string; floorColor
     </group>
   );
   return (
-    <group>
+    <group position={[cx, 0, 0]}>
       {/* concrete floor slab */}
       <RoundedBox args={[w, 0.16, d]} radius={0.1} position={[0, 0.02, 0]} receiveShadow>
         <meshStandardMaterial color={floorColor} roughness={0.97} metalness={0.02} />
       </RoundedBox>
       {/* painted safety border just inside the walls */}
-      {[[w - 1.0, 0.06, d / 2 - 0.55], [w - 1.0, 0.06, -(d / 2 - 0.55)]].map(([bw, , bz], i) => (
-        <mesh key={`bx${i}`} position={[0, 0.11, bz as number]}><boxGeometry args={[bw as number, 0.02, 0.08]} /><meshStandardMaterial color={C.hazard} roughness={0.7} emissive={C.hazard} emissiveIntensity={0.12} /></mesh>
+      {[d / 2 - 0.55, -(d / 2 - 0.55)].map((bz, i) => (
+        <mesh key={`bx${i}`} position={[0, 0.11, bz]}><boxGeometry args={[w - 1.0, 0.02, 0.08]} /><meshStandardMaterial color={C.hazard} roughness={0.7} emissive={C.hazard} emissiveIntensity={0.12} /></mesh>
       ))}
-      {[[0.08, 0.06, d - 1.1, w / 2 - 0.55], [0.08, 0.06, d - 1.1, -(w / 2 - 0.55)]].map(([, , bd, bx], i) => (
-        <mesh key={`bz${i}`} position={[bx as number, 0.11, 0]}><boxGeometry args={[0.08, 0.02, bd as number]} /><meshStandardMaterial color={C.hazard} roughness={0.7} emissive={C.hazard} emissiveIntensity={0.12} /></mesh>
+      {[w / 2 - 0.55, -(w / 2 - 0.55)].map((bx, i) => (
+        <mesh key={`bz${i}`} position={[bx, 0.11, 0]}><boxGeometry args={[0.08, 0.02, d - 1.1]} /><meshStandardMaterial color={C.hazard} roughness={0.7} emissive={C.hazard} emissiveIntensity={0.12} /></mesh>
       ))}
       {/* three walls; the front-left (dock corner) stays open */}
       {wall("back", [w + t, wallH, t], [0, 0, -d / 2])}
@@ -936,17 +940,18 @@ function Agvs({ tier, overtime }: { tier: number; overtime: boolean }) {
 
 /** Default framing for the floor — set ONCE at creation by aspect, then OrbitControls owns the
  *  camera so the player can orbit/zoom with touch. */
-const CAM_TARGET: [number, number, number] = [0, -0.3, 0];
-function frameCamera(cam: THREE.PerspectiveCamera, portrait: boolean) {
-  cam.fov = portrait ? 54 : 30;
-  if (portrait) cam.position.set(12.2, 16.6, 13.4);
-  else cam.position.set(10.6, 13.1, 11.6);
-  cam.lookAt(...CAM_TARGET);
+/** Frame the floor. `cx` is the building's east-shift from expansions, so the view follows the
+ *  wider building (shifts + widens as bays are added). */
+function frameCamera(cam: THREE.PerspectiveCamera, portrait: boolean, cx = 0) {
+  cam.fov = (portrait ? 54 : 30) + cx * 0.9;
+  if (portrait) cam.position.set(12.2 + cx, 16.6, 13.4);
+  else cam.position.set(10.6 + cx, 13.1, 11.6);
+  cam.lookAt(cx, -0.3, 0);
   cam.updateProjectionMatrix();
 }
 
 /** Re-frames the camera to its default when the HUD's recenter button bumps `signal`. */
-function CameraReset({ signal }: { signal: number }) {
+function CameraReset({ signal, cx }: { signal: number; cx: number }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as { target: THREE.Vector3; update: () => void } | null;
   const size = useThree((s) => s.size);
@@ -954,8 +959,8 @@ function CameraReset({ signal }: { signal: number }) {
   useFrame(() => {
     if (seen.current === signal) return;
     seen.current = signal;
-    frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width);
-    if (controls) { controls.target.set(...CAM_TARGET); controls.update(); }
+    frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width, cx);
+    if (controls) { controls.target.set(cx, -0.3, 0); controls.update(); }
   });
   return null;
 }
@@ -1013,6 +1018,8 @@ function Scene(p: Factory3DProps) {
   const { size } = useThree();
   const portrait = size.height > size.width;
   const world = useRef<THREE.Group>(null);
+  const floorW = p.floorW ?? FLOOR.w;      // buildable width in cells (grows east with expansions)
+  const cx = (floorW - FLOOR.w) / 2;       // east shift of the building centre (origin fixed)
 
   // The belts ARE the path: chain them, then derive where the item transforms.
   const pl = useMemo(() => makePolyline(beltPath(p.floor.belts)), [p.floor.belts]);
@@ -1059,7 +1066,7 @@ function Scene(p: Factory3DProps) {
     const local = world.current.worldToLocal(e.point.clone());
     const c = Math.round(local.x + (FLOOR.w - 1) / 2);
     const r = Math.round(local.z + (FLOOR.h - 1) / 2);
-    if (c >= 0 && c < FLOOR.w && r >= 0 && r < FLOOR.h) p.onTapCell(c, r);
+    if (c >= 0 && c < floorW && r >= 0 && r < FLOOR.h) p.onTapCell(c, r);
   };
 
   return (
@@ -1073,14 +1080,14 @@ function Scene(p: Factory3DProps) {
         <planeGeometry args={[44, 32]} />
         <meshStandardMaterial color={C.grass} roughness={1} />
       </mesh>
-      {/* the building: concrete floor + painted walls (player-customisable) */}
-      <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} />
+      {/* the building: concrete floor + painted walls (player-customisable), grows east with expansions */}
+      <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} floorW={floorW} />
       {/* expansion joints double as the build grid, subtle on the concrete */}
-      <gridHelper args={[16, 16, C.concreteJoint, C.concreteJoint]} position={[0, 0.11, 0]} />
+      <gridHelper args={[floorW, floorW, C.concreteJoint, C.concreteJoint]} position={[cx, 0.11, 0]} />
       {/* tap-catcher for build mode (invisible, above the pad) */}
       {/* raycast skips visible={false}, so the tap-catcher is transparent instead of hidden */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.12, 0]} onPointerDown={onPadDown} onPointerUp={onPadUp}>
-        <planeGeometry args={[FLOOR.w, FLOOR.h]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, 0.12, 0]} onPointerDown={onPadDown} onPointerUp={onPadUp}>
+        <planeGeometry args={[floorW, FLOOR.h]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {/* dock apron under the truck, at the line's end */}
@@ -1109,6 +1116,7 @@ function Scene(p: Factory3DProps) {
 }
 
 export default function Factory3D(p: Factory3DProps) {
+  const cx = ((p.floorW ?? FLOOR.w) - FLOOR.w) / 2; // building east-shift from expansions
   return (
     <Canvas
       role="img"
@@ -1119,7 +1127,7 @@ export default function Factory3D(p: Factory3DProps) {
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       camera={{ position: [10, 12.5, 11], fov: 28 }}
       onCreated={({ gl, camera, size }) => {
-        frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width);
+        frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width, cx);
         gl.domElement.addEventListener(
           "webglcontextlost",
           (e) => { e.preventDefault(); p.onContextLost?.(); },
@@ -1128,11 +1136,11 @@ export default function Factory3D(p: Factory3DProps) {
       }}
     >
       <Scene {...p} />
-      <CameraReset signal={p.resetView ?? 0} />
+      <CameraReset signal={p.resetView ?? 0} cx={cx} />
       {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor */}
       <OrbitControls
         makeDefault
-        target={CAM_TARGET}
+        target={[cx, -0.3, 0]}
         enablePan={false}
         enableDamping
         dampingFactor={0.12}

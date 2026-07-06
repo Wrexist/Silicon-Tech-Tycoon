@@ -104,8 +104,8 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, demolitionRefund, placeBelt as floorPlaceBelt, placeMachine as floorPlaceMachine,
-  removeAt as floorRemoveAt, starterFloor,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, demolitionRefund, floorWidth, placeBelt as floorPlaceBelt,
+  placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import {
@@ -219,6 +219,8 @@ export interface GameState {
   factoryDecor: { wall: number; floor: number };
   /** Decorative props placed on the factory floor (cosmetic; inert to the sim). */
   factoryProps: PlacedProp[];
+  /** How many floor expansions the player has bought (0..MAX_EXPANSION) — widens the build grid. */
+  factoryExpansion: number;
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -466,6 +468,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     factoryFloor: starterFloor(),
     factoryDecor: { wall: 0, floor: 0 },
     factoryProps: [],
+    factoryExpansion: 0,
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -2097,7 +2100,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, r: number): ActionResult {
   const def = MACHINE_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
-  const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryFloor.machines.length}`);
+  const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryFloor.machines.length}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
   return { state: { ...state, cash: sub(state.cash, def.cost), factoryFloor: next }, ok: true };
 }
@@ -2106,16 +2109,31 @@ export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, 
 export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDir): ActionResult {
   const existing = state.factoryFloor.belts.some((b) => b.c === c && b.r === r);
   if (!existing && state.cash < BELT_COST) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
-  const next = floorPlaceBelt(state.factoryFloor, c, r, dir);
+  const next = floorPlaceBelt(state.factoryFloor, c, r, dir, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Can't lay a belt there." };
   return { state: { ...state, cash: existing ? state.cash : sub(state.cash, BELT_COST), factoryFloor: next }, ok: true };
+}
+
+/** The price of the NEXT floor expansion (escalating), or null if maxed out. */
+const EXPANSION_COSTS = [50_000, 150_000, 400_000];
+export function nextExpansionCost(expansion: number): Money | null {
+  if (expansion >= MAX_EXPANSION) return null;
+  return dollars(EXPANSION_COSTS[expansion] ?? EXPANSION_COSTS[EXPANSION_COSTS.length - 1]) as Money;
+}
+
+/** Buy the next floor expansion — widens the buildable grid by one bay (cash-gated, capped). */
+export function buyFloorExpansion(state: GameState): ActionResult {
+  const cost = nextExpansionCost(state.factoryExpansion);
+  if (cost == null) return { state, ok: false, reason: "The floor is already at maximum size." };
+  if (state.cash < cost) return { state, ok: false, reason: `Need ${format(cost)} to expand the floor.` };
+  return { state: { ...state, cash: sub(state.cash, cost), factoryExpansion: state.factoryExpansion + 1 }, ok: true };
 }
 
 /** Buy + place a decorative prop on an empty floor cell (cash-gated, overlap-checked). */
 export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: number): ActionResult {
   const def = PROP_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
-  const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryProps.length}`);
+  const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryProps.length}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
   return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next }, ok: true };
 }

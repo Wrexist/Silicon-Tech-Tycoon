@@ -53,28 +53,37 @@ export function machineCenter(m: PlacedMachine): [number, number] {
   return [x0 + (def.w - 1) / 2, z0 + (def.d - 1) / 2];
 }
 
-export function canPlaceMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: number): boolean {
+// Floor expansion: the buildable grid grows EAST (extra columns) as the player buys expansions,
+// while the coordinate origin stays fixed so an existing layout never shifts. `floorWidth` gives
+// the current column count; the bound-checks take it so the extra bays become placeable.
+export const EXPAND_STEP = 4;
+export const MAX_EXPANSION = 3;
+export function floorWidth(expansion: number): number {
+  return FLOOR.w + Math.max(0, Math.min(MAX_EXPANSION, expansion)) * EXPAND_STEP;
+}
+
+export function canPlaceMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: number, maxW: number = FLOOR.w): boolean {
   const def = MACHINE_DEFS[kind];
-  if (c < 0 || r < 0 || c + def.w > FLOOR.w || r + def.d > FLOOR.h) return false;
+  if (c < 0 || r < 0 || c + def.w > maxW || r + def.d > FLOOR.h) return false;
   const want = new Set(machineCells({ kind, c, r }));
   for (const m of floor.machines) for (const cell of machineCells(m)) if (want.has(cell)) return false;
   for (const b of floor.belts) if (want.has(`${b.c},${b.r}`)) return false;
   return true;
 }
 
-export function canPlaceBelt(floor: FactoryFloor, c: number, r: number): boolean {
-  if (c < 0 || r < 0 || c >= FLOOR.w || r >= FLOOR.h) return false;
+export function canPlaceBelt(floor: FactoryFloor, c: number, r: number, maxW: number = FLOOR.w): boolean {
+  if (c < 0 || r < 0 || c >= maxW || r >= FLOOR.h) return false;
   for (const m of floor.machines) if (machineCells(m).includes(`${c},${r}`)) return false;
   return true; // an existing belt at the cell is replaced (re-aim), not blocked
 }
 
-export function placeMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: number, id: string): FactoryFloor | null {
-  if (!canPlaceMachine(floor, kind, c, r)) return null;
+export function placeMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: number, id: string, maxW: number = FLOOR.w): FactoryFloor | null {
+  if (!canPlaceMachine(floor, kind, c, r, maxW)) return null;
   return { ...floor, machines: [...floor.machines, { id, kind, c, r }] };
 }
 
-export function placeBelt(floor: FactoryFloor, c: number, r: number, dir: BeltDir): FactoryFloor | null {
-  if (!canPlaceBelt(floor, c, r)) return null;
+export function placeBelt(floor: FactoryFloor, c: number, r: number, dir: BeltDir, maxW: number = FLOOR.w): FactoryFloor | null {
+  if (!canPlaceBelt(floor, c, r, maxW)) return null;
   return { ...floor, belts: [...floor.belts.filter((b) => b.c !== c || b.r !== r), { c, r, dir }] };
 }
 
