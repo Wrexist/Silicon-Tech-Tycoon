@@ -32,6 +32,18 @@ import {
   negotiateContract,
   cutProductPrice,
   marketingPush,
+  rushBuild,
+  buyFloorMachine,
+  buyFloorBelt,
+  paintBeltRun,
+  buyFactoryProp,
+  buyFloorExpansion,
+  upgradeFloorMachine,
+  autoConnectLine,
+  clearFloorCell,
+  saveFactoryLayout,
+  applyFactoryLayout,
+  deleteFactoryLayout,
   giveRaise,
   resolveChoice,
   resolvePoach,
@@ -66,6 +78,7 @@ import {
   setCompanyName,
   setSandbox,
   setFloorStyle,
+  setFactoryDecor,
   setLayout,
   setWallStyle,
   startBuild,
@@ -416,6 +429,7 @@ interface GameActionsValue {
   applyLayoutSnapshot: (snap: { layout: PlacedItem[]; cash: Money }) => void;
   setFloorStyle: (i: number) => void;
   setWallStyle: (i: number) => void;
+  setFactoryDecor: (patch: Partial<{ wall: number; floor: number }>) => void;
   // equity / stock market
   buyShares: (id: string, qty: number) => void;
   sellShares: (id: string, qty: number) => void;
@@ -424,6 +438,18 @@ interface GameActionsValue {
   sellOwnStake: (pct: number) => void;
   cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
   marketingPush: (productId: string) => { ok: boolean; reason?: string };
+  rushBuild: (productId: string) => { ok: boolean; reason?: string };
+  buyFloorMachine: (kind: import("../engine/factoryFloor.ts").MachineKind, c: number, r: number) => { ok: boolean; reason?: string };
+  buyFloorBelt: (c: number, r: number, dir: import("../engine/factoryFloor.ts").BeltDir) => { ok: boolean; reason?: string };
+  paintBeltRun: (cells: { c: number; r: number }[], dir: import("../engine/factoryFloor.ts").BeltDir) => { ok: boolean; reason?: string };
+  buyFactoryProp: (kind: import("../engine/factoryProps.ts").PropKind, c: number, r: number) => { ok: boolean; reason?: string };
+  buyFloorExpansion: () => { ok: boolean; reason?: string };
+  upgradeFloorMachine: (c: number, r: number) => { ok: boolean; reason?: string };
+  autoConnectLine: () => { ok: boolean; reason?: string };
+  clearFloorCell: (c: number, r: number) => void;
+  saveFactoryLayout: (name: string) => { ok: boolean; reason?: string };
+  applyFactoryLayout: (id: string) => { ok: boolean; reason?: string };
+  deleteFactoryLayout: (id: string) => void;
   giveRaise: (id: string) => void;
   resolveChoice: (optionId: string) => void;
   resolvePoach: (accept: boolean) => void;
@@ -924,6 +950,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const applyLayoutSnapshotCb = useCallback((snap: { layout: PlacedItem[]; cash: Money }) => setState((s) => applyLayoutSnapshot(s, snap)), []);
   const setFloorStyleCb = useCallback((i: number) => setState((s) => setFloorStyle(s, i)), []);
   const setWallStyleCb = useCallback((i: number) => setState((s) => setWallStyle(s, i)), []);
+  const setFactoryDecorCb = useCallback((patch: Partial<{ wall: number; floor: number }>) => setState((s) => setFactoryDecor(s, patch)), []);
   const buySharesCb = useCallback((id: string, qty: number) => {
     const prev = stateRef.current;
     const next = withLiveAchievements(buyShares(prev, id, qty));
@@ -949,6 +976,95 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const marketingPushCb = useCallback((productId: string) => {
     const prev = stateRef.current;
     const result = marketingPush(prev, productId);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const buyFloorMachineCb = useCallback((kind: import("../engine/factoryFloor.ts").MachineKind, c: number, r: number) => {
+    const prev = stateRef.current;
+    const result = buyFloorMachine(prev, kind, c, r);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const buyFloorBeltCb = useCallback((c: number, r: number, dir: import("../engine/factoryFloor.ts").BeltDir) => {
+    const prev = stateRef.current;
+    const result = buyFloorBelt(prev, c, r, dir);
+    if (result.ok) setState(result.state); // belt cost is tiny; skip the spend float spam
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const paintBeltRunCb = useCallback((cells: { c: number; r: number }[], dir: import("../engine/factoryFloor.ts").BeltDir) => {
+    const prev = stateRef.current;
+    const result = paintBeltRun(prev, cells, dir);
+    if (result.ok) setState(result.state);
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const buyFactoryPropCb = useCallback((kind: import("../engine/factoryProps.ts").PropKind, c: number, r: number) => {
+    const prev = stateRef.current;
+    const result = buyFactoryProp(prev, kind, c, r);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const buyFloorExpansionCb = useCallback(() => {
+    const prev = stateRef.current;
+    const result = buyFloorExpansion(prev);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const clearFloorCellCb = useCallback((c: number, r: number) => setState((st) => clearFloorCell(st, c, r)), []);
+  const upgradeFloorMachineCb = useCallback((c: number, r: number) => {
+    const prev = stateRef.current;
+    const result = upgradeFloorMachine(prev, c, r);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const autoConnectLineCb = useCallback(() => {
+    const prev = stateRef.current;
+    const result = autoConnectLine(prev);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const saveFactoryLayoutCb = useCallback((name: string) => {
+    const result = saveFactoryLayout(stateRef.current, name);
+    if (result.ok) setState(result.state);
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const applyFactoryLayoutCb = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const result = applyFactoryLayout(prev, id);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money; // negative when the retool nets a refund
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const deleteFactoryLayoutCb = useCallback((id: string) => setState((st) => deleteFactoryLayout(st, id)), []);
+  const rushBuildCb = useCallback((productId: string) => {
+    const prev = stateRef.current;
+    const result = rushBuild(prev, productId);
     if (result.ok) {
       const spent = (prev.cash - result.state.cash) as Money;
       if (spent > 0) emitSpend(spent);
@@ -1074,6 +1190,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       applyLayoutSnapshot: applyLayoutSnapshotCb,
       setFloorStyle: setFloorStyleCb,
       setWallStyle: setWallStyleCb,
+      setFactoryDecor: setFactoryDecorCb,
       buyShares: buySharesCb,
       sellShares: sellSharesCb,
       acquireRival: acquireRivalCb,
@@ -1081,6 +1198,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
       sellOwnStake: sellOwnStakeCb,
       cutProductPrice: cutProductPriceCb,
       marketingPush: marketingPushCb,
+      rushBuild: rushBuildCb,
+      buyFloorMachine: buyFloorMachineCb,
+      buyFloorBelt: buyFloorBeltCb,
+      paintBeltRun: paintBeltRunCb,
+      buyFactoryProp: buyFactoryPropCb,
+      buyFloorExpansion: buyFloorExpansionCb,
+      upgradeFloorMachine: upgradeFloorMachineCb,
+      autoConnectLine: autoConnectLineCb,
+      clearFloorCell: clearFloorCellCb,
+      saveFactoryLayout: saveFactoryLayoutCb,
+      applyFactoryLayout: applyFactoryLayoutCb,
+      deleteFactoryLayout: deleteFactoryLayoutCb,
       giveRaise: giveRaiseCb,
       resolvePoach: resolvePoachCb,
       takeLoan: takeLoanCb,
@@ -1089,7 +1218,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

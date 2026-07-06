@@ -100,9 +100,21 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { archetypeBonus, buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
+import {
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineSpeedMult,
+  machineUpgradeCostAt, upgradeMachineAt, placeBelt as floorPlaceBelt,
+  placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
+  type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
+} from "../engine/factoryFloor.ts";
+import {
+  PROP_DEFS, placeProp as propsPlace, removePropAt as propsRemoveAt, propRefund,
+  type PlacedProp, type PropKind,
+} from "../engine/factoryProps.ts";
+import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -204,6 +216,19 @@ export interface GameState {
   furnitureCounter: number;
   /** room theming — indices into FLOOR_FINISHES / WALL_STYLES */
   roomStyle: { floor: number; wall: number };
+  /** Player-built Factory Mode layout (machines + directed conveyor tiles). */
+  factoryFloor: FloorPlan;
+  /** Factory building decor — indices into the wall-paint / floor-finish palettes (customisable). */
+  factoryDecor: { wall: number; floor: number };
+  /** Decorative props placed on the factory floor (cosmetic; inert to the sim). */
+  factoryProps: PlacedProp[];
+  /** How many floor expansions the player has bought (0..MAX_EXPANSION) — widens the build grid. */
+  factoryExpansion: number;
+  /** Named factory-layout snapshots the player has saved, to switch between floor designs. */
+  factoryLayouts: FactoryLayout[];
+  /** Monotonic id source for saved layouts — never derived from array length (delete+re-save would
+   *  otherwise reuse an id and collide). */
+  factoryLayoutCounter: number;
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -224,8 +249,9 @@ export interface GameState {
   eventChain?: { id: string; step: number; nextWeek: number } | null;
   holdings: Holdings; // shares owned in rival companies, by id
   /** Best (lowest) industry-leaderboard rank ever reached (1 = biggest company in the industry).
-   *  Starts at 7 (a fresh garage is dead last behind the six rivals); each time the player climbs
-   *  to a new best, the tick celebrates overtaking the rival(s) they passed. Monotonic downward. */
+   *  Starts at RIVALS.length + 1 (a fresh garage is dead last behind every public rival); each time
+   *  the player climbs to a new best, the tick celebrates overtaking the rival(s) they passed.
+   *  Monotonic downward. */
   bestIndustryRank: number;
   // --- Achievements ---
   /** ids of celebratory milestones the player has earned (monotonic — only ever grows). */
@@ -448,6 +474,12 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     layout: defaultLayout(),
     furnitureCounter: 3, // starter layout uses f1 (desk) + f2 (plant)
     roomStyle: { floor: 0, wall: 0 },
+    factoryFloor: starterFloor(),
+    factoryDecor: { wall: 0, floor: 0 },
+    factoryProps: [],
+    factoryExpansion: 0,
+    factoryLayouts: [],
+    factoryLayoutCounter: 0,
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -462,7 +494,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     valuationHistory: [],
     eventChain: null,
     holdings: {},
-    bestIndustryRank: 7, // a fresh garage is dead last behind the six public rivals
+    bestIndustryRank: RIVALS.length + 1, // a fresh garage is dead last behind the public rivals
     unlockedAchievements: [],
     completedObjectives: [],
     pendingChoice: null,
@@ -831,8 +863,14 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // rides it) lands sooner. First playthrough only (legacy 0), first build only (nothing in flight).
   const firstEver = s.legacy === 0 && s.launched.length === 0 && s.building.length === 0 && s.ready.length === 0;
   if (firstEver) return BALANCE.build.minWeeks + lead;
-  // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1.
-  const speed = product ? factorySpeedMult(product) : 1;
+  // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1. The
+  // player-built floor layers on top: a complete, arm-rich line ships faster; a broken one is slower
+  // (starter = neutral ×1, so the baseline is unchanged).
+  // The player-built floor layers on top: arms + machine upgrades ship faster, a broken or
+  // recipe-incomplete line ships slower. Topology is product-aware — a phone wants a screen bonder,
+  // a laptop a mill; the starter has every kind so it stays neutral.
+  const reqKinds = product ? requiredKindsFor(product.category) : undefined;
+  const speed = (product ? factorySpeedMult(product) : 1) * lineSpeedMult(s.factoryFloor, reqKinds);
   const assembly = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * speed)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
@@ -2072,6 +2110,200 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 /** Mid-lifecycle price cut: reduces price on an active product, scaling up demand for remaining
  *  weeks proportionally to the improved priceFit. Limited to one cut per product — used when rivals
  *  enter your category and you want to defend market share at the cost of margin. */
+/** Factory Mode BOOST — rush the lead production run: pay an overtime premium (a fraction of
+ *  the run's production cost) and one week of work completes instantly. Repeatable while weeks
+ *  remain; each press pays again. Pure; the caller owns the spend FX. */
+/** Factory Mode Build: buy + place a machine on the floor grid (cash-gated, overlap-checked). */
+export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, r: number): ActionResult {
+  const def = MACHINE_DEFS[kind];
+  if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
+  const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryFloor.machines.length}`, floorWidth(state.factoryExpansion));
+  if (!next) return { state, ok: false, reason: "Doesn't fit there." };
+  return { state: { ...state, cash: sub(state.cash, def.cost), factoryFloor: next }, ok: true };
+}
+
+/** Buy + lay a conveyor tile. Re-aiming an existing tile is free; new tiles cost BELT_COST. */
+export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDir): ActionResult {
+  const existing = state.factoryFloor.belts.some((b) => b.c === c && b.r === r);
+  if (!existing && state.cash < BELT_COST) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
+  const next = floorPlaceBelt(state.factoryFloor, c, r, dir, floorWidth(state.factoryExpansion));
+  if (!next) return { state, ok: false, reason: "Can't lay a belt there." };
+  return { state: { ...state, cash: existing ? state.cash : sub(state.cash, BELT_COST), factoryFloor: next }, ok: true };
+}
+
+/** Lay a whole DRAG RUN of conveyor at once — each tile auto-aimed toward the next cell (the last
+ *  continues straight; a single tile uses `fallbackDir`). New tiles cost BELT_COST, re-aiming an
+ *  existing tile is free, and cells over a machine / off-grid are skipped. Places greedily and stops
+ *  when the budget runs out, so a long drag paints as much as the player can afford. */
+export function paintBeltRun(state: GameState, cells: { c: number; r: number }[], fallbackDir: BeltDir): ActionResult {
+  if (cells.length === 0) return { state, ok: false, reason: "Nothing to lay." };
+  const maxW = floorWidth(state.factoryExpansion);
+  const dirBetween = (a: { c: number; r: number }, b: { c: number; r: number }): BeltDir =>
+    b.c > a.c ? "e" : b.c < a.c ? "w" : b.r > a.r ? "s" : "n";
+  let floor = state.factoryFloor;
+  let cash = state.cash;
+  let placed = 0;
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    const dir: BeltDir = cells[i + 1] ? dirBetween(cell, cells[i + 1]) : i > 0 ? dirBetween(cells[i - 1], cell) : fallbackDir;
+    const existing = floor.belts.some((b) => b.c === cell.c && b.r === cell.r);
+    if (!existing && cash < BELT_COST) break; // out of budget for new tiles
+    const next = floorPlaceBelt(floor, cell.c, cell.r, dir, maxW);
+    if (!next) continue; // off-grid or on a machine → skip this cell
+    if (!existing) cash = sub(cash, BELT_COST);
+    floor = next;
+    placed++;
+  }
+  if (placed === 0) return { state, ok: false, reason: "Can't lay a belt there." };
+  return { state: { ...state, factoryFloor: floor, cash }, ok: true };
+}
+
+/** The price of the NEXT floor expansion (escalating), or null if maxed out. */
+const EXPANSION_COSTS = [50_000, 150_000, 400_000];
+export function nextExpansionCost(expansion: number): Money | null {
+  if (expansion >= MAX_EXPANSION) return null;
+  return dollars(EXPANSION_COSTS[expansion] ?? EXPANSION_COSTS[EXPANSION_COSTS.length - 1]) as Money;
+}
+
+/** Buy the next floor expansion — widens the buildable grid by one bay (cash-gated, capped). */
+export function buyFloorExpansion(state: GameState): ActionResult {
+  const cost = nextExpansionCost(state.factoryExpansion);
+  if (cost == null) return { state, ok: false, reason: "The floor is already at maximum size." };
+  if (state.cash < cost) return { state, ok: false, reason: `Need ${format(cost)} to expand the floor.` };
+  return { state: { ...state, cash: sub(state.cash, cost), factoryExpansion: state.factoryExpansion + 1 }, ok: true };
+}
+
+/** Buy + place a decorative prop on an empty floor cell (cash-gated, overlap-checked). */
+export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: number): ActionResult {
+  const def = PROP_DEFS[kind];
+  if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
+  const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryProps.length}`, floorWidth(state.factoryExpansion));
+  if (!next) return { state, ok: false, reason: "Doesn't fit there." };
+  return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next }, ok: true };
+}
+
+/** One-tap belt routing — lay a fresh Intake→Packer chain around the machines, charging the net of
+ *  new tiles (full price) minus removed tiles (half refund), exactly like doing it by hand. */
+export function autoConnectLine(state: GameState): ActionResult {
+  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion));
+  if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer with a clear path between them first." };
+  const oldCells = new Set(state.factoryFloor.belts.map((b) => `${b.c},${b.r}`));
+  const newCells = new Set(routed.belts.map((b) => `${b.c},${b.r}`));
+  let cost = 0;
+  for (const k of newCells) if (!oldCells.has(k)) cost += BELT_COST;
+  for (const k of oldCells) if (!newCells.has(k)) cost -= Math.round(BELT_COST / 2);
+  if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cents(cost))} to route the belts.` };
+  return { state: { ...state, factoryFloor: routed, cash: add(state.cash, cents(-cost)) }, ok: true };
+}
+
+/** Tune up the machine at (c,r) one level (cash-gated, capped at MACHINE_MAX_LEVEL). Upgrades shave
+ *  build time via lineSpeedMult and raise the machine's demolition value. */
+export function upgradeFloorMachine(state: GameState, c: number, r: number): ActionResult {
+  const cost = machineUpgradeCostAt(state.factoryFloor, c, r);
+  if (cost == null) return { state, ok: false, reason: "Nothing to upgrade here (or it's already maxed)." };
+  if (state.cash < cost) return { state, ok: false, reason: `Need ${format(cost)} to upgrade that machine.` };
+  const next = upgradeMachineAt(state.factoryFloor, c, r);
+  if (!next) return { state, ok: false, reason: "That machine is already at its top tier." };
+  return { state: { ...state, cash: sub(state.cash, cost), factoryFloor: next }, ok: true };
+}
+
+/** Clear whatever occupies the cell — a prop first, else a machine/belt; demolition pays back half. */
+export function clearFloorCell(state: GameState, c: number, r: number): GameState {
+  const propBack = propRefund(state.factoryProps, c, r);
+  if (propBack > 0) {
+    return { ...state, factoryProps: propsRemoveAt(state.factoryProps, c, r), cash: add(state.cash, propBack) };
+  }
+  const refund = demolitionRefund(state.factoryFloor, c, r);
+  const next = floorRemoveAt(state.factoryFloor, c, r);
+  if (next === state.factoryFloor) return state;
+  return { ...state, factoryFloor: next, cash: add(state.cash, refund) };
+}
+
+/* ---- Saved factory layouts: snapshot a floor design under a name, switch between them ---- */
+
+/** Sum the cost of buying floor expansions from `from` up to `to` (permanent; never refundable).
+ *  Both ends are clamped to the valid [0, MAX_EXPANSION] range so a corrupt/tampered save can't
+ *  drive an unbounded loop. */
+function expansionDeltaCost(from: number, to: number): Money {
+  const lo = Math.max(0, Math.min(MAX_EXPANSION, Math.floor(from)));
+  const hi = Math.max(lo, Math.min(MAX_EXPANSION, Math.floor(to)));
+  let sum = 0;
+  for (let i = lo; i < hi; i++) sum += EXPANSION_COSTS[i] ?? EXPANSION_COSTS[EXPANSION_COSTS.length - 1];
+  return dollars(sum) as Money;
+}
+
+/** Total net cost (cents; negative = a net refund) to apply a saved layout over the current floor:
+ *  the fair machine/belt/prop diff plus any extra permanent expansions the layout needs. Pure. */
+export function factoryLayoutCost(state: GameState, layout: FactoryLayout): Money {
+  const appliedExp = Math.max(state.factoryExpansion, layout.expansion);
+  const diff = layoutApplyCost(state.factoryFloor, state.factoryProps, layout.floor, layout.props);
+  return add(diff, expansionDeltaCost(state.factoryExpansion, appliedExp));
+}
+
+/** Snapshot the current floor (machines, belts, props, decor, expansion) as a named layout. Free;
+ *  capped at MAX_LAYOUTS. The name is trimmed/bounded, falling back to "Layout N". */
+export function saveFactoryLayout(state: GameState, name: string): ActionResult {
+  const layouts = state.factoryLayouts ?? [];
+  if (layouts.length >= MAX_LAYOUTS) return { state, ok: false, reason: `You can keep up to ${MAX_LAYOUTS} layouts. Delete one first.` };
+  const clean = name.trim().slice(0, 24) || `Layout ${layouts.length + 1}`;
+  const layout: FactoryLayout = {
+    id: `layout-${state.factoryLayoutCounter}`, // monotonic — safe across delete + re-save in one week
+    name: clean,
+    floor: { machines: state.factoryFloor.machines.map((m) => ({ ...m })), belts: state.factoryFloor.belts.map((b) => ({ ...b })) },
+    props: state.factoryProps.map((p) => ({ ...p })),
+    expansion: state.factoryExpansion,
+    decor: { ...state.factoryDecor },
+    savedWeek: state.week,
+  };
+  return { state: { ...state, factoryLayouts: [...layouts, layout], factoryLayoutCounter: state.factoryLayoutCounter + 1 }, ok: true };
+}
+
+/** Delete a saved layout by id. */
+export function deleteFactoryLayout(state: GameState, id: string): GameState {
+  const layouts = state.factoryLayouts ?? [];
+  const next = layouts.filter((l) => l.id !== id);
+  return next.length === layouts.length ? state : { ...state, factoryLayouts: next };
+}
+
+/** Retool the floor to a saved layout, charging (or refunding) the fair diff + any new expansions. */
+export function applyFactoryLayout(state: GameState, id: string): ActionResult {
+  const layout = (state.factoryLayouts ?? []).find((l) => l.id === id);
+  if (!layout) return { state, ok: false, reason: "That layout is no longer available." };
+  const cost = factoryLayoutCost(state, layout);
+  if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cost)} to retool the floor to “${layout.name}”.` };
+  return {
+    state: {
+      ...state,
+      cash: add(state.cash, cents(-cost)), // cost>0 subtracts, cost<0 refunds
+      factoryFloor: { machines: layout.floor.machines.map((m) => ({ ...m })), belts: layout.floor.belts.map((b) => ({ ...b })) },
+      factoryProps: layout.props.map((p) => ({ ...p })),
+      factoryExpansion: Math.max(state.factoryExpansion, layout.expansion),
+      factoryDecor: { ...layout.decor },
+    },
+    ok: true,
+  };
+}
+
+export function rushBuild(state: GameState, productId: string): ActionResult {
+  const job = state.building.find((b) => b.product.id === productId);
+  if (!job) return { state, ok: false, reason: "No such build in production." };
+  const weeksLeft = job.totalWeeks - job.weeksElapsed;
+  if (weeksLeft <= 0) return { state, ok: false, reason: "This run is already finishing." };
+  const units = job.plannedUnits ?? BALANCE.build.minRun;
+  const cost = Math.round(effectiveUnitCost(state, job.product) * units * BALANCE.build.rushCostPct) as Money;
+  if (state.cash < cost) return { state, ok: false, reason: "Not enough cash to rush the line." };
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Rushed the ${job.product.name} line, one week saved.`, "neutral")]);
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, cost),
+      building: state.building.map((b) => (b === job ? { ...b, weeksElapsed: b.weeksElapsed + 1 } : b)),
+      feed,
+    },
+    ok: true,
+  };
+}
+
 export function cutProductPrice(state: GameState, productId: string, newPrice: Money): ActionResult {
   const lp = state.launched.find((l) => l.product.id === productId);
   if (!lp) return { state, ok: false, reason: "Product not found." };
@@ -2428,6 +2660,10 @@ export function setFloorStyle(state: GameState, i: number): GameState {
 }
 export function setWallStyle(state: GameState, i: number): GameState {
   return { ...state, roomStyle: { ...state.roomStyle, wall: i } };
+}
+/** Repaint the factory building (wall paint + floor finish palette indices). */
+export function setFactoryDecor(state: GameState, patch: Partial<{ wall: number; floor: number }>): GameState {
+  return { ...state, factoryDecor: { ...state.factoryDecor, ...patch } };
 }
 
 /** Rename the company (used on the marketing TV + HQ). Falls back to "Silicon" if blank. */

@@ -1,6 +1,7 @@
 // localStorage persistence with schema versioning + migration. The save is the
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
+import { starterFloor, MAX_EXPANSION } from "../engine/factoryFloor.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
@@ -401,6 +402,25 @@ function migrate(state: GameState): GameState | null {
   if (!s.roomStyle || typeof s.roomStyle !== "object" || typeof s.roomStyle.floor !== "number" || typeof s.roomStyle.wall !== "number") {
     s.roomStyle = { floor: s.roomStyle?.floor ?? 0, wall: s.roomStyle?.wall ?? 0 };
   }
+  // Factory Mode floor (F2) — old saves get the authored starter line.
+  if (!s.factoryFloor || !Array.isArray(s.factoryFloor.machines) || !Array.isArray(s.factoryFloor.belts)) {
+    s.factoryFloor = starterFloor();
+  }
+  if (!s.factoryDecor || typeof s.factoryDecor !== "object" || typeof s.factoryDecor.wall !== "number" || typeof s.factoryDecor.floor !== "number") {
+    s.factoryDecor = { wall: s.factoryDecor?.wall ?? 0, floor: s.factoryDecor?.floor ?? 0 };
+  }
+  if (!Array.isArray(s.factoryProps)) s.factoryProps = [];
+  if (typeof s.factoryExpansion !== "number" || !Number.isFinite(s.factoryExpansion)) s.factoryExpansion = 0;
+  s.factoryExpansion = Math.max(0, Math.min(MAX_EXPANSION, Math.floor(s.factoryExpansion))); // clamp tampered/legacy values
+  if (!Array.isArray(s.factoryLayouts)) s.factoryLayouts = [];
+  // Monotonic id source — start past the largest existing "layout-N" so a re-save never collides.
+  if (typeof s.factoryLayoutCounter !== "number" || !Number.isFinite(s.factoryLayoutCounter)) {
+    s.factoryLayoutCounter = s.factoryLayouts.reduce((m: number, l: { id?: string }) => {
+      const n = parseInt(String(l.id ?? "").replace(/\D/g, ""), 10);
+      return Number.isFinite(n) ? Math.max(m, n + 1) : m;
+    }, s.factoryLayouts.length);
+  }
+  if (typeof s.bankrupt !== "boolean") s.bankrupt = false;
   if (typeof s.furnitureCounter !== "number") {
     s.furnitureCounter = s.layout.reduce((m: number, it: { iid?: string }) => {
       const n = parseInt(String(it.iid ?? "").replace(/\D/g, ""), 10);

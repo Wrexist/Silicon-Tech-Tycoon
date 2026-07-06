@@ -157,9 +157,12 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .onboard__scenario-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  margin-top: var(--sp-12);
+  min-height: 44px;
+  margin-top: var(--sp-8);
   padding: var(--sp-8);
   background: none;
   border: none;
@@ -169,7 +172,7 @@
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: var(--hairline);
+  text-decoration-color: var(--ink-3);
 }
 .onboard__scenario-link:hover { color: var(--accent); }
 /* Premium first impression: onboarding content reveals in a gentle stagger (logo → title → steps
@@ -184,6 +187,7 @@
 .onboard__inner > *:nth-child(5) { animation-delay: 360ms; }
 .onboard__inner > *:nth-child(6) { animation-delay: 420ms; }
 .onboard__inner > *:nth-child(7) { animation-delay: 480ms; }
+.onboard__inner > *:nth-child(8) { animation-delay: 540ms; }
 @keyframes onboard-rise {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: none; }
@@ -712,3 +716,19 @@
   font-size: var(--fs-title);
   font-weight: 700;
 }
+
+/* World tabs beside the company name on the Office screen (Office | Factory). App-level chrome —
+   these were orphaned when factoryWorld.css (their first home) was superseded; they live here now. */
+.app__titlerow { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
+.app__titlerow .app__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.worldtabs { display: inline-flex; gap: var(--sp-4); flex: none; }
+.worldtabs__tab {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  min-height: 44px; padding: 0 var(--sp-14);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);
+  cursor: pointer;
+}
+.worldtabs__tab--on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }

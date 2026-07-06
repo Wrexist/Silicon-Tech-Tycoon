@@ -11,6 +11,7 @@ import { toDollars } from "./money.ts";
 import { completableProjectCount } from "./research.ts";
 import { maxEra } from "./eras.ts";
 import { OS_FEATURES, installedBase } from "./platform.ts";
+import { MAX_EXPANSION } from "./factoryFloor.ts";
 
 /** A Lucide icon NAME (resolved to a component in the UI layer — engine stays DOM-free). */
 export type AchievementIconName =
@@ -68,6 +69,13 @@ export interface AchievementFacts {
   osComplete: boolean; // every OS feature module built — a complete platform
   osInstalledBase: number; // devices running your OS (0 unless the division is unlocked)
   osLicenseeCount: number; // rivals currently licensing your OS
+  // --- Factory floor facts (all keyed ABOVE the starter defaults so they never auto-unlock at
+  //     new-game: the starter is a complete 7-machine line with no props and no expansions). ---
+  factoryExpanded: boolean; // bought at least one floor expansion
+  factoryMaxExpanded: boolean; // expanded the floor to its largest footprint
+  factoryProps: number; // decorative props placed on the factory floor
+  factoryMachineCount: number; // machines placed on the line
+  factoryArms: number; // assembly arms on the line (2+ parallelises the build)
   // --- Mastery (cross-run profile) facts. Supplied by the state layer via MasteryInput; default to
   //     0/false in a pure run so these never false-unlock without real profile data. ---
   scenarioThreeStarRun: boolean; // the CURRENT run has 3-starred its scenario
@@ -140,6 +148,10 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
 
   const categoriesShipped = new Set(launched.map((lp) => lp.product.category)).size;
 
+  // Factory floor — tolerate malformed/legacy saves (fields may be absent before the backfill runs).
+  const floorMachines = state.factoryFloor?.machines ?? [];
+  const factoryExpansion = state.factoryExpansion ?? 0;
+
   return {
     productsShipped: launched.length,
     hits,
@@ -169,6 +181,11 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
     osComplete: osBuiltCount >= OS_FEATURES.length,
     osInstalledBase: state.platformUnlocked ? installedBase(state.launched) : 0,
     osLicenseeCount: state.osLicensees.length,
+    factoryExpanded: factoryExpansion >= 1,
+    factoryMaxExpanded: factoryExpansion >= MAX_EXPANSION,
+    factoryProps: (state.factoryProps ?? []).length,
+    factoryMachineCount: floorMachines.length,
+    factoryArms: floorMachines.filter((m) => m.kind === "arm").length,
     // Use the RUN-LOCKED high-water stars (monotonic, the value recorded to the profile), not a
     // live recompute — so a 3★ run still counts after the earn window closes or metrics later dip.
     scenarioThreeStarRun: (state.scenarioRunStars ?? 0) >= 3,
@@ -623,6 +640,47 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Zap",
     hint: "Keep coming back for the Challenge.",
     predicate: (f) => f.challengesCompletedTotal >= 10,
+  },
+  // --- Factory floor (the line you build by hand; keyed above the starter so they're earned) ---
+  {
+    id: "factory-parallel",
+    title: "Second Shift",
+    description: "Added a second assembly arm, the line now builds in parallel.",
+    icon: "Zap",
+    hint: "Place another assembly arm on the factory line.",
+    predicate: (f) => f.factoryArms >= 2,
+  },
+  {
+    id: "factory-expand",
+    title: "Breaking Ground",
+    description: "Expanded the factory floor for the first time, room to grow.",
+    icon: "Building2",
+    hint: "Buy a floor expansion in Factory mode.",
+    predicate: (f) => f.factoryExpanded,
+  },
+  {
+    id: "factory-decor",
+    title: "Shop Floor Style",
+    description: "Dressed the factory with your own decor, a place with character.",
+    icon: "Sparkles",
+    hint: "Place several decorative props on the factory floor.",
+    predicate: (f) => f.factoryProps >= 5,
+  },
+  {
+    id: "factory-big-line",
+    title: "Production Powerhouse",
+    description: "A sprawling line of a dozen machines, humming end to end.",
+    icon: "Layers",
+    hint: "Grow your factory line well beyond its starting machines.",
+    predicate: (f) => f.factoryMachineCount >= 12,
+  },
+  {
+    id: "factory-max",
+    title: "Megafactory",
+    description: "Expanded the floor to its largest footprint. Industrial scale.",
+    icon: "Factory",
+    hint: "Keep expanding the factory floor to the limit.",
+    predicate: (f) => f.factoryMaxExpanded,
   },
 ];
 

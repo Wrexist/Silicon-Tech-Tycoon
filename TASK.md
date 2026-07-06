@@ -1656,3 +1656,513 @@ mechanically per the v51 precedent). Branch `claude/game-design-ux-review-22ojj9
       ambiguous value exports needing per-call-site reads (`dollars` ×2, `demandScore`, `staff.output`,
       `MODEL_ASSETS`, `gameState.counts`, `designerSkill`, `applyTheme`) — knip flags them, but the
       names collide with common words/test usage, so each needs an eyes-on check before acting.
+
+## v71 — Factory World P1: the living 2.5D manufacturing floor (DONE 2026-07-04)
+User ask: a second 2.5D world beside the company name showing the factory — conveyor belts,
+immersive, fullscreen-able — growing into a factory-tycoon layer. Full phased plan in
+`FACTORY_WORLD_PLAN.md` (P1 visualization → P2 detail/aliveness → P3 interactivity → P4
+engine-touching tycoon depth, each P4 slice harness-measured). P1 shipped this pass:
+- [x] **`components/FactoryWorld.tsx` + `factoryWorld.css`**: parametric SVG factory floor
+      (zero assets) — wall/windows/trusses, pendant lights (dim when idle), factory signage,
+      steam vent, LED control panel, an elevated conveyor with plumb legs + animated tread,
+      three stations (robotic arm w/ two-joint articulation, press stamper w/ spark, QA scan
+      arch w/ sweeping beam; the "hot" station follows real build progress), crates traveling
+      the belt, pallet stacks sized by the ready shelf, a SHIP truck that idles while products
+      sell, amber OVERTIME mood (faster belt/crates, warning LEDs) when the run exceeds the
+      line's weekly capacity. Idle state stops everything + quiet hint. All animation gated on
+      sim state and disabled under reduced motion.
+- [x] **World tabs** beside the company name on the Office screen (Office | Factory,
+      aria-pressed, haptic). The 3D office stays MOUNTED (hidden, active=false) during the
+      swap so its WebGL context survives — same rule as cross-tab.
+- [x] **Fullscreen immersion**: body-portal overlay (dodges the screen-enter transform that
+      would break position:fixed), close ✕ 44px top-right safe-area aware, Escape closes.
+- [x] **Status chips**: factory name + contract/owned, runs in production w/ lead product +
+      week, capacity utilisation (overtime flagged), ready-to-ship count.
+- [x] **Verified in a real browser** (vite + playwright-core/chromium): idle scene renders,
+      world tabs swap, fullscreen opens/closes, zero console errors; screenshots reviewed
+      (first pass leaned the legs/stations with the belt tilt — counter-rotated to plumb).
+- [x] **Review pass (same session)**: drove the RUNNING + OVERTIME state live (staged save +
+      injected mid-progress build on a capacity-limited line, dark theme) — amber mood, 4 crates,
+      real signage/chips, zero console errors. Fixed 6 findings: fullscreen backdrop inverted in
+      dark theme (ink-based mix → hand-rolled near-black scrim); crates piled at the belt start
+      during their stagger delay (fill-mode: both); fullscreen lacked the house dialog machinery
+      (useDialogFocus trap + body scroll lock added, focus-inside verified); long company names
+      could crowd the world tabs (title ellipsis); dead lamp animationDelay removed; idle hint
+      collided with the chips row (moved to the wall band, em dash scrubbed per house style).
+- NOT verified on-device: animation FEEL/timing (belt/arm/press cadence) wants real eyes.
+
+## v72 — Factory World P2: every step visible + buyable robotics (DONE 2026-07-04)
+User ask (with the In-production card as the design reference): show every manufacturing step
+in the factory with that card's language, add purchasable robots that make the factory faster,
+more 2.5D furniture. All presentational over EXISTING mechanics — zero engine change.
+- [x] **Stage strip on the floor**: BuildProgress's STAGES/stageFor are now exported (single
+      source of truth) and the factory shows all 5 steps as icon dots with the active stage
+      carried in the card's exact language (icon in a soft circle + label + sub + "N wk left ·
+      M units"). Stations now work their REAL stage: press=Tooling, arm=Assembly, arch=QA,
+      and Packaging pulses the dock (the old progress-threshold mapping had the order wrong).
+- [x] **Robotics = the Assembly upgrade line made physical + buyable in-world**: AGV robots
+      (body/beacon/wheels, floor patrol loop, beacon goes amber on overtime) appear one per
+      Assembly tier (cap 3); a chip-button buys the next tier from the floor via the existing
+      buyUpgrade("assembly") (which already cuts build weeks/cost) with the upgrade fanfare;
+      research-locked tiers name the blocking project (Lock chip); maxed hides the control.
+- [x] **More parametric furniture**: shelving rack w/ stocked boxes, barrel pair, forklift.
+- [x] **Layout fix caught on screenshot review**: overlays were burying the compact scene —
+      chips now flow BELOW the art in card mode and only overlay in fullscreen.
+- [x] **Verified live** (vite + chromium, staged save w/ mid-Assembly overtime build, tier 2):
+      strip reads "Assembly · 2 wk left · 20,000 units", 2 robots patrol, tapping the buy chip
+      REALLY purchases tier 3 (third robot appeared), zero console errors. 710 tests, tsc 0,
+      build+PWA green.
+- NOT verified on-device: AGV patrol path/speed feel; stage-strip width on the smallest phones.
+
+## v73 — Factory Mode F1: the top-down tile factory (DONE 2026-07-04)
+FACTORY_MODE_PLAN.md F1 shipped: the reference guide's layout, wired to the real sim.
+- [x] **rushBuild** (state layer, +3 tests): the reference's paid time boost translated
+      honestly — pay rushCostPct (0.08 ⚠ playtest) of the run's production cost, one week of
+      the lead build completes instantly; cash-gated, refuses past completion, spend FX.
+- [x] **`components/FactoryMode.tsx` + css** (supersedes FactoryWorld side-view, deleted):
+      top-down SVG tile map (grass fringe, asphalt pad + grid, conveyor loop w/ animated
+      lanes + chevrons, top-view machines — assembler/arm/QA/charger — whose HOT machine
+      follows the real build stage, storage pallets = ready shelf, dock road + truck, AGVs
+      per Robotics tier, overtime mood). Fullscreen shell: top bar (era badge, cash + real
+      $/wk flow, RP chip in the gems slot, capacity meter w/ amber overtime), CURRENT ORDER
+      (device thumb/progress/stage/wk left) + FACTORY STATS (per-week truth) panels, right
+      rail (Build="soon", Upgrades sheet w/ Robotics buy + affordable-dot, Research deep-link,
+      Stats sheet), bottom strip (6-kind materials tray from committed parts, BOOST=rushBuild,
+      ready-truck badge, machine Shop sheet). Dialog focus trap + scroll lock + Escape.
+      Compact card in the Office tab = live minimap that opens the mode.
+- [x] **Verified live** (chromium, staged overtime build, dark): BOOST advanced the build a
+      real week (Assembly→QA on screen), close/reopen clean, zero console errors. Screenshot
+      review caught 2: backdrop ghosting (scrim 0.99) and slice-fill over-zooming portrait
+      (reverted to meet — F2's pan/zoom owns filling). 713 tests, tsc 0, build+PWA green.
+- NOT verified on-device: portrait dead-space feel below the map (F2 pan/zoom addresses);
+      panel widths on small phones; light-theme map contrast.
+
+## v74 — Factory Mode goes three.js (DONE 2026-07-04)
+User verdict on the flat SVG map: looks bad — use three.js. Correct call: the 3D office
+already proves the stack. `components/Factory3D.tsx` (r3f + drei, lazy chunk SHARING the
+office's three bundle — Factory3D itself is 8.8KB):
+- [x] Tycoon-tilt 3D floor: grass field, asphalt pad + grid, conveyor loop (RoundedBox belts
+      w/ emissive amber lanes), crates riding the loop via useFrame arc-length param, machine
+      rigs (assembler piston, two-joint robot arm, QA gate w/ sweeping beam plane) where the
+      HOT machine follows the real build stage (emissive + point light), crate stacks =
+      ready shelf w/ packing bounce, dock road + wheeled truck (bobs while selling), AGVs
+      per Robotics tier patrolling outside the loop, overtime = amber key light + 2× speeds.
+- [x] House perf discipline: lazy import (three stays chunked), dpr [1,1.75], context-lost →
+      SVG fallback; gated on garage3d setting + webglSupported + !reduced-motion (SVG map
+      kept as the fallback + the Office-tab minimap).
+- [x] **Portrait framing solved by rotating the WORLD 90°** (long axis into screen depth) +
+      fov 46 on portrait / 27 landscape (FitCamera) — a fixed camera simply cannot frame a
+      wide pad on a narrow phone (measured through 3 screenshot iterations).
+- [x] Verified live (chromium+ANGLE): canvas mounts, stage-hot machine correct (QA glowing
+      during the staged run's QA week), zero console errors; 4 screenshot iterations drove
+      the camera/lighting/lane fixes. 713 tests, tsc 0, build+PWA green.
+- NOT verified on-device: real-phone GPU feel, light-theme contrast (scene is dark-first by
+      design), and whether two canvases (office + factory mode) coexist happily on old iPhones
+      — the office canvas stays mounted while the mode is open; if memory bites, unmount the
+      office scene while fmode is up (one-line follow-up).
+
+## v75 — Factory 3D: a production line that makes sense (DONE 2026-07-04)
+User: "make the three.js make sense, add conveyor belts / robot arms / machines that look
+good and cool." Rebuilt the scene as ONE coherent S-shaped production line:
+- [x] **The story on the floor**: intake hopper (Sourcing, falling material puffs) → gantry
+      press straddling the belt (Tooling, dual-cylinder sharp-stamp ram + emissive status
+      strip) → TWO industrial robot arms (Assembly, turntable/shoulder/elbow/wrist/two-finger
+      gripper rigs, mirrored + phase-offset) → glass QA scan tunnel (Quality, translucent
+      housing + sweeping scan sheet) → packer (Packaging, folding plates) → crate stacks +
+      dock truck. The REAL build stage's machine glows + gets its point light.
+- [x] **The item visibly transforms as it travels**: raw metal slab → green logic board →
+      the dark device with an emissive screen → banded shipping crate, switched by arc
+      position along the path (4 items riding the line, 2× on overtime).
+- [x] **Belt quality**: beds + metal side rails + support legs + ~40 rollers along the whole
+      path; hazard-striped safety bases under every machine; AGVs now carry a crate and orbit
+      the line with heading; 6-wheel truck with windshield.
+- [x] Camera pull-back tuned via screenshot (portrait fov 50) so the WHOLE line frames on a
+      phone. Verified live (chromium+ANGLE): zero console errors, QA tunnel correctly hot
+      during the staged run's QA week. 713 tests, tsc 0, build+PWA green.
+- NOT verified on-device: GPU cost of ~130 meshes + 6 useFrame rigs on old iPhones (drop
+      roller count / shadow map first if it stutters); light-theme is intentionally dark.
+
+## v76 — Factory Mode F2: the floor is player-built (DONE 2026-07-04)
+Build mode ships: machines and conveyors are now DATA the player lays down, and the 3D
+scene + item flow render from it.
+- [x] **`engine/factoryFloor.ts`** (PURE, +7 tests): 16×10 grid, 5-machine catalog
+      (intake/press/arm/qa/packer w/ footprints + costs + stage mapping), directed belt
+      tiles, placement validation (bounds/overlap/no-belt-under-machine, re-aim replaces),
+      `beltPath` (chains directed tiles from the unfed start into the longest path + run-off),
+      `formMarks` (item transform points derived from where press/arm/qa actually sit along
+      the PLAYER's path), authored `starterFloor()` (the S-line, validated by test).
+- [x] **State**: `GameState.factoryFloor` (+newGame default, persistence backfill);
+      `buyFloorMachine` (cash-gated) / `buyFloorBelt` ($400/tile, re-aim free) /
+      `clearFloorCell` (demolition, no refund); useGame cbs w/ spend FX. Determinism pin +
+      all 206 state tests unaffected (the floor is inert to the tick). 720 tests total.
+- [x] **Factory3D is layout-driven**: belts render per-tile (bed/rails/roller), items ride
+      the CHAINED player path (generic polyline walker) and transform at the machine-derived
+      marks; machines render at their placed positions (multiple arms supported, phase-offset
+      by cell). Tap-to-build: a transparent raycast plane maps taps to grid cells IN THE
+      WORLD GROUP'S LOCAL SPACE (portrait rotation can't skew it).
+- [x] **Build UI**: the rail's Build button arms a toolbar (Belt+direction cycler, the 5
+      machines w/ costs, Erase, Done) replacing the bottom strip; invalid placements toast
+      the engine's reason.
+- [x] **Verified live end-to-end** (chromium+ANGLE): a tap-sweep BOUGHT AND PLACED 5 arms
+      (persisted 10 machines / starter 5), cash deducted, scene re-rendered them; occupied
+      cells correctly refused. Found + fixed: r3f raycast skips visible={false} — the tap
+      plane is transparent-visible instead.
+- Known gaps (logged): SVG fallback map still draws the hardcoded starter line (fallback
+      only); no pan/zoom yet; no sell-refund on demolition; ghost preview (tap commits
+      directly, engine validates). NOT verified on-device: tap precision on a real phone.
+
+## v77 — Factory Mode F3: the line must actually connect (DONE 2026-07-04)
+The factory-tycoon rule that makes layouts meaningful, plus F2's UX gaps.
+- [x] **`lineComplete(floor)`** (pure, +3 tests): the longest belt chain must START beside an
+      Intake Hopper and END beside a Packing Station; `beltChain` extracted from beltPath so
+      completeness reasons about tiles. Items only ride the belts while the line is complete;
+      breaking it mid-chain stops production visuals and raises an amber "Line stopped" panel
+      naming the fix ("connect the Intake to the Packing Station in Build").
+- [x] **Demolition refunds half** (`demolitionRefund`, engine + clearFloorCell wiring) — erase
+      is no longer a pure loss, so experimenting with layouts is safe.
+- [x] **Tap flash**: every build-mode tap pulses its CELL green (accepted) or red (refused) on
+      the pad — placement feedback you can aim by on a phone.
+- [x] **Verified live** (chromium): starter line = no warning; erasing a mid-chain tile via
+      tap → warning appears + items halt; zero console errors. 723 tests, tsc 0, build+PWA.
+- Still open for F3+: pan/zoom, machines requiring belt adjacency to animate, and the F4
+      engine slice (placed machines grant real capacity — needs the sim-harness pass).
+
+## v78 — Factory Mode polish pass: truthful minimap, foldable chrome, taught rules (DONE 2026-07-04)
+"Look through it, improve it, make it make sense, premium UX." Critical review found and fixed:
+- [x] **The stale hand-drawn SVG map is GONE** — the compact card and the no-WebGL fallback
+      showed a hardcoded line regardless of the player's layout (actively false after F2).
+      New `FloorMinimap`: a layout-driven SVG rendering the REAL floor — belts coloured by
+      chain membership (amber = live chain w/ gentle pulse while producing, red = broken,
+      gray = orphan tiles), machines tinted by kind. ~150 lines of dead map code + its whole
+      CSS block deleted.
+- [x] **Regression caught by screenshot review**: the Office|Factory world-tab styles were
+      orphaned when factoryWorld.css was superseded in F1 — the tabs had been rendering as
+      unstyled text since. Re-homed in App.css (their proper app-chrome home).
+- [x] **Panels fold** so the floor stays the star on portrait: Current Order and Factory
+      Stats get chevron headers (stats collapsed by default); aria-expanded, 28px+ targets.
+- [x] **Build mode teaches its rule**: a micro hint line in the toolbar ("Belts carry the
+      line from the Intake Hopper to the Packing Station… Erase refunds half"). **Escape now
+      exits Build first**, then closes the mode on the second press.
+- [x] Verified live: card minimap truthful, fold/hint/Escape-order all exercised, zero
+      console errors. 723 tests, tsc 0, build+PWA green.
+
+## v79 — Factory 3D: machines react to items + real product on the belt + arrow belts (DONE 2026-07-04)
+User: "Do machines move realistically? Put the produced product on the belt. Make belts arrows,
+smart corners, more detail." All three, one pass.
+- [x] **Machines now ACT ON the passing item** (was: free-clock motion decoupled from items).
+      Each machine reads `nearestItemDist` to the traveling items and drives its rig by proximity:
+      the gantry press SLAMS DOWN onto the slab beneath it, the robot arm turns TOWARD the nearest
+      item and reaches to the belt (slow home-sway when idle), the QA scan BRIGHTENS while a device
+      is inside the tunnel, the packer folds its plates shut as the device arrives, the intake puffs
+      only while producing. Smoothed engage refs; idle when the line is stopped.
+- [x] **The real product rides the belt** (pillar #2, "the product IS the toy"): the device form is
+      now `DeviceForm` — a parametric 3D model whose SILHOUETTE follows the product category (phone/
+      tablet/laptop-with-lid/wearable-with-straps/console/desktop/monitor/AR-glasses) and whose BODY
+      COLOUR + metalness come from the real finish swatch (`productLook` reads FINISH_SWATCHES). A gold
+      flagship literally rides as a gold device; the crate band tints to the product accent.
+- [x] **Belts are directional + smart-cornered**: bright emissive chevron **arrows** on every tile
+      show flow direction at a glance; a tile whose inflow direction differs from its own renders as
+      an **L-bend** (square bed that connects flush to both neighbours, rails on the two OUTER edges,
+      a turning enter→exit arrow) so corners auto-sync. Straight tiles gain cross-slats + end rollers.
+- [x] Verified live (chromium+ANGLE, gold phone staged): arrows flow + turn at corners, arm reaching,
+      QA glass lit, gold device on the belt, zero console errors. Factory3D chunk 8.8→21KB (still lazy,
+      shares the three bundle). 723 tests, tsc 0, build+PWA green.
+- NOT verified on-device: the reactive timing FEEL (press/arm sync to item) + GPU cost of the extra
+      chevron/slat meshes on old iPhones (drop chevrons to 1/tile or slats first if it stutters).
+
+## v80 — Factory Mode: declutter the HUD + integrate with production (DONE 2026-07-04)
+User: "clean navigation/UI/buttons, nothing noisy; integrate into the game well."
+- [x] **Removed the noisiest chrome**: the 6-chip raw-materials tray (moved to a quiet "parts
+      committed" row inside the Stats sheet), and the top-bar capacity meter that shouted "333%".
+      Capacity is now a calm slim bar + a word ("On schedule" / "Overtime") inside the order card.
+- [x] **One left card, not three**: dropped the separate collapsible Factory Stats panel (it
+      duplicated the rail's Stats sheet); the left is just Current Order (+ the warn card when
+      the line is broken). Bottom strip is now centred on BOOST with two quiet side buttons.
+- [x] **Integration**: the HQ "In production" card gets a quiet "Watch it on the line ›" link
+      that switches to the Factory world — so the factory is reachable from the core production
+      loop, not just the world toggle. (onViewFactory threaded App→HQ.)
+- [x] Verified live: materials tray + top capacity meter gone, floor unobstructed, zero console
+      errors. 723 tests, tsc 0, build+PWA green.
+
+## v81 — Factory Mode: final noise cut, one button system, calm Build palette (DONE 2026-07-05)
+Executed `FACTORY_POLISH_PROMPT.md` (Fable-5 handoff) as the polish pass. 3D scene untouched
+(signed off v79); only the 2D HUD/nav/buttons changed.
+- [x] **#1 Noise cut**: dropped the top-bar RP chip (RP isn't spent in this mode, so it was
+      dead weight next to cash/flow). Top bar is now era badge + cash/flow + close only.
+- [x] **#2 One button system**: introduced `--fmode-btn-bg` / `--fmode-btn-line` tokens on
+      `.fmode` and pointed every surface (close, rail `.fmode__tool`, side buttons) at them, so
+      all quiet buttons share one radius/fill/border. Active rail state calmed to a soft
+      accent-mix instead of a hand-rolled `rgba()`; the affordable-dot now whispers in accent.
+- [x] **#4 Build palette redesign**: replaced the text-chip toolbar (hint paragraph + belt/dir +
+      5 machine chips + erase + Done) with a compact scrollable icon palette — `.fmode__palette`
+      of `.fmode__ptile` tiles (icon + short name + cost): Belt (rotating ArrowUp shows
+      direction), Turn (RotateCw), Intake/Press/Arm/QA/Packer (Lucide glyphs), Erase (Eraser).
+      Selected tile highlights; a one-line rule ("Connect the Intake to the Packer. Erase
+      refunds half.") + a clear Done exit replace the paragraph.
+- [x] **#5 Gentle states**: the red "Line stopped" warn panel is now a calm "Line paused" card
+      (Wrench glyph, neutral surface) with a direct "Fix in Build" button that arms the belt tool
+      — guidance, not an alarm.
+- [x] Removed dead `.fmode__buildhint` / `.fmode__chip` CSS.
+- [x] Verified live over a running line (staged save, Chromium): RP chip gone, palette renders 8
+      clean tiles, zero console errors. 723 tests, tsc 0, build+PWA green.
+- Left for on-device tuning: rail label/badge micro-copy pass (#3), FactoryCard chip tidy (#6),
+      and a motion-timing audit (#7) — all cosmetic, none blocking.
+
+## v82 — Device-specific manufacturing lines + a "nice to follow" stage stepper (DONE 2026-07-05)
+User: "Add machines needed for specific devices — iPhone & iPad are the same machines but iPhone
+and laptop are completely different. Also add a progress visual that's nice to follow like [the
+In-production ring]."
+- [x] **`engine/assemblyLine.ts` (PURE, +6 tests)** — per-category build recipes. `FAMILY_OF` maps
+      each `CategoryId` to a `LineFamily`: phone+tablet share `slab`; laptop is `clamshell`;
+      desktop+console `tower`; monitor `display`; wearable `wearable`; experimental falls back to
+      slab. Each recipe is an ordered list of `LineStage`s (label/sub/icon-key + a `machineStage`
+      0..4 that maps the step to the physical floor machine that lights up, so a recipe can name
+      more sub-steps than there are machines without touching the 3D scene). A laptop's line
+      (Sourcing → Chassis milling → Board & hinge → Keyboard & deck → Burn-in QA → Pack) is
+      genuinely different from a phone's (Sourcing → Board press → Screen bond → QA → Pack).
+- [x] **`StageTrail` stepper (BuildProgress.tsx + buildProgress.css)** — the whole pipeline as a
+      row of icon nodes that fill left→right as the run progresses: done = quiet accent tint,
+      active = accent-filled + soft pulse, todo = outlined. Device-specific (laptop shows 6 nodes,
+      phone 5). Reduced-motion safe, `aria-label`/`aria-current`. Shown in the HQ "In production"
+      card (under the ring) and in Factory Mode's Current Order card (scoped to read on the dark
+      panel). Ring stage label + sub are now recipe-driven too.
+- [x] **Generalised the stage logic off the universal 5-STAGE list** — `BuildProgress` and
+      `FactoryMode` now call `stageForLine(category, frac)`; Factory3D's `stageIdx` comes from the
+      active step's `machineStage`, so the correct machine still lights for any recipe length.
+- [x] Verified live over two running runs (staged save, Chromium 430×900 dark): HQ card renders
+      laptop=6 / phone=5 node trails with correct device-specific stage names ("Board & hinge" vs
+      "Board press"); Factory Mode order card shows the same trail on the dark panel; 3D scene
+      untouched; zero app errors. 728 tests (+5), tsc 0, build+PWA green.
+- Note: literal per-category 3D machine *geometry* (a distinct chassis mill / keyboard station on
+      the floor) stays out of scope — that's the gated F4 on-floor pass. This slice makes the build
+      *process* device-specific and legible; the floor machines remain the shared 5.
+
+## v83 — Factory 3D realism: machines on the belt, calm motion, smooth conveyor (DONE 2026-07-05)
+User: machines should sit over/between the belts and move realistically; only animate when used;
+belts should look symmetrical, smooth and higher-quality.
+- [x] **Machines snap onto the belt** (`snapToBelt`): the press/QA/screen/mill straddle the line and
+      the product runs through them; the packer folds around it; the intake feeds the head; the arm
+      stands beside and reaches over. Each orients to the belt's heading.
+- [x] **Starter floor** redesigned as a clean horseshoe with machines placed in stage order.
+- [x] **Motion discipline**: a machine only animates while its own stage is the one being worked
+      (`active && hot`); removed ambient idle sway/sweep so unused machines are perfectly still.
+- [x] **Conveyor rebuilt**: one consistent bed (flush, symmetric joins), dark rubber surface framed
+      by metal rails, polished seam rollers, and small painted chevrons pointing along the flow
+      (replacing the chunky cones). Corners share the bed and curve the arrows.
+- [x] Widened the portrait camera so the whole line frames.
+
+## v84 — Per-device machines + the line ships from a dock pallet (DONE 2026-07-05)
+User: "add machines needed for each device — assembly arm, screen machine, test machine and more";
+"the conveyor must end at a pallet beside the truck".
+- [x] **New machine kinds** `mill` (CNC Mill) + `screen` (Screen Bonder) added to MACHINE_DEFS (7
+      kinds total: intake · mill · press · screen · arm · qa · packer), each with its own 3D rig —
+      the mill's spindle traverses/plunges/spins; the screen bonder lowers a glowing panel and cures.
+- [x] **Recipes route to machine kinds** (`LineStage.kind` replaces `machineStage`): a phone bonds a
+      screen, a laptop mills a chassis, a monitor laminates a panel, etc. A machine lights + animates
+      only when the current stage uses its kind — so for a phone the mill sits idle, for a laptop the
+      screen bonder sits idle. Starter floor now seeds all seven machines in build order.
+- [x] **The line ends at a dock**: a wooden pallet just past the belt tail (finished crates stack on
+      it with the ready count) with the delivery truck behind it, both aimed along the tail's flow —
+      so wherever the player routes the line, it ships from its end.
+- [x] Build palette + minimap gained mill/screen tiles + tints. Verified live (phone → screen bonder
+      glows; laptop → mill glows; others still). tsc 0, 729 tests, build+PWA green.
+
+## v85 — Factory touch camera + build affordability (DONE 2026-07-05)
+- [x] **Touch camera** (drei OrbitControls): one-finger drag orbits, pinch zooms; pan off, polar
+      clamped above the floor, distance 8–32. Build placement now fires on a TAP (down+up, little
+      movement) so drag-to-orbit never drops a machine. Recenter button in the top bar (CameraReset
+      watches a bumped signal) + a one-time auto-fading "drag to look around · pinch to zoom" hint.
+- [x] **Build palette**: tiles dim (warning-tinted price) when cash is short; machine tiles carry
+      their blurb as a tooltip.
+
+## v86 — Whole-game UX sweep (DONE 2026-07-05)
+Audit-driven cosmetic pass over onboarding, HQ, Design Lab, Market (no gameplay changes).
+- [x] **Touch targets → 44px**: Office/Factory world tabs, HQ Shop FAB + editor icon buttons,
+      Design Lab tab strip + segmented options, onboarding scenario link.
+- [x] **Token consistency**: hardcoded `#fff` → `var(--accent-ink)` on the world tab, HQ upgrade
+      glyph, Design Lab category/region checks, Market open-region icon.
+- [x] **Affordances/clarity**: Market valuation/share use Lucide TrendingUp/Down (not ▲/▼); #1
+      rank shows a Crown; region-unlock reads "Unlock · $X" with a Globe; live product rows get a
+      ChevronRight. Design Lab summary Market Fit shows the number (word moved to the label). HQ
+      "Ready to launch" accessory shows a count; the first-run GetStartedCard is hidden while the
+      Coach tutorial runs (was a duplicate checklist). Onboarding scenario link joins the stagger.
+
+## v87 — Deeper industry + a real factory building you can repaint (DONE 2026-07-05)
+- [x] **12 competitors** (was 6): added Zenith, Bytewave, Meridian, Corsa, Voltix, Nimbus with
+      distinct bios/doctrines/caps so a fresh company starts dead last at #13. `bestIndustryRank`
+      derives from `RIVALS.length`. Fixed the offline-catch-up test's rival freeze (it let the
+      "refill the field" branch respawn challengers) — pure test isolation, no gameplay change.
+- [x] **Factory building shell** (Factory3D): a poured-concrete floor with expansion joints and a
+      painted safety border, inside low perimeter walls (skirting + capping rail) with the dock
+      corner left open so the line ships to the truck. Machines rise above the walls; the camera
+      sees in.
+- [x] **Repaint / customise**: `factoryDecor { wall, floor }` state (+ setter, persistence backfill)
+      drives the wall paint and floor finish from palettes. A new "Style" rail button opens a sheet
+      of 6 wall + 5 floor swatches; picking one repaints the building live and saves. Escape now
+      peels back one layer (sheet → build tool → mode) instead of closing everything.
+- Left for a follow-up: placeable factory furniture/props (full decorate) and a floor-size expansion
+      — larger features; the repaint is the first customisation slice.
+
+## v88 — Factory decorate + floor expansion + richer office palette (A/B/C) (DONE 2026-07-05)
+- [x] **A — placeable factory props**: `engine/factoryProps.ts` (PURE, +4 tests) catalog of 8 props
+      (crates, barrels, pallet, planter, workbench, shelving, safety cone, hazard sign) with grid
+      placement (empty cells only, half refund). State `factoryProps` + buyFactoryProp; Erase removes
+      props. Factory3D renders each with parametric geometry. Build mode gained a Machines | Decor
+      toggle; the Decor palette places props.
+- [x] **B — buildable floor expansion**: `floorWidth(expansion)` widens the grid east (4 cols/bay,
+      max 3 bays) with the origin fixed so existing layouts don't move; bound-checks take the width.
+      State `factoryExpansion` + buyFloorExpansion (50k/150k/400k, capped). The concrete floor, walls,
+      grid, tap-plane + camera framing all follow the wider building. "Expand the floor" row in the
+      Style sheet. +test.
+- [x] **C — richer office repaint**: doubled the office palettes — `WALL_STYLES` 5→10 (Sky, Sage,
+      Blush, Ocean, Charcoal) and `FLOOR_FINISHES` 5→9 (Walnut, Slate, Marble, Moss), all reusing
+      existing render kinds/patterns. (The office already carries 60+ placeable furniture pieces.)
+- Verified live: props render + palette; floor widens with props placeable in the new bay + camera
+      reframes; office renders new Walnut/Sage finish. tsc 0, 734 tests, build+PWA green.
+
+## v89 — Make the factory matter + the line advances with your era (DONE 2026-07-06)
+Four-part follow-up the player picked, in order. #1 + #2 landed:
+- [x] **#1 — the factory matters** (commit 443a038): `factoryFloor.lineSpeedMult(floor)` — a pure,
+      bounded build-time multiplier anchored so the starter (complete, single-arm) is exactly neutral
+      (×1). A disconnected line costs time (×1.15); each extra assembly Arm parallelises the build
+      (−5% each, −25% floor). `gameState.buildWeeksFor` multiplies assembly time by it. Factory HUD
+      surfaces it — order-card chip + a Stats "Line build speed" row + teaching note. No RNG (pin holds). +test.
+- [x] **#2 — more content on the line**: the working-machine glow now advances with the company's
+      era, so the line visibly levels up as you grow — blue upstart → cyan → violet → gold titan.
+      `Factory3D` threads a single `eraAccent(era)` through an `AccentContext` so every machine's
+      hot-glow, status strip, press ram + QA scan sheet track the same era colour; `FactoryMode`
+      passes `era={state.era}`. Verified live at Era 4 (violet accent renders on the line).
+- Left: #3 office glow-up, #4 factory juice & progression. tsc 0, 735 tests, build+PWA green.
+
+## v90 — Office glow-up: the team reads cleanly (#3) (DONE 2026-07-06)
+- [x] **Non-overlapping staff labels**: a full team's floating name pills used to pile into an
+      unreadable stack. Root cause: the de-clutter collided in raw world x/z, which missed same-row
+      neighbours (desk pitch 1.95 > the old 1.7 threshold) and front/back labels sharing a screen
+      column. Now collision is measured in PROJECTED screen-x (`labelU = 0.75·x − 0.66·z`, derived
+      from the fixed office camera's right axis), so any two pills sharing a screen column ladder up
+      one height level — a clean staircase. The Bank pill seeds the stack so names clear it too.
+- [x] **Compact label pills**: single-line `dot · Name · role` chips (was a two-line badge) — narrower
+      and shorter, so a full roster stays inside the card and pills clear one another with room to spare.
+- Verified live: staged 7-person team renders as a readable ladder with no pile-up (was a solid
+      overlap before). tsc 0, 735 tests, build+PWA green.
+
+## v91 — Factory progression: build-milestone achievements (#4) (DONE 2026-07-06)
+- [x] **Five factory achievements** wired into the existing PURE achievements engine — the hand-built
+      line finally earns milestones: *Second Shift* (a 2nd assembly arm → parallel builds), *Breaking
+      Ground* (first floor expansion), *Shop Floor Style* (5+ decor props), *Production Powerhouse*
+      (a dozen machines), *Megafactory* (max floor). New `AchievementFacts` read the floor from
+      GameState (expansion, props, machine + arm counts), tolerant of legacy saves.
+- [x] All keyed ABOVE the starter defaults (complete single-arm 7-machine line, 0 props/expansions)
+      so none auto-unlock at new-game — proven by a new deriveFacts test. They show as locked
+      placeholders in the Progress hub and unlock on the weekly tick like every other milestone.
+- +6 tests (5 predicate cases + a starter-floor guard). tsc 0, 741 tests, build+PWA green.
+
+## v92 — First-run Factory tutorial (#4) (DONE 2026-07-06)
+- [x] **FactoryTutorial**: a 4-step first-run coach shown the first time the player opens Factory mode
+      — *Your production line* (material → machines → shipped flow), *Build the floor* (tap to place +
+      touch camera), *A good line ships faster* (keep the belt connected, add arms → faster builds,
+      ties to the v89 line-speed mechanic), *Make it yours* (Upgrades / Style / Expand). Mirrors the
+      Decorate coach exactly — same `.dtut*` card styling, portal, step dots, Escape-to-close — so the
+      two first-run coaches read as one system. Pure-vector visuals, no assets.
+- [x] Gated on a new `settings.factoryTutorialSeen` (a UI pref, survives a new company). Auto-shows
+      once; a **?** button in the Factory header replays it any time. The one-time camera hint is
+      suppressed on that first open (the coach already teaches the gesture), and the mode's
+      Escape-peel defers to the coach while it's open.
+- Verified live: coach renders + dismisses to the floor, replay button works. tsc 0, 741 tests, build+PWA green.
+
+## v93 — Save / name / switch factory layouts (#4) (DONE 2026-07-06)
+- [x] **factoryLayout.ts** (PURE, +7 tests): the `FactoryLayout` snapshot type + `layoutApplyCost` —
+      a fair, EXPLOIT-FREE diff cost to apply one layout over another. You pay full catalog price for
+      whatever a layout adds and get the standard 50% demolition refund for whatever it drops; matching
+      machines/props and belt cells (re-aiming is free) cost nothing. So there's no "save → tear down
+      for the refund → re-apply free" loop — re-adding always costs full price (proven by a round-trip test).
+- [x] **State** (+6 tests): `factoryLayouts` on GameState (persisted, backfilled). Reducers
+      `saveFactoryLayout` (free, trims/defaults the name, capped at MAX_LAYOUTS=6), `applyFactoryLayout`
+      (charges/refunds the diff + any new permanent expansions; cash-gated; floor only ever GROWS,
+      never shrinks), `deleteFactoryLayout`, and `factoryLayoutCost`. Wired through useGame.
+- [x] **UI**: a "Saved layouts" section in the Factory Style sheet — each row shows the name, machine
+      count + saved week, an Apply button that surfaces the exact cost (or a "+refund" / free ✓ Apply),
+      and a delete. A name field + "Save current" snapshots the floor.
+- Verified: sheet opens, rows render with correct cost/refund (free apply for the identical layout,
+      +$10.5K refund for a leaner one). tsc 0, 754 tests, build+PWA green.
+
+## v94 — Audit sweep: fix factory + UX bugs found by a 3-agent review (DONE 2026-07-06)
+A parallel audit (factory / economy / hooks) confirmed no crashes, save-corruption, softlocks, or
+money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced these real defects, now fixed:
+- [x] **Duplicate saved-layout ids (data corruption)**: ids derived from array length, so save A / save B /
+      delete A / save C gave C the SAME id as B — delete removed both, apply resolved the wrong one, and
+      React threw a duplicate-key warning. Now a monotonic `factoryLayoutCounter` (persisted + backfilled)
+      sources ids. +regression test.
+- [x] **Minimap clipped the expanded floor**: `FloorMinimap` hardcoded a 320×200 (16-col) viewBox, so any
+      machine/belt in an expansion bay (cols ≥16) rendered off-canvas and vanished. The viewBox + grid now
+      track the buildable width; all 3 call sites pass `floorW`. Verified: an arm placed at col 18 now shows.
+- [x] **Build silently no-op'd without 3D**: placement is wired only to the 3D pad, so a no-WebGL /
+      reduced-motion / 3D-off player could arm a Build tool that did nothing. The Build button now explains
+      it needs the 3D view instead of arming a dead tool.
+- [x] **Stacked Escape closed the factory under an overlay**: the offline/era/IPO overlays and Factory mode
+      each listened on `window` for Escape, so one press over an open factory dismissed the overlay AND
+      slammed the factory shut. A tiny `overlayGuard` lets the frontmost app overlay own Escape.
+- [x] **Defensive hardening**: backfill clamps `factoryExpansion` to [0, MAX_EXPANSION] and coerces
+      `bankrupt`; `expansionDeltaCost` clamps its loop bounds — so a corrupt/tampered save can't NaN or hang.
+- Not changed (verified non-issues): layout apply-cost vs expansion nets out identically to the manual
+      demolish+expand path (agent's "imprecision" flag was a false positive); offline bankruptcy is by design.
+- tsc 0, 755 tests (+1), build+PWA green.
+
+## v95 — Confirm step when applying a factory layout (#improvement) (DONE 2026-07-06)
+- [x] Applying a saved layout replaces the WHOLE floor and can cost a fortune, but was a single blind
+      tap. Now the first tap ARMS the row (accent ring) and shows the exact diff — "+N added · −M
+      removed" (or "No changes") — with the button becoming "Confirm · $X" (or "· +refund"); only a
+      second tap commits. Cancel (✕) or closing the sheet disarms it.
+- [x] `factoryLayout.layoutDiff` (PURE, +1 test) counts added/removed pieces (machines+belts+props),
+      ignoring matching cells — the same identity rule as the cost diff.
+- Verified live: arming "Compact" showed "−2 removed" + "Confirm · +$10.5K". tsc 0, 756 tests, build+PWA green.
+
+## v96 — Per-machine upgrades: tune the floor into a spend sink (#improvement 1/3) (DONE 2026-07-06)
+- [x] **Engine** (`factoryFloor.ts`, +test): machines carry a `level` (1..`MACHINE_MAX_LEVEL`=3).
+      `machineUpgradeStepCost` (0.75× then 1.25× base), `machineInvested`, `machineUpgradeCostAt`,
+      `upgradeMachineAt`. `lineSpeedMult` now shaves ~2%/level (floor −45%); the starter is all level 1
+      so it stays exactly ×1 — the 40-seed balance sim is byte-identical. `demolitionRefund` pays back
+      half of TOTAL invested (base + upgrades).
+- [x] **Layout economy** (`factoryLayout.ts`, +test): `layoutApplyCost` now prices upgrade-level deltas
+      on matched machines (full for tune-ups, 50% back when less tuned; full invested for new machines)
+      — so no layout can mint free upgrades.
+- [x] **State + UI**: `upgradeFloorMachine` reducer (cash-gated, capped) + useGame wiring; an "Upgrade"
+      build tool — tap a machine to tune it up. 3D floor shows **tier pips** (era-accent dots) over each
+      upgraded machine, so investment is visible at a glance.
+- Verified live: press→3 pips, arm/qa→2 pips; sim unchanged (0 bankruptcies). tsc 0, 759 tests (+3), build+PWA green.
+
+## v97 — Line topology matters: cover the recipe or build slower (#improvement 2/3) (DONE 2026-07-06)
+- [x] The device-specific machines were visual only. Now a product's recipe decides which machine
+      KINDS the floor should have: `assemblyLine.requiredKindsFor(category)` + `lineSpeedMult(floor,
+      requiredKinds)` — each required kind MISSING costs ~10% build time (capped +60%). A phone wants a
+      screen bonder, a laptop a mill; the starter has every kind so it stays ×1 (sim byte-identical).
+      `missingMachineKinds` + `buildWeeksFor` passes the current product's kinds.
+- [x] **HUD** is product-aware: the order-card line chip now reads "Add Screen Bonder · N% slower" when
+      the floor lacks a machine the current order needs (vs "Line broken" only when disconnected), and
+      the Stats note names the missing machines. +topology tests.
+- tsc 0, 760 tests (+1), balance sim unchanged, build+PWA green.
+
+## v98 — One-tap auto-connect belts (#improvement 3/3) (DONE 2026-07-06)
+- [x] Laying belts a tile at a time was the biggest Build-mode grind. `factoryFloor.autoRouteBelts`
+      (PURE, +test) pathfinds a fresh chain from the Intake, THROUGH every processing machine, to the
+      Packer — a greedy nearest-neighbour tour with BFS legs around obstacles, so the line feeds each
+      station instead of shortcutting. Deterministic (fixed cell/direction order). The test proves the
+      route runs beside every machine and forms one unbroken chain.
+- [x] `autoConnectLine` reducer charges the fair net (new tiles full price − removed tiles half refund),
+      cash-gated; useGame wiring; an "Auto" button in the Build belt palette. +reducer test.
+- Verified live: on a belt-stripped starter, one tap laid a 27-tile line weaving through press → mill →
+      arm → QA → packer. tsc 0, 762 tests (+2), build+PWA green.
+
+## v99 — Drag-to-paint belts (#improvement, follow-up) (DONE 2026-07-06)
+- [x] Belts can now be PAINTED by dragging across the floor, not just tapped one tile at a time.
+      `paintBeltRun` reducer (+test) lays a whole run at once, each tile auto-aimed toward the next
+      cell (last continues straight; single tile uses the Turn direction), charging per NEW tile,
+      re-aiming free, skipping machine/off-grid cells, and stopping when the budget runs out.
+- [x] **Factory3D**: while the Belt tool is active, one-finger camera rotate is suspended
+      (`enableRotate={!paintBelts}`) so a drag paints instead of orbiting; pinch-zoom still works.
+      Cells are sampled on pointer-move and joined with an orthogonal L-path so a rough drag yields a
+      clean connected run, with a live translucent GHOST previewing it (brighter head tile). Pointer
+      capture keeps the drag alive if the finger strays off the pad. A tap still lays a single tile.
+- [x] Build-rule hint now teaches it: "Drag to paint a belt run · tap for one · Auto routes it all."
+- Verified live: a single drag laid an 11-tile oriented run with a turn; ghost showed during the drag,
+      camera didn't orbit. tsc 0, 763 tests (+1), build+PWA green.

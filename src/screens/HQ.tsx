@@ -8,6 +8,7 @@ import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/pri
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
 import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { DailyChallengeCard } from "../components/DailyChallengeCard.tsx";
+import { FactoryCard } from "../components/FactoryMode.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
@@ -97,7 +98,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 // place the WASD camera hint makes sense. Touch phones report a coarse pointer and get no hint.
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
-export function HQ({ onNavigate, onOpenBank, onOpenChallenges, active = true }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; active?: boolean }) {
+export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
   const { state, advanceEra, goPublic, resolveChoice, resolvePoach } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
@@ -116,7 +117,13 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, active = true }: 
 
   return (
     <div className="hq">
-      <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active} onNavigate={onNavigate} onOpenBank={onOpenBank} />
+      {/* The 3D office stays MOUNTED (hidden) while the Factory world shows, so its WebGL
+          context survives the swap — the same rule that keeps it alive across bottom tabs.
+          Its render loop pauses via active while hidden. */}
+      <div hidden={world === "factory"}>
+        <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
+      </div>
+      {world === "factory" && <FactoryCard onNavigate={onNavigate} />}
 
       <ScenarioTracker />
       <ChallengeTracker />
@@ -257,7 +264,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, active = true }: 
       {/* Ready to launch */}
       {state.ready.length > 0 && (
         <Card className="hq__ready">
-          <SectionHeader title="Ready to launch" accessory="market & release" />
+          <SectionHeader title="Ready to launch" accessory={`${state.ready.length} ready`} />
           {state.ready.map((p) => (
             <div className="hq__ready-row" key={p.id}>
               <div className="hq__ready-thumb"><DeviceRenderer product={p} size={52} /></div>
@@ -280,13 +287,20 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, active = true }: 
           {state.building.map((job) => (
             <BuildProgress key={job.product.id} job={job} />
           ))}
+          {onViewFactory && world === "office" && (
+            <button className="hq__viewline" onClick={onViewFactory}>
+              Watch it on the line <ChevronRight size={15} aria-hidden />
+            </button>
+          )}
         </Card>
       )}
 
       <Upgrades />
 
       {state.launched.length === 0 ? (
-        <GetStartedCard state={state} onNavigate={onNavigate} />
+        // While the first-run Coach is walking design→build→launch, don't also show the identical
+        // checklist here; it takes over once the tutorial is skipped or finished.
+        state.tutorialDone ? <GetStartedCard state={state} onNavigate={onNavigate} /> : null
       ) : (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />

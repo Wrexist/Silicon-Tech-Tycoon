@@ -62,7 +62,7 @@ const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbo
 const b = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 });
 await b.addInitScript((v) => {
   localStorage.setItem("silicon.save.v1", v);
-  localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: true, haptics: true, garage3d: true, decorateTutorialSeen: true }));
+  localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: true, haptics: true, garage3d: true, decorateTutorialSeen: true, factoryTutorialSeen: true }));
 }, staged);
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });

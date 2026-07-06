@@ -97,7 +97,7 @@ await b.addInitScript((v) => {
   // Dark theme: the app's near-black/blue palette matches the marketing frame, so the whole
   // screenshot reads as one cohesive premium piece (no bright rectangle on a dark page).
   // 3D on; suppress the first-run Decorate coach so the editor frame is clean.
-  localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: true, haptics: true, garage3d: true, decorateTutorialSeen: true }));
+  localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: true, haptics: true, garage3d: true, decorateTutorialSeen: true, factoryTutorialSeen: true }));
 }, staged);
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });

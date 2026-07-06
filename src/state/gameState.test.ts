@@ -9,6 +9,7 @@ import {
   buildSafetyReserve,
   startBuild,
   skipInterrupt,
+  rushBuild,
   launchReady,
   catchUpOffline,
   newGame,
@@ -344,9 +345,10 @@ describe("offline catch-up", () => {
     s = startBuild(s, goodPhone(), 800, "none").state;
     for (let i = 0; i < buildWeeksFor(s) + 1; i++) s = advanceOneWeek(s);
     s = launchReady(s, s.ready[0].id).state;
-    // Freeze rivals so no mid-life rival-entry haircut perturbs the sales curve — this isolates
-    // the offline mechanic (the two timelines below would otherwise evolve rivals differently).
-    return { ...s, competitors: [] };
+    // Freeze rivals so no mid-life rival-entry haircut perturbs the sales curve — this isolates the
+    // offline mechanic. Keep the roster at full size (so the "refill the field" branch never fires)
+    // but set every rival to never launch, so nothing contests the player's category.
+    return { ...s, competitors: s.competitors.map((c) => ({ ...c, nextLaunchWeek: Number.POSITIVE_INFINITY })) };
   }
 
   it("never skips a product's sales — offline catch-up sells through the same as active play", () => {
@@ -681,5 +683,37 @@ describe("skipInterrupt — skip-to-next-decision stop conditions", () => {
     const s = newGame(21);
     const next = { ...s, pendingChoice: { event: { id: "x", title: "t", body: "b", minEra: 1, tone: "neutral", options: [] } as unknown as import("../engine/events.ts").ChoiceEvent, week: s.week } };
     expect(skipInterrupt(s, next)).toMatch(/event/i);
+  });
+});
+
+describe("rushBuild — the Factory Mode BOOST (pay a premium, finish a week sooner)", () => {
+  function withBuild() {
+    const s = { ...newGame(31), cash: dollars(1_000_000) };
+    return startBuild(s, goodPhone(), 400, "none").state;
+  }
+
+  it("completes one week of work for a cash premium", () => {
+    const s = withBuild();
+    const before = s.building[0].weeksElapsed;
+    const res = rushBuild(s, s.building[0].product.id);
+    expect(res.ok).toBe(true);
+    expect(res.state.building[0].weeksElapsed).toBe(before + 1);
+    expect(res.state.cash).toBeLessThan(s.cash);
+  });
+
+  it("refuses once the run is already finishing (no free skip past the end)", () => {
+    let s = withBuild();
+    const id = s.building[0].product.id;
+    for (let i = 0; i < 50 && s.building[0].totalWeeks - s.building[0].weeksElapsed > 0; i++) {
+      const r = rushBuild(s, id);
+      if (!r.ok) break;
+      s = r.state;
+    }
+    expect(rushBuild(s, id).ok).toBe(false);
+  });
+
+  it("refuses when cash can't cover the premium", () => {
+    const s = { ...withBuild(), cash: dollars(1) };
+    expect(rushBuild(s, s.building[0].product.id).ok).toBe(false);
   });
 });

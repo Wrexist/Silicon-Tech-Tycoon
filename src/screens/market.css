@@ -173,6 +173,9 @@
 .mkt__co-spark > :first-child { flex: 1; min-width: 0; }
 .mkt__co-change {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: var(--fs-caption);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -725,6 +728,7 @@
   align-items: center;
   gap: var(--sp-12);
 }
+.mkt__product-chev { flex-shrink: 0; margin-left: calc(var(--sp-12) * -0.5); color: var(--ink-3); }
 .mkt__product-lc {
   display: block;
   border-radius: var(--r-pill);
@@ -1626,7 +1630,7 @@
 .mkt__region { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); }
 .mkt__region--open { border-color: var(--accent); background: var(--accent-soft); }
 .mkt__region-icon { width: 34px; height: 34px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent); }
-.mkt__region--open .mkt__region-icon { background: var(--accent); color: #fff; }
+.mkt__region--open .mkt__region-icon { background: var(--accent); color: var(--accent-ink); }
 .mkt__region-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .mkt__region-name { font-weight: 600; }
 .mkt__region-blurb { font-size: var(--fs-caption); color: var(--ink-2); }

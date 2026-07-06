@@ -410,6 +410,10 @@ export const BALANCE = {
     // $2.5k reserve still protects the build-through window but lets early runs reach a profitable
     // scale (a measured first cycle moves from a ~$3k loss to break-even).
     safetyReserveMargin: dollars(2_500) as Money,
+    // Factory Mode BOOST — rush the active run: each press finishes ONE week sooner for a
+    // premium of this fraction of the run's total production cost (unitCost × plannedUnits).
+    // A real overtime-style lever, not a purchased multiplier. ⚠ Needs a playtest.
+    rushCostPct: 0.08,
   },
 
   // --- Facilities ---
