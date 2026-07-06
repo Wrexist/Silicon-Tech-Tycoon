@@ -129,13 +129,16 @@ export function Company() {
   const ecoRev = weeklyEcosystemRevenue(state);
   const runway = runwayWeeks(state.cash, wkBurn, wkRev);
   const cashData = state.cashHistory.map((h) => h.cash);
+  // Margin, not revenue (units × (price − unitCost)) — labelled "profit/wk" in the row so it
+  // can't be confused with the revenue/wk figures HQ Performance and Market show for the same
+  // product (units × price).
   const activeSales = state.launched
     .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
     .map((lp) => ({
       lp,
-      weeklyRevenue: cents(lp.weeklyUnits[lp.weeksElapsed] * (lp.product.price - lp.unitCost)),
+      weeklyProfit: cents(lp.weeklyUnits[lp.weeksElapsed] * (lp.product.price - lp.unitCost)),
     }))
-    .sort((a, b) => b.weeklyRevenue - a.weeklyRevenue);
+    .sort((a, b) => b.weeklyProfit - a.weeklyProfit);
 
   return (
     <div className="co">
@@ -257,22 +260,22 @@ export function Company() {
         <Card>
           <SectionHeader title="Selling now" accessory={`${activeSales.length} active`} />
           <div className="co__active-list">
-            {activeSales.map(({ lp, weeklyRevenue }) => {
+            {activeSales.map(({ lp, weeklyProfit }) => {
               const weeksLeft = lp.weeklyUnits.length - lp.weeksElapsed;
               const nextIdx = lp.weeksElapsed + 1;
-              const nextWkRevenue = nextIdx < lp.weeklyUnits.length
+              const nextWkProfit = nextIdx < lp.weeklyUnits.length
                 ? cents(lp.weeklyUnits[nextIdx] * (lp.product.price - lp.unitCost))
                 : null;
-              const trend = nextWkRevenue !== null ? Math.sign(nextWkRevenue - weeklyRevenue) : 0;
+              const trend = nextWkProfit !== null ? Math.sign(nextWkProfit - weeklyProfit) : 0;
               return (
                 <div key={lp.product.id} className="co__active-row">
                   <span className="co__active-name">{lp.product.name}</span>
                   <span className="co__active-meta">
-                    <span className="co__active-rev">{format(weeklyRevenue)}/wk</span>
-                    {nextWkRevenue !== null && trend !== 0 && (
+                    <span className="co__active-rev">{format(weeklyProfit)} profit/wk</span>
+                    {nextWkProfit !== null && trend !== 0 && (
                       <span className={`co__active-trend co__active-trend--${trend > 0 ? "up" : "down"}`}>
                         {trend > 0 ? <ArrowUp size={10} aria-hidden /> : <TrendingDown size={10} aria-hidden />}
-                        {format(nextWkRevenue)}
+                        {format(nextWkProfit)}
                       </span>
                     )}
                     <span className="co__active-eta">{weeksLeft} wk left</span>
@@ -493,7 +496,12 @@ function FinancingCard({ state }: { state: GameState }) {
         </div>
       ) : debt > 0 ? (
         <p className="co__hint">Credit maxed out, pay down debt to borrow again.</p>
-      ) : null}
+      ) : (
+        // No debt AND no headroom: say WHY borrowing is unavailable instead of a silent dead end.
+        <p className="co__hint">
+          Your credit line grows with revenue and reputation — it unlocks at a {formatShortDollars(minLoan)} minimum loan.
+        </p>
+      )}
     </Card>
   );
 }
@@ -889,7 +897,7 @@ function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void 
       {revData.length >= 2 && (
         <div className="co__stats-spark">
           <div className="co__stats-spark-cap">
-            <span className="co__stats-spark-label">Weekly revenue</span>
+            <span className="co__stats-spark-label">Lifetime revenue</span>
             <span className="ds-stat__value tnum" style={{ color: "var(--positive-text)" }}>
               {format(state.cumulativeRevenue)}
             </span>

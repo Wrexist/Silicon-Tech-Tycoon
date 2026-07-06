@@ -1207,7 +1207,7 @@ export function DesignLab({
                   STAT_KEYS.map((k) => [k, state.trends.targetWeights[k] - state.trends.weights[k]])
                 ) as Record<keyof typeof stats, number>}
               />
-              <p className="lab__hint">Green = what market wants most · ↑↓ = shifting demand</p>
+              <p className="lab__hint">Green = what market wants most · trend arrows = shifting demand</p>
               <StatGlossary />
               {(() => {
                 const prev = state.launched.find((lp) => lp.product.category === draft.category);
@@ -1812,9 +1812,15 @@ function BuildWizard({
           <div className="wiz__units rounded tnum">{units.toLocaleString()} <span className="wiz__units-label">units</span></div>
           <Slider value={units} min={BALANCE.build.minRun} max={Math.max(BALANCE.build.minRun * 2, plan.maxAffordableUnits || BALANCE.build.minRun * 2)} step={50} ariaLabel="Units to produce" accent="var(--fn-design)" onChange={setUnits} />
           <div className="wiz__chips">
-            {[plan.preOrders || BALANCE.build.minRun, recommended, plan.maxAffordableUnits].map((n, i) => (
-              <button key={i} className="wiz__chip" onClick={() => { setUnits(Math.max(BALANCE.build.minRun, Math.round(n))); haptic.light(); }}>
-                {i === 0 ? "Fans only" : i === 1 ? "Recommended" : "Max"}
+            {/* "Fans only" is honest only when the fanbase actually clears the minimum run —
+                below that the chip would silently set the minimum, so say "Minimum" instead. */}
+            {[
+              { label: plan.preOrders >= BALANCE.build.minRun ? "Fans only" : "Minimum", n: plan.preOrders },
+              { label: "Recommended", n: recommended },
+              { label: "Max", n: plan.maxAffordableUnits },
+            ].map((c) => (
+              <button key={c.label} className="wiz__chip" onClick={() => { setUnits(Math.max(BALANCE.build.minRun, Math.round(c.n))); haptic.light(); }}>
+                {c.label}
               </button>
             ))}
           </div>

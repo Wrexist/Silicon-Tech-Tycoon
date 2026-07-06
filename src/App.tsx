@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, BadgeDollarSign, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgeDollarSign, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
@@ -72,7 +72,9 @@ function AppShell() {
     setProgressOpen(true);
   };
   const [bankOpen, setBankOpen] = useState(false);
-  const [ipoSeen, setIpoSeen] = useState(false);
+  // Initialized to wentPublic so loading a save that already IPO'd never replays the takeover —
+  // same guard the era modal uses below. It only fires when wentPublic flips DURING play.
+  const [ipoSeen, setIpoSeen] = useState(state.wentPublic);
   // seenEraModal is initialized to the current era so loading an existing save never re-shows
   // modals for eras already reached. When era advances during play it becomes > seenEraModal.
   const [seenEraModal, setSeenEraModal] = useState(state.era);
@@ -319,7 +321,7 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
           </Card>
         )}
 
-        <Button block onClick={onDismiss}>Let's go →</Button>
+        <Button block onClick={onDismiss}>Let's go <ArrowRight size={16} aria-hidden /></Button>
       </div>
     </div>
   );

@@ -173,7 +173,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         </div>
         <div className="mkt__nw-row">
           <StatPill label="Cash" value={format(state.cash)} />
-          <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans > 0 ? "positive" : "neutral"} />
+          <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
           <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
           <StatPill label="Weekly" value={`${wkFlowD >= 0 ? "+" : ""}${format(wkFlow)}`} tone={wkFlowD >= 0 ? "positive" : "negative"} />
         </div>
@@ -202,7 +202,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         {!state.listed ? (
           listable ? (
             <Button block onClick={() => { setIpo(true); haptic.light(); }}>
-              <Building2 size={16} /> Take {state.companyName} public (IPO)
+              <Building2 size={16} /> List {state.companyName} on the stock exchange
             </Button>
           ) : (() => {
             // Item 19: turn the IPO threshold into a motivating progress bar — a visible
@@ -213,7 +213,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
             return (
               <div className="mkt__ipo">
                 <div className="mkt__ipo-head">
-                  <span className="mkt__ipo-label">Road to IPO</span>
+                  <span className="mkt__ipo-label">Road to the stock exchange</span>
                   <span className="mkt__ipo-pct tnum">{pct}%</span>
                 </div>
                 <div className="mkt__ipo-track"><div className="mkt__ipo-fill" style={{ width: `${pct}%` }} /></div>
@@ -224,7 +224,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
             );
           })()
         ) : state.ownership < 0.06 ? (
-          <p className="mkt__co-hint">You're at your minimum 5% founder stake, so there are no more shares to sell.</p>
+          <p className="mkt__co-hint">Selling more would cut below your 5% founder minimum, so there are no more shares to sell.</p>
         ) : (
           <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>
             Sell more shares
@@ -407,7 +407,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                     : `${expiredHits.length} products have run their cycle, design successors to keep revenue flowing.`}
                 </span>
                 <Button size="sm" variant="secondary" onClick={() => { onDesignSuccessor(expiredHits[0].product); haptic.light(); }}>
-                  <Wand2 size={13} /> Redesign
+                  <Wand2 size={13} /> Design a successor
                 </Button>
               </div>
             )}
@@ -1632,7 +1632,7 @@ function IPOSheet({ onClose }: { onClose: () => void }) {
       <Slider value={pct} min={5} max={BALANCE.ipo.maxStakePerSale * 100} step={1} ariaLabel="Stake to sell" accent="var(--accent)" onChange={setPct} />
       <p className="trade__ipo-pct">Sell {Math.round(pct)}%</p>
       <Button block onClick={() => { listCompany(pct / 100); haptic.success(); sfx("era"); emitCelebrate(); showToast(`${state.companyName} is now public!`, { tone: "positive", glyph: <Building2 size={15} /> }); onClose(); }}>
-        Confirm IPO
+        Confirm listing
       </Button>
     </div>
   );

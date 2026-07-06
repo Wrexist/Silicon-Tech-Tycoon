@@ -211,7 +211,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             </div>
           </div>
         ) : (
-          <p className="rd__bank-hint">Assign staff to R&amp;D (Company tab) to earn more Research Points.</p>
+          // Every project in this era is researched and RP still flows — point at the sinks that
+          // remain (component tech below, OS modules) instead of telling the player to earn more.
+          <p className="rd__bank-hint">Every project here is researched. Spend RP on component tech below{state.platformUnlocked ? " or OS modules in Platform" : ""} — and new projects arrive with the next era.</p>
         )}
       </Card>
 

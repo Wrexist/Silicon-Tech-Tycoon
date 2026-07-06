@@ -57,7 +57,11 @@ export function Settings({ onClose }: { onClose: () => void }) {
             <span className="set__company-stat"><span className="set__company-stat-label">Products</span>{state.launched.length}</span>
             <span className="set__company-stat"><span className="set__company-stat-label">Hit rate</span>{state.launched.length > 0 ? `${hitRate}%` : "—"}</span>
             <span className="set__company-stat"><span className="set__company-stat-label">Revenue</span>{format(state.cumulativeRevenue)}</span>
-            <span className="set__company-stat"><span className="set__company-stat-label">Net worth</span>{toDollars(net) > 0 ? format(net) : "—"}</span>
+            <span className="set__company-stat">
+              <span className="set__company-stat-label">Net worth</span>
+              {/* Debt-negative net worth is real information — show it red, don't hide it. */}
+              <span style={toDollars(net) < 0 ? { color: "var(--negative-text)" } : undefined}>{format(net)}</span>
+            </span>
           </div>
         </div>
       )}
@@ -158,7 +162,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      <p className="set__about">Silicon: Tech Tycoon · v1.0.3</p>
+      <p className="set__about">Silicon: Tech Tycoon · v{typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev"}</p>
       <Button block onClick={onClose}>Done</Button>
 
       <Sheet open={importOpen} onClose={() => setImportOpen(false)}>
