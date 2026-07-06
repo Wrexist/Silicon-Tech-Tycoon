@@ -1219,6 +1219,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const carryRef = useRef<Carry | null>(null);
   carryRef.current = carry;
   const holdCancel = useRef<(() => void) | null>(null);
+  // Unmounting mid-long-press (sheet closed, tab switched) must clear the pending hold timer and
+  // its window listeners, or the timeout would fire beginCarry against a dead scene.
+  useEffect(() => () => holdCancel.current?.(), []);
 
   const beginCarry = (piece: { type: "machine" | "prop"; id: string }) => {
     const valid = new Set<string>();

@@ -271,7 +271,7 @@ export function Company() {
                 <div key={lp.product.id} className="co__active-row">
                   <span className="co__active-name">{lp.product.name}</span>
                   <span className="co__active-meta">
-                    <span className="co__active-rev">{format(weeklyProfit)} profit/wk</span>
+                    <span className={`co__active-rev${toDollars(weeklyProfit) < 0 ? " co__active-rev--neg" : ""}`}>{format(weeklyProfit)} profit/wk</span>
                     {nextWkProfit !== null && trend !== 0 && (
                       <span className={`co__active-trend co__active-trend--${trend > 0 ? "up" : "down"}`}>
                         {trend > 0 ? <ArrowUp size={10} aria-hidden /> : <TrendingDown size={10} aria-hidden />}
