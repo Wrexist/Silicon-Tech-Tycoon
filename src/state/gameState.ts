@@ -105,7 +105,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, demolitionRefund, floorWidth, lineSpeedMult,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineSpeedMult,
   machineUpgradeCostAt, upgradeMachineAt, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
@@ -2152,6 +2152,20 @@ export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: n
   const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryProps.length}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
   return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next }, ok: true };
+}
+
+/** One-tap belt routing — lay a fresh Intake→Packer chain around the machines, charging the net of
+ *  new tiles (full price) minus removed tiles (half refund), exactly like doing it by hand. */
+export function autoConnectLine(state: GameState): ActionResult {
+  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion));
+  if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer with a clear path between them first." };
+  const oldCells = new Set(state.factoryFloor.belts.map((b) => `${b.c},${b.r}`));
+  const newCells = new Set(routed.belts.map((b) => `${b.c},${b.r}`));
+  let cost = 0;
+  for (const k of newCells) if (!oldCells.has(k)) cost += BELT_COST;
+  for (const k of oldCells) if (!newCells.has(k)) cost -= Math.round(BELT_COST / 2);
+  if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cents(cost))} to route the belts.` };
+  return { state: { ...state, factoryFloor: routed, cash: add(state.cash, cents(-cost)) }, ok: true };
 }
 
 /** Tune up the machine at (c,r) one level (cash-gated, capped at MACHINE_MAX_LEVEL). Upgrades shave

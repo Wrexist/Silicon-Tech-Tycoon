@@ -38,6 +38,7 @@ import {
   buyFactoryProp,
   buyFloorExpansion,
   upgradeFloorMachine,
+  autoConnectLine,
   clearFloorCell,
   saveFactoryLayout,
   applyFactoryLayout,
@@ -442,6 +443,7 @@ interface GameActionsValue {
   buyFactoryProp: (kind: import("../engine/factoryProps.ts").PropKind, c: number, r: number) => { ok: boolean; reason?: string };
   buyFloorExpansion: () => { ok: boolean; reason?: string };
   upgradeFloorMachine: (c: number, r: number) => { ok: boolean; reason?: string };
+  autoConnectLine: () => { ok: boolean; reason?: string };
   clearFloorCell: (c: number, r: number) => void;
   saveFactoryLayout: (name: string) => { ok: boolean; reason?: string };
   applyFactoryLayout: (id: string) => { ok: boolean; reason?: string };
@@ -1026,6 +1028,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     return { ok: result.ok, reason: result.reason };
   }, []);
+  const autoConnectLineCb = useCallback(() => {
+    const prev = stateRef.current;
+    const result = autoConnectLine(prev);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
   const saveFactoryLayoutCb = useCallback((name: string) => {
     const result = saveFactoryLayout(stateRef.current, name);
     if (result.ok) setState(result.state);
@@ -1184,6 +1196,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       buyFactoryProp: buyFactoryPropCb,
       buyFloorExpansion: buyFloorExpansionCb,
       upgradeFloorMachine: upgradeFloorMachineCb,
+      autoConnectLine: autoConnectLineCb,
       clearFloorCell: clearFloorCellCb,
       saveFactoryLayout: saveFactoryLayoutCb,
       applyFactoryLayout: applyFactoryLayoutCb,
@@ -1196,7 +1209,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

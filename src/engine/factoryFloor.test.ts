@@ -142,6 +142,36 @@ describe("factory floor grid (F2)", () => {
     expect(lineSpeedMult(noScreen, laptopReq)).toBe(1);
   });
 
+  it("auto-route lays a valid Intake→Packer chain around machines, or bails cleanly", async () => {
+    const { autoRouteBelts, lineComplete, canPlaceBelt } = await import("./factoryFloor.ts");
+    // No intake/packer → nothing to route.
+    expect(autoRouteBelts({ machines: [], belts: [] })).toBeNull();
+    // A bare intake + packer (belts stripped) auto-routes into a complete, valid line.
+    const bare = { machines: starterFloor().machines, belts: [] };
+    const routed = autoRouteBelts(bare)!;
+    expect(routed).not.toBeNull();
+    expect(lineComplete(routed)).toBe(true); // head beside Intake, tail beside Packer
+    // Every routed tile is a legal belt cell (on the grid, not on a machine).
+    for (const b of routed.belts) {
+      const others = { ...routed, belts: routed.belts.filter((x) => x !== b) };
+      expect(canPlaceBelt(others, b.c, b.r)).toBe(true);
+    }
+    // The chain is unbroken (beltChain covers every tile + the run-off point).
+    const path = beltPath(routed.belts);
+    expect(path.length).toBe(routed.belts.length + 1);
+    // It RUNS THROUGH the machines, not around them: every processing machine has a belt beside it.
+    const beltCells = new Set(routed.belts.map((b) => `${b.c},${b.r}`));
+    const beside = (m: { kind: string; c: number; r: number }) =>
+      machineCells(m as { kind: import("./factoryFloor.ts").MachineKind; c: number; r: number }).some((s) => {
+        const [mc, mr] = s.split(",").map(Number);
+        for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) if (beltCells.has(`${mc + dc},${mr + dr}`)) return true;
+        return false;
+      });
+    for (const m of routed.machines) expect(beside(m)).toBe(true); // intake, packer AND every station
+    // Deterministic: same input → identical route.
+    expect(autoRouteBelts(bare)).toEqual(routed);
+  });
+
   it("machineCells matches the def footprint", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });

@@ -10,7 +10,7 @@ import {
   ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
   FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
   Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
-  TrafficCone, Trash2, TriangleAlert, Truck, Wrench, X, Zap, type LucideIcon,
+  TrafficCone, Trash2, TriangleAlert, Truck, Waypoints, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost } from "../state/gameState.ts";
@@ -439,6 +439,19 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 >
                   <span className="fmode__ptile-icon"><RotateCw size={20} /></span>
                   <span className="fmode__ptile-name">Turn</span>
+                </button>
+                <button
+                  className="fmode__ptile fmode__ptile--util"
+                  aria-label="Auto-connect the Intake to the Packer"
+                  title="Route belts from Intake to Packer automatically"
+                  onClick={() => {
+                    const res = d.game.autoConnectLine();
+                    if (res.ok) { haptic.success(); sfx("build"); showToast("Belts routed — Intake to Packer", { tone: "positive" }); }
+                    else { haptic.warning(); showToast(res.reason ?? "Couldn't route the belts", { tone: "negative" }); }
+                  }}
+                >
+                  <span className="fmode__ptile-icon"><Waypoints size={20} /></span>
+                  <span className="fmode__ptile-name">Auto</span>
                 </button>
                 {(Object.keys(MACHINE_DEFS) as MachineKind[]).map((k) => {
                   const Icon = MACHINE_ICONS[k];

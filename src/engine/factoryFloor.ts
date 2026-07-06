@@ -232,6 +232,102 @@ export function lineComplete(floor: FactoryFloor): boolean {
   return nearMachine(floor, "intake", head.c, head.r) && nearMachine(floor, "packer", tail.c, tail.r);
 }
 
+/** Auto-route a fresh belt chain that runs from the Intake, THROUGH every processing machine, to the
+ *  Packer — a greedy nearest-neighbour tour with BFS legs around obstacles, so the line actually feeds
+ *  each station instead of taking a shortcut. Returns a new floor with belts replaced, or null if
+ *  there's no Intake+Packer / no clear path. Pure + deterministic (fixed cell + direction order).
+ *  This kills the tile-by-tile belt-laying grind. */
+export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w): FactoryFloor | null {
+  const intake = floor.machines.find((m) => m.kind === "intake");
+  const packer = floor.machines.find((m) => m.kind === "packer");
+  if (!intake || !packer) return null;
+  const W = maxW, H = FLOOR.h;
+  const blocked = new Set<string>();
+  for (const m of floor.machines) for (const cell of machineCells(m)) blocked.add(cell);
+  const free = (c: number, r: number) => c >= 0 && c < W && r >= 0 && r < H && !blocked.has(`${c},${r}`);
+  const DIRS: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  const K = (c: number, r: number) => `${c},${r}`;
+
+  // Free cells orthogonally beside a machine's footprint — a belt here runs the item through it.
+  const besideCells = (m: PlacedMachine): [number, number][] => {
+    const out: [number, number][] = [], seen = new Set<string>();
+    for (const s of machineCells(m)) {
+      const [mc, mr] = s.split(",").map(Number);
+      for (const [dc, dr] of DIRS) {
+        const c = mc + dc, r = mr + dr, k = K(c, r);
+        if (free(c, r) && !seen.has(k)) { seen.add(k); out.push([c, r]); }
+      }
+    }
+    return out;
+  };
+  // Shortest path from `start` to ANY goal cell, over free cells not already used (start exempt).
+  const bfsLeg = (start: [number, number], goals: Set<string>, used: Set<string>): [number, number][] | null => {
+    if (goals.has(K(start[0], start[1]))) return [start];
+    const prev = new Map<string, string | null>([[K(start[0], start[1]), null]]);
+    const q: [number, number][] = [start];
+    for (let h = 0; h < q.length; h++) {
+      const [c, r] = q[h];
+      for (const [dc, dr] of DIRS) {
+        const nc = c + dc, nr = r + dr, nk = K(nc, nr);
+        if (!free(nc, nr) || prev.has(nk) || used.has(nk)) continue;
+        prev.set(nk, K(c, r));
+        if (goals.has(nk)) {
+          const path: [number, number][] = [];
+          for (let cur: string | null = nk; cur; cur = prev.get(cur) ?? null) path.push(cur.split(",").map(Number) as [number, number]);
+          return path.reverse();
+        }
+        q.push([nc, nr]);
+      }
+    }
+    return null;
+  };
+
+  const processing = floor.machines.filter((m) => m.kind !== "intake" && m.kind !== "packer");
+  const packerGoals = new Set(besideCells(packer).map(([c, r]) => K(c, r)));
+  if (packerGoals.size === 0) return null;
+
+  // Try each Intake-side start cell (deterministic order) until one yields a full tour to the Packer.
+  for (const start of besideCells(intake)) {
+    const path: [number, number][] = [start];
+    const used = new Set<string>([K(start[0], start[1])]);
+    let cur = start;
+    const remaining = [...processing];
+    while (remaining.length) {
+      let bestLeg: [number, number][] | null = null, bestIdx = -1;
+      for (let i = 0; i < remaining.length; i++) {
+        const goals = new Set(besideCells(remaining[i]).map(([c, r]) => K(c, r)));
+        if (goals.size === 0) continue;
+        const leg = bfsLeg(cur, goals, used);
+        if (leg && (!bestLeg || leg.length < bestLeg.length)) { bestLeg = leg; bestIdx = i; }
+      }
+      if (!bestLeg) break; // the rest are unreachable from here — route straight on to the Packer
+      for (const c of bestLeg.slice(1)) { path.push(c); used.add(K(c[0], c[1])); }
+      cur = bestLeg[bestLeg.length - 1];
+      remaining.splice(bestIdx, 1);
+    }
+    const finalLeg = bfsLeg(cur, packerGoals, used);
+    if (!finalLeg) continue; // this start can't reach the Packer — try the next
+    for (const c of finalLeg.slice(1)) { path.push(c); used.add(K(c[0], c[1])); }
+
+    const dirOf = (from: [number, number], to: [number, number]): BeltDir => {
+      const dc = to[0] - from[0], dr = to[1] - from[1];
+      return dc > 0 ? "e" : dc < 0 ? "w" : dr > 0 ? "s" : "n";
+    };
+    const belts: BeltTile[] = path.map((cell, i) => {
+      if (i < path.length - 1) return { c: cell[0], r: cell[1], dir: dirOf(cell, path[i + 1]) };
+      let best: BeltDir = "e", bestD = Infinity; // final tile aims into the Packer
+      for (const s of machineCells(packer)) {
+        const [mc, mr] = s.split(",").map(Number);
+        const dc = mc - cell[0], dr = mr - cell[1], d = Math.abs(dc) + Math.abs(dr);
+        if (d < bestD) { bestD = d; best = Math.abs(dc) >= Math.abs(dr) ? (dc >= 0 ? "e" : "w") : (dr >= 0 ? "s" : "n"); }
+      }
+      return { c: cell[0], r: cell[1], dir: best };
+    });
+    return { ...floor, belts };
+  }
+  return null;
+}
+
 /** How the player-built line affects production — a build-TIME multiplier the sim reads.
  *  Anchored so the starter (a complete, single-arm line) is exactly NEUTRAL (×1), so the baseline
  *  balance is unchanged. From there the layout MATTERS in two directions:

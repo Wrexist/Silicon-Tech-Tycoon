@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { dollars } from "../engine/money.ts";
 import { MACHINE_DEFS, machineLevel, machineUpgradeStepCost } from "../engine/factoryFloor.ts";
 import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
+import { lineComplete } from "../engine/factoryFloor.ts";
 import {
-  newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine,
+  newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine, autoConnectLine,
   saveFactoryLayout, applyFactoryLayout, deleteFactoryLayout, factoryLayoutCost,
   type GameState,
 } from "./gameState.ts";
@@ -131,6 +132,21 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     // Applying that layout over the un-upgraded base costs exactly the 1→2 step (matching cell + kind).
     const onBase: GameState = { ...base, factoryLayouts: [layout] };
     expect(factoryLayoutCost(onBase, layout)).toBe(machineUpgradeStepCost("press", 1)!);
+  });
+
+  it("autoConnectLine rebuilds a complete line from a stripped floor and charges the belt cost", () => {
+    const base = rich();
+    const stripped: GameState = { ...base, factoryFloor: { ...base.factoryFloor, belts: [] } };
+    expect(lineComplete(stripped.factoryFloor)).toBe(false);
+    const res = autoConnectLine(stripped);
+    expect(res.ok).toBe(true);
+    expect(lineComplete(res.state.factoryFloor)).toBe(true);
+    expect(res.state.cash).toBeLessThan(stripped.cash); // paid for the new belt tiles
+    // With no packer there's nothing to route to → clean refusal, state untouched.
+    const noPacker: GameState = { ...base, factoryFloor: { machines: base.factoryFloor.machines.filter((m) => m.kind !== "packer"), belts: [] } };
+    const fail = autoConnectLine(noPacker);
+    expect(fail.ok).toBe(false);
+    expect(fail.state).toBe(noPacker);
   });
 
   it("deletes a layout by id", () => {

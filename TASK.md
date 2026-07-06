@@ -2141,3 +2141,14 @@ money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced the
       the floor lacks a machine the current order needs (vs "Line broken" only when disconnected), and
       the Stats note names the missing machines. +topology tests.
 - tsc 0, 760 tests (+1), balance sim unchanged, build+PWA green.
+
+## v98 — One-tap auto-connect belts (#improvement 3/3) (DONE 2026-07-06)
+- [x] Laying belts a tile at a time was the biggest Build-mode grind. `factoryFloor.autoRouteBelts`
+      (PURE, +test) pathfinds a fresh chain from the Intake, THROUGH every processing machine, to the
+      Packer — a greedy nearest-neighbour tour with BFS legs around obstacles, so the line feeds each
+      station instead of shortcutting. Deterministic (fixed cell/direction order). The test proves the
+      route runs beside every machine and forms one unbroken chain.
+- [x] `autoConnectLine` reducer charges the fair net (new tiles full price − removed tiles half refund),
+      cash-gated; useGame wiring; an "Auto" button in the Build belt palette. +reducer test.
+- Verified live: on a belt-stripped starter, one tap laid a 27-tile line weaving through press → mill →
+      arm → QA → packer. tsc 0, 762 tests (+2), build+PWA green.
