@@ -2045,3 +2045,14 @@ Four-part follow-up the player picked, in order. #1 + #2 landed:
       and shorter, so a full roster stays inside the card and pills clear one another with room to spare.
 - Verified live: staged 7-person team renders as a readable ladder with no pile-up (was a solid
       overlap before). tsc 0, 735 tests, build+PWA green.
+
+## v91 — Factory progression: build-milestone achievements (#4) (DONE 2026-07-06)
+- [x] **Five factory achievements** wired into the existing PURE achievements engine — the hand-built
+      line finally earns milestones: *Second Shift* (a 2nd assembly arm → parallel builds), *Breaking
+      Ground* (first floor expansion), *Shop Floor Style* (5+ decor props), *Production Powerhouse*
+      (a dozen machines), *Megafactory* (max floor). New `AchievementFacts` read the floor from
+      GameState (expansion, props, machine + arm counts), tolerant of legacy saves.
+- [x] All keyed ABOVE the starter defaults (complete single-arm 7-machine line, 0 props/expansions)
+      so none auto-unlock at new-game — proven by a new deriveFacts test. They show as locked
+      placeholders in the Progress hub and unlock on the weekly tick like every other milestone.
+- +6 tests (5 predicate cases + a starter-floor guard). tsc 0, 741 tests, build+PWA green.

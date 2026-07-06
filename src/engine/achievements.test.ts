@@ -50,6 +50,11 @@ function emptyFacts(): AchievementFacts {
     allScenariosWon: false,
     allScenariosThreeStarred: false,
     challengesCompletedTotal: 0,
+    factoryExpanded: false,
+    factoryMaxExpanded: false,
+    factoryProps: 0,
+    factoryMachineCount: 0,
+    factoryArms: 0,
   };
 }
 
@@ -165,6 +170,11 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "scenarios-all-won", facts: { allScenariosWon: true } },
     { id: "scenarios-all-3star", facts: { allScenariosThreeStarred: true } },
     { id: "challenges-10", facts: { challengesCompletedTotal: 10 } },
+    { id: "factory-parallel", facts: { factoryArms: 2 } },
+    { id: "factory-expand", facts: { factoryExpanded: true } },
+    { id: "factory-decor", facts: { factoryProps: 5 } },
+    { id: "factory-big-line", facts: { factoryMachineCount: 12 } },
+    { id: "factory-max", facts: { factoryMaxExpanded: true } },
   ];
 
   it("covers the whole catalog", () => {
@@ -283,6 +293,21 @@ describe("deriveFacts reads only real tracked state", () => {
     expect(deriveFacts(noComeback).comebackFromFlop).toBe(false);
     // only a hit, no flop → no comeback
     expect(deriveFacts({ ...s, launched: [launched("hit")] }).comebackFromFlop).toBe(false);
+  });
+
+  it("reads the factory floor, and the STARTER floor earns no factory milestone", () => {
+    const s = newGame(9);
+    const f = deriveFacts(s);
+    // The starter is a complete single-arm line: 0 expansions, 0 props, 1 arm, well under a dozen machines.
+    expect(f.factoryExpanded).toBe(false);
+    expect(f.factoryMaxExpanded).toBe(false);
+    expect(f.factoryProps).toBe(0);
+    expect(f.factoryArms).toBe(1);
+    expect(f.factoryMachineCount).toBeLessThan(12);
+    const earned = evaluateAchievements(f);
+    for (const id of ["factory-parallel", "factory-expand", "factory-decor", "factory-big-line", "factory-max"]) {
+      expect(earned).not.toContain(id);
+    }
   });
 
   it("counts distinct categories shipped", () => {
