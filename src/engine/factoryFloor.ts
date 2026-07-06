@@ -232,11 +232,20 @@ export function lineComplete(floor: FactoryFloor): boolean {
   return nearMachine(floor, "intake", head.c, head.r) && nearMachine(floor, "packer", tail.c, tail.r);
 }
 
-/** Auto-route a fresh belt chain that runs from the Intake, THROUGH every processing machine, to the
- *  Packer — a greedy nearest-neighbour tour with BFS legs around obstacles, so the line actually feeds
- *  each station instead of taking a shortcut. Returns a new floor with belts replaced, or null if
- *  there's no Intake+Packer / no clear path. Pure + deterministic (fixed cell + direction order).
- *  This kills the tile-by-tile belt-laying grind. */
+// Auto-route tuning: a turn costs as much as ROUTE_TURN_COST extra tiles, so legs prefer long
+// straight runs and the routed line reads as clean lanes instead of staircase zigzags. The stage
+// order is the canonical recipe sequence every device family follows (see LINE_RECIPES): chassis
+// work first, then boards, screens, assembly, and QA last before packing — so the tour flows like
+// a real production line instead of criss-crossing to whichever machine is nearest.
+const ROUTE_TURN_COST = 2;
+const ROUTE_STAGE_ORDER: readonly MachineKind[] = ["mill", "press", "screen", "arm", "qa"];
+
+/** Auto-route a fresh belt chain that runs from the Intake, THROUGH every processing machine in
+ *  recipe order, to the Packer. Legs are found with a turn-penalised shortest path (Dijkstra over
+ *  cell+heading states, FIFO buckets) and heading carries across legs, so the whole line comes out
+ *  straight and calm — long lanes, few corners, no staircases. Returns a new floor with belts
+ *  replaced, or null if there's no Intake+Packer / no clear path. Pure + deterministic (fixed
+ *  cell, direction, and machine order; FIFO tie-breaks). */
 export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w): FactoryFloor | null {
   const intake = floor.machines.find((m) => m.kind === "intake");
   const packer = floor.machines.find((m) => m.kind === "packer");
@@ -260,23 +269,50 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w): Fac
     }
     return out;
   };
-  // Shortest path from `start` to ANY goal cell, over free cells not already used (start exempt).
-  const bfsLeg = (start: [number, number], goals: Set<string>, used: Set<string>): [number, number][] | null => {
-    if (goals.has(K(start[0], start[1]))) return [start];
-    const prev = new Map<string, string | null>([[K(start[0], start[1]), null]]);
-    const q: [number, number][] = [start];
-    for (let h = 0; h < q.length; h++) {
-      const [c, r] = q[h];
-      for (const [dc, dr] of DIRS) {
-        const nc = c + dc, nr = r + dr, nk = K(nc, nr);
-        if (!free(nc, nr) || prev.has(nk) || used.has(nk)) continue;
-        prev.set(nk, K(c, r));
-        if (goals.has(nk)) {
-          const path: [number, number][] = [];
-          for (let cur: string | null = nk; cur; cur = prev.get(cur) ?? null) path.push(cur.split(",").map(Number) as [number, number]);
-          return path.reverse();
+
+  // Turn-penalised shortest path from `start` (arriving with heading `startDir`, -1 = none) to ANY
+  // goal cell, over free cells not already used by the path so far. Cost = tiles + turns×penalty.
+  // Bucket queue (FIFO within a cost) keeps expansion order — and therefore ties — deterministic.
+  type Leg = { cells: [number, number][]; endDir: number; cost: number };
+  const legSearch = (start: [number, number], startDir: number, goals: Set<string>, used: Set<string>): Leg | null => {
+    if (goals.has(K(start[0], start[1]))) return { cells: [start], endDir: startDir, cost: 0 };
+    const stateOf = (c: number, r: number, d: number) => (r * W + c) * 5 + (d + 1);
+    const startState = stateOf(start[0], start[1], startDir);
+    const dist = new Map<number, number>([[startState, 0]]);
+    const prev = new Map<number, number>();
+    const buckets: (number[] | undefined)[] = [[startState]];
+    let maxCost = 0;
+    for (let cost = 0; cost <= maxCost; cost++) {
+      const bucket = buckets[cost];
+      if (!bucket) continue;
+      for (let h = 0; h < bucket.length; h++) {
+        const s = bucket[h];
+        if ((dist.get(s) ?? Infinity) !== cost) continue; // stale entry — a cheaper path got there first
+        const d = (s % 5) - 1;
+        const cell = (s - (d + 1)) / 5;
+        const c = cell % W, r = (cell - c) / W;
+        // First non-stale pop of a goal cell = the cheapest way in (costs rise monotonically,
+        // FIFO within a cost level keeps ties deterministic).
+        if (goals.has(K(c, r))) {
+          const cells: [number, number][] = [];
+          for (let cur: number | undefined = s; cur !== undefined; cur = prev.get(cur)) {
+            const dd = (cur % 5) - 1, cc = (cur - (dd + 1)) / 5;
+            cells.push([cc % W, (cc - (cc % W)) / W]);
+          }
+          cells.reverse();
+          return { cells, endDir: d, cost };
         }
-        q.push([nc, nr]);
+        for (let nd = 0; nd < 4; nd++) {
+          const nc = c + DIRS[nd][0], nr = r + DIRS[nd][1];
+          if (!free(nc, nr) || used.has(K(nc, nr))) continue;
+          const ncost = cost + 1 + (d !== -1 && d !== nd ? ROUTE_TURN_COST : 0);
+          const ns = stateOf(nc, nr, nd);
+          if ((dist.get(ns) ?? Infinity) <= ncost) continue;
+          dist.set(ns, ncost);
+          prev.set(ns, s);
+          (buckets[ncost] ??= []).push(ns);
+          if (ncost > maxCost) maxCost = ncost;
+        }
       }
     }
     return null;
@@ -286,46 +322,61 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w): Fac
   const packerGoals = new Set(besideCells(packer).map(([c, r]) => K(c, r)));
   if (packerGoals.size === 0) return null;
 
-  // Try each Intake-side start cell (deterministic order) until one yields a full tour to the Packer.
+  // Run the tour from EVERY Intake-side start cell and keep the cheapest complete one — the first
+  // workable start isn't always the clean one (a corner start adds a pointless hook at the head).
+  // Deterministic: fixed start order, strict < so ties keep the earliest.
+  let bestPath: [number, number][] | null = null;
+  let bestTotal = Infinity;
   for (const start of besideCells(intake)) {
     const path: [number, number][] = [start];
     const used = new Set<string>([K(start[0], start[1])]);
-    let cur = start;
-    const remaining = [...processing];
-    while (remaining.length) {
-      let bestLeg: [number, number][] | null = null, bestIdx = -1;
-      for (let i = 0; i < remaining.length; i++) {
-        const goals = new Set(besideCells(remaining[i]).map(([c, r]) => K(c, r)));
-        if (goals.size === 0) continue;
-        const leg = bfsLeg(cur, goals, used);
-        if (leg && (!bestLeg || leg.length < bestLeg.length)) { bestLeg = leg; bestIdx = i; }
+    let cur = start, curDir = -1, total = 0;
+    // Visit machines grouped by the canonical stage order; within a stage, cheapest leg first.
+    // Unknown kinds (future machines) fall in after QA so they're still covered.
+    const stagePools: PlacedMachine[][] = ROUTE_STAGE_ORDER.map((k) => processing.filter((m) => m.kind === k));
+    stagePools.push(processing.filter((m) => !ROUTE_STAGE_ORDER.includes(m.kind)));
+    for (const pool of stagePools) {
+      const remaining = [...pool];
+      while (remaining.length) {
+        let best: Leg | null = null, bestIdx = -1;
+        for (let i = 0; i < remaining.length; i++) {
+          const goals = new Set(besideCells(remaining[i]).map(([c, r]) => K(c, r)));
+          if (goals.size === 0) continue;
+          const leg = legSearch(cur, curDir, goals, used);
+          if (leg && (!best || leg.cost < best.cost)) { best = leg; bestIdx = i; }
+        }
+        if (!best) break; // the rest of this stage is unreachable — carry on with the next stage
+        for (const c of best.cells.slice(1)) { path.push(c); used.add(K(c[0], c[1])); }
+        cur = best.cells[best.cells.length - 1];
+        curDir = best.endDir;
+        total += best.cost;
+        remaining.splice(bestIdx, 1);
       }
-      if (!bestLeg) break; // the rest are unreachable from here — route straight on to the Packer
-      for (const c of bestLeg.slice(1)) { path.push(c); used.add(K(c[0], c[1])); }
-      cur = bestLeg[bestLeg.length - 1];
-      remaining.splice(bestIdx, 1);
     }
-    const finalLeg = bfsLeg(cur, packerGoals, used);
+    const finalLeg = legSearch(cur, curDir, packerGoals, used);
     if (!finalLeg) continue; // this start can't reach the Packer — try the next
-    for (const c of finalLeg.slice(1)) { path.push(c); used.add(K(c[0], c[1])); }
-
-    const dirOf = (from: [number, number], to: [number, number]): BeltDir => {
-      const dc = to[0] - from[0], dr = to[1] - from[1];
-      return dc > 0 ? "e" : dc < 0 ? "w" : dr > 0 ? "s" : "n";
-    };
-    const belts: BeltTile[] = path.map((cell, i) => {
-      if (i < path.length - 1) return { c: cell[0], r: cell[1], dir: dirOf(cell, path[i + 1]) };
-      let best: BeltDir = "e", bestD = Infinity; // final tile aims into the Packer
-      for (const s of machineCells(packer)) {
-        const [mc, mr] = s.split(",").map(Number);
-        const dc = mc - cell[0], dr = mr - cell[1], d = Math.abs(dc) + Math.abs(dr);
-        if (d < bestD) { bestD = d; best = Math.abs(dc) >= Math.abs(dr) ? (dc >= 0 ? "e" : "w") : (dr >= 0 ? "s" : "n"); }
-      }
-      return { c: cell[0], r: cell[1], dir: best };
-    });
-    return { ...floor, belts };
+    for (const c of finalLeg.cells.slice(1)) { path.push(c); used.add(K(c[0], c[1])); }
+    total += finalLeg.cost;
+    if (total < bestTotal) { bestTotal = total; bestPath = path; }
   }
-  return null;
+  if (!bestPath) return null;
+
+  const dirOf = (from: [number, number], to: [number, number]): BeltDir => {
+    const dc = to[0] - from[0], dr = to[1] - from[1];
+    return dc > 0 ? "e" : dc < 0 ? "w" : dr > 0 ? "s" : "n";
+  };
+  const path = bestPath;
+  const belts: BeltTile[] = path.map((cell, i) => {
+    if (i < path.length - 1) return { c: cell[0], r: cell[1], dir: dirOf(cell, path[i + 1]) };
+    let best: BeltDir = "e", bestD = Infinity; // final tile aims into the Packer
+    for (const s of machineCells(packer)) {
+      const [mc, mr] = s.split(",").map(Number);
+      const dc = mc - cell[0], dr = mr - cell[1], d = Math.abs(dc) + Math.abs(dr);
+      if (d < bestD) { bestD = d; best = Math.abs(dc) >= Math.abs(dr) ? (dc >= 0 ? "e" : "w") : (dr >= 0 ? "s" : "n"); }
+    }
+    return { c: cell[0], r: cell[1], dir: best };
+  });
+  return { ...floor, belts };
 }
 
 /** How the player-built line affects production — a build-TIME multiplier the sim reads.

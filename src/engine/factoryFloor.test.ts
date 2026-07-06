@@ -172,6 +172,23 @@ describe("factory floor grid (F2)", () => {
     expect(autoRouteBelts(bare)).toEqual(routed);
   });
 
+  it("auto-route lays STRAIGHT lanes — few turns, no staircases (turn-penalised legs)", async () => {
+    const { autoRouteBelts, beltChain } = await import("./factoryFloor.ts");
+    const bare = { machines: starterFloor().machines, belts: [] };
+    const routed = autoRouteBelts(bare)!;
+    const chain = beltChain(routed.belts);
+    let turns = 0;
+    for (let i = 1; i < chain.length; i++) if (chain[i].dir !== chain[i - 1].dir) turns++;
+    // The starter's horseshoe needs exactly 2 corners; anything staircasing balloons past 8.
+    expect(turns).toBeLessThanOrEqual(4);
+    // And no immediate zig-zag anywhere: two direction changes within a 3-tile window reads as a
+    // staircase, which is exactly what the turn penalty exists to kill.
+    for (let i = 2; i < chain.length; i++) {
+      const zig = chain[i].dir !== chain[i - 1].dir && chain[i - 1].dir !== chain[i - 2].dir;
+      expect(zig).toBe(false);
+    }
+  });
+
   it("machineCells matches the def footprint", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });
