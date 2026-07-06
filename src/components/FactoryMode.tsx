@@ -296,6 +296,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               floorW={floorWidth(state.factoryExpansion)}
               era={state.era}
               onTapCell={onTapCell}
+              paintBelts={buildTool === "belt"}
+              onPaintBelts={(cells) => {
+                const res = d.game.paintBeltRun(cells, beltDir);
+                if (res.ok) { haptic.light(); sfx("build"); }
+                else { haptic.warning(); showToast(res.reason ?? "Can't lay a belt there", { tone: "negative" }); }
+              }}
               flash={flash}
               onContextLost={() => setGlLost(true)}
             />
@@ -418,7 +424,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               <button role="tab" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
               <button role="tab" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
             </div>
-            <span className="fmode__build-rule">{buildCat === "machine" ? "Connect the Intake to the Packer. Erase refunds half." : "Dress the floor with props. Erase refunds half."}</span>
+            <span className="fmode__build-rule">{buildTool === "belt" ? "Drag to paint a belt run · tap for one · Auto routes it all." : buildCat === "machine" ? "Connect the Intake to the Packer. Erase refunds half." : "Dress the floor with props. Erase refunds half."}</span>
             <button className="fmode__build-done" onClick={() => { haptic.light(); setBuildTool(null); }}>Done</button>
           </div>
           <div className="fmode__palette">

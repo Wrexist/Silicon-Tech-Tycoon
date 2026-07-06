@@ -2152,3 +2152,17 @@ money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced the
       cash-gated; useGame wiring; an "Auto" button in the Build belt palette. +reducer test.
 - Verified live: on a belt-stripped starter, one tap laid a 27-tile line weaving through press → mill →
       arm → QA → packer. tsc 0, 762 tests (+2), build+PWA green.
+
+## v99 — Drag-to-paint belts (#improvement, follow-up) (DONE 2026-07-06)
+- [x] Belts can now be PAINTED by dragging across the floor, not just tapped one tile at a time.
+      `paintBeltRun` reducer (+test) lays a whole run at once, each tile auto-aimed toward the next
+      cell (last continues straight; single tile uses the Turn direction), charging per NEW tile,
+      re-aiming free, skipping machine/off-grid cells, and stopping when the budget runs out.
+- [x] **Factory3D**: while the Belt tool is active, one-finger camera rotate is suspended
+      (`enableRotate={!paintBelts}`) so a drag paints instead of orbiting; pinch-zoom still works.
+      Cells are sampled on pointer-move and joined with an orthogonal L-path so a rough drag yields a
+      clean connected run, with a live translucent GHOST previewing it (brighter head tile). Pointer
+      capture keeps the drag alive if the finger strays off the pad. A tap still lays a single tile.
+- [x] Build-rule hint now teaches it: "Drag to paint a belt run · tap for one · Auto routes it all."
+- Verified live: a single drag laid an 11-tile oriented run with a turn; ghost showed during the drag,
+      camera didn't orbit. tsc 0, 763 tests (+1), build+PWA green.

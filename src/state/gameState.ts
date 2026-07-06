@@ -2130,6 +2130,33 @@ export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDi
   return { state: { ...state, cash: existing ? state.cash : sub(state.cash, BELT_COST), factoryFloor: next }, ok: true };
 }
 
+/** Lay a whole DRAG RUN of conveyor at once — each tile auto-aimed toward the next cell (the last
+ *  continues straight; a single tile uses `fallbackDir`). New tiles cost BELT_COST, re-aiming an
+ *  existing tile is free, and cells over a machine / off-grid are skipped. Places greedily and stops
+ *  when the budget runs out, so a long drag paints as much as the player can afford. */
+export function paintBeltRun(state: GameState, cells: { c: number; r: number }[], fallbackDir: BeltDir): ActionResult {
+  if (cells.length === 0) return { state, ok: false, reason: "Nothing to lay." };
+  const maxW = floorWidth(state.factoryExpansion);
+  const dirBetween = (a: { c: number; r: number }, b: { c: number; r: number }): BeltDir =>
+    b.c > a.c ? "e" : b.c < a.c ? "w" : b.r > a.r ? "s" : "n";
+  let floor = state.factoryFloor;
+  let cash = state.cash;
+  let placed = 0;
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    const dir: BeltDir = cells[i + 1] ? dirBetween(cell, cells[i + 1]) : i > 0 ? dirBetween(cells[i - 1], cell) : fallbackDir;
+    const existing = floor.belts.some((b) => b.c === cell.c && b.r === cell.r);
+    if (!existing && cash < BELT_COST) break; // out of budget for new tiles
+    const next = floorPlaceBelt(floor, cell.c, cell.r, dir, maxW);
+    if (!next) continue; // off-grid or on a machine → skip this cell
+    if (!existing) cash = sub(cash, BELT_COST);
+    floor = next;
+    placed++;
+  }
+  if (placed === 0) return { state, ok: false, reason: "Can't lay a belt there." };
+  return { state: { ...state, factoryFloor: floor, cash }, ok: true };
+}
+
 /** The price of the NEXT floor expansion (escalating), or null if maxed out. */
 const EXPANSION_COSTS = [50_000, 150_000, 400_000];
 export function nextExpansionCost(expansion: number): Money | null {

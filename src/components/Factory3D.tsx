@@ -5,7 +5,7 @@
 // crate), and the machine matching the build's real stage glows and works hardest.
 // Same stack + discipline as the 3D office: r3f/drei primitives, lazy chunk, DPR cap,
 // context-loss downgrade. Zero image assets.
-import { createContext, useContext, useMemo, useRef } from "react";
+import { createContext, useContext, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
@@ -78,6 +78,10 @@ export interface Factory3DProps {
   /** Bumped by the HUD's recenter button — re-frames the camera to its default. */
   resetView?: number;
   onTapCell?: (c: number, r: number) => void;
+  /** Belt tool active — a DRAG paints a run of belt (camera rotate is suspended); a tap lays one. */
+  paintBelts?: boolean;
+  /** Commit a painted drag: the ordered cells the pointer crossed (already interpolated orthogonally). */
+  onPaintBelts?: (cells: { c: number; r: number }[]) => void;
   /** Last tap's cell + validity — flashed green/red on the pad for placement feedback. */
   flash?: { c: number; r: number; ok: boolean; n: number } | null;
   onContextLost?: () => void;
@@ -1094,9 +1098,18 @@ function Scene(p: Factory3DProps) {
     itemsT.current = itemsT.current.map((t) => (t + v) % pl.total);
   });
 
-  // Build mode: a TAP on the pad places (a drag orbits the camera instead). Record the pointer-down
-  // screen position; on release, only place if the pointer barely moved — so drag-to-rotate never
-  // drops a machine. Cell is read in the WORLD group's local space, so the framing can't skew it.
+  // The grid cell under a pad-space intersection point (read in the WORLD group's local space, so the
+  // portrait rotation + east expansion shift can't skew it). Null if outside the buildable grid.
+  const cellAt = (point: THREE.Vector3): { c: number; r: number } | null => {
+    if (!world.current) return null;
+    const local = world.current.worldToLocal(point.clone());
+    const c = Math.round(local.x + (FLOOR.w - 1) / 2);
+    const r = Math.round(local.z + (FLOOR.h - 1) / 2);
+    return c >= 0 && c < floorW && r >= 0 && r < FLOOR.h ? { c, r } : null;
+  };
+
+  // NON-belt tools: a TAP places (a drag orbits the camera instead). Record the pointer-down screen
+  // position; on release place only if the pointer barely moved, so drag-to-rotate never drops a piece.
   const padDown = useRef<{ x: number; y: number } | null>(null);
   const onPadDown = (e: { nativeEvent: PointerEvent }) => {
     padDown.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY };
@@ -1104,12 +1117,50 @@ function Scene(p: Factory3DProps) {
   const onPadUp = (e: { point: THREE.Vector3; nativeEvent: PointerEvent }) => {
     const start = padDown.current;
     padDown.current = null;
-    if (!p.buildMode || !p.onTapCell || !world.current || !start) return;
+    if (!p.buildMode || !p.onTapCell || !start) return;
     if (Math.hypot(e.nativeEvent.clientX - start.x, e.nativeEvent.clientY - start.y) > 10) return; // a drag, not a tap
-    const local = world.current.worldToLocal(e.point.clone());
-    const c = Math.round(local.x + (FLOOR.w - 1) / 2);
-    const r = Math.round(local.z + (FLOOR.h - 1) / 2);
-    if (c >= 0 && c < floorW && r >= 0 && r < FLOOR.h) p.onTapCell(c, r);
+    const cell = cellAt(e.point);
+    if (cell) p.onTapCell(cell.c, cell.r);
+  };
+
+  // BELT tool: drag to PAINT a continuous run. Camera rotate is suspended (see OrbitControls) so a
+  // one-finger drag lays belt instead of orbiting; a mere tap lays a single tile. Cells are sampled on
+  // move and joined with an orthogonal L-path so a rough drag still yields a clean, connected run. A
+  // translucent ghost previews the run live. Pointer capture keeps move/up firing if the finger
+  // strays off the pad mid-drag.
+  const dragRef = useRef<{ c: number; r: number }[] | null>(null);
+  const [ghost, setGhost] = useState<{ c: number; r: number }[] | null>(null);
+  const pushCells = (to: { c: number; r: number }) => {
+    const run = dragRef.current!;
+    let cur = run[run.length - 1];
+    while (cur.c !== to.c || cur.r !== to.r) {           // step orthogonally: horizontal first, then vertical
+      cur = cur.c !== to.c
+        ? { c: cur.c + Math.sign(to.c - cur.c), r: cur.r }
+        : { c: cur.c, r: cur.r + Math.sign(to.r - cur.r) };
+      if (!run.some((x) => x.c === cur.c && x.r === cur.r)) run.push(cur); // skip immediate backtracks
+    }
+  };
+  const onPaintDown = (e: { point: THREE.Vector3; nativeEvent: PointerEvent; target?: { setPointerCapture?: (id: number) => void } }) => {
+    const cell = cellAt(e.point);
+    if (!cell) return;
+    dragRef.current = [cell];
+    setGhost([cell]);
+    try { e.target?.setPointerCapture?.(e.nativeEvent.pointerId); } catch { /* capture optional */ }
+  };
+  const onPaintMove = (e: { point: THREE.Vector3 }) => {
+    if (!dragRef.current) return;
+    const cell = cellAt(e.point);
+    if (!cell) return;
+    const last = dragRef.current[dragRef.current.length - 1];
+    if (cell.c === last.c && cell.r === last.r) return;
+    pushCells(cell);
+    setGhost([...dragRef.current]);
+  };
+  const onPaintUp = () => {
+    const cells = dragRef.current;
+    dragRef.current = null;
+    setGhost(null);
+    if (cells && cells.length) p.onPaintBelts?.(cells);
   };
 
   return (
@@ -1128,12 +1179,28 @@ function Scene(p: Factory3DProps) {
       <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} floorW={floorW} />
       {/* expansion joints double as the build grid, subtle on the concrete */}
       <gridHelper args={[floorW, floorW, C.concreteJoint, C.concreteJoint]} position={[cx, 0.11, 0]} />
-      {/* tap-catcher for build mode (invisible, above the pad) */}
+      {/* tap-catcher for build mode (invisible, above the pad) — belt tool paints on drag, others tap */}
       {/* raycast skips visible={false}, so the tap-catcher is transparent instead of hidden */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, 0.12, 0]} onPointerDown={onPadDown} onPointerUp={onPadUp}>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[cx, 0.12, 0]}
+        onPointerDown={p.paintBelts ? onPaintDown : onPadDown}
+        onPointerMove={p.paintBelts ? onPaintMove : undefined}
+        onPointerUp={p.paintBelts ? onPaintUp : onPadUp}
+      >
         <planeGeometry args={[floorW, FLOOR.h]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
+      {/* live ghost of the belt run being painted */}
+      {ghost?.map((cell, i) => {
+        const [gx, gz] = worldOf(cell.c, cell.r);
+        return (
+          <mesh key={`${cell.c},${cell.r}`} rotation={[-Math.PI / 2, 0, 0]} position={[gx, 0.14, gz]}>
+            <planeGeometry args={[0.82, 0.82]} />
+            <meshBasicMaterial color={accent} transparent opacity={i === ghost.length - 1 ? 0.55 : 0.34} depthWrite={false} />
+          </mesh>
+        );
+      })}
       {/* dock apron under the truck, at the line's end */}
       {dock && (
         <mesh rotation={[-Math.PI / 2, 0, dock.yaw]} position={[dock.road[0], 0.001, dock.road[2]]} receiveShadow>
@@ -1182,11 +1249,13 @@ export default function Factory3D(p: Factory3DProps) {
     >
       <Scene {...p} />
       <CameraReset signal={p.resetView ?? 0} cx={cx} />
-      {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor */}
+      {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor. While the belt tool
+          is active, one-finger ROTATE is suspended so a drag paints belt; pinch-zoom still works. */}
       <OrbitControls
         makeDefault
         target={[cx, -0.3, 0]}
         enablePan={false}
+        enableRotate={!p.paintBelts}
         enableDamping
         dampingFactor={0.12}
         rotateSpeed={0.55}

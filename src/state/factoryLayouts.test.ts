@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { dollars } from "../engine/money.ts";
 import { MACHINE_DEFS, machineLevel, machineUpgradeStepCost } from "../engine/factoryFloor.ts";
 import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
-import { lineComplete } from "../engine/factoryFloor.ts";
+import { lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
 import {
-  newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine, autoConnectLine,
+  newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
   saveFactoryLayout, applyFactoryLayout, deleteFactoryLayout, factoryLayoutCost,
   type GameState,
 } from "./gameState.ts";
@@ -147,6 +147,29 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     const fail = autoConnectLine(noPacker);
     expect(fail.ok).toBe(false);
     expect(fail.state).toBe(noPacker);
+  });
+
+  it("paintBeltRun lays a run auto-oriented toward the next cell, charging per NEW tile", () => {
+    const empty: GameState = { ...rich(), factoryFloor: { machines: [], belts: [] } };
+    const run = [{ c: 2, r: 5 }, { c: 3, r: 5 }, { c: 4, r: 5 }, { c: 4, r: 6 }];
+    const res = paintBeltRun(empty, run, "e");
+    expect(res.ok).toBe(true);
+    expect(res.state.factoryFloor.belts).toHaveLength(4);
+    expect(res.state.cash).toBe((empty.cash - 4 * BELT_COST) as typeof empty.cash);
+    // Orientation follows the path: east along the row, then south into the turn.
+    const at = (c: number, r: number) => res.state.factoryFloor.belts.find((b) => b.c === c && b.r === r)!;
+    expect(at(2, 5).dir).toBe("e");
+    expect(at(3, 5).dir).toBe("e");
+    expect(at(4, 5).dir).toBe("s"); // turns toward the next cell
+    expect(at(4, 6).dir).toBe("s"); // last tile continues straight
+    // Re-painting the same cells re-aims for free (no new tiles → no charge).
+    const again = paintBeltRun(res.state, run, "e");
+    expect(again.state.cash).toBe(res.state.cash);
+    // Budget cutoff: with only enough for two tiles, a longer run stops after two.
+    const broke: GameState = { ...empty, cash: (BELT_COST * 2) as typeof empty.cash };
+    const partial = paintBeltRun(broke, run, "e");
+    expect(partial.ok).toBe(true);
+    expect(partial.state.factoryFloor.belts).toHaveLength(2);
   });
 
   it("deletes a layout by id", () => {
