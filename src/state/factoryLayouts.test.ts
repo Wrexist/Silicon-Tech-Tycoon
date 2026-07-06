@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { dollars } from "../engine/money.ts";
 import { MACHINE_DEFS, machineLevel, machineUpgradeStepCost } from "../engine/factoryFloor.ts";
 import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
-import { lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
+import { demoFloor, lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
 import {
   newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
   moveFloorMachine, moveFactoryProp, buyFactoryProp,
@@ -10,7 +10,8 @@ import {
   type GameState,
 } from "./gameState.ts";
 
-const rich = (over: Partial<GameState> = {}): GameState => ({ ...newGame(7), cash: dollars(5_000_000), ...over });
+// Tests exercise a BUILT floor (new games start bare), so rich() carries the reference demo layout.
+const rich = (over: Partial<GameState> = {}): GameState => ({ ...newGame(7), cash: dollars(5_000_000), factoryFloor: demoFloor(), ...over });
 
 describe("saved factory layouts (F: save / name / switch)", () => {
   it("saves a named snapshot of the current floor, and caps the count", () => {
@@ -79,8 +80,8 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     const built = buyFloorMachine(rich(), "arm", 13, 8);
     const withBig = saveFactoryLayout(built.state, "big");
     const bigId = withBig.state.factoryLayouts[0].id;
-    // A broke floor WITHOUT the extra arm: applying "big" must add (and charge for) the arm.
-    const broke: GameState = { ...newGame(7), cash: dollars(1), factoryLayouts: withBig.state.factoryLayouts };
+    // A broke DEMO floor WITHOUT the extra arm: applying "big" must add (and charge for) the arm.
+    const broke: GameState = { ...newGame(7), cash: dollars(1), factoryFloor: demoFloor(), factoryLayouts: withBig.state.factoryLayouts };
     expect(factoryLayoutCost(broke, withBig.state.factoryLayouts[0])).toBe(MACHINE_DEFS.arm.cost);
     const res = applyFactoryLayout(broke, bigId);
     expect(res.ok).toBe(false);

@@ -364,8 +364,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       <div className="fmode__left">
         {!lineOk && (
           <div className="fmode__panel fmode__stopped">
-            <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line paused</span>
-            <p className="fmode__empty">The belts don't reach from the Intake to the Packer yet.</p>
+            <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
+            <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or let Auto route it for you. A wired line builds every run faster.</p>
             <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
@@ -389,16 +389,14 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                     {d.overtime ? "Overtime" : "On schedule"}
                   </span>
                 )}
-                {d.linePct !== 0 && (
+                {(d.linePct > 0 || !lineOk || d.missing.length > 0) && (
                   <span className={`fmode__lineboon${d.linePct > 0 ? " fmode__lineboon--good" : " fmode__lineboon--bad"}`}>
                     <Zap size={12} aria-hidden />
-                    {d.linePct > 0
-                      ? `Line builds ${d.linePct}% faster`
-                      : !lineOk
-                        ? `Line broken · ${-d.linePct}% slower`
-                        : d.missing.length
-                          ? `Add ${MACHINE_DEFS[d.missing[0]].name}${d.missing.length > 1 ? ` +${d.missing.length - 1}` : ""} · ${-d.linePct}% slower`
-                          : `${-d.linePct}% slower`}
+                    {!lineOk
+                      ? "Wire Intake → Packer for a build-speed bonus"
+                      : d.missing.length
+                        ? `Add ${MACHINE_DEFS[d.missing[0]].name}${d.missing.length > 1 ? ` +${d.missing.length - 1}` : ""} for the full bonus`
+                        : `Line builds ${d.linePct}% faster`}
                   </span>
                 )}
               </div>
@@ -601,7 +599,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           {d.missing.length > 0 ? (
             <p className="fmode__sheet-note">This order wants a {d.missing.map((k) => MACHINE_DEFS[k].name).join(", ")} on the floor — add {d.missing.length > 1 ? "them" : "one"} in Build to speed it up. Arms and machine upgrades build faster too.</p>
           ) : (
-            <p className="fmode__sheet-note">Keep the line connected, cover the product's recipe, and add Arms or machine Upgrades to build faster.</p>
+            <p className="fmode__sheet-note">Wire Intake → Packer for a build-speed bonus; cover the product's recipe and add Arms or Upgrades to deepen it.</p>
           )}
           <div className="fmode__matsline" aria-label="Parts committed to production">
             {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {

@@ -11,6 +11,7 @@ import {
   newGame, placeFurniture, hireStaff, assignStaff, startBuild, launchReady,
   advanceOneWeek, buildWeeksFor, upgradeFacility, recommendedRun, productStats,
 } from "../src/state/gameState.ts";
+import { demoFloor } from "../src/engine/factoryFloor.ts";
 import { priceGuidance } from "../src/engine/market.ts";
 import { dollars, toDollars } from "../src/engine/money.ts";
 
@@ -18,7 +19,7 @@ let s = newGame(7);
 // Found the company + deep war chest so every staging action clears its cash gate. Strong
 // reputation BEFORE the launches so they carry real hype (→ hits, not flops); Growth Era keeps
 // the verdict bar reachable for a clean, aspirational performance record.
-s = { ...s, onboarded: true, tutorialDone: true, companyName: "Silicon", cash: dollars(80_000_000), era: 2,
+s = { ...s, onboarded: true, tutorialDone: true, factoryFloor: demoFloor(), companyName: "Silicon", cash: dollars(80_000_000), era: 2,
   reputation: 78, researched: { chip: 5, display: 5, battery: 4, materials: 4, software: 4, camera: 4 } };
 
 // Roomier HQ so the office reads "scaled company": upgrade the facility for headcount capacity.

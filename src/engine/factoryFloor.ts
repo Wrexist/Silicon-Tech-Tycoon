@@ -193,11 +193,25 @@ export function formMarks(floor: FactoryFloor, path: [number, number][]): [numbe
 }
 
 /** The hand-authored starter factory — a clean horseshoe conveyor the mode ships with (F2 default
- *  + backfill). Two long lanes joined by a right-hand turn: material enters top-left, runs east,
- *  turns down, then runs west to the packer at bottom-left. Machines sit just off each lane in
- *  stage order (intake → press on the top lane, arm → QA → packer on the bottom lane); the 3D scene
- *  snaps them onto the belt so the product runs straight through each one. */
+ *  + backfill). Deliberately just a BEGINNING and an END — the Intake and the Packer, no belts, no
+ *  other machines — so building the line is the player's game: lay it by hand, or tap Auto to route
+ *  the optimal path for money. An unwired floor is never a penalty (the contract factory carries
+ *  you); a wired one is a build-speed bonus you earn (see lineSpeedMult). */
 export function starterFloor(): FactoryFloor {
+  return {
+    machines: [
+      { id: "st-intake", kind: "intake", c: 0, r: 1 }, // material enters top-left
+      { id: "st-packer", kind: "packer", c: 0, r: 6 }, // ships bottom-left, by the dock
+    ],
+    belts: [],
+  };
+}
+
+/** The REFERENCE full floor — the classic two-lane horseshoe covering every machine kind. Not what
+ *  new games start with (that's the bare starterFloor); used by tests and screenshot staging as a
+ *  known-good complete layout. Material enters top-left, runs east through mill → press → screen,
+ *  turns down, then runs west past arm → QA to the packer at bottom-left. */
+export function demoFloor(): FactoryFloor {
   const belts: BeltTile[] = [];
   // top lane, west→east
   for (let c = 2; c <= 12; c++) belts.push({ c, r: 2, dir: "e" });
@@ -391,27 +405,27 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w): Fac
 }
 
 /** How the player-built line affects production — a build-TIME multiplier the sim reads.
- *  Anchored so the starter (a complete, single-arm line) is exactly NEUTRAL (×1), so the baseline
- *  balance is unchanged. From there the layout MATTERS in two directions:
- *    • a disconnected line (no intake→packer path) costs time (×1.15) — keep it wired.
- *    • extra assembly arms parallelise the build, each shaving ~5%.
- *    • per-machine upgrades tune the line, each level shaving ~2% (down to a −45% floor).
- *    • TOPOLOGY: if `requiredKinds` (the product's recipe machines) are given, each one MISSING from
- *      the floor costs ~10% time (capped +60%) — so a phone wants a screen bonder, a laptop a mill.
- *      The starter has every kind, so it's never penalised and the baseline stays ×1.
+ *  The floor is PURE UPSIDE, anchored so a company that never touches it plays the exact baseline:
+ *    • no wired line (new games start with just an Intake and a Packer) → ×1, NEUTRAL — the
+ *      contract factory carries you; an empty floor is an invitation, never a punishment.
+ *    • a COMPLETE Intake→Packer line is an earned bonus: ×0.92 base (−8% build time), each extra
+ *      assembly arm shaving ~5% more and each machine upgrade level ~2%, down to a ×0.55 floor.
+ *    • TOPOLOGY: if `requiredKinds` (the product's recipe machines) are given, each one MISSING
+ *      eats ~10% of the bonus — a phone wants a screen bonder, a laptop a mill — but the result is
+ *      clamped at ×1, so an incomplete toolkit only shrinks the reward, never penalises.
  *  Pure + bounded; no RNG, so the determinism pin is untouched. */
 export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<MachineKind>): number {
-  if (!lineComplete(floor)) return 1.15;
+  if (!lineComplete(floor)) return 1;
   const arms = floor.machines.filter((m) => m.kind === "arm").length;
   const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
-  let mult = 1 - 0.05 * Math.max(0, arms - 1) - 0.02 * upg;
+  let mult = 0.92 - 0.05 * Math.max(0, arms - 1) - 0.02 * upg;
   if (requiredKinds) {
     const present = new Set(floor.machines.map((m) => m.kind));
     let missing = 0;
     for (const k of requiredKinds) if (!present.has(k)) missing++;
-    mult += Math.min(0.6, 0.1 * missing);
+    mult += 0.1 * missing;
   }
-  return Math.max(0.55, mult);
+  return Math.min(1, Math.max(0.55, mult));
 }
 
 /** Which of a device's required machine kinds are NOT on the floor — surfaced in the HUD so the

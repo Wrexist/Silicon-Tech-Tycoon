@@ -2204,3 +2204,24 @@ Four fixes/features from device feedback (user screenshots):
       fallback AND the Suspense placeholder while the lazy 3D chunk loads.
 - Verified live: card shows the real running factory + lock pill; tapping it still opens fullscreen.
       tsc 0, 767 tests, build+PWA green.
+
+## v102 — The factory starts EMPTY: build it, or pay Auto to route it (DONE 2026-07-06)
+- [x] New games no longer get a pre-built line. `starterFloor()` is now just a BEGINNING and an END —
+      the Intake and the Packer, no belts, no machines — so building the factory is the player's game:
+      lay belts by hand (tap / drag-paint), place machines from the palette, or tap **Auto** to route
+      the optimal line for money ($400/tile, charged like hand-laying). The old full horseshoe lives
+      on as `demoFloor()` (reference layout for tests + screenshot staging).
+- [x] **Re-anchored `lineSpeedMult` as PURE UPSIDE** so the change can't hurt anyone: no wired line →
+      ×1 neutral (the contract factory carries you — an empty floor is an invitation, not a
+      punishment); a complete Intake→Packer line → ×0.92 earned bonus, deepened by extra arms (−5%)
+      and machine upgrades (−2%/level) down to ×0.55; missing recipe machines eat the bonus but the
+      result is clamped at ×1. The 40-seed balance sim is BYTE-IDENTICAL (the sim's auto-player never
+      builds the floor → ×1 before and after).
+- [x] HUD reframed to match: "Line offline — connect the Intake to the Packer… or let Auto route it"
+      CTA panel, order-card chip now sells the bonus ("Wire Intake → Packer for a build-speed bonus" /
+      "Add Screen Bonder for the full bonus" / "Line builds N% faster"), Stats note updated.
+- [x] Tests swept: bare-starter expectations (+2 tests), full-floor fixtures repointed to demoFloor,
+      achievements starter-guard (0 arms), auto-route proves the bare start wires day-one. Existing
+      saves are untouched (persisted floors load as-is).
+- tsc 0, 768 tests, build+PWA green, sim byte-identical; verified live (bare floor + offline CTA →
+      Auto → wired minimal line, charged per tile).

@@ -298,11 +298,11 @@ describe("deriveFacts reads only real tracked state", () => {
   it("reads the factory floor, and the STARTER floor earns no factory milestone", () => {
     const s = newGame(9);
     const f = deriveFacts(s);
-    // The starter is a complete single-arm line: 0 expansions, 0 props, 1 arm, well under a dozen machines.
+    // The starter is just an Intake + Packer: 0 expansions, 0 props, 0 arms, 2 machines.
     expect(f.factoryExpanded).toBe(false);
     expect(f.factoryMaxExpanded).toBe(false);
     expect(f.factoryProps).toBe(0);
-    expect(f.factoryArms).toBe(1);
+    expect(f.factoryArms).toBe(0);
     expect(f.factoryMachineCount).toBeLessThan(12);
     const earned = evaluateAchievements(f);
     for (const id of ["factory-parallel", "factory-expand", "factory-decor", "factory-big-line", "factory-max"]) {
