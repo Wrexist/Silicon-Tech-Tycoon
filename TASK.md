@@ -2235,3 +2235,46 @@ Four fixes/features from device feedback (user screenshots):
       disarm; a floor with no route toasts the reason instead of arming.
 - tsc 0, 769 tests, build+PWA green; verified live: quote → cancel (no charge) → confirm ($1,200 for
       3 tiles on the bare starter).
+
+## v104 — Full-game audit: props are solid, saves are sanitized, the bonus is real (DONE 2026-07-06)
+Three parallel audit agents swept the factory changes, every screen, and the state/engine layers;
+all confirmed findings fixed in four commits.
+- [x] **Props-ghost overlap fixed** — decor was solid one way only (props refused machine/belt cells,
+      but machines, belts, painted runs and Auto routes could be dropped ON TOP of props). Now
+      `buyFloorMachine`/`moveFloorMachine` refuse prop-overlapping footprints, `buyFloorBelt` refuses
+      and `paintBeltRun` paints around prop cells, `autoRouteBelts` takes a blockedCells set (prop
+      cells passed by quote + action) and routes around decor, and hold-to-move's green cells exclude
+      prop overlaps. New `propCellSet()` helper + engine/reducer/route regression tests.
+- [x] **State hardening (audit HIGHs)** — machine/prop ids came from array length, so demolish +
+      re-buy in one week minted duplicates (moveMachine dragged both; React keys collided): new
+      monotonic `factoryPieceCounter`, migrate-backfilled past every id ever minted (including inside
+      saved layouts). `migrate()` now drops unknown machine kinds / belt dirs / prop kinds and
+      non-finite coords (each crashed machineCells/beltChain → placement, buildWeeksFor, 3D render),
+      clamps a non-finite upgrade `level` (NaN level → NaN upgrade cost → passed the cash gate and
+      ZEROED the wallet), and scrubs/drops malformed saved layouts. `applyFactoryLayout` clamps a
+      tampered expansion to MAX; `paintBeltRun` distinguishes "no money" from "no legal cell".
+- [x] **The wired-line bonus is now real from day one** — it had a dead zone: one missing recipe
+      machine clamped the multiplier back to ×1 (wiring paid NOTHING until the full ~$40K toolkit),
+      and round(3 × 0.92) = 3 erased even the full bonus on early builds. `lineSpeedMult` now scales
+      the earned bonus by recipe COVERAGE (a fresh wire keeps 25%, every recipe machine grows it;
+      full-coverage ×0.92 anchor unchanged, still clamped ≤1), and `buildWeeksFor` BANKS the
+      fractional week (floor, not round) for the line bonus only — untouched floors are bit-for-bit
+      neutral, sim byte-identical.
+- [x] **Stale copy swept for the empty starter** — FactoryTutorial no longer describes a running
+      line/truck that doesn't exist on first open (and now introduces Auto + its price quote); the
+      shop sheet's "Placeable machines arrive with Build mode" note replaced; achievements no longer
+      assume the old pre-built arm; HQ's "Watch it on the line" says "Build your factory line" until
+      the line exists; dead negative-speed UI branch removed; stale old-model comments/headers fixed
+      across factoryFloor/Factory3D/FactoryMode/persistence/tests.
+- [x] **Screens sweep** — IPO overlay no longer replays every launch after going public (ipoSeen
+      seeds from wentPublic); Market's stake sale renamed to "List on the stock exchange" (the HQ
+      endgame keeps the IPO name, and acknowledges an already-listed company); HQ research insight
+      respects doctrine forks; Company "Selling now" labelled profit/wk (it's margin) and the stats
+      sheet header says "Lifetime revenue"; Research's all-researched state points at real RP sinks;
+      Financing explains why borrowing is locked instead of a dead end; "Fans only" chip says
+      "Minimum" when fans don't clear the min run; sub-6% stake copy fixed; successor buttons unified;
+      fans pill threshold unified (500); Settings shows negative net worth in red and injects the
+      version from package.json (vite define); era-modal text arrow → ArrowRight icon; non-actionable
+      HQ insights render as content, not disabled buttons.
+- Gates: tsc 0 · 779 tests · build+PWA green · 40-seed sim byte-identical (0/40 bankrupt, Era 2 wk 74,
+      same troughs).
