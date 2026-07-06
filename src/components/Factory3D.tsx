@@ -7,7 +7,8 @@
 // context-loss downgrade. Zero image assets.
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
+import { ContactShadows, Html, OrbitControls, RoundedBox } from "@react-three/drei";
+import { Lock } from "lucide-react";
 import * as THREE from "three";
 import {
   FLOOR, MACHINE_DEFS, beltPath, canPlaceMachine, formMarks, machineCenter, machineLevel, worldOf,
@@ -88,6 +89,11 @@ export interface Factory3DProps {
   onMovePiece?: (piece: { type: "machine" | "prop"; id: string }, c: number, r: number) => { ok: boolean; reason?: string };
   /** Fired when a hold-to-move pick-up starts/ends (haptics + hints live in the caller). */
   onCarryChange?: (carrying: boolean) => void;
+  /** The NEXT (locked) expansion bay, previewed as a ghost floor east of the walls so players see
+   *  the bigger factory before they buy it. Null/undefined when the floor is maxed out. */
+  lockedBay?: { cols: number; label: string; sub: string } | null;
+  /** Tap on the locked bay — the caller opens wherever the expansion is bought. */
+  onTapLockedBay?: () => void;
   /** Last tap's cell + validity — flashed green/red on the pad for placement feedback. */
   flash?: { c: number; r: number; ok: boolean; n: number } | null;
   onContextLost?: () => void;
@@ -1381,6 +1387,43 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         </mesh>
       )}
 
+      {/* the NEXT expansion bay, previewed as a locked ghost floor east of the walls — players see
+          the bigger factory they could own before they buy it; tapping it opens the expand flow */}
+      {p.lockedBay && (() => {
+        const bw = p.lockedBay.cols;
+        const bx = floorW + (bw - 1) / 2 - (FLOOR.w - 1) / 2 + 0.35; // just past the east wall
+        return (
+          <group position={[bx, 0, 0]} onClick={(e) => { e.stopPropagation(); p.onTapLockedBay?.(); }}>
+            {/* ghost slab — same concrete, barely there */}
+            <RoundedBox args={[bw + 0.3, 0.14, SHELL.d]} radius={0.08} position={[0, 0.01, 0]}>
+              <meshStandardMaterial color={C.concrete} transparent opacity={0.2} roughness={1} />
+            </RoundedBox>
+            {/* ghost walls continuing the building silhouette */}
+            <mesh position={[bw / 2 + 0.05, SHELL.wallH / 2, 0]}>
+              <boxGeometry args={[SHELL.t, SHELL.wallH, SHELL.d]} />
+              <meshStandardMaterial color={p.wallColor ?? "#8a9099"} transparent opacity={0.14} />
+            </mesh>
+            {[SHELL.d / 2, -SHELL.d / 2].map((bz) => (
+              <mesh key={bz} position={[0, SHELL.wallH / 2, bz]}>
+                <boxGeometry args={[bw + 0.3, SHELL.wallH, SHELL.t]} />
+                <meshStandardMaterial color={p.wallColor ?? "#8a9099"} transparent opacity={0.14} />
+              </mesh>
+            ))}
+            {/* the lock pill — fixed-size chip floating over the bay */}
+            <Html position={[-(bw / 2) + 0.7, 0.4, -2.1]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, whiteSpace: "nowrap", fontFamily: "system-ui,-apple-system,sans-serif" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: "rgba(15,18,24,0.88)", border: "1px solid rgba(255,255,255,0.14)", color: "#fff", fontSize: 12, fontWeight: 800 }}>
+                  <Lock size={12} aria-hidden /> {p.lockedBay.label}
+                </div>
+                <div style={{ padding: "2px 8px", borderRadius: 999, background: "rgba(15,18,24,0.7)", color: "rgba(255,255,255,0.75)", fontSize: 10, fontWeight: 700 }}>
+                  {p.lockedBay.sub}
+                </div>
+              </div>
+            </Html>
+          </group>
+        );
+      })()}
+
       <BeltTiles floor={p.floor} lineOk={p.lineOk} />
       {p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} look={look} />)}
       {p.flash && <TapFlash flash={p.flash} />}
@@ -1425,7 +1468,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
 }
 
 export default function Factory3D(p: Factory3DProps) {
-  const cx = ((p.floorW ?? FLOOR.w) - FLOOR.w) / 2; // building east-shift from expansions
+  // Building east-shift from expansions; when a LOCKED bay is previewed, frame slightly east of the
+  // built floor so the ghost bay (and its lock pill) sit on screen instead of behind the tool rail.
+  const cx = ((p.floorW ?? FLOOR.w) - FLOOR.w) / 2 + (p.lockedBay ? p.lockedBay.cols / 4 : 0);
   // Hold-to-move: while a piece is in hand the CAMERA freezes entirely, so the drag steers the
   // piece — not the view. Mirrored out to the caller for haptics/hints via onCarryChange.
   const [carrying, setCarrying] = useState(false);

@@ -11,6 +11,11 @@
 .fmini { display: block; width: 100%; height: auto; }
 .fmini__pad { fill: color-mix(in srgb, var(--ink) 16%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 2; }
 .fmini__grid { stroke: color-mix(in srgb, var(--ink) 6%, transparent); stroke-width: 1; }
+/* The next (unbought) expansion bay — dimmed + padlocked so the bigger factory is visible before purchase. */
+.fmini__lockbay-pad { fill: color-mix(in srgb, var(--ink) 7%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 24%, transparent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.fmini__lockbay-body { fill: color-mix(in srgb, var(--ink) 42%, transparent); }
+.fmini__lockbay-shackle { fill: none; stroke: color-mix(in srgb, var(--ink) 42%, transparent); stroke-width: 2.5; stroke-linecap: round; }
+.fmini__lockbay-txt { fill: color-mix(in srgb, var(--ink) 52%, transparent); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
 .fmini__belt { fill: color-mix(in srgb, var(--ink) 36%, var(--bg)); }
 .fmini__belt--live { fill: color-mix(in srgb, var(--warning) 55%, var(--bg)); }
 .fmini--run .fmini__belt--live { animation: fmini-pulse 2.2s ease-in-out infinite; }

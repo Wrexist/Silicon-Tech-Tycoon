@@ -2166,3 +2166,27 @@ money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced the
 - [x] Build-rule hint now teaches it: "Drag to paint a belt run · tap for one · Auto routes it all."
 - Verified live: a single drag laid an 11-tile oriented run with a turn; ghost showed during the drag,
       camera didn't orbit. tsc 0, 763 tests (+1), build+PWA green.
+
+## v100 — Factory feel pass: visible sheets, clean Auto, hold-to-move, locked bay (DONE 2026-07-06)
+Four fixes/features from device feedback (user screenshots):
+- [x] **Style/Stats "didn't work"** — real bug: the Sheet primitive portals to <body> at scrim z-50
+      while .fmode sat at z-60, so EVERY factory sheet (Style/Stats/Upgrades/Shop) opened invisibly
+      BEHIND the overlay. .fmode → z-46 (sheets 50, ready-to-launch 58, toasts 60, tutorials 70 all
+      correctly above now); .fmode__stat labels white-alpha → var(--ink-2) (they live on the light
+      glass sheet). Verified with elementFromPoint + screenshots over the live 3D.
+- [x] **Auto routing perfected**: turn-penalised Dijkstra legs (bucket queue, FIFO-deterministic;
+      1 corner ≈ 2 tiles) + canonical stage order (mill → press → screen → arm → qa) + cheapest
+      start cell wins. Starter: 27-tile staircase mess → 21-tile U with exactly 2 corners. +test
+      (turn bound + no-zigzag window).
+- [x] **Hold-to-move**: hold a machine/prop ~0.4s to pick it up (lift + bob animation), drag with the
+      camera frozen, GREEN cells mark legal spots on/around the conveyor (faint = other legal,
+      live green/red footprint), release to drop — free; snap-back if illegal. Pure moveMachine /
+      moveProp helpers + moveFloorMachine / moveFactoryProp reducers (+3 tests); taught in the build
+      hint + tutorial chips. (Overlay quads must sit at y≥0.145 — lower is swallowed by the slab's
+      rounded edge.)
+- [x] **Locked expansion preview**: the NEXT bay renders as a ghost floor + ghost walls east of the
+      building with a floating "Locked · Expand the floor · $X" pill (tap → Style sheet); the HQ
+      minimap shows a dashed, padlocked "Locked" strip. Buying: confetti + camera re-frame as the
+      walls grow east, and the NEXT bay's preview appears at the escalating price. Camera framing
+      shifts a quarter-bay east while a preview exists so it's on screen.
+- tsc 0, 767 tests, build+PWA green; every flow verified live with screenshots.

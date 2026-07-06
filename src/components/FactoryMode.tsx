@@ -30,8 +30,9 @@ import { Sheet, useDialogFocus } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
+import { emitCelebrate } from "../design/celebrateFx.ts";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { FLOOR, MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
@@ -146,16 +147,27 @@ const MACHINE_TINT: Record<MachineKind, string> = {
   packer: "var(--fmini-packer)",
 };
 
-export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w }: { floor: GameFloor; lineOk: boolean; running: boolean; floorW?: number }) {
+export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedBayW = 0 }: { floor: GameFloor; lineOk: boolean; running: boolean; floorW?: number; lockedBayW?: number }) {
   const K = 20; // px per cell
   // The viewBox tracks the buildable width so expansion bays (columns ≥16) aren't clipped off-canvas.
   const W = Math.max(FLOOR.w, floorW) * K;
   const H = FLOOR.h * K;
+  // The NEXT (unbought) bay shows as a dimmed, padlocked strip — see the bigger factory, want it.
+  const LW = lockedBayW * K;
+  const lockX = W + LW / 2, lockY = H / 2 - 8;
   const chain = new Set(beltChain(floor.belts).map((b) => `${b.c},${b.r}`));
   return (
-    <svg className={`fmini${running ? " fmini--run" : ""}`} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" role="img"
+    <svg className={`fmini${running ? " fmini--run" : ""}`} viewBox={`0 0 ${W + LW} ${H}`} preserveAspectRatio="xMidYMid meet" role="img"
       aria-label={lineOk ? "Factory layout, line connected" : "Factory layout, line incomplete"}>
       <rect x={0} y={0} width={W} height={H} rx={10} className="fmini__pad" />
+      {lockedBayW > 0 && (
+        <g className="fmini__lockbay" aria-hidden>
+          <rect x={W + 3} y={2} width={LW - 5} height={H - 4} rx={8} className="fmini__lockbay-pad" />
+          <rect x={lockX - 7} y={lockY - 1} width={14} height={12} rx={3} className="fmini__lockbay-body" />
+          <path d={`M ${lockX - 4.5} ${lockY - 1} v -3.5 a 4.5 4.5 0 0 1 9 0 v 3.5`} className="fmini__lockbay-shackle" />
+          <text x={lockX} y={lockY + 24} textAnchor="middle" className="fmini__lockbay-txt">Locked</text>
+        </g>
+      )}
       {Array.from({ length: Math.round(W / K) - 1 }, (_, i) => (
         <line key={`v${i}`} x1={(i + 1) * K} y1={0} x2={(i + 1) * K} y2={H} className="fmini__grid" />
       ))}
@@ -277,7 +289,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     <div ref={ref} tabIndex={-1} className="fmode" role="dialog" aria-modal="true" aria-label="Factory mode">
       <div className="fmode__stage">
         {use3d ? (
-          <Suspense fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} />}>
+          <Suspense fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
             <Factory3D
               active={d.active}
               activeKind={d.activeKind}
@@ -295,6 +307,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               props={state.factoryProps}
               floorW={floorWidth(state.factoryExpansion)}
               era={state.era}
+              lockedBay={(() => {
+                const cost = nextExpansionCost(state.factoryExpansion);
+                return cost == null ? null : { cols: EXPAND_STEP, label: "Locked", sub: `Expand the floor \u00b7 ${format(cost)}` };
+              })()}
+              onTapLockedBay={() => { haptic.light(); setSheet("decor"); }}
               onTapCell={onTapCell}
               paintBelts={buildTool === "belt"}
               onPaintBelts={(cells) => {
@@ -314,7 +331,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             />
           </Suspense>
         ) : (
-          <FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} />
+          <FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
         )}
       </div>
 
@@ -665,7 +682,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               return (
                 <button className="fmode__buy" disabled={state.cash < cost} onClick={() => {
                   const res = d.game.buyFloorExpansion();
-                  if (res.ok) { haptic.success(); sfx("build"); showToast("Factory floor expanded", { tone: "positive" }); }
+                  if (res.ok) { haptic.success(); sfx("build"); emitCelebrate(); setResetView((v) => v + 1); showToast("New bay unlocked — the floor grows east", { tone: "positive" }); }
                   else { haptic.warning(); showToast(res.reason ?? "Can't expand", { tone: "negative" }); }
                 }}>{format(cost)}</button>
               );
@@ -792,7 +809,7 @@ export function FactoryCard({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   return (
     <div className="fcard">
       <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode">
-        <FloorMinimap floor={d.floor} lineOk={cardLineOk} running={d.active} floorW={floorWidth(d.state.factoryExpansion)} />
+        <FloorMinimap floor={d.floor} lineOk={cardLineOk} running={d.active} floorW={floorWidth(d.state.factoryExpansion)} lockedBayW={d.state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
         <span className="fcard__expand" aria-hidden><Maximize2 size={16} /></span>
       </button>
       <div className="fcard__chips">
