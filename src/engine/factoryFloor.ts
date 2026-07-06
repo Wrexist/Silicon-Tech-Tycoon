@@ -270,13 +270,14 @@ const ROUTE_STAGE_ORDER: readonly MachineKind[] = ["mill", "press", "screen", "a
  *  cell+heading states, FIFO buckets) and heading carries across legs, so the whole line comes out
  *  straight and calm — long lanes, few corners, no staircases. Returns a new floor with belts
  *  replaced, or null if there's no Intake+Packer / no clear path. Pure + deterministic (fixed
- *  cell, direction, and machine order; FIFO tie-breaks). */
-export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w): FactoryFloor | null {
+ *  cell, direction, and machine order; FIFO tie-breaks). `blockedCells` marks extra impassable
+ *  cells (decor props) the route must go around. */
+export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w, blockedCells?: Iterable<string>): FactoryFloor | null {
   const intake = floor.machines.find((m) => m.kind === "intake");
   const packer = floor.machines.find((m) => m.kind === "packer");
   if (!intake || !packer) return null;
   const W = maxW, H = FLOOR.h;
-  const blocked = new Set<string>();
+  const blocked = new Set<string>(blockedCells);
   for (const m of floor.machines) for (const cell of machineCells(m)) blocked.add(cell);
   const free = (c: number, r: number) => c >= 0 && c < W && r >= 0 && r < H && !blocked.has(`${c},${r}`);
   const DIRS: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];

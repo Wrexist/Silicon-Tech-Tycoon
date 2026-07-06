@@ -191,6 +191,23 @@ describe("factory floor grid (F2)", () => {
     expect(autoRouteBelts(bare)).toEqual(routed);
   });
 
+  it("auto-route treats blockedCells (decor props) as impassable", async () => {
+    const { autoRouteBelts, lineComplete, FLOOR } = await import("./factoryFloor.ts");
+    // Wall off row 4 (which separates the starter Intake from the Packer) except one gap at c=7 —
+    // the route must thread the gap and never touch a blocked cell.
+    const blocked = new Set<string>();
+    for (let c = 0; c < FLOOR.w; c++) if (c !== 7) blocked.add(`${c},4`);
+    const routed = autoRouteBelts(starterFloor(), FLOOR.w, blocked)!;
+    expect(routed).not.toBeNull();
+    expect(lineComplete(routed)).toBe(true);
+    for (const b of routed.belts) expect(blocked.has(`${b.c},${b.r}`)).toBe(false);
+    expect(routed.belts.some((b) => b.c === 7 && b.r === 4)).toBe(true); // the only way through
+    // A solid wall with no gap → bail cleanly with null.
+    const wall = new Set<string>();
+    for (let c = 0; c < FLOOR.w; c++) wall.add(`${c},4`);
+    expect(autoRouteBelts(starterFloor(), FLOOR.w, wall)).toBeNull();
+  });
+
   it("auto-route lays STRAIGHT lanes — few turns, no staircases (turn-penalised legs)", async () => {
     const { autoRouteBelts, beltChain } = await import("./factoryFloor.ts");
     const bare = { machines: demoFloor().machines, belts: [] };

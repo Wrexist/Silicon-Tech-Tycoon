@@ -106,12 +106,12 @@ import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityP
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
   BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineSpeedMult,
-  machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
+  machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import {
-  PROP_DEFS, placeProp as propsPlace, moveProp as propsMove, removePropAt as propsRemoveAt, propRefund,
+  PROP_DEFS, placeProp as propsPlace, moveProp as propsMove, propCellSet, removePropAt as propsRemoveAt, propRefund,
   type PlacedProp, type PropKind,
 } from "../engine/factoryProps.ts";
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
@@ -2113,10 +2113,19 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 /** Factory Mode BOOST — rush the lead production run: pay an overtime premium (a fraction of
  *  the run's production cost) and one week of work completes instantly. Repeatable while weeks
  *  remain; each press pays again. Pure; the caller owns the spend FX. */
+/** Does a machine footprint at (c,r) overlap any placed decor prop? Props are solid both ways —
+ *  canPlaceProp refuses machine cells, and this is the mirror check the floor reducers apply. */
+function machineOverPropAt(state: GameState, kind: MachineKind, c: number, r: number): boolean {
+  const props = propCellSet(state.factoryProps);
+  if (props.size === 0) return false;
+  return machineCells({ kind, c, r }).some((cell) => props.has(cell));
+}
+
 /** Factory Mode Build: buy + place a machine on the floor grid (cash-gated, overlap-checked). */
 export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, r: number): ActionResult {
   const def = MACHINE_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
+  if (machineOverPropAt(state, kind, c, r)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
   const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryFloor.machines.length}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
   return { state: { ...state, cash: sub(state.cash, def.cost), factoryFloor: next }, ok: true };
@@ -2126,6 +2135,7 @@ export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, 
 export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDir): ActionResult {
   const existing = state.factoryFloor.belts.some((b) => b.c === c && b.r === r);
   if (!existing && state.cash < BELT_COST) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
+  if (propCellSet(state.factoryProps).has(`${c},${r}`)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
   const next = floorPlaceBelt(state.factoryFloor, c, r, dir, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Can't lay a belt there." };
   return { state: { ...state, cash: existing ? state.cash : sub(state.cash, BELT_COST), factoryFloor: next }, ok: true };
@@ -2133,11 +2143,12 @@ export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDi
 
 /** Lay a whole DRAG RUN of conveyor at once — each tile auto-aimed toward the next cell (the last
  *  continues straight; a single tile uses `fallbackDir`). New tiles cost BELT_COST, re-aiming an
- *  existing tile is free, and cells over a machine / off-grid are skipped. Places greedily and stops
- *  when the budget runs out, so a long drag paints as much as the player can afford. */
+ *  existing tile is free, and cells over a machine / prop / off-grid are skipped. Places greedily and
+ *  stops when the budget runs out, so a long drag paints as much as the player can afford. */
 export function paintBeltRun(state: GameState, cells: { c: number; r: number }[], fallbackDir: BeltDir): ActionResult {
   if (cells.length === 0) return { state, ok: false, reason: "Nothing to lay." };
   const maxW = floorWidth(state.factoryExpansion);
+  const propAt = propCellSet(state.factoryProps);
   const dirBetween = (a: { c: number; r: number }, b: { c: number; r: number }): BeltDir =>
     b.c > a.c ? "e" : b.c < a.c ? "w" : b.r > a.r ? "s" : "n";
   let floor = state.factoryFloor;
@@ -2146,6 +2157,7 @@ export function paintBeltRun(state: GameState, cells: { c: number; r: number }[]
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i];
     const dir: BeltDir = cells[i + 1] ? dirBetween(cell, cells[i + 1]) : i > 0 ? dirBetween(cells[i - 1], cell) : fallbackDir;
+    if (propAt.has(`${cell.c},${cell.r}`)) continue; // decor is solid — paint around it
     const existing = floor.belts.some((b) => b.c === cell.c && b.r === cell.r);
     if (!existing && cash < BELT_COST) break; // out of budget for new tiles
     const next = floorPlaceBelt(floor, cell.c, cell.r, dir, maxW);
@@ -2196,7 +2208,7 @@ function autoRouteNet(current: FloorPlan, routed: FloorPlan): number {
  *  router runs again on confirm, so the quoted price is exactly what gets charged. Null when there
  *  is no route (missing Intake/Packer or no clear path). Pure. */
 export function autoConnectQuote(state: GameState): { cost: Money; tiles: number } | null {
-  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion));
+  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
   if (!routed) return null;
   return { cost: cents(autoRouteNet(state.factoryFloor, routed)), tiles: routed.belts.length };
 }
@@ -2204,7 +2216,7 @@ export function autoConnectQuote(state: GameState): { cost: Money; tiles: number
 /** One-tap belt routing — lay a fresh Intake→Packer chain around the machines, charging the net of
  *  new tiles (full price) minus removed tiles (half refund), exactly like doing it by hand. */
 export function autoConnectLine(state: GameState): ActionResult {
-  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion));
+  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
   if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer with a clear path between them first." };
   const cost = autoRouteNet(state.factoryFloor, routed);
   if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cents(cost))} to route the belts.` };
@@ -2225,6 +2237,8 @@ export function upgradeFloorMachine(state: GameState, c: number, r: number): Act
 /** Relocate a machine to a new cell — the hold-and-drag gesture. Free (rearranging isn't buying);
  *  keeps the machine's id, kind and upgrade level. */
 export function moveFloorMachine(state: GameState, id: string, c: number, r: number): ActionResult {
+  const m = state.factoryFloor.machines.find((x) => x.id === id);
+  if (m && machineOverPropAt(state, m.kind, c, r)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
   const next = floorMoveMachine(state.factoryFloor, id, c, r, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
   return { state: { ...state, factoryFloor: next }, ok: true };

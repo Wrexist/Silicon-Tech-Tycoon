@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PROP_DEFS, canPlaceProp, placeProp, removePropAt, propRefund, type PropKind } from "./factoryProps.ts";
+import { PROP_DEFS, canPlaceProp, placeProp, propCellSet, removePropAt, propRefund, type PropKind } from "./factoryProps.ts";
 import { demoFloor } from "./factoryFloor.ts";
 
 describe("factory props", () => {
@@ -46,6 +46,14 @@ describe("factory props", () => {
     expect(moveProp(floor, props, "nope", 8, 5)).toBeNull();
     // "Moving" to its own current cell is a no-op that still succeeds (self-footprint ignored).
     expect(moveProp(floor, props, "p1", 8, 4)).not.toBeNull();
+  });
+
+  it("propCellSet covers every footprint cell of every prop", () => {
+    const floor = demoFloor();
+    let props = placeProp(floor, [], "bench", 8, 4, "p1")!; // 2×1 → (8,4) + (9,4)
+    props = placeProp(floor, props, "cone", 10, 5, "p2")!;
+    expect(propCellSet(props)).toEqual(new Set(["8,4", "9,4", "10,5"]));
+    expect(propCellSet([]).size).toBe(0);
   });
 
   it("every prop kind has a name, cost and footprint", () => {

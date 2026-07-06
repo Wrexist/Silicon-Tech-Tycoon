@@ -4,11 +4,12 @@ import { MACHINE_DEFS, machineLevel, machineUpgradeStepCost } from "../engine/fa
 import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
 import { demoFloor, lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
 import {
-  newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
+  newGame, buyFloorMachine, buyFloorBelt, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
   moveFloorMachine, moveFactoryProp, buyFactoryProp, autoConnectQuote,
   saveFactoryLayout, applyFactoryLayout, deleteFactoryLayout, factoryLayoutCost,
   type GameState,
 } from "./gameState.ts";
+import { propCells } from "../engine/factoryProps.ts";
 
 // Tests exercise a BUILT floor (new games start bare), so rich() carries the reference demo layout.
 const rich = (over: Partial<GameState> = {}): GameState => ({ ...newGame(7), cash: dollars(5_000_000), factoryFloor: demoFloor(), ...over });
@@ -208,6 +209,46 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     expect(pMoved.ok).toBe(true);
     expect(pMoved.state.cash).toBe(withProp.state.cash);
     expect(pMoved.state.factoryProps[0]).toMatchObject({ c: 8, r: 5 });
+  });
+
+  it("decor props are SOLID to machines and belts (no ghost overlap either way)", () => {
+    // A prop on an empty floor blocks machine placement, belt placement, and belt painting.
+    const bare: GameState = { ...rich(), factoryFloor: { machines: [], belts: [] } };
+    const withProp = buyFactoryProp(bare, "plant", 5, 5);
+    expect(withProp.ok).toBe(true);
+    const s = withProp.state;
+    const overM = buyFloorMachine(s, "press", 5, 5);
+    expect(overM.ok).toBe(false);
+    expect(overM.reason).toMatch(/decoration/i);
+    const overB = buyFloorBelt(s, 5, 5, "e");
+    expect(overB.ok).toBe(false);
+    // A painted run skips the prop cell but still lays the rest.
+    const run = [{ c: 4, r: 5 }, { c: 5, r: 5 }, { c: 6, r: 5 }];
+    const painted = paintBeltRun(s, run, "e");
+    expect(painted.ok).toBe(true);
+    expect(painted.state.factoryFloor.belts.some((b) => b.c === 5 && b.r === 5)).toBe(false);
+    expect(painted.state.factoryFloor.belts).toHaveLength(2);
+    // Hold-to-move refuses to drop a machine onto the prop.
+    const withMachine = buyFloorMachine(s, "press", 8, 2);
+    expect(withMachine.ok).toBe(true);
+    const press = withMachine.state.factoryFloor.machines.find((m) => m.kind === "press")!;
+    const dropped = moveFloorMachine(withMachine.state, press.id, 5, 5);
+    expect(dropped.ok).toBe(false);
+    expect(dropped.reason).toMatch(/decoration/i);
+  });
+
+  it("autoConnectLine routes AROUND decor props (never lays belt on one)", () => {
+    const stripped: GameState = { ...rich(), factoryFloor: { ...rich().factoryFloor, belts: [] } };
+    const withProp = buyFactoryProp(stripped, "crates", 8, 4);
+    expect(withProp.ok).toBe(true);
+    const routed = autoConnectLine(withProp.state);
+    expect(routed.ok).toBe(true);
+    expect(lineComplete(routed.state.factoryFloor)).toBe(true);
+    const propAt = new Set(withProp.state.factoryProps.flatMap((p) => propCells(p)));
+    for (const b of routed.state.factoryFloor.belts) expect(propAt.has(`${b.c},${b.r}`)).toBe(false);
+    // The quote matches the charge with the prop in play, too.
+    const quote = autoConnectQuote(withProp.state)!;
+    expect(quote.tiles).toBe(routed.state.factoryFloor.belts.length);
   });
 
   it("deletes a layout by id", () => {

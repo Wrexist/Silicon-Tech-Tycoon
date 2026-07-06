@@ -11,10 +11,10 @@ import { ContactShadows, Html, OrbitControls, RoundedBox } from "@react-three/dr
 import { Lock } from "lucide-react";
 import * as THREE from "three";
 import {
-  FLOOR, MACHINE_DEFS, beltPath, canPlaceMachine, formMarks, machineCenter, machineLevel, worldOf,
+  FLOOR, MACHINE_DEFS, beltPath, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
 } from "../engine/factoryFloor.ts";
-import { PROP_DEFS, canPlaceProp, propCenter, type PlacedProp, type PropKind } from "../engine/factoryProps.ts";
+import { PROP_DEFS, canPlaceProp, propCells, propCenter, type PlacedProp, type PropKind } from "../engine/factoryProps.ts";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import type { CategoryId, Product } from "../engine/types.ts";
 
@@ -1229,8 +1229,11 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       const def = MACHINE_DEFS[m.kind];
       kind = m.kind; w = def.w; d = def.d; at = { c: m.c, r: m.r };
       const others: FactoryFloor = { ...p.floor, machines: p.floor.machines.filter((x) => x.id !== piece.id) };
+      // Decor is solid to machines too — a footprint that overlaps a prop is not a legal drop.
+      const propAt = new Set((p.props ?? []).flatMap((pp) => propCells(pp)));
       for (let r = 0; r <= FLOOR.h - def.d; r++) for (let c = 0; c <= floorW - def.w; c++) {
         if (!canPlaceMachine(others, m.kind, c, r, floorW)) continue;
+        if (propAt.size > 0 && machineCells({ kind: m.kind, c, r }).some((cell) => propAt.has(cell))) continue;
         valid.add(`${c},${r}`);
         // Belt-adjacent = the footprint's one-cell ring touches the line — where a machine WORKS.
         if (p.floor.belts.some((b) => b.c >= c - 1 && b.c <= c + def.w && b.r >= r - 1 && b.r <= r + def.d)) rec.add(`${c},${r}`);

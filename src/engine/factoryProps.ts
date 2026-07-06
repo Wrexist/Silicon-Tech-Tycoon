@@ -35,6 +35,15 @@ export function propCells(p: { kind: PropKind; c: number; r: number }): string[]
   return out;
 }
 
+/** Every cell occupied by any prop — the blocked-set machines, belts, and the auto-router must
+ *  respect so decor is solid both ways (props already refuse machine/belt cells; this is the
+ *  mirror). Pure. */
+export function propCellSet(props: PlacedProp[]): Set<string> {
+  const out = new Set<string>();
+  for (const p of props) for (const cell of propCells(p)) out.add(cell);
+  return out;
+}
+
 /** World-space centre of a placed prop (for rendering), sharing the floor's coordinate system. */
 export function propCenter(p: PlacedProp): [number, number] {
   const def = PROP_DEFS[p.kind];
