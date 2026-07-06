@@ -15,3 +15,21 @@ export function registerAppOverlay(): () => void {
 export function appOverlayOpen(): boolean {
   return open > 0;
 }
+
+// "Ready to launch" claims — a screen already SHOWING a product's live production/ready state
+// (the Design Lab's integrated tracker sheet) claims the product id so the global ReadyToLaunch
+// popup doesn't double-pop the same product on top of it. Claim on mount, release on close; the
+// global popup treats a claimed product as seen (dismissing the sheet = "Later", the product
+// stays on the Office card).
+const readyClaims = new Set<string>();
+
+/** Claim a product id; returns the matching release. Use as a useEffect body. */
+export function claimReadyLaunch(id: string): () => void {
+  readyClaims.add(id);
+  return () => { readyClaims.delete(id); };
+}
+
+/** True while some screen is already presenting this product's ready-to-launch moment. */
+export function readyLaunchClaimed(id: string): boolean {
+  return readyClaims.has(id);
+}

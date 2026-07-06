@@ -150,7 +150,7 @@ function AppShell() {
           <div className="app__screen" key={tab}>
             <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
             <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-              {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} onGoToHQ={() => setTab("hq")} />}
+              {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
               {tab === "research" && <Research onNavigate={setTab} />}
               {tab === "market" && (
                 <Market

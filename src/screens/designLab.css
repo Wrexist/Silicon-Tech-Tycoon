@@ -1098,22 +1098,22 @@
   width: 100%;
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12);
 }
-.done__next {
+/* The LIVE in-production readout embedded in the sheet — same BuildProgress as the Office card,
+   framed as its own panel so the ring + stage trail read left-aligned inside the centered card. */
+.done__live {
   width: 100%;
-  display: flex; flex-direction: column; gap: var(--sp-8);
   padding: var(--sp-12);
   border-radius: var(--r-button);
   background: var(--bg-elevated);
   text-align: left;
 }
-.done__step { display: flex; align-items: center; gap: var(--sp-10); font-size: var(--fs-caption); color: var(--ink); line-height: 1.4; }
-.done__step b { font-weight: 700; }
-.done__step-icon {
-  width: 30px; height: 30px; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: var(--r-pill);
-  background: var(--fn-design-soft, var(--accent-soft)); color: var(--fn-design, var(--accent));
+/* Ready-state header, mirroring the global ReadyToLaunch popup's language. */
+.done__eyebrow {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-caption); font-weight: 700;
+  color: var(--positive-text, var(--positive));
 }
+.done__badge--launch { background: var(--accent-soft); color: var(--accent); }
 .done > .ds-btn { width: 100%; }
 
 /* ---------- Design Lab section tabs ---------- */

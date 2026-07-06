@@ -14,6 +14,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { format, toDollars } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { readyLaunchClaimed } from "../design/overlayGuard.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import "./readyToLaunch.css";
 
@@ -30,12 +31,16 @@ export function ReadyToLaunch() {
 
   const [queue, setQueue] = useState<string[]>([]);
 
-  // Enqueue any freshly-ready product.
+  // Enqueue any freshly-ready product — unless another screen (the Design Lab's integrated
+  // tracker sheet) has claimed it and is already presenting its ready moment. Claimed products
+  // are marked seen, so closing that sheet reads as "Later" (Office card), never a late double-pop.
   useEffect(() => {
     const fresh = state.ready.filter((p) => !seen.current!.has(p.id));
     if (fresh.length === 0) return;
     fresh.forEach((p) => seen.current!.add(p.id));
-    setQueue((q) => [...q, ...fresh.map((p) => p.id)]);
+    const pop = fresh.filter((p) => !readyLaunchClaimed(p.id));
+    if (pop.length === 0) return;
+    setQueue((q) => [...q, ...pop.map((p) => p.id)]);
     haptic.success();
     sfx("confirm");
   }, [state.ready]);
