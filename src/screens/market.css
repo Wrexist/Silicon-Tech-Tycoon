@@ -1627,7 +1627,10 @@
 /* Global expansion — region unlock list */
 .mkt__regions-lead { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; margin: calc(-1 * var(--sp-4)) 0 var(--sp-8); }
 .mkt__region-list { display: flex; flex-direction: column; gap: var(--sp-8); }
-.mkt__region { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); }
+/* wrap: a LOCKED row's Unlock button takes its own full-width line below the icon + text, so the
+   blurb never gets crushed into a one-word-per-line ribbon beside a wide fixed button. */
+.mkt__region { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-10) var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); }
+.mkt__region > .ds-btn { flex: 1 0 100%; }
 .mkt__region--open { border-color: var(--accent); background: var(--accent-soft); }
 .mkt__region-icon { width: 34px; height: 34px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent); }
 .mkt__region--open .mkt__region-icon { background: var(--accent); color: var(--accent-ink); }
