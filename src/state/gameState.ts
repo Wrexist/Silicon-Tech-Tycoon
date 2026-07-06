@@ -112,6 +112,7 @@ import {
   PROP_DEFS, placeProp as propsPlace, removePropAt as propsRemoveAt, propRefund,
   type PlacedProp, type PropKind,
 } from "../engine/factoryProps.ts";
+import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -221,6 +222,8 @@ export interface GameState {
   factoryProps: PlacedProp[];
   /** How many floor expansions the player has bought (0..MAX_EXPANSION) — widens the build grid. */
   factoryExpansion: number;
+  /** Named factory-layout snapshots the player has saved, to switch between floor designs. */
+  factoryLayouts: FactoryLayout[];
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -469,6 +472,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     factoryDecor: { wall: 0, floor: 0 },
     factoryProps: [],
     factoryExpansion: 0,
+    factoryLayouts: [],
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -2150,6 +2154,67 @@ export function clearFloorCell(state: GameState, c: number, r: number): GameStat
   const next = floorRemoveAt(state.factoryFloor, c, r);
   if (next === state.factoryFloor) return state;
   return { ...state, factoryFloor: next, cash: add(state.cash, refund) };
+}
+
+/* ---- Saved factory layouts: snapshot a floor design under a name, switch between them ---- */
+
+/** Sum the cost of buying floor expansions from `from` up to `to` (permanent; never refundable). */
+function expansionDeltaCost(from: number, to: number): Money {
+  let sum = 0;
+  for (let i = from; i < to; i++) sum += EXPANSION_COSTS[i] ?? EXPANSION_COSTS[EXPANSION_COSTS.length - 1];
+  return dollars(sum) as Money;
+}
+
+/** Total net cost (cents; negative = a net refund) to apply a saved layout over the current floor:
+ *  the fair machine/belt/prop diff plus any extra permanent expansions the layout needs. Pure. */
+export function factoryLayoutCost(state: GameState, layout: FactoryLayout): Money {
+  const appliedExp = Math.max(state.factoryExpansion, layout.expansion);
+  const diff = layoutApplyCost(state.factoryFloor, state.factoryProps, layout.floor, layout.props);
+  return add(diff, expansionDeltaCost(state.factoryExpansion, appliedExp));
+}
+
+/** Snapshot the current floor (machines, belts, props, decor, expansion) as a named layout. Free;
+ *  capped at MAX_LAYOUTS. The name is trimmed/bounded, falling back to "Layout N". */
+export function saveFactoryLayout(state: GameState, name: string): ActionResult {
+  const layouts = state.factoryLayouts ?? [];
+  if (layouts.length >= MAX_LAYOUTS) return { state, ok: false, reason: `You can keep up to ${MAX_LAYOUTS} layouts. Delete one first.` };
+  const clean = name.trim().slice(0, 24) || `Layout ${layouts.length + 1}`;
+  const layout: FactoryLayout = {
+    id: `layout-${state.week}-${layouts.length}`,
+    name: clean,
+    floor: { machines: state.factoryFloor.machines.map((m) => ({ ...m })), belts: state.factoryFloor.belts.map((b) => ({ ...b })) },
+    props: state.factoryProps.map((p) => ({ ...p })),
+    expansion: state.factoryExpansion,
+    decor: { ...state.factoryDecor },
+    savedWeek: state.week,
+  };
+  return { state: { ...state, factoryLayouts: [...layouts, layout] }, ok: true };
+}
+
+/** Delete a saved layout by id. */
+export function deleteFactoryLayout(state: GameState, id: string): GameState {
+  const layouts = state.factoryLayouts ?? [];
+  const next = layouts.filter((l) => l.id !== id);
+  return next.length === layouts.length ? state : { ...state, factoryLayouts: next };
+}
+
+/** Retool the floor to a saved layout, charging (or refunding) the fair diff + any new expansions. */
+export function applyFactoryLayout(state: GameState, id: string): ActionResult {
+  const layout = (state.factoryLayouts ?? []).find((l) => l.id === id);
+  if (!layout) return { state, ok: false, reason: "That layout is no longer available." };
+  const cost = factoryLayoutCost(state, layout);
+  if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cost)} to retool the floor to “${layout.name}”.` };
+  return {
+    state: {
+      ...state,
+      cash: add(state.cash, cents(-cost)), // cost>0 subtracts, cost<0 refunds
+      factoryFloor: { machines: layout.floor.machines.map((m) => ({ ...m })), belts: layout.floor.belts.map((b) => ({ ...b })) },
+      factoryProps: layout.props.map((p) => ({ ...p })),
+      factoryExpansion: Math.max(state.factoryExpansion, layout.expansion),
+      factoryDecor: { ...layout.decor },
+    },
+    ok: true,
+  };
 }
 
 export function rushBuild(state: GameState, productId: string): ActionResult {

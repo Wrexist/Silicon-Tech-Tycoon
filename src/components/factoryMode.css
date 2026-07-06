@@ -245,6 +245,47 @@
 }
 .fmode__buy:disabled { opacity: 0.5; cursor: default; }
 
+/* ---------------- saved layouts (Style sheet) ---------------- */
+.fmode__layouts { display: flex; flex-direction: column; gap: var(--sp-6); }
+.fmode__layout {
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
+  background: var(--surface-2);
+}
+.fmode__layout-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.fmode__layout-name { font-size: var(--fs-caption); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fmode__layout-sub { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.35; }
+.fmode__layout-apply {
+  display: inline-flex; align-items: center; gap: 3px;
+  min-height: 34px; padding: 0 var(--sp-12); flex: none;
+  border: none; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-ink);
+  font-size: var(--fs-micro); font-weight: 800; cursor: pointer;
+}
+/* A free/refunding apply reads as a calm secondary action, not a spend. */
+.fmode__layout-apply--free { background: var(--surface); color: var(--ink); border: 1px solid var(--hairline); }
+.fmode__layout-apply:disabled { opacity: 0.5; cursor: default; }
+.fmode__layout-del {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex: none; border-radius: var(--r-button);
+  background: var(--surface); color: var(--ink-3); border: 1px solid var(--hairline);
+}
+.fmode__layout-del:active { color: var(--danger, #e5484d); }
+.fmode__layout-save { display: flex; align-items: center; gap: var(--sp-8); }
+.fmode__layout-input {
+  flex: 1; min-width: 0; min-height: 38px; padding: 0 var(--sp-12);
+  border: 1px solid var(--hairline); border-radius: var(--r-button);
+  background: var(--surface); color: var(--ink); font-size: var(--fs-caption);
+}
+.fmode__layout-input::placeholder { color: var(--ink-3); }
+.fmode__layout-savebtn {
+  display: inline-flex; align-items: center; gap: var(--sp-6); flex: none;
+  min-height: 38px; padding: 0 var(--sp-14); border: none; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent);
+  font-size: var(--fs-micro); font-weight: 800; cursor: pointer;
+}
+.fmode__layout-savebtn:disabled { opacity: 0.5; cursor: default; }
+
 /* ---------------- compact card (Office tab) ---------------- */
 .fcard { display: flex; flex-direction: column; }
 .fcard__tap {

@@ -2069,3 +2069,19 @@ Four-part follow-up the player picked, in order. #1 + #2 landed:
       suppressed on that first open (the coach already teaches the gesture), and the mode's
       Escape-peel defers to the coach while it's open.
 - Verified live: coach renders + dismisses to the floor, replay button works. tsc 0, 741 tests, build+PWA green.
+
+## v93 — Save / name / switch factory layouts (#4) (DONE 2026-07-06)
+- [x] **factoryLayout.ts** (PURE, +7 tests): the `FactoryLayout` snapshot type + `layoutApplyCost` —
+      a fair, EXPLOIT-FREE diff cost to apply one layout over another. You pay full catalog price for
+      whatever a layout adds and get the standard 50% demolition refund for whatever it drops; matching
+      machines/props and belt cells (re-aiming is free) cost nothing. So there's no "save → tear down
+      for the refund → re-apply free" loop — re-adding always costs full price (proven by a round-trip test).
+- [x] **State** (+6 tests): `factoryLayouts` on GameState (persisted, backfilled). Reducers
+      `saveFactoryLayout` (free, trims/defaults the name, capped at MAX_LAYOUTS=6), `applyFactoryLayout`
+      (charges/refunds the diff + any new permanent expansions; cash-gated; floor only ever GROWS,
+      never shrinks), `deleteFactoryLayout`, and `factoryLayoutCost`. Wired through useGame.
+- [x] **UI**: a "Saved layouts" section in the Factory Style sheet — each row shows the name, machine
+      count + saved week, an Apply button that surfaces the exact cost (or a "+refund" / free ✓ Apply),
+      and a delete. A name field + "Save current" snapshots the floor.
+- Verified: sheet opens, rows render with correct cost/refund (free apply for the identical layout,
+      +$10.5K refund for a leaner one). tsc 0, 754 tests, build+PWA green.

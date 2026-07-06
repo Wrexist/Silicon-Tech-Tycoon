@@ -7,13 +7,14 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowUp, BarChart3, BatteryCharging, Bot, Boxes, Camera, ChevronDown, CodeXml, Cpu, Drill, Eraser,
+  ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
   FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
   Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
-  TrafficCone, TriangleAlert, Truck, Wrench, X, Zap, type LucideIcon,
+  TrafficCone, Trash2, TriangleAlert, Truck, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
-import { burn, industryRank, nextWeekRevenue, nextExpansionCost } from "../state/gameState.ts";
+import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost } from "../state/gameState.ts";
+import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
 import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.ts";
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
@@ -187,6 +188,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [buildTool, setBuildTool] = useState<null | MachineKind | PropKind | "belt" | "erase">(null);
   const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
   const [beltDir, setBeltDir] = useState<BeltDir>("e");
+  const [layoutName, setLayoutName] = useState("");
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
@@ -596,6 +598,57 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               );
             })()}
           </div>
+
+          <span className="fmode__decor-label">Saved layouts</span>
+          <div className="fmode__layouts">
+            {state.factoryLayouts.length === 0 && (
+              <p className="fmode__sheet-note">Snapshot this floor to save its design, then switch between layouts anytime. Applying one charges (or refunds) only the difference.</p>
+            )}
+            {state.factoryLayouts.map((l) => {
+              const cost = factoryLayoutCost(state, l);
+              const costLabel = cost === 0 ? "Apply" : cost > 0 ? format(cost) : `+${format((-cost) as typeof cost)}`;
+              return (
+                <div className="fmode__layout" key={l.id}>
+                  <div className="fmode__layout-info">
+                    <span className="fmode__layout-name">{l.name}</span>
+                    <span className="fmode__layout-sub">{l.floor.machines.length} machines · saved wk {l.savedWeek}</span>
+                  </div>
+                  <button
+                    className={`fmode__layout-apply${cost > 0 ? "" : " fmode__layout-apply--free"}`}
+                    disabled={cost > 0 && state.cash < cost}
+                    onClick={() => {
+                      const res = d.game.applyFactoryLayout(l.id);
+                      if (res.ok) { haptic.success(); sfx("build"); showToast(`Floor set to “${l.name}”`, { tone: "positive" }); }
+                      else { haptic.warning(); showToast(res.reason ?? "Can't apply that layout", { tone: "negative" }); }
+                    }}
+                  >{cost <= 0 ? <Check size={13} /> : null}{costLabel}</button>
+                  <button className="fmode__layout-del" aria-label={`Delete ${l.name}`} onClick={() => { haptic.light(); d.game.deleteFactoryLayout(l.id); }}><Trash2 size={15} /></button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="fmode__layout-save">
+            <input
+              className="fmode__layout-input"
+              value={layoutName}
+              maxLength={24}
+              placeholder="Name this layout"
+              aria-label="Layout name"
+              onChange={(e) => setLayoutName(e.target.value)}
+            />
+            <button
+              className="fmode__layout-savebtn"
+              disabled={state.factoryLayouts.length >= MAX_LAYOUTS}
+              onClick={() => {
+                const res = d.game.saveFactoryLayout(layoutName);
+                if (res.ok) { haptic.success(); sfx("confirm"); setLayoutName(""); showToast("Layout saved", { tone: "positive" }); }
+                else { haptic.warning(); showToast(res.reason ?? "Can't save", { tone: "negative" }); }
+              }}
+            ><Bookmark size={14} /> Save current</button>
+          </div>
+          {state.factoryLayouts.length >= MAX_LAYOUTS && (
+            <p className="fmode__sheet-note">Layout slots full ({MAX_LAYOUTS}). Delete one to save another.</p>
+          )}
         </div>
       </Sheet>
 

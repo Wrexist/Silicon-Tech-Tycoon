@@ -411,6 +411,7 @@ function migrate(state: GameState): GameState | null {
   }
   if (!Array.isArray(s.factoryProps)) s.factoryProps = [];
   if (typeof s.factoryExpansion !== "number") s.factoryExpansion = 0;
+  if (!Array.isArray(s.factoryLayouts)) s.factoryLayouts = [];
   if (typeof s.furnitureCounter !== "number") {
     s.furnitureCounter = s.layout.reduce((m: number, it: { iid?: string }) => {
       const n = parseInt(String(it.iid ?? "").replace(/\D/g, ""), 10);
