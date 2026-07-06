@@ -131,14 +131,17 @@ export function FactoryTutorial({ open, onClose }: { open: boolean; onClose: () 
   // Reset to the first step every time it opens (replay from the help button starts fresh).
   useEffect(() => { if (open) setI(0); }, [open]);
 
-  // Escape closes; focus the card so the dialog is reachable by keyboard.
+  // Escape closes; focus the card so the dialog is reachable by keyboard. Keyed to `open` ALONE (via
+  // an onClose ref) so an ongoing parent re-render doesn't re-run this and yank focus off Back/Next.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (!open) return;
     cardRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCloseRef.current(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

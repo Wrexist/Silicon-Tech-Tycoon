@@ -1598,7 +1598,7 @@ body.hq-deco-open .bnav {
 /* "Watch it on the line" — a quiet link from the In-production card into the Factory world. */
 .hq__viewline {
   display: inline-flex; align-items: center; gap: var(--sp-4);
-  margin-top: var(--sp-8); min-height: 36px; padding: 0 var(--sp-4);
+  margin-top: var(--sp-8); min-height: 44px; padding: 0 var(--sp-4);
   border: none; background: none; cursor: pointer;
   font-size: var(--fs-caption); font-weight: 700; color: var(--accent);
 }

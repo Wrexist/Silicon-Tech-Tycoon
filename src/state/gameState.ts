@@ -249,8 +249,9 @@ export interface GameState {
   eventChain?: { id: string; step: number; nextWeek: number } | null;
   holdings: Holdings; // shares owned in rival companies, by id
   /** Best (lowest) industry-leaderboard rank ever reached (1 = biggest company in the industry).
-   *  Starts at 7 (a fresh garage is dead last behind the six rivals); each time the player climbs
-   *  to a new best, the tick celebrates overtaking the rival(s) they passed. Monotonic downward. */
+   *  Starts at RIVALS.length + 1 (a fresh garage is dead last behind every public rival); each time
+   *  the player climbs to a new best, the tick celebrates overtaking the rival(s) they passed.
+   *  Monotonic downward. */
   bestIndustryRank: number;
   // --- Achievements ---
   /** ids of celebratory milestones the player has earned (monotonic — only ever grows). */

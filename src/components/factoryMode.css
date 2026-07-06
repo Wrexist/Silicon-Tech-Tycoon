@@ -39,7 +39,7 @@
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; flex: none;
   border-radius: var(--r-button);
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--accent-ink);
   font-size: var(--fs-caption); font-weight: 800;
 }
 .fmode__cash { display: flex; flex-direction: column; min-width: 0; flex: 1; }
@@ -188,7 +188,7 @@
   margin-left: auto;
   min-height: 44px; padding: 0 var(--sp-16); flex: none;
   border: none; border-radius: var(--r-button);
-  background: var(--accent); color: #fff; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer;
   font-size: var(--fs-caption); font-weight: 800; letter-spacing: 0.02em;
   box-shadow: 0 8px 22px -6px color-mix(in srgb, var(--accent) 70%, transparent);
 }
@@ -240,7 +240,7 @@
 .fmode__buy {
   min-height: 34px; padding: 0 var(--sp-12); flex: none;
   border: none; border-radius: var(--r-pill);
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--accent-ink);
   font-size: var(--fs-micro); font-weight: 800; cursor: pointer;
 }
 .fmode__buy:disabled { opacity: 0.5; cursor: default; }
@@ -381,6 +381,6 @@
 .fmode__stopped-fix {
   margin-top: var(--sp-8); min-height: 34px; padding: 0 var(--sp-14);
   border: none; border-radius: var(--r-pill);
-  background: var(--accent); color: #fff; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer;
   font-size: var(--fs-micro); font-weight: 800;
 }

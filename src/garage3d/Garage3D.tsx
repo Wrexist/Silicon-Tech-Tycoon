@@ -915,6 +915,8 @@ const LABEL_STAGGER = 0.6;
 // (The old |dx| AND |dz| world test missed both same-row neighbours at the 1.95 desk pitch and
 // front/back labels that share a screen column, so the team piled into an unreadable stack.)
 const labelU = (x: number, z: number) => 0.75 * x - 0.66 * z;
+// The Bank pill's fixed position — shared by the label AND the collision-stack seed so the two can't drift apart.
+const BANK_LABEL_POS: [number, number, number] = [-2.7, 2.0, 1.6];
 const LABEL_MIN_DU = 1.95; // projected-x gap below which two pills read as overlapping
 function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));
@@ -1711,7 +1713,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           labels — the board is recognizable on its own, so the label was removed. */}
       {!builder?.build && (
         <>
-          <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Tap for finances" dot="#34c759" />
+          <OfficeLabel pos={BANK_LABEL_POS} label="Bank" sub="Tap for finances" dot="#34c759" />
           {/* Per-desk name + primary-discipline label for every occupied desk (placed desks first,
               then the bought desktops). Labels ladder UP the moment they'd share a screen column, so
               a full team reads as a clean staircase instead of a pile. Collision is measured in
@@ -1725,7 +1727,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
             // lower slot so the closest name sits in front and the rest step up behind it.
             entries.sort((a, b) => (labelU(a.w.x, a.w.z) - labelU(b.w.x, b.w.z)) || ((b.w.x + b.w.z) - (a.w.x + a.w.z)));
             // Seed with the Bank pill so staff labels sharing its column ladder above it, not over it.
-            const placed: { u: number; level: number }[] = [{ u: labelU(-2.7, 1.6), level: 0 }];
+            const placed: { u: number; level: number }[] = [{ u: labelU(BANK_LABEL_POS[0], BANK_LABEL_POS[2]), level: 0 }];
             return entries.map((e) => {
               const { label, sub } = deskLabel(e.s);
               const u = labelU(e.w.x, e.w.z);

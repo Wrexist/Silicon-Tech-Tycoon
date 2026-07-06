@@ -342,7 +342,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__panel fmode__stopped">
             <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line paused</span>
             <p className="fmode__empty">The belts don't reach from the Intake to the Packer yet.</p>
-            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildTool("belt"); }}>Fix in Build</button>
+            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
         <div className="fmode__panel">
