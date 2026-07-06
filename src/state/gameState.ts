@@ -104,7 +104,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, demolitionRefund, floorWidth, placeBelt as floorPlaceBelt,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, demolitionRefund, floorWidth, lineSpeedMult, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
@@ -852,8 +852,10 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // rides it) lands sooner. First playthrough only (legacy 0), first build only (nothing in flight).
   const firstEver = s.legacy === 0 && s.launched.length === 0 && s.building.length === 0 && s.ready.length === 0;
   if (firstEver) return BALANCE.build.minWeeks + lead;
-  // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1.
-  const speed = product ? factorySpeedMult(product) : 1;
+  // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1. The
+  // player-built floor layers on top: a complete, arm-rich line ships faster; a broken one is slower
+  // (starter = neutral ×1, so the baseline is unchanged).
+  const speed = (product ? factorySpeedMult(product) : 1) * lineSpeedMult(s.factoryFloor);
   const assembly = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * speed)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),

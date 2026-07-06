@@ -29,7 +29,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
 import { useSettings } from "../state/settings.ts";
 
@@ -105,10 +105,14 @@ function useFactoryData() {
     }
   }
 
+  // How the player-built line affects build time — the reward for a well-equipped, connected floor.
+  const lineSpeed = lineSpeedMult(state.factoryFloor); // <1 faster, 1 neutral, >1 slower (broken)
+  const linePct = Math.round((1 - lineSpeed) * 100);   // + = faster, − = slower
+
   return {
     game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
-    floor: state.factoryFloor,
+    floor: state.factoryFloor, lineSpeed, linePct,
   };
 }
 
@@ -322,6 +326,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                     {d.overtime ? "Overtime" : "On schedule"}
                   </span>
                 )}
+                {d.linePct !== 0 && (
+                  <span className={`fmode__lineboon${d.linePct > 0 ? " fmode__lineboon--good" : " fmode__lineboon--bad"}`}>
+                    <Zap size={12} aria-hidden />
+                    {d.linePct > 0 ? `Line builds ${d.linePct}% faster` : `Line broken · ${-d.linePct}% slower`}
+                  </span>
+                )}
               </div>
             </div>
           ) : (
@@ -484,6 +494,13 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__stat"><span>Expenses/wk</span><span className="tnum">{format(d.expensesWk)}</span></div>
           <div className="fmode__stat"><span>Profit/wk</span><span className={`tnum ${toDollars(d.profitWk) >= 0 ? "fmode__pos" : "fmode__neg"}`}>{format(d.profitWk)}</span></div>
           {d.util != null && <div className="fmode__stat"><span>Capacity used</span><span className="tnum">{Math.round(d.util * 100)}%</span></div>}
+          <div className="fmode__stat">
+            <span>Line build speed</span>
+            <span className={`tnum ${d.linePct > 0 ? "fmode__pos" : d.linePct < 0 ? "fmode__neg" : ""}`}>
+              {d.linePct > 0 ? `+${d.linePct}%` : d.linePct < 0 ? `${d.linePct}%` : "baseline"}
+            </span>
+          </div>
+          <p className="fmode__sheet-note">Keep the line connected and add assembly Arms in Build to build faster.</p>
           <div className="fmode__matsline" aria-label="Parts committed to production">
             {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {
               const Icon = MATERIAL_ICONS[kind];

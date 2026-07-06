@@ -86,6 +86,16 @@ describe("factory floor grid (F2)", () => {
     expect(floorWidth(99)).toBe(floorWidth(3));
   });
 
+  it("line speed: starter is neutral, extra arms speed up, a broken line is slower", async () => {
+    const { lineSpeedMult, placeMachine } = await import("./factoryFloor.ts");
+    const f = starterFloor();
+    expect(lineSpeedMult(f)).toBe(1); // complete single-arm starter → baseline unchanged
+    const twoArms = placeMachine(f, "arm", 13, 8, "arm2")!; // add a second assembly arm
+    expect(lineSpeedMult(twoArms)).toBeLessThan(1);
+    const broken = removeAt(f, 7, 6); // sever the bottom lane
+    expect(lineSpeedMult(broken)).toBeGreaterThan(1);
+  });
+
   it("machineCells matches the def footprint", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });

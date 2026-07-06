@@ -210,6 +210,18 @@ export function lineComplete(floor: FactoryFloor): boolean {
   return nearMachine(floor, "intake", head.c, head.r) && nearMachine(floor, "packer", tail.c, tail.r);
 }
 
+/** How the player-built line affects production — a build-TIME multiplier the sim reads.
+ *  Anchored so the starter (a complete, single-arm line) is exactly NEUTRAL (×1), so the baseline
+ *  balance is unchanged. From there the layout MATTERS in two directions:
+ *    • a disconnected line (no intake→packer path) costs time (×1.15) — keep it wired.
+ *    • extra assembly arms parallelise the build, each shaving ~5% down to a −25% floor.
+ *  Pure + bounded; no RNG, so the determinism pin is untouched. */
+export function lineSpeedMult(floor: FactoryFloor): number {
+  if (!lineComplete(floor)) return 1.15;
+  const arms = floor.machines.filter((m) => m.kind === "arm").length;
+  return Math.max(0.75, 1 - 0.05 * Math.max(0, arms - 1));
+}
+
 /** Demolition pays back half of what the cell's occupant cost (never more). */
 export function demolitionRefund(floor: FactoryFloor, c: number, r: number): Money {
   const key = `${c},${r}`;

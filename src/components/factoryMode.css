@@ -55,6 +55,12 @@
 .fmode__cap-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); }
 .fmode__cap-line--hot { color: var(--warning); }
 .fmode__cap-line--hot .fmode__cap-fill { background: var(--warning); }
+.fmode__lineboon {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-nano); font-weight: 700;
+}
+.fmode__lineboon--good { color: var(--positive); }
+.fmode__lineboon--bad { color: var(--warning); }
 .fmode__close, .fmode__icons {
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; flex: none; border-radius: var(--r-pill);
