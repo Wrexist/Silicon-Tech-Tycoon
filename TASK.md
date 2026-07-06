@@ -2297,3 +2297,11 @@ The three "empty gameplay" holes the v104 audit flagged, filled:
       (the same weights that sized the launch), replacing the static "Open" tag wall.
 - Gates: tsc 0 · 782 tests · build+PWA green · sim byte-identical (auto-player never buys projects
       or hosts keynotes; the region split is display-only).
+
+## v106 — Design Lab: one category picker (DONE 2026-07-06)
+- [x] The hero preview's interactive category strip duplicated the Category card's picker (same
+      `set({category, tiers})`, different visual style, none of the card's generation badges or
+      market hints). The strip is now a READ-ONLY badge naming the current category under the
+      device; the Category card below is the single picker. Verified via staged screenshots
+      (390×844): hero shows the badge, card keeps G-badges + hints + last-in-category compare.
+- Gates: tsc 0 · 782 tests · build+PWA green.
