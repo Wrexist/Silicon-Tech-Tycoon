@@ -2190,3 +2190,17 @@ Four fixes/features from device feedback (user screenshots):
       walls grow east, and the NEXT bay's preview appears at the escalating price. Camera framing
       shifts a quarter-bay east while a preview exists so it's on screen.
 - tsc 0, 767 tests, build+PWA green; every flow verified live with screenshots.
+
+## v101 — The REAL factory in the HQ card (DONE 2026-07-06)
+- [x] The Office-tab Factory card showed an abstract coloured-squares minimap; the user wanted the
+      real thing. The card now renders the LIVE 3D factory (Factory3D `preview` mode): the actual
+      building with the player's paint job, the running line + travelling items, the truck at the
+      dock, era glow — and the locked expansion bay with its "Locked · Expand the floor · $X" pill,
+      teased right on the card.
+- [x] Preview mode = look-don't-touch: no OrbitControls (never fights page scroll), hold-to-move
+      gated off, pointer-events pass through so a tap opens fullscreen; dpr capped [1,1.4] and the
+      camera framing zooms out ×1.22 so building + locked bay fit the 16:10 card. Card unmounts on
+      the Office world tab (no hidden render loop). FloorMinimap remains the no-WebGL/reduced-motion
+      fallback AND the Suspense placeholder while the lazy 3D chunk loads.
+- Verified live: card shows the real running factory + lock pill; tapping it still opens fullscreen.
+      tsc 0, 767 tests, build+PWA green.

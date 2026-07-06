@@ -94,6 +94,9 @@ export interface Factory3DProps {
   lockedBay?: { cols: number; label: string; sub: string } | null;
   /** Tap on the locked bay — the caller opens wherever the expansion is bought. */
   onTapLockedBay?: () => void;
+  /** Non-interactive PREVIEW mode (the HQ card): live scene, but no camera controls and no
+   *  hold-to-move — taps fall through to the card, drags scroll the page. */
+  preview?: boolean;
   /** Last tap's cell + validity — flashed green/red on the pad for placement feedback. */
   flash?: { c: number; r: number; ok: boolean; n: number } | null;
   onContextLost?: () => void;
@@ -978,10 +981,10 @@ function Agvs({ tier, overtime }: { tier: number; overtime: boolean }) {
  *  camera so the player can orbit/zoom with touch. */
 /** Frame the floor. `cx` is the building's east-shift from expansions, so the view follows the
  *  wider building (shifts + widens as bays are added). */
-function frameCamera(cam: THREE.PerspectiveCamera, portrait: boolean, cx = 0) {
+function frameCamera(cam: THREE.PerspectiveCamera, portrait: boolean, cx = 0, zoomOut = 1) {
   cam.fov = (portrait ? 54 : 30) + cx * 0.9;
   if (portrait) cam.position.set(12.2 + cx, 16.6, 13.4);
-  else cam.position.set(10.6 + cx, 13.1, 11.6);
+  else cam.position.set((10.6 + cx) * zoomOut, 13.1 * zoomOut, 11.6 * zoomOut);
   cam.lookAt(cx, -0.3, 0);
   cam.updateProjectionMatrix();
 }
@@ -1264,6 +1267,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   // Long-press detection: begins on a piece's pointer-down WITHOUT stopping propagation (quick taps
   // must still reach the pad for the upgrade/erase tools). Movement or an early release cancels it.
   const beginHold = (e: { nativeEvent: PointerEvent }, piece: { type: "machine" | "prop"; id: string }) => {
+    if (p.preview) return; // the HQ card is look-don't-touch
     holdCancel.current?.();
     const x = e.nativeEvent.clientX, y = e.nativeEvent.clientY;
     const timer = window.setTimeout(() => { cleanup(); beginCarry(piece); }, 420);
@@ -1410,7 +1414,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
               </mesh>
             ))}
             {/* the lock pill — fixed-size chip floating over the bay */}
-            <Html position={[-(bw / 2) + 0.7, 0.4, -2.1]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
+            <Html position={[-(bw / 2) + 0.2, 0.4, -2.1]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, whiteSpace: "nowrap", fontFamily: "system-ui,-apple-system,sans-serif" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: "rgba(15,18,24,0.88)", border: "1px solid rgba(255,255,255,0.14)", color: "#fff", fontSize: 12, fontWeight: 800 }}>
                   <Lock size={12} aria-hidden /> {p.lockedBay.label}
@@ -1479,12 +1483,12 @@ export default function Factory3D(p: Factory3DProps) {
       role="img"
       aria-label="Factory floor, 3D view"
       frameloop="always"
-      dpr={[1, 1.75]}
+      dpr={p.preview ? [1, 1.4] : [1, 1.75]}
       shadows
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       camera={{ position: [10, 12.5, 11], fov: 28 }}
       onCreated={({ gl, camera, size }) => {
-        frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width, cx);
+        frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width, cx, p.preview ? 1.22 : 1);
         gl.domElement.addEventListener(
           "webglcontextlost",
           (e) => { e.preventDefault(); p.onContextLost?.(); },
@@ -1497,7 +1501,7 @@ export default function Factory3D(p: Factory3DProps) {
       {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor. While the belt tool
           is active, one-finger ROTATE is suspended so a drag paints belt; pinch-zoom still works.
           While a piece is held, the whole control freezes so the drag moves the piece. */}
-      <OrbitControls
+      {!p.preview && <OrbitControls
         makeDefault
         enabled={!carrying}
         target={[cx, -0.3, 0]}
@@ -1511,7 +1515,7 @@ export default function Factory3D(p: Factory3DProps) {
         maxDistance={32}
         minPolarAngle={0.18}
         maxPolarAngle={Math.PI / 2 - 0.06}
-      />
+      />}
     </Canvas>
   );
 }

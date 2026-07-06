@@ -306,6 +306,15 @@
   padding: 0; border: none; background: none; cursor: pointer;
   border-radius: var(--r-card); overflow: hidden;
 }
+/* The REAL factory in the card — a live window into the 3D floor. Look-don't-touch: pointer
+   events pass through to the card button (tap opens fullscreen) and the page (drags scroll). */
+.fcard__scene {
+  display: block; width: 100%; aspect-ratio: 16 / 10;
+  background: #0b0e12; /* the factory world's dark chrome — intrinsic scene colour */
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+.fcard__scene, .fcard__scene * { pointer-events: none !important; touch-action: pan-y; }
 .fcard__expand {
   position: absolute; top: var(--sp-8); right: var(--sp-8);
   display: inline-flex; align-items: center; justify-content: center;

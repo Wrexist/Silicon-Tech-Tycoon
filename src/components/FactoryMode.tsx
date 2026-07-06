@@ -804,12 +804,50 @@ function BoostButton() {
 /** The Office tab's Factory world: a live minimap that opens the fullscreen mode. */
 export function FactoryCard({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const d = useFactoryData();
+  const { state } = d;
   const [open, setOpen] = useState(false);
+  const settings = useSettings();
+  const [glLost, setGlLost] = useState(false);
+  const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
   const cardLineOk = lineComplete(d.floor);
+  // The card shows the REAL factory — the live 3D line, your paint job, the locked bay — not an
+  // abstract map. Look-don't-touch (preview mode): taps open fullscreen, drags scroll the page.
+  const mini = (
+    <FloorMinimap floor={d.floor} lineOk={cardLineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
+  );
   return (
     <div className="fcard">
       <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode">
-        <FloorMinimap floor={d.floor} lineOk={cardLineOk} running={d.active} floorW={floorWidth(d.state.factoryExpansion)} lockedBayW={d.state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
+        {use3d ? (
+          <span className="fcard__scene" aria-hidden>
+            <Suspense fallback={mini}>
+              <Factory3D
+                preview
+                active={d.active}
+                activeKind={d.activeKind}
+                robotTier={d.robotTier}
+                readyCount={d.readyCount}
+                selling={d.selling}
+                overtime={d.overtime}
+                floor={d.floor}
+                product={d.lead?.product ?? null}
+                lineOk={cardLineOk}
+                wallColor={(FACTORY_WALLS[state.factoryDecor.wall] ?? FACTORY_WALLS[0]).hex}
+                floorColor={(FACTORY_FLOORS[state.factoryDecor.floor] ?? FACTORY_FLOORS[0]).hex}
+                props={state.factoryProps}
+                floorW={floorWidth(state.factoryExpansion)}
+                era={state.era}
+                lockedBay={(() => {
+                  const cost = nextExpansionCost(state.factoryExpansion);
+                  return cost == null ? null : { cols: EXPAND_STEP, label: "Locked", sub: `Expand the floor · ${format(cost)}` };
+                })()}
+                onContextLost={() => setGlLost(true)}
+              />
+            </Suspense>
+          </span>
+        ) : (
+          mini
+        )}
         <span className="fcard__expand" aria-hidden><Maximize2 size={16} /></span>
       </button>
       <div className="fcard__chips">
