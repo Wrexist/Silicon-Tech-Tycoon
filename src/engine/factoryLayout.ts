@@ -8,7 +8,7 @@
 // free, and re-aiming a belt is free (mirrors buyFloorBelt). So there's no "save → demolish for the
 // refund → re-apply for free" loop: re-adding always costs full price. (Floor EXPANSIONS are
 // permanent and can't be refunded, so the caller prices those separately.)
-import { MACHINE_DEFS, BELT_COST, type FactoryFloor } from "./factoryFloor.ts";
+import { BELT_COST, machineInvested, machineLevel, machineUpgradeStepCost, type FactoryFloor } from "./factoryFloor.ts";
 import { PROP_DEFS, type PlacedProp } from "./factoryProps.ts";
 import { cents, type Money } from "./money.ts";
 
@@ -45,8 +45,8 @@ export function layoutApplyCost(
   const mKey = (m: { c: number; r: number; kind: string }) => `${m.c},${m.r},${m.kind}`;
   const bKey = (b: { c: number; r: number }) => `${b.c},${b.r}`;
 
-  const curM = new Set(current.machines.map(mKey));
-  const tgtM = new Set(target.machines.map(mKey));
+  const curMachines = new Map(current.machines.map((m) => [mKey(m), m]));
+  const tgtMachines = new Map(target.machines.map((m) => [mKey(m), m]));
   const curB = new Set(current.belts.map(bKey));
   const tgtB = new Set(target.belts.map(bKey));
   const curP = new Set(currentProps.map(mKey));
@@ -54,9 +54,17 @@ export function layoutApplyCost(
 
   let total = 0;
 
-  // Machines: pay full for adds, refund half for drops.
-  for (const m of target.machines) if (!curM.has(mKey(m))) total += MACHINE_DEFS[m.kind].cost;
-  for (const m of current.machines) if (!tgtM.has(mKey(m))) total -= half(MACHINE_DEFS[m.kind].cost);
+  // Machines: a match by cell+kind charges only the UPGRADE-level delta (full for tune-ups, 50% back
+  // when the layout is less tuned); a brand-new machine costs its full invested price (base + any
+  // upgrades) and a dropped one refunds half of what it cost. So no layout can mint free upgrades.
+  for (const m of target.machines) {
+    const cur = curMachines.get(mKey(m));
+    if (!cur) { total += machineInvested(m.kind, machineLevel(m)); continue; }
+    const from = machineLevel(cur), to = machineLevel(m);
+    if (to > from) for (let l = from; l < to; l++) total += machineUpgradeStepCost(m.kind, l) ?? 0;
+    else if (to < from) total -= half(machineInvested(m.kind, from) - machineInvested(m.kind, to));
+  }
+  for (const m of current.machines) if (!tgtMachines.has(mKey(m))) total -= half(machineInvested(m.kind, machineLevel(m)));
   // Belts: cell identity only (re-aiming is free), pay full for new tiles, refund half for removed.
   for (const b of target.belts) if (!curB.has(bKey(b))) total += BELT_COST;
   for (const b of current.belts) if (!tgtB.has(bKey(b))) total -= half(BELT_COST);

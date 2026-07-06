@@ -189,7 +189,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [glLost, setGlLost] = useState(false);
   const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
   // F2 Build mode — the selected tool paints cells on the 3D pad.
-  const [buildTool, setBuildTool] = useState<null | MachineKind | PropKind | "belt" | "erase">(null);
+  const [buildTool, setBuildTool] = useState<null | MachineKind | PropKind | "belt" | "erase" | "upgrade">(null);
   const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
   const [beltDir, setBeltDir] = useState<BeltDir>("e");
   const [layoutName, setLayoutName] = useState("");
@@ -212,7 +212,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     const t = setTimeout(() => setCamHint(false), 4200);
     return () => clearTimeout(t);
   }, [use3d, tutorial]);
-  const { buyFloorMachine, buyFloorBelt, buyFactoryProp, clearFloorCell } = d.game;
+  const { buyFloorMachine, buyFloorBelt, buyFactoryProp, clearFloorCell, upgradeFloorMachine } = d.game;
   const lineOk = lineComplete(d.floor);
   const onTapCell = (c: number, r: number) => {
     if (!buildTool) return;
@@ -220,6 +220,13 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       clearFloorCell(c, r);
       haptic.light();
       setFlash((f) => ({ c, r, ok: true, n: (f?.n ?? 0) + 1 }));
+      return;
+    }
+    if (buildTool === "upgrade") {
+      const res = upgradeFloorMachine(c, r);
+      setFlash((f) => ({ c, r, ok: res.ok, n: (f?.n ?? 0) + 1 }));
+      if (res.ok) { haptic.success(); sfx("build"); showToast("Machine tuned up — the line builds faster", { tone: "positive" }); }
+      else { haptic.warning(); showToast(res.reason ?? "Nothing to upgrade here", { tone: "negative" }); }
       return;
     }
     const isProp = buildTool in PROP_DEFS;
@@ -454,6 +461,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                   </button>
                 );
               })
+            )}
+            {buildCat === "machine" && (
+              <button
+                className={`fmode__ptile${buildTool === "upgrade" ? " fmode__ptile--on" : ""}`}
+                onClick={() => { haptic.light(); setBuildTool("upgrade"); }}
+                title="Tap a machine to tune it up a tier (faster builds)"
+              >
+                <span className="fmode__ptile-icon"><Wrench size={20} /></span>
+                <span className="fmode__ptile-name">Upgrade</span>
+              </button>
             )}
             <button
               className={`fmode__ptile fmode__ptile--erase${buildTool === "erase" ? " fmode__ptile--on" : ""}`}

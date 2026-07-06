@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { dollars } from "../engine/money.ts";
-import { MACHINE_DEFS } from "../engine/factoryFloor.ts";
+import { MACHINE_DEFS, machineLevel, machineUpgradeStepCost } from "../engine/factoryFloor.ts";
 import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
 import {
-  newGame, buyFloorMachine, buyFloorExpansion,
+  newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine,
   saveFactoryLayout, applyFactoryLayout, deleteFactoryLayout, factoryLayoutCost,
   type GameState,
 } from "./gameState.ts";
@@ -105,6 +105,32 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     const kept = applyFactoryLayout({ ...grown.state, factoryLayouts: [narrowLayout] }, narrowLayout.id);
     expect(kept.ok).toBe(true);
     expect(kept.state.factoryExpansion).toBe(2);
+  });
+
+  it("upgradeFloorMachine charges the step cost, caps the tier, and gates on cash", () => {
+    const base = rich();
+    const press = base.factoryFloor.machines.find((m) => m.kind === "press")!;
+    const step = machineUpgradeStepCost("press", 1)!;
+    const up = upgradeFloorMachine(base, press.c, press.r);
+    expect(up.ok).toBe(true);
+    expect(up.state.cash).toBe((base.cash - step) as typeof base.cash);
+    expect(machineLevel(up.state.factoryFloor.machines.find((m) => m.kind === "press")!)).toBe(2);
+    // Can't afford it → refused, state untouched.
+    const broke: GameState = { ...base, cash: dollars(1) };
+    const no = upgradeFloorMachine(broke, press.c, press.r);
+    expect(no.ok).toBe(false);
+    expect(no.state).toBe(broke);
+  });
+
+  it("a layout with upgraded machines charges the upgrade delta to apply (no free tune-ups)", () => {
+    const base = rich();
+    const press = base.factoryFloor.machines.find((m) => m.kind === "press")!;
+    // Build an upgraded floor and snapshot it.
+    const upgraded = upgradeFloorMachine(base, press.c, press.r).state; // press now level 2
+    const layout = saveFactoryLayout(upgraded, "tuned").state.factoryLayouts[0];
+    // Applying that layout over the un-upgraded base costs exactly the 1→2 step (matching cell + kind).
+    const onBase: GameState = { ...base, factoryLayouts: [layout] };
+    expect(factoryLayoutCost(onBase, layout)).toBe(machineUpgradeStepCost("press", 1)!);
   });
 
   it("deletes a layout by id", () => {

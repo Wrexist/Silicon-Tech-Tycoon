@@ -10,7 +10,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import {
-  FLOOR, beltPath, formMarks, machineCenter, worldOf,
+  FLOOR, beltPath, formMarks, machineCenter, machineLevel, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import { propCenter, type PlacedProp } from "../engine/factoryProps.ts";
@@ -1007,6 +1007,23 @@ function TapFlash({ flash }: { flash: { c: number; r: number; ok: boolean; n: nu
   );
 }
 
+/** Small emissive dots floating over an upgraded machine — its tier (2 or 3 pips), so the floor
+ *  visibly shows where the player has invested. Level 1 (base) shows nothing. */
+function TierPips({ level, position }: { level: number; position: [number, number, number] }) {
+  const accent = useAccent();
+  if (level <= 1) return null;
+  return (
+    <group position={[position[0], 2.72, position[2]]}>
+      {Array.from({ length: level }, (_, i) => (
+        <mesh key={i} position={[(i - (level - 1) / 2) * 0.17, 0, 0]}>
+          <sphereGeometry args={[0.06, 10, 10]} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.1} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function MachineAt({ m, active, activeKind, pl, itemsT }: {
   m: FactoryFloor["machines"][number]; active: boolean; activeKind: MachineKind | null; pl: Polyline; itemsT: ItemsRef;
 }) {
@@ -1018,20 +1035,25 @@ function MachineAt({ m, active, activeKind, pl, itemsT }: {
   const onBelt: [number, number, number] = snap ? [snap.x, 0, snap.z] : [cx, 0, cz];
   const yaw = snap ? snap.yaw : 0;
   const hot = active && activeKind === m.kind; // only the machine working the current step animates
+  let el: React.ReactElement | null = null;
+  let pipPos = onBelt;
   switch (m.kind) {
-    case "intake": return <Intake active={active} hot={hot} position={onBelt} yaw={yaw} />;
-    case "mill": return <CncMill active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
-    case "press": return <GantryPress active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
-    case "screen": return <ScreenBonder active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
-    case "qa": return <QaTunnel active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
-    case "packer": return <Packer active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />;
+    case "intake": el = <Intake active={active} hot={hot} position={onBelt} yaw={yaw} />; break;
+    case "mill": el = <CncMill active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
+    case "press": el = <GantryPress active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
+    case "screen": el = <ScreenBonder active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
+    case "qa": el = <QaTunnel active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
+    case "packer": el = <Packer active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
     case "arm": {
       // beside the belt on the side it was placed, reaching over the line
       const side = snap ? Math.sign((cx - snap.x) * snap.nx + (cz - snap.z) * snap.nz) || 1 : 1;
       const armPos: [number, number, number] = snap ? [snap.x + snap.nx * side * 0.95, 0, snap.z + snap.nz * side * 0.95] : [cx, 0, cz];
-      return <RobotArm active={active} hot={hot} position={armPos} pl={pl} itemsT={itemsT} />;
+      el = <RobotArm active={active} hot={hot} position={armPos} pl={pl} itemsT={itemsT} />;
+      pipPos = armPos;
+      break;
     }
   }
+  return <group>{el}<TierPips level={machineLevel(m)} position={pipPos} /></group>;
 }
 
 function Scene(p: Factory3DProps) {

@@ -31,7 +31,29 @@ export const MACHINE_DEFS: Record<MachineKind, MachineDef> = {
 
 export const BELT_COST: Money = dollars(400) as Money;
 
-export interface PlacedMachine { id: string; kind: MachineKind; c: number; r: number }
+export interface PlacedMachine { id: string; kind: MachineKind; c: number; r: number; /** 1..MACHINE_MAX_LEVEL; missing = 1 (legacy floors). */ level?: number }
+
+// Per-machine upgrades — a floor spend sink that speeds the line. A machine can be tuned up to
+// MACHINE_MAX_LEVEL; each step costs a multiple of the machine's base price, and each level above 1
+// shaves build time (see lineSpeedMult). Starter machines are all level 1, so the baseline is neutral.
+export const MACHINE_MAX_LEVEL = 3;
+const UPGRADE_STEP_MULT = [0.75, 1.25]; // cost of level 1→2, then 2→3, as a multiple of base cost
+export function machineLevel(m: { level?: number }): number {
+  return Math.max(1, Math.min(MACHINE_MAX_LEVEL, Math.floor(m.level ?? 1)));
+}
+/** Cost to take a machine of `kind` from `level` to `level+1`, or null if already maxed. */
+export function machineUpgradeStepCost(kind: MachineKind, level: number): Money | null {
+  const lvl = machineLevel({ level });
+  if (lvl >= MACHINE_MAX_LEVEL) return null;
+  return Math.round(MACHINE_DEFS[kind].cost * UPGRADE_STEP_MULT[lvl - 1]) as Money;
+}
+/** Total spent to reach `level` (base + every upgrade step) — the basis for the demolition refund. */
+export function machineInvested(kind: MachineKind, level: number): Money {
+  let sum = MACHINE_DEFS[kind].cost as number;
+  const lvl = machineLevel({ level });
+  for (let l = 1; l < lvl; l++) sum += machineUpgradeStepCost(kind, l) ?? 0;
+  return sum as Money;
+}
 export interface BeltTile { c: number; r: number; dir: BeltDir }
 export interface FactoryFloor { machines: PlacedMachine[]; belts: BeltTile[] }
 
@@ -214,19 +236,39 @@ export function lineComplete(floor: FactoryFloor): boolean {
  *  Anchored so the starter (a complete, single-arm line) is exactly NEUTRAL (×1), so the baseline
  *  balance is unchanged. From there the layout MATTERS in two directions:
  *    • a disconnected line (no intake→packer path) costs time (×1.15) — keep it wired.
- *    • extra assembly arms parallelise the build, each shaving ~5% down to a −25% floor.
+ *    • extra assembly arms parallelise the build, each shaving ~5%.
+ *    • per-machine upgrades tune the line, each level shaving ~2% (down to a −45% floor).
  *  Pure + bounded; no RNG, so the determinism pin is untouched. */
 export function lineSpeedMult(floor: FactoryFloor): number {
   if (!lineComplete(floor)) return 1.15;
   const arms = floor.machines.filter((m) => m.kind === "arm").length;
-  return Math.max(0.75, 1 - 0.05 * Math.max(0, arms - 1));
+  const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
+  return Math.max(0.55, 1 - 0.05 * Math.max(0, arms - 1) - 0.02 * upg);
 }
 
-/** Demolition pays back half of what the cell's occupant cost (never more). */
+/** Cost to upgrade the machine occupying (c,r) one level, or null if none there / already maxed. */
+export function machineUpgradeCostAt(floor: FactoryFloor, c: number, r: number): Money | null {
+  const key = `${c},${r}`;
+  const m = floor.machines.find((x) => machineCells(x).includes(key));
+  return m ? machineUpgradeStepCost(m.kind, machineLevel(m)) : null;
+}
+
+/** Return a new floor with the machine at (c,r) tuned up one level, or null if it can't be. Pure. */
+export function upgradeMachineAt(floor: FactoryFloor, c: number, r: number): FactoryFloor | null {
+  const key = `${c},${r}`;
+  const idx = floor.machines.findIndex((x) => machineCells(x).includes(key));
+  if (idx < 0) return null;
+  const m = floor.machines[idx];
+  if (machineLevel(m) >= MACHINE_MAX_LEVEL) return null;
+  const machines = floor.machines.map((x, i) => (i === idx ? { ...x, level: machineLevel(x) + 1 } : x));
+  return { ...floor, machines };
+}
+
+/** Demolition pays back half of what the cell's occupant cost — including upgrade spend (never more). */
 export function demolitionRefund(floor: FactoryFloor, c: number, r: number): Money {
   const key = `${c},${r}`;
   for (const m of floor.machines) {
-    if (machineCells(m).includes(key)) return Math.round(MACHINE_DEFS[m.kind].cost / 2) as Money;
+    if (machineCells(m).includes(key)) return Math.round(machineInvested(m.kind, machineLevel(m)) / 2) as Money;
   }
   if (floor.belts.some((b) => b.c === c && b.r === r)) return Math.round(BELT_COST / 2) as Money;
   return 0 as Money;

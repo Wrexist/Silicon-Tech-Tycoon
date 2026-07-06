@@ -104,7 +104,8 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, demolitionRefund, floorWidth, lineSpeedMult, placeBelt as floorPlaceBelt,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, demolitionRefund, floorWidth, lineSpeedMult,
+  machineUpgradeCostAt, upgradeMachineAt, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
@@ -2146,6 +2147,17 @@ export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: n
   const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryProps.length}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
   return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next }, ok: true };
+}
+
+/** Tune up the machine at (c,r) one level (cash-gated, capped at MACHINE_MAX_LEVEL). Upgrades shave
+ *  build time via lineSpeedMult and raise the machine's demolition value. */
+export function upgradeFloorMachine(state: GameState, c: number, r: number): ActionResult {
+  const cost = machineUpgradeCostAt(state.factoryFloor, c, r);
+  if (cost == null) return { state, ok: false, reason: "Nothing to upgrade here (or it's already maxed)." };
+  if (state.cash < cost) return { state, ok: false, reason: `Need ${format(cost)} to upgrade that machine.` };
+  const next = upgradeMachineAt(state.factoryFloor, c, r);
+  if (!next) return { state, ok: false, reason: "That machine is already at its top tier." };
+  return { state: { ...state, cash: sub(state.cash, cost), factoryFloor: next }, ok: true };
 }
 
 /** Clear whatever occupies the cell — a prop first, else a machine/belt; demolition pays back half. */

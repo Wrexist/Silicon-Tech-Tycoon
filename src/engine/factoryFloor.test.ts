@@ -96,6 +96,33 @@ describe("factory floor grid (F2)", () => {
     expect(lineSpeedMult(broken)).toBeGreaterThan(1);
   });
 
+  it("per-machine upgrades: cost, level cap, speed bonus, and richer refund", async () => {
+    const {
+      lineSpeedMult, upgradeMachineAt, machineUpgradeCostAt, machineLevel, machineInvested,
+      MACHINE_MAX_LEVEL, demolitionRefund,
+    } = await import("./factoryFloor.ts");
+    const f = starterFloor();
+    const press = f.machines.find((m) => m.kind === "press")!; // starter press, level 1
+    expect(machineLevel(press)).toBe(1);
+    expect(machineUpgradeCostAt(f, press.c, press.r)).toBe(Math.round(MACHINE_DEFS.press.cost * 0.75)); // 1→2 = 0.75× base
+    const up1 = upgradeMachineAt(f, press.c, press.r)!;
+    expect(up1).not.toBeNull();
+    expect(machineLevel(up1.machines.find((m) => m.kind === "press")!)).toBe(2);
+    expect(lineSpeedMult(up1)).toBeLessThan(1); // an upgrade shaves build time below the neutral 1.0
+
+    // Cap at MACHINE_MAX_LEVEL: keep upgrading, then a further upgrade is refused.
+    let g = up1;
+    for (let i = 0; i < 5; i++) { const n = upgradeMachineAt(g, press.c, press.r); if (n) g = n; }
+    expect(machineLevel(g.machines.find((m) => m.kind === "press")!)).toBe(MACHINE_MAX_LEVEL);
+    expect(machineUpgradeCostAt(g, press.c, press.r)).toBeNull();
+    expect(upgradeMachineAt(g, press.c, press.r)).toBeNull();
+
+    // Demolition refunds half of TOTAL invested (base + upgrades) — more than an un-upgraded machine.
+    expect(demolitionRefund(g, press.c, press.r)).toBe(Math.round(machineInvested("press", MACHINE_MAX_LEVEL) / 2));
+    expect(demolitionRefund(g, press.c, press.r)).toBeGreaterThan(demolitionRefund(f, press.c, press.r));
+    expect(machineUpgradeCostAt(f, 9, 9)).toBeNull(); // empty cell → nothing to upgrade
+  });
+
   it("machineCells matches the def footprint", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });

@@ -2116,3 +2116,17 @@ money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced the
 - [x] `factoryLayout.layoutDiff` (PURE, +1 test) counts added/removed pieces (machines+belts+props),
       ignoring matching cells — the same identity rule as the cost diff.
 - Verified live: arming "Compact" showed "−2 removed" + "Confirm · +$10.5K". tsc 0, 756 tests, build+PWA green.
+
+## v96 — Per-machine upgrades: tune the floor into a spend sink (#improvement 1/3) (DONE 2026-07-06)
+- [x] **Engine** (`factoryFloor.ts`, +test): machines carry a `level` (1..`MACHINE_MAX_LEVEL`=3).
+      `machineUpgradeStepCost` (0.75× then 1.25× base), `machineInvested`, `machineUpgradeCostAt`,
+      `upgradeMachineAt`. `lineSpeedMult` now shaves ~2%/level (floor −45%); the starter is all level 1
+      so it stays exactly ×1 — the 40-seed balance sim is byte-identical. `demolitionRefund` pays back
+      half of TOTAL invested (base + upgrades).
+- [x] **Layout economy** (`factoryLayout.ts`, +test): `layoutApplyCost` now prices upgrade-level deltas
+      on matched machines (full for tune-ups, 50% back when less tuned; full invested for new machines)
+      — so no layout can mint free upgrades.
+- [x] **State + UI**: `upgradeFloorMachine` reducer (cash-gated, capped) + useGame wiring; an "Upgrade"
+      build tool — tap a machine to tune it up. 3D floor shows **tier pips** (era-accent dots) over each
+      upgraded machine, so investment is visible at a glance.
+- Verified live: press→3 pips, arm/qa→2 pips; sim unchanged (0 bankruptcies). tsc 0, 759 tests (+3), build+PWA green.
