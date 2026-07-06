@@ -233,6 +233,64 @@ describe("Save export / import — round-trips through migrate, rejects garbage"
   });
 });
 
+describe("factory floor sanitization — corrupt entries are dropped, never crash or wipe cash", () => {
+  it("filters unknown machine kinds / belt dirs / prop kinds and clamps a NaN upgrade level", async () => {
+    const { exportSaveString, importSaveString } = await freshPersistence();
+    const s = newGame(11);
+    const raw = s as unknown as { factoryFloor: { machines: unknown[]; belts: unknown[] }; factoryProps: unknown[] };
+    raw.factoryFloor = {
+      machines: [
+        { id: "ok-1", kind: "intake", c: 0, r: 1 },
+        { id: "ok-2", kind: "press", c: 4, r: 2, level: "abc" }, // NaN level → NaN upgrade cost → cash wipe
+        { id: "ok-3", kind: "packer", c: 0, r: 6, level: 2 },
+        { id: "bad-kind", kind: "teleporter", c: 8, r: 2 }, // unknown kind → MACHINE_DEFS[kind].w TypeError
+        { id: "bad-pos", kind: "mill", c: Number.NaN, r: 2 },
+      ],
+      belts: [
+        { c: 2, r: 1, dir: "e" },
+        { c: 3, r: 1, dir: "up" }, // invalid dir → STEP[dir][0] TypeError in beltChain
+        { c: Number.POSITIVE_INFINITY, r: 1, dir: "e" },
+      ],
+    };
+    raw.factoryProps = [
+      { id: "p-1", kind: "plant", c: 9, r: 4 },
+      { id: "p-bad", kind: "fountain", c: 9, r: 5 }, // unknown kind
+    ];
+    const back = importSaveString(exportSaveString(s))!;
+    expect(back).not.toBeNull();
+    expect(back.factoryFloor.machines.map((m) => m.id)).toEqual(["ok-1", "ok-2", "ok-3"]);
+    expect(back.factoryFloor.machines[1].level).toBe(1); // clamped, not NaN
+    expect(back.factoryFloor.machines[2].level).toBe(2); // valid level survives
+    expect(back.factoryFloor.belts).toEqual([{ c: 2, r: 1, dir: "e" }]);
+    expect(back.factoryProps.map((p) => p.id)).toEqual(["p-1"]);
+  });
+
+  it("drops malformed saved layouts and scrubs entries inside well-formed ones", async () => {
+    const { exportSaveString, importSaveString } = await freshPersistence();
+    const s = newGame(12);
+    (s as unknown as { factoryLayouts: unknown[] }).factoryLayouts = [
+      { id: "layout-0", name: "fine", floor: { machines: [{ id: "m", kind: "press", c: 2, r: 2 }, { id: "x", kind: "nope", c: 1, r: 1 }], belts: [] }, props: [], expansion: 99, decor: { wall: 0, floor: 0 }, savedWeek: 1 },
+      { id: "layout-1", name: "broken" }, // no floor/props → would TypeError in layoutApplyCost
+    ];
+    const back = importSaveString(exportSaveString(s))!;
+    expect(back.factoryLayouts).toHaveLength(1);
+    expect(back.factoryLayouts[0].floor.machines.map((m) => m.id)).toEqual(["m"]);
+    expect(back.factoryLayouts[0].expansion).toBeLessThanOrEqual(3);
+  });
+
+  it("seeds factoryPieceCounter past every id ever minted (including inside layouts)", async () => {
+    const { exportSaveString, importSaveString } = await freshPersistence();
+    const s = newGame(13);
+    s.factoryFloor = {
+      machines: [...s.factoryFloor.machines, { id: "fm-3-7", kind: "press", c: 4, r: 2 }],
+      belts: [],
+    };
+    delete (s as unknown as Record<string, unknown>).factoryPieceCounter; // pre-counter save
+    const back = importSaveString(exportSaveString(s))!;
+    expect(back.factoryPieceCounter).toBeGreaterThanOrEqual(8);
+  });
+});
+
 describe("launched verdict — recorded on launch, backfilled for old saves", () => {
   it("a launched product carries a verdict, and it survives an export/import round-trip", async () => {
     const { exportSaveString, importSaveString } = await freshPersistence();

@@ -1,7 +1,8 @@
 // localStorage persistence with schema versioning + migration. The save is the
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
-import { starterFloor, MAX_EXPANSION } from "../engine/factoryFloor.ts";
+import { starterFloor, MACHINE_DEFS, MACHINE_MAX_LEVEL, MAX_EXPANSION, type FactoryFloor } from "../engine/factoryFloor.ts";
+import { PROP_DEFS, type PlacedProp } from "../engine/factoryProps.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
@@ -402,23 +403,81 @@ function migrate(state: GameState): GameState | null {
   if (!s.roomStyle || typeof s.roomStyle !== "object" || typeof s.roomStyle.floor !== "number" || typeof s.roomStyle.wall !== "number") {
     s.roomStyle = { floor: s.roomStyle?.floor ?? 0, wall: s.roomStyle?.wall ?? 0 };
   }
-  // Factory Mode floor (F2) — old saves get the authored starter line.
+  // Factory Mode floor (F2) — old saves get the bare starter floor. Entries are sanitized HARD:
+  // an unknown machine kind or belt dir would TypeError inside machineCells/beltChain (crashing
+  // placement checks, buildWeeksFor and the 3D render), and a non-finite upgrade `level` turns
+  // machineUpgradeStepCost into NaN — which passes the cash gate and zeroes the wallet. Truncated
+  // or hand-edited saves come through this same path via import, so drop what can't be trusted.
+  const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
+  const cleanMachines = (list: unknown): FactoryFloor["machines"] =>
+    (Array.isArray(list) ? list : []).filter(
+      (m): m is FactoryFloor["machines"][number] =>
+        !!m && typeof m.id === "string" && typeof m.kind === "string" && m.kind in MACHINE_DEFS && finite(m.c) && finite(m.r),
+    ).map((m) => {
+      if (m.level === undefined) return { ...m };
+      const level = finite(m.level) ? Math.max(1, Math.min(MACHINE_MAX_LEVEL, Math.floor(m.level))) : 1;
+      return { ...m, level };
+    });
+  const cleanBelts = (list: unknown): FactoryFloor["belts"] =>
+    (Array.isArray(list) ? list : []).filter(
+      (b): b is FactoryFloor["belts"][number] =>
+        !!b && finite(b.c) && finite(b.r) && (b.dir === "e" || b.dir === "w" || b.dir === "n" || b.dir === "s"),
+    ).map((b) => ({ ...b }));
+  const cleanProps = (list: unknown): PlacedProp[] =>
+    (Array.isArray(list) ? list : []).filter(
+      (p): p is PlacedProp => !!p && typeof p.id === "string" && typeof p.kind === "string" && p.kind in PROP_DEFS && finite(p.c) && finite(p.r),
+    ).map((p) => ({ ...p }));
   if (!s.factoryFloor || !Array.isArray(s.factoryFloor.machines) || !Array.isArray(s.factoryFloor.belts)) {
     s.factoryFloor = starterFloor();
+  } else {
+    s.factoryFloor = { machines: cleanMachines(s.factoryFloor.machines), belts: cleanBelts(s.factoryFloor.belts) };
   }
   if (!s.factoryDecor || typeof s.factoryDecor !== "object" || typeof s.factoryDecor.wall !== "number" || typeof s.factoryDecor.floor !== "number") {
     s.factoryDecor = { wall: s.factoryDecor?.wall ?? 0, floor: s.factoryDecor?.floor ?? 0 };
   }
-  if (!Array.isArray(s.factoryProps)) s.factoryProps = [];
+  s.factoryProps = cleanProps(s.factoryProps);
   if (typeof s.factoryExpansion !== "number" || !Number.isFinite(s.factoryExpansion)) s.factoryExpansion = 0;
   s.factoryExpansion = Math.max(0, Math.min(MAX_EXPANSION, Math.floor(s.factoryExpansion))); // clamp tampered/legacy values
   if (!Array.isArray(s.factoryLayouts)) s.factoryLayouts = [];
+  // A layout missing its floor/props shape would TypeError in layoutApplyCost the moment it's
+  // priced; entries inside a well-formed layout get the same scrub as the live floor.
+  s.factoryLayouts = s.factoryLayouts
+    .filter((l: unknown) => {
+      const x = l as { id?: unknown; name?: unknown; floor?: { machines?: unknown; belts?: unknown }; props?: unknown };
+      return !!x && typeof x.id === "string" && typeof x.name === "string" && !!x.floor
+        && Array.isArray(x.floor.machines) && Array.isArray(x.floor.belts) && Array.isArray(x.props);
+    })
+    .map((l: { floor: { machines: unknown; belts: unknown }; props: unknown; expansion?: unknown; decor?: { wall?: unknown; floor?: unknown }; savedWeek?: unknown } & Record<string, unknown>) => ({
+      ...l,
+      floor: { machines: cleanMachines(l.floor.machines), belts: cleanBelts(l.floor.belts) },
+      props: cleanProps(l.props),
+      expansion: finite(l.expansion) ? Math.max(0, Math.min(MAX_EXPANSION, Math.floor(l.expansion))) : 0,
+      decor: { wall: finite(l.decor?.wall) ? l.decor!.wall : 0, floor: finite(l.decor?.floor) ? l.decor!.floor : 0 },
+      savedWeek: finite(l.savedWeek) ? l.savedWeek : 0,
+    }));
   // Monotonic id source — start past the largest existing "layout-N" so a re-save never collides.
   if (typeof s.factoryLayoutCounter !== "number" || !Number.isFinite(s.factoryLayoutCounter)) {
     s.factoryLayoutCounter = s.factoryLayouts.reduce((m: number, l: { id?: string }) => {
       const n = parseInt(String(l.id ?? "").replace(/\D/g, ""), 10);
       return Number.isFinite(n) ? Math.max(m, n + 1) : m;
     }, s.factoryLayouts.length);
+  }
+  // Monotonic id source for machines + props — seeded past the largest trailing "-N" ever minted
+  // (including ids frozen inside saved layouts, which can be re-applied) so a new buy can never
+  // collide with an existing piece. Pre-counter saves derived ids from array length.
+  if (typeof s.factoryPieceCounter !== "number" || !Number.isFinite(s.factoryPieceCounter)) {
+    const tail = (id: unknown): number => {
+      const n = parseInt(String(id ?? "").split("-").pop() ?? "", 10);
+      return Number.isFinite(n) ? n + 1 : 0;
+    };
+    let seed = 0;
+    for (const m of s.factoryFloor.machines) seed = Math.max(seed, tail(m.id));
+    for (const p of s.factoryProps) seed = Math.max(seed, tail(p.id));
+    for (const l of s.factoryLayouts as { floor: { machines: { id?: string }[] }; props: { id?: string }[] }[]) {
+      for (const m of l.floor.machines) seed = Math.max(seed, tail(m.id));
+      for (const p of l.props) seed = Math.max(seed, tail(p.id));
+    }
+    s.factoryPieceCounter = seed;
   }
   if (typeof s.bankrupt !== "boolean") s.bankrupt = false;
   if (typeof s.furnitureCounter !== "number") {

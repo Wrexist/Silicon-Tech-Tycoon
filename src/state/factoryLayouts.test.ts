@@ -5,7 +5,7 @@ import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
 import { demoFloor, lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
 import {
   newGame, buyFloorMachine, buyFloorBelt, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
-  moveFloorMachine, moveFactoryProp, buyFactoryProp, autoConnectQuote,
+  moveFloorMachine, moveFactoryProp, buyFactoryProp, autoConnectQuote, clearFloorCell,
   saveFactoryLayout, applyFactoryLayout, deleteFactoryLayout, factoryLayoutCost,
   type GameState,
 } from "./gameState.ts";
@@ -249,6 +249,47 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     // The quote matches the charge with the prop in play, too.
     const quote = autoConnectQuote(withProp.state)!;
     expect(quote.tiles).toBe(routed.state.factoryFloor.belts.length);
+  });
+
+  it("machine/prop ids stay UNIQUE across demolish + re-buy in the same week", () => {
+    // The old scheme derived ids from array length: buy → demolish an OLDER piece → buy again
+    // reused the id, so moveMachine dragged both and React keys collided.
+    const bare: GameState = { ...rich(), factoryFloor: { machines: [], belts: [] } };
+    let s = buyFloorMachine(bare, "press", 2, 2).state;
+    s = buyFloorMachine(s, "mill", 6, 2).state;
+    s = clearFloorCell(s, 2, 2); // demolish the FIRST one — length shrinks back
+    s = buyFloorMachine(s, "qa", 10, 2).state;
+    const ids = s.factoryFloor.machines.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    // Same guarantee for props.
+    let p = buyFactoryProp(bare, "cone", 4, 8).state;
+    p = buyFactoryProp(p, "cone", 5, 8).state;
+    p = { ...p, factoryProps: p.factoryProps.slice(1) }; // drop the first prop
+    p = buyFactoryProp(p, "cone", 6, 8).state;
+    const pids = p.factoryProps.map((x) => x.id);
+    expect(new Set(pids).size).toBe(pids.length);
+  });
+
+  it("applying a layout clamps a tampered expansion to MAX_EXPANSION", () => {
+    const saved = saveFactoryLayout(rich(), "hax").state;
+    const tampered: GameState = {
+      ...saved,
+      factoryLayouts: saved.factoryLayouts.map((l) => ({ ...l, expansion: 99 })),
+    };
+    const res = applyFactoryLayout(tampered, tampered.factoryLayouts[0].id);
+    expect(res.ok).toBe(true);
+    expect(res.state.factoryExpansion).toBeLessThanOrEqual(3);
+  });
+
+  it("paintBeltRun distinguishes 'no money' from 'no legal cell'", () => {
+    const bare: GameState = { ...rich(), factoryFloor: { machines: [], belts: [] } };
+    const broke: GameState = { ...bare, cash: dollars(0) };
+    const noMoney = paintBeltRun(broke, [{ c: 2, r: 2 }], "e");
+    expect(noMoney.ok).toBe(false);
+    expect(noMoney.reason).toMatch(/cost/i);
+    const offGrid = paintBeltRun(bare, [{ c: 99, r: 99 }], "e");
+    expect(offGrid.ok).toBe(false);
+    expect(offGrid.reason).toMatch(/there/i);
   });
 
   it("deletes a layout by id", () => {

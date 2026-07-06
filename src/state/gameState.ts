@@ -229,6 +229,9 @@ export interface GameState {
   /** Monotonic id source for saved layouts — never derived from array length (delete+re-save would
    *  otherwise reuse an id and collide). */
   factoryLayoutCounter: number;
+  /** Monotonic id source for floor machines AND props — same rule: demolish + re-buy in one week
+   *  must never mint a duplicate id (moveMachine and React keys both key on it). */
+  factoryPieceCounter: number;
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -480,6 +483,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     factoryExpansion: 0,
     factoryLayouts: [],
     factoryLayoutCounter: 0,
+    factoryPieceCounter: 0,
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -2126,9 +2130,10 @@ export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, 
   const def = MACHINE_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
   if (machineOverPropAt(state, kind, c, r)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
-  const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryFloor.machines.length}`, floorWidth(state.factoryExpansion));
+  // Monotonic counter, never array length: demolish + re-buy in one week must not reuse an id.
+  const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryPieceCounter}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
-  return { state: { ...state, cash: sub(state.cash, def.cost), factoryFloor: next }, ok: true };
+  return { state: { ...state, cash: sub(state.cash, def.cost), factoryFloor: next, factoryPieceCounter: state.factoryPieceCounter + 1 }, ok: true };
 }
 
 /** Buy + lay a conveyor tile. Re-aiming an existing tile is free; new tiles cost BELT_COST. */
@@ -2154,19 +2159,24 @@ export function paintBeltRun(state: GameState, cells: { c: number; r: number }[]
   let floor = state.factoryFloor;
   let cash = state.cash;
   let placed = 0;
+  let brokeAt = false;
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i];
     const dir: BeltDir = cells[i + 1] ? dirBetween(cell, cells[i + 1]) : i > 0 ? dirBetween(cells[i - 1], cell) : fallbackDir;
     if (propAt.has(`${cell.c},${cell.r}`)) continue; // decor is solid — paint around it
     const existing = floor.belts.some((b) => b.c === cell.c && b.r === cell.r);
-    if (!existing && cash < BELT_COST) break; // out of budget for new tiles
+    if (!existing && cash < BELT_COST) { brokeAt = true; break; } // out of budget for new tiles
     const next = floorPlaceBelt(floor, cell.c, cell.r, dir, maxW);
     if (!next) continue; // off-grid or on a machine → skip this cell
     if (!existing) cash = sub(cash, BELT_COST);
     floor = next;
     placed++;
   }
-  if (placed === 0) return { state, ok: false, reason: "Can't lay a belt there." };
+  if (placed === 0) {
+    // Distinguish "no money" from "no legal cell" — the toast should tell the player which.
+    if (brokeAt) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
+    return { state, ok: false, reason: "Can't lay a belt there." };
+  }
   return { state: { ...state, factoryFloor: floor, cash }, ok: true };
 }
 
@@ -2189,9 +2199,9 @@ export function buyFloorExpansion(state: GameState): ActionResult {
 export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: number): ActionResult {
   const def = PROP_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
-  const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryProps.length}`, floorWidth(state.factoryExpansion));
+  const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryPieceCounter}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
-  return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next }, ok: true };
+  return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next, factoryPieceCounter: state.factoryPieceCounter + 1 }, ok: true };
 }
 
 /** The net an auto-route would charge: new tiles at full price − removed tiles at half back. */
@@ -2321,7 +2331,9 @@ export function applyFactoryLayout(state: GameState, id: string): ActionResult {
       cash: add(state.cash, cents(-cost)), // cost>0 subtracts, cost<0 refunds
       factoryFloor: { machines: layout.floor.machines.map((m) => ({ ...m })), belts: layout.floor.belts.map((b) => ({ ...b })) },
       factoryProps: layout.props.map((p) => ({ ...p })),
-      factoryExpansion: Math.max(state.factoryExpansion, layout.expansion),
+      // Clamp like expansionDeltaCost does — a tampered layout can't push expansion past MAX
+      // while only being charged up to the MAX-expansion price.
+      factoryExpansion: Math.min(MAX_EXPANSION, Math.max(state.factoryExpansion, Math.max(0, Math.floor(layout.expansion)))),
       factoryDecor: { ...layout.decor },
     },
     ok: true,
