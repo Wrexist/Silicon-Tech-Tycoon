@@ -13,6 +13,7 @@ import {
   FLOOR, beltPath, formMarks, machineCenter, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
 } from "../engine/factoryFloor.ts";
+import { propCenter, type PlacedProp } from "../engine/factoryProps.ts";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import type { CategoryId, Product } from "../engine/types.ts";
 
@@ -68,6 +69,8 @@ export interface Factory3DProps {
   /** Painted wall colour + floor tint from the player's factory decor (customisable). */
   wallColor?: string;
   floorColor?: string;
+  /** Decorative props the player has placed on the floor. */
+  props?: PlacedProp[];
   /** Bumped by the HUD's recenter button — re-frames the camera to its default. */
   resetView?: number;
   onTapCell?: (c: number, r: number) => void;
@@ -697,6 +700,93 @@ function ScreenBonder({ active, hot, position, yaw = 0, pl, itemsT }: { active: 
   );
 }
 
+/* --------------------------------- props ---------------------------------- */
+
+const PROP_WOOD = "#7d6743";
+const PROP_GREEN = "#3f8f5a";
+
+/** A cosmetic prop placed on the floor. Static (decor); positioned at its cell centre. */
+function PropAt({ prop }: { prop: PlacedProp }) {
+  const [x, z] = propCenter(prop);
+  const pos: [number, number, number] = [x, 0.09, z];
+  switch (prop.kind) {
+    case "crates":
+      return (
+        <group position={pos}>
+          {[[-0.16, 0.24, -0.12, 0.44], [0.18, 0.22, 0.14, 0.42], [0.0, 0.66, 0.0, 0.4]].map(([dx, y, dz, s], i) => (
+            <RoundedBox key={i} args={[s as number, 0.4, s as number]} radius={0.04} position={[dx as number, y as number, dz as number]} rotation={[0, i * 0.4, 0]} castShadow receiveShadow>
+              <meshStandardMaterial color={C.crate} roughness={0.85} />
+            </RoundedBox>
+          ))}
+        </group>
+      );
+    case "barrel":
+      return (
+        <group position={pos}>
+          {[[-0.2, 0], [0.2, 0.05], [0.0, -0.22]].map(([dx, dz], i) => (
+            <mesh key={i} position={[dx, 0.34, dz]} castShadow receiveShadow>
+              <cylinderGeometry args={[0.19, 0.19, 0.62, 18]} />
+              <meshStandardMaterial color={i === 1 ? C.accent : "#c9722f"} roughness={0.5} metalness={0.3} />
+            </mesh>
+          ))}
+        </group>
+      );
+    case "pallet":
+      return (
+        <group position={pos}>
+          <mesh position={[0, 0.07, 0]} castShadow receiveShadow><boxGeometry args={[0.9, 0.1, 0.9]} /><meshStandardMaterial color={PROP_WOOD} roughness={0.9} /></mesh>
+          {[-0.32, 0, 0.32].map((z2) => (<mesh key={z2} position={[0, 0.15, z2]}><boxGeometry args={[0.9, 0.05, 0.2]} /><meshStandardMaterial color="#8f7850" roughness={0.9} /></mesh>))}
+        </group>
+      );
+    case "plant":
+      return (
+        <group position={pos}>
+          <mesh position={[0, 0.22, 0]} castShadow><cylinderGeometry args={[0.24, 0.19, 0.44, 16]} /><meshStandardMaterial color="#4a4f57" roughness={0.7} /></mesh>
+          {[[0, 0.62, 0, 0.3], [-0.14, 0.72, 0.06, 0.2], [0.14, 0.7, -0.05, 0.22]].map(([dx, y, dz, r], i) => (
+            <mesh key={i} position={[dx as number, y as number, dz as number]} castShadow><sphereGeometry args={[r as number, 12, 12]} /><meshStandardMaterial color={PROP_GREEN} roughness={0.8} /></mesh>
+          ))}
+        </group>
+      );
+    case "bench":
+      return (
+        <group position={pos}>
+          <RoundedBox args={[1.7, 0.12, 0.7]} radius={0.03} position={[0, 0.62, 0]} castShadow receiveShadow><meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.3} /></RoundedBox>
+          {[[-0.75, -0.28], [0.75, -0.28], [-0.75, 0.28], [0.75, 0.28]].map(([lx, lz], i) => (<mesh key={i} position={[lx, 0.3, lz]}><boxGeometry args={[0.09, 0.6, 0.09]} /><meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} /></mesh>))}
+          <mesh position={[0.35, 0.74, 0]}><boxGeometry args={[0.3, 0.06, 0.2]} /><meshStandardMaterial color={C.accent} roughness={0.5} /></mesh>
+          <mesh position={[-0.4, 0.75, 0.1]}><boxGeometry args={[0.24, 0.08, 0.16]} /><meshStandardMaterial color={C.amber} roughness={0.6} /></mesh>
+        </group>
+      );
+    case "rack":
+      return (
+        <group position={pos}>
+          {[-0.82, 0.82].map((lx) => [-0.3, 0.3].map((lz) => (<mesh key={`${lx},${lz}`} position={[lx, 0.8, lz]}><boxGeometry args={[0.08, 1.6, 0.08]} /><meshStandardMaterial color={C.rail} roughness={0.5} metalness={0.5} /></mesh>)))}
+          {[0.5, 1.05, 1.55].map((y) => (
+            <group key={y}>
+              <mesh position={[0, y, 0]}><boxGeometry args={[1.72, 0.06, 0.66]} /><meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} /></mesh>
+              {y < 1.5 && [-0.45, 0.1, 0.5].map((bx, i) => (<RoundedBox key={i} args={[0.34, 0.34, 0.4]} radius={0.03} position={[bx, y + 0.23, 0]} castShadow><meshStandardMaterial color={i % 2 ? C.crate : "#8f7850"} roughness={0.85} /></RoundedBox>))}
+            </group>
+          ))}
+        </group>
+      );
+    case "cone":
+      return (
+        <group position={pos}>
+          <mesh position={[0, 0.06, 0]}><boxGeometry args={[0.34, 0.06, 0.34]} /><meshStandardMaterial color="#e0842f" roughness={0.7} /></mesh>
+          <mesh position={[0, 0.32, 0]} castShadow><coneGeometry args={[0.14, 0.5, 20]} /><meshStandardMaterial color="#f28a2e" roughness={0.55} emissive="#f28a2e" emissiveIntensity={0.15} /></mesh>
+          <mesh position={[0, 0.34, 0]}><cylinderGeometry args={[0.11, 0.13, 0.1, 20]} /><meshStandardMaterial color="#f5f5f5" roughness={0.5} /></mesh>
+        </group>
+      );
+    case "sign":
+      return (
+        <group position={pos}>
+          <mesh position={[0, 0.5, 0]}><cylinderGeometry args={[0.04, 0.04, 1.0, 10]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
+          <mesh position={[0, 1.05, 0]} rotation={[0, 0, Math.PI / 4]} castShadow><boxGeometry args={[0.34, 0.34, 0.03]} /><meshStandardMaterial color={C.hazard} emissive={C.hazard} emissiveIntensity={0.5} roughness={0.5} /></mesh>
+          <mesh position={[0, 1.05, 0.02]}><boxGeometry args={[0.04, 0.2, 0.01]} /><meshStandardMaterial color="#1a1a1a" /></mesh>
+        </group>
+      );
+  }
+}
+
 /* ------------------------------ building shell ------------------------------ */
 
 const SHELL = { w: 16.6, d: 10.6, wallH: 1.35, t: 0.24 };
@@ -1006,6 +1096,7 @@ function Scene(p: Factory3DProps) {
       {p.flash && <TapFlash flash={p.flash} />}
 
       {p.floor.machines.map((m) => <MachineAt key={m.id} m={m} active={p.active && p.lineOk} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />)}
+      {p.props?.map((pr) => <PropAt key={pr.id} prop={pr} />)}
 
       {/* the belt ends at a pallet beside the delivery truck (the dock) */}
       {dock && <Pallet position={dock.pallet} yaw={dock.yaw} count={p.readyCount} />}

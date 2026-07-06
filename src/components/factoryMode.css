@@ -282,11 +282,20 @@
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
   margin-bottom: var(--sp-6);
 }
-.fmode__build-rule { font-size: var(--fs-nano); font-weight: 600; color: rgba(255,255,255,0.6); min-width: 0; }
+.fmode__build-rule { flex: 1; font-size: var(--fs-nano); font-weight: 600; color: rgba(255,255,255,0.6); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fmode__build-seg {
+  flex: none; display: inline-flex; gap: 2px; padding: 3px;
+  border-radius: var(--r-pill); background: rgba(255,255,255,0.08); border: 1px solid var(--fmode-btn-line);
+}
+.fmode__build-tab {
+  min-height: 34px; padding: 0 var(--sp-12); border: none; background: none; cursor: pointer;
+  border-radius: var(--r-pill); font-size: var(--fs-caption); font-weight: 700; color: rgba(255,255,255,0.6);
+}
+.fmode__build-tab--on { background: var(--accent); color: var(--accent-ink); }
 .fmode__build-done {
-  flex: none; min-height: 34px; padding: 0 var(--sp-16);
+  flex: none; min-height: 44px; padding: 0 var(--sp-16);
   border: none; border-radius: var(--r-pill);
-  background: var(--accent); color: #fff; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer;
   font-size: var(--fs-caption); font-weight: 800;
 }
 .fmode__palette {

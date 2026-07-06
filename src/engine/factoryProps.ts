@@ -1,0 +1,70 @@
+// Decorative props the player can place on the factory floor (crates, plants, benches, signs…) to
+// dress the building — cosmetic only, inert to the sim. PURE: the catalog + grid placement math,
+// mirroring factoryFloor.ts. Props live in a separate list from machines/belts so the protected
+// floor engine is untouched; they may sit on any EMPTY cell (never on a machine, belt, or prop).
+import { dollars, type Money } from "./money.ts";
+import { FLOOR, machineCells, type FactoryFloor } from "./factoryFloor.ts";
+
+export type PropKind = "crates" | "barrel" | "pallet" | "plant" | "bench" | "rack" | "cone" | "sign";
+
+export interface PropDef {
+  kind: PropKind;
+  name: string;
+  cost: Money;
+  w: number;
+  d: number;
+}
+
+export const PROP_DEFS: Record<PropKind, PropDef> = {
+  crates: { kind: "crates", name: "Crates", cost: dollars(300) as Money, w: 1, d: 1 },
+  barrel: { kind: "barrel", name: "Barrels", cost: dollars(250) as Money, w: 1, d: 1 },
+  pallet: { kind: "pallet", name: "Pallet", cost: dollars(150) as Money, w: 1, d: 1 },
+  plant: { kind: "plant", name: "Planter", cost: dollars(400) as Money, w: 1, d: 1 },
+  bench: { kind: "bench", name: "Workbench", cost: dollars(600) as Money, w: 2, d: 1 },
+  rack: { kind: "rack", name: "Shelving", cost: dollars(800) as Money, w: 2, d: 1 },
+  cone: { kind: "cone", name: "Safety cone", cost: dollars(80) as Money, w: 1, d: 1 },
+  sign: { kind: "sign", name: "Hazard sign", cost: dollars(120) as Money, w: 1, d: 1 },
+};
+
+export interface PlacedProp { id: string; kind: PropKind; c: number; r: number }
+
+export function propCells(p: { kind: PropKind; c: number; r: number }): string[] {
+  const def = PROP_DEFS[p.kind];
+  const out: string[] = [];
+  for (let dc = 0; dc < def.w; dc++) for (let dr = 0; dr < def.d; dr++) out.push(`${p.c + dc},${p.r + dr}`);
+  return out;
+}
+
+/** World-space centre of a placed prop (for rendering), sharing the floor's coordinate system. */
+export function propCenter(p: PlacedProp): [number, number] {
+  const def = PROP_DEFS[p.kind];
+  return [p.c - (FLOOR.w - 1) / 2 + (def.w - 1) / 2, p.r - (FLOOR.h - 1) / 2 + (def.d - 1) / 2];
+}
+
+/** A prop may sit only on empty cells — never overlapping a machine, a belt, or another prop. */
+export function canPlaceProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKind, c: number, r: number): boolean {
+  const def = PROP_DEFS[kind];
+  if (c < 0 || r < 0 || c + def.w > FLOOR.w || r + def.d > FLOOR.h) return false;
+  const want = new Set(propCells({ kind, c, r }));
+  for (const m of floor.machines) for (const cell of machineCells(m)) if (want.has(cell)) return false;
+  for (const b of floor.belts) if (want.has(`${b.c},${b.r}`)) return false;
+  for (const pp of props) for (const cell of propCells(pp)) if (want.has(cell)) return false;
+  return true;
+}
+
+export function placeProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKind, c: number, r: number, id: string): PlacedProp[] | null {
+  if (!canPlaceProp(floor, props, kind, c, r)) return null;
+  return [...props, { id, kind, c, r }];
+}
+
+export function removePropAt(props: PlacedProp[], c: number, r: number): PlacedProp[] {
+  const key = `${c},${r}`;
+  return props.filter((p) => !propCells(p).includes(key));
+}
+
+/** Half the cost back for whichever prop occupies the cell (0 if none). */
+export function propRefund(props: PlacedProp[], c: number, r: number): Money {
+  const key = `${c},${r}`;
+  for (const p of props) if (propCells(p).includes(key)) return Math.round(PROP_DEFS[p.kind].cost / 2) as Money;
+  return 0 as Money;
+}

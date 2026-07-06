@@ -35,6 +35,7 @@ import {
   rushBuild,
   buyFloorMachine,
   buyFloorBelt,
+  buyFactoryProp,
   clearFloorCell,
   giveRaise,
   resolveChoice,
@@ -433,6 +434,7 @@ interface GameActionsValue {
   rushBuild: (productId: string) => { ok: boolean; reason?: string };
   buyFloorMachine: (kind: import("../engine/factoryFloor.ts").MachineKind, c: number, r: number) => { ok: boolean; reason?: string };
   buyFloorBelt: (c: number, r: number, dir: import("../engine/factoryFloor.ts").BeltDir) => { ok: boolean; reason?: string };
+  buyFactoryProp: (kind: import("../engine/factoryProps.ts").PropKind, c: number, r: number) => { ok: boolean; reason?: string };
   clearFloorCell: (c: number, r: number) => void;
   giveRaise: (id: string) => void;
   resolveChoice: (optionId: string) => void;
@@ -983,6 +985,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (result.ok) setState(result.state); // belt cost is tiny; skip the spend float spam
     return { ok: result.ok, reason: result.reason };
   }, []);
+  const buyFactoryPropCb = useCallback((kind: import("../engine/factoryProps.ts").PropKind, c: number, r: number) => {
+    const prev = stateRef.current;
+    const result = buyFactoryProp(prev, kind, c, r);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
   const clearFloorCellCb = useCallback((c: number, r: number) => setState((st) => clearFloorCell(st, c, r)), []);
   const rushBuildCb = useCallback((productId: string) => {
     const prev = stateRef.current;
@@ -1123,6 +1135,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rushBuild: rushBuildCb,
       buyFloorMachine: buyFloorMachineCb,
       buyFloorBelt: buyFloorBeltCb,
+      buyFactoryProp: buyFactoryPropCb,
       clearFloorCell: clearFloorCellCb,
       giveRaise: giveRaiseCb,
       resolvePoach: resolvePoachCb,
@@ -1132,7 +1145,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, clearFloorCellCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, buyFactoryPropCb, clearFloorCellCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

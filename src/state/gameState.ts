@@ -108,6 +108,10 @@ import {
   removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
+import {
+  PROP_DEFS, placeProp as propsPlace, removePropAt as propsRemoveAt, propRefund,
+  type PlacedProp, type PropKind,
+} from "../engine/factoryProps.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -213,6 +217,8 @@ export interface GameState {
   factoryFloor: FloorPlan;
   /** Factory building decor — indices into the wall-paint / floor-finish palettes (customisable). */
   factoryDecor: { wall: number; floor: number };
+  /** Decorative props placed on the factory floor (cosmetic; inert to the sim). */
+  factoryProps: PlacedProp[];
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -459,6 +465,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     roomStyle: { floor: 0, wall: 0 },
     factoryFloor: starterFloor(),
     factoryDecor: { wall: 0, floor: 0 },
+    factoryProps: [],
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -2104,8 +2111,21 @@ export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDi
   return { state: { ...state, cash: existing ? state.cash : sub(state.cash, BELT_COST), factoryFloor: next }, ok: true };
 }
 
-/** Clear whatever occupies the cell; demolition pays back half its cost (F3). */
+/** Buy + place a decorative prop on an empty floor cell (cash-gated, overlap-checked). */
+export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: number): ActionResult {
+  const def = PROP_DEFS[kind];
+  if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
+  const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryProps.length}`);
+  if (!next) return { state, ok: false, reason: "Doesn't fit there." };
+  return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next }, ok: true };
+}
+
+/** Clear whatever occupies the cell — a prop first, else a machine/belt; demolition pays back half. */
 export function clearFloorCell(state: GameState, c: number, r: number): GameState {
+  const propBack = propRefund(state.factoryProps, c, r);
+  if (propBack > 0) {
+    return { ...state, factoryProps: propsRemoveAt(state.factoryProps, c, r), cash: add(state.cash, propBack) };
+  }
   const refund = demolitionRefund(state.factoryFloor, c, r);
   const next = floorRemoveAt(state.factoryFloor, c, r);
   if (next === state.factoryFloor) return state;

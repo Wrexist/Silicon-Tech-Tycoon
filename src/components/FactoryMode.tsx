@@ -9,7 +9,8 @@ import { createPortal } from "react-dom";
 import {
   ArrowUp, BarChart3, BatteryCharging, Bot, Boxes, Camera, ChevronDown, CodeXml, Cpu, Drill, Eraser,
   FlaskConical, Hammer, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
-  PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Stamp, Truck, Wrench, X, Zap, type LucideIcon,
+  Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
+  TrafficCone, TriangleAlert, Truck, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue } from "../state/gameState.ts";
@@ -29,6 +30,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
 import { MACHINE_DEFS, BELT_COST, beltChain, lineComplete, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
 import { useSettings } from "../state/settings.ts";
 
 // three.js stays in its own lazy chunk (the garage3d rule); the SVG map is the fallback for
@@ -51,6 +53,11 @@ const MACHINE_SHORT: Record<MachineKind, string> = {
   intake: "Intake", mill: "Mill", press: "Press", screen: "Screen", arm: "Arm", qa: "Test", packer: "Packer",
 };
 const DIR_ROT: Record<BeltDir, number> = { n: 0, e: 90, s: 180, w: 270 };
+
+const PROP_ICONS: Record<PropKind, LucideIcon> = {
+  crates: Boxes, barrel: Container, pallet: Layers3, plant: Sprout,
+  bench: Wrench, rack: Library, cone: TrafficCone, sign: TriangleAlert,
+};
 
 // Factory building decor palettes — parametric colours (3D uses intrinsic colours, not theme
 // tokens). Indices are stored in state.factoryDecor so the paint job persists.
@@ -172,7 +179,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [glLost, setGlLost] = useState(false);
   const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
   // F2 Build mode — the selected tool paints cells on the 3D pad.
-  const [buildTool, setBuildTool] = useState<null | MachineKind | "belt" | "erase">(null);
+  const [buildTool, setBuildTool] = useState<null | MachineKind | PropKind | "belt" | "erase">(null);
+  const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
   const [beltDir, setBeltDir] = useState<BeltDir>("e");
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
@@ -189,7 +197,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     const t = setTimeout(() => setCamHint(false), 4200);
     return () => clearTimeout(t);
   }, [use3d]);
-  const { buyFloorMachine, buyFloorBelt, clearFloorCell } = d.game;
+  const { buyFloorMachine, buyFloorBelt, buyFactoryProp, clearFloorCell } = d.game;
   const lineOk = lineComplete(d.floor);
   const onTapCell = (c: number, r: number) => {
     if (!buildTool) return;
@@ -199,7 +207,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       setFlash((f) => ({ c, r, ok: true, n: (f?.n ?? 0) + 1 }));
       return;
     }
-    const res = buildTool === "belt" ? buyFloorBelt(c, r, beltDir) : buyFloorMachine(buildTool, c, r);
+    const isProp = buildTool in PROP_DEFS;
+    const res = isProp
+      ? buyFactoryProp(buildTool as PropKind, c, r)
+      : buildTool === "belt" ? buyFloorBelt(c, r, beltDir) : buyFloorMachine(buildTool as MachineKind, c, r);
     setFlash((f) => ({ c, r, ok: res.ok, n: (f?.n ?? 0) + 1 }));
     if (res.ok) { haptic.light(); if (buildTool !== "belt") { sfx("build"); haptic.success(); } }
     else { haptic.warning(); showToast(res.reason ?? "Can't build there", { tone: "negative" }); }
@@ -248,6 +259,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               resetView={resetView}
               wallColor={(FACTORY_WALLS[state.factoryDecor.wall] ?? FACTORY_WALLS[0]).hex}
               floorColor={(FACTORY_FLOORS[state.factoryDecor.floor] ?? FACTORY_FLOORS[0]).hex}
+              props={state.factoryProps}
               onTapCell={onTapCell}
               flash={flash}
               onContextLost={() => setGlLost(true)}
@@ -321,7 +333,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       <div className="fmode__rail">
         <button
           className={`fmode__tool${buildTool != null ? " fmode__tool--on" : ""}`}
-          onClick={() => { haptic.light(); setBuildTool(buildTool != null ? null : "belt"); }}
+          onClick={() => { haptic.light(); if (buildTool != null) { setBuildTool(null); } else { setBuildCat("machine"); setBuildTool("belt"); } }}
         >
           <Hammer size={18} /><span>Build</span>
         </button>
@@ -346,42 +358,66 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       {buildTool != null && (
         <div className="fmode__build">
           <div className="fmode__build-head">
-            <span className="fmode__build-rule">Connect the Intake to the Packer. Erase refunds half.</span>
+            <div className="fmode__build-seg" role="tablist" aria-label="Build category">
+              <button role="tab" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
+              <button role="tab" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
+            </div>
+            <span className="fmode__build-rule">{buildCat === "machine" ? "Connect the Intake to the Packer. Erase refunds half." : "Dress the floor with props. Erase refunds half."}</span>
             <button className="fmode__build-done" onClick={() => { haptic.light(); setBuildTool(null); }}>Done</button>
           </div>
           <div className="fmode__palette">
-            <button
-              className={`fmode__ptile${buildTool === "belt" ? " fmode__ptile--on" : ""}${state.cash < BELT_COST ? " fmode__ptile--broke" : ""}`}
-              onClick={() => { haptic.light(); setBuildTool("belt"); }}
-            >
-              <span className="fmode__ptile-icon" style={{ transform: `rotate(${DIR_ROT[beltDir]}deg)` }}><ArrowUp size={20} /></span>
-              <span className="fmode__ptile-name">Belt</span>
-              <span className="fmode__ptile-cost">{format(BELT_COST)}</span>
-            </button>
-            <button
-              className="fmode__ptile fmode__ptile--util"
-              aria-label="Rotate belt direction"
-              onClick={() => { haptic.light(); setBeltDir(beltDir === "e" ? "s" : beltDir === "s" ? "w" : beltDir === "w" ? "n" : "e"); setBuildTool("belt"); }}
-            >
-              <span className="fmode__ptile-icon"><RotateCw size={20} /></span>
-              <span className="fmode__ptile-name">Turn</span>
-            </button>
-            {(Object.keys(MACHINE_DEFS) as MachineKind[]).map((k) => {
-              const Icon = MACHINE_ICONS[k];
-              const broke = state.cash < MACHINE_DEFS[k].cost;
-              return (
+            {buildCat === "machine" ? (
+              <>
                 <button
-                  key={k}
-                  className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
-                  title={MACHINE_DEFS[k].blurb}
-                  onClick={() => { haptic.light(); setBuildTool(k); }}
+                  className={`fmode__ptile${buildTool === "belt" ? " fmode__ptile--on" : ""}${state.cash < BELT_COST ? " fmode__ptile--broke" : ""}`}
+                  onClick={() => { haptic.light(); setBuildTool("belt"); }}
                 >
-                  <span className="fmode__ptile-icon"><Icon size={20} /></span>
-                  <span className="fmode__ptile-name">{MACHINE_SHORT[k]}</span>
-                  <span className="fmode__ptile-cost">{format(MACHINE_DEFS[k].cost)}</span>
+                  <span className="fmode__ptile-icon" style={{ transform: `rotate(${DIR_ROT[beltDir]}deg)` }}><ArrowUp size={20} /></span>
+                  <span className="fmode__ptile-name">Belt</span>
+                  <span className="fmode__ptile-cost">{format(BELT_COST)}</span>
                 </button>
-              );
-            })}
+                <button
+                  className="fmode__ptile fmode__ptile--util"
+                  aria-label="Rotate belt direction"
+                  onClick={() => { haptic.light(); setBeltDir(beltDir === "e" ? "s" : beltDir === "s" ? "w" : beltDir === "w" ? "n" : "e"); setBuildTool("belt"); }}
+                >
+                  <span className="fmode__ptile-icon"><RotateCw size={20} /></span>
+                  <span className="fmode__ptile-name">Turn</span>
+                </button>
+                {(Object.keys(MACHINE_DEFS) as MachineKind[]).map((k) => {
+                  const Icon = MACHINE_ICONS[k];
+                  const broke = state.cash < MACHINE_DEFS[k].cost;
+                  return (
+                    <button
+                      key={k}
+                      className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
+                      title={MACHINE_DEFS[k].blurb}
+                      onClick={() => { haptic.light(); setBuildTool(k); }}
+                    >
+                      <span className="fmode__ptile-icon"><Icon size={20} /></span>
+                      <span className="fmode__ptile-name">{MACHINE_SHORT[k]}</span>
+                      <span className="fmode__ptile-cost">{format(MACHINE_DEFS[k].cost)}</span>
+                    </button>
+                  );
+                })}
+              </>
+            ) : (
+              (Object.keys(PROP_DEFS) as PropKind[]).map((k) => {
+                const Icon = PROP_ICONS[k];
+                const broke = state.cash < PROP_DEFS[k].cost;
+                return (
+                  <button
+                    key={k}
+                    className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
+                    onClick={() => { haptic.light(); setBuildTool(k); }}
+                  >
+                    <span className="fmode__ptile-icon"><Icon size={20} /></span>
+                    <span className="fmode__ptile-name">{PROP_DEFS[k].name}</span>
+                    <span className="fmode__ptile-cost">{format(PROP_DEFS[k].cost)}</span>
+                  </button>
+                );
+              })
+            )}
             <button
               className={`fmode__ptile fmode__ptile--erase${buildTool === "erase" ? " fmode__ptile--on" : ""}`}
               onClick={() => { haptic.light(); setBuildTool("erase"); }}
