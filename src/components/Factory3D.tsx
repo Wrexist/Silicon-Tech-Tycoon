@@ -1,8 +1,9 @@
-// Factory Mode's 3D floor — a COHERENT production line, not a diorama: raw material enters
-// at the intake hopper, rides an S-shaped conveyor through the gantry press (Tooling), twin
-// robot arms (Assembly) and a glass QA tunnel (Quality), and leaves the packer as a boxed
-// crate at the dock. The item VISIBLY TRANSFORMS at each machine (slab → board → device →
-// crate), and the machine matching the build's real stage glows and works hardest.
+// Factory Mode's 3D floor — the PLAYER'S line rendered live, not a diorama: whatever they've
+// built, raw material enters at the intake hopper, rides their conveyor through their machines
+// (gantry press, robot arms, glass QA tunnel…) and leaves the packer as a boxed crate at the
+// dock. The item VISIBLY TRANSFORMS along the path (slab → board → device → crate), and the
+// machine matching the build's real stage glows and works hardest. A floor with no wired line
+// renders calm and idle — the invitation to build.
 // Same stack + discipline as the 3D office: r3f/drei primitives, lazy chunk, DPR cap,
 // context-loss downgrade. Zero image assets.
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";

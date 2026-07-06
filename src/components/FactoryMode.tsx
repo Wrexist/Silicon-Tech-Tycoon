@@ -1,8 +1,8 @@
-// Factory Mode F1 (FACTORY_MODE_PLAN.md) — the top-down tile factory from the reference
-// guide: a machine-and-conveyor map with Current Order + Factory Stats panels, a right tool
-// rail (Build/Upgrades/Research/Stats), a raw-materials tray, BOOST (the real rushBuild
-// lever), truck and Shop along the bottom. Fully data-driven off the live sim; the map
-// itself is an authored starter layout until Build mode lands in F2.
+// Factory Mode — the player's own 3D factory floor: Current Order + Factory Stats panels, a
+// right tool rail (Build/Upgrades/Research/Stats), BOOST (the real rushBuild lever), truck and
+// Shop along the bottom. Fully data-driven off the live sim. The floor starts bare (Intake +
+// Packer); the player wires it by hand (tap / drag-paint / hold-to-move) or pays the Auto
+// router, then deepens the earned build-speed bonus with recipe machines, arms and upgrades.
 // Parametric SVG only (zero image assets); every animation sim-gated + reduced-motion safe.
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -111,12 +111,12 @@ function useFactoryData() {
   }
 
   // How the player-built line affects build time — the reward for a well-equipped, connected floor.
-  // Product-aware: the current order's recipe decides which machines the floor SHOULD have, so a
-  // phone build is slower on a floor with no screen bonder, etc. (no order → the neutral view).
+  // Product-aware: the current order's recipe decides which machines grow the bonus, so a phone
+  // floor wants a screen bonder, a laptop floor a mill (no order → the neutral view).
   const leadCategory = lead?.product?.category;
   const reqKinds = leadCategory ? requiredKindsFor(leadCategory) : undefined;
-  const lineSpeed = lineSpeedMult(state.factoryFloor, reqKinds); // <1 faster, 1 neutral, >1 slower
-  const linePct = Math.round((1 - lineSpeed) * 100);   // + = faster, − = slower
+  const lineSpeed = lineSpeedMult(state.factoryFloor, reqKinds); // <1 = earned bonus, 1 = neutral (never >1)
+  const linePct = Math.round((1 - lineSpeed) * 100);   // % faster the wired line builds
   const missing = reqKinds ? missingMachineKinds(state.factoryFloor, reqKinds) : [];
 
   return {
@@ -400,7 +400,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                     {!lineOk
                       ? "Wire Intake → Packer for a build-speed bonus"
                       : d.missing.length
-                        ? `Add ${MACHINE_DEFS[d.missing[0]].name}${d.missing.length > 1 ? ` +${d.missing.length - 1}` : ""} for the full bonus`
+                        ? `Line +${d.linePct}% · add ${MACHINE_DEFS[d.missing[0]].name}${d.missing.length > 1 ? ` +${d.missing.length - 1}` : ""} for more`
                         : `Line builds ${d.linePct}% faster`}
                   </span>
                 )}
@@ -631,8 +631,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           {d.util != null && <div className="fmode__stat"><span>Capacity used</span><span className="tnum">{Math.round(d.util * 100)}%</span></div>}
           <div className="fmode__stat">
             <span>Line build speed</span>
-            <span className={`tnum ${d.linePct > 0 ? "fmode__pos" : d.linePct < 0 ? "fmode__neg" : ""}`}>
-              {d.linePct > 0 ? `+${d.linePct}%` : d.linePct < 0 ? `${d.linePct}%` : "baseline"}
+            <span className={`tnum ${d.linePct > 0 ? "fmode__pos" : ""}`}>
+              {d.linePct > 0 ? `+${d.linePct}%` : "baseline"}
             </span>
           </div>
           {d.missing.length > 0 ? (
@@ -670,7 +670,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               </span>
             </div>
           ))}
-          <p className="fmode__sheet-note">Placeable machines arrive with Build mode.</p>
+          <p className="fmode__sheet-note">Want to place machines yourself? Use the Build tool on the rail to grow your own floor.</p>
         </div>
       </Sheet>
 

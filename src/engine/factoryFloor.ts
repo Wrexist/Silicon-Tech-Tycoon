@@ -192,8 +192,8 @@ export function formMarks(floor: FactoryFloor, path: [number, number][]): [numbe
   return [a, b, c];
 }
 
-/** The hand-authored starter factory — a clean horseshoe conveyor the mode ships with (F2 default
- *  + backfill). Deliberately just a BEGINNING and an END — the Intake and the Packer, no belts, no
+/** The starter factory every new game (and backfilled save) receives.
+ *  Deliberately just a BEGINNING and an END — the Intake and the Packer, no belts, no
  *  other machines — so building the line is the player's game: lay it by hand, or tap Auto to route
  *  the optimal path for money. An unwired floor is never a penalty (the contract factory carries
  *  you); a wired one is a build-speed bonus you earn (see lineSpeedMult). */
@@ -409,24 +409,27 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w, bloc
  *  The floor is PURE UPSIDE, anchored so a company that never touches it plays the exact baseline:
  *    • no wired line (new games start with just an Intake and a Packer) → ×1, NEUTRAL — the
  *      contract factory carries you; an empty floor is an invitation, never a punishment.
- *    • a COMPLETE Intake→Packer line is an earned bonus: ×0.92 base (−8% build time), each extra
- *      assembly arm shaving ~5% more and each machine upgrade level ~2%, down to a ×0.55 floor.
- *    • TOPOLOGY: if `requiredKinds` (the product's recipe machines) are given, each one MISSING
- *      eats ~10% of the bonus — a phone wants a screen bonder, a laptop a mill — but the result is
- *      clamped at ×1, so an incomplete toolkit only shrinks the reward, never penalises.
- *  Pure + bounded; no RNG, so the determinism pin is untouched. */
+ *    • a COMPLETE Intake→Packer line earns a bonus: ×0.92 base (−8% build time) with the full
+ *      toolkit, each extra assembly arm shaving ~5% more and each machine upgrade level ~2%,
+ *      down to a ×0.55 floor.
+ *    • TOPOLOGY: if `requiredKinds` (the product's recipe machines) are given, the bonus scales
+ *      with COVERAGE — a freshly wired Intake→Packer keeps 25% of it, and every recipe machine
+ *      the player adds grows it toward the full 100%. Every purchase on the $40K+ climb moves
+ *      the number; there is no dead zone where wiring the line pays nothing.
+ *  Pure + bounded ≤1 (never a penalty); no RNG, so the determinism pin is untouched. */
 export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<MachineKind>): number {
   if (!lineComplete(floor)) return 1;
   const arms = floor.machines.filter((m) => m.kind === "arm").length;
   const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
-  let mult = 0.92 - 0.05 * Math.max(0, arms - 1) - 0.02 * upg;
+  const raw = Math.max(0.55, 0.92 - 0.05 * Math.max(0, arms - 1) - 0.02 * upg);
+  let bonus = 1 - raw; // the full-toolkit bonus this floor has earned
   if (requiredKinds) {
     const present = new Set(floor.machines.map((m) => m.kind));
-    let missing = 0;
-    for (const k of requiredKinds) if (!present.has(k)) missing++;
-    mult += 0.1 * missing;
+    let total = 0, covered = 0;
+    for (const k of requiredKinds) { total++; if (present.has(k)) covered++; }
+    if (total > 0) bonus *= 0.25 + 0.75 * (covered / total);
   }
-  return Math.min(1, Math.max(0.55, mult));
+  return Math.min(1, Math.max(0.55, 1 - bonus));
 }
 
 /** Which of a device's required machine kinds are NOT on the floor — surfaced in the HUD so the

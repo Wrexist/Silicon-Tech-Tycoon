@@ -16,6 +16,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
+import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
 import { dollars, format, formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import {
@@ -289,7 +290,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           ))}
           {onViewFactory && world === "office" && (
             <button className="hq__viewline" onClick={onViewFactory}>
-              Watch it on the line <ChevronRight size={15} aria-hidden />
+              {/* Before the player wires Intake→Packer there is nothing moving to watch — invite
+                  them to build instead of promising a show the empty floor can't deliver. */}
+              {lineComplete(state.factoryFloor) ? "Watch it on the line" : "Build your factory line"} <ChevronRight size={15} aria-hidden />
             </button>
           )}
         </Card>

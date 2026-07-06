@@ -145,16 +145,23 @@ describe("factory floor grid (F2)", () => {
     // The demo floor has every machine kind → full recipe coverage → full bonus.
     expect(missingMachineKinds(f, phoneReq)).toEqual([]);
     expect(lineSpeedMult(f, phoneReq)).toBeCloseTo(0.92, 5);
-    // Rip out the screen bonder: a phone (which needs it) loses bonus — and the HUD can name it —
-    // but the multiplier is CLAMPED at ×1: an incomplete toolkit is never slower than no line.
+    // Rip out the screen bonder: a phone (which needs it) keeps a SMALLER bonus — partial credit
+    // per covered recipe kind, so every machine on the climb moves the number — never a penalty.
     const noScreen = removeAt(f, f.machines.find((m) => m.kind === "screen")!.c, f.machines.find((m) => m.kind === "screen")!.r);
     expect(missingMachineKinds(noScreen, phoneReq)).toContain("screen");
     expect(lineSpeedMult(noScreen, phoneReq)).toBeGreaterThan(lineSpeedMult(noScreen)); // less bonus vs a needed kind
-    expect(lineSpeedMult(noScreen, phoneReq)).toBeLessThanOrEqual(1);
+    expect(lineSpeedMult(noScreen, phoneReq)).toBeLessThan(1); // …but still a REAL bonus (no dead zone)
     // A laptop (clamshell) doesn't use a screen bonder, so the same floor keeps its full bonus.
     const laptopReq = requiredKindsFor("laptop");
     expect(missingMachineKinds(noScreen, laptopReq)).toEqual([]);
     expect(lineSpeedMult(noScreen, laptopReq)).toBeCloseTo(0.92, 5);
+    // Day-one payoff: just WIRING the bare starter (intake + packer, 2 of 5 recipe kinds) already
+    // earns 25% + coverage of the base bonus — the "wired line builds faster" promise is true
+    // from the first belt, not only after the full $40K toolkit.
+    const { autoRouteBelts } = await import("./factoryFloor.ts");
+    const wired = autoRouteBelts(starterFloor())!;
+    expect(lineSpeedMult(wired, phoneReq)).toBeCloseTo(1 - 0.08 * (0.25 + 0.75 * (2 / 5)), 5);
+    expect(lineSpeedMult(wired, phoneReq)).toBeLessThan(1);
   });
 
   it("auto-route lays a valid Intake→Packer chain around machines, or bails cleanly", async () => {
@@ -215,7 +222,7 @@ describe("factory floor grid (F2)", () => {
     const chain = beltChain(routed.belts);
     let turns = 0;
     for (let i = 1; i < chain.length; i++) if (chain[i].dir !== chain[i - 1].dir) turns++;
-    // The starter's horseshoe needs exactly 2 corners; anything staircasing balloons past 8.
+    // The demo floor's horseshoe needs exactly 2 corners; anything staircasing balloons past 8.
     expect(turns).toBeLessThanOrEqual(4);
     // And no immediate zig-zag anywhere: two direction changes within a 3-tile window reads as a
     // staircase, which is exactly what the turn penalty exists to kill.
@@ -252,7 +259,7 @@ describe("factory floor grid (F2)", () => {
 });
 
 describe("F3 — line completeness + demolition refund", () => {
-  it("the starter line is complete (intake feeds the head, packer catches the tail)", async () => {
+  it("the demo floor's line is complete (intake feeds the head, packer catches the tail)", async () => {
     const { lineComplete } = await import("./factoryFloor.ts");
     expect(lineComplete(demoFloor())).toBe(true);
   });
