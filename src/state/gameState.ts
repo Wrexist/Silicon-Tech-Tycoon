@@ -100,6 +100,7 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { archetypeBonus, buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
@@ -864,7 +865,11 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1. The
   // player-built floor layers on top: a complete, arm-rich line ships faster; a broken one is slower
   // (starter = neutral ×1, so the baseline is unchanged).
-  const speed = (product ? factorySpeedMult(product) : 1) * lineSpeedMult(s.factoryFloor);
+  // The player-built floor layers on top: arms + machine upgrades ship faster, a broken or
+  // recipe-incomplete line ships slower. Topology is product-aware — a phone wants a screen bonder,
+  // a laptop a mill; the starter has every kind so it stays neutral.
+  const reqKinds = product ? requiredKindsFor(product.category) : undefined;
+  const speed = (product ? factorySpeedMult(product) : 1) * lineSpeedMult(s.factoryFloor, reqKinds);
   const assembly = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * speed)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),

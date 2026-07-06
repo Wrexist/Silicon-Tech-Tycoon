@@ -238,12 +238,31 @@ export function lineComplete(floor: FactoryFloor): boolean {
  *    • a disconnected line (no intake→packer path) costs time (×1.15) — keep it wired.
  *    • extra assembly arms parallelise the build, each shaving ~5%.
  *    • per-machine upgrades tune the line, each level shaving ~2% (down to a −45% floor).
+ *    • TOPOLOGY: if `requiredKinds` (the product's recipe machines) are given, each one MISSING from
+ *      the floor costs ~10% time (capped +60%) — so a phone wants a screen bonder, a laptop a mill.
+ *      The starter has every kind, so it's never penalised and the baseline stays ×1.
  *  Pure + bounded; no RNG, so the determinism pin is untouched. */
-export function lineSpeedMult(floor: FactoryFloor): number {
+export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<MachineKind>): number {
   if (!lineComplete(floor)) return 1.15;
   const arms = floor.machines.filter((m) => m.kind === "arm").length;
   const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
-  return Math.max(0.55, 1 - 0.05 * Math.max(0, arms - 1) - 0.02 * upg);
+  let mult = 1 - 0.05 * Math.max(0, arms - 1) - 0.02 * upg;
+  if (requiredKinds) {
+    const present = new Set(floor.machines.map((m) => m.kind));
+    let missing = 0;
+    for (const k of requiredKinds) if (!present.has(k)) missing++;
+    mult += Math.min(0.6, 0.1 * missing);
+  }
+  return Math.max(0.55, mult);
+}
+
+/** Which of a device's required machine kinds are NOT on the floor — surfaced in the HUD so the
+ *  player knows what to build to speed a given product up. Pure. */
+export function missingMachineKinds(floor: FactoryFloor, requiredKinds: Iterable<MachineKind>): MachineKind[] {
+  const present = new Set(floor.machines.map((m) => m.kind));
+  const out: MachineKind[] = [];
+  for (const k of requiredKinds) if (!present.has(k)) out.push(k);
+  return out;
 }
 
 /** Cost to upgrade the machine occupying (c,r) one level, or null if none there / already maxed. */

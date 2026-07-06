@@ -123,6 +123,25 @@ describe("factory floor grid (F2)", () => {
     expect(machineUpgradeCostAt(f, 9, 9)).toBeNull(); // empty cell → nothing to upgrade
   });
 
+  it("topology: a floor missing a product's required machine builds it slower; the starter never is", async () => {
+    const { lineSpeedMult, missingMachineKinds } = await import("./factoryFloor.ts");
+    const { requiredKindsFor } = await import("./assemblyLine.ts");
+    const f = starterFloor();
+    const phoneReq = requiredKindsFor("phone"); // slab family: intake, press, screen, qa, packer
+    // The starter has every machine kind → covers any recipe → no penalty (still neutral ×1).
+    expect(missingMachineKinds(f, phoneReq)).toEqual([]);
+    expect(lineSpeedMult(f, phoneReq)).toBe(1);
+    // Rip out the screen bonder: a phone (which needs it) now builds slower, and the HUD can name it.
+    const noScreen = removeAt(f, f.machines.find((m) => m.kind === "screen")!.c, f.machines.find((m) => m.kind === "screen")!.r);
+    expect(missingMachineKinds(noScreen, phoneReq)).toContain("screen");
+    expect(lineSpeedMult(noScreen, phoneReq)).toBeGreaterThan(lineSpeedMult(noScreen)); // penalty only vs a needed kind
+    expect(lineSpeedMult(noScreen, phoneReq)).toBeGreaterThan(1);
+    // A laptop (clamshell) doesn't use a screen bonder, so the same floor isn't penalised for it.
+    const laptopReq = requiredKindsFor("laptop");
+    expect(missingMachineKinds(noScreen, laptopReq)).toEqual([]);
+    expect(lineSpeedMult(noScreen, laptopReq)).toBe(1);
+  });
+
   it("machineCells matches the def footprint", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });

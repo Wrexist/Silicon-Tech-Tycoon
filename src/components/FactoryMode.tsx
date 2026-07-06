@@ -31,7 +31,8 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { FLOOR, MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { FLOOR, MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { FactoryTutorial } from "./FactoryTutorial.tsx";
@@ -109,13 +110,18 @@ function useFactoryData() {
   }
 
   // How the player-built line affects build time — the reward for a well-equipped, connected floor.
-  const lineSpeed = lineSpeedMult(state.factoryFloor); // <1 faster, 1 neutral, >1 slower (broken)
+  // Product-aware: the current order's recipe decides which machines the floor SHOULD have, so a
+  // phone build is slower on a floor with no screen bonder, etc. (no order → the neutral view).
+  const leadCategory = lead?.product?.category;
+  const reqKinds = leadCategory ? requiredKindsFor(leadCategory) : undefined;
+  const lineSpeed = lineSpeedMult(state.factoryFloor, reqKinds); // <1 faster, 1 neutral, >1 slower
   const linePct = Math.round((1 - lineSpeed) * 100);   // + = faster, − = slower
+  const missing = reqKinds ? missingMachineKinds(state.factoryFloor, reqKinds) : [];
 
   return {
     game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
-    floor: state.factoryFloor, lineSpeed, linePct,
+    floor: state.factoryFloor, lineSpeed, linePct, missing,
   };
 }
 
@@ -356,7 +362,13 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 {d.linePct !== 0 && (
                   <span className={`fmode__lineboon${d.linePct > 0 ? " fmode__lineboon--good" : " fmode__lineboon--bad"}`}>
                     <Zap size={12} aria-hidden />
-                    {d.linePct > 0 ? `Line builds ${d.linePct}% faster` : `Line broken · ${-d.linePct}% slower`}
+                    {d.linePct > 0
+                      ? `Line builds ${d.linePct}% faster`
+                      : !lineOk
+                        ? `Line broken · ${-d.linePct}% slower`
+                        : d.missing.length
+                          ? `Add ${MACHINE_DEFS[d.missing[0]].name}${d.missing.length > 1 ? ` +${d.missing.length - 1}` : ""} · ${-d.linePct}% slower`
+                          : `${-d.linePct}% slower`}
                   </span>
                 )}
               </div>
@@ -543,7 +555,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               {d.linePct > 0 ? `+${d.linePct}%` : d.linePct < 0 ? `${d.linePct}%` : "baseline"}
             </span>
           </div>
-          <p className="fmode__sheet-note">Keep the line connected and add assembly Arms in Build to build faster.</p>
+          {d.missing.length > 0 ? (
+            <p className="fmode__sheet-note">This order wants a {d.missing.map((k) => MACHINE_DEFS[k].name).join(", ")} on the floor — add {d.missing.length > 1 ? "them" : "one"} in Build to speed it up. Arms and machine upgrades build faster too.</p>
+          ) : (
+            <p className="fmode__sheet-note">Keep the line connected, cover the product's recipe, and add Arms or machine Upgrades to build faster.</p>
+          )}
           <div className="fmode__matsline" aria-label="Parts committed to production">
             {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {
               const Icon = MATERIAL_ICONS[kind];

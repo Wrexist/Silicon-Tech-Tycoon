@@ -2130,3 +2130,14 @@ money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced the
       build tool — tap a machine to tune it up. 3D floor shows **tier pips** (era-accent dots) over each
       upgraded machine, so investment is visible at a glance.
 - Verified live: press→3 pips, arm/qa→2 pips; sim unchanged (0 bankruptcies). tsc 0, 759 tests (+3), build+PWA green.
+
+## v97 — Line topology matters: cover the recipe or build slower (#improvement 2/3) (DONE 2026-07-06)
+- [x] The device-specific machines were visual only. Now a product's recipe decides which machine
+      KINDS the floor should have: `assemblyLine.requiredKindsFor(category)` + `lineSpeedMult(floor,
+      requiredKinds)` — each required kind MISSING costs ~10% build time (capped +60%). A phone wants a
+      screen bonder, a laptop a mill; the starter has every kind so it stays ×1 (sim byte-identical).
+      `missingMachineKinds` + `buildWeeksFor` passes the current product's kinds.
+- [x] **HUD** is product-aware: the order-card line chip now reads "Add Screen Bonder · N% slower" when
+      the floor lacks a machine the current order needs (vs "Line broken" only when disconnected), and
+      the Stats note names the missing machines. +topology tests.
+- tsc 0, 760 tests (+1), balance sim unchanged, build+PWA green.

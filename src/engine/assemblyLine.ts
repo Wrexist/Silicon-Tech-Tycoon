@@ -94,6 +94,15 @@ export function lineFor(category: CategoryId): LineStage[] {
   return LINE_RECIPES[FAMILY_OF[category]];
 }
 
+/** The distinct machine KINDS a device's recipe uses — the floor should have all of these to build
+ *  it at full speed (a phone wants a screen bonder; a laptop wants a mill). Order-stable. */
+export function requiredKindsFor(category: CategoryId): MachineKind[] {
+  const seen = new Set<MachineKind>();
+  const out: MachineKind[] = [];
+  for (const s of lineFor(category)) if (!seen.has(s.kind)) { seen.add(s.kind); out.push(s.kind); }
+  return out;
+}
+
 /** The active stage for a build at completion fraction `frac` — the last stage whose `from` is
  *  ≤ frac (clamped, so 0 and 1 are always in range). */
 export function stageForLine(category: CategoryId, frac: number): LineStage {
