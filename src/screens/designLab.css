@@ -154,13 +154,13 @@
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--fn-design) 55%, transparent));
 }
 .lab__hero-stage > :not(.lab__hero-backdrop) { position: relative; z-index: 1; }
+/* Read-only category badge under the hero device — the interactive picker is the Category card. */
 .lab__hero-cats { display: inline-flex; gap: var(--sp-6); flex-wrap: wrap; justify-content: center; }
 .lab__hero-cat {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 6px 12px; border-radius: var(--r-pill);
   border: 1px solid var(--hairline); background: var(--surface);
   font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2);
-  transition: all var(--spring-snappy);
 }
 .lab__hero-cat--on { border-color: var(--fn-design); background: var(--fn-design); color: var(--accent-ink); }
 .lab__hero-info { display: flex; flex-direction: column; gap: var(--sp-12); min-width: 0; }

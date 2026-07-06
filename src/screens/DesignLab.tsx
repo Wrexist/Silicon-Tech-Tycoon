@@ -579,22 +579,13 @@ export function DesignLab({
               <CircuitMotif className="lab__hero-circuit" />
             </span>
             <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />
+            {/* Read-only reflection of the current category — the ONE picker lives in the
+                Category card below (it carries the generation badges + market hints); a second
+                interactive strip here was the same control in a different coat. */}
             <div className="lab__hero-cats">
-              {unlockedCats.map((c) => (
-                <button
-                  key={c.id}
-                  className={`lab__hero-cat${draft.category === c.id ? " lab__hero-cat--on" : ""}`}
-                  aria-pressed={draft.category === c.id}
-                  onClick={() => {
-                    haptic.light();
-                    const tiers: Product["tiers"] = {};
-                    for (const k of c.slots) tiers[k] = Math.min(draft.tiers[k] ?? 1, researchedTier(state, k)) || 1;
-                    set({ category: c.id, tiers });
-                  }}
-                >
-                  <CategoryIcon id={c.id} size={14} /> {c.displayName}
-                </button>
-              ))}
+              <span className="lab__hero-cat lab__hero-cat--on">
+                <CategoryIcon id={draft.category} size={14} /> {cat.displayName}
+              </span>
             </div>
           </div>
           <div className="lab__hero-info">
