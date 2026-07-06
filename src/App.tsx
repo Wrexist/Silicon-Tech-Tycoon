@@ -16,6 +16,7 @@ import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
+import { registerAppOverlay } from "./design/overlayGuard.ts";
 import { Settings } from "./screens/Settings.tsx";
 import { ProgressSheet } from "./screens/Progress.tsx";
 import { ScenariosSheet } from "./screens/Scenarios.tsx";
@@ -266,6 +267,7 @@ const ERA_ICONS: Partial<Record<number, ReturnType<typeof TrendingUp>>> = {
 function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
+  useEffect(() => registerAppOverlay(), []); // lower layers (Factory mode) defer Escape to this modal
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
     window.addEventListener("keydown", onKey);
@@ -334,6 +336,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const nextBonus = legacyBonus(state.legacy + 1);
   const nextFounderPerk = nextPerk(state.legacy);
   useDialogFocus(ref, true);
+  useEffect(() => registerAppOverlay(), []); // lower layers (Factory mode) defer Escape to this overlay
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
     window.addEventListener("keydown", onKey);
@@ -505,6 +508,7 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
 function OfflineSheet({ weeks, gain, topProduct, onClose }: { weeks: number; gain: Money; topProduct: { name: string; units: number } | null; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
+  useEffect(() => registerAppOverlay(), []); // lower layers (Factory mode) defer Escape to this sheet
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);

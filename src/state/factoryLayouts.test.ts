@@ -31,6 +31,20 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     expect(over.state.factoryLayouts).toHaveLength(MAX_LAYOUTS);
   });
 
+  it("gives every layout a UNIQUE id, even across delete + re-save in the same week", () => {
+    // Regression: ids used to derive from array length, so save A, save B, delete A, save C reused
+    // B's id — delete then removed both, and apply resolved the wrong row.
+    let s = rich();
+    s = saveFactoryLayout(s, "A").state;
+    s = saveFactoryLayout(s, "B").state;
+    const bId = s.factoryLayouts[1].id;
+    s = deleteFactoryLayout(s, s.factoryLayouts[0].id); // delete A → only B remains (length 1)
+    s = saveFactoryLayout(s, "C").state;                // C must NOT reuse B's id
+    const ids = s.factoryLayouts.map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);         // all unique
+    expect(s.factoryLayouts.find((l) => l.id === bId)?.name).toBe("B"); // B still resolvable, untouched
+  });
+
   it("applying an unchanged layout is a free no-op", () => {
     const saved = saveFactoryLayout(rich(), "same");
     const id = saved.state.factoryLayouts[0].id;

@@ -224,6 +224,9 @@ export interface GameState {
   factoryExpansion: number;
   /** Named factory-layout snapshots the player has saved, to switch between floor designs. */
   factoryLayouts: FactoryLayout[];
+  /** Monotonic id source for saved layouts — never derived from array length (delete+re-save would
+   *  otherwise reuse an id and collide). */
+  factoryLayoutCounter: number;
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -473,6 +476,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     factoryProps: [],
     factoryExpansion: 0,
     factoryLayouts: [],
+    factoryLayoutCounter: 0,
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -2158,10 +2162,14 @@ export function clearFloorCell(state: GameState, c: number, r: number): GameStat
 
 /* ---- Saved factory layouts: snapshot a floor design under a name, switch between them ---- */
 
-/** Sum the cost of buying floor expansions from `from` up to `to` (permanent; never refundable). */
+/** Sum the cost of buying floor expansions from `from` up to `to` (permanent; never refundable).
+ *  Both ends are clamped to the valid [0, MAX_EXPANSION] range so a corrupt/tampered save can't
+ *  drive an unbounded loop. */
 function expansionDeltaCost(from: number, to: number): Money {
+  const lo = Math.max(0, Math.min(MAX_EXPANSION, Math.floor(from)));
+  const hi = Math.max(lo, Math.min(MAX_EXPANSION, Math.floor(to)));
   let sum = 0;
-  for (let i = from; i < to; i++) sum += EXPANSION_COSTS[i] ?? EXPANSION_COSTS[EXPANSION_COSTS.length - 1];
+  for (let i = lo; i < hi; i++) sum += EXPANSION_COSTS[i] ?? EXPANSION_COSTS[EXPANSION_COSTS.length - 1];
   return dollars(sum) as Money;
 }
 
@@ -2180,7 +2188,7 @@ export function saveFactoryLayout(state: GameState, name: string): ActionResult 
   if (layouts.length >= MAX_LAYOUTS) return { state, ok: false, reason: `You can keep up to ${MAX_LAYOUTS} layouts. Delete one first.` };
   const clean = name.trim().slice(0, 24) || `Layout ${layouts.length + 1}`;
   const layout: FactoryLayout = {
-    id: `layout-${state.week}-${layouts.length}`,
+    id: `layout-${state.factoryLayoutCounter}`, // monotonic — safe across delete + re-save in one week
     name: clean,
     floor: { machines: state.factoryFloor.machines.map((m) => ({ ...m })), belts: state.factoryFloor.belts.map((b) => ({ ...b })) },
     props: state.factoryProps.map((p) => ({ ...p })),
@@ -2188,7 +2196,7 @@ export function saveFactoryLayout(state: GameState, name: string): ActionResult 
     decor: { ...state.factoryDecor },
     savedWeek: state.week,
   };
-  return { state: { ...state, factoryLayouts: [...layouts, layout] }, ok: true };
+  return { state: { ...state, factoryLayouts: [...layouts, layout], factoryLayoutCounter: state.factoryLayoutCounter + 1 }, ok: true };
 }
 
 /** Delete a saved layout by id. */

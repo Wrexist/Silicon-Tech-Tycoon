@@ -15,6 +15,7 @@ import {
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost } from "../state/gameState.ts";
 import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
+import { appOverlayOpen } from "../design/overlayGuard.ts";
 import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.ts";
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
@@ -30,7 +31,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { FLOOR, MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { FactoryTutorial } from "./FactoryTutorial.tsx";
@@ -139,18 +140,21 @@ const MACHINE_TINT: Record<MachineKind, string> = {
   packer: "var(--fmini-packer)",
 };
 
-export function FloorMinimap({ floor, lineOk, running }: { floor: GameFloor; lineOk: boolean; running: boolean }) {
-  const K = 20; // px per cell in the 320×200 viewBox
+export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w }: { floor: GameFloor; lineOk: boolean; running: boolean; floorW?: number }) {
+  const K = 20; // px per cell
+  // The viewBox tracks the buildable width so expansion bays (columns ≥16) aren't clipped off-canvas.
+  const W = Math.max(FLOOR.w, floorW) * K;
+  const H = FLOOR.h * K;
   const chain = new Set(beltChain(floor.belts).map((b) => `${b.c},${b.r}`));
   return (
-    <svg className={`fmini${running ? " fmini--run" : ""}`} viewBox="0 0 320 200" role="img"
+    <svg className={`fmini${running ? " fmini--run" : ""}`} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" role="img"
       aria-label={lineOk ? "Factory layout, line connected" : "Factory layout, line incomplete"}>
-      <rect x={0} y={0} width={320} height={200} rx={10} className="fmini__pad" />
-      {Array.from({ length: 15 }, (_, i) => (
-        <line key={`v${i}`} x1={(i + 1) * K} y1={0} x2={(i + 1) * K} y2={200} className="fmini__grid" />
+      <rect x={0} y={0} width={W} height={H} rx={10} className="fmini__pad" />
+      {Array.from({ length: Math.round(W / K) - 1 }, (_, i) => (
+        <line key={`v${i}`} x1={(i + 1) * K} y1={0} x2={(i + 1) * K} y2={H} className="fmini__grid" />
       ))}
-      {Array.from({ length: 9 }, (_, i) => (
-        <line key={`h${i}`} x1={0} y1={(i + 1) * K} x2={320} y2={(i + 1) * K} className="fmini__grid" />
+      {Array.from({ length: FLOOR.h - 1 }, (_, i) => (
+        <line key={`h${i}`} x1={0} y1={(i + 1) * K} x2={W} y2={(i + 1) * K} className="fmini__grid" />
       ))}
       {floor.belts.map((b) => (
         <rect
@@ -233,6 +237,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       if (e.key !== "Escape") return;
       // The tutorial owns Escape while it's open (it closes itself); don't also peel the mode.
       if (tutorial) return;
+      // A top-level app overlay (offline recap / era / IPO) shown OVER the factory owns Escape too —
+      // otherwise one press dismisses the overlay AND slams the whole factory shut underneath it.
+      if (appOverlayOpen()) return;
       // Escape peels back one layer at a time: an open sheet, then the build tool, then the mode.
       if (sheet != null) setSheet(null);
       else if (buildTool != null) setBuildTool(null);
@@ -256,7 +263,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     <div ref={ref} tabIndex={-1} className="fmode" role="dialog" aria-modal="true" aria-label="Factory mode">
       <div className="fmode__stage">
         {use3d ? (
-          <Suspense fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} />}>
+          <Suspense fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} />}>
             <Factory3D
               active={d.active}
               activeKind={d.activeKind}
@@ -280,7 +287,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             />
           </Suspense>
         ) : (
-          <FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} />
+          <FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} />
         )}
       </div>
 
@@ -356,7 +363,13 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       <div className="fmode__rail">
         <button
           className={`fmode__tool${buildTool != null ? " fmode__tool--on" : ""}`}
-          onClick={() => { haptic.light(); if (buildTool != null) { setBuildTool(null); } else { setBuildCat("machine"); setBuildTool("belt"); } }}
+          onClick={() => {
+            haptic.light();
+            // Placement is wired to the 3D pad; the 2D fallback can't drop machines, so tell the
+            // player instead of arming a tool that silently does nothing.
+            if (!use3d) { showToast("Building needs the 3D factory view — turn it on in Settings.", { tone: "neutral" }); return; }
+            if (buildTool != null) { setBuildTool(null); } else { setBuildCat("machine"); setBuildTool("belt"); }
+          }}
         >
           <Hammer size={18} /><span>Build</span>
         </button>
@@ -691,7 +704,7 @@ export function FactoryCard({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   return (
     <div className="fcard">
       <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode">
-        <FloorMinimap floor={d.floor} lineOk={cardLineOk} running={d.active} />
+        <FloorMinimap floor={d.floor} lineOk={cardLineOk} running={d.active} floorW={floorWidth(d.state.factoryExpansion)} />
         <span className="fcard__expand" aria-hidden><Maximize2 size={16} /></span>
       </button>
       <div className="fcard__chips">

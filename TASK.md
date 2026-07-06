@@ -2085,3 +2085,25 @@ Four-part follow-up the player picked, in order. #1 + #2 landed:
       and a delete. A name field + "Save current" snapshots the floor.
 - Verified: sheet opens, rows render with correct cost/refund (free apply for the identical layout,
       +$10.5K refund for a leaner one). tsc 0, 754 tests, build+PWA green.
+
+## v94 — Audit sweep: fix factory + UX bugs found by a 3-agent review (DONE 2026-07-06)
+A parallel audit (factory / economy / hooks) confirmed no crashes, save-corruption, softlocks, or
+money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced these real defects, now fixed:
+- [x] **Duplicate saved-layout ids (data corruption)**: ids derived from array length, so save A / save B /
+      delete A / save C gave C the SAME id as B — delete removed both, apply resolved the wrong one, and
+      React threw a duplicate-key warning. Now a monotonic `factoryLayoutCounter` (persisted + backfilled)
+      sources ids. +regression test.
+- [x] **Minimap clipped the expanded floor**: `FloorMinimap` hardcoded a 320×200 (16-col) viewBox, so any
+      machine/belt in an expansion bay (cols ≥16) rendered off-canvas and vanished. The viewBox + grid now
+      track the buildable width; all 3 call sites pass `floorW`. Verified: an arm placed at col 18 now shows.
+- [x] **Build silently no-op'd without 3D**: placement is wired only to the 3D pad, so a no-WebGL /
+      reduced-motion / 3D-off player could arm a Build tool that did nothing. The Build button now explains
+      it needs the 3D view instead of arming a dead tool.
+- [x] **Stacked Escape closed the factory under an overlay**: the offline/era/IPO overlays and Factory mode
+      each listened on `window` for Escape, so one press over an open factory dismissed the overlay AND
+      slammed the factory shut. A tiny `overlayGuard` lets the frontmost app overlay own Escape.
+- [x] **Defensive hardening**: backfill clamps `factoryExpansion` to [0, MAX_EXPANSION] and coerces
+      `bankrupt`; `expansionDeltaCost` clamps its loop bounds — so a corrupt/tampered save can't NaN or hang.
+- Not changed (verified non-issues): layout apply-cost vs expansion nets out identically to the manual
+      demolish+expand path (agent's "imprecision" flag was a false positive); offline bankruptcy is by design.
+- tsc 0, 755 tests (+1), build+PWA green.
