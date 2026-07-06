@@ -2002,3 +2002,20 @@ Audit-driven cosmetic pass over onboarding, HQ, Design Lab, Market (no gameplay 
       peels back one layer (sheet → build tool → mode) instead of closing everything.
 - Left for a follow-up: placeable factory furniture/props (full decorate) and a floor-size expansion
       — larger features; the repaint is the first customisation slice.
+
+## v88 — Factory decorate + floor expansion + richer office palette (A/B/C) (DONE 2026-07-05)
+- [x] **A — placeable factory props**: `engine/factoryProps.ts` (PURE, +4 tests) catalog of 8 props
+      (crates, barrels, pallet, planter, workbench, shelving, safety cone, hazard sign) with grid
+      placement (empty cells only, half refund). State `factoryProps` + buyFactoryProp; Erase removes
+      props. Factory3D renders each with parametric geometry. Build mode gained a Machines | Decor
+      toggle; the Decor palette places props.
+- [x] **B — buildable floor expansion**: `floorWidth(expansion)` widens the grid east (4 cols/bay,
+      max 3 bays) with the origin fixed so existing layouts don't move; bound-checks take the width.
+      State `factoryExpansion` + buyFloorExpansion (50k/150k/400k, capped). The concrete floor, walls,
+      grid, tap-plane + camera framing all follow the wider building. "Expand the floor" row in the
+      Style sheet. +test.
+- [x] **C — richer office repaint**: doubled the office palettes — `WALL_STYLES` 5→10 (Sky, Sage,
+      Blush, Ocean, Charcoal) and `FLOOR_FINISHES` 5→9 (Walnut, Slate, Marble, Moss), all reusing
+      existing render kinds/patterns. (The office already carries 60+ placeable furniture pieces.)
+- Verified live: props render + palette; floor widens with props placeable in the new bay + camera
+      reframes; office renders new Walnut/Sage finish. tsc 0, 734 tests, build+PWA green.
