@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutApplyCost, MAX_LAYOUTS } from "./factoryLayout.ts";
+import { layoutApplyCost, layoutDiff, MAX_LAYOUTS } from "./factoryLayout.ts";
 import { MACHINE_DEFS, BELT_COST, type FactoryFloor } from "./factoryFloor.ts";
 import { PROP_DEFS, type PlacedProp } from "./factoryProps.ts";
 
@@ -46,6 +46,16 @@ describe("factory layout apply cost (fair diff)", () => {
     expect(teardown).toBeLessThan(0);
     expect(rebuild).toBeGreaterThan(0);
     expect(teardown + rebuild).toBeGreaterThan(0); // you always end up out of pocket, never ahead
+  });
+
+  it("layoutDiff counts pieces added and removed (matching cells ignored)", () => {
+    const cur: FactoryFloor = { machines: [{ id: "a", kind: "arm", c: 3, r: 3 }], belts: [{ c: 0, r: 0, dir: "e" }] };
+    const tgt: FactoryFloor = { machines: [{ id: "z", kind: "arm", c: 3, r: 3 }, { id: "q", kind: "qa", c: 6, r: 0 }], belts: [] };
+    const d = layoutDiff(cur, noProps, tgt, noProps);
+    expect(d.added).toBe(1);   // the qa machine
+    expect(d.removed).toBe(1); // the belt tile (the arm matches by cell+kind → ignored)
+    // Identical → nothing changes.
+    expect(layoutDiff(cur, noProps, cur, noProps)).toEqual({ added: 0, removed: 0 });
   });
 
   it("keeps a sane cap on saved layouts", () => {

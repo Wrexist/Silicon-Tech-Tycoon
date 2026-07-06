@@ -66,3 +66,26 @@ export function layoutApplyCost(
 
   return cents(total);
 }
+
+/** How many placed pieces (machines + belt tiles + props) a layout ADDS vs REMOVES relative to the
+ *  current floor — surfaced in the apply-confirmation so retooling isn't a blind tap. Pure. */
+export function layoutDiff(
+  current: FactoryFloor,
+  currentProps: readonly PlacedProp[],
+  target: FactoryFloor,
+  targetProps: readonly PlacedProp[],
+): { added: number; removed: number } {
+  const mKey = (m: { c: number; r: number; kind: string }) => `${m.c},${m.r},${m.kind}`;
+  const bKey = (b: { c: number; r: number }) => `${b.c},${b.r}`;
+  const curM = new Set(current.machines.map(mKey)), tgtM = new Set(target.machines.map(mKey));
+  const curB = new Set(current.belts.map(bKey)), tgtB = new Set(target.belts.map(bKey));
+  const curP = new Set(currentProps.map(mKey)), tgtP = new Set(targetProps.map(mKey));
+  let added = 0, removed = 0;
+  for (const k of tgtM) if (!curM.has(k)) added++;
+  for (const k of curM) if (!tgtM.has(k)) removed++;
+  for (const k of tgtB) if (!curB.has(k)) added++;
+  for (const k of curB) if (!tgtB.has(k)) removed++;
+  for (const k of tgtP) if (!curP.has(k)) added++;
+  for (const k of curP) if (!tgtP.has(k)) removed++;
+  return { added, removed };
+}

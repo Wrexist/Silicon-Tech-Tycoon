@@ -252,6 +252,8 @@
   padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
   background: var(--surface-2);
 }
+/* Armed for confirmation — a calm accent ring so it's clear this row is one tap from committing. */
+.fmode__layout--armed { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
 .fmode__layout-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .fmode__layout-name { font-size: var(--fs-caption); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fmode__layout-sub { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.35; }

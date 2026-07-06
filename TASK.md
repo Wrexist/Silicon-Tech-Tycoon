@@ -2107,3 +2107,12 @@ money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced the
 - Not changed (verified non-issues): layout apply-cost vs expansion nets out identically to the manual
       demolish+expand path (agent's "imprecision" flag was a false positive); offline bankruptcy is by design.
 - tsc 0, 755 tests (+1), build+PWA green.
+
+## v95 — Confirm step when applying a factory layout (#improvement) (DONE 2026-07-06)
+- [x] Applying a saved layout replaces the WHOLE floor and can cost a fortune, but was a single blind
+      tap. Now the first tap ARMS the row (accent ring) and shows the exact diff — "+N added · −M
+      removed" (or "No changes") — with the button becoming "Confirm · $X" (or "· +refund"); only a
+      second tap commits. Cancel (✕) or closing the sheet disarms it.
+- [x] `factoryLayout.layoutDiff` (PURE, +1 test) counts added/removed pieces (machines+belts+props),
+      ignoring matching cells — the same identity rule as the cost diff.
+- Verified live: arming "Compact" showed "−2 removed" + "Confirm · +$10.5K". tsc 0, 756 tests, build+PWA green.

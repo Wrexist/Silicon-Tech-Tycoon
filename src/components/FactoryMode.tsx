@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost } from "../state/gameState.ts";
-import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
+import { MAX_LAYOUTS, layoutDiff } from "../engine/factoryLayout.ts";
 import { appOverlayOpen } from "../design/overlayGuard.ts";
 import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.ts";
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
@@ -193,6 +193,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
   const [beltDir, setBeltDir] = useState<BeltDir>("e");
   const [layoutName, setLayoutName] = useState("");
+  const [confirmLayout, setConfirmLayout] = useState<string | null>(null); // arms a layout's Apply → shows the diff + Confirm
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
@@ -560,7 +561,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         </div>
       </Sheet>
 
-      <Sheet open={sheet === "decor"} onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "decor"} onClose={() => { setSheet(null); setConfirmLayout(null); }}>
         <div className="fmode__sheet">
           <h3 className="fmode__sheet-title">Style the building</h3>
           <span className="fmode__decor-label">Wall paint</span>
@@ -620,22 +621,50 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             {state.factoryLayouts.map((l) => {
               const cost = factoryLayoutCost(state, l);
               const costLabel = cost === 0 ? "Apply" : cost > 0 ? format(cost) : `+${format((-cost) as typeof cost)}`;
+              const tooPricey = cost > 0 && state.cash < cost;
+              const confirming = confirmLayout === l.id;
+              // Applying replaces the WHOLE floor and can cost a fortune — so the first tap arms it and
+              // shows the exact +added / −removed diff, and only a second tap commits.
+              const diff = confirming ? layoutDiff(state.factoryFloor, state.factoryProps, l.floor, l.props) : null;
+              const confirmLabel = cost > 0 ? `Confirm · ${format(cost)}` : cost < 0 ? `Confirm · +${format((-cost) as typeof cost)}` : "Confirm";
               return (
-                <div className="fmode__layout" key={l.id}>
+                <div className={`fmode__layout${confirming ? " fmode__layout--armed" : ""}`} key={l.id}>
                   <div className="fmode__layout-info">
                     <span className="fmode__layout-name">{l.name}</span>
-                    <span className="fmode__layout-sub">{l.floor.machines.length} machines · saved wk {l.savedWeek}</span>
+                    {confirming && diff ? (
+                      <span className="fmode__layout-sub">
+                        {diff.added === 0 && diff.removed === 0
+                          ? "No changes to the floor"
+                          : [diff.added ? `+${diff.added} added` : null, diff.removed ? `−${diff.removed} removed` : null].filter(Boolean).join(" · ")}
+                      </span>
+                    ) : (
+                      <span className="fmode__layout-sub">{l.floor.machines.length} machines · saved wk {l.savedWeek}</span>
+                    )}
                   </div>
-                  <button
-                    className={`fmode__layout-apply${cost > 0 ? "" : " fmode__layout-apply--free"}`}
-                    disabled={cost > 0 && state.cash < cost}
-                    onClick={() => {
-                      const res = d.game.applyFactoryLayout(l.id);
-                      if (res.ok) { haptic.success(); sfx("build"); showToast(`Floor set to “${l.name}”`, { tone: "positive" }); }
-                      else { haptic.warning(); showToast(res.reason ?? "Can't apply that layout", { tone: "negative" }); }
-                    }}
-                  >{cost <= 0 ? <Check size={13} /> : null}{costLabel}</button>
-                  <button className="fmode__layout-del" aria-label={`Delete ${l.name}`} onClick={() => { haptic.light(); d.game.deleteFactoryLayout(l.id); }}><Trash2 size={15} /></button>
+                  {confirming ? (
+                    <>
+                      <button
+                        className="fmode__layout-apply"
+                        disabled={tooPricey}
+                        onClick={() => {
+                          const res = d.game.applyFactoryLayout(l.id);
+                          if (res.ok) { haptic.success(); sfx("build"); showToast(`Floor set to “${l.name}”`, { tone: "positive" }); }
+                          else { haptic.warning(); showToast(res.reason ?? "Can't apply that layout", { tone: "negative" }); }
+                          setConfirmLayout(null);
+                        }}
+                      >{confirmLabel}</button>
+                      <button className="fmode__layout-del" aria-label="Cancel" onClick={() => { haptic.light(); setConfirmLayout(null); }}><X size={15} /></button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className={`fmode__layout-apply${cost > 0 ? "" : " fmode__layout-apply--free"}`}
+                        disabled={tooPricey}
+                        onClick={() => { haptic.light(); setConfirmLayout(l.id); }}
+                      >{cost <= 0 ? <Check size={13} /> : null}{costLabel}</button>
+                      <button className="fmode__layout-del" aria-label={`Delete ${l.name}`} onClick={() => { haptic.light(); if (confirmLayout) setConfirmLayout(null); d.game.deleteFactoryLayout(l.id); }}><Trash2 size={15} /></button>
+                    </>
+                  )}
                 </div>
               );
             })}
