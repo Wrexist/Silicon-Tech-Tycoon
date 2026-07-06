@@ -2305,3 +2305,18 @@ The three "empty gameplay" holes the v104 audit flagged, filled:
       device; the Category card below is the single picker. Verified via staged screenshots
       (390×844): hero shows the badge, card keeps G-badges + hints + last-in-category compare.
 - Gates: tsc 0 · 782 tests · build+PWA green.
+
+## v107 — Design → launch is ONE sheet + Market region rows read premium (DONE 2026-07-06)
+- [x] **Integrated production tracker** — the "Design complete" popup no longer dead-ends into a
+      "View building progress" navigation. The sheet now embeds the SAME live In-production readout
+      as the Office card (BuildProgress ring + stage trail, ticking with the sim), and the moment
+      the run rolls off the line the SAME card morphs into the Ready-to-launch moment (identical
+      language to the global popup, fresh planProduction numbers, Launch now / Later; sim paused
+      for the decision). New claim registry in overlayGuard (`claimReadyLaunch`) makes the global
+      ReadyToLaunch popup stand down while the sheet owns the product — closing the sheet counts
+      as "Later" (Office card), never a late double-pop. CompletedBuild now carries the id
+      startBuild actually mints (`prod-N`) so the sheet tracks the real job. Verified end-to-end
+      with a scripted Playwright run (design → build → live ticking → morph → launch reveal).
+- [x] **Locked region rows** — the fixed-width "Unlock · $X" button crushed blurbs into
+      one-word-per-line ribbons on device. Rows now wrap the button onto its own full-width line.
+- Gates: tsc 0 · 782 tests · build+PWA green.
