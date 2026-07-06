@@ -2225,3 +2225,13 @@ Four fixes/features from device feedback (user screenshots):
       saves are untouched (persisted floors load as-is).
 - tsc 0, 768 tests, build+PWA green, sim byte-identical; verified live (bare floor + offline CTA →
       Auto → wired minimal line, charged per tile).
+
+## v103 — Auto quotes before it spends (DONE 2026-07-06)
+- [x] Tapping **Auto** no longer routes immediately: it ARMS a quote strip in the build head —
+      "Route the line · N tiles" + "Confirm · $X" (or "+$X back" when a re-route nets a refund) + a
+      44px ✕ cancel. The quote re-derives from live state each render via the new pure
+      `autoConnectQuote` (same deterministic router as the action), so the shown price is EXACTLY
+      what confirm charges — proven by a test (quote.cost === cash delta). Tool/category switches
+      disarm; a floor with no route toasts the reason instead of arming.
+- tsc 0, 769 tests, build+PWA green; verified live: quote → cancel (no charge) → confirm ($1,200 for
+      3 tiles on the bare starter).

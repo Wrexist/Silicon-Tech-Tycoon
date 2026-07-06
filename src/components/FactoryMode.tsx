@@ -13,7 +13,7 @@ import {
   TrafficCone, Trash2, TriangleAlert, Truck, Waypoints, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
-import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost } from "../state/gameState.ts";
+import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost, autoConnectQuote } from "../state/gameState.ts";
 import { MAX_LAYOUTS, layoutDiff } from "../engine/factoryLayout.ts";
 import { appOverlayOpen } from "../design/overlayGuard.ts";
 import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.ts";
@@ -210,6 +210,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [buildTool, setBuildTool] = useState<null | MachineKind | PropKind | "belt" | "erase" | "upgrade">(null);
   const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
   const [beltDir, setBeltDir] = useState<BeltDir>("e");
+  // Auto quotes BEFORE it spends: first tap arms a Confirm/Cancel strip showing the live price
+  // (recomputed each render from the same deterministic router, so quote === charge). Any tool
+  // switch disarms it.
+  const [autoArmed, setAutoArmed] = useState(false);
+  useEffect(() => { setAutoArmed(false); }, [buildTool, buildCat]);
   const [layoutName, setLayoutName] = useState("");
   const [confirmLayout, setConfirmLayout] = useState<string | null>(null); // arms a layout's Apply → shows the diff + Confirm
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
@@ -442,12 +447,45 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       {buildTool != null && (
         <div className="fmode__build">
           <div className="fmode__build-head">
-            <div className="fmode__build-seg" role="tablist" aria-label="Build category">
-              <button role="tab" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
-              <button role="tab" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
-            </div>
-            <span className="fmode__build-rule">{buildTool === "belt" ? "Drag to paint a belt run · tap for one · Auto routes it all." : buildCat === "machine" ? "Tap to place · hold any piece to move it. Erase refunds half." : "Tap to place · hold a prop to move it. Erase refunds half."}</span>
-            <button className="fmode__build-done" onClick={() => { haptic.light(); setBuildTool(null); }}>Done</button>
+            {(() => {
+              // Auto armed → the head becomes the QUOTE: route size + exact price, Confirm / Cancel.
+              // The quote re-derives from live state every render, so it can never drift from the
+              // price autoConnectLine will actually charge (same deterministic router).
+              const quote = autoArmed ? autoConnectQuote(state) : null;
+              if (autoArmed && quote) {
+                const tooPricey = quote.cost > 0 && state.cash < quote.cost;
+                return (
+                  <>
+                    <span className="fmode__autoquote-label">
+                      <Waypoints size={14} aria-hidden /> Route the line · {quote.tiles} tiles
+                    </span>
+                    <button
+                      className="fmode__buy fmode__autoquote-go"
+                      disabled={tooPricey}
+                      onClick={() => {
+                        const res = d.game.autoConnectLine();
+                        if (res.ok) { haptic.success(); sfx("build"); showToast("Belts routed — Intake to Packer", { tone: "positive" }); }
+                        else { haptic.warning(); showToast(res.reason ?? "Couldn't route the belts", { tone: "negative" }); }
+                        setAutoArmed(false);
+                      }}
+                    >
+                      {quote.cost > 0 ? `Confirm · ${format(quote.cost)}` : quote.cost < 0 ? `Confirm · +${format((-quote.cost) as typeof quote.cost)} back` : "Confirm · free"}
+                    </button>
+                    <button className="fmode__autoquote-x" aria-label="Cancel auto route" onClick={() => { haptic.light(); setAutoArmed(false); }}><X size={16} /></button>
+                  </>
+                );
+              }
+              return (
+                <>
+                  <div className="fmode__build-seg" role="tablist" aria-label="Build category">
+                    <button role="tab" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
+                    <button role="tab" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
+                  </div>
+                  <span className="fmode__build-rule">{buildTool === "belt" ? "Drag to paint a belt run · tap for one · Auto routes it all." : buildCat === "machine" ? "Tap to place · hold any piece to move it. Erase refunds half." : "Tap to place · hold a prop to move it. Erase refunds half."}</span>
+                  <button className="fmode__build-done" onClick={() => { haptic.light(); setBuildTool(null); }}>Done</button>
+                </>
+              );
+            })()}
           </div>
           <div className="fmode__palette">
             {buildCat === "machine" ? (
@@ -469,13 +507,14 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                   <span className="fmode__ptile-name">Turn</span>
                 </button>
                 <button
-                  className="fmode__ptile fmode__ptile--util"
+                  className={`fmode__ptile fmode__ptile--util${autoArmed ? " fmode__ptile--on" : ""}`}
                   aria-label="Auto-connect the Intake to the Packer"
-                  title="Route belts from Intake to Packer automatically"
+                  title="Route belts from Intake to Packer automatically — shows the price first"
                   onClick={() => {
-                    const res = d.game.autoConnectLine();
-                    if (res.ok) { haptic.success(); sfx("build"); showToast("Belts routed — Intake to Packer", { tone: "positive" }); }
-                    else { haptic.warning(); showToast(res.reason ?? "Couldn't route the belts", { tone: "negative" }); }
+                    haptic.light();
+                    if (autoArmed) { setAutoArmed(false); return; }
+                    if (!autoConnectQuote(state)) { haptic.warning(); showToast("Place an Intake and a Packer with a clear path between them first.", { tone: "negative" }); return; }
+                    setAutoArmed(true);
                   }}
                 >
                   <span className="fmode__ptile-icon"><Waypoints size={20} /></span>

@@ -5,7 +5,7 @@ import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
 import { demoFloor, lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
 import {
   newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
-  moveFloorMachine, moveFactoryProp, buyFactoryProp,
+  moveFloorMachine, moveFactoryProp, buyFactoryProp, autoConnectQuote,
   saveFactoryLayout, applyFactoryLayout, deleteFactoryLayout, factoryLayoutCost,
   type GameState,
 } from "./gameState.ts";
@@ -134,6 +134,21 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     // Applying that layout over the un-upgraded base costs exactly the 1→2 step (matching cell + kind).
     const onBase: GameState = { ...base, factoryLayouts: [layout] };
     expect(factoryLayoutCost(onBase, layout)).toBe(machineUpgradeStepCost("press", 1)!);
+  });
+
+  it("autoConnectQuote prices the route EXACTLY as autoConnectLine charges it", () => {
+    const base = rich();
+    const stripped: GameState = { ...base, factoryFloor: { ...base.factoryFloor, belts: [] } };
+    const quote = autoConnectQuote(stripped)!;
+    expect(quote).not.toBeNull();
+    expect(quote.tiles).toBeGreaterThan(0);
+    expect(quote.cost).toBe(quote.tiles * BELT_COST); // fresh floor: every tile is new
+    const res = autoConnectLine(stripped);
+    expect(res.ok).toBe(true);
+    expect((stripped.cash - res.state.cash)).toBe(quote.cost); // the quote IS the charge
+    // No packer → no quote (mirrors the action's refusal).
+    const noPacker: GameState = { ...base, factoryFloor: { machines: base.factoryFloor.machines.filter((m) => m.kind !== "packer"), belts: [] } };
+    expect(autoConnectQuote(noPacker)).toBeNull();
   });
 
   it("autoConnectLine rebuilds a complete line from a stripped floor and charges the belt cost", () => {

@@ -2182,16 +2182,31 @@ export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: n
   return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next }, ok: true };
 }
 
+/** The net an auto-route would charge: new tiles at full price − removed tiles at half back. */
+function autoRouteNet(current: FloorPlan, routed: FloorPlan): number {
+  const oldCells = new Set(current.belts.map((b) => `${b.c},${b.r}`));
+  const newCells = new Set(routed.belts.map((b) => `${b.c},${b.r}`));
+  let cost = 0;
+  for (const k of newCells) if (!oldCells.has(k)) cost += BELT_COST;
+  for (const k of oldCells) if (!newCells.has(k)) cost -= Math.round(BELT_COST / 2);
+  return cost;
+}
+
+/** Price the Auto route WITHOUT committing — the confirm dialog's quote. Deterministic: the same
+ *  router runs again on confirm, so the quoted price is exactly what gets charged. Null when there
+ *  is no route (missing Intake/Packer or no clear path). Pure. */
+export function autoConnectQuote(state: GameState): { cost: Money; tiles: number } | null {
+  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion));
+  if (!routed) return null;
+  return { cost: cents(autoRouteNet(state.factoryFloor, routed)), tiles: routed.belts.length };
+}
+
 /** One-tap belt routing — lay a fresh Intake→Packer chain around the machines, charging the net of
  *  new tiles (full price) minus removed tiles (half refund), exactly like doing it by hand. */
 export function autoConnectLine(state: GameState): ActionResult {
   const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion));
   if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer with a clear path between them first." };
-  const oldCells = new Set(state.factoryFloor.belts.map((b) => `${b.c},${b.r}`));
-  const newCells = new Set(routed.belts.map((b) => `${b.c},${b.r}`));
-  let cost = 0;
-  for (const k of newCells) if (!oldCells.has(k)) cost += BELT_COST;
-  for (const k of oldCells) if (!newCells.has(k)) cost -= Math.round(BELT_COST / 2);
+  const cost = autoRouteNet(state.factoryFloor, routed);
   if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cents(cost))} to route the belts.` };
   return { state: { ...state, factoryFloor: routed, cash: add(state.cash, cents(-cost)) }, ok: true };
 }
