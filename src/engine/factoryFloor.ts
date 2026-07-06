@@ -104,6 +104,17 @@ export function placeMachine(floor: FactoryFloor, kind: MachineKind, c: number, 
   return { ...floor, machines: [...floor.machines, { id, kind, c, r }] };
 }
 
+/** Relocate a placed machine to a new anchor cell (id, kind and upgrade level preserved) — the
+ *  pick-up-and-move gesture. Valid iff the footprint fits with the machine itself ignored; null
+ *  when it doesn't. Pure. */
+export function moveMachine(floor: FactoryFloor, id: string, c: number, r: number, maxW: number = FLOOR.w): FactoryFloor | null {
+  const m = floor.machines.find((x) => x.id === id);
+  if (!m) return null;
+  const others: FactoryFloor = { ...floor, machines: floor.machines.filter((x) => x.id !== id) };
+  if (!canPlaceMachine(others, m.kind, c, r, maxW)) return null;
+  return { ...floor, machines: floor.machines.map((x) => (x.id === id ? { ...x, c, r } : x)) };
+}
+
 export function placeBelt(floor: FactoryFloor, c: number, r: number, dir: BeltDir, maxW: number = FLOOR.w): FactoryFloor | null {
   if (!canPlaceBelt(floor, c, r, maxW)) return null;
   return { ...floor, belts: [...floor.belts.filter((b) => b.c !== c || b.r !== r), { c, r, dir }] };

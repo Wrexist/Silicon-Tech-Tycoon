@@ -31,6 +31,23 @@ describe("factory props", () => {
     expect(removePropAt(props, 8, 4)).toHaveLength(0);
   });
 
+  it("moveProp relocates in place, rejects collisions, ignores its own footprint", async () => {
+    const { moveProp } = await import("./factoryProps.ts");
+    const floor = starterFloor();
+    let props = placeProp(floor, [], "plant", 8, 4, "p1")!;
+    props = placeProp(floor, props, "crates", 9, 4, "p2")!;
+    const moved = moveProp(floor, props, "p1", 8, 5);
+    expect(moved).not.toBeNull();
+    expect(moved!.find((p) => p.id === "p1")).toMatchObject({ kind: "plant", c: 8, r: 5 });
+    expect(moved!).toHaveLength(2); // moved, not duplicated
+    // Onto the other prop → refused; onto a machine → refused; unknown id → refused.
+    expect(moveProp(floor, props, "p1", 9, 4)).toBeNull();
+    expect(moveProp(floor, props, "p1", 0, 1)).toBeNull();
+    expect(moveProp(floor, props, "nope", 8, 5)).toBeNull();
+    // "Moving" to its own current cell is a no-op that still succeeds (self-footprint ignored).
+    expect(moveProp(floor, props, "p1", 8, 4)).not.toBeNull();
+  });
+
   it("every prop kind has a name, cost and footprint", () => {
     for (const k of Object.keys(PROP_DEFS) as PropKind[]) {
       const d = PROP_DEFS[k];

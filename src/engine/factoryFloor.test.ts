@@ -189,6 +189,27 @@ describe("factory floor grid (F2)", () => {
     }
   });
 
+  it("moveMachine relocates in place (id/kind/level kept), rejects collisions and off-grid", async () => {
+    const { moveMachine, machineLevel, upgradeMachineAt } = await import("./factoryFloor.ts");
+    const f = starterFloor();
+    const press = f.machines.find((m) => m.kind === "press")!;
+    // Tune it up first — the level must survive the move.
+    const tuned = upgradeMachineAt(f, press.c, press.r)!;
+    const moved = moveMachine(tuned, press.id, 6, 3);
+    expect(moved).not.toBeNull();
+    const after = moved!.machines.find((m) => m.id === press.id)!;
+    expect([after.c, after.r]).toEqual([6, 3]);
+    expect(after.kind).toBe("press");
+    expect(machineLevel(after)).toBe(2);
+    expect(moved!.machines).toHaveLength(f.machines.length); // moved, not duplicated
+    // Onto another machine → refused; off the grid → refused; unknown id → refused.
+    expect(moveMachine(f, press.id, 0, 1)).toBeNull();  // intake's footprint
+    expect(moveMachine(f, press.id, 14, 0)).toBeNull(); // 3-wide off the east edge
+    expect(moveMachine(f, "nope", 6, 3)).toBeNull();
+    // Moving a machine onto cells IT currently occupies is fine (shift by one).
+    expect(moveMachine(f, press.id, press.c + 1, press.r)).not.toBeNull();
+  });
+
   it("machineCells matches the def footprint", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });

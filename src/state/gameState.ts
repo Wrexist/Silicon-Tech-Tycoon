@@ -106,12 +106,12 @@ import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityP
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
   BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineSpeedMult,
-  machineUpgradeCostAt, upgradeMachineAt, placeBelt as floorPlaceBelt,
+  machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import {
-  PROP_DEFS, placeProp as propsPlace, removePropAt as propsRemoveAt, propRefund,
+  PROP_DEFS, placeProp as propsPlace, moveProp as propsMove, removePropAt as propsRemoveAt, propRefund,
   type PlacedProp, type PropKind,
 } from "../engine/factoryProps.ts";
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
@@ -2205,6 +2205,21 @@ export function upgradeFloorMachine(state: GameState, c: number, r: number): Act
   const next = upgradeMachineAt(state.factoryFloor, c, r);
   if (!next) return { state, ok: false, reason: "That machine is already at its top tier." };
   return { state: { ...state, cash: sub(state.cash, cost), factoryFloor: next }, ok: true };
+}
+
+/** Relocate a machine to a new cell — the hold-and-drag gesture. Free (rearranging isn't buying);
+ *  keeps the machine's id, kind and upgrade level. */
+export function moveFloorMachine(state: GameState, id: string, c: number, r: number): ActionResult {
+  const next = floorMoveMachine(state.factoryFloor, id, c, r, floorWidth(state.factoryExpansion));
+  if (!next) return { state, ok: false, reason: "Doesn't fit there." };
+  return { state: { ...state, factoryFloor: next }, ok: true };
+}
+
+/** Relocate a decor prop to a new cell — the hold-and-drag gesture. Free. */
+export function moveFactoryProp(state: GameState, id: string, c: number, r: number): ActionResult {
+  const next = propsMove(state.factoryFloor, state.factoryProps, id, c, r, floorWidth(state.factoryExpansion));
+  if (!next) return { state, ok: false, reason: "Doesn't fit there." };
+  return { state: { ...state, factoryProps: next }, ok: true };
 }
 
 /** Clear whatever occupies the cell — a prop first, else a machine/belt; demolition pays back half. */

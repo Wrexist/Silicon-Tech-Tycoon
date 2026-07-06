@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeft, ArrowRight, Boxes, Check, Factory, Hammer, Hand, Maximize2, Move, Palette,
+  ArrowLeft, ArrowRight, Boxes, Check, Factory, Grab, Hammer, Hand, Maximize2, Move, Palette,
   Truck, Workflow, X, ZoomIn, Zap, type LucideIcon,
 } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
@@ -36,10 +36,11 @@ function FlowVisual() {
   );
 }
 
-/** The three touch gestures, as glyph chips. */
+/** The four touch gestures, as glyph chips. */
 function GestureVisual() {
   const acts: { icon: LucideIcon; label: string }[] = [
     { icon: Hand, label: "Tap to place" },
+    { icon: Grab, label: "Hold to move" },
     { icon: Move, label: "Drag to orbit" },
     { icon: ZoomIn, label: "Pinch to zoom" },
   ];
@@ -102,7 +103,7 @@ const STEPS: TStep[] = [
     icon: Hand,
     accent: "var(--fn-eng)",
     title: "Build the floor",
-    text: "Tap Build, pick a machine or a belt, then tap the floor to drop it in. Move the camera with touch to see every angle.",
+    text: "Tap Build, pick a machine or a belt, then tap the floor to drop it in. Hold any placed machine to pick it up and move it — green cells show where it belongs.",
     visual: <GestureVisual />,
   },
   {

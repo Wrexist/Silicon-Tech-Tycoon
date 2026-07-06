@@ -57,6 +57,15 @@ export function placeProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKi
   return [...props, { id, kind, c, r }];
 }
 
+/** Relocate a placed prop to a new anchor cell (id + kind preserved) — the pick-up-and-move
+ *  gesture. Valid iff the footprint fits with the prop itself ignored; null when it doesn't. Pure. */
+export function moveProp(floor: FactoryFloor, props: PlacedProp[], id: string, c: number, r: number, maxW: number = FLOOR.w): PlacedProp[] | null {
+  const p = props.find((x) => x.id === id);
+  if (!p) return null;
+  if (!canPlaceProp(floor, props.filter((x) => x.id !== id), p.kind, c, r, maxW)) return null;
+  return props.map((x) => (x.id === id ? { ...x, c, r } : x));
+}
+
 export function removePropAt(props: PlacedProp[], c: number, r: number): PlacedProp[] {
   const key = `${c},${r}`;
   return props.filter((p) => !propCells(p).includes(key));

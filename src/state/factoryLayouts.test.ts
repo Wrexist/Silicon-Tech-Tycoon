@@ -5,6 +5,7 @@ import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
 import { lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
 import {
   newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
+  moveFloorMachine, moveFactoryProp, buyFactoryProp,
   saveFactoryLayout, applyFactoryLayout, deleteFactoryLayout, factoryLayoutCost,
   type GameState,
 } from "./gameState.ts";
@@ -170,6 +171,27 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     const partial = paintBeltRun(broke, run, "e");
     expect(partial.ok).toBe(true);
     expect(partial.state.factoryFloor.belts).toHaveLength(2);
+  });
+
+  it("moveFloorMachine / moveFactoryProp relocate for FREE (hold-and-drag), validated", () => {
+    const base = rich();
+    const press = base.factoryFloor.machines.find((m) => m.kind === "press")!;
+    const moved = moveFloorMachine(base, press.id, 6, 3);
+    expect(moved.ok).toBe(true);
+    expect(moved.state.cash).toBe(base.cash); // rearranging is free
+    expect(moved.state.factoryFloor.machines.find((m) => m.id === press.id)).toMatchObject({ c: 6, r: 3 });
+    // An illegal spot refuses and leaves state untouched.
+    const bad = moveFloorMachine(base, press.id, 0, 1);
+    expect(bad.ok).toBe(false);
+    expect(bad.state).toBe(base);
+    // Props: place one, move it, still free.
+    const withProp = buyFactoryProp(base, "plant", 8, 4);
+    expect(withProp.ok).toBe(true);
+    const prop = withProp.state.factoryProps[0];
+    const pMoved = moveFactoryProp(withProp.state, prop.id, 8, 5);
+    expect(pMoved.ok).toBe(true);
+    expect(pMoved.state.cash).toBe(withProp.state.cash);
+    expect(pMoved.state.factoryProps[0]).toMatchObject({ c: 8, r: 5 });
   });
 
   it("deletes a layout by id", () => {
