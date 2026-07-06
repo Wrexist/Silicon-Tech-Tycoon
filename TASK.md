@@ -2278,3 +2278,22 @@ all confirmed findings fixed in four commits.
       HQ insights render as content, not disabled buttons.
 - Gates: tsc 0 · 779 tests · build+PWA green · 40-seed sim byte-identical (0/40 bankrupt, Era 2 wk 74,
       same troughs).
+
+## v105 — The endgame stops running on fumes (DONE 2026-07-06)
+The three "empty gameplay" holes the v104 audit flagged, filled:
+- [x] **Era 4 ships breakthroughs** — the AI Era previously arrived with zero new research projects
+      (eras 2–3 each brought a wave), making the final transition a footnote. Four new era-4
+      projects, all effects wired + test-pinned: AI Copilot Suite (+4 Ecosystem every product),
+      Lights-Out Assembly (−1 build week, stacks with Quick Prototype), Predictive Supply AI
+      (unit cost ×0.90 further), Neural Marketing (+0.25 hype). Research screen era groups derive
+      from maxEra() (were hardcoded [1,2,3]); the era-4 EraModal lists them automatically; the
+      "research everything" achievement target grows via completableProjectCount() as designed.
+- [x] **Late-game RP has a repeatable sink** — once projects + tiers are bought out, RP accrued
+      forever with nothing to buy. New `hostKeynote` reducer (150 RP → +400 fans, +1 reputation
+      capped at 100, feed item; no-op when short; deterministic) surfaced as a "Host keynote"
+      button in Research's all-researched end state alongside honest pointer copy.
+- [x] **Global markets card stays alive after full unlock** — open regions now show "≈$X/wk", each
+      active product's weekly revenue apportioned across its shipped regions by share × tasteFit
+      (the same weights that sized the launch), replacing the static "Open" tag wall.
+- Gates: tsc 0 · 782 tests · build+PWA green · sim byte-identical (auto-player never buys projects
+      or hosts keynotes; the region split is display-only).
