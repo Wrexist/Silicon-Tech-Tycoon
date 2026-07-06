@@ -265,6 +265,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               floorColor={(FACTORY_FLOORS[state.factoryDecor.floor] ?? FACTORY_FLOORS[0]).hex}
               props={state.factoryProps}
               floorW={floorWidth(state.factoryExpansion)}
+              era={state.era}
               onTapCell={onTapCell}
               flash={flash}
               onContextLost={() => setGlLost(true)}

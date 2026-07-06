@@ -2019,3 +2019,17 @@ Audit-driven cosmetic pass over onboarding, HQ, Design Lab, Market (no gameplay 
       existing render kinds/patterns. (The office already carries 60+ placeable furniture pieces.)
 - Verified live: props render + palette; floor widens with props placeable in the new bay + camera
       reframes; office renders new Walnut/Sage finish. tsc 0, 734 tests, build+PWA green.
+
+## v89 — Make the factory matter + the line advances with your era (DONE 2026-07-06)
+Four-part follow-up the player picked, in order. #1 + #2 landed:
+- [x] **#1 — the factory matters** (commit 443a038): `factoryFloor.lineSpeedMult(floor)` — a pure,
+      bounded build-time multiplier anchored so the starter (complete, single-arm) is exactly neutral
+      (×1). A disconnected line costs time (×1.15); each extra assembly Arm parallelises the build
+      (−5% each, −25% floor). `gameState.buildWeeksFor` multiplies assembly time by it. Factory HUD
+      surfaces it — order-card chip + a Stats "Line build speed" row + teaching note. No RNG (pin holds). +test.
+- [x] **#2 — more content on the line**: the working-machine glow now advances with the company's
+      era, so the line visibly levels up as you grow — blue upstart → cyan → violet → gold titan.
+      `Factory3D` threads a single `eraAccent(era)` through an `AccentContext` so every machine's
+      hot-glow, status strip, press ram + QA scan sheet track the same era colour; `FactoryMode`
+      passes `era={state.era}`. Verified live at Era 4 (violet accent renders on the line).
+- Left: #3 office glow-up, #4 factory juice & progression. tsc 0, 735 tests, build+PWA green.

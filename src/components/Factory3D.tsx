@@ -5,7 +5,7 @@
 // crate), and the machine matching the build's real stage glows and works hardest.
 // Same stack + discipline as the 3D office: r3f/drei primitives, lazy chunk, DPR cap,
 // context-loss downgrade. Zero image assets.
-import { useMemo, useRef } from "react";
+import { createContext, useContext, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
@@ -73,6 +73,8 @@ export interface Factory3DProps {
   props?: PlacedProp[];
   /** Current buildable width in cells (grows east with floor expansions; default = base width). */
   floorW?: number;
+  /** The company's era (1+) — tints the working machines so the line advances as you progress. */
+  era?: number;
   /** Bumped by the HUD's recenter button — re-frames the camera to its default. */
   resetView?: number;
   onTapCell?: (c: number, r: number) => void;
@@ -80,6 +82,16 @@ export interface Factory3DProps {
   flash?: { c: number; r: number; ok: boolean; n: number } | null;
   onContextLost?: () => void;
 }
+
+/* Working-machine glow evolves with the company's era, so the line visibly advances as you
+ * progress: blue while you're a garage upstart, cooling to cyan, then violet, then gold once
+ * you're an industry titan. Threaded through a context so every machine tracks the same era. */
+const ERA_ACCENTS = ["#3b82f6", "#3b82f6", "#22d3ee", "#a78bfa", "#f5b53d"];
+function eraAccent(era: number): string {
+  return ERA_ACCENTS[Math.min(ERA_ACCENTS.length - 1, Math.max(0, Math.floor(era) - 1))];
+}
+const AccentContext = createContext<string>(C.accent);
+const useAccent = () => useContext(AccentContext);
 
 /* ---------------- generic polyline walking (the belts define the path) ---------------- */
 
@@ -387,11 +399,13 @@ function TravelingItem({ index, itemsT, pl, marks, look }: {
 /* ------------------------------- machines ------------------------------- */
 
 function HotLight({ on, y = 2.4 }: { on: boolean; y?: number }) {
-  return on ? <pointLight position={[0, y, 0]} intensity={9} distance={4.2} color={C.accent} /> : null;
+  const accent = useAccent();
+  return on ? <pointLight position={[0, y, 0]} intensity={9} distance={4.2} color={accent} /> : null;
 }
 
 /** Intake hopper — raw material funnels onto the line (Sourcing). */
 function Intake({ active, hot, position, yaw = 0 }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number }) {
+  const accent = useAccent();
   const puff = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (!puff.current) return;
@@ -412,7 +426,7 @@ function Intake({ active, hot, position, yaw = 0 }: { active: boolean; hot: bool
       {/* inverted funnel */}
       <mesh position={[0, 1.9, 0]} castShadow>
         <cylinderGeometry args={[0.75, 0.3, 0.8, 4, 1, false, Math.PI / 4]} />
-        <meshStandardMaterial color={C.machineHi} roughness={0.55} metalness={0.35} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
+        <meshStandardMaterial color={C.machineHi} roughness={0.55} metalness={0.35} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
       </mesh>
       <mesh ref={puff} position={[0, 1.4, 0]}>
         <boxGeometry args={[0.34, 0.1, 0.3]} />
@@ -426,6 +440,7 @@ function Intake({ active, hot, position, yaw = 0 }: { active: boolean; hot: bool
 
 /** Gantry press straddling the line — dual pistons stamp passing boards (Tooling). */
 function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+  const accent = useAccent();
   const ram = useRef<THREE.Group>(null);
   const eng = useRef(0);
   useFrame(() => {
@@ -441,7 +456,7 @@ function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: b
       {[-0.9, 0.9].map((dx) => (
         <mesh key={dx} position={[dx, 1.0, 0]} castShadow>
           <boxGeometry args={[0.28, 2.0, 0.5]} />
-          <meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
+          <meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
         </mesh>
       ))}
       <RoundedBox args={[2.15, 0.5, 0.8]} radius={0.08} position={[0, 2.15, 0]} castShadow>
@@ -450,7 +465,7 @@ function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: b
       {/* status strip */}
       <mesh position={[0, 2.15, 0.42]}>
         <boxGeometry args={[1.6, 0.1, 0.02]} />
-        <meshStandardMaterial color={hot ? C.accent : C.amber} emissive={hot ? C.accent : C.amber} emissiveIntensity={1.2} />
+        <meshStandardMaterial color={hot ? accent : C.amber} emissive={hot ? accent : C.amber} emissiveIntensity={1.2} />
       </mesh>
       <group ref={ram} position={[0, 1.55, 0]}>
         {[-0.45, 0.45].map((dx) => (
@@ -460,7 +475,7 @@ function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: b
           </mesh>
         ))}
         <RoundedBox args={[1.3, 0.32, 0.6]} radius={0.06} position={[0, -0.55, 0]} castShadow>
-          <meshStandardMaterial color={C.accent} roughness={0.45} />
+          <meshStandardMaterial color={accent} roughness={0.45} />
         </RoundedBox>
       </group>
       <HazardBase w={2.4} d={1.7} />
@@ -473,6 +488,7 @@ function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: b
 function RobotArm({ active, hot, position, pl, itemsT }: {
   active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef;
 }) {
+  const accent = useAccent();
   const yaw = useRef<THREE.Group>(null);
   const shoulder = useRef<THREE.Group>(null);
   const elbow = useRef<THREE.Group>(null);
@@ -508,7 +524,7 @@ function RobotArm({ active, hot, position, pl, itemsT }: {
       <group ref={yaw} position={[0, 0.28, 0]}>
         <mesh position={[0, 0.12, 0]} castShadow>
           <cylinderGeometry args={[0.34, 0.42, 0.26, 20]} />
-          <meshStandardMaterial color={C.amber} roughness={0.5} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.18 : 0} />
+          <meshStandardMaterial color={C.amber} roughness={0.5} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.18 : 0} />
         </mesh>
         {/* shoulder joint + upper arm */}
         <group ref={shoulder} position={[0, 0.3, 0]}>
@@ -551,6 +567,7 @@ function RobotArm({ active, hot, position, pl, itemsT }: {
 
 /** QA tunnel — a glass scanner the finished device passes through (Quality). */
 function QaTunnel({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+  const accent = useAccent();
   const beam = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
   useFrame(({ clock }) => {
@@ -572,17 +589,17 @@ function QaTunnel({ active, hot, position, yaw = 0, pl, itemsT }: { active: bool
       {[-0.85, 0.85].map((dx) => (
         <mesh key={dx} position={[dx, 0.85, 0]} castShadow>
           <boxGeometry args={[0.16, 1.2, 1.3]} />
-          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.3} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.25 : 0} />
+          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.3} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.25 : 0} />
         </mesh>
       ))}
       {/* sweeping scan sheet */}
       <mesh ref={beam} position={[0, 0.85, 0]}>
         <boxGeometry args={[0.03, 1.0, 1.1]} />
-        <meshStandardMaterial color={C.accent} emissive={C.accent} emissiveIntensity={1.6} transparent opacity={0.5} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.6} transparent opacity={0.5} />
       </mesh>
       <mesh position={[0, 1.5, 0]}>
         <boxGeometry args={[1.7, 0.08, 0.02]} />
-        <meshStandardMaterial color={hot ? C.accent : C.amber} emissive={hot ? C.accent : C.amber} emissiveIntensity={1.1} />
+        <meshStandardMaterial color={hot ? accent : C.amber} emissive={hot ? accent : C.amber} emissiveIntensity={1.1} />
       </mesh>
       <HazardBase w={2.3} d={1.8} />
       <HotLight on={hot} y={2.2} />
@@ -592,6 +609,7 @@ function QaTunnel({ active, hot, position, yaw = 0, pl, itemsT }: { active: bool
 
 /** Packer at the end of the line — folding plates box the device (Packaging). */
 function Packer({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+  const accent = useAccent();
   const l = useRef<THREE.Mesh>(null);
   const r = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
@@ -606,7 +624,7 @@ function Packer({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolea
   return (
     <group position={position} rotation={[0, yaw, 0]}>
       <RoundedBox args={[1.5, 0.5, 1.2]} radius={0.07} position={[0, 0.55, 0]} castShadow>
-        <meshStandardMaterial color={C.machine} roughness={0.6} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
+        <meshStandardMaterial color={C.machine} roughness={0.6} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
       </RoundedBox>
       <mesh ref={l} position={[-0.6, 0.95, 0]} castShadow>
         <boxGeometry args={[0.08, 0.7, 1.0]} />
@@ -625,6 +643,7 @@ function Packer({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolea
 /** CNC mill — a milling cell the chassis passes through; the spindle traverses + plunges + spins
  *  to cut the unibody (used for laptop / desktop chassis). */
 function CncMill({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+  const accent = useAccent();
   const spindle = useRef<THREE.Group>(null);
   const bit = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
@@ -645,14 +664,14 @@ function CncMill({ active, hot, position, yaw = 0, pl, itemsT }: { active: boole
       {[-0.85, 0.85].map((x) => (
         <mesh key={x} position={[x, 0.85, 0]} castShadow>
           <boxGeometry args={[0.22, 1.7, 1.2]} />
-          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
+          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
         </mesh>
       ))}
       {/* top gantry beam + status strip */}
       <RoundedBox args={[2.0, 0.28, 0.5]} radius={0.06} position={[0, 1.75, 0]} castShadow>
         <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.45} />
       </RoundedBox>
-      <mesh position={[0, 1.75, 0.27]}><boxGeometry args={[1.5, 0.08, 0.02]} /><meshStandardMaterial color={hot ? C.accent : C.amber} emissive={hot ? C.accent : C.amber} emissiveIntensity={1.0} /></mesh>
+      <mesh position={[0, 1.75, 0.27]}><boxGeometry args={[1.5, 0.08, 0.02]} /><meshStandardMaterial color={hot ? accent : C.amber} emissive={hot ? accent : C.amber} emissiveIntensity={1.0} /></mesh>
       {/* spindle head — traverses + plunges; the bit spins */}
       <group ref={spindle} position={[0, 1.15, 0]}>
         <mesh castShadow><boxGeometry args={[0.3, 0.42, 0.32]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.55} /></mesh>
@@ -667,6 +686,7 @@ function CncMill({ active, hot, position, yaw = 0, pl, itemsT }: { active: boole
 /** Screen bonder — a laminating head lowers a display panel onto the device and cures it (used for
  *  phone / tablet screen bonding + monitor panel lamination). */
 function ScreenBonder({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+  const accent = useAccent();
   const head = useRef<THREE.Group>(null);
   const glow = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
@@ -684,13 +704,13 @@ function ScreenBonder({ active, hot, position, yaw = 0, pl, itemsT }: { active: 
       {[-0.8, 0.8].map((x) => (
         <mesh key={x} position={[x, 0.9, 0]} castShadow>
           <boxGeometry args={[0.18, 1.8, 0.3]} />
-          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? C.accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
+          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
         </mesh>
       ))}
       <RoundedBox args={[1.9, 0.26, 0.55]} radius={0.06} position={[0, 1.85, 0]} castShadow>
         <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.4} />
       </RoundedBox>
-      <mesh position={[0, 1.85, 0.29]}><boxGeometry args={[1.4, 0.08, 0.02]} /><meshStandardMaterial color={hot ? C.accent : C.amber} emissive={hot ? C.accent : C.amber} emissiveIntensity={1.0} /></mesh>
+      <mesh position={[0, 1.85, 0.29]}><boxGeometry args={[1.4, 0.08, 0.02]} /><meshStandardMaterial color={hot ? accent : C.amber} emissive={hot ? accent : C.amber} emissiveIntensity={1.0} /></mesh>
       {/* descending laminator head holding a glass panel */}
       <group ref={head} position={[0, 1.5, 0]}>
         <RoundedBox args={[1.1, 0.16, 0.7]} radius={0.04} castShadow><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></RoundedBox>
@@ -1020,6 +1040,7 @@ function Scene(p: Factory3DProps) {
   const world = useRef<THREE.Group>(null);
   const floorW = p.floorW ?? FLOOR.w;      // buildable width in cells (grows east with expansions)
   const cx = (floorW - FLOOR.w) / 2;       // east shift of the building centre (origin fixed)
+  const accent = eraAccent(p.era ?? 1);    // working-machine glow advances with the company's era
 
   // The belts ARE the path: chain them, then derive where the item transforms.
   const pl = useMemo(() => makePolyline(beltPath(p.floor.belts)), [p.floor.belts]);
@@ -1070,6 +1091,7 @@ function Scene(p: Factory3DProps) {
   };
 
   return (
+    <AccentContext.Provider value={accent}>
     <group ref={world} rotation={[0, portrait ? Math.PI / 2 : 0, 0]}>
       <ambientLight intensity={0.85} />
       <directionalLight position={[7, 12, 5]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
@@ -1112,6 +1134,7 @@ function Scene(p: Factory3DProps) {
 
       <ContactShadows position={[0, 0.11, 0]} opacity={0.5} scale={26} blur={2.2} far={4} frames={60} />
     </group>
+    </AccentContext.Provider>
   );
 }
 
