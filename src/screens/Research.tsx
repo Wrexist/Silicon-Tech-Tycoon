@@ -14,7 +14,7 @@ import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
+import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -122,7 +122,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
 }
 
 export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
-  const { state, research, buyProject, unlockLens, unlockFinish } = useGame();
+  const { state, research, buyProject, hostKeynote, unlockLens, unlockFinish } = useGame();
   // Once many projects are complete, the full-blurb list grows into a long scroll. Default to a
   // compact chip cloud; the player can expand to the detailed effects on demand.
   const [boostsExpanded, setBoostsExpanded] = useState(false);
@@ -211,9 +211,21 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             </div>
           </div>
         ) : (
-          // Every project in this era is researched and RP still flows — point at the sinks that
-          // remain (component tech below, OS modules) instead of telling the player to earn more.
-          <p className="rd__bank-hint">Every project here is researched. Spend RP on component tech below{state.platformUnlocked ? " or OS modules in Platform" : ""} — and new projects arrive with the next era.</p>
+          // Every project in this era is researched and RP still flows — give the surplus a real,
+          // repeatable outlet (the developer keynote) alongside the remaining one-time sinks.
+          <div className="rd__bank-cta">
+            <p className="rd__bank-hint">
+              Every project here is researched. Spend RP on component tech below{state.platformUnlocked ? ", OS modules in Platform," : ""} or rally the community with a keynote{state.era < maxEra() ? " — new projects arrive with the next era" : ""}.
+            </p>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={rp < KEYNOTE_RP_COST}
+              onClick={() => { hostKeynote(); haptic.success(); }}
+            >
+              <Users size={14} /> Host keynote · {KEYNOTE_RP_COST} RP → +{KEYNOTE_FANS} fans, +{KEYNOTE_REP} rep
+            </Button>
+          </div>
         )}
       </Card>
 
@@ -400,7 +412,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           render (the EraRoadmap above already previews what's ahead), so a first-time researcher
           isn't staring at a wall of locked future-era project cards. */}
       <SectionHeader title="Research projects" accessory="evolve the company" />
-      {[1, 2, 3].filter((era) => era <= state.era).map((era) => {
+      {Array.from({ length: maxEra() }, (_, i) => i + 1).filter((era) => era <= state.era).map((era) => {
         const eraProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
         if (eraProjects.length === 0) return null;
         const eraLocked = era > state.era;

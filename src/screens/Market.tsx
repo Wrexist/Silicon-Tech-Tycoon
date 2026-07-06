@@ -12,7 +12,7 @@ import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
-import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
+import { dollars, format, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
@@ -33,12 +33,13 @@ import {
   nextWeekRevenue,
   osDisplayName,
   osTierInfo,
+  productStats,
   type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { REGIONS } from "../engine/regions.ts";
+import { REGIONS, regionById, regionTasteFit, shippableRegions } from "../engine/regions.ts";
 import { supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -269,26 +270,48 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length} open`} />
         <p className="mkt__regions-lead">Expand beyond your home market. Each region adds demand, but its buyers value different things, so design with your markets in mind.</p>
         <div className="mkt__region-list">
-          {REGIONS.map((r) => {
-            const open = state.unlockedRegions.includes(r.id);
-            const afford = state.cash >= r.unlockCost;
-            return (
-              <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`}>
-                <span className="mkt__region-icon">{open ? <Globe size={16} /> : <Lock size={15} />}</span>
-                <div className="mkt__region-text">
-                  <span className="mkt__region-name">{r.name}</span>
-                  <span className="mkt__region-blurb">{r.blurb}</span>
+          {(() => {
+            // Where this week's sales are coming from: each active product's weekly revenue,
+            // apportioned across its shipped regions by share × taste fit (the same weights that
+            // sized its launch). Keeps the card alive once every region is unlocked — an open
+            // region shows its contribution instead of a static "Open" tag.
+            const regionRev = new Map<string, number>();
+            for (const lp of state.launched) {
+              if (lp.weeksElapsed >= lp.weeklyUnits.length) continue;
+              const wkRev = lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price);
+              if (wkRev <= 0) continue;
+              const stats = productStats(state, lp.product);
+              const parts = shippableRegions(state.unlockedRegions, lp.product.regions)
+                .map((id) => { const r = regionById(id)!; return { id, w: r.share * regionTasteFit(stats, r) }; });
+              const total = parts.reduce((a, p) => a + p.w, 0) || 1;
+              for (const p of parts) regionRev.set(p.id, (regionRev.get(p.id) ?? 0) + (wkRev * p.w) / total);
+            }
+            return REGIONS.map((r) => {
+              const open = state.unlockedRegions.includes(r.id);
+              const afford = state.cash >= r.unlockCost;
+              const rev = regionRev.get(r.id) ?? 0;
+              return (
+                <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`}>
+                  <span className="mkt__region-icon">{open ? <Globe size={16} /> : <Lock size={15} />}</span>
+                  <div className="mkt__region-text">
+                    <span className="mkt__region-name">{r.name}</span>
+                    <span className="mkt__region-blurb">{r.blurb}</span>
+                  </div>
+                  {open ? (
+                    rev >= 1 ? (
+                      <span className="mkt__region-tag mkt__region-tag--rev tnum">≈{formatShortDollars(rev)}/wk</span>
+                    ) : (
+                      <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
+                    )
+                  ) : (
+                    <Button variant="secondary" disabled={!afford} onClick={() => unlockRegion(r.id)}>
+                      <Globe size={14} aria-hidden /> Unlock · {format(r.unlockCost)}
+                    </Button>
+                  )}
                 </div>
-                {open ? (
-                  <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
-                ) : (
-                  <Button variant="secondary" disabled={!afford} onClick={() => unlockRegion(r.id)}>
-                    <Globe size={14} aria-hidden /> Unlock · {format(r.unlockCost)}
-                  </Button>
-                )}
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </Card>
 

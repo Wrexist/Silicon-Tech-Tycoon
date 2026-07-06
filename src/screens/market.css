@@ -1635,6 +1635,8 @@
 .mkt__region-name { font-weight: 600; }
 .mkt__region-blurb { font-size: var(--fs-caption); color: var(--ink-2); }
 .mkt__region-tag { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+/* Live weekly-revenue contribution on an open region — a number, not a label. */
+.mkt__region-tag--rev { text-transform: none; letter-spacing: 0; color: var(--positive-text); }
 
 /* Supply-chain retrospective line in the product detail sheet */
 .pd__supply {

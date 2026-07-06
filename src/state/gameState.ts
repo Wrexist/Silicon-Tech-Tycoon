@@ -674,6 +674,7 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
+  (hasProject(s.completedProjects, "neuralMarketing") ? 0.25 : 0) +
   visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype;
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
@@ -695,6 +696,7 @@ export function productStats(s: GameState, product: Product): Stats {
   // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
+  if (hasProject(s.completedProjects, "aiCopilot")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 4;
   // Engineering Doctrine fork (Track D): the chosen house stamps a permanent stat identity on every
   // product. Mutually exclusive, so at most one of these ever applies.
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
@@ -876,7 +878,8 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   const lineMult = lineSpeedMult(s.factoryFloor, reqKinds);
   const contract = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * (product ? factorySpeedMult(product) : 1));
   const assembly = (lineMult < 1 ? Math.max(1, Math.floor(contract * lineMult)) : contract)
-    - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
+    - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0)
+    - (hasProject(s.completedProjects, "lightsOut") ? 1 : 0);
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
   // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
   const eraLead = eraModifier(s.era).leadWeeks;
@@ -913,6 +916,7 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   let unitCost = scale(buildCost(product), tuningCostMultiplier(product.tuning));
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
+  if (hasProject(s.completedProjects, "predictiveSupply")) unitCost = scale(unitCost, 0.90);
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   // Supplier relationship: repeat business earns a standing discount (engine/suppliers.ts). 0 when
@@ -2656,6 +2660,27 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
     researchPoints: state.researchPoints - proj.rpCost,
     completedProjects: [...state.completedProjects, id],
     feed: trimFeed(feed),
+  };
+}
+
+// Late-game repeatable RP sink: once the tree (and component tiers) are bought out, RP would
+// otherwise accrue forever with nothing to do. A developer keynote converts research momentum
+// into audience — fans + a point of reputation — repeatable at a real price, so an R&D-heavy
+// endgame company always has a lever to pull. Deterministic (no RNG); the sim never calls it.
+export const KEYNOTE_RP_COST = 150;
+export const KEYNOTE_FANS = 400;
+export const KEYNOTE_REP = 1;
+
+/** Host a developer keynote: spend RP, gain fans + reputation (capped at 100). Repeatable. */
+export function hostKeynote(state: GameState): GameState {
+  if (state.researchPoints < KEYNOTE_RP_COST) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Hosted a developer keynote — the community showed up.`, "positive")]);
+  return {
+    ...state,
+    researchPoints: state.researchPoints - KEYNOTE_RP_COST,
+    fans: state.fans + KEYNOTE_FANS,
+    reputation: Math.min(100, state.reputation + KEYNOTE_REP),
+    feed,
   };
 }
 
