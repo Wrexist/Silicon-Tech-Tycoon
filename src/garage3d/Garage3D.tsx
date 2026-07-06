@@ -907,13 +907,15 @@ const DESKTOP_ROW_Z = -2.2;
 const DESKTOP_SPACING = 1.95;
 // Floating desk labels: base height + a per-row zig-zag so adjacent labels sit at alternating
 // heights and never overlap into an unreadable pile when the team fills a row of desks.
-const LABEL_Y = 2.2;
-const LABEL_STAGGER = 0.62;
-// Two desk labels closer than this in BOTH world-x and world-z read as overlapping on screen, so
-// the later one is bumped up a height level. Tuned to the desk pitch (≈1.95) so same-row neighbours
-// separate while a label one full desk away is left at the base height.
-const LABEL_MIN_DX = 1.7;
-const LABEL_MIN_DZ = 1.5;
+const LABEL_Y = 2.05;
+const LABEL_STAGGER = 0.6;
+// Labels de-clutter in PROJECTED screen-x, not raw world x/z. Under the fixed office camera
+// (≈15.5, 13, 17.5 looking at the origin) the screen-right axis is ~0.75·x − 0.66·z, so two pills
+// overlap horizontally when this projection is close — regardless of which desk row they sit in.
+// (The old |dx| AND |dz| world test missed both same-row neighbours at the 1.95 desk pitch and
+// front/back labels that share a screen column, so the team piled into an unreadable stack.)
+const labelU = (x: number, z: number) => 0.75 * x - 0.66 * z;
+const LABEL_MIN_DU = 1.95; // projected-x gap below which two pills read as overlapping
 function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
@@ -979,15 +981,15 @@ const LABEL_BG = "rgba(255,255,255,0.94)";
 const LABEL_INK = "#1a1d23";
 const LABEL_INK_SOFT = "#6b7280";
 function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; label: string; sub: string; dot: string }) {
-  // Fixed screen-size UI chip (no distanceFactor → constant size), always rendered on top.
+  // Fixed screen-size UI chip (no distanceFactor → constant size), always rendered on top. Kept to
+  // ONE compact line — dot · Name · role — so a full team of pills stays narrow and short, laddering
+  // cleanly instead of piling into tall two-line badges that clip the card and each other.
   return (
     <Html position={pos} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 8px", background: LABEL_BG, borderRadius: 7, boxShadow: "0 1px 7px rgba(40,60,90,0.16)", whiteSpace: "nowrap", backdropFilter: "blur(4px)", transform: "translateY(-150%)" }}>
-        <div style={{ width: 7, height: 7, borderRadius: "50%", background: dot, flexShrink: 0 }} />
-        <div>
-          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: "var(--fs-micro)", fontWeight: 700, color: LABEL_INK, lineHeight: 1.25 }}>{label}</div>
-          <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", fontSize: "var(--fs-nano)", color: LABEL_INK_SOFT, lineHeight: 1.25 }}>{sub}</div>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 8px", background: LABEL_BG, borderRadius: 999, boxShadow: "0 1px 6px rgba(40,60,90,0.18)", whiteSpace: "nowrap", backdropFilter: "blur(4px)", transform: "translateY(-140%)", fontFamily: "system-ui,-apple-system,sans-serif" }}>
+        <div style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }} />
+        <span style={{ fontSize: "var(--fs-micro)", fontWeight: 700, color: LABEL_INK, lineHeight: 1.2 }}>{label}</span>
+        <span style={{ fontSize: "var(--fs-nano)", fontWeight: 600, color: LABEL_INK_SOFT, lineHeight: 1.2 }}>{sub}</span>
       </div>
     </Html>
   );
@@ -1711,27 +1713,25 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         <>
           <OfficeLabel pos={[-2.7, 2.0, 1.6]} label="Bank" sub="Tap for finances" dot="#34c759" />
           {/* Per-desk name + primary-discipline label for every occupied desk (placed desks first,
-              then the bought desktops). A flat zig-zag tied to seat ORDER let screen-adjacent labels
-              collide (a back-row name vanished behind a front-row one). Instead we sort ALL labels
-              left→right and greedily bump only the ones that would still overlap a near neighbour. */}
+              then the bought desktops). Labels ladder UP the moment they'd share a screen column, so
+              a full team reads as a clean staircase instead of a pile. Collision is measured in
+              projected screen-x (labelU), and the Bank pill seeds the stack so names clear it too. */}
           {(() => {
             const entries = [
               ...seated.map((s, i) => ({ s, w: worldOf(seats[i]), dot: ROBOT_COLORS[i % ROBOT_COLORS.length], key: s.id ?? `seat${i}` })),
               ...podStaff.map((s, i) => ({ s, w: podWorlds[i], dot: ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length], key: s.id ?? `pod${i}` })),
             ];
-            // Left→right (then back→front) so collisions are resolved in on-screen reading order.
-            entries.sort((a, b) => (a.w.x - b.w.x) || (a.w.z - b.w.z));
-            // Greedy de-clutter: a flat zig-zag tied to seat order let screen-adjacent labels collide
-            // (a name vanished behind its neighbour). Instead every label starts at the base height
-            // and is bumped UP one stagger only while it would still overlap an already-placed label
-            // that's close in BOTH x and z (i.e. near it on screen). Isolated desks stay at the base
-            // height; only a packed cluster stacks — so a full team reads cleanly with no pile-up.
-            const placed: { x: number; z: number; level: number }[] = [];
+            // Resolve columns left→right; within a shared column, the nearer (front) label takes the
+            // lower slot so the closest name sits in front and the rest step up behind it.
+            entries.sort((a, b) => (labelU(a.w.x, a.w.z) - labelU(b.w.x, b.w.z)) || ((b.w.x + b.w.z) - (a.w.x + a.w.z)));
+            // Seed with the Bank pill so staff labels sharing its column ladder above it, not over it.
+            const placed: { u: number; level: number }[] = [{ u: labelU(-2.7, 1.6), level: 0 }];
             return entries.map((e) => {
               const { label, sub } = deskLabel(e.s);
+              const u = labelU(e.w.x, e.w.z);
               let level = 0;
-              while (placed.some((q) => q.level === level && Math.abs(q.x - e.w.x) < LABEL_MIN_DX && Math.abs(q.z - e.w.z) < LABEL_MIN_DZ)) level++;
-              placed.push({ x: e.w.x, z: e.w.z, level });
+              while (placed.some((q) => q.level === level && Math.abs(q.u - u) < LABEL_MIN_DU)) level++;
+              placed.push({ u, level });
               const y = LABEL_Y + level * LABEL_STAGGER;
               return <OfficeLabel key={e.key} pos={[e.w.x, y, e.w.z]} label={label} sub={sub} dot={e.dot} />;
             });

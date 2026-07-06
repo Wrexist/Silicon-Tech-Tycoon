@@ -2033,3 +2033,15 @@ Four-part follow-up the player picked, in order. #1 + #2 landed:
       hot-glow, status strip, press ram + QA scan sheet track the same era colour; `FactoryMode`
       passes `era={state.era}`. Verified live at Era 4 (violet accent renders on the line).
 - Left: #3 office glow-up, #4 factory juice & progression. tsc 0, 735 tests, build+PWA green.
+
+## v90 — Office glow-up: the team reads cleanly (#3) (DONE 2026-07-06)
+- [x] **Non-overlapping staff labels**: a full team's floating name pills used to pile into an
+      unreadable stack. Root cause: the de-clutter collided in raw world x/z, which missed same-row
+      neighbours (desk pitch 1.95 > the old 1.7 threshold) and front/back labels sharing a screen
+      column. Now collision is measured in PROJECTED screen-x (`labelU = 0.75·x − 0.66·z`, derived
+      from the fixed office camera's right axis), so any two pills sharing a screen column ladder up
+      one height level — a clean staircase. The Bank pill seeds the stack so names clear it too.
+- [x] **Compact label pills**: single-line `dot · Name · role` chips (was a two-line badge) — narrower
+      and shorter, so a full roster stays inside the card and pills clear one another with room to spare.
+- Verified live: staged 7-person team renders as a readable ladder with no pile-up (was a solid
+      overlap before). tsc 0, 735 tests, build+PWA green.
