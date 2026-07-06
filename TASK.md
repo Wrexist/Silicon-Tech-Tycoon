@@ -2056,3 +2056,16 @@ Four-part follow-up the player picked, in order. #1 + #2 landed:
       so none auto-unlock at new-game — proven by a new deriveFacts test. They show as locked
       placeholders in the Progress hub and unlock on the weekly tick like every other milestone.
 - +6 tests (5 predicate cases + a starter-floor guard). tsc 0, 741 tests, build+PWA green.
+
+## v92 — First-run Factory tutorial (#4) (DONE 2026-07-06)
+- [x] **FactoryTutorial**: a 4-step first-run coach shown the first time the player opens Factory mode
+      — *Your production line* (material → machines → shipped flow), *Build the floor* (tap to place +
+      touch camera), *A good line ships faster* (keep the belt connected, add arms → faster builds,
+      ties to the v89 line-speed mechanic), *Make it yours* (Upgrades / Style / Expand). Mirrors the
+      Decorate coach exactly — same `.dtut*` card styling, portal, step dots, Escape-to-close — so the
+      two first-run coaches read as one system. Pure-vector visuals, no assets.
+- [x] Gated on a new `settings.factoryTutorialSeen` (a UI pref, survives a new company). Auto-shows
+      once; a **?** button in the Factory header replays it any time. The one-time camera hint is
+      suppressed on that first open (the coach already teaches the gesture), and the mode's
+      Escape-peel defers to the coach while it's open.
+- Verified live: coach renders + dismisses to the floor, replay button works. tsc 0, 741 tests, build+PWA green.

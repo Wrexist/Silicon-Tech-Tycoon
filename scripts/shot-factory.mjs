@@ -40,7 +40,19 @@ await p.evaluate(() => {
 });
 await p.waitForTimeout(1000);
 await p.click('button[aria-label="Open factory mode"]', { timeout: 6000 }).catch(() => {});
-await p.waitForTimeout(3500); // let the 3D line spin up + items travel
+
+// First open → the first-run Factory coach auto-shows. Capture it, then walk through + dismiss.
+await p.waitForTimeout(900);
+await p.screenshot({ path: resolve(outDir, "factory-tutorial.png") });
+console.log("shot factory-tutorial");
+for (let i = 0; i < 5; i++) {
+  const btn = await p.$('.dtut__btn--primary');
+  if (!btn) break;
+  await btn.click().catch(() => {});
+  await p.waitForTimeout(350);
+}
+
+await p.waitForTimeout(3200); // let the 3D line spin up + items travel
 await p.screenshot({ path: resolve(outDir, "factory-era4.png") });
 console.log("shot factory-era4");
 await browser.close();

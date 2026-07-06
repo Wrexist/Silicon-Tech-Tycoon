@@ -8,7 +8,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowUp, BarChart3, BatteryCharging, Bot, Boxes, Camera, ChevronDown, CodeXml, Cpu, Drill, Eraser,
-  FlaskConical, Hammer, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
+  FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
   Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
   TrafficCone, TriangleAlert, Truck, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
@@ -31,7 +31,8 @@ import { showToast } from "../design/toast.tsx";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
 import { MACHINE_DEFS, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
-import { useSettings } from "../state/settings.ts";
+import { useSettings, getSettings, setSettings } from "../state/settings.ts";
+import { FactoryTutorial } from "./FactoryTutorial.tsx";
 
 // three.js stays in its own lazy chunk (the garage3d rule); the SVG map is the fallback for
 // no-WebGL / reduced-motion / 3D-off, and the Suspense placeholder while the chunk loads.
@@ -193,14 +194,17 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // bumps this to re-frame. A one-time hint teaches the gesture on first open.
   const [resetView, setResetView] = useState(0);
   const [camHint, setCamHint] = useState(false);
+  // First-run Factory coach — shown once, the first time the player opens Factory mode. It already
+  // teaches the camera gestures, so the tiny cam-hint is suppressed on that same first open.
+  const [tutorial, setTutorial] = useState(() => !getSettings().factoryTutorialSeen);
   useEffect(() => {
-    if (!use3d) return;
+    if (!use3d || tutorial) return; // the tutorial covers the gesture on the very first open
     try { if (localStorage.getItem("silicon.factory.camhint") === "1") return; } catch { /* ignore */ }
     setCamHint(true);
     try { localStorage.setItem("silicon.factory.camhint", "1"); } catch { /* ignore */ }
     const t = setTimeout(() => setCamHint(false), 4200);
     return () => clearTimeout(t);
-  }, [use3d]);
+  }, [use3d, tutorial]);
   const { buyFloorMachine, buyFloorBelt, buyFactoryProp, clearFloorCell } = d.game;
   const lineOk = lineComplete(d.floor);
   const onTapCell = (c: number, r: number) => {
@@ -225,6 +229,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      // The tutorial owns Escape while it's open (it closes itself); don't also peel the mode.
+      if (tutorial) return;
       // Escape peels back one layer at a time: an open sheet, then the build tool, then the mode.
       if (sheet != null) setSheet(null);
       else if (buildTool != null) setBuildTool(null);
@@ -234,7 +240,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose, buildTool, sheet]);
+  }, [onClose, buildTool, sheet, tutorial]);
 
   const flow = sub(d.revenueWk, d.expensesWk);
   const flowD = toDollars(flow);
@@ -290,6 +296,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <Locate size={18} />
           </button>
         )}
+        <button className="fmode__icons" aria-label="How the factory works" title="How the factory works" onClick={() => { haptic.light(); setTutorial(true); }}>
+          <HelpCircle size={18} />
+        </button>
         <button className="fmode__close" aria-label="Close factory" onClick={() => { haptic.light(); onClose(); }}><X size={20} /></button>
       </div>
       {camHint && (
@@ -589,6 +598,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </div>
         </div>
       </Sheet>
+
+      <FactoryTutorial open={tutorial} onClose={() => { setTutorial(false); setSettings({ factoryTutorialSeen: true }); }} />
     </div>,
     document.body,
   );
