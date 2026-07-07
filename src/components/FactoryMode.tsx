@@ -16,6 +16,7 @@ import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost, autoConnectQuote } from "../state/gameState.ts";
 import { MAX_LAYOUTS, layoutDiff } from "../engine/factoryLayout.ts";
 import { appOverlayOpen } from "../design/overlayGuard.ts";
+import { lockScroll } from "../design/scrollLock.ts";
 import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.ts";
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
@@ -298,10 +299,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       else onClose();
     };
     window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose, buildTool, sheet, tutorial]);
+  // Lock background scroll for as long as the mode is mounted — a SEPARATE, mount-once effect so
+  // the frequently-re-running keydown effect above can't churn it, and ref-counted so an inner
+  // Sheet's own lock can't clobber ours and leak a permanent lock (stuck-scroll bug).
+  useEffect(() => lockScroll(), []);
 
   const flow = sub(d.revenueWk, d.expensesWk);
   const flowD = toDollars(flow);

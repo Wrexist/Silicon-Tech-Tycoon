@@ -529,6 +529,55 @@
   font-weight: 700;
   font-size: var(--fs-caption);
 }
+/* Design effort — a drag-to-set tier instead of a spammed stepper. */
+.lab__effort {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.lab__effort-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-6);
+}
+.lab__effort-tier {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--fn-design);
+}
+.lab__effort-of {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.lab__effort-max {
+  margin-left: auto;
+  padding: 6px 14px;
+  min-height: 32px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--fn-design) 16%, transparent);
+  color: var(--fn-design);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+.lab__effort-max:active {
+  transform: scale(0.94);
+}
+.lab__effort-bar {
+  display: flex;
+  gap: 3px;
+  height: 8px;
+}
+.lab__effort-pip {
+  flex: 1;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  transition: background 140ms ease;
+}
+.lab__effort-pip--on {
+  background: var(--fn-design);
+}
 .lab__swatches {
   display: flex;
   flex-wrap: wrap;

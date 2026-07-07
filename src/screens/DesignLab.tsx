@@ -187,7 +187,10 @@ function freshDraft(state: GameState): Product {
     finish: "aluminium",
     colorIndex: 0,
     price: dollars(499),
-    designTier: 1,
+    // Start at the highest design effort the current design staff can back — a premium studio
+    // shouldn't have to nudge a stepper up sixteen times before every build. The slider is there to
+    // dial it DOWN for a cheaper run, not to grind it up.
+    designTier: Math.max(1, designTierCeiling(state)),
     camera: defaultCameraDesign(),
     notch: "punch",
     refreshRate: 60,
@@ -1092,10 +1095,30 @@ export function DesignLab({
             </Card>
             <Card>
               <SectionHeader title="Design effort" accessory={`ceiling T${ceiling}`} />
-              <div className="lab__stepper lab__stepper--wide">
-                <button onClick={() => { haptic.light(); set({ designTier: Math.max(1, draft.designTier - 1) }); }} disabled={draft.designTier <= 1} aria-label="Lower design tier"><Minus size={16} /></button>
-                <span className="lab__stepper-val tnum" style={{ color: "var(--fn-design)" }}>Tier {draft.designTier}</span>
-                <button onClick={() => { haptic.light(); set({ designTier: Math.min(ceiling, draft.designTier + 1) }); }} disabled={draft.designTier >= ceiling} aria-label="Higher design tier"><Plus size={16} /></button>
+              <div className="lab__effort">
+                <div className="lab__effort-head">
+                  <span className="lab__effort-tier tnum">Tier {draft.designTier}</span>
+                  <span className="lab__effort-of">/ {ceiling}</span>
+                  {draft.designTier < ceiling && (
+                    <button className="lab__effort-max" onClick={() => { haptic.light(); set({ designTier: ceiling }); }}>Max out</button>
+                  )}
+                </div>
+                <div className="lab__effort-bar" aria-hidden>
+                  {Array.from({ length: ceiling }, (_, i) => (
+                    <span key={i} className={`lab__effort-pip${i < draft.designTier ? " lab__effort-pip--on" : ""}`} />
+                  ))}
+                </div>
+                {ceiling > 1 && (
+                  <Slider
+                    value={Math.min(draft.designTier, ceiling)}
+                    min={1}
+                    max={ceiling}
+                    step={1}
+                    ariaLabel="Design effort tier"
+                    accent="var(--fn-design)"
+                    onChange={(v) => set({ designTier: Math.min(ceiling, Math.max(1, v)) })}
+                  />
+                )}
               </div>
               <p className="lab__hint">Higher design effort raises the Design stat ceiling. Hire designers to lift the cap.</p>
             </Card>

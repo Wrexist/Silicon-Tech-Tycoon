@@ -920,7 +920,7 @@ const DESKTOP_ROW_Z = -2.2;
 const DESKTOP_SPACING = 1.95;
 // Floating desk labels: base height + a per-row zig-zag so adjacent labels sit at alternating
 // heights and never overlap into an unreadable pile when the team fills a row of desks.
-const LABEL_Y = 2.05;
+const LABEL_Y = 2.85; // sits clearly ABOVE the robots' heads so a pill never overlaps a body/desk
 const LABEL_STAGGER = 0.6;
 // Labels de-clutter in PROJECTED screen-x, not raw world x/z. Under the fixed office camera
 // (≈15.5, 13, 17.5 looking at the origin) the screen-right axis is ~0.75·x − 0.66·z, so two pills
@@ -929,7 +929,7 @@ const LABEL_STAGGER = 0.6;
 // front/back labels that share a screen column, so the team piled into an unreadable stack.)
 const labelU = (x: number, z: number) => 0.75 * x - 0.66 * z;
 // The Bank pill's fixed position — shared by the label AND the collision-stack seed so the two can't drift apart.
-const BANK_LABEL_POS: [number, number, number] = [-2.7, 2.0, 1.6];
+const BANK_LABEL_POS: [number, number, number] = [-2.7, 2.75, 1.6];
 const LABEL_MIN_DU = 1.95; // projected-x gap below which two pills read as overlapping
 function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));
