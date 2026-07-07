@@ -47,7 +47,7 @@ import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type M
 import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
 import { pickPoachTarget } from "../engine/poaching.ts";
 import { mentorshipXpMult } from "../engine/org.ts";
-import { accrueLoans, creditLimit, loanRate, makeLoan, type Loan } from "../engine/financing.ts";
+import { accrueLoans, creditLimit, loanRate, makeLoan, weeklyDebtService, type Loan } from "../engine/financing.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
   addItem as addFurniture,
@@ -690,6 +690,10 @@ export const facilityRent = (s: GameState): Money =>
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
 export const burn = (s: GameState): Money =>
   add(weeklyBurn(s.staff, facilityRent(s)), totalFactoryUpkeep(s.ownedFactories)) as Money;
+/** Total weekly cash OUTFLOW = operating burn + loan debt service. Display/solvency only (runway,
+ *  "cash running low"); the tick deducts burn and loan payments separately, so it must NOT use this. */
+export const weeklyOutflow = (s: GameState): Money =>
+  add(burn(s), cents(weeklyDebtService(s.loans ?? []))) as Money;
 export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + perkBonuses(s.legacy).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
@@ -1207,7 +1211,17 @@ function affordableRun(s: GameState, product: Product, channelId: ChannelId = "n
   // (tooling + channel) the rest funds units.
   const spendable = sub(sub(s.cash, reserve), add(probe.tooling, probe.channelCost));
   if (toDollars(probe.unitCost) <= 0) return BALANCE.build.maxRun;
-  const units = Math.floor(toDollars(spendable) / toDollars(probe.unitCost));
+  let units = Math.floor(toDollars(spendable) / toDollars(probe.unitCost));
+  // The linear estimate above ignores overtime, which a capacity-limited line adds on top. Shrink
+  // until the REAL plan (incl. overtime) fits within the reserve. Converges in a few steps and is a
+  // no-op for unlimited-capacity (standard) factories, where overtime is always 0.
+  const avail = toDollars(sub(s.cash, reserve));
+  for (let i = 0; i < 6 && units > 0; i++) {
+    const real = planProduction(s, product, units, channelId);
+    if (toDollars(real.totalUpfront) <= avail) break;
+    const over = toDollars(real.totalUpfront) - avail;
+    units -= Math.max(1, Math.ceil(over / toDollars(probe.unitCost)));
+  }
   return Math.max(0, units);
 }
 
@@ -1467,6 +1481,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let pendingStrike = state.pendingStrike ?? null;
   if (
     !pendingStrike &&
+    state.era >= 2 && // the Garage era is a protected learning sandbox — no strike interrupts
     contestedCats.size > 0 &&
     week - (state.lastStrikeWeek ?? -999) >= BALANCE.market.competition.strike.cooldownWeeks
   ) {
@@ -3500,13 +3515,14 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   if (!prev.pendingPoach && next.pendingPoach) return "A rival is poaching your staff";
   if (!prev.pendingStrike && next.pendingStrike) return "A rival is attacking your product";
   if (!prev.pendingSideOrder && next.pendingSideOrder) return "A client wants your factory line";
+  if (!prev.pendingAwards && next.pendingAwards) return "The Silicon Awards ceremony";
   // A paid-for recruiter shortlist EXPIRES — skipping past its arrival would waste the fee.
   if (next.candidates.length > 0 && prev.candidates.length === 0) return "Your recruiter's shortlist arrived";
   if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";
   const finished = (s: GameState) => s.launched.filter((l) => l.weeksElapsed >= l.weeklyUnits.length).length;
   if (finished(next) > finished(prev)) return "A product finished its run";
   const lowRunway = (s: GameState) => {
-    const b = toDollars(burn(s));
+    const b = toDollars(weeklyOutflow(s));
     return b > 0 && toDollars(s.cash) / b < 4;
   };
   if (!lowRunway(prev) && lowRunway(next)) return "Cash is running low";

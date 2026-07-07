@@ -181,7 +181,7 @@ function freshDraft(state: GameState): Product {
   const prevP = newestProduct(state);
   const base: Product = {
     id: "draft",
-    name: prevP ? suggestNextName(prevP.name) : "Aurora One",
+    name: prevP ? suggestNextName(prevP.name).slice(0, 22) : "Aurora One",
     category: "phone",
     tiers,
     finish: "aluminium",
@@ -216,6 +216,7 @@ function successorDraft(prev: Product): Product {
     name: suggestNextName(prev.name).slice(0, 22), // respect the name input's cap
     plannedUnits: undefined,
     channelId: undefined,
+    regions: undefined,
     // Run-specific baggage must NOT carry over: a defect penalty was the PREVIOUS run's
     // over-capacity gamble, not part of the design — inheriting it would silently corrupt
     // every successor's quality, compounding across generations.
@@ -398,8 +399,10 @@ export function DesignLab({
   const preview = missing.length === 0 ? planProduction(state, draft, BALANCE.build.minRun, "none") : null;
   const effectiveScore = preview ? preview.launchScore * preview.competitionFactor : breakdown.launchScore;
   const bands = verdictBands(state.era);
+  // Match launchReady's Hit Factory bonus (hit bar drops to 88%) so the projection agrees with launch.
+  const hitBar = state.completedProjects.includes("hitFactory") ? Math.round(bands.hit * 0.88) : bands.hit;
   const verdict =
-    effectiveScore >= bands.hit ? { label: "Projected hit", tone: "positive" as const }
+    effectiveScore >= hitBar ? { label: "Projected hit", tone: "positive" as const }
       : effectiveScore <= bands.flop ? { label: "Likely flop", tone: "negative" as const }
         : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
           : { label: "Steady seller", tone: "accent" as const };
@@ -424,9 +427,16 @@ export function DesignLab({
   }
 
   function openWizard() {
-    if (missing.length > 0 || state.bankrupt) {
+    // Gate the same things confirmBuild does, but up front — so an empty name (or missing part)
+    // is caught before the player steps through the whole wizard, not after.
+    if (missing.length > 0 || state.bankrupt || !draft.name.trim()) {
       haptic.error();
-      showToast(missing.length > 0 ? "Pick every component first." : "Company is bankrupt.", { tone: "negative", glyph: <AlertTriangle size={15} /> });
+      showToast(
+        missing.length > 0 ? "Pick every component first."
+          : state.bankrupt ? "Company is bankrupt."
+          : "Give your device a name before you build it",
+        { tone: "negative", glyph: <AlertTriangle size={15} /> },
+      );
       return;
     }
     haptic.light();
@@ -434,6 +444,11 @@ export function DesignLab({
   }
 
   function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[], strategy: CapacityStrategy) {
+    if (!draft.name.trim()) {
+      haptic.error();
+      showToast("Give your device a name before you build it", { tone: "negative", glyph: <AlertTriangle size={15} /> });
+      return;
+    }
     // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the
     // completion sheet can celebrate exactly what just shipped to the factory floor. Bake the chosen
     // capacity strategy and (for "defects") its run-size-dependent quality hit onto the product.
@@ -1545,11 +1560,11 @@ export function DesignLab({
         );
       })()}
 
-      <Sheet open={wizard} onClose={() => setWizard(false)}>
+      <Sheet open={wizard} onClose={() => setWizard(false)} label="Plan production run">
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}
       </Sheet>
 
-      <Sheet open={!!contractSheet} onClose={() => setContractSheet(null)}>
+      <Sheet open={!!contractSheet} onClose={() => setContractSheet(null)} label="Supplier contract">
         {contractSheet && (
           <ContractSheet
             supplierId={contractSheet}
@@ -1560,7 +1575,7 @@ export function DesignLab({
         )}
       </Sheet>
 
-      <Sheet open={!!completed} onClose={() => setCompleted(null)}>
+      <Sheet open={!!completed} onClose={() => setCompleted(null)} label="Build complete">
         {completed && (
           <DesignCompleteCard
             done={completed}
@@ -1575,7 +1590,7 @@ export function DesignLab({
         )}
       </Sheet>
 
-      <Sheet open={startPicker} onClose={() => setStartPicker(false)}>
+      <Sheet open={startPicker} onClose={() => setStartPicker(false)} label="Start from a design">
         {startPicker && <StartFromSheet state={state} onPick={startFrom} />}
       </Sheet>
     </div>

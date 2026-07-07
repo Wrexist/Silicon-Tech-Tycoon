@@ -121,6 +121,16 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
   );
 }
 
+/** The developer-keynote CTA — the repeatable surplus-RP sink. Shared so the "saving toward" and
+ *  "all researched" branches can't drift on copy/rewards. */
+function KeynoteButton({ rp, onHost }: { rp: number; onHost: () => void }) {
+  return (
+    <Button size="sm" variant="secondary" disabled={rp < KEYNOTE_RP_COST} onClick={onHost}>
+      <Users size={14} /> Host keynote · {KEYNOTE_RP_COST} RP → +{KEYNOTE_FANS} fans, +{KEYNOTE_REP} rep
+    </Button>
+  );
+}
+
 export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const { state, research, buyProject, hostKeynote, unlockLens, unlockFinish } = useGame();
   // Once many projects are complete, the full-blurb list grows into a long scroll. Default to a
@@ -196,6 +206,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             )}
           </div>
         ) : nextGoal ? (
+          <>
           <div className="rd__bank-goal">
             <div className="rd__bank-goal-head">
               <span className="rd__bank-goal-label">Saving toward</span>
@@ -210,6 +221,12 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               <span className="tnum">{goalPct}%</span>
             </div>
           </div>
+          {rp >= KEYNOTE_RP_COST && (
+            <div className="rd__bank-cta">
+              <KeynoteButton rp={rp} onHost={() => { hostKeynote(); haptic.success(); }} />
+            </div>
+          )}
+          </>
         ) : (
           // Every project in this era is researched and RP still flows — give the surplus a real,
           // repeatable outlet (the developer keynote) alongside the remaining one-time sinks.
@@ -217,14 +234,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             <p className="rd__bank-hint">
               Every project here is researched. Spend RP on component tech below{state.platformUnlocked ? ", OS modules in Platform," : ""} or rally the community with a keynote{state.era < maxEra() ? " — new projects arrive with the next era" : ""}.
             </p>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={rp < KEYNOTE_RP_COST}
-              onClick={() => { hostKeynote(); haptic.success(); }}
-            >
-              <Users size={14} /> Host keynote · {KEYNOTE_RP_COST} RP → +{KEYNOTE_FANS} fans, +{KEYNOTE_REP} rep
-            </Button>
+            <KeynoteButton rp={rp} onHost={() => { hostKeynote(); haptic.success(); }} />
           </div>
         )}
       </Card>

@@ -30,7 +30,7 @@ export function Bank({ open, onClose }: { open: boolean; onClose: () => void }) 
   const rpWk = weeklyRpGen(state);
 
   return (
-    <Sheet open={open} onClose={onClose}>
+    <Sheet open={open} onClose={onClose} label="Bank">
       <div className="bank">
         <div className="bank__head">
           <span className="bank__head-glyph" aria-hidden><Landmark size={18} /></span>

@@ -58,6 +58,7 @@ export interface AchievementFacts {
   listed: boolean; // company has IPO'd on the exchange
   wentPublic: boolean; // reached the industry pinnacle (endgame flag)
   rivalsInvested: number; // number of distinct rivals the player holds shares in
+  totalRivals: number; // rivals currently on the exchange (for "invest in every rival")
   staffCount: number; // current headcount
   completedProjects: number; // research projects completed
   biggestRun: number; // largest single production run (units) ever ordered
@@ -134,6 +135,7 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
   );
 
   const rivalsInvested = Object.values(state.holdings).filter((q) => (q ?? 0) > 0).length;
+  const totalRivals = state.competitors.length;
   const biggestRun = launched.reduce((max, lp) => Math.max(max, lp.plannedUnits ?? 0), 0);
   const flops = launched.filter((lp) => lp.verdict === "flop").length;
 
@@ -171,6 +173,7 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
     listed: state.listed,
     wentPublic: state.wentPublic,
     rivalsInvested,
+    totalRivals,
     staffCount: state.staff.length,
     completedProjects: state.completedProjects.length,
     biggestRun,
@@ -479,7 +482,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     description: "Shares in every rival on the exchange. You own the whole industry.",
     icon: "Globe",
     hint: "Invest in every competitor on the stock exchange.",
-    predicate: (f) => f.rivalsInvested >= 6,
+    predicate: (f) => f.totalRivals > 0 && f.rivalsInvested >= f.totalRivals,
   },
   {
     id: "ship-10",

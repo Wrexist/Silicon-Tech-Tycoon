@@ -452,7 +452,7 @@ interface GameActionsValue {
   // equity / stock market
   buyShares: (id: string, qty: number) => void;
   sellShares: (id: string, qty: number) => void;
-  acquireRival: (id: string) => void;
+  acquireRival: (id: string) => boolean;
   listCompany: (stake: number) => void;
   sellOwnStake: (pct: number) => void;
   cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
@@ -504,7 +504,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     seedFeedSeq(loaded);
     // The company doesn't exist until the player founds it: a save written at the onboarding
     // name screen must not accrue offline weeks (rent/trends would erode an unstarted game).
-    if (!loaded.onboarded) return { state: loaded, offline: null as OfflineSummary | null };
+    if (!loaded.onboarded || loaded.bankrupt) return { state: loaded, offline: null as OfflineSummary | null };
     const fansBefore = loaded.fans;
     const { state: caught, weeks, gain } = catchUpOffline(loaded);
     // F7 — don't punish a player for being away: pure weekly fan decay over the offline window
@@ -531,6 +531,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const [state, setState] = useState<GameState>(boot.state);
   const [paused, setPaused] = useState(false);
+  // Mirror `paused` into a ref so the visibility handler (bound once, [] deps) can read the live
+  // value — a background→foreground resume must NOT catch up wall-clock time while explicitly paused.
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const [fast, setFast] = useState(false);
   // "Skip to next decision" — run at Fast speed until a week produces something that needs the
   // player's input (skipInterrupt), then auto-pause with a one-line reason. Decision-paced time.
@@ -671,6 +675,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // of silently vanishing. Surfaces the "while you were away" sheet only for a real absence.
   const resumeFromBackground = useCallback(() => {
     if (tabBlockedRef.current) return;
+    if (pausedRef.current) {
+      // Explicitly paused → time is stopped. Discard the background gap (in memory AND on disk) so
+      // neither this warm resume nor a later cold boot fast-forwards the paused-and-away period.
+      const now = Date.now();
+      lastActiveRef.current = now;
+      const anchored = { ...stateRef.current, lastActive: now };
+      save(anchored);
+      lastSavedRef.current = anchored;
+      return;
+    }
     const base: GameState = { ...stateRef.current, lastActive: lastActiveRef.current };
     if (!base.onboarded || base.bankrupt) return;
     const fansBefore = base.fans;
@@ -829,6 +843,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const resolveStrikeCb = useCallback((choice: StrikeResponse) => {
     const prev = stateRef.current;
+    if (!prev.pendingStrike) return; // a second input (Escape + scrim in one frame) is a no-op, not an error
     const result = resolveStrike(prev, choice);
     if (!result.ok) {
       showToast(result.reason ?? "Can't do that right now", { tone: "negative" });
@@ -1046,12 +1061,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
   const sellSharesCb = useCallback((id: string, qty: number) => setState((s) => sellShares(s, id, qty)), []);
-  const acquireRivalCb = useCallback((id: string) => {
+  const acquireRivalCb = useCallback((id: string): boolean => {
     const prev = stateRef.current;
-    const next = withLiveAchievements(acquireRival(prev, id));
+    const base = acquireRival(prev, id);
+    if (base === prev) return false; // not allowed (stale button) — caller skips the celebration
+    const next = withLiveAchievements(base);
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
     setState(next);
+    return true;
   }, []);
   const listCompanyCb = useCallback((stake: number) => setState((s) => withLiveAchievements(listCompany(s, stake))), []);
   const sellOwnStakeCb = useCallback((pct: number) => setState((s) => sellOwnStake(s, pct)), []);

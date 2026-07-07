@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight, Flame, Rocket, Sparkles, Star, X } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { onLaunchReveal, type LaunchRevealData } from "../design/launchReveal.ts";
+import { onLaunchReveal, setLaunchRevealActive, type LaunchRevealData } from "../design/launchReveal.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { emitHqReaction } from "../design/hqReaction.ts";
 import { prefersReducedMotion } from "../garage3d/support.ts";
@@ -54,6 +55,17 @@ export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: 
   }), []);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  // While the reveal is up it's the top interrupt: register as an app overlay (so Factory mode
+  // defers Escape) and flag it active (so RivalStrike/AwardsCeremony defer instead of mounting
+  // invisibly behind it). Both released when the card closes.
+  const showing = data !== null;
+  useEffect(() => {
+    if (!showing) return;
+    setLaunchRevealActive(true);
+    const release = registerAppOverlay();
+    return () => { setLaunchRevealActive(false); release(); };
+  }, [showing]);
 
   const close = () => {
     if (!data) return;

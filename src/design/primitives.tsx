@@ -256,10 +256,14 @@ export function Sheet({
   open,
   onClose,
   children,
+  label,
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  /** Accessible name for the dialog (screen readers announce it on open). Required so a new Sheet
+   *  can't silently ship unnamed — the type system flags a missed adoption. */
+  label: string;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   // Drag-to-dismiss. On touch the WHOLE sheet is grabbable (gated on the scroll being at the top
@@ -361,6 +365,14 @@ export function Sheet({
     return () => window.clearTimeout(t);
   }, [open]);
   useDialogFocus(dialogRef, open);
+  // Lock background scroll while the sheet is up so touching the scrim / over-scrolling the content
+  // doesn't rubber-band or scroll the screen behind it (mirrors FactoryMode / the decorate editor).
+  useEffect(() => {
+    if (!open && !closing) return; // stay locked through the exit animation, not just while open
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open, closing]);
 
   if (!open && !closing) return null;
 
@@ -398,6 +410,7 @@ export function Sheet({
         style={!closing && offset ? { transform: `translateY(${offset}px)`, transition: dragging ? "none" : undefined } : undefined}
         role="dialog"
         aria-modal="true"
+        aria-label={label}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >

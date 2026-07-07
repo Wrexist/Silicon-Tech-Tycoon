@@ -1524,6 +1524,14 @@ body.hq-deco-open .hud,
 body.hq-deco-open .bnav {
   display: none;
 }
+/* The Shop editor is a fixed z-45 overlay nested inside the office world (`.hq__world`, whose
+   composited WebGL canvas + entrance animation give its wrapper a stacking context). That traps
+   the overlay's z below the HQ screen's own sibling cards (challenge, era, stats, coach, trackers),
+   which then bleed over the "full-screen" editor. Hide those siblings while the editor is open —
+   only the office world (which HOSTS the overlay) stays. Mirrors the .hud/.bnav hide above. */
+body.hq-deco-open .hq > *:not(.hq__world) {
+  display: none;
+}
 /* Seats-hint card: informational, not a buy action. Routes the player to the Decorate shop
    for desks. Subtle so it doesn't compete with the real upgrade lines. */
 .hqu__seats-hint {

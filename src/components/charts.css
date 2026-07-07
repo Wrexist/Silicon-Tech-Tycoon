@@ -23,6 +23,15 @@
   height: 0;
   flex-shrink: 0;
 }
+/* "In demand" marker — present only when the stat is hot, so it signals by presence, not colour. */
+.stat-row__hot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--positive);
+}
 .stat-row__arrow--up {
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;

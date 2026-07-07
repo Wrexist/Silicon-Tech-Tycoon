@@ -11,6 +11,7 @@ import {
   scoreLaunch,
   randomTrendTarget,
 } from "./market.ts";
+import { bestSegmentPerceived } from "./segments.ts";
 import { forecast } from "./salesCurve.ts";
 import { launchRpReward } from "./research.ts";
 import { runwayWeeks, isBankrupt, salaryFor, discountedRd } from "./economy.ts";
@@ -232,6 +233,19 @@ describe("market simulation", () => {
     expect(toDollars(z.lo)).toBeGreaterThan(0);
     expect(toDollars(z.lo)).toBeLessThanOrEqual(toDollars(z.fair));
     expect(toDollars(z.fair)).toBeLessThanOrEqual(toDollars(z.hi));
+  });
+
+  it("price guidance nudges a specialised design up, leaves a balanced one alone (segment lift, B)", () => {
+    const v2p = toDollars(BALANCE.market.price.valueToPrice);
+    // A perfectly balanced product: every segment fits it equally, so there's no best-fit lift.
+    const balanced = { performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 } as Stats;
+    expect(bestSegmentPerceived(balanced, "phone")).toBeCloseTo(overallScore(balanced, "phone"), 5);
+    expect(toDollars(priceGuidance(balanced, "phone").fair)).toBe(Math.round(overallScore(balanced, "phone") * v2p));
+    // A design-led (lopsided) product: the Style segment values its standout stat far above the
+    // all-round average, so guidance sits ABOVE the raw overall-based fair — never below it.
+    const lopsided = { performance: 30, quality: 55, battery: 30, design: 100, ecosystem: 55 } as Stats;
+    expect(bestSegmentPerceived(lopsided, "phone")).toBeGreaterThan(overallScore(lopsided, "phone"));
+    expect(toDollars(priceGuidance(lopsided, "phone").fair)).toBeGreaterThan(Math.round(overallScore(lopsided, "phone") * v2p));
   });
 
   it("trend shifts change which product wins", () => {

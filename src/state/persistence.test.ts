@@ -498,3 +498,37 @@ describe("lensLimit backfill — old saves keep every lens count they used", () 
     expect(back!.lensLimit).toBe(2);
   });
 });
+
+describe("F9 — id counters backfill from max existing id, never the surviving count", () => {
+  it("productCounter/staffCounter exceed every id even after entries were removed", async () => {
+    const base = newGame(42);
+    const founder = base.staff[0]; // "s0"
+    const prod = (id: string): Product => ({
+      id, name: "Aurora", category: "phone", tiers: { chip: 1, display: 1, battery: 1, materials: 1, software: 1, camera: 1 },
+      finish: "aluminium", colorIndex: 0, price: dollars(699), designTier: 1, notch: "punch",
+      camera: { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
+    });
+    // Simulate an old save: hired s1,s2,s3 then FIRED s1,s2 (survivors s0,s3 → true counter was 4);
+    // shipped prod-1…prod-5 (true counter was 6). Then the counters go missing on load.
+    const raw: Record<string, unknown> = {
+      ...base,
+      staff: [founder, { ...founder, id: "s3", name: "Devin" }],
+      launched: [1, 5, 3].map((n) => ({
+        product: prod(`prod-${n}`), launchWeek: 1, weeksElapsed: 1, weeklyUnits: [10], totalUnits: 10,
+        unitsSold: 0, revenueToDate: dollars(0), unitCost: dollars(100),
+        stats: { performance: 50, quality: 50, battery: 50, design: 50, ecosystem: 10 }, verdict: "solid", launchScore: 60,
+      })),
+    };
+    delete raw.productCounter;
+    delete raw.staffCounter;
+    mem.setItem(SAVE_KEY, JSON.stringify(raw));
+
+    const { load } = await freshPersistence();
+    const loaded = load()!;
+    expect(loaded).not.toBeNull();
+    // Surviving staff count is 2, but the max minted id was s3 → next must be s4, not s2 (collision).
+    expect(loaded.staffCounter).toBe(4);
+    // Max shipped id was prod-5 → next must be prod-6, not prod-1 (the length-agnostic seed).
+    expect(loaded.productCounter).toBe(6);
+  });
+});

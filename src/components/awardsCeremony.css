@@ -1,5 +1,6 @@
 /* The Silicon Awards ceremony — gold-tinted modal, one notch above the strike/ready popups so an
-   award night on a busy week takes the stage. */
+   award night on a busy week takes the stage. Premium reveal: a medallion drops in, the winners
+   stagger up, and a home win glows + shimmers gold. */
 .awd {
   position: fixed;
   inset: 0;
@@ -28,47 +29,113 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-12);
-  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  gap: var(--sp-10);
+  padding: var(--sp-28) var(--sp-20) var(--sp-20);
   border-radius: var(--r-sheet);
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--gold, #d9a824) 40%, var(--hairline));
+  background:
+    radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--gold, #d9a824) 16%, transparent), transparent 60%),
+    var(--surface);
+  border: 1px solid color-mix(in srgb, var(--gold, #d9a824) 42%, var(--hairline));
   box-shadow: var(--shadow-floating);
   text-align: center;
   animation: awd-pop var(--spring-standard) both;
 }
+/* A clean sweep earns an animated gold rim. */
+.awd__card--sweep {
+  border-color: color-mix(in srgb, var(--gold, #d9a824) 70%, transparent);
+  box-shadow: var(--shadow-floating), 0 0 0 1px color-mix(in srgb, var(--gold, #d9a824) 40%, transparent), 0 0 34px -6px color-mix(in srgb, var(--gold, #d9a824) 55%, transparent);
+}
 @keyframes awd-pop {
-  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  from { opacity: 0; transform: translateY(14px) scale(0.95); }
   to { opacity: 1; transform: none; }
 }
+
+/* The medallion drops in and settles with a gentle overshoot. */
+.awd__medallion {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 54px; height: 54px; border-radius: 50%;
+  color: var(--gold, #d9a824);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--gold, #d9a824) 30%, var(--surface)), color-mix(in srgb, var(--gold, #d9a824) 12%, var(--surface)));
+  border: 1.5px solid color-mix(in srgb, var(--gold, #d9a824) 55%, transparent);
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--gold, #d9a824) 70%, transparent);
+  animation: awd-drop var(--spring-bounce, var(--spring-standard)) both;
+}
+@keyframes awd-drop {
+  from { opacity: 0; transform: translateY(-14px) scale(0.6); }
+  60% { opacity: 1; transform: translateY(2px) scale(1.06); }
+  to { opacity: 1; transform: none; }
+}
+
 .awd__eyebrow {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: var(--fs-caption); font-weight: 700;
+  font-size: var(--fs-caption); font-weight: 800; letter-spacing: 0.02em;
   color: var(--gold, #d9a824);
 }
 .awd__title { margin: 0; font-size: var(--fs-title, var(--fs-headline)); font-weight: 800; letter-spacing: -0.02em; }
-.awd__sub { margin: 0; font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
+.awd__sub { margin: 0 0 var(--sp-4); font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
 
 .awd__list { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); }
 .awd__row {
+  position: relative;
+  overflow: hidden;
   display: flex; align-items: center; gap: var(--sp-10); text-align: left;
   padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
   border: 1px solid var(--hairline); background: var(--surface-2);
+  animation: awd-row-in var(--spring-standard) both;
+  animation-delay: calc(120ms + var(--i) * 95ms);
+}
+@keyframes awd-row-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
 }
 .awd__row--win {
-  border-color: color-mix(in srgb, var(--gold, #d9a824) 55%, transparent);
-  background: color-mix(in srgb, var(--gold, #d9a824) 10%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--gold, #d9a824) 60%, transparent);
+  background: color-mix(in srgb, var(--gold, #d9a824) 12%, var(--surface-2));
+}
+/* Gold shimmer sweeps across a home win once it has settled in. */
+.awd__row--win::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--gold, #d9a824) 32%, transparent) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: awd-shimmer 1500ms ease-in-out both;
+  animation-delay: calc(360ms + var(--i) * 95ms);
+  pointer-events: none;
+}
+@keyframes awd-shimmer {
+  to { transform: translateX(120%); }
 }
 .awd__row-glyph {
-  width: 34px; height: 34px; flex-shrink: 0;
+  width: 36px; height: 36px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-pill);
   background: var(--bg-elevated); color: var(--ink-2);
 }
-.awd__row--win .awd__row-glyph { background: color-mix(in srgb, var(--gold, #d9a824) 20%, transparent); color: var(--gold, #d9a824); }
-.awd__row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.awd__row--win .awd__row-glyph {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--gold, #d9a824) 34%, transparent), color-mix(in srgb, var(--gold, #d9a824) 16%, transparent));
+  color: var(--gold, #d9a824);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold, #d9a824) 45%, transparent);
+}
+.awd__row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; z-index: 1; }
 .awd__row-title { font-size: var(--fs-micro); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+.awd__row--win .awd__row-title { color: color-mix(in srgb, var(--gold, #d9a824) 75%, var(--ink)); }
 .awd__row-winner { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.awd__row-score { flex-shrink: 0; font-weight: 800; color: var(--ink-2); }
+.awd__row-score { flex-shrink: 0; font-size: var(--fs-headline); font-weight: 800; color: var(--ink-2); z-index: 1; }
+.awd__row--win .awd__row-score { color: var(--gold, #d9a824); }
 
-.awd__payout { margin: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--positive-text, var(--positive)); }
+.awd__payout {
+  margin: var(--sp-2) 0 0; display: inline-flex; gap: var(--sp-8);
+  animation: awd-row-in var(--spring-standard) both; animation-delay: 480ms;
+}
+.awd__payout-chip {
+  display: inline-flex; align-items: center;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  font-size: var(--fs-caption); font-weight: 800;
+  color: var(--positive-text, var(--positive));
+  background: color-mix(in srgb, var(--positive) 12%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awd__card, .awd__medallion, .awd__row, .awd__payout { animation: none; }
+  .awd__row--win::after { display: none; }
+}

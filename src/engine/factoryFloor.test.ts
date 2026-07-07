@@ -280,4 +280,16 @@ describe("F3 — line completeness + demolition refund", () => {
     expect(demolitionRefund(f, 5, 2)).toBe(Math.round(BELT_COST / 2)); // belt tile
     expect(demolitionRefund(f, 9, 9)).toBe(0); // empty
   });
+
+  // F1 guard: the router must never hand back a floor whose line doesn't actually run — otherwise
+  // autoConnectQuote prices it and the player pays BELT_COST for an offline line.
+  it("autoRouteBelts never returns an incomplete line (degenerate Intake/Packer gap)", async () => {
+    const { autoRouteBelts, lineComplete, placeMachine } = await import("./factoryFloor.ts");
+    // Intake and Packer one free column apart — the case that used to produce a single belt tile.
+    let f = placeMachine({ machines: [], belts: [] }, "intake", 0, 0, "i")!;
+    f = placeMachine(f, "packer", 3, 0, "p")!;
+    const routed = autoRouteBelts(f);
+    // Either it declines (null) or it wired a genuinely complete line — never a charged-but-offline one.
+    expect(routed === null || lineComplete(routed)).toBe(true);
+  });
 });

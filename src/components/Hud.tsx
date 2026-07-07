@@ -3,7 +3,7 @@ import { AnimatedInt, AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
 import { runwayWeeks } from "../engine/economy.ts";
-import { burn, nextWeekRevenue } from "../state/gameState.ts";
+import { weeklyOutflow, nextWeekRevenue } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./hud.css";
 
@@ -18,7 +18,7 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: ()
   // Critical-runway signal: the HQ/Company runway pills live below the fold, so when cash will
   // run out within a month the always-visible headline number itself turns negative. Same math
   // as the HQ pill (burn vs next week's revenue); sandbox's cash floor never gets here.
-  const runway = runwayWeeks(state.cash, burn(state), nextWeekRevenue(state));
+  const runway = runwayWeeks(state.cash, weeklyOutflow(state), nextWeekRevenue(state));
   const critical = runway < 4;
   return (
     <header className="hud">

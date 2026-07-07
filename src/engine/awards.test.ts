@@ -88,6 +88,23 @@ describe("judgeAwards", () => {
     expect(a.playerWins).toBeLessThan(a.winners.length);
   });
 
+  it("an unknown startup can't take Device of the Year over an established brand's modest release", () => {
+    // Player ships a merely-decent first device (overall ~45); Pomelo (rep 72) ships a 40-overall
+    // release. Raw overall would hand the player the trophy — the brand floor (round(72×0.85)=61)
+    // keeps the top prize with the established brand until the player builds a true flagship.
+    const startup = launchedAt(30, { performance: 45, quality: 45, battery: 45, design: 45, ecosystem: 45 }, { name: "Aurora Three" });
+    const brandModest = rivalAt(20, 40, "Lumen 3");
+    const a = judgeAwards(52, [startup], [brandModest], "Silicon")!;
+    const device = a.winners.find((w) => w.categoryId === "device")!;
+    expect(device.byPlayer).toBe(false);
+    expect(device.companyName).toBe("Pomelo");
+    expect(device.score).toBe(61);
+    // But a genuine flagship (overall clears the floor) does win it back.
+    const flagship = launchedAt(30, { performance: 85, quality: 85, battery: 85, design: 85, ecosystem: 85 }, { name: "Aurora Max" });
+    const b = judgeAwards(52, [flagship], [brandModest], "Silicon")!;
+    expect(b.winners.find((w) => w.categoryId === "device")!.byPlayer).toBe(true);
+  });
+
   it("value champion rewards quality per dollar (cheap + decent beats pricey + great)", () => {
     // Rival: overall 80 at $400 → 20 value index. Player: overall ~50 at $100 → ~50.
     const cheap = launchedAt(30, {}, { name: "Aurora Lite", price: dollars(100) });

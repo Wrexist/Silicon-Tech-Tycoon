@@ -44,6 +44,7 @@ import {
   nextWeekRevenue,
   restCost,
   weeklyEcosystemRevenue,
+  weeklyOutflow,
   weeklyRpGen,
   type GameState,
 } from "../state/gameState.ts";
@@ -121,13 +122,15 @@ export function Company() {
   // product — or is a returning prestige founder — so a day-one garage isn't buried under
   // systems before the core design→launch loop is learned.
   const hasShipped = state.launched.length >= 1 || state.legacy > 0;
-  const wkBurn = burn(state);
+  const wkBurn = burn(state); // operating burn only (payroll + rent + lines) — for the itemised view
+  const wkOut = weeklyOutflow(state); // the TRUE weekly outflow: burn + loan debt service
+  const wkDebt = sub(wkOut, wkBurn); // debt service alone, for the breakdown line
   const wkPayroll = weeklyPayroll(state.staff);
   const wkRent = facilityRent(state);
   const wkUpkeep = totalFactoryUpkeep(state.ownedFactories);
   const wkRev = nextWeekRevenue(state);
   const ecoRev = weeklyEcosystemRevenue(state);
-  const runway = runwayWeeks(state.cash, wkBurn, wkRev);
+  const runway = runwayWeeks(state.cash, wkOut, wkRev);
   const cashData = state.cashHistory.map((h) => h.cash);
   // Margin, not revenue (units × (price − unitCost)) — labelled "profit/wk" in the row so it
   // can't be confused with the revenue/wk figures HQ Performance and Market show for the same
@@ -166,7 +169,7 @@ export function Company() {
             tone={runwayTone(runway)}
           />
           {(() => {
-            const net = sub(wkRev, wkBurn);
+            const net = sub(wkRev, wkOut); // net of the FULL outflow, so it agrees with Runway
             const netD = toDollars(net);
             return (
               <Stat
@@ -188,8 +191,8 @@ export function Company() {
         <div className="co__spark">
           <Sparkline data={cashData} stroke={state.cash >= 0 ? "var(--accent)" : "var(--negative)"} />
         </div>
-        {wkBurn > 0 && (() => {
-          const weeklyNet = toDollars(sub(wkRev, wkBurn));
+        {toDollars(wkOut) > 0 && (() => {
+          const weeklyNet = toDollars(sub(wkRev, wkOut));
           const weeks = 8;
           const bars: number[] = [];
           let cash = toDollars(state.cash);
@@ -218,16 +221,19 @@ export function Company() {
             </div>
           );
         })()}
-        {(state.staff.length > 0 || wkUpkeep > 0) && (
+        {(state.staff.length > 0 || wkUpkeep > 0 || toDollars(wkDebt) > 0) && (
           <p className="co__burn-breakdown">
-            Payroll {format(wkPayroll)} · Rent {format(wkRent)}{wkUpkeep > 0 ? ` · Lines ${format(wkUpkeep)}` : ""} weekly
+            Payroll {format(wkPayroll)} · Rent {format(wkRent)}{wkUpkeep > 0 ? ` · Lines ${format(wkUpkeep)}` : ""}{toDollars(wkDebt) > 0 ? ` · Debt ${format(wkDebt)}` : ""} weekly
           </p>
         )}
-        {runway > 20 && Math.min(fac.staffCapacity, deskCapacity(state)) > state.staff.length && (
-          <p className="co__hire-hint">
-            {deskCapacity(state) - state.staff.length} open desk{deskCapacity(state) - state.staff.length > 1 ? "s" : ""}, runway supports a new hire
-          </p>
-        )}
+        {(() => {
+          const openDesks = Math.min(fac.staffCapacity, deskCapacity(state)) - state.staff.length;
+          return runway > 20 && openDesks > 0 && (
+            <p className="co__hire-hint">
+              {openDesks} open desk{openDesks > 1 ? "s" : ""}, runway supports a new hire
+            </p>
+          );
+        })()}
         {state.launched.length > 0 && (
           <div className="co__track">
             {state.launched.slice(-16).map((lp) => {
@@ -390,11 +396,11 @@ export function Company() {
       )}
       <RecruitPanel state={state} capacity={Math.min(fac.staffCapacity, deskCapacity(state))} noDesk={state.staff.length >= deskCapacity(state)} onRecruit={recruit} onHire={hireCandidate} onDismiss={dismissCandidates} />
 
-      <Sheet open={statsOpen} onClose={() => setStatsOpen(false)}>
+      <Sheet open={statsOpen} onClose={() => setStatsOpen(false)} label="Company stats">
         <StatsSheet state={state} onClose={() => setStatsOpen(false)} />
       </Sheet>
 
-      <Sheet open={platformOpen} onClose={() => setPlatformOpen(false)}>
+      <Sheet open={platformOpen} onClose={() => setPlatformOpen(false)} label="Found a platform">
         <PlatformSheet onClose={() => setPlatformOpen(false)} />
       </Sheet>
 
@@ -633,7 +639,9 @@ function DelegationCard({
                     ? r.sub
                     : needsDivision
                       ? <>Research <b>{project.name}</b> ({project.rpCost} RP) to open this division.</>
-                      : <><b>{project.name}</b> is open. Recruit a {roleLabel} to run it.</>}
+                      : enabled
+                        ? <>Paused — recruit a {roleLabel} to resume it.</>
+                        : <><b>{project.name}</b> is open. Recruit a {roleLabel} to run it.</>}
                 </span>
                 {needsHire && (
                   <button
@@ -1249,8 +1257,8 @@ function Member({
           return (
             <div key={d} className="co__cand-skill" style={active ? undefined : { opacity: 0.5 }}>
               <span className="co__cand-skill-label">{DISCIPLINE_LABEL[d]}</span>
-              <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${s.skills[d]}%`, background: DISCIPLINE_COLOR[d] }} /></span>
-              <span className="co__cand-skill-num tnum">{s.skills[d]}</span>
+              <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${s.skills[d] ?? 0}%`, background: DISCIPLINE_COLOR[d] }} /></span>
+              <span className="co__cand-skill-num tnum">{s.skills[d] ?? 0}</span>
             </div>
           );
         })}
@@ -1476,8 +1484,8 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
         {disciplines.map((d) => (
           <div key={d} className="co__cand-skill">
             <span className="co__cand-skill-label">{DISCIPLINE_LABEL[d]}</span>
-            <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${c.skills[d]}%`, background: DISCIPLINE_COLOR[d] }} /></span>
-            <span className="co__cand-skill-num tnum">{c.skills[d]}</span>
+            <span className="co__cand-bar"><span className="co__cand-bar-fill" style={{ width: `${c.skills[d] ?? 0}%`, background: DISCIPLINE_COLOR[d] }} /></span>
+            <span className="co__cand-skill-num tnum">{c.skills[d] ?? 0}</span>
           </div>
         ))}
       </div>

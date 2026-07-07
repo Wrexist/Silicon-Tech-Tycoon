@@ -236,6 +236,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     const t = setTimeout(() => setCancelArm(false), 4000);
     return () => clearTimeout(t);
   }, [cancelArm]);
+  // Disarm the bay whenever the floor actually grows — buying an expansion via the Style sheet
+  // would otherwise leave the arm live, so one stray bay tap buys the NEXT tier with no confirm.
+  useEffect(() => { setExpandArm(false); }, [state.factoryExpansion]);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
   // Camera: drag/touch to orbit, pinch to zoom (Factory3D owns OrbitControls); the recenter button
@@ -461,7 +464,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               </p>
               {!can && (
                 <p className="fmode__sideorder-warn">
-                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]].name} on the floor.`}
+                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]]?.name ?? "machine"} on the floor.`}
                 </p>
               )}
               <div className="fmode__sideorder-actions">
@@ -679,7 +682,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       )}
 
       {/* sheets */}
-      <Sheet open={sheet === "upgrades"} onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "upgrades"} onClose={() => setSheet(null)} label="Factory upgrades">
         <div className="fmode__sheet">
           <h3 className="fmode__sheet-title">Factory upgrades</h3>
           <div className="fmode__upline">
@@ -706,7 +709,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         </div>
       </Sheet>
 
-      <Sheet open={sheet === "stats"} onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "stats"} onClose={() => setSheet(null)} label="Factory stats">
         <div className="fmode__sheet">
           <h3 className="fmode__sheet-title">Factory stats</h3>
           <div className="fmode__stat"><span>Line</span><span>{d.fac.name} · {d.fac.kind === "owned" ? "owned" : "contract"}</span></div>
@@ -742,7 +745,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         </div>
       </Sheet>
 
-      <Sheet open={sheet === "shop"} onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "shop"} onClose={() => setSheet(null)} label="Machine shop">
         <div className="fmode__sheet">
           <h3 className="fmode__sheet-title">Machine shop</h3>
           <p className="fmode__sheet-note">Production lines you can contract or buy outright — pick per product in the Design Lab's Advanced sourcing.</p>
@@ -762,7 +765,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         </div>
       </Sheet>
 
-      <Sheet open={sheet === "decor"} onClose={() => { setSheet(null); setConfirmLayout(null); }}>
+      <Sheet open={sheet === "decor"} onClose={() => { setSheet(null); setConfirmLayout(null); }} label="Style the building">
         <div className="fmode__sheet">
           <h3 className="fmode__sheet-title">Style the building</h3>
           <span className="fmode__decor-label">Wall paint</span>

@@ -41,12 +41,14 @@ function activeLaunched(p: Product, weeks = 6): LaunchedProduct {
   };
 }
 
-/** A state where the FIRST competitor launches this week into the player's active categories. */
-function contestedState(seed = 10): GameState {
+/** A state where the FIRST competitor launches this week into the player's active categories.
+ *  Seed 1 lands the era-2 launch in the player's phone category (strikes are gated to era ≥ 2). */
+function contestedState(seed = 1): GameState {
   const s0 = newGame(seed);
   const tablet: Product = { ...phone(), id: "t1", name: "Slate One", category: "tablet" };
   return {
     ...s0,
+    era: 2, // strikes are gated off the Garage era (era 1) — this fixture tests the strike itself
     cash: dollars(500_000),
     nextEventWeek: 9_999,
     launched: [activeLaunched(phone()), activeLaunched(tablet)],

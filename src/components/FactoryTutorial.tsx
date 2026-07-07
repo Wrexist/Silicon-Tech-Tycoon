@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { useDialogFocus } from "../design/primitives.tsx";
 // Reuses the Decorate tutorial's card styling (.dtut*) so both first-run coaches read as one system.
 import "./decorateTutorial.css";
 
@@ -136,9 +137,9 @@ export function FactoryTutorial({ open, onClose }: { open: boolean; onClose: () 
   // an onClose ref) so an ongoing parent re-render doesn't re-run this and yank focus off Back/Next.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  useDialogFocus(cardRef, open); // trap Tab within the dialog + restore focus to the opener on close
   useEffect(() => {
     if (!open) return;
-    cardRef.current?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCloseRef.current(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

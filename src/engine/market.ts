@@ -4,6 +4,7 @@ import { BALANCE } from "./balance.ts";
 import { CATEGORIES } from "./catalogs.ts";
 import { dollars, toDollars, type Money } from "./money.ts";
 import { overallScore } from "./product.ts";
+import { bestSegmentPerceived } from "./segments.ts";
 import type { Rng } from "./rng.ts";
 import {
   STAT_KEYS,
@@ -96,7 +97,12 @@ export function priceFit(price: Money, stats: Stats, category: CategoryId): numb
  *  player's margin-vs-volume call (under fair adds a small volume boost; over fair pads margin). */
 export function priceGuidance(stats: Stats, category: CategoryId): { lo: Money; fair: Money; hi: Money } {
   const p = BALANCE.market.price;
-  const perceived = overallScore(stats, category); // 0..100
+  const overall = overallScore(stats, category); // 0..100, all-round value
+  // A standout stat lets a specialised design command more than its all-round average implies —
+  // the market sells through segments, and the best-fit segment values that stat highly. Nudge the
+  // fair price partway toward that segment's perceived value; never BELOW the all-round baseline,
+  // so a balanced product is unaffected and the advice only ever adds headroom for specialists.
+  const perceived = overall + p.segmentLift * Math.max(0, bestSegmentPerceived(stats, category) - overall);
   const fairDollars = Math.max(1, perceived * toDollars(p.valueToPrice));
   // fit = exp(−dev²/(2·tol²)) ≥ floor  ⇔  |dev| ≤ tol·√(2·ln(1/floor))
   const halfWidth = p.tolerance * Math.sqrt(2 * Math.log(1 / p.guidanceFitFloor));

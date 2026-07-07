@@ -2,7 +2,7 @@
 // selling (the entry haircut already landed). This card turns that from a feed line into a
 // decision: cut price, fire a discounted counter-campaign, or hold the line. Mounted once in App;
 // mirrors ReadyToLaunch's shell (pause the sim, register as an app overlay, Escape = hold).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Megaphone, Shield, Swords, TrendingDown } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { useDialogFocus } from "../design/primitives.tsx";
@@ -10,6 +10,7 @@ import { useGame } from "../state/useGame.tsx";
 import { marketingPushQuote } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { format, sub, cents, type Money } from "../engine/money.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { haptic } from "../design/haptics.ts";
@@ -22,14 +23,17 @@ export function RivalStrike() {
   const dialogRef = useRef<HTMLDivElement>(null);
   // Serialize the full-screen interrupts so only one owns the screen (pause + Escape) at a time.
   // The launch reveal is the player's own payoff and always wins, so a strike waits behind any
-  // unclaimed ready build; state keeps pendingStrike, so the card pops once the launch sheet clears.
+  // unclaimed ready build AND behind the bus-driven reveal itself (which leaves the `ready` shelf
+  // the instant "Launch now" is tapped); state keeps pendingStrike, so the card pops once it clears.
   const readyUp = state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
+  useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
 
   // Pause while the card is up (same contract as ReadyToLaunch): the attack shouldn't keep
   // eroding the curve while the player weighs the answer. Restore their prior run state after.
   const pausedByUs = useRef(false);
   const wasPaused = useRef(false);
-  const showing = strike !== null && !readyUp;
+  const showing = strike !== null && !readyUp && !revealUp;
   useEffect(() => {
     if (showing) {
       if (!pausedByUs.current) {

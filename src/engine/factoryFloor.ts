@@ -402,7 +402,11 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w, bloc
     }
     return { c: cell[0], r: cell[1], dir: best };
   });
-  return { ...floor, belts };
+  // Guard: a route that doesn't actually wire Intake→Packer (e.g. a single tile when the two sit
+  // one cell apart) must return null, not a floor. autoConnectQuote reads this to price + arm the
+  // Auto tile, so returning an incomplete line would charge BELT_COST for a line that never runs.
+  const routed = { ...floor, belts };
+  return lineComplete(routed) ? routed : null;
 }
 
 /** How the player-built line affects production — a build-TIME multiplier the sim reads.

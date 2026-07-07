@@ -57,7 +57,7 @@ export function ChallengeTracker() {
         </Button>
       )}
 
-      <Sheet open={cardOpen} onClose={() => setCardOpen(false)}>
+      <Sheet open={cardOpen} onClose={() => setCardOpen(false)} label="Daily challenge">
         <ResultCard state={state} result={null} />
       </Sheet>
     </Card>

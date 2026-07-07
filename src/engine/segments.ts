@@ -79,6 +79,24 @@ export function segmentById(id: SegmentId): Segment | undefined {
   return SEGMENTS.find((s) => s.id === id);
 }
 
+/** The perceived value (0..100) from the BEST-FIT segment, ignoring trend drift. Price guidance
+ *  uses it to let a specialised design command more than its all-round average implies: the market
+ *  sells through segments, and the segment a lopsided product is built for values its standout stat
+ *  highly. Trend-agnostic (base taste × category emphasis) so guidance stays a stable, calm signal. */
+export function bestSegmentPerceived(stats: Stats, category: CategoryId): number {
+  const emphasis = CATEGORIES[category].statEmphasis;
+  let best = 0;
+  for (const seg of SEGMENTS) {
+    const raw = {} as Stats;
+    for (const k of STAT_KEYS) raw[k] = Math.max(0, seg.weights[k]) * (emphasis[k] ?? 0.7);
+    const w = normalize(raw);
+    let acc = 0;
+    for (const k of STAT_KEYS) acc += w[k] * stats[k];
+    if (acc > best) best = acc;
+  }
+  return best;
+}
+
 /** Category-specific buyer mixes (Track D): the SAME recipe shouldn't win everywhere. Each category
  *  weights the five segments differently — a wearable is Style-led, a desktop/AR rig is Pro-led, a
  *  console is value-and-style, a laptop leans Pro+Enterprise. Each row sums to 1.00. Phone (and any
