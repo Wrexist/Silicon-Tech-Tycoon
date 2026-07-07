@@ -225,6 +225,8 @@
   font-weight: 700;
   color: var(--positive-text);
 }
+/* Selling at a loss (price below unit cost) reads red, matching Weekly net / net worth. */
+.co__active-rev--neg { color: var(--negative-text); }
 .co__active-eta {
   font-size: var(--fs-micro);
   font-weight: 600;

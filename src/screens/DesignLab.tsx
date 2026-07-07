@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, ChevronDown, CircleDollarSign, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -64,6 +64,9 @@ import {
 import { runwayWeeks } from "../engine/economy.ts";
 import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { useGame } from "../state/useGame.tsx";
+import { useLaunchProduct } from "../state/useLaunchProduct.ts";
+import { claimReadyLaunch } from "../design/overlayGuard.ts";
+import { BuildProgress } from "../components/BuildProgress.tsx";
 import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
@@ -219,6 +222,9 @@ function successorDraft(prev: Product): Product {
 /** What the just-completed build produced — drives the "Design complete" celebration sheet. */
 interface CompletedBuild {
   product: Product;
+  /** The id startBuild minted for the run (`prod-N`) — the draft's own id is NOT the one that
+   *  lands in state.building/ready, so the sheet tracks the live job through this. */
+  builtId: string;
   units: number;
   weeks: number;
   overall: number;
@@ -230,11 +236,9 @@ interface CompletedBuild {
 export function DesignLab({
   seed,
   onSeedConsumed,
-  onGoToHQ,
 }: {
   seed?: Product | null;
   onSeedConsumed?: () => void;
-  onGoToHQ?: () => void;
 } = {}) {
   const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract } = useGame();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
@@ -249,6 +253,18 @@ export function DesignLab({
   const [wizard, setWizard] = useState(false);
   const [completed, setCompleted] = useState<CompletedBuild | null>(null);
   const [labTab, setLabTab] = useState<LabTab>("components");
+  // "Start from…" picker — choose a franchise/device to design the next version of, or a fresh
+  // concept. Opened by the hero's "New version" pill and by the completion sheet's follow-up CTA.
+  const [startPicker, setStartPicker] = useState(false);
+  const franchises = useMemo(() => playerFranchises(state.launched), [state.launched]);
+  const startFrom = (prev: Product | null) => {
+    setDraft(prev ? successorDraft(prev) : freshDraft(state));
+    setFace("front");
+    setLabTab("components");
+    setStartPicker(false);
+    haptic.success();
+    if (prev) showToast(`Designing the successor to ${prev.name}`, { tone: "positive", glyph: <Wand2 size={15} /> });
+  };
 
   const cat = CATEGORIES[draft.category];
   const hasCamera = cat.slots.includes("camera");
@@ -424,6 +440,9 @@ export function DesignLab({
     setWizard(false);
     setCompleted({
       product: finished,
+      // startBuild mints `prod-${productCounter}` from the state it runs against; the counter
+      // only ever moves inside startBuild, so the pre-build snapshot here names the same run.
+      builtId: `prod-${state.productCounter}`,
       units,
       weeks,
       overall: overallScore(productStats(state, finished), finished.category),
@@ -579,28 +598,24 @@ export function DesignLab({
               <CircuitMotif className="lab__hero-circuit" />
             </span>
             <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />
+            {/* Read-only reflection of the current category — the ONE picker lives in the
+                Category card below (it carries the generation badges + market hints); a second
+                interactive strip here was the same control in a different coat. */}
             <div className="lab__hero-cats">
-              {unlockedCats.map((c) => (
-                <button
-                  key={c.id}
-                  className={`lab__hero-cat${draft.category === c.id ? " lab__hero-cat--on" : ""}`}
-                  aria-pressed={draft.category === c.id}
-                  onClick={() => {
-                    haptic.light();
-                    const tiers: Product["tiers"] = {};
-                    for (const k of c.slots) tiers[k] = Math.min(draft.tiers[k] ?? 1, researchedTier(state, k)) || 1;
-                    set({ category: c.id, tiers });
-                  }}
-                >
-                  <CategoryIcon id={c.id} size={14} /> {c.displayName}
-                </button>
-              ))}
+              <span className="lab__hero-cat lab__hero-cat--on">
+                <CategoryIcon id={draft.category} size={14} /> {cat.displayName}
+              </span>
             </div>
           </div>
           <div className="lab__hero-info">
             <div className="lab__hero-name-row">
               <span className="lab__hero-name">{draft.name || "Untitled"}</span>
               <span className="lab__hero-tag">Concept</span>
+              {franchises.length > 0 && (
+                <button className="lab__hero-newver" onClick={() => { haptic.light(); setStartPicker(true); }}>
+                  <Wand2 size={13} aria-hidden /> New version
+                </button>
+              )}
             </div>
             <div className="lab__hero-fit">
               <span className="lab__hero-fit-label">Fit</span>
@@ -1207,7 +1222,7 @@ export function DesignLab({
                   STAT_KEYS.map((k) => [k, state.trends.targetWeights[k] - state.trends.weights[k]])
                 ) as Record<keyof typeof stats, number>}
               />
-              <p className="lab__hint">Green = what market wants most · ↑↓ = shifting demand</p>
+              <p className="lab__hint">Green = what market wants most · trend arrows = shifting demand</p>
               <StatGlossary />
               {(() => {
                 const prev = state.launched.find((lp) => lp.product.category === draft.category);
@@ -1532,69 +1547,175 @@ export function DesignLab({
         {completed && (
           <DesignCompleteCard
             done={completed}
-            onGoToHQ={() => { setCompleted(null); onGoToHQ?.(); }}
-            onDesignAnother={() => setCompleted(null)}
+            onDesignAnother={() => {
+              setCompleted(null);
+              // With launched lines to build on, follow up with the franchise picker; a brand-new
+              // company just returns to the (already fresh) draft.
+              if (franchises.length > 0) setStartPicker(true);
+            }}
             onClose={() => setCompleted(null)}
           />
         )}
+      </Sheet>
+
+      <Sheet open={startPicker} onClose={() => setStartPicker(false)}>
+        {startPicker && <StartFromSheet state={state} onPick={startFrom} />}
       </Sheet>
     </div>
   );
 }
 
-/** The closing beat of the design flow: confirms the device is finished and now manufacturing,
- *  then points the player to where they'll launch it (HQ). Turns a silent toast into a clear
- *  "you made something → here's what's next" moment. */
+/** "Start from…" — pick which franchise/device the next design iterates on. One row per launched
+ *  line, seeded from that line's LATEST entry (full design carried over, next name in the series),
+ *  plus a fresh-concept row. This is how "Design a new version" knows what it's a version OF. */
+function StartFromSheet({ state, onPick }: { state: GameState; onPick: (prev: Product | null) => void }) {
+  const franchises = playerFranchises(state.launched);
+  const latestOf = (stem: string): Product =>
+    state.launched
+      .filter((lp) => franchiseStem(lp.product.name) === stem)
+      .reduce((a, b) => (b.launchedWeek > a.launchedWeek ? b : a)).product;
+  return (
+    <div className="startfrom">
+      <h3 className="startfrom__title">Design a new version</h3>
+      <p className="startfrom__sub">Pick a line to iterate on — the whole design carries over with the next name in the series — or start clean.</p>
+      <div className="startfrom__list">
+        {franchises.map((f) => {
+          const prev = latestOf(f.stem);
+          return (
+            <button key={f.stem} className="startfrom__row" onClick={() => onPick(prev)}>
+              <span className="startfrom__thumb"><DeviceRenderer product={prev} size={44} /></span>
+              <span className="startfrom__info">
+                <span className="startfrom__name">{f.name}</span>
+                <span className="startfrom__meta">{suggestNextName(prev.name)} next · {f.label}{f.entries > 1 ? ` · ${f.entries} entries` : ""}</span>
+              </span>
+              <span className="startfrom__gen tnum">G{f.entries + 1}</span>
+            </button>
+          );
+        })}
+        <button className="startfrom__row startfrom__row--fresh" onClick={() => onPick(null)}>
+          <span className="startfrom__thumb startfrom__thumb--fresh"><Sparkles size={18} aria-hidden /></span>
+          <span className="startfrom__info">
+            <span className="startfrom__name">Fresh concept</span>
+            <span className="startfrom__meta">A blank slate — new name, new line.</span>
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The closing beat of the design flow — one continuous sheet, no navigating away:
+ *  1. BUILDING: the live In-production readout (ring + stage trail, ticking with the sim) sits
+ *     right in the celebration card, replacing the old "View building progress" detour.
+ *  2. READY: the moment the run rolls off the line the same card morphs into the Ready-to-launch
+ *     moment — identical language to the global popup — and ships in one tap from here. The
+ *     product id is CLAIMED while this sheet is open, so the global popup never double-pops. */
 function DesignCompleteCard({
   done,
-  onGoToHQ,
   onDesignAnother,
   onClose,
 }: {
   done: CompletedBuild;
-  onGoToHQ: () => void;
   onDesignAnother: () => void;
   onClose: () => void;
 }) {
-  const profD = toDollars(done.projectedProfit);
+  const { state, paused, setPaused } = useGame();
+  const launchProduct = useLaunchProduct();
+
+  const job = state.building.find((b) => b.product.id === done.builtId) ?? null;
+  const readyProduct = state.ready.find((p) => p.id === done.builtId) ?? null;
+  const ready = readyProduct !== null;
+
+  // This sheet owns the product's ready moment while open — the global popup stands down.
+  useEffect(() => claimReadyLaunch(done.builtId), [done.builtId]);
+
+  // The flip to READY is a beat: sound + haptic once, and pause the sim (like the global popup)
+  // so the world doesn't run on behind the launch decision. Restore the prior run state on close.
+  const celebrated = useRef(false);
+  const pausedByUs = useRef(false);
+  const wasPaused = useRef(false);
+  useEffect(() => {
+    if (!ready || celebrated.current) return;
+    celebrated.current = true;
+    haptic.success();
+    sfx("confirm");
+    wasPaused.current = paused;
+    pausedByUs.current = true;
+    setPaused(true);
+  }, [ready, paused, setPaused]);
+  useEffect(() => () => { if (pausedByUs.current) setPaused(wasPaused.current); }, [setPaused]);
+
+  // Fresh numbers for the ready state (demand shifts during the build); the design-time snapshot
+  // carries the building state.
+  const plan = readyProduct
+    ? planProduction(state, readyProduct, readyProduct.plannedUnits ?? BALANCE.build.minRun, (readyProduct.channelId as ChannelId) ?? "none")
+    : null;
+  const sales = plan ? plan.projectedSales : done.projectedSales;
+  const profit = plan ? plan.projectedProfit : done.projectedProfit;
+  const sellsOut = plan ? plan.sellsOut : done.sellsOut;
+  const overall = plan ? plan.overall : done.overall;
+  const profD = toDollars(profit);
+
+  const launchNow = () => {
+    onClose(); // close first so the keynote reveal isn't stacked on the sheet
+    launchProduct(done.builtId);
+  };
+
   return (
     <div className="done">
-      <button className="done__close" onClick={onClose} aria-label="Close"><X size={18} /></button>
-      <div className="done__badge" aria-hidden><Check size={24} strokeWidth={3} /></div>
-      <h2 className="done__title">Design complete</h2>
-      <p className="done__sub">
-        “{done.product.name}” is finished and headed to {done.product.factoryId && done.product.factoryId !== DEFAULT_FACTORY_ID ? factoryFor(done.product.factoryId).name : "the factory"}.
-      </p>
+      <button className="done__close" onClick={onClose} aria-label={ready ? "Later" : "Close"}><X size={18} /></button>
+      {ready ? (
+        <>
+          <div className="done__eyebrow"><Factory size={13} aria-hidden /> Manufacturing complete</div>
+          <div className="done__badge done__badge--launch" aria-hidden><Rocket size={24} strokeWidth={2.5} /></div>
+          <h2 className="done__title">Ready to launch</h2>
+          <p className="done__sub">“{done.product.name}” rolled off the line. Ship it now, no need to leave this screen.</p>
+        </>
+      ) : (
+        <>
+          <div className="done__badge" aria-hidden><Check size={24} strokeWidth={3} /></div>
+          <h2 className="done__title">Design complete</h2>
+          <p className="done__sub">
+            “{done.product.name}” is finished and building at {done.product.factoryId && done.product.factoryId !== DEFAULT_FACTORY_ID ? factoryFor(done.product.factoryId).name : "the factory"}.
+          </p>
+        </>
+      )}
 
       <div className="done__hero">
         <DeviceRenderer product={done.product} size={150} idle shimmer />
       </div>
 
       <div className="done__grid">
-        <Stat label="Overall" value={`${done.overall}`} hint={done.overall >= 75 ? "flagship tier" : done.overall >= 55 ? "strong build" : done.overall >= 35 ? "mid-tier" : "entry tier"} />
+        <Stat label="Overall" value={`${overall}`} hint={overall >= 75 ? "flagship tier" : overall >= 55 ? "strong build" : overall >= 35 ? "mid-tier" : "entry tier"} />
         <Stat label="Run size" value={done.units.toLocaleString()} />
         <Stat
           label="Est. sales"
-          value={done.projectedSales.toLocaleString()}
-          tone={done.sellsOut ? "positive" : undefined}
-          hint={done.sellsOut ? "would sell out" : undefined}
+          value={sales.toLocaleString()}
+          tone={sellsOut ? "positive" : undefined}
+          hint={sellsOut ? "would sell out" : undefined}
         />
-        <Stat label="Est. profit" value={format(done.projectedProfit)} tone={profD >= 0 ? "positive" : "negative"} />
+        <Stat label="Est. profit" value={format(profit)} tone={profD >= 0 ? "positive" : "negative"} />
       </div>
 
-      <div className="done__next">
-        <div className="done__step">
-          <span className="done__step-icon"><Factory size={16} /></span>
-          <span>Manufacturing now, <b>ready in ~{done.weeks} {done.weeks === 1 ? "week" : "weeks"}</b>.</span>
-        </div>
-        <div className="done__step">
-          <span className="done__step-icon"><Rocket size={16} /></span>
-          <span>The moment it's built, a <b>launch popup</b> appears wherever you are, ship it in one tap.</span>
-        </div>
-      </div>
-
-      <Button block onClick={onGoToHQ}><Factory size={16} /> View building progress</Button>
-      <button className="wiz__cancel" onClick={onDesignAnother}>Design another</button>
+      {ready ? (
+        <>
+          <Button block onClick={launchNow}><Rocket size={16} /> Launch now</Button>
+          <button className="wiz__cancel" onClick={onClose}><Clock size={14} aria-hidden /> Later</button>
+        </>
+      ) : job ? (
+        <>
+          {/* The real line, live in the popup — same readout as the Office card, ticking as the
+              sim runs. When it hits 100% this whole card becomes the launch moment. */}
+          <div className="done__live">
+            <BuildProgress job={job} />
+          </div>
+          <button className="wiz__cancel" onClick={onDesignAnother}><Wand2 size={14} aria-hidden /> Design a new version</button>
+        </>
+      ) : (
+        // Edge case: the run left the line while the numbers above were being read (e.g. it was
+        // launched from another surface). Nothing to track — just offer the next design.
+        <button className="wiz__cancel" onClick={onDesignAnother}><Wand2 size={14} aria-hidden /> Design a new version</button>
+      )}
     </div>
   );
 }
@@ -1812,9 +1933,15 @@ function BuildWizard({
           <div className="wiz__units rounded tnum">{units.toLocaleString()} <span className="wiz__units-label">units</span></div>
           <Slider value={units} min={BALANCE.build.minRun} max={Math.max(BALANCE.build.minRun * 2, plan.maxAffordableUnits || BALANCE.build.minRun * 2)} step={50} ariaLabel="Units to produce" accent="var(--fn-design)" onChange={setUnits} />
           <div className="wiz__chips">
-            {[plan.preOrders || BALANCE.build.minRun, recommended, plan.maxAffordableUnits].map((n, i) => (
-              <button key={i} className="wiz__chip" onClick={() => { setUnits(Math.max(BALANCE.build.minRun, Math.round(n))); haptic.light(); }}>
-                {i === 0 ? "Fans only" : i === 1 ? "Recommended" : "Max"}
+            {/* "Fans only" is honest only when the fanbase actually clears the minimum run —
+                below that the chip would silently set the minimum, so say "Minimum" instead. */}
+            {[
+              { label: plan.preOrders >= BALANCE.build.minRun ? "Fans only" : "Minimum", n: plan.preOrders },
+              { label: "Recommended", n: recommended },
+              { label: "Max", n: plan.maxAffordableUnits },
+            ].map((c) => (
+              <button key={c.label} className="wiz__chip" onClick={() => { setUnits(Math.max(BALANCE.build.minRun, Math.round(c.n))); haptic.light(); }}>
+                {c.label}
               </button>
             ))}
           </div>

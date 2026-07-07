@@ -106,12 +106,12 @@ import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityP
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
   BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineSpeedMult,
-  machineUpgradeCostAt, upgradeMachineAt, placeBelt as floorPlaceBelt,
+  machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import {
-  PROP_DEFS, placeProp as propsPlace, removePropAt as propsRemoveAt, propRefund,
+  PROP_DEFS, placeProp as propsPlace, moveProp as propsMove, propCellSet, removePropAt as propsRemoveAt, propRefund,
   type PlacedProp, type PropKind,
 } from "../engine/factoryProps.ts";
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
@@ -229,6 +229,9 @@ export interface GameState {
   /** Monotonic id source for saved layouts — never derived from array length (delete+re-save would
    *  otherwise reuse an id and collide). */
   factoryLayoutCounter: number;
+  /** Monotonic id source for floor machines AND props — same rule: demolish + re-buy in one week
+   *  must never mint a duplicate id (moveMachine and React keys both key on it). */
+  factoryPieceCounter: number;
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -480,6 +483,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     factoryExpansion: 0,
     factoryLayouts: [],
     factoryLayoutCounter: 0,
+    factoryPieceCounter: 0,
     desktops: 0,
     lensLimit: 2,
     finishLimit: BALANCE.design.freeFinishes - 1,
@@ -670,6 +674,7 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "brandStudio") ? 0.35 : 0) +
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
+  (hasProject(s.completedProjects, "neuralMarketing") ? 0.25 : 0) +
   visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype;
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
@@ -691,6 +696,7 @@ export function productStats(s: GameState, product: Product): Stats {
   // Premium finishes (titanium/gold) read as more desirable → a small Design-appeal bonus.
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
+  if (hasProject(s.completedProjects, "aiCopilot")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 4;
   // Engineering Doctrine fork (Track D): the chosen house stamps a permanent stat identity on every
   // product. Mutually exclusive, so at most one of these ever applies.
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
@@ -863,16 +869,17 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // rides it) lands sooner. First playthrough only (legacy 0), first build only (nothing in flight).
   const firstEver = s.legacy === 0 && s.launched.length === 0 && s.building.length === 0 && s.ready.length === 0;
   if (firstEver) return BALANCE.build.minWeeks + lead;
-  // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1. The
-  // player-built floor layers on top: a complete, arm-rich line ships faster; a broken one is slower
-  // (starter = neutral ×1, so the baseline is unchanged).
-  // The player-built floor layers on top: arms + machine upgrades ship faster, a broken or
-  // recipe-incomplete line ships slower. Topology is product-aware — a phone wants a screen bonder,
-  // a laptop a mill; the starter has every kind so it stays neutral.
+  // Factory speed multiplies the assembly time (a fast line ships sooner); standard = ×1.
+  // The player-built floor layers on top as a pure BONUS (lineSpeedMult is clamped ≤1; an unwired
+  // or bare floor is exactly neutral). Topology is product-aware — a phone wants a screen bonder,
+  // a laptop a mill — and the bonus BANKS its fractional week (floor, not round): early builds are
+  // only ~3 weeks, and round(3 × 0.95) = 3 would make the first wired line feel like a scam.
   const reqKinds = product ? requiredKindsFor(product.category) : undefined;
-  const speed = (product ? factorySpeedMult(product) : 1) * lineSpeedMult(s.factoryFloor, reqKinds);
-  const assembly = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * speed)
-    - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0);
+  const lineMult = lineSpeedMult(s.factoryFloor, reqKinds);
+  const contract = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * (product ? factorySpeedMult(product) : 1));
+  const assembly = (lineMult < 1 ? Math.max(1, Math.floor(contract * lineMult)) : contract)
+    - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0)
+    - (hasProject(s.completedProjects, "lightsOut") ? 1 : 0);
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
   // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
   const eraLead = eraModifier(s.era).leadWeeks;
@@ -909,6 +916,7 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   let unitCost = scale(buildCost(product), tuningCostMultiplier(product.tuning));
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
+  if (hasProject(s.completedProjects, "predictiveSupply")) unitCost = scale(unitCost, 0.90);
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   // Supplier relationship: repeat business earns a standing discount (engine/suppliers.ts). 0 when
@@ -2113,19 +2121,30 @@ export function launchReady(state: GameState, productId: string): ActionResult {
 /** Factory Mode BOOST — rush the lead production run: pay an overtime premium (a fraction of
  *  the run's production cost) and one week of work completes instantly. Repeatable while weeks
  *  remain; each press pays again. Pure; the caller owns the spend FX. */
+/** Does a machine footprint at (c,r) overlap any placed decor prop? Props are solid both ways —
+ *  canPlaceProp refuses machine cells, and this is the mirror check the floor reducers apply. */
+function machineOverPropAt(state: GameState, kind: MachineKind, c: number, r: number): boolean {
+  const props = propCellSet(state.factoryProps);
+  if (props.size === 0) return false;
+  return machineCells({ kind, c, r }).some((cell) => props.has(cell));
+}
+
 /** Factory Mode Build: buy + place a machine on the floor grid (cash-gated, overlap-checked). */
 export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, r: number): ActionResult {
   const def = MACHINE_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
-  const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryFloor.machines.length}`, floorWidth(state.factoryExpansion));
+  if (machineOverPropAt(state, kind, c, r)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
+  // Monotonic counter, never array length: demolish + re-buy in one week must not reuse an id.
+  const next = floorPlaceMachine(state.factoryFloor, kind, c, r, `fm-${state.week}-${state.factoryPieceCounter}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
-  return { state: { ...state, cash: sub(state.cash, def.cost), factoryFloor: next }, ok: true };
+  return { state: { ...state, cash: sub(state.cash, def.cost), factoryFloor: next, factoryPieceCounter: state.factoryPieceCounter + 1 }, ok: true };
 }
 
 /** Buy + lay a conveyor tile. Re-aiming an existing tile is free; new tiles cost BELT_COST. */
 export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDir): ActionResult {
   const existing = state.factoryFloor.belts.some((b) => b.c === c && b.r === r);
   if (!existing && state.cash < BELT_COST) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
+  if (propCellSet(state.factoryProps).has(`${c},${r}`)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
   const next = floorPlaceBelt(state.factoryFloor, c, r, dir, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Can't lay a belt there." };
   return { state: { ...state, cash: existing ? state.cash : sub(state.cash, BELT_COST), factoryFloor: next }, ok: true };
@@ -2133,28 +2152,35 @@ export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDi
 
 /** Lay a whole DRAG RUN of conveyor at once — each tile auto-aimed toward the next cell (the last
  *  continues straight; a single tile uses `fallbackDir`). New tiles cost BELT_COST, re-aiming an
- *  existing tile is free, and cells over a machine / off-grid are skipped. Places greedily and stops
- *  when the budget runs out, so a long drag paints as much as the player can afford. */
+ *  existing tile is free, and cells over a machine / prop / off-grid are skipped. Places greedily and
+ *  stops when the budget runs out, so a long drag paints as much as the player can afford. */
 export function paintBeltRun(state: GameState, cells: { c: number; r: number }[], fallbackDir: BeltDir): ActionResult {
   if (cells.length === 0) return { state, ok: false, reason: "Nothing to lay." };
   const maxW = floorWidth(state.factoryExpansion);
+  const propAt = propCellSet(state.factoryProps);
   const dirBetween = (a: { c: number; r: number }, b: { c: number; r: number }): BeltDir =>
     b.c > a.c ? "e" : b.c < a.c ? "w" : b.r > a.r ? "s" : "n";
   let floor = state.factoryFloor;
   let cash = state.cash;
   let placed = 0;
+  let brokeAt = false;
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i];
     const dir: BeltDir = cells[i + 1] ? dirBetween(cell, cells[i + 1]) : i > 0 ? dirBetween(cells[i - 1], cell) : fallbackDir;
+    if (propAt.has(`${cell.c},${cell.r}`)) continue; // decor is solid — paint around it
     const existing = floor.belts.some((b) => b.c === cell.c && b.r === cell.r);
-    if (!existing && cash < BELT_COST) break; // out of budget for new tiles
+    if (!existing && cash < BELT_COST) { brokeAt = true; break; } // out of budget for new tiles
     const next = floorPlaceBelt(floor, cell.c, cell.r, dir, maxW);
     if (!next) continue; // off-grid or on a machine → skip this cell
     if (!existing) cash = sub(cash, BELT_COST);
     floor = next;
     placed++;
   }
-  if (placed === 0) return { state, ok: false, reason: "Can't lay a belt there." };
+  if (placed === 0) {
+    // Distinguish "no money" from "no legal cell" — the toast should tell the player which.
+    if (brokeAt) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
+    return { state, ok: false, reason: "Can't lay a belt there." };
+  }
   return { state: { ...state, factoryFloor: floor, cash }, ok: true };
 }
 
@@ -2177,21 +2203,36 @@ export function buyFloorExpansion(state: GameState): ActionResult {
 export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: number): ActionResult {
   const def = PROP_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
-  const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryProps.length}`, floorWidth(state.factoryExpansion));
+  const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryPieceCounter}`, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
-  return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next }, ok: true };
+  return { state: { ...state, cash: sub(state.cash, def.cost), factoryProps: next, factoryPieceCounter: state.factoryPieceCounter + 1 }, ok: true };
+}
+
+/** The net an auto-route would charge: new tiles at full price − removed tiles at half back. */
+function autoRouteNet(current: FloorPlan, routed: FloorPlan): number {
+  const oldCells = new Set(current.belts.map((b) => `${b.c},${b.r}`));
+  const newCells = new Set(routed.belts.map((b) => `${b.c},${b.r}`));
+  let cost = 0;
+  for (const k of newCells) if (!oldCells.has(k)) cost += BELT_COST;
+  for (const k of oldCells) if (!newCells.has(k)) cost -= Math.round(BELT_COST / 2);
+  return cost;
+}
+
+/** Price the Auto route WITHOUT committing — the confirm dialog's quote. Deterministic: the same
+ *  router runs again on confirm, so the quoted price is exactly what gets charged. Null when there
+ *  is no route (missing Intake/Packer or no clear path). Pure. */
+export function autoConnectQuote(state: GameState): { cost: Money; tiles: number } | null {
+  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
+  if (!routed) return null;
+  return { cost: cents(autoRouteNet(state.factoryFloor, routed)), tiles: routed.belts.length };
 }
 
 /** One-tap belt routing — lay a fresh Intake→Packer chain around the machines, charging the net of
  *  new tiles (full price) minus removed tiles (half refund), exactly like doing it by hand. */
 export function autoConnectLine(state: GameState): ActionResult {
-  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion));
+  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
   if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer with a clear path between them first." };
-  const oldCells = new Set(state.factoryFloor.belts.map((b) => `${b.c},${b.r}`));
-  const newCells = new Set(routed.belts.map((b) => `${b.c},${b.r}`));
-  let cost = 0;
-  for (const k of newCells) if (!oldCells.has(k)) cost += BELT_COST;
-  for (const k of oldCells) if (!newCells.has(k)) cost -= Math.round(BELT_COST / 2);
+  const cost = autoRouteNet(state.factoryFloor, routed);
   if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cents(cost))} to route the belts.` };
   return { state: { ...state, factoryFloor: routed, cash: add(state.cash, cents(-cost)) }, ok: true };
 }
@@ -2205,6 +2246,23 @@ export function upgradeFloorMachine(state: GameState, c: number, r: number): Act
   const next = upgradeMachineAt(state.factoryFloor, c, r);
   if (!next) return { state, ok: false, reason: "That machine is already at its top tier." };
   return { state: { ...state, cash: sub(state.cash, cost), factoryFloor: next }, ok: true };
+}
+
+/** Relocate a machine to a new cell — the hold-and-drag gesture. Free (rearranging isn't buying);
+ *  keeps the machine's id, kind and upgrade level. */
+export function moveFloorMachine(state: GameState, id: string, c: number, r: number): ActionResult {
+  const m = state.factoryFloor.machines.find((x) => x.id === id);
+  if (m && machineOverPropAt(state, m.kind, c, r)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
+  const next = floorMoveMachine(state.factoryFloor, id, c, r, floorWidth(state.factoryExpansion));
+  if (!next) return { state, ok: false, reason: "Doesn't fit there." };
+  return { state: { ...state, factoryFloor: next }, ok: true };
+}
+
+/** Relocate a decor prop to a new cell — the hold-and-drag gesture. Free. */
+export function moveFactoryProp(state: GameState, id: string, c: number, r: number): ActionResult {
+  const next = propsMove(state.factoryFloor, state.factoryProps, id, c, r, floorWidth(state.factoryExpansion));
+  if (!next) return { state, ok: false, reason: "Doesn't fit there." };
+  return { state: { ...state, factoryProps: next }, ok: true };
 }
 
 /** Clear whatever occupies the cell — a prop first, else a machine/belt; demolition pays back half. */
@@ -2277,7 +2335,9 @@ export function applyFactoryLayout(state: GameState, id: string): ActionResult {
       cash: add(state.cash, cents(-cost)), // cost>0 subtracts, cost<0 refunds
       factoryFloor: { machines: layout.floor.machines.map((m) => ({ ...m })), belts: layout.floor.belts.map((b) => ({ ...b })) },
       factoryProps: layout.props.map((p) => ({ ...p })),
-      factoryExpansion: Math.max(state.factoryExpansion, layout.expansion),
+      // Clamp like expansionDeltaCost does — a tampered layout can't push expansion past MAX
+      // while only being charged up to the MAX-expansion price.
+      factoryExpansion: Math.min(MAX_EXPANSION, Math.max(state.factoryExpansion, Math.max(0, Math.floor(layout.expansion)))),
       factoryDecor: { ...layout.decor },
     },
     ok: true,
@@ -2600,6 +2660,27 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
     researchPoints: state.researchPoints - proj.rpCost,
     completedProjects: [...state.completedProjects, id],
     feed: trimFeed(feed),
+  };
+}
+
+// Late-game repeatable RP sink: once the tree (and component tiers) are bought out, RP would
+// otherwise accrue forever with nothing to do. A developer keynote converts research momentum
+// into audience — fans + a point of reputation — repeatable at a real price, so an R&D-heavy
+// endgame company always has a lever to pull. Deterministic (no RNG); the sim never calls it.
+export const KEYNOTE_RP_COST = 150;
+export const KEYNOTE_FANS = 400;
+export const KEYNOTE_REP = 1;
+
+/** Host a developer keynote: spend RP, gain fans + reputation (capped at 100). Repeatable. */
+export function hostKeynote(state: GameState): GameState {
+  if (state.researchPoints < KEYNOTE_RP_COST) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Hosted a developer keynote — the community showed up.`, "positive")]);
+  return {
+    ...state,
+    researchPoints: state.researchPoints - KEYNOTE_RP_COST,
+    fans: state.fans + KEYNOTE_FANS,
+    reputation: Math.min(100, state.reputation + KEYNOTE_REP),
+    feed,
   };
 }
 

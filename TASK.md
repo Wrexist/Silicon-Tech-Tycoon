@@ -2166,3 +2166,166 @@ money exploits (the 40-seed sim agreed: 0 bankruptcies, no NaN). It surfaced the
 - [x] Build-rule hint now teaches it: "Drag to paint a belt run · tap for one · Auto routes it all."
 - Verified live: a single drag laid an 11-tile oriented run with a turn; ghost showed during the drag,
       camera didn't orbit. tsc 0, 763 tests (+1), build+PWA green.
+
+## v100 — Factory feel pass: visible sheets, clean Auto, hold-to-move, locked bay (DONE 2026-07-06)
+Four fixes/features from device feedback (user screenshots):
+- [x] **Style/Stats "didn't work"** — real bug: the Sheet primitive portals to <body> at scrim z-50
+      while .fmode sat at z-60, so EVERY factory sheet (Style/Stats/Upgrades/Shop) opened invisibly
+      BEHIND the overlay. .fmode → z-46 (sheets 50, ready-to-launch 58, toasts 60, tutorials 70 all
+      correctly above now); .fmode__stat labels white-alpha → var(--ink-2) (they live on the light
+      glass sheet). Verified with elementFromPoint + screenshots over the live 3D.
+- [x] **Auto routing perfected**: turn-penalised Dijkstra legs (bucket queue, FIFO-deterministic;
+      1 corner ≈ 2 tiles) + canonical stage order (mill → press → screen → arm → qa) + cheapest
+      start cell wins. Starter: 27-tile staircase mess → 21-tile U with exactly 2 corners. +test
+      (turn bound + no-zigzag window).
+- [x] **Hold-to-move**: hold a machine/prop ~0.4s to pick it up (lift + bob animation), drag with the
+      camera frozen, GREEN cells mark legal spots on/around the conveyor (faint = other legal,
+      live green/red footprint), release to drop — free; snap-back if illegal. Pure moveMachine /
+      moveProp helpers + moveFloorMachine / moveFactoryProp reducers (+3 tests); taught in the build
+      hint + tutorial chips. (Overlay quads must sit at y≥0.145 — lower is swallowed by the slab's
+      rounded edge.)
+- [x] **Locked expansion preview**: the NEXT bay renders as a ghost floor + ghost walls east of the
+      building with a floating "Locked · Expand the floor · $X" pill (tap → Style sheet); the HQ
+      minimap shows a dashed, padlocked "Locked" strip. Buying: confetti + camera re-frame as the
+      walls grow east, and the NEXT bay's preview appears at the escalating price. Camera framing
+      shifts a quarter-bay east while a preview exists so it's on screen.
+- tsc 0, 767 tests, build+PWA green; every flow verified live with screenshots.
+
+## v101 — The REAL factory in the HQ card (DONE 2026-07-06)
+- [x] The Office-tab Factory card showed an abstract coloured-squares minimap; the user wanted the
+      real thing. The card now renders the LIVE 3D factory (Factory3D `preview` mode): the actual
+      building with the player's paint job, the running line + travelling items, the truck at the
+      dock, era glow — and the locked expansion bay with its "Locked · Expand the floor · $X" pill,
+      teased right on the card.
+- [x] Preview mode = look-don't-touch: no OrbitControls (never fights page scroll), hold-to-move
+      gated off, pointer-events pass through so a tap opens fullscreen; dpr capped [1,1.4] and the
+      camera framing zooms out ×1.22 so building + locked bay fit the 16:10 card. Card unmounts on
+      the Office world tab (no hidden render loop). FloorMinimap remains the no-WebGL/reduced-motion
+      fallback AND the Suspense placeholder while the lazy 3D chunk loads.
+- Verified live: card shows the real running factory + lock pill; tapping it still opens fullscreen.
+      tsc 0, 767 tests, build+PWA green.
+
+## v102 — The factory starts EMPTY: build it, or pay Auto to route it (DONE 2026-07-06)
+- [x] New games no longer get a pre-built line. `starterFloor()` is now just a BEGINNING and an END —
+      the Intake and the Packer, no belts, no machines — so building the factory is the player's game:
+      lay belts by hand (tap / drag-paint), place machines from the palette, or tap **Auto** to route
+      the optimal line for money ($400/tile, charged like hand-laying). The old full horseshoe lives
+      on as `demoFloor()` (reference layout for tests + screenshot staging).
+- [x] **Re-anchored `lineSpeedMult` as PURE UPSIDE** so the change can't hurt anyone: no wired line →
+      ×1 neutral (the contract factory carries you — an empty floor is an invitation, not a
+      punishment); a complete Intake→Packer line → ×0.92 earned bonus, deepened by extra arms (−5%)
+      and machine upgrades (−2%/level) down to ×0.55; missing recipe machines eat the bonus but the
+      result is clamped at ×1. The 40-seed balance sim is BYTE-IDENTICAL (the sim's auto-player never
+      builds the floor → ×1 before and after).
+- [x] HUD reframed to match: "Line offline — connect the Intake to the Packer… or let Auto route it"
+      CTA panel, order-card chip now sells the bonus ("Wire Intake → Packer for a build-speed bonus" /
+      "Add Screen Bonder for the full bonus" / "Line builds N% faster"), Stats note updated.
+- [x] Tests swept: bare-starter expectations (+2 tests), full-floor fixtures repointed to demoFloor,
+      achievements starter-guard (0 arms), auto-route proves the bare start wires day-one. Existing
+      saves are untouched (persisted floors load as-is).
+- tsc 0, 768 tests, build+PWA green, sim byte-identical; verified live (bare floor + offline CTA →
+      Auto → wired minimal line, charged per tile).
+
+## v103 — Auto quotes before it spends (DONE 2026-07-06)
+- [x] Tapping **Auto** no longer routes immediately: it ARMS a quote strip in the build head —
+      "Route the line · N tiles" + "Confirm · $X" (or "+$X back" when a re-route nets a refund) + a
+      44px ✕ cancel. The quote re-derives from live state each render via the new pure
+      `autoConnectQuote` (same deterministic router as the action), so the shown price is EXACTLY
+      what confirm charges — proven by a test (quote.cost === cash delta). Tool/category switches
+      disarm; a floor with no route toasts the reason instead of arming.
+- tsc 0, 769 tests, build+PWA green; verified live: quote → cancel (no charge) → confirm ($1,200 for
+      3 tiles on the bare starter).
+
+## v104 — Full-game audit: props are solid, saves are sanitized, the bonus is real (DONE 2026-07-06)
+Three parallel audit agents swept the factory changes, every screen, and the state/engine layers;
+all confirmed findings fixed in four commits.
+- [x] **Props-ghost overlap fixed** — decor was solid one way only (props refused machine/belt cells,
+      but machines, belts, painted runs and Auto routes could be dropped ON TOP of props). Now
+      `buyFloorMachine`/`moveFloorMachine` refuse prop-overlapping footprints, `buyFloorBelt` refuses
+      and `paintBeltRun` paints around prop cells, `autoRouteBelts` takes a blockedCells set (prop
+      cells passed by quote + action) and routes around decor, and hold-to-move's green cells exclude
+      prop overlaps. New `propCellSet()` helper + engine/reducer/route regression tests.
+- [x] **State hardening (audit HIGHs)** — machine/prop ids came from array length, so demolish +
+      re-buy in one week minted duplicates (moveMachine dragged both; React keys collided): new
+      monotonic `factoryPieceCounter`, migrate-backfilled past every id ever minted (including inside
+      saved layouts). `migrate()` now drops unknown machine kinds / belt dirs / prop kinds and
+      non-finite coords (each crashed machineCells/beltChain → placement, buildWeeksFor, 3D render),
+      clamps a non-finite upgrade `level` (NaN level → NaN upgrade cost → passed the cash gate and
+      ZEROED the wallet), and scrubs/drops malformed saved layouts. `applyFactoryLayout` clamps a
+      tampered expansion to MAX; `paintBeltRun` distinguishes "no money" from "no legal cell".
+- [x] **The wired-line bonus is now real from day one** — it had a dead zone: one missing recipe
+      machine clamped the multiplier back to ×1 (wiring paid NOTHING until the full ~$40K toolkit),
+      and round(3 × 0.92) = 3 erased even the full bonus on early builds. `lineSpeedMult` now scales
+      the earned bonus by recipe COVERAGE (a fresh wire keeps 25%, every recipe machine grows it;
+      full-coverage ×0.92 anchor unchanged, still clamped ≤1), and `buildWeeksFor` BANKS the
+      fractional week (floor, not round) for the line bonus only — untouched floors are bit-for-bit
+      neutral, sim byte-identical.
+- [x] **Stale copy swept for the empty starter** — FactoryTutorial no longer describes a running
+      line/truck that doesn't exist on first open (and now introduces Auto + its price quote); the
+      shop sheet's "Placeable machines arrive with Build mode" note replaced; achievements no longer
+      assume the old pre-built arm; HQ's "Watch it on the line" says "Build your factory line" until
+      the line exists; dead negative-speed UI branch removed; stale old-model comments/headers fixed
+      across factoryFloor/Factory3D/FactoryMode/persistence/tests.
+- [x] **Screens sweep** — IPO overlay no longer replays every launch after going public (ipoSeen
+      seeds from wentPublic); Market's stake sale renamed to "List on the stock exchange" (the HQ
+      endgame keeps the IPO name, and acknowledges an already-listed company); HQ research insight
+      respects doctrine forks; Company "Selling now" labelled profit/wk (it's margin) and the stats
+      sheet header says "Lifetime revenue"; Research's all-researched state points at real RP sinks;
+      Financing explains why borrowing is locked instead of a dead end; "Fans only" chip says
+      "Minimum" when fans don't clear the min run; sub-6% stake copy fixed; successor buttons unified;
+      fans pill threshold unified (500); Settings shows negative net worth in red and injects the
+      version from package.json (vite define); era-modal text arrow → ArrowRight icon; non-actionable
+      HQ insights render as content, not disabled buttons.
+- Gates: tsc 0 · 779 tests · build+PWA green · 40-seed sim byte-identical (0/40 bankrupt, Era 2 wk 74,
+      same troughs).
+
+## v105 — The endgame stops running on fumes (DONE 2026-07-06)
+The three "empty gameplay" holes the v104 audit flagged, filled:
+- [x] **Era 4 ships breakthroughs** — the AI Era previously arrived with zero new research projects
+      (eras 2–3 each brought a wave), making the final transition a footnote. Four new era-4
+      projects, all effects wired + test-pinned: AI Copilot Suite (+4 Ecosystem every product),
+      Lights-Out Assembly (−1 build week, stacks with Quick Prototype), Predictive Supply AI
+      (unit cost ×0.90 further), Neural Marketing (+0.25 hype). Research screen era groups derive
+      from maxEra() (were hardcoded [1,2,3]); the era-4 EraModal lists them automatically; the
+      "research everything" achievement target grows via completableProjectCount() as designed.
+- [x] **Late-game RP has a repeatable sink** — once projects + tiers are bought out, RP accrued
+      forever with nothing to buy. New `hostKeynote` reducer (150 RP → +400 fans, +1 reputation
+      capped at 100, feed item; no-op when short; deterministic) surfaced as a "Host keynote"
+      button in Research's all-researched end state alongside honest pointer copy.
+- [x] **Global markets card stays alive after full unlock** — open regions now show "≈$X/wk", each
+      active product's weekly revenue apportioned across its shipped regions by share × tasteFit
+      (the same weights that sized the launch), replacing the static "Open" tag wall.
+- Gates: tsc 0 · 782 tests · build+PWA green · sim byte-identical (auto-player never buys projects
+      or hosts keynotes; the region split is display-only).
+
+## v106 — Design Lab: one category picker (DONE 2026-07-06)
+- [x] The hero preview's interactive category strip duplicated the Category card's picker (same
+      `set({category, tiers})`, different visual style, none of the card's generation badges or
+      market hints). The strip is now a READ-ONLY badge naming the current category under the
+      device; the Category card below is the single picker. Verified via staged screenshots
+      (390×844): hero shows the badge, card keeps G-badges + hints + last-in-category compare.
+- Gates: tsc 0 · 782 tests · build+PWA green.
+
+## v107 — Design → launch is ONE sheet + Market region rows read premium (DONE 2026-07-06)
+- [x] **Integrated production tracker** — the "Design complete" popup no longer dead-ends into a
+      "View building progress" navigation. The sheet now embeds the SAME live In-production readout
+      as the Office card (BuildProgress ring + stage trail, ticking with the sim), and the moment
+      the run rolls off the line the SAME card morphs into the Ready-to-launch moment (identical
+      language to the global popup, fresh planProduction numbers, Launch now / Later; sim paused
+      for the decision). New claim registry in overlayGuard (`claimReadyLaunch`) makes the global
+      ReadyToLaunch popup stand down while the sheet owns the product — closing the sheet counts
+      as "Later" (Office card), never a late double-pop. CompletedBuild now carries the id
+      startBuild actually mints (`prod-N`) so the sheet tracks the real job. Verified end-to-end
+      with a scripted Playwright run (design → build → live ticking → morph → launch reveal).
+- [x] **Locked region rows** — the fixed-width "Unlock · $X" button crushed blurbs into
+      one-word-per-line ribbons on device. Rows now wrap the button onto its own full-width line.
+- Gates: tsc 0 · 782 tests · build+PWA green.
+
+## v108 — "Design a new version": franchise picker in the Lab (DONE 2026-07-07)
+- [x] The completion sheet's "Design another" (blank slate) is now **"Design a new version"** and
+      opens a Start-from picker: one row per launched franchise (device thumb, equity label, the
+      next name in the series, G{n} badge) + a Fresh-concept row. Picking a line seeds
+      `successorDraft(latest entry)` — whole design carried over, next name — the same hand-off
+      Market's "Design a successor" uses. A "New version" pill in the lab hero opens the same
+      picker any time. Verified live (3-franchise save → picker → seeded Aurora Pro III, Fit 86).
+- Gates: tsc 0 · 782 tests · build+PWA green.

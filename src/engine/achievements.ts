@@ -70,7 +70,8 @@ export interface AchievementFacts {
   osInstalledBase: number; // devices running your OS (0 unless the division is unlocked)
   osLicenseeCount: number; // rivals currently licensing your OS
   // --- Factory floor facts (all keyed ABOVE the starter defaults so they never auto-unlock at
-  //     new-game: the starter is a complete 7-machine line with no props and no expansions). ---
+  //     new-game: the starter floor is just an Intake and a Packer — no arms, no props, no
+  //     expansions — so every one of these is genuinely built by the player). ---
   factoryExpanded: boolean; // bought at least one floor expansion
   factoryMaxExpanded: boolean; // expanded the floor to its largest footprint
   factoryProps: number; // decorative props placed on the factory floor
@@ -645,9 +646,9 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     id: "factory-parallel",
     title: "Second Shift",
-    description: "Added a second assembly arm, the line now builds in parallel.",
+    description: "Two assembly arms on the line, builds now run in parallel.",
     icon: "Zap",
-    hint: "Place another assembly arm on the factory line.",
+    hint: "Run two assembly arms on your factory line.",
     predicate: (f) => f.factoryArms >= 2,
   },
   {
@@ -671,7 +672,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     title: "Production Powerhouse",
     description: "A sprawling line of a dozen machines, humming end to end.",
     icon: "Layers",
-    hint: "Grow your factory line well beyond its starting machines.",
+    hint: "Build a dozen machines onto your factory floor.",
     predicate: (f) => f.factoryMachineCount >= 12,
   },
   {

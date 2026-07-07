@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  FLOOR, MACHINE_DEFS, beltPath, canPlaceBelt, canPlaceMachine, formMarks,
+  FLOOR, MACHINE_DEFS, beltPath, canPlaceBelt, canPlaceMachine, demoFloor, formMarks,
   machineCells, placeBelt, placeMachine, removeAt, starterFloor, worldOf,
 } from "./factoryFloor.ts";
 
@@ -54,8 +54,21 @@ describe("factory floor grid (F2)", () => {
     expect(path[4]).toEqual([ex, ez]);
   });
 
-  it("the starter floor is valid, fully chained, and covers every machine kind", () => {
+  it("the STARTER floor is just a beginning and an end — intake, packer, no belts", async () => {
+    const { lineComplete, lineSpeedMult } = await import("./factoryFloor.ts");
     const f = starterFloor();
+    expect(f.belts).toHaveLength(0);
+    expect(f.machines.map((m) => m.kind).sort()).toEqual(["intake", "packer"]);
+    for (const m of f.machines) {
+      const others = { ...f, machines: f.machines.filter((x) => x.id !== m.id) };
+      expect(canPlaceMachine(others, m.kind, m.c, m.r)).toBe(true);
+    }
+    expect(lineComplete(f)).toBe(false); // nothing wired yet — the player's job
+    expect(lineSpeedMult(f)).toBe(1);    // and NO penalty for it (the contract factory carries you)
+  });
+
+  it("the demo floor is valid, fully chained, and covers every machine kind", () => {
+    const f = demoFloor();
     for (const m of f.machines) {
       const others = { ...f, machines: f.machines.filter((x) => x.id !== m.id) };
       expect(canPlaceMachine(others, m.kind, m.c, m.r)).toBe(true);
@@ -86,14 +99,15 @@ describe("factory floor grid (F2)", () => {
     expect(floorWidth(99)).toBe(floorWidth(3));
   });
 
-  it("line speed: starter is neutral, extra arms speed up, a broken line is slower", async () => {
+  it("line speed: unwired = neutral, a complete line is a BONUS, breaking it just loses the bonus", async () => {
     const { lineSpeedMult, placeMachine } = await import("./factoryFloor.ts");
-    const f = starterFloor();
-    expect(lineSpeedMult(f)).toBe(1); // complete single-arm starter → baseline unchanged
-    const twoArms = placeMachine(f, "arm", 13, 8, "arm2")!; // add a second assembly arm
-    expect(lineSpeedMult(twoArms)).toBeLessThan(1);
-    const broken = removeAt(f, 7, 6); // sever the bottom lane
-    expect(lineSpeedMult(broken)).toBeGreaterThan(1);
+    expect(lineSpeedMult(starterFloor())).toBe(1);   // bare start → ×1, never a penalty
+    const f = demoFloor();
+    expect(lineSpeedMult(f)).toBeCloseTo(0.92, 5);   // wired single-arm line → the earned bonus
+    const twoArms = placeMachine(f, "arm", 13, 8, "arm2")!; // a second arm deepens it
+    expect(lineSpeedMult(twoArms)).toBeLessThan(lineSpeedMult(f));
+    const broken = removeAt(f, 7, 6); // sever the bottom lane → bonus lost, no punishment
+    expect(lineSpeedMult(broken)).toBe(1);
   });
 
   it("per-machine upgrades: cost, level cap, speed bonus, and richer refund", async () => {
@@ -101,7 +115,7 @@ describe("factory floor grid (F2)", () => {
       lineSpeedMult, upgradeMachineAt, machineUpgradeCostAt, machineLevel, machineInvested,
       MACHINE_MAX_LEVEL, demolitionRefund,
     } = await import("./factoryFloor.ts");
-    const f = starterFloor();
+    const f = demoFloor();
     const press = f.machines.find((m) => m.kind === "press")!; // starter press, level 1
     expect(machineLevel(press)).toBe(1);
     expect(machineUpgradeCostAt(f, press.c, press.r)).toBe(Math.round(MACHINE_DEFS.press.cost * 0.75)); // 1→2 = 0.75× base
@@ -123,31 +137,43 @@ describe("factory floor grid (F2)", () => {
     expect(machineUpgradeCostAt(f, 9, 9)).toBeNull(); // empty cell → nothing to upgrade
   });
 
-  it("topology: a floor missing a product's required machine builds it slower; the starter never is", async () => {
+  it("topology: missing a product's recipe machine EATS the bonus but never penalises", async () => {
     const { lineSpeedMult, missingMachineKinds } = await import("./factoryFloor.ts");
     const { requiredKindsFor } = await import("./assemblyLine.ts");
-    const f = starterFloor();
+    const f = demoFloor();
     const phoneReq = requiredKindsFor("phone"); // slab family: intake, press, screen, qa, packer
-    // The starter has every machine kind → covers any recipe → no penalty (still neutral ×1).
+    // The demo floor has every machine kind → full recipe coverage → full bonus.
     expect(missingMachineKinds(f, phoneReq)).toEqual([]);
-    expect(lineSpeedMult(f, phoneReq)).toBe(1);
-    // Rip out the screen bonder: a phone (which needs it) now builds slower, and the HUD can name it.
+    expect(lineSpeedMult(f, phoneReq)).toBeCloseTo(0.92, 5);
+    // Rip out the screen bonder: a phone (which needs it) keeps a SMALLER bonus — partial credit
+    // per covered recipe kind, so every machine on the climb moves the number — never a penalty.
     const noScreen = removeAt(f, f.machines.find((m) => m.kind === "screen")!.c, f.machines.find((m) => m.kind === "screen")!.r);
     expect(missingMachineKinds(noScreen, phoneReq)).toContain("screen");
-    expect(lineSpeedMult(noScreen, phoneReq)).toBeGreaterThan(lineSpeedMult(noScreen)); // penalty only vs a needed kind
-    expect(lineSpeedMult(noScreen, phoneReq)).toBeGreaterThan(1);
-    // A laptop (clamshell) doesn't use a screen bonder, so the same floor isn't penalised for it.
+    expect(lineSpeedMult(noScreen, phoneReq)).toBeGreaterThan(lineSpeedMult(noScreen)); // less bonus vs a needed kind
+    expect(lineSpeedMult(noScreen, phoneReq)).toBeLessThan(1); // …but still a REAL bonus (no dead zone)
+    // A laptop (clamshell) doesn't use a screen bonder, so the same floor keeps its full bonus.
     const laptopReq = requiredKindsFor("laptop");
     expect(missingMachineKinds(noScreen, laptopReq)).toEqual([]);
-    expect(lineSpeedMult(noScreen, laptopReq)).toBe(1);
+    expect(lineSpeedMult(noScreen, laptopReq)).toBeCloseTo(0.92, 5);
+    // Day-one payoff: just WIRING the bare starter (intake + packer, 2 of 5 recipe kinds) already
+    // earns 25% + coverage of the base bonus — the "wired line builds faster" promise is true
+    // from the first belt, not only after the full $40K toolkit.
+    const { autoRouteBelts } = await import("./factoryFloor.ts");
+    const wired = autoRouteBelts(starterFloor())!;
+    expect(lineSpeedMult(wired, phoneReq)).toBeCloseTo(1 - 0.08 * (0.25 + 0.75 * (2 / 5)), 5);
+    expect(lineSpeedMult(wired, phoneReq)).toBeLessThan(1);
   });
 
   it("auto-route lays a valid Intake→Packer chain around machines, or bails cleanly", async () => {
     const { autoRouteBelts, lineComplete, canPlaceBelt } = await import("./factoryFloor.ts");
     // No intake/packer → nothing to route.
     expect(autoRouteBelts({ machines: [], belts: [] })).toBeNull();
+    // The BARE starter (intake + packer only) routes into a complete line — Auto's day-one job.
+    const bareStart = autoRouteBelts(starterFloor())!;
+    expect(bareStart).not.toBeNull();
+    expect(lineComplete(bareStart)).toBe(true);
     // A bare intake + packer (belts stripped) auto-routes into a complete, valid line.
-    const bare = { machines: starterFloor().machines, belts: [] };
+    const bare = { machines: demoFloor().machines, belts: [] };
     const routed = autoRouteBelts(bare)!;
     expect(routed).not.toBeNull();
     expect(lineComplete(routed)).toBe(true); // head beside Intake, tail beside Packer
@@ -172,20 +198,75 @@ describe("factory floor grid (F2)", () => {
     expect(autoRouteBelts(bare)).toEqual(routed);
   });
 
+  it("auto-route treats blockedCells (decor props) as impassable", async () => {
+    const { autoRouteBelts, lineComplete, FLOOR } = await import("./factoryFloor.ts");
+    // Wall off row 4 (which separates the starter Intake from the Packer) except one gap at c=7 —
+    // the route must thread the gap and never touch a blocked cell.
+    const blocked = new Set<string>();
+    for (let c = 0; c < FLOOR.w; c++) if (c !== 7) blocked.add(`${c},4`);
+    const routed = autoRouteBelts(starterFloor(), FLOOR.w, blocked)!;
+    expect(routed).not.toBeNull();
+    expect(lineComplete(routed)).toBe(true);
+    for (const b of routed.belts) expect(blocked.has(`${b.c},${b.r}`)).toBe(false);
+    expect(routed.belts.some((b) => b.c === 7 && b.r === 4)).toBe(true); // the only way through
+    // A solid wall with no gap → bail cleanly with null.
+    const wall = new Set<string>();
+    for (let c = 0; c < FLOOR.w; c++) wall.add(`${c},4`);
+    expect(autoRouteBelts(starterFloor(), FLOOR.w, wall)).toBeNull();
+  });
+
+  it("auto-route lays STRAIGHT lanes — few turns, no staircases (turn-penalised legs)", async () => {
+    const { autoRouteBelts, beltChain } = await import("./factoryFloor.ts");
+    const bare = { machines: demoFloor().machines, belts: [] };
+    const routed = autoRouteBelts(bare)!;
+    const chain = beltChain(routed.belts);
+    let turns = 0;
+    for (let i = 1; i < chain.length; i++) if (chain[i].dir !== chain[i - 1].dir) turns++;
+    // The demo floor's horseshoe needs exactly 2 corners; anything staircasing balloons past 8.
+    expect(turns).toBeLessThanOrEqual(4);
+    // And no immediate zig-zag anywhere: two direction changes within a 3-tile window reads as a
+    // staircase, which is exactly what the turn penalty exists to kill.
+    for (let i = 2; i < chain.length; i++) {
+      const zig = chain[i].dir !== chain[i - 1].dir && chain[i - 1].dir !== chain[i - 2].dir;
+      expect(zig).toBe(false);
+    }
+  });
+
+  it("moveMachine relocates in place (id/kind/level kept), rejects collisions and off-grid", async () => {
+    const { moveMachine, machineLevel, upgradeMachineAt } = await import("./factoryFloor.ts");
+    const f = demoFloor();
+    const press = f.machines.find((m) => m.kind === "press")!;
+    // Tune it up first — the level must survive the move.
+    const tuned = upgradeMachineAt(f, press.c, press.r)!;
+    const moved = moveMachine(tuned, press.id, 6, 3);
+    expect(moved).not.toBeNull();
+    const after = moved!.machines.find((m) => m.id === press.id)!;
+    expect([after.c, after.r]).toEqual([6, 3]);
+    expect(after.kind).toBe("press");
+    expect(machineLevel(after)).toBe(2);
+    expect(moved!.machines).toHaveLength(f.machines.length); // moved, not duplicated
+    // Onto another machine → refused; off the grid → refused; unknown id → refused.
+    expect(moveMachine(f, press.id, 0, 1)).toBeNull();  // intake's footprint
+    expect(moveMachine(f, press.id, 14, 0)).toBeNull(); // 3-wide off the east edge
+    expect(moveMachine(f, "nope", 6, 3)).toBeNull();
+    // Moving a machine onto cells IT currently occupies is fine (shift by one).
+    expect(moveMachine(f, press.id, press.c + 1, press.r)).not.toBeNull();
+  });
+
   it("machineCells matches the def footprint", () => {
     expect(machineCells({ kind: "press", c: 1, r: 1 })).toHaveLength(MACHINE_DEFS.press.w * MACHINE_DEFS.press.d);
   });
 });
 
 describe("F3 — line completeness + demolition refund", () => {
-  it("the starter line is complete (intake feeds the head, packer catches the tail)", async () => {
+  it("the demo floor's line is complete (intake feeds the head, packer catches the tail)", async () => {
     const { lineComplete } = await import("./factoryFloor.ts");
-    expect(lineComplete(starterFloor())).toBe(true);
+    expect(lineComplete(demoFloor())).toBe(true);
   });
 
   it("breaking the chain mid-line makes it incomplete; repairing restores it", async () => {
     const { lineComplete } = await import("./factoryFloor.ts");
-    const f = starterFloor();
+    const f = demoFloor();
     const broken = removeAt(f, 7, 6); // a middle tile of the bottom lane
     expect(lineComplete(broken)).toBe(false);
     const repaired = placeBelt(broken, 7, 6, "w")!;
@@ -194,7 +275,7 @@ describe("F3 — line completeness + demolition refund", () => {
 
   it("demolition refunds half the occupant's cost, zero for empty cells", async () => {
     const { demolitionRefund, BELT_COST, MACHINE_DEFS } = await import("./factoryFloor.ts");
-    const f = starterFloor();
+    const f = demoFloor();
     expect(demolitionRefund(f, 7, 0)).toBe(Math.round(MACHINE_DEFS.press.cost / 2)); // press cell
     expect(demolitionRefund(f, 5, 2)).toBe(Math.round(BELT_COST / 2)); // belt tile
     expect(demolitionRefund(f, 9, 9)).toBe(0); // empty

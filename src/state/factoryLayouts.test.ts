@@ -2,14 +2,17 @@ import { describe, it, expect } from "vitest";
 import { dollars } from "../engine/money.ts";
 import { MACHINE_DEFS, machineLevel, machineUpgradeStepCost } from "../engine/factoryFloor.ts";
 import { MAX_LAYOUTS } from "../engine/factoryLayout.ts";
-import { lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
+import { demoFloor, lineComplete, BELT_COST } from "../engine/factoryFloor.ts";
 import {
-  newGame, buyFloorMachine, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
+  newGame, buyFloorMachine, buyFloorBelt, buyFloorExpansion, upgradeFloorMachine, autoConnectLine, paintBeltRun,
+  moveFloorMachine, moveFactoryProp, buyFactoryProp, autoConnectQuote, clearFloorCell,
   saveFactoryLayout, applyFactoryLayout, deleteFactoryLayout, factoryLayoutCost,
   type GameState,
 } from "./gameState.ts";
+import { propCells } from "../engine/factoryProps.ts";
 
-const rich = (over: Partial<GameState> = {}): GameState => ({ ...newGame(7), cash: dollars(5_000_000), ...over });
+// Tests exercise a BUILT floor (new games start bare), so rich() carries the reference demo layout.
+const rich = (over: Partial<GameState> = {}): GameState => ({ ...newGame(7), cash: dollars(5_000_000), factoryFloor: demoFloor(), ...over });
 
 describe("saved factory layouts (F: save / name / switch)", () => {
   it("saves a named snapshot of the current floor, and caps the count", () => {
@@ -78,8 +81,8 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     const built = buyFloorMachine(rich(), "arm", 13, 8);
     const withBig = saveFactoryLayout(built.state, "big");
     const bigId = withBig.state.factoryLayouts[0].id;
-    // A broke floor WITHOUT the extra arm: applying "big" must add (and charge for) the arm.
-    const broke: GameState = { ...newGame(7), cash: dollars(1), factoryLayouts: withBig.state.factoryLayouts };
+    // A broke DEMO floor WITHOUT the extra arm: applying "big" must add (and charge for) the arm.
+    const broke: GameState = { ...newGame(7), cash: dollars(1), factoryFloor: demoFloor(), factoryLayouts: withBig.state.factoryLayouts };
     expect(factoryLayoutCost(broke, withBig.state.factoryLayouts[0])).toBe(MACHINE_DEFS.arm.cost);
     const res = applyFactoryLayout(broke, bigId);
     expect(res.ok).toBe(false);
@@ -134,6 +137,21 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     expect(factoryLayoutCost(onBase, layout)).toBe(machineUpgradeStepCost("press", 1)!);
   });
 
+  it("autoConnectQuote prices the route EXACTLY as autoConnectLine charges it", () => {
+    const base = rich();
+    const stripped: GameState = { ...base, factoryFloor: { ...base.factoryFloor, belts: [] } };
+    const quote = autoConnectQuote(stripped)!;
+    expect(quote).not.toBeNull();
+    expect(quote.tiles).toBeGreaterThan(0);
+    expect(quote.cost).toBe(quote.tiles * BELT_COST); // fresh floor: every tile is new
+    const res = autoConnectLine(stripped);
+    expect(res.ok).toBe(true);
+    expect((stripped.cash - res.state.cash)).toBe(quote.cost); // the quote IS the charge
+    // No packer → no quote (mirrors the action's refusal).
+    const noPacker: GameState = { ...base, factoryFloor: { machines: base.factoryFloor.machines.filter((m) => m.kind !== "packer"), belts: [] } };
+    expect(autoConnectQuote(noPacker)).toBeNull();
+  });
+
   it("autoConnectLine rebuilds a complete line from a stripped floor and charges the belt cost", () => {
     const base = rich();
     const stripped: GameState = { ...base, factoryFloor: { ...base.factoryFloor, belts: [] } };
@@ -170,6 +188,108 @@ describe("saved factory layouts (F: save / name / switch)", () => {
     const partial = paintBeltRun(broke, run, "e");
     expect(partial.ok).toBe(true);
     expect(partial.state.factoryFloor.belts).toHaveLength(2);
+  });
+
+  it("moveFloorMachine / moveFactoryProp relocate for FREE (hold-and-drag), validated", () => {
+    const base = rich();
+    const press = base.factoryFloor.machines.find((m) => m.kind === "press")!;
+    const moved = moveFloorMachine(base, press.id, 6, 3);
+    expect(moved.ok).toBe(true);
+    expect(moved.state.cash).toBe(base.cash); // rearranging is free
+    expect(moved.state.factoryFloor.machines.find((m) => m.id === press.id)).toMatchObject({ c: 6, r: 3 });
+    // An illegal spot refuses and leaves state untouched.
+    const bad = moveFloorMachine(base, press.id, 0, 1);
+    expect(bad.ok).toBe(false);
+    expect(bad.state).toBe(base);
+    // Props: place one, move it, still free.
+    const withProp = buyFactoryProp(base, "plant", 8, 4);
+    expect(withProp.ok).toBe(true);
+    const prop = withProp.state.factoryProps[0];
+    const pMoved = moveFactoryProp(withProp.state, prop.id, 8, 5);
+    expect(pMoved.ok).toBe(true);
+    expect(pMoved.state.cash).toBe(withProp.state.cash);
+    expect(pMoved.state.factoryProps[0]).toMatchObject({ c: 8, r: 5 });
+  });
+
+  it("decor props are SOLID to machines and belts (no ghost overlap either way)", () => {
+    // A prop on an empty floor blocks machine placement, belt placement, and belt painting.
+    const bare: GameState = { ...rich(), factoryFloor: { machines: [], belts: [] } };
+    const withProp = buyFactoryProp(bare, "plant", 5, 5);
+    expect(withProp.ok).toBe(true);
+    const s = withProp.state;
+    const overM = buyFloorMachine(s, "press", 5, 5);
+    expect(overM.ok).toBe(false);
+    expect(overM.reason).toMatch(/decoration/i);
+    const overB = buyFloorBelt(s, 5, 5, "e");
+    expect(overB.ok).toBe(false);
+    // A painted run skips the prop cell but still lays the rest.
+    const run = [{ c: 4, r: 5 }, { c: 5, r: 5 }, { c: 6, r: 5 }];
+    const painted = paintBeltRun(s, run, "e");
+    expect(painted.ok).toBe(true);
+    expect(painted.state.factoryFloor.belts.some((b) => b.c === 5 && b.r === 5)).toBe(false);
+    expect(painted.state.factoryFloor.belts).toHaveLength(2);
+    // Hold-to-move refuses to drop a machine onto the prop.
+    const withMachine = buyFloorMachine(s, "press", 8, 2);
+    expect(withMachine.ok).toBe(true);
+    const press = withMachine.state.factoryFloor.machines.find((m) => m.kind === "press")!;
+    const dropped = moveFloorMachine(withMachine.state, press.id, 5, 5);
+    expect(dropped.ok).toBe(false);
+    expect(dropped.reason).toMatch(/decoration/i);
+  });
+
+  it("autoConnectLine routes AROUND decor props (never lays belt on one)", () => {
+    const stripped: GameState = { ...rich(), factoryFloor: { ...rich().factoryFloor, belts: [] } };
+    const withProp = buyFactoryProp(stripped, "crates", 8, 4);
+    expect(withProp.ok).toBe(true);
+    const routed = autoConnectLine(withProp.state);
+    expect(routed.ok).toBe(true);
+    expect(lineComplete(routed.state.factoryFloor)).toBe(true);
+    const propAt = new Set(withProp.state.factoryProps.flatMap((p) => propCells(p)));
+    for (const b of routed.state.factoryFloor.belts) expect(propAt.has(`${b.c},${b.r}`)).toBe(false);
+    // The quote matches the charge with the prop in play, too.
+    const quote = autoConnectQuote(withProp.state)!;
+    expect(quote.tiles).toBe(routed.state.factoryFloor.belts.length);
+  });
+
+  it("machine/prop ids stay UNIQUE across demolish + re-buy in the same week", () => {
+    // The old scheme derived ids from array length: buy → demolish an OLDER piece → buy again
+    // reused the id, so moveMachine dragged both and React keys collided.
+    const bare: GameState = { ...rich(), factoryFloor: { machines: [], belts: [] } };
+    let s = buyFloorMachine(bare, "press", 2, 2).state;
+    s = buyFloorMachine(s, "mill", 6, 2).state;
+    s = clearFloorCell(s, 2, 2); // demolish the FIRST one — length shrinks back
+    s = buyFloorMachine(s, "qa", 10, 2).state;
+    const ids = s.factoryFloor.machines.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    // Same guarantee for props.
+    let p = buyFactoryProp(bare, "cone", 4, 8).state;
+    p = buyFactoryProp(p, "cone", 5, 8).state;
+    p = { ...p, factoryProps: p.factoryProps.slice(1) }; // drop the first prop
+    p = buyFactoryProp(p, "cone", 6, 8).state;
+    const pids = p.factoryProps.map((x) => x.id);
+    expect(new Set(pids).size).toBe(pids.length);
+  });
+
+  it("applying a layout clamps a tampered expansion to MAX_EXPANSION", () => {
+    const saved = saveFactoryLayout(rich(), "hax").state;
+    const tampered: GameState = {
+      ...saved,
+      factoryLayouts: saved.factoryLayouts.map((l) => ({ ...l, expansion: 99 })),
+    };
+    const res = applyFactoryLayout(tampered, tampered.factoryLayouts[0].id);
+    expect(res.ok).toBe(true);
+    expect(res.state.factoryExpansion).toBeLessThanOrEqual(3);
+  });
+
+  it("paintBeltRun distinguishes 'no money' from 'no legal cell'", () => {
+    const bare: GameState = { ...rich(), factoryFloor: { machines: [], belts: [] } };
+    const broke: GameState = { ...bare, cash: dollars(0) };
+    const noMoney = paintBeltRun(broke, [{ c: 2, r: 2 }], "e");
+    expect(noMoney.ok).toBe(false);
+    expect(noMoney.reason).toMatch(/cost/i);
+    const offGrid = paintBeltRun(bare, [{ c: 99, r: 99 }], "e");
+    expect(offGrid.ok).toBe(false);
+    expect(offGrid.reason).toMatch(/there/i);
   });
 
   it("deletes a layout by id", () => {

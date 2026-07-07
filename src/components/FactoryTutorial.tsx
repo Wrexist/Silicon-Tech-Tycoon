@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeft, ArrowRight, Boxes, Check, Factory, Hammer, Hand, Maximize2, Move, Palette,
+  ArrowLeft, ArrowRight, Boxes, Check, Factory, Grab, Hammer, Hand, Maximize2, Move, Palette,
   Truck, Workflow, X, ZoomIn, Zap, type LucideIcon,
 } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
@@ -36,10 +36,11 @@ function FlowVisual() {
   );
 }
 
-/** The three touch gestures, as glyph chips. */
+/** The four touch gestures, as glyph chips. */
 function GestureVisual() {
   const acts: { icon: LucideIcon; label: string }[] = [
     { icon: Hand, label: "Tap to place" },
+    { icon: Grab, label: "Hold to move" },
     { icon: Move, label: "Drag to orbit" },
     { icon: ZoomIn, label: "Pinch to zoom" },
   ];
@@ -94,22 +95,22 @@ const STEPS: TStep[] = [
   {
     icon: Factory,
     accent: "var(--accent)",
-    title: "Your production line",
-    text: "This is your real factory. Material enters at the intake, rides the belt through each machine, and ships from the pallet by the truck — the line you see runs your actual builds.",
+    title: "Your factory, your line",
+    text: "This floor starts with just an Intake and a Packer — the beginning and the end. Wire a belt between them and your real builds will ride it: material in, through your machines, shipped by truck.",
     visual: <FlowVisual />,
   },
   {
     icon: Hand,
     accent: "var(--fn-eng)",
     title: "Build the floor",
-    text: "Tap Build, pick a machine or a belt, then tap the floor to drop it in. Move the camera with touch to see every angle.",
+    text: "Tap Build, pick a machine or a belt, then tap or drag on the floor to lay it down. In a hurry? The Auto button quotes a price and routes the whole line for you. Hold any placed machine to pick it up and move it — green cells show where it belongs.",
     visual: <GestureVisual />,
   },
   {
     icon: Zap,
     accent: "var(--fn-team)",
-    title: "A good line ships faster",
-    text: "Keep the belt unbroken from intake to packer, or the line won't run. Add assembly arms and a well-built line genuinely builds your products quicker.",
+    title: "A wired line ships faster",
+    text: "An unbroken belt from Intake to Packer earns a build-speed bonus from your very first run. Every machine your product's recipe calls for grows it, and assembly arms and upgrades deepen it further.",
     visual: <LineVisual />,
   },
   {

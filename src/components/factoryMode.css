@@ -11,6 +11,11 @@
 .fmini { display: block; width: 100%; height: auto; }
 .fmini__pad { fill: color-mix(in srgb, var(--ink) 16%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 28%, transparent); stroke-width: 2; }
 .fmini__grid { stroke: color-mix(in srgb, var(--ink) 6%, transparent); stroke-width: 1; }
+/* The next (unbought) expansion bay — dimmed + padlocked so the bigger factory is visible before purchase. */
+.fmini__lockbay-pad { fill: color-mix(in srgb, var(--ink) 7%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 24%, transparent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.fmini__lockbay-body { fill: color-mix(in srgb, var(--ink) 42%, transparent); }
+.fmini__lockbay-shackle { fill: none; stroke: color-mix(in srgb, var(--ink) 42%, transparent); stroke-width: 2.5; stroke-linecap: round; }
+.fmini__lockbay-txt { fill: color-mix(in srgb, var(--ink) 52%, transparent); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
 .fmini__belt { fill: color-mix(in srgb, var(--ink) 36%, var(--bg)); }
 .fmini__belt--live { fill: color-mix(in srgb, var(--warning) 55%, var(--bg)); }
 .fmini--run .fmini__belt--live { animation: fmini-pulse 2.2s ease-in-out infinite; }
@@ -22,7 +27,11 @@
 .fmode {
   --fmode-btn-bg: rgba(15, 18, 24, 0.88);
   --fmode-btn-line: rgba(255, 255, 255, 0.12);
-  position: fixed; inset: 0; z-index: 60;
+  /* Above the base app (nav 30, HQ decorate 45) but BELOW the sheet scrim (50): Sheet portals to
+     <body>, so if the factory sat at 60 its own Upgrades/Style/Stats/Shop sheets opened INVISIBLY
+     behind this near-opaque overlay. 46 keeps sheets (50), toasts (60), the ready-to-launch modal
+     (58) and tutorials (70) all correctly on top. */
+  position: fixed; inset: 0; z-index: 46;
   display: flex; align-items: center; justify-content: center;
   background: rgba(9, 11, 15, 0.99);
   padding: calc(56px + env(safe-area-inset-top)) var(--sp-8) calc(64px + env(safe-area-inset-bottom));
@@ -144,7 +153,9 @@
   display: flex; justify-content: space-between; gap: var(--sp-8);
   padding: 3px 0; font-size: var(--fs-micro); font-weight: 600;
 }
-.fmode__stat > span:first-child { color: rgba(255,255,255,0.6); }
+/* Stat rows live INSIDE the light glass sheet (not the dark HUD), so labels use the ink token —
+   the old white-alpha was invisible on the sheet surface. */
+.fmode__stat > span:first-child { color: var(--ink-2); }
 .fmode__pos { color: var(--positive); }
 .fmode__neg { color: var(--negative); }
 
@@ -245,6 +256,20 @@
 }
 .fmode__buy:disabled { opacity: 0.5; cursor: default; }
 
+/* Auto-route quote — the build head swaps to price + Confirm/Cancel while Auto is armed. */
+.fmode__autoquote-label {
+  flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--fs-caption); font-weight: 700; color: rgba(255,255,255,0.85);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fmode__autoquote-go { min-height: 44px; }
+.fmode__autoquote-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex: none; border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.08); border: 1px solid var(--fmode-btn-line);
+  color: rgba(255,255,255,0.8); cursor: pointer;
+}
+
 /* ---------------- saved layouts (Style sheet) ---------------- */
 .fmode__layouts { display: flex; flex-direction: column; gap: var(--sp-6); }
 .fmode__layout {
@@ -295,6 +320,15 @@
   padding: 0; border: none; background: none; cursor: pointer;
   border-radius: var(--r-card); overflow: hidden;
 }
+/* The REAL factory in the card — a live window into the 3D floor. Look-don't-touch: pointer
+   events pass through to the card button (tap opens fullscreen) and the page (drags scroll). */
+.fcard__scene {
+  display: block; width: 100%; aspect-ratio: 16 / 10;
+  background: #0b0e12; /* the factory world's dark chrome — intrinsic scene colour */
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+.fcard__scene, .fcard__scene * { pointer-events: none !important; touch-action: pan-y; }
 .fcard__expand {
   position: absolute; top: var(--sp-8); right: var(--sp-8);
   display: inline-flex; align-items: center; justify-content: center;

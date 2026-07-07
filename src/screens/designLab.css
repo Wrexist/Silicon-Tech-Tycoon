@@ -154,17 +154,26 @@
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--fn-design) 55%, transparent));
 }
 .lab__hero-stage > :not(.lab__hero-backdrop) { position: relative; z-index: 1; }
+/* Read-only category badge under the hero device — the interactive picker is the Category card. */
 .lab__hero-cats { display: inline-flex; gap: var(--sp-6); flex-wrap: wrap; justify-content: center; }
 .lab__hero-cat {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 6px 12px; border-radius: var(--r-pill);
   border: 1px solid var(--hairline); background: var(--surface);
   font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2);
-  transition: all var(--spring-snappy);
 }
 .lab__hero-cat--on { border-color: var(--fn-design); background: var(--fn-design); color: var(--accent-ink); }
 .lab__hero-info { display: flex; flex-direction: column; gap: var(--sp-12); min-width: 0; }
 .lab__hero-name-row { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; }
+/* "New version" — opens the start-from picker to iterate on a launched line. */
+.lab__hero-newver {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px; border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--fn-design) 40%, transparent);
+  background: var(--fn-design-soft, var(--accent-soft));
+  color: var(--fn-design, var(--accent));
+  font-size: var(--fs-micro); font-weight: 700;
+}
 .lab__hero-name { font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.01em; }
 .lab__hero-tag {
   font-size: var(--fs-micro); font-weight: 700;
@@ -1067,6 +1076,32 @@
 .wiz__seg-pct { font-size: var(--fs-micro); font-weight: 700; text-align: right; color: var(--ink-2); }
 .wiz__seg-row--top .wiz__seg-pct { color: var(--fn-design); }
 
+/* ---------- "Start from…" picker (Design a new version) ---------- */
+.startfrom { display: flex; flex-direction: column; gap: var(--sp-12); }
+.startfrom__title { font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.01em; }
+.startfrom__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; margin-top: calc(-1 * var(--sp-8)); }
+.startfrom__list { display: flex; flex-direction: column; gap: var(--sp-8); }
+.startfrom__row {
+  display: flex; align-items: center; gap: var(--sp-12); text-align: left;
+  padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
+  border: 1px solid var(--hairline); background: var(--surface-2);
+}
+.startfrom__row:active { background: var(--surface); }
+.startfrom__thumb {
+  width: 52px; height: 52px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-button); background: var(--bg-elevated); overflow: hidden;
+}
+.startfrom__thumb--fresh { color: var(--fn-design, var(--accent)); background: var(--fn-design-soft, var(--accent-soft)); }
+.startfrom__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.startfrom__name { font-weight: 700; }
+.startfrom__meta { font-size: var(--fs-caption); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.startfrom__gen {
+  flex-shrink: 0; padding: 3px 8px; border-radius: var(--r-pill);
+  background: var(--fn-design-soft, var(--accent-soft)); color: var(--fn-design, var(--accent));
+  font-size: var(--fs-micro); font-weight: 800;
+}
+
 /* ---------- Design-complete sheet ---------- */
 .done { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); text-align: center; }
 .done__close {
@@ -1098,22 +1133,22 @@
   width: 100%;
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12);
 }
-.done__next {
+/* The LIVE in-production readout embedded in the sheet — same BuildProgress as the Office card,
+   framed as its own panel so the ring + stage trail read left-aligned inside the centered card. */
+.done__live {
   width: 100%;
-  display: flex; flex-direction: column; gap: var(--sp-8);
   padding: var(--sp-12);
   border-radius: var(--r-button);
   background: var(--bg-elevated);
   text-align: left;
 }
-.done__step { display: flex; align-items: center; gap: var(--sp-10); font-size: var(--fs-caption); color: var(--ink); line-height: 1.4; }
-.done__step b { font-weight: 700; }
-.done__step-icon {
-  width: 30px; height: 30px; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: var(--r-pill);
-  background: var(--fn-design-soft, var(--accent-soft)); color: var(--fn-design, var(--accent));
+/* Ready-state header, mirroring the global ReadyToLaunch popup's language. */
+.done__eyebrow {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-caption); font-weight: 700;
+  color: var(--positive-text, var(--positive));
 }
+.done__badge--launch { background: var(--accent-soft); color: var(--accent); }
 .done > .ds-btn { width: 100%; }
 
 /* ---------- Design Lab section tabs ---------- */

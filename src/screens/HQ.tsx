@@ -16,6 +16,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
+import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
 import { dollars, format, formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import {
@@ -47,7 +48,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
   amenities: "a coffee station + greenery",
   assembly: "a faster production line",
 };
-import { RESEARCH_PROJECTS, projectById } from "../engine/research.ts";
+import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
@@ -134,8 +135,12 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {ipoReady && (
         <Card className="hq__era hq__ipo">
           <div className="hq__era-body">
-            <span className="hq__era-title">Ready to go public</span>
-            <span className="hq__era-sub">Your reputation is world-class. Take the company to IPO.</span>
+            <span className="hq__era-title">{state.listed ? "Ready for the pinnacle" : "Ready to go public"}</span>
+            <span className="hq__era-sub">
+              {state.listed
+                ? "Your reputation is world-class. Cement your legacy at the top of the industry."
+                : "Your reputation is world-class. Take the company to IPO."}
+            </span>
           </div>
           <Button
             size="sm"
@@ -289,7 +294,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           ))}
           {onViewFactory && world === "office" && (
             <button className="hq__viewline" onClick={onViewFactory}>
-              Watch it on the line <ChevronRight size={15} aria-hidden />
+              {/* Before the player wires Intake→Packer there is nothing moving to watch — invite
+                  them to build instead of promising a show the empty floor can't deliver. */}
+              {lineComplete(state.factoryFloor) ? "Watch it on the line" : "Build your factory line"} <ChevronRight size={15} aria-hidden />
             </button>
           )}
         </Card>
@@ -993,10 +1000,11 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     });
   }
 
-  // 2. Affordable research project
+  // 2. Affordable research project — same eligibility Research itself applies, INCLUDING the
+  // doctrine fork: never nudge toward a project the player's chosen fork has padlocked.
   const rp = Math.floor(state.researchPoints);
   const nextProject = RESEARCH_PROJECTS
-    .filter((p) => !state.completedProjects.includes(p.id) && p.era <= state.era && p.rpCost <= rp)
+    .filter((p) => !state.completedProjects.includes(p.id) && p.era <= state.era && p.rpCost <= rp && !forkLockedBy(state.completedProjects, p.id))
     .sort((a, b) => a.rpCost - b.rpCost)[0];
   if (nextProject) {
     insights.push({
@@ -1200,17 +1208,21 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
       <div className="hq__insights-list">
         {insights.slice(0, 3).map((ins) => {
           const Icon = ins.icon;
-          return (
-            <button
-              key={ins.text}
-              className={`hq__insight${ins.tab ? "" : " hq__insight--static"}`}
-              onClick={() => ins.tab && onNavigate(ins.tab)}
-              disabled={!ins.tab}
-            >
+          const body = (
+            <>
               <span className="hq__insight-icon"><Icon size={14} strokeWidth={2.5} /></span>
               <span className="hq__insight-text">{ins.text}</span>
               {ins.tab && <ChevronRight size={13} className="hq__insight-chevron" aria-hidden />}
+            </>
+          );
+          // A hint with no destination is plain content, not a disabled control — screen readers
+          // shouldn't announce an inert "button, dimmed" for advice that isn't actionable.
+          return ins.tab ? (
+            <button key={ins.text} className="hq__insight" onClick={() => onNavigate(ins.tab!)}>
+              {body}
             </button>
+          ) : (
+            <div key={ins.text} className="hq__insight hq__insight--static">{body}</div>
           );
         })}
       </div>

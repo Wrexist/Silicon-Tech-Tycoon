@@ -35,6 +35,15 @@ export function propCells(p: { kind: PropKind; c: number; r: number }): string[]
   return out;
 }
 
+/** Every cell occupied by any prop — the blocked-set machines, belts, and the auto-router must
+ *  respect so decor is solid both ways (props already refuse machine/belt cells; this is the
+ *  mirror). Pure. */
+export function propCellSet(props: PlacedProp[]): Set<string> {
+  const out = new Set<string>();
+  for (const p of props) for (const cell of propCells(p)) out.add(cell);
+  return out;
+}
+
 /** World-space centre of a placed prop (for rendering), sharing the floor's coordinate system. */
 export function propCenter(p: PlacedProp): [number, number] {
   const def = PROP_DEFS[p.kind];
@@ -55,6 +64,15 @@ export function canPlaceProp(floor: FactoryFloor, props: PlacedProp[], kind: Pro
 export function placeProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKind, c: number, r: number, id: string, maxW: number = FLOOR.w): PlacedProp[] | null {
   if (!canPlaceProp(floor, props, kind, c, r, maxW)) return null;
   return [...props, { id, kind, c, r }];
+}
+
+/** Relocate a placed prop to a new anchor cell (id + kind preserved) — the pick-up-and-move
+ *  gesture. Valid iff the footprint fits with the prop itself ignored; null when it doesn't. Pure. */
+export function moveProp(floor: FactoryFloor, props: PlacedProp[], id: string, c: number, r: number, maxW: number = FLOOR.w): PlacedProp[] | null {
+  const p = props.find((x) => x.id === id);
+  if (!p) return null;
+  if (!canPlaceProp(floor, props.filter((x) => x.id !== id), p.kind, c, r, maxW)) return null;
+  return props.map((x) => (x.id === id ? { ...x, c, r } : x));
 }
 
 export function removePropAt(props: PlacedProp[], c: number, r: number): PlacedProp[] {

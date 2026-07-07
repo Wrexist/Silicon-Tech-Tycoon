@@ -12,7 +12,7 @@ import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
-import { dollars, format, sub, toDollars, cents } from "../engine/money.ts";
+import { dollars, format, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
@@ -33,12 +33,13 @@ import {
   nextWeekRevenue,
   osDisplayName,
   osTierInfo,
+  productStats,
   type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { REGIONS } from "../engine/regions.ts";
+import { REGIONS, regionById, regionTasteFit, shippableRegions } from "../engine/regions.ts";
 import { supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -173,7 +174,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         </div>
         <div className="mkt__nw-row">
           <StatPill label="Cash" value={format(state.cash)} />
-          <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans > 0 ? "positive" : "neutral"} />
+          <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
           <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
           <StatPill label="Weekly" value={`${wkFlowD >= 0 ? "+" : ""}${format(wkFlow)}`} tone={wkFlowD >= 0 ? "positive" : "negative"} />
         </div>
@@ -202,7 +203,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         {!state.listed ? (
           listable ? (
             <Button block onClick={() => { setIpo(true); haptic.light(); }}>
-              <Building2 size={16} /> Take {state.companyName} public (IPO)
+              <Building2 size={16} /> List {state.companyName} on the stock exchange
             </Button>
           ) : (() => {
             // Item 19: turn the IPO threshold into a motivating progress bar — a visible
@@ -213,7 +214,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
             return (
               <div className="mkt__ipo">
                 <div className="mkt__ipo-head">
-                  <span className="mkt__ipo-label">Road to IPO</span>
+                  <span className="mkt__ipo-label">Road to the stock exchange</span>
                   <span className="mkt__ipo-pct tnum">{pct}%</span>
                 </div>
                 <div className="mkt__ipo-track"><div className="mkt__ipo-fill" style={{ width: `${pct}%` }} /></div>
@@ -224,7 +225,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
             );
           })()
         ) : state.ownership < 0.06 ? (
-          <p className="mkt__co-hint">You're at your minimum 5% founder stake, so there are no more shares to sell.</p>
+          <p className="mkt__co-hint">Selling more would cut below your 5% founder minimum, so there are no more shares to sell.</p>
         ) : (
           <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>
             Sell more shares
@@ -269,26 +270,48 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length} open`} />
         <p className="mkt__regions-lead">Expand beyond your home market. Each region adds demand, but its buyers value different things, so design with your markets in mind.</p>
         <div className="mkt__region-list">
-          {REGIONS.map((r) => {
-            const open = state.unlockedRegions.includes(r.id);
-            const afford = state.cash >= r.unlockCost;
-            return (
-              <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`}>
-                <span className="mkt__region-icon">{open ? <Globe size={16} /> : <Lock size={15} />}</span>
-                <div className="mkt__region-text">
-                  <span className="mkt__region-name">{r.name}</span>
-                  <span className="mkt__region-blurb">{r.blurb}</span>
+          {(() => {
+            // Where this week's sales are coming from: each active product's weekly revenue,
+            // apportioned across its shipped regions by share × taste fit (the same weights that
+            // sized its launch). Keeps the card alive once every region is unlocked — an open
+            // region shows its contribution instead of a static "Open" tag.
+            const regionRev = new Map<string, number>();
+            for (const lp of state.launched) {
+              if (lp.weeksElapsed >= lp.weeklyUnits.length) continue;
+              const wkRev = lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price);
+              if (wkRev <= 0) continue;
+              const stats = productStats(state, lp.product);
+              const parts = shippableRegions(state.unlockedRegions, lp.product.regions)
+                .map((id) => { const r = regionById(id)!; return { id, w: r.share * regionTasteFit(stats, r) }; });
+              const total = parts.reduce((a, p) => a + p.w, 0) || 1;
+              for (const p of parts) regionRev.set(p.id, (regionRev.get(p.id) ?? 0) + (wkRev * p.w) / total);
+            }
+            return REGIONS.map((r) => {
+              const open = state.unlockedRegions.includes(r.id);
+              const afford = state.cash >= r.unlockCost;
+              const rev = regionRev.get(r.id) ?? 0;
+              return (
+                <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`}>
+                  <span className="mkt__region-icon">{open ? <Globe size={16} /> : <Lock size={15} />}</span>
+                  <div className="mkt__region-text">
+                    <span className="mkt__region-name">{r.name}</span>
+                    <span className="mkt__region-blurb">{r.blurb}</span>
+                  </div>
+                  {open ? (
+                    rev >= 1 ? (
+                      <span className="mkt__region-tag mkt__region-tag--rev tnum">≈{formatShortDollars(rev)}/wk</span>
+                    ) : (
+                      <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
+                    )
+                  ) : (
+                    <Button variant="secondary" disabled={!afford} onClick={() => unlockRegion(r.id)}>
+                      <Globe size={14} aria-hidden /> Unlock · {format(r.unlockCost)}
+                    </Button>
+                  )}
                 </div>
-                {open ? (
-                  <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
-                ) : (
-                  <Button variant="secondary" disabled={!afford} onClick={() => unlockRegion(r.id)}>
-                    <Globe size={14} aria-hidden /> Unlock · {format(r.unlockCost)}
-                  </Button>
-                )}
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </Card>
 
@@ -407,7 +430,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                     : `${expiredHits.length} products have run their cycle, design successors to keep revenue flowing.`}
                 </span>
                 <Button size="sm" variant="secondary" onClick={() => { onDesignSuccessor(expiredHits[0].product); haptic.light(); }}>
-                  <Wand2 size={13} /> Redesign
+                  <Wand2 size={13} /> Design a successor
                 </Button>
               </div>
             )}
@@ -1632,7 +1655,7 @@ function IPOSheet({ onClose }: { onClose: () => void }) {
       <Slider value={pct} min={5} max={BALANCE.ipo.maxStakePerSale * 100} step={1} ariaLabel="Stake to sell" accent="var(--accent)" onChange={setPct} />
       <p className="trade__ipo-pct">Sell {Math.round(pct)}%</p>
       <Button block onClick={() => { listCompany(pct / 100); haptic.success(); sfx("era"); emitCelebrate(); showToast(`${state.companyName} is now public!`, { tone: "positive", glyph: <Building2 size={15} /> }); onClose(); }}>
-        Confirm IPO
+        Confirm listing
       </Button>
     </div>
   );

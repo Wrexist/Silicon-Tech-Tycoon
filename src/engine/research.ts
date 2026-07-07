@@ -27,7 +27,11 @@ export type ProjectId =
   | "effHouse"
   | "qualityHouse"
   | "peopleOps"
-  | "researchDivision";
+  | "researchDivision"
+  | "aiCopilot"
+  | "lightsOut"
+  | "predictiveSupply"
+  | "neuralMarketing";
 
 export interface ResearchProject {
   id: ProjectId;
@@ -54,6 +58,13 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   { id: "loyaltyProgram",     name: "Loyalty Program",      blurb: "Fan base decays 50% more slowly.",           rpCost: 80,  era: 2 },
   { id: "contentMarketing",   name: "Content Marketing",    blurb: "+100 fans per week from organic social presence.", rpCost: 72, era: 2 },
   { id: "quickPrototype",     name: "Quick Prototype",      blurb: "Production runs complete 1 week faster.",    rpCost: 55,  era: 2 },
+  // Era 4 — AI Era: the arrival finally ships its own breakthroughs (eras 2–3 always did), so the
+  // last era transition feels like a frontier, not a footnote. Costs sit above era 3's ceiling —
+  // by now RP income is era-multiplied and launch rewards flow, so these are the endgame's sinks.
+  { id: "aiCopilot",          name: "AI Copilot Suite",     blurb: "+4 Ecosystem on every product you ship.",    rpCost: 160, era: 4 },
+  { id: "lightsOut",          name: "Lights-Out Assembly",  blurb: "Production runs complete 1 week faster.",    rpCost: 175, era: 4 },
+  { id: "predictiveSupply",   name: "Predictive Supply AI", blurb: "Per-unit build cost a further 10% lower.",   rpCost: 185, era: 4 },
+  { id: "neuralMarketing",    name: "Neural Marketing",     blurb: "+0.25 hype multiplier on every launch.",     rpCost: 200, era: 4 },
   // Era 3 — Platform Era
   { id: "globalDistribution", name: "Global Distribution",  blurb: "Reach 25% more customers.",                  rpCost: 96,  era: 3 },
   { id: "marketingAutomation",name: "Marketing Automation", blurb: "All launches get a free +20% hype boost.",   rpCost: 90,  era: 3 },

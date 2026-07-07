@@ -33,3 +33,54 @@ describe("weeklyRpSources (state) reconciles with weeklyRpGen", () => {
     expect(weeklyRpSources(off).reduce((a, s) => a + s.rp, 0)).toBeCloseTo(weeklyRpGen(off), 6);
   });
 });
+
+describe("Era 4 research projects — the AI Era arrives with real breakthroughs", () => {
+  const probe = {
+    id: "p", name: "Probe", category: "phone",
+    tiers: { chip: 1, display: 1, battery: 1, materials: 1, software: 1, camera: 1 },
+    finish: "aluminium", colorIndex: 0, price: 14000, designTier: 1,
+    camera: { count: 1, layout: "vertical", position: "topLeft", module: "squircle", flash: false },
+    notch: "punch",
+  } as unknown as import("../engine/types.ts").Product;
+
+  it("ships exactly four era-4 projects", async () => {
+    const { RESEARCH_PROJECTS } = await import("../engine/research.ts");
+    const era4 = RESEARCH_PROJECTS.filter((p) => p.era === 4);
+    expect(era4.map((p) => p.id).sort()).toEqual(["aiCopilot", "lightsOut", "neuralMarketing", "predictiveSupply"]);
+    for (const p of era4) expect(p.rpCost).toBeGreaterThan(140); // above era 3's ceiling — endgame sinks
+  });
+
+  it("every effect is actually wired: stat, build weeks, unit cost, hype", async () => {
+    const { buyProject, productStats, buildWeeksFor, hypeBonus, effectiveUnitCost } = await import("./gameState.ts");
+    // era 4, deep RP, and legacy>0 so the first-build fast path doesn't mask the weeks effect.
+    const g = { ...newGame(21), era: 4, researchPoints: 10_000, legacy: 1 };
+
+    const withCopilot = buyProject(g, "aiCopilot");
+    expect(productStats(withCopilot, probe).ecosystem - productStats(g, probe).ecosystem).toBe(4);
+
+    const withLights = buyProject(g, "lightsOut");
+    expect(buildWeeksFor(withLights)).toBe(buildWeeksFor(g) - 1);
+
+    const withSupply = buyProject(g, "predictiveSupply");
+    expect(effectiveUnitCost(withSupply, probe)).toBe(Math.round(effectiveUnitCost(g, probe) * 0.9));
+
+    const withHype = buyProject(g, "neuralMarketing");
+    expect(hypeBonus(withHype) - hypeBonus(g)).toBeCloseTo(0.25, 9);
+  });
+});
+
+describe("developer keynote — the late-game repeatable RP sink", () => {
+  it("spends RP for fans + reputation, caps rep at 100, repeats, and no-ops when short", async () => {
+    const { hostKeynote, KEYNOTE_RP_COST, KEYNOTE_FANS } = await import("./gameState.ts");
+    const g = { ...newGame(9), researchPoints: KEYNOTE_RP_COST * 2, reputation: 99.5 };
+    const once = hostKeynote(g);
+    expect(once.researchPoints).toBe(g.researchPoints - KEYNOTE_RP_COST);
+    expect(once.fans).toBe(g.fans + KEYNOTE_FANS);
+    expect(once.reputation).toBe(100); // capped
+    const twice = hostKeynote(once); // repeatable while RP lasts
+    expect(twice.fans).toBe(once.fans + KEYNOTE_FANS);
+    expect(twice.researchPoints).toBe(0);
+    const broke = { ...g, researchPoints: KEYNOTE_RP_COST - 1 };
+    expect(hostKeynote(broke)).toBe(broke); // unaffordable → untouched reference
+  });
+});
