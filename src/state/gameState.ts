@@ -1481,6 +1481,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let pendingStrike = state.pendingStrike ?? null;
   if (
     !pendingStrike &&
+    state.era >= 2 && // the Garage era is a protected learning sandbox — no strike interrupts
     contestedCats.size > 0 &&
     week - (state.lastStrikeWeek ?? -999) >= BALANCE.market.competition.strike.cooldownWeeks
   ) {

@@ -634,7 +634,9 @@ function DelegationCard({
                     ? r.sub
                     : needsDivision
                       ? <>Research <b>{project.name}</b> ({project.rpCost} RP) to open this division.</>
-                      : <><b>{project.name}</b> is open. Recruit a {roleLabel} to run it.</>}
+                      : enabled
+                        ? <>Paused — recruit a {roleLabel} to resume it.</>
+                        : <><b>{project.name}</b> is open. Recruit a {roleLabel} to run it.</>}
                 </span>
                 {needsHire && (
                   <button

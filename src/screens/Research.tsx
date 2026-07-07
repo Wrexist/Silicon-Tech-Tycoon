@@ -196,6 +196,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
             )}
           </div>
         ) : nextGoal ? (
+          <>
           <div className="rd__bank-goal">
             <div className="rd__bank-goal-head">
               <span className="rd__bank-goal-label">Saving toward</span>
@@ -210,6 +211,14 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               <span className="tnum">{goalPct}%</span>
             </div>
           </div>
+          {rp >= KEYNOTE_RP_COST && (
+            <div className="rd__bank-cta">
+              <Button size="sm" variant="secondary" onClick={() => { hostKeynote(); haptic.success(); }}>
+                <Users size={14} /> Host keynote · {KEYNOTE_RP_COST} RP → +{KEYNOTE_FANS} fans, +{KEYNOTE_REP} rep
+              </Button>
+            </div>
+          )}
+          </>
         ) : (
           // Every project in this era is researched and RP still flows — give the surplus a real,
           // repeatable outlet (the developer keynote) alongside the remaining one-time sinks.

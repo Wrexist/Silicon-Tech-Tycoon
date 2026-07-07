@@ -1472,7 +1472,8 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
             disabled={!acquirable}
             onClick={() => {
               if (!armAcquire) { setArmAcquire(true); haptic.medium(); return; }
-              acquireRival(comp.id); haptic.success(); sfx("era"); emitCelebrate();
+              if (!acquireRival(comp.id)) { haptic.error(); setArmAcquire(false); return; }
+              haptic.success(); sfx("era"); emitCelebrate();
               showToast(`Acquired ${comp.name}`, { tone: "positive", glyph: <Crown size={15} /> });
               onClose();
             }}
@@ -1622,7 +1623,8 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
             disabled={!acquirable}
             onClick={() => {
               if (!armAcquire) { setArmAcquire(true); haptic.medium(); return; }
-              acquireRival(comp.id); haptic.success(); sfx("era"); emitCelebrate();
+              if (!acquireRival(comp.id)) { haptic.error(); setArmAcquire(false); return; }
+              haptic.success(); sfx("era"); emitCelebrate();
               showToast(`Acquired ${comp.name}`, { tone: "positive", glyph: <Crown size={15} /> });
               onClose();
             }}

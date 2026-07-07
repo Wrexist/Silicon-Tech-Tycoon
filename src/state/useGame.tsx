@@ -452,7 +452,7 @@ interface GameActionsValue {
   // equity / stock market
   buyShares: (id: string, qty: number) => void;
   sellShares: (id: string, qty: number) => void;
-  acquireRival: (id: string) => void;
+  acquireRival: (id: string) => boolean;
   listCompany: (stake: number) => void;
   sellOwnStake: (pct: number) => void;
   cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
@@ -1047,12 +1047,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
   const sellSharesCb = useCallback((id: string, qty: number) => setState((s) => sellShares(s, id, qty)), []);
-  const acquireRivalCb = useCallback((id: string) => {
+  const acquireRivalCb = useCallback((id: string): boolean => {
     const prev = stateRef.current;
-    const next = withLiveAchievements(acquireRival(prev, id));
+    const base = acquireRival(prev, id);
+    if (base === prev) return false; // not allowed (stale button) — caller skips the celebration
+    const next = withLiveAchievements(base);
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
     setState(next);
+    return true;
   }, []);
   const listCompanyCb = useCallback((stake: number) => setState((s) => withLiveAchievements(listCompany(s, stake))), []);
   const sellOwnStakeCb = useCallback((pct: number) => setState((s) => sellOwnStake(s, pct)), []);

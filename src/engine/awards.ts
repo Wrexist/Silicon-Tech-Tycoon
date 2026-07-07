@@ -8,6 +8,7 @@ import type { RivalRelease } from "./rivalAI.ts";
 import { overallScore } from "./product.ts";
 import { styleAppeal } from "./aesthetics.ts";
 import { toDollars } from "./money.ts";
+import { rivalDef } from "./competitors.ts";
 
 export type AwardCategoryId = "device" | "design" | "value";
 
@@ -40,6 +41,10 @@ interface Entry {
   product: Product;
   stats: Stats | null; // player entries carry launch stats; rivals are judged on `overall`
   overall: number;
+  /** Device-of-the-Year floor: an ESTABLISHED brand's device is judged at least at flagship
+   *  caliber (brand reputation), so a no-name garage startup can't win the top prize over
+   *  Pomelo/Oqular with a merely-decent first device. 0 for the player + unknown challengers. */
+  deviceFloor: number;
 }
 
 const TITLES: Record<AwardCategoryId, string> = {
@@ -69,6 +74,7 @@ export function judgeAwards(
       product: lp.product,
       stats: lp.stats,
       overall: overallScore(lp.stats, lp.product.category),
+      deviceFloor: 0,
     });
   }
   for (const r of rivalReleases) {
@@ -81,6 +87,10 @@ export function judgeAwards(
       product: r.product,
       stats: null,
       overall: r.overall,
+      // 0.85 × brand reputation: high enough that an unknown startup can't take Device of the Year
+      // early (Pomelo rep 72 → floor 61), low enough that a genuinely flagship device (overall >60s)
+      // still wins it — a real mid-game milestone instead of a Year-1 freebie.
+      deviceFloor: Math.round((rivalDef(r.rivalId)?.reputation ?? 0) * 0.85),
     });
   }
   if (entries.length === 0) return null;
@@ -113,7 +123,7 @@ export function judgeAwards(
   };
 
   const winners = [
-    pick("device", (e) => e.overall),
+    pick("device", (e) => Math.max(e.overall, e.deviceFloor)),
     pick("design", (e) => styleAppeal(e.product)),
     // Value = quality per dollar, scaled to a readable index. Guarded against free/corrupt prices.
     pick("value", (e) => (toDollars(e.product.price) > 0 ? (e.overall / toDollars(e.product.price)) * 100 : Number.NaN)),
