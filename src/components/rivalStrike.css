@@ -70,6 +70,20 @@
 .rst__ghost { width: 72px; height: 72px; border-radius: var(--r-button); background: var(--bg-elevated); }
 
 .rst__actions { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); }
+/* Response rows: label pinned left, price pinned right — nothing to overflow, perfectly aligned
+   whatever the numbers turn out to be. */
+.rst__act {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-10);
+  width: 100%; min-height: 50px; padding: 0 var(--sp-14);
+  border: 1px solid var(--hairline); border-radius: var(--r-button);
+  background: var(--surface-2); color: var(--ink);
+  font-size: var(--fs-caption); font-weight: 800;
+}
+.rst__act--primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.rst__act:disabled { opacity: 0.45; }
+.rst__act-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.rst__act-val { flex-shrink: 0; font-weight: 800; white-space: nowrap; }
+.rst__act:not(.rst__act--primary) .rst__act-val { color: var(--ink-2); }
 .rst__hold {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 44px;

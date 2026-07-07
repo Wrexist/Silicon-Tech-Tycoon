@@ -5,7 +5,7 @@
 import { useEffect, useRef } from "react";
 import { Megaphone, Shield, Swords, TrendingDown } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
-import { Button, useDialogFocus } from "../design/primitives.tsx";
+import { useDialogFocus } from "../design/primitives.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { marketingPushQuote } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -99,12 +99,14 @@ export function RivalStrike() {
         </div>
 
         <div className="rst__actions">
-          <Button block variant="primary" disabled={!canCut} haptics="none" onClick={() => answer("price")}>
-            <TrendingDown size={15} /> Cut price {lp && newPrice !== null ? `· ${format(lp.product.price)} → ${format(newPrice)}` : ""}
-          </Button>
-          <Button block variant="secondary" disabled={!canCampaign} haptics="none" onClick={() => answer("campaign")}>
-            <Megaphone size={15} /> Counter-campaign {discounted !== null ? `· ${format(discounted)}` : "· unavailable"}
-          </Button>
+          <button className="rst__act rst__act--primary" disabled={!canCut} onClick={() => answer("price")}>
+            <span className="rst__act-label"><TrendingDown size={15} aria-hidden /> Cut price</span>
+            <span className="rst__act-val tnum">{lp && newPrice !== null ? `${format(lp.product.price)} → ${format(newPrice)}` : "used up"}</span>
+          </button>
+          <button className="rst__act" disabled={!canCampaign} onClick={() => answer("campaign")}>
+            <span className="rst__act-label"><Megaphone size={15} aria-hidden /> Counter-campaign</span>
+            <span className="rst__act-val tnum">{discounted !== null ? format(discounted) : "unavailable"}</span>
+          </button>
           {discounted !== null && (
             <span className="rst__deal">Strike rate — {Math.round(cfg.campaignDiscount * 100)}% off the usual campaign</span>
           )}

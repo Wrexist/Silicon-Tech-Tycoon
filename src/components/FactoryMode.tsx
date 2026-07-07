@@ -220,6 +220,14 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [layoutName, setLayoutName] = useState("");
   const [confirmLayout, setConfirmLayout] = useState<string | null>(null); // arms a layout's Apply → shows the diff + Confirm
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
+  // Tapping the expansion bay buys it directly: first tap arms the pill (confirm), second commits.
+  // The arm decays so a stray tap can't leave a live $50K+ trigger sitting on the floor.
+  const [expandArm, setExpandArm] = useState(false);
+  useEffect(() => {
+    if (!expandArm) return;
+    const t = setTimeout(() => setExpandArm(false), 4000);
+    return () => clearTimeout(t);
+  }, [expandArm]);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
   // Camera: drag/touch to orbit, pinch to zoom (Factory3D owns OrbitControls); the recenter button
@@ -316,9 +324,25 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               era={state.era}
               lockedBay={(() => {
                 const cost = nextExpansionCost(state.factoryExpansion);
-                return cost == null ? null : { cols: EXPAND_STEP, label: "Locked", sub: `Expand the floor \u00b7 ${format(cost)}` };
+                if (cost == null) return null;
+                return expandArm
+                  ? { cols: EXPAND_STEP, label: `Tap again \u00b7 ${format(cost)}`, armed: true }
+                  : { cols: EXPAND_STEP, label: `Expand \u00b7 ${format(cost)}` };
               })()}
-              onTapLockedBay={() => { haptic.light(); setSheet("decor"); }}
+              onTapLockedBay={() => {
+                const cost = nextExpansionCost(state.factoryExpansion);
+                if (cost == null) return;
+                if (state.cash < cost) {
+                  haptic.warning();
+                  showToast(`Need ${format(sub(cost, state.cash))} more to expand the floor.`, { tone: "negative" });
+                  return;
+                }
+                if (!expandArm) { haptic.light(); setExpandArm(true); return; }
+                setExpandArm(false);
+                const res = d.game.buyFloorExpansion();
+                if (res.ok) { haptic.success(); sfx("build"); emitCelebrate(); setResetView((v) => v + 1); showToast("New bay unlocked \u2014 the floor grows east", { tone: "positive" }); }
+                else { haptic.warning(); showToast(res.reason ?? "Can't expand", { tone: "negative" }); }
+              }}
               onTapCell={onTapCell}
               paintBelts={buildTool === "belt"}
               onPaintBelts={(cells) => {
@@ -921,7 +945,7 @@ export function FactoryCard({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 era={state.era}
                 lockedBay={(() => {
                   const cost = nextExpansionCost(state.factoryExpansion);
-                  return cost == null ? null : { cols: EXPAND_STEP, label: "Locked", sub: `Expand the floor · ${format(cost)}` };
+                  return cost == null ? null : { cols: EXPAND_STEP, label: `Expand · ${format(cost)}` };
                 })()}
                 onContextLost={() => setGlLost(true)}
               />

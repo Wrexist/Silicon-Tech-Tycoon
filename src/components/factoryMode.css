@@ -426,9 +426,12 @@
   font-size: var(--fs-micro); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--accent);
 }
-.fmode__sideorder--live .fmode__sideorder-head { color: var(--positive-text, var(--positive)); }
-.fmode__sideorder-body { margin: 0; font-size: var(--fs-caption); color: var(--ink); line-height: 1.45; }
-.fmode__sideorder-warn { margin: 0; font-size: var(--fs-micro); font-weight: 700; color: var(--negative-text, var(--negative)); }
+/* This panel lives on the always-dark factory HUD, so every text/track colour is an explicit
+   white-on-dark value — theme ink tokens would go near-invisible in light mode. */
+.fmode__sideorder--live .fmode__sideorder-head { color: color-mix(in srgb, var(--positive) 55%, #fff); }
+.fmode__sideorder-body { margin: 0; font-size: var(--fs-caption); color: rgba(255,255,255,0.88); line-height: 1.45; }
+.fmode__sideorder-body b { color: #fff; }
+.fmode__sideorder-warn { margin: 0; font-size: var(--fs-micro); font-weight: 700; color: color-mix(in srgb, var(--negative) 55%, #fff); }
 .fmode__sideorder-actions { display: flex; align-items: center; gap: var(--sp-8); }
 .fmode__sideorder-go {
   flex: 1; min-height: 40px;
@@ -439,9 +442,9 @@
 .fmode__sideorder-go:disabled { opacity: 0.45; }
 .fmode__sideorder-x {
   min-height: 40px; padding: 0 var(--sp-12);
-  border: none; border-radius: var(--r-button);
-  background: var(--surface-2); color: var(--ink-2);
+  border: 1px solid rgba(255,255,255,0.16); border-radius: var(--r-button);
+  background: rgba(255,255,255,0.1); color: #fff;
   font-size: var(--fs-caption); font-weight: 700;
 }
-.fmode__sideorder-track { display: block; height: 5px; border-radius: var(--r-pill); background: var(--hairline); overflow: hidden; }
+.fmode__sideorder-track { display: block; height: 5px; border-radius: var(--r-pill); background: rgba(255,255,255,0.16); overflow: hidden; }
 .fmode__sideorder-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); transition: width var(--spring-standard); }

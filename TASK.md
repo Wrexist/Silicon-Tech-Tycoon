@@ -2395,3 +2395,23 @@ byte-identical after every feature: 0/40 bankruptcies, troughs $12k/$8k, Era 2 w
 - [x] Strike card polish: campaign button label no longer clips — discount moved to its own
       "Strike rate" line under the actions.
 - Gates: tsc 0 · 800 tests · build+PWA green · sim byte-identical to the v109 baseline.
+
+## v112 — Polish round: strike card symmetry · factory HUD contrast · tap-to-expand bay · wall-safe desks (DONE 2026-07-07)
+Four fixes from playtest screenshots.
+- [x] **Rival Strike card** — response buttons rebuilt as label-left / price-right rows (nothing
+      can overflow or clip at any price), secondary price dimmed, disabled states keep the price
+      visible; verified live against an organic strike.
+- [x] **Side-order panel contrast** — the client-order offer/live panels sit on the always-dark
+      factory HUD but used theme ink tokens (near-invisible in light mode); every text, track and
+      button colour is now an explicit white-on-dark value, matching the other fmode panels.
+- [x] **Expansion bay is a purchase, not a padlock** — the ghost bay no longer says "Locked"
+      (it never was): the pill reads "Expand · $50K", first tap arms it ("Tap again · $50K",
+      accent), second tap buys — celebrate, camera re-frame, next tier priced. Unaffordable taps
+      toast the shortfall. An invisible tap volume covers the whole bay so the target is generous
+      at phone camera angles; the Style-sheet buy row still works as before. Pill anchored west
+      of the bay so the tool rail can't clip it; single compact line, Maximize2 icon.
+- [x] **No more robots in the wall** — a desk placed against a wall seats its chair + robot
+      0.86 units behind it, i.e. inside the wall. When the seat spot would land in a wall the
+      workstation now flips the seat to the desk's FRONT (figure works facing the wall, like a
+      real wall-facing desk) — applied to occupied desks, empty-desk chairs, and Decorate mode.
+- Gates: tsc 0 · 800 tests · build+PWA green · engine/state untouched (UI-only round).

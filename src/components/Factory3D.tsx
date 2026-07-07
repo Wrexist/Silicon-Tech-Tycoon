@@ -9,7 +9,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Html, OrbitControls, RoundedBox } from "@react-three/drei";
-import { Lock } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 import * as THREE from "three";
 import {
   FLOOR, MACHINE_DEFS, beltPath, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
@@ -92,7 +92,7 @@ export interface Factory3DProps {
   onCarryChange?: (carrying: boolean) => void;
   /** The NEXT (locked) expansion bay, previewed as a ghost floor east of the walls so players see
    *  the bigger factory before they buy it. Null/undefined when the floor is maxed out. */
-  lockedBay?: { cols: number; label: string; sub: string } | null;
+  lockedBay?: { cols: number; label: string; sub?: string; armed?: boolean } | null;
   /** Tap on the locked bay — the caller opens wherever the expansion is bought. */
   onTapLockedBay?: () => void;
   /** Non-interactive PREVIEW mode (the HQ card): live scene, but no camera controls and no
@@ -1398,8 +1398,8 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         </mesh>
       )}
 
-      {/* the NEXT expansion bay, previewed as a locked ghost floor east of the walls — players see
-          the bigger factory they could own before they buy it; tapping it opens the expand flow */}
+      {/* the NEXT expansion bay, previewed as a ghost floor east of the walls — players see the
+          bigger factory they could own before they buy it; tap once to arm, tap again to buy */}
       {p.lockedBay && (() => {
         const bw = p.lockedBay.cols;
         const bx = floorW + (bw - 1) / 2 - (FLOOR.w - 1) / 2 + 0.35; // just past the east wall
@@ -1445,17 +1445,24 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
                 <meshStandardMaterial color={p.wallColor ?? "#8a9099"} transparent opacity={0.22} />
               </mesh>
             ))}
-            {/* the lock pill — floating just inside the bay's west edge: far enough in that the
-                dimmed slab behind it owns it, far enough west that neither the fullscreen tool
-                rail nor the HQ card's crop clips the price */}
-            <Html position={[-(bw / 2) + 0.6, 0.45, -2.2]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
+            {/* an invisible tap volume over the whole bay — the ghost slab alone is a sliver at
+                phone camera angles, so without this the "tap to expand" target is a pixel hunt */}
+            <mesh position={[0, 0.7, 0]}>
+              <boxGeometry args={[bw + 0.3, 1.4, SHELL.d]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+            {/* the expand pill — one compact line hugging the bay's west edge, far enough west
+                that neither the fullscreen tool rail nor the HQ card's crop clips the price */}
+            <Html position={[-(bw / 2) - 0.6, 0.45, -2.2]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, whiteSpace: "nowrap", fontFamily: "system-ui,-apple-system,sans-serif" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: "rgba(15,18,24,0.88)", border: "1px solid rgba(255,255,255,0.14)", color: "#fff", fontSize: 12, fontWeight: 800 }}>
-                  <Lock size={12} aria-hidden /> {p.lockedBay.label}
+                <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: p.lockedBay.armed ? "var(--accent, #3b82f6)" : "rgba(15,18,24,0.88)", border: p.lockedBay.armed ? "1px solid transparent" : "1px solid rgba(255,255,255,0.14)", color: "#fff", fontSize: 12, fontWeight: 800 }}>
+                  <Maximize2 size={12} aria-hidden /> {p.lockedBay.label}
                 </div>
-                <div style={{ padding: "3px 9px", borderRadius: 10, background: "rgba(15,18,24,0.7)", color: "rgba(255,255,255,0.75)", fontSize: 10, fontWeight: 700, whiteSpace: "normal", maxWidth: 96, textAlign: "center", lineHeight: 1.35 }}>
-                  {p.lockedBay.sub}
-                </div>
+                {p.lockedBay.sub && (
+                  <div style={{ padding: "3px 9px", borderRadius: 10, background: "rgba(15,18,24,0.7)", color: "rgba(255,255,255,0.75)", fontSize: 10, fontWeight: 700, whiteSpace: "normal", maxWidth: 96, textAlign: "center", lineHeight: 1.35 }}>
+                    {p.lockedBay.sub}
+                  </div>
+                )}
               </div>
             </Html>
           </group>
