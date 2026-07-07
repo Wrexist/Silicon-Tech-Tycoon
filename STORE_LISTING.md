@@ -77,6 +77,37 @@ Character count: ~1,650 (well within 4,000)
 
 ---
 
+## What's New (v1.1.0)
+
+```
+Your factory floor is now yours to build — and the industry just got fiercer.
+
+• Factory Mode: lay conveyor belts, place and upgrade machines, and watch a real
+  3D production line run your builds. A well-wired floor genuinely builds faster,
+  and each device wants the right machines — a phone needs a screen bonder, a laptop
+  a mill. Decorate it with props and painted walls, then expand the building as you grow.
+• Rival Strikes: when a rival launches into a category you're selling in, it becomes a
+  decision, not a headline. Duel their device against yours and choose your answer —
+  cut price, fire a counter-campaign, or hold the line when your device is better.
+• The Silicon Awards: every year the industry judges every launch — yours and the
+  rivals' — across Device of the Year, Design and Value. Sweep the ceremony for a
+  reputation and fan boost, or watch a rival take the stage and build a nemesis.
+• Side Orders: clients commission production runs on your line. Meet the deadline, bank
+  the fee, and keep the factory busy between your own launches.
+• AI Era breakthroughs: four new late-game research projects, plus a Developer Keynote
+  to keep research meaningful once the tree is bought out.
+• A smoother start: more starting capital and a gentler early game, so one mispriced
+  launch no longer ends the company before it begins.
+• Design → launch is now one continuous flow, with live in-production tracking and a
+  "start from" option to iterate a franchise.
+• A big accessibility pass: screen-reader labels across menus and dialogs, focus that
+  returns where you left it, and a colour-blind-safe "in demand" indicator.
+• Dozens of fixes and polish: honest runway that accounts for loan payments, smoother
+  build progress, sturdier saves, and a more premium awards celebration.
+```
+
+---
+
 ## What's New (v1.0.2)
 
 ```

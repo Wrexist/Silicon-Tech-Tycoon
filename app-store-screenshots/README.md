@@ -28,8 +28,13 @@ screen is captured at its designed max width (a clean 3:4 capture) and shown ful
 | 08 | Talent poaching event             | **Keep your best people** |
 | 09 | Team morale & roster              | **Grow a real team** |
 | 10 | Real-time 3D HQ                   | **Premium. Complete. Yours.** |
+| 11 | Factory Mode — decorated 3D line  | **Build the line** |
+| 12 | The Silicon Awards ceremony       | **Win the industry** |
+| 13 | Rival Strike duel                 | **Answer every rival** |
+| 14 | Side Order — client commission    | **Take the contract** |
 
-Lead the carousel with 01–04; 05–10 add depth/progression signal.
+Lead the carousel with 01–04; 05–10 add depth/progression signal; 11–14 showcase the newest
+systems (the buildable 3D factory floor, the annual awards, rival-launch duels, and contract work).
 
 ## `6.7/` — iPhone 6.7" (1284 × 2778), legacy hero set
 An earlier 5-frame hero set (`scripts/shots.mjs`). Kept for reference; `store/` supersedes it.
@@ -40,9 +45,19 @@ An earlier 5-frame hero set (`scripts/shots.mjs`). Kept for reference; `store/` 
 npm run build                       # build the production app
 npm run preview -- --port 5199 &    # serve it
 npm run shots:stage                 # stage a rich late-game save → /tmp/silicon-stage.json
-npm run shots:store                 # iPhone set → app-store-screenshots/store/
+npm run shots:store                 # iPhone set 01–10 → app-store-screenshots/store/
 npm run shots:ipad                  # iPad set  → app-store-screenshots/ipad/
+
+# New-feature frames 11–14 (factory, awards, rival strike, side order):
+npm run shots:stage:showcase        # rich save + overlay payloads → /tmp/silicon-showcase*.json
+npm run shots:features              # frames 11–14 → app-store-screenshots/store/
 ```
+
+`shots:features` reuses the exact same 3D marketing frame as `shots:store`; it captures the
+buildable factory floor plus the transient overlays (the Silicon Awards ceremony, a Rival Strike
+duel, a Side-Order commission), which `stage-showcase.mjs` synthesises from real products/rivals so
+every card renders with live device art. The showcase save decorates the factory (upgraded machines,
+decor props, painted walls) and leaves one build on the line so the conveyor animates.
 
 Needs Chromium via `playwright-core` (a devDependency). The scripts auto-detect the pre-installed
 Chromium at `/opt/pw-browsers/chromium-*/chrome-linux/chrome`, or set `SHOTS_CHROME=/path/to/chrome`
