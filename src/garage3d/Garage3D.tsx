@@ -1458,13 +1458,14 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
   const dragFp = dragItem ? footprint(furnitureDef(dragItem.type), dragItem.rot) : null;
 
   // Commit the drop wherever the pointer is released (even off the grid → snaps back).
-  const live = useRef<{ iid: string | null; cell: { c: number; r: number } | null; move: BuildProps["onMoveItem"] }>({ iid: null, cell: null, move: b.onMoveItem });
-  live.current = { iid: dragIid, cell: dragCell, move: b.onMoveItem };
+  const live = useRef<{ iid: string | null; cell: { c: number; r: number } | null; ok: boolean; move: BuildProps["onMoveItem"] }>({ iid: null, cell: null, ok: false, move: b.onMoveItem });
   useEffect(() => {
     const up = () => {
-      const { iid, cell, move } = live.current;
+      const { iid, cell, ok, move } = live.current;
       if (iid) {
-        if (cell) move(iid, cell.c, cell.r);
+        // Hard gate: only drop onto a VALID cell. A blocked target (red ghost) snaps the piece home
+        // instead of firing a no-op reducer call — so decor can never land under/over another piece.
+        if (cell && ok) move(iid, cell.c, cell.r);
         setDragIid(null);
         setDragCell(null);
       }
@@ -1475,6 +1476,9 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
 
   const placeOk = hover && b.placingType ? canPlace(b.layout, b.placingType, hover.c, hover.r, b.placeRot) : false;
   const dragOk = dragCell && dragItem ? canPlace(b.layout, dragItem.type, dragCell.c, dragCell.r, dragItem.rot, dragItem.iid) : false;
+  // Feed the live drag target + validity to the window pointer-up handler (which fires outside React's
+  // event system), so a blocked drop snaps home instead of committing.
+  live.current = { iid: dragIid, cell: dragCell, ok: dragOk, move: b.onMoveItem };
 
   return (
     <group>
@@ -1549,7 +1553,9 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
               e.stopPropagation();
               if (b.placingType && placeFp) {
                 const c = cellAt(e.point.x, e.point.z, placeFp.w, placeFp.d);
-                b.onPlaceCell(c.c, c.r);
+                // Hard gate: place only where it actually fits (green ghost). Tapping a blocked cell
+                // does nothing instead of relying on a silent reducer no-op — cleaner, "smarter" feel.
+                if (canPlace(b.layout, b.placingType, c.c, c.r, b.placeRot)) b.onPlaceCell(c.c, c.r);
               } else {
                 b.onSelectItem(null);
               }
