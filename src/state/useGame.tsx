@@ -531,6 +531,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const [state, setState] = useState<GameState>(boot.state);
   const [paused, setPaused] = useState(false);
+  // Mirror `paused` into a ref so the visibility handler (bound once, [] deps) can read the live
+  // value — a background→foreground resume must NOT catch up wall-clock time while explicitly paused.
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const [fast, setFast] = useState(false);
   // "Skip to next decision" — run at Fast speed until a week produces something that needs the
   // player's input (skipInterrupt), then auto-pause with a one-line reason. Decision-paced time.
@@ -671,6 +675,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // of silently vanishing. Surfaces the "while you were away" sheet only for a real absence.
   const resumeFromBackground = useCallback(() => {
     if (tabBlockedRef.current) return;
+    if (pausedRef.current) {
+      // Explicitly paused → time is stopped. Discard the background gap (in memory AND on disk) so
+      // neither this warm resume nor a later cold boot fast-forwards the paused-and-away period.
+      const now = Date.now();
+      lastActiveRef.current = now;
+      const anchored = { ...stateRef.current, lastActive: now };
+      save(anchored);
+      lastSavedRef.current = anchored;
+      return;
+    }
     const base: GameState = { ...stateRef.current, lastActive: lastActiveRef.current };
     if (!base.onboarded || base.bankrupt) return;
     const fansBefore = base.fans;

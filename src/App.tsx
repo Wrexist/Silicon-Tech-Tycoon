@@ -80,6 +80,18 @@ function AppShell() {
   // seenEraModal is initialized to the current era so loading an existing save never re-shows
   // modals for eras already reached. When era advances during play it becomes > seenEraModal.
   const [seenEraModal, setSeenEraModal] = useState(state.era);
+  // AppShell never unmounts, so when the game is REPLACED — New Game+, restart, or an imported save
+  // (each mints a fresh seed) — these transient "seen" flags would leak across games: era-unlock
+  // modals stay suppressed after a prestige back to era 1, and an imported post-IPO save pops the
+  // IPO/era overlays unprompted. Re-derive them from the new state on identity change (React's
+  // documented "adjust state during render" pattern — runs once per game, no effect-flash).
+  const gameId = `${state.seed}·${state.legacy}`;
+  const gameIdRef = useRef(gameId);
+  if (gameIdRef.current !== gameId) {
+    gameIdRef.current = gameId;
+    setSeenEraModal(state.era);
+    setIpoSeen(state.wentPublic);
+  }
   // Transient "design a successor" seed — set from a launched product's detail sheet, consumed by
   // the Design Lab on the next render, then cleared. Lives in React (never persisted) so it's a
   // pure UI hand-off and survives no reloads.
