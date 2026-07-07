@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { useDialogFocus } from "../design/primitives.tsx";
 import "./decorateTutorial.css";
 
 interface TStep {
@@ -110,9 +111,9 @@ export function DecorateTutorial({ open, onClose }: { open: boolean; onClose: ()
   // an onClose ref) so a parent re-render doesn't re-run this and steal focus off the nav buttons.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  useDialogFocus(cardRef, open); // trap Tab within the dialog + restore focus to the opener on close
   useEffect(() => {
     if (!open) return;
-    cardRef.current?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCloseRef.current(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

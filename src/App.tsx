@@ -218,10 +218,10 @@ function AppShell() {
       <SoundFX />
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
-      <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+      <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} label="Settings">
         <Settings onClose={() => setSettingsOpen(false)} />
       </Sheet>
-      <Sheet open={progressOpen} onClose={() => setProgressOpen(false)}>
+      <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
         <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
       </Sheet>
       {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} topProduct={offline.topProduct} onClose={clearOffline} />}
@@ -520,7 +520,7 @@ function Onboarding({ onStart }: { onStart: () => void }) {
           </button>
         </div>
       </div>
-      <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)}>
+      <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)} label="Scenarios">
         <ScenariosSheet onClose={() => setScenariosOpen(false)} />
       </Sheet>
     </div>

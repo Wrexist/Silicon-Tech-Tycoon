@@ -106,7 +106,7 @@ export function ScenarioTracker() {
         </Button>
       )}
 
-      <Sheet open={cardOpen} onClose={() => setCardOpen(false)}>
+      <Sheet open={cardOpen} onClose={() => setCardOpen(false)} label="Scenario">
         <ResultCard state={state} result={res} />
       </Sheet>
     </Card>

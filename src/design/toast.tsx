@@ -45,10 +45,10 @@ export function ToastHost() {
           key={t.id}
           className={`ds-toast${t.tone === "neutral" ? "" : ` ds-toast--${t.tone}`}`}
           onClick={() => dismiss(t.id)}
-          aria-label="Dismiss notification"
+          aria-label={`${t.text}. Tap to dismiss.`}
         >
           {t.glyph && <span aria-hidden>{t.glyph}</span>}
-          <span>{t.text}</span>
+          <span aria-hidden>{t.text}</span>
         </button>
       ))}
     </div>

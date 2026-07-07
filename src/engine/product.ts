@@ -86,7 +86,7 @@ export function computeStats(product: Product): Stats {
   }
 
   // Design tier contribution (1 = baseline, no bonus).
-  stats.design += (product.designTier - 1) * 6;
+  stats.design += ((product.designTier ?? 1) - 1) * 6;
 
   // Refresh rate: a fluid, high-Hz screen reads as fast + premium (gated by the display tier).
   const hzSteps = refreshSteps(product);

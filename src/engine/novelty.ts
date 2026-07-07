@@ -28,7 +28,7 @@ export function productSimilarity(a: Product, b: Product): number {
     n++;
   }
   const tierSim = n ? acc / n : 0;
-  const designSim = 1 - Math.min(1, Math.abs(a.designTier - b.designTier) / span);
+  const designSim = 1 - Math.min(1, Math.abs((a.designTier ?? 1) - (b.designTier ?? 1)) / span);
   return Math.max(0, Math.min(1, tierSim * 0.9 + designSim * 0.1));
 }
 
