@@ -105,7 +105,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineComplete, lineSpeedMult,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoTidyFloor, demolitionRefund, floorWidth, lineComplete, lineSpeedMult,
   machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
@@ -2359,16 +2359,18 @@ function autoRouteNet(current: FloorPlan, routed: FloorPlan): number {
  *  router runs again on confirm, so the quoted price is exactly what gets charged. Null when there
  *  is no route (missing Intake/Packer or no clear path). Pure. */
 export function autoConnectQuote(state: GameState): { cost: Money; tiles: number } | null {
-  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
+  const routed = autoTidyFloor(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
   if (!routed) return null;
   return { cost: cents(autoRouteNet(state.factoryFloor, routed)), tiles: routed.belts.length };
 }
 
-/** One-tap belt routing — lay a fresh Intake→Packer chain around the machines, charging the net of
- *  new tiles (full price) minus removed tiles (half refund), exactly like doing it by hand. */
+/** One-tap Auto — TIDY the whole line: reposition every machine into clean recipe-order lanes and
+ *  wire a fresh Intake→Packer chain around them, so a scattered floor becomes one long straight line.
+ *  Charges only the net belt tiles (new at full price, removed at half refund); rearranging machines
+ *  is free. Deterministic: the same tidy+route runs on quote and commit, so the price is exact. */
 export function autoConnectLine(state: GameState): ActionResult {
-  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
-  if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer with a clear path between them first." };
+  const routed = autoTidyFloor(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
+  if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer first (and expand if the floor is full)." };
   const cost = autoRouteNet(state.factoryFloor, routed);
   if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cents(cost))} to route the belts.` };
   return { state: { ...state, factoryFloor: routed, cash: add(state.cash, cents(-cost)) }, ok: true };

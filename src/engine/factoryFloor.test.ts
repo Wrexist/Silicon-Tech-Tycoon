@@ -232,6 +232,38 @@ describe("factory floor grid (F2)", () => {
     }
   });
 
+  it("auto-tidy repositions a scattered floor into one clean line, keeping ids/kinds/levels", async () => {
+    const { autoTidyFloor, lineComplete, machineLevel } = await import("./factoryFloor.ts");
+    // A deliberately scattered floor: every kind, dumped in messy spots, no belts, some upgraded.
+    const scattered = {
+      machines: [
+        { id: "i", kind: "intake" as const, c: 12, r: 8 },
+        { id: "m", kind: "mill" as const, c: 0, r: 7, level: 2 },
+        { id: "p", kind: "press" as const, c: 6, r: 4 },
+        { id: "s", kind: "screen" as const, c: 13, r: 0 },
+        { id: "a", kind: "arm" as const, c: 2, r: 2, level: 3 },
+        { id: "q", kind: "qa" as const, c: 9, r: 6 },
+        { id: "k", kind: "packer" as const, c: 0, r: 0 },
+      ],
+      belts: [],
+    };
+    const tidy = autoTidyFloor(scattered)!;
+    expect(tidy).not.toBeNull();
+    expect(lineComplete(tidy)).toBe(true); // it wires a complete Intake→Packer line
+    // Same machines survive — count, ids, kinds and upgrade levels all preserved (just moved).
+    expect(tidy.machines.length).toBe(scattered.machines.length);
+    for (const orig of scattered.machines) {
+      const moved = tidy.machines.find((m) => m.id === orig.id)!;
+      expect(moved).toBeTruthy();
+      expect(moved.kind).toBe(orig.kind);
+      expect(machineLevel(moved)).toBe(machineLevel(orig));
+    }
+    // Deterministic: same input → identical tidy.
+    expect(autoTidyFloor(scattered)).toEqual(tidy);
+    // No Intake/Packer → nothing to tidy.
+    expect(autoTidyFloor({ machines: [{ id: "m", kind: "mill", c: 0, r: 0 }], belts: [] })).toBeNull();
+  });
+
   it("moveMachine relocates in place (id/kind/level kept), rejects collisions and off-grid", async () => {
     const { moveMachine, machineLevel, upgradeMachineAt } = await import("./factoryFloor.ts");
     const f = demoFloor();

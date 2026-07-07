@@ -410,7 +410,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         {!lineOk && (
           <div className="fmode__panel fmode__stopped">
             <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
-            <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or let Auto route it for you. A wired line builds every run faster.</p>
+            <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to align every machine and route the belts for you. A wired line builds every run faster.</p>
             <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
@@ -551,15 +551,15 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 return (
                   <>
                     <span className="fmode__autoquote-label">
-                      <Waypoints size={14} aria-hidden /> Route the line · {quote.tiles} tiles
+                      <Waypoints size={14} aria-hidden /> Tidy the line · {quote.tiles} tiles
                     </span>
                     <button
                       className="fmode__buy fmode__autoquote-go"
                       disabled={tooPricey}
                       onClick={() => {
                         const res = d.game.autoConnectLine();
-                        if (res.ok) { haptic.success(); sfx("build"); showToast("Belts routed — Intake to Packer", { tone: "positive" }); }
-                        else { haptic.warning(); showToast(res.reason ?? "Couldn't route the belts", { tone: "negative" }); }
+                        if (res.ok) { haptic.success(); sfx("build"); showToast("Line tidied — machines aligned, belts routed", { tone: "positive" }); }
+                        else { haptic.warning(); showToast(res.reason ?? "Couldn't tidy the line", { tone: "negative" }); }
                         setAutoArmed(false);
                       }}
                     >
@@ -603,11 +603,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 <button
                   className={`fmode__ptile fmode__ptile--util${autoArmed ? " fmode__ptile--on" : ""}`}
                   aria-label="Auto-connect the Intake to the Packer"
-                  title="Route belts from Intake to Packer automatically — shows the price first"
+                  title="Tidy the whole line — align every machine into clean lanes and route the belts (shows the price first)"
                   onClick={() => {
                     haptic.light();
                     if (autoArmed) { setAutoArmed(false); return; }
-                    if (!autoConnectQuote(state)) { haptic.warning(); showToast("Place an Intake and a Packer with a clear path between them first.", { tone: "negative" }); return; }
+                    if (!autoConnectQuote(state)) { haptic.warning(); showToast("Place an Intake and a Packer first — then Auto tidies the rest.", { tone: "negative" }); return; }
                     setAutoArmed(true);
                   }}
                 >
