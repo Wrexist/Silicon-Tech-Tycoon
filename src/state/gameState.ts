@@ -118,7 +118,7 @@ import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/fact
 import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
 import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
-import { regionById, regionReach } from "../engine/regions.ts";
+import { REGIONS, regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { noveltyFor } from "../engine/novelty.ts";
@@ -3097,6 +3097,28 @@ export const platformFoundingCost = (): Money => BALANCE.platform.foundingCost;
 /** Can the player found the division right now (not yet founded, and can afford it)? */
 export const canFoundPlatform = (s: GameState): boolean =>
   !s.platformUnlocked && s.cash >= BALANCE.platform.foundingCost;
+
+export interface NavAttention { hq: boolean; design: boolean; research: boolean; market: boolean; company: boolean }
+
+/** Where is there something ACTIONABLE right now? Drives the bottom-nav "attention" dots so a player
+ *  is never left wondering what to do next. Read-only + cheap; each flag is a genuine decision the
+ *  player can act on this moment (not an always-on nag). */
+export function navAttention(s: GameState): NavAttention {
+  const shipped = s.launched.length >= 1;
+  const cash = s.cash as number;
+  return {
+    // A milestone or a personal decision waiting at HQ.
+    hq: canAdvance(s) || canIPO(s) || s.pendingChoice != null || (s.pendingPoach ?? null) != null,
+    // Pipeline idle once you're rolling → design the next product.
+    design: shipped && s.building.length === 0 && s.ready.length === 0,
+    // A project or component upgrade you can afford right now.
+    research: researchReady(s),
+    // A new region you can afford to open.
+    market: REGIONS.some((r) => !s.unlockedRegions.includes(r.id) && cash >= (r.unlockCost as number)),
+    // A licensing contract to sign, an OS version to ship, or the platform to found.
+    company: (s.pendingLicenseOffer ?? null) != null || (s.platformUnlocked && canReleaseOsVersion(s)) || canFoundPlatform(s),
+  };
+}
 
 /** Found the Platform division: pay the founding cost and bring your OS up as a first-class business.
  *  No-op if already founded or unaffordable. The earned, in-game path to the OS (vs. a free toggle). */

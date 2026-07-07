@@ -36,7 +36,8 @@ export function BottomNav({
         >
           <span className="bnav__glyph" aria-hidden>
             <t.Icon size={21} strokeWidth={active === t.id ? 2.4 : 2} />
-            {badge?.[t.id] && <span className="bnav__badge" />}
+            {/* Attention dot — only on the tabs you're NOT already looking at. */}
+            {badge?.[t.id] && active !== t.id && <span className="bnav__badge" />}
           </span>
           <span className="bnav__label">{t.label}</span>
         </button>

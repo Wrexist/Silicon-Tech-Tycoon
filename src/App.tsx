@@ -27,7 +27,7 @@ import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, toDollars, type Money } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
-import { canAdvance, ipoValuation, legacyBonus, industryRank, researchReady, type GameState } from "./state/gameState.ts";
+import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState } from "./state/gameState.ts";
 import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
@@ -206,7 +206,7 @@ function AppShell() {
       <BottomNav
         active={tab}
         onChange={setTab}
-        badge={{ hq: canAdvance(state), research: researchReady(state) }}
+        badge={navAttention(state)}
       />
 
       <GainFX />
