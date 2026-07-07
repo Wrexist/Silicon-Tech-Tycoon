@@ -100,6 +100,7 @@ export const BALANCE = {
       // B5 — the lab shows a price RANGE (where fit stays ≥ this floor), never the exact peak,
       // so pricing is a margin-vs-volume decision instead of a one-click answer.
       guidanceFitFloor: 0.9,
+      segmentLift: 0.07, // guidance nudges fair this far from the all-round value toward the best-fit segment
       minFit: 0.15, // floor for UNDERpricing only — overpricing is allowed to crater to ~0 (elastic demand)
       maxFit: 1.35,
     },
