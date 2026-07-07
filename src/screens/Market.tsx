@@ -222,7 +222,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         {!state.listed ? (
           listable ? (
             <Button block onClick={() => { setIpo(true); haptic.light(); }}>
-              <Building2 size={16} /> List {state.companyName} on the stock exchange
+              <Building2 size={16} /> List on the stock exchange
             </Button>
           ) : (() => {
             // Item 19: turn the IPO threshold into a motivating progress bar — a visible
