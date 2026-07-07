@@ -22,4 +22,5 @@ store-shots
 scripts/.stage.cjs
 scripts/.stage-showcase.cjs
 scripts/.sim.cjs
+scripts/.promo-stage.cjs
 .tab-shots/
