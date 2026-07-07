@@ -777,7 +777,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         )}
       </Card>
 
-      <Sheet open={!!detail} onClose={() => setDetailId(null)}>
+      <Sheet open={!!detail} onClose={() => setDetailId(null)} label="Product detail">
         {detail && (
           <ProductDetailSheet
             lp={detail}
@@ -787,10 +787,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         )}
       </Sheet>
 
-      <Sheet open={!!trade} onClose={() => setTrade(null)}>
+      <Sheet open={!!trade} onClose={() => setTrade(null)} label="Trade rival shares">
         {trade && <TradeSheet comp={comps.find((c) => c.id === trade.id) ?? trade} onClose={() => setTrade(null)} />}
       </Sheet>
-      <Sheet open={!!rivalProfile} onClose={() => setRivalProfile(null)}>
+      <Sheet open={!!rivalProfile} onClose={() => setRivalProfile(null)} label="Rival profile">
         {rivalProfile && (() => {
           const comp = comps.find((c) => c.id === rivalProfile);
           return comp ? (
@@ -803,13 +803,13 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           ) : null;
         })()}
       </Sheet>
-      <Sheet open={ipo} onClose={() => setIpo(false)}>
+      <Sheet open={ipo} onClose={() => setIpo(false)} label="Go public">
         {ipo && <IPOSheet onClose={() => setIpo(false)} />}
       </Sheet>
-      <Sheet open={sellStake} onClose={() => setSellStake(false)}>
+      <Sheet open={sellStake} onClose={() => setSellStake(false)} label="Sell your stake">
         {sellStake && <SellStakeSheet onClose={() => setSellStake(false)} />}
       </Sheet>
-      <Sheet open={feedOpen} onClose={() => setFeedOpen(false)}>
+      <Sheet open={feedOpen} onClose={() => setFeedOpen(false)} label="Market feed">
         <FeedSheet feed={state.feed} onClose={() => setFeedOpen(false)} />
       </Sheet>
     </div>
@@ -1319,7 +1319,7 @@ function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
           </button>
         ))}
       </div>
-      <Sheet open={!!open} onClose={() => setOpen(null)}>
+      <Sheet open={!!open} onClose={() => setOpen(null)} label="Product detail">
         {open && <FranchiseDetail summary={open} launched={launched} />}
       </Sheet>
     </Card>

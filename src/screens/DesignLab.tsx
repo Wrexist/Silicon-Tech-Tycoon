@@ -427,9 +427,16 @@ export function DesignLab({
   }
 
   function openWizard() {
-    if (missing.length > 0 || state.bankrupt) {
+    // Gate the same things confirmBuild does, but up front — so an empty name (or missing part)
+    // is caught before the player steps through the whole wizard, not after.
+    if (missing.length > 0 || state.bankrupt || !draft.name.trim()) {
       haptic.error();
-      showToast(missing.length > 0 ? "Pick every component first." : "Company is bankrupt.", { tone: "negative", glyph: <AlertTriangle size={15} /> });
+      showToast(
+        missing.length > 0 ? "Pick every component first."
+          : state.bankrupt ? "Company is bankrupt."
+          : "Give your device a name before you build it",
+        { tone: "negative", glyph: <AlertTriangle size={15} /> },
+      );
       return;
     }
     haptic.light();
@@ -1553,11 +1560,11 @@ export function DesignLab({
         );
       })()}
 
-      <Sheet open={wizard} onClose={() => setWizard(false)}>
+      <Sheet open={wizard} onClose={() => setWizard(false)} label="Plan production run">
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}
       </Sheet>
 
-      <Sheet open={!!contractSheet} onClose={() => setContractSheet(null)}>
+      <Sheet open={!!contractSheet} onClose={() => setContractSheet(null)} label="Supplier contract">
         {contractSheet && (
           <ContractSheet
             supplierId={contractSheet}
@@ -1568,7 +1575,7 @@ export function DesignLab({
         )}
       </Sheet>
 
-      <Sheet open={!!completed} onClose={() => setCompleted(null)}>
+      <Sheet open={!!completed} onClose={() => setCompleted(null)} label="Build complete">
         {completed && (
           <DesignCompleteCard
             done={completed}
@@ -1583,7 +1590,7 @@ export function DesignLab({
         )}
       </Sheet>
 
-      <Sheet open={startPicker} onClose={() => setStartPicker(false)}>
+      <Sheet open={startPicker} onClose={() => setStartPicker(false)} label="Start from a design">
         {startPicker && <StartFromSheet state={state} onPick={startFrom} />}
       </Sheet>
     </div>

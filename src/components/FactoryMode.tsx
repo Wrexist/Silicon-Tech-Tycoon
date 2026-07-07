@@ -765,7 +765,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         </div>
       </Sheet>
 
-      <Sheet open={sheet === "decor"} onClose={() => { setSheet(null); setConfirmLayout(null); }} label="Factory style & layouts">
+      <Sheet open={sheet === "decor"} onClose={() => { setSheet(null); setConfirmLayout(null); }} label="Style the building">
         <div className="fmode__sheet">
           <h3 className="fmode__sheet-title">Style the building</h3>
           <span className="fmode__decor-label">Wall paint</span>

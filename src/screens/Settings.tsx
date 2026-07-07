@@ -165,7 +165,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
       <p className="set__about">Silicon: Tech Tycoon · v{typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev"}</p>
       <Button block onClick={onClose}>Done</Button>
 
-      <Sheet open={importOpen} onClose={() => setImportOpen(false)}>
+      <Sheet open={importOpen} onClose={() => setImportOpen(false)} label="Import save">
         <ImportPanel onDone={() => { setImportOpen(false); onClose(); }} onCancel={() => setImportOpen(false)} />
       </Sheet>
     </div>
