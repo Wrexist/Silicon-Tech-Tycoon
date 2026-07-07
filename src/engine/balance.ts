@@ -406,10 +406,10 @@ export const BALANCE = {
     // B1 — the recommended/affordable run must leave the player solvent through the build.
     // recommendedRun reserves (buildWeeks × weeklyBurn) + this flat margin before spending cash
     // on units, so a fresh save can't accidentally brick itself manufacturing its first product.
-    // Lowered 5,000 → 2,500: at $20k start, a $5k reserve choked early runs so hard (~150 units vs
-    // ~200 demand) that thin margins couldn't clear burn and every early cycle ran at a loss. A
-    // $2.5k reserve still protects the build-through window but lets early runs reach a profitable
-    // scale (a measured first cycle moves from a ~$3k loss to break-even).
+    // Lowered 5,000 → 2,500 back in the $20k-start era, when a $5k reserve choked early runs so
+    // hard that every early cycle ran at a loss. At the current $100k start the reserve barely
+    // binds early — it stays as the late-game guard so a cash-poor company can't brick itself
+    // manufacturing through a downturn.
     safetyReserveMargin: dollars(2_500) as Money,
     // Factory Mode BOOST — rush the active run: each press finishes ONE week sooner for a
     // premium of this fraction of the run's total production cost (unitCost × plannedUnits).
@@ -660,7 +660,7 @@ export const BALANCE = {
   // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
   platform: {
     // Founding the division is a major mid-game reinvestment you SAVE UP for — a real milestone, not
-    // a free toggle. High vs. the $20k start, but payback (~28wk at typical OS income) keeps it fair.
+    // a free toggle. 2.5× the starting bankroll, but payback (~28wk at typical OS income) keeps it fair.
     // Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
     foundingCost: dollars(250_000),
     releaseRepBonus: 4,          // one-time reputation lift per OS version release
