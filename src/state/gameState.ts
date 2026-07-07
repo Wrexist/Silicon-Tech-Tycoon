@@ -105,7 +105,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineSpeedMult,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineComplete, lineSpeedMult,
   machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
@@ -116,6 +116,7 @@ import {
 } from "../engine/factoryProps.ts";
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
 import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
+import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -297,6 +298,14 @@ export interface GameState {
   pendingAwards?: AwardsCeremony | null;
   /** Every past ceremony, newest first — the trophy record. Optional → old saves load empty. */
   awardsHistory?: AwardsCeremony[];
+  /** A client commission ON OFFER (expires in ~2 weeks). Accepting moves it to activeSideOrder.
+   *  Deterministic offer stream (derived hash, no sim RNG); optional/null → golden-invariant safe. */
+  pendingSideOrder?: SideOrderOffer | null;
+  /** The commission currently RUNNING on the factory line: your own builds take +1 week while it
+   *  does, and the payout lands on completion. Only ever set by the player accepting. */
+  activeSideOrder?: ActiveSideOrder | null;
+  /** Lifetime completed commissions — flavor + a future achievement hook. */
+  sideOrdersCompleted?: number;
   /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
    *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
   loans?: Loan[];
@@ -537,6 +546,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastStrikeWeek: -999,
     pendingAwards: null,
     awardsHistory: [],
+    pendingSideOrder: null,
+    activeSideOrder: null,
+    sideOrdersCompleted: 0,
     loans: [],
     moraleCooldownUntil: 0,
     resolvedChoices: [],
@@ -917,7 +929,10 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
   // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
   const eraLead = eraModifier(s.era).leadWeeks;
-  return Math.max(BALANCE.build.minWeeks, assembly) + lead + eraLead;
+  // A client commission occupies the floor: your own runs queue behind it (+1 wk). Opt-in only —
+  // the pinned sim never accepts an order, so the baseline build time is untouched.
+  const orderDelay = s.activeSideOrder ? SIDE_ORDER_BUILD_DELAY : 0;
+  return Math.max(BALANCE.build.minWeeks, assembly) + lead + eraLead + orderDelay;
 };
 
 /** Resolve a run against its factory's capacity + the product's capacity strategy (overtime / stretch
@@ -1487,6 +1502,25 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
+  // Side Orders — the deterministic commission stream (derived hash, never the sim RNG stream).
+  // Offers lapse quietly; a RUNNING order (player-accepted only, so the pinned sim never has one)
+  // pays out the week it completes.
+  let pendingSideOrder = state.pendingSideOrder ?? null;
+  let activeSideOrder = state.activeSideOrder ?? null;
+  let sideOrdersCompleted = state.sideOrdersCompleted ?? 0;
+  if (pendingSideOrder && week > pendingSideOrder.expiresWeek) pendingSideOrder = null;
+  if (activeSideOrder && week >= activeSideOrder.startedWeek + activeSideOrder.weeksNeeded) {
+    const payout = sideOrderPayout(activeSideOrder);
+    cash = add(cash, payout);
+    sideOrdersCompleted += 1;
+    feed.push(feedItem(week, `${activeSideOrder.clientName} took delivery of ${activeSideOrder.units.toLocaleString()} units — ${format(payout)} banked.`, "positive"));
+    activeSideOrder = null;
+  }
+  if (!pendingSideOrder && !activeSideOrder && !offline && sideOrderDue(state.seed, week)) {
+    pendingSideOrder = generateSideOrder(state.seed, week, state.era);
+    feed.push(feedItem(week, `${pendingSideOrder.clientName} wants ${pendingSideOrder.blurb} built on your line — ${pendingSideOrder.units.toLocaleString()} units. The offer expires week ${pendingSideOrder.expiresWeek}.`, "accent"));
+  }
+
   // Research points generated this week — accrue through the SAME selector the UI shows, so the
   // displayed rate and the earned amount can never diverge (this previously omitted the office-focus
   // multiplier and, later, the legacy perk bonus — the UI lied for players who had them).
@@ -1698,6 +1732,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     pendingStrike,
     pendingAwards,
     awardsHistory,
+    pendingSideOrder,
+    activeSideOrder,
+    sideOrdersCompleted,
     cashHistory,
     osBaseHistory,
     osLicensees,
@@ -2630,6 +2667,45 @@ export function collectAwards(state: GameState): GameState {
   return { ...state, pendingAwards: null, feed: trimFeed(feed) };
 }
 
+/** Take the client commission on offer. Gates mirror the card's UI: a wired line, the machines
+ *  the job calls for, and only one commission at a time. No upfront cost — the line IS the bet
+ *  (your own builds run +1 week while it's occupied). */
+export function acceptSideOrder(state: GameState): ActionResult {
+  const offer = state.pendingSideOrder;
+  if (!offer) return { state, ok: false, reason: "No commission on the table." };
+  if (state.week > offer.expiresWeek) return { state, ok: false, reason: "The offer has expired." };
+  if (state.activeSideOrder) return { state, ok: false, reason: "The line is already running a commission." };
+  if (!lineComplete(state.factoryFloor)) return { state, ok: false, reason: "Wire Intake → Packer first — the client needs a working line." };
+  const missing = sideOrderMissingKinds(state.factoryFloor.machines.map((m) => m.kind), offer);
+  if (missing.length > 0) return { state, ok: false, reason: `Needs a ${MACHINE_DEFS[missing[0]].name} on the floor.` };
+  const { expiresWeek: _drop, ...rest } = offer;
+  void _drop;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Signed ${offer.clientName}'s order: ${offer.units.toLocaleString()} units in ${offer.weeksNeeded} weeks, ${format(sideOrderPayout(offer))} on delivery.`, "accent"));
+  return {
+    state: { ...state, pendingSideOrder: null, activeSideOrder: { ...rest, startedWeek: state.week }, feed: trimFeed(feed) },
+    ok: true,
+  };
+}
+
+/** Pass on the offer — no fee, the client shops elsewhere. */
+export function declineSideOrder(state: GameState): GameState {
+  if (!state.pendingSideOrder) return state;
+  return { ...state, pendingSideOrder: null };
+}
+
+/** Walk out on a RUNNING commission — the client bills a cancellation fee (a fraction of the
+ *  payout). The escape hatch when your own launch suddenly matters more. */
+export function cancelSideOrder(state: GameState): ActionResult {
+  const active = state.activeSideOrder;
+  if (!active) return { state, ok: false, reason: "No commission is running." };
+  const penalty = Math.round(sideOrderPayout(active) * SIDE_ORDER_CANCEL_PCT) as Money;
+  if (state.cash < penalty) return { state, ok: false, reason: `Need ${format(sub(penalty, state.cash))} more to buy out the contract.` };
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Cancelled ${active.clientName}'s order — ${format(penalty)} cancellation fee.`, "negative"));
+  return { state: { ...state, activeSideOrder: null, cash: sub(state.cash, penalty), feed: trimFeed(feed) }, ok: true };
+}
+
 function clampMood(m: number): number {
   return Math.max(0, Math.min(100, m));
 }
@@ -3420,6 +3496,7 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   if (!prev.pendingChoice && next.pendingChoice) return "An event needs your call";
   if (!prev.pendingPoach && next.pendingPoach) return "A rival is poaching your staff";
   if (!prev.pendingStrike && next.pendingStrike) return "A rival is attacking your product";
+  if (!prev.pendingSideOrder && next.pendingSideOrder) return "A client wants your factory line";
   // A paid-for recruiter shortlist EXPIRES — skipping past its arrival would waste the fee.
   if (next.candidates.length > 0 && prev.candidates.length === 0) return "Your recruiter's shortlist arrived";
   if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";

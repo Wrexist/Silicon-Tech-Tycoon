@@ -35,6 +35,7 @@ import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
 import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
+import { sideOrderPayout } from "../engine/sideOrders.ts";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { FactoryTutorial } from "./FactoryTutorial.tsx";
 
@@ -79,7 +80,8 @@ function useFactoryData() {
   const game = useGame();
   const { state } = game;
   const lead = state.building[0] ?? null;
-  const active = state.building.length > 0;
+  // A running client commission keeps the LINE alive too — belts roll, machines work.
+  const active = state.building.length > 0 || !!state.activeSideOrder;
   const progress = lead ? Math.min(1, lead.weeksElapsed / Math.max(1, lead.totalWeeks)) : 0;
   const stage = lead ? stageForLine(lead.product.category, progress) : null;
   const activeKind = stage ? stage.kind : null;
@@ -410,6 +412,49 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <p className="fmode__empty">No active order. Plan a production run in the Design Lab.</p>
           )}
         </div>
+
+        {/* Side order — a client commission on offer, or the one running on the line. */}
+        {state.pendingSideOrder && !state.activeSideOrder && (() => {
+          const offer = state.pendingSideOrder;
+          const missingKinds = offer.requiredKinds.filter((k) => !state.factoryFloor.machines.some((m) => m.kind === k));
+          const wired = lineComplete(state.factoryFloor);
+          const can = wired && missingKinds.length === 0;
+          const expiresIn = Math.max(0, offer.expiresWeek - state.week);
+          const payout = sideOrderPayout(offer);
+          return (
+            <div className="fmode__panel fmode__sideorder">
+              <span className="fmode__sideorder-head"><Truck size={14} aria-hidden /> Client order · expires in {expiresIn} wk</span>
+              <p className="fmode__sideorder-body">
+                <b>{offer.clientName}</b> wants {offer.blurb}: {offer.units.toLocaleString()} units in {offer.weeksNeeded} wk — <b>{format(payout)}</b> on delivery. Your own builds run +1 wk meanwhile.
+              </p>
+              {!can && (
+                <p className="fmode__sideorder-warn">
+                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]].name} on the floor.`}
+                </p>
+              )}
+              <div className="fmode__sideorder-actions">
+                <button className="fmode__sideorder-go" disabled={!can} onClick={() => d.game.acceptSideOrder()}>
+                  Accept order
+                </button>
+                <button className="fmode__sideorder-x" onClick={() => d.game.declineSideOrder()}>Pass</button>
+              </div>
+            </div>
+          );
+        })()}
+        {state.activeSideOrder && (() => {
+          const so = state.activeSideOrder;
+          const weeksLeft = Math.max(0, so.startedWeek + so.weeksNeeded - state.week);
+          const frac = Math.max(0, Math.min(1, (state.week - so.startedWeek) / Math.max(1, so.weeksNeeded)));
+          const payout = sideOrderPayout(so);
+          return (
+            <div className="fmode__panel fmode__sideorder fmode__sideorder--live">
+              <span className="fmode__sideorder-head"><Truck size={14} aria-hidden /> Running {so.clientName}'s order</span>
+              <span className="fmode__sideorder-track"><span className="fmode__sideorder-fill" style={{ width: `${Math.round(frac * 100)}%` }} /></span>
+              <p className="fmode__sideorder-body tnum">{weeksLeft} wk left · {format(payout)} on delivery</p>
+              <button className="fmode__sideorder-x" onClick={() => d.game.cancelSideOrder()}>Cancel · 25% fee</button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* right tool rail */}

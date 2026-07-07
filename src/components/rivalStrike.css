@@ -76,3 +76,4 @@
   border: none; background: none;
   font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);
 }
+.rst__deal { font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2); }

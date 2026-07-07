@@ -2370,3 +2370,28 @@ Three parallel audits (recent-code bug hunt, game-design fun review, friction/ju
       defect-risk recall dilemmas, factory wear/bottlenecks, expiring opportunity events, supply
       contracts with commitments, holiday quarter, fan mail, post-listing board pressure.
 - Gates: tsc 0 · 782 tests · build+PWA green · sim byte-identical to the v109 baseline.
+
+## v111 — Fun round: Rival Strikes · The Silicon Awards · Side Orders (DONE 2026-07-07)
+All three top picks from the v110 fun roadmap, each engineered sim-safe (pinned 40-seed baseline
+byte-identical after every feature: 0/40 bankruptcies, troughs $12k/$8k, Era 2 wk 45).
+- [x] **Rival Strikes** — when a rival launches into a category you're actively selling in, the
+      entry haircut becomes a decision, not a feed line: an interrupt card (device-vs-device duel
+      with live renders + overall scores) offers Cut price (−10%, ordinary one-cut path),
+      Counter-campaign (20% strike discount on the usual marketing push), or Hold the line
+      (+1 rep when your device outclasses theirs). 8-week cooldown; Escape/scrim = hold; buttons
+      mirror the reducer gates exactly. 7 state tests.
+- [x] **The Silicon Awards** — every 52 weeks the industry judges the past year: Device of the
+      Year (overall), Design Award (style appeal), Value Champion (score-per-dollar) across player
+      launches AND rival releases. Gold ceremony overlay; each win pays +2 rep / +800 fans on
+      collect; a shutout names the rival that took Device of the Year in the feed. Pure judge
+      fold in src/engine/awards.ts, 4 engine tests + a state integration test.
+- [x] **Side Orders** — clients commission runs on YOUR factory line: a derived-hash offer stream
+      (~1 in 7 weeks after wk 16, expires in 2) with flavor clients whose machine requirements
+      tease floor upgrades (the bare starter floor never qualifies — verified by test). Accepting
+      needs a wired Intake→Packer line + the required machines; while a commission runs your own
+      builds take +1 week and the 3D line visibly animates; delivery pays units × fee, cancelling
+      costs 25% of the payout. Offer/active panels live in Factory mode; interrupts stop
+      "Skip to next decision"; persistence scrubs malformed orders. 7 tests.
+- [x] Strike card polish: campaign button label no longer clips — discount moved to its own
+      "Strike rate" line under the actions.
+- Gates: tsc 0 · 800 tests · build+PWA green · sim byte-identical to the v109 baseline.

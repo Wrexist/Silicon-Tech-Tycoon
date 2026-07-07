@@ -103,8 +103,11 @@ export function RivalStrike() {
             <TrendingDown size={15} /> Cut price {lp && newPrice !== null ? `· ${format(lp.product.price)} → ${format(newPrice)}` : ""}
           </Button>
           <Button block variant="secondary" disabled={!canCampaign} haptics="none" onClick={() => answer("campaign")}>
-            <Megaphone size={15} /> Counter-campaign {discounted !== null ? `· ${format(discounted)} (${Math.round(cfg.campaignDiscount * 100)}% off)` : "· unavailable"}
+            <Megaphone size={15} /> Counter-campaign {discounted !== null ? `· ${format(discounted)}` : "· unavailable"}
           </Button>
+          {discounted !== null && (
+            <span className="rst__deal">Strike rate — {Math.round(cfg.campaignDiscount * 100)}% off the usual campaign</span>
+          )}
           <button className="rst__hold" onClick={() => answer("hold")}>
             <Shield size={14} aria-hidden /> Hold the line{outclasses ? ` · yours is better (+${cfg.holdRepBonus} rep)` : ""}
           </button>
