@@ -1406,11 +1406,11 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         return (
           <group
             position={[bx, 0, 0]}
-            onClick={(e) => {
+            onClick={p.onTapLockedBay ? (e) => {
               e.stopPropagation();
               if (e.delta > 8) return; // an orbit drag that ends on the bay is not a tap
               p.onTapLockedBay?.();
-            }}
+            } : undefined}
           >
             {/* ghost slab — solid enough to read as real floor plan, not empty ground */}
             <RoundedBox args={[bw + 0.3, 0.14, SHELL.d]} radius={0.08} position={[0, 0.01, 0]}>

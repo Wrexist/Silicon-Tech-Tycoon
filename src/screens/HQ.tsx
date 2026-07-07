@@ -51,7 +51,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, burn, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -191,9 +191,8 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           : <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
       </div>
       {(() => {
-        const wkBurn = burn(state);
         const wkRev = nextWeekRevenue(state);
-        const runway = runwayWeeks(state.cash, wkBurn, wkRev);
+        const runway = runwayWeeks(state.cash, weeklyOutflow(state), wkRev);
         // The pill is already labelled "Runway" — keep the value short so it doesn't read "Runway 7wk runway".
         const runwayLabel = runway === Infinity ? "Profitable" : runway > 520 ? "10y+" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
         const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
@@ -418,8 +417,8 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
     selectedIid,
     onPlaceCell: (c, r) => {
       if (!placingType) return;
-      if (!canAffordFurniture(state, placingType)) {
-        showToast(`Need ${format(sub(dollars(furnitureCost(placingType)), state.cash))} more for the ${furnitureDef(placingType).name}`, { tone: "negative" });
+      if (cashRef.current < dollars(furnitureCost(placingType))) {
+        showToast(`Need ${format(sub(dollars(furnitureCost(placingType)), cashRef.current))} more for the ${furnitureDef(placingType).name}`, { tone: "negative" });
         haptic.error();
         return;
       }
@@ -1163,9 +1162,8 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     // Hiring is gated by PLACED desks, not raw facility headcount, so count actual open seats
     // (deskCapacity) — otherwise this could claim desks that haven't been placed yet.
     const openDesks = deskCapacity(state) - state.staff.length;
-    const wkBurnH = burn(state);
     const wkRevH = nextWeekRevenue(state);
-    const runwayH = runwayWeeks(state.cash, wkBurnH, wkRevH);
+    const runwayH = runwayWeeks(state.cash, weeklyOutflow(state), wkRevH);
     if (openDesks >= 1 && runwayH > 30) {
       insights.push({
         icon: Users,

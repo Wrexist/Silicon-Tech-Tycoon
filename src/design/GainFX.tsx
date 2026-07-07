@@ -34,7 +34,11 @@ export function GainFX() {
     if (reducedMotion()) return;
     const id = seq++;
     setTokens((t) => [...t.slice(-6), { id, text, kind }]);
-    timers.current.push(setTimeout(() => setTokens((t) => t.filter((x) => x.id !== id)), 1500));
+    const tid = setTimeout(() => {
+      setTokens((t) => t.filter((x) => x.id !== id));
+      timers.current = timers.current.filter((x) => x !== tid);
+    }, 1500);
+    timers.current.push(tid);
   };
 
   // Gain tokens from state diffs (tick-based income)

@@ -181,7 +181,7 @@ function freshDraft(state: GameState): Product {
   const prevP = newestProduct(state);
   const base: Product = {
     id: "draft",
-    name: prevP ? suggestNextName(prevP.name) : "Aurora One",
+    name: prevP ? suggestNextName(prevP.name).slice(0, 22) : "Aurora One",
     category: "phone",
     tiers,
     finish: "aluminium",
@@ -216,6 +216,7 @@ function successorDraft(prev: Product): Product {
     name: suggestNextName(prev.name).slice(0, 22), // respect the name input's cap
     plannedUnits: undefined,
     channelId: undefined,
+    regions: undefined,
     // Run-specific baggage must NOT carry over: a defect penalty was the PREVIOUS run's
     // over-capacity gamble, not part of the design — inheriting it would silently corrupt
     // every successor's quality, compounding across generations.
@@ -398,8 +399,10 @@ export function DesignLab({
   const preview = missing.length === 0 ? planProduction(state, draft, BALANCE.build.minRun, "none") : null;
   const effectiveScore = preview ? preview.launchScore * preview.competitionFactor : breakdown.launchScore;
   const bands = verdictBands(state.era);
+  // Match launchReady's Hit Factory bonus (hit bar drops to 88%) so the projection agrees with launch.
+  const hitBar = state.completedProjects.includes("hitFactory") ? Math.round(bands.hit * 0.88) : bands.hit;
   const verdict =
-    effectiveScore >= bands.hit ? { label: "Projected hit", tone: "positive" as const }
+    effectiveScore >= hitBar ? { label: "Projected hit", tone: "positive" as const }
       : effectiveScore <= bands.flop ? { label: "Likely flop", tone: "negative" as const }
         : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
           : { label: "Steady seller", tone: "accent" as const };
@@ -434,6 +437,11 @@ export function DesignLab({
   }
 
   function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[], strategy: CapacityStrategy) {
+    if (!draft.name.trim()) {
+      haptic.error();
+      showToast("Give your device a name before you build it", { tone: "negative", glyph: <AlertTriangle size={15} /> });
+      return;
+    }
     // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the
     // completion sheet can celebrate exactly what just shipped to the factory floor. Bake the chosen
     // capacity strategy and (for "defects") its run-size-dependent quality hit onto the product.

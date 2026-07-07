@@ -236,6 +236,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     const t = setTimeout(() => setCancelArm(false), 4000);
     return () => clearTimeout(t);
   }, [cancelArm]);
+  // Disarm the bay whenever the floor actually grows — buying an expansion via the Style sheet
+  // would otherwise leave the arm live, so one stray bay tap buys the NEXT tier with no confirm.
+  useEffect(() => { setExpandArm(false); }, [state.factoryExpansion]);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
   // Camera: drag/touch to orbit, pinch to zoom (Factory3D owns OrbitControls); the recenter button

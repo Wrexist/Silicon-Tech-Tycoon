@@ -47,7 +47,7 @@ import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type M
 import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
 import { pickPoachTarget } from "../engine/poaching.ts";
 import { mentorshipXpMult } from "../engine/org.ts";
-import { accrueLoans, creditLimit, loanRate, makeLoan, type Loan } from "../engine/financing.ts";
+import { accrueLoans, creditLimit, loanRate, makeLoan, weeklyDebtService, type Loan } from "../engine/financing.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
 import {
   addItem as addFurniture,
@@ -690,6 +690,10 @@ export const facilityRent = (s: GameState): Money =>
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
 export const burn = (s: GameState): Money =>
   add(weeklyBurn(s.staff, facilityRent(s)), totalFactoryUpkeep(s.ownedFactories)) as Money;
+/** Total weekly cash OUTFLOW = operating burn + loan debt service. Display/solvency only (runway,
+ *  "cash running low"); the tick deducts burn and loan payments separately, so it must NOT use this. */
+export const weeklyOutflow = (s: GameState): Money =>
+  add(burn(s), cents(weeklyDebtService(s.loans ?? []))) as Money;
 export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + perkBonuses(s.legacy).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
@@ -3517,7 +3521,7 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   const finished = (s: GameState) => s.launched.filter((l) => l.weeksElapsed >= l.weeklyUnits.length).length;
   if (finished(next) > finished(prev)) return "A product finished its run";
   const lowRunway = (s: GameState) => {
-    const b = toDollars(burn(s));
+    const b = toDollars(weeklyOutflow(s));
     return b > 0 && toDollars(s.cash) / b < 4;
   };
   if (!lowRunway(prev) && lowRunway(next)) return "Cash is running low";

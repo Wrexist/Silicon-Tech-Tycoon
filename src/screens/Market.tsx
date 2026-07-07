@@ -329,7 +329,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       {/* Rival releases, the real products rivals have shipped (Epic B): see and learn from them */}
       {visibleRivalReleases.length > 0 && (
         <Card>
-          <SectionHeader title="Rival releases" accessory={`${visibleRivalReleases.length} recent`} />
+          <SectionHeader title="Rival releases" accessory={`${Math.min(6, visibleRivalReleases.length)} recent`} />
           <div className="mkt__rivals">
             {visibleRivalReleases.slice(0, 6).map((r, i) => (
               <button
