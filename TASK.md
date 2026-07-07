@@ -2329,3 +2329,23 @@ The three "empty gameplay" holes the v104 audit flagged, filled:
       Market's "Design a successor" uses. A "New version" pill in the lab hero opens the same
       picker any time. Verified live (3-franchise save → picker → seeded Aurora Pro III, Fit 86).
 - Gates: tsc 0 · 782 tests · build+PWA green.
+
+## v109 — Smooth progress, an honest lock, and a survivable start (DONE 2026-07-07)
+Three device-playtest fixes:
+- [x] **The build ring counts smoothly from 0%** — `weeksElapsed` only moves in whole-week ticks,
+      so a 3-week build jumped 0→33→67. New `useSmoothWeeks` in BuildProgress interpolates within
+      the current week off the real tick cadence (pause freezes it, fast-forward speeds it up,
+      reduced-motion keeps steps), capped at week+0.97 so the estimate never outruns the sim.
+      Verified live: ring read 15% mid-week — a value the stepped version could never show.
+- [x] **The locked bay finally reads as locked** — the ghost slab/walls were so faint (0.14–0.2
+      alpha) they vanished on dark ground, leaving the "Locked" pill floating ambiguously at the
+      boundary as if the FACTORY were locked. The bay is now a distinct dimmed zone: solider slab
+      (0.35), a dark veil (y 0.145, above the rounded-edge cutoff), a crisp perimeter frame, and
+      stronger ghost walls; the pill sits just inside the bay over the dark zone and its price
+      sub-line wraps so the card crop can't truncate "$50K".
+- [x] **Starting capital $20K → $100K** — playtests showed the early game was a coin-flip: one
+      mispriced first run (screenshots: $2.7K cash, "Need $770 more" on a 50-unit minimum run)
+      ended the company before the loop clicked. New 40-seed baseline: 0/40 bankruptcies, early
+      trough median $12k / min $8k (was $2k/$1k), Era 2 at wk 45, all eras reached 40/40 —
+      re-pinned as the reference sim output.
+- Gates: tsc 0 · 782 tests · build+PWA green · sim re-pinned (intended balance change).

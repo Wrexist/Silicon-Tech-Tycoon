@@ -2,6 +2,7 @@
 // progress ring (a glowing "factory halo") that fills as the run is built, with a live stage label
 // — Sourcing → Tooling → Assembly → QA → Packaging — so the wait reads as a real process, not a
 // silent bar. Pure presentational; driven by the BuildJob's weeksElapsed / totalWeeks.
+import { useEffect, useState } from "react";
 import {
   Boxes, Stamp, Layers3, Cog, ShieldCheck, Truck, Wrench, Keyboard, Fan, Watch,
   Monitor, ScanLine, CircuitBoard, type LucideIcon,
@@ -12,6 +13,8 @@ import { supplierFor } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { lineFor, stageForLine, stageIndexForLine } from "../engine/assemblyLine.ts";
+import { BALANCE } from "../engine/balance.ts";
+import { useGame } from "../state/useGame.tsx";
 import type { BuildJob } from "../engine/types.ts";
 import "./buildProgress.css";
 
@@ -59,8 +62,35 @@ export function StageTrail({ category, frac, tone = "accent", labeled = false }:
 const RING_R = 33; // radius in the 80×80 viewBox
 const RING_C = 2 * Math.PI * RING_R;
 
+/** Wall-clock-smoothed build weeks. The sim only moves `weeksElapsed` in whole-week ticks, so the
+ *  ring would jump 0% → 33% → 67% on a 3-week build. This interpolates WITHIN the current week
+ *  using the real tick cadence (pause freezes it, fast-forward speeds it up), capped just short of
+ *  the next week so the sim's own tick always lands ahead of the estimate — the ring counts up
+ *  continuously from 0% and is never caught claiming progress the sim hasn't made. */
+function useSmoothWeeks(weeksElapsed: number, totalWeeks: number): number {
+  const { paused, fast, skipping } = useGame();
+  const reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // The estimate is keyed to the week it was made for — a week the sim has since advanced past
+  // reads as 0, so there's never a frame where the old fraction rides on the new week.
+  const [est, setEst] = useState({ week: weeksElapsed, sub: 0 });
+  const sub = est.week === weeksElapsed ? est.sub : 0;
+  useEffect(() => {
+    if (paused || reduced || weeksElapsed >= totalWeeks) return; // pause freezes; reduced motion steps
+    const tickMs = (BALANCE.secondsPerTick / (fast || skipping ? BALANCE.fastMultiplier : 1)) * 1000;
+    const t0 = performance.now();
+    const sub0 = sub; // resume from where the estimate froze (0 on a fresh week)
+    const id = setInterval(() => {
+      setEst({ week: weeksElapsed, sub: Math.min(0.97, sub0 + (performance.now() - t0) / tickMs) });
+    }, 120); // ~8fps — the CSS transition on the ring smooths the rest
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `sub` is read once per (re)start on purpose
+  }, [paused, fast, skipping, reduced, weeksElapsed, totalWeeks]);
+  return Math.min(totalWeeks, weeksElapsed + (reduced ? 0 : sub));
+}
+
 export function BuildProgress({ job }: { job: BuildJob }) {
-  const frac = Math.max(0, Math.min(1, job.weeksElapsed / Math.max(1e-6, job.totalWeeks)));
+  const smoothWeeks = useSmoothWeeks(job.weeksElapsed, job.totalWeeks);
+  const frac = Math.max(0, Math.min(1, smoothWeeks / Math.max(1e-6, job.totalWeeks)));
   const pct = Math.round(frac * 100);
   const weeksLeft = Math.max(0, Math.ceil(job.totalWeeks - job.weeksElapsed));
   const stage = stageForLine(job.product.category, frac);

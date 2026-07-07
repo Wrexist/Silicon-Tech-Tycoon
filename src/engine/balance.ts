@@ -4,9 +4,10 @@ import { dollars, type Money } from "./money.ts";
 
 export const BALANCE = {
   // --- Company start ---
-  // Tighter early economy: a leaner runway + real manufacturing investment per product, so a
-  // flop actually costs you (see build.toolingUnits + sales.floorUnits).
-  startingCash: dollars(20_000) as Money,
+  // Enough capital for a real first act: 2-3 honest product cycles (tooling + run + marketing)
+  // with room to absorb one flop before the garage rent bites. Playtesting at $20K showed the
+  // early game was a coin-flip — one mispriced run put the company under before the loop clicked.
+  startingCash: dollars(100_000) as Money,
   startingReputation: 8, // 0..100
 
   // --- Time ---

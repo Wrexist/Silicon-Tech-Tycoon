@@ -1405,28 +1405,48 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         const bx = floorW + (bw - 1) / 2 - (FLOOR.w - 1) / 2 + 0.35; // just past the east wall
         return (
           <group position={[bx, 0, 0]} onClick={(e) => { e.stopPropagation(); p.onTapLockedBay?.(); }}>
-            {/* ghost slab — same concrete, barely there */}
+            {/* ghost slab — solid enough to read as real floor plan, not empty ground */}
             <RoundedBox args={[bw + 0.3, 0.14, SHELL.d]} radius={0.08} position={[0, 0.01, 0]}>
-              <meshStandardMaterial color={C.concrete} transparent opacity={0.2} roughness={1} />
+              <meshStandardMaterial color={C.concrete} transparent opacity={0.35} roughness={1} />
             </RoundedBox>
+            {/* dim veil over the slab — the bay is unmistakably NOT part of the working floor.
+                y ≥ 0.145: anything lower gets swallowed by the slab's rounded edge. */}
+            <mesh position={[0, 0.145, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[bw + 0.1, SHELL.d - 0.2]} />
+              <meshBasicMaterial color="#0b0e12" transparent opacity={0.42} depthWrite={false} />
+            </mesh>
+            {/* perimeter frame — a crisp boundary marking exactly what's for sale */}
+            {([
+              [0, -(SHELL.d / 2) + 0.12, bw + 0.1, 0.06],
+              [0, SHELL.d / 2 - 0.12, bw + 0.1, 0.06],
+              [-(bw / 2) - 0.02, 0, 0.06, SHELL.d - 0.18],
+              [bw / 2 + 0.02, 0, 0.06, SHELL.d - 0.18],
+            ] as [number, number, number, number][]).map(([fx, fz, fw, fd], i) => (
+              <mesh key={i} position={[fx, 0.15, fz]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[fw, fd]} />
+                <meshBasicMaterial color="#8a9099" transparent opacity={0.55} depthWrite={false} />
+              </mesh>
+            ))}
             {/* ghost walls continuing the building silhouette */}
             <mesh position={[bw / 2 + 0.05, SHELL.wallH / 2, 0]}>
               <boxGeometry args={[SHELL.t, SHELL.wallH, SHELL.d]} />
-              <meshStandardMaterial color={p.wallColor ?? "#8a9099"} transparent opacity={0.14} />
+              <meshStandardMaterial color={p.wallColor ?? "#8a9099"} transparent opacity={0.22} />
             </mesh>
             {[SHELL.d / 2, -SHELL.d / 2].map((bz) => (
               <mesh key={bz} position={[0, SHELL.wallH / 2, bz]}>
                 <boxGeometry args={[bw + 0.3, SHELL.wallH, SHELL.t]} />
-                <meshStandardMaterial color={p.wallColor ?? "#8a9099"} transparent opacity={0.14} />
+                <meshStandardMaterial color={p.wallColor ?? "#8a9099"} transparent opacity={0.22} />
               </mesh>
             ))}
-            {/* the lock pill — fixed-size chip floating over the bay */}
-            <Html position={[-(bw / 2) + 0.2, 0.4, -2.1]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
+            {/* the lock pill — floating just inside the bay's west edge: far enough in that the
+                dimmed slab behind it owns it, far enough west that neither the fullscreen tool
+                rail nor the HQ card's crop clips the price */}
+            <Html position={[-(bw / 2) + 0.6, 0.45, -2.2]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, whiteSpace: "nowrap", fontFamily: "system-ui,-apple-system,sans-serif" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: "rgba(15,18,24,0.88)", border: "1px solid rgba(255,255,255,0.14)", color: "#fff", fontSize: 12, fontWeight: 800 }}>
                   <Lock size={12} aria-hidden /> {p.lockedBay.label}
                 </div>
-                <div style={{ padding: "2px 8px", borderRadius: 999, background: "rgba(15,18,24,0.7)", color: "rgba(255,255,255,0.75)", fontSize: 10, fontWeight: 700 }}>
+                <div style={{ padding: "3px 9px", borderRadius: 10, background: "rgba(15,18,24,0.7)", color: "rgba(255,255,255,0.75)", fontSize: 10, fontWeight: 700, whiteSpace: "normal", maxWidth: 96, textAlign: "center", lineHeight: 1.35 }}>
                   {p.lockedBay.sub}
                 </div>
               </div>
