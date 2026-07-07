@@ -121,6 +121,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   }, [focusProductId]);
   const [feedOpen, setFeedOpen] = useState(false);
   const [rivalProfile, setRivalProfile] = useState<string | null>(null);
+  // Market is a lot of ground — split it into three destinations instead of one long scroll:
+  // Standing (you vs. the field), Products (your catalogue) and Demand (the market itself).
+  const [mktTab, setMktTab] = useState<"standing" | "products" | "demand">("standing");
   const detail = state.launched.find((l) => l.product.id === detailId) ?? null;
 
   // Progressive disclosure: the Stock Exchange is a side activity with no scaffolding for a
@@ -180,6 +183,22 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         </div>
       </Card>
 
+      {/* Sub-navigation — Standing (you vs. the field) · Products (your catalogue) · Demand (the market). */}
+      <div className="mkt__subnav" role="tablist" aria-label="Market sections">
+        {([["standing", "Standing"], ["products", "Products"], ["demand", "Demand"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={mktTab === id}
+            className={`mkt__subtab${mktTab === id ? " mkt__subtab--on" : ""}`}
+            onClick={() => { haptic.light(); setMktTab(id); }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mktTab === "standing" && (<>
       {/* Your company (equity) */}
       <Card className="mkt__co">
         <SectionHeader title={state.companyName} accessory={state.listed ? "publicly traded" : "private"} />
@@ -265,6 +284,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         );
       })()}
 
+      </>)}
+
+      {mktTab === "demand" && (<>
       {/* Global expansion, open new markets to grow your addressable demand (engine/regions.ts) */}
       <Card className="mkt__regions">
         <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length} open`} />
@@ -357,6 +379,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         </Card>
       )}
 
+      </>)}
+
+      {mktTab === "products" && (<>
       {/* Your launched products, tap one to see why it performed + design a successor */}
       <Card>
         <SectionHeader title="Your products" accessory={state.launched.length > 0 ? `${state.launched.length} launched` : undefined} />
@@ -493,6 +518,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         );
       })()}
 
+      </>)}
+
+      {mktTab === "standing" && (<>
       {/* Stock exchange, gated behind the first ship (see `showStocks`). */}
       {showStocks && <SectionHeader title="Stock exchange" accessory="trade rival shares" />}
       {showStocks && Object.values(state.holdings).some((v) => (v ?? 0) > 0) && (() => {
@@ -634,6 +662,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         </Card>
       )}
 
+      </>)}
+
+      {mktTab === "demand" && (<>
       {/* Trends */}
       <Card>
         <SectionHeader title="What buyers want" accessory={eraName(state.era)} />
@@ -738,6 +769,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         );
       })()}
 
+      </>)}
+
+      {mktTab === "standing" && (<>
       {/* Activity feed */}
       <Card>
         <SectionHeader
@@ -776,6 +810,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           </ul>
         )}
       </Card>
+      </>)}
 
       <Sheet open={!!detail} onClose={() => setDetailId(null)} label="Product detail">
         {detail && (
