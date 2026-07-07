@@ -95,6 +95,12 @@
   font-size: var(--fs-micro, var(--fs-caption));
   color: var(--ink-2);
 }
+/* Payoff progress — how far out of this loan you've climbed. */
+.co__loan-track {
+  display: block; margin-top: 5px; height: 4px; width: 120px;
+  border-radius: var(--r-pill); background: var(--hairline); overflow: hidden;
+}
+.co__loan-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); transition: width var(--spring-standard); }
 .co__loan-presets {
   display: flex;
   flex-wrap: wrap;

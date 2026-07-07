@@ -35,6 +35,7 @@ import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
 import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
+import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { FactoryTutorial } from "./FactoryTutorial.tsx";
 
@@ -79,7 +80,8 @@ function useFactoryData() {
   const game = useGame();
   const { state } = game;
   const lead = state.building[0] ?? null;
-  const active = state.building.length > 0;
+  // A running client commission keeps the LINE alive too — belts roll, machines work.
+  const active = state.building.length > 0 || !!state.activeSideOrder;
   const progress = lead ? Math.min(1, lead.weeksElapsed / Math.max(1, lead.totalWeeks)) : 0;
   const stage = lead ? stageForLine(lead.product.category, progress) : null;
   const activeKind = stage ? stage.kind : null;
@@ -218,6 +220,22 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [layoutName, setLayoutName] = useState("");
   const [confirmLayout, setConfirmLayout] = useState<string | null>(null); // arms a layout's Apply → shows the diff + Confirm
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
+  // Tapping the expansion bay buys it directly: first tap arms the pill (confirm), second commits.
+  // The arm decays so a stray tap can't leave a live $50K+ trigger sitting on the floor.
+  const [expandArm, setExpandArm] = useState(false);
+  useEffect(() => {
+    if (!expandArm) return;
+    const t = setTimeout(() => setExpandArm(false), 4000);
+    return () => clearTimeout(t);
+  }, [expandArm]);
+  // Cancelling a commission forfeits a chunk of the payout — arm the button first so one stray tap
+  // can't burn the fee. Decays like the expand arm.
+  const [cancelArm, setCancelArm] = useState(false);
+  useEffect(() => {
+    if (!cancelArm) return;
+    const t = setTimeout(() => setCancelArm(false), 4000);
+    return () => clearTimeout(t);
+  }, [cancelArm]);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
   // Camera: drag/touch to orbit, pinch to zoom (Factory3D owns OrbitControls); the recenter button
@@ -314,9 +332,25 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               era={state.era}
               lockedBay={(() => {
                 const cost = nextExpansionCost(state.factoryExpansion);
-                return cost == null ? null : { cols: EXPAND_STEP, label: "Locked", sub: `Expand the floor \u00b7 ${format(cost)}` };
+                if (cost == null) return null;
+                return expandArm
+                  ? { cols: EXPAND_STEP, label: `Tap again \u00b7 ${format(cost)}`, armed: true }
+                  : { cols: EXPAND_STEP, label: `Expand \u00b7 ${format(cost)}` };
               })()}
-              onTapLockedBay={() => { haptic.light(); setSheet("decor"); }}
+              onTapLockedBay={() => {
+                const cost = nextExpansionCost(state.factoryExpansion);
+                if (cost == null) return;
+                if (state.cash < cost) {
+                  haptic.warning();
+                  showToast(`Need ${format(sub(cost, state.cash))} more to expand the floor.`, { tone: "negative" });
+                  return;
+                }
+                if (!expandArm) { haptic.light(); setExpandArm(true); return; }
+                setExpandArm(false);
+                const res = d.game.buyFloorExpansion();
+                if (res.ok) { haptic.success(); sfx("build"); emitCelebrate(); setResetView((v) => v + 1); showToast("New bay unlocked \u2014 the floor grows east", { tone: "positive" }); }
+                else { haptic.warning(); showToast(res.reason ?? "Can't expand", { tone: "negative" }); }
+              }}
               onTapCell={onTapCell}
               paintBelts={buildTool === "belt"}
               onPaintBelts={(cells) => {
@@ -410,6 +444,60 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <p className="fmode__empty">No active order. Plan a production run in the Design Lab.</p>
           )}
         </div>
+
+        {/* Side order — a client commission on offer, or the one running on the line. */}
+        {state.pendingSideOrder && !state.activeSideOrder && (() => {
+          const offer = state.pendingSideOrder;
+          const missingKinds = offer.requiredKinds.filter((k) => !state.factoryFloor.machines.some((m) => m.kind === k));
+          const wired = lineComplete(state.factoryFloor);
+          const can = wired && missingKinds.length === 0;
+          const expiresIn = Math.max(0, offer.expiresWeek - state.week);
+          const payout = sideOrderPayout(offer);
+          return (
+            <div className="fmode__panel fmode__sideorder">
+              <span className="fmode__sideorder-head"><Truck size={14} aria-hidden /> Client order · expires in {expiresIn} wk</span>
+              <p className="fmode__sideorder-body">
+                <b>{offer.clientName}</b> wants {offer.blurb}: {offer.units.toLocaleString()} units in {offer.weeksNeeded} wk — <b>{format(payout)}</b> on delivery. Your own builds run +1 wk meanwhile.
+              </p>
+              {!can && (
+                <p className="fmode__sideorder-warn">
+                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]].name} on the floor.`}
+                </p>
+              )}
+              <div className="fmode__sideorder-actions">
+                <button className="fmode__sideorder-go" disabled={!can} onClick={() => d.game.acceptSideOrder()}>
+                  Accept order
+                </button>
+                <button className="fmode__sideorder-x" onClick={() => d.game.declineSideOrder()}>Pass</button>
+              </div>
+            </div>
+          );
+        })()}
+        {state.activeSideOrder && (() => {
+          const so = state.activeSideOrder;
+          const weeksLeft = Math.max(0, so.startedWeek + so.weeksNeeded - state.week);
+          const frac = Math.max(0, Math.min(1, (state.week - so.startedWeek) / Math.max(1, so.weeksNeeded)));
+          const payout = sideOrderPayout(so);
+          const feePct = Math.round(SIDE_ORDER_CANCEL_PCT * 100);
+          return (
+            <div className="fmode__panel fmode__sideorder fmode__sideorder--live">
+              <span className="fmode__sideorder-head"><Truck size={14} aria-hidden /> Running {so.clientName}'s order</span>
+              <span className="fmode__sideorder-track"><span className="fmode__sideorder-fill" style={{ width: `${Math.round(frac * 100)}%` }} /></span>
+              <p className="fmode__sideorder-body tnum">{weeksLeft} wk left · {format(payout)} on delivery</p>
+              <button
+                className="fmode__sideorder-x"
+                onClick={() => {
+                  if (!cancelArm) { haptic.light(); setCancelArm(true); return; }
+                  setCancelArm(false);
+                  haptic.warning();
+                  d.game.cancelSideOrder();
+                }}
+              >
+                {cancelArm ? `Confirm — forfeit ${feePct}%` : `Cancel · ${feePct}% fee`}
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* right tool rail */}
@@ -876,7 +964,7 @@ export function FactoryCard({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 era={state.era}
                 lockedBay={(() => {
                   const cost = nextExpansionCost(state.factoryExpansion);
-                  return cost == null ? null : { cols: EXPAND_STEP, label: "Locked", sub: `Expand the floor · ${format(cost)}` };
+                  return cost == null ? null : { cols: EXPAND_STEP, label: `Expand · ${format(cost)}` };
                 })()}
                 onContextLost={() => setGlLost(true)}
               />

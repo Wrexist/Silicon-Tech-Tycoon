@@ -23,6 +23,11 @@ import {
   evaluateObjectives,
   buyProject,
   hostKeynote,
+  resolveStrike,
+  collectAwards,
+  acceptSideOrder,
+  declineSideOrder,
+  cancelSideOrder,
   REV_MILESTONES,
   buyShares,
   acquireRival,
@@ -114,6 +119,7 @@ import type { MasteryInput } from "../engine/achievements.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
 import type { ProjectId } from "../engine/research.ts";
+import type { StrikeResponse } from "./gameState.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
@@ -128,6 +134,7 @@ import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { sfx } from "../design/sound.ts";
+import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
 import { createElement } from "react";
 
@@ -230,6 +237,9 @@ function announceAchievements(unlocked: readonly string[]): void {
   if (earned.length === 0) return;
   const fire = () => {
     try {
+      // A milestone deserves more than silent text — same weight as scenario stars.
+      sfx("mastery");
+      haptic.success();
       if (earned.length === 1) {
         const a = earned[0];
         showToast(`Achievement unlocked, ${a.title}`, {
@@ -381,6 +391,11 @@ interface GameActionsValue {
   unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
   hostKeynote: () => void;
+  resolveStrike: (choice: StrikeResponse) => void;
+  collectAwards: () => void;
+  acceptSideOrder: () => void;
+  declineSideOrder: () => void;
+  cancelSideOrder: () => void;
   buyUpgrade: (id: UpgradeId) => void;
   buyDesktop: () => void;
   unlockRegion: (id: RegionId) => void;
@@ -602,6 +617,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
           mergeProfileAchievements(unlocked);
           announceObjectives(completed);
           announceScenarioStars(next);
+          // A commission finishing is a payday — celebrate it from any tab.
+          if ((next.sideOrdersCompleted ?? 0) > (s.sideOrdersCompleted ?? 0)) {
+            sfx("cash");
+            showToast("Commission delivered — payment banked", { tone: "positive" });
+          }
+          // A paid-for recruiter shortlist EXPIRES quietly — the arrival must not (the player
+          // may be on any tab when the candidates land).
+          if (next.candidates.length > 0 && s.candidates.length === 0) {
+            sfx("confirm");
+            showToast(`Your shortlist arrived — ${next.candidates.length} candidate${next.candidates.length > 1 ? "s" : ""} to interview`, { tone: "positive" });
+          }
         }
         return out2;
       });
@@ -768,6 +794,49 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
     setState(next);
+  }, []);
+  const acceptSideOrderCb = useCallback(() => {
+    const prev = stateRef.current;
+    const res = acceptSideOrder(prev);
+    if (!res.ok) { showToast(res.reason ?? "Can't take the order", { tone: "negative" }); return; }
+    haptic.success();
+    sfx("confirm");
+    setState(res.state);
+  }, []);
+  const declineSideOrderCb = useCallback(() => {
+    haptic.light();
+    setState(declineSideOrder(stateRef.current));
+  }, []);
+  const cancelSideOrderCb = useCallback(() => {
+    const prev = stateRef.current;
+    const res = cancelSideOrder(prev);
+    if (!res.ok) { showToast(res.reason ?? "Can't cancel right now", { tone: "negative" }); return; }
+    const spent = (prev.cash - res.state.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(res.state);
+  }, []);
+  const collectAwardsCb = useCallback(() => {
+    const prev = stateRef.current;
+    const wins = prev.pendingAwards?.playerWins ?? 0;
+    const next = collectAwards(prev);
+    if (next === prev) return;
+    if (wins > 0) {
+      emitCelebrate();
+      sfx("mastery");
+      haptic.success();
+    }
+    setState(next);
+  }, []);
+  const resolveStrikeCb = useCallback((choice: StrikeResponse) => {
+    const prev = stateRef.current;
+    const result = resolveStrike(prev, choice);
+    if (!result.ok) {
+      showToast(result.reason ?? "Can't do that right now", { tone: "negative" });
+      return;
+    }
+    const spent = (prev.cash - result.state.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(result.state);
   }, []);
   const hostKeynoteCb = useCallback(() => {
     const prev = stateRef.current;
@@ -1174,6 +1243,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
       hostKeynote: hostKeynoteCb,
+      resolveStrike: resolveStrikeCb,
+      collectAwards: collectAwardsCb,
+      acceptSideOrder: acceptSideOrderCb,
+      declineSideOrder: declineSideOrderCb,
+      cancelSideOrder: cancelSideOrderCb,
       buyUpgrade: buyUpgradeCb,
       buyDesktop: buyDesktopCb,
       unlockRegion: unlockRegionCb,
@@ -1249,7 +1323,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, acceptSideOrderCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

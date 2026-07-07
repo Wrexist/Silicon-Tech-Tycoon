@@ -105,7 +105,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineSpeedMult,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineComplete, lineSpeedMult,
   machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
@@ -115,6 +115,8 @@ import {
   type PlacedProp, type PropKind,
 } from "../engine/factoryProps.ts";
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
+import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
+import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -157,6 +159,22 @@ export interface FeedItem {
   week: number;
   text: string;
   tone: FeedTone;
+}
+
+/** The data a Rival Strike interrupt needs — snapshotted at the moment a contested rival launch
+ *  dented the player's active product (see advanceOneWeek). The rival's rendered device can be
+ *  recovered from state.rivalReleases via (rivalId, week) for the card. */
+export interface RivalStrike {
+  week: number;
+  rivalId: string;
+  rivalName: string;
+  rivalProductName: string;
+  rivalOverall: number;
+  category: CategoryId;
+  /** The player's contested product (the newest active one in the category at strike time). */
+  productId: string;
+  productName: string;
+  playerOverall: number;
 }
 
 export interface GameState {
@@ -267,6 +285,27 @@ export interface GameState {
   /** A rival poaching one of your staff, awaiting a counter-offer decision (Track C). Resolved via
    *  resolvePoach. Optional/null → golden-invariant safe (old saves load with no pending poach). */
   pendingPoach?: { staffId: string; staffName: string; rivalId: string; rivalName: string; retainCost: Money; week: number } | null;
+  /** A rival launched INTO a category where the player is actively selling — the moment the entry
+   *  haircut landed. Raised as a respond-or-hold interrupt (RivalStrike card); resolved via
+   *  resolveStrike, always player-opt-in so the pinned sim (which never answers) is untouched.
+   *  Optional/null → golden-invariant safe. */
+  pendingStrike?: RivalStrike | null;
+  /** Week of the last strike interrupt — enforces the cooldown so strikes stay events, not nags. */
+  lastStrikeWeek?: number;
+  /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
+   *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
+   *  collectAwards. Optional/null → golden-invariant safe. */
+  pendingAwards?: AwardsCeremony | null;
+  /** Every past ceremony, newest first — the trophy record. Optional → old saves load empty. */
+  awardsHistory?: AwardsCeremony[];
+  /** A client commission ON OFFER (expires in ~2 weeks). Accepting moves it to activeSideOrder.
+   *  Deterministic offer stream (derived hash, no sim RNG); optional/null → golden-invariant safe. */
+  pendingSideOrder?: SideOrderOffer | null;
+  /** The commission currently RUNNING on the factory line: your own builds take +1 week while it
+   *  does, and the payout lands on completion. Only ever set by the player accepting. */
+  activeSideOrder?: ActiveSideOrder | null;
+  /** Lifetime completed commissions — flavor + a future achievement hook. */
+  sideOrdersCompleted?: number;
   /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
    *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
   loans?: Loan[];
@@ -327,8 +366,11 @@ export interface GameState {
   automation: { autoAssign: boolean; autoResearch: boolean; autoAssignFree?: boolean; autoResearchFree?: boolean };
 }
 
-/** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery. */
-export const RIVAL_RELEASES_CAP = 24;
+/** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery.
+ *  Sized to comfortably span a full 52-week award year (rivals launch ~40×/year across the roster)
+ *  so the annual Silicon Awards judge every rival release from the year, not just the newest 24.
+ *  The Market gallery slices this to 6 for display, so the larger retention costs nothing on screen. */
+export const RIVAL_RELEASES_CAP = 52;
 
 export const REV_MILESTONES = [
   10_000, 25_000, 50_000, 100_000, 250_000, 500_000,
@@ -503,6 +545,13 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     completedObjectives: [],
     pendingChoice: null,
     pendingPoach: null,
+    pendingStrike: null,
+    lastStrikeWeek: -999,
+    pendingAwards: null,
+    awardsHistory: [],
+    pendingSideOrder: null,
+    activeSideOrder: null,
+    sideOrdersCompleted: 0,
     loans: [],
     moraleCooldownUntil: 0,
     resolvedChoices: [],
@@ -883,7 +932,10 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
   // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
   const eraLead = eraModifier(s.era).leadWeeks;
-  return Math.max(BALANCE.build.minWeeks, assembly) + lead + eraLead;
+  // A client commission occupies the floor: your own runs queue behind it (+1 wk). Opt-in only —
+  // the pinned sim never accepts an order, so the baseline build time is untouched.
+  const orderDelay = s.activeSideOrder ? SIDE_ORDER_BUILD_DELAY : 0;
+  return Math.max(BALANCE.build.minWeeks, assembly) + lead + eraLead + orderDelay;
 };
 
 /** Resolve a run against its factory's capacity + the product's capacity strategy (overtime / stretch
@@ -1408,6 +1460,70 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
   });
 
+  // Rival Strike (fun track): the haircut above already landed — unchanged, unconditional — but a
+  // contested entry ALSO raises a respond-or-hold interrupt so the attack is a moment the player
+  // answers, not a feed line they read. One at a time, cooldown-gated; the interrupt itself changes
+  // no economy numbers (responses are opt-in reducers the pinned sim never calls).
+  let pendingStrike = state.pendingStrike ?? null;
+  if (
+    !pendingStrike &&
+    contestedCats.size > 0 &&
+    week - (state.lastStrikeWeek ?? -999) >= BALANCE.market.competition.strike.cooldownWeeks
+  ) {
+    const release = rivalReleases.find((r) => r.week === week && contestedCats.has(r.category));
+    const target = release
+      ? launchedFinal
+          .filter((lp) => lp.product.category === release.category && lp.weeksElapsed < lp.weeklyUnits.length)
+          .reduce<(typeof launchedFinal)[number] | null>((a, b) => (!a || b.launchedWeek > a.launchedWeek ? b : a), null)
+      : null;
+    if (release && target) {
+      pendingStrike = {
+        week,
+        rivalId: release.rivalId,
+        rivalName: release.rivalName,
+        rivalProductName: release.product.name,
+        rivalOverall: release.overall,
+        category: release.category,
+        productId: target.product.id,
+        productName: target.product.name,
+        playerOverall: overallScore(target.stats, target.product.category),
+      };
+    }
+  }
+
+  // The Silicon Awards — every 52 weeks, judge the year's launches (player + rival). Pure fold
+  // over existing data: no RNG, no cash/rep change here (collectAwards is the opt-in payoff),
+  // so the pinned sim is untouched. Skipped when a ceremony is already waiting (offline catch-up
+  // can cross two year marks; the newest one wins the stage, history keeps them all).
+  let pendingAwards = state.pendingAwards ?? null;
+  let awardsHistory = state.awardsHistory ?? [];
+  if (week > 0 && week % 52 === 0) {
+    const ceremony = judgeAwards(week, launchedFinal, rivalReleases, state.companyName || "Silicon");
+    if (ceremony) {
+      pendingAwards = ceremony;
+      awardsHistory = [ceremony, ...awardsHistory].slice(0, 20);
+    }
+  }
+
+  // Side Orders — the deterministic commission stream (derived hash, never the sim RNG stream).
+  // Offers lapse quietly; a RUNNING order (player-accepted only, so the pinned sim never has one)
+  // pays out the week it completes.
+  let pendingSideOrder = state.pendingSideOrder ?? null;
+  let activeSideOrder = state.activeSideOrder ?? null;
+  let sideOrdersCompleted = state.sideOrdersCompleted ?? 0;
+  if (pendingSideOrder && week > pendingSideOrder.expiresWeek) pendingSideOrder = null;
+  if (activeSideOrder && week >= activeSideOrder.startedWeek + activeSideOrder.weeksNeeded) {
+    const payout = sideOrderPayout(activeSideOrder);
+    cash = add(cash, payout);
+    sideOrdersCompleted += 1;
+    feed.push(feedItem(week, `${activeSideOrder.clientName} took delivery of ${activeSideOrder.units.toLocaleString()} units — ${format(payout)} banked.`, "positive"));
+    activeSideOrder = null;
+  }
+  if (!pendingSideOrder && !activeSideOrder && !offline && sideOrderDue(state.seed, week)) {
+    pendingSideOrder = generateSideOrder(state.seed, week, state.era);
+    feed.push(feedItem(week, `${pendingSideOrder.clientName} wants ${pendingSideOrder.blurb} built on your line — ${pendingSideOrder.units.toLocaleString()} units. The offer expires week ${pendingSideOrder.expiresWeek}.`, "accent"));
+  }
+
   // Research points generated this week — accrue through the SAME selector the UI shows, so the
   // displayed rate and the earned amount can never diverge (this previously omitted the office-focus
   // multiplier and, later, the legacy perk bonus — the UI lied for players who had them).
@@ -1616,6 +1732,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     trendRetargetWeek,
     competitors,
     launched: launchedFinal,
+    pendingStrike,
+    pendingAwards,
+    awardsHistory,
+    pendingSideOrder,
+    activeSideOrder,
+    sideOrdersCompleted,
     cashHistory,
     osBaseHistory,
     osLicensees,
@@ -2351,7 +2473,7 @@ export function rushBuild(state: GameState, productId: string): ActionResult {
   if (weeksLeft <= 0) return { state, ok: false, reason: "This run is already finishing." };
   const units = job.plannedUnits ?? BALANCE.build.minRun;
   const cost = Math.round(effectiveUnitCost(state, job.product) * units * BALANCE.build.rushCostPct) as Money;
-  if (state.cash < cost) return { state, ok: false, reason: "Not enough cash to rush the line." };
+  if (state.cash < cost) return { state, ok: false, reason: `Need ${format(sub(cost, state.cash))} more to rush the line.` };
   const feed = trimFeed([...state.feed, feedItem(state.week, `Rushed the ${job.product.name} line, one week saved.`, "neutral")]);
   return {
     state: {
@@ -2427,7 +2549,7 @@ export function marketingPush(state: GameState, productId: string): ActionResult
   if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return { state, ok: false, reason: "This product has already had a marketing push." };
   const quote = marketingPushQuote(lp);
   if (!quote) return { state, ok: false, reason: "No unsold inventory left to promote." };
-  if (state.cash < quote.cost) return { state, ok: false, reason: "Not enough cash for the campaign." };
+  if (state.cash < quote.cost) return { state, ok: false, reason: `Need ${format(sub(quote.cost, state.cash))} more for the campaign.` };
 
   const cap = lp.plannedUnits ?? lp.totalUnits;
   const newWeeklyUnits = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
@@ -2449,6 +2571,142 @@ export function marketingPush(state: GameState, productId: string): ActionResult
     },
     ok: true,
   };
+}
+
+/** How the player answers a Rival Strike. All three are OPT-IN (the pinned sim never calls this),
+ *  so the strike system adds pressure the player can feel without moving the tuned baseline. */
+export type StrikeResponse = "price" | "campaign" | "hold";
+
+/** Answer the pending Rival Strike:
+ *  - "price": cut the contested product's price by strike.priceCutFrac via the ordinary
+ *    cutProductPrice path (same one-cut-per-product rule; demand recovers through priceFit).
+ *  - "campaign": run the ordinary marketingPush at a strike discount (the moment is the deal).
+ *  - "hold": spend nothing; if your product genuinely outclasses theirs, the market notices
+ *    (+holdRepBonus reputation) — refusing to blink is a real strategy, not a dismissal.
+ *  Any resolution clears the interrupt and starts the cooldown. */
+export function resolveStrike(state: GameState, choice: StrikeResponse): ActionResult {
+  const strike = state.pendingStrike;
+  if (!strike) return { state, ok: false, reason: "No rival strike to answer." };
+  const cfg = BALANCE.market.competition.strike;
+  const cleared: GameState = { ...state, pendingStrike: null, lastStrikeWeek: state.week };
+  const feedLine = (g: GameState, text: string, tone: FeedTone): GameState => {
+    const feed = [...g.feed];
+    feed.push(feedItem(state.week, text, tone));
+    return { ...g, feed: trimFeed(feed) };
+  };
+
+  if (choice === "hold") {
+    if (strike.playerOverall >= strike.rivalOverall) {
+      return {
+        state: feedLine(
+          { ...cleared, reputation: Math.min(100, cleared.reputation + cfg.holdRepBonus) },
+          `You held the line: ${strike.productName} outclasses ${strike.rivalProductName}, and the market noticed.`,
+          "positive",
+        ),
+        ok: true,
+      };
+    }
+    return {
+      state: feedLine(cleared, `You held the line against ${strike.rivalName}. Time will tell.`, "neutral"),
+      ok: true,
+    };
+  }
+
+  if (choice === "price") {
+    const lp = state.launched.find((l) => l.product.id === strike.productId);
+    if (!lp) return { state, ok: false, reason: "That product is no longer selling." };
+    const newPrice = Math.max(lp.unitCost, Math.round(lp.product.price * (1 - cfg.priceCutFrac))) as Money;
+    const res = cutProductPrice(cleared, strike.productId, newPrice);
+    if (!res.ok) return { state, ok: false, reason: res.reason };
+    return { state: feedLine(res.state, `Price answered ${strike.rivalName}'s move on ${strike.productName}.`, "accent"), ok: true };
+  }
+
+  // "campaign" — the ordinary push, at the strike discount (refund the difference on top of the
+  // normal charge so marketingPush stays the single source of the demand math).
+  const lp = state.launched.find((l) => l.product.id === strike.productId);
+  if (!lp) return { state, ok: false, reason: "That product is no longer selling." };
+  const quote = marketingPushQuote(lp);
+  if (!quote) return { state, ok: false, reason: "No unsold inventory left to promote." };
+  const refund = cents(Math.round(quote.cost * cfg.campaignDiscount));
+  const discounted = sub(quote.cost, refund);
+  if (state.cash < discounted) return { state, ok: false, reason: `Need ${format(sub(discounted, state.cash))} more for the counter-campaign.` };
+  // Prime the discount BEFORE the ordinary push so its full-price cash gate can't refuse a player
+  // who can afford the discounted rate — net charge = quote.cost − refund exactly.
+  const primed: GameState = { ...cleared, cash: add(cleared.cash, refund) };
+  const res = marketingPush(primed, strike.productId);
+  if (!res.ok) return { state, ok: false, reason: res.reason };
+  return {
+    state: feedLine(
+      res.state,
+      `Counter-campaign fired back at ${strike.rivalName} — booked at ${Math.round(cfg.campaignDiscount * 100)}% off.`,
+      "accent",
+    ),
+    ok: true,
+  };
+}
+
+/** Collect the pending Silicon Awards: each category the player WON pays +2 reputation and +800
+ *  fans; a shutout still clears the stage with a feed note (losing on stage to a named rival is
+ *  the content). Player-opt-in — the pinned sim never collects, so the baseline is untouched. */
+export const AWARD_REP_BONUS = 2;
+export const AWARD_FANS_BONUS = 800;
+export function collectAwards(state: GameState): GameState {
+  const ceremony = state.pendingAwards;
+  if (!ceremony) return state;
+  const feed = [...state.feed];
+  if (ceremony.playerWins > 0) {
+    const titles = ceremony.winners.filter((w) => w.byPlayer).map((w) => w.title).join(", ");
+    feed.push(feedItem(state.week, `The Silicon Awards: you took ${titles} against a field of ${ceremony.fieldSize}.`, "positive"));
+    return {
+      ...state,
+      pendingAwards: null,
+      reputation: Math.min(100, state.reputation + AWARD_REP_BONUS * ceremony.playerWins),
+      fans: state.fans + AWARD_FANS_BONUS * ceremony.playerWins,
+      feed: trimFeed(feed),
+    };
+  }
+  const device = ceremony.winners.find((w) => w.categoryId === "device");
+  feed.push(feedItem(state.week, `The Silicon Awards went to the rivals this year${device ? ` — ${device.companyName}'s ${device.productName} took Device of the Year` : ""}.`, "neutral"));
+  return { ...state, pendingAwards: null, feed: trimFeed(feed) };
+}
+
+/** Take the client commission on offer. Gates mirror the card's UI: a wired line, the machines
+ *  the job calls for, and only one commission at a time. No upfront cost — the line IS the bet
+ *  (your own builds run +1 week while it's occupied). */
+export function acceptSideOrder(state: GameState): ActionResult {
+  const offer = state.pendingSideOrder;
+  if (!offer) return { state, ok: false, reason: "No commission on the table." };
+  if (state.week > offer.expiresWeek) return { state, ok: false, reason: "The offer has expired." };
+  if (state.activeSideOrder) return { state, ok: false, reason: "The line is already running a commission." };
+  if (!lineComplete(state.factoryFloor)) return { state, ok: false, reason: "Wire Intake → Packer first — the client needs a working line." };
+  const missing = sideOrderMissingKinds(state.factoryFloor.machines.map((m) => m.kind), offer);
+  if (missing.length > 0) return { state, ok: false, reason: `Needs a ${MACHINE_DEFS[missing[0]].name} on the floor.` };
+  const { expiresWeek: _drop, ...rest } = offer;
+  void _drop;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Signed ${offer.clientName}'s order: ${offer.units.toLocaleString()} units in ${offer.weeksNeeded} weeks, ${format(sideOrderPayout(offer))} on delivery.`, "accent"));
+  return {
+    state: { ...state, pendingSideOrder: null, activeSideOrder: { ...rest, startedWeek: state.week }, feed: trimFeed(feed) },
+    ok: true,
+  };
+}
+
+/** Pass on the offer — no fee, the client shops elsewhere. */
+export function declineSideOrder(state: GameState): GameState {
+  if (!state.pendingSideOrder) return state;
+  return { ...state, pendingSideOrder: null };
+}
+
+/** Walk out on a RUNNING commission — the client bills a cancellation fee (a fraction of the
+ *  payout). The escape hatch when your own launch suddenly matters more. */
+export function cancelSideOrder(state: GameState): ActionResult {
+  const active = state.activeSideOrder;
+  if (!active) return { state, ok: false, reason: "No commission is running." };
+  const penalty = Math.round(sideOrderPayout(active) * SIDE_ORDER_CANCEL_PCT) as Money;
+  if (state.cash < penalty) return { state, ok: false, reason: `Need ${format(sub(penalty, state.cash))} more to buy out the contract.` };
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Cancelled ${active.clientName}'s order — ${format(penalty)} cancellation fee.`, "negative"));
+  return { state: { ...state, activeSideOrder: null, cash: sub(state.cash, penalty), feed: trimFeed(feed) }, ok: true };
 }
 
 function clampMood(m: number): number {
@@ -3240,6 +3498,10 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   if (next.ready.length > prev.ready.length) return "A build is ready to launch";
   if (!prev.pendingChoice && next.pendingChoice) return "An event needs your call";
   if (!prev.pendingPoach && next.pendingPoach) return "A rival is poaching your staff";
+  if (!prev.pendingStrike && next.pendingStrike) return "A rival is attacking your product";
+  if (!prev.pendingSideOrder && next.pendingSideOrder) return "A client wants your factory line";
+  // A paid-for recruiter shortlist EXPIRES — skipping past its arrival would waste the fee.
+  if (next.candidates.length > 0 && prev.candidates.length === 0) return "Your recruiter's shortlist arrived";
   if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";
   const finished = (s: GameState) => s.launched.filter((l) => l.weeksElapsed >= l.weeklyUnits.length).length;
   if (finished(next) > finished(prev)) return "A product finished its run";
@@ -3249,6 +3511,17 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   };
   if (!lowRunway(prev) && lowRunway(next)) return "Cash is running low";
   return null;
+}
+
+/** An affordable, unlocked research PROJECT is waiting — drives the nav badge on the Research
+ *  tab so a player grinding weeks on another screen learns RP crossed a threshold. Projects only
+ *  (not component tiers): tiers are near-continuously affordable mid-game and would make the
+ *  badge a permanent nag instead of a signal. */
+export function researchReady(state: GameState): boolean {
+  const rp = Math.floor(state.researchPoints);
+  return RESEARCH_PROJECTS.some(
+    (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id),
+  );
 }
 
 export function canAdvance(state: GameState): boolean {

@@ -2329,3 +2329,89 @@ The three "empty gameplay" holes the v104 audit flagged, filled:
       Market's "Design a successor" uses. A "New version" pill in the lab hero opens the same
       picker any time. Verified live (3-franchise save → picker → seeded Aurora Pro III, Fit 86).
 - Gates: tsc 0 · 782 tests · build+PWA green.
+
+## v109 — Smooth progress, an honest lock, and a survivable start (DONE 2026-07-07)
+Three device-playtest fixes:
+- [x] **The build ring counts smoothly from 0%** — `weeksElapsed` only moves in whole-week ticks,
+      so a 3-week build jumped 0→33→67. New `useSmoothWeeks` in BuildProgress interpolates within
+      the current week off the real tick cadence (pause freezes it, fast-forward speeds it up,
+      reduced-motion keeps steps), capped at week+0.97 so the estimate never outruns the sim.
+      Verified live: ring read 15% mid-week — a value the stepped version could never show.
+- [x] **The locked bay finally reads as locked** — the ghost slab/walls were so faint (0.14–0.2
+      alpha) they vanished on dark ground, leaving the "Locked" pill floating ambiguously at the
+      boundary as if the FACTORY were locked. The bay is now a distinct dimmed zone: solider slab
+      (0.35), a dark veil (y 0.145, above the rounded-edge cutoff), a crisp perimeter frame, and
+      stronger ghost walls; the pill sits just inside the bay over the dark zone and its price
+      sub-line wraps so the card crop can't truncate "$50K".
+- [x] **Starting capital $20K → $100K** — playtests showed the early game was a coin-flip: one
+      mispriced first run (screenshots: $2.7K cash, "Need $770 more" on a 50-unit minimum run)
+      ended the company before the loop clicked. New 40-seed baseline: 0/40 bankruptcies, early
+      trough median $12k / min $8k (was $2k/$1k), Era 2 at wk 45, all eras reached 40/40 —
+      re-pinned as the reference sim output.
+- Gates: tsc 0 · 782 tests · build+PWA green · sim re-pinned (intended balance change).
+
+## v110 — Audit round 2: bug fixes + feedback polish (DONE 2026-07-07)
+Three parallel audits (recent-code bug hunt, game-design fun review, friction/juice sweep).
+- [x] **Bugs**: successor drafts no longer inherit stale defectPenalty/capacityStrategy (silent,
+      compounding quality corruption); ready-launch claim released synchronously on sheet close
+      (260ms Sheet-cache window could eat the launch moment); ReadyToLaunch registers as an app
+      overlay (Escape no longer double-dismisses out of Factory mode); smooth-ring perf (no capped
+      re-renders, hidden-tab anchor shift); locked-bay tap ignores orbit drags; Bootstrapped/
+      Underdog scenario cash retuned for the $100K era ($50K/$35K — $10-12K was near-unbuildable);
+      post-build draft keeps the just-used supplier/factory; successor names clamp to 22 chars.
+- [x] **Juice**: factory acquisition/hire/region/loan-payoff/morale/scenario-start all celebrate;
+      achievements get mastery sfx + haptic; research double-audio fixed; shortlist arrival toasts
+      + stops "Skip to next decision"; loan + recruiter progress bars; Research nav badge when a
+      project is affordable; first-ship unlock announcement; BOM money formatting; shortfall
+      amounts in rush/campaign/furniture errors; era toast no longer wasted under the era modal.
+- [ ] **Fun roadmap** (from the design audit, next round): Rival Strikes (answer a rival launch:
+      cut price / counter-campaign / hold), The Silicon Awards (annual ceremony judging player +
+      rival products), Side Orders (client commissions running visibly on YOUR factory line),
+      defect-risk recall dilemmas, factory wear/bottlenecks, expiring opportunity events, supply
+      contracts with commitments, holiday quarter, fan mail, post-listing board pressure.
+- Gates: tsc 0 · 782 tests · build+PWA green · sim byte-identical to the v109 baseline.
+
+## v111 — Fun round: Rival Strikes · The Silicon Awards · Side Orders (DONE 2026-07-07)
+All three top picks from the v110 fun roadmap, each engineered sim-safe (pinned 40-seed baseline
+byte-identical after every feature: 0/40 bankruptcies, troughs $12k/$8k, Era 2 wk 45).
+- [x] **Rival Strikes** — when a rival launches into a category you're actively selling in, the
+      entry haircut becomes a decision, not a feed line: an interrupt card (device-vs-device duel
+      with live renders + overall scores) offers Cut price (−10%, ordinary one-cut path),
+      Counter-campaign (20% strike discount on the usual marketing push), or Hold the line
+      (+1 rep when your device outclasses theirs). 8-week cooldown; Escape/scrim = hold; buttons
+      mirror the reducer gates exactly. 7 state tests.
+- [x] **The Silicon Awards** — every 52 weeks the industry judges the past year: Device of the
+      Year (overall), Design Award (style appeal), Value Champion (score-per-dollar) across player
+      launches AND rival releases. Gold ceremony overlay; each win pays +2 rep / +800 fans on
+      collect; a shutout names the rival that took Device of the Year in the feed. Pure judge
+      fold in src/engine/awards.ts, 4 engine tests + a state integration test.
+- [x] **Side Orders** — clients commission runs on YOUR factory line: a derived-hash offer stream
+      (~1 in 7 weeks after wk 16, expires in 2) with flavor clients whose machine requirements
+      tease floor upgrades (the bare starter floor never qualifies — verified by test). Accepting
+      needs a wired Intake→Packer line + the required machines; while a commission runs your own
+      builds take +1 week and the 3D line visibly animates; delivery pays units × fee, cancelling
+      costs 25% of the payout. Offer/active panels live in Factory mode; interrupts stop
+      "Skip to next decision"; persistence scrubs malformed orders. 7 tests.
+- [x] Strike card polish: campaign button label no longer clips — discount moved to its own
+      "Strike rate" line under the actions.
+- Gates: tsc 0 · 800 tests · build+PWA green · sim byte-identical to the v109 baseline.
+
+## v112 — Polish round: strike card symmetry · factory HUD contrast · tap-to-expand bay · wall-safe desks (DONE 2026-07-07)
+Four fixes from playtest screenshots.
+- [x] **Rival Strike card** — response buttons rebuilt as label-left / price-right rows (nothing
+      can overflow or clip at any price), secondary price dimmed, disabled states keep the price
+      visible; verified live against an organic strike.
+- [x] **Side-order panel contrast** — the client-order offer/live panels sit on the always-dark
+      factory HUD but used theme ink tokens (near-invisible in light mode); every text, track and
+      button colour is now an explicit white-on-dark value, matching the other fmode panels.
+- [x] **Expansion bay is a purchase, not a padlock** — the ghost bay no longer says "Locked"
+      (it never was): the pill reads "Expand · $50K", first tap arms it ("Tap again · $50K",
+      accent), second tap buys — celebrate, camera re-frame, next tier priced. Unaffordable taps
+      toast the shortfall. An invisible tap volume covers the whole bay so the target is generous
+      at phone camera angles; the Style-sheet buy row still works as before. Pill anchored west
+      of the bay so the tool rail can't clip it; single compact line, Maximize2 icon.
+- [x] **No more robots in the wall** — a desk placed against a wall seats its chair + robot
+      0.86 units behind it, i.e. inside the wall. When the seat spot would land in a wall the
+      workstation now flips the seat to the desk's FRONT (figure works facing the wall, like a
+      real wall-facing desk) — applied to occupied desks, empty-desk chairs, and Decorate mode.
+- Gates: tsc 0 · 800 tests · build+PWA green · engine/state untouched (UI-only round).

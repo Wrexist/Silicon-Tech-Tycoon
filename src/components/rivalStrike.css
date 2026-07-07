@@ -1,0 +1,93 @@
+/* Rival Strike interrupt — same modal shell language as ReadyToLaunch, tinted with the negative
+   colour since it's an attack. Mounted once in App; z below the launch reveal like its sibling. */
+.rst {
+  position: fixed;
+  inset: 0;
+  z-index: 58;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.rst__scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.rst__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  border-radius: var(--r-sheet);
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--negative) 35%, var(--hairline));
+  box-shadow: var(--shadow-floating);
+  text-align: center;
+  animation: rst-pop var(--spring-standard) both;
+}
+@keyframes rst-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.rst__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--negative-text, var(--negative));
+}
+.rst__title { margin: 0; font-size: var(--fs-title, var(--fs-headline)); font-weight: 800; letter-spacing: -0.02em; }
+.rst__sub { margin: 0; font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
+
+/* The duel — their device vs yours, scores side by side. */
+.rst__duel {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-12);
+  padding: var(--sp-8) 0;
+}
+.rst__side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.rst__side-name { font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rst__side-score { font-size: var(--fs-headline); font-weight: 800; }
+.rst__side-score--win { color: var(--positive-text, var(--positive)); }
+.rst__vs { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; text-transform: uppercase; color: var(--ink-2); }
+.rst__ghost { width: 72px; height: 72px; border-radius: var(--r-button); background: var(--bg-elevated); }
+
+.rst__actions { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); }
+/* Response rows: label pinned left, price pinned right — nothing to overflow, perfectly aligned
+   whatever the numbers turn out to be. */
+.rst__act {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-10);
+  width: 100%; min-height: 50px; padding: 0 var(--sp-14);
+  border: 1px solid var(--hairline); border-radius: var(--r-button);
+  background: var(--surface-2); color: var(--ink);
+  font-size: var(--fs-caption); font-weight: 800;
+}
+.rst__act--primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.rst__act:disabled { opacity: 0.45; }
+.rst__act-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.rst__act-val { flex-shrink: 0; font-weight: 800; white-space: nowrap; }
+.rst__act:not(.rst__act--primary) .rst__act-val { color: var(--ink-2); }
+.rst__hold {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px;
+  border: none; background: none;
+  font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);
+}
+.rst__deal { font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2); }

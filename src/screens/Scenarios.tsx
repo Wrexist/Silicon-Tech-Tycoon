@@ -10,6 +10,9 @@ import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { netWorth } from "../state/gameState.ts";
 import { format } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
+import { haptic } from "../design/haptics.ts";
+import { sfx } from "../design/sound.ts";
+import { showToast } from "../design/toast.tsx";
 import "./scenarios.css";
 
 const DIFFICULTY_LABEL: Record<Scenario["difficulty"], string> = {
@@ -46,7 +49,13 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
   const confirmScenario = confirmId ? SCENARIOS.find((s) => s.id === confirmId) : null;
 
   const begin = (id: string) => {
+    const sc = SCENARIOS.find((x) => x.id === id);
     startScenario(id);
+    // Resetting the whole world deserves an acknowledging beat, plus the first goal to chase.
+    haptic.success();
+    sfx("confirm");
+    const first = sc?.tiers[0]?.objectives[0]?.label;
+    showToast(`${sc?.name ?? "Scenario"} started${first ? ` — first goal: ${first}` : ""}`, { tone: "positive", glyph: <Target size={15} /> });
     onClose();
   };
 
@@ -117,7 +126,7 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
             </p>
             <div className="scn__confirm-row">
               <Button variant="secondary" autoFocus onClick={() => setConfirmId(null)}>Cancel</Button>
-              <Button onClick={() => begin(confirmScenario.id)}>Start</Button>
+              <Button haptics="none" onClick={() => begin(confirmScenario.id)}>Start</Button>
             </div>
           </div>
         </div>

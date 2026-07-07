@@ -6,6 +6,7 @@ import { CalendarDays, CalendarRange, Target, Trophy, Share2 } from "lucide-reac
 import { Button } from "../design/primitives.tsx";
 import { showToast } from "../design/toast.tsx";
 import { haptic } from "../design/haptics.ts";
+import { sfx } from "../design/sound.ts";
 import {
   dailyChallenge,
   weeklyChallenge,
@@ -87,6 +88,9 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
 
   const begin = (t: Target) => {
     startChallenge(t.kind, t.dateKey);
+    haptic.success();
+    sfx("confirm");
+    showToast(`${t.kind === "daily" ? "Daily" : "Weekly"} challenge started — good luck`, { tone: "positive" });
     onClose();
   };
 
@@ -166,7 +170,7 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
             </p>
             <div className="scn__confirm-row">
               <Button variant="secondary" autoFocus onClick={() => setConfirm(null)}>Cancel</Button>
-              <Button onClick={() => begin(confirm)}>Start</Button>
+              <Button haptics="none" onClick={() => begin(confirm)}>Start</Button>
             </div>
           </div>
         </div>

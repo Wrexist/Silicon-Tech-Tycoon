@@ -868,11 +868,24 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1 }: { colorIdx: number
   );
 }
 
+// A desk hard against a wall has no room behind it for the chair — the seated robot would sink
+// into the wall (and an empty chair poke through it). When the seat spot lands inside the walls,
+// flip the seat to the desk's FRONT instead: the figure works facing the wall, exactly like a
+// wall-facing desk in a real office. Checked in world space so every rotation is covered.
+const SEAT_BACK = 0.86; // chair (0.78) + seated-robot pullback (0.08) behind the desk origin
+const SEAT_LIMIT = 3.8; // beyond this the chair/robot visibly enters the ±4.2 walls
+function seatFlipped(item: PlacedItem): boolean {
+  const w = worldOf(item);
+  const cx = w.x - Math.sin(w.rotY) * SEAT_BACK;
+  const cz = w.z - Math.cos(w.rotY) * SEAT_BACK;
+  return Math.abs(cx) > SEAT_LIMIT || Math.abs(cz) > SEAT_LIMIT;
+}
+
 // A workstation = the player's placed desk model (which carries its own monitor) + the employee's
 // robot, rendered at the local origin facing +z. Callers position/rotate it (via the SAME worldOf
 // transform the Decorate editor uses), so an occupied desk is identical in the office and the editor.
 // Each hired employee gets exactly one.
-function Workstation({ p, staff, seed, colorIdx, deskType = "desk" }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId }) {
+function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean }) {
   const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   return (
@@ -885,7 +898,7 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk" }: { p: RoomP
       {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
           back so it rests against the backrest, facing the desk (+z, toward the camera). The
           parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
-      <group position={[0, 0, -0.78]}>
+      <group position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
         <Chair p={p} hue={hue} />
         {staff && (
           <group position={[0, 0, -0.08]}>
@@ -1496,11 +1509,16 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
             {/* A desk always reads as a workstation: render its chair at the same offset the seated
                 Workstation uses, so an EMPTY desk shows a chair too (occupied desks are swapped for
                 the live Workstation, which provides its own chair + robot, so no double-up). */}
-            {isDeskType(it.type) && (
-              <group position={[0, 0, -0.78]}>
-                <Chair p={p} hue={p.metalDark} />
-              </group>
-            )}
+            {isDeskType(it.type) && (() => {
+              // Use the live (drag-adjusted) cell so the chair previews on the correct side while
+              // the desk is being dragged toward a wall, not only after it drops.
+              const flip = seatFlipped({ ...it, c: cell.c, r: cell.r });
+              return (
+                <group position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
+                  <Chair p={p} hue={p.metalDark} />
+                </group>
+              );
+            })()}
             {selected && (
               <mesh rotation-x={-Math.PI / 2} position={[0, 0.035, 0]}>
                 <planeGeometry args={[def.w * GRID.cell, def.d * GRID.cell]} />
@@ -1649,7 +1667,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         const w = worldOf(seats[i]);
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFlipped(seats[i])} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (

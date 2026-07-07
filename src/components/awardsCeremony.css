@@ -1,0 +1,74 @@
+/* The Silicon Awards ceremony — gold-tinted modal, one notch above the strike/ready popups so an
+   award night on a busy week takes the stage. */
+.awd {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.awd__scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.awd__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  border-radius: var(--r-sheet);
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--gold, #d9a824) 40%, var(--hairline));
+  box-shadow: var(--shadow-floating);
+  text-align: center;
+  animation: awd-pop var(--spring-standard) both;
+}
+@keyframes awd-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.awd__eyebrow {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-caption); font-weight: 700;
+  color: var(--gold, #d9a824);
+}
+.awd__title { margin: 0; font-size: var(--fs-title, var(--fs-headline)); font-weight: 800; letter-spacing: -0.02em; }
+.awd__sub { margin: 0; font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
+
+.awd__list { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); }
+.awd__row {
+  display: flex; align-items: center; gap: var(--sp-10); text-align: left;
+  padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
+  border: 1px solid var(--hairline); background: var(--surface-2);
+}
+.awd__row--win {
+  border-color: color-mix(in srgb, var(--gold, #d9a824) 55%, transparent);
+  background: color-mix(in srgb, var(--gold, #d9a824) 10%, var(--surface-2));
+}
+.awd__row-glyph {
+  width: 34px; height: 34px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated); color: var(--ink-2);
+}
+.awd__row--win .awd__row-glyph { background: color-mix(in srgb, var(--gold, #d9a824) 20%, transparent); color: var(--gold, #d9a824); }
+.awd__row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.awd__row-title { font-size: var(--fs-micro); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+.awd__row-winner { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.awd__row-score { flex-shrink: 0; font-weight: 800; color: var(--ink-2); }
+
+.awd__payout { margin: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--positive-text, var(--positive)); }

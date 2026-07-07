@@ -7,12 +7,14 @@ import { Bank } from "./components/Bank.tsx";
 import { BottomNav, type Tab } from "./components/BottomNav.tsx";
 import { Coach } from "./components/Coach.tsx";
 import { ResultCard } from "./components/ResultCard.tsx";
-import { ToastHost } from "./design/toast.tsx";
+import { ToastHost, showToast } from "./design/toast.tsx";
 import { haptic } from "./design/haptics.ts";
 import { GainFX } from "./design/GainFX.tsx";
 import { Confetti } from "./design/Confetti.tsx";
 import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
+import { RivalStrike } from "./components/RivalStrike.tsx";
+import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
@@ -25,7 +27,7 @@ import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, toDollars, type Money } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
-import { canAdvance, ipoValuation, legacyBonus, industryRank, type GameState } from "./state/gameState.ts";
+import { canAdvance, ipoValuation, legacyBonus, industryRank, researchReady, type GameState } from "./state/gameState.ts";
 import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
@@ -100,11 +102,27 @@ function AppShell() {
     if (!state.wentPublic) setIpoSeen(false);
   }, [state.wentPublic]);
 
+  // The first ship silently unlocks half the meta-game (Progress hub, stock market, financing,
+  // morale, daily challenges). Say so ONCE — deferred so the launch reveal + verdict own the
+  // moment and this lands as the "what's next" beat after the confetti settles.
+  const hasShippedNow = state.launched.length >= 1 || state.legacy > 0;
+  const announcedUnlocks = useRef(hasShippedNow); // pre-shipped saves don't get re-told
+  useEffect(() => {
+    if (!hasShippedNow || announcedUnlocks.current) return;
+    // Mark inside the timeout, not before it — so a StrictMode mount/cleanup/remount (which fires
+    // the effect twice with the same ref) doesn't consume the announcement on the discarded pass.
+    const t = setTimeout(() => {
+      announcedUnlocks.current = true;
+      showToast("New unlocked: Progress hub (trophy), stock market & financing", { tone: "positive", glyph: <Trophy size={15} /> });
+    }, 4200);
+    return () => clearTimeout(t);
+  }, [hasShippedNow]);
+
   if (!state.onboarded) return <Onboarding onStart={() => setTab("design")} />;
 
   // Progress hub (achievements/scenarios/challenges/museum) is surfaced once the player has shipped
   // their first product — same first-ship gate the meta-layer always used, just hoisted to the HUD.
-  const hasShipped = state.launched.length >= 1 || state.legacy > 0;
+  const hasShipped = hasShippedNow;
 
   return (
     <div className="app">
@@ -176,12 +194,14 @@ function AppShell() {
       <BottomNav
         active={tab}
         onChange={setTab}
-        badge={{ hq: canAdvance(state) }}
+        badge={{ hq: canAdvance(state), research: researchReady(state) }}
       />
 
       <GainFX />
       <Confetti />
       <ReadyToLaunch />
+      <RivalStrike />
+      <AwardsCeremonyOverlay />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />

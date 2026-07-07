@@ -4,9 +4,10 @@ import { dollars, type Money } from "./money.ts";
 
 export const BALANCE = {
   // --- Company start ---
-  // Tighter early economy: a leaner runway + real manufacturing investment per product, so a
-  // flop actually costs you (see build.toolingUnits + sales.floorUnits).
-  startingCash: dollars(20_000) as Money,
+  // Enough capital for a real first act: 2-3 honest product cycles (tooling + run + marketing)
+  // with room to absorb one flop before the garage rent bites. Playtesting at $20K showed the
+  // early game was a coin-flip — one mispriced run put the company under before the loop clicked.
+  startingCash: dollars(100_000) as Money,
   startingReputation: 8, // 0..100
 
   // --- Time ---
@@ -133,6 +134,15 @@ export const BALANCE = {
       // announced "faces new competition" — now it's mechanically true, and the mid-life
       // price cut has a real job answering it).
       rivalEntrySalesHaircut: 0.10,
+      // Rival Strike — the respond-or-hold interrupt raised by a contested rival launch. The BASE
+      // haircut above still lands immediately and unchanged, so the pinned sim (whose auto-player
+      // never answers) stays byte-identical; every response below is a player-opt-in recovery.
+      strike: {
+        cooldownWeeks: 8,     // at most one interrupt per ~2 months — an event, not a nag
+        priceCutFrac: 0.10,   // the "Cut price" answer drops the contested product's price 10%
+        campaignDiscount: 0.20, // the "Counter-campaign" answer runs marketingPush 20% off
+        holdRepBonus: 1,      // "Hold the line" pays +1 rep IF your product outclasses theirs
+      },
       // Era-scaled competitive pressure. The Garage Era is a protected learning sandbox: rivals
       // barely contest you, so a new player's first products land as steady sellers and they climb
       // toward their first hit instead of drowning in flops. Pressure ramps to full force in the
@@ -405,10 +415,10 @@ export const BALANCE = {
     // B1 — the recommended/affordable run must leave the player solvent through the build.
     // recommendedRun reserves (buildWeeks × weeklyBurn) + this flat margin before spending cash
     // on units, so a fresh save can't accidentally brick itself manufacturing its first product.
-    // Lowered 5,000 → 2,500: at $20k start, a $5k reserve choked early runs so hard (~150 units vs
-    // ~200 demand) that thin margins couldn't clear burn and every early cycle ran at a loss. A
-    // $2.5k reserve still protects the build-through window but lets early runs reach a profitable
-    // scale (a measured first cycle moves from a ~$3k loss to break-even).
+    // Lowered 5,000 → 2,500 back in the $20k-start era, when a $5k reserve choked early runs so
+    // hard that every early cycle ran at a loss. At the current $100k start the reserve barely
+    // binds early — it stays as the late-game guard so a cash-poor company can't brick itself
+    // manufacturing through a downturn.
     safetyReserveMargin: dollars(2_500) as Money,
     // Factory Mode BOOST — rush the active run: each press finishes ONE week sooner for a
     // premium of this fraction of the run's total production cost (unitCost × plannedUnits).
@@ -659,7 +669,7 @@ export const BALANCE = {
   // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
   platform: {
     // Founding the division is a major mid-game reinvestment you SAVE UP for — a real milestone, not
-    // a free toggle. High vs. the $20k start, but payback (~28wk at typical OS income) keeps it fair.
+    // a free toggle. 2.5× the starting bankroll, but payback (~28wk at typical OS income) keeps it fair.
     // Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
     foundingCost: dollars(250_000),
     releaseRepBonus: 4,          // one-time reputation lift per OS version release

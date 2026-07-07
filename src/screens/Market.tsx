@@ -304,7 +304,18 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                       <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
                     )
                   ) : (
-                    <Button variant="secondary" disabled={!afford} onClick={() => unlockRegion(r.id)}>
+                    <Button
+                      variant="secondary"
+                      disabled={!afford}
+                      haptics="none"
+                      onClick={() => {
+                        unlockRegion(r.id);
+                        // Opening an entire market is a milestone, not a silent debit.
+                        haptic.success();
+                        sfx("upgrade");
+                        showToast(`${r.name} is open — new demand for every launch`, { tone: "positive", glyph: <Globe size={15} /> });
+                      }}
+                    >
                       <Globe size={14} aria-hidden /> Unlock · {format(r.unlockCost)}
                     </Button>
                   )}
@@ -1584,7 +1595,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         <Button
           block
           disabled={!canBuy}
-          onClick={() => { buyShares(comp.id, qty); haptic.success(); sfx("tap"); showToast(`Bought ${qty} ${comp.name}`, { tone: "positive" }); }}
+          onClick={() => { buyShares(comp.id, qty); haptic.success(); sfx("confirm"); showToast(`Bought ${qty} ${comp.name}`, { tone: "positive" }); }}
         >
           Buy · {format(cost)}
         </Button>
