@@ -504,7 +504,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     seedFeedSeq(loaded);
     // The company doesn't exist until the player founds it: a save written at the onboarding
     // name screen must not accrue offline weeks (rent/trends would erode an unstarted game).
-    if (!loaded.onboarded) return { state: loaded, offline: null as OfflineSummary | null };
+    if (!loaded.onboarded || loaded.bankrupt) return { state: loaded, offline: null as OfflineSummary | null };
     const fansBefore = loaded.fans;
     const { state: caught, weeks, gain } = catchUpOffline(loaded);
     // F7 — don't punish a player for being away: pure weekly fan decay over the offline window
@@ -829,6 +829,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const resolveStrikeCb = useCallback((choice: StrikeResponse) => {
     const prev = stateRef.current;
+    if (!prev.pendingStrike) return; // a second input (Escape + scrim in one frame) is a no-op, not an error
     const result = resolveStrike(prev, choice);
     if (!result.ok) {
       showToast(result.reason ?? "Can't do that right now", { tone: "negative" });

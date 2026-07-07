@@ -461,7 +461,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               </p>
               {!can && (
                 <p className="fmode__sideorder-warn">
-                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]].name} on the floor.`}
+                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]]?.name ?? "machine"} on the floor.`}
                 </p>
               )}
               <div className="fmode__sideorder-actions">

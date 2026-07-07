@@ -33,6 +33,25 @@ export function emitLaunchReveal(d: LaunchRevealData): void {
   listeners.forEach((fn) => fn(d));
 }
 
+// Whether the keynote reveal is currently on screen. The reveal is bus-driven (not part of game
+// state), so the interrupt overlays (RivalStrike/AwardsCeremony) can't see it via useGame — they
+// subscribe here to defer while it's up, instead of mounting invisibly BEHIND it (z58/59 < z60)
+// and stealing its Escape/Continue. LaunchReveal owns setting this on show/hide.
+let revealActive = false;
+const activeListeners = new Set<() => void>();
+export function setLaunchRevealActive(v: boolean): void {
+  if (revealActive === v) return;
+  revealActive = v;
+  activeListeners.forEach((fn) => fn());
+}
+export function isLaunchRevealActive(): boolean {
+  return revealActive;
+}
+export function onLaunchRevealActiveChange(fn: () => void): () => void {
+  activeListeners.add(fn);
+  return () => activeListeners.delete(fn);
+}
+
 /** Build the reveal payload from launch-moment data (pre-launch plan + the recorded verdict). Pure;
  *  reuses the deterministic criticReviews engine so the scores match the product's detail screen. */
 export function buildLaunchReveal(args: {

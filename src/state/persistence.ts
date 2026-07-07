@@ -249,8 +249,22 @@ function migrate(state: GameState): GameState | null {
   // $0 baseline, so a save missing cashHistory doesn't misrepresent its finances for a render cycle.
   if (!Array.isArray(s.cashHistory)) s.cashHistory = [{ week: s.week ?? 0, cash: Number.isFinite(s.cash) ? toDollars(s.cash) : 0 }];
   if (!Array.isArray(s.feed)) s.feed = [];
-  if (s.productCounter == null) s.productCounter = 1;
-  if (s.staffCounter == null) s.staffCounter = s.staff?.length ?? 1;
+  // Counters must exceed EVERY id ever minted, not the surviving count — products are permanent
+  // and staff can be fired, so a length-based backfill would remint a live id (dup React keys +
+  // .find() hitting the wrong entry). Seed from max(existing id)+1, like the factory/furniture ones.
+  if (s.productCounter == null) {
+    let mx = 0;
+    const scan = (id: unknown) => { const m = /^prod-(\d+)$/.exec(String(id ?? "")); if (m) mx = Math.max(mx, +m[1] + 1); };
+    (Array.isArray(s.launched) ? s.launched : []).forEach((l: { product?: { id?: unknown } }) => scan(l?.product?.id));
+    (Array.isArray(s.ready) ? s.ready : []).forEach((p: { id?: unknown }) => scan(p?.id));
+    (Array.isArray(s.building) ? s.building : []).forEach((b: { product?: { id?: unknown } }) => scan(b?.product?.id));
+    s.productCounter = Math.max(1, mx);
+  }
+  if (s.staffCounter == null) {
+    let mx = 0;
+    (Array.isArray(s.staff) ? s.staff : []).forEach((m: { id?: unknown }) => { const mm = /^s(\d+)$/.exec(String(m?.id ?? "")); if (mm) mx = Math.max(mx, +mm[1] + 1); });
+    s.staffCounter = Math.max(1, mx);
+  }
   if (s.sandboxUnlocked == null) s.sandboxUnlocked = false;
   if (s.onboarded == null) s.onboarded = true;
   // Returning players (pre-tutorial saves) shouldn't suddenly get the first-build coach.
@@ -270,6 +284,13 @@ function migrate(state: GameState): GameState | null {
   if (s.listed == null) s.listed = false;
   if (!Number.isFinite(s.ownership)) s.ownership = 1;
   if (!s.holdings || typeof s.holdings !== "object") s.holdings = {};
+  // Per-rival share counts feed money math (holdingsValue/weeklyDividends) with no finite guard —
+  // scrub NaN/negative/fractional entries so an imported save can't NaN the whole valuation.
+  for (const k of Object.keys(s.holdings)) {
+    const v = (s.holdings as Record<string, unknown>)[k];
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) delete (s.holdings as Record<string, unknown>)[k];
+    else (s.holdings as Record<string, number>)[k] = Math.floor(v);
+  }
   // Achievements (added later): default to an empty set. Already-earned milestones are then
   // backfilled SILENTLY at the end of migrate (after all fields are valid) so a returning player
   // isn't dumped a dozen toasts on first load — they're marked unlocked without a celebration.
@@ -489,7 +510,7 @@ function migrate(state: GameState): GameState | null {
       && typeof x.weeksNeeded === "number" && Number.isFinite(x.weeksNeeded)
       && Array.isArray(x.requiredKinds); // FactoryMode calls requiredKinds.filter() unconditionally
   };
-  if (s.pendingSideOrder != null && !soOk(s.pendingSideOrder)) s.pendingSideOrder = null;
+  if (s.pendingSideOrder != null && !(soOk(s.pendingSideOrder) && Number.isFinite((s.pendingSideOrder as { expiresWeek?: number }).expiresWeek))) s.pendingSideOrder = null;
   if (s.activeSideOrder != null && !(soOk(s.activeSideOrder) && Number.isFinite((s.activeSideOrder as { startedWeek?: number }).startedWeek))) s.activeSideOrder = null;
 
   if (typeof s.bankrupt !== "boolean") s.bankrupt = false;

@@ -1207,7 +1207,17 @@ function affordableRun(s: GameState, product: Product, channelId: ChannelId = "n
   // (tooling + channel) the rest funds units.
   const spendable = sub(sub(s.cash, reserve), add(probe.tooling, probe.channelCost));
   if (toDollars(probe.unitCost) <= 0) return BALANCE.build.maxRun;
-  const units = Math.floor(toDollars(spendable) / toDollars(probe.unitCost));
+  let units = Math.floor(toDollars(spendable) / toDollars(probe.unitCost));
+  // The linear estimate above ignores overtime, which a capacity-limited line adds on top. Shrink
+  // until the REAL plan (incl. overtime) fits within the reserve. Converges in a few steps and is a
+  // no-op for unlimited-capacity (standard) factories, where overtime is always 0.
+  const avail = toDollars(sub(s.cash, reserve));
+  for (let i = 0; i < 6 && units > 0; i++) {
+    const real = planProduction(s, product, units, channelId);
+    if (toDollars(real.totalUpfront) <= avail) break;
+    const over = toDollars(real.totalUpfront) - avail;
+    units -= Math.max(1, Math.ceil(over / toDollars(probe.unitCost)));
+  }
   return Math.max(0, units);
 }
 
@@ -3500,6 +3510,7 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   if (!prev.pendingPoach && next.pendingPoach) return "A rival is poaching your staff";
   if (!prev.pendingStrike && next.pendingStrike) return "A rival is attacking your product";
   if (!prev.pendingSideOrder && next.pendingSideOrder) return "A client wants your factory line";
+  if (!prev.pendingAwards && next.pendingAwards) return "The Silicon Awards ceremony";
   // A paid-for recruiter shortlist EXPIRES — skipping past its arrival would waste the fee.
   if (next.candidates.length > 0 && prev.candidates.length === 0) return "Your recruiter's shortlist arrived";
   if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";
