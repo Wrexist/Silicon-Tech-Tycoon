@@ -7,7 +7,7 @@ import { Award, Trophy } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { AWARD_FANS_BONUS, AWARD_REP_BONUS } from "../state/gameState.ts";
-import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import "./awardsCeremony.css";
@@ -16,7 +16,11 @@ export function AwardsCeremonyOverlay() {
   const { state, paused, setPaused, collectAwards } = useGame();
   const ceremony = state.pendingAwards ?? null;
   const dialogRef = useRef<HTMLDivElement>(null);
-  const showing = ceremony !== null;
+  // Serialize interrupts: the ceremony yields to both the launch reveal and a pending rival strike,
+  // so only one modal owns the screen (pause + Escape) at a time. State holds pendingAwards until
+  // the higher-priority overlays clear, then the ceremony takes the stage.
+  const higherUp = state.pendingStrike != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const showing = ceremony !== null && !higherUp;
 
   // Pause for the moment; restore the prior run state when the stage clears.
   const pausedByUs = useRef(false);
@@ -48,7 +52,7 @@ export function AwardsCeremonyOverlay() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showing, collectAwards]);
 
-  if (!ceremony) return null;
+  if (!ceremony || !showing) return null;
 
   return (
     <div className="awd">

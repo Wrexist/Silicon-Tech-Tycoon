@@ -482,11 +482,12 @@ function migrate(state: GameState): GameState | null {
   // Side orders (v111): drop malformed offers/actives from imports — a NaN feePerUnit would
   // otherwise ride units×fee straight into the wallet.
   const soOk = (o: unknown): boolean => {
-    const x = o as { units?: unknown; feePerUnit?: unknown; weeksNeeded?: unknown; clientName?: unknown } | null;
+    const x = o as { units?: unknown; feePerUnit?: unknown; weeksNeeded?: unknown; clientName?: unknown; requiredKinds?: unknown } | null;
     return !!x && typeof x.clientName === "string"
       && typeof x.units === "number" && Number.isFinite(x.units)
       && typeof x.feePerUnit === "number" && Number.isFinite(x.feePerUnit)
-      && typeof x.weeksNeeded === "number" && Number.isFinite(x.weeksNeeded);
+      && typeof x.weeksNeeded === "number" && Number.isFinite(x.weeksNeeded)
+      && Array.isArray(x.requiredKinds); // FactoryMode calls requiredKinds.filter() unconditionally
   };
   if (s.pendingSideOrder != null && !soOk(s.pendingSideOrder)) s.pendingSideOrder = null;
   if (s.activeSideOrder != null && !(soOk(s.activeSideOrder) && Number.isFinite((s.activeSideOrder as { startedWeek?: number }).startedWeek))) s.activeSideOrder = null;

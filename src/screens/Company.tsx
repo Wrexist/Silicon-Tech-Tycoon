@@ -1484,7 +1484,7 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
       {projContrib && <p className="co__cand-contrib">{projContrib}</p>}
       <div className="co__hire-controls">
         <span className="co__hint">{format(c.salary)}/wk salary · {TRAIT_INFO[c.trait].blurb}</span>
-        <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} onClick={onHire}>Sign · {format(c.hireFee)}</Button>
+        <Button size="sm" variant={canHire ? "primary" : "tertiary"} disabled={!canHire} haptics="none" onClick={onHire}>Sign · {format(c.hireFee)}</Button>
       </div>
     </Card>
   );

@@ -35,7 +35,7 @@ import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
 import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
-import { sideOrderPayout } from "../engine/sideOrders.ts";
+import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { FactoryTutorial } from "./FactoryTutorial.tsx";
 
@@ -228,6 +228,14 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     const t = setTimeout(() => setExpandArm(false), 4000);
     return () => clearTimeout(t);
   }, [expandArm]);
+  // Cancelling a commission forfeits a chunk of the payout — arm the button first so one stray tap
+  // can't burn the fee. Decays like the expand arm.
+  const [cancelArm, setCancelArm] = useState(false);
+  useEffect(() => {
+    if (!cancelArm) return;
+    const t = setTimeout(() => setCancelArm(false), 4000);
+    return () => clearTimeout(t);
+  }, [cancelArm]);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(true);
   // Camera: drag/touch to orbit, pinch to zoom (Factory3D owns OrbitControls); the recenter button
@@ -470,12 +478,23 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           const weeksLeft = Math.max(0, so.startedWeek + so.weeksNeeded - state.week);
           const frac = Math.max(0, Math.min(1, (state.week - so.startedWeek) / Math.max(1, so.weeksNeeded)));
           const payout = sideOrderPayout(so);
+          const feePct = Math.round(SIDE_ORDER_CANCEL_PCT * 100);
           return (
             <div className="fmode__panel fmode__sideorder fmode__sideorder--live">
               <span className="fmode__sideorder-head"><Truck size={14} aria-hidden /> Running {so.clientName}'s order</span>
               <span className="fmode__sideorder-track"><span className="fmode__sideorder-fill" style={{ width: `${Math.round(frac * 100)}%` }} /></span>
               <p className="fmode__sideorder-body tnum">{weeksLeft} wk left · {format(payout)} on delivery</p>
-              <button className="fmode__sideorder-x" onClick={() => d.game.cancelSideOrder()}>Cancel · 25% fee</button>
+              <button
+                className="fmode__sideorder-x"
+                onClick={() => {
+                  if (!cancelArm) { haptic.light(); setCancelArm(true); return; }
+                  setCancelArm(false);
+                  haptic.warning();
+                  d.game.cancelSideOrder();
+                }}
+              >
+                {cancelArm ? `Confirm — forfeit ${feePct}%` : `Cancel · ${feePct}% fee`}
+              </button>
             </div>
           );
         })()}

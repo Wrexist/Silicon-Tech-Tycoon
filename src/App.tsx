@@ -109,8 +109,10 @@ function AppShell() {
   const announcedUnlocks = useRef(hasShippedNow); // pre-shipped saves don't get re-told
   useEffect(() => {
     if (!hasShippedNow || announcedUnlocks.current) return;
-    announcedUnlocks.current = true;
+    // Mark inside the timeout, not before it — so a StrictMode mount/cleanup/remount (which fires
+    // the effect twice with the same ref) doesn't consume the announcement on the discarded pass.
     const t = setTimeout(() => {
+      announcedUnlocks.current = true;
       showToast("New unlocked: Progress hub (trophy), stock market & financing", { tone: "positive", glyph: <Trophy size={15} /> });
     }, 4200);
     return () => clearTimeout(t);

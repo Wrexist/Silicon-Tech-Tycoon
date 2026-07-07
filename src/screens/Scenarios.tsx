@@ -126,7 +126,7 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
             </p>
             <div className="scn__confirm-row">
               <Button variant="secondary" autoFocus onClick={() => setConfirmId(null)}>Cancel</Button>
-              <Button onClick={() => begin(confirmScenario.id)}>Start</Button>
+              <Button haptics="none" onClick={() => begin(confirmScenario.id)}>Start</Button>
             </div>
           </div>
         </div>

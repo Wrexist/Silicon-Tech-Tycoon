@@ -1509,11 +1509,16 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
             {/* A desk always reads as a workstation: render its chair at the same offset the seated
                 Workstation uses, so an EMPTY desk shows a chair too (occupied desks are swapped for
                 the live Workstation, which provides its own chair + robot, so no double-up). */}
-            {isDeskType(it.type) && (
-              <group position={[0, 0, seatFlipped(it) ? 0.78 : -0.78]} rotation-y={seatFlipped(it) ? Math.PI : 0}>
-                <Chair p={p} hue={p.metalDark} />
-              </group>
-            )}
+            {isDeskType(it.type) && (() => {
+              // Use the live (drag-adjusted) cell so the chair previews on the correct side while
+              // the desk is being dragged toward a wall, not only after it drops.
+              const flip = seatFlipped({ ...it, c: cell.c, r: cell.r });
+              return (
+                <group position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
+                  <Chair p={p} hue={p.metalDark} />
+                </group>
+              );
+            })()}
             {selected && (
               <mesh rotation-x={-Math.PI / 2} position={[0, 0.035, 0]}>
                 <planeGeometry args={[def.w * GRID.cell, def.d * GRID.cell]} />

@@ -9,7 +9,7 @@ import { useDialogFocus } from "../design/primitives.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { marketingPushQuote } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { format, sub, cents, type Money } from "../engine/money.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { haptic } from "../design/haptics.ts";
@@ -20,12 +20,16 @@ export function RivalStrike() {
   const { state, paused, setPaused, resolveStrike } = useGame();
   const strike = state.pendingStrike ?? null;
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Serialize the full-screen interrupts so only one owns the screen (pause + Escape) at a time.
+  // The launch reveal is the player's own payoff and always wins, so a strike waits behind any
+  // unclaimed ready build; state keeps pendingStrike, so the card pops once the launch sheet clears.
+  const readyUp = state.ready.some((p) => !readyLaunchClaimed(p.id));
 
   // Pause while the card is up (same contract as ReadyToLaunch): the attack shouldn't keep
   // eroding the curve while the player weighs the answer. Restore their prior run state after.
   const pausedByUs = useRef(false);
   const wasPaused = useRef(false);
-  const showing = strike !== null;
+  const showing = strike !== null && !readyUp;
   useEffect(() => {
     if (showing) {
       if (!pausedByUs.current) {
@@ -53,7 +57,7 @@ export function RivalStrike() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showing, resolveStrike]);
 
-  if (!strike) return null;
+  if (!strike || !showing) return null;
 
   const lp = state.launched.find((l) => l.product.id === strike.productId) ?? null;
   const release = state.rivalReleases.find((r) => r.rivalId === strike.rivalId && r.week === strike.week) ?? null;

@@ -366,8 +366,11 @@ export interface GameState {
   automation: { autoAssign: boolean; autoResearch: boolean; autoAssignFree?: boolean; autoResearchFree?: boolean };
 }
 
-/** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery. */
-export const RIVAL_RELEASES_CAP = 24;
+/** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery.
+ *  Sized to comfortably span a full 52-week award year (rivals launch ~40×/year across the roster)
+ *  so the annual Silicon Awards judge every rival release from the year, not just the newest 24.
+ *  The Market gallery slices this to 6 for display, so the larger retention costs nothing on screen. */
+export const RIVAL_RELEASES_CAP = 52;
 
 export const REV_MILESTONES = [
   10_000, 25_000, 50_000, 100_000, 250_000, 500_000,
