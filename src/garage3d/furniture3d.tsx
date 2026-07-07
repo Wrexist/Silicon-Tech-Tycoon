@@ -29,13 +29,21 @@ function Desk({ p }: { p: RoomPalette }) {
           <meshStandardMaterial color={p.deskDark} />
         </mesh>
       ))}
-      {/* monitor at the back, facing +z */}
-      <group position={[0.2, 0.78, -0.22]}>
-        <mesh position={[0, 0.18, 0]}><boxGeometry args={[0.05, 0.3, 0.05]} /><meshStandardMaterial color={p.metalDark} metalness={0.4} /></mesh>
-        <mesh position={[0, 0.4, 0]}><boxGeometry args={[0.6, 0.36, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
-        <mesh position={[0, 0.4, 0.022]}><planeGeometry args={[0.54, 0.3]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.1} toneMapped={false} /></mesh>
+      {/* A real workstation: a large monitor on a stand, keyboard + mouse, and a mug — so even the
+          starter desk clearly reads as "a computer", not a bare table. */}
+      <group position={[0.12, 0.78, -0.18]}>
+        {/* stand: neck + foot */}
+        <mesh position={[0, 0.12, 0]}><boxGeometry args={[0.07, 0.24, 0.05]} /><meshStandardMaterial color={p.metalDark} metalness={0.4} /></mesh>
+        <mesh position={[0, 0.02, 0.04]}><boxGeometry args={[0.24, 0.02, 0.14]} /><meshStandardMaterial color={p.metalDark} metalness={0.4} /></mesh>
+        {/* screen — larger + brighter than before */}
+        <mesh position={[0, 0.38, 0]}><boxGeometry args={[0.7, 0.42, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+        <mesh position={[0, 0.38, 0.023]}><planeGeometry args={[0.64, 0.36]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.35} toneMapped={false} /></mesh>
       </group>
-      <mesh position={[-0.18, 0.79, 0.1]}><boxGeometry args={[0.42, 0.02, 0.16]} /><meshStandardMaterial color="#15181d" /></mesh>
+      {/* keyboard + mouse on the desktop */}
+      <mesh position={[-0.14, 0.785, 0.12]}><boxGeometry args={[0.46, 0.03, 0.17]} /><meshStandardMaterial color="#2a2f37" roughness={0.6} /></mesh>
+      <mesh position={[0.2, 0.785, 0.14]}><boxGeometry args={[0.08, 0.03, 0.11]} /><meshStandardMaterial color="#2a2f37" roughness={0.6} /></mesh>
+      {/* a coffee mug for life */}
+      <mesh position={[-0.44, 0.83, 0.0]}><cylinderGeometry args={[0.05, 0.045, 0.11, 12]} /><meshStandardMaterial color="#c9743a" roughness={0.7} /></mesh>
     </group>
   );
 }

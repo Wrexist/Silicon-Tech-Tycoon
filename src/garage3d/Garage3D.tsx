@@ -918,19 +918,10 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
 // Empty (unstaffed) desks still render powered-on, so the office looks set up before it's filled.
 const DESKTOP_ROW_Z = -2.2;
 const DESKTOP_SPACING = 1.95;
-// Floating desk labels: base height + a per-row zig-zag so adjacent labels sit at alternating
-// heights and never overlap into an unreadable pile when the team fills a row of desks.
-const LABEL_Y = 2.85; // sits clearly ABOVE the robots' heads so a pill never overlaps a body/desk
-const LABEL_STAGGER = 0.6;
-// Labels de-clutter in PROJECTED screen-x, not raw world x/z. Under the fixed office camera
-// (≈15.5, 13, 17.5 looking at the origin) the screen-right axis is ~0.75·x − 0.66·z, so two pills
-// overlap horizontally when this projection is close — regardless of which desk row they sit in.
-// (The old |dx| AND |dz| world test missed both same-row neighbours at the 1.95 desk pitch and
-// front/back labels that share a screen column, so the team piled into an unreadable stack.)
-const labelU = (x: number, z: number) => 0.75 * x - 0.66 * z;
-// The Bank pill's fixed position — shared by the label AND the collision-stack seed so the two can't drift apart.
+// Height for the floating hint pill + the team's celebration emotes — clearly above the robots' heads.
+const LABEL_Y = 2.85;
+// The Bank pill's fixed world position.
 const BANK_LABEL_POS: [number, number, number] = [-2.7, 2.75, 1.6];
-const LABEL_MIN_DU = 1.95; // projected-x gap below which two pills read as overlapping
 function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
@@ -958,15 +949,6 @@ function DesktopPod({ p, worlds, staff, monitors, onTapStaff, startColorIdx }: {
       })}
     </group>
   );
-}
-
-// Name + primary-discipline shown on a desk's floating label (shared by placed + bought desks).
-function deskLabel(s: Staff): { label: string; sub: string } {
-  const best = (["engineering", "design", "marketing"] as const).reduce<"engineering" | "design" | "marketing">(
-    (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering",
-  );
-  const abbr = { engineering: "Eng", design: "Des", marketing: "Mkt" }[best];
-  return { label: s.name.split(" ")[0], sub: `${abbr} · ${s.skills[best]}` };
 }
 
 function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
@@ -1754,42 +1736,19 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         <Vault />
       </group>
 
-      {/* Floating zone labels — kept to ONLY the interactive Bank hint (your money; tap to open
-          finances). The static Whiteboard label was decorative noise that piled into the staff
-          labels — the board is recognizable on its own, so the label was removed. */}
+      {/* The office keeps ONE floating hint — the interactive Bank pill (your money; tap for
+          finances). The old per-employee name pills were removed: a full team piled 7+ overlapping
+          white bubbles over the scene. The robots are directly tappable (→ the Company team roster,
+          which already lists every name, role and skill), so the labels were pure clutter. */}
       {!builder?.build && (
         <>
           <OfficeLabel pos={BANK_LABEL_POS} label="Bank" sub="Tap for finances" dot="#34c759" />
-          {/* Per-desk name + primary-discipline label for every occupied desk (placed desks first,
-              then the bought desktops). Labels ladder UP the moment they'd share a screen column, so
-              a full team reads as a clean staircase instead of a pile. Collision is measured in
-              projected screen-x (labelU), and the Bank pill seeds the stack so names clear it too. */}
-          {(() => {
-            const entries = [
-              ...seated.map((s, i) => ({ s, w: worldOf(seats[i]), dot: ROBOT_COLORS[i % ROBOT_COLORS.length], key: s.id ?? `seat${i}` })),
-              ...podStaff.map((s, i) => ({ s, w: podWorlds[i], dot: ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length], key: s.id ?? `pod${i}` })),
-            ];
-            // Resolve columns left→right; within a shared column, the nearer (front) label takes the
-            // lower slot so the closest name sits in front and the rest step up behind it.
-            entries.sort((a, b) => (labelU(a.w.x, a.w.z) - labelU(b.w.x, b.w.z)) || ((b.w.x + b.w.z) - (a.w.x + a.w.z)));
-            // Seed with the Bank pill so staff labels sharing its column ladder above it, not over it.
-            const placed: { u: number; level: number }[] = [{ u: labelU(BANK_LABEL_POS[0], BANK_LABEL_POS[2]), level: 0 }];
-            return entries.map((e) => {
-              const { label, sub } = deskLabel(e.s);
-              const u = labelU(e.w.x, e.w.z);
-              let level = 0;
-              while (placed.some((q) => q.level === level && Math.abs(q.u - u) < LABEL_MIN_DU)) level++;
-              placed.push({ u, level });
-              const y = LABEL_Y + level * LABEL_STAGGER;
-              return <OfficeLabel key={e.key} pos={[e.w.x, y, e.w.z]} label={label} sub={sub} dot={e.dot} />;
-            });
-          })()}
-          {/* Team celebration — an emote pops over every worker's head while a win is being cheered. */}
+          {/* Team celebration — an emote pops right over every worker's head while a win is cheered. */}
           {cheering && [
             ...seated.map((s, i) => ({ w: worldOf(seats[i]), key: s.id ?? `cheer-seat${i}`, i })),
             ...podStaff.map((s, i) => ({ w: podWorlds[i], key: s.id ?? `cheer-pod${i}`, i: seats.length + i })),
           ].map((e) => (
-            <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y + 0.85, e.w.z]} emoji={CHEER_EMOJI[e.i % CHEER_EMOJI.length]} />
+            <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} emoji={CHEER_EMOJI[e.i % CHEER_EMOJI.length]} />
           ))}
         </>
       )}
