@@ -165,6 +165,15 @@
 .lab__hero-cat--on { border-color: var(--fn-design); background: var(--fn-design); color: var(--accent-ink); }
 .lab__hero-info { display: flex; flex-direction: column; gap: var(--sp-12); min-width: 0; }
 .lab__hero-name-row { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; }
+/* "New version" — opens the start-from picker to iterate on a launched line. */
+.lab__hero-newver {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px; border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--fn-design) 40%, transparent);
+  background: var(--fn-design-soft, var(--accent-soft));
+  color: var(--fn-design, var(--accent));
+  font-size: var(--fs-micro); font-weight: 700;
+}
 .lab__hero-name { font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.01em; }
 .lab__hero-tag {
   font-size: var(--fs-micro); font-weight: 700;
@@ -1066,6 +1075,32 @@
 .wiz__seg-row--top .wiz__seg-fill { background: var(--fn-design); }
 .wiz__seg-pct { font-size: var(--fs-micro); font-weight: 700; text-align: right; color: var(--ink-2); }
 .wiz__seg-row--top .wiz__seg-pct { color: var(--fn-design); }
+
+/* ---------- "Start from…" picker (Design a new version) ---------- */
+.startfrom { display: flex; flex-direction: column; gap: var(--sp-12); }
+.startfrom__title { font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.01em; }
+.startfrom__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; margin-top: calc(-1 * var(--sp-8)); }
+.startfrom__list { display: flex; flex-direction: column; gap: var(--sp-8); }
+.startfrom__row {
+  display: flex; align-items: center; gap: var(--sp-12); text-align: left;
+  padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
+  border: 1px solid var(--hairline); background: var(--surface-2);
+}
+.startfrom__row:active { background: var(--surface); }
+.startfrom__thumb {
+  width: 52px; height: 52px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-button); background: var(--bg-elevated); overflow: hidden;
+}
+.startfrom__thumb--fresh { color: var(--fn-design, var(--accent)); background: var(--fn-design-soft, var(--accent-soft)); }
+.startfrom__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.startfrom__name { font-weight: 700; }
+.startfrom__meta { font-size: var(--fs-caption); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.startfrom__gen {
+  flex-shrink: 0; padding: 3px 8px; border-radius: var(--r-pill);
+  background: var(--fn-design-soft, var(--accent-soft)); color: var(--fn-design, var(--accent));
+  font-size: var(--fs-micro); font-weight: 800;
+}
 
 /* ---------- Design-complete sheet ---------- */
 .done { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); text-align: center; }

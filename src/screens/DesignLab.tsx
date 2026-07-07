@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -253,6 +253,18 @@ export function DesignLab({
   const [wizard, setWizard] = useState(false);
   const [completed, setCompleted] = useState<CompletedBuild | null>(null);
   const [labTab, setLabTab] = useState<LabTab>("components");
+  // "Start from…" picker — choose a franchise/device to design the next version of, or a fresh
+  // concept. Opened by the hero's "New version" pill and by the completion sheet's follow-up CTA.
+  const [startPicker, setStartPicker] = useState(false);
+  const franchises = useMemo(() => playerFranchises(state.launched), [state.launched]);
+  const startFrom = (prev: Product | null) => {
+    setDraft(prev ? successorDraft(prev) : freshDraft(state));
+    setFace("front");
+    setLabTab("components");
+    setStartPicker(false);
+    haptic.success();
+    if (prev) showToast(`Designing the successor to ${prev.name}`, { tone: "positive", glyph: <Wand2 size={15} /> });
+  };
 
   const cat = CATEGORIES[draft.category];
   const hasCamera = cat.slots.includes("camera");
@@ -599,6 +611,11 @@ export function DesignLab({
             <div className="lab__hero-name-row">
               <span className="lab__hero-name">{draft.name || "Untitled"}</span>
               <span className="lab__hero-tag">Concept</span>
+              {franchises.length > 0 && (
+                <button className="lab__hero-newver" onClick={() => { haptic.light(); setStartPicker(true); }}>
+                  <Wand2 size={13} aria-hidden /> New version
+                </button>
+              )}
             </div>
             <div className="lab__hero-fit">
               <span className="lab__hero-fit-label">Fit</span>
@@ -1530,11 +1547,59 @@ export function DesignLab({
         {completed && (
           <DesignCompleteCard
             done={completed}
-            onDesignAnother={() => setCompleted(null)}
+            onDesignAnother={() => {
+              setCompleted(null);
+              // With launched lines to build on, follow up with the franchise picker; a brand-new
+              // company just returns to the (already fresh) draft.
+              if (franchises.length > 0) setStartPicker(true);
+            }}
             onClose={() => setCompleted(null)}
           />
         )}
       </Sheet>
+
+      <Sheet open={startPicker} onClose={() => setStartPicker(false)}>
+        {startPicker && <StartFromSheet state={state} onPick={startFrom} />}
+      </Sheet>
+    </div>
+  );
+}
+
+/** "Start from…" — pick which franchise/device the next design iterates on. One row per launched
+ *  line, seeded from that line's LATEST entry (full design carried over, next name in the series),
+ *  plus a fresh-concept row. This is how "Design a new version" knows what it's a version OF. */
+function StartFromSheet({ state, onPick }: { state: GameState; onPick: (prev: Product | null) => void }) {
+  const franchises = playerFranchises(state.launched);
+  const latestOf = (stem: string): Product =>
+    state.launched
+      .filter((lp) => franchiseStem(lp.product.name) === stem)
+      .reduce((a, b) => (b.launchedWeek > a.launchedWeek ? b : a)).product;
+  return (
+    <div className="startfrom">
+      <h3 className="startfrom__title">Design a new version</h3>
+      <p className="startfrom__sub">Pick a line to iterate on — the whole design carries over with the next name in the series — or start clean.</p>
+      <div className="startfrom__list">
+        {franchises.map((f) => {
+          const prev = latestOf(f.stem);
+          return (
+            <button key={f.stem} className="startfrom__row" onClick={() => onPick(prev)}>
+              <span className="startfrom__thumb"><DeviceRenderer product={prev} size={44} /></span>
+              <span className="startfrom__info">
+                <span className="startfrom__name">{f.name}</span>
+                <span className="startfrom__meta">{suggestNextName(prev.name)} next · {f.label}{f.entries > 1 ? ` · ${f.entries} entries` : ""}</span>
+              </span>
+              <span className="startfrom__gen tnum">G{f.entries + 1}</span>
+            </button>
+          );
+        })}
+        <button className="startfrom__row startfrom__row--fresh" onClick={() => onPick(null)}>
+          <span className="startfrom__thumb startfrom__thumb--fresh"><Sparkles size={18} aria-hidden /></span>
+          <span className="startfrom__info">
+            <span className="startfrom__name">Fresh concept</span>
+            <span className="startfrom__meta">A blank slate — new name, new line.</span>
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -1644,12 +1709,12 @@ function DesignCompleteCard({
           <div className="done__live">
             <BuildProgress job={job} />
           </div>
-          <button className="wiz__cancel" onClick={onDesignAnother}>Design another</button>
+          <button className="wiz__cancel" onClick={onDesignAnother}><Wand2 size={14} aria-hidden /> Design a new version</button>
         </>
       ) : (
         // Edge case: the run left the line while the numbers above were being read (e.g. it was
         // launched from another surface). Nothing to track — just offer the next design.
-        <button className="wiz__cancel" onClick={onDesignAnother}>Design another</button>
+        <button className="wiz__cancel" onClick={onDesignAnother}><Wand2 size={14} aria-hidden /> Design a new version</button>
       )}
     </div>
   );
