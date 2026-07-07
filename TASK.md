@@ -2349,3 +2349,24 @@ Three device-playtest fixes:
       trough median $12k / min $8k (was $2k/$1k), Era 2 at wk 45, all eras reached 40/40 —
       re-pinned as the reference sim output.
 - Gates: tsc 0 · 782 tests · build+PWA green · sim re-pinned (intended balance change).
+
+## v110 — Audit round 2: bug fixes + feedback polish (DONE 2026-07-07)
+Three parallel audits (recent-code bug hunt, game-design fun review, friction/juice sweep).
+- [x] **Bugs**: successor drafts no longer inherit stale defectPenalty/capacityStrategy (silent,
+      compounding quality corruption); ready-launch claim released synchronously on sheet close
+      (260ms Sheet-cache window could eat the launch moment); ReadyToLaunch registers as an app
+      overlay (Escape no longer double-dismisses out of Factory mode); smooth-ring perf (no capped
+      re-renders, hidden-tab anchor shift); locked-bay tap ignores orbit drags; Bootstrapped/
+      Underdog scenario cash retuned for the $100K era ($50K/$35K — $10-12K was near-unbuildable);
+      post-build draft keeps the just-used supplier/factory; successor names clamp to 22 chars.
+- [x] **Juice**: factory acquisition/hire/region/loan-payoff/morale/scenario-start all celebrate;
+      achievements get mastery sfx + haptic; research double-audio fixed; shortlist arrival toasts
+      + stops "Skip to next decision"; loan + recruiter progress bars; Research nav badge when a
+      project is affordable; first-ship unlock announcement; BOM money formatting; shortfall
+      amounts in rush/campaign/furniture errors; era toast no longer wasted under the era modal.
+- [ ] **Fun roadmap** (from the design audit, next round): Rival Strikes (answer a rival launch:
+      cut price / counter-campaign / hold), The Silicon Awards (annual ceremony judging player +
+      rival products), Side Orders (client commissions running visibly on YOUR factory line),
+      defect-risk recall dilemmas, factory wear/bottlenecks, expiring opportunity events, supply
+      contracts with commitments, holiday quarter, fan mail, post-listing board pressure.
+- Gates: tsc 0 · 782 tests · build+PWA green · sim byte-identical to the v109 baseline.
