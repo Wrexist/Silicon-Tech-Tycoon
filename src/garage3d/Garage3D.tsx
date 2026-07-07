@@ -24,7 +24,7 @@ import { FurniturePiece } from "./furniture3d.tsx";
 import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
-import { reactionIntensity } from "../design/hqReaction.ts";
+import { reactionIntensity, onHqReaction, HQ_REACTION_MS } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
@@ -995,6 +995,16 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
 const LABEL_BG = "rgba(255,255,255,0.94)";
 const LABEL_INK = "#1a1d23";
 const LABEL_INK_SOFT = "#6b7280";
+// Celebration emote that pops over a worker's head while the office is cheering a win.
+const CHEER_EMOJI = ["🎉", "🙌", "✨", "🥳", "🚀"];
+function CheerEmote({ pos, emoji }: { pos: [number, number, number]; emoji: string }) {
+  return (
+    <Html position={pos} center zIndexRange={[30, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
+      <div style={{ fontSize: 22, transform: "translateY(-120%)", filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.45))" }}>{emoji}</div>
+    </Html>
+  );
+}
+
 function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; label: string; sub: string; dot: string }) {
   // Fixed screen-size UI chip (no distanceFactor → constant size), always rendered on top. Kept to
   // ONE compact line — dot · Name · role — so a full team of pills stays narrow and short, laddering
@@ -1596,6 +1606,18 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   // player-bought desktops), so a new hire's robot sits at a real desk instead of milling around.
   // Only when every desk is taken do extra employees roam the floor.
   const inBuild = !!builder?.build;
+  // Team celebration: when a win fires an "cheer" reaction, pop emotes over the workers for the
+  // reaction window (the robots' hop is driven separately in useFrame). React state so the emote
+  // layer mounts/unmounts; the timer is the same length as the hop so they end together.
+  const [cheering, setCheering] = useState(false);
+  const cheerTimer = useRef(0);
+  useEffect(() => onHqReaction((k) => {
+    if (k !== "cheer") return;
+    setCheering(true);
+    window.clearTimeout(cheerTimer.current);
+    cheerTimer.current = window.setTimeout(() => setCheering(false), HQ_REACTION_MS);
+  }), []);
+  useEffect(() => () => window.clearTimeout(cheerTimer.current), []);
   const seats = deskItems(builder?.layout ?? []);
   const seated = staff.slice(0, seats.length);
   const overflow = staff.slice(seats.length);
@@ -1762,6 +1784,13 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
               return <OfficeLabel key={e.key} pos={[e.w.x, y, e.w.z]} label={label} sub={sub} dot={e.dot} />;
             });
           })()}
+          {/* Team celebration — an emote pops over every worker's head while a win is being cheered. */}
+          {cheering && [
+            ...seated.map((s, i) => ({ w: worldOf(seats[i]), key: s.id ?? `cheer-seat${i}`, i })),
+            ...podStaff.map((s, i) => ({ w: podWorlds[i], key: s.id ?? `cheer-pod${i}`, i: seats.length + i })),
+          ].map((e) => (
+            <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y + 0.85, e.w.z]} emoji={CHEER_EMOJI[e.i % CHEER_EMOJI.length]} />
+          ))}
         </>
       )}
 
