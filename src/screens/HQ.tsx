@@ -8,6 +8,7 @@ import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/pri
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
 import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { DailyChallengeCard } from "../components/DailyChallengeCard.tsx";
+import { BuzzTicker } from "../components/BuzzTicker.tsx";
 import { FactoryCard } from "../components/FactoryMode.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -125,6 +126,10 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
       {world === "factory" && <FactoryCard onNavigate={onNavigate} />}
+
+      {/* Industry Buzz — a live "wire" of authored headlines so the world reacts to you. Once you've
+          shipped (an empty garage has no story yet), and only under the office world. */}
+      {world === "office" && state.launched.length >= 1 && <BuzzTicker />}
 
       <ScenarioTracker />
       <ChallengeTracker />
