@@ -5,7 +5,8 @@
 import { useState } from "react";
 import {
   Cpu, Layers, Users, BadgeDollarSign, Rocket, FlaskConical, Check, Lock,
-  Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Wallet, Music, Globe, Zap, type LucideIcon,
+  Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Wallet, Music, Globe, Zap,
+  Handshake, Crown, TrendingUp, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, Stat, SectionHeader } from "../design/primitives.tsx";
 import { Sparkline } from "../components/charts.tsx";
@@ -27,7 +28,8 @@ import {
   licenseeMoodOf,
 } from "../state/gameState.ts";
 import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById, OS_PHILOSOPHIES, philosophyEffectLabel } from "../engine/platform.ts";
-import { format, add, toDollars } from "../engine/money.ts";
+import { format, add, toDollars, type Money } from "../engine/money.ts";
+import { CATEGORIES } from "../engine/catalogs.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./platform.css";
 
@@ -47,7 +49,10 @@ function fmtBase(n: number): string {
 }
 
 export function PlatformSheet({ onClose }: { onClose: () => void }) {
-  const { state, setOsName, releaseOsVersion, licenseOsToRival, revokeOsLicense, installOsFeature, setOsPhilosophy } = useGame();
+  const { state, setOsName, releaseOsVersion, licenseOsToRival, revokeOsLicense, installOsFeature, setOsPhilosophy, signLicenseOffer, declineLicenseOffer } = useGame();
+  // The inbound contract just signed — captures the terms so the celebration survives the offer
+  // clearing from state the instant it's signed.
+  const [signed, setSigned] = useState<{ name: string; bonus: Money; royalty: Money; exclusive: boolean } | null>(null);
   const tier = osTierInfo(state);
   const features = osFeatureList(state);
   const ecoBonus = osEcoBonus(state);
@@ -252,6 +257,43 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
         </ul>
       </Card>
 
+      {state.pendingLicenseOffer && (() => {
+        const offer = state.pendingLicenseOffer;
+        const cat = CATEGORIES[offer.category].displayName.toLowerCase();
+        return (
+          <Card className={`plat__offer${offer.exclusive ? " plat__offer--exclusive" : ""}`}>
+            <div className="plat__offer-head">
+              <span className="plat__offer-glyph" aria-hidden><Handshake size={20} /></span>
+              <div className="plat__offer-info">
+                <span className="plat__offer-eyebrow">{offer.exclusive ? "Exclusive contract offer" : "Licensing contract offer"}</span>
+                <span className="plat__offer-title">{offer.rivalName} wants {osDisplayName(state)}</span>
+              </div>
+              {offer.exclusive && <span className="plat__offer-badge"><Crown size={12} aria-hidden /> Exclusive</span>}
+            </div>
+            <p className="plat__offer-sub">
+              To ship on their {cat}s over a ~{offer.termWeeks}-week term.
+              {offer.exclusive ? ` No other rival may license ${osDisplayName(state)} for ${cat}s while it holds — and they'll compete harder for it.` : " They'll compete a little harder in your shared markets."}
+            </p>
+            <div className="plat__offer-terms">
+              <Stat label="Signing bonus" value={format(offer.signingBonus)} tone="positive" />
+              <Stat label="Royalty" value={`${format(offer.royaltyPerWeek)}/wk`} tone="positive" />
+            </div>
+            <div className="plat__offer-actions">
+              <Button
+                block
+                onClick={() => {
+                  const terms = { name: offer.rivalName, bonus: offer.signingBonus, royalty: offer.royaltyPerWeek, exclusive: offer.exclusive };
+                  if (signLicenseOffer()) setSigned(terms);
+                }}
+              >
+                Sign · {format(offer.signingBonus)}
+              </Button>
+              <Button variant="tertiary" onClick={() => { declineLicenseOffer(); showToast("Walked away from the deal", { tone: "neutral" }); }}>Decline</Button>
+            </div>
+          </Card>
+        );
+      })()}
+
       <Card>
         <SectionHeader title="License your OS" accessory={licenseTotal > 0 ? `${format(licenseTotal)}/wk` : undefined} />
         <p className="plat__release-note plat__release-note--muted">
@@ -295,6 +337,22 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
       </Card>
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>
+
+      {signed && (
+        <Celebration
+          eyebrow={signed.exclusive ? "Exclusive deal signed" : "Contract signed"}
+          title={`${signed.name} runs ${osDisplayName(state)}`}
+          sub={`They ship your OS on their devices${signed.exclusive ? ", exclusively" : ""}. The signing bonus is in the bank; the royalties roll in every week.`}
+          icon={<Handshake size={34} />}
+          sound="mastery"
+          chips={[
+            { icon: <BadgeDollarSign size={14} />, value: format(signed.bonus), label: "signing bonus", sub: "upfront" },
+            { icon: <TrendingUp size={14} />, value: `${format(signed.royalty)}/wk`, label: "royalty", sub: "recurring" },
+          ]}
+          confirmLabel="Excellent"
+          onConfirm={() => setSigned(null)}
+        />
+      )}
 
       {celebrate && (
         <Celebration

@@ -513,6 +513,23 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingSideOrder != null && !(soOk(s.pendingSideOrder) && Number.isFinite((s.pendingSideOrder as { expiresWeek?: number }).expiresWeek))) s.pendingSideOrder = null;
   if (s.activeSideOrder != null && !(soOk(s.activeSideOrder) && Number.isFinite((s.activeSideOrder as { startedWeek?: number }).startedWeek))) s.activeSideOrder = null;
 
+  // Inbound licensing contracts (v-platform): drop a malformed offer (a NaN signing bonus would ride
+  // straight into the wallet) and coerce the exclusive map to a clean string→string record.
+  const loOk = (o: unknown): boolean => {
+    const x = o as { rivalId?: unknown; signingBonus?: unknown; royaltyPerWeek?: unknown; expiresWeek?: unknown; category?: unknown } | null;
+    return !!x && typeof x.rivalId === "string" && typeof x.category === "string"
+      && typeof x.signingBonus === "number" && Number.isFinite(x.signingBonus)
+      && typeof x.royaltyPerWeek === "number" && Number.isFinite(x.royaltyPerWeek)
+      && typeof x.expiresWeek === "number" && Number.isFinite(x.expiresWeek);
+  };
+  if (s.pendingLicenseOffer != null && !loOk(s.pendingLicenseOffer)) s.pendingLicenseOffer = null;
+  if (s.osExclusive == null || typeof s.osExclusive !== "object") s.osExclusive = {};
+  else {
+    const clean: Record<string, string> = {};
+    for (const [k, v] of Object.entries(s.osExclusive)) if (typeof v === "string") clean[k] = v;
+    s.osExclusive = clean;
+  }
+
   if (typeof s.bankrupt !== "boolean") s.bankrupt = false;
   if (typeof s.furnitureCounter !== "number") {
     s.furnitureCounter = s.layout.reduce((m: number, it: { iid?: string }) => {

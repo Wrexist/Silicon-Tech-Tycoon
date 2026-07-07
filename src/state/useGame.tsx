@@ -105,6 +105,8 @@ import {
   releaseOsVersion,
   licenseOsToRival,
   revokeOsLicense,
+  signLicenseOffer,
+  declineLicenseOffer,
   installOsFeature,
   setOsPhilosophy,
   type GameState,
@@ -435,6 +437,8 @@ interface GameActionsValue {
   releaseOsVersion: () => void;
   licenseOsToRival: (rivalId: string) => void;
   revokeOsLicense: (rivalId: string) => void;
+  signLicenseOffer: () => boolean;
+  declineLicenseOffer: () => void;
   installOsFeature: (id: string) => void;
   setOsPhilosophy: (id: string | null) => void;
   // office builder
@@ -1031,6 +1035,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const licenseOsToRivalCb = useCallback((rivalId: string) => setState((s) => licenseOsToRival(s, rivalId)), []);
   const revokeOsLicenseCb = useCallback((rivalId: string) => setState((s) => revokeOsLicense(s, rivalId)), []);
+  // Sign the inbound contract: bank the signing bonus (spend FX in reverse — a gain), and return
+  // true so the Platform screen can fire its signing celebration.
+  const signLicenseOfferCb = useCallback((): boolean => {
+    const prev = stateRef.current;
+    const res = signLicenseOffer(prev);
+    if (!res.ok) { showToast(res.reason ?? "Can't sign that contract", { tone: "negative" }); return false; }
+    haptic.success();
+    sfx("cash");
+    setState(res.state);
+    return true;
+  }, []);
+  const declineLicenseOfferCb = useCallback(() => {
+    haptic.light();
+    setState((s) => declineLicenseOffer(s).state);
+  }, []);
   // Building an OS module spends RP (emit the spend FX) and can trip the Platform Pioneer / Walled
   // Garden milestones — fold + celebrate them here on the value-call path, not on the next tick.
   const installOsFeatureCb = useCallback((id: string) => {
@@ -1299,6 +1318,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       releaseOsVersion: releaseOsVersionCb,
       licenseOsToRival: licenseOsToRivalCb,
       revokeOsLicense: revokeOsLicenseCb,
+      signLicenseOffer: signLicenseOfferCb,
+      declineLicenseOffer: declineLicenseOfferCb,
       installOsFeature: installOsFeatureCb,
       setOsPhilosophy: setOsPhilosophyCb,
       placeFurniture: placeFurnitureCb,

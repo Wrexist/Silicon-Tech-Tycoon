@@ -135,22 +135,25 @@ export interface OsFeature {
   servicesMult: number;
 }
 
+// servicesMult contributions are deliberately LEAN (roughly half the original values): the OS is a
+// grind you invest in over many versions, not a fast passive faucet. Landing inbound licensing
+// CONTRACTS (signing bonuses) is the real money — see licenseOffers.ts.
 export const OS_FEATURES: readonly OsFeature[] = [
-  { id: "appMarket",  name: "App Marketplace",         icon: "Store",       minVersion: 1, rpCost: 25,  ecoBonus: 4, servicesMult: 0.22,
+  { id: "appMarket",  name: "App Marketplace",         icon: "Store",       minVersion: 1, rpCost: 25,  ecoBonus: 4, servicesMult: 0.11,
     blurb: "A first-party app store. Developers ship to your platform and you take a cut of every sale." },
-  { id: "cloudSync",  name: "Cloud Sync",              icon: "Cloud",       minVersion: 1, rpCost: 30,  ecoBonus: 2, servicesMult: 0.14,
+  { id: "cloudSync",  name: "Cloud Sync",              icon: "Cloud",       minVersion: 1, rpCost: 30,  ecoBonus: 2, servicesMult: 0.07,
     blurb: "Photos, files and settings follow the user across every device they own." },
-  { id: "assistant",  name: "On-Device Assistant",     icon: "Sparkles",    minVersion: 2, rpCost: 48,  ecoBonus: 3, servicesMult: 0.10,
+  { id: "assistant",  name: "On-Device Assistant",     icon: "Sparkles",    minVersion: 2, rpCost: 48,  ecoBonus: 3, servicesMult: 0.05,
     blurb: "A private voice + text assistant that makes the whole system feel smart." },
-  { id: "privacy",    name: "Privacy Suite",           icon: "ShieldCheck", minVersion: 2, rpCost: 52,  ecoBonus: 3, servicesMult: 0.06,
+  { id: "privacy",    name: "Privacy Suite",           icon: "ShieldCheck", minVersion: 2, rpCost: 52,  ecoBonus: 3, servicesMult: 0.03,
     blurb: "On-device encryption and tracking controls. Buyers trust the platform more." },
-  { id: "wallet",     name: "Wallet & Pay",            icon: "Wallet",      minVersion: 2, rpCost: 55,  ecoBonus: 3, servicesMult: 0.16,
+  { id: "wallet",     name: "Wallet & Pay",            icon: "Wallet",      minVersion: 2, rpCost: 55,  ecoBonus: 3, servicesMult: 0.08,
     blurb: "Tap-to-pay and a built-in wallet, take a small cut of every transaction on your platform." },
-  { id: "health",     name: "Health Hub",              icon: "HeartPulse",  minVersion: 3, rpCost: 70,  ecoBonus: 3, servicesMult: 0.12,
+  { id: "health",     name: "Health Hub",              icon: "HeartPulse",  minVersion: 3, rpCost: 70,  ecoBonus: 3, servicesMult: 0.06,
     blurb: "Activity, sleep and wellbeing tracking that pulls wearables into your ecosystem." },
-  { id: "media",      name: "Media Studio",            icon: "Music",       minVersion: 3, rpCost: 80,  ecoBonus: 3, servicesMult: 0.14,
+  { id: "media",      name: "Media Studio",            icon: "Music",       minVersion: 3, rpCost: 80,  ecoBonus: 3, servicesMult: 0.07,
     blurb: "Music, film and TV subscriptions streamed to every device in your ecosystem." },
-  { id: "continuity", name: "Cross-Device Continuity", icon: "Layers",      minVersion: 4, rpCost: 110, ecoBonus: 4, servicesMult: 0.18,
+  { id: "continuity", name: "Cross-Device Continuity", icon: "Layers",      minVersion: 4, rpCost: 110, ecoBonus: 4, servicesMult: 0.09,
     blurb: "Hand off any task between your phone, tablet and laptop seamlessly, true lock-in." },
 ];
 
@@ -185,7 +188,7 @@ export interface OsPhilosophy {
 export const OS_PHILOSOPHIES: readonly OsPhilosophy[] = [
   { id: "curated", name: "Curated Garden", icon: "ShieldCheck", tagline: "Polished, controlled, premium", statBonus: { ecosystem: 5 }, servicesMult: 0,
     blurb: "A tightly controlled experience, every device you ship feels part of one seamless whole." },
-  { id: "open", name: "Open Platform", icon: "Globe", tagline: "Third-party friendly, alive", statBonus: {}, servicesMult: 0.20,
+  { id: "open", name: "Open Platform", icon: "Globe", tagline: "Third-party friendly, alive", statBonus: {}, servicesMult: 0.10,
     blurb: "Developers and partners thrive on your OS, so recurring services revenue runs much deeper." },
   { id: "performance", name: "Performance-First", icon: "Zap", tagline: "Lean, fast, no compromise", statBonus: { performance: 5 }, servicesMult: 0,
     blurb: "A ruthlessly optimized core, every device you launch runs noticeably faster." },
@@ -230,11 +233,11 @@ export interface OsSynergy {
 }
 
 export const OS_SYNERGIES: readonly OsSynergy[] = [
-  { id: "commerce", name: "One-Tap Commerce", requires: ["appMarket", "wallet"], servicesMult: 0.10,
+  { id: "commerce", name: "One-Tap Commerce", requires: ["appMarket", "wallet"], servicesMult: 0.05,
     blurb: "Buy from the store and pay in a single tap, conversions soar." },
-  { id: "handoff", name: "Seamless Handoff", requires: ["cloudSync", "continuity"], servicesMult: 0.10,
+  { id: "handoff", name: "Seamless Handoff", requires: ["cloudSync", "continuity"], servicesMult: 0.05,
     blurb: "Your files and your tasks follow you across every device, instantly." },
-  { id: "wellbeing", name: "Proactive Wellbeing", requires: ["assistant", "health"], servicesMult: 0.08,
+  { id: "wellbeing", name: "Proactive Wellbeing", requires: ["assistant", "health"], servicesMult: 0.04,
     blurb: "The assistant turns your health data into gentle daily nudges." },
 ];
 

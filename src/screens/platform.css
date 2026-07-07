@@ -1,5 +1,43 @@
 /* Platform / OS division sheet. Tokens + 8pt grid only (RULE #1). */
 .plat { display: flex; flex-direction: column; gap: var(--sp-16); }
+
+/* Inbound licensing CONTRACT offer — the highlighted, "cool" deal card. */
+.plat__offer {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--hairline));
+  box-shadow: var(--shadow-subtle), 0 0 34px -14px color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: plat-offer-in var(--spring-gentle) both;
+}
+.plat__offer--exclusive {
+  border-color: color-mix(in srgb, var(--gold, #d9a824) 60%, transparent);
+  box-shadow: var(--shadow-floating), 0 0 40px -12px color-mix(in srgb, var(--gold, #d9a824) 60%, transparent);
+}
+@keyframes plat-offer-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .plat__offer { animation: none; } }
+.plat__offer-head { display: flex; align-items: center; gap: var(--sp-10); }
+.plat__offer-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; flex: none; border-radius: var(--r-md, 12px);
+  background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent);
+}
+.plat__offer--exclusive .plat__offer-glyph {
+  background: color-mix(in srgb, var(--gold, #d9a824) 20%, transparent); color: var(--gold, #d9a824);
+}
+.plat__offer-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.plat__offer-eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); }
+.plat__offer-title { font-size: var(--fs-body); font-weight: 800; letter-spacing: -0.01em; }
+.plat__offer-badge {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--gold, #d9a824) 22%, transparent); color: var(--gold, #d9a824);
+  font-size: var(--fs-micro); font-weight: 800;
+}
+.plat__offer-sub { margin: var(--sp-10) 0 0; font-size: var(--fs-caption); font-weight: 500; color: var(--ink-2); line-height: 1.4; }
+.plat__offer-terms { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); margin-top: var(--sp-12); }
+.plat__offer-actions { display: flex; gap: var(--sp-8); align-items: center; margin-top: var(--sp-12); }
+.plat__offer-actions > :first-child { flex: 1; }
 .plat__head { display: flex; align-items: flex-start; gap: var(--sp-12); }
 .plat__brand {
   width: 40px; height: 40px; flex-shrink: 0;
