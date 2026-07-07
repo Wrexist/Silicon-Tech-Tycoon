@@ -33,9 +33,9 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, floorWidth, lineComplete, lineSpeedMult, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineComplete, lineSpeedMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
-import { PROP_DEFS, type PropKind } from "../engine/factoryProps.ts";
+import { PROP_DEFS, propCellSet, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { FactoryTutorial } from "./FactoryTutorial.tsx";
@@ -259,8 +259,40 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   }, [use3d, tutorial]);
   const { buyFloorMachine, buyFloorBelt, buyFactoryProp, clearFloorCell, upgradeFloorMachine } = d.game;
   const lineOk = lineComplete(d.floor);
+
+  // Machine placement is a MOVABLE GHOST, not a blind tap: arming a machine tool drops a translucent
+  // machine on the floor; tapping cells nudges it, and Place (buy) / Cancel commits from the strip.
+  // No more "Doesn't fit there" the instant you tap — you SEE where it lands before paying.
+  const pendingKind = buildTool != null && buildTool in MACHINE_DEFS ? (buildTool as MachineKind) : null;
+  const [pendingCell, setPendingCell] = useState<{ c: number; r: number } | null>(null);
+  const placeableAt = (kind: MachineKind, c: number, r: number): boolean => {
+    const w = floorWidth(state.factoryExpansion);
+    if (!canPlaceMachine(state.factoryFloor, kind, c, r, w)) return false;
+    const props = propCellSet(state.factoryProps);
+    return !machineCells({ kind, c, r }).some((cell) => props.has(cell));
+  };
+  const findPlacementCell = (kind: MachineKind): { c: number; r: number } => {
+    const w = floorWidth(state.factoryExpansion);
+    const def = MACHINE_DEFS[kind];
+    const cc = Math.round((w - def.w) / 2), cr = Math.round((FLOOR.h - def.d) / 2);
+    let best: { c: number; r: number } | null = null, bestD = Infinity;
+    for (let r = 0; r <= FLOOR.h - def.d; r++) for (let c = 0; c <= w - def.w; c++) {
+      if (!placeableAt(kind, c, r)) continue;
+      const dd = Math.abs(c - cc) + Math.abs(r - cr);
+      if (dd < bestD) { bestD = dd; best = { c, r }; }
+    }
+    return best ?? { c: 0, r: 0 };
+  };
+  // Arm a machine → seed the ghost at the nearest-to-centre free cell; disarm → clear it.
+  useEffect(() => {
+    setPendingCell(pendingKind ? findPlacementCell(pendingKind) : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildTool]);
+  const pendingValid = pendingKind != null && pendingCell != null && placeableAt(pendingKind, pendingCell.c, pendingCell.r);
+
   const onTapCell = (c: number, r: number) => {
     if (!buildTool) return;
+    if (pendingKind) { setPendingCell({ c, r }); haptic.light(); return; } // machine: tap moves the ghost, Place commits
     if (buildTool === "erase") {
       clearFloorCell(c, r);
       haptic.light();
@@ -330,6 +362,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               product={d.lead?.product ?? null}
               lineOk={lineOk}
               buildMode={buildTool != null}
+              pending={pendingKind && pendingCell ? { kind: pendingKind, c: pendingCell.c, r: pendingCell.r, valid: pendingValid } : null}
               resetView={resetView}
               wallColor={(FACTORY_WALLS[state.factoryDecor.wall] ?? FACTORY_WALLS[0]).hex}
               floorColor={(FACTORY_FLOORS[state.factoryDecor.floor] ?? FACTORY_FLOORS[0]).hex}
@@ -542,6 +575,31 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         <div className="fmode__build">
           <div className="fmode__build-head">
             {(() => {
+              // A machine is armed → the head becomes its PLACE strip: green Place (buy at the ghost
+              // cell) + red Cancel. Tapping the floor moves the ghost; the button reflects live validity.
+              if (pendingKind && pendingCell) {
+                const cost = MACHINE_DEFS[pendingKind].cost;
+                const broke = state.cash < cost;
+                return (
+                  <>
+                    <span className="fmode__autoquote-label">
+                      <Hammer size={14} aria-hidden /> {MACHINE_DEFS[pendingKind].name} · tap the floor to move
+                    </span>
+                    <button
+                      className="fmode__buy fmode__autoquote-go"
+                      disabled={!pendingValid || broke}
+                      onClick={() => {
+                        const res = d.game.buyFloorMachine(pendingKind, pendingCell.c, pendingCell.r);
+                        if (res.ok) { haptic.success(); sfx("build"); showToast(`${MACHINE_DEFS[pendingKind].name} placed`, { tone: "positive" }); setPendingCell(findPlacementCell(pendingKind)); }
+                        else { haptic.warning(); showToast(res.reason ?? "Can't place there", { tone: "negative" }); }
+                      }}
+                    >
+                      {broke ? "Can't afford" : `Place · ${format(cost)}`}
+                    </button>
+                    <button className="fmode__autoquote-x" aria-label="Cancel placement" onClick={() => { haptic.light(); setBuildTool(null); }}><X size={16} /></button>
+                  </>
+                );
+              }
               // Auto armed → the head becomes the QUOTE: route size + exact price, Confirm / Cancel.
               // The quote re-derives from live state every render, so it can never drift from the
               // price autoConnectLine will actually charge (same deterministic router).
