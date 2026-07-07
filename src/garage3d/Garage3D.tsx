@@ -24,7 +24,7 @@ import { FurniturePiece } from "./furniture3d.tsx";
 import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
-import { reactionIntensity, onHqReaction, HQ_REACTION_MS } from "../design/hqReaction.ts";
+import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
@@ -683,8 +683,10 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
 
   useFrame((st) => {
     const t = st.clock.elapsedTime + seed;
-    // Living-office cheer: a decaying bouncy hop + raised arms when a launch win lands (hqReaction).
+    // Living-office reactions: a bouncy hop + raised arms on a win (cheer), or a head-down droop on
+    // a flop (slump). Both decay over the reaction window (hqReaction).
     const cheer = reactionIntensity("cheer");
+    const slump = reactionIntensity("slump");
     // Seated robots are lifted onto the seat (SIT_LIFT above the floor pivot) and stay planted — no
     // standing bob — with a cheer reduced to a small in-seat bounce. SIT_LIFT lives here (not on the
     // parent) so a rigged .glb playing its own grounded "Sitting" clip isn't pushed off the chair.
@@ -692,12 +694,17 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
       ? SIT_LIFT
       : walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035;
     const hop = cheer > 0 ? Math.abs(Math.sin(st.clock.elapsedTime * 9)) * (sitting ? 0.05 : 0.14) * cheer : 0;
-    if (root.current) root.current.position.y = baseY + hop;
+    if (root.current) root.current.position.y = baseY + hop - slump * 0.05; // sag a little on a flop
     if (headRef.current) {
-      headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22);
-      headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04;
+      const calm = 1 - slump;
+      headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22) * calm;
+      headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04 * calm;
+      headRef.current.rotation.x = slump * 0.55; // head hangs down
     }
-    if (antRef.current) antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6);
+    if (antRef.current) {
+      antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6) * (1 - slump);
+      antRef.current.rotation.x = slump * 0.9; // antenna droops forward
+    }
     // arms: brisk swing while walking, soft sway when idle, drawn forward to rest at the desk when
     // seated — and thrown overhead on a cheer.
     const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
@@ -1010,8 +1017,9 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
 const LABEL_BG = "rgba(255,255,255,0.94)";
 const LABEL_INK = "#1a1d23";
 const LABEL_INK_SOFT = "#6b7280";
-// Celebration emote that pops over a worker's head while the office is cheering a win.
+// Team reaction emotes that pop over a worker's head — a burst on a win, a sigh on a flop.
 const CHEER_EMOJI = ["🎉", "🙌", "✨", "🥳", "🚀"];
+const SLUMP_EMOJI = ["😞", "😔", "😮‍💨", "💤", "🫠"];
 function CheerEmote({ pos, emoji }: { pos: [number, number, number]; emoji: string }) {
   return (
     <Html position={pos} center zIndexRange={[30, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
@@ -1621,18 +1629,17 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   // player-bought desktops), so a new hire's robot sits at a real desk instead of milling around.
   // Only when every desk is taken do extra employees roam the floor.
   const inBuild = !!builder?.build;
-  // Team celebration: when a win fires an "cheer" reaction, pop emotes over the workers for the
-  // reaction window (the robots' hop is driven separately in useFrame). React state so the emote
-  // layer mounts/unmounts; the timer is the same length as the hop so they end together.
-  const [cheering, setCheering] = useState(false);
-  const cheerTimer = useRef(0);
+  // Team reaction emotes: a win (cheer) or a flop (slump) pops emotes over the workers for the
+  // reaction window (the robots' hop/droop is driven separately in useFrame). React state so the
+  // emote layer mounts/unmounts; the timer matches the animation so they end together.
+  const [reaction, setReaction] = useState<HqReaction | null>(null);
+  const reactTimer = useRef(0);
   useEffect(() => onHqReaction((k) => {
-    if (k !== "cheer") return;
-    setCheering(true);
-    window.clearTimeout(cheerTimer.current);
-    cheerTimer.current = window.setTimeout(() => setCheering(false), HQ_REACTION_MS);
+    setReaction(k);
+    window.clearTimeout(reactTimer.current);
+    reactTimer.current = window.setTimeout(() => setReaction(null), HQ_REACTION_MS);
   }), []);
-  useEffect(() => () => window.clearTimeout(cheerTimer.current), []);
+  useEffect(() => () => window.clearTimeout(reactTimer.current), []);
   const seats = deskItems(builder?.layout ?? []);
   const seated = staff.slice(0, seats.length);
   const overflow = staff.slice(seats.length);
@@ -1776,13 +1783,14 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {!builder?.build && (
         <>
           <OfficeLabel pos={BANK_LABEL_POS} label="Bank" sub="Tap for finances" dot="#34c759" />
-          {/* Team celebration — an emote pops right over every worker's head while a win is cheered. */}
-          {cheering && [
-            ...seated.map((s, i) => ({ w: worldOf(seats[i]), key: s.id ?? `cheer-seat${i}`, i })),
-            ...podStaff.map((s, i) => ({ w: podWorlds[i], key: s.id ?? `cheer-pod${i}`, i: seats.length + i })),
-          ].map((e) => (
-            <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} emoji={CHEER_EMOJI[e.i % CHEER_EMOJI.length]} />
-          ))}
+          {/* Team reaction — an emote pops right over every worker's head: a burst on a win, a sigh on a flop. */}
+          {reaction && [
+            ...seated.map((s, i) => ({ w: worldOf(seats[i]), key: s.id ?? `react-seat${i}`, i })),
+            ...podStaff.map((s, i) => ({ w: podWorlds[i], key: s.id ?? `react-pod${i}`, i: seats.length + i })),
+          ].map((e) => {
+            const set = reaction === "slump" ? SLUMP_EMOJI : CHEER_EMOJI;
+            return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} emoji={set[e.i % set.length]} />;
+          })}
         </>
       )}
 
