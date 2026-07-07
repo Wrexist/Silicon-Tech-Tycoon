@@ -370,6 +370,10 @@ export function DesignLab({
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
   const ceiling = designTierCeiling(state);
+  // The ceiling can drift below a draft that was seeded at an earlier, higher ceiling (staff mood /
+  // roster changes move it). Clamp during render — the documented "adjust state while rendering"
+  // pattern — so the tier never reads above its cap (e.g. "Tier 24 / 23") or over-delivers on build.
+  if (draft.designTier > ceiling) setDraft((d) => (d.designTier > ceiling ? { ...d, designTier: ceiling } : d));
 
   // Refresh rate (Hz): the options the chosen display tier can drive, plus the effective value.
   const hasDisplay = CATEGORIES[draft.category].slots.includes("display");
