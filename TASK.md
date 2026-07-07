@@ -2320,3 +2320,12 @@ The three "empty gameplay" holes the v104 audit flagged, filled:
 - [x] **Locked region rows** — the fixed-width "Unlock · $X" button crushed blurbs into
       one-word-per-line ribbons on device. Rows now wrap the button onto its own full-width line.
 - Gates: tsc 0 · 782 tests · build+PWA green.
+
+## v108 — "Design a new version": franchise picker in the Lab (DONE 2026-07-07)
+- [x] The completion sheet's "Design another" (blank slate) is now **"Design a new version"** and
+      opens a Start-from picker: one row per launched franchise (device thumb, equity label, the
+      next name in the series, G{n} badge) + a Fresh-concept row. Picking a line seeds
+      `successorDraft(latest entry)` — whole design carried over, next name — the same hand-off
+      Market's "Design a successor" uses. A "New version" pill in the lab hero opens the same
+      picker any time. Verified live (3-franchise save → picker → seeded Aurora Pro III, Fit 86).
+- Gates: tsc 0 · 782 tests · build+PWA green.
