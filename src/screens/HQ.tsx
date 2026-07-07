@@ -121,7 +121,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* The 3D office stays MOUNTED (hidden) while the Factory world shows, so its WebGL
           context survives the swap — the same rule that keeps it alive across bottom tabs.
           Its render loop pauses via active while hidden. */}
-      <div hidden={world === "factory"}>
+      <div className="hq__world" hidden={world === "factory"}>
         <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
       {world === "factory" && <FactoryCard onNavigate={onNavigate} />}
