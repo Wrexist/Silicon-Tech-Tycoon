@@ -142,3 +142,35 @@ describe("Rival Strikes — responses (all opt-in, sim never calls them)", () =>
     expect(resolveStrike(s, "hold").ok).toBe(false);
   });
 });
+
+describe("The Silicon Awards — state integration", () => {
+  it("week 52 tick sets pendingAwards when the year had launches, and collect pays per win", async () => {
+    const { collectAwards, AWARD_REP_BONUS, AWARD_FANS_BONUS } = await import("./gameState.ts");
+    // Sit at week 51 with products launched IN-YEAR (weeks 1..52); the tick to 52 judges the year.
+    const base = contestedState(21);
+    const s: GameState = {
+      ...base,
+      week: 51,
+      launched: base.launched.map((lp) => ({ ...lp, launchedWeek: 10 })),
+      competitors: base.competitors.map((c) => ({ ...c, nextLaunchWeek: 999 })),
+    };
+    const next = advanceOneWeek(s);
+    expect(next.week).toBe(52);
+    const ceremony = next.pendingAwards!;
+    expect(ceremony).toBeTruthy();
+    expect(ceremony.year).toBe(1);
+    expect(ceremony.winners.length).toBeGreaterThan(0);
+    expect(next.awardsHistory?.[0]).toEqual(ceremony);
+
+    const collected = collectAwards(next);
+    expect(collected.pendingAwards ?? null).toBeNull();
+    if (ceremony.playerWins > 0) {
+      expect(collected.reputation).toBeCloseTo(Math.min(100, next.reputation + AWARD_REP_BONUS * ceremony.playerWins), 6);
+      expect(collected.fans).toBe(next.fans + AWARD_FANS_BONUS * ceremony.playerWins);
+    } else {
+      expect(collected.reputation).toBe(next.reputation);
+    }
+    // Collecting twice is a no-op.
+    expect(collectAwards(collected)).toBe(collected);
+  });
+});

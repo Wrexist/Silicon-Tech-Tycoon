@@ -115,6 +115,7 @@ import {
   type PlacedProp, type PropKind,
 } from "../engine/factoryProps.ts";
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
+import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -290,6 +291,12 @@ export interface GameState {
   pendingStrike?: RivalStrike | null;
   /** Week of the last strike interrupt — enforces the cooldown so strikes stay events, not nags. */
   lastStrikeWeek?: number;
+  /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
+   *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
+   *  collectAwards. Optional/null → golden-invariant safe. */
+  pendingAwards?: AwardsCeremony | null;
+  /** Every past ceremony, newest first — the trophy record. Optional → old saves load empty. */
+  awardsHistory?: AwardsCeremony[];
   /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
    *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
   loans?: Loan[];
@@ -528,6 +535,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingPoach: null,
     pendingStrike: null,
     lastStrikeWeek: -999,
+    pendingAwards: null,
+    awardsHistory: [],
     loans: [],
     moraleCooldownUntil: 0,
     resolvedChoices: [],
@@ -1464,6 +1473,20 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
+  // The Silicon Awards — every 52 weeks, judge the year's launches (player + rival). Pure fold
+  // over existing data: no RNG, no cash/rep change here (collectAwards is the opt-in payoff),
+  // so the pinned sim is untouched. Skipped when a ceremony is already waiting (offline catch-up
+  // can cross two year marks; the newest one wins the stage, history keeps them all).
+  let pendingAwards = state.pendingAwards ?? null;
+  let awardsHistory = state.awardsHistory ?? [];
+  if (week > 0 && week % 52 === 0) {
+    const ceremony = judgeAwards(week, launchedFinal, rivalReleases, state.companyName || "Silicon");
+    if (ceremony) {
+      pendingAwards = ceremony;
+      awardsHistory = [ceremony, ...awardsHistory].slice(0, 20);
+    }
+  }
+
   // Research points generated this week — accrue through the SAME selector the UI shows, so the
   // displayed rate and the earned amount can never diverge (this previously omitted the office-focus
   // multiplier and, later, the legacy perk bonus — the UI lied for players who had them).
@@ -1673,6 +1696,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     competitors,
     launched: launchedFinal,
     pendingStrike,
+    pendingAwards,
+    awardsHistory,
     cashHistory,
     osBaseHistory,
     osLicensees,
@@ -2578,6 +2603,31 @@ export function resolveStrike(state: GameState, choice: StrikeResponse): ActionR
     ),
     ok: true,
   };
+}
+
+/** Collect the pending Silicon Awards: each category the player WON pays +2 reputation and +800
+ *  fans; a shutout still clears the stage with a feed note (losing on stage to a named rival is
+ *  the content). Player-opt-in — the pinned sim never collects, so the baseline is untouched. */
+export const AWARD_REP_BONUS = 2;
+export const AWARD_FANS_BONUS = 800;
+export function collectAwards(state: GameState): GameState {
+  const ceremony = state.pendingAwards;
+  if (!ceremony) return state;
+  const feed = [...state.feed];
+  if (ceremony.playerWins > 0) {
+    const titles = ceremony.winners.filter((w) => w.byPlayer).map((w) => w.title).join(", ");
+    feed.push(feedItem(state.week, `The Silicon Awards: you took ${titles} against a field of ${ceremony.fieldSize}.`, "positive"));
+    return {
+      ...state,
+      pendingAwards: null,
+      reputation: Math.min(100, state.reputation + AWARD_REP_BONUS * ceremony.playerWins),
+      fans: state.fans + AWARD_FANS_BONUS * ceremony.playerWins,
+      feed: trimFeed(feed),
+    };
+  }
+  const device = ceremony.winners.find((w) => w.categoryId === "device");
+  feed.push(feedItem(state.week, `The Silicon Awards went to the rivals this year${device ? ` — ${device.companyName}'s ${device.productName} took Device of the Year` : ""}.`, "neutral"));
+  return { ...state, pendingAwards: null, feed: trimFeed(feed) };
 }
 
 function clampMood(m: number): number {

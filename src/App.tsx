@@ -14,6 +14,7 @@ import { Confetti } from "./design/Confetti.tsx";
 import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
 import { RivalStrike } from "./components/RivalStrike.tsx";
+import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
@@ -198,6 +199,7 @@ function AppShell() {
       <Confetti />
       <ReadyToLaunch />
       <RivalStrike />
+      <AwardsCeremonyOverlay />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />
