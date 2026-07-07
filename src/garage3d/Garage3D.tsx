@@ -885,6 +885,36 @@ function seatFlipped(item: PlacedItem): boolean {
 // robot, rendered at the local origin facing +z. Callers position/rotate it (via the SAME worldOf
 // transform the Decorate editor uses), so an occupied desk is identical in the office and the editor.
 // Each hired employee gets exactly one.
+// Per-worker desk clutter — a small seed-varied prop (papers / a desk plant / books, or a tidy desk)
+// so a row of occupied desks reads as lived-in and individual, not identical. Cosmetic; sits on the
+// right of the desktop, clear of the monitor + keyboard.
+function DeskClutter({ seed, p }: { seed: number; p: RoomPalette }) {
+  const k = Math.floor(Math.abs(seed) * 3.7 + 0.5) % 4;
+  if (k === 3) return null; // some folks keep a clean desk
+  return (
+    <group position={[0.44, 0.785, 0.08]}>
+      {k === 0 && (
+        <>
+          <mesh position={[0, 0.012, 0]} rotation-y={0.22}><boxGeometry args={[0.16, 0.02, 0.2]} /><meshStandardMaterial color="#e8e6df" roughness={0.9} /></mesh>
+          <mesh position={[0.02, 0.032, 0.01]} rotation-y={-0.16}><boxGeometry args={[0.16, 0.02, 0.2]} /><meshStandardMaterial color="#f3f1ea" roughness={0.9} /></mesh>
+        </>
+      )}
+      {k === 1 && (
+        <>
+          <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.052, 0.046, 0.1, 10]} /><meshStandardMaterial color="#8a6b4a" roughness={0.8} /></mesh>
+          <mesh position={[0, 0.14, 0]}><sphereGeometry args={[0.08, 10, 10]} /><meshStandardMaterial color={p.plant} roughness={0.85} /></mesh>
+        </>
+      )}
+      {k === 2 && (
+        <>
+          <mesh position={[0, 0.03, 0]}><boxGeometry args={[0.1, 0.06, 0.16]} /><meshStandardMaterial color="#3b6ea5" roughness={0.7} /></mesh>
+          <mesh position={[0.005, 0.085, 0.01]}><boxGeometry args={[0.1, 0.05, 0.15]} /><meshStandardMaterial color="#b4694a" roughness={0.7} /></mesh>
+        </>
+      )}
+    </group>
+  );
+}
+
 function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean }) {
   const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
@@ -895,6 +925,9 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
           looks identical in the live office and in edit mode. A standing desk stays a standing desk,
           an L-desk stays an L-desk, etc. The seated robot + chair are layered on behind it. */}
       <FurniturePiece type={deskType} p={p} />
+      {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
+          their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}
+      {staff && deskType === "desk" && <DeskClutter seed={seed} p={p} />}
       {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
           back so it rests against the backrest, facing the desk (+z, toward the camera). The
           parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead. */}

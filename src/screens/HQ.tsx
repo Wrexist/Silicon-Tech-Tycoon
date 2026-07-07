@@ -362,6 +362,19 @@ function OfficeOverview({ state }: { state: GameState }) {
 function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
+  // The office no longer labels each teammate, so teach touch players ONCE that the team is tappable
+  // (→ Company). Desktop already shows the WASD hint instead; both auto-fade.
+  const [teamHintDone, setTeamHintDone] = useState(() => {
+    if (FINE_POINTER) return true;
+    try { return localStorage.getItem("silicon.hint.tapteam") === "1"; } catch { return true; }
+  });
+  const showTeamHint = use3d && !build && !teamHintDone && state.staff.length >= 1;
+  useEffect(() => {
+    if (!showTeamHint) return;
+    try { localStorage.setItem("silicon.hint.tapteam", "1"); } catch { /* ignore */ }
+    const t = window.setTimeout(() => setTeamHintDone(true), 5200);
+    return () => window.clearTimeout(t);
+  }, [showTeamHint]);
   const [placingType, setPlacingType] = useState<FurnitureId | null>(null);
   const [placeRot, setPlaceRot] = useState<Rot>(0);
   const [selectedIid, setSelectedIid] = useState<string | null>(null);
@@ -540,6 +553,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         {/* WASD is keyboard-only — never show it on a touch device (the iOS target), where it's
             both useless and confusing. Gate on a fine pointer (mouse/trackpad). */}
         {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
+        {showTeamHint && <div className="hq__camhint" aria-hidden>Tap a teammate to manage</div>}
         {use3d && !build && (
           <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
             <ShoppingBag size={15} /> Shop
