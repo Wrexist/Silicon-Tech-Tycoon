@@ -346,7 +346,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                         size="sm"
                         variant={affordable ? "primary" : "tertiary"}
                         disabled={!affordable}
-                        onClick={() => { research(kind); haptic.success(); sfx("upgrade"); }}
+                        haptics="none" onClick={() => { research(kind); haptic.success(); }}
                       >
                         {cost} RP
                       </Button>
@@ -448,7 +448,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     <span className="rd__locked" title={`You chose ${projectById(forkLock).name}`}><Lock size={12} /> Locked</span>
                   ) : (
                     <div className="rd__project-action">
-                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { buyProject(p.id); haptic.success(); sfx("upgrade"); }}>
+                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} haptics="none" onClick={() => { buyProject(p.id); haptic.success(); }}>
                         {p.rpCost} RP
                       </Button>
                       {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
@@ -535,7 +535,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 </div>
                 {!maxed && !eraLocked && (
                   <div className="rd__comp-buy">
-                    <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} onClick={() => { research(kind); haptic.success(); sfx("upgrade"); }}>
+                    <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} haptics="none" onClick={() => { research(kind); haptic.success(); }}>
                       {cost !== null ? `${cost} RP` : "—"}
                     </Button>
                     {!affordable && cost !== null && perWeek > 0 && (

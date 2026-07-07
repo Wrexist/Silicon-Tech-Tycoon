@@ -14,7 +14,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { format, toDollars } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
-import { readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { readyLaunchClaimed, registerAppOverlay } from "../design/overlayGuard.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import "./readyToLaunch.css";
 
@@ -73,6 +73,13 @@ export function ReadyToLaunch() {
   const product = currentId ? state.ready.find((p) => p.id === currentId) ?? null : null;
 
   useDialogFocus(dialogRef, product !== null);
+  const showing = product !== null;
+  // Register as a top-level overlay while visible so lower full-screen layers (Factory mode)
+  // defer their own Escape handler — one Escape dismisses the popup, not the popup AND the mode.
+  useEffect(() => {
+    if (!showing) return;
+    return registerAppOverlay();
+  }, [showing]);
   useEffect(() => {
     if (!product) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setQueue((q) => q.slice(1)); };

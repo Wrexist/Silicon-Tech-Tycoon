@@ -65,7 +65,7 @@ import { runwayWeeks } from "../engine/economy.ts";
 import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { useGame } from "../state/useGame.tsx";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
-import { claimReadyLaunch } from "../design/overlayGuard.ts";
+import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
@@ -213,9 +213,14 @@ function successorDraft(prev: Product): Product {
   return {
     ...prev,
     id: "draft",
-    name: suggestNextName(prev.name),
+    name: suggestNextName(prev.name).slice(0, 22), // respect the name input's cap
     plannedUnits: undefined,
     channelId: undefined,
+    // Run-specific baggage must NOT carry over: a defect penalty was the PREVIOUS run's
+    // over-capacity gamble, not part of the design — inheriting it would silently corrupt
+    // every successor's quality, compounding across generations.
+    defectPenalty: undefined,
+    capacityStrategy: undefined,
   };
 }
 
@@ -256,6 +261,14 @@ export function DesignLab({
   // "Start from…" picker — choose a franchise/device to design the next version of, or a fresh
   // concept. Opened by the hero's "New version" pill and by the completion sheet's follow-up CTA.
   const [startPicker, setStartPicker] = useState(false);
+  // The ready-launch claim lives HERE, not inside the completion card: the Sheet keeps its cached
+  // children mounted through the 260ms close animation, so a card-owned claim would linger after
+  // the player dismissed the sheet — and a build finishing in that window would be claimed by a
+  // dying sheet AND skipped by the global popup (the moment lost entirely). Keying the claim on
+  // `completed` releases it synchronously the instant the sheet closes.
+  useEffect(() => {
+    if (completed) return claimReadyLaunch(completed.builtId);
+  }, [completed]);
   const franchises = useMemo(() => playerFranchises(state.launched), [state.launched]);
   const startFrom = (prev: Product | null) => {
     setDraft(prev ? successorDraft(prev) : freshDraft(state));
@@ -426,7 +439,9 @@ export function DesignLab({
     // capacity strategy and (for "defects") its run-size-dependent quality hit onto the product.
     const base = { ...draft, regions, capacityStrategy: strategy };
     const penalty = strategy === "defects" ? capacityPlan(state, base, units).qualityPenalty : 0;
-    const finished = penalty > 0 ? { ...base, defectPenalty: penalty } : base;
+    // ALWAYS set defectPenalty (undefined when clean) — never let a stale penalty riding on the
+    // draft (e.g. a successor seeded before the strip existed) survive onto the shipped product.
+    const finished = { ...base, defectPenalty: penalty > 0 ? penalty : undefined };
     const plan = planProduction(state, finished, units, channelId);
     const weeks = plan.buildWeeks; // strategy-resolved (longer under "stretch")
     const res = build(finished, units, channelId);
@@ -450,7 +465,9 @@ export function DesignLab({
       projectedProfit: plan.projectedProfit,
       sellsOut: plan.sellsOut,
     });
-    setDraft({ ...freshDraft(state), name: suggestNextName(finished.name) });
+    // Seed the next draft from the run that JUST started (not the stale pre-build state), so the
+    // supply chain the player just chose carries into the follow-up design.
+    setDraft({ ...freshDraft(state), name: suggestNextName(finished.name).slice(0, 22), supplierId: finished.supplierId, factoryId: finished.factoryId });
   }
 
   // Launch a finished product straight from the Lab — same premium beat HQ uses (haptics, sound,
@@ -1380,20 +1397,20 @@ export function DesignLab({
                         <span className="lab__bom-bar-wrap">
                           <span className="lab__bom-bar" style={{ width: `${Math.round((r.cost / total) * 100)}%` }} />
                         </span>
-                        <span className="lab__bom-val tnum">${r.cost}</span>
+                        <span className="lab__bom-val tnum">{format(dollars(r.cost))}</span>
                       </div>
                     ))}
                     <div className="lab__bom-total lab__bom-subtotal">
                       <span>Parts (BOM)</span>
-                      <span className="tnum">${total.toFixed(0)}</span>
+                      <span className="tnum">{format(dollars(Math.round(total)))}</span>
                     </div>
                     <div className="lab__bom-assembly">
                       <span>Assembly &amp; overhead</span>
-                      <span className="tnum">+${Math.max(0, Math.round(toDollars(unitCost) - total))}</span>
+                      <span className="tnum">+{format(dollars(Math.max(0, Math.round(toDollars(unitCost) - total))))}</span>
                     </div>
                     <div className="lab__bom-total">
                       <span>Unit cost</span>
-                      <span className="tnum">${Math.round(toDollars(unitCost))}</span>
+                      <span className="tnum">{format(unitCost)}</span>
                     </div>
                   </div>
                 );
@@ -1626,16 +1643,15 @@ function DesignCompleteCard({
   const readyProduct = state.ready.find((p) => p.id === done.builtId) ?? null;
   const ready = readyProduct !== null;
 
-  // This sheet owns the product's ready moment while open — the global popup stands down.
-  useEffect(() => claimReadyLaunch(done.builtId), [done.builtId]);
-
   // The flip to READY is a beat: sound + haptic once, and pause the sim (like the global popup)
   // so the world doesn't run on behind the launch decision. Restore the prior run state on close.
+  // Guarded on the claim (owned by DesignLab, released the instant the sheet closes) so a card
+  // lingering through the Sheet's close animation can't fire a ghost celebration/pause.
   const celebrated = useRef(false);
   const pausedByUs = useRef(false);
   const wasPaused = useRef(false);
   useEffect(() => {
-    if (!ready || celebrated.current) return;
+    if (!ready || celebrated.current || !readyLaunchClaimed(done.builtId)) return;
     celebrated.current = true;
     haptic.success();
     sfx("confirm");

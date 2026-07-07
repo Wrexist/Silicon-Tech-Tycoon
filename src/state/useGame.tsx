@@ -128,6 +128,7 @@ import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { sfx } from "../design/sound.ts";
+import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
 import { createElement } from "react";
 
@@ -230,6 +231,9 @@ function announceAchievements(unlocked: readonly string[]): void {
   if (earned.length === 0) return;
   const fire = () => {
     try {
+      // A milestone deserves more than silent text — same weight as scenario stars.
+      sfx("mastery");
+      haptic.success();
       if (earned.length === 1) {
         const a = earned[0];
         showToast(`Achievement unlocked, ${a.title}`, {
@@ -602,6 +606,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
           mergeProfileAchievements(unlocked);
           announceObjectives(completed);
           announceScenarioStars(next);
+          // A paid-for recruiter shortlist EXPIRES quietly — the arrival must not (the player
+          // may be on any tab when the candidates land).
+          if (next.candidates.length > 0 && s.candidates.length === 0) {
+            sfx("confirm");
+            showToast(`Your shortlist arrived — ${next.candidates.length} candidate${next.candidates.length > 1 ? "s" : ""} to interview`, { tone: "positive" });
+          }
         }
         return out2;
       });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Factory, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
@@ -451,13 +451,28 @@ function FinancingCard({ state }: { state: GameState }) {
           <div className="co__loan-list">
             {loans.map((l) => {
               const payoff = cents(Math.round(l.balance));
+              const paidFrac = Math.max(0, Math.min(1, 1 - l.balance / Math.max(1, l.principal)));
               return (
                 <div key={l.id} className="co__loan-row">
                   <div className="co__loan-info">
                     <span className="co__loan-bal">{format(payoff)}</span>
                     <span className="co__loan-meta">{format(cents(l.weeklyPayment))}/wk · {Math.round(l.ratePerWeek * 52 * 100)}% APR</span>
+                    {/* every other wait in the game has a bar — the climb out of debt deserves one */}
+                    <span className="co__loan-track" role="progressbar" aria-valuenow={Math.round(paidFrac * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Loan repaid">
+                      <span className="co__loan-fill" style={{ width: `${Math.round(paidFrac * 100)}%` }} />
+                    </span>
                   </div>
-                  <Button variant="secondary" disabled={state.cash < payoff} onClick={() => { repayLoan(l.id); haptic.medium(); }}>
+                  <Button
+                    variant="secondary"
+                    disabled={state.cash < payoff}
+                    haptics="none"
+                    onClick={() => {
+                      repayLoan(l.id);
+                      haptic.success();
+                      sfx("cash");
+                      showToast(`Loan cleared — ${format(cents(l.weeklyPayment))}/wk freed up`, { tone: "positive", glyph: <Landmark size={15} /> });
+                    }}
+                  >
                     Pay off
                   </Button>
                 </div>
@@ -541,7 +556,13 @@ function MoraleCard({ state }: { state: GameState }) {
               key={o.kind}
               variant={o.kind === "offsite" ? "primary" : "secondary"}
               disabled={!canBoostMorale(state, o.kind)}
-              onClick={() => { boostMorale(o.kind); haptic.success(); }}
+              haptics="none"
+              onClick={() => {
+                boostMorale(o.kind);
+                haptic.success();
+                sfx("confirm");
+                showToast(`${o.label} — team mood +${o.lift}`, { tone: "positive", glyph: <Smile size={15} /> });
+              }}
             >
               {o.label} · +{o.lift} · {format(moraleCost(state, o.kind))}
             </Button>
@@ -779,7 +800,19 @@ function OperationsSection({ state, onAcquire }: { state: GameState; onAcquire: 
                 <span className="co__line-blurb">{f.blurb}</span>
                 <span className="co__line-meta">{capLabel(f.capacityPerWeek)} · {speedLabel(f.speedMult)} · {format(f.weeklyUpkeep)}/wk upkeep</span>
               </div>
-              <Button size="sm" variant={afford ? "primary" : "tertiary"} disabled={!afford} onClick={() => onAcquire(f.id)}>
+              <Button
+                size="sm"
+                variant={afford ? "primary" : "tertiary"}
+                disabled={!afford}
+                haptics="none"
+                onClick={() => {
+                  onAcquire(f.id);
+                  // An owned manufacturing line is an era-defining purchase — celebrate it like one.
+                  haptic.success();
+                  sfx("upgrade");
+                  showToast(`${f.name} acquired — tooling and unit costs drop`, { tone: "positive", glyph: <Factory size={15} /> });
+                }}
+              >
                 {format(f.acquireCost)}
               </Button>
             </div>
@@ -1327,6 +1360,15 @@ function RecruitPanel({
           <div className="co__member-info">
             <span className="co__member-name">{label} search…</span>
             <span className="co__member-role">{wl} week{wl === 1 ? "" : "s"} until the shortlist arrives</span>
+            {(() => {
+              const total = Math.max(1, BALANCE.recruitment.tiers[state.recruitment.tier].weeks);
+              const pct = Math.round((1 - wl / total) * 100);
+              return (
+                <span className="co__loan-track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Recruiter search progress">
+                  <span className="co__loan-fill" style={{ width: `${pct}%` }} />
+                </span>
+              );
+            })()}
           </div>
         </div>
         <p className="co__hint">Advance the weeks to interview candidates.</p>
@@ -1344,7 +1386,18 @@ function RecruitPanel({
           Shortlist available for {weeksLeft} more week{weeksLeft === 1 ? "" : "s"}.
         </p>
         {state.candidates.map((c) => (
-          <CandidateCard key={c.id} c={c} canHire={!full && state.cash >= c.hireFee} onHire={() => onHire(c.id)} />
+          <CandidateCard
+            key={c.id}
+            c={c}
+            canHire={!full && state.cash >= c.hireFee}
+            onHire={() => {
+              onHire(c.id);
+              // A person joining the company is a moment, not a silent debit.
+              haptic.success();
+              sfx("confirm");
+              showToast(`${c.name} joined as ${ROLE_LABEL[c.role] ?? c.role}`, { tone: "positive", glyph: <Users size={15} /> });
+            }}
+          />
         ))}
         <Button size="sm" variant="tertiary" onClick={onDismiss}>Dismiss shortlist</Button>
       </>

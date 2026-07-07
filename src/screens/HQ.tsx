@@ -18,7 +18,7 @@ import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
-import { dollars, format, formatShortDollars, toDollars, type Money } from "../engine/money.ts";
+import { dollars, format, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
   furnitureCost,
@@ -173,7 +173,8 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
               haptic.success();
               sfx("era");
               emitCelebrate();
-              showToast(`Welcome to the ${eraName(state.era + 1)}`, { tone: "positive", glyph: <Sparkles size={15} /> });
+              // No toast here — the full-screen EraModal takes over this same instant and the
+              // toast would expire unseen behind it.
             }}
           >
             Advance
@@ -418,7 +419,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
     onPlaceCell: (c, r) => {
       if (!placingType) return;
       if (!canAffordFurniture(state, placingType)) {
-        showToast(`Can't afford, ${furnitureDef(placingType).name} costs ${format(dollars(furnitureCost(placingType)))}`, { tone: "negative" });
+        showToast(`Need ${format(sub(dollars(furnitureCost(placingType)), state.cash))} more for the ${furnitureDef(placingType).name}`, { tone: "negative" });
         haptic.error();
         return;
       }
@@ -470,7 +471,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   // immediately drag it where they want.
   const pick = (type: FurnitureId) => {
     if (!canAffordFurniture(state, type)) {
-      showToast(`Can't afford, ${furnitureDef(type).name} costs ${format(dollars(furnitureCost(type)))}`, { tone: "negative" });
+      showToast(`Need ${format(sub(dollars(furnitureCost(type)), state.cash))} more for the ${furnitureDef(type).name}`, { tone: "negative" });
       haptic.error();
       return;
     }

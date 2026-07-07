@@ -2351,7 +2351,7 @@ export function rushBuild(state: GameState, productId: string): ActionResult {
   if (weeksLeft <= 0) return { state, ok: false, reason: "This run is already finishing." };
   const units = job.plannedUnits ?? BALANCE.build.minRun;
   const cost = Math.round(effectiveUnitCost(state, job.product) * units * BALANCE.build.rushCostPct) as Money;
-  if (state.cash < cost) return { state, ok: false, reason: "Not enough cash to rush the line." };
+  if (state.cash < cost) return { state, ok: false, reason: `Need ${format(sub(cost, state.cash))} more to rush the line.` };
   const feed = trimFeed([...state.feed, feedItem(state.week, `Rushed the ${job.product.name} line, one week saved.`, "neutral")]);
   return {
     state: {
@@ -2427,7 +2427,7 @@ export function marketingPush(state: GameState, productId: string): ActionResult
   if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return { state, ok: false, reason: "This product has already had a marketing push." };
   const quote = marketingPushQuote(lp);
   if (!quote) return { state, ok: false, reason: "No unsold inventory left to promote." };
-  if (state.cash < quote.cost) return { state, ok: false, reason: "Not enough cash for the campaign." };
+  if (state.cash < quote.cost) return { state, ok: false, reason: `Need ${format(sub(quote.cost, state.cash))} more for the campaign.` };
 
   const cap = lp.plannedUnits ?? lp.totalUnits;
   const newWeeklyUnits = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
@@ -3240,6 +3240,8 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   if (next.ready.length > prev.ready.length) return "A build is ready to launch";
   if (!prev.pendingChoice && next.pendingChoice) return "An event needs your call";
   if (!prev.pendingPoach && next.pendingPoach) return "A rival is poaching your staff";
+  // A paid-for recruiter shortlist EXPIRES — skipping past its arrival would waste the fee.
+  if (next.candidates.length > 0 && prev.candidates.length === 0) return "Your recruiter's shortlist arrived";
   if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";
   const finished = (s: GameState) => s.launched.filter((l) => l.weeksElapsed >= l.weeklyUnits.length).length;
   if (finished(next) > finished(prev)) return "A product finished its run";
@@ -3249,6 +3251,17 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   };
   if (!lowRunway(prev) && lowRunway(next)) return "Cash is running low";
   return null;
+}
+
+/** An affordable, unlocked research PROJECT is waiting — drives the nav badge on the Research
+ *  tab so a player grinding weeks on another screen learns RP crossed a threshold. Projects only
+ *  (not component tiers): tiers are near-continuously affordable mid-game and would make the
+ *  badge a permanent nag instead of a signal. */
+export function researchReady(state: GameState): boolean {
+  const rp = Math.floor(state.researchPoints);
+  return RESEARCH_PROJECTS.some(
+    (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id),
+  );
 }
 
 export function canAdvance(state: GameState): boolean {

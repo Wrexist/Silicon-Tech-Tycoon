@@ -191,7 +191,8 @@ export const SCENARIOS: readonly Scenario[] = [
       "You turned down the cheque. Starting capital is tight, so every build is a real bet, grow a " +
       "profitable company on conviction alone.",
     difficulty: "standard",
-    setup: { cash: dollars(12_000) },
+    // Literally half the freeform start ($100K) — the tagline is a promise, keep it true.
+    setup: { cash: dollars(50_000) },
     tiers: [
       { stars: 1, objectives: [{ metric: "netWorth", target: 500_000, label: "Reach $500K net worth" }] },
       { stars: 2, objectives: [{ metric: "netWorth", target: 2_000_000, label: "Reach $2M net worth" }] },
@@ -231,7 +232,9 @@ export const SCENARIOS: readonly Scenario[] = [
       "Nobody believes in you yet. Start lean with a bruised reputation and a hard deadline, race to " +
       "your first million before the runway runs out.",
     difficulty: "hard",
-    setup: { cash: dollars(10_000), reputation: 10 },
+    // Tight vs the $100K freeform start, but still enough for two lean first runs — "hard" must
+    // mean pressure, not a locked door (a minimum run costs ~$15K upfront).
+    setup: { cash: dollars(35_000), reputation: 10 },
     deadlineWeek: 78, // ~1.5 years
     tiers: [
       { stars: 1, objectives: [{ metric: "cumulativeRevenue", target: 1_000_000, label: "Earn $1M in lifetime revenue by week 78" }] },

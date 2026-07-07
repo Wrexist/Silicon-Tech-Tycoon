@@ -76,11 +76,21 @@ function useSmoothWeeks(weeksElapsed: number, totalWeeks: number): number {
   const sub = est.week === weeksElapsed ? est.sub : 0;
   useEffect(() => {
     if (paused || reduced || weeksElapsed >= totalWeeks) return; // pause freezes; reduced motion steps
-    const tickMs = (BALANCE.secondsPerTick / (fast || skipping ? BALANCE.fastMultiplier : 1)) * 1000;
-    const t0 = performance.now();
     const sub0 = sub; // resume from where the estimate froze (0 on a fresh week)
+    if (sub0 >= 0.97) return; // capped — nothing left to animate until the sim ticks the week over
+    const tickMs = (BALANCE.secondsPerTick / (fast || skipping ? BALANCE.fastMultiplier : 1)) * 1000;
+    let t0 = performance.now();
+    let lastNow = t0;
     const id = setInterval(() => {
-      setEst({ week: weeksElapsed, sub: Math.min(0.97, sub0 + (performance.now() - t0) / tickMs) });
+      const now = performance.now();
+      // Backgrounded tab: the sim is frozen too, so shift the anchor instead of accruing —
+      // the ring must not creep ahead of a world that isn't moving.
+      if (document.hidden) { t0 += now - lastNow; lastNow = now; return; }
+      lastNow = now;
+      const nextSub = Math.min(0.97, sub0 + (now - t0) / tickMs);
+      // Functional update returning the SAME object when nothing changed skips the re-render —
+      // otherwise every 120ms tick would re-render the ring + DeviceRenderer for no visual delta.
+      setEst((prev) => (prev.week === weeksElapsed && prev.sub === nextSub ? prev : { week: weeksElapsed, sub: nextSub }));
     }, 120); // ~8fps — the CSS transition on the ring smooths the rest
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `sub` is read once per (re)start on purpose
