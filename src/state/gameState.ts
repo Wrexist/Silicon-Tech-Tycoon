@@ -159,6 +159,22 @@ export interface FeedItem {
   tone: FeedTone;
 }
 
+/** The data a Rival Strike interrupt needs — snapshotted at the moment a contested rival launch
+ *  dented the player's active product (see advanceOneWeek). The rival's rendered device can be
+ *  recovered from state.rivalReleases via (rivalId, week) for the card. */
+export interface RivalStrike {
+  week: number;
+  rivalId: string;
+  rivalName: string;
+  rivalProductName: string;
+  rivalOverall: number;
+  category: CategoryId;
+  /** The player's contested product (the newest active one in the category at strike time). */
+  productId: string;
+  productName: string;
+  playerOverall: number;
+}
+
 export interface GameState {
   version: number;
   seed: number;
@@ -267,6 +283,13 @@ export interface GameState {
   /** A rival poaching one of your staff, awaiting a counter-offer decision (Track C). Resolved via
    *  resolvePoach. Optional/null → golden-invariant safe (old saves load with no pending poach). */
   pendingPoach?: { staffId: string; staffName: string; rivalId: string; rivalName: string; retainCost: Money; week: number } | null;
+  /** A rival launched INTO a category where the player is actively selling — the moment the entry
+   *  haircut landed. Raised as a respond-or-hold interrupt (RivalStrike card); resolved via
+   *  resolveStrike, always player-opt-in so the pinned sim (which never answers) is untouched.
+   *  Optional/null → golden-invariant safe. */
+  pendingStrike?: RivalStrike | null;
+  /** Week of the last strike interrupt — enforces the cooldown so strikes stay events, not nags. */
+  lastStrikeWeek?: number;
   /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
    *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
   loans?: Loan[];
@@ -503,6 +526,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     completedObjectives: [],
     pendingChoice: null,
     pendingPoach: null,
+    pendingStrike: null,
+    lastStrikeWeek: -999,
     loans: [],
     moraleCooldownUntil: 0,
     resolvedChoices: [],
@@ -1408,6 +1433,37 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
   });
 
+  // Rival Strike (fun track): the haircut above already landed — unchanged, unconditional — but a
+  // contested entry ALSO raises a respond-or-hold interrupt so the attack is a moment the player
+  // answers, not a feed line they read. One at a time, cooldown-gated; the interrupt itself changes
+  // no economy numbers (responses are opt-in reducers the pinned sim never calls).
+  let pendingStrike = state.pendingStrike ?? null;
+  if (
+    !pendingStrike &&
+    contestedCats.size > 0 &&
+    week - (state.lastStrikeWeek ?? -999) >= BALANCE.market.competition.strike.cooldownWeeks
+  ) {
+    const release = rivalReleases.find((r) => r.week === week && contestedCats.has(r.category));
+    const target = release
+      ? launchedFinal
+          .filter((lp) => lp.product.category === release.category && lp.weeksElapsed < lp.weeklyUnits.length)
+          .reduce<(typeof launchedFinal)[number] | null>((a, b) => (!a || b.launchedWeek > a.launchedWeek ? b : a), null)
+      : null;
+    if (release && target) {
+      pendingStrike = {
+        week,
+        rivalId: release.rivalId,
+        rivalName: release.rivalName,
+        rivalProductName: release.product.name,
+        rivalOverall: release.overall,
+        category: release.category,
+        productId: target.product.id,
+        productName: target.product.name,
+        playerOverall: overallScore(target.stats, target.product.category),
+      };
+    }
+  }
+
   // Research points generated this week — accrue through the SAME selector the UI shows, so the
   // displayed rate and the earned amount can never diverge (this previously omitted the office-focus
   // multiplier and, later, the legacy perk bonus — the UI lied for players who had them).
@@ -1616,6 +1672,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     trendRetargetWeek,
     competitors,
     launched: launchedFinal,
+    pendingStrike,
     cashHistory,
     osBaseHistory,
     osLicensees,
@@ -2451,6 +2508,78 @@ export function marketingPush(state: GameState, productId: string): ActionResult
   };
 }
 
+/** How the player answers a Rival Strike. All three are OPT-IN (the pinned sim never calls this),
+ *  so the strike system adds pressure the player can feel without moving the tuned baseline. */
+export type StrikeResponse = "price" | "campaign" | "hold";
+
+/** Answer the pending Rival Strike:
+ *  - "price": cut the contested product's price by strike.priceCutFrac via the ordinary
+ *    cutProductPrice path (same one-cut-per-product rule; demand recovers through priceFit).
+ *  - "campaign": run the ordinary marketingPush at a strike discount (the moment is the deal).
+ *  - "hold": spend nothing; if your product genuinely outclasses theirs, the market notices
+ *    (+holdRepBonus reputation) — refusing to blink is a real strategy, not a dismissal.
+ *  Any resolution clears the interrupt and starts the cooldown. */
+export function resolveStrike(state: GameState, choice: StrikeResponse): ActionResult {
+  const strike = state.pendingStrike;
+  if (!strike) return { state, ok: false, reason: "No rival strike to answer." };
+  const cfg = BALANCE.market.competition.strike;
+  const cleared: GameState = { ...state, pendingStrike: null, lastStrikeWeek: state.week };
+  const feedLine = (g: GameState, text: string, tone: FeedTone): GameState => {
+    const feed = [...g.feed];
+    feed.push(feedItem(state.week, text, tone));
+    return { ...g, feed: trimFeed(feed) };
+  };
+
+  if (choice === "hold") {
+    if (strike.playerOverall >= strike.rivalOverall) {
+      return {
+        state: feedLine(
+          { ...cleared, reputation: Math.min(100, cleared.reputation + cfg.holdRepBonus) },
+          `You held the line: ${strike.productName} outclasses ${strike.rivalProductName}, and the market noticed.`,
+          "positive",
+        ),
+        ok: true,
+      };
+    }
+    return {
+      state: feedLine(cleared, `You held the line against ${strike.rivalName}. Time will tell.`, "neutral"),
+      ok: true,
+    };
+  }
+
+  if (choice === "price") {
+    const lp = state.launched.find((l) => l.product.id === strike.productId);
+    if (!lp) return { state, ok: false, reason: "That product is no longer selling." };
+    const newPrice = Math.max(lp.unitCost, Math.round(lp.product.price * (1 - cfg.priceCutFrac))) as Money;
+    const res = cutProductPrice(cleared, strike.productId, newPrice);
+    if (!res.ok) return { state, ok: false, reason: res.reason };
+    return { state: feedLine(res.state, `Price answered ${strike.rivalName}'s move on ${strike.productName}.`, "accent"), ok: true };
+  }
+
+  // "campaign" — the ordinary push, at the strike discount (refund the difference on top of the
+  // normal charge so marketingPush stays the single source of the demand math).
+  const lp = state.launched.find((l) => l.product.id === strike.productId);
+  if (!lp) return { state, ok: false, reason: "That product is no longer selling." };
+  const quote = marketingPushQuote(lp);
+  if (!quote) return { state, ok: false, reason: "No unsold inventory left to promote." };
+  const refund = cents(Math.round(quote.cost * cfg.campaignDiscount));
+  const discounted = sub(quote.cost, refund);
+  if (state.cash < discounted) return { state, ok: false, reason: `Need ${format(sub(discounted, state.cash))} more for the counter-campaign.` };
+  // Prime the discount BEFORE the ordinary push so its full-price cash gate can't refuse a player
+  // who can afford the discounted rate — net charge = quote.cost − refund exactly.
+  const primed: GameState = { ...cleared, cash: add(cleared.cash, refund) };
+  const res = marketingPush(primed, strike.productId);
+  if (!res.ok) return { state, ok: false, reason: res.reason };
+  return {
+    state: feedLine(
+      res.state,
+      `Counter-campaign fired back at ${strike.rivalName} — booked at ${Math.round(cfg.campaignDiscount * 100)}% off.`,
+      "accent",
+    ),
+    ok: true,
+  };
+}
+
 function clampMood(m: number): number {
   return Math.max(0, Math.min(100, m));
 }
@@ -3240,6 +3369,7 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   if (next.ready.length > prev.ready.length) return "A build is ready to launch";
   if (!prev.pendingChoice && next.pendingChoice) return "An event needs your call";
   if (!prev.pendingPoach && next.pendingPoach) return "A rival is poaching your staff";
+  if (!prev.pendingStrike && next.pendingStrike) return "A rival is attacking your product";
   // A paid-for recruiter shortlist EXPIRES — skipping past its arrival would waste the fee.
   if (next.candidates.length > 0 && prev.candidates.length === 0) return "Your recruiter's shortlist arrived";
   if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";

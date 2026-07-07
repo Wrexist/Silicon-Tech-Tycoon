@@ -134,6 +134,15 @@ export const BALANCE = {
       // announced "faces new competition" — now it's mechanically true, and the mid-life
       // price cut has a real job answering it).
       rivalEntrySalesHaircut: 0.10,
+      // Rival Strike — the respond-or-hold interrupt raised by a contested rival launch. The BASE
+      // haircut above still lands immediately and unchanged, so the pinned sim (whose auto-player
+      // never answers) stays byte-identical; every response below is a player-opt-in recovery.
+      strike: {
+        cooldownWeeks: 8,     // at most one interrupt per ~2 months — an event, not a nag
+        priceCutFrac: 0.10,   // the "Cut price" answer drops the contested product's price 10%
+        campaignDiscount: 0.20, // the "Counter-campaign" answer runs marketingPush 20% off
+        holdRepBonus: 1,      // "Hold the line" pays +1 rep IF your product outclasses theirs
+      },
       // Era-scaled competitive pressure. The Garage Era is a protected learning sandbox: rivals
       // barely contest you, so a new player's first products land as steady sellers and they climb
       // toward their first hit instead of drowning in flops. Pressure ramps to full force in the

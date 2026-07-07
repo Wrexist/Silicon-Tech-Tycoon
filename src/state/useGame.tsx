@@ -23,6 +23,7 @@ import {
   evaluateObjectives,
   buyProject,
   hostKeynote,
+  resolveStrike,
   REV_MILESTONES,
   buyShares,
   acquireRival,
@@ -114,6 +115,7 @@ import type { MasteryInput } from "../engine/achievements.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
 import type { ProjectId } from "../engine/research.ts";
+import type { StrikeResponse } from "./gameState.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
@@ -385,6 +387,7 @@ interface GameActionsValue {
   unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
   hostKeynote: () => void;
+  resolveStrike: (choice: StrikeResponse) => void;
   buyUpgrade: (id: UpgradeId) => void;
   buyDesktop: () => void;
   unlockRegion: (id: RegionId) => void;
@@ -778,6 +781,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
     setState(next);
+  }, []);
+  const resolveStrikeCb = useCallback((choice: StrikeResponse) => {
+    const prev = stateRef.current;
+    const result = resolveStrike(prev, choice);
+    if (!result.ok) {
+      showToast(result.reason ?? "Can't do that right now", { tone: "negative" });
+      return;
+    }
+    const spent = (prev.cash - result.state.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    setState(result.state);
   }, []);
   const hostKeynoteCb = useCallback(() => {
     const prev = stateRef.current;
@@ -1184,6 +1198,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
       hostKeynote: hostKeynoteCb,
+      resolveStrike: resolveStrikeCb,
       buyUpgrade: buyUpgradeCb,
       buyDesktop: buyDesktopCb,
       unlockRegion: unlockRegionCb,
@@ -1259,7 +1274,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

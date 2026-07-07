@@ -13,6 +13,7 @@ import { GainFX } from "./design/GainFX.tsx";
 import { Confetti } from "./design/Confetti.tsx";
 import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
+import { RivalStrike } from "./components/RivalStrike.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
@@ -196,6 +197,7 @@ function AppShell() {
       <GainFX />
       <Confetti />
       <ReadyToLaunch />
+      <RivalStrike />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />
