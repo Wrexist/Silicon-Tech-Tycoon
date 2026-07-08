@@ -4,15 +4,20 @@
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
-  background: color-mix(in srgb, #0a0c10 58%, transparent);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  background: color-mix(in srgb, #0a0c10 48%, transparent);
+  backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%);
   animation: cele-scrim var(--spring-standard) both;
 }
 .cele__card {
-  width: min(380px, 100%);
-  background: var(--surface); border: 1px solid var(--glass-stroke);
-  border-radius: var(--r-sheet); padding: var(--sp-32) var(--sp-24) var(--sp-24);
-  box-shadow: var(--glass-highlight), var(--shadow-floating);
+  width: min(410px, 100%);
+  /* Liquid glass: a translucent frosted material that refracts the blurred backdrop, with a bright
+     specular top edge. The real blur is affordable here — it's a single modal, not a scrolling list. */
+  background: var(--glass-card);
+  backdrop-filter: blur(34px) saturate(180%);
+  -webkit-backdrop-filter: blur(34px) saturate(180%);
+  border: 1px solid var(--glass-stroke);
+  border-radius: var(--r-sheet); padding: var(--sp-32) var(--sp-28) var(--sp-28);
+  box-shadow: var(--glass-highlight), var(--shadow-floating), 0 0 0 1px color-mix(in srgb, #fff 6%, transparent);
   text-align: center;
   animation: cele-pop var(--spring-standard) both;
 }

@@ -15,26 +15,32 @@
   position: absolute;
   inset: 0;
   border: none;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Lighter, strongly-blurred scrim so the game shows through the glass card (liquid glass). */
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
 }
 .rst__card {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 380px;
+  max-width: 410px;
   max-height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-12);
-  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  padding: var(--sp-28) var(--sp-28) var(--sp-28);
   border-radius: var(--r-sheet);
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--negative) 35%, var(--hairline));
-  box-shadow: var(--shadow-floating);
+  /* Liquid glass — frosted material over the blurred backdrop. */
+  background:
+    radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--negative) 14%, transparent), transparent 62%),
+    var(--glass-card);
+  backdrop-filter: blur(34px) saturate(180%);
+  -webkit-backdrop-filter: blur(34px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--negative) 34%, var(--glass-stroke));
+  box-shadow: var(--glass-highlight), var(--shadow-floating), 0 0 50px -16px color-mix(in srgb, var(--negative) 45%, transparent);
   text-align: center;
   animation: rst-pop var(--spring-standard) both;
 }

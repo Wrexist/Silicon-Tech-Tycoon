@@ -9,24 +9,28 @@
 }
 .eur__scrim {
   position: absolute; inset: 0;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  /* Lighter, strongly-blurred scrim so the game shows through the glass card (liquid glass). */
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%);
 }
 .eur__card {
-  position: relative; z-index: 1; width: 100%; max-width: 380px; max-height: 100%; overflow-y: auto;
-  display: flex; flex-direction: column; align-items: center; gap: var(--sp-8);
-  padding: var(--sp-28) var(--sp-20) var(--sp-20);
+  position: relative; z-index: 1; width: 100%; max-width: 410px; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-10);
+  padding: var(--sp-32) var(--sp-28) var(--sp-28);
   border-radius: var(--r-sheet);
-  background: radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%), var(--surface);
-  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--hairline));
-  box-shadow: var(--shadow-floating);
+  /* Liquid glass — frosted, faintly accent-tinted material over the blurred backdrop. */
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%), var(--glass-card);
+  backdrop-filter: blur(34px) saturate(180%);
+  -webkit-backdrop-filter: blur(34px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--glass-stroke));
+  box-shadow: var(--glass-highlight), var(--shadow-floating), 0 0 50px -16px color-mix(in srgb, var(--accent) 50%, transparent);
   text-align: center;
   animation: eur-in var(--spring-gentle) both;
 }
 .eur__card--jackpot {
-  background: radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--positive) 20%, transparent), transparent 62%), var(--surface);
-  border-color: color-mix(in srgb, var(--positive) 46%, var(--hairline));
-  box-shadow: var(--shadow-floating), 0 0 46px -14px color-mix(in srgb, var(--positive) 60%, transparent);
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--positive) 22%, transparent), transparent 60%), var(--glass-card);
+  border-color: color-mix(in srgb, var(--positive) 44%, var(--glass-stroke));
+  box-shadow: var(--glass-highlight), var(--shadow-floating), 0 0 50px -14px color-mix(in srgb, var(--positive) 55%, transparent);
 }
 @keyframes eur-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .eur__card { animation: none; } }
@@ -44,11 +48,11 @@
 .eur__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-2) 0 var(--sp-8); }
 .eur__kind { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--accent); text-transform: capitalize; }
 
-.eur__choices { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-10); width: 100%; margin-top: var(--sp-4); }
+.eur__choices { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); width: 100%; margin-top: var(--sp-8); align-items: stretch; }
 .eur__choice {
-  display: flex; flex-direction: column; align-items: center; gap: var(--sp-4);
-  padding: var(--sp-16) var(--sp-10); border-radius: var(--r-button);
-  background: var(--surface-2); border: 1px solid var(--hairline); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-4);
+  padding: var(--sp-16) var(--sp-12); border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent); border: 1px solid var(--glass-stroke); cursor: pointer;
   transition: border-color var(--spring-snappy), background var(--spring-snappy), transform var(--spring-snappy);
   -webkit-tap-highlight-color: transparent;
 }
