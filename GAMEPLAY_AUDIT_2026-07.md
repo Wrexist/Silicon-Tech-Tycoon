@@ -154,3 +154,27 @@ fast-forward — a tell). Make a launched product an *actable* asset:
   and gated on optional fields so old saves + the pinned determinism/balance sim stay byte-identical.
 - No new image assets (parametric SVG / Lucide only). No emoji. No IP names. No dark patterns.
 - After each phase: `npm run typecheck` + `npm test` must be green; commit per phase.
+
+---
+
+## SESSION 2 — Immersion & "alive" features (post-audit, on request) 🎮💎
+Three player-facing systems made deeper, more immersive, and higher-fidelity. All engine additions
+are pure + gated on optional/backfilled fields (or `platformUnlocked`), so the pinned determinism/
+balance sim stays byte-identical. Baseline held green throughout (**835 → 854 tests**).
+
+- **Living OS** (Platform division) — the OS is now something you *work*, not passive income:
+  - **App Store** — a marketplace that stays dormant until you research the App Marketplace module,
+    then grows with your installed base + OS version; you take a bounded weekly commission. A
+    deterministic, IP-safe "Featured today" strip rotates as the catalogue grows.
+  - **Security console** — a threat-vs-hardening tug-of-war. Threat creeps up each live week (halved
+    by the Privacy Suite module); over-exposure drags reputation, so the OS must be kept patched.
+  - **"Real" update button** — shipping a security patch (or a full version release) plays a staged
+    install-progress animation (download → verify → patch → harden → finalize) before the action
+    fires. Patches are on a cooldown; a release wipes threat and hardens most.
+- **Device design → sales** — form was a Style-segment-only niche; now a striking, coherent design
+  lifts *every* buyer segment in proportion to how much it values design, and the **number of cameras**
+  is a real desirability lever (a well-arranged multi-lens system reads as ambition; clutter earns
+  nothing). Bounded so the anti-solved-game guards still hold. Surfaced in the Design Lab.
+- **Global markets** — the region-unlock list became the "garage → global empire" moment: a world-
+  reach meter, per-region emblems + world-share + buyer-taste chips + a fit read for your current
+  line, reframed as buying a distribution **licence**, with a "flag planted" celebration on unlock.
