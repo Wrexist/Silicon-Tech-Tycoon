@@ -74,15 +74,6 @@ export function buildWeeks(engineerSkill: number, fast: boolean): number {
   return Math.max(BALANCE.build.minWeeks, Math.round(w));
 }
 
-/** R&D cost after engineering discount (more engineer skill = cheaper research). */
-export function discountedRd(rdCost: Money, engineerSkill: number): Money {
-  const factor = Math.max(
-    0.45,
-    1 - engineerSkill * BALANCE.staff.engineerRdSpeedPerSkill,
-  );
-  return scale(rdCost, factor);
-}
-
 /** Design-tier ceiling from designer skill (min 1). */
 export function designCeiling(designerSkill: number): number {
   return 1 + Math.floor(designerSkill * BALANCE.staff.designerCeilingPerSkill);

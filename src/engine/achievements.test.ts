@@ -5,7 +5,6 @@ import {
   achievementById,
   deriveFacts,
   evaluateAchievements,
-  newlyUnlocked,
   type AchievementFacts,
 } from "./achievements.ts";
 import { completableProjectCount } from "./research.ts";
@@ -358,11 +357,3 @@ describe("evaluateAndUnlock is monotonic + idempotent (no double-unlock)", () =>
   });
 });
 
-describe("newlyUnlocked diffs against the previous set", () => {
-  it("returns only ids not previously held", () => {
-    const facts = { ...emptyFacts(), productsShipped: 1, hits: 1 };
-    expect(newlyUnlocked([], facts).sort()).toEqual(["first-hit", "first-ship"]);
-    expect(newlyUnlocked(["first-ship"], facts)).toEqual(["first-hit"]);
-    expect(newlyUnlocked(["first-ship", "first-hit"], facts)).toEqual([]);
-  });
-});

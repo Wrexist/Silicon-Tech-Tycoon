@@ -6,9 +6,6 @@ import type { CompetitorState } from "./types.ts";
 
 export type Holdings = Partial<Record<string, number>>;
 
-/** A fixed float for the player's company so a valuation maps to a clean per-share price. */
-const PLAYER_TOTAL_SHARES = 1_000_000;
-
 /** Coerce a share quantity to a finite, non-negative integer. */
 function safeQty(qty: number): number {
   if (!Number.isFinite(qty)) return 0;
@@ -42,7 +39,3 @@ export function weeklyDividends(holdings: Holdings, comps: readonly CompetitorSt
   return cents(Math.round(acc));
 }
 
-/** Player company's per-share price (cents) given its current valuation. */
-export function playerSharePrice(valuationCents: number): number {
-  return Math.max(1, Math.round(valuationCents / PLAYER_TOTAL_SHARES));
-}

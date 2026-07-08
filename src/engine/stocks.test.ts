@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buyCost, sellProceeds, holdingsValue, weeklyDividends, playerSharePrice } from "./stocks.ts";
+import { buyCost, sellProceeds, holdingsValue, weeklyDividends } from "./stocks.ts";
 import type { CompetitorState } from "./types.ts";
 import { toDollars } from "./money.ts";
 
@@ -34,7 +34,4 @@ describe("stock market math", () => {
     expect(toDollars(weeklyDividends({}, comps))).toBe(0);
   });
 
-  it("player share price scales with valuation", () => {
-    expect(playerSharePrice(1_000_000 * 100)).toBeGreaterThan(playerSharePrice(500_000 * 100));
-  });
 });

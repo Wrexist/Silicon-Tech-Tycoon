@@ -14,7 +14,7 @@ import {
 import { bestSegmentPerceived } from "./segments.ts";
 import { forecast } from "./salesCurve.ts";
 import { launchRpReward } from "./research.ts";
-import { runwayWeeks, isBankrupt, salaryFor, discountedRd } from "./economy.ts";
+import { runwayWeeks, isBankrupt, salaryFor } from "./economy.ts";
 import { canAdvanceEra, isCategoryUnlocked, unlockedCategories } from "./eras.ts";
 import { makeRng } from "./rng.ts";
 import type { Product, Stats } from "./types.ts";
@@ -307,10 +307,8 @@ describe("economy", () => {
     expect(isBankrupt(dollars(-1))).toBe(true);
     expect(isBankrupt(dollars(0))).toBe(false);
   });
-  it("salary scales with skill; R&D discount with engineer skill", () => {
+  it("salary scales with skill", () => {
     expect(salaryFor("engineer", 5)).toBeGreaterThan(salaryFor("engineer", 1));
-    expect(discountedRd(dollars(10_000), 10)).toBeLessThan(dollars(10_000));
-    expect(discountedRd(dollars(10_000), 0)).toBe(dollars(10_000));
   });
 });
 
