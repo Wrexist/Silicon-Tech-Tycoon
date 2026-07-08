@@ -1020,10 +1020,15 @@ const LABEL_INK_SOFT = "#6b7280";
 // Team reaction emotes that pop over a worker's head — a burst on a win, a sigh on a flop.
 const CHEER_EMOJI = ["🎉", "🙌", "✨", "🥳", "🚀"];
 const SLUMP_EMOJI = ["😞", "😔", "😮‍💨", "💤", "🫠"];
-function CheerEmote({ pos, emoji }: { pos: [number, number, number]; emoji: string }) {
+function CheerEmote({ pos, emoji, delay = 0 }: { pos: [number, number, number]; emoji: string; delay?: number }) {
   return (
     <Html position={pos} center zIndexRange={[30, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
-      <div style={{ fontSize: 22, transform: "translateY(-120%)", filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.45))" }}>{emoji}</div>
+      <div style={{
+        fontSize: 30,
+        transform: "translateY(-150%)",   // base spot (used when reduced-motion neutralizes the pop)
+        filter: "drop-shadow(0 3px 7px rgba(0,0,0,0.5))",
+        animation: `hq-emote-pop 2s ${delay}ms ease-out both`,
+      }}>{emoji}</div>
     </Html>
   );
 }
@@ -1789,7 +1794,9 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
             ...podStaff.map((s, i) => ({ w: podWorlds[i], key: s.id ?? `react-pod${i}`, i: seats.length + i })),
           ].map((e) => {
             const set = reaction === "slump" ? SLUMP_EMOJI : CHEER_EMOJI;
-            return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} emoji={set[e.i % set.length]} />;
+            // Stagger the pops so the reaction ripples across the team, not all at once — capped so
+            // even the last emote's 2s pop still finishes inside the ~2.6s reaction window.
+            return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} emoji={set[e.i % set.length]} delay={Math.min(e.i * 70, 520)} />;
           })}
         </>
       )}
