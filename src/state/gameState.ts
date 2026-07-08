@@ -14,7 +14,7 @@ import {
 } from "../engine/competitors.ts";
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
-import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, type CommunityFacts, type MoodTier } from "../engine/community.ts";
+import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import {
   assignedSkill,
   buildWeeks,
@@ -96,6 +96,7 @@ import {
   cents,
   dollars,
   format,
+  gte,
   scale,
   sub,
   toDollars,
@@ -314,6 +315,12 @@ export interface GameState {
   pendingEureka?: EurekaMoment | null;
   /** Week of the last eureka breakthrough — enforces the cooldown + drives the Insight meter. */
   lastEurekaWeek?: number;
+  /** A community "ask" on the table — the fans want an AMA / beta / merch / meetup; answer it for cash
+   *  to grow + delight the base, or pass (resolveCommunityAsk). Fires only once you've launched; the
+   *  pinned solo sim never has one. Optional/null → golden-invariant safe. */
+  pendingCommunityAsk?: CommunityAsk | null;
+  /** Week of the last community ask — enforces the cooldown between asks. */
+  lastCommunityAskWeek?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -605,6 +612,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingRivalry: null,
     pendingEureka: null,
     lastEurekaWeek: -999,
+    pendingCommunityAsk: null,
+    lastCommunityAskWeek: -999,
     pendingAwards: null,
     awardsHistory: [],
     pendingSideOrder: null,
@@ -2038,6 +2047,29 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       base.pendingEureka = moment;
       base.lastEurekaWeek = week;
       base.feed.push(feedItem(week, `Your lab had a breakthrough in the ${moment.componentKind} line. Bank it, or chase the prototype?`, "accent"));
+    }
+  }
+
+  // Community ASK: once you have a fanbase (launched ≥ 1), the community periodically asks for
+  // something — answer it (resolveCommunityAsk) to grow + delight the base, or pass. Derived-hash
+  // cadence + cooldown + a fresh-launch cooloff; yields to any other pending interrupt. The pinned
+  // solo sim never launches, so it never raises one → byte-identical.
+  {
+    const ca = BALANCE.fans.community.asks;
+    const lastLaunchWeek = state.launched.reduce((m, lp) => Math.max(m, lp.launchedWeek), -Infinity);
+    if (
+      !offline && !bankrupt &&
+      state.launched.length >= 1 &&
+      !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike && !base.pendingPoach &&
+      !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
+      week - (state.lastCommunityAskWeek ?? -999) >= ca.cooldownWeeks &&
+      week - lastLaunchWeek >= ca.minWeeksSinceLaunch &&
+      communityAskDue(state.seed, week)
+    ) {
+      const ask = generateCommunityAsk(state.seed, week, base.fans);
+      base.pendingCommunityAsk = ask;
+      base.lastCommunityAskWeek = week;
+      base.feed.push(feedItem(week, `The community is asking: ${ASK_INFO[ask.kind].title.toLowerCase()}. Answer the call, or let it pass?`, "accent"));
     }
   }
 
@@ -4174,6 +4206,38 @@ export function resolveEureka(state: GameState, choice: "bank" | "chase"): { sta
   return {
     state: { ...state, researchPoints: state.researchPoints + outcome.rp, pendingEureka: null, feed: trimFeed(feed) },
     result: { ok: true, jackpot: false, rp: outcome.rp },
+  };
+}
+
+export interface CommunityAskResult { ok: boolean; reason?: string; answered?: boolean; fanGain?: number; }
+/** Resolve a pending community ask. ANSWER it (accept=true): spend the cash, grow the base by fanGain,
+ *  and lift the mood (which then decays via the normal EMA). PASS (accept=false): a small mood dip. Both
+ *  clear the pending ask. No-op if nothing's pending or you can't afford to answer. Player-claimed, so
+ *  the pinned sim (which never launches) never reaches it → byte-identical. */
+export function resolveCommunityAsk(state: GameState, accept: boolean): { state: GameState; result: CommunityAskResult } {
+  const ask = state.pendingCommunityAsk ?? null;
+  if (!ask) return { state, result: { ok: false, reason: "No community ask to resolve." } };
+  const clampSent = (n: number): number => (n < -1 ? -1 : n > 1 ? 1 : n);
+  const feed = [...state.feed];
+  if (!accept) {
+    const fanSentiment = clampSent((state.fanSentiment ?? 0) + ask.passSentiment);
+    feed.push(feedItem(state.week, "You passed on the community's ask — the fans are a little let down.", "neutral"));
+    return { state: { ...state, fanSentiment, pendingCommunityAsk: null, feed: trimFeed(feed) }, result: { ok: true, answered: false } };
+  }
+  if (!gte(state.cash, ask.cost)) return { state, result: { ok: false, reason: "Not enough cash to answer this." } };
+  const info = ASK_INFO[ask.kind];
+  const fanSentiment = clampSent((state.fanSentiment ?? 0) + ask.sentimentGain);
+  feed.push(feedItem(state.week, `${info.done} +${ask.fanGain.toLocaleString()} fans join the community.`, "positive"));
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, ask.cost),
+      fans: state.fans + ask.fanGain,
+      fanSentiment,
+      pendingCommunityAsk: null,
+      feed: trimFeed(feed),
+    },
+    result: { ok: true, answered: true, fanGain: ask.fanGain },
   };
 }
 

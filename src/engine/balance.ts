@@ -315,6 +315,21 @@ export const BALANCE = {
       retentionSwing: 0.45,     // at |sentiment|=1, weekly fan loss is scaled ±this vs neutral
       superfanShareAtMax: 0.16, // at sentiment=+1, this fraction of fans are superfans
       superfanPreorderMult: 1.8,// superfans pre-order this × harder than an ordinary fan
+      // Community ASKS — periodic fan requests (an AMA, a public beta, a merch drop, a meetup) you can
+      // ANSWER for cash to grow + delight the base, or PASS. Player-claimed via an opt-in reducer and
+      // gated behind having launched, so the pinned solo sim never raises one → byte-identical.
+      asks: {
+        cadenceWeeks: 22,          // ~one derived-hash chance per this window
+        cooldownWeeks: 14,         // minimum weeks between asks
+        minWeeksSinceLaunch: 3,    // let a launch's dust settle before the fans ask for more
+        costBase: dollars(60_000), // floor cost to answer…
+        costPerFanCents: 700,      // …+ this per current fan (a bigger base → a bigger event)
+        costMax: dollars(40_000_000),
+        fanGainShare: 0.07,        // answering grows the base by this fraction (one-time)…
+        fanGainMin: 250,           // …or at least this many
+        sentimentGain: 0.16,       // …and lifts the mood (then decays via the normal EMA)
+        passSentiment: -0.05,      // passing lets the fans down a little
+      },
     },
   },
 

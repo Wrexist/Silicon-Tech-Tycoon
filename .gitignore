@@ -29,5 +29,6 @@ scripts/.regions.cjs
 scripts/.nemesis.cjs
 scripts/.eureka.cjs
 scripts/.glasspop.cjs
+scripts/.cma.cjs
 .tab-shots/
 .newfeat-shots/
