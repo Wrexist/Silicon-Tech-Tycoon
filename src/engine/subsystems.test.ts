@@ -25,6 +25,19 @@ describe("category subsystems", () => {
     expect(maxSubsystemStep("phone")).toBe(0);
   });
 
+  it("tablets/monitors/AR glasses have signature subsystems; phones stay bare (sim-safe)", () => {
+    expect(subsystemFor("tablet")?.name).toBe("Stylus");
+    expect(subsystemFor("monitor")?.name).toBe("Colour Accuracy");
+    expect(subsystemFor("experimental")?.name).toBe("Optics");
+    expect(subsystemFor("phone")).toBeNull(); // the phone-only balance sim must stay byte-identical
+  });
+
+  it("the new subsystems lift their category's headline stats", () => {
+    expect(computeStats(make("tablet", 2)).design).toBeGreaterThan(computeStats(make("tablet", 0)).design);
+    expect(computeStats(make("monitor", 2)).quality).toBeGreaterThan(computeStats(make("monitor", 0)).quality);
+    expect(computeStats(make("experimental", 2)).performance).toBeGreaterThan(computeStats(make("experimental", 0)).performance);
+  });
+
   it("the step clamps to the subsystem's range", () => {
     expect(effectiveSubsystemStep("laptop", 99)).toBe(maxSubsystemStep("laptop"));
     expect(effectiveSubsystemStep("laptop", -3)).toBe(0);

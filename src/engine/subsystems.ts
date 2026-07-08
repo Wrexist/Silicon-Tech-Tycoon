@@ -35,6 +35,34 @@ export const SUBSYSTEMS: readonly Subsystem[] = [
     perStep: { ecosystem: 7, quality: 4 },
     unitCost: dollars(5),
   },
+  {
+    // A tablet lives or dies on its creative input — a good digitizer opens up drawing, notes, and
+    // the pro-app ecosystem, so it lifts design appeal + ecosystem. (Phones deliberately still have
+    // none — the phone-only balance sim stays byte-identical.)
+    categories: ["tablet"],
+    name: "Stylus",
+    optionLabels: ["Touch only", "Stylus support", "Pro Stylus"],
+    perStep: { design: 5, ecosystem: 4 },
+    unitCost: dollars(5),
+  },
+  {
+    // A monitor is judged on its panel: colour fidelity is the spec pros pay for, lifting quality +
+    // design.
+    categories: ["monitor"],
+    name: "Colour Accuracy",
+    optionLabels: ["Standard gamut", "Wide gamut", "Reference grade"],
+    perStep: { quality: 7, design: 3 },
+    unitCost: dollars(6),
+  },
+  {
+    // AR glasses are an optics product — the waveguide + field of view make or break immersion,
+    // lifting design + performance. Premium per-unit cost (exotic optics).
+    categories: ["experimental"],
+    name: "Optics",
+    optionLabels: ["Basic optics", "Waveguide", "Holographic FOV"],
+    perStep: { design: 5, performance: 5 },
+    unitCost: dollars(8),
+  },
 ];
 
 /** The subsystem available to a category, or null if it has none. */
