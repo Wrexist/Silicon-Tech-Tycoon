@@ -11,7 +11,6 @@
   position: absolute; inset: 0;
   /* Minimal scrim — the popup card is the glass, not the surround. */
   background: color-mix(in srgb, var(--bg) 30%, transparent);
-  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
 }
 .eur__card {
   position: relative; z-index: 1; width: 100%; max-width: 410px; max-height: 100%; overflow-y: auto;

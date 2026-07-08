@@ -10,8 +10,6 @@
   padding: calc(var(--sp-24) + env(safe-area-inset-top)) var(--edge) calc(var(--sp-24) + env(safe-area-inset-bottom));
   /* Minimal scrim — the card is the glass, not the surround. */
   background: rgba(10, 12, 16, 0.3);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
   animation: dtut-fade var(--spring-snappy) both;
 }
 @keyframes dtut-fade { from { opacity: 0; } to { opacity: 1; } }

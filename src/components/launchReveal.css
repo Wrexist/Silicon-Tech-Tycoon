@@ -15,8 +15,6 @@
   border: none;
   /* Minimal scrim — the reveal card is the glass, not the surround. */
   background: color-mix(in srgb, var(--bg) 30%, transparent);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
 }
 .lreveal__card {
   position: relative;

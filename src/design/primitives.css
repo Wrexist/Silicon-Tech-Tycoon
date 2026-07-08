@@ -499,3 +499,36 @@
     opacity: 0;
   }
 }
+
+/* ── Liquid-glass EDGE REFLECTION ─────────────────────────────────────────────────────────────
+   A thin light-catching rim that glances across a popup's edges — bright at the top-left, fading
+   through the middle, catching again at the bottom-right — like the specular reflection on the edge
+   of real glass. Drawn as a masked gradient-border ring over the card's tinted border. The card's
+   own backdrop-filter still frosts what's directly behind it; the surrounding scrim is left CLEAR
+   (its blur was removed) so the game stays sharp around the popup. */
+.ern__card, .cma__card, .eur__card, .awd__card, .rst__card,
+.rvd__card, .cele__card, .rtl__card, .lreveal__card {
+  position: relative;
+}
+.ern__card::after, .cma__card::after, .eur__card::after, .awd__card::after, .rst__card::after,
+.rvd__card::after, .cele__card::after, .rtl__card::after, .lreveal__card::after, .dtut::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.66),
+    rgba(255, 255, 255, 0.12) 20%,
+    transparent 42%,
+    transparent 58%,
+    rgba(255, 255, 255, 0.16) 80%,
+    rgba(255, 255, 255, 0.5)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 4;
+}

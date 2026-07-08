@@ -10,7 +10,6 @@
 .ern__scrim {
   position: absolute; inset: 0;
   background: color-mix(in srgb, var(--bg) 30%, transparent);
-  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
 }
 .ern__card {
   position: relative; z-index: 1; width: 100%; max-width: 410px; max-height: 100%; overflow-y: auto;

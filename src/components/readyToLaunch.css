@@ -17,8 +17,6 @@
   border: none;
   /* Minimal scrim — the popup card is the glass, not the surround. */
   background: color-mix(in srgb, var(--bg) 30%, transparent);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
 }
 .rtl__card {
   position: relative;

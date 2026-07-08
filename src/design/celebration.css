@@ -5,7 +5,6 @@
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   background: color-mix(in srgb, #0a0c10 30%, transparent);
-  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
   animation: cele-scrim var(--spring-standard) both;
 }
 .cele__card {
