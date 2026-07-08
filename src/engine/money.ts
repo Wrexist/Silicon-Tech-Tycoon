@@ -81,6 +81,28 @@ export function formatShortDollars(dollars: number): string {
   return `${sign}$${Math.round(abs)}`;
 }
 
+/**
+ * Compact display for a raw COUNT (fans, units): 250 / 12.5k / 2.3M / 1.2B / 3.4T. Below 1,000
+ * shows the exact integer with thousands separators. One shared formatter so fans/units agree on
+ * every screen and, crucially, ROLL OVER past a million — the hand-rolled `(n/1000).toFixed(1)k`
+ * formatters this replaces rendered a 2M fanbase as "2000.0k". Lowercase 'k' matches
+ * `formatShortDollars`; ICU-independent (no Intl compact dependency) and boundary-safe (999,950
+ * promotes to "1M", never "1000.0k"). Pure string, no DOM.
+ */
+export function formatCount(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  const sign = n < 0 ? "-" : "";
+  let abs = Math.abs(n);
+  if (abs < 1000) return `${sign}${Math.round(abs).toLocaleString("en-US")}`;
+  const suffixes = ["", "k", "M", "B", "T"];
+  let tier = 0;
+  while (abs >= 1000 && tier < suffixes.length - 1) { abs /= 1000; tier++; }
+  // If rounding to 1dp pushes the mantissa to 1000 (e.g. 999,950 → "1000.0k"), promote a tier.
+  if (Math.round(abs * 10) / 10 >= 1000 && tier < suffixes.length - 1) { abs /= 1000; tier++; }
+  const str = (Math.round(abs * 10) / 10).toFixed(1).replace(/\.0$/, "");
+  return `${sign}${str}${suffixes[tier]}`;
+}
+
 /** Sum a list of Money exactly. */
 export function sum(list: readonly Money[]): Money {
   let acc = 0;

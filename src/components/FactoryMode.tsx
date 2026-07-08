@@ -21,7 +21,7 @@ import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.t
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
-import { format, sub, toDollars } from "../engine/money.ts";
+import { format, formatCount, sub, toDollars } from "../engine/money.ts";
 import type { ComponentKind, FactoryId } from "../engine/types.ts";
 import type { Tab } from "./BottomNav.tsx";
 import { StageTrail } from "./BuildProgress.tsx";
@@ -127,12 +127,6 @@ function useFactoryData() {
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
     floor: state.factoryFloor, lineSpeed, linePct, missing,
   };
-}
-
-function fmtCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
 }
 
 /* --------------------- layout-driven minimap (SVG, zero assets) --------------------- */
@@ -806,7 +800,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               const n = d.materials.get(kind) ?? 0;
               return (
                 <span key={kind} className={`fmode__matschip${n === 0 ? " fmode__matschip--zero" : ""}`} title={kind}>
-                  <Icon size={13} aria-hidden /><span className="tnum">{fmtCount(n)}</span>
+                  <Icon size={13} aria-hidden /><span className="tnum">{formatCount(n)}</span>
                 </span>
               );
             })}

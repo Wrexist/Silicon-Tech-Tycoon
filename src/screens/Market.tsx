@@ -12,7 +12,7 @@ import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
-import { dollars, format, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
+import { dollars, format, formatCount, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
@@ -180,7 +180,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         </div>
         <div className="mkt__nw-row">
           <StatPill label="Cash" value={format(state.cash)} />
-          <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
+          <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
           <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
           <StatPill label="Weekly" value={`${wkFlowD >= 0 ? "+" : ""}${format(wkFlow)}`} tone={wkFlowD >= 0 ? "positive" : "negative"} />
         </div>
@@ -1327,12 +1327,6 @@ function ProductDetailSheet({
   );
 }
 
-function fmtCompact(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${Math.floor(n / 1000)}k`;
-  return n.toLocaleString();
-}
-
 /** The player's product lines grouped by brand equity — the IP lens over the catalog. Each row opens
  *  a detail sheet: the line's "chapters" (every product, newest first) with its verdict + numbers. */
 function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
@@ -1351,7 +1345,7 @@ function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
               <ChevronRight size={16} className="mkt__fr-chev" aria-hidden />
             </div>
             <div className="mkt__fr-sub">
-              {f.entries} product{f.entries > 1 ? "s" : ""} · {fmtCompact(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
+              {f.entries} product{f.entries > 1 ? "s" : ""} · {formatCount(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
             </div>
             <div className="mkt__fr-bar" aria-hidden><span className="mkt__fr-fill" style={{ width: `${Math.round(Math.max(0, f.equity) * 100)}%` }} /></div>
           </button>
@@ -1383,7 +1377,7 @@ function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; lau
 
       <div className="frd__stats">
         <Stat label="Lifetime revenue" value={format(summary.revenue)} tone="positive" />
-        <Stat label="Units sold" value={fmtCompact(summary.unitsSold)} />
+        <Stat label="Units sold" value={formatCount(summary.unitsSold)} />
         <Stat label="Brand equity" value={`${equityPct}%`} tone="accent" />
       </div>
 
@@ -1395,7 +1389,7 @@ function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; lau
               <div className="frd__thumb" aria-hidden><DeviceRenderer product={lp.product} size={48} /></div>
               <div className="frd__row-main">
                 <span className="frd__row-name">{lp.product.name}</span>
-                <span className="frd__row-meta">{CATEGORY_LABEL[lp.product.category] ?? lp.product.category} · wk {lp.launchedWeek} · {fmtCompact(lp.unitsSold)} sold</span>
+                <span className="frd__row-meta">{CATEGORY_LABEL[lp.product.category] ?? lp.product.category} · wk {lp.launchedWeek} · {formatCount(lp.unitsSold)} sold</span>
               </div>
               <div className="frd__row-side">
                 <span className={`frd__verdict frd__verdict--${VERDICT_TONE[v]}`}>{VERDICT_LABEL[v]}</span>

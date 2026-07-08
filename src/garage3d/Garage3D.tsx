@@ -3,6 +3,7 @@
 import { Component, Suspense, lazy, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
+import { PartyPopper, Sparkles, Star, ThumbsUp, Rocket, Frown, CloudRain, BatteryLow, Meh, ThumbsDown } from "lucide-react";
 import * as THREE from "three";
 import { moodBand, type MoodBand } from "../engine/staff.ts";
 import type { Staff } from "../engine/types.ts";
@@ -1020,18 +1021,25 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
 const LABEL_BG = "rgba(255,255,255,0.94)";
 const LABEL_INK = "#1a1d23";
 const LABEL_INK_SOFT = "#6b7280";
-// Team reaction emotes that pop over a worker's head — a burst on a win, a sigh on a flop.
-const CHEER_EMOJI = ["🎉", "🙌", "✨", "🥳", "🚀"];
-const SLUMP_EMOJI = ["😞", "😔", "😮‍💨", "💤", "🫠"];
-function CheerEmote({ pos, emoji, delay = 0 }: { pos: [number, number, number]; emoji: string; delay?: number }) {
+// Team reaction emotes that pop over a worker's head — a burst on a win, a sigh on a flop. Premium,
+// Lucide-only (the app forbids emoji): a small white chip with a tinted glyph, matching the OfficeLabel
+// pill aesthetic. Colours are scene-constant (like the label pill) so they read in both app themes.
+const CHEER_ICONS = [PartyPopper, Sparkles, Star, ThumbsUp, Rocket];
+const SLUMP_ICONS = [Frown, CloudRain, BatteryLow, Meh, ThumbsDown];
+const CHEER_TINT = "#34c759"; // positive green (matches the Bank dot)
+const SLUMP_TINT = "#64748b"; // muted slate — a quiet sigh, never alarming
+function CheerEmote({ pos, Icon, tone, delay = 0 }: { pos: [number, number, number]; Icon: typeof PartyPopper; tone: "cheer" | "slump"; delay?: number }) {
   return (
     <Html position={pos} center zIndexRange={[30, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
       <div style={{
-        fontSize: 30,
+        display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 999,
+        background: LABEL_BG, color: tone === "cheer" ? CHEER_TINT : SLUMP_TINT,
+        boxShadow: "0 2px 8px rgba(40,60,90,0.28)",
         transform: "translateY(-150%)",   // base spot (used when reduced-motion neutralizes the pop)
-        filter: "drop-shadow(0 3px 7px rgba(0,0,0,0.5))",
         animation: `hq-emote-pop 2s ${delay}ms ease-out both`,
-      }}>{emoji}</div>
+      }}>
+        <Icon size={17} strokeWidth={2.5} aria-hidden />
+      </div>
     </Html>
   );
 }
@@ -1796,10 +1804,10 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
             ...seated.map((s, i) => ({ w: worldOf(seats[i]), key: s.id ?? `react-seat${i}`, i })),
             ...podStaff.map((s, i) => ({ w: podWorlds[i], key: s.id ?? `react-pod${i}`, i: seats.length + i })),
           ].map((e) => {
-            const set = reaction === "slump" ? SLUMP_EMOJI : CHEER_EMOJI;
+            const set = reaction === "slump" ? SLUMP_ICONS : CHEER_ICONS;
             // Stagger the pops so the reaction ripples across the team, not all at once — capped so
             // even the last emote's 2s pop still finishes inside the ~2.6s reaction window.
-            return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} emoji={set[e.i % set.length]} delay={Math.min(e.i * 70, 520)} />;
+            return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} Icon={set[e.i % set.length]} tone={reaction === "slump" ? "slump" : "cheer"} delay={Math.min(e.i * 70, 520)} />;
           })}
         </>
       )}

@@ -144,8 +144,6 @@
 }
 .mkt__intel-icon {
   flex-shrink: 0;
-  font-size: 14px;
-  line-height: 1.4;
   margin-top: 1px;
 }
 .mkt__intel-icon--up { color: var(--positive-text); }
@@ -1387,9 +1385,6 @@
   min-width: 2px;
   transition: width 0.5s ease;
 }
-.mkt__compmap-fill--positive { background: var(--positive); }
-.mkt__compmap-fill--accent   { background: var(--accent); }
-.mkt__compmap-fill--negative { background: var(--negative); }
 .mkt__compmap-fill--you {
   position: absolute; left: 0; top: 0; bottom: 0;
   background: var(--accent);

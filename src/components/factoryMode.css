@@ -174,7 +174,6 @@
   font-size: var(--fs-nano); font-weight: 700;
   backdrop-filter: blur(8px);
 }
-.fmode__tool--soon { opacity: 0.55; }
 .fmode__dot { position: absolute; top: 6px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 .fmode__tool--on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--fmode-btn-bg)); }
 

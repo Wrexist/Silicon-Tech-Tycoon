@@ -19,7 +19,7 @@ import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
-import { dollars, format, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
+import { dollars, format, formatCount, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
   furnitureCost,
@@ -193,7 +193,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
         {state.era < maxEra()
           ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
-          : <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
+          : <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
       </div>
       {(() => {
         const wkRev = nextWeekRevenue(state);
