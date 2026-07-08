@@ -2,7 +2,7 @@ import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -52,7 +52,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, type FeedItem, type GameState } from "../state/gameState.ts";
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
@@ -218,6 +218,10 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* Rolling contract board — live, regenerating goals that give the endgame a directed chase
           (engine/contracts.ts). Appears once you've shipped; each pays a claimable reward. */}
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
+
+      {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
+          shipped, when the community has an opinion to have. */}
+      {state.launched.length >= 1 && <CommunityCard state={state} />}
 
       {/* Player-choice event card — requires a decision before advancing */}
       {state.pendingChoice && (
@@ -1000,6 +1004,35 @@ function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: str
           );
         })}
       </ul>
+    </Card>
+  );
+}
+
+/** The living fan community — mood thermometer + superfans + a rotating community-moment line. */
+function CommunityCard({ state }: { state: GameState }) {
+  const c = communitySnapshot(state);
+  const meterPct = Math.round(((c.sentiment + 1) / 2) * 100); // −1..+1 → 0..100 on the thermometer
+  return (
+    <Card className={`hq__community hq__community--${c.tier}`}>
+      <div className="hq__community-head">
+        <span className="hq__community-glyph" aria-hidden><Heart size={18} /></span>
+        <div className="hq__community-titles">
+          <span className="hq__community-eyebrow">Fan community</span>
+          <span className="hq__community-label">{formatCount(state.fans)} fans · {c.label}</span>
+        </div>
+        {c.superfans > 0 && (
+          <span className="hq__community-superfans" title="Your most loyal fans — they pre-order hardest">
+            <Flame size={12} aria-hidden /> {formatCount(c.superfans)}
+          </span>
+        )}
+      </div>
+      <div className="hq__community-meter">
+        <div className="hq__community-track" role="progressbar" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(c.sentiment * 100)} aria-label="Community mood">
+          <span className="hq__community-thumb" style={{ left: `${meterPct}%` }} />
+        </div>
+        <div className="hq__community-scale"><span>Restless</span><span>Devoted</span></div>
+      </div>
+      <p className="hq__community-moment"><Sparkles size={12} aria-hidden /> {c.moment}</p>
     </Card>
   );
 }

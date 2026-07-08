@@ -1710,3 +1710,42 @@ body.hq-deco-open .hq > *:not(.hq__world) {
   border: none; background: none; cursor: pointer;
   font-size: var(--fs-caption); font-weight: 700; color: var(--accent);
 }
+
+/* Living fan community — mood thermometer + superfans + a rotating community-moment line. */
+.hq__community-head { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+.hq__community-glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--r-button);
+  color: var(--accent); background: var(--accent-soft);
+}
+.hq__community--warm .hq__community-glyph,
+.hq__community--devoted .hq__community-glyph { color: var(--positive); background: color-mix(in srgb, var(--positive) 14%, transparent); }
+.hq__community--restless .hq__community-glyph { color: var(--negative); background: color-mix(in srgb, var(--negative) 14%, transparent); }
+.hq__community-titles { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.hq__community-eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.hq__community-label { font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
+.hq__community-superfans {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning-text, var(--warning));
+  font-size: var(--fs-nano); font-weight: 800;
+}
+.hq__community-meter { margin-bottom: var(--sp-10); }
+.hq__community-track {
+  position: relative; height: 8px; border-radius: var(--r-pill);
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--negative) 55%, transparent),
+    color-mix(in srgb, var(--warning) 45%, transparent) 50%,
+    color-mix(in srgb, var(--positive) 60%, transparent));
+}
+.hq__community-thumb {
+  position: absolute; top: 50%; width: 16px; height: 16px; border-radius: var(--r-pill);
+  transform: translate(-50%, -50%); background: var(--surface); border: 2.5px solid var(--ink);
+  box-shadow: var(--shadow-subtle); transition: left var(--spring-gentle);
+}
+.hq__community--restless .hq__community-thumb { border-color: var(--negative); }
+.hq__community--warm .hq__community-thumb,
+.hq__community--devoted .hq__community-thumb { border-color: var(--positive); }
+.hq__community-scale { display: flex; justify-content: space-between; margin-top: var(--sp-6); font-size: var(--fs-nano); color: var(--ink-3); font-weight: 600; }
+.hq__community-moment { display: flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; font-style: italic; }
+.hq__community-moment svg { color: var(--accent); flex-shrink: 0; }

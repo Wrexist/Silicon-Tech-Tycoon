@@ -298,6 +298,24 @@ export const BALANCE = {
     preOrderCap: 0.6, // pre-orders can satisfy at most this fraction of total demand
     selloutMinDemandShare: 0.5, // run must cover ≥ this share of demand to earn the sellout buzz
     undersupplyFanPenalty: 0.05, // fans lost when a sellout met < selloutMinDemandShare of demand
+    // Living fan COMMUNITY — fans are a community with a mood, not a lone decaying number. Sentiment
+    // (−1..+1) evolves from how you treat them (hits/solids delight, flops sour, neglect cools it) and
+    // modulates retention (a beloved community churns slower). Superfans are the loyal core that
+    // sentiment creates — they pre-order harder. All gated behind having SHIPPED: the pinned auto-player
+    // never launches, so sentiment stays 0 → every effect is a no-op → byte-identical.
+    community: {
+      windowWeeks: 14,          // recent verdicts within this window shape the mood
+      inertia: 0.85,            // sentiment moves (1-inertia) toward its target each week
+      hitTarget: 0.28,          // a recent hit pulls the mood up by this (a solid = half)…
+      flopTarget: 0.5,          // …a recent flop pulls it down by this (flops sting more)
+      freshBonus: 0.18,         // a launch within freshWeeks keeps the community engaged (+)…
+      freshWeeks: 8,
+      staleWeeks: 30,           // …going this long with no launch sours the mood (−)
+      stalePenalty: 0.22,
+      retentionSwing: 0.45,     // at |sentiment|=1, weekly fan loss is scaled ±this vs neutral
+      superfanShareAtMax: 0.16, // at sentiment=+1, this fraction of fans are superfans
+      superfanPreorderMult: 1.8,// superfans pre-order this × harder than an ordinary fan
+    },
   },
 
   // --- Reputation dynamics ---

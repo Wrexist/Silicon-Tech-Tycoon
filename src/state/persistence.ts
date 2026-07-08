@@ -363,6 +363,9 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingEureka != null && (typeof s.pendingEureka !== "object" || !Number.isFinite(s.pendingEureka.bankRp))) {
     s.pendingEureka = null;
   }
+  // Living fan community (added later): default a neutral community. Clamp sentiment to [-1,1].
+  s.fanSentiment = typeof s.fanSentiment === "number" && Number.isFinite(s.fanSentiment) ? Math.max(-1, Math.min(1, s.fanSentiment)) : 0;
+  if (!Number.isFinite(s.superfans) || s.superfans < 0) s.superfans = 0;
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

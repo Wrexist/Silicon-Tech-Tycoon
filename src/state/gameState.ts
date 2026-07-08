@@ -14,6 +14,7 @@ import {
 } from "../engine/competitors.ts";
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
+import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, type CommunityFacts, type MoodTier } from "../engine/community.ts";
 import {
   assignedSkill,
   buildWeeks,
@@ -190,6 +191,11 @@ export interface GameState {
   cash: Money;
   reputation: number;
   fans: number; // loyal customer base — guaranteed pre-orders, grows with hits
+  /** Living community MOOD (−1..+1). Evolves from how you treat your fans; modulates retention. Only
+   *  moves once you've shipped, so a fresh/never-launched game (and the pinned sim) stays at 0. */
+  fanSentiment?: number;
+  /** The loyal core sentiment creates — they pre-order hardest. 0 until the community warms up. */
+  superfans?: number;
   era: number;
   cumulativeRevenue: Money;
   trends: ConsumerTrends;
@@ -534,6 +540,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     cash: add(BALANCE.startingCash, lb.cash),
     reputation: BALANCE.startingReputation + lb.reputation,
     fans: BALANCE.fans.starting + lb.fans,
+    fanSentiment: 0,
+    superfans: 0,
     era: 1,
     cumulativeRevenue: ZERO,
     trends,
@@ -1173,8 +1181,12 @@ export function planProduction(
       selfCompeting * comp.selfPenalty);
 
   const demandFit = breakdown.demand;
-  // A proven line's loyal followers pre-order more strongly (brand equity → preorder lift).
-  const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
+  // A proven line's loyal followers pre-order more strongly (brand equity → preorder lift). Superfans
+  // (the community's loyal core) pre-order harder still — added as extra fan-equivalents on top of the
+  // base, so a game with no superfans (and the pinned sim) is byte-identical.
+  const superfans = s.superfans ?? 0;
+  const fanBase = s.fans + superfans * (BALANCE.fans.community.superfanPreorderMult - 1);
+  const rawPreOrders = Math.round(fanBase * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
   const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
   const competedOrganic = Math.round(organic * competitionFactor); // before market fatigue
   // Market fatigue: a product too similar to a recent same-category launch loses ORGANIC demand
@@ -1867,13 +1879,35 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
-  const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
+  // Living fan community — sentiment evolves from how you've treated your audience (recent verdicts +
+  // launch freshness) and modulates retention (a beloved community churns slower). Gated on having
+  // shipped, so a never-launched game + the pinned auto-player keep sentiment 0 → the decay below is
+  // byte-identical.
+  let fanSentiment = state.fanSentiment ?? 0;
+  if (state.launched.length >= 1) {
+    const cw = BALANCE.fans.community.windowWeeks;
+    let hits = 0, solids = 0, flops = 0, lastLaunchWeek = -Infinity;
+    for (const lp of state.launched) {
+      if (lp.launchedWeek > lastLaunchWeek) lastLaunchWeek = lp.launchedWeek;
+      if (lp.launchedWeek < week - cw) continue;
+      if (lp.verdict === "hit") hits++;
+      else if (lp.verdict === "solid") solids++;
+      else if (lp.verdict === "flop") flops++;
+    }
+    const facts: CommunityFacts = { hits, solids, flops, weeksSinceLaunch: week - lastLaunchWeek, fans: state.fans };
+    fanSentiment = evolveSentiment(fanSentiment, facts);
+  }
+
+  const baseDecay = hasProject(state.completedProjects, "loyaltyProgram")
     ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
     : BALANCE.fans.decayPerWeek;
+  const loyaltyDecay = sentimentDecayFactor(baseDecay, fanSentiment); // = baseDecay exactly at sentiment 0
   const newFans = Math.round(
     state.fans * Math.pow(loyaltyDecay, rate)
     + (hasProject(state.completedProjects, "contentMarketing") ? 100 * rate : 0)
   );
+  // Superfans track the (post-decay) fanbase — 0 whenever sentiment ≤ 0, so a neutral game has none.
+  const superfans = superfansFrom(fanSentiment, newFans);
 
   // Quarterly checkpoint: a snapshot feed item every BALANCE.quartersWeeks weeks to mark
   // the end of a "fiscal quarter" — gives the player a regular moment of reflection.
@@ -1931,6 +1965,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     reputation,
     cumulativeRevenue,
     fans: newFans,
+    fanSentiment,
+    superfans,
     researchPoints,
     building,
     ready,
@@ -4084,6 +4120,16 @@ export const isNemesis = (s: GameState, rivalId: string): boolean => (s.nemesis?
 export function dismissRivalry(state: GameState): GameState {
   if (!state.pendingRivalry) return state;
   return { ...state, pendingRivalry: null };
+}
+
+// ---- Living fan community ----
+export interface CommunitySnapshot { sentiment: number; superfans: number; tier: MoodTier; label: string; moment: string; }
+/** A read-only snapshot of the fan community's mood for the HQ panel (mood tier + superfans + a rotating
+ *  community-moment line). Pure; the moment uses a derived hash, never the sim RNG. */
+export function communitySnapshot(s: GameState): CommunitySnapshot {
+  const sentiment = s.fanSentiment ?? 0;
+  const tier = moodTier(sentiment);
+  return { sentiment, superfans: s.superfans ?? 0, tier, label: MOOD_LABEL[tier], moment: communityMoment(s.seed, s.week, sentiment) };
 }
 
 // ---- Eureka R&D breakthroughs ----
