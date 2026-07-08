@@ -98,6 +98,9 @@
   --sp-5: 5px;
   --sp-10: 10px;
   --sp-14: 14px;
+  --sp-20: 20px;
+  --sp-28: 28px; /* overlay/popup card padding — undefined until now, so those cards rendered with
+                    zero padding (content bled to the card edges + jammed against the top). */
   --edge: 20px; /* screen edge margin */
 
   /* Radius */
