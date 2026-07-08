@@ -105,6 +105,7 @@ import {
   unlockPlatform,
   foundPlatform,
   releaseOsVersion,
+  shipSecurityPatch,
   licenseOsToRival,
   revokeOsLicense,
   signLicenseOffer,
@@ -438,6 +439,7 @@ interface GameActionsValue {
   unlockPlatform: (on: boolean) => void;
   foundPlatform: () => void;
   releaseOsVersion: () => void;
+  shipSecurityPatch: () => boolean;
   licenseOsToRival: (rivalId: string) => void;
   revokeOsLicense: (rivalId: string) => void;
   signLicenseOffer: () => boolean;
@@ -1053,6 +1055,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+  // Ship a security patch (the immersive "update" button). Returns true so the Platform screen can
+  // fire its update animation; shows the cooldown reason as a toast when it's not ready yet.
+  const shipSecurityPatchCb = useCallback((): boolean => {
+    const res = shipSecurityPatch(stateRef.current);
+    if (!res.ok) { showToast(res.reason ?? "Can't patch right now", { tone: "neutral" }); return false; }
+    haptic.success();
+    sfx("upgrade");
+    setState(res.state);
+    return true;
+  }, []);
   const licenseOsToRivalCb = useCallback((rivalId: string) => setState((s) => licenseOsToRival(s, rivalId)), []);
   const revokeOsLicenseCb = useCallback((rivalId: string) => setState((s) => revokeOsLicense(s, rivalId)), []);
   // Sign the inbound contract: bank the signing bonus (spend FX in reverse — a gain), and return
@@ -1347,6 +1359,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       unlockPlatform: unlockPlatformCb,
       foundPlatform: foundPlatformCb,
       releaseOsVersion: releaseOsVersionCb,
+      shipSecurityPatch: shipSecurityPatchCb,
       licenseOsToRival: licenseOsToRivalCb,
       revokeOsLicense: revokeOsLicenseCb,
       signLicenseOffer: signLicenseOfferCb,
@@ -1394,7 +1407,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

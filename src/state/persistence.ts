@@ -343,6 +343,12 @@ function migrate(state: GameState): GameState | null {
   // pass. Keep only finite numbers.
   if (!Array.isArray(s.osBaseHistory)) s.osBaseHistory = [];
   else s.osBaseHistory = s.osBaseHistory.filter((n: unknown): n is number => typeof n === "number" && Number.isFinite(n));
+  // Living App Store + Security (added later): default to a fresh, un-threatened platform. Apps
+  // accumulate only once the store is live; threat/security are a 0..100 tug-of-war. Clamp on import.
+  if (!Number.isFinite(s.osApps) || s.osApps < 0) s.osApps = 0;
+  s.osThreat = typeof s.osThreat === "number" && Number.isFinite(s.osThreat) ? Math.max(0, Math.min(100, s.osThreat)) : 0;
+  s.osSecurity = typeof s.osSecurity === "number" && Number.isFinite(s.osSecurity) ? Math.max(0, Math.min(100, s.osSecurity)) : 0;
+  if (s.lastPatchWeek != null && (!Number.isFinite(s.lastPatchWeek) || s.lastPatchWeek < 0)) s.lastPatchWeek = undefined;
   // OS philosophy (added later): default none — an un-customized OS with no tilt.
   if (typeof s.osPhilosophy !== "string") s.osPhilosophy = null;
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.

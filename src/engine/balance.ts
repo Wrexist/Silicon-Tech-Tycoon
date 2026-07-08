@@ -751,6 +751,40 @@ export const BALANCE = {
       churnThreshold: 28,      // at/below this satisfaction, the licensee may walk
       churnChancePerWeek: 0.14,// per-week probability they drop the license once unhappy
     },
+    // App Store — a LIVING marketplace on your OS. It stays dormant (a trickle of apps) until you
+    // research the App Marketplace module (OS_FEATURES.appMarket); after that developers flock in as
+    // your installed base and OS version grow, and you take a weekly commission on the catalogue. A
+    // flavourful, BOUNDED revenue line (the real money is still services + licensing). All gated
+    // behind platformUnlocked → 0 in the base game (determinism preserved).
+    appStore: {
+      dormantAppsPerWeek: 1,        // a bare store before the Marketplace module — barely alive
+      baseAppsPerWeek: 4,           // indie devs shipping once the Marketplace opens
+      appsPerMillionInstalled: 55,  // + apps/wk per million devices in the field (devs follow users)
+      appsPerVersion: 14,           // + apps/wk per OS version released above v1 (a better SDK)
+      storeCutPerAppWeek: 1.2,      // $/wk store commission per published app
+      storeCutCapDollars: 60_000,   // hard cap on weekly store-cut (no runaway faucet)
+    },
+    // Security — a tug-of-war the player actively works. THREAT creeps up every live week (a bigger
+    // platform is a bigger target); SECURITY (hardening) is what you build by shipping patches. When
+    // net exposure (threat − security) runs high, reputation bleeds — so you keep the OS patched.
+    // Shipping a patch is the "update button": an immediate, satisfying threat-clear + hardening jump.
+    // A full OS version release is an even bigger security event. All gated behind platformUnlocked.
+    security: {
+      threatRiseBase: 1.5,          // threat added each live week (the world probes your OS)
+      threatRisePerMillion: 0.6,    // + per million devices in the field (bigger target)
+      threatRiseCap: 6,             // max threat added in a single week
+      privacySuiteMitigation: 0.5,  // the Privacy Suite module halves incoming threat
+      securityDecayPerWeek: 0.6,    // hardening erodes as new exploits appear
+      patchCooldownWeeks: 5,        // weeks between shippable security patches (the update button)
+      patchThreatClear: 0.7,        // a patch clears this fraction of current threat
+      patchSecurityGain: 12,        // + hardening rating per patch
+      patchRepBonus: 1,             // small goodwill for staying responsive
+      patchFanBonus: 400,           // a few fans notice the diligence
+      releaseThreatClear: 1.0,      // a full OS version release wipes threat…
+      releaseSecurityGain: 20,      // …and hardens more than a single patch
+      exposureRepThreshold: 55,     // net exposure above this drags reputation
+      exposureRepDragPerWeek: 0.3,  // reputation lost per live week while over-exposed
+    },
   },
 
   // --- Staff churn: underpaid or burnt-out staff eventually quit ---

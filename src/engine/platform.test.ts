@@ -21,6 +21,14 @@ import {
   philosophyEffectLabel,
   updateLicenseeRelations,
   licenseeMood,
+  appsPublishedPerWeek,
+  storeCommission,
+  featuredApps,
+  clampSecurity,
+  threatRisePerWeek,
+  netExposure,
+  securityStanding,
+  patchCooldownLeft,
 } from "./platform.ts";
 import { BALANCE } from "./balance.ts";
 import { toDollars } from "./money.ts";
@@ -256,5 +264,68 @@ describe("osFeatureRows / canInstallOsFeature — gating", () => {
     expect(canInstallOsFeature([], 1, 9999, "continuity")).toBe(false); // version too low
     expect(canInstallOsFeature(["appMarket"], 1, 9999, "appMarket")).toBe(false); // already owned
     expect(canInstallOsFeature([], 1, 9999, "ghost")).toBe(false); // unknown id
+  });
+});
+
+describe("App Store", () => {
+  it("is dormant until the App Marketplace module ships", () => {
+    const dormant = appsPublishedPerWeek(10_000_000, 4, false);
+    const open = appsPublishedPerWeek(10_000_000, 4, true);
+    expect(dormant).toBe(BALANCE.platform.appStore.dormantAppsPerWeek);
+    expect(open).toBeGreaterThan(dormant);
+  });
+  it("grows with installed base and OS version once open", () => {
+    expect(appsPublishedPerWeek(20_000_000, 4, true)).toBeGreaterThan(appsPublishedPerWeek(1_000_000, 4, true));
+    expect(appsPublishedPerWeek(1_000_000, 5, true)).toBeGreaterThan(appsPublishedPerWeek(1_000_000, 1, true));
+  });
+  it("commission scales with the catalogue but is capped and non-negative", () => {
+    expect(toDollars(storeCommission(0))).toBe(0);
+    expect(toDollars(storeCommission(-5))).toBe(0);
+    expect(toDollars(storeCommission(1000))).toBeGreaterThan(0);
+    expect(toDollars(storeCommission(10_000_000))).toBe(BALANCE.platform.appStore.storeCutCapDollars);
+  });
+  it("featured apps are deterministic, IP-safe procedural names, stable within a size bucket", () => {
+    const a = featuredApps(42, 100, 3, 4);
+    const b = featuredApps(42, 100, 3, 4);
+    expect(a).toEqual(b);                       // deterministic
+    expect(a).toHaveLength(4);
+    expect(new Set(a.map((x) => x.name)).size).toBe(4); // no dupes
+    for (const app of a) {
+      expect(app.name).toMatch(/^[A-Za-z]+$/);
+      expect(app.rating).toBeGreaterThanOrEqual(4.1);
+      expect(app.rating).toBeLessThanOrEqual(4.9);
+    }
+    // Crossing a 250-app bucket refreshes the strip.
+    expect(featuredApps(42, 600, 3, 4)).not.toEqual(a);
+  });
+});
+
+describe("Security tug-of-war", () => {
+  it("clamps to 0..100", () => {
+    expect(clampSecurity(-10)).toBe(0);
+    expect(clampSecurity(150)).toBe(100);
+    expect(clampSecurity(Number.NaN)).toBe(0);
+  });
+  it("threat rises with the installed base and is halved by the Privacy Suite", () => {
+    const big = threatRisePerWeek(50_000_000, false);
+    const small = threatRisePerWeek(0, false);
+    expect(big).toBeGreaterThanOrEqual(small);
+    expect(big).toBeLessThanOrEqual(BALANCE.platform.security.threatRiseCap);
+    expect(threatRisePerWeek(5_000_000, true)).toBeCloseTo(threatRisePerWeek(5_000_000, false) * BALANCE.platform.security.privacySuiteMitigation);
+  });
+  it("net exposure is threat outrunning hardening, clamped", () => {
+    expect(netExposure(80, 30)).toBe(50);
+    expect(netExposure(30, 80)).toBe(0); // hardening covers the threat
+  });
+  it("standing worsens as exposure climbs", () => {
+    expect(securityStanding(0, 60).key).toBe("fortified");
+    expect(securityStanding(90, 0).key).toBe("critical");
+    expect(securityStanding(70, 0).key).toBe("exposed");
+  });
+  it("patch cooldown counts down from the last patch week", () => {
+    const cd = BALANCE.platform.security.patchCooldownWeeks;
+    expect(patchCooldownLeft(10, undefined)).toBe(0); // never patched → ready
+    expect(patchCooldownLeft(10, 10)).toBe(cd);       // just patched
+    expect(patchCooldownLeft(10 + cd, 10)).toBe(0);   // fully elapsed
   });
 });

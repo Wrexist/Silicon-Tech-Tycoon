@@ -130,7 +130,7 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
-import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeMood, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
+import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { generateLicenseOffer, licenseOfferDue, type LicenseOffer, type LicenseSuitor } from "../engine/licenseOffers.ts";
 import { perkBonuses } from "../engine/perks.ts";
 import type {
@@ -365,6 +365,18 @@ export interface GameState {
   /** Licensees who signed an EXCLUSIVE deal: rivalId → the category they locked. Exclusive partners
    *  pay a richer royalty and no other suitor can license that category while it's held. */
   osExclusive?: Record<string, string>;
+  /** Living App Store — cumulative apps published to your platform. Dormant until the App Marketplace
+   *  module ships, then grows with installed base + OS version; you take a weekly commission on it.
+   *  Optional/backfilled → 0 in old saves and in the base game (gated behind platformUnlocked). */
+  osApps?: number;
+  /** Security tug-of-war — current THREAT pressure (0..100). Creeps up each live week; cleared by
+   *  shipping a security patch or a full OS release. Undefined/0 until the division is live. */
+  osThreat?: number;
+  /** Security tug-of-war — current SECURITY hardening rating (0..100). Built by shipping patches/
+   *  releases; decays slowly. Net exposure (threat − security) drags reputation when it runs high. */
+  osSecurity?: number;
+  /** Week the last security patch shipped, for the patch cooldown (the immersive "update" button). */
+  lastPatchWeek?: number;
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
@@ -593,6 +605,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osPhilosophy: null,
     pendingLicenseOffer: null,
     osExclusive: {},
+    osApps: 0,
+    osThreat: 0,
+    osSecurity: 0,
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
@@ -1275,6 +1290,12 @@ export const osServicesMult = (s: GameState): number =>
       )
     : 1;
 
+/** Weekly App Store commission — a bounded cut of your published catalogue (0 unless the Platform
+ *  division is unlocked). Grows as developers publish to the store (see the tick's App Store block). */
+export function weeklyStoreCommission(s: GameState): Money {
+  return s.platformUnlocked ? storeCommission(s.osApps ?? 0) : ZERO;
+}
+
 /** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
 export function weeklyEcosystemRevenue(s: GameState): Money {
   // Epic D — the Platform/AI eras amplify ecosystem lock-in (services pay more).
@@ -1286,8 +1307,9 @@ export function weeklyEcosystemRevenue(s: GameState): Money {
     if (eco > minStat) acc += lp.unitsSold * eco * rate;
   }
   // OS feature modules + version multiply recurring services (1.0 when the division is off → unchanged).
-  // Plus the annuity from any installed base absorbed via acquisitions (0 until the first buyout).
-  return add(cents(Math.round(acc * osServicesMult(s))), absorbedServicesRevenue(s));
+  // Plus the annuity from any absorbed installed base (0 until the first buyout) and the App Store
+  // commission (0 until the store is live) — the full recurring platform economy in one figure.
+  return add(cents(Math.round(acc * osServicesMult(s))), add(absorbedServicesRevenue(s), weeklyStoreCommission(s)));
 }
 
 export function nextWeekRevenue(s: GameState): Money {
@@ -1442,6 +1464,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   }
   // Absorbed installed base (from acquisitions) pays a flat services annuity each week (0 if none).
   cash = add(cash, scale(absorbedServicesRevenue(state), rate));
+
+  // App Store commission — a weekly cut of the published catalogue (0 until the store is live). Reads
+  // last week's catalogue (a one-week lag, like collecting on an established store) — sim-safe.
+  cash = add(cash, scale(weeklyStoreCommission(state), rate));
 
   // Platform licensing fees — recurring income from rivals licensing your OS (Phase C).
   cash = add(cash, scale(weeklyLicenseFees(state), rate));
@@ -1728,6 +1754,28 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (osBaseHistory.length > 40) osBaseHistory = osBaseHistory.slice(-40);
   }
 
+  // Living App Store — developers publish to your platform each week. Dormant (a trickle) until the
+  // App Marketplace module ships; then the catalogue grows with your installed base + OS version. The
+  // catalogue only grows; you take a weekly store commission on it (added to cash near the ecosystem
+  // revenue). Gated behind platformUnlocked → 0 in the base game (determinism preserved).
+  let osApps = state.osApps ?? 0;
+  if (state.platformUnlocked) {
+    const hasMarketplace = state.osFeatures.includes("appMarket");
+    osApps += appsPublishedPerWeek(installedBase(launched), state.osVersion, hasMarketplace) * rate;
+  }
+
+  // Security tug-of-war — THREAT creeps up (a bigger installed base is a bigger target) while your
+  // hardening erodes as new exploits surface. Live play only (never offline), so a returning player
+  // never comes back to a threat spike they had no chance to patch (mirrors the licensee-churn gate).
+  // Net exposure drags reputation in the reputation block below; a patch/release clears it (reducers).
+  let osThreat = state.osThreat ?? 0;
+  let osSecurity = state.osSecurity ?? 0;
+  if (!offline && state.platformUnlocked) {
+    const hasPrivacy = state.osFeatures.includes("privacy");
+    osThreat = clampSecurity(osThreat + threatRisePerWeek(installedBase(launched), hasPrivacy) * rate);
+    osSecurity = clampSecurity(osSecurity - BALANCE.platform.security.securityDecayPerWeek * rate);
+  }
+
   // Licensee relationships: a rival paying to license your OS resents being dominated. Each live week
   // their satisfaction shifts with your reputation lead, and an unhappy licensee may walk (churn).
   // Gated to live play (never offline) so a returning player can't lose partners while away.
@@ -1809,6 +1857,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       // of the tick math, which weights offline weeks by `rate`).
       reputation = Math.max(rc.decayFloor, reputation - rc.decayPerWeekLate * rate);
     }
+    // Security exposure drag — an over-exposed, unpatched OS bleeds goodwill until you ship a patch or
+    // a new version (the reducers clear the threat). Live play only, so it can never surprise a
+    // returning player. Sim-safe: platformUnlocked is false in the pinned auto-player run.
+    if (!offline && !bankrupt && state.platformUnlocked) {
+      const sc = BALANCE.platform.security;
+      if (netExposure(osThreat, osSecurity) > sc.exposureRepThreshold) {
+        reputation = Math.max(0, reputation - sc.exposureRepDragPerWeek * rate);
+        if (!feed.some((f) => f.week === week && f.text.includes("exposed")))
+          feed.push(feedItem(week, `${osDisplayName(state)} is exposed, unpatched vulnerabilities are eroding trust. Ship a security patch.`, "negative"));
+      }
+    }
   }
 
   // Supplier contracts tick down each week; an expired one drops back to spot pricing (with a heads-up).
@@ -1852,6 +1911,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     sideOrdersCompleted,
     cashHistory,
     osBaseHistory,
+    osApps,
+    osThreat,
+    osSecurity,
     osLicensees,
     osLicenseeHealth,
     osExclusive,
@@ -3297,6 +3359,7 @@ export function releaseOsVersion(state: GameState): GameState {
   if (!state.platformUnlocked || !canReleaseOsVersion(state)) return state;
   const newVersion = osTierInfo(state).tier;
   const reward = osReleaseReward(platformInstalledBase(state));
+  const sc = BALANCE.platform.security;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `${osDisplayName(state)} ${newVersion}.0 released, the installed base updated. +${reward.fans.toLocaleString()} fans.`, "positive"));
   return {
@@ -3304,7 +3367,36 @@ export function releaseOsVersion(state: GameState): GameState {
     osVersion: newVersion,
     reputation: Math.min(100, state.reputation + reward.reputation),
     fans: state.fans + reward.fans,
+    // A full release is also the biggest security event there is: it wipes the current threat and
+    // hardens the platform, and counts as a patch for the cooldown (you just shipped the newest build).
+    osThreat: clampSecurity((state.osThreat ?? 0) * (1 - sc.releaseThreatClear)),
+    osSecurity: clampSecurity((state.osSecurity ?? 0) + sc.releaseSecurityGain),
+    lastPatchWeek: state.week,
     feed: trimFeed(feed),
+  };
+}
+
+/** Ship a security patch — the immersive "update" action. Clears most of the current threat, hardens
+ *  the platform, and earns a little goodwill. On a cooldown so it's a deliberate, periodic ritual, not
+ *  a spam button. No-op unless the division is unlocked and the cooldown has elapsed. */
+export function shipSecurityPatch(state: GameState): ActionResult {
+  if (!state.platformUnlocked) return { state, ok: false, reason: "Found the Platform division first." };
+  const left = patchCooldownLeft(state.week, state.lastPatchWeek);
+  if (left > 0) return { state, ok: false, reason: `Next patch ready in ${left} week${left === 1 ? "" : "s"}.` };
+  const sc = BALANCE.platform.security;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Shipped a ${osDisplayName(state)} security update, threats patched and the platform hardened.`, "positive"));
+  return {
+    state: {
+      ...state,
+      osThreat: clampSecurity((state.osThreat ?? 0) * (1 - sc.patchThreatClear)),
+      osSecurity: clampSecurity((state.osSecurity ?? 0) + sc.patchSecurityGain),
+      reputation: Math.min(100, state.reputation + sc.patchRepBonus),
+      fans: state.fans + sc.patchFanBonus,
+      lastPatchWeek: state.week,
+      feed: trimFeed(feed),
+    },
+    ok: true,
   };
 }
 
@@ -3394,6 +3486,22 @@ export const osFeatureList = (s: GameState): OsFeatureRow[] =>
 /** Ecosystem-stat points the OS currently adds to every device you launch (0 unless unlocked). */
 export const osEcoBonus = (s: GameState): number =>
   s.platformUnlocked ? osEcosystemBonus(s.osFeatures) : 0;
+
+// ---- Living App Store + Security (the immersive OS layer) ----
+/** Apps published to your App Store (0 unless the division is live). */
+export const platformAppCount = (s: GameState): number => (s.platformUnlocked ? Math.floor(s.osApps ?? 0) : 0);
+/** Whether the App Store is open for business (the App Marketplace module is installed). */
+export const appStoreOpen = (s: GameState): boolean => s.platformUnlocked && s.osFeatures.includes("appMarket");
+/** Current OS threat pressure (0..100), 0 unless the division is live. */
+export const osThreatLevel = (s: GameState): number => (s.platformUnlocked ? clampSecurity(s.osThreat ?? 0) : 0);
+/** Current OS security hardening (0..100), 0 unless the division is live. */
+export const osSecurityRating = (s: GameState): number => (s.platformUnlocked ? clampSecurity(s.osSecurity ?? 0) : 0);
+/** Net security exposure (0..100) — how far current threat outruns your hardening. */
+export const osNetExposure = (s: GameState): number => (s.platformUnlocked ? netExposure(s.osThreat ?? 0, s.osSecurity ?? 0) : 0);
+/** Weeks until another security patch can ship (0 = ready). */
+export const securityPatchCooldownLeft = (s: GameState): number => patchCooldownLeft(s.week, s.lastPatchWeek);
+/** Can a security patch ship right now (division live + cooldown elapsed)? */
+export const canShipSecurityPatch = (s: GameState): boolean => s.platformUnlocked && securityPatchCooldownLeft(s) <= 0;
 
 /** Can a specific OS feature module be installed right now? */
 export const canInstallFeature = (s: GameState, id: string): boolean =>
