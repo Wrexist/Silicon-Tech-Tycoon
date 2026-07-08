@@ -821,6 +821,7 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
   (hasProject(s.completedProjects, "neuralMarketing") ? 0.25 : 0) +
+  (hasProject(s.completedProjects, "gtmHype") ? 0.30 : 0) + // Go-to-Market doctrine: Hype House
   visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype;
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
@@ -848,6 +849,7 @@ export function productStats(s: GameState, product: Product): Stats {
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
   if (hasProject(s.completedProjects, "effHouse")) bonus.battery = (bonus.battery ?? 0) + 5;
   if (hasProject(s.completedProjects, "qualityHouse")) bonus.quality = (bonus.quality ?? 0) + 5;
+  if (hasProject(s.completedProjects, "gtmDesign")) bonus.design = (bonus.design ?? 0) + 6; // GTM doctrine: Design House
   // Performance/efficiency tuning — trades points between performance and battery (a real build
   // choice that depends on what the market wants). Neutral when balanced/undefined → no ripple.
   const shift = BALANCE.design.tuningShift;
@@ -1025,7 +1027,8 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   const contract = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * (product ? factorySpeedMult(product) : 1));
   const assembly = (lineMult < 1 ? Math.max(1, Math.floor(contract * lineMult)) : contract)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0)
-    - (hasProject(s.completedProjects, "lightsOut") ? 1 : 0);
+    - (hasProject(s.completedProjects, "lightsOut") ? 1 : 0)
+    - (hasProject(s.completedProjects, "opsSpeed") ? 1 : 0); // Operations doctrine: Speed House
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
   // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
   const eraLead = eraModifier(s.era).leadWeeks;
@@ -1066,6 +1069,7 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   if (hasProject(s.completedProjects, "predictiveSupply")) unitCost = scale(unitCost, 0.90);
+  if (hasProject(s.completedProjects, "opsCost")) unitCost = scale(unitCost, 0.82); // Operations doctrine: Cost House
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   // Supplier relationship: repeat business earns a standing discount (engine/suppliers.ts). 0 when
@@ -1133,6 +1137,7 @@ export function planProduction(
 
   let marketSize = CATEGORIES[product.category].marketSize;
   if (hasProject(s.completedProjects, "globalDistribution")) marketSize *= 1.25;
+  if (hasProject(s.completedProjects, "opsReach")) marketSize *= 1.25; // Operations doctrine: Reach House
   // Era-scaled volume — small early market (slow garage phase), grows each era.
   const eraScales = BALANCE.market.eraVolumeScale;
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
@@ -2548,6 +2553,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
   if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);
+  if (hasProject(state.completedProjects, "gtmPrestige")) reputation = Math.min(rep.max, reputation + 2); // GTM doctrine: Prestige House
   // Ethics of the supply chain: responsible sourcing slowly builds the brand; cheap/exploitative
   // sourcing erodes it (0 for standard sourcing → no change for older saves / default builds).
   const ethicsRep = supplierEthicsRepDelta(product);
