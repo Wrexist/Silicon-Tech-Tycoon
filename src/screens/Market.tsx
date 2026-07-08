@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -35,6 +35,7 @@ import {
   osDisplayName,
   osTierInfo,
   productStats,
+  shareholderPulse,
   type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -107,6 +108,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   const [trade, setTrade] = useState<CompetitorState | null>(null);
   const [ipo, setIpo] = useState(false);
   const [sellStake, setSellStake] = useState(false);
+  const [buyback, setBuyback] = useState(false);
   // The region just licensed — captures it so the "flag planted" celebration survives the card
   // flipping to Open the instant the market opens.
   const [openedRegion, setOpenedRegion] = useState<Region | null>(null);
@@ -255,12 +257,44 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
               </div>
             );
           })()
-        ) : state.ownership < 0.06 ? (
-          <p className="mkt__co-hint">Selling more would cut below your 5% founder minimum, so there are no more shares to sell.</p>
         ) : (
-          <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>
-            Sell more shares
-          </Button>
+          <>
+            {(() => {
+              // Shareholder pulse — this quarter's revenue vs the street's expectation + the countdown
+              // to the next earnings call, so the accountability is visible between calls.
+              const pulse = shareholderPulse(state);
+              if (!pulse) return null;
+              const onTrack = pulse.pct >= 100;
+              return (
+                <div className="mkt__pulse">
+                  <div className="mkt__pulse-head">
+                    <span className="mkt__pulse-label">This quarter vs the street</span>
+                    <span className={`mkt__pulse-pct tnum${onTrack ? " mkt__pulse-pct--up" : ""}`}>{pulse.pct}%</span>
+                  </div>
+                  <div className="mkt__pulse-track">
+                    <div className={`mkt__pulse-fill${onTrack ? " mkt__pulse-fill--up" : ""}`} style={{ width: `${Math.min(100, pulse.pct)}%` }} />
+                  </div>
+                  <p className="mkt__co-hint">
+                    {format(pulse.quarterRevenue)} of {format(pulse.expectation)} expected · earnings call in {pulse.weeksToCall} wk
+                  </p>
+                </div>
+              );
+            })()}
+            <div className="mkt__co-actions">
+              {state.ownership < BALANCE.ipo.shareholders.maxOwnership && (
+                <Button block onClick={() => { setBuyback(true); haptic.light(); }}>
+                  <Undo2 size={16} /> Buy back shares
+                </Button>
+              )}
+              {state.ownership >= 0.06 ? (
+                <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>
+                  Sell more shares
+                </Button>
+              ) : (
+                <p className="mkt__co-hint">Selling more would cut below your 5% founder minimum.</p>
+              )}
+            </div>
+          </>
         )}
       </Card>
 
@@ -896,6 +930,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       </Sheet>
       <Sheet open={sellStake} onClose={() => setSellStake(false)} label="Sell your stake">
         {sellStake && <SellStakeSheet onClose={() => setSellStake(false)} />}
+      </Sheet>
+      <Sheet open={buyback} onClose={() => setBuyback(false)} label="Buy back shares">
+        {buyback && <BuybackSheet onClose={() => setBuyback(false)} />}
       </Sheet>
       <Sheet open={feedOpen} onClose={() => setFeedOpen(false)} label="Market feed">
         <FeedSheet feed={state.feed} onClose={() => setFeedOpen(false)} />
@@ -1875,6 +1912,45 @@ function SellStakeSheet({ onClose }: { onClose: () => void }) {
       <Button block onClick={() => { sellOwnStake(pct / 100); haptic.success(); sfx("cash"); showToast(`Sold ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); }}>
         Confirm sale
       </Button>
+    </div>
+  );
+}
+
+function BuybackSheet({ onClose }: { onClose: () => void }) {
+  const { state, buybackShares } = useGame();
+  const valuation = companyValuation(state);
+  const valD = toDollars(valuation);
+  // The slider is capped by BOTH your cash and the ownership headroom (buybacks can't fully privatize).
+  const cashPct = valD > 0 ? (toDollars(state.cash) / valD) * 100 : 0;
+  const headroomPct = (BALANCE.ipo.shareholders.maxOwnership - state.ownership) * 100;
+  const maxPct = Math.max(0, Math.floor(Math.min(headroomPct, cashPct)));
+  const [pct, setPct] = useState(Math.min(5, maxPct));
+  const cost = dollars(Math.round(valD * (pct / 100)));
+  const afford = maxPct >= 1;
+  return (
+    <div className="trade">
+      <div className="trade__head">
+        <div>
+          <h2 className="trade__title">Buy back shares</h2>
+          <p className="trade__sub">Spend cash to buy your own shares off the market — you reconsolidate ownership and signal confidence, nudging the price up.</p>
+        </div>
+      </div>
+      <div className="trade__row">
+        <StatPill label="You own" value={`${Math.round(state.ownership * 100)}%`} />
+        <StatPill label="After" value={`${Math.min(100, Math.round(state.ownership * 100 + pct))}%`} />
+      </div>
+      <div className="trade__ipo-amount rounded tnum">−{format(cost)}</div>
+      {afford ? (
+        <>
+          <Slider value={pct} min={1} max={Math.max(1, maxPct)} step={1} ariaLabel="Stake to buy back" accent="var(--accent)" onChange={setPct} />
+          <p className="trade__ipo-pct">Buy back {Math.round(pct)}%</p>
+          <Button block onClick={() => { const r = buybackShares(cost); if (r.ok) { showToast(`Bought back ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); } }}>
+            Confirm buyback
+          </Button>
+        </>
+      ) : (
+        <p className="trade__sub">You don't have enough spare cash to buy back a meaningful stake right now.</p>
+      )}
     </div>
   );
 }

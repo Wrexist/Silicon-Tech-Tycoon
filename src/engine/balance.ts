@@ -711,6 +711,21 @@ export const BALANCE = {
     defaultStake: 0.2, // 20% sold by default at IPO
     maxStakePerSale: 0.49, // never sell majority control in one go
     valuationGrowthPerWeek: 0.004, // company value drifts up with momentum
+    // --- Post-IPO shareholder loop ---
+    // Once listed, the street sets a quarterly revenue expectation and reacts to whether you beat or
+    // miss it (moving the valuation-momentum overlay = the share price). You can buy back shares to
+    // steady the price + reconsolidate ownership — a real late-game cash sink. All gated on `listed`,
+    // so the pinned solo sim (never IPOs) is byte-identical.
+    shareholders: {
+      quarterWeeks: 13,          // an earnings call every fiscal quarter
+      expectedGrowth: 0.06,      // the street wants +6% revenue quarter-over-quarter
+      minExpectation: dollars(50_000) as Money, // a floor so a tiny quarter still has a bar to clear
+      priceSensitivity: 0.5,     // share-price move = surprise% × this…
+      maxPriceMove: 0.06,        // …clamped to ±6% momentum per quarter (the overlay caps at ±15%)
+      defendBuybackPct: 0.03,    // a defensive buyback on a miss spends up to this fraction of valuation
+      buybackBumpPerPct: 0.004,  // buying back 1% of the company nudges momentum up by this
+      maxOwnership: 0.98,        // buybacks can't fully re-privatize the company
+    },
   },
 
   // --- Performance-reactive company value (Track B) ---

@@ -15,6 +15,7 @@ import {
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
+import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
   assignedSkill,
   buildWeeks,
@@ -321,6 +322,17 @@ export interface GameState {
   pendingCommunityAsk?: CommunityAsk | null;
   /** Week of the last community ask — enforces the cooldown between asks. */
   lastCommunityAskWeek?: number;
+  // --- Post-IPO shareholder loop (all optional/null → golden-invariant safe; only live once listed) ---
+  /** A quarterly earnings result waiting to be shown — beat/miss vs the street + the share-price move. */
+  pendingEarnings?: EarningsReport | null;
+  /** The revenue the street expects THIS quarter. */
+  earningsExpectation?: Money;
+  /** cumulativeRevenue at the start of the current quarter (to measure the quarter's revenue). */
+  quarterStartRevenue?: Money;
+  /** Week of the last earnings call (= the listing week initially); paces the quarterly cadence. */
+  lastEarningsWeek?: number;
+  /** 1-based count of earnings calls delivered since listing. */
+  earningsQuarter?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -614,6 +626,11 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastEurekaWeek: -999,
     pendingCommunityAsk: null,
     lastCommunityAskWeek: -999,
+    pendingEarnings: null,
+    earningsExpectation: ZERO,
+    quarterStartRevenue: ZERO,
+    lastEarningsWeek: -999,
+    earningsQuarter: 0,
     pendingAwards: null,
     awardsHistory: [],
     pendingSideOrder: null,
@@ -2071,6 +2088,34 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       base.lastCommunityAskWeek = week;
       base.feed.push(feedItem(week, `The community is asking: ${ASK_INFO[ask.kind].title.toLowerCase()}. Answer the call, or let it pass?`, "accent"));
     }
+  }
+
+  // Quarterly EARNINGS (post-IPO): every fiscal quarter the street judges the quarter's revenue vs its
+  // expectation → a share-price move (valuation-momentum delta, applied here before Track B decays it,
+  // just like a launch pop) + a staged earnings call. Gated on `listed`, yields to any other pending
+  // interrupt; the pinned solo sim never IPOs → never runs → byte-identical.
+  if (
+    !offline && !bankrupt && base.listed &&
+    !base.pendingEarnings && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
+    !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
+    week - (state.lastEarningsWeek ?? week) >= BALANCE.ipo.shareholders.quarterWeeks
+  ) {
+    const sh = BALANCE.ipo.shareholders;
+    const quarterRev = sub(base.cumulativeRevenue, state.quarterStartRevenue ?? base.cumulativeRevenue);
+    const q = (state.earningsQuarter ?? 0) + 1;
+    const report = judgeQuarter(q, week, quarterRev, (state.earningsExpectation ?? sh.minExpectation) as Money);
+    const vmCap = BALANCE.valuationMomentum.cap;
+    base.valuationMomentum = Math.max(-vmCap, Math.min(vmCap, (base.valuationMomentum ?? 0) + report.priceMovePct));
+    base.pendingEarnings = report;
+    base.earningsQuarter = q;
+    base.lastEarningsWeek = week;
+    base.quarterStartRevenue = base.cumulativeRevenue;
+    base.earningsExpectation = nextExpectation(quarterRev);
+    base.feed.push(feedItem(week,
+      report.beat
+        ? `Q${q} earnings beat the street — ${base.companyName}'s shares jumped ${Math.round(report.priceMovePct * 100)}%.`
+        : `Q${q} earnings missed the street — ${base.companyName}'s shares slid ${Math.round(Math.abs(report.priceMovePct) * 100)}%.`,
+      report.beat ? "positive" : "negative"));
   }
 
   // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
@@ -4241,6 +4286,61 @@ export function resolveCommunityAsk(state: GameState, accept: boolean): { state:
   };
 }
 
+// ---------- Post-IPO shareholder loop: buybacks + quarterly earnings ----------
+
+export interface BuybackResult { ok: boolean; reason?: string; gained?: number; spent?: Money; }
+/** Buy back `amount` (cash) worth of the company's own shares at the current valuation: raise the
+ *  founder's ownership, spend the cash (a real sink), and signal confidence (a small momentum bump).
+ *  Capped so buybacks can't fully re-privatize. No-op if not listed / can't afford / already at cap. */
+export function buybackShares(state: GameState, amount: Money): { state: GameState; result: BuybackResult } {
+  if (!state.listed) return { state, result: { ok: false, reason: "Company isn't public." } };
+  const sh = BALANCE.ipo.shareholders;
+  const headroom = sh.maxOwnership - state.ownership;
+  if (headroom <= 0.0005) return { state, result: { ok: false, reason: "You already hold nearly all the shares." } };
+  const val = companyValuation(state);
+  const gain = Math.min(buybackOwnershipGain(amount, val), headroom);
+  if (gain <= 0) return { state, result: { ok: false, reason: "Nothing to buy back." } };
+  const spend = scale(val, gain);
+  if (!gte(state.cash, spend)) return { state, result: { ok: false, reason: "Not enough cash for that buyback." } };
+  const vmCap = BALANCE.valuationMomentum.cap;
+  const momentum = Math.max(-vmCap, Math.min(vmCap, (state.valuationMomentum ?? 0) + buybackMomentumBump(gain)));
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${state.companyName} bought back ${(gain * 100).toFixed(1)}% of its shares for ${format(spend)}.`, "accent"));
+  return {
+    state: { ...state, cash: sub(state.cash, spend), ownership: Math.min(1, state.ownership + gain), valuationMomentum: momentum, feed: trimFeed(feed) },
+    result: { ok: true, gained: gain, spent: spend },
+  };
+}
+
+export interface EarningsAckResult { ok: boolean; defended?: boolean; }
+/** Acknowledge a quarterly earnings result. On a MISS you may DEFEND the price: spend a slice of the
+ *  valuation on a buyback to steady the shares (+ reconsolidate ownership). Beats (and "ride it out")
+ *  just clear the call. No-op if nothing's pending. */
+export function resolveEarnings(state: GameState, defend: boolean): { state: GameState; result: EarningsAckResult } {
+  const report = state.pendingEarnings ?? null;
+  if (!report) return { state, result: { ok: false } };
+  const cleared: GameState = { ...state, pendingEarnings: null };
+  if (defend && !report.beat) {
+    const amount = scale(companyValuation(state), BALANCE.ipo.shareholders.defendBuybackPct);
+    const bb = buybackShares(cleared, amount);
+    return { state: bb.state, result: { ok: true, defended: bb.result.ok } };
+  }
+  return { state: cleared, result: { ok: true, defended: false } };
+}
+
+export interface ShareholderPulse { expectation: Money; quarterRevenue: Money; pct: number; weeksToCall: number; }
+/** A read-only snapshot of where this quarter stands vs the street's expectation, for the equity card.
+ *  Null when the company isn't public. */
+export function shareholderPulse(state: GameState): ShareholderPulse | null {
+  if (!state.listed) return null;
+  const sh = BALANCE.ipo.shareholders;
+  const quarterRevenue = sub(state.cumulativeRevenue, (state.quarterStartRevenue ?? state.cumulativeRevenue) as Money);
+  const expectation = (Math.max(1, (state.earningsExpectation ?? sh.minExpectation) as number)) as Money;
+  const pct = Math.min(999, Math.round((toDollars(quarterRevenue) / toDollars(expectation)) * 100));
+  const weeksToCall = Math.max(0, sh.quarterWeeks - (state.week - (state.lastEarningsWeek ?? state.week)));
+  return { expectation, quarterRevenue, pct, weeksToCall };
+}
+
 /** Era-scaled verdict score bands. effectiveScore (= launchScore × competitionFactor) at or above
  *  `hit` is a hit, at/below `flop` is a flop, ≥ `solid` (but under hit) is a solid performer, else a
  *  steady seller. The bars rise with the era so late-game hits must be earned (Phase-2 scaling). The
@@ -4263,7 +4363,20 @@ export function listCompany(state: GameState, stake: number): GameState {
   const raised = scale(companyValuation(state), pct);
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `${state.companyName} IPO'd, raised ${format(raised)} for ${Math.round(pct * 100)}%.`, "positive"));
-  return { ...state, listed: true, ownership: 1 - pct, cash: add(state.cash, raised), feed: trimFeed(feed) };
+  // Kick off the shareholder loop: the street's first quarterly bar is set from the current run-rate.
+  const quarterEstimate = scale(nextWeekRevenue(state), BALANCE.ipo.shareholders.quarterWeeks);
+  return {
+    ...state,
+    listed: true,
+    ownership: 1 - pct,
+    cash: add(state.cash, raised),
+    lastEarningsWeek: state.week,
+    quarterStartRevenue: state.cumulativeRevenue,
+    earningsExpectation: nextExpectation(quarterEstimate),
+    earningsQuarter: 0,
+    pendingEarnings: null,
+    feed: trimFeed(feed),
+  };
 }
 
 /** Sell an additional `pct` of the company post-IPO for cash (dilution; keeps ≥5%). */

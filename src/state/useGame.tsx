@@ -30,6 +30,10 @@ import {
   type EurekaResult,
   resolveCommunityAsk,
   type CommunityAskResult,
+  buybackShares,
+  resolveEarnings,
+  type BuybackResult,
+  type EarningsAckResult,
   acceptSideOrder,
   claimContract,
   declineSideOrder,
@@ -406,6 +410,8 @@ interface GameActionsValue {
   dismissRivalry: () => void;
   resolveEureka: (choice: "bank" | "chase") => EurekaResult;
   resolveCommunityAsk: (accept: boolean) => CommunityAskResult;
+  buybackShares: (amount: Money) => BuybackResult;
+  resolveEarnings: (defend: boolean) => EarningsAckResult;
   acceptSideOrder: () => void;
   claimContract: (id: string) => void;
   declineSideOrder: () => void;
@@ -895,6 +901,28 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
     return result;
   }, []);
+  // Buy back the company's own shares — spend cash to raise ownership + nudge the price up. Spend FX.
+  const buybackSharesCb = useCallback((amount: Money): BuybackResult => {
+    const prev = stateRef.current;
+    const { state: next, result } = buybackShares(prev, amount);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    sfx("cash"); haptic.success();
+    setState(next);
+    return result;
+  }, []);
+  // Acknowledge a quarterly earnings call; on a miss, `defend` runs a steadying buyback.
+  const resolveEarningsCb = useCallback((defend: boolean): EarningsAckResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingEarnings) return { ok: false };
+    const { state: next, result } = resolveEarnings(prev, defend);
+    if (result.defended) { const spent = (prev.cash - next.cash) as Money; if (spent > 0) emitSpend(spent); sfx("cash"); }
+    else sfx("tap");
+    haptic.light();
+    setState(next);
+    return result;
+  }, []);
   const resolveStrikeCb = useCallback((choice: StrikeResponse) => {
     const prev = stateRef.current;
     if (!prev.pendingStrike) return; // a second input (Escape + scrim in one frame) is a no-op, not an error
@@ -1363,6 +1391,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dismissRivalry: dismissRivalryCb,
       resolveEureka: resolveEurekaCb,
       resolveCommunityAsk: resolveCommunityAskCb,
+      buybackShares: buybackSharesCb,
+      resolveEarnings: resolveEarningsCb,
       acceptSideOrder: acceptSideOrderCb,
       claimContract: claimContractCb,
       declineSideOrder: declineSideOrderCb,
@@ -1446,7 +1476,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

@@ -1689,6 +1689,29 @@
   transition: width var(--spring-standard);
 }
 
+/* Post-IPO shareholder pulse — this quarter's revenue vs the street's expectation. Amber while
+   behind, green once on track (the marker at 100% is the street's bar). */
+.mkt__pulse { margin-bottom: var(--sp-12); }
+.mkt__pulse-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--sp-6); }
+.mkt__pulse-label { font-size: var(--fs-caption); font-weight: 700; color: var(--ink); }
+.mkt__pulse-pct { font-size: var(--fs-caption); font-weight: 800; color: var(--warning); }
+.mkt__pulse-pct--up { color: var(--positive-text, var(--positive)); }
+.mkt__pulse-track {
+  position: relative;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.mkt__pulse-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 80%, transparent), var(--warning));
+  transition: width var(--spring-standard);
+}
+.mkt__pulse-fill--up { background: linear-gradient(90deg, var(--accent), var(--positive)); }
+.mkt__co-actions { display: flex; flex-direction: column; gap: var(--sp-8); }
+
 /* Global expansion — the "garage → global empire" reach meter + region licence cards */
 .mkt__regions-lead { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; margin: calc(-1 * var(--sp-4)) 0 var(--sp-8); }
 
