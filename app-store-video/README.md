@@ -1,8 +1,11 @@
 # Promo video — Silicon: Tech Tycoon
 
-`Silicon-TechTycoon-promo.webm` — a ~29s portrait promo (1080×2340, VP8/WebM) for the App Store
-preview slot, ads, and social. Recorded from the **live game** (real 3D office, real launch reveal,
-real celebration) with hype text overlays baked in.
+A ~29s portrait promo (1080×2340) for the App Store preview slot, ads, and social. Recorded from
+the **live game** (real 3D office, real launch reveal, real celebration) with hype text overlays
+baked in. Two formats ship:
+
+- `Silicon-TechTycoon-promo.mp4` — H.264 (High), the App Store Connect / iOS / QuickTime format.
+- `Silicon-TechTycoon-promo.webm` — VP8, for web/Android and the recording pipeline's native output.
 
 ## Beats
 
