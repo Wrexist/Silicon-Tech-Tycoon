@@ -325,6 +325,11 @@ export interface GameState {
   pendingCommunityAsk?: CommunityAsk | null;
   /** Week of the last community ask — enforces the cooldown between asks. */
   lastCommunityAskWeek?: number;
+  /** Week the last OPPORTUNISTIC full-screen interrupt fired (strike / eureka / community / earnings /
+   *  rivalry / regional / staff moment). One shared stamp enforces a minimum quiet gap between any two
+   *  so modals never cluster (BALANCE.interrupts.minGapWeeks). Optional → old saves + the pinned solo
+   *  sim (which raises none) default to -999, so the gate is a pure no-op there → byte-identical. */
+  lastInterruptWeek?: number;
   // --- Post-IPO shareholder loop (all optional/null → golden-invariant safe; only live once listed) ---
   /** A quarterly earnings result waiting to be shown — beat/miss vs the street + the share-price move. */
   pendingEarnings?: EarningsReport | null;
@@ -630,6 +635,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastEurekaWeek: -999,
     pendingCommunityAsk: null,
     lastCommunityAskWeek: -999,
+    lastInterruptWeek: -999,
     pendingEarnings: null,
     earningsExpectation: ZERO,
     quarterStartRevenue: ZERO,
@@ -1648,9 +1654,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // contested entry ALSO raises a respond-or-hold interrupt so the attack is a moment the player
   // answers, not a feed line they read. One at a time, cooldown-gated; the interrupt itself changes
   // no economy numbers (responses are opt-in reducers the pinned sim never calls).
+  // Global interrupt budget: at least minGapWeeks of quiet between any two OPPORTUNISTIC full-screen
+  // cards. Read from the tick-start stamp (a const, so every setter this tick sees the same value);
+  // whichever card fires sets lastInterruptWeek = week, deferring the rest to a later quiet week. The
+  // pinned solo sim raises no interrupts, so this stays -999 → interruptQuiet is always true → no-op.
+  const interruptQuiet = week - (state.lastInterruptWeek ?? -999) >= BALANCE.interrupts.minGapWeeks;
+  let lastInterruptWeek = state.lastInterruptWeek ?? -999;
   let pendingStrike = state.pendingStrike ?? null;
   if (
     !pendingStrike &&
+    interruptQuiet &&
     state.era >= 2 && // the Garage era is a protected learning sandbox — no strike interrupts
     contestedCats.size > 0 &&
     week - (state.lastStrikeWeek ?? -999) >= BALANCE.market.competition.strike.cooldownWeeks
@@ -1673,6 +1686,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         productName: target.product.name,
         playerOverall: overallScore(target.stats, target.product.category),
       };
+      lastInterruptWeek = week; // consume the interrupt budget so nothing else piles on this week
       // The aggressor picks a fight → a nemesis-forming clash (they landed the blow).
       clashSignals.push({ kind: "struck", rivalId: release.rivalId });
     }
@@ -1689,6 +1703,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (ceremony) {
       pendingAwards = ceremony;
       awardsHistory = [ceremony, ...awardsHistory].slice(0, 20);
+      lastInterruptWeek = week; // the year's big moment — keep the following weeks quiet
       // Awards duel: the marquee Device-of-the-Year result is a head-to-head clash — but ONLY when the
       // player actually competed this year (shipped a device). A do-nothing run where rivals win among
       // themselves is no rivalry, so it never forges a nemesis (keeps the pinned sim clash-free).
@@ -2025,6 +2040,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     competitors,
     launched: launchedFinal,
     pendingStrike,
+    lastInterruptWeek,
     pendingAwards,
     awardsHistory,
     pendingSideOrder,
@@ -2071,7 +2087,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   {
     const eu = BALANCE.research.eureka;
     if (
-      !offline && !bankrupt &&
+      !offline && !bankrupt && interruptQuiet &&
       !base.pendingEureka && !base.pendingStrike && !base.pendingPoach && !base.pendingChoice &&
       base.era >= eu.minEra &&
       base.staff.filter((s) => s.assignment === "rnd").length >= eu.minRnDStaff &&
@@ -2081,6 +2097,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       const moment = generateEureka(state.seed, week, base.era);
       base.pendingEureka = moment;
       base.lastEurekaWeek = week;
+      base.lastInterruptWeek = week;
       base.feed.push(feedItem(week, `Your lab had a breakthrough in the ${moment.componentKind} line. Bank it, or chase the prototype?`, "accent"));
     }
   }
@@ -2093,7 +2110,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const ca = BALANCE.fans.community.asks;
     const lastLaunchWeek = state.launched.reduce((m, lp) => Math.max(m, lp.launchedWeek), -Infinity);
     if (
-      !offline && !bankrupt &&
+      !offline && !bankrupt && interruptQuiet &&
       state.launched.length >= 1 &&
       !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike && !base.pendingPoach &&
       !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
@@ -2104,6 +2121,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       const ask = generateCommunityAsk(state.seed, week, base.fans);
       base.pendingCommunityAsk = ask;
       base.lastCommunityAskWeek = week;
+      base.lastInterruptWeek = week;
       base.feed.push(feedItem(week, `The community is asking: ${ASK_INFO[ask.kind].title.toLowerCase()}. Answer the call, or let it pass?`, "accent"));
     }
   }
@@ -2113,7 +2131,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // just like a launch pop) + a staged earnings call. Gated on `listed`, yields to any other pending
   // interrupt; the pinned solo sim never IPOs → never runs → byte-identical.
   if (
-    !offline && !bankrupt && base.listed &&
+    !offline && !bankrupt && base.listed && interruptQuiet &&
     !base.pendingEarnings && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
     !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
     week - (state.lastEarningsWeek ?? week) >= BALANCE.ipo.shareholders.quarterWeeks
@@ -2127,6 +2145,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     base.pendingEarnings = report;
     base.earningsQuarter = q;
     base.lastEarningsWeek = week;
+    base.lastInterruptWeek = week;
     base.quarterStartRevenue = base.cumulativeRevenue;
     base.earningsExpectation = nextExpectation(quarterRev);
     base.feed.push(feedItem(week,
@@ -2192,8 +2211,18 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (res.declared) {
       const rival = base.competitors.find((c) => c.id === res.declared!.rivalId);
       const doctrine = rivalDef(res.declared.rivalId)?.doctrine ?? "generalist";
-      base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
       base.feed.push(feedItem(week, `${rival?.name ?? "A rival"} has become your arch-rival. It's personal now.`, "negative"));
+      // The reveal CARD respects the interrupt budget AND never doubles up with another pending modal
+      // (a nemesis usually forms from the very strike already on screen). If suppressed the nemesis
+      // still forms and the feed still announces it — only the extra full-screen card is skipped.
+      if (
+        interruptQuiet &&
+        !base.pendingRivalry && !base.pendingStrike && !base.pendingEureka && !base.pendingCommunityAsk &&
+        !base.pendingEarnings && !base.pendingPoach && !base.pendingChoice && !base.pendingAwards
+      ) {
+        base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
+        base.lastInterruptWeek = week;
+      }
     } else if (res.nemesis && clashSignals.some((s) => s.rivalId === res.nemesis!.rivalId)) {
       // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency).
       const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);

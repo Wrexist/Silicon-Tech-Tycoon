@@ -266,6 +266,16 @@ export const BALANCE = {
     costPerPointPerEra: 0.9,      // +90% cost per era past 1 (bigger company, pricier campaigns)
     maxStep: 25,            // one investment raises the meter by at most this many points
   },
+  // --- Interrupt budget (UX pacing) — one global governor over the OPPORTUNISTIC full-screen cards
+  // (rival strike, eureka, community ask, earnings call, rivalry reveal, regional event, staff moment).
+  // Each has its own cadence/cooldown, but without a shared floor they can still cluster across
+  // consecutive weeks and turn the game into a wall of modals. A single `lastInterruptWeek` stamp +
+  // this minimum gap guarantees quiet weeks between any two opportunistic interrupts, so each one
+  // lands as a moment instead of a nag. Scheduled ceremonies (the year-52 awards) are EXEMPT from the
+  // gate — they must fire on their week — but still stamp, so nothing piles on right after them.
+  interrupts: {
+    minGapWeeks: 3, // at least this many quiet weeks between opportunistic full-screen interrupts
+  },
   // Mid-lifecycle price cuts, now repeatable (a fading product can be marked down more than once).
   // Each cut must still be below the current price and above unit cost, so the price naturally floors
   // out after a few cuts — the diminishing return is built into the mechanic, no extra falloff needed.

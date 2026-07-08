@@ -349,6 +349,9 @@ function migrate(state: GameState): GameState | null {
   s.osThreat = typeof s.osThreat === "number" && Number.isFinite(s.osThreat) ? Math.max(0, Math.min(100, s.osThreat)) : 0;
   s.osSecurity = typeof s.osSecurity === "number" && Number.isFinite(s.osSecurity) ? Math.max(0, Math.min(100, s.osSecurity)) : 0;
   if (s.lastPatchWeek != null && (!Number.isFinite(s.lastPatchWeek) || s.lastPatchWeek < 0)) s.lastPatchWeek = undefined;
+  // Interrupt-budget stamp (added later): a corrupt value would silently gate off ALL opportunistic
+  // interrupts, so drop it to the "long ago" sentinel rather than let it wedge them shut.
+  if (s.lastInterruptWeek != null && !Number.isFinite(s.lastInterruptWeek)) s.lastInterruptWeek = -999;
   // OS philosophy (added later): default none — an un-customized OS with no tilt.
   if (typeof s.osPhilosophy !== "string") s.osPhilosophy = null;
   // Arch-rival / nemesis (added later): default none. Drop a malformed value from an untrusted import;
