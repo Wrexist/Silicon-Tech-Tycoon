@@ -444,7 +444,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__panel fmode__stopped">
             <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
             <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to align every machine and route the belts for you. A wired line builds every run faster.</p>
-            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
+            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); if (!use3d) { showToast("Building needs the 3D factory view — turn it on in Settings.", { tone: "neutral" }); return; } setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
         <div className="fmode__panel">

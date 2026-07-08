@@ -800,6 +800,13 @@ function Upgrades() {
                   emitHighlight(line.id);
                   showToast(`${line.name}, ${OFFICE_ADDITION[line.id]}`, { tone: "neutral", glyph: <Icon size={15} /> });
                 } : undefined}
+                onKeyDown={cur > 0 ? (e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.preventDefault();
+                  haptic.light();
+                  emitHighlight(line.id);
+                  showToast(`${line.name}, ${OFFICE_ADDITION[line.id]}`, { tone: "neutral", glyph: <Icon size={15} /> });
+                } : undefined}
                 role={cur > 0 ? "button" : undefined}
                 tabIndex={cur > 0 ? 0 : undefined}
               >

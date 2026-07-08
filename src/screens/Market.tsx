@@ -114,7 +114,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   // Deep-link hand-off from the launch reveal: open the named product's post-mortem once, consume.
   useEffect(() => {
     if (!focusProductId) return;
-    if (state.launched.some((l) => l.product.id === focusProductId)) setDetailId(focusProductId);
+    if (state.launched.some((l) => l.product.id === focusProductId)) {
+      setMktTab("products"); // land on the Products list so dismissing the post-mortem shows where the device lives
+      setDetailId(focusProductId);
+    }
     onFocusConsumed?.();
     // Consume-once on mount/prop-change; state.launched is read fresh at that moment by design.
     // eslint-disable-next-line react-hooks/exhaustive-deps

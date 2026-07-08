@@ -297,7 +297,7 @@
   width: 34px; height: 34px; flex: none; border-radius: var(--r-button);
   background: var(--surface); color: var(--ink-3); border: 1px solid var(--hairline);
 }
-.fmode__layout-del:active { color: var(--danger, #e5484d); }
+.fmode__layout-del:active { color: var(--negative); }
 .fmode__layout-save { display: flex; align-items: center; gap: var(--sp-8); }
 .fmode__layout-input {
   flex: 1; min-width: 0; min-height: 38px; padding: 0 var(--sp-12);

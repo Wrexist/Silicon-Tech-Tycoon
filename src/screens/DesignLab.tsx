@@ -502,7 +502,7 @@ export function DesignLab({
     // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
     const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
     const res = launchReady(id);
-    if (!res.ok) return;
+    if (!res.ok) { haptic.error(); showToast(res.reason ?? "That product couldn't launch.", { tone: "negative" }); return; }
     haptic.success();
     // launchOutcome keys the celebration off the ACTUAL recorded verdict (competition-adjusted),
     // not the raw score — and is shared with HQ so the two launch surfaces can't drift.
@@ -1476,7 +1476,7 @@ export function DesignLab({
                         <button
                           key={f.stem}
                           className="lab__line-chip"
-                          onClick={() => { set({ name: suggestNextName(f.latestName) }); haptic.light(); }}
+                          onClick={() => { set({ name: suggestNextName(f.latestName).slice(0, 22) }); haptic.light(); }}
                         >
                           {f.name}
                           <span className={`lab__line-tag lab__line-tag--${f.label.toLowerCase().replace(/\s+/g, "")}`}>{f.label}</span>
@@ -1716,7 +1716,7 @@ function DesignCompleteCard({
 
   const launchNow = () => {
     onClose(); // close first so the keynote reveal isn't stacked on the sheet
-    launchProduct(done.builtId);
+    if (!launchProduct(done.builtId)) { haptic.error(); showToast("That product couldn't launch — it may have already shipped.", { tone: "negative" }); }
   };
 
   return (
