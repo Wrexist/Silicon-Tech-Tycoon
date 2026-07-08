@@ -9,28 +9,28 @@
 }
 .eur__scrim {
   position: absolute; inset: 0;
-  /* Lighter, strongly-blurred scrim so the game shows through the glass card (liquid glass). */
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
-  backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%);
+  /* Minimal scrim — the popup card is the glass, not the surround. */
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
 }
 .eur__card {
   position: relative; z-index: 1; width: 100%; max-width: 410px; max-height: 100%; overflow-y: auto;
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-10);
   padding: var(--sp-32) var(--sp-28) var(--sp-28);
   border-radius: var(--r-sheet);
-  /* Liquid glass — frosted, faintly accent-tinted material over the blurred backdrop. */
-  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%), var(--glass-card);
-  backdrop-filter: blur(34px) saturate(180%);
-  -webkit-backdrop-filter: blur(34px) saturate(180%);
-  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--glass-stroke));
-  box-shadow: var(--glass-highlight), var(--shadow-floating), 0 0 50px -16px color-mix(in srgb, var(--accent) 50%, transparent);
+  /* CLEAR liquid glass — a see-through pane, faintly accent-tinted, with a bright specular rim. */
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 62%), var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--accent) 42%, transparent);
   text-align: center;
   animation: eur-in var(--spring-gentle) both;
 }
 .eur__card--jackpot {
-  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--positive) 22%, transparent), transparent 60%), var(--glass-card);
-  border-color: color-mix(in srgb, var(--positive) 44%, var(--glass-stroke));
-  box-shadow: var(--glass-highlight), var(--shadow-floating), 0 0 50px -14px color-mix(in srgb, var(--positive) 55%, transparent);
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--positive) 14%, transparent), transparent 62%), var(--glass-modal);
+  border-color: color-mix(in srgb, var(--positive) 28%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--positive) 45%, transparent);
 }
 @keyframes eur-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .eur__card { animation: none; } }

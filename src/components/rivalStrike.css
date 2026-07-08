@@ -15,10 +15,10 @@
   position: absolute;
   inset: 0;
   border: none;
-  /* Lighter, strongly-blurred scrim so the game shows through the glass card (liquid glass). */
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  /* Minimal scrim — the popup card is the glass, not the surround. */
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 .rst__card {
   position: relative;
@@ -33,14 +33,14 @@
   gap: var(--sp-12);
   padding: var(--sp-28) var(--sp-28) var(--sp-28);
   border-radius: var(--r-sheet);
-  /* Liquid glass — frosted material over the blurred backdrop. */
+  /* CLEAR liquid glass — a see-through pane, faintly charged red, with a bright specular rim. */
   background:
-    radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--negative) 14%, transparent), transparent 62%),
-    var(--glass-card);
-  backdrop-filter: blur(34px) saturate(180%);
-  -webkit-backdrop-filter: blur(34px) saturate(180%);
-  border: 1px solid color-mix(in srgb, var(--negative) 34%, var(--glass-stroke));
-  box-shadow: var(--glass-highlight), var(--shadow-floating), 0 0 50px -16px color-mix(in srgb, var(--negative) 45%, transparent);
+    radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--negative) 10%, transparent), transparent 62%),
+    var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid color-mix(in srgb, var(--negative) 22%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--negative) 38%, transparent);
   text-align: center;
   animation: rst-pop var(--spring-standard) both;
 }

@@ -15,10 +15,10 @@
 .awd__scrim {
   position: absolute;
   inset: 0;
-  /* Lighter, strongly-blurred scrim so the stage shows through the glass card (liquid glass). */
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  /* Minimal scrim — the popup card is the glass, not the surround. */
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 .awd__card {
   position: relative;
@@ -33,14 +33,14 @@
   gap: var(--sp-10);
   padding: var(--sp-32) var(--sp-28) var(--sp-28);
   border-radius: var(--r-sheet);
-  /* Liquid glass, warmed with gold — a frosted material over the blurred backdrop. */
+  /* CLEAR liquid glass, warmed with gold — a see-through pane with a bright specular rim. */
   background:
-    radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--gold, #d9a824) 18%, transparent), transparent 60%),
-    var(--glass-card);
-  backdrop-filter: blur(34px) saturate(180%);
-  -webkit-backdrop-filter: blur(34px) saturate(180%);
-  border: 1px solid color-mix(in srgb, var(--gold, #d9a824) 40%, var(--glass-stroke));
-  box-shadow: var(--glass-highlight), var(--shadow-floating), 0 0 50px -16px color-mix(in srgb, var(--gold, #d9a824) 45%, transparent);
+    radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--gold, #d9a824) 12%, transparent), transparent 62%),
+    var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid color-mix(in srgb, var(--gold, #d9a824) 28%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--gold, #d9a824) 40%, transparent);
   text-align: center;
   animation: awd-pop var(--spring-standard) both;
 }

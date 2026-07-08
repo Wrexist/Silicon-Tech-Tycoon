@@ -20,6 +20,12 @@
   --glass-card: color-mix(in srgb, #ffffff 78%, transparent);
   --glass-stroke: color-mix(in srgb, var(--hairline) 85%, transparent);
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  /* CLEAR "liquid glass" for full-screen modal cards — a see-through pane (the game refracts through
+     it), not a frosted panel. A single modal, so a real backdrop-filter is affordable. Light theme:
+     a clear white glass; the specular rim is the shiny glass edge. */
+  --glass-modal: color-mix(in srgb, #ffffff 34%, transparent);
+  --glass-modal-rim: rgba(255, 255, 255, 0.6);
+  --glass-modal-edge: color-mix(in srgb, #ffffff 55%, transparent);
   /* --accent darkened to #2563eb in light theme so white text on accent (incl. 13px .ds-btn--sm)
      meets 4.5:1. --accent-ink stays #fff. Dark theme overrides --accent back to #3b82f6. */
   --accent: #2563eb;
@@ -174,6 +180,9 @@
     --glass-card: color-mix(in srgb, var(--surface) 76%, transparent);
     --glass-stroke: rgba(255, 255, 255, 0.07);
     --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --glass-modal: color-mix(in srgb, #0d111a 42%, transparent);
+    --glass-modal-rim: rgba(255, 255, 255, 0.24);
+    --glass-modal-edge: rgba(255, 255, 255, 0.14);
     --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -212,6 +221,9 @@
   --glass-card: color-mix(in srgb, var(--surface) 76%, transparent);
   --glass-stroke: rgba(255, 255, 255, 0.07);
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --glass-modal: color-mix(in srgb, #0d111a 42%, transparent);
+  --glass-modal-rim: rgba(255, 255, 255, 0.24);
+  --glass-modal-edge: rgba(255, 255, 255, 0.14);
   --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);
