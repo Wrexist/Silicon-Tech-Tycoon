@@ -62,7 +62,7 @@ await p.click('button[aria-label="Pause"]', { timeout: 4000 }).catch(() => {});
 await p.waitForTimeout(400);
 await dismissAll();
 
-const shot = async (n) => { await p.waitForTimeout(400); await p.screenshot({ path: resolve(outDir, `g-${n}-${TAG}.png`) }); console.log("shot", `g-${n}-${TAG}`); };
+const shot = async (n) => { await p.waitForTimeout(400); await p.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur()); await p.waitForTimeout(120); await p.screenshot({ path: resolve(outDir, `g-${n}-${TAG}.png`) }); console.log("shot", `g-${n}-${TAG}`); };
 const esc = async () => { await p.keyboard.press("Escape").catch(() => {}); await p.waitForTimeout(500); };
 
 // 1) Settings sheet (gear).

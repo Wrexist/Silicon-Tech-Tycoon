@@ -54,6 +54,9 @@ for (const theme of ["light", "dark"]) {
     const shown = await p.$(sv.sel);
     if (!shown) console.log("!! not shown:", sv.name, theme);
     await p.waitForTimeout(700);
+    // Drop programmatic focus so the capture matches a touch open (no focus ring on the CTA).
+    await p.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+    await p.waitForTimeout(120);
     await p.screenshot({ path: resolve(outDir, `gp-${sv.name}-${theme}.png`) });
     console.log("shot", `gp-${sv.name}-${theme}`, shown ? "ok" : "MISSING");
     await ctx.close();
