@@ -1,0 +1,73 @@
+/* "Rivalry declared" — a charged, negative-tinted villain reveal. Same modal frame as the awards
+   ceremony, one notch below it so an award night still wins a shared week. Tokens + 8pt grid only. */
+.rvd {
+  position: fixed;
+  inset: 0;
+  z-index: 58;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.rvd__scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.rvd__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-28) var(--sp-20) var(--sp-20);
+  border-radius: var(--r-sheet);
+  background:
+    radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--negative) 18%, transparent), transparent 62%),
+    var(--surface);
+  border: 1px solid color-mix(in srgb, var(--negative) 44%, var(--hairline));
+  box-shadow: var(--shadow-floating), 0 0 46px -14px color-mix(in srgb, var(--negative) 60%, transparent);
+  text-align: center;
+  animation: rvd-in var(--spring-gentle) both;
+}
+@keyframes rvd-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .rvd__card { animation: none; } }
+
+.rvd__glyph {
+  position: relative;
+  width: 60px; height: 60px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--negative) 18%, transparent);
+  color: var(--negative);
+  animation: rvd-glyph-in var(--spring-bounce) both;
+}
+@keyframes rvd-glyph-in { from { transform: scale(0.5) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.rvd__glyph-spark {
+  position: absolute; right: -4px; bottom: -4px;
+  width: 26px; height: 26px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--warning); color: #fff;
+  box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--warning) 70%, transparent);
+}
+.rvd__eyebrow { margin-top: var(--sp-4); font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--negative); }
+.rvd__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
+.rvd__vs { font-size: var(--fs-body); font-weight: 600; color: var(--ink-2); margin-top: calc(-1 * var(--sp-4)); }
+.rvd__tagline { font-size: var(--fs-body); font-weight: 600; color: var(--ink); line-height: 1.4; margin-top: var(--sp-8); }
+.rvd__doctrine {
+  display: inline-flex; align-items: center; margin-top: var(--sp-4);
+  padding: 4px 12px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--negative) 12%, transparent); color: var(--negative);
+  font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase;
+}
+.rvd__note { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-8) 0 var(--sp-4); }
+.rvd .ds-btn { margin-top: var(--sp-8); }

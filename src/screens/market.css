@@ -690,6 +690,45 @@
 }
 .rprof__badge--license { color: var(--fn-mkt); background: var(--fn-mkt-soft); }
 
+/* ---------- Arch-rival / nemesis ---------- */
+.mkt__board-nemesis { color: var(--negative); vertical-align: -1px; margin-left: 4px; flex-shrink: 0; }
+.rprof__rivalry {
+  border-radius: var(--r-button); padding: var(--sp-12) var(--sp-16);
+  background: color-mix(in srgb, var(--negative) 8%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--negative) 34%, var(--hairline));
+  display: flex; flex-direction: column; gap: var(--sp-10);
+}
+.rprof__rivalry--bitter, .rprof__rivalry--allout {
+  box-shadow: 0 0 30px -14px color-mix(in srgb, var(--negative) 70%, transparent);
+  border-color: color-mix(in srgb, var(--negative) 50%, var(--hairline));
+}
+.rprof__rivalry-head { display: flex; align-items: center; gap: var(--sp-8); }
+.rprof__rivalry-glyph {
+  width: 28px; height: 28px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: color-mix(in srgb, var(--negative) 16%, transparent); color: var(--negative);
+}
+.rprof__rivalry-label { font-weight: 800; font-size: var(--fs-body); color: var(--negative); flex: 1; }
+.rprof__rivalry-tier {
+  font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: var(--r-pill);
+}
+.rprof__rivalry-tier--simmering { color: var(--ink-2); background: var(--bg-elevated); }
+.rprof__rivalry-tier--heated { color: var(--warning-text, var(--warning)); background: color-mix(in srgb, var(--warning) 15%, transparent); }
+.rprof__rivalry-tier--bitter, .rprof__rivalry-tier--allout { color: var(--negative); background: color-mix(in srgb, var(--negative) 15%, transparent); }
+.rprof__rivalry-record { display: flex; align-items: baseline; gap: var(--sp-6); }
+.rprof__rivalry-score { font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.02em; }
+.rprof__rivalry-score--you { color: var(--positive); }
+.rprof__rivalry-score--them { color: var(--negative); }
+.rprof__rivalry-dash { font-size: var(--fs-body); font-weight: 700; color: var(--ink-3); }
+.rprof__rivalry-record-cap { margin-left: var(--sp-6); font-size: var(--fs-nano); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+.rprof__rivalry-heat { display: flex; align-items: center; gap: var(--sp-8); }
+.rprof__rivalry-heat-track { flex: 1; height: 7px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }
+.rprof__rivalry-heat-track i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--warning), var(--negative)); transition: width var(--spring-gentle);
+}
+.rprof__rivalry-heat-val { font-size: var(--fs-nano); font-weight: 700; color: var(--ink-2); flex-shrink: 0; }
+
 /* ---------- Rival releases (Epic B) ---------- */
 .mkt__rivals { display: flex; flex-direction: column; gap: var(--sp-8); }
 .mkt__rival--btn { width: 100%; text-align: left; border: none; cursor: pointer; transition: transform var(--spring-snappy), background var(--spring-snappy); }

@@ -590,6 +590,20 @@ export const BALANCE = {
         declining: { stable: 0.6, ascending: 0.4 },
       } as Record<string, Record<string, number>>,
     },
+    // The ARCH-RIVAL / NEMESIS — one rival becomes YOUR villain. A living "heat" meter + a head-to-head
+    // record that escalates on every clash (you overtake them, they strike you, an awards duel) and cools
+    // in quiet weeks; a hot nemesis fights back with a launch edge on your turf. All gated behind the
+    // nemesis FORMING, which needs a player clash — the pinned auto-player never clashes, so it's byte-
+    // identical. Deliberately restrained: the launch edge stays under the existing winnability ceiling.
+    nemesis: {
+      formHeat: 30,             // heat a freshly-declared rivalry starts at
+      decayPerWeek: 2,          // heat ebbs this much on a quiet week (no clash with the nemesis)
+      heat: {                   // heat added per clash kind
+        overtake: 12, dethroned: 24, struck: 16, awardWin: 12, awardLoss: 16,
+      } as Record<string, number>,
+      turfCategoryWeight: 3,    // extra launch-category weight the nemesis piles onto your top category
+      turfStrengthBonusAtMaxHeat: 8, // extra launch strength at heat 100 (scaled by heat/100; pre-cap)
+    },
   },
 
   // --- Product franchises / brand equity (the "IP & fanbase" lever) ---

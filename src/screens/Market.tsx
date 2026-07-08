@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -41,6 +41,7 @@ import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
 import { REGIONS, regionById, regionTasteFit, shippableRegions, regionWorldShare, worldCoverage, regionTasteTop, type Region } from "../engine/regions.ts";
+import { heatTier, HEAT_TIER_LABEL } from "../engine/nemesis.ts";
 import { supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -277,7 +278,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
               {board.map((e, i) => (
                 <div key={e.id} className={`mkt__board-row${e.isPlayer ? " mkt__board-row--me" : ""}`}>
                   <span className={`mkt__board-rank${i === 0 ? " mkt__board-rank--first" : ""}`}>{i === 0 ? <Crown size={13} aria-hidden /> : i + 1}</span>
-                  <span className="mkt__board-name">{e.name}{e.isPlayer ? " · you" : ""}</span>
+                  <span className="mkt__board-name">{e.name}{e.isPlayer ? " · you" : ""}{state.nemesis?.rivalId === e.id && <Swords size={12} className="mkt__board-nemesis" aria-label="your arch-rival" />}</span>
                   <span className="mkt__board-val tnum">{format(e.valuation)}</span>
                 </div>
               ))}
@@ -613,7 +614,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
             <button className="mkt__stock-btn" onClick={() => { setTrade(c); haptic.light(); }} aria-label={`Trade ${c.name}`}>
               <div className="mkt__stock-head">
                 <div className="mkt__stock-id">
-                  <span className="mkt__stock-name">{c.name}</span>
+                  <span className="mkt__stock-name">{c.name}{state.nemesis?.rivalId === c.id && <Swords size={12} className="mkt__board-nemesis" aria-label="your arch-rival" />}</span>
                   <span className="mkt__stock-blurb">{c.blurb}</span>
                 </div>
                 <div className="mkt__stock-price">
@@ -1549,6 +1550,30 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
           <p className="rprof__sub">{comp.blurb}</p>
         </div>
       </div>
+      {state.nemesis?.rivalId === comp.id && (() => {
+        const n = state.nemesis!;
+        const tier = heatTier(n.heat);
+        return (
+          <div className={`rprof__rivalry rprof__rivalry--${tier}`}>
+            <div className="rprof__rivalry-head">
+              <span className="rprof__rivalry-glyph" aria-hidden><Swords size={15} /></span>
+              <span className="rprof__rivalry-label">Your arch-rival</span>
+              <span className={`rprof__rivalry-tier rprof__rivalry-tier--${tier}`}>{HEAT_TIER_LABEL[tier]}</span>
+            </div>
+            <div className="rprof__rivalry-record" aria-label={`Head to head, you ${n.playerWins}, them ${n.rivalWins}`}>
+              <span className="rprof__rivalry-score rprof__rivalry-score--you tnum">{n.playerWins}</span>
+              <span className="rprof__rivalry-dash">–</span>
+              <span className="rprof__rivalry-score rprof__rivalry-score--them tnum">{n.rivalWins}</span>
+              <span className="rprof__rivalry-record-cap">head-to-head</span>
+            </div>
+            <div className="rprof__rivalry-heat">
+              <div className="rprof__rivalry-heat-track"><i style={{ width: `${Math.max(3, n.heat)}%` }} /></div>
+              <span className="rprof__rivalry-heat-val tnum">{Math.round(n.heat)}° heat</span>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="rprof__spark">
         <Sparkline data={comp.priceHistory} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} height={40} />
       </div>

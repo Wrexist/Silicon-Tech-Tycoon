@@ -12,6 +12,7 @@ import {
   RIVALS,
   type CompetitorLaunch,
 } from "../engine/competitors.ts";
+import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import {
   assignedSkill,
   buildWeeks,
@@ -294,6 +295,13 @@ export interface GameState {
   pendingStrike?: RivalStrike | null;
   /** Week of the last strike interrupt — enforces the cooldown so strikes stay events, not nags. */
   lastStrikeWeek?: number;
+  /** The arch-rival: one rival elevated to YOUR nemesis, with a living heat meter + head-to-head
+   *  record that escalates on every clash. Forms only when the player clashes (overtake / struck /
+   *  awards duel), so the pinned auto-player never forms one → optional/null keeps it byte-identical. */
+  nemesis?: Nemesis | null;
+  /** A just-declared rivalry waiting for its reveal moment (set the week a nemesis forms, cleared by
+   *  the player via dismissRivalry). Optional/null → golden-invariant safe. */
+  pendingRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -579,6 +587,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingPoach: null,
     pendingStrike: null,
     lastStrikeWeek: -999,
+    nemesis: null,
+    pendingRivalry: null,
     pendingAwards: null,
     awardsHistory: [],
     pendingSideOrder: null,
@@ -1404,7 +1414,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const recentPlayerHitCats = state.launched
     .filter((lp) => lp.launchedWeek >= week - hitWindow && (lp.verdict === "hit" || lp.verdict === "solid"))
     .map((lp) => lp.product.category);
-  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
+  // The arch-rival hunts your turf: its heat-scaled launch edge (undefined unless a nemesis exists, so
+  // the pinned sim never passes it → byte-identical). Reads last week's nemesis; topCat = your line.
+  const nem = state.nemesis ?? null;
+  const nemEdgeRaw = nem ? nemesisLaunchEdge(nem, nem.rivalId) : null;
+  const nemEdge = nem && nemEdgeRaw ? { rivalId: nem.rivalId, topCat: playerTopCategory(state), ...nemEdgeRaw } : undefined;
+  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats, nemEdge);
   // `let` so B3 can append a fresh challenger that rises to refill a field thinned by acquisitions.
   let competitors = competitorsBase;
 
@@ -1563,6 +1578,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
   });
 
+  // Arch-rival clash signals harvested this tick (strike / overtake / awards duel) → fed to the nemesis
+  // engine below. Stays empty in a do-nothing pinned run (no strike, no overtake, no award duel), so
+  // the nemesis never forms and the sim is byte-identical.
+  const clashSignals: ClashSignal[] = [];
+
   // Rival Strike (fun track): the haircut above already landed — unchanged, unconditional — but a
   // contested entry ALSO raises a respond-or-hold interrupt so the attack is a moment the player
   // answers, not a feed line they read. One at a time, cooldown-gated; the interrupt itself changes
@@ -1592,6 +1612,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         productName: target.product.name,
         playerOverall: overallScore(target.stats, target.product.category),
       };
+      // The aggressor picks a fight → a nemesis-forming clash (they landed the blow).
+      clashSignals.push({ kind: "struck", rivalId: release.rivalId });
     }
   }
 
@@ -1606,6 +1628,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (ceremony) {
       pendingAwards = ceremony;
       awardsHistory = [ceremony, ...awardsHistory].slice(0, 20);
+      // Awards duel: the marquee Device-of-the-Year result is a head-to-head clash — but ONLY when the
+      // player actually competed this year (shipped a device). A do-nothing run where rivals win among
+      // themselves is no rivalry, so it never forges a nemesis (keeps the pinned sim clash-free).
+      const playerCompeted = launchedFinal.some((lp) => lp.launchedWeek >= week - 51 && lp.launchedWeek <= week);
+      const device = ceremony.winners.find((w) => w.categoryId === "device");
+      if (playerCompeted && device && !device.byPlayer) {
+        const rivalId = competitors.find((c) => c.name === device.companyName)?.id;
+        if (rivalId) clashSignals.push({ kind: "awardLoss", rivalId });
+      } else if (device && device.byPlayer && state.nemesis) {
+        clashSignals.push({ kind: "awardWin", rivalId: state.nemesis.rivalId });
+      }
     }
   }
 
@@ -1961,6 +1994,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         if (newRank === 1) {
           base.feed.push(feedItem(week, `${base.companyName} is now the #1 company in the industry. The throne is yours.`, "positive"));
         }
+        // Overtaking a rival is a clash. The biggest one you pass (board is valuation-sorted, so the
+        // first entry) is the marquee scalp — a "dethroning" when it takes you to #1.
+        overtaken.forEach((r, i) => clashSignals.push({ kind: i === 0 && newRank === 1 ? "dethroned" : "overtake", rivalId: r.id }));
       }
       base.bestIndustryRank = newRank;
     }
@@ -1976,6 +2012,33 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       base.valuationMomentum = Math.max(-vm.cap, Math.min(vm.cap, m));
       const sample = toDollars(companyValuation(base));
       base.valuationHistory = [...(base.valuationHistory ?? []), sample].slice(-vm.historyLength);
+    }
+  }
+
+  // The ARCH-RIVAL / NEMESIS (engine/nemesis.ts) — fold this tick's clash signals into a persistent
+  // 1:1 rivalry: form one on the first clash, escalate its heat + head-to-head record, and let a hot
+  // rivalry taunt you. Live play only (so a returning player never comes back mid-feud), and skipped
+  // entirely when there were no clashes — so the pinned auto-player never forms a nemesis → byte-
+  // identical. The launch edge (applied above in advanceCompetitors) reads LAST week's nemesis.
+  if (!offline && !bankrupt) {
+    const res = updateNemesis({
+      current: base.nemesis ?? null,
+      signals: clashSignals,
+      week,
+      existsById: (id) => base.competitors.some((c) => c.id === id),
+      pickWeight: (id) => base.competitors.find((c) => c.id === id)?.reputation ?? 0,
+    });
+    base.nemesis = res.nemesis;
+    if (res.declared) {
+      const rival = base.competitors.find((c) => c.id === res.declared!.rivalId);
+      const doctrine = rivalDef(res.declared.rivalId)?.doctrine ?? "generalist";
+      base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
+      base.feed.push(feedItem(week, `${rival?.name ?? "A rival"} has become your arch-rival. It's personal now.`, "negative"));
+    } else if (res.nemesis && clashSignals.some((s) => s.rivalId === res.nemesis!.rivalId)) {
+      // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency).
+      const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);
+      const doctrine = rivalDef(res.nemesis.rivalId)?.doctrine ?? "generalist";
+      base.feed.push(feedItem(week, `${rival?.name ?? "Your rival"}: “${nemesisTaunt(doctrine, base.seed, week)}”`, "accent"));
     }
   }
 
@@ -3970,6 +4033,30 @@ export function industryRank(state: GameState): number {
   return idx < 0 ? board.length : idx + 1;
 }
 
+/** The player's strongest category — the one their launches have sold the most units in (their main
+ *  line), defaulting to phone. Drives where the arch-rival aims its launches. Pure. */
+export function playerTopCategory(s: GameState): CategoryId {
+  const units = new Map<CategoryId, number>();
+  for (const lp of s.launched) units.set(lp.product.category, (units.get(lp.product.category) ?? 0) + lp.unitsSold);
+  let best: CategoryId = "phone";
+  let bestN = -1;
+  for (const [cat, n] of units) if (n > bestN) { best = cat; bestN = n; }
+  return best;
+}
+
+/** The arch-rival's live competitor state (null if none, or if it's been acquired/removed). */
+export const nemesisRival = (s: GameState): CompetitorState | null =>
+  s.nemesis ? s.competitors.find((c) => c.id === s.nemesis!.rivalId) ?? null : null;
+
+/** Is this rival the player's arch-rival? */
+export const isNemesis = (s: GameState, rivalId: string): boolean => (s.nemesis?.rivalId ?? null) === rivalId;
+
+/** Dismiss the "rivalry declared" reveal (the moment has been seen). Clears the transient flag only. */
+export function dismissRivalry(state: GameState): GameState {
+  if (!state.pendingRivalry) return state;
+  return { ...state, pendingRivalry: null };
+}
+
 /** Era-scaled verdict score bands. effectiveScore (= launchScore × competitionFactor) at or above
  *  `hit` is a hit, at/below `flop` is a flop, ≥ `solid` (but under hit) is a solid performer, else a
  *  steady seller. The bars rise with the era so late-game hits must be earned (Phase-2 scaling). The
@@ -4080,6 +4167,12 @@ export function acquireRival(state: GameState, id: string): GameState {
     `Acquired ${c.name} for ${format(cost)} — absorbed their brand (+${m.repBonus} rep), ${fansGain.toLocaleString()} fans, ${rpWindfall} research from their patents, and ${baseGain.toLocaleString()} customers onto your services.`,
     "positive",
   ));
+  // Buying out your arch-rival is the ultimate way to settle the score — the rivalry ends in your
+  // favour, with a climactic feed beat instead of a silent prune.
+  const wasNemesis = state.nemesis?.rivalId === id;
+  if (wasNemesis) {
+    feed.push(feedItem(state.week, `You bought out ${c.name}, your arch-rival, ${state.nemesis!.playerWins}–${state.nemesis!.rivalWins} in the end. The feud is over. You won.`, "positive"));
+  }
 
   return {
     ...state,
@@ -4093,6 +4186,7 @@ export function acquireRival(state: GameState, id: string): GameState {
     researchPoints: state.researchPoints + rpWindfall,
     absorbedBase: (state.absorbedBase ?? 0) + baseGain,
     acquiredRivals: [...state.acquiredRivals, id],
+    nemesis: wasNemesis ? null : state.nemesis,
     feed: trimFeed(feed),
   };
 }

@@ -17,6 +17,7 @@ import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
 import { RivalStrike } from "./components/RivalStrike.tsx";
 import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
+import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
@@ -220,6 +221,7 @@ function AppShell() {
       <ReadyToLaunch />
       <RivalStrike />
       <AwardsCeremonyOverlay />
+      <RivalryDeclared />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />

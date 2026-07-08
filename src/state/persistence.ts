@@ -351,6 +351,14 @@ function migrate(state: GameState): GameState | null {
   if (s.lastPatchWeek != null && (!Number.isFinite(s.lastPatchWeek) || s.lastPatchWeek < 0)) s.lastPatchWeek = undefined;
   // OS philosophy (added later): default none — an un-customized OS with no tilt.
   if (typeof s.osPhilosophy !== "string") s.osPhilosophy = null;
+  // Arch-rival / nemesis (added later): default none. Drop a malformed value from an untrusted import;
+  // a nemesis pointing at a rival that no longer exists is pruned live by the tick.
+  if (s.nemesis != null && (typeof s.nemesis !== "object" || typeof s.nemesis.rivalId !== "string" || !Number.isFinite(s.nemesis.heat))) {
+    s.nemesis = null;
+  }
+  if (s.pendingRivalry != null && (typeof s.pendingRivalry !== "object" || typeof s.pendingRivalry.rivalId !== "string")) {
+    s.pendingRivalry = null;
+  }
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save
