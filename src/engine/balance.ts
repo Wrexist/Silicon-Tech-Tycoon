@@ -716,6 +716,21 @@ export const BALANCE = {
     rpPerRepPoint: 2,          // one-time RP absorbed per point of the acquired rival's reputation
     installedBasePerRep: 800,  // "installed base" (customers) absorbed per rival reputation point
     absorbedServiceRate: 1.0,  // cents/week each absorbed customer pays in services (recurring annuity)
+    // Controlling-stake TAKEOVERS — a slower, cheaper alternative to a straight cash buyout. Accumulate
+    // a rival's shares on the open market and two things unlock, turning the stock game into a takeover
+    // runway rather than a side annuity:
+    //  • boardSeatFrac of the float → a BOARD SEAT: insider intel on that rival (its hidden arc phase /
+    //    momentum), so you can trade it — and time a takeover — with information nobody else has;
+    //  • controlFrac of the float → a CONTROLLING STAKE: you already hold effective control, so a buyout
+    //    pays only hostilePremium instead of the full acquisitionPremium (the ~35% control premium
+    //    collapses to ~8%). Since shares are bought near fair value, the accumulate-then-pounce path
+    //    costs ~20% less than a cold buyout — the reward for patience, capital lockup, and price risk.
+    // All three are player-driven (buy shares / acquire); the pinned sim never trades, so it's untouched.
+    takeover: {
+      boardSeatFrac: 0.10,  // own this fraction of a rival's shares → board-seat intel
+      controlFrac: 0.5,     // own this → a controlling stake (hostile buyout at the reduced premium)
+      hostilePremium: 1.08, // control premium on a controlled (hostile) takeover, vs acquisitionPremium
+    },
   },
 
   // --- IPO / prestige ---

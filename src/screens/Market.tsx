@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -24,6 +24,10 @@ import {
   canList,
   canAcquire,
   acquisitionCost,
+  ownershipFractionOf,
+  hasBoardSeat,
+  hasControllingStake,
+  rivalBoardIntel,
   companyValuation,
   founderStakeValue,
   industryLeaderboard,
@@ -62,6 +66,14 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 // A distinct hue per region so each market emblem reads at a glance (CSS owns the tint formula).
 const REGION_HUE: Record<string, number> = { home: 210, north_america: 222, europe: 265, asia: 32, emerging: 150 };
+
+// Board-seat intel: a rival's hidden arc phase → a plain-language momentum read + a tone.
+const MOMENTUM: Record<string, { label: string; hint: string; tone: "positive" | "negative" | "neutral" }> = {
+  ascending: { label: "Rising", hint: "its shares should keep firming up", tone: "positive" },
+  peaking: { label: "Peaking", hint: "the momentum is starting to fade", tone: "neutral" },
+  declining: { label: "Declining", hint: "expect its shares to soften", tone: "negative" },
+  stable: { label: "Steady", hint: "holding its level for now", tone: "neutral" },
+};
 
 type Verdict = "hit" | "solid" | "steady" | "flop";
 const VERDICT_LABEL: Record<Verdict, string> = { hit: "Hit", solid: "Solid", steady: "Steady", flop: "Flop" };
@@ -1608,6 +1620,9 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
   const held = state.holdings[comp.id] ?? 0;
   const totalShares = rivalDef(comp.id)?.shares ?? 0;
   const ownPct = totalShares > 0 ? (held / totalShares) * 100 : 0;
+  const board = hasBoardSeat(state, comp.id);
+  const controlling = hasControllingStake(state, comp.id);
+  const intel = rivalBoardIntel(state, comp.id);
   return (
     <div className="rprof">
       <div className="rprof__head">
@@ -1668,7 +1683,18 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
               You own {held.toLocaleString()} share{held !== 1 ? "s" : ""}{ownPct >= 0.1 ? ` · ${ownPct.toFixed(1)}%` : ""}
             </span>
           )}
+          {controlling ? (
+            <span className="rprof__badge rprof__badge--control"><Crown size={11} aria-hidden /> Controlling stake</span>
+          ) : board ? (
+            <span className="rprof__badge rprof__badge--board"><Eye size={11} aria-hidden /> Board seat</span>
+          ) : null}
         </div>
+      )}
+
+      {intel && (
+        <p className={`rprof__intel rprof__intel--${MOMENTUM[intel.arcPhase].tone}`}>
+          <Eye size={13} aria-hidden /> <strong>Board intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.
+        </p>
       )}
 
       {lines.length > 0 && (
@@ -1723,11 +1749,13 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
             }}
           >
             <Crown size={14} />
-            {armAcquire ? `Confirm buyout · ${format(buyout)}` : `Acquire ${comp.name} · ${format(buyout)}`}
+            {armAcquire
+              ? `Confirm ${controlling ? "takeover" : "buyout"} · ${format(buyout)}`
+              : `${controlling ? "Hostile takeover" : "Acquire"} ${comp.name} · ${format(buyout)}`}
           </Button>
           <p className="rprof__acquire-note">
             {acquirable
-              ? `Buy them out: remove them from competition and inherit their brand (+${BALANCE.mergers.repBonus} rep), ${inheritRp} research from their patents, and ${formatCount(inheritBase)} customers paying ~${format(inheritAnnuity)}/wk in services.`
+              ? `${controlling ? "You hold a controlling stake — force the buyout at a reduced premium. " : "Buy them out: "}remove them from competition and inherit their brand (+${BALANCE.mergers.repBonus} rep), ${inheritRp} research from their patents, and ${formatCount(inheritBase)} customers paying ~${format(inheritAnnuity)}/wk in services.`
               : atFloor
                 ? "The market needs at least a couple of rivals, you can't acquire any more right now."
                 : state.cash < buyout
@@ -1752,6 +1780,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
   const buyout = acquisitionCost(state, comp.id);
   const acquirable = canAcquire(state, comp.id);
   const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
+  const controlling = hasControllingStake(state, comp.id);
   const cost = buyCost(comp.sharePrice, qty);
   const proceeds = sellProceeds(comp.sharePrice, qty);
   const canBuy = state.cash >= cost;
@@ -1821,6 +1850,43 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
           ~{format(cents(Math.round(comp.sharePrice * 100 * BALANCE.stocks.dividendYieldPerWeek)))}/wk per 100 shares · {(BALANCE.stocks.dividendYieldPerWeek * 52 * 100).toFixed(1)}% annual yield
         </span>
       </div>
+
+      {/* Takeover runway — accumulate shares toward a board seat (intel) then a controlling stake. */}
+      {(() => {
+        const t = BALANCE.mergers.takeover;
+        const frac = ownershipFractionOf(state, comp.id);
+        const pct = frac * 100;
+        const board = hasBoardSeat(state, comp.id);
+        const control = hasControllingStake(state, comp.id);
+        const intel = rivalBoardIntel(state, comp.id);
+        return (
+          <div className="trade__stake">
+            <div className="trade__stake-head">
+              <span className="trade__stake-label">Your stake</span>
+              <span className="trade__stake-pct tnum">{pct > 0 && pct < 0.1 ? "<0.1" : pct.toFixed(1)}%</span>
+            </div>
+            <div className="trade__stake-track" role="presentation">
+              <div className="trade__stake-fill" style={{ width: `${Math.min(100, (frac / t.controlFrac) * 100)}%` }} />
+              <span className="trade__stake-mark" style={{ left: `${(t.boardSeatFrac / t.controlFrac) * 100}%` }} aria-hidden />
+            </div>
+            <div className="trade__stake-tiers">
+              <span className={`trade__stake-tier${board ? " is-on" : ""}`}>
+                <Eye size={11} aria-hidden /> Board seat{board ? "" : ` · ${Math.round(t.boardSeatFrac * 100)}%`}
+              </span>
+              <span className={`trade__stake-tier${control ? " is-on" : ""}`}>
+                <Crown size={11} aria-hidden /> Control{control ? "" : ` · ${Math.round(t.controlFrac * 100)}%`}
+              </span>
+            </div>
+            {intel && (
+              <div className={`trade__stake-intel trade__stake-intel--${MOMENTUM[intel.arcPhase].tone}`}>
+                <Eye size={12} aria-hidden />
+                <span><strong>Board intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="trade__qty">
         <span className="trade__qty-label">Shares</span>
         <div className="trade__stepper">
@@ -1874,11 +1940,15 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
             }}
           >
             <Crown size={14} />
-            {armAcquire ? `Confirm buyout · ${format(buyout)}` : `Acquire ${comp.name} · ${format(buyout)}`}
+            {armAcquire
+              ? `Confirm ${controlling ? "takeover" : "buyout"} · ${format(buyout)}`
+              : `${controlling ? "Hostile takeover" : "Acquire"} ${comp.name} · ${format(buyout)}`}
           </Button>
           <p className="trade__acquire-note">
             {acquirable
-              ? "Buy out the company: remove it from competition and absorb its brand + customers."
+              ? controlling
+                ? "You hold a controlling stake — force the buyout at a reduced premium, remove them from competition, and absorb their brand + customers."
+                : "Buy out the company: remove it from competition and absorb its brand + customers."
               : atFloor
                 ? "The market needs at least a couple of rivals, you can't acquire any more right now."
                 : state.cash < buyout

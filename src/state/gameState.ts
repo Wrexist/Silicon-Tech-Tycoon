@@ -11,6 +11,7 @@ import {
   spawnChallenger,
   RIVALS,
   type CompetitorLaunch,
+  type RivalArcPhase,
 } from "../engine/competitors.ts";
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
@@ -4467,7 +4468,23 @@ export function buyShares(state: GameState, id: string, qty: number): GameState 
   if (!comp) return state;
   const cost = buyCost(comp.sharePrice, qty);
   if (state.cash < cost) return state;
-  return { ...state, cash: sub(state.cash, cost), holdings: { ...state.holdings, [id]: (state.holdings[id] ?? 0) + qty } };
+  const held = state.holdings[id] ?? 0;
+  const next: GameState = { ...state, cash: sub(state.cash, cost), holdings: { ...state.holdings, [id]: held + qty } };
+  // Crossing an ownership threshold is a milestone — announce the board seat / controlling stake so the
+  // takeover runway is legible (a feed line, not an interrupt: low-noise, and never fired by the pinned
+  // sim, which doesn't trade). Only the highest threshold newly crossed is reported.
+  const t = BALANCE.mergers.takeover;
+  const before = ownershipFractionOf(state, id);
+  const after = ownershipFractionOf(next, id);
+  if (before < t.controlFrac && after >= t.controlFrac) {
+    const feed = [...state.feed, feedItem(state.week, `You now hold a controlling stake in ${comp.name} — a hostile buyout is on the table at a reduced premium.`, "positive")];
+    return { ...next, feed: trimFeed(feed) };
+  }
+  if (before < t.boardSeatFrac && after >= t.boardSeatFrac) {
+    const feed = [...state.feed, feedItem(state.week, `Your stake in ${comp.name} earned you a board seat — you can now read their momentum from the inside.`, "accent")];
+    return { ...next, feed: trimFeed(feed) };
+  }
+  return next;
 }
 
 /** Sell up to `qty` shares of a rival company. */
@@ -4481,13 +4498,43 @@ export function sellShares(state: GameState, id: string, qty: number): GameState
   return { ...state, cash: add(state.cash, sellProceeds(comp.sharePrice, q)), holdings };
 }
 
+/** The player's ownership fraction of rival `id` (shares held ÷ the rival's float, clamped 0..1). */
+export function ownershipFractionOf(state: GameState, id: string): number {
+  const total = rivalDef(id)?.shares ?? 0;
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(1, (state.holdings[id] ?? 0) / total));
+}
+
+/** A board seat — insider intel access — earned by holding boardSeatFrac of a rival's float. */
+export function hasBoardSeat(state: GameState, id: string): boolean {
+  return ownershipFractionOf(state, id) >= BALANCE.mergers.takeover.boardSeatFrac;
+}
+
+/** A controlling stake — the hostile-takeover discount — earned by holding controlFrac of the float. */
+export function hasControllingStake(state: GameState, id: string): boolean {
+  return ownershipFractionOf(state, id) >= BALANCE.mergers.takeover.controlFrac;
+}
+
+/** Board-seat intel on a rival: its otherwise-hidden arc phase (momentum) + next-launch week. Null
+ *  until you hold a board seat — the payoff for accumulating a real stake. Pure read (UI-only). */
+export function rivalBoardIntel(state: GameState, id: string): { arcPhase: RivalArcPhase; nextLaunchWeek: number } | null {
+  if (!hasBoardSeat(state, id)) return null;
+  const c = state.competitors.find((x) => x.id === id);
+  if (!c) return null;
+  return { arcPhase: c.arcPhase ?? "stable", nextLaunchWeek: c.nextLaunchWeek };
+}
+
 /** B3 — the all-cash cost to acquire a rival outright: its market cap × the control premium, LESS
- *  the market value of any shares the player already holds (you only pay for the rest). Null if the
- *  rival isn't on the board. Floored at a token amount so it's never free. */
+ *  the market value of any shares the player already holds (you only pay for the rest). A CONTROLLING
+ *  STAKE (controlFrac of the float) drops the premium to the reduced hostile rate — you already hold
+ *  effective control. Null if the rival isn't on the board. Floored at a token amount so it's never free. */
 export function acquisitionCost(state: GameState, id: string): Money | null {
   const c = state.competitors.find((x) => x.id === id);
   if (!c) return null;
-  const gross = scale(rivalMarketCap(c), BALANCE.mergers.acquisitionPremium);
+  const premium = hasControllingStake(state, id)
+    ? BALANCE.mergers.takeover.hostilePremium
+    : BALANCE.mergers.acquisitionPremium;
+  const gross = scale(rivalMarketCap(c), premium);
   const ownedValue = cents(Math.max(0, state.holdings[id] ?? 0) * c.sharePrice);
   const net = sub(gross, ownedValue);
   return toDollars(net) > 0 ? (net as Money) : cents(1);

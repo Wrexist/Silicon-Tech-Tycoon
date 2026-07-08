@@ -542,6 +542,61 @@
   color: var(--accent);
   font-weight: 700;
 }
+
+/* ---------- Takeover runway (accumulate shares → board seat → controlling stake) ---------- */
+.trade__stake {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-12);
+  background: var(--bg-elevated);
+  border-radius: var(--r-button);
+}
+.trade__stake-head { display: flex; align-items: baseline; justify-content: space-between; }
+.trade__stake-label {
+  font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.trade__stake-pct { font-size: var(--fs-caption); font-weight: 800; color: var(--ink); }
+.trade__stake-track {
+  position: relative; height: 6px; border-radius: var(--r-pill);
+  background: var(--surface-2); overflow: hidden;
+}
+.trade__stake-fill {
+  height: 100%; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--positive)));
+  transition: width 0.3s ease;
+}
+.trade__stake-mark {
+  position: absolute; top: 0; width: 2px; height: 100%;
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+.trade__stake-tiers { display: flex; gap: var(--sp-8); }
+.trade__stake-tier {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-micro); font-weight: 700; color: var(--ink-3);
+  padding: 3px 8px; border-radius: var(--r-pill); background: var(--surface-2);
+}
+.trade__stake-tier svg { opacity: 0.55; }
+.trade__stake-tier.is-on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.trade__stake-tier.is-on svg { opacity: 1; }
+.trade__stake-intel {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: var(--fs-caption); line-height: 1.4; color: var(--ink-2);
+  padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
+  background: var(--surface-2); border: 1px solid var(--hairline);
+}
+.trade__stake-intel svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
+.trade__stake-intel strong { color: var(--ink); font-weight: 700; }
+.trade__stake-intel--positive {
+  background: color-mix(in srgb, var(--positive) 8%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--positive) 24%, var(--hairline));
+}
+.trade__stake-intel--positive svg { color: var(--positive); }
+.trade__stake-intel--negative {
+  background: color-mix(in srgb, var(--negative) 8%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--negative) 24%, var(--hairline));
+}
+.trade__stake-intel--negative svg { color: var(--negative); }
+
 .trade__qty {
   display: flex;
   align-items: center;
@@ -689,6 +744,27 @@
   background: var(--bg-elevated); color: var(--ink-2);
 }
 .rprof__badge--license { color: var(--fn-mkt); background: var(--fn-mkt-soft); }
+.rprof__badge--board { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.rprof__badge--control { color: var(--positive); background: color-mix(in srgb, var(--positive) 16%, transparent); }
+.rprof__badge svg { vertical-align: -1px; margin-right: 3px; }
+.rprof__intel {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: var(--fs-caption); line-height: 1.45; color: var(--ink-2);
+  padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
+  background: var(--surface-2); border: 1px solid var(--hairline);
+}
+.rprof__intel svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
+.rprof__intel strong { color: var(--ink); font-weight: 700; }
+.rprof__intel--positive {
+  background: color-mix(in srgb, var(--positive) 8%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--positive) 24%, var(--hairline));
+}
+.rprof__intel--positive svg { color: var(--positive); }
+.rprof__intel--negative {
+  background: color-mix(in srgb, var(--negative) 8%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--negative) 24%, var(--hairline));
+}
+.rprof__intel--negative svg { color: var(--negative); }
 
 /* ---------- Arch-rival / nemesis ---------- */
 .mkt__board-nemesis { color: var(--negative); vertical-align: -1px; margin-left: 4px; flex-shrink: 0; }
