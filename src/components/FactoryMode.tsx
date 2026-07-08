@@ -734,11 +734,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         <button
           className="fmode__side"
           title={`${d.readyCount} ready to launch`}
+          aria-label={`Back to the office${d.readyCount > 0 ? `, ${d.readyCount} ready to launch` : ""}`}
           onClick={() => { if (onNavigate) { haptic.light(); onClose(); onNavigate("hq"); } }}
         >
           <Truck size={16} aria-hidden />{d.readyCount > 0 && <span className="fmode__side-n tnum">{d.readyCount}</span>}
         </button>
-        <button className="fmode__side" title="Machine shop" onClick={() => { haptic.light(); setSheet("shop"); }}>
+        <button className="fmode__side" title="Machine shop" aria-label="Machine shop" onClick={() => { haptic.light(); setSheet("shop"); }}>
           <ShoppingCart size={16} aria-hidden />
         </button>
       </div>

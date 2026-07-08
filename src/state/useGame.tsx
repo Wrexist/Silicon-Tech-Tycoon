@@ -923,8 +923,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const hireSpecialistCb = useCallback((which: "autoAssign" | "autoResearch") => {
     const prev = stateRef.current;
     const next = hireSpecialist(prev, which);
+    if (next === prev) return; // no-op (division not opened / at capacity) — no false confirmation
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
+    // A specialist joining unlocks delegation — a real moment, not a silent debit (matches hire).
+    haptic.success();
+    sfx("confirm");
+    showToast(
+      which === "autoResearch" ? "Lead Researcher hired — Auto-research unlocked" : "People Lead hired — Auto-assign unlocked",
+      { tone: "positive" },
+    );
     setState(next);
   }, []);
   const recruit = useCallback((tier: RecruitTier) => {

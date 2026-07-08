@@ -161,8 +161,9 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
 
       {confirm && (
         <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting challenge"
-          onKeyDown={(e) => { if (e.key === "Escape") setConfirm(null); }}>
-          <div className="scn__confirm-card">
+          onClick={() => setConfirm(null)}
+          onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setConfirm(null); } }}>
+          <div className="scn__confirm-card" onClick={(e) => e.stopPropagation()}>
             <p className="scn__confirm-title">Start this {confirm.kind} challenge?</p>
             <p className="scn__confirm-text">
               This replaces <strong>{state.companyName}</strong> (Wk {state.week} · {format(netWorth(state))} net worth).

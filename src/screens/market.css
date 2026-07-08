@@ -581,7 +581,8 @@
 }
 .trade__preset {
   flex: 1;
-  padding: 8px 0;
+  padding: var(--sp-8) var(--sp-4);
+  min-height: 44px; /* was ~32px with zero horizontal padding — a real tap target now */
   border-radius: var(--r-button);
   background: var(--bg-elevated);
   font-weight: 600;

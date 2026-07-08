@@ -1368,6 +1368,9 @@ function RecruitPanel({
   onDismiss: () => void;
 }) {
   const full = state.staff.length >= capacity;
+  // A shortlist cost real cash + weeks to produce, so dismissing it is a two-tap confirm (mirrors
+  // the fire flow) instead of a single irreversible tap.
+  const [confirmDismiss, setConfirmDismiss] = useState(false);
 
   // Searching…
   if (state.recruitment) {
@@ -1419,7 +1422,17 @@ function RecruitPanel({
             }}
           />
         ))}
-        <Button size="sm" variant="tertiary" onClick={onDismiss}>Dismiss shortlist</Button>
+        {confirmDismiss ? (
+          <div className="co__confirm" role="group" aria-label="Confirm dismissing the shortlist">
+            <span className="co__confirm-text">Dismiss all {state.candidates.length} candidate{state.candidates.length === 1 ? "" : "s"}? The search fee isn't refunded.</span>
+            <div className="co__confirm-row">
+              <Button size="sm" variant="secondary" onClick={() => setConfirmDismiss(false)}>Keep</Button>
+              <Button size="sm" variant="destructive" onClick={() => { setConfirmDismiss(false); onDismiss(); }}>Dismiss</Button>
+            </div>
+          </div>
+        ) : (
+          <Button size="sm" variant="tertiary" onClick={() => setConfirmDismiss(true)}>Dismiss shortlist</Button>
+        )}
       </>
     );
   }

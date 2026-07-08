@@ -65,7 +65,9 @@
 .coach__cta {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--sp-4);
+  min-height: 44px; /* was ~29px — meet the 44pt tap-target floor */
   padding: var(--sp-8) var(--sp-16);
   font-size: var(--fs-caption);
   font-weight: 700;
