@@ -25,6 +25,11 @@ Legend: 🐛 bug · ✨ improvement · 💎 premium-polish · ♿ a11y · 🎮 d
   archetypes intentionally skipped (would perturb the phone sim). ✅
 - **P7 Living products** *(the #1 gameplay hole)* — restock/reorder (demand-capped, no money printer)
   + repeatable diminishing-returns marketing push & price cut, wired into the Market detail sheet. ✅
+- **P6b Category-signature archetypes** — added a `categories` scope to synergy archetypes + five
+  category-only pairings (laptop/desktop/console/wearable/tablet/AR), phones sim-safe by construction. ✅
+- **P8 Content — event chains** — the thinnest content area (2 → **5** chains): added supply-shock
+  (E1), counterfeit-surge (E2), standards-war (E3), each a 3-beat narrative ending in a real choice,
+  reusing proven effect kinds. Determinism preserved (run-to-run test); +1 end-to-end chain test. ✅
 
 Ordered by risk/impact: correctness first → mandate/formatting → immersion consistency →
 dead-code → balance hardening → content depth → living products. Every change keeps the suite
