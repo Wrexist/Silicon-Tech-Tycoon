@@ -514,6 +514,16 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingSideOrder != null && !(soOk(s.pendingSideOrder) && Number.isFinite((s.pendingSideOrder as { expiresWeek?: number }).expiresWeek))) s.pendingSideOrder = null;
   if (s.activeSideOrder != null && !(soOk(s.activeSideOrder) && Number.isFinite((s.activeSideOrder as { startedWeek?: number }).startedWeek))) s.activeSideOrder = null;
 
+  // Contract board (added later) — default to an empty board, and scrub malformed entries so a corrupt
+  // reward can never NaN the wallet on claim. The board refills deterministically on the next tick.
+  s.contracts = (Array.isArray(s.contracts) ? s.contracts : []).filter((c: unknown) => {
+    const x = c as { id?: unknown; target?: unknown; reward?: { cash?: unknown; rep?: unknown; fans?: unknown } } | null;
+    return !!x && typeof x.id === "string" && Number.isFinite(x.target)
+      && !!x.reward && Number.isFinite(x.reward.cash) && Number.isFinite(x.reward.rep) && Number.isFinite(x.reward.fans);
+  });
+  if (!Number.isFinite(s.contractsCompleted) || s.contractsCompleted < 0) s.contractsCompleted = 0;
+  if (!Number.isFinite(s.contractCounter) || s.contractCounter < 0) s.contractCounter = 0;
+
   // Inbound licensing contracts (v-platform): drop a malformed offer (a NaN signing bonus would ride
   // straight into the wallet) and coerce the exclusive map to a clean string→string record.
   const loOk = (o: unknown): boolean => {

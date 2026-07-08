@@ -117,6 +117,7 @@ import {
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
 import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
 import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
+import { CONTRACT_BOARD_SIZE, contractDone, generateContract, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { REGIONS, regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -307,6 +308,14 @@ export interface GameState {
   activeSideOrder?: ActiveSideOrder | null;
   /** Lifetime completed commissions — flavor + a future achievement hook. */
   sideOrdersCompleted?: number;
+  /** Rolling contract board (engine/contracts.ts) — 2–3 live directed goals that regenerate on claim
+   *  or expiry, giving the post-tutorial/endgame a chase. Empty until the first ship; the reward is
+   *  player-CLAIMED, so the pinned sim (which ships nothing) is byte-identical. Optional → old saves
+   *  default to an empty board on migrate. `contractCounter` is the monotonic salt for deterministic
+   *  generation (like candidateCounter). */
+  contracts?: Contract[];
+  contractsCompleted?: number;
+  contractCounter?: number;
   /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
    *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
   loans?: Loan[];
@@ -563,6 +572,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingSideOrder: null,
     activeSideOrder: null,
     sideOrdersCompleted: 0,
+    contracts: [],
+    contractsCompleted: 0,
+    contractCounter: 0,
     loans: [],
     moraleCooldownUntil: 0,
     resolvedChoices: [],
@@ -1309,6 +1321,40 @@ export function rdRpCostFor(s: GameState, kind: ComponentKind): number | null {
 
 // ---------- Reducers (pure: return a NEW state) ----------
 
+/** Read-only facts the contract board evaluates against, derived from the full state. Pure adapter
+ *  (money in DOLLARS). Exported so the UI can compute per-contract progress from the same source. */
+export function contractFacts(s: GameState): ContractFacts {
+  return {
+    revenue: toDollars(s.cumulativeRevenue),
+    fans: s.fans,
+    ships: s.launched.length,
+    hits: s.launched.filter((lp) => lp.verdict === "hit").length,
+    rank: industryRank(s),
+    week: s.week,
+  };
+}
+
+/** Claim a completed contract's reward (cash/rep/fans); its board slot refills on the next tick.
+ *  Opt-in — the pinned auto-player never claims, so the baseline economy is untouched. */
+export function claimContract(state: GameState, id: string): ActionResult {
+  const c = (state.contracts ?? []).find((x) => x.id === id);
+  if (!c) return { state, ok: false, reason: "No such contract." };
+  if (!contractDone(c, contractFacts(state))) return { state, ok: false, reason: "This contract isn't complete yet." };
+  const feed = [...state.feed, feedItem(state.week, `Contract complete — “${c.title}”. ${rewardSummary(c.reward)}.`, "positive")];
+  return {
+    state: {
+      ...state,
+      cash: add(state.cash, c.reward.cash),
+      reputation: Math.min(BALANCE.reputation.max, state.reputation + c.reward.rep),
+      fans: state.fans + c.reward.fans,
+      contracts: (state.contracts ?? []).filter((x) => x.id !== id),
+      contractsCompleted: (state.contractsCompleted ?? 0) + 1,
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
 export function advanceOneWeek(state: GameState, rate = 1, offline = false): GameState {
   if (state.bankrupt) return state;
   // Delegation (Epic E): apply enabled, capability-gated automations BEFORE the week runs, so an
@@ -1869,6 +1915,29 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       const sample = toDollars(companyValuation(base));
       base.valuationHistory = [...(base.valuationHistory ?? []), sample].slice(-vm.historyLength);
     }
+  }
+
+  // Rolling contract board (engine/contracts.ts) — 2–3 live, directed goals that regenerate on claim
+  // or expiry, giving the post-tutorial/endgame a chase. Deterministic (derived hash, never the sim
+  // rng) and the reward is player-CLAIMED, so the pinned auto-player (which ships nothing → the board
+  // never opens) stays byte-identical. Runs before the event returns so every path carries the board.
+  if (base.launched.length >= 1) {
+    const facts = contractFacts(base);
+    // Keep unclaimed-but-completed contracts (they wait to be claimed); drop ones that lapsed unmet.
+    const kept: Contract[] = [];
+    for (const c of base.contracts ?? []) {
+      if (week > c.expiresWeek && !contractDone(c, facts)) {
+        if (!offline) base.feed.push(feedItem(week, `The “${c.title}” contract lapsed.`, "neutral"));
+      } else kept.push(c);
+    }
+    let contracts = kept;
+    let contractCounter = base.contractCounter ?? 0;
+    while (contracts.length < CONTRACT_BOARD_SIZE) {
+      contracts = [...contracts, generateContract(base.seed, contractCounter, base.era, facts)];
+      contractCounter += 1;
+    }
+    base.contracts = contracts;
+    base.contractCounter = contractCounter;
   }
 
   // Resolve an in-progress event chain (Track B) on its OWN schedule, independent of the normal

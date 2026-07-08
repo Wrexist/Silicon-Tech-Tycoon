@@ -36,6 +36,13 @@ Legend: 🐛 bug · ✨ improvement · 💎 premium-polish · ♿ a11y · 🎮 d
   rival's reputation and bounded by the field floor + escalating cost. New `absorbedBase` state field
   (migrate-defaulted), `absorbedServicesRevenue` wired into the tick + revenue preview, an inherited-
   assets preview in the rival profile, +2 tests. Opt-in → the pinned sim is byte-identical. ✅
+- **P10 Rolling contract board** *(audit #4)* — the objectives ladder is finite (ends at "reach-
+  pinnacle" → undirected free play). A new `engine/contracts.ts` runs a board of **3 live, directed
+  goals** (earn $X, win N fans, ship K, land a hit, climb the ranks) that regenerate on claim or
+  expiry, each paying a claimable cash/rep/fans reward scaled to era + current standing. Deterministic
+  generation (derived hash, never the sim rng) + pure evaluator; a `ContractsCard` on HQ shows delta
+  progress + claim. State fields migrate-default to an empty board; the board only opens after the
+  first ship and rewards are player-claimed → the pinned sim is byte-identical. +7 tests. ✅
 
 Ordered by risk/impact: correctness first → mandate/formatting → immersion consistency →
 dead-code → balance hardening → content depth → living products. Every change keeps the suite

@@ -1407,6 +1407,106 @@
   .hq__next-bar-fill { transition: none; }
 }
 
+/* Rolling contract board — live directed goals with a claimable reward. */
+.hq__contracts-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-12);
+}
+.hq__contracts-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--r-button);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.hq__contracts-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.hq__contracts-eyebrow {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hq__contracts-label {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+.hq__contracts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.hq__contract {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+}
+.hq__contract--done {
+  border-color: color-mix(in srgb, var(--positive) 45%, var(--hairline));
+  background: color-mix(in srgb, var(--positive) 8%, var(--bg-elevated));
+}
+.hq__contract-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.hq__contract-title {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  min-width: 0;
+}
+.hq__contract-reward {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  color: var(--positive-text, var(--positive));
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.hq__contract-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.hq__contract-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width var(--spring-smooth, 0.4s ease);
+}
+.hq__contract--done .hq__contract-fill {
+  background: var(--positive);
+}
+.hq__contract-remaining {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hq__contract-fill { transition: none; }
+}
+
 /* Office shop: per-item price + unaffordable state */
 .hqb__item-price {
   font-size: var(--fs-nano);

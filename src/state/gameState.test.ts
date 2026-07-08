@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { dollars } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
+import { CONTRACT_BOARD_SIZE, type Contract } from "../engine/contracts.ts";
 import type { Product } from "../engine/types.ts";
 import {
   advanceOneWeek,
@@ -30,6 +31,7 @@ import {
   marketingPushQuote,
   restockQuote,
   restockProduct,
+  claimContract,
   buyUpgrade,
   upgradeGate,
   restStaff,
@@ -647,6 +649,37 @@ describe("restock (mid-life reorder, demand-capped)", () => {
     const maxed = soldOut({ restocks: BALANCE.restock.maxPerProduct });
     const s2: GameState = { ...newGame(44), era: 3, cash: dollars(50_000_000), fans: 30_000, launched: [maxed] };
     expect(restockQuote(s2, maxed)).toBeNull();
+  });
+});
+
+describe("contract board (state)", () => {
+  it("no board before shipping; fills after the first ship; claiming pays + frees a slot", () => {
+    // Fresh game, no products → no contracts even after ticking (the pinned sim relies on this).
+    const empty = advanceOneWeek({ ...newGame(3), cash: dollars(2_000_000) });
+    expect((empty.contracts ?? []).length).toBe(0);
+
+    // Ship a product, then tick → the board fills to the configured size.
+    let s: GameState = { ...newGame(3), cash: dollars(2_000_000) };
+    s = startBuild(s, goodPhone(), 300, "none").state;
+    for (let i = 0; i < buildWeeksFor(s) + 1; i++) s = advanceOneWeek(s);
+    s = launchReady(s, s.ready[0].id).state;
+    s = advanceOneWeek(s);
+    expect(s.contracts!.length).toBe(CONTRACT_BOARD_SIZE);
+
+    // A fresh contract isn't claimable yet.
+    expect(claimContract(s, s.contracts![0].id).ok).toBe(false);
+
+    // Inject a trivially-complete contract and claim it: reward lands, the slot frees, the counter ticks.
+    const done: Contract = { id: "ct-test", metric: "fans", title: "Test", blurb: "", baseline: 0, target: 1,
+      reward: { cash: dollars(50_000), rep: 3, fans: 1_000 }, startedWeek: s.week, expiresWeek: s.week + 40 };
+    const withDone: GameState = { ...s, contracts: [done, ...s.contracts!.slice(1)] };
+    const res = claimContract(withDone, "ct-test");
+    expect(res.ok).toBe(true);
+    expect(toDollars(res.state.cash)).toBeCloseTo(toDollars(withDone.cash) + 50_000, 0);
+    expect(res.state.reputation).toBeGreaterThan(withDone.reputation);
+    expect(res.state.fans).toBe(withDone.fans + 1_000);
+    expect(res.state.contracts!.find((c) => c.id === "ct-test")).toBeUndefined();
+    expect(res.state.contractsCompleted).toBe(1);
   });
 });
 
