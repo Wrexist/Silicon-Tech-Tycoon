@@ -73,7 +73,12 @@
 .rst__side-score { font-size: var(--fs-headline); font-weight: 800; }
 .rst__side-score--win { color: var(--positive-text, var(--positive)); }
 .rst__vs { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; text-transform: uppercase; color: var(--ink-2); }
-.rst__ghost { width: 72px; height: 72px; border-radius: var(--r-button); background: var(--bg-elevated); }
+.rst__ghost {
+  width: 72px; height: 72px; border-radius: var(--r-button);
+  /* Glass well — a clear inset tile so the card's frosted material shows through it. */
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
 
 .rst__actions { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); }
 /* Response rows: label pinned left, price pinned right — nothing to overflow, perfectly aligned
@@ -81,11 +86,18 @@
 .rst__act {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-10);
   width: 100%; min-height: 50px; padding: 0 var(--sp-14);
-  border: 1px solid var(--hairline); border-radius: var(--r-button);
-  background: var(--surface-2); color: var(--ink);
+  border-radius: var(--r-button);
+  /* Glass well — a clear inset tile so the card's frosted material shows through it. */
+  border: 1px solid var(--glass-well-edge); background: var(--glass-well); color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   font-size: var(--fs-caption); font-weight: 800;
 }
-.rst__act--primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.rst__act--primary {
+  /* Glass CTA — translucent accent capsule with a specular rim, matching the glass buttons. */
+  background: color-mix(in srgb, var(--accent) 80%, transparent);
+  border-color: var(--glass-btn-rim); color: var(--accent-ink);
+  box-shadow: inset 0 1px 0 var(--glass-btn-rim), 0 8px 20px -10px color-mix(in srgb, var(--accent) 55%, transparent);
+}
 .rst__act:disabled { opacity: 0.45; }
 .rst__act-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .rst__act-val { flex-shrink: 0; font-weight: 800; white-space: nowrap; }

@@ -26,6 +26,11 @@
   --glass-modal: color-mix(in srgb, #ffffff 34%, transparent);
   --glass-modal-rim: rgba(255, 255, 255, 0.6);
   --glass-modal-edge: color-mix(in srgb, #ffffff 55%, transparent);
+  /* Inner "glass well" — a clear inset tile/container that sits ON a glass card, and a glass button
+     fill. Kept see-through so the card's frosted material shows through; the rim + specular define it. */
+  --glass-well: color-mix(in srgb, #ffffff 20%, transparent);
+  --glass-well-edge: color-mix(in srgb, var(--ink) 12%, transparent);
+  --glass-btn-rim: rgba(255, 255, 255, 0.5);
   /* --accent darkened to #2563eb in light theme so white text on accent (incl. 13px .ds-btn--sm)
      meets 4.5:1. --accent-ink stays #fff. Dark theme overrides --accent back to #3b82f6. */
   --accent: #2563eb;
@@ -183,6 +188,9 @@
     --glass-modal: color-mix(in srgb, #0d111a 42%, transparent);
     --glass-modal-rim: rgba(255, 255, 255, 0.24);
     --glass-modal-edge: rgba(255, 255, 255, 0.14);
+    --glass-well: color-mix(in srgb, #ffffff 6%, transparent);
+    --glass-well-edge: rgba(255, 255, 255, 0.14);
+    --glass-btn-rim: rgba(255, 255, 255, 0.28);
     --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -224,6 +232,9 @@
   --glass-modal: color-mix(in srgb, #0d111a 42%, transparent);
   --glass-modal-rim: rgba(255, 255, 255, 0.24);
   --glass-modal-edge: rgba(255, 255, 255, 0.14);
+  --glass-well: color-mix(in srgb, #ffffff 6%, transparent);
+  --glass-well-edge: rgba(255, 255, 255, 0.14);
+  --glass-btn-rim: rgba(255, 255, 255, 0.28);
   --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);

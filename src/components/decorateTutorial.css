@@ -117,8 +117,10 @@
   align-items: center;
   gap: var(--sp-12);
   padding: var(--sp-8) var(--sp-12);
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
+  /* Glass well — a clear inset tile so the card's frosted material shows through it. */
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   border-radius: var(--r-card);
 }
 .dtut__perk-chip {
@@ -158,8 +160,9 @@
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--ink);
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   border-radius: var(--r-pill);
 }
 
@@ -178,8 +181,9 @@
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   border-radius: var(--r-pill);
 }
 

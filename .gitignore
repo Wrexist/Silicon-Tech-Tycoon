@@ -28,5 +28,6 @@ scripts/.livingos.cjs
 scripts/.regions.cjs
 scripts/.nemesis.cjs
 scripts/.eureka.cjs
+scripts/.glasspop.cjs
 .tab-shots/
 .newfeat-shots/

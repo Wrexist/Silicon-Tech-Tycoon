@@ -37,7 +37,7 @@ const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbo
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 await ctx.addInitScript((v) => {
   localStorage.setItem("silicon.save.v1", v);
-  localStorage.setItem("silicon.settings", JSON.stringify({ theme: "light", sound: false, haptics: false, garage3d: true, decorateTutorialSeen: true, factoryTutorialSeen: true }));
+  localStorage.setItem("silicon.settings", JSON.stringify({ theme: (process.env.SHOTS_THEME || "light"), sound: false, haptics: false, garage3d: true, decorateTutorialSeen: true, factoryTutorialSeen: true }));
 }, staged);
 const p = await ctx.newPage();
 await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });

@@ -84,7 +84,9 @@
   overflow: hidden;
   display: flex; align-items: center; gap: var(--sp-10); text-align: left;
   padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
-  border: 1px solid var(--hairline); background: var(--surface-2);
+  /* Glass well — a clear inset tile so the card's frosted material shows through it. */
+  border: 1px solid var(--glass-well-edge); background: var(--glass-well);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   animation: awd-row-in var(--spring-standard) both;
   animation-delay: calc(120ms + var(--i) * 95ms);
 }
@@ -94,7 +96,7 @@
 }
 .awd__row--win {
   border-color: color-mix(in srgb, var(--gold, #d9a824) 60%, transparent);
-  background: color-mix(in srgb, var(--gold, #d9a824) 12%, var(--surface-2));
+  background: color-mix(in srgb, var(--gold, #d9a824) 18%, var(--glass-well));
 }
 /* Gold shimmer sweeps across a home win once it has settled in. */
 .awd__row--win::after {
