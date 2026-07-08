@@ -305,9 +305,10 @@ export function DesignLab({
     setFace("front");
     onSeedConsumed?.();
   }, [seed, onSeedConsumed]);
+  const allCats = useMemo(() => Object.values(CATEGORIES), []);
   const unlockedCats = useMemo(
-    () => Object.values(CATEGORIES).filter((c) => isCategoryUnlocked(c.id, state.era)),
-    [state.era],
+    () => allCats.filter((c) => isCategoryUnlocked(c.id, state.era)),
+    [allCats, state.era],
   );
 
   const stats = productStats(state, draft);
@@ -721,18 +722,34 @@ export function DesignLab({
 
       {/* Category — always visible above the tab strip */}
       <Card>
-        <SectionHeader title="Category" accessory={`${unlockedCats.length} unlocked`} />
-        <div className="lab__chips">
-          {unlockedCats.map((c) => {
+        <SectionHeader title="Category" accessory={`${unlockedCats.length} of ${allCats.length} unlocked`} />
+        <div className="lab__cats">
+          {allCats.map((c) => {
+            const unlocked = isCategoryUnlocked(c.id, state.era);
+            const on = draft.category === c.id;
             const genCount = state.launched.filter((lp) => lp.product.category === c.id).length;
             const activeSelling = state.launched.some(
               (lp) => lp.product.category === c.id && lp.weeksElapsed < lp.weeklyUnits.length,
             );
+            const marketLabel = c.marketSize >= 0.8 ? "Large" : c.marketSize >= 0.55 ? "Mid-size" : "Niche";
+            // Locked category — a teaser card showing the era it opens up, so the player can see the
+            // road ahead (garage phone → global empire). Non-interactive.
+            if (!unlocked) {
+              return (
+                <div key={c.id} className="lab__cat lab__cat--locked" aria-label={`${c.displayName} — unlocks in era ${c.unlockEra}`}>
+                  <span className="lab__cat-icon" aria-hidden><CategoryIcon id={c.id} size={19} /></span>
+                  <span className="lab__cat-main">
+                    <span className="lab__cat-name">{c.displayName}</span>
+                    <span className="lab__cat-market"><Lock size={9} aria-hidden /> Era {c.unlockEra}</span>
+                  </span>
+                </div>
+              );
+            }
             return (
               <button
                 key={c.id}
-                className={`lab__chip${draft.category === c.id ? " lab__chip--on" : ""}`}
-                aria-pressed={draft.category === c.id}
+                className={`lab__cat${on ? " lab__cat--on" : ""}`}
+                aria-pressed={on}
                 onClick={() => {
                   haptic.light();
                   const tiers: Product["tiers"] = {};
@@ -740,12 +757,16 @@ export function DesignLab({
                   set({ category: c.id, tiers });
                 }}
               >
-                <CategoryIcon id={c.id} size={15} /> {c.displayName}
-                {genCount > 0 && (
-                  <span className={`lab__chip-gen${activeSelling ? " lab__chip-gen--live" : ""}`}>
-                    G{genCount + 1}
+                <span className="lab__cat-icon" aria-hidden><CategoryIcon id={c.id} size={19} /></span>
+                <span className="lab__cat-main">
+                  <span className="lab__cat-name">{c.displayName}</span>
+                  <span className="lab__cat-market">
+                    <span className="lab__cat-market-size">{marketLabel}</span>
+                    {genCount > 0 && (
+                      <span className={`lab__cat-gen${activeSelling ? " lab__cat-gen--live" : ""}`}>G{genCount + 1}</span>
+                    )}
                   </span>
-                )}
+                </span>
               </button>
             );
           })}

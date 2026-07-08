@@ -375,6 +375,106 @@
   background: color-mix(in srgb, currentColor 20%, transparent);
   color: inherit;
 }
+
+/* ── Category cards — a 2-column showcase of the device categories. Each reads its own personality
+   (icon + market size + your generation), locked ones tease the era they open. Richer + more fun
+   than the old flat pills, and its own class so the Style-tab chips stay untouched. ── */
+.lab__cats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+}
+.lab__cat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  min-width: 0;
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-card);
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  text-align: left;
+  transition: transform var(--spring-snappy), border-color var(--spring-snappy), background var(--spring-snappy), box-shadow var(--spring-snappy);
+}
+.lab__cat:active { transform: scale(0.97); }
+.lab__cat-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
+  color: var(--accent);
+  transition: background var(--spring-snappy), color var(--spring-snappy);
+}
+.lab__cat-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.lab__cat-name {
+  max-width: 100%;
+  font-size: var(--fs-fx);
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lab__cat-market {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: var(--fs-nano);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.lab__cat-market-size { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Selected — an accent-filled card with a glowing lift. The one you're building "lights up" (the
+   green fill is the selection signal, no separate checkmark needed). */
+.lab__cat--on {
+  border-color: transparent;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 90%, white), var(--accent));
+  box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 30%, transparent);
+}
+.lab__cat--on .lab__cat-icon { background: color-mix(in srgb, #fff 24%, transparent); color: var(--accent-ink); }
+.lab__cat--on .lab__cat-name { color: var(--accent-ink); }
+.lab__cat--on .lab__cat-market { color: color-mix(in srgb, var(--accent-ink) 78%, transparent); }
+/* Locked teaser — dimmed + dashed, shows the era it unlocks. Not a button (no tap). */
+.lab__cat--locked {
+  opacity: 0.6;
+  background: var(--bg-elevated);
+  border-style: dashed;
+}
+.lab__cat--locked .lab__cat-icon { background: color-mix(in srgb, var(--ink-3) 12%, transparent); color: var(--ink-3); }
+.lab__cat--locked .lab__cat-name { color: var(--ink-2); }
+.lab__cat--locked .lab__cat-market svg { color: var(--ink-3); }
+/* Generation badge — inline after the name; a live pulse when a product in this line is still selling. */
+.lab__cat-gen {
+  flex-shrink: 0;
+  font-size: var(--fs-nano);
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink-3) 16%, transparent);
+  color: var(--ink-2);
+}
+.lab__cat-gen--live {
+  background: color-mix(in srgb, var(--positive) 20%, transparent);
+  color: var(--positive-text, var(--positive));
+  animation: lab-cat-live 2.4s ease-in-out infinite;
+}
+@keyframes lab-cat-live {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--positive) 40%, transparent); }
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 0%, transparent); }
+}
+.lab__cat--on .lab__cat-gen { background: color-mix(in srgb, #fff 22%, transparent); color: var(--accent-ink); }
+.lab__cat--on .lab__cat-gen--live { background: color-mix(in srgb, #fff 22%, transparent); color: var(--accent-ink); animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .lab__cat-gen--live { animation: none; }
+}
 .lab__components {
   display: flex;
   flex-direction: column;
