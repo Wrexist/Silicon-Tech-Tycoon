@@ -1824,6 +1824,9 @@
 .mkt__region-tag { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; color: hsl(var(--rgn-h, 210) 55% 46%); text-transform: uppercase; letter-spacing: 0.04em; }
 /* Live weekly-revenue contribution on an open region — a number, not a label. */
 .mkt__region-tag--rev { text-transform: none; letter-spacing: 0; color: var(--positive-text); }
+/* Regional standing (loyalty) from regional events — signed, tinted by direction. */
+.mkt__region-tag--up { text-transform: none; letter-spacing: 0; color: var(--positive-text); }
+.mkt__region-tag--down { text-transform: none; letter-spacing: 0; color: var(--negative); }
 /* Fit read on a LOCKED region — how well your current line suits that market's taste. */
 .mkt__region-fit { font-size: var(--fs-nano); font-weight: 700; }
 .mkt__region-fit--strong { color: var(--positive-text, var(--positive)); }

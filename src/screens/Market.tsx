@@ -47,7 +47,7 @@ import {
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { REGIONS, regionById, regionTasteFit, shippableRegions, regionWorldShare, worldCoverage, regionTasteTop, type Region } from "../engine/regions.ts";
+import { REGIONS, regionById, regionTasteFit, regionLoyaltyMul, shippableRegions, regionWorldShare, worldCoverage, regionTasteTop, type Region } from "../engine/regions.ts";
 import { heatTier, HEAT_TIER_LABEL } from "../engine/nemesis.ts";
 import { supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
@@ -447,6 +447,13 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                           <>
                             <span className="mkt__region-tag">{r.id === "home" ? "Home market" : "Licensed"}</span>
                             {rev >= 1 && <span className="mkt__region-tag mkt__region-tag--rev tnum">≈{formatShortDollars(rev)}/wk</span>}
+                            {r.id !== "home" && (() => {
+                              const loy = state.regionLoyalty?.[r.id] ?? 0;
+                              if (Math.abs(loy) < 1) return null;
+                              const pct = Math.round((regionLoyaltyMul(loy) - 1) * 100);
+                              if (pct === 0) return null;
+                              return <span className={`mkt__region-tag mkt__region-tag--${pct >= 0 ? "up" : "down"} tnum`} title="Your standing here, from regional events — it lifts or dents this market's demand.">Standing {pct >= 0 ? "+" : ""}{pct}%</span>;
+                            })()}
                           </>
                         ) : (
                           <>

@@ -370,6 +370,20 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingStaffMoment != null && (typeof s.pendingStaffMoment !== "object" || !Array.isArray(s.pendingStaffMoment.options))) {
     s.pendingStaffMoment = null;
   }
+  // Regional loyalty + events (added later): default an empty/neutral map. Drop non-finite entries and
+  // clamp survivors; drop a malformed pending event (no region).
+  if (s.regionLoyalty == null || typeof s.regionLoyalty !== "object") s.regionLoyalty = {};
+  else {
+    const lc = BALANCE.market.regions.loyalty.cap;
+    for (const k of Object.keys(s.regionLoyalty)) {
+      const v = (s.regionLoyalty as Record<string, unknown>)[k];
+      if (typeof v !== "number" || !Number.isFinite(v)) delete (s.regionLoyalty as Record<string, unknown>)[k];
+      else (s.regionLoyalty as Record<string, number>)[k] = Math.max(-lc, Math.min(lc, v));
+    }
+  }
+  if (s.pendingRegionalEvent != null && (typeof s.pendingRegionalEvent !== "object" || typeof s.pendingRegionalEvent.regionId !== "string")) {
+    s.pendingRegionalEvent = null;
+  }
   // Living fan community (added later): default a neutral community. Clamp sentiment to [-1,1].
   s.fanSentiment = typeof s.fanSentiment === "number" && Number.isFinite(s.fanSentiment) ? Math.max(-1, Math.min(1, s.fanSentiment)) : 0;
   if (!Number.isFinite(s.superfans) || s.superfans < 0) s.superfans = 0;

@@ -189,6 +189,28 @@ export const BALANCE = {
       tasteSpread: 1.0, // 0 = taste ignored (pure size), higher = positioning matters more
       fitMin: 0.6,
       fitMax: 1.2,
+      // Per-region LOYALTY — a standing (signed) meter for each expansion market, moved by regional
+      // EVENTS (engine/regionalEvents.ts) and folded into that region's reach. Home is never stored
+      // (always neutral), and a home-only company (the pinned solo sim) has an empty map → every
+      // multiplier is exactly 1.0 → byte-identical.
+      loyalty: {
+        cap: 100,            // |loyalty| is clamped to this
+        maxSwing: 0.15,      // at full loyalty, that region's reach swings ±this
+        decayPerWeek: 0.98,  // loyalty eases back toward neutral without reinforcement
+      },
+      // Regional EVENTS — a periodic respond-or-ignore interrupt for an expansion market (a boom to
+      // ride, a tariff to answer, a rival surge to defend). Player-claimed, gated behind having
+      // expanded past Home, and budget-paced; the solo sim never expands → never fires one.
+      events: {
+        cadenceWeeks: 30,      // avg weeks between regional events (≈1/N chance per eligible week)
+        cooldownWeeks: 18,     // hard minimum between them
+        minEra: 2,             // expansion is a growth-era-and-beyond concern
+        costBase: dollars(45_000),  // era-1 cost to respond…
+        costPerEra: 0.6,            // …+60% per era past 1 (bigger markets, bigger stakes)
+        boomLoyaltyRespond: 34, boomLoyaltyIgnore: 8,   // a boom rewards riding it; ignoring still trickles up
+        tariffLoyaltyRespond: 6, tariffLoyaltyIgnore: -26, // answer a tariff to hold standing, or take the hit
+        surgeLoyaltyRespond: 14, surgeLoyaltyIgnore: -20,  // defend against a rival surge, or cede ground
+      },
     },
     // --- Forecast confidence (Epic C2 — the converging pre-launch forecast) ---
     // The wizard shows a demand RANGE; its width — and how far the real launch can land from the

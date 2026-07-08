@@ -127,6 +127,7 @@ import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideO
 import { CONTRACT_BOARD_SIZE, contractDone, generateContract, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { REGIONS, regionById, regionReach } from "../engine/regions.ts";
+import { regionalEventDue, generateRegionalEvent, REGIONAL_EVENT_COPY, type RegionalEvent } from "../engine/regionalEvents.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { noveltyFor } from "../engine/novelty.ts";
@@ -226,6 +227,9 @@ export interface GameState {
   completedProjects: ProjectId[];
   /** Geographic markets unlocked for distribution (engine/regions.ts). Always contains "home". */
   unlockedRegions: RegionId[];
+  /** Per-region LOYALTY (a signed standing that lifts/dents that region's reach), moved by regional
+   *  events. Home is never keyed. Optional/empty → every region is neutral → golden-invariant safe. */
+  regionLoyalty?: Partial<Record<RegionId, number>>;
   /** Owned manufacturing lines the player has acquired (engine/factories.ts). Each carries weekly
    *  upkeep and can be selected for builds. Empty for contract-only companies / older saves. */
   ownedFactories: FactoryId[];
@@ -333,6 +337,12 @@ export interface GameState {
   pendingStaffMoment?: StaffMoment | null;
   /** Week of the last staff growth moment — enforces the cooldown between them. */
   lastStaffMomentWeek?: number;
+  /** A regional event on the table — an expansion market's boom / tariff / rival surge to respond to
+   *  (resolveRegionalEvent). Fires only once you've expanded past Home; the pinned solo sim never
+   *  does. Optional/null → golden-invariant safe. */
+  pendingRegionalEvent?: RegionalEvent | null;
+  /** Week of the last regional event — enforces the cooldown between them. */
+  lastRegionalEventWeek?: number;
   /** Week the last OPPORTUNISTIC full-screen interrupt fired (strike / eureka / community / earnings /
    *  rivalry / regional / staff moment). One shared stamp enforces a minimum quiet gap between any two
    *  so modals never cluster (BALANCE.interrupts.minGapWeeks). Optional → old saves + the pinned solo
@@ -645,6 +655,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastCommunityAskWeek: -999,
     pendingStaffMoment: null,
     lastStaffMomentWeek: -999,
+    regionLoyalty: {},
+    pendingRegionalEvent: null,
+    lastRegionalEventWeek: -999,
     lastInterruptWeek: -999,
     pendingEarnings: null,
     earningsExpectation: ZERO,
@@ -1169,7 +1182,7 @@ export function planProduction(
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
   // Global expansion (engine/regions.ts): scale the addressable market by the regions this product
   // ships to. Home-only is exactly ×1.0, so this never changes a domestic launch or an old save.
-  marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week);
+  marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week, s.regionLoyalty);
 
   // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
   // weighting the five stats AND price differently; the product wins a share of each, summed. This
@@ -2159,6 +2172,43 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
           base.lastInterruptWeek = week;
           base.feed.push(feedItem(week, `${target.name} has grown into a real force on the team — there's a way to develop them further.`, "accent"));
         }
+      }
+    }
+  }
+
+  // Regional loyalty + EVENTS — only once you've expanded past Home (so the solo sim, home-only, is
+  // untouched → byte-identical). Loyalty eases back toward neutral each week; then, budget-paced, a
+  // foreign market may raise a respond-or-ignore event (a boom / tariff / rival surge).
+  {
+    const rc = BALANCE.market.regions;
+    const foreign = base.unlockedRegions.filter((id) => id !== "home");
+    if (foreign.length > 0) {
+      // Decay standing toward neutral (only touch non-neutral entries; keep the map tidy).
+      const cur = base.regionLoyalty ?? {};
+      let decayed: Partial<Record<RegionId, number>> | undefined;
+      for (const [id, v] of Object.entries(cur) as [RegionId, number][]) {
+        if (!v) continue;
+        const next = v * Math.pow(rc.loyalty.decayPerWeek, rate);
+        (decayed ??= { ...cur })[id] = Math.abs(next) < 0.5 ? 0 : next;
+      }
+      if (decayed) base.regionLoyalty = decayed;
+
+      // Raise a regional event (opt-in interrupt), respecting the global budget + one-at-a-time rule.
+      const ev = rc.events;
+      if (
+        !offline && !bankrupt && interruptQuiet &&
+        base.era >= ev.minEra &&
+        !base.pendingRegionalEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
+        !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
+        week - (state.lastRegionalEventWeek ?? -999) >= ev.cooldownWeeks &&
+        regionalEventDue(state.seed, week)
+      ) {
+        const event = generateRegionalEvent(state.seed, week, foreign, base.era);
+        base.pendingRegionalEvent = event;
+        base.lastRegionalEventWeek = week;
+        base.lastInterruptWeek = week;
+        const rname = regionById(event.regionId)?.name ?? "A market";
+        base.feed.push(feedItem(week, `${rname}: ${REGIONAL_EVENT_COPY[event.kind].feed} How do you respond?`, "accent"));
       }
     }
   }
@@ -4395,6 +4445,33 @@ export function resolveStaffMoment(state: GameState, optionIndex: number): { sta
   staff[idx] = upgraded;
   const feed = [...state.feed, feedItem(state.week, line, "positive")];
   return { state: { ...state, staff, pendingStaffMoment: null, feed: trimFeed(feed) }, result: { ok: true, kind: opt.kind, staffName: s.name } };
+}
+
+// ---- Regional events ----
+export interface RegionalEventResult { ok: boolean; reason?: string; responded?: boolean; regionId?: RegionId; }
+
+/** Resolve the regional event on the table. RESPOND (spend the cash) or IGNORE, either way moving that
+ *  region's loyalty by the event's respond/ignore delta (clamped). No-op if nothing's pending; respond
+ *  fails if you can't afford it (the card stays up so you can ignore instead). Player-opt-in, so the
+ *  home-only pinned sim never reaches it → byte-identical. */
+export function resolveRegionalEvent(state: GameState, respond: boolean): { state: GameState; result: RegionalEventResult } {
+  const event = state.pendingRegionalEvent ?? null;
+  if (!event) return { state, result: { ok: false, reason: "No regional event to resolve." } };
+  const rname = regionById(event.regionId)?.name ?? "the market";
+  if (respond && state.cash < event.cost) {
+    return { state, result: { ok: false, reason: `You can't afford to respond in ${rname}.` } };
+  }
+  const delta = respond ? event.loyaltyRespond : event.loyaltyIgnore;
+  const cap = BALANCE.market.regions.loyalty.cap;
+  const cur = state.regionLoyalty ?? {};
+  const regionLoyalty = { ...cur, [event.regionId]: Math.max(-cap, Math.min(cap, (cur[event.regionId] ?? 0) + delta)) };
+  const cash = respond ? sub(state.cash, event.cost) : state.cash;
+  const line = `${rname}: standing ${delta >= 0 ? "rose" : "slipped"} ${delta >= 0 ? "+" : ""}${delta}.`;
+  const feed = [...state.feed, feedItem(state.week, line, delta >= 0 ? "positive" : "negative")];
+  return {
+    state: { ...state, cash, regionLoyalty, pendingRegionalEvent: null, feed: trimFeed(feed) },
+    result: { ok: true, responded: respond, regionId: event.regionId },
+  };
 }
 
 export interface CommunityAskResult { ok: boolean; reason?: string; answered?: boolean; fanGain?: number; }

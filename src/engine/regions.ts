@@ -146,6 +146,15 @@ export function shippableRegions(
   return out.length ? out : ["home"];
 }
 
+/** A region's reach MULTIPLIER from your standing there (regional loyalty, moved by regional events).
+ *  Neutral/missing loyalty (and Home) → exactly 1.0, so a home-only company is never affected. */
+export function regionLoyaltyMul(loyalty: number | undefined): number {
+  const cfg = BALANCE.market.regions.loyalty;
+  if (!loyalty || !Number.isFinite(loyalty)) return 1;
+  const v = clamp(loyalty, -cfg.cap, cfg.cap);
+  return 1 + (v / cfg.cap) * cfg.maxSwing;
+}
+
 /** The market-size MULTIPLIER for a launch: Σ over shipped regions of (share × tasteFit). Home alone
  *  is exactly 1.0 (no regression); each added region grows the addressable market by its share,
  *  modulated by how well the product fits that region's taste. */
@@ -156,13 +165,17 @@ export function regionReach(
   /** Track B — current week, to apply periodic regional crises (engine/climate.ts). Omitted → no
    *  shock, and Home is never shocked anyway, so a domestic launch and old saves are byte-identical. */
   week?: number,
+  /** Per-region loyalty (regional events). Omitted/empty → every multiplier is 1.0 → unchanged. Home
+   *  is never keyed, so a home-only launch is byte-identical. */
+  loyalty?: Partial<Record<RegionId, number>>,
 ): number {
   const ships = shippableRegions(unlocked, chosen);
   let reach = 0;
   for (const id of ships) {
     const r = regionById(id)!;
     const shock = week === undefined ? 1 : regionShockMul(id, week);
-    reach += r.share * regionTasteFit(stats, r) * shock;
+    const loyal = id === "home" ? 1 : regionLoyaltyMul(loyalty?.[id]);
+    reach += r.share * regionTasteFit(stats, r) * shock * loyal;
   }
   return reach;
 }

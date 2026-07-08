@@ -21,6 +21,7 @@ import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
 import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
+import { RegionalEvent } from "./components/RegionalEvent.tsx";
 import { EarningsCall } from "./components/EarningsCall.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
@@ -229,6 +230,7 @@ function AppShell() {
       <EurekaMoment />
       <CommunityAsk />
       <StaffMoment />
+      <RegionalEvent />
       <EarningsCall />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
