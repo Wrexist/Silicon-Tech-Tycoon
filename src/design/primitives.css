@@ -511,7 +511,8 @@
   position: relative;
 }
 .ern__card::after, .cma__card::after, .eur__card::after, .awd__card::after, .rst__card::after,
-.rvd__card::after, .cele__card::after, .rtl__card::after, .lreveal__card::after, .dtut::after {
+.rvd__card::after, .cele__card::after, .rtl__card::after, .lreveal__card::after, .dtut::after,
+.scn__confirm-card::after {
   content: "";
   position: absolute;
   inset: 0;

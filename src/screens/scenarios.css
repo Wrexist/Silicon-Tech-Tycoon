@@ -148,19 +148,23 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
-  backdrop-filter: blur(2px);
+  /* Clear scrim — the card is the glass, the surround stays sharp (project popup style). */
+  background: color-mix(in srgb, var(--bg) 45%, transparent);
   border-radius: inherit;
   padding: var(--sp-16);
 }
 .scn__confirm-card {
+  position: relative;
   width: 100%;
   max-width: 420px;
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-card);
-  box-shadow: var(--shadow-modal, var(--shadow-card));
-  padding: var(--sp-16);
+  /* Liquid-glass popup card — frosted material + specular rim (edge reflection added in primitives). */
+  background: var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid var(--glass-modal-edge);
+  border-radius: var(--r-sheet);
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5);
+  padding: var(--sp-20);
   display: flex;
   flex-direction: column;
   gap: var(--sp-8);
