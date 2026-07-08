@@ -259,6 +259,18 @@ export interface Staff {
   /** Week until which this person can't be poached again (Track C): set when you win a counter-offer,
    *  so a retained employee isn't immediately targeted a second time. Optional → old saves default 0. */
   poachCooldownUntil?: number;
+  /** The week this person was hired (drives growth-moment tenure). The founder + old-save hires have
+   *  none → treated as week 0 (maximal tenure). Optional → golden-invariant safe. */
+  hiredWeek?: number;
+  // --- Growth moments (engine/staffMoment.ts): permanent character upgrades a tenured, senior
+  // staffer earns over time, chosen by the player. All optional → a fresh/founder-only team (the
+  // pinned solo sim) has none set, so every effect below is a no-op → byte-identical. ---
+  /** A SECOND design specialty this person also lifts (on top of `specialty`) when assigned to Design. */
+  secondSpecialty?: Specialty;
+  /** A SECOND trait whose passive effect stacks with `trait` (output / XP / hype / design ceiling). */
+  bonusTrait?: Trait;
+  /** Whether this person mentors the whole team — a small company-wide weekly XP lift for everyone else. */
+  isMentor?: boolean;
   appearance: Appearance;
 }
 

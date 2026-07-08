@@ -463,6 +463,21 @@ export const BALANCE = {
     maxSkill: 10,
     // Paid training: instant +1 skill.
     trainCostPerSkill: dollars(1800),
+    // Staff GROWTH MOMENTS (engine/staffMoment.ts) — a tenured, senior staffer periodically earns a
+    // permanent character upgrade the player CHOOSES: a second design specialty, a second (stacking)
+    // trait, or becoming a team mentor. Surfaced as an opt-in interrupt that respects the global
+    // interrupt budget. Gated on era + a real, established team; the founder is never a target and the
+    // pinned solo sim (founder only) never raises one → optional fields stay unset → byte-identical.
+    growth: {
+      minEra: 2,             // the garage era is a protected sandbox
+      minSkill: 6,           // a senior contributor, not a fresh hire
+      minTenureWeeks: 18,    // has been with the company a while
+      cadenceWeeks: 34,      // avg weeks between growth moments (≈1/N chance per eligible week)
+      cooldownWeeks: 20,     // hard minimum between moments (a treat, not a nag)
+      mentorXpBonus: 0.12,   // each mentor adds this to EVERY other staffer's weekly XP…
+      mentorXpCap: 0.3,      // …capped, so a room full of mentors can't runaway-train the team
+      secondSpecialtyWeight: 0.8, // the second specialty's design bonus vs the primary's (1.0)
+    },
   },
 
   // --- Recruitment: pay to run a search; after `weeks` it returns `candidates` applicants with

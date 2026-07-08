@@ -15,6 +15,7 @@ import {
 } from "../engine/competitors.ts";
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
+import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
@@ -326,6 +327,12 @@ export interface GameState {
   pendingCommunityAsk?: CommunityAsk | null;
   /** Week of the last community ask — enforces the cooldown between asks. */
   lastCommunityAskWeek?: number;
+  /** A staff GROWTH moment on the table — a senior, tenured staffer earns a permanent character
+   *  upgrade the player picks (resolveStaffMoment). Fires only for an established team; the pinned
+   *  solo sim is founder-only and never raises one. Optional/null → golden-invariant safe. */
+  pendingStaffMoment?: StaffMoment | null;
+  /** Week of the last staff growth moment — enforces the cooldown between them. */
+  lastStaffMomentWeek?: number;
   /** Week the last OPPORTUNISTIC full-screen interrupt fired (strike / eureka / community / earnings /
    *  rivalry / regional / staff moment). One shared stamp enforces a minimum quiet gap between any two
    *  so modals never cluster (BALANCE.interrupts.minGapWeeks). Optional → old saves + the pinned solo
@@ -636,6 +643,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastEurekaWeek: -999,
     pendingCommunityAsk: null,
     lastCommunityAskWeek: -999,
+    pendingStaffMoment: null,
+    lastStaffMomentWeek: -999,
     lastInterruptWeek: -999,
     pendingEarnings: null,
     earningsExpectation: ZERO,
@@ -1762,7 +1771,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Staff XP / leveling + mood drift + churn
   const cashDropping = cash < state.cash;
-  const teamPlayers = state.staff.filter((s) => s.trait === "teamPlayer").length;
+  const teamPlayers = state.staff.filter((s) => s.trait === "teamPlayer" || s.bonusTrait === "teamPlayer").length;
   const churnCfg = BALANCE.churn;
   // People Operations: a People Lead (hr) keeps the whole team happy and resolves burnout before it
   // forces anyone out. The strongest lead drives the effect; presence (not count) gates the no-quit
@@ -1773,7 +1782,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const hrTargetLift = hasPeopleLead ? Math.min(hrCfg.maxTargetLift, hrCfg.moodTargetBase + peopleLeadSkill * hrCfg.perSkillTarget) : 0;
   const quitIds: string[] = [];
   const staff = state.staff.map((s) => {
-    const { staff: levelResult, leveledUp } = gainWeeklyXp(s, mentorshipXpMult(s, state.staff));
+    const { staff: levelResult, leveledUp } = gainWeeklyXp(s, mentorshipXpMult(s, state.staff) * mentorTeamXpMult(state.staff, s));
     if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${levelResult.skill}.`, "positive"));
     // Salary is NOT auto-updated on level-up — player must give a raise manually.
     // Underpaid staff drift unhappy over time and may eventually quit.
@@ -2124,6 +2133,33 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       base.lastCommunityAskWeek = week;
       base.lastInterruptWeek = week;
       base.feed.push(feedItem(week, `The community is asking: ${ASK_INFO[ask.kind].title.toLowerCase()}. Answer the call, or let it pass?`, "accent"));
+    }
+  }
+
+  // Staff GROWTH moment: a senior, tenured staffer occasionally earns a permanent character upgrade
+  // the player picks (resolveStaffMoment). Derived-hash cadence + cooldown; yields to any other pending
+  // interrupt and respects the global budget. Gated on era + a real team with an eligible non-founder,
+  // so the pinned solo sim (founder only) never raises one → byte-identical.
+  {
+    const g = BALANCE.staff.growth;
+    if (
+      !offline && !bankrupt && interruptQuiet &&
+      base.era >= g.minEra && base.staff.length >= 2 &&
+      !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
+      !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
+      week - (state.lastStaffMomentWeek ?? -999) >= g.cooldownWeeks &&
+      staffMomentDue(state.seed, week)
+    ) {
+      const target = pickGrowthTarget(base.staff, week);
+      if (target) {
+        const moment = generateStaffMoment(target, state.seed, week);
+        if (moment.options.length > 0) {
+          base.pendingStaffMoment = moment;
+          base.lastStaffMomentWeek = week;
+          base.lastInterruptWeek = week;
+          base.feed.push(feedItem(week, `${target.name} has grown into a real force on the team — there's a way to develop them further.`, "accent"));
+        }
+      }
     }
   }
 
@@ -3997,6 +4033,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     salary: salaryFor(role, finalSkill),
     assignment: ROLE_ASSIGNMENT[role],
     xp: 0,
+    hiredWeek: state.week,
     ...identity,
   };
   const feed = [...state.feed];
@@ -4091,6 +4128,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     salary: cand.salary,
     assignment: ROLE_ASSIGNMENT[cand.role],
     xp: 0,
+    hiredWeek: state.week,
     specialty: cand.specialty,
     trait: cand.trait,
     mood: cand.mood,
@@ -4323,6 +4361,40 @@ export function resolveEureka(state: GameState, choice: "bank" | "chase"): { sta
     state: { ...state, researchPoints: state.researchPoints + outcome.rp, pendingEureka: null, feed: trimFeed(feed) },
     result: { ok: true, jackpot: false, rp: outcome.rp },
   };
+}
+
+// ---- Staff growth moments ----
+export interface StaffMomentResult { ok: boolean; reason?: string; kind?: string; staffName?: string; }
+
+/** Resolve the staff growth moment on the table: apply the CHOSEN option (index into moment.options)
+ *  to the target staffer as a permanent character upgrade. No-op if nothing's pending or the target
+ *  has since left. Player-opt-in, so the pinned sim never calls it → byte-identical. */
+export function resolveStaffMoment(state: GameState, optionIndex: number): { state: GameState; result: StaffMomentResult } {
+  const moment = state.pendingStaffMoment ?? null;
+  if (!moment) return { state, result: { ok: false, reason: "No growth moment to resolve." } };
+  const opt = moment.options[optionIndex];
+  if (!opt) return { state: { ...state, pendingStaffMoment: null }, result: { ok: false, reason: "No such option." } };
+  const idx = state.staff.findIndex((s) => s.id === moment.staffId);
+  if (idx < 0) return { state: { ...state, pendingStaffMoment: null }, result: { ok: false, reason: "That teammate has left." } };
+  const s = state.staff[idx];
+  let upgraded = s;
+  let line = "";
+  if (opt.kind === "specialty" && opt.specialty) {
+    upgraded = { ...s, secondSpecialty: opt.specialty };
+    line = `${s.name} picked up ${opt.label} — they now lift a second stat on Design.`;
+  } else if (opt.kind === "trait" && opt.trait) {
+    upgraded = { ...s, bonusTrait: opt.trait };
+    line = `${s.name} developed a ${opt.label.toLowerCase()}.`;
+  } else if (opt.kind === "mentor") {
+    upgraded = { ...s, isMentor: true };
+    line = `${s.name} became a team mentor — the whole team learns faster now.`;
+  } else {
+    return { state: { ...state, pendingStaffMoment: null }, result: { ok: false, reason: "Unknown upgrade." } };
+  }
+  const staff = [...state.staff];
+  staff[idx] = upgraded;
+  const feed = [...state.feed, feedItem(state.week, line, "positive")];
+  return { state: { ...state, staff, pendingStaffMoment: null, feed: trimFeed(feed) }, result: { ok: true, kind: opt.kind, staffName: s.name } };
 }
 
 export interface CommunityAskResult { ok: boolean; reason?: string; answered?: boolean; fanGain?: number; }

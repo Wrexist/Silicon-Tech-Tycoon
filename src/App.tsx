@@ -20,6 +20,7 @@ import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
 import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
 import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
+import { StaffMoment } from "./components/StaffMoment.tsx";
 import { EarningsCall } from "./components/EarningsCall.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
@@ -227,6 +228,7 @@ function AppShell() {
       <RivalryDeclared />
       <EurekaMoment />
       <CommunityAsk />
+      <StaffMoment />
       <EarningsCall />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />

@@ -366,6 +366,10 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingEureka != null && (typeof s.pendingEureka !== "object" || !Number.isFinite(s.pendingEureka.bankRp))) {
     s.pendingEureka = null;
   }
+  // Staff growth moments (added later): default none. Drop a malformed pending moment (no options).
+  if (s.pendingStaffMoment != null && (typeof s.pendingStaffMoment !== "object" || !Array.isArray(s.pendingStaffMoment.options))) {
+    s.pendingStaffMoment = null;
+  }
   // Living fan community (added later): default a neutral community. Clamp sentiment to [-1,1].
   s.fanSentiment = typeof s.fanSentiment === "number" && Number.isFinite(s.fanSentiment) ? Math.max(-1, Math.min(1, s.fanSentiment)) : 0;
   if (!Number.isFinite(s.superfans) || s.superfans < 0) s.superfans = 0;

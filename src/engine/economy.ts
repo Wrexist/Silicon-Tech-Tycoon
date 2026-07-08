@@ -1,7 +1,7 @@
 // Company economy — payroll, rent, runway, bankruptcy, staff XP, build time. PURE.
 import { BALANCE } from "./balance.ts";
 import { add, sum, gte, scale, type Money, ZERO, dollars } from "./money.ts";
-import { ASSIGNMENT_DISCIPLINE, disciplineOutput, xpMult } from "./staff.ts";
+import { ASSIGNMENT_DISCIPLINE, disciplineOutput, staffXpMult } from "./staff.ts";
 import type { Assignment, Staff } from "./types.ts";
 
 export function weeklyPayroll(staff: readonly Staff[]): Money {
@@ -50,7 +50,7 @@ export function xpToNext(skill: number): number {
 export function gainWeeklyXp(s: Staff, mentorMult = 1): { staff: Staff; leveledUp: boolean } {
   if (s.skill >= BALANCE.staff.maxSkill) return { staff: s, leveledUp: false };
   const base = s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask;
-  const rate = base * xpMult(s.trait) * mentorMult;
+  const rate = base * staffXpMult(s) * mentorMult;
   let xp = s.xp + rate;
   let skill = s.skill;
   let leveledUp = false;

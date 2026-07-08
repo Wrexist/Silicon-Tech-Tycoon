@@ -30,6 +30,8 @@ import {
   type EurekaResult,
   resolveCommunityAsk,
   type CommunityAskResult,
+  resolveStaffMoment,
+  type StaffMomentResult,
   buybackShares,
   resolveEarnings,
   type BuybackResult,
@@ -144,7 +146,7 @@ import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
 import { objectiveById } from "../engine/objectives.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck, Sparkles } from "lucide-react";
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -411,6 +413,7 @@ interface GameActionsValue {
   dismissRivalry: () => void;
   resolveEureka: (choice: "bank" | "chase") => EurekaResult;
   resolveCommunityAsk: (accept: boolean) => CommunityAskResult;
+  resolveStaffMoment: (optionIndex: number) => StaffMomentResult;
   buybackShares: (amount: Money) => BuybackResult;
   resolveEarnings: (defend: boolean) => EarningsAckResult;
   acceptSideOrder: () => void;
@@ -900,6 +903,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (spent > 0) emitSpend(spent);
       sfx("confirm"); haptic.success();
     } else { sfx("tap"); haptic.light(); }
+    setState(next);
+    return result;
+  }, []);
+  // Apply a staff growth moment's chosen upgrade (a permanent character perk). A celebratory beat.
+  const resolveStaffMomentCb = useCallback((optionIndex: number): StaffMomentResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingStaffMoment) return { ok: false }; // a double input is a no-op, not an error
+    const { state: next, result } = resolveStaffMoment(prev, optionIndex);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    emitCelebrate(); sfx("levelup"); haptic.success();
+    if (result.staffName) showToast(`${result.staffName} grew`, { tone: "positive", glyph: <Sparkles size={15} /> });
     setState(next);
     return result;
   }, []);
@@ -1404,6 +1418,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dismissRivalry: dismissRivalryCb,
       resolveEureka: resolveEurekaCb,
       resolveCommunityAsk: resolveCommunityAskCb,
+      resolveStaffMoment: resolveStaffMomentCb,
       buybackShares: buybackSharesCb,
       resolveEarnings: resolveEarningsCb,
       acceptSideOrder: acceptSideOrderCb,
@@ -1490,7 +1505,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer
