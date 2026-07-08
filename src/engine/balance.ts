@@ -611,6 +611,16 @@ export const BALANCE = {
     fansPerRepPoint: 220,     // fans absorbed per point of the acquired rival's reputation
     fansCap: 80_000,          // hard cap on absorbed fans (no free faucet)
     entryChancePerWeek: 0.06, // weekly chance a new challenger refills a thinned field (~16wk mean)
+    // Acquiring a rival used to only DELETE it for a rep + fans bump — you inherited none of its
+    // productive assets, so M&A was near-cosmetic. You now also absorb:
+    //  • their R&D pipeline / patents → a one-time RP windfall (scaled by the rival's reputation);
+    //  • their installed base → a permanent services annuity (their customers now pay YOU each week).
+    // Both scale with the rival's reputation and are bounded by how many rivals you can acquire
+    // (minActiveRivals floor + the escalating market-cap cost), so it's a real late-game power move,
+    // not a faucet. Opt-in (the pinned sim never acquires), so the tuned baseline is untouched.
+    rpPerRepPoint: 2,          // one-time RP absorbed per point of the acquired rival's reputation
+    installedBasePerRep: 800,  // "installed base" (customers) absorbed per rival reputation point
+    absorbedServiceRate: 1.0,  // cents/week each absorbed customer pays in services (recurring annuity)
   },
 
   // --- IPO / prestige ---

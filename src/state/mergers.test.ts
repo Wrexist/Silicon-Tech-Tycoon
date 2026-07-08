@@ -4,6 +4,7 @@ import {
   acquireRival,
   canAcquire,
   acquisitionCost,
+  absorbedServicesRevenue,
   advanceOneWeek,
   type GameState,
 } from "./gameState.ts";
@@ -46,6 +47,25 @@ describe("B3 — rival acquisitions", () => {
     );
     const a = acquireRival(withStake, "quantyx");
     expect(a.holdings.quantyx).toBeUndefined();
+  });
+
+  it("acquiring inherits R&D (a one-time RP windfall) + an installed base that pays weekly services", () => {
+    const s = established(6);
+    const a = acquireRival(s, "quantyx");
+    expect(a.researchPoints).toBeGreaterThan(s.researchPoints); // patents → RP windfall
+    expect(a.absorbedBase).toBeGreaterThan(0);                  // customers absorbed
+    expect(toDollars(absorbedServicesRevenue(s))).toBe(0);      // none before any acquisition
+    expect(toDollars(absorbedServicesRevenue(a))).toBeGreaterThan(0); // a recurring annuity after
+  });
+
+  it("the absorbed-base annuity lands in cash each week (0 for a company that never acquired)", () => {
+    const a = acquireRival(established(7), "quantyx");
+    // Identical state except the absorbed base zeroed — isolates the annuity's cash contribution.
+    const withAnnuity = advanceOneWeek({ ...a, nextEventWeek: 999 });
+    const without = advanceOneWeek({ ...a, absorbedBase: 0, nextEventWeek: 999 });
+    const delta = toDollars(withAnnuity.cash) - toDollars(without.cash);
+    expect(delta).toBeGreaterThan(0);
+    expect(delta).toBeCloseTo(toDollars(absorbedServicesRevenue(a)), 0); // exactly the weekly annuity
   });
 
   it("cannot acquire below the field floor", () => {

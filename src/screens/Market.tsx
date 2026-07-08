@@ -1465,6 +1465,11 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
   const buyout = acquisitionCost(state, comp.id);
   const established = toDollars(state.cumulativeRevenue) >= toDollars(BALANCE.ipo.minRevenueToList);
   const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
+  // Assets you'd inherit on acquisition (previewed in the note) — mirrors acquireRival's math.
+  const acqRep = rivalDef(comp.id)?.reputation ?? comp.reputation;
+  const inheritRp = Math.round(Math.max(0, acqRep) * BALANCE.mergers.rpPerRepPoint);
+  const inheritBase = Math.round(Math.max(0, acqRep) * BALANCE.mergers.installedBasePerRep);
+  const inheritAnnuity = cents(Math.round(inheritBase * BALANCE.mergers.absorbedServiceRate));
   // Your relationships with this rival: do they license your OS, and do you hold their shares?
   const licensed = state.osLicensees.includes(comp.id);
   const licenseFee = licensed ? rivalLicenseFee(comp.reputation, osTierInfo(state).tier) : null;
@@ -1566,7 +1571,7 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
           </Button>
           <p className="rprof__acquire-note">
             {acquirable
-              ? "Buy them out: remove them from competition and absorb their brand + customers."
+              ? `Buy them out: remove them from competition and inherit their brand (+${BALANCE.mergers.repBonus} rep), ${inheritRp} research from their patents, and ${formatCount(inheritBase)} customers paying ~${format(inheritAnnuity)}/wk in services.`
               : atFloor
                 ? "The market needs at least a couple of rivals, you can't acquire any more right now."
                 : state.cash < buyout

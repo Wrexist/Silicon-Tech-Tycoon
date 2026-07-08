@@ -30,6 +30,12 @@ Legend: 🐛 bug · ✨ improvement · 💎 premium-polish · ♿ a11y · 🎮 d
 - **P8 Content — event chains** — the thinnest content area (2 → **5** chains): added supply-shock
   (E1), counterfeit-surge (E2), standards-war (E3), each a 3-beat narrative ending in a real choice,
   reusing proven effect kinds. Determinism preserved (run-to-run test); +1 end-to-end chain test. ✅
+- **P9 Mergers absorb assets** *(audit #3)* — acquiring a rival used to just delete it for a rep/fans
+  bump. It now also inherits their **R&D pipeline** (a one-time RP windfall) and their **installed
+  base** (a permanent weekly services annuity — the rivals' customers now pay you), both scaled by the
+  rival's reputation and bounded by the field floor + escalating cost. New `absorbedBase` state field
+  (migrate-defaulted), `absorbedServicesRevenue` wired into the tick + revenue preview, an inherited-
+  assets preview in the rival profile, +2 tests. Opt-in → the pinned sim is byte-identical. ✅
 
 Ordered by risk/impact: correctness first → mandate/formatting → immersion consistency →
 dead-code → balance hardening → content depth → living products. Every change keeps the suite

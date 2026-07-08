@@ -366,6 +366,10 @@ export interface GameState {
   /** Epic B3 — ids of rivals the player has acquired (removed from competition). Tracked so an
    *  acquired rival never re-enters as a fresh challenger, and for UI/achievements. */
   acquiredRivals: string[];
+  /** Installed base (customers) absorbed from acquired rivals — a permanent services annuity feeding
+   *  weekly ecosystem revenue (see absorbedServicesRevenue). 0 until the first acquisition; old saves
+   *  default to 0 on migrate. */
+  absorbedBase: number;
   /** Epic E delegation toggles. Each automates an action the player can already do, gated behind a
    *  premium research division + a recruited specialist (whose salary is the standing weekly cost).
    *  The `*Free` flags grandfather saves that already had an automation ON before the gating shipped,
@@ -580,6 +584,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
+    absorbedBase: 0,
     automation: { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false },
   };
 }
@@ -1269,7 +1274,8 @@ export function weeklyEcosystemRevenue(s: GameState): Money {
     if (eco > minStat) acc += lp.unitsSold * eco * rate;
   }
   // OS feature modules + version multiply recurring services (1.0 when the division is off → unchanged).
-  return cents(Math.round(acc * osServicesMult(s)));
+  // Plus the annuity from any installed base absorbed via acquisitions (0 until the first buyout).
+  return add(cents(Math.round(acc * osServicesMult(s))), absorbedServicesRevenue(s));
 }
 
 export function nextWeekRevenue(s: GameState): Money {
@@ -1388,6 +1394,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * osMult * rate)));
     }
   }
+  // Absorbed installed base (from acquisitions) pays a flat services annuity each week (0 if none).
+  cash = add(cash, scale(absorbedServicesRevenue(state), rate));
 
   // Platform licensing fees — recurring income from rivals licensing your OS (Phase C).
   cash = add(cash, scale(weeklyLicenseFees(state), rate));
@@ -3884,11 +3892,15 @@ export function acquireRival(state: GameState, id: string): GameState {
   delete osLicenseeHealth[id];
   const fansGain = Math.min(m.fansCap, Math.round(Math.max(0, rivalRep) * m.fansPerRepPoint));
   const reputation = Math.min(BALANCE.reputation.max, state.reputation + m.repBonus);
+  // Absorb their productive assets: R&D pipeline → a one-time RP windfall; installed base → a
+  // permanent services annuity (see absorbedServicesRevenue). Both scale with the rival's reputation.
+  const rpWindfall = Math.round(Math.max(0, rivalRep) * m.rpPerRepPoint);
+  const baseGain = Math.round(Math.max(0, rivalRep) * m.installedBasePerRep);
 
   const feed = [...state.feed];
   feed.push(feedItem(
     state.week,
-    `Acquired ${c.name} for ${format(cost)}, absorbed their brand (+${m.repBonus} rep) and ${fansGain.toLocaleString()} customers.`,
+    `Acquired ${c.name} for ${format(cost)} — absorbed their brand (+${m.repBonus} rep), ${fansGain.toLocaleString()} fans, ${rpWindfall} research from their patents, and ${baseGain.toLocaleString()} customers onto your services.`,
     "positive",
   ));
 
@@ -3901,9 +3913,18 @@ export function acquireRival(state: GameState, id: string): GameState {
     osLicenseeHealth,
     fans: state.fans + fansGain,
     reputation,
+    researchPoints: state.researchPoints + rpWindfall,
+    absorbedBase: (state.absorbedBase ?? 0) + baseGain,
     acquiredRivals: [...state.acquiredRivals, id],
     feed: trimFeed(feed),
   };
+}
+
+/** Recurring weekly services income from the installed base absorbed via acquisitions — the rivals'
+ *  former customers now pay YOU. 0 until the first acquisition, so a game that never acquires (and the
+ *  pinned sim) is byte-identical. Pure; shared by the tick and the revenue-preview selector. */
+export function absorbedServicesRevenue(s: GameState): Money {
+  return cents(Math.round((s.absorbedBase ?? 0) * BALANCE.mergers.absorbedServiceRate));
 }
 
 /**

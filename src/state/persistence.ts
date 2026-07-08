@@ -361,6 +361,7 @@ function migrate(state: GameState): GameState | null {
   }
   // Acquired rivals (Epic B3, added later): default none.
   if (!Array.isArray(s.acquiredRivals)) s.acquiredRivals = [];
+  if (!Number.isFinite(s.absorbedBase) || s.absorbedBase < 0) s.absorbedBase = 0;
   // Delegation toggles (Epic E, added later): default off.
   if (!s.automation || typeof s.automation !== "object") {
     s.automation = { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false };
