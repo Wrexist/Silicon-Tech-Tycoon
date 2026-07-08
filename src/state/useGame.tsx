@@ -202,16 +202,20 @@ function withFanToasts(prev: GameState, next: GameState): void {
   }
 }
 
-/** Fire a toast when any staff member gains a skill level during the live tick. */
+/** Fire a toast when staff gain a skill level during the live tick — coalesced, so a week that levels
+ *  several people (mentors, fast-forward) is a single line, not a stack of toasts. */
 function withStaffLevelToasts(prev: GameState, next: GameState): void {
-  for (const ns of next.staff) {
+  const leveled = next.staff.filter((ns) => {
     const ps = prev.staff.find((s) => s.id === ns.id);
-    if (ps && ns.skill > ps.skill) {
-      try {
-        showToast(`${ns.name} reached Skill ${ns.skill}`, { tone: "positive" });
-      } catch { /* toast host not mounted */ }
-    }
-  }
+    return ps && ns.skill > ps.skill;
+  });
+  if (leveled.length === 0) return;
+  const msg = leveled.length === 1
+    ? `${leveled[0].name} reached Skill ${leveled[0].skill}`
+    : `${leveled.length} teammates leveled up`;
+  try {
+    showToast(msg, { tone: "positive" });
+  } catch { /* toast host not mounted */ }
 }
 
 /** Fire a summary toast when a product finishes its sales run this tick. */

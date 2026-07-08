@@ -2254,8 +2254,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         const overtaken = board
           .slice(newRank, Math.min(state.bestIndustryRank, board.length))
           .filter((e) => !e.isPlayer);
-        for (const r of overtaken) {
-          base.feed.push(feedItem(week, `${base.companyName} overtook ${r.name}, now #${newRank} in the industry.`, "positive"));
+        // Coalesce a multi-rank jump into ONE line instead of a near-identical line per rival passed.
+        if (overtaken.length === 1) {
+          base.feed.push(feedItem(week, `${base.companyName} overtook ${overtaken[0].name}, now #${newRank} in the industry.`, "positive"));
+        } else if (overtaken.length > 1) {
+          const lead = overtaken[0].name;
+          base.feed.push(feedItem(week, `${base.companyName} climbed past ${lead} and ${overtaken.length - 1} other${overtaken.length - 1 > 1 ? "s" : ""} to #${newRank} in the industry.`, "positive"));
         }
         if (newRank === 1) {
           base.feed.push(feedItem(week, `${base.companyName} is now the #1 company in the industry. The throne is yours.`, "positive"));

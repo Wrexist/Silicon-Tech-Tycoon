@@ -102,7 +102,7 @@
   border-radius: 50%;
   background: var(--warning);
   flex-shrink: 0;
-  animation: mkt-pulse 1.2s ease-in-out infinite;
+  animation: mkt-pulse 2.2s ease-in-out infinite;
 }
 .lab__trend-shift strong {
   color: var(--warning);

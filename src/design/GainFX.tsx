@@ -27,6 +27,11 @@ export function GainFX() {
   const prevCash = useRef(state.cash);
   const prevRp = useRef(state.researchPoints);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Real-time throttle for PASSIVE gain tokens only: weekly income rises every tick, so without this
+  // a normal run (and especially fast-forward) spews a "+$X"/"+N RP" token every single week. One
+  // token per ~fade-window reads as "occasional feedback" instead of a stream. Spends are user-driven
+  // and one-per-action, so they stay immediate (they never route through here).
+  const lastPassiveGain = useRef(0);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -41,17 +46,25 @@ export function GainFX() {
     timers.current.push(tid);
   };
 
+  // Passive gains (tick income): show at most one token per fade window so a fast run doesn't stream.
+  const spawnPassive = (text: string, kind: Token["kind"]) => {
+    const now = Date.now();
+    if (now - lastPassiveGain.current < 1400) return;
+    lastPassiveGain.current = now;
+    spawn(text, kind);
+  };
+
   // Gain tokens from state diffs (tick-based income)
   useEffect(() => {
     const dCash = (state.cash - prevCash.current) as Money;
     prevCash.current = state.cash;
-    if (dCash > 0) spawn(`+${format(dCash)}`, "cash");
+    if (dCash > 0) spawnPassive(`+${format(dCash)}`, "cash");
   }, [state.cash]);
 
   useEffect(() => {
     const dRp = state.researchPoints - prevRp.current;
     prevRp.current = state.researchPoints;
-    if (dRp >= 1) spawn(`+${Math.round(dRp)} RP`, "rp");
+    if (dRp >= 1) spawnPassive(`+${Math.round(dRp)} RP`, "rp");
   }, [state.researchPoints]);
 
   // Spend tokens from explicit user purchases (fired via emitSpend / emitRpSpend)
