@@ -1650,22 +1650,47 @@
   transition: width var(--spring-standard);
 }
 
-/* Global expansion — region unlock list */
+/* Global expansion — the "garage → global empire" reach meter + region licence cards */
 .mkt__regions-lead { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; margin: calc(-1 * var(--sp-4)) 0 var(--sp-8); }
+
+/* Empire reach meter */
+.mkt__reach { margin: 0 0 var(--sp-12); padding: var(--sp-12) var(--sp-16); border-radius: var(--r-button); background: var(--surface-2); border: 1px solid var(--hairline); }
+.mkt__reach-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); }
+.mkt__reach-label { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2); }
+.mkt__reach-pct { font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.01em; color: var(--accent); }
+.mkt__reach-track { height: 8px; margin: var(--sp-8) 0 var(--sp-6); border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }
+.mkt__reach-track i { display: block; height: 100%; border-radius: var(--r-pill); background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent)); transition: width var(--spring-gentle); }
+.mkt__reach-sub { font-size: var(--fs-nano); color: var(--ink-3); }
+
 .mkt__region-list { display: flex; flex-direction: column; gap: var(--sp-8); }
-/* wrap: a LOCKED row's Unlock button takes its own full-width line below the icon + text, so the
-   blurb never gets crushed into a one-word-per-line ribbon beside a wide fixed button. */
-.mkt__region { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-10) var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); }
-.mkt__region > .ds-btn { flex: 1 0 100%; }
-.mkt__region--open { border-color: var(--accent); background: var(--accent-soft); }
-.mkt__region-icon { width: 34px; height: 34px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent); }
-.mkt__region--open .mkt__region-icon { background: var(--accent); color: var(--accent-ink); }
-.mkt__region-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.mkt__region-name { font-weight: 600; }
-.mkt__region-blurb { font-size: var(--fs-caption); color: var(--ink-2); }
-.mkt__region-tag { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+.mkt__region { display: flex; flex-direction: column; gap: var(--sp-10); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); }
+.mkt__region--open { border-color: color-mix(in srgb, hsl(var(--rgn-h, 210) 60% 50%) 40%, var(--hairline)); background: color-mix(in srgb, hsl(var(--rgn-h, 210) 60% 50%) 7%, var(--surface-2)); }
+.mkt__region-main { display: flex; align-items: flex-start; gap: var(--sp-12); }
+.mkt__region-emblem {
+  width: 38px; height: 38px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: color-mix(in srgb, hsl(var(--rgn-h, 210) 62% 52%) 16%, transparent); color: hsl(var(--rgn-h, 210) 62% 46%);
+}
+.mkt__region--open .mkt__region-emblem { background: linear-gradient(150deg, hsl(var(--rgn-h, 210) 66% 56%), hsl(var(--rgn-h, 210) 60% 44%)); color: #fff; box-shadow: var(--shadow-subtle); }
+.mkt__region-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.mkt__region-name { display: inline-flex; align-items: center; gap: var(--sp-4); font-weight: 700; font-size: var(--fs-body); }
+.mkt__region-check { color: hsl(var(--rgn-h, 210) 60% 46%); }
+.mkt__region-blurb { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; }
+.mkt__region-taste { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-4); }
+.mkt__region-taste-lead { font-size: var(--fs-nano); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+.mkt__region-taste-chip { font-size: var(--fs-nano); font-weight: 700; color: hsl(var(--rgn-h, 210) 55% 44%); background: color-mix(in srgb, hsl(var(--rgn-h, 210) 60% 50%) 14%, transparent); padding: 2px 7px; border-radius: var(--r-pill); }
+.mkt__region-size { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
+.mkt__region-size-val { font-size: var(--fs-body); font-weight: 800; color: var(--ink); line-height: 1.1; }
+.mkt__region-size-cap { font-size: 10px; color: var(--ink-3); }
+.mkt__region-foot { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-8); }
+.mkt__region-foot > .ds-btn { flex: 1; min-width: 60%; }
+.mkt__region-tag { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; color: hsl(var(--rgn-h, 210) 55% 46%); text-transform: uppercase; letter-spacing: 0.04em; }
 /* Live weekly-revenue contribution on an open region — a number, not a label. */
 .mkt__region-tag--rev { text-transform: none; letter-spacing: 0; color: var(--positive-text); }
+/* Fit read on a LOCKED region — how well your current line suits that market's taste. */
+.mkt__region-fit { font-size: var(--fs-nano); font-weight: 700; }
+.mkt__region-fit--strong { color: var(--positive-text, var(--positive)); }
+.mkt__region-fit--fair { color: var(--ink-2); }
+.mkt__region-fit--soft { color: var(--warning-text, var(--warning)); }
 
 /* Supply-chain retrospective line in the product detail sheet */
 .pd__supply {

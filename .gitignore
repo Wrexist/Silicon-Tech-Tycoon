@@ -25,5 +25,6 @@ scripts/.sim.cjs
 scripts/.promo-stage.cjs
 scripts/.newfeat.cjs
 scripts/.livingos.cjs
+scripts/.regions.cjs
 .tab-shots/
 .newfeat-shots/

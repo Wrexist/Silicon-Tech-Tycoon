@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowRight, Building2, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -40,7 +40,7 @@ import {
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { REGIONS, regionById, regionTasteFit, shippableRegions } from "../engine/regions.ts";
+import { REGIONS, regionById, regionTasteFit, shippableRegions, regionWorldShare, worldCoverage, regionTasteTop, type Region } from "../engine/regions.ts";
 import { supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -48,12 +48,16 @@ import { STAT_INFO } from "../engine/glossary.ts";
 import { StatGlossary } from "../components/StatGlossary.tsx";
 import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
+import { Celebration } from "../design/Celebration.tsx";
 import "./market.css";
 
 const CATEGORY_LABEL: Record<string, string> = {
   phone: "Phone", tablet: "Tablet", laptop: "Laptop", desktop: "Desktop",
   monitor: "Monitor", console: "Console", wearable: "Wearable", experimental: "AR/VR",
 };
+
+// A distinct hue per region so each market emblem reads at a glance (CSS owns the tint formula).
+const REGION_HUE: Record<string, number> = { home: 210, north_america: 222, europe: 265, asia: 32, emerging: 150 };
 
 type Verdict = "hit" | "solid" | "steady" | "flop";
 const VERDICT_LABEL: Record<Verdict, string> = { hit: "Hit", solid: "Solid", steady: "Steady", flop: "Flop" };
@@ -102,6 +106,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   const [trade, setTrade] = useState<CompetitorState | null>(null);
   const [ipo, setIpo] = useState(false);
   const [sellStake, setSellStake] = useState(false);
+  // The region just licensed — captures it so the "flag planted" celebration survives the card
+  // flipping to Open the instant the market opens.
+  const [openedRegion, setOpenedRegion] = useState<Region | null>(null);
   const sortedProducts = [...state.launched].sort((a, b) => {
     const aLive = a.weeksElapsed < a.weeklyUnits.length ? 1 : 0;
     const bLive = b.weeksElapsed < b.weeklyUnits.length ? 1 : 0;
@@ -291,65 +298,106 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       </>)}
 
       {mktTab === "demand" && (<>
-      {/* Global expansion, open new markets to grow your addressable demand (engine/regions.ts) */}
+      {/* Global expansion — license distribution into new markets to grow your reach (engine/regions.ts) */}
       <Card className="mkt__regions">
-        <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length} open`} />
-        <p className="mkt__regions-lead">Expand beyond your home market. Each region adds demand, but its buyers value different things, so design with your markets in mind.</p>
-        <div className="mkt__region-list">
-          {(() => {
-            // Where this week's sales are coming from: each active product's weekly revenue,
-            // apportioned across its shipped regions by share × taste fit (the same weights that
-            // sized its launch). Keeps the card alive once every region is unlocked — an open
-            // region shows its contribution instead of a static "Open" tag.
-            const regionRev = new Map<string, number>();
-            for (const lp of state.launched) {
-              if (lp.weeksElapsed >= lp.weeklyUnits.length) continue;
-              const wkRev = lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price);
-              if (wkRev <= 0) continue;
-              const stats = productStats(state, lp.product);
-              const parts = shippableRegions(state.unlockedRegions, lp.product.regions)
-                .map((id) => { const r = regionById(id)!; return { id, w: r.share * regionTasteFit(stats, r) }; });
-              const total = parts.reduce((a, p) => a + p.w, 0) || 1;
-              for (const p of parts) regionRev.set(p.id, (regionRev.get(p.id) ?? 0) + (wkRev * p.w) / total);
-            }
-            return REGIONS.map((r) => {
-              const open = state.unlockedRegions.includes(r.id);
-              const afford = state.cash >= r.unlockCost;
-              const rev = regionRev.get(r.id) ?? 0;
-              return (
-                <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`}>
-                  <span className="mkt__region-icon">{open ? <Globe size={16} /> : <Lock size={15} />}</span>
-                  <div className="mkt__region-text">
-                    <span className="mkt__region-name">{r.name}</span>
-                    <span className="mkt__region-blurb">{r.blurb}</span>
-                  </div>
-                  {open ? (
-                    rev >= 1 ? (
-                      <span className="mkt__region-tag mkt__region-tag--rev tnum">≈{formatShortDollars(rev)}/wk</span>
-                    ) : (
-                      <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
-                    )
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      disabled={!afford}
-                      haptics="none"
-                      onClick={() => {
-                        unlockRegion(r.id);
-                        // Opening an entire market is a milestone, not a silent debit.
-                        haptic.success();
-                        sfx("upgrade");
-                        showToast(`${r.name} is open — new demand for every launch`, { tone: "positive", glyph: <Globe size={15} /> });
-                      }}
-                    >
-                      <Globe size={14} aria-hidden /> Unlock · {format(r.unlockCost)}
-                    </Button>
-                  )}
+        <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length}`} />
+        {(() => {
+          const coverage = worldCoverage(state.unlockedRegions);
+          const remaining = REGIONS.length - state.unlockedRegions.length;
+          // Where this week's sales are coming from: each active product's weekly revenue, apportioned
+          // across its shipped regions by share × taste fit (the same weights that sized its launch).
+          const regionRev = new Map<string, number>();
+          for (const lp of state.launched) {
+            if (lp.weeksElapsed >= lp.weeklyUnits.length) continue;
+            const wkRev = lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price);
+            if (wkRev <= 0) continue;
+            const stats = productStats(state, lp.product);
+            const parts = shippableRegions(state.unlockedRegions, lp.product.regions)
+              .map((id) => { const r = regionById(id)!; return { id, w: r.share * regionTasteFit(stats, r) }; });
+            const total = parts.reduce((a, p) => a + p.w, 0) || 1;
+            for (const p of parts) regionRev.set(p.id, (regionRev.get(p.id) ?? 0) + (wkRev * p.w) / total);
+          }
+          // Your flagship (newest launch) — reads how well your current line suits each market's taste,
+          // so a locked region shows whether it's a natural fit or a market you'd need to design for.
+          const flagshipLp = state.launched.length ? [...state.launched].sort((a, b) => b.launchedWeek - a.launchedWeek)[0] : null;
+          const flagshipStats = flagshipLp ? productStats(state, flagshipLp.product) : null;
+          return (
+            <>
+              {/* Empire reach meter — the "garage → global" fantasy made visible */}
+              <div className="mkt__reach">
+                <div className="mkt__reach-head">
+                  <span className="mkt__reach-label"><Globe size={15} aria-hidden /> World market reached</span>
+                  <span className="mkt__reach-pct tnum">{Math.round(coverage * 100)}%</span>
                 </div>
-              );
-            });
-          })()}
-        </div>
+                <div className="mkt__reach-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(coverage * 100)}>
+                  <i style={{ width: `${Math.max(3, coverage * 100)}%` }} />
+                </div>
+                <span className="mkt__reach-sub">
+                  {remaining === 0 ? "Every market licensed — a truly global empire." : `${remaining} ${remaining === 1 ? "market" : "markets"} left to license — each adds demand for every launch.`}
+                </span>
+              </div>
+
+              <div className="mkt__region-list">
+                {REGIONS.map((r) => {
+                  const open = state.unlockedRegions.includes(r.id);
+                  const afford = state.cash >= r.unlockCost;
+                  const rev = regionRev.get(r.id) ?? 0;
+                  const worldShare = regionWorldShare(r);
+                  const taste = regionTasteTop(r, 2);
+                  const fitRaw = open || r.id === "home" || !flagshipStats ? null : regionTasteFit(flagshipStats, r);
+                  const fit = fitRaw == null ? null : fitRaw >= 1.04 ? { label: "Strong fit", tone: "strong" } : fitRaw <= 0.96 ? { label: "Soft fit", tone: "soft" } : { label: "Fair fit", tone: "fair" };
+                  return (
+                    <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`} style={{ "--rgn-h": REGION_HUE[r.id] ?? 210 } as CSSProperties}>
+                      <div className="mkt__region-main">
+                        <span className="mkt__region-emblem" aria-hidden>{open ? <Globe size={18} /> : <Lock size={16} />}</span>
+                        <div className="mkt__region-text">
+                          <span className="mkt__region-name">{r.name}{open && r.id !== "home" && <Check size={13} className="mkt__region-check" aria-hidden />}</span>
+                          <span className="mkt__region-blurb">{r.blurb}</span>
+                          {taste.length > 0 && (
+                            <div className="mkt__region-taste">
+                              <span className="mkt__region-taste-lead">Values</span>
+                              {taste.map((k) => <span key={k} className="mkt__region-taste-chip">{STAT_INFO[k].label}</span>)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="mkt__region-size">
+                          <span className="mkt__region-size-val tnum">{Math.round(worldShare * 100)}%</span>
+                          <span className="mkt__region-size-cap">of world</span>
+                        </div>
+                      </div>
+                      <div className="mkt__region-foot">
+                        {open ? (
+                          <>
+                            <span className="mkt__region-tag">{r.id === "home" ? "Home market" : "Licensed"}</span>
+                            {rev >= 1 && <span className="mkt__region-tag mkt__region-tag--rev tnum">≈{formatShortDollars(rev)}/wk</span>}
+                          </>
+                        ) : (
+                          <>
+                            {fit && <span className={`mkt__region-fit mkt__region-fit--${fit.tone}`}>{fit.label} for your line</span>}
+                            <Button
+                              variant="secondary"
+                              disabled={!afford}
+                              haptics="none"
+                              onClick={() => {
+                                unlockRegion(r.id);
+                                // Licensing an entire market is a milestone — a "flag planted" moment.
+                                haptic.success();
+                                sfx("upgrade");
+                                setOpenedRegion(r);
+                              }}
+                            >
+                              <Globe size={14} aria-hidden /> Buy licence · {format(r.unlockCost)}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
       </Card>
 
       {/* Rival releases, the real products rivals have shipped (Epic B): see and learn from them */}
@@ -851,6 +899,22 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       <Sheet open={feedOpen} onClose={() => setFeedOpen(false)} label="Market feed">
         <FeedSheet feed={state.feed} onClose={() => setFeedOpen(false)} />
       </Sheet>
+
+      {openedRegion && (
+        <Celebration
+          eyebrow="New market licensed"
+          title={`${openedRegion.name} is open`}
+          sub={`Your devices can now ship to ${openedRegion.name}. Every launch reaches a bigger world${regionTasteTop(openedRegion, 2).length ? `, and these buyers reward ${regionTasteTop(openedRegion, 2).map((k) => STAT_INFO[k].label.toLowerCase()).join(" & ")}` : ""}.`}
+          icon={<Globe size={32} />}
+          sound="era"
+          chips={[
+            { icon: <Globe size={14} />, value: `+${Math.round(regionWorldShare(openedRegion) * 100)}%`, label: "world market", sub: "addressable" },
+            { icon: <TrendingUp size={14} />, value: `${Math.round(worldCoverage(state.unlockedRegions) * 100)}%`, label: "global reach", sub: "now open" },
+          ]}
+          confirmLabel="Plant the flag"
+          onConfirm={() => setOpenedRegion(null)}
+        />
+      )}
     </div>
   );
 }

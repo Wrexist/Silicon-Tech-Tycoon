@@ -12,7 +12,7 @@
 import { BALANCE } from "./balance.ts";
 import { regionShockMul } from "./climate.ts";
 import { dollars, type Money } from "./money.ts";
-import { STAT_KEYS, type RegionId, type Stats } from "./types.ts";
+import { STAT_KEYS, type RegionId, type Stats, type StatKey } from "./types.ts";
 
 export interface Region {
   id: RegionId;
@@ -75,6 +75,27 @@ export const REGIONS: readonly Region[] = [
 
 export function regionById(id: RegionId): Region | undefined {
   return REGIONS.find((r) => r.id === id);
+}
+
+/** A region's slice of the total world market (0..1) — "how big" it is, for the UI. */
+export function regionWorldShare(region: Region): number {
+  const total = REGIONS.reduce((a, r) => a + r.share, 0);
+  return total > 0 ? region.share / total : 0;
+}
+
+/** Share of the world market the player currently reaches (Σ open region shares ÷ total). Drives the
+ *  "global reach" empire meter — 100% once every market is licensed. */
+export function worldCoverage(unlocked: readonly RegionId[]): number {
+  const total = REGIONS.reduce((a, r) => a + r.share, 0);
+  const open = REGIONS.reduce((a, r) => a + (unlocked.includes(r.id) ? r.share : 0), 0);
+  return total > 0 ? open / total : 0;
+}
+
+/** The stats a region's buyers value most (top-n by taste weight); [] for Home (flat taste). Lets the
+ *  UI say "Europe values Quality · Design" so expanding is a legible strategic bet, not a blind buy. */
+export function regionTasteTop(region: Region, n = 2): StatKey[] {
+  if (region.id === "home") return [];
+  return [...STAT_KEYS].sort((a, b) => region.weights[b] - region.weights[a]).slice(0, n);
 }
 
 function clamp(n: number, lo: number, hi: number): number {
