@@ -29,6 +29,7 @@ import {
   industryLeaderboard,
   industryRank,
   marketingPushQuote,
+  restockQuote,
   netWorth,
   nextWeekRevenue,
   osDisplayName,
@@ -995,9 +996,10 @@ function ProductDetailSheet({
   onClose: () => void;
   onDesignSuccessor?: (p: Product) => void;
 }) {
-  const { cutProductPrice, marketingPush } = useGame();
+  const { state, cutProductPrice, marketingPush, restockProduct } = useGame();
   const [priceCutOpen, setPriceCutOpen] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
+  const [restockOpen, setRestockOpen] = useState(false);
   // Only phones & tablets are flat slabs with a real back face (camera module); for those, let the
   // player flip the hardware to inspect the rear.
   const canFlip = lp.product.category === "phone" || lp.product.category === "tablet";
@@ -1030,7 +1032,13 @@ function ProductDetailSheet({
   const suggestedCut = dollars(Math.max(toDollars(lp.unitCost) + 1, Math.round(toDollars(lp.product.price) * 0.85 / 10) * 10));
   // Marketing push quote — only offered when there's genuine surplus inventory left to clear.
   const pushQuote = marketingPushQuote(lp);
-  const pushed = (lp.marketingPushes ?? 0) >= 1;
+  const pushed = (lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct;
+  // Restock ("living product" lever): reorder to meet demand you under-supplied. The engine caps the
+  // amount to the market's unmet appetite; here we also cap the offer at what the player can afford now.
+  const restockQ = live ? restockQuote(state, lp) : null;
+  const restockAfford = restockQ ? Math.floor(toDollars(state.cash) / Math.max(1, toDollars(restockQ.unitCost))) : 0;
+  const restockUnits = restockQ ? Math.min(restockQ.maxUnits, restockAfford) : 0;
+  const restockCost = restockQ ? cents(restockQ.unitCost * restockUnits) : dollars(0);
 
   return (
     <div className="pd">
@@ -1173,10 +1181,10 @@ function ProductDetailSheet({
       {/* Mid-lifecycle price cut — only for live products */}
       {live && (
         <div className="pd__pricecut">
-          {(lp.priceCuts ?? 0) >= 1 ? (
+          {(lp.priceCuts ?? 0) >= BALANCE.priceCut.maxPerProduct ? (
             <div className="pd__pricecut-done">
               <TrendingDown size={13} aria-hidden />
-              <span>Price reduced to <strong className="tnum">{format(lp.product.price)}</strong></span>
+              <span>Price cut to <strong className="tnum">{format(lp.product.price)}</strong> — as low as it goes</span>
             </div>
           ) : !priceCutOpen ? (
             <button className="pd__pricecut-trigger" onClick={() => { setPriceCutOpen(true); haptic.light(); }}>
@@ -1201,7 +1209,7 @@ function ProductDetailSheet({
                 const boostPct = oldFit > 0 ? Math.round(((newFit / oldFit) - 1) * 100) : 0;
                 return (
                   <p className="pd__pricecut-hint">
-                    {boostPct > 0 ? `~+${boostPct}% estimated demand uplift · ` : ""}One adjustment per product.
+                    {boostPct > 0 ? `~+${boostPct}% estimated demand uplift · ` : ""}Repeatable, each cut smaller as the price nears cost.
                   </p>
                 );
               })()}
@@ -1251,7 +1259,7 @@ function ProductDetailSheet({
                 <span>Marketing push</span>
               </div>
               <p className="pd__pricecut-hint">
-                Sell ~<strong className="tnum">{pushQuote!.addedUnits.toLocaleString()}</strong> more units at full price, no margin cut. One campaign per product.
+                Sell ~<strong className="tnum">{formatCount(pushQuote!.addedUnits)}</strong> more units at full price, no margin cut. Repeatable, each campaign smaller than the last.
               </p>
               <div className="pd__pricecut-actions">
                 <Button
@@ -1271,6 +1279,49 @@ function ProductDetailSheet({
                   Confirm · {format(pushQuote!.cost)}
                 </Button>
                 <Button block variant="tertiary" onClick={() => { setPushOpen(false); haptic.light(); }}>Cancel</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Restock / reorder — the "living product" lever: make more of a sell-out to capture demand you
+          under-supplied. Shown only while the market still wants more AND you can afford a real run. */}
+      {live && restockQ && restockUnits >= BALANCE.build.minRun && (
+        <div className="pd__pricecut">
+          {!restockOpen ? (
+            <button className="pd__pricecut-trigger" onClick={() => { setRestockOpen(true); haptic.light(); }}>
+              <Package size={13} aria-hidden />
+              <span>Restock · <span className="tnum">{formatCount(restockQ.maxUnits)}</span> units of demand unmet</span>
+              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
+            </button>
+          ) : (
+            <div className="pd__pricecut-panel">
+              <div className="pd__pricecut-title">
+                <Package size={14} aria-hidden />
+                <span>Restock production</span>
+              </div>
+              <p className="pd__pricecut-hint">
+                Build ~<strong className="tnum">{formatCount(restockUnits)}</strong> more units to meet demand you under-supplied — no new tooling, you pay production only.
+              </p>
+              <div className="pd__pricecut-actions">
+                <Button
+                  block
+                  onClick={() => {
+                    const result = restockProduct(lp.product.id, restockUnits);
+                    if (result.ok) {
+                      haptic.success();
+                      showToast("Restocked — more units on the line", { tone: "positive" });
+                      setRestockOpen(false);
+                    } else {
+                      haptic.medium();
+                      showToast(result.reason ?? "Can't restock", { tone: "negative" });
+                    }
+                  }}
+                >
+                  Confirm · {format(restockCost)}
+                </Button>
+                <Button block variant="tertiary" onClick={() => { setRestockOpen(false); haptic.light(); }}>Cancel</Button>
               </div>
             </div>
           )}

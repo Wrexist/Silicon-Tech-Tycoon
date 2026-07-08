@@ -28,6 +28,8 @@ import {
   productStats,
   marketingPush,
   marketingPushQuote,
+  restockQuote,
+  restockProduct,
   buyUpgrade,
   upgradeGate,
   restStaff,
@@ -567,18 +569,84 @@ describe("marketing push (mid-life, margin-preserving)", () => {
     expect(s.cash - after.state.cash).toBe(quote.cost); // charged the quoted amount
   });
 
-  it("refuses a second push, a broke push, and a sold-out (no surplus) product", () => {
+  it("allows repeat pushes but with diminishing returns", () => {
+    const lp = surplusLaunch();
+    const q1 = marketingPushQuote(lp)!;
+    const s: GameState = { ...newGame(34), cash: dollars(2_000_000), launched: [lp] };
+    const after1 = marketingPush(s, lp.product.id);
+    expect(after1.ok).toBe(true);
+    const lp1 = after1.state.launched[0];
+    expect(lp1.marketingPushes).toBe(1);
+    // A second push is still allowed (under the cap) but adds fewer units than the first.
+    const q2 = marketingPushQuote(lp1);
+    if (q2) expect(q2.addedUnits).toBeLessThan(q1.addedUnits);
+  });
+
+  it("refuses a maxed-out, broke, or sold-out (no surplus) push", () => {
     const lp = surplusLaunch();
     const broke: GameState = { ...newGame(32), cash: dollars(0), launched: [lp] };
     expect(marketingPush(broke, lp.product.id).ok).toBe(false); // can't afford
 
-    const already = surplusLaunch({ marketingPushes: 1 });
+    const already = surplusLaunch({ marketingPushes: BALANCE.marketingPush.maxPerProduct });
     const rich: GameState = { ...newGame(33), cash: dollars(1_000_000), launched: [already] };
-    expect(marketingPush(rich, already.product.id).ok).toBe(false); // one per product
+    expect(marketingPush(rich, already.product.id).ok).toBe(false); // capped per product
 
     // No surplus: the curve already sums to the production run, so nothing to clear.
     const soldOut = surplusLaunch({ plannedUnits: 510 });
     expect(marketingPushQuote(soldOut)).toBeNull();
+  });
+});
+
+describe("restock (mid-life reorder, demand-capped)", () => {
+  // A sold-out product: supply (plannedUnits) == forecast (totalUnits), so there may be unmet demand.
+  const soldOut = (over: Partial<import("../engine/types.ts").LaunchedProduct> = {}) => ({
+    // A strong, sensibly-priced phone that sold out a small run — the market wants far more than 120.
+    product: { ...goodPhone(), tiers: { chip: 5, display: 5, battery: 4, materials: 4, software: 4, camera: 4 }, price: dollars(500) },
+    stats: { performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 40 },
+    unitCost: dollars(200),
+    launchScore: 100,
+    launchedWeek: 1,
+    totalUnits: 120,
+    weeklyUnits: [40, 40, 30, 10, 0, 0, 0, 0],
+    unitsSold: 80,
+    weeksElapsed: 2,
+    revenueToDate: dollars(48_000),
+    plannedUnits: 120,
+    ...over,
+  } as import("../engine/types.ts").LaunchedProduct);
+
+  it("quotes unmet demand and funds more units (no new tooling)", () => {
+    const lp = soldOut();
+    const s: GameState = { ...newGame(41), era: 3, cash: dollars(5_000_000), fans: 30_000, launched: [lp] };
+    const quote = restockQuote(s, lp);
+    expect(quote).not.toBeNull();
+    expect(quote!.maxUnits).toBeGreaterThanOrEqual(BALANCE.build.minRun);
+    const res = restockProduct(s, lp.product.id, quote!.maxUnits);
+    expect(res.ok).toBe(true);
+    const after = res.state.launched[0];
+    expect(after.totalUnits).toBeGreaterThan(lp.totalUnits);
+    expect(after.plannedUnits!).toBeGreaterThan(lp.plannedUnits!);
+    expect(after.restocks).toBe(1);
+    expect(s.cash - res.state.cash).toBeGreaterThan(0); // paid production
+  });
+
+  it("never restocks beyond the market's appetite", () => {
+    const lp = soldOut();
+    const s: GameState = { ...newGame(42), era: 3, cash: dollars(50_000_000), fans: 30_000, launched: [lp] };
+    const quote = restockQuote(s, lp)!;
+    const res = restockProduct(s, lp.product.id, quote.maxUnits * 1000); // ask for absurdly more
+    expect(res.ok).toBe(true);
+    const added = res.state.launched[0].totalUnits - lp.totalUnits;
+    expect(added).toBeLessThanOrEqual(quote.maxUnits);
+  });
+
+  it("refuses when the market is satisfied or the reorder cap is hit", () => {
+    const satisfied = soldOut({ totalUnits: 50_000_000, plannedUnits: 50_000_000 });
+    const s: GameState = { ...newGame(43), era: 3, cash: dollars(50_000_000), fans: 30_000, launched: [satisfied] };
+    expect(restockQuote(s, satisfied)).toBeNull();
+    const maxed = soldOut({ restocks: BALANCE.restock.maxPerProduct });
+    const s2: GameState = { ...newGame(44), era: 3, cash: dollars(50_000_000), fans: 30_000, launched: [maxed] };
+    expect(restockQuote(s2, maxed)).toBeNull();
   });
 });
 

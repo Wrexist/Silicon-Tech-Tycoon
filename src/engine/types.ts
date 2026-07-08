@@ -198,10 +198,12 @@ export interface LaunchedProduct {
   verdict?: "hit" | "solid" | "flop" | "steady";
   /** Launch-moment drivers behind the verdict (added later; absent on older saves). */
   insight?: LaunchInsight;
-  /** Number of mid-lifecycle price adjustments made (max 1). Old saves: undefined → treated as 0. */
+  /** Number of mid-lifecycle price adjustments made. Old saves: undefined → treated as 0. */
   priceCuts?: number;
-  /** Number of mid-lifecycle marketing pushes run (max 1). Old saves: undefined → treated as 0. */
+  /** Number of mid-lifecycle marketing pushes run (each with diminishing returns). Old saves: undefined → 0. */
   marketingPushes?: number;
+  /** Number of mid-lifecycle restocks (reorders) funded on this product. Old saves: undefined → 0. */
+  restocks?: number;
 }
 
 // engineer/designer/marketer build products; hr (People Lead) + researcher (Lead Researcher) are

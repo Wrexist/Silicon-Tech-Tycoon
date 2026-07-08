@@ -238,7 +238,27 @@ export const BALANCE = {
   marketingPush: {
     boost: 0.3,    // +30% to each remaining week's units (then capped at plannedUnits)
     costPct: 0.35, // cash cost = 35% of the extra revenue the push unlocks
-    maxPerProduct: 1,
+    // A launched product is no longer a frozen annuity — you can keep promoting it through its life,
+    // but with DIMINISHING RETURNS so it's a real decision, not a spam button: each push's boost is
+    // pushFalloff× the previous one's (0.30 → 0.165 → 0.09…). Still capped at plannedUnits (only ever
+    // clears real surplus inventory), so an over-pushed product with no surplus simply quotes nothing.
+    maxPerProduct: 3,
+    pushFalloff: 0.55,
+  },
+  // Mid-lifecycle price cuts, now repeatable (a fading product can be marked down more than once).
+  // Each cut must still be below the current price and above unit cost, so the price naturally floors
+  // out after a few cuts — the diminishing return is built into the mechanic, no extra falloff needed.
+  priceCut: {
+    maxPerProduct: 3,
+  },
+  // Restock / reorder — the headline "living product" lever. A launched product used to be a frozen
+  // 16-week annuity: if it sold out, you could do nothing. Now you can fund another production run to
+  // meet demand you under-supplied. It is DEMAND-CAPPED (you can never order more than the current
+  // market still wants — planProduction.totalDemand minus what's already scheduled to sell), so it
+  // captures unmet demand rather than printing money, and each reorder shrinks the remaining headroom.
+  // No new tooling (the line is already set up) — you pay pure per-unit production. Bounded per product.
+  restock: {
+    maxPerProduct: 3,
   },
 
   // --- Fans / loyal customer base ---

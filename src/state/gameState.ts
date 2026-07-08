@@ -2549,7 +2549,7 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
   if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };
   if (newPrice >= lp.product.price) return { state, ok: false, reason: "New price must be lower than current price." };
   if (newPrice < lp.unitCost) return { state, ok: false, reason: "Price can't go below unit cost." };
-  if ((lp.priceCuts ?? 0) >= 1) return { state, ok: false, reason: "Price has already been adjusted on this product." };
+  if ((lp.priceCuts ?? 0) >= BALANCE.priceCut.maxPerProduct) return { state, ok: false, reason: "This product has been marked down as far as it can go." };
 
   // Compute the priceFit improvement ratio — this scales remaining weekly demand proportionally.
   const oldFit = priceFit(lp.product.price, lp.stats, lp.product.category);
@@ -2582,13 +2582,22 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
   };
 }
 
+/** The effective per-week demand boost for the NEXT marketing push on this product. Diminishes with
+ *  each push already run (BALANCE.marketingPush.pushFalloff), so repeat campaigns still help but each
+ *  less than the last — keeping it a real decision rather than a spam button. */
+function marketingPushBoost(lp: LaunchedProduct): number {
+  return BALANCE.marketingPush.boost * Math.pow(BALANCE.marketingPush.pushFalloff, lp.marketingPushes ?? 0);
+}
+
 /** A quote for a mid-lifecycle marketing push, or null when there's nothing left to promote (no
- *  surplus inventory) or the lifecycle has ended. Pure — drives both the UI preview and the action,
- *  so the number the player sees is the number they pay. */
+ *  surplus inventory), the push cap is reached, or the lifecycle has ended. Pure — drives both the UI
+ *  preview and the action, so the number the player sees is the number they pay. */
 export function marketingPushQuote(lp: LaunchedProduct): { cost: Money; addedUnits: number } | null {
   if (lp.weeksElapsed >= lp.weeklyUnits.length) return null;
+  if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return null;
   const cap = lp.plannedUnits ?? lp.totalUnits;
-  const boosted = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
+  const eff = marketingPushBoost(lp);
+  const boosted = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + eff))));
   const newTotal = Math.min(cap, boosted.reduce((a, b) => a + b, 0));
   const oldTotal = Math.min(cap, lp.weeklyUnits.reduce((a, b) => a + b, 0));
   const addedUnits = Math.max(0, newTotal - oldTotal);
@@ -2603,13 +2612,14 @@ export function marketingPush(state: GameState, productId: string): ActionResult
   const lp = state.launched.find((l) => l.product.id === productId);
   if (!lp) return { state, ok: false, reason: "Product not found." };
   if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };
-  if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return { state, ok: false, reason: "This product has already had a marketing push." };
+  if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return { state, ok: false, reason: "This product has had the most marketing pushes it can take." };
   const quote = marketingPushQuote(lp);
   if (!quote) return { state, ok: false, reason: "No unsold inventory left to promote." };
   if (state.cash < quote.cost) return { state, ok: false, reason: `Need ${format(sub(quote.cost, state.cash))} more for the campaign.` };
 
   const cap = lp.plannedUnits ?? lp.totalUnits;
-  const newWeeklyUnits = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
+  const eff = marketingPushBoost(lp);
+  const newWeeklyUnits = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + eff))));
   const newTotalUnits = Math.min(cap, newWeeklyUnits.reduce((a, b) => a + b, 0));
 
   const feed = [...state.feed];
@@ -2628,6 +2638,60 @@ export function marketingPush(state: GameState, productId: string): ActionResult
     },
     ok: true,
   };
+}
+
+/** A quote for restocking (reordering) a launched product, or null when it can't be restocked
+ *  (lifecycle ended, reorder cap reached, or the market has no meaningful unmet demand left).
+ *  DEMAND-CAPPED: maxUnits is how many more the current market still wants beyond what's already
+ *  scheduled to sell (planProduction.totalDemand − totalUnits), so a restock captures unmet demand
+ *  and can never print money. Pure — drives both the UI stepper bounds and the action. */
+export function restockQuote(s: GameState, lp: LaunchedProduct): { maxUnits: number; unitCost: Money } | null {
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return null;            // lifecycle ended
+  if ((lp.restocks ?? 0) >= BALANCE.restock.maxPerProduct) return null; // reorder cap reached
+  const channelId = (lp.product.channelId ?? "none") as ChannelId;
+  // Estimate the market's true appetite for this product WITHOUT counting it against itself: its own
+  // active listing would otherwise trigger self-cannibalization + market-fatigue penalties on the very
+  // product we're reordering, wrongly collapsing the demand a restock is meant to meet.
+  const sansSelf: GameState = { ...s, launched: s.launched.filter((l) => l.product.id !== lp.product.id) };
+  const plan = planProduction(sansSelf, lp.product, lp.plannedUnits ?? lp.totalUnits, channelId);
+  const headroom = Math.max(0, Math.round(plan.totalDemand) - lp.totalUnits);
+  if (headroom < BALANCE.build.minRun) return null;                    // not enough unmet demand to bother
+  return { maxUnits: headroom, unitCost: effectiveUnitCost(s, lp.product) };
+}
+
+/** Restock (reorder) a launched product: fund another production run to meet demand you under-supplied
+ *  instead of leaving a sell-out's revenue on the table. Appends a fresh sales wave (distributeOverCurve)
+ *  from the current week and raises the product's supply + forecast, bounded by restockQuote's demand
+ *  cap, so lifetime sales can never exceed what the market actually wants. No new tooling (the line is
+ *  already set up) — you pay pure per-unit production. Opt-in: the pinned sim never calls this. */
+export function restockProduct(state: GameState, productId: string, units: number): ActionResult {
+  const idx = state.launched.findIndex((l) => l.product.id === productId);
+  if (idx < 0) return { state, ok: false, reason: "Product not found." };
+  const lp = state.launched[idx];
+  const quote = restockQuote(state, lp);
+  if (!quote) return { state, ok: false, reason: "There's no unmet demand left to restock." };
+  const want = Math.min(Math.max(0, Math.floor(units)), quote.maxUnits);
+  if (want < BALANCE.build.minRun) return { state, ok: false, reason: `Restock at least ${BALANCE.build.minRun.toLocaleString()} units.` };
+  const cost = scale(quote.unitCost, want);
+  if (state.cash < cost) return { state, ok: false, reason: `Need ${format(sub(cost, state.cash))} more to restock.` };
+  // A fresh wave of sales for the added units, overlaid onto the curve from the current week (renewed
+  // availability). distributeOverCurve sums to exactly `want`, so sell-through stays honest.
+  const wave = distributeOverCurve(want);
+  const weeklyUnits = [...lp.weeklyUnits];
+  for (let i = 0; i < wave.length; i++) {
+    const at = lp.weeksElapsed + i;
+    weeklyUnits[at] = (weeklyUnits[at] ?? 0) + wave[i];
+  }
+  const launched = [...state.launched];
+  launched[idx] = {
+    ...lp,
+    weeklyUnits,
+    totalUnits: lp.totalUnits + want,
+    plannedUnits: (lp.plannedUnits ?? lp.totalUnits) + want,
+    restocks: (lp.restocks ?? 0) + 1,
+  };
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Restocked “${lp.product.name}” — ${want.toLocaleString()} more units on the line to meet demand.`, "accent")]);
+  return { state: { ...state, cash: sub(state.cash, cost), launched, feed }, ok: true };
 }
 
 /** How the player answers a Rival Strike. All three are OPT-IN (the pinned sim never calls this),
