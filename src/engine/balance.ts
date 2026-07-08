@@ -686,16 +686,15 @@ export const BALANCE = {
     licenseStrengthUplift: 8,    // strength points a licensee rival gains in shared categories (the teeth)
     // Inbound licensing contracts — companies approach YOU to ship your OS on their devices. The
     // signing bonus (upfront) is the real payoff, scaling with the suitor's reputation × your OS
-    // tier; an EXCLUSIVE deal pays a premium but hands that partner a bigger competitive uplift.
+    // tier; an EXCLUSIVE deal pays a premium bonus and a richer weekly royalty.
     contract: {
-      offerCooldownWeeks: 9,     // min weeks between inbound offers (deterministic stream, not RNG)
+      offerCooldownWeeks: 9,     // avg weeks between inbound offers — ~1/N chance per eligible week (probabilistic cadence, not a hard minimum)
       minOsTier: 2,              // suitors only come once your OS is credible (tier ≥ 2)
       lifeWeeks: 3,              // how long an offer stays on the table
       signBonusBase: 30_000,     // upfront $ base
       signBonusPerRepTier: 900,  // + upfront $ per (suitor reputation × OS tier)
       signBonusCap: 900_000,     // upfront $ hard cap
       exclusiveBonusMult: 1.9,   // exclusive deals pay this × the signing bonus…
-      exclusiveUpliftMult: 1.6,  // …but the partner gets this × the normal strength uplift
       exclusiveRoyaltyMult: 1.4, // …and a slightly richer weekly royalty
     },
     // OS feature modules (engine/platform.ts OS_FEATURES) — capability customization. Each module is

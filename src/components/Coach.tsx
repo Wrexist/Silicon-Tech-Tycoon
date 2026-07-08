@@ -60,7 +60,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: "var(--accent)",
       icon: Sparkles,
       title: "Your first product is live",
-      text: "Revenue arrives every week as it sells. Watch the dots on the tabs below — they light up wherever there's a move to make next: research to spend, a hire to make, or the next device to design.",
+      text: "Revenue arrives every week as it sells. Watch the dots on the tabs below — they light up wherever there's a move to make next: the next device to design, research to spend, a new market to open, or a platform deal to sign.",
       done: true,
     };
   }

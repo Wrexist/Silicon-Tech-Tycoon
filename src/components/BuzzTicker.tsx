@@ -50,7 +50,7 @@ export function BuzzTicker() {
   }, [
     state.companyName, state.reputation, state.fans, state.era, state.wentPublic, state.listed,
     state.launched.length, state.launched[state.launched.length - 1]?.verdict,
-    state.rivalReleases[0]?.product.id, state.platformUnlocked, state.osLicensees.length,
+    state.rivalReleases[0]?.product.id, state.platformUnlocked, state.osLicensees.length, state.osName,
   ]);
 
   const [idx, setIdx] = useState(0);

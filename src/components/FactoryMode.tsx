@@ -265,19 +265,19 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // No more "Doesn't fit there" the instant you tap — you SEE where it lands before paying.
   const pendingKind = buildTool != null && buildTool in MACHINE_DEFS ? (buildTool as MachineKind) : null;
   const [pendingCell, setPendingCell] = useState<{ c: number; r: number } | null>(null);
-  const placeableAt = (kind: MachineKind, c: number, r: number): boolean => {
+  const placeableAt = (kind: MachineKind, c: number, r: number, floor = state.factoryFloor): boolean => {
     const w = floorWidth(state.factoryExpansion);
-    if (!canPlaceMachine(state.factoryFloor, kind, c, r, w)) return false;
+    if (!canPlaceMachine(floor, kind, c, r, w)) return false;
     const props = propCellSet(state.factoryProps);
     return !machineCells({ kind, c, r }).some((cell) => props.has(cell));
   };
-  const findPlacementCell = (kind: MachineKind): { c: number; r: number } => {
+  const findPlacementCell = (kind: MachineKind, floor = state.factoryFloor): { c: number; r: number } => {
     const w = floorWidth(state.factoryExpansion);
     const def = MACHINE_DEFS[kind];
     const cc = Math.round((w - def.w) / 2), cr = Math.round((FLOOR.h - def.d) / 2);
     let best: { c: number; r: number } | null = null, bestD = Infinity;
     for (let r = 0; r <= FLOOR.h - def.d; r++) for (let c = 0; c <= w - def.w; c++) {
-      if (!placeableAt(kind, c, r)) continue;
+      if (!placeableAt(kind, c, r, floor)) continue;
       const dd = Math.abs(c - cc) + Math.abs(r - cr);
       if (dd < bestD) { bestD = dd; best = { c, r }; }
     }
@@ -590,7 +590,15 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                       disabled={!pendingValid || broke}
                       onClick={() => {
                         const res = d.game.buyFloorMachine(pendingKind, pendingCell.c, pendingCell.r);
-                        if (res.ok) { haptic.success(); sfx("build"); showToast(`${MACHINE_DEFS[pendingKind].name} placed`, { tone: "positive" }); setPendingCell(findPlacementCell(pendingKind)); }
+                        if (res.ok) {
+                          haptic.success(); sfx("build");
+                          showToast(`${MACHINE_DEFS[pendingKind].name} placed`, { tone: "positive" });
+                          // state.factoryFloor won't reflect the machine we just placed until the next
+                          // render — seed the next ghost against a merged copy so back-to-back placements
+                          // don't land the ghost back on the cell we just filled.
+                          const merged = { ...state.factoryFloor, machines: [...state.factoryFloor.machines, { id: "pending", kind: pendingKind, c: pendingCell.c, r: pendingCell.r }] };
+                          setPendingCell(findPlacementCell(pendingKind, merged));
+                        }
                         else { haptic.warning(); showToast(res.reason ?? "Can't place there", { tone: "negative" }); }
                       }}
                     >

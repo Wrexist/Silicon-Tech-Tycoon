@@ -693,7 +693,7 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     const baseY = sitting
       ? SIT_LIFT
       : walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035;
-    const hop = cheer > 0 ? Math.abs(Math.sin(st.clock.elapsedTime * 9)) * (sitting ? 0.05 : 0.14) * cheer : 0;
+    const hop = cheer > 0 ? Math.abs(Math.sin(t * 9)) * (sitting ? 0.05 : 0.14) * cheer : 0; // seeded t → each robot hops out of phase
     if (root.current) root.current.position.y = baseY + hop - slump * 0.05; // sag a little on a flop
     if (headRef.current) {
       const calm = 1 - slump;
@@ -896,7 +896,10 @@ function seatFlipped(item: PlacedItem): boolean {
 // so a row of occupied desks reads as lived-in and individual, not identical. Cosmetic; sits on the
 // right of the desktop, clear of the monitor + keyboard.
 function DeskClutter({ seed, p }: { seed: number; p: RoomPalette }) {
-  const k = Math.floor(Math.abs(seed) * 3.7 + 0.5) % 4;
+  // A sin-hash decorrelates adjacent desks (seed = i * 2.1); a plain floor/mod produced long runs
+  // of the same clutter type, the opposite of the lived-in variety we want.
+  const h = Math.sin(seed * 78.233) * 43758.5453;
+  const k = Math.floor((h - Math.floor(h)) * 4);
   if (k === 3) return null; // some folks keep a clean desk
   return (
     <group position={[0.44, 0.785, 0.08]}>

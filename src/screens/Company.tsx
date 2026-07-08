@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Factory, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
-import { osDisplayName, canFoundPlatform, platformFoundingCost, canReleaseOsVersion } from "../state/gameState.ts";
+import { osDisplayName, canFoundPlatform, platformFoundingCost, navAttention } from "../state/gameState.ts";
 import { ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
 import { Avatar } from "../components/Avatar.tsx";
@@ -160,7 +160,7 @@ export function Company() {
             onClick={() => { haptic.light(); setCoTab(id); }}
           >
             {id === "platform" && <Layers size={14} aria-hidden />}{label}
-            {id === "platform" && state.platformUnlocked && canReleaseOsVersion(state) && <span className="co__subtab-dot" aria-hidden />}
+            {id === "platform" && navAttention(state).company && <span className="co__subtab-dot" aria-hidden />}
           </button>
         ))}
       </div>
