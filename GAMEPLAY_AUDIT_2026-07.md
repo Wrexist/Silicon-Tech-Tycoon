@@ -7,6 +7,25 @@ full action surface. Baseline at start: `tsc -b` 0 errors, **815 tests** green, 
 
 Legend: 🐛 bug · ✨ improvement · 💎 premium-polish · ♿ a11y · 🎮 depth · 🧹 dead-code
 
+---
+
+## STATUS — all 7 phases shipped (final: `tsc -b` 0 · **824 tests** green · `vite build` ok)
+- **P1 Correctness** — launch silent-failure, factory a11y strand, `--danger` token, name cap, chart
+  guard, deep-link tab, HQ keyboard activation. ✅
+- **P2 Mandate + formatting** — removed the 3D-office emoji (→ Lucide emotes); `formatCount()` with
+  M/B rollover (killed "2000.0k fans"); dead CSS. ✅
+- **P3 Feedback/a11y** — nested-confirm Escape isolation, dismiss-shortlist confirm, specialist-hire
+  feedback, factory aria-labels, two tap-target floors. (Remaining tap-target/disabled-reason micro-
+  items need on-device visual verification — logged, not changed blind.) ✅
+- **P4 Dead code** — removed `discountedRd`, `newlyUnlocked`, `playerSharePrice` (+ orphaned const)
+  and their tests. ✅
+- **P5 Balance** — People Lead scales down (no longer zeroes) burnout churn. Ecosystem annuity +
+  deeper morale stakes DEFERRED (need balance-harness retune + playtest). ✅
+- **P6 Content** — signature subsystems for tablet/monitor/AR (phones untouched → sim-safe). Synergy
+  archetypes intentionally skipped (would perturb the phone sim). ✅
+- **P7 Living products** *(the #1 gameplay hole)* — restock/reorder (demand-capped, no money printer)
+  + repeatable diminishing-returns marketing push & price cut, wired into the Market detail sheet. ✅
+
 Ordered by risk/impact: correctness first → mandate/formatting → immersion consistency →
 dead-code → balance hardening → content depth → living products. Every change keeps the suite
 green (or updates tests intentionally) and preserves the pinned phone-only balance sim +
