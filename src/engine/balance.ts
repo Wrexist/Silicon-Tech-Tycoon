@@ -374,6 +374,23 @@ export const BALANCE = {
     // the tree advances through PLAY, not just idle ticks. Tuned vs project costs (20–140 RP).
     launchRpHit: 16,
     launchRpSolid: 7,
+    // EUREKA breakthroughs — an active, funded lab occasionally has a flash of insight (a staged
+    // moment + a real bet: bank a guaranteed RP windfall, or CHASE a prototype for a jackpot-or-fizzle
+    // gamble). Cadence is a derived hash (never the sim RNG); the payoff is player-CLAIMED, so a
+    // do-nothing pinned run — no researchers, no resolve — never fires one and stays byte-identical.
+    eureka: {
+      minEra: 2,            // the garage era is a protected sandbox
+      minRnDStaff: 1,       // needs an active lab (≥1 staffer assigned to R&D)
+      cadenceWeeks: 20,     // avg weeks between insights (≈1/N chance per eligible week)
+      cooldownWeeks: 12,    // hard minimum between breakthroughs (so it's a treat, not a nag)
+      bankRpBase: 18,       // guaranteed RP if you bank the insight…
+      bankRpPerEra: 9,      // …+ this per era (scales with the game)
+      jackpotMult: 2.6,     // CHASE jackpot = bank × this
+      fizzleMult: 0.25,     // CHASE fizzle  = bank × this
+      jackpotChance: 0.5,   // odds the chase pays off
+      jackpotRepBonus: 1,   // a little reputation when a prototype lands (word gets out)
+      jackpotFanBonus: 300, // …and a few fans
+    },
   },
 
   // --- Employees: XP & leveling ---

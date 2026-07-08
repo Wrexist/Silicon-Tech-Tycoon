@@ -1,0 +1,67 @@
+/* Eureka breakthrough — an accent-tinted "aha" moment with a bank-or-chase bet, then a result reveal.
+   Same modal frame as the rival strike / awards. Tokens + 8pt grid only. */
+.eur {
+  position: fixed; inset: 0; z-index: 58;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.eur__scrim {
+  position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.eur__card {
+  position: relative; z-index: 1; width: 100%; max-width: 380px; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-28) var(--sp-20) var(--sp-20);
+  border-radius: var(--r-sheet);
+  background: radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%), var(--surface);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--hairline));
+  box-shadow: var(--shadow-floating);
+  text-align: center;
+  animation: eur-in var(--spring-gentle) both;
+}
+.eur__card--jackpot {
+  background: radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--positive) 20%, transparent), transparent 62%), var(--surface);
+  border-color: color-mix(in srgb, var(--positive) 46%, var(--hairline));
+  box-shadow: var(--shadow-floating), 0 0 46px -14px color-mix(in srgb, var(--positive) 60%, transparent);
+}
+@keyframes eur-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .eur__card { animation: none; } }
+
+.eur__glyph {
+  width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent);
+  animation: eur-glyph var(--spring-bounce) both;
+}
+.eur__glyph--jackpot { background: color-mix(in srgb, var(--positive) 18%, transparent); color: var(--positive); }
+@keyframes eur-glyph { from { transform: scale(0.5) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.eur__eyebrow { margin-top: var(--sp-4); font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.eur__card--result.eur__card--jackpot .eur__eyebrow { color: var(--positive); }
+.eur__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
+.eur__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-2) 0 var(--sp-8); }
+.eur__kind { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--accent); text-transform: capitalize; }
+
+.eur__choices { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-10); width: 100%; margin-top: var(--sp-4); }
+.eur__choice {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-16) var(--sp-10); border-radius: var(--r-button);
+  background: var(--surface-2); border: 1px solid var(--hairline); cursor: pointer;
+  transition: border-color var(--spring-snappy), background var(--spring-snappy), transform var(--spring-snappy);
+  -webkit-tap-highlight-color: transparent;
+}
+.eur__choice:active { transform: scale(0.97); }
+.eur__choice:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--hairline)); }
+.eur__choice--risk:hover { border-color: color-mix(in srgb, var(--warning) 46%, var(--hairline)); }
+.eur__choice-glyph {
+  width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: var(--bg-elevated); color: var(--ink-2); margin-bottom: var(--sp-2);
+}
+.eur__choice--risk .eur__choice-glyph { color: var(--warning-text, var(--warning)); background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.eur__choice-name { font-weight: 800; font-size: var(--fs-body); }
+.eur__choice-val { font-size: var(--fs-caption); font-weight: 700; color: var(--accent); }
+.eur__choice--risk .eur__choice-val { color: var(--warning-text, var(--warning)); }
+.eur__choice-or { font-weight: 600; color: var(--ink-3); font-size: var(--fs-nano); }
+.eur__choice-note { font-size: var(--fs-nano); color: var(--ink-3); }

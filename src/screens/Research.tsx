@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronRight, FlaskConical, Lock, MapPin, Users } from "lucide-react";
+import { Check, ChevronRight, FlaskConical, Lightbulb, Lock, MapPin, Users } from "lucide-react";
 import { Button, Card, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -14,7 +14,7 @@ import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
+import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -238,6 +238,15 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               Every project here is researched. Spend RP on component tech below{state.platformUnlocked ? ", OS modules in Platform," : ""} or rally the community with a keynote{state.era < maxEra() ? " — new projects arrive with the next era" : ""}.
             </p>
             <KeynoteButton rp={rp} onHost={() => { hostKeynote(); haptic.success(); }} />
+          </div>
+        )}
+        {/* Eureka insight meter — a funded lab occasionally has a flash of insight (a bank-or-chase
+            breakthrough). This gauge shows it priming; only meaningful once the lab is active + past era 1. */}
+        {state.era >= BALANCE.research.eureka.minEra && perWeek > 0 && (
+          <div className="rd__insight" title="A funded lab occasionally has a flash of insight — a bank-or-chase breakthrough.">
+            <span className="rd__insight-label"><Lightbulb size={12} aria-hidden /> Insight</span>
+            <div className="rd__insight-track"><i style={{ width: `${Math.round(eurekaInsight(state) * 100)}%` }} /></div>
+            <span className="rd__insight-hint">the lab is onto something</span>
           </div>
         )}
       </Card>

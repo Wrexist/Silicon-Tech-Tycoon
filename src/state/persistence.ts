@@ -359,6 +359,10 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingRivalry != null && (typeof s.pendingRivalry !== "object" || typeof s.pendingRivalry.rivalId !== "string")) {
     s.pendingRivalry = null;
   }
+  // Eureka breakthroughs (added later): default none. Drop a malformed pending moment from an import.
+  if (s.pendingEureka != null && (typeof s.pendingEureka !== "object" || !Number.isFinite(s.pendingEureka.bankRp))) {
+    s.pendingEureka = null;
+  }
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

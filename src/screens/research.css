@@ -172,6 +172,21 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+/* Eureka insight meter — a quiet "the lab is priming" strip under the RP banner. */
+.rd__insight {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: var(--sp-8);
+  margin-top: var(--sp-12); padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
+}
+.rd__insight-label { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-nano); font-weight: 700; color: var(--fn-eng, var(--accent)); flex-shrink: 0; }
+.rd__insight-track { flex: 1; height: 5px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.rd__insight-track i {
+  display: block; height: 100%; border-radius: var(--r-pill); min-width: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--fn-eng, var(--accent)) 55%, transparent), var(--fn-eng, var(--accent)));
+  transition: width 0.6s ease;
+}
+.rd__insight-hint { font-size: var(--fs-nano); color: var(--ink-3); flex-shrink: 0; }
 .rd__project {
   display: flex;
   align-items: center;

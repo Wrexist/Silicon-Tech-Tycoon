@@ -13,6 +13,7 @@ import {
   type CompetitorLaunch,
 } from "../engine/competitors.ts";
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
+import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import {
   assignedSkill,
   buildWeeks,
@@ -302,6 +303,11 @@ export interface GameState {
   /** A just-declared rivalry waiting for its reveal moment (set the week a nemesis forms, cleared by
    *  the player via dismissRivalry). Optional/null → golden-invariant safe. */
   pendingRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
+  /** An R&D "eureka" breakthrough on the table — bank a guaranteed RP windfall or chase a prototype
+   *  gamble (resolveEureka). Fires only for an active, funded lab; the pinned solo sim never has one. */
+  pendingEureka?: EurekaMoment | null;
+  /** Week of the last eureka breakthrough — enforces the cooldown + drives the Insight meter. */
+  lastEurekaWeek?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -589,6 +595,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastStrikeWeek: -999,
     nemesis: null,
     pendingRivalry: null,
+    pendingEureka: null,
+    lastEurekaWeek: -999,
     pendingAwards: null,
     awardsHistory: [],
     pendingSideOrder: null,
@@ -1973,6 +1981,27 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         base.pendingPoach = { staffId: target.staff.id, staffName: target.staff.name, rivalId: target.rival.id, rivalName: target.rival.name, retainCost, week };
         base.feed.push(feedItem(week, `${target.rival.name} is trying to poach ${target.staff.name}, one of your best. Match their offer or let them walk.`, "negative"));
       }
+    }
+  }
+
+  // Eureka breakthroughs (engine/eureka.ts) — an active, funded lab occasionally has a flash of insight
+  // (a bank-or-chase bet). Derived-hash cadence (never the sim rng) + a player-CLAIMED payoff, gated on
+  // real researchers + era + cooldown, and it yields to any other pending interrupt. The solo pinned
+  // sim assigns no researchers, so it never fires or resolves one → byte-identical.
+  {
+    const eu = BALANCE.research.eureka;
+    if (
+      !offline && !bankrupt &&
+      !base.pendingEureka && !base.pendingStrike && !base.pendingPoach && !base.pendingChoice &&
+      base.era >= eu.minEra &&
+      base.staff.filter((s) => s.assignment === "rnd").length >= eu.minRnDStaff &&
+      week - (state.lastEurekaWeek ?? -999) >= eu.cooldownWeeks &&
+      eurekaDue(state.seed, week)
+    ) {
+      const moment = generateEureka(state.seed, week, base.era);
+      base.pendingEureka = moment;
+      base.lastEurekaWeek = week;
+      base.feed.push(feedItem(week, `Your lab had a breakthrough in the ${moment.componentKind} line. Bank it, or chase the prototype?`, "accent"));
     }
   }
 
@@ -4055,6 +4084,51 @@ export const isNemesis = (s: GameState, rivalId: string): boolean => (s.nemesis?
 export function dismissRivalry(state: GameState): GameState {
   if (!state.pendingRivalry) return state;
   return { ...state, pendingRivalry: null };
+}
+
+// ---- Eureka R&D breakthroughs ----
+/** The R&D "insight building" gauge (0..1) for the Research banner. */
+export const eurekaInsight = (s: GameState): number => insightProgress(s.week, s.lastEurekaWeek);
+/** How many staff are currently assigned to R&D (an active lab). */
+export const rndStaffCount = (s: GameState): number => s.staff.filter((x) => x.assignment === "rnd").length;
+
+export interface EurekaResult { ok: boolean; jackpot?: boolean; rp?: number; reason?: string; }
+
+/** Resolve the breakthrough on the table. "bank" takes the guaranteed RP; "chase" rolls the prototype
+ *  gamble (a deterministic hash on the moment's week) for a jackpot or a fizzle, with a little rep/fans
+ *  on a jackpot. No-op if nothing's pending. Returns the outcome so the UI can stage the reveal. */
+export function resolveEureka(state: GameState, choice: "bank" | "chase"): { state: GameState; result: EurekaResult } {
+  const moment = state.pendingEureka ?? null;
+  if (!moment) return { state, result: { ok: false, reason: "No breakthrough to resolve." } };
+  const eu = BALANCE.research.eureka;
+  const feed = [...state.feed];
+  if (choice === "bank") {
+    feed.push(feedItem(state.week, `Banked the ${moment.componentKind} breakthrough, +${moment.bankRp} RP to the lab.`, "positive"));
+    return {
+      state: { ...state, researchPoints: state.researchPoints + moment.bankRp, pendingEureka: null, feed: trimFeed(feed) },
+      result: { ok: true, jackpot: false, rp: moment.bankRp },
+    };
+  }
+  const outcome = resolveEurekaChase(state.seed, moment);
+  if (outcome.jackpot) {
+    feed.push(feedItem(state.week, `The prototype worked, a genuine ${moment.componentKind} breakthrough. +${outcome.rp} RP, and word gets out.`, "positive"));
+    return {
+      state: {
+        ...state,
+        researchPoints: state.researchPoints + outcome.rp,
+        reputation: Math.min(BALANCE.reputation.max, state.reputation + eu.jackpotRepBonus),
+        fans: state.fans + eu.jackpotFanBonus,
+        pendingEureka: null,
+        feed: trimFeed(feed),
+      },
+      result: { ok: true, jackpot: true, rp: outcome.rp },
+    };
+  }
+  feed.push(feedItem(state.week, `The prototype fizzled, only +${outcome.rp} RP salvaged. Should've banked it.`, "neutral"));
+  return {
+    state: { ...state, researchPoints: state.researchPoints + outcome.rp, pendingEureka: null, feed: trimFeed(feed) },
+    result: { ok: true, jackpot: false, rp: outcome.rp },
+  };
 }
 
 /** Era-scaled verdict score bands. effectiveScore (= launchScore × competitionFactor) at or above

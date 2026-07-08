@@ -26,6 +26,8 @@ import {
   resolveStrike,
   collectAwards,
   dismissRivalry,
+  resolveEureka,
+  type EurekaResult,
   acceptSideOrder,
   claimContract,
   declineSideOrder,
@@ -400,6 +402,7 @@ interface GameActionsValue {
   resolveStrike: (choice: StrikeResponse) => void;
   collectAwards: () => void;
   dismissRivalry: () => void;
+  resolveEureka: (choice: "bank" | "chase") => EurekaResult;
   acceptSideOrder: () => void;
   claimContract: (id: string) => void;
   declineSideOrder: () => void;
@@ -806,11 +809,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const next = buyProject(prev, id);
     const rpSpent = prev.researchPoints - next.researchPoints;
     if (rpSpent > 0) emitRpSpend(rpSpent);
-    // Breakthrough! A completed project is a real milestone — celebrate it.
+    // A completed project is a real milestone — celebrate it. ("Breakthrough" is reserved for the
+    // eureka moment now, so a routine project buy reads as what it is: research shipped.)
     if (next.completedProjects.length > prev.completedProjects.length) {
       emitCelebrate();
       sfx("confirm");
-      showToast(`Breakthrough, ${projectById(id).name}`, { tone: "positive" });
+      showToast(`Researched ${projectById(id).name}`, { tone: "positive" });
     }
     setState(next);
   }, []);
@@ -862,6 +866,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
   const dismissRivalryCb = useCallback(() => setState((s) => dismissRivalry(s)), []);
+  // Resolve a eureka breakthrough — bank the sure RP or chase the prototype gamble. Returns the outcome
+  // so the overlay can stage the reveal; RP-gain FX + sound scale with whether the prototype landed.
+  const resolveEurekaCb = useCallback((choice: "bank" | "chase"): EurekaResult => {
+    const prev = stateRef.current;
+    const { state: next, result } = resolveEureka(prev, choice);
+    if (!result.ok) return result;
+    if (result.jackpot) { emitCelebrate(); sfx("mastery"); haptic.success(); }
+    else { sfx(choice === "bank" ? "rp" : "confirm"); haptic.light(); }
+    setState(next);
+    return result;
+  }, []);
   const resolveStrikeCb = useCallback((choice: StrikeResponse) => {
     const prev = stateRef.current;
     if (!prev.pendingStrike) return; // a second input (Escape + scrim in one frame) is a no-op, not an error
@@ -1328,6 +1343,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       resolveStrike: resolveStrikeCb,
       collectAwards: collectAwardsCb,
       dismissRivalry: dismissRivalryCb,
+      resolveEureka: resolveEurekaCb,
       acceptSideOrder: acceptSideOrderCb,
       claimContract: claimContractCb,
       declineSideOrder: declineSideOrderCb,
@@ -1411,7 +1427,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer
