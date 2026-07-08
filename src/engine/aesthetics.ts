@@ -1,11 +1,14 @@
 // Aesthetics → demand (Epic G1: "form affects demand"). PURE.
 //
 // The parametric device render is the centerpiece toy (pillar #2), yet several of its choices — the
-// screen notch, the camera module shape + layout, the flash — were purely cosmetic and affected
-// NOTHING. That is exactly Automation's self-inflicted "looks don't affect sales" failure, on the one
-// system we built the game around. styleAppeal turns a coherent, modern DESIGN LANGUAGE into a bounded
-// bonus that lifts the Style/Trend segment's fit only (applied in segments.ts), so form is a real
-// lever for design-led buyers — with zero ripple to the global economy.
+// screen notch, the camera module shape + layout, the number of lenses, the flash — were purely
+// cosmetic and affected NOTHING. That is exactly Automation's self-inflicted "looks don't affect sales"
+// failure, on the one system we built the game around. styleAppeal turns a coherent, modern DESIGN
+// LANGUAGE — including how many cameras you fit and how well they're arranged — into a bounded bonus.
+// It lifts EVERY buyer segment in proportion to how much that segment values design (applied in
+// segments.ts): the design-led Style segment most, the mass-market Mainstream meaningfully, spec-driven
+// buyers barely. So a striking device is a broad, real sales lever — while still bounded, so it can
+// never swamp the trend-driven stat economy (the anti-solved-game guards stay intact).
 //
 // Note: finish + design tier + refresh rate already feed the `design` STAT (and thus every segment),
 // so they are deliberately NOT re-counted here — styleAppeal is purely the otherwise-inert form cues.
@@ -38,7 +41,12 @@ export function styleAppeal(product: Product): number {
     const layoutSuitsCount =
       count >= 3 ? cam.layout === "square" || cam.layout === "triangle"
         : cam.layout === "vertical" || cam.layout === "horizontal";
-    if (layoutSuitsCount) s += a.coherentLayoutBonus;
+    if (layoutSuitsCount) {
+      s += a.coherentLayoutBonus;
+      // A WELL-ARRANGED multi-lens system reads as ambition — so how many cameras you fit is a real
+      // desirability lever. Only when the layout suits the count, though: clutter earns nothing.
+      s += a.lensCountAppeal[count - 1] ?? 0;
+    }
     if (cam.flash) s += a.flashBonus;
   }
 

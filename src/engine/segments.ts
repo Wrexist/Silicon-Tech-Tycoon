@@ -240,10 +240,16 @@ export function segmentDemand(
     return out;
   })();
 
+  const ae = BALANCE.market.aesthetics;
+  const ap = Math.max(0, styleAppeal);
   const perSegment: SegmentResult[] = SEGMENTS.map((seg) => {
     const rawFit = segmentFit(stats, seg, category, trends);
-    // A striking, coherent form lifts the design-led Style segment only (no global ripple).
-    const fit = seg.id === "style" ? Math.min(100, rawFit + Math.max(0, styleAppeal)) : rawFit;
+    // Form/design language is a BROAD sales lever: it lifts every segment in proportion to how much
+    // that buyer values design (its `design` weight), with the design-led Style segment getting the
+    // FULL lift and spec-driven Pro/Enterprise buyers barely a nudge. Bounded, and exactly 0 when
+    // styleAppeal is 0 — so callers that don't model form stay byte-identical.
+    const designShare = seg.id === "style" ? 1 : (seg.weights.design / ae.styleDesignWeight) * ae.broadenShare;
+    const fit = Math.min(100, rawFit + ap * designShare);
     const priceFit = segmentPriceFit(price, fit, seg);
     const size = sizeOf[seg.id];
     return {

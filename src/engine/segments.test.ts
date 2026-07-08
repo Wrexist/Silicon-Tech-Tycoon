@@ -99,18 +99,24 @@ describe("price sensitivity — Budget reacts harder than Enterprise", () => {
   });
 });
 
-describe("G1 — style appeal lifts the Style segment only", () => {
+describe("G1 — style appeal is a broad, design-weighted sales lever", () => {
   const s = stats({ performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 });
+  const maxAppeal = BALANCE.market.aesthetics.maxStyleAppeal;
 
-  it("raises the Style segment's fit + capture and leaves other segments untouched", () => {
+  it("lifts the Style segment most, and other segments in proportion to how much they value design", () => {
     const plain = segmentDemand(s, dollars(500), flat, "phone", 0);
-    const striking = segmentDemand(s, dollars(500), flat, "phone", 8);
-    const styleOf = (d: typeof plain) => d.perSegment.find((x) => x.id === "style")!;
-    const proOf = (d: typeof plain) => d.perSegment.find((x) => x.id === "pro")!;
-    expect(styleOf(striking).fit).toBeGreaterThan(styleOf(plain).fit);
-    expect(styleOf(striking).captured).toBeGreaterThan(styleOf(plain).captured);
-    // every non-style segment is identical
-    expect(proOf(striking).captured).toBeCloseTo(proOf(plain).captured, 9);
+    const striking = segmentDemand(s, dollars(500), flat, "phone", maxAppeal);
+    const segOf = (d: typeof plain, id: string) => d.perSegment.find((x) => x.id === id)!;
+    const lift = (id: string) => segOf(striking, id).fit - segOf(plain, id).fit;
+    // Style gets the FULL lift; every design-valuing segment gets some.
+    expect(lift("style")).toBeCloseTo(maxAppeal, 6);
+    expect(lift("mainstream")).toBeGreaterThan(0);
+    // …but no segment out-lifts Style, and the mass-market Mainstream (design 0.9) reads a striking
+    // design more than the spec-driven Enterprise (design 0.6).
+    expect(lift("style")).toBeGreaterThan(lift("mainstream"));
+    expect(lift("mainstream")).toBeGreaterThan(lift("enterprise"));
+    // Captured share genuinely rises for the design-led segment.
+    expect(segOf(striking, "style").captured).toBeGreaterThan(segOf(plain, "style").captured);
   });
 
   it("defaults to no effect (backward compatible)", () => {

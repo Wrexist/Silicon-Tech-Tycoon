@@ -210,11 +210,20 @@ export const BALANCE = {
     // fit ONLY (engine/aesthetics.ts → segments.ts), so a striking design wins design-led buyers
     // without touching the global economy. A fully-considered design exactly reaches maxStyleAppeal.
     aesthetics: {
-      maxStyleAppeal: 8,             // cap on form-driven Style-segment fit points
+      maxStyleAppeal: 10,            // cap on form-driven fit points (a striking design is a real lever)
       notch: { island: 3, punch: 2, none: 1, notch: 0 } as Record<string, number>, // modern screen treatment
       module: { squircle: 2, pill: 2, circle: 1 } as Record<string, number>,        // camera module shape
       coherentLayoutBonus: 2,        // a camera layout that suits the lens count reads intentional
+      // More lenses read as ambition on the spec sheet (indexed by count-1: 1→0, 2→+1, 3→+2, 4→+2, a
+      // diminishing return). Only counted when the layout SUITS the count (gated in aesthetics.ts), so a
+      // cluttered strip of lenses earns nothing — form still has to be coherent.
+      lensCountAppeal: [0, 1, 2, 2],
       flashBonus: 1,                 // a complete camera system
+      // Form is a BROAD sales lever, not a Style-only niche: a striking design lifts every buyer segment
+      // in proportion to how much it values design (its `design` weight ÷ styleDesignWeight × broadenShare),
+      // with the design-led Style segment always getting the full lift.
+      styleDesignWeight: 1.6,        // the Style segment's design weight — the reference for the scaling
+      broadenShare: 0.55,            // share of the design lift the non-Style segments receive
     },
   },
 
