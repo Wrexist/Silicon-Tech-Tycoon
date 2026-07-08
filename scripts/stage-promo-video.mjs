@@ -121,4 +121,4 @@ s = {
 
 const readyNames = s.ready.map((p) => p.name);
 writeFileSync("/tmp/silicon-promo.json", JSON.stringify(s));
-console.error(`staged promo: era ${s.era}, rep ${Math.round(s.reputation)}, launched ${s.launched.length}, ready [${readyNames.join(", ")}], props ${props.length}, week ${s.week}, platform=${!!s.platform?.founded}`);
+console.error(`staged promo: era ${s.era}, rep ${Math.round(s.reputation)}, launched ${s.launched.length}, ready [${readyNames.join(", ")}], props ${props.length}, week ${s.week}, platform=${!!s.platformUnlocked}`);

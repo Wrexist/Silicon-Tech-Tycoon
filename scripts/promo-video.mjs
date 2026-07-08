@@ -7,7 +7,7 @@
 //   node scripts/stage-promo-video.mjs           # → /tmp/silicon-promo.json
 //   SHOTS_URL=http://localhost:5200 node scripts/promo-video.mjs
 //   → /tmp/silicon-promo-vid/Silicon-TechTycoon-promo.webm  (1080×2340, ~29s)
-import { mkdir, readFile, readdir, rename } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, stat } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { chromium } from "playwright-core";
 
@@ -15,7 +15,11 @@ const URL = process.env.SHOTS_URL || "http://localhost:5200";
 const EXE = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const FFMPEG = process.env.SHOTS_FFMPEG || "/opt/pw-browsers/ffmpeg-1011/ffmpeg-linux";
 const TARGET_SECS = Number(process.env.PROMO_TARGET_SECS || 29);   // final promo length
-const W = 1080, H = 2340, Z = W / 420;    // zoom the 420px shell to fill an HD portrait frame
+// Render at the app's NATIVE width (#root caps at 540px) with NO CSS zoom — a prior zoom trick
+// mis-measured the 3D office canvas and cropped it. We record at 540×1170, then upscale 2× to a
+// crisp 1080×2340 HD portrait during the final ffmpeg pass.
+const W = 540, H = 1170;
+const OUT_W = 1080, OUT_H = 2340;
 const outDir = "/tmp/silicon-promo-vid";
 await mkdir(outDir, { recursive: true });
 
@@ -44,21 +48,21 @@ async function installStage() {
       #promo-cover{position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;align-items:center;justify-content:center;
         background:radial-gradient(120% 90% at 50% 20%,#1b2a4a 0%,#0b1120 55%,#060912 100%);transition:opacity .8s ease;font-family:system-ui,-apple-system,sans-serif}
       #promo-cover.hide{opacity:0;pointer-events:none}
-      #promo-cover .chip{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;
+      #promo-cover .chip{width:82px;height:82px;border-radius:22px;display:flex;align-items:center;justify-content:center;margin-bottom:24px;
         background:linear-gradient(160deg,#3b82f6,#1e40af);box-shadow:0 10px 40px rgba(59,130,246,.55);animation:ppop .8s cubic-bezier(.2,.9,.2,1) both}
-      #promo-cover .chip svg{width:34px;height:34px;color:#fff}
-      #promo-cover .k{font-size:64px;font-weight:900;letter-spacing:-2px;line-height:.92;
+      #promo-cover .chip svg{width:44px;height:44px;color:#fff}
+      #promo-cover .k{font-size:82px;font-weight:900;letter-spacing:-2px;line-height:.92;
         background:linear-gradient(180deg,#eaf1ff,#9dbcff 72%,#5b8bff);-webkit-background-clip:text;background-clip:text;color:transparent;
         filter:drop-shadow(0 6px 30px rgba(70,120,255,.45));animation:ppop .8s .05s cubic-bezier(.2,.9,.2,1) both}
-      #promo-cover .s{margin-top:8px;font-size:17px;font-weight:800;letter-spacing:7px;color:#9db4e8;text-transform:uppercase;animation:pfade .9s .18s both}
-      #promo-cover .t{margin-top:22px;font-size:16px;font-weight:600;color:#c7d6f5;opacity:.92;animation:pfade .9s .36s both}
+      #promo-cover .s{margin-top:10px;font-size:22px;font-weight:800;letter-spacing:8px;color:#9db4e8;text-transform:uppercase;animation:pfade .9s .18s both}
+      #promo-cover .t{margin-top:26px;font-size:20px;font-weight:600;color:#c7d6f5;opacity:.92;animation:pfade .9s .36s both}
       #promo-scrim{position:fixed;left:0;right:0;bottom:0;height:300px;z-index:99996;pointer-events:none;opacity:0;transition:opacity .45s ease;
         background:linear-gradient(180deg,transparent,rgba(4,7,14,.62) 46%,rgba(4,7,14,.9))}
       #promo-scrim.on{opacity:1}
       #promo-ovl{position:fixed;left:0;right:0;z-index:99997;display:flex;justify-content:center;pointer-events:none;padding:0 30px;font-family:system-ui,-apple-system,sans-serif}
       #promo-ovl .card{max-width:100%;text-align:center}
-      #promo-ovl .ey{font-size:13px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#7fd0ff;filter:drop-shadow(0 2px 12px rgba(0,0,0,.7));animation:prise .55s cubic-bezier(.2,.9,.2,1) both}
-      #promo-ovl .hd{margin-top:6px;font-size:33px;font-weight:900;letter-spacing:-1px;line-height:1.04;color:#fff;
+      #promo-ovl .ey{font-size:16px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#7fd0ff;filter:drop-shadow(0 2px 12px rgba(0,0,0,.7));animation:prise .55s cubic-bezier(.2,.9,.2,1) both}
+      #promo-ovl .hd{margin-top:7px;font-size:42px;font-weight:900;letter-spacing:-1px;line-height:1.04;color:#fff;
         text-shadow:0 4px 26px rgba(0,0,0,.9),0 1px 0 rgba(0,0,0,.6);animation:prise .55s .06s cubic-bezier(.2,.9,.2,1) both}
       #promo-ovl.out{opacity:0;transition:opacity .4s ease}
       @keyframes prise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
@@ -136,7 +140,6 @@ async function pauseSim() {
 
 // ---------------- boot (hidden behind the cover) ----------------
 await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });
-await p.evaluate((z) => { document.documentElement.style.zoom = String(z); }, Z);
 await installStage();
 await wait(400);
 await p.click('.ds-sheet button:has-text("Continue")', { timeout: 1200 }).catch(() => {});
@@ -210,19 +213,30 @@ await endCard("Coming to iPhone & iPad.");
 await wait(1800);
 
 await ctx.close();   // flushes the video
-const files = (await readdir(outDir)).filter((f) => f.endsWith(".webm"));
-const latest = files.sort()[files.length - 1];
-const finalPath = `${outDir}/silicon-promo.webm`;
-if (latest && latest !== "silicon-promo.webm") await rename(`${outDir}/${latest}`, finalPath);
 await browser.close();
 
-// Time-compress the raw take to the target length. -itsscale rewrites timestamps (no re-encode),
-// so quality is preserved and the whole promo lands snappy at exactly ~TARGET_SECS.
+// Pick the take we just recorded by modification time (newest), not alphabetically — the dir may
+// hold leftovers from earlier runs. Fail loudly if nothing was written.
+const webms = (await readdir(outDir)).filter((f) => f.endsWith(".webm") && f !== "silicon-promo.webm" && f !== "Silicon-TechTycoon-promo.webm");
+if (webms.length === 0) { console.error("No recorded .webm found in", outDir); process.exit(1); }
+const timed = await Promise.all(webms.map(async (f) => ({ f, t: (await stat(`${outDir}/${f}`)).mtimeMs })));
+timed.sort((a, b) => a.t - b.t);
+const finalPath = `${outDir}/silicon-promo.webm`;
+await rename(`${outDir}/${timed[timed.length - 1].f}`, finalPath);
+
+// Probe the raw duration so we can time-compress to exactly ~TARGET_SECS. -itsscale rewrites input
+// timestamps; combined with a scale filter it retimes AND upscales to HD in one re-encode pass.
 const probe = spawnSync(FFMPEG, ["-i", finalPath], { encoding: "utf8" });
 const m = (probe.stderr || "").match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
-const raw = m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) : TARGET_SECS;
+if (!m) { console.error("ffmpeg could not probe duration (bad FFMPEG path or corrupt take?):\n", probe.stderr || probe.error); process.exit(1); }
+const raw = +m[1] * 3600 + +m[2] * 60 + +m[3];
 const scale = Math.min(1, TARGET_SECS / raw);
 const outPath = `${outDir}/Silicon-TechTycoon-promo.webm`;
-spawnSync(FFMPEG, ["-itsscale", scale.toFixed(4), "-i", finalPath, "-c", "copy", outPath, "-y"], { stdio: "ignore" });
-console.log("RAW", finalPath, `${raw.toFixed(1)}s`);
-console.log("VIDEO", outPath, `~${(raw * scale).toFixed(1)}s`);
+const enc = spawnSync(FFMPEG, [
+  "-itsscale", scale.toFixed(4), "-i", finalPath,
+  "-vf", `scale=${OUT_W}:${OUT_H}:flags=lanczos`,
+  "-c:v", "libvpx", "-b:v", "3M", "-crf", "8", outPath, "-y",
+], { encoding: "utf8" });
+if (enc.status !== 0) { console.error("ffmpeg encode failed:", enc.stderr || enc.stdout || enc.error); process.exit(1); }
+console.log("RAW", finalPath, `${raw.toFixed(1)}s @ ${W}x${H}`);
+console.log("VIDEO", outPath, `~${(raw * scale).toFixed(1)}s @ ${OUT_W}x${OUT_H}`);
