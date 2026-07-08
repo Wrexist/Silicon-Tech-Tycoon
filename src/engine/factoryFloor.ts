@@ -409,6 +409,54 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w, bloc
   return lineComplete(routed) ? routed : null;
 }
 
+/** Auto-TIDY: reposition every machine into clean left→right lanes in recipe order (Intake first,
+ *  Packer last), then wire the whole thing with autoRouteBelts — so a sloppily-placed floor becomes
+ *  one long, straight production line in a single tap. Machines are packed edge-to-edge in bands
+ *  (2 machine rows + 1 belt lane below), skipping any cell a decor prop blocks; ids, kinds and
+ *  upgrade levels are preserved. Returns the tidied + routed floor, or null when there's no
+ *  Intake/Packer or the machines can't fit the current floor (caller: "expand first"). Pure +
+ *  deterministic (fixed recipe order, reading-order packing). */
+export function autoTidyFloor(floor: FactoryFloor, maxW: number = FLOOR.w, blockedCells?: Iterable<string>): FactoryFloor | null {
+  const intake = floor.machines.find((m) => m.kind === "intake");
+  const packer = floor.machines.find((m) => m.kind === "packer");
+  if (!intake || !packer) return null;
+  // Intake → processing (recipe order) → any unknown/extra kinds → Packer.
+  const processing = ROUTE_STAGE_ORDER.flatMap((k) => floor.machines.filter((m) => m.kind === k));
+  const extras = floor.machines.filter(
+    (m) => m.kind !== "intake" && m.kind !== "packer" && !ROUTE_STAGE_ORDER.includes(m.kind),
+  );
+  const order = [intake, ...processing, ...extras, packer];
+
+  const blocked = new Set<string>(blockedCells);
+  const placed: PlacedMachine[] = [];
+  const fits = (c: number, r: number, w: number, d: number): boolean => {
+    for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) {
+      const cc = c + dc, rr = r + dr;
+      if (cc < 0 || rr < 0 || cc >= maxW || rr >= FLOOR.h) return false;
+      if (blocked.has(`${cc},${rr}`)) return false;
+      for (const p of placed) if (machineCells(p).includes(`${cc},${rr}`)) return false;
+    }
+    return true;
+  };
+
+  const BAND = 3; // 2 machine rows + 1 belt lane beneath, so a straight belt runs beside every machine
+  let idx = 0;
+  for (let laneTop = 0; laneTop + 2 <= FLOOR.h && idx < order.length; laneTop += BAND) {
+    let c = 0;
+    while (c < maxW && idx < order.length) {
+      const m = order[idx];
+      const def = MACHINE_DEFS[m.kind];
+      if (!fits(c, laneTop, def.w, def.d)) { c += 1; continue; }
+      placed.push({ ...m, c, r: laneTop });
+      idx += 1;
+      c += def.w; // edge-to-edge; the belt lane below carries the line past each machine
+    }
+  }
+  if (idx < order.length) return null; // ran out of floor — the caller should suggest expanding
+
+  return autoRouteBelts({ machines: placed, belts: [] }, maxW, blockedCells);
+}
+
 /** How the player-built line affects production — a build-TIME multiplier the sim reads.
  *  The floor is PURE UPSIDE, anchored so a company that never touches it plays the exact baseline:
  *    • no wired line (new games start with just an Intake and a Packer) → ×1, NEUTRAL — the

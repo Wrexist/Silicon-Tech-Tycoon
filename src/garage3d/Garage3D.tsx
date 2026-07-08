@@ -24,7 +24,7 @@ import { FurniturePiece } from "./furniture3d.tsx";
 import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
-import { reactionIntensity } from "../design/hqReaction.ts";
+import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
@@ -683,21 +683,28 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
 
   useFrame((st) => {
     const t = st.clock.elapsedTime + seed;
-    // Living-office cheer: a decaying bouncy hop + raised arms when a launch win lands (hqReaction).
+    // Living-office reactions: a bouncy hop + raised arms on a win (cheer), or a head-down droop on
+    // a flop (slump). Both decay over the reaction window (hqReaction).
     const cheer = reactionIntensity("cheer");
+    const slump = reactionIntensity("slump");
     // Seated robots are lifted onto the seat (SIT_LIFT above the floor pivot) and stay planted — no
     // standing bob — with a cheer reduced to a small in-seat bounce. SIT_LIFT lives here (not on the
     // parent) so a rigged .glb playing its own grounded "Sitting" clip isn't pushed off the chair.
     const baseY = sitting
       ? SIT_LIFT
       : walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035;
-    const hop = cheer > 0 ? Math.abs(Math.sin(st.clock.elapsedTime * 9)) * (sitting ? 0.05 : 0.14) * cheer : 0;
-    if (root.current) root.current.position.y = baseY + hop;
+    const hop = cheer > 0 ? Math.abs(Math.sin(t * 9)) * (sitting ? 0.05 : 0.14) * cheer : 0; // seeded t → each robot hops out of phase
+    if (root.current) root.current.position.y = baseY + hop - slump * 0.05; // sag a little on a flop
     if (headRef.current) {
-      headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22);
-      headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04;
+      const calm = 1 - slump;
+      headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22) * calm;
+      headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04 * calm;
+      headRef.current.rotation.x = slump * 0.55; // head hangs down
     }
-    if (antRef.current) antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6);
+    if (antRef.current) {
+      antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6) * (1 - slump);
+      antRef.current.rotation.x = slump * 0.9; // antenna droops forward
+    }
     // arms: brisk swing while walking, soft sway when idle, drawn forward to rest at the desk when
     // seated — and thrown overhead on a cheer.
     const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
@@ -885,6 +892,39 @@ function seatFlipped(item: PlacedItem): boolean {
 // robot, rendered at the local origin facing +z. Callers position/rotate it (via the SAME worldOf
 // transform the Decorate editor uses), so an occupied desk is identical in the office and the editor.
 // Each hired employee gets exactly one.
+// Per-worker desk clutter — a small seed-varied prop (papers / a desk plant / books, or a tidy desk)
+// so a row of occupied desks reads as lived-in and individual, not identical. Cosmetic; sits on the
+// right of the desktop, clear of the monitor + keyboard.
+function DeskClutter({ seed, p }: { seed: number; p: RoomPalette }) {
+  // A sin-hash decorrelates adjacent desks (seed = i * 2.1); a plain floor/mod produced long runs
+  // of the same clutter type, the opposite of the lived-in variety we want.
+  const h = Math.sin(seed * 78.233) * 43758.5453;
+  const k = Math.floor((h - Math.floor(h)) * 4);
+  if (k === 3) return null; // some folks keep a clean desk
+  return (
+    <group position={[0.44, 0.785, 0.08]}>
+      {k === 0 && (
+        <>
+          <mesh position={[0, 0.012, 0]} rotation-y={0.22}><boxGeometry args={[0.16, 0.02, 0.2]} /><meshStandardMaterial color="#e8e6df" roughness={0.9} /></mesh>
+          <mesh position={[0.02, 0.032, 0.01]} rotation-y={-0.16}><boxGeometry args={[0.16, 0.02, 0.2]} /><meshStandardMaterial color="#f3f1ea" roughness={0.9} /></mesh>
+        </>
+      )}
+      {k === 1 && (
+        <>
+          <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.052, 0.046, 0.1, 10]} /><meshStandardMaterial color="#8a6b4a" roughness={0.8} /></mesh>
+          <mesh position={[0, 0.14, 0]}><sphereGeometry args={[0.08, 10, 10]} /><meshStandardMaterial color={p.plant} roughness={0.85} /></mesh>
+        </>
+      )}
+      {k === 2 && (
+        <>
+          <mesh position={[0, 0.03, 0]}><boxGeometry args={[0.1, 0.06, 0.16]} /><meshStandardMaterial color="#3b6ea5" roughness={0.7} /></mesh>
+          <mesh position={[0.005, 0.085, 0.01]}><boxGeometry args={[0.1, 0.05, 0.15]} /><meshStandardMaterial color="#b4694a" roughness={0.7} /></mesh>
+        </>
+      )}
+    </group>
+  );
+}
+
 function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean }) {
   const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
@@ -895,6 +935,9 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
           looks identical in the live office and in edit mode. A standing desk stays a standing desk,
           an L-desk stays an L-desk, etc. The seated robot + chair are layered on behind it. */}
       <FurniturePiece type={deskType} p={p} />
+      {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
+          their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}
+      {staff && deskType === "desk" && <DeskClutter seed={seed} p={p} />}
       {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
           back so it rests against the backrest, facing the desk (+z, toward the camera). The
           parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
@@ -918,19 +961,10 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
 // Empty (unstaffed) desks still render powered-on, so the office looks set up before it's filled.
 const DESKTOP_ROW_Z = -2.2;
 const DESKTOP_SPACING = 1.95;
-// Floating desk labels: base height + a per-row zig-zag so adjacent labels sit at alternating
-// heights and never overlap into an unreadable pile when the team fills a row of desks.
-const LABEL_Y = 2.05;
-const LABEL_STAGGER = 0.6;
-// Labels de-clutter in PROJECTED screen-x, not raw world x/z. Under the fixed office camera
-// (≈15.5, 13, 17.5 looking at the origin) the screen-right axis is ~0.75·x − 0.66·z, so two pills
-// overlap horizontally when this projection is close — regardless of which desk row they sit in.
-// (The old |dx| AND |dz| world test missed both same-row neighbours at the 1.95 desk pitch and
-// front/back labels that share a screen column, so the team piled into an unreadable stack.)
-const labelU = (x: number, z: number) => 0.75 * x - 0.66 * z;
-// The Bank pill's fixed position — shared by the label AND the collision-stack seed so the two can't drift apart.
-const BANK_LABEL_POS: [number, number, number] = [-2.7, 2.0, 1.6];
-const LABEL_MIN_DU = 1.95; // projected-x gap below which two pills read as overlapping
+// Height for the floating hint pill + the team's celebration emotes — clearly above the robots' heads.
+const LABEL_Y = 2.85;
+// The Bank pill's fixed world position.
+const BANK_LABEL_POS: [number, number, number] = [-2.7, 2.75, 1.6];
 function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] {
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
@@ -960,15 +994,6 @@ function DesktopPod({ p, worlds, staff, monitors, onTapStaff, startColorIdx }: {
   );
 }
 
-// Name + primary-discipline shown on a desk's floating label (shared by placed + bought desks).
-function deskLabel(s: Staff): { label: string; sub: string } {
-  const best = (["engineering", "design", "marketing"] as const).reduce<"engineering" | "design" | "marketing">(
-    (top, d) => s.skills[d] > s.skills[top] ? d : top, "engineering",
-  );
-  const abbr = { engineering: "Eng", design: "Des", marketing: "Mkt" }[best];
-  return { label: s.name.split(" ")[0], sub: `${abbr} · ${s.skills[best]}` };
-}
-
 function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
   const head = useRef<THREE.Mesh>(null);
   useFrame((st) => {
@@ -995,6 +1020,22 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
 const LABEL_BG = "rgba(255,255,255,0.94)";
 const LABEL_INK = "#1a1d23";
 const LABEL_INK_SOFT = "#6b7280";
+// Team reaction emotes that pop over a worker's head — a burst on a win, a sigh on a flop.
+const CHEER_EMOJI = ["🎉", "🙌", "✨", "🥳", "🚀"];
+const SLUMP_EMOJI = ["😞", "😔", "😮‍💨", "💤", "🫠"];
+function CheerEmote({ pos, emoji, delay = 0 }: { pos: [number, number, number]; emoji: string; delay?: number }) {
+  return (
+    <Html position={pos} center zIndexRange={[30, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
+      <div style={{
+        fontSize: 30,
+        transform: "translateY(-150%)",   // base spot (used when reduced-motion neutralizes the pop)
+        filter: "drop-shadow(0 3px 7px rgba(0,0,0,0.5))",
+        animation: `hq-emote-pop 2s ${delay}ms ease-out both`,
+      }}>{emoji}</div>
+    </Html>
+  );
+}
+
 function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; label: string; sub: string; dot: string }) {
   // Fixed screen-size UI chip (no distanceFactor → constant size), always rendered on top. Kept to
   // ONE compact line — dot · Name · role — so a full team of pills stays narrow and short, laddering
@@ -1458,13 +1499,14 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
   const dragFp = dragItem ? footprint(furnitureDef(dragItem.type), dragItem.rot) : null;
 
   // Commit the drop wherever the pointer is released (even off the grid → snaps back).
-  const live = useRef<{ iid: string | null; cell: { c: number; r: number } | null; move: BuildProps["onMoveItem"] }>({ iid: null, cell: null, move: b.onMoveItem });
-  live.current = { iid: dragIid, cell: dragCell, move: b.onMoveItem };
+  const live = useRef<{ iid: string | null; cell: { c: number; r: number } | null; ok: boolean; move: BuildProps["onMoveItem"] }>({ iid: null, cell: null, ok: false, move: b.onMoveItem });
   useEffect(() => {
     const up = () => {
-      const { iid, cell, move } = live.current;
+      const { iid, cell, ok, move } = live.current;
       if (iid) {
-        if (cell) move(iid, cell.c, cell.r);
+        // Hard gate: only drop onto a VALID cell. A blocked target (red ghost) snaps the piece home
+        // instead of firing a no-op reducer call — so decor can never land under/over another piece.
+        if (cell && ok) move(iid, cell.c, cell.r);
         setDragIid(null);
         setDragCell(null);
       }
@@ -1475,6 +1517,9 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
 
   const placeOk = hover && b.placingType ? canPlace(b.layout, b.placingType, hover.c, hover.r, b.placeRot) : false;
   const dragOk = dragCell && dragItem ? canPlace(b.layout, dragItem.type, dragCell.c, dragCell.r, dragItem.rot, dragItem.iid) : false;
+  // Feed the live drag target + validity to the window pointer-up handler (which fires outside React's
+  // event system), so a blocked drop snaps home instead of committing.
+  live.current = { iid: dragIid, cell: dragCell, ok: dragOk, move: b.onMoveItem };
 
   return (
     <group>
@@ -1549,7 +1594,9 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
               e.stopPropagation();
               if (b.placingType && placeFp) {
                 const c = cellAt(e.point.x, e.point.z, placeFp.w, placeFp.d);
-                b.onPlaceCell(c.c, c.r);
+                // Hard gate: place only where it actually fits (green ghost). Tapping a blocked cell
+                // does nothing instead of relying on a silent reducer no-op — cleaner, "smarter" feel.
+                if (canPlace(b.layout, b.placingType, c.c, c.r, b.placeRot)) b.onPlaceCell(c.c, c.r);
               } else {
                 b.onSelectItem(null);
               }
@@ -1590,6 +1637,17 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   // player-bought desktops), so a new hire's robot sits at a real desk instead of milling around.
   // Only when every desk is taken do extra employees roam the floor.
   const inBuild = !!builder?.build;
+  // Team reaction emotes: a win (cheer) or a flop (slump) pops emotes over the workers for the
+  // reaction window (the robots' hop/droop is driven separately in useFrame). React state so the
+  // emote layer mounts/unmounts; the timer matches the animation so they end together.
+  const [reaction, setReaction] = useState<HqReaction | null>(null);
+  const reactTimer = useRef(0);
+  useEffect(() => onHqReaction((k) => {
+    setReaction(k);
+    window.clearTimeout(reactTimer.current);
+    reactTimer.current = window.setTimeout(() => setReaction(null), HQ_REACTION_MS);
+  }), []);
+  useEffect(() => () => window.clearTimeout(reactTimer.current), []);
   const seats = deskItems(builder?.layout ?? []);
   const seated = staff.slice(0, seats.length);
   const overflow = staff.slice(seats.length);
@@ -1726,36 +1784,23 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         <Vault />
       </group>
 
-      {/* Floating zone labels — kept to ONLY the interactive Bank hint (your money; tap to open
-          finances). The static Whiteboard label was decorative noise that piled into the staff
-          labels — the board is recognizable on its own, so the label was removed. */}
+      {/* The office keeps ONE floating hint — the interactive Bank pill (your money; tap for
+          finances). The old per-employee name pills were removed: a full team piled 7+ overlapping
+          white bubbles over the scene. The robots are directly tappable (→ the Company team roster,
+          which already lists every name, role and skill), so the labels were pure clutter. */}
       {!builder?.build && (
         <>
           <OfficeLabel pos={BANK_LABEL_POS} label="Bank" sub="Tap for finances" dot="#34c759" />
-          {/* Per-desk name + primary-discipline label for every occupied desk (placed desks first,
-              then the bought desktops). Labels ladder UP the moment they'd share a screen column, so
-              a full team reads as a clean staircase instead of a pile. Collision is measured in
-              projected screen-x (labelU), and the Bank pill seeds the stack so names clear it too. */}
-          {(() => {
-            const entries = [
-              ...seated.map((s, i) => ({ s, w: worldOf(seats[i]), dot: ROBOT_COLORS[i % ROBOT_COLORS.length], key: s.id ?? `seat${i}` })),
-              ...podStaff.map((s, i) => ({ s, w: podWorlds[i], dot: ROBOT_COLORS[(seats.length + i) % ROBOT_COLORS.length], key: s.id ?? `pod${i}` })),
-            ];
-            // Resolve columns left→right; within a shared column, the nearer (front) label takes the
-            // lower slot so the closest name sits in front and the rest step up behind it.
-            entries.sort((a, b) => (labelU(a.w.x, a.w.z) - labelU(b.w.x, b.w.z)) || ((b.w.x + b.w.z) - (a.w.x + a.w.z)));
-            // Seed with the Bank pill so staff labels sharing its column ladder above it, not over it.
-            const placed: { u: number; level: number }[] = [{ u: labelU(BANK_LABEL_POS[0], BANK_LABEL_POS[2]), level: 0 }];
-            return entries.map((e) => {
-              const { label, sub } = deskLabel(e.s);
-              const u = labelU(e.w.x, e.w.z);
-              let level = 0;
-              while (placed.some((q) => q.level === level && Math.abs(q.u - u) < LABEL_MIN_DU)) level++;
-              placed.push({ u, level });
-              const y = LABEL_Y + level * LABEL_STAGGER;
-              return <OfficeLabel key={e.key} pos={[e.w.x, y, e.w.z]} label={label} sub={sub} dot={e.dot} />;
-            });
-          })()}
+          {/* Team reaction — an emote pops right over every worker's head: a burst on a win, a sigh on a flop. */}
+          {reaction && [
+            ...seated.map((s, i) => ({ w: worldOf(seats[i]), key: s.id ?? `react-seat${i}`, i })),
+            ...podStaff.map((s, i) => ({ w: podWorlds[i], key: s.id ?? `react-pod${i}`, i: seats.length + i })),
+          ].map((e) => {
+            const set = reaction === "slump" ? SLUMP_EMOJI : CHEER_EMOJI;
+            // Stagger the pops so the reaction ripples across the team, not all at once — capped so
+            // even the last emote's 2s pop still finishes inside the ~2.6s reaction window.
+            return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} emoji={set[e.i % set.length]} delay={Math.min(e.i * 70, 520)} />;
+          })}
         </>
       )}
 

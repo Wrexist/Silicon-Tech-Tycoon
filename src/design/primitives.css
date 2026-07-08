@@ -48,6 +48,14 @@
 }
 .ds-btn--block {
   width: 100%;
+  /* full-width CTAs have room to breathe: let a long label wrap to a tidy second line + grow the
+     button rather than spill its text past the edge (a nowrap block button overflows on narrow
+     phones / long company names). */
+  white-space: normal;
+  text-wrap: balance;
+  padding-top: var(--sp-8);
+  padding-bottom: var(--sp-8);
+  line-height: 1.2;
 }
 .ds-btn--primary {
   background: var(--accent);

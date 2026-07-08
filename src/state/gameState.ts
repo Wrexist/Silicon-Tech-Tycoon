@@ -105,7 +105,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoRouteBelts, demolitionRefund, floorWidth, lineComplete, lineSpeedMult,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoTidyFloor, demolitionRefund, floorWidth, lineComplete, lineSpeedMult,
   machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
@@ -118,7 +118,7 @@ import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/fact
 import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
 import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
-import { regionById, regionReach } from "../engine/regions.ts";
+import { REGIONS, regionById, regionReach } from "../engine/regions.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { noveltyFor } from "../engine/novelty.ts";
@@ -130,6 +130,7 @@ import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
 import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeMood, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
+import { generateLicenseOffer, licenseOfferDue, type LicenseOffer, type LicenseSuitor } from "../engine/licenseOffers.ts";
 import { perkBonuses } from "../engine/perks.ts";
 import type {
   Assignment,
@@ -349,6 +350,12 @@ export interface GameState {
   /** Chosen OS philosophy id (engine/platform.ts OS_PHILOSOPHIES), or null. A lasting identity choice
    *  that tilts every device you launch + your services. Null → no effect. */
   osPhilosophy: string | null;
+  /** Inbound OS licensing offer currently on the table (a company wants to ship your OS), or null.
+   *  Deterministic stream; signing pays a big upfront bonus + adds them as a licensee. */
+  pendingLicenseOffer?: LicenseOffer | null;
+  /** Licensees who signed an EXCLUSIVE deal: rivalId → the category they locked. Exclusive partners
+   *  pay a richer royalty and no other suitor can license that category while it's held. */
+  osExclusive?: Record<string, string>;
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
@@ -568,6 +575,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osFeatures: [],
     osBaseHistory: [],
     osPhilosophy: null,
+    pendingLicenseOffer: null,
+    osExclusive: {},
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
@@ -1681,6 +1690,35 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
+  // Exclusive holds: drop any whose licensee has walked (churn/prune above).
+  let osExclusive = state.osExclusive ?? {};
+  {
+    const gone = Object.keys(osExclusive).filter((id) => !osLicensees.includes(id));
+    if (gone.length > 0) { osExclusive = { ...osExclusive }; for (const id of gone) delete osExclusive[id]; }
+  }
+
+  // Inbound licensing CONTRACTS — a company approaches wanting to ship your OS (deterministic stream).
+  // Only while the division is live and the OS is credible; suitors exclude current licensees and any
+  // category already locked by an exclusive deal. The offer lapses when it expires (or its suitor
+  // signed elsewhere). Sim-safe: platformUnlocked is false in the pinned auto-player run.
+  let pendingLicenseOffer = state.pendingLicenseOffer ?? null;
+  if (pendingLicenseOffer && (week > pendingLicenseOffer.expiresWeek || osLicensees.includes(pendingLicenseOffer.rivalId))) pendingLicenseOffer = null;
+  if (!offline && state.platformUnlocked && !pendingLicenseOffer) {
+    const osTierNum = osTier(state.researched.software).tier;
+    if (licenseOfferDue(state.seed, week, osTierNum)) {
+      const lockedCats = new Set(Object.values(osExclusive));
+      const suitors: LicenseSuitor[] = competitors
+        .filter((c) => !osLicensees.includes(c.id))
+        .map((c) => ({ id: c.id, name: c.name, reputation: c.reputation, category: rivalDef(c.id)?.preferredCategories[0] ?? "phone" }))
+        .filter((s) => !lockedCats.has(s.category));
+      const offer = generateLicenseOffer(state.seed, week, osTierNum, suitors);
+      if (offer) {
+        pendingLicenseOffer = offer;
+        feed.push(feedItem(week, `${offer.rivalName} wants to ship ${osDisplayName(state)} on their ${CATEGORIES[offer.category].displayName.toLowerCase()}s${offer.exclusive ? " — exclusively" : ""}. ${format(offer.signingBonus)} to sign.`, "accent"));
+      }
+    }
+  }
+
   const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
     ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
     : BALANCE.fans.decayPerWeek;
@@ -1757,6 +1795,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     osBaseHistory,
     osLicensees,
     osLicenseeHealth,
+    osExclusive,
+    pendingLicenseOffer,
     feed,
     rivalReleases,
     rivalLineCounters,
@@ -2359,16 +2399,18 @@ function autoRouteNet(current: FloorPlan, routed: FloorPlan): number {
  *  router runs again on confirm, so the quoted price is exactly what gets charged. Null when there
  *  is no route (missing Intake/Packer or no clear path). Pure. */
 export function autoConnectQuote(state: GameState): { cost: Money; tiles: number } | null {
-  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
+  const routed = autoTidyFloor(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
   if (!routed) return null;
   return { cost: cents(autoRouteNet(state.factoryFloor, routed)), tiles: routed.belts.length };
 }
 
-/** One-tap belt routing — lay a fresh Intake→Packer chain around the machines, charging the net of
- *  new tiles (full price) minus removed tiles (half refund), exactly like doing it by hand. */
+/** One-tap Auto — TIDY the whole line: reposition every machine into clean recipe-order lanes and
+ *  wire a fresh Intake→Packer chain around them, so a scattered floor becomes one long straight line.
+ *  Charges only the net belt tiles (new at full price, removed at half refund); rearranging machines
+ *  is free. Deterministic: the same tidy+route runs on quote and commit, so the price is exact. */
 export function autoConnectLine(state: GameState): ActionResult {
-  const routed = autoRouteBelts(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
-  if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer with a clear path between them first." };
+  const routed = autoTidyFloor(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
+  if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer first (and expand if the floor is full)." };
   const cost = autoRouteNet(state.factoryFloor, routed);
   if (cost > 0 && state.cash < cost) return { state, ok: false, reason: `Need ${format(cents(cost))} to route the belts.` };
   return { state: { ...state, factoryFloor: routed, cash: add(state.cash, cents(-cost)) }, ok: true };
@@ -3056,6 +3098,28 @@ export const platformFoundingCost = (): Money => BALANCE.platform.foundingCost;
 export const canFoundPlatform = (s: GameState): boolean =>
   !s.platformUnlocked && s.cash >= BALANCE.platform.foundingCost;
 
+export interface NavAttention { hq: boolean; design: boolean; research: boolean; market: boolean; company: boolean }
+
+/** Where is there something ACTIONABLE right now? Drives the bottom-nav "attention" dots so a player
+ *  is never left wondering what to do next. Read-only + cheap; each flag is a genuine decision the
+ *  player can act on this moment (not an always-on nag). */
+export function navAttention(s: GameState): NavAttention {
+  const shipped = s.launched.length >= 1;
+  const cash = s.cash as number;
+  return {
+    // A milestone or a personal decision waiting at HQ.
+    hq: canAdvance(s) || canIPO(s) || s.pendingChoice != null || (s.pendingPoach ?? null) != null,
+    // Pipeline idle once you're rolling → design the next product.
+    design: shipped && s.building.length === 0 && s.ready.length === 0,
+    // A project or component upgrade you can afford right now.
+    research: researchReady(s),
+    // A new region you can afford to open.
+    market: REGIONS.some((r) => !s.unlockedRegions.includes(r.id) && cash >= (r.unlockCost as number)),
+    // A licensing contract to sign, an OS version to ship, or the platform to found.
+    company: (s.pendingLicenseOffer ?? null) != null || (s.platformUnlocked && canReleaseOsVersion(s)) || canFoundPlatform(s),
+  };
+}
+
 /** Found the Platform division: pay the founding cost and bring your OS up as a first-class business.
  *  No-op if already founded or unaffordable. The earned, in-game path to the OS (vs. a free toggle). */
 export function foundPlatform(state: GameState): GameState {
@@ -3103,12 +3167,45 @@ export function releaseOsVersion(state: GameState): GameState {
 export function weeklyLicenseFees(s: GameState): Money {
   if (s.osLicensees.length === 0) return ZERO;
   const tier = osTierInfo(s).tier;
+  const exclusive = s.osExclusive ?? {};
+  const exMult = BALANCE.platform.contract.exclusiveRoyaltyMult;
   let acc = ZERO;
   for (const id of s.osLicensees) {
     const rival = s.competitors.find((c) => c.id === id);
-    if (rival) acc = add(acc, rivalLicenseFee(rival.reputation, tier));
+    if (!rival) continue;
+    const fee = rivalLicenseFee(rival.reputation, tier);
+    acc = add(acc, id in exclusive ? scale(fee, exMult) : fee);
   }
   return acc;
+}
+
+/** Sign the inbound licensing contract on the table: bank the upfront signing bonus, add the suitor
+ *  as a licensee (recurring royalty + churn like any other), and record the category as exclusive
+ *  when the deal demanded it. No-op if there's no offer or the division isn't unlocked. */
+export function signLicenseOffer(state: GameState): ActionResult {
+  const offer = state.pendingLicenseOffer ?? null;
+  if (!offer || !state.platformUnlocked) return { state, ok: false, reason: "No contract to sign." };
+  if (state.osLicensees.includes(offer.rivalId)) return { state, ok: false, reason: "Already a licensee." };
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Signed ${offer.rivalName} to ${offer.exclusive ? "an exclusive " : "a "}${osDisplayName(state)} licence — ${format(offer.signingBonus)} upfront, ${format(offer.royaltyPerWeek)}/wk.`, "positive"));
+  return {
+    state: {
+      ...state,
+      cash: add(state.cash, offer.signingBonus),
+      osLicensees: [...state.osLicensees, offer.rivalId],
+      osLicenseeHealth: { ...state.osLicenseeHealth, [offer.rivalId]: BALANCE.platform.licenseeChurn.startHealth },
+      osExclusive: offer.exclusive ? { ...(state.osExclusive ?? {}), [offer.rivalId]: offer.category } : (state.osExclusive ?? {}),
+      pendingLicenseOffer: null,
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
+/** Walk away from the inbound offer — it lapses with no cost. */
+export function declineLicenseOffer(state: GameState): ActionResult {
+  if (!state.pendingLicenseOffer) return { state, ok: false, reason: "No contract to decline." };
+  return { state: { ...state, pendingLicenseOffer: null }, ok: true };
 }
 
 /** License your OS to a rival: a new recurring revenue line, but it strengthens that competitor

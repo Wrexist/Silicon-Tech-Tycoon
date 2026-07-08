@@ -136,6 +136,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   // Once many projects are complete, the full-blurb list grows into a long scroll. Default to a
   // compact chip cloud; the player can expand to the detailed effects on demand.
   const [boostsExpanded, setBoostsExpanded] = useState(false);
+  // Two destinations: Projects (RP income, the sprint picks, company-wide research projects + era
+  // roadmap) and Components (the device-tech tiers + design-capability unlocks).
+  const [rdTab, setRdTab] = useState<"projects" | "components">("projects");
   const kinds = Object.keys(COMPONENT_LINES) as ComponentKind[];
   const rp = Math.floor(state.researchPoints);
   const perWeek = weeklyRpGen(state);
@@ -239,6 +242,22 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         )}
       </Card>
 
+      {/* Sub-navigation — Projects (strategy + income) · Components (device tech tiers). */}
+      <div className="rd__subnav" role="tablist" aria-label="Research sections">
+        {([["projects", "Projects"], ["components", "Components"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={rdTab === id}
+            className={`rd__subtab${rdTab === id ? " rd__subtab--on" : ""}`}
+            onClick={() => { haptic.light(); setRdTab(id); }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {rdTab === "projects" && (<>
       {/* Research income — where the weekly RP comes from, so the player can see how to grow it
           (skilled engineers on R&D, the era multiplier). Read-only; the sum equals the banner's +/wk. */}
       {perWeek > 0 && (() => {
@@ -261,6 +280,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         );
       })()}
 
+      </>)}
+
+      {rdTab === "components" && (<>
       {/* Design unlocks — the device-design capabilities RP buys (camera lenses + premium
           finishes), surfaced in the same hub as component tiers + projects so the RP economy
           reads as one thing. Hidden once both tracks are fully unlocked. */}
@@ -296,6 +318,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         );
       })()}
 
+      </>)}
+
+      {rdTab === "projects" && (<>
       {/* R&D sprint: top picks — up to 3 actionable component upgrades */}
       {perWeek > 0 && (() => {
         const trendStat = [...STAT_KEYS].sort((a, b) => {
@@ -476,6 +501,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         </p>
       )}
 
+      </>)}
+
+      {rdTab === "components" && (<>
       {/* Component tech */}
       {(() => {
         const eraKinds = kinds.filter((kind) => {
@@ -558,6 +586,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           })}
         </div>
       </Card>
+      </>)}
     </div>
   );
 }

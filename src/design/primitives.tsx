@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { Sparkles } from "lucide-react";
 import { haptic } from "./haptics.ts";
 import { sfx } from "./sound.ts";
+import { lockScroll } from "./scrollLock.ts";
 import "./primitives.css";
 
 /* ---------- Card ---------- */
@@ -369,9 +370,7 @@ export function Sheet({
   // doesn't rubber-band or scroll the screen behind it (mirrors FactoryMode / the decorate editor).
   useEffect(() => {
     if (!open && !closing) return; // stay locked through the exit animation, not just while open
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return lockScroll(); // ref-counted so a Sheet nested in another overlay can't leak the lock
   }, [open, closing]);
 
   if (!open && !closing) return null;

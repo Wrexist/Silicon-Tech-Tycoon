@@ -11,6 +11,8 @@ import { ToastHost, showToast } from "./design/toast.tsx";
 import { haptic } from "./design/haptics.ts";
 import { GainFX } from "./design/GainFX.tsx";
 import { Confetti } from "./design/Confetti.tsx";
+import { onCelebrate } from "./design/celebrateFx.ts";
+import { emitHqReaction } from "./design/hqReaction.ts";
 import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
 import { RivalStrike } from "./components/RivalStrike.tsx";
@@ -27,7 +29,7 @@ import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
 import { format, toDollars, type Money } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
-import { canAdvance, ipoValuation, legacyBonus, industryRank, researchReady, type GameState } from "./state/gameState.ts";
+import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState } from "./state/gameState.ts";
 import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
@@ -113,6 +115,10 @@ function AppShell() {
   useEffect(() => {
     if (!state.wentPublic) setIpoSeen(false);
   }, [state.wentPublic]);
+
+  // Every celebration (a hit, an award, a signed deal, an IPO, an era) makes the OFFICE cheer too —
+  // one bridge so the team celebrates every win, not only launches.
+  useEffect(() => onCelebrate(() => emitHqReaction("cheer")), []);
 
   // The first ship silently unlocks half the meta-game (Progress hub, stock market, financing,
   // morale, daily challenges). Say so ONCE — deferred so the launch reveal + verdict own the
@@ -206,7 +212,7 @@ function AppShell() {
       <BottomNav
         active={tab}
         onChange={setTab}
-        badge={{ hq: canAdvance(state), research: researchReady(state) }}
+        badge={navAttention(state)}
       />
 
       <GainFX />

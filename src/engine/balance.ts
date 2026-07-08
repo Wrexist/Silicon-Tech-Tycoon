@@ -673,15 +673,30 @@ export const BALANCE = {
     // a free toggle. 2.5× the starting bankroll, but payback (~28wk at typical OS income) keeps it fair.
     // Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
     foundingCost: dollars(250_000),
-    releaseRepBonus: 4,          // one-time reputation lift per OS version release
-    releaseFanBaseBonus: 2_000,  // base fans gained on release
-    releaseFanPerKInstalled: 5,  // + fans per 1,000 devices in the installed base
-    releaseFanCap: 60_000,       // hard cap (no free faucet)
-    // Phase C — licensing your OS to rivals: a recurring fee, but it strengthens that rival.
-    licenseFeeBase: 1_500,       // $/wk base a licensee pays
-    licenseFeePerRepTier: 40,    // + $/wk per (rival reputation point × your OS tier)
-    licenseFeeCap: 250_000,      // $/wk hard cap per licensee
+    releaseRepBonus: 3,          // one-time reputation lift per OS version release (leaner)
+    releaseFanBaseBonus: 1_000,  // base fans gained on release
+    releaseFanPerKInstalled: 2,  // + fans per 1,000 devices in the installed base
+    releaseFanCap: 25_000,       // hard cap (no free faucet)
+    // Phase C — licensing your OS: a MODEST recurring royalty. The real money is landing the inbound
+    // CONTRACTS (signing bonuses), not passively banking fees — the passive faucet is deliberately
+    // small so the OS division is a grind you work, not free income ("make it harder to gain").
+    licenseFeeBase: 500,         // $/wk base a licensee pays
+    licenseFeePerRepTier: 15,    // + $/wk per (rival reputation point × your OS tier)
+    licenseFeeCap: 60_000,       // $/wk hard cap per licensee
     licenseStrengthUplift: 8,    // strength points a licensee rival gains in shared categories (the teeth)
+    // Inbound licensing contracts — companies approach YOU to ship your OS on their devices. The
+    // signing bonus (upfront) is the real payoff, scaling with the suitor's reputation × your OS
+    // tier; an EXCLUSIVE deal pays a premium bonus and a richer weekly royalty.
+    contract: {
+      offerCooldownWeeks: 9,     // avg weeks between inbound offers — ~1/N chance per eligible week (probabilistic cadence, not a hard minimum)
+      minOsTier: 2,              // suitors only come once your OS is credible (tier ≥ 2)
+      lifeWeeks: 3,              // how long an offer stays on the table
+      signBonusBase: 30_000,     // upfront $ base
+      signBonusPerRepTier: 900,  // + upfront $ per (suitor reputation × OS tier)
+      signBonusCap: 900_000,     // upfront $ hard cap
+      exclusiveBonusMult: 1.9,   // exclusive deals pay this × the signing bonus…
+      exclusiveRoyaltyMult: 1.4, // …and a slightly richer weekly royalty
+    },
     // OS feature modules (engine/platform.ts OS_FEATURES) — capability customization. Each module is
     // researched (RP) and gated behind an OS version; together they make the OS a real lever:
     // a strong OS lifts the ecosystem stat of every device you launch AND multiplies recurring
@@ -691,8 +706,8 @@ export const BALANCE = {
       // 8 modules sum to +25 ecosystem; cap sits just above so a FULL build pays in full (the
       // completion reward) while still bounding any future additions. A partial build never nears it.
       ecoBonusCap: 26,          // max ecosystem-stat points the OS adds to a launched device (safety rail)
-      servicesMultCap: 2.6,     // hard cap on the recurring-services multiplier (no runaway)
-      versionServicesStep: 0.04,// + services multiplier per OS version released above v1
+      servicesMultCap: 1.75,    // hard cap on the recurring-services multiplier (leaner — no runaway)
+      versionServicesStep: 0.025,// + services multiplier per OS version released above v1
     },
     // Licensee relationships: a rival licensing your OS grows resentful if you dominate them too
     // hard — they're paying YOU while you crush them in shared markets. Satisfaction (0..100) decays

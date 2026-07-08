@@ -82,6 +82,9 @@ export interface Factory3DProps {
   /** Bumped by the HUD's recenter button — re-frames the camera to its default. */
   resetView?: number;
   onTapCell?: (c: number, r: number) => void;
+  /** A machine being placed as a movable ghost (before it's bought): rendered translucent at (c,r),
+   *  tinted by `valid`. Tapping the pad moves it (via onTapCell); the HUD's Place/Cancel commits. */
+  pending?: { kind: MachineKind; c: number; r: number; valid: boolean } | null;
   /** Belt tool active — a DRAG paints a run of belt (camera rotate is suspended); a tap lays one. */
   paintBelts?: boolean;
   /** Commit a painted drag: the ordered cells the pointer crossed (already interpolated orthogonally). */
@@ -1500,6 +1503,23 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
           )}
         </Lift>
       )}
+
+      {/* a machine being PLACED — a translucent, bobbing ghost the player nudges by tapping the
+          floor, its footprint plane green (fits) / red (blocked) until they tap Place or Cancel */}
+      {p.pending && !carry && (() => {
+        const def = MACHINE_DEFS[p.pending.kind];
+        const [ax, az] = worldOf(p.pending.c, p.pending.r);
+        const fx = ax + (def.w - 1) / 2, fz = az + (def.d - 1) / 2;
+        return (
+          <group>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[fx, 0.152, fz]}>
+              <planeGeometry args={[def.w * 0.96, def.d * 0.96]} />
+              <meshBasicMaterial color={p.pending.valid ? C.dropOk : C.dropBad} transparent opacity={0.45} depthWrite={false} />
+            </mesh>
+            <Lift><CarriedRig kind={p.pending.kind} position={[fx, 0, fz]} /></Lift>
+          </group>
+        );
+      })()}
 
       {/* the belt ends at a pallet beside the delivery truck (the dock) */}
       {dock && <Pallet position={dock.pallet} yaw={dock.yaw} count={p.readyCount} />}

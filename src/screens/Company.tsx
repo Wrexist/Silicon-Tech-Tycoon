@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Factory, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
-import { osDisplayName, canFoundPlatform, platformFoundingCost } from "../state/gameState.ts";
+import { osDisplayName, canFoundPlatform, platformFoundingCost, navAttention } from "../state/gameState.ts";
 import { ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
 import { Avatar } from "../components/Avatar.tsx";
@@ -115,7 +115,10 @@ export function Company() {
   const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, hireSpecialist, foundPlatform, acquireFactory } = useGame();
   const [foundedCelebrate, setFoundedCelebrate] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
-  const [platformOpen, setPlatformOpen] = useState(false);
+  // Company is three destinations, not one endless scroll: Overview (money + ops), Team (roster,
+  // morale, hiring) and Platform — the OS division promoted from a buried one-line card to a
+  // first-class tab, since it's a whole business in its own right late game.
+  const [coTab, setCoTab] = useState<"overview" | "team" | "platform">("overview");
   const fac = facility(state);
   // Progressive disclosure: the meta/progression layer (achievements, scenarios, challenges,
   // museum, the Platform-founding goal) only appears once the player has shipped their first
@@ -145,6 +148,24 @@ export function Company() {
 
   return (
     <div className="co">
+      {/* Sub-navigation — three destinations so Company isn't one endless scroll, and Platform gets
+          the prominence a whole-business feature deserves. */}
+      <div className="co__subnav" role="tablist" aria-label="Company sections">
+        {([["overview", "Overview"], ["team", "Team"], ["platform", "Platform"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={coTab === id}
+            className={`co__subtab${coTab === id ? " co__subtab--on" : ""}`}
+            onClick={() => { haptic.light(); setCoTab(id); }}
+          >
+            {id === "platform" && <Layers size={14} aria-hidden />}{label}
+            {id === "platform" && navAttention(state).company && <span className="co__subtab-dot" aria-hidden />}
+          </button>
+        ))}
+      </div>
+
+      {coTab === "overview" && (<>
       {/* Financials */}
       <Card>
         <SectionHeader
@@ -302,48 +323,11 @@ export function Company() {
       {/* Achievements · Scenarios · Challenges · Device Museum moved to the Progress hub (HUD
           trophy) so this tab is just money + team + ops. Platform stays — it's an ops division. */}
 
-      {/* Platform division — the unlocked entry always shows; the $250k founding GOAL waits until
-          the player has shipped (it's noise on an empty garage). */}
-      {state.platformUnlocked ? (
-        <button className="co__ach-row" onClick={() => setPlatformOpen(true)} aria-label="Open the Platform division">
-          <span className="co__ach-glyph" aria-hidden><Layers size={20} /></span>
-          <span className="co__ach-info">
-            <span className="co__ach-title">Platform</span>
-            <span className="co__ach-sub">{osDisplayName(state)} · installed base & licensing</span>
-          </span>
-        </button>
-      ) : hasShipped ? (() => {
-        const cost = platformFoundingCost();
-        const can = canFoundPlatform(state);
-        const shortBy = sub(cost, state.cash);
-        return (
-          <Card className="co__found">
-            <div className="co__found-head">
-              <span className="co__found-glyph" aria-hidden><Layers size={22} /></span>
-              <div className="co__found-info">
-                <span className="co__found-title">Found the Platform division</span>
-                <span className="co__found-sub">Turn {osDisplayName(state)} into a business in its own right: recurring services, OS licensing to rivals, feature modules, and a platform identity.</span>
-              </div>
-            </div>
-            <Button
-              block
-              variant={can ? "primary" : "tertiary"}
-              disabled={!can}
-              onClick={() => {
-                haptic.success();
-                foundPlatform();
-                setFoundedCelebrate(true); // the Celebration overlay fires confetti + sound on mount
-              }}
-            >
-              {can ? <>Found · {format(cost)}</> : <>Save up {format(shortBy)} more · {format(cost)}</>}
-            </Button>
-          </Card>
-        );
-      })() : null}
-
       {/* Near-achievement progress — only once the player is chasing milestones (post first ship). */}
       {hasShipped && <NearMilestonesCard state={state} />}
+      </>)}
 
+      {coTab === "team" && (<>
       {/* Team output summary */}
       <TeamOutputCard state={state} />
 
@@ -395,13 +379,41 @@ export function Company() {
         </div>
       )}
       <RecruitPanel state={state} capacity={Math.min(fac.staffCapacity, deskCapacity(state))} noDesk={state.staff.length >= deskCapacity(state)} onRecruit={recruit} onHire={hireCandidate} onDismiss={dismissCandidates} />
+      </>)}
+
+      {coTab === "platform" && (
+        state.platformUnlocked ? (
+          <PlatformSheet onClose={() => setCoTab("overview")} />
+        ) : hasShipped ? (() => {
+          const cost = platformFoundingCost();
+          const can = canFoundPlatform(state);
+          const shortBy = sub(cost, state.cash);
+          return (
+            <Card className="co__found">
+              <div className="co__found-head">
+                <span className="co__found-glyph" aria-hidden><Layers size={22} /></span>
+                <div className="co__found-info">
+                  <span className="co__found-title">Found the Platform division</span>
+                  <span className="co__found-sub">Turn {osDisplayName(state)} into a business in its own right: recurring services, OS licensing to rivals, feature modules, and a platform identity.</span>
+                </div>
+              </div>
+              <Button
+                block
+                variant={can ? "primary" : "tertiary"}
+                disabled={!can}
+                onClick={() => { haptic.success(); foundPlatform(); setFoundedCelebrate(true); }}
+              >
+                {can ? <>Found · {format(cost)}</> : <>Save up {format(shortBy)} more · {format(cost)}</>}
+              </Button>
+            </Card>
+          );
+        })() : (
+          <EmptyState glyph={<Layers size={36} strokeWidth={1.6} />} title="Platform locked" sub="Ship your first product, then found your OS as a business in its own right — services, licensing and feature modules." />
+        )
+      )}
 
       <Sheet open={statsOpen} onClose={() => setStatsOpen(false)} label="Company stats">
         <StatsSheet state={state} onClose={() => setStatsOpen(false)} />
-      </Sheet>
-
-      <Sheet open={platformOpen} onClose={() => setPlatformOpen(false)} label="Found a platform">
-        <PlatformSheet onClose={() => setPlatformOpen(false)} />
       </Sheet>
 
       {foundedCelebrate && (
@@ -415,7 +427,7 @@ export function Company() {
             { icon: <Boxes size={14} />, value: "8", label: "feature modules" },
           ]}
           confirmLabel="Open the division"
-          onConfirm={() => { setFoundedCelebrate(false); setPlatformOpen(true); }}
+          onConfirm={() => { setFoundedCelebrate(false); setCoTab("platform"); }}
           secondaryLabel="Later"
           onSecondary={() => setFoundedCelebrate(false)}
         />

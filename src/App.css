@@ -202,6 +202,17 @@
   to   { opacity: 1; transform: none; }
 }
 
+/* Team reaction emote (Garage3D CheerEmote): a quick pop, a beat, then a slow rise + fade so the
+   whole office visibly reacts to a launch. Reduced-motion neutralizes this (index.css) — the base
+   inline transform keeps the emote parked above the worker's head instead. */
+@keyframes hq-emote-pop {
+  0%   { opacity: 0; transform: translateY(-40%) scale(0.3); }
+  14%  { opacity: 1; transform: translateY(-135%) scale(1.28); }
+  28%  { transform: translateY(-150%) scale(1); }
+  78%  { opacity: 1; transform: translateY(-195%) scale(1); }
+  100% { opacity: 0; transform: translateY(-235%) scale(0.9); }
+}
+
 /* Sheets */
 .app__sheet-title {
   font-size: var(--fs-title);

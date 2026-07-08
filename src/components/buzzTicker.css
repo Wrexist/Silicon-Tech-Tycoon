@@ -1,0 +1,54 @@
+/* Industry Buzz wire — a slim, live headline strip. Tokens + 8pt grid only. */
+.buzz {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-height: 34px;
+  padding: var(--sp-6) var(--sp-12);
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+.buzz__wire {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: var(--accent);
+}
+.buzz__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent);
+  animation: buzz-pulse 1.8s ease-out infinite;
+}
+@keyframes buzz-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  70% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+.buzz__text {
+  min-width: 0;
+  flex: 1;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: buzz-in 420ms var(--ease-out, ease-out) both;
+}
+.buzz__text--good { color: var(--positive); }
+.buzz__text--bad { color: var(--negative); }
+.buzz__text--hot { color: var(--accent); font-weight: 700; }
+@keyframes buzz-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .buzz__dot { animation: none; }
+  .buzz__text { animation: none; }
+}

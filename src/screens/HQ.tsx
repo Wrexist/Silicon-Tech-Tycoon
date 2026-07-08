@@ -8,6 +8,7 @@ import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/pri
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
 import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { DailyChallengeCard } from "../components/DailyChallengeCard.tsx";
+import { BuzzTicker } from "../components/BuzzTicker.tsx";
 import { FactoryCard } from "../components/FactoryMode.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -125,6 +126,10 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
       {world === "factory" && <FactoryCard onNavigate={onNavigate} />}
+
+      {/* Industry Buzz — a live "wire" of authored headlines so the world reacts to you. Once you've
+          shipped (an empty garage has no story yet), and only under the office world. */}
+      {world === "office" && state.launched.length >= 1 && <BuzzTicker />}
 
       <ScenarioTracker />
       <ChallengeTracker />
@@ -357,6 +362,19 @@ function OfficeOverview({ state }: { state: GameState }) {
 function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
+  // The office no longer labels each teammate, so teach touch players ONCE that the team is tappable
+  // (→ Company). Desktop already shows the WASD hint instead; both auto-fade.
+  const [teamHintDone, setTeamHintDone] = useState(() => {
+    if (FINE_POINTER) return true;
+    try { return localStorage.getItem("silicon.hint.tapteam") === "1"; } catch { return true; }
+  });
+  const showTeamHint = use3d && !build && !teamHintDone && state.staff.length >= 1;
+  useEffect(() => {
+    if (!showTeamHint) return;
+    try { localStorage.setItem("silicon.hint.tapteam", "1"); } catch { /* ignore */ }
+    const t = window.setTimeout(() => setTeamHintDone(true), 5200);
+    return () => window.clearTimeout(t);
+  }, [showTeamHint]);
   const [placingType, setPlacingType] = useState<FurnitureId | null>(null);
   const [placeRot, setPlaceRot] = useState<Rot>(0);
   const [selectedIid, setSelectedIid] = useState<string | null>(null);
@@ -535,6 +553,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         {/* WASD is keyboard-only — never show it on a touch device (the iOS target), where it's
             both useless and confusing. Gate on a fine pointer (mouse/trackpad). */}
         {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
+        {showTeamHint && <div className="hq__camhint" aria-hidden>Tap a teammate to manage</div>}
         {use3d && !build && (
           <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
             <ShoppingBag size={15} /> Shop

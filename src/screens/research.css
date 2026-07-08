@@ -6,6 +6,36 @@
   flex-direction: column;
   gap: var(--sp-12);
 }
+
+/* Research sub-navigation — Projects · Components. Sticky segmented control (mirrors Company/Market). */
+.rd__subnav {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  box-shadow: 0 6px 18px -12px rgba(0, 0, 0, 0.5);
+}
+.rd__subtab {
+  flex: 1;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rd__subtab--on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-subtle);
+}
 .rd__bank {
   position: relative;
   overflow: hidden;

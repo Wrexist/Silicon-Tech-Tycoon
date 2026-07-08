@@ -10,6 +10,8 @@ import {
   canReleaseOsVersion,
   licenseOsToRival,
   revokeOsLicense,
+  signLicenseOffer,
+  declineLicenseOffer,
   weeklyLicenseFees,
   installOsFeature,
   canInstallFeature,
@@ -251,5 +253,35 @@ describe("OS feature modules (state)", () => {
     const after = advanceOneWeek(g);
     expect(after.osBaseHistory.length).toBe(1);
     expect(after.osBaseHistory[0]).toBeGreaterThanOrEqual(12_345); // ≥ this week's installed base
+  });
+});
+
+describe("inbound licensing contracts", () => {
+  it("signing banks the bonus, adds a licensee + exclusivity; declining clears; exclusive bills more", () => {
+    const base = unlockPlatform({ ...newGame(7), cash: ZERO } as GameState, true);
+    const rid = base.competitors[0].id;
+    const mkOffer = (exclusive: boolean) => ({
+      id: "lo-10", rivalId: rid, rivalName: base.competitors[0].name, category: "phone" as const,
+      exclusive, signingBonus: dollars(120_000), royaltyPerWeek: dollars(3_000), termWeeks: 52, expiresWeek: 13, week: 10,
+    });
+
+    // Sign an EXCLUSIVE deal.
+    const signed = signLicenseOffer({ ...base, pendingLicenseOffer: mkOffer(true) } as GameState);
+    expect(signed.ok).toBe(true);
+    expect(signed.state.cash).toBe(dollars(120_000));           // upfront bonus banked
+    expect(signed.state.osLicensees).toContain(rid);            // now a licensee
+    expect(signed.state.osExclusive?.[rid]).toBe("phone");      // exclusivity recorded
+    expect(signed.state.pendingLicenseOffer).toBeNull();
+
+    // The exclusive licensee bills a richer royalty than a plain one.
+    const plain = signLicenseOffer({ ...base, pendingLicenseOffer: mkOffer(false) } as GameState).state;
+    expect(toDollars(weeklyLicenseFees(signed.state))).toBeGreaterThan(toDollars(weeklyLicenseFees(plain)));
+
+    // No offer → no-op; decline clears the offer with no charge.
+    expect(signLicenseOffer(base).ok).toBe(false);
+    const declined = declineLicenseOffer({ ...base, pendingLicenseOffer: mkOffer(false) } as GameState);
+    expect(declined.ok).toBe(true);
+    expect(declined.state.pendingLicenseOffer).toBeNull();
+    expect(declined.state.cash).toBe(ZERO); // walking away costs nothing
   });
 });
