@@ -16,7 +16,7 @@ import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
-import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
+import { channelsForEra, type ChannelId } from "../engine/marketing.ts";
 import { activeArchetypes, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
@@ -2111,7 +2111,7 @@ function BuildWizard({
         <div className="wiz__body">
           <p className="wiz__lead">Pick a launch campaign, bigger campaigns add hype (more demand) for an upfront cost.</p>
           <div className="wiz__channels">
-            {MARKETING_CHANNELS.map((c) => {
+            {channelsForEra(state.era).map((c) => {
               const Icon = WIZARD_CHANNEL_ICONS[c.icon] ?? Ban;
               const aff = state.cash >= c.cost;
               const chanDemand = planProduction(state, prod, units, c.id).totalDemand;

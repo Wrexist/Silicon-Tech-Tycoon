@@ -36,6 +36,8 @@ import {
   osTierInfo,
   productStats,
   shareholderPulse,
+  investBrandAwarenessQuote,
+  brandAwarenessHype,
   type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -96,7 +98,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   focusProductId?: string | null;
   onFocusConsumed?: () => void;
 } = {}) {
-  const { state, unlockRegion } = useGame();
+  const { state, unlockRegion, investBrandAwareness } = useGame();
   const trends = state.trends;
   const comps = state.competitors;
   // Only show releases from rivals still on the board — an acquired rival's historical releases would
@@ -297,6 +299,34 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           </>
         )}
       </Card>
+
+      {/* Brand awareness — a company-wide marketing meter that lifts every launch's hype. It's a
+          STANDING, decaying investment (not a per-launch campaign), so keeping it up is a real call.
+          Shown once you've shipped (or already hold awareness) → hidden early + sim-safe. */}
+      {(state.launched.length >= 1 || (state.brandAwareness ?? 0) > 0) && (() => {
+        const meter = Math.round(state.brandAwareness ?? 0);
+        const pct = Math.round((meter / BALANCE.brand.cap) * 100);
+        const hypePct = Math.round(brandAwarenessHype(state) * 100);
+        const quote = investBrandAwarenessQuote(state, BALANCE.brand.maxStep);
+        return (
+          <Card>
+            <SectionHeader title="Brand awareness" accessory={hypePct > 0 ? `+${hypePct}% launch hype` : undefined} />
+            <p className="mkt__co-hint">A standing marketing presence that lifts every launch's hype. It fades a little each week, so keep it up.</p>
+            <div className="mkt__pulse-head" style={{ marginTop: "var(--sp-8)" }}>
+              <span className="mkt__pulse-label">Awareness</span>
+              <span className="mkt__pulse-pct mkt__pulse-pct--up tnum">{meter}/{BALANCE.brand.cap}</span>
+            </div>
+            <div className="mkt__pulse-track"><div className="mkt__pulse-fill mkt__pulse-fill--up" style={{ width: `${pct}%` }} /></div>
+            {quote === null ? (
+              <p className="mkt__co-hint" style={{ marginTop: "var(--sp-8)" }}>Your brand is at peak awareness.</p>
+            ) : (
+              <Button block onClick={() => investBrandAwareness(quote.points)}>
+                <Megaphone size={16} /> Run a campaign · {format(quote.cost)}
+              </Button>
+            )}
+          </Card>
+        );
+      })()}
 
       {/* Industry leaderboard — the climb from a garage to the #1 company in the industry */}
       {(() => {

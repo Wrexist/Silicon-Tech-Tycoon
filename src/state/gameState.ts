@@ -198,6 +198,9 @@ export interface GameState {
   fanSentiment?: number;
   /** The loyal core sentiment creates — they pre-order hardest. 0 until the community warms up. */
   superfans?: number;
+  /** Company-wide brand awareness (0..BALANCE.brand.cap). Fed by cash investment, decays weekly, and
+   *  contributes a bounded lift to every launch's hype. 0 until you invest → sim-safe. */
+  brandAwareness?: number;
   era: number;
   cumulativeRevenue: Money;
   trends: ConsumerTrends;
@@ -561,6 +564,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     fans: BALANCE.fans.starting + lb.fans,
     fanSentiment: 0,
     superfans: 0,
+    brandAwareness: 0,
     era: 1,
     cumulativeRevenue: ZERO,
     trends,
@@ -822,7 +826,13 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
   (hasProject(s.completedProjects, "neuralMarketing") ? 0.25 : 0) +
   (hasProject(s.completedProjects, "gtmHype") ? 0.30 : 0) + // Go-to-Market doctrine: Hype House
-  visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype;
+  visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype + brandAwarenessHype(s);
+
+/** The bounded launch-hype contribution from the company's brand-awareness meter. 0 when the meter is
+ *  0 (absent) → folds into hypeBonus with no effect until the player invests, so the pinned sim stays
+ *  byte-identical. Reaches both the real launch and the live preview through hypeBonus. */
+export const brandAwarenessHype = (s: GameState): number =>
+  (Math.max(0, Math.min(BALANCE.brand.cap, s.brandAwareness ?? 0)) / BALANCE.brand.cap) * BALANCE.brand.hypeMax;
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
  * upgrade + channel). scoreLaunch clamps total hype too; this caps the bonus side so
@@ -1939,6 +1949,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   );
   // Superfans track the (post-decay) fanbase — 0 whenever sentiment ≤ 0, so a neutral game has none.
   const superfans = superfansFrom(fanSentiment, newFans);
+  // Brand awareness fades without reinvestment (rate-scaled to match the fan decay). 0 → 0, a no-op.
+  const brandAwareness = Math.max(0, (state.brandAwareness ?? 0) * Math.pow(BALANCE.brand.decayPerWeek, rate));
 
   // Quarterly checkpoint: a snapshot feed item every BALANCE.quartersWeeks weeks to mark
   // the end of a "fiscal quarter" — gives the player a regular moment of reflection.
@@ -1998,6 +2010,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     fans: newFans,
     fanSentiment,
     superfans,
+    brandAwareness,
     researchPoints,
     building,
     ready,
@@ -2993,6 +3006,28 @@ export function marketingPush(state: GameState, productId: string): ActionResult
     },
     ok: true,
   };
+}
+
+/** Quote a brand-awareness investment: the cost to raise the meter by up to `points` (clamped to the
+ *  cap headroom + one-step max), or null if the meter is already full. Cost scales with era. Pure. */
+export function investBrandAwarenessQuote(state: GameState, points: number): { cost: Money; points: number } | null {
+  const b = BALANCE.brand;
+  const current = Math.max(0, Math.min(b.cap, state.brandAwareness ?? 0));
+  const pts = Math.max(0, Math.min(Math.floor(points), b.maxStep, Math.floor(b.cap - current)));
+  if (pts <= 0) return null;
+  const eraMult = 1 + (Math.max(1, state.era) - 1) * b.costPerPointPerEra;
+  return { cost: cents(Math.round((b.costPerPoint as number) * eraMult * pts)), points: pts };
+}
+
+/** Invest cash in brand awareness — a standing, decaying meter that lifts every future launch's hype. */
+export function investBrandAwareness(state: GameState, points: number): ActionResult {
+  const quote = investBrandAwarenessQuote(state, points);
+  if (!quote) return { state, ok: false, reason: "Brand awareness is already at its peak." };
+  if (state.cash < quote.cost) return { state, ok: false, reason: `Need ${format(sub(quote.cost, state.cash))} more for the campaign.` };
+  const brandAwareness = Math.min(BALANCE.brand.cap, (state.brandAwareness ?? 0) + quote.points);
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Brand campaign ran — awareness now ${Math.round(brandAwareness)}/${BALANCE.brand.cap}.`, "accent"));
+  return { state: { ...state, cash: sub(state.cash, quote.cost), brandAwareness, feed: trimFeed(feed) }, ok: true };
 }
 
 /** A quote for restocking (reordering) a launched product, or null when it can't be restocked

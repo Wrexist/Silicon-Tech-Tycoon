@@ -254,6 +254,18 @@ export const BALANCE = {
     maxPerProduct: 3,
     pushFalloff: 0.55,
   },
+  // Brand awareness — a company-wide meter you invest cash into BETWEEN launches. It decays weekly, so
+  // it's a standing commitment (not a one-off), and it contributes a bounded, permanent lift to launch
+  // hype for as long as you keep it up. Gated behind spending: at 0 it's a no-op → the pinned sim
+  // (which never invests) is byte-identical.
+  brand: {
+    cap: 100,               // meter runs 0..this
+    hypeMax: 0.22,          // at a full meter, the extra launch-hype contribution (bounded by HYPE_BONUS_MAX)
+    decayPerWeek: 0.94,     // awareness fades ~6%/week without reinvestment
+    costPerPoint: dollars(2_400), // era-1 cost to raise the meter by 1 point (scaled by era below)
+    costPerPointPerEra: 0.9,      // +90% cost per era past 1 (bigger company, pricier campaigns)
+    maxStep: 25,            // one investment raises the meter by at most this many points
+  },
   // Mid-lifecycle price cuts, now repeatable (a fading product can be marked down more than once).
   // Each cut must still be below the current price and above unit cost, so the price naturally floors
   // out after a few cuts — the diminishing return is built into the mechanic, no extra falloff needed.

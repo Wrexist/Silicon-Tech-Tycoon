@@ -2,7 +2,7 @@
 // (and sometimes reputation) for a cash cost. PURE catalog.
 import { dollars, type Money } from "./money.ts";
 
-export type ChannelId = "none" | "social" | "search" | "billboards" | "influencer" | "tv" | "event";
+export type ChannelId = "none" | "social" | "search" | "billboards" | "influencer" | "tv" | "event" | "global";
 
 export interface MarketingChannel {
   id: ChannelId;
@@ -12,6 +12,9 @@ export interface MarketingChannel {
   cost: Money;
   hype: number; // added to the launch hype multiplier
   reputation: number; // one-time reputation bump on launch
+  /** Minimum era before this channel is offered in the picker (undefined/1 = always). The bigger
+   *  channels open as the company grows, so early launches aren't a wall of options. */
+  unlockEra?: number;
 }
 
 export const MARKETING_CHANNELS: MarketingChannel[] = [
@@ -19,11 +22,17 @@ export const MARKETING_CHANNELS: MarketingChannel[] = [
   { id: "social", name: "Social Media", blurb: "Cheap, modern reach.", icon: "Share2", cost: dollars(4_000), hype: 0.16, reputation: 0 },
   { id: "search", name: "Search Ads", blurb: "Catch buyers with intent.", icon: "Search", cost: dollars(9_000), hype: 0.3, reputation: 0 },
   { id: "billboards", name: "Billboards", blurb: "Big, bold, everywhere.", icon: "Megaphone", cost: dollars(15_000), hype: 0.45, reputation: 1 },
-  { id: "influencer", name: "Influencer Blitz", blurb: "Trusted voices, huge buzz.", icon: "Users", cost: dollars(20_000), hype: 0.58, reputation: 1 },
-  { id: "tv", name: "TV Commercial", blurb: "Old-school mass reach.", icon: "Tv", cost: dollars(30_000), hype: 0.72, reputation: 2 },
-  { id: "event", name: "Launch Event", blurb: "A spectacle the press can't ignore.", icon: "Sparkles", cost: dollars(45_000), hype: 0.95, reputation: 4 },
+  { id: "influencer", name: "Influencer Blitz", blurb: "Trusted voices, huge buzz.", icon: "Users", cost: dollars(20_000), hype: 0.58, reputation: 1, unlockEra: 2 },
+  { id: "tv", name: "TV Commercial", blurb: "Old-school mass reach.", icon: "Tv", cost: dollars(30_000), hype: 0.72, reputation: 2, unlockEra: 2 },
+  { id: "event", name: "Launch Event", blurb: "A spectacle the press can't ignore.", icon: "Sparkles", cost: dollars(45_000), hype: 0.95, reputation: 4, unlockEra: 3 },
+  { id: "global", name: "Global Launch", blurb: "A worldwide simultaneous reveal — the biggest stage there is.", icon: "Globe", cost: dollars(90_000), hype: 1.2, reputation: 6, unlockEra: 4 },
 ];
 
 export function channelById(id: ChannelId): MarketingChannel {
   return MARKETING_CHANNELS.find((c) => c.id === id) ?? MARKETING_CHANNELS[0];
+}
+
+/** The channels offered at a given era (the full catalog stays resolvable by id for stored picks). */
+export function channelsForEra(era: number): MarketingChannel[] {
+  return MARKETING_CHANNELS.filter((c) => (c.unlockEra ?? 1) <= era);
 }
