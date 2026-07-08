@@ -76,14 +76,20 @@ determinism (engine changes are additive / gated on optional fields).
       `isSupplierUnlocked`/`segmentById`/`mutatorById`/`OBJECTIVE_COUNT`) where removal is clean.
 
 ## PHASE 5 — Balance hardening (compounding feedback loops) 🎮 (test-gated, sim-preserving)
-- [ ] 5.1 **Ecosystem annuity compounds unbounded** over a never-pruned `launched[]` (`gameState.ts:1262`,
-      `:1385`) — O(n) tick + unbounded save + trivial late-game cash. Add a gentle installed-base
-      recency decay so old devices age out of services, bounding the aggregate. Preserve the phone-only
-      sim (tune so near-term economy is materially unchanged) + add invariant tests.
-- [ ] 5.2 **One People Lead (even skill 1) zeroes ALL burnout churn** (`gameState.ts:1618`
-      `&& !hasPeopleLead`), and the 0.82 `moodMult` floor means no output cost either — the morale
-      system is neutered for one salary. Make a People Lead *reduce* quit chance (skill-scaled), not
-      zero it. Keep the no-hr path rng-identical (determinism).
+- [x] 5.2 **One People Lead (even skill 1) zeroed ALL burnout churn** (`gameState.ts` `&& !hasPeopleLead`).
+      FIXED — a People Lead now *scales down* the weekly quit chance (skill-scaled, floored at 0.25×),
+      never to zero, so burnout keeps its teeth. The no-People-Lead path draws rng identically, so the
+      determinism pin (a solo founder) is byte-identical (824 tests green). Conservative by design: the
+      lead's mood lifts already keep a well-run team out of the danger zone, so this only bites active
+      neglect — the honest hardening, not a blind rebalance.
+- [~] 5.1 **Ecosystem annuity compounds over a never-pruned `launched[]`** — DEFERRED. It's a *designed*
+      annuity and the tick's O(n)/save growth is bounded in practice (a game ships dozens of products,
+      and New Game+ resets `launched`). A recency-decay would change the tuned services economy the
+      OS/Platform division depends on (and 4 ecosystem tests); doing it safely needs the balance harness
+      (`scripts/balance-sim.mjs`) + a playtest, not a blind decay. Logged, not changed.
+- [~] Deeper morale stakes — DEFERRED. The real reason a People Lead makes burnout painless is the
+      *mood lifts* keeping everyone above the danger threshold, plus the 0.82 output floor. Restoring
+      real stakes means retuning those magnitudes — a playtest-gated balance change, not a code fix.
 
 ## PHASE 6 — Content depth: subsystems & synergies 🎮 (data-only, additive)
 - [ ] 6.1 Only 2 of 8 categories have a signature subsystem, so cross-category design is "the same 5

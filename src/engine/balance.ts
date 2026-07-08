@@ -766,6 +766,13 @@ export const BALANCE = {
     maxTargetLift: 24,      // cap on the combined target lift (a fully-leveled lead, no runaway)
     weeklyMoodLift: 2.5,    // steady weekly mood nudge for the whole team (people ops in action)
     underpaidRelief: 0.6,   // fraction of the underpaid mood penalty a People Lead absorbs
+    // A People Lead no longer makes sustained burnout CONSEQUENCE-FREE (which, with the 0.82 output
+    // floor, removed all downside to running the team at mood 0). They now SCALE DOWN the weekly
+    // quit chance — skill-scaled retention — but never to zero, so morale keeps its teeth. In
+    // practice their mood lifts keep the team out of the danger zone anyway; this only bites when the
+    // player actively neglects the team. No lead → the full base chance (byte-identical, incl. sim).
+    quitChanceReliefPerSkill: 0.07, // each People-Lead skill point cuts the quit chance by this fraction
+    minQuitChanceMult: 0.25,        // …floored here — even a maxed lead can't fully immunize burnout
   },
 
   // --- Rival poaching (Track C) — a rival on the rise tries to HIRE AWAY one of your best, surfaced

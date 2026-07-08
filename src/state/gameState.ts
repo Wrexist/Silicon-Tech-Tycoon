@@ -1612,11 +1612,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     // (mirrors the fan-decay offline protection). At-risk staff can still quit on the next ONLINE
     // tick, giving the player a chance to intervene (e.g. a raise). `!offline` is first so the
     // active path's rng consumption is unchanged (the determinism test runs active-only).
-    // A People Lead resolves burnout before it forces anyone out: while one is employed, sustained
-    // low mood never triggers a quit. `!hasPeopleLead` is placed BEFORE rng.next() so a roster with
-    // no People Lead consumes the rng exactly as before (determinism preserved for old saves).
-    if (!offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && !hasPeopleLead && rng.next() < churnCfg.quitChancePerWeek) {
-      quitIds.push(next.id);
+    const atRisk = !offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk;
+    if (atRisk) {
+      // A People Lead SCALES DOWN the weekly quit chance (skill-scaled retention) rather than making
+      // burnout consequence-free — so neglect still has teeth. rng is drawn here in BOTH cases; the
+      // no-People-Lead path uses the full base chance and consumes rng exactly as before, so the
+      // determinism pin (a solo founder, no hr) is byte-identical.
+      const quitChance = hasPeopleLead
+        ? churnCfg.quitChancePerWeek * Math.max(hrCfg.minQuitChanceMult, 1 - peopleLeadSkill * hrCfg.quitChanceReliefPerSkill)
+        : churnCfg.quitChancePerWeek;
+      if (rng.next() < quitChance) quitIds.push(next.id);
     }
     return { ...next, skills, mood, moodLowWeeks: newLowWeeks };
   });
