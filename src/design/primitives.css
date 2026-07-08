@@ -320,7 +320,7 @@
 .ds-sheet-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(10, 12, 16, 0.4);
+  background: rgba(10, 12, 16, 0.3);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -332,14 +332,15 @@
   max-width: 540px;
   max-height: 88vh;
   overflow-y: auto;
-  /* One overlay at a time → real backdrop blur is affordable here, and it's where the
-     liquid-glass material pays off most (content slides under the sheet). */
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  backdrop-filter: saturate(170%) blur(22px);
-  -webkit-backdrop-filter: saturate(170%) blur(22px);
-  border-top: 1px solid var(--glass-stroke);
+  /* Clear liquid glass — one overlay at a time, so a real backdrop blur is affordable and the material
+     pays off (content refracts under the sheet). A touch more opaque than the small modal cards so
+     dense sheet content stays legible; the inner Cards sit on top as content backing. */
+  background: color-mix(in srgb, var(--surface) 66%, transparent);
+  backdrop-filter: saturate(185%) blur(26px);
+  -webkit-backdrop-filter: saturate(185%) blur(26px);
+  border-top: 1px solid var(--glass-modal-edge);
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
-  box-shadow: var(--glass-highlight), var(--shadow-floating);
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), var(--shadow-floating);
   padding: var(--sp-24) var(--edge) calc(var(--sp-32) + env(safe-area-inset-bottom));
   animation: ds-rise var(--spring-standard);
   /* drag-to-dismiss snaps back to here when released short of the threshold */

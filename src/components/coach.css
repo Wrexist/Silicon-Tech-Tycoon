@@ -9,12 +9,14 @@
   align-items: flex-start;
   gap: var(--sp-12);
   padding: var(--sp-12) var(--sp-12) var(--sp-12) var(--sp-16);
-  background: var(--glass);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border: 1px solid var(--hairline);
+  /* Clear liquid glass — a touch more opaque than the modals since it floats over the live game with
+     no scrim, but the same material + specular rim. */
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  backdrop-filter: saturate(185%) blur(24px);
+  -webkit-backdrop-filter: saturate(185%) blur(24px);
+  border: 1px solid var(--glass-modal-edge);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-floating);
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), var(--shadow-floating);
   animation: coach-in var(--spring-standard) both;
 }
 
