@@ -10,6 +10,8 @@ import {
   furnitureDef,
   FURNITURE,
   GRID,
+  gridN,
+  gridOrigin,
   moveItem,
   officeAttrs,
   removeItem,
@@ -108,5 +110,42 @@ describe("office shop catalog", () => {
     ];
     expect(officeAttrs(layout)).toEqual({ comfort: 5, focus: 6, inspiration: 6 });
     expect(officeAttrs([])).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
+  });
+});
+
+describe("office grid grows with the facility tier", () => {
+  it("gridN: Garage stays 9, Studio 11, Campus 13; unknown/base defaults to 9", () => {
+    expect(gridN(1)).toBe(9);   // Garage — unchanged, so existing garages never shift
+    expect(gridN(2)).toBe(11);  // Studio
+    expect(gridN(3)).toBe(13);  // Campus
+    expect(gridN()).toBe(9);    // default (back-compat for untyped callers)
+    expect(gridN(0)).toBe(9);   // pre-tier fallback
+  });
+
+  it("gridOrigin re-centres the larger grid (−half its span)", () => {
+    expect(gridOrigin(1)).toBeCloseTo(-(9 * GRID.cell) / 2, 6);
+    expect(gridOrigin(3)).toBeCloseTo(-(13 * GRID.cell) / 2, 6);
+    // a bigger grid pushes the min edge further out
+    expect(gridOrigin(3)).toBeLessThan(gridOrigin(1));
+  });
+
+  it("bounds open up at higher tiers: a cell valid on Campus is out of bounds in the Garage", () => {
+    // c=11 (a 2-wide desk → cols 11-12) fits a 13-wide Campus grid but not the 9-wide Garage.
+    expect(canPlace([], "desk", 11, 0, 0, undefined, 3)).toBe(true);
+    expect(canPlace([], "desk", 11, 0, 0, undefined, 1)).toBe(false);
+    // addItem honours the tier: the same placement is accepted on Campus, rejected in the Garage.
+    expect(addItem([], "f1", "desk", 11, 0, 0, 3)).toHaveLength(1);
+    expect(addItem([], "f1", "desk", 11, 0, 0, 1)).toHaveLength(0);
+  });
+
+  it("worldOf stays centred: the same cell maps symmetrically about the origin at each tier", () => {
+    const item: PlacedItem = { iid: "f1", type: "desk", c: 0, r: 0, rot: 0 };
+    // cell 0 sits at the grid's min edge (+ half the 2×1 footprint) — further out on a bigger grid.
+    const garage = worldOf(item, 1);
+    const campus = worldOf(item, 3);
+    expect(campus.x).toBeLessThan(garage.x); // Campus min edge is further from centre
+    // a centre-ish cell on Campus lands near world origin (the grid is centred on the room)
+    const mid = worldOf({ iid: "f2", type: "desk", c: 6, r: 6, rot: 0 }, 3);
+    expect(Math.abs(mid.x)).toBeLessThan(GRID.cell); // within one cell of centre
   });
 });

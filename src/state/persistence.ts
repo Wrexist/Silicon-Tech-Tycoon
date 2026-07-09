@@ -4,7 +4,7 @@ import { makeRng } from "../engine/rng.ts";
 import { starterFloor, MACHINE_DEFS, MACHINE_MAX_LEVEL, MAX_EXPANSION, type FactoryFloor } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, type PlacedProp } from "../engine/factoryProps.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
+import { canPlace, defaultLayout, deskItems, gridN } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
@@ -613,11 +613,12 @@ function migrate(state: GameState): GameState | null {
   if (Array.isArray(s.staff)) {
     let desks = deskItems(s.layout).length;
     let guard = 0;
+    const n = gridN(s.facilityTier); // bigger facilities have a bigger grid to seat more desks
     while (desks < s.staff.length && guard++ < 32) {
       let placed = false;
-      outer: for (let r = 0; r < GRID.n; r++) {
-        for (let c = 0; c < GRID.n; c++) {
-          if (canPlace(s.layout, "desk", c, r, 0)) {
+      outer: for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (canPlace(s.layout, "desk", c, r, 0, undefined, s.facilityTier)) {
             s.layout = [...s.layout, { iid: `f${s.furnitureCounter++}`, type: "desk", c, r, rot: 0 }];
             desks++;
             placed = true;

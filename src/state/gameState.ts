@@ -3749,16 +3749,16 @@ export function placeFurniture(state: GameState, type: FurnitureId, c: number, r
   const cost = dollars(furnitureCost(type));
   if (state.cash < cost) return state; // can't afford — no-op (the UI surfaces "Need $X")
   const iid = `f${state.furnitureCounter}`;
-  const layout = addFurniture(state.layout, iid, type, c, r, rot);
+  const layout = addFurniture(state.layout, iid, type, c, r, rot, state.facilityTier);
   if (layout === state.layout) return state; // rejected (overlap / out of bounds) — no charge
   return { ...state, cash: sub(state.cash, cost), layout, furnitureCounter: state.furnitureCounter + 1 };
 }
 export function moveFurniture(state: GameState, iid: string, c: number, r: number): GameState {
-  const layout = moveFurnitureOp(state.layout, iid, c, r);
+  const layout = moveFurnitureOp(state.layout, iid, c, r, state.facilityTier);
   return layout === state.layout ? state : { ...state, layout };
 }
 export function rotateFurniture(state: GameState, iid: string): GameState {
-  const layout = rotateFurnitureOp(state.layout, iid);
+  const layout = rotateFurnitureOp(state.layout, iid, state.facilityTier);
   return layout === state.layout ? state : { ...state, layout };
 }
 /** Sell a placed item back to the shop — removes it and refunds BALANCE.shop.resaleRate of its cost. */
@@ -3789,7 +3789,7 @@ export function duplicateFurniture(state: GameState, iid: string): GameState {
   if (state.cash < cost) return state; // can't afford
   for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [2, 0], [0, 2], [-2, 0]]) {
     const c = it.c + dc, r = it.r + dr;
-    if (canPlace(state.layout, it.type, c, r, it.rot)) {
+    if (canPlace(state.layout, it.type, c, r, it.rot, undefined, state.facilityTier)) {
       const copy: PlacedItem = { ...it, iid: `f${state.furnitureCounter}`, c, r };
       return { ...state, cash: sub(state.cash, cost), layout: [...state.layout, copy], furnitureCounter: state.furnitureCounter + 1 };
     }

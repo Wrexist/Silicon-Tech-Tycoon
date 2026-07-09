@@ -198,9 +198,22 @@ export function searchFurniture(query: string): FurnitureDef[] {
 
 // ---- Grid model ----
 // A square floor grid centred on the room. Cells are addressed by (c, r) with the item's
-// anchor at its min corner. World units: cell ≈ 0.86m.
+// anchor at its min corner. World units: cell ≈ 0.86m. `GRID.n` is the BASE (Garage) size; the grid
+// GROWS with the facility so a bigger building fits more desks + open floor (see gridN below).
 export const GRID = { n: 9, cell: 0.86 } as const;
-const ORIGIN = -(GRID.n * GRID.cell) / 2; // world coord of the grid's min edge
+
+// The office footprint scales with the facility upgrade: Garage → Studio → Campus. Only the cell
+// COUNT grows (the cell size is constant), and the grid stays centred on the room, so the whole
+// diorama scales symmetrically around the camera and existing furniture keeps its cell coordinates.
+// Indexed by facilityTier (1 Garage / 2 Studio / 3 Campus); tier 0 / unknown falls back to the base.
+const GRID_N_BY_TIER = [9, 9, 11, 13] as const;
+export function gridN(facilityTier = 1): number {
+  return GRID_N_BY_TIER[facilityTier] ?? GRID_N_BY_TIER[GRID_N_BY_TIER.length - 1];
+}
+/** World coord of the grid's min edge for a facility tier (grid stays centred → −half its span). */
+export function gridOrigin(facilityTier = 1): number {
+  return -(gridN(facilityTier) * GRID.cell) / 2;
+}
 
 export type Rot = 0 | 1 | 2 | 3;
 export interface PlacedItem {
@@ -216,8 +229,9 @@ export function footprint(def: FurnitureDef, rot: Rot): { w: number; d: number }
   return rot % 2 === 0 ? { w: def.w, d: def.d } : { w: def.d, d: def.w };
 }
 
-function inBounds(c: number, r: number, w: number, d: number): boolean {
-  return c >= 0 && r >= 0 && c + w <= GRID.n && r + d <= GRID.n;
+function inBounds(c: number, r: number, w: number, d: number, facilityTier = 1): boolean {
+  const n = gridN(facilityTier);
+  return c >= 0 && r >= 0 && c + w <= n && r + d <= n;
 }
 
 function cellsOf(item: PlacedItem): string[] {
@@ -236,10 +250,11 @@ export function canPlace(
   r: number,
   rot: Rot,
   ignore?: string,
+  facilityTier = 1,
 ): boolean {
   const def = furnitureDef(type);
   const { w, d } = footprint(def, rot);
-  if (!inBounds(c, r, w, d)) return false;
+  if (!inBounds(c, r, w, d, facilityTier)) return false;
   if (def.flat) return true; // rugs go anywhere
   const want = new Set<string>();
   for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) want.add(`${c + dc},${r + dr}`);
@@ -265,40 +280,43 @@ export function deskItems(layout: readonly PlacedItem[]): PlacedItem[] {
     .sort((a, b) => (parseInt(a.iid.slice(1), 10) || 0) - (parseInt(b.iid.slice(1), 10) || 0));
 }
 
-export function worldOf(item: PlacedItem): { x: number; z: number; rotY: number } {
+export function worldOf(item: PlacedItem, facilityTier = 1): { x: number; z: number; rotY: number } {
   const { w, d } = footprint(furnitureDef(item.type), item.rot);
+  const origin = gridOrigin(facilityTier);
   return {
-    x: ORIGIN + (item.c + w / 2) * GRID.cell,
-    z: ORIGIN + (item.r + d / 2) * GRID.cell,
+    x: origin + (item.c + w / 2) * GRID.cell,
+    z: origin + (item.r + d / 2) * GRID.cell,
     rotY: item.rot * (Math.PI / 2),
   };
 }
 
 /** Convert a world (x,z) hit point to the anchor cell that centres a w×d footprint there. */
-export function cellAt(x: number, z: number, w: number, d: number): { c: number; r: number } {
-  const c = Math.round((x - ORIGIN) / GRID.cell - w / 2);
-  const r = Math.round((z - ORIGIN) / GRID.cell - d / 2);
+export function cellAt(x: number, z: number, w: number, d: number, facilityTier = 1): { c: number; r: number } {
+  const origin = gridOrigin(facilityTier);
+  const n = gridN(facilityTier);
+  const c = Math.round((x - origin) / GRID.cell - w / 2);
+  const r = Math.round((z - origin) / GRID.cell - d / 2);
   return {
-    c: Math.max(0, Math.min(GRID.n - w, c)),
-    r: Math.max(0, Math.min(GRID.n - d, r)),
+    c: Math.max(0, Math.min(n - w, c)),
+    r: Math.max(0, Math.min(n - d, r)),
   };
 }
 
 // ---- Pure layout operations (return a NEW array, or the same if rejected) ----
-export function addItem(layout: PlacedItem[], iid: string, type: FurnitureId, c: number, r: number, rot: Rot): PlacedItem[] {
-  if (!canPlace(layout, type, c, r, rot)) return layout;
+export function addItem(layout: PlacedItem[], iid: string, type: FurnitureId, c: number, r: number, rot: Rot, facilityTier = 1): PlacedItem[] {
+  if (!canPlace(layout, type, c, r, rot, undefined, facilityTier)) return layout;
   return [...layout, { iid, type, c, r, rot }];
 }
-export function moveItem(layout: PlacedItem[], iid: string, c: number, r: number): PlacedItem[] {
+export function moveItem(layout: PlacedItem[], iid: string, c: number, r: number, facilityTier = 1): PlacedItem[] {
   const it = layout.find((x) => x.iid === iid);
-  if (!it || !canPlace(layout, it.type, c, r, it.rot, iid)) return layout;
+  if (!it || !canPlace(layout, it.type, c, r, it.rot, iid, facilityTier)) return layout;
   return layout.map((x) => (x.iid === iid ? { ...x, c, r } : x));
 }
-export function rotateItem(layout: PlacedItem[], iid: string): PlacedItem[] {
+export function rotateItem(layout: PlacedItem[], iid: string, facilityTier = 1): PlacedItem[] {
   const it = layout.find((x) => x.iid === iid);
   if (!it) return layout;
   const rot = ((it.rot + 1) % 4) as Rot;
-  if (!canPlace(layout, it.type, it.c, it.r, rot, iid)) return layout;
+  if (!canPlace(layout, it.type, it.c, it.r, rot, iid, facilityTier)) return layout;
   return layout.map((x) => (x.iid === iid ? { ...x, rot } : x));
 }
 export function removeItem(layout: PlacedItem[], iid: string): PlacedItem[] {

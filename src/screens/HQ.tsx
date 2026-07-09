@@ -28,7 +28,7 @@ import {
   footprint,
   FURNITURE,
   furnitureDef,
-  GRID,
+  gridN,
   searchFurniture,
   type FurnitureCategory,
   type FurnitureId,
@@ -502,11 +502,12 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
       return;
     }
     const def = furnitureDef(type);
-    for (let r = 0; r <= GRID.n - 1; r++) {
-      for (let c = 0; c <= GRID.n - 1; c++) {
+    const n = gridN(state.facilityTier);
+    for (let r = 0; r <= n - 1; r++) {
+      for (let c = 0; c <= n - 1; c++) {
         const fp = footprint(def, 0);
-        if (c + fp.w > GRID.n || r + fp.d > GRID.n) continue;
-        if (canPlace(state.layout, type, c, r, 0)) {
+        if (c + fp.w > n || r + fp.d > n) continue;
+        if (canPlace(state.layout, type, c, r, 0, undefined, state.facilityTier)) {
           snapshot();
           placeFurniture(type, c, r, 0);
           setSelectedIid(`f${state.furnitureCounter}`);
