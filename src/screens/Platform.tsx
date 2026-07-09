@@ -36,6 +36,7 @@ import {
   weeklyStoreCommission,
 } from "../state/gameState.ts";
 import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById, OS_PHILOSOPHIES, philosophyEffectLabel, featuredApps, appsPublishedPerWeek, securityStanding } from "../engine/platform.ts";
+import { offerTemper } from "../engine/licenseOffers.ts";
 import { format, add, toDollars, formatCount, type Money } from "../engine/money.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -49,6 +50,12 @@ const FEATURE_ICONS: Record<string, LucideIcon> = {
 const PHIL_ICONS: Record<string, LucideIcon> = { ShieldCheck, Globe, Zap, Lock };
 // Licensee relationship mood → label.
 const MOOD_LABEL: Record<string, string> = { happy: "Happy", content: "Content", strained: "Strained", "at-risk": "At risk" };
+// A suitor's bargaining temper → a short read of the negotiation odds (honest with the engine bands).
+const TEMPER_LABEL: Record<string, string> = {
+  eager: "Keen to close — a good deal to push",
+  measured: "A fair bargainer",
+  hardball: "Playing hardball — push at your peril",
+};
 
 function fmtBase(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -129,7 +136,7 @@ function OsUpdateButton({ ready, idleLabel, notReadyLabel, icon, stages, duratio
 }
 
 export function PlatformSheet({ onClose }: { onClose: () => void }) {
-  const { state, setOsName, releaseOsVersion, shipSecurityPatch, licenseOsToRival, revokeOsLicense, installOsFeature, setOsPhilosophy, signLicenseOffer, declineLicenseOffer } = useGame();
+  const { state, setOsName, releaseOsVersion, shipSecurityPatch, revokeOsLicense, installOsFeature, setOsPhilosophy, signLicenseOffer, declineLicenseOffer, negotiateLicenseOffer } = useGame();
   // The inbound contract just signed — captures the terms so the celebration survives the offer
   // clearing from state the instant it's signed.
   const [signed, setSigned] = useState<{ name: string; bonus: Money; royalty: Money; exclusive: boolean } | null>(null);
@@ -449,6 +456,9 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
               <Stat label="Signing bonus" value={format(offer.signingBonus)} tone="positive" />
               <Stat label="Royalty" value={`${format(offer.royaltyPerWeek)}/wk`} tone="positive" />
             </div>
+            <p className="plat__offer-temper">
+              <Handshake size={12} aria-hidden /> {offer.negotiated ? "You've already pushed this deal." : TEMPER_LABEL[offerTemper(offer)]}
+            </p>
             <div className="plat__offer-actions">
               <Button
                 block
@@ -459,52 +469,82 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
               >
                 Sign · {format(offer.signingBonus)}
               </Button>
-              <Button variant="tertiary" onClick={() => { declineLicenseOffer(); showToast("Walked away from the deal", { tone: "neutral" }); }}>Decline</Button>
+              <Button
+                block
+                variant="secondary"
+                disabled={!!offer.negotiated}
+                onClick={() => {
+                  const r = negotiateLicenseOffer();
+                  if (!r) return;
+                  if (r.outcome === "improved") showToast(`They sweetened it, +${format(r.bonusDelta)} upfront`, { tone: "positive" });
+                  else if (r.outcome === "walked") showToast(`${offer.rivalName} walked away from the deal`, { tone: "negative" });
+                  else showToast("They held firm, the original terms stand", { tone: "neutral" });
+                }}
+              >
+                {offer.negotiated ? "Already pushed" : "Negotiate for more"}
+              </Button>
+              <Button block variant="tertiary" onClick={() => { declineLicenseOffer(); showToast("Walked away from the deal", { tone: "neutral" }); }}>Decline</Button>
             </div>
           </Card>
         );
       })()}
 
       <Card>
-        <SectionHeader title="License your OS" accessory={licenseTotal > 0 ? `${format(licenseTotal)}/wk` : undefined} />
+        <SectionHeader title="Licensees" accessory={licenseTotal > 0 ? `${format(licenseTotal)}/wk` : undefined} />
         <p className="plat__release-note plat__release-note--muted">
-          Rivals pay a weekly fee to run {osDisplayName(state)}, but a licensee competes
-          ~+{licenseeStrengthUplift()} stronger in your shared markets. A real bet: reach vs. rivalry.
+          Rivals who ship {osDisplayName(state)} pay you a weekly royalty, but each licensee competes
+          ~+{licenseeStrengthUplift()} stronger in your shared markets. You can't enlist them at will,
+          they approach <em>you</em> with a contract once your OS is credible. Sign the deals worth taking.
         </p>
-        <ul className="plat__rivals">
-          {state.competitors.map((c) => {
-            const licensed = state.osLicensees.includes(c.id);
-            const fee = rivalLicenseFee(c.reputation, tier.tier);
-            const health = licensed ? licenseeHealthOf(state, c.id) : 0;
-            const mood = licensed ? licenseeMoodOf(state, c.id) : "happy";
-            return (
-              <li key={c.id} className={`plat__rival${licensed ? " plat__rival--on" : ""}`}>
-                <div className="plat__rival-top">
-                  <span className="plat__rival-name">{c.name}</span>
-                  <span className="plat__rival-fee tnum">{format(fee)}/wk</span>
-                  <Button
-                    size="sm"
-                    variant={licensed ? "tertiary" : "secondary"}
-                    onClick={() => {
-                      haptic.light();
-                      if (licensed) { revokeOsLicense(c.id); showToast(`${c.name} no longer licenses ${osDisplayName(state)}`, { tone: "neutral" }); }
-                      else { licenseOsToRival(c.id); showToast(`${c.name} now licenses ${osDisplayName(state)}, +${format(fee)}/wk, but stronger in your markets`, { tone: "neutral" }); }
-                    }}
-                  >
-                    {licensed ? "Revoke" : "License"}
-                  </Button>
-                </div>
-                {licensed && (
+        {state.osLicensees.length > 0 ? (
+          <ul className="plat__rivals">
+            {state.osLicensees.map((id) => {
+              const c = state.competitors.find((r) => r.id === id);
+              if (!c) return null;
+              const fee = rivalLicenseFee(c.reputation, tier.tier);
+              const health = licenseeHealthOf(state, id);
+              const mood = licenseeMoodOf(state, id);
+              const exclusive = (state.osExclusive ?? {})[id];
+              return (
+                <li key={id} className="plat__rival plat__rival--on">
+                  <div className="plat__rival-top">
+                    <span className="plat__rival-name">
+                      {c.name}
+                      {exclusive && <span className="plat__rival-excl"><Crown size={11} aria-hidden /> Exclusive</span>}
+                    </span>
+                    <span className="plat__rival-fee tnum">{format(fee)}/wk</span>
+                    <Button
+                      size="sm"
+                      variant="tertiary"
+                      onClick={() => {
+                        haptic.light();
+                        revokeOsLicense(id);
+                        showToast(`${c.name} no longer licenses ${osDisplayName(state)}`, { tone: "neutral" });
+                      }}
+                    >
+                      Revoke
+                    </Button>
+                  </div>
                   <div className="plat__rel">
                     <span className="plat__rel-bar" aria-hidden><i className={`plat__rel-fill plat__rel-fill--${mood}`} style={{ width: `${Math.round(health)}%` }} /></span>
                     <span className={`plat__rel-label plat__rel-label--${mood}`}>{MOOD_LABEL[mood]}</span>
                   </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        <p className="plat__rel-note">Licensees grow restless if you dominate them too hard. Keep them content, or push for share and risk losing the fees.</p>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="plat__licensees-empty">
+            <span className="plat__licensees-empty-glyph" aria-hidden><Handshake size={22} /></span>
+            <p className="plat__release-note plat__release-note--muted" style={{ margin: 0 }}>
+              No partners yet. Keep advancing {osDisplayName(state)} and rivals will approach you with
+              licensing contracts, a signing bonus up front plus a weekly royalty. A popup announces each one.
+            </p>
+          </div>
+        )}
+        {state.osLicensees.length > 0 && (
+          <p className="plat__rel-note">Licensees grow restless if you dominate them too hard. Keep them content, or push for share and risk losing the fees.</p>
+        )}
       </Card>
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>

@@ -5,7 +5,7 @@
 // a derived hash of (seed, week), never the main sim RNG — and fully gated behind platformUnlocked,
 // so the pinned economy is untouched. PURE.
 import { BALANCE } from "./balance.ts";
-import { dollars, scale, type Money } from "./money.ts";
+import { dollars, scale, toDollars, type Money } from "./money.ts";
 import { rivalLicenseFee } from "./platform.ts";
 import type { CategoryId } from "./types.ts";
 
@@ -15,6 +15,18 @@ export interface LicenseSuitor {
   name: string;
   reputation: number;
   category: CategoryId;
+}
+
+/** How hard a suitor bargains — derived from stable, observable traits (reputation + exclusivity), so
+ *  the hint the player sees is HONEST about the negotiation odds without revealing the exact roll. */
+export type SuitorTemper = "eager" | "measured" | "hardball";
+
+/** A suitor's negotiating temper: proud (high-reputation) or exclusivity-demanding brands play
+ *  hardball; humbler ones are eager to close. Pure, stable — the same for a given offer every time. */
+export function suitorTemper(reputation: number, exclusive: boolean): SuitorTemper {
+  if (exclusive || reputation >= 60) return "hardball";
+  if (reputation >= 40) return "measured";
+  return "eager";
 }
 
 export interface LicenseOffer {
@@ -34,6 +46,11 @@ export interface LicenseOffer {
   /** The offer lapses after this week. */
   expiresWeek: number;
   week: number;
+  /** How hard the suitor bargains — sets the negotiation odds + the hint shown to the player.
+   *  Optional/backfilled so old saves (and hand-built test offers) stay valid. */
+  temper?: SuitorTemper;
+  /** True once the player has pushed this deal — negotiation is a ONE-shot gamble per offer. */
+  negotiated?: boolean;
 }
 
 /** Tiny deterministic hash → [0,1), same recipe as side orders / reviews — never draws the sim RNG. */
@@ -89,5 +106,43 @@ export function generateLicenseOffer(
     termWeeks,
     expiresWeek: week + c.lifeWeeks,
     week,
+    temper: suitorTemper(pick.reputation, exclusive),
+    negotiated: false,
   };
+}
+
+// ---------- Negotiation: push a deal for a bigger signing bonus (a one-shot gamble) ----------
+/** The result of pushing an offer. `improved` sweetens the upfront bonus; `firm` leaves the original
+ *  terms on the table; `walked` means the suitor took offence and pulled the deal entirely. */
+export type NegotiationOutcome = "improved" | "firm" | "walked";
+
+export interface NegotiationResult {
+  outcome: NegotiationOutcome;
+  /** The resulting signing bonus (raised on `improved`, unchanged on `firm`/`walked`). */
+  signingBonus: Money;
+  /** How much the bonus grew on an `improved` result (0 otherwise) — for the reveal copy. */
+  bonusDelta: Money;
+}
+
+/** The temper an offer bargains at (falls back for old/hand-built offers with no stored temper). */
+export function offerTemper(offer: LicenseOffer): SuitorTemper {
+  return offer.temper ?? (offer.exclusive ? "hardball" : "measured");
+}
+
+/** Resolve a negotiation on an offer — DETERMINISTIC (derived hash, salt 163; never the sim RNG), so a
+ *  given offer always negotiates to the same result (no save-scum re-rolls). The suitor's temper sets
+ *  the walk / improve / hold-firm bands; a win lifts the signing bonus by `bonusMult` (capped). Pure. */
+export function negotiateLicenseOffer(seed: number, offer: LicenseOffer): NegotiationResult {
+  const n = BALANCE.platform.contract.negotiate;
+  const bands = n[offerTemper(offer)];
+  const roll = hash01(seed, offer.week, 163);
+  if (roll < bands.walk) {
+    return { outcome: "walked", signingBonus: offer.signingBonus, bonusDelta: dollars(0) };
+  }
+  if (roll < bands.walk + bands.improve) {
+    const cap = BALANCE.platform.contract.signBonusCap;
+    const raised = dollars(Math.min(cap, Math.round(toDollars(scale(offer.signingBonus, n.bonusMult)))));
+    return { outcome: "improved", signingBonus: raised, bonusDelta: dollars(Math.max(0, toDollars(raised) - toDollars(offer.signingBonus))) };
+  }
+  return { outcome: "firm", signingBonus: offer.signingBonus, bonusDelta: dollars(0) };
 }

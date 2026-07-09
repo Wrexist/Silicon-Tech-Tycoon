@@ -505,27 +505,30 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
           <planeGeometry args={[9.0, 9.0]} />
           <meshStandardMaterial color="#f4f5f8" roughness={0.95} />
         </mesh>
-        {/* low back wall (−z) cluster — hides when the camera swings behind it */}
+        {/* low back wall (−z) cluster — hides when the camera swings behind it. Both back walls were
+            centred + 8.8 long, so each ran 0.4 past their shared corner and the two overshoots crossed
+            into a "+" poking up above the join. Trim the −x end to stop AT the side wall (x = −4.0) so
+            they meet as a clean right-angle corner instead. (The open +x/+z ends stay put.) */}
         <group visible={!cull.a}>
-          <mesh position={[0, 1.25, -4.0]}>
-            <boxGeometry args={[8.8, 2.7, 0.16]} />
+          <mesh position={[0.2, 1.25, -4.0]}>
+            <boxGeometry args={[8.4, 2.7, 0.16]} />
             <meshStandardMaterial color="#eef0f3" roughness={0.96} />
           </mesh>
-          <mesh position={[0, 0.07, -3.95]}>
-            <boxGeometry args={[8.8, 0.14, 0.06]} />
+          <mesh position={[0.2, 0.07, -3.95]}>
+            <boxGeometry args={[8.4, 0.14, 0.06]} />
             <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
           </mesh>
           {/* whiteboard on the low back wall (−z), facing the room — gated (an earned upgrade) */}
           {showWhiteboard && <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />}
         </group>
-        {/* low side wall (−x) cluster */}
+        {/* low side wall (−x) cluster — its −z end likewise stops at the back wall (z = −4.0). */}
         <group visible={!cull.b}>
-          <mesh position={[-4.0, 1.25, 0]}>
-            <boxGeometry args={[0.16, 2.7, 8.8]} />
+          <mesh position={[-4.0, 1.25, 0.2]}>
+            <boxGeometry args={[0.16, 2.7, 8.4]} />
             <meshStandardMaterial color="#e8eaee" roughness={0.96} />
           </mesh>
-          <mesh position={[-3.95, 0.07, 0]}>
-            <boxGeometry args={[0.06, 0.14, 8.8]} />
+          <mesh position={[-3.95, 0.07, 0.2]}>
+            <boxGeometry args={[0.06, 0.14, 8.4]} />
             <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
           </mesh>
         </group>
@@ -890,13 +893,20 @@ const SEAT_BACK = 0.86; // chair (0.78) + seated-robot pullback (0.08) behind th
 const SEAT_LIMIT = 3.8; // beyond this the chair/robot visibly enters the walls (scaled by facility)
 // Employees sit on the desk's BACK edge facing +z — toward the camera — so the office reads as a row
 // of faces and glowing screens (the standard iso-diorama look). Only when that seat would clip a wall
-// (a desk pushed right against the back/left wall) do we flip them to the front, facing into the room.
+// (a desk pushed right against the wall it BACKS ONTO) do we flip them to the front, facing the room.
 function seatFlipped(item: PlacedItem, facilityTier = 1): boolean {
   const w = worldOf(item, facilityTier);
   const limit = SEAT_LIMIT * roomScaleFor(facilityTier); // walls scale out with the facility
-  const cx = w.x - Math.sin(w.rotY) * SEAT_BACK;
-  const cz = w.z - Math.cos(w.rotY) * SEAT_BACK;
-  return Math.abs(cx) > limit || Math.abs(cz) > limit;
+  // The chair sits SEAT_BACK behind the desk ALONG ITS FACING AXIS, and a flip moves it to the front
+  // along that SAME axis. So only the wall the seat actually backs onto can be escaped by flipping —
+  // the cross-axis position is fixed by the desk and no flip can change it. The old check tested BOTH
+  // axes (|cx| OR |cz|), so a desk merely sitting near a SIDE wall got needlessly flipped, parking its
+  // chair on the wrong side of the table. Test only the along-axis coordinate, in the seat's direction.
+  const backX = w.x - Math.sin(w.rotY) * SEAT_BACK;
+  const backZ = w.z - Math.cos(w.rotY) * SEAT_BACK;
+  return Math.abs(Math.cos(w.rotY)) > 0.5
+    ? (Math.cos(w.rotY) > 0 ? backZ < -limit : backZ > limit) // desk faces ±z → seat moves along z
+    : (Math.sin(w.rotY) > 0 ? backX < -limit : backX > limit); // desk faces ±x → seat moves along x
 }
 
 // A workstation = the player's placed desk model (which carries its own monitor) + the employee's

@@ -23,6 +23,7 @@ import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
 import { RegionalEvent } from "./components/RegionalEvent.tsx";
 import { EarningsCall } from "./components/EarningsCall.tsx";
+import { ContractOffer } from "./components/ContractOffer.tsx";
 import { ReviewPrompt } from "./components/ReviewPrompt.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
@@ -235,6 +236,7 @@ function AppShell() {
       <StaffMoment />
       <RegionalEvent />
       <EarningsCall />
+      <ContractOffer />
       <ReviewPrompt />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />

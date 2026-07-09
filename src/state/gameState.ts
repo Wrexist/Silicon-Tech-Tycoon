@@ -139,7 +139,7 @@ import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
-import { generateLicenseOffer, licenseOfferDue, type LicenseOffer, type LicenseSuitor } from "../engine/licenseOffers.ts";
+import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses } from "../engine/perks.ts";
 import type {
   Assignment,
@@ -1968,27 +1968,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (gone.length > 0) { osExclusive = { ...osExclusive }; for (const id of gone) delete osExclusive[id]; }
   }
 
-  // Inbound licensing CONTRACTS — a company approaches wanting to ship your OS (deterministic stream).
-  // Only while the division is live and the OS is credible; suitors exclude current licensees and any
-  // category already locked by an exclusive deal. The offer lapses when it expires (or its suitor
-  // signed elsewhere). Sim-safe: platformUnlocked is false in the pinned auto-player run.
+  // Inbound licensing CONTRACTS — a company approaches wanting to ship your OS. Here we only PRUNE a
+  // stale offer (expired, or its suitor signed elsewhere); a FRESH offer is raised down in the shared
+  // interrupt-budget section (it's a full-screen popup now, so it must respect the modal budget).
+  // Sim-safe: platformUnlocked is false in the pinned auto-player run, so this stays null → byte-identical.
   let pendingLicenseOffer = state.pendingLicenseOffer ?? null;
   if (pendingLicenseOffer && (week > pendingLicenseOffer.expiresWeek || osLicensees.includes(pendingLicenseOffer.rivalId))) pendingLicenseOffer = null;
-  if (!offline && state.platformUnlocked && !pendingLicenseOffer) {
-    const osTierNum = osTier(state.researched.software).tier;
-    if (licenseOfferDue(state.seed, week, osTierNum)) {
-      const lockedCats = new Set(Object.values(osExclusive));
-      const suitors: LicenseSuitor[] = competitors
-        .filter((c) => !osLicensees.includes(c.id))
-        .map((c) => ({ id: c.id, name: c.name, reputation: c.reputation, category: rivalDef(c.id)?.preferredCategories[0] ?? "phone" }))
-        .filter((s) => !lockedCats.has(s.category));
-      const offer = generateLicenseOffer(state.seed, week, osTierNum, suitors);
-      if (offer) {
-        pendingLicenseOffer = offer;
-        feed.push(feedItem(week, `${offer.rivalName} wants to ship ${osDisplayName(state)} on their ${CATEGORIES[offer.category].displayName.toLowerCase()}s${offer.exclusive ? " — exclusively" : ""}. ${format(offer.signingBonus)} to sign.`, "accent"));
-      }
-    }
-  }
 
   // Living fan community — sentiment evolves from how you've treated your audience (recent verdicts +
   // launch freshness) and modulates retention (a beloved community churns slower). Gated on having
@@ -2167,7 +2152,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const eu = BALANCE.research.eureka;
     if (
       !offline && !bankrupt && interruptQuiet &&
-      !base.pendingEureka && !base.pendingStrike && !base.pendingPoach && !base.pendingChoice &&
+      !base.pendingEureka && !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingLicenseOffer &&
       base.era >= eu.minEra &&
       base.staff.filter((s) => s.assignment === "rnd").length >= eu.minRnDStaff &&
       week - (state.lastEurekaWeek ?? -999) >= eu.cooldownWeeks &&
@@ -2192,7 +2177,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       !offline && !bankrupt && interruptQuiet &&
       state.launched.length >= 1 &&
       !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike && !base.pendingPoach &&
-      !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
+      !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingLicenseOffer &&
       week - (state.lastCommunityAskWeek ?? -999) >= ca.cooldownWeeks &&
       week - lastLaunchWeek >= ca.minWeeksSinceLaunch &&
       communityAskDue(state.seed, week)
@@ -2215,7 +2200,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       !offline && !bankrupt && interruptQuiet &&
       base.era >= g.minEra && base.staff.length >= 2 &&
       !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
-      !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
+      !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings && !base.pendingLicenseOffer &&
       week - (state.lastStaffMomentWeek ?? -999) >= g.cooldownWeeks &&
       staffMomentDue(state.seed, week)
     ) {
@@ -2255,7 +2240,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         !offline && !bankrupt && interruptQuiet &&
         base.era >= ev.minEra &&
         !base.pendingRegionalEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
-        !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
+        !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings && !base.pendingLicenseOffer &&
         week - (state.lastRegionalEventWeek ?? -999) >= ev.cooldownWeeks &&
         regionalEventDue(state.seed, week)
       ) {
@@ -2276,7 +2261,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   if (
     !offline && !bankrupt && base.listed && interruptQuiet &&
     !base.pendingEarnings && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
-    !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
+    !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingLicenseOffer &&
     week - (state.lastEarningsWeek ?? week) >= BALANCE.ipo.shareholders.quarterWeeks
   ) {
     const sh = BALANCE.ipo.shareholders;
@@ -2365,7 +2350,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       if (
         interruptQuiet &&
         !base.pendingRivalry && !base.pendingStrike && !base.pendingEureka && !base.pendingCommunityAsk &&
-        !base.pendingEarnings && !base.pendingPoach && !base.pendingChoice && !base.pendingAwards
+        !base.pendingEarnings && !base.pendingPoach && !base.pendingChoice && !base.pendingAwards && !base.pendingLicenseOffer
       ) {
         base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
         base.lastInterruptWeek = week;
@@ -2375,6 +2360,35 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);
       const doctrine = rivalDef(res.nemesis.rivalId)?.doctrine ?? "generalist";
       base.feed.push(feedItem(week, `${rival?.name ?? "Your rival"}: “${nemesisTaunt(doctrine, base.seed, week)}”`, "accent"));
+    }
+  }
+
+  // Inbound licensing CONTRACT offer — a company approaches wanting to ship your OS on their devices.
+  // It surfaces as a full-screen popup (the OS division's marquee moment), so it rides the SHARED
+  // interrupt budget: only on a quiet week with nothing else pending, and it stamps lastInterruptWeek
+  // when it fires so no other modal piles on. Deterministic cadence (derived hash, salt 91 — never the
+  // sim rng) and gated behind platformUnlocked, so the pinned solo run (locked → no offers) stays
+  // byte-identical. Suitors exclude current licensees and any exclusivity-locked category; prouder
+  // brands demand exclusivity and drive a harder bargain (see licenseOffers.ts).
+  if (
+    !offline && !bankrupt && interruptQuiet && state.platformUnlocked && !base.pendingLicenseOffer &&
+    !base.pendingEureka && !base.pendingCommunityAsk && !base.pendingStrike && !base.pendingPoach &&
+    !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
+    !base.pendingStaffMoment && !base.pendingRegionalEvent
+  ) {
+    const osTierNum = osTier(base.researched.software).tier;
+    if (licenseOfferDue(state.seed, week, osTierNum)) {
+      const lockedCats = new Set(Object.values(base.osExclusive ?? {}));
+      const suitors: LicenseSuitor[] = base.competitors
+        .filter((c) => !base.osLicensees.includes(c.id))
+        .map((c) => ({ id: c.id, name: c.name, reputation: c.reputation, category: rivalDef(c.id)?.preferredCategories[0] ?? "phone" }))
+        .filter((s) => !lockedCats.has(s.category));
+      const offer = generateLicenseOffer(state.seed, week, osTierNum, suitors);
+      if (offer) {
+        base.pendingLicenseOffer = offer;
+        base.lastInterruptWeek = week;
+        base.feed.push(feedItem(week, `${offer.rivalName} wants to ship ${osDisplayName(state)} on their ${CATEGORIES[offer.category].displayName.toLowerCase()}s${offer.exclusive ? " — exclusively" : ""}. ${format(offer.signingBonus)} to sign.`, "accent"));
+      }
     }
   }
 
@@ -2581,6 +2595,10 @@ export interface ActionResult {
   /** The recorded launch verdict (competition-adjusted, era-scaled) — the source of truth the
    *  UI must use for the launch celebration so the moment can't contradict what Market records. */
   verdict?: "hit" | "solid" | "flop" | "steady";
+  /** How a contract negotiation resolved (set only by negotiateLicenseOffer) — drives the reveal copy. */
+  negotiationOutcome?: NegotiationOutcome;
+  /** Extra signing-bonus won on an `improved` negotiation (0 otherwise). */
+  negotiationBonusDelta?: Money;
 }
 
 /** Queue a designed product for manufacturing with a production plan (run size + marketing).
@@ -3981,6 +3999,32 @@ export function signLicenseOffer(state: GameState): ActionResult {
 export function declineLicenseOffer(state: GameState): ActionResult {
   if (!state.pendingLicenseOffer) return { state, ok: false, reason: "No contract to decline." };
   return { state: { ...state, pendingLicenseOffer: null }, ok: true };
+}
+
+/** Push the inbound offer for a bigger signing bonus — a ONE-shot, deterministic gamble (engine's
+ *  resolveNegotiation, salt 163). The suitor either sweetens the bonus, holds firm (original terms
+ *  stay signable), or WALKS (the offer is pulled). No-op if there's no offer, the division isn't
+ *  unlocked, or this offer has already been negotiated. Returns the outcome for the reveal. */
+export function negotiateLicenseOffer(state: GameState): ActionResult {
+  const offer = state.pendingLicenseOffer ?? null;
+  if (!offer || !state.platformUnlocked) return { state, ok: false, reason: "No contract to negotiate." };
+  if (offer.negotiated) return { state, ok: false, reason: "You've already pushed this deal." };
+  const res = resolveNegotiation(state.seed, offer);
+  const feed = [...state.feed];
+  if (res.outcome === "walked") {
+    feed.push(feedItem(state.week, `${offer.rivalName} walked away from the ${osDisplayName(state)} deal — you pushed too hard.`, "negative"));
+    return { state: { ...state, pendingLicenseOffer: null, feed: trimFeed(feed) }, ok: true, negotiationOutcome: "walked", negotiationBonusDelta: ZERO };
+  }
+  if (res.outcome === "improved") {
+    feed.push(feedItem(state.week, `${offer.rivalName} sweetened the ${osDisplayName(state)} deal — signing bonus up to ${format(res.signingBonus)}.`, "positive"));
+    return {
+      state: { ...state, pendingLicenseOffer: { ...offer, signingBonus: res.signingBonus, negotiated: true }, feed: trimFeed(feed) },
+      ok: true, negotiationOutcome: "improved", negotiationBonusDelta: res.bonusDelta,
+    };
+  }
+  // Held firm: the original terms remain on the table; you just can't push again.
+  feed.push(feedItem(state.week, `${offer.rivalName} held firm on the ${osDisplayName(state)} deal — the original terms stand.`, "neutral"));
+  return { state: { ...state, pendingLicenseOffer: { ...offer, negotiated: true }, feed: trimFeed(feed) }, ok: true, negotiationOutcome: "firm", negotiationBonusDelta: ZERO };
 }
 
 /** License your OS to a rival: a new recurring revenue line, but it strengthens that competitor

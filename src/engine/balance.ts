@@ -873,10 +873,11 @@ export const BALANCE = {
   // services above, reframed. These constants size only the one-time OS-version-release MOMENT —
   // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
   platform: {
-    // Founding the division is a major mid-game reinvestment you SAVE UP for — a real milestone, not
-    // a free toggle. 2.5× the starting bankroll, but payback (~28wk at typical OS income) keeps it fair.
-    // Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
-    foundingCost: dollars(250_000),
+    // Founding the division is a MAJOR late-game reinvestment you save up for over many quarters — an
+    // empire milestone, not a quick mid-game unlock. 30× the starting bankroll: shipping enough product
+    // to bank this is the whole point, and once founded the OS is a grind you WORK (land contracts), not
+    // a passive faucet. Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
+    foundingCost: dollars(3_000_000),
     releaseRepBonus: 3,          // one-time reputation lift per OS version release (leaner)
     releaseFanBaseBonus: 1_000,  // base fans gained on release
     releaseFanPerKInstalled: 2,  // + fans per 1,000 devices in the installed base
@@ -892,7 +893,7 @@ export const BALANCE = {
     // signing bonus (upfront) is the real payoff, scaling with the suitor's reputation × your OS
     // tier; an EXCLUSIVE deal pays a premium bonus and a richer weekly royalty.
     contract: {
-      offerCooldownWeeks: 9,     // avg weeks between inbound offers — ~1/N chance per eligible week (probabilistic cadence, not a hard minimum)
+      offerCooldownWeeks: 18,    // avg weeks between inbound offers — deliberately RARE (a landmark event, not a treadmill); ~1/N chance per eligible week (probabilistic cadence, not a hard minimum)
       minOsTier: 2,              // suitors only come once your OS is credible (tier ≥ 2)
       lifeWeeks: 3,              // how long an offer stays on the table
       signBonusBase: 30_000,     // upfront $ base
@@ -900,6 +901,17 @@ export const BALANCE = {
       signBonusCap: 900_000,     // upfront $ hard cap
       exclusiveBonusMult: 1.9,   // exclusive deals pay this × the signing bonus…
       exclusiveRoyaltyMult: 1.4, // …and a slightly richer weekly royalty
+      // Negotiation — the player can PUSH an offer for a bigger signing bonus once. A deterministic
+      // gamble (derived hash, salt 163): the suitor either sweetens the bonus, holds firm (original
+      // terms stay), or WALKS (offer lost). A suitor's temper (from reputation + exclusivity) sets the
+      // odds — eager brands fold, proud/exclusive ones play hardball. Honest: the shown temper reflects
+      // these bands. `bonusMult` lifts the signing bonus on a win (still capped by signBonusCap).
+      negotiate: {
+        bonusMult: 1.35,                          // a won negotiation lifts the signing bonus ×this
+        eager:    { walk: 0.10, improve: 0.68 },  // keen suitors: rarely walk, usually sweeten
+        measured: { walk: 0.24, improve: 0.46 },  // fair-minded suitors: a real coin-flip
+        hardball: { walk: 0.40, improve: 0.26 },  // proud/exclusive suitors: push at your peril
+      },
     },
     // OS feature modules (engine/platform.ts OS_FEATURES) — capability customization. Each module is
     // researched (RP) and gated behind an OS version; together they make the OS a real lever:

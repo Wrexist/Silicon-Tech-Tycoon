@@ -1,0 +1,111 @@
+/* Inbound licensing contract popup — a rival wants to ship your OS; sign, negotiate, or decline. Same
+   clear liquid-glass modal frame as the community / eureka / earnings interrupts. Tokens + 8pt grid only. */
+.cof {
+  position: fixed; inset: 0; z-index: 57;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.cof__scrim {
+  position: absolute; inset: 0;
+  /* Minimal scrim — the popup card is the glass, not the surround (house rule). */
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+}
+.cof__card {
+  position: relative; z-index: 1; width: 100%; max-width: 410px; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-10);
+  padding: var(--sp-32) var(--sp-28) var(--sp-28);
+  border-radius: var(--r-sheet);
+  /* CLEAR liquid glass — a see-through pane, faintly accent-tinted, with a bright specular rim. */
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 62%), var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--accent) 40%, transparent);
+  text-align: center;
+  animation: cof-in var(--spring-gentle) both;
+}
+/* Exclusive deals wear a gold rim + glow — a prize worth weighing. */
+.cof__card--exclusive {
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--gold, #d9a824) 15%, transparent), transparent 62%), var(--glass-modal);
+  border-color: color-mix(in srgb, var(--gold, #d9a824) 34%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -16px color-mix(in srgb, var(--gold, #d9a824) 48%, transparent);
+}
+.cof__card--done {
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--positive) 14%, transparent), transparent 62%), var(--glass-modal);
+  border-color: color-mix(in srgb, var(--positive) 26%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--positive) 42%, transparent);
+}
+.cof__card--walked {
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--negative) 12%, transparent), transparent 62%), var(--glass-modal);
+  border-color: color-mix(in srgb, var(--negative) 24%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--negative) 38%, transparent);
+}
+@keyframes cof-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cof__card { animation: none; } }
+
+.cof__glyph {
+  width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent);
+  animation: cof-glyph var(--spring-bounce) both;
+}
+.cof__glyph--exclusive { background: color-mix(in srgb, var(--gold, #d9a824) 20%, transparent); color: var(--gold, #d9a824); }
+.cof__glyph--done { background: color-mix(in srgb, var(--positive) 18%, transparent); color: var(--positive); }
+.cof__glyph--walked { background: color-mix(in srgb, var(--negative) 16%, transparent); color: var(--negative); }
+@keyframes cof-glyph { from { transform: scale(0.5) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.cof__eyebrow { margin-top: var(--sp-4); font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.cof__eyebrow--exclusive { color: var(--gold, #d9a824); }
+.cof__eyebrow--done { color: var(--positive-text, var(--positive)); }
+.cof__eyebrow--walked { color: var(--negative-text, var(--negative)); }
+.cof__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
+.cof__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-2) 0 var(--sp-8); }
+
+.cof__badge {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  padding: 2px var(--sp-8); border-radius: var(--r-pill);
+  font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
+  background: color-mix(in srgb, var(--gold, #d9a824) 22%, transparent); color: var(--gold, #d9a824);
+}
+
+/* Terms — signing bonus + royalty, each a clear glass well. */
+.cof__terms { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); margin: var(--sp-4) 0 var(--sp-4); }
+.cof__term {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
+  padding: var(--sp-10) var(--sp-14); border-radius: var(--r-button);
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.cof__term-label { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2); }
+.cof__term-label svg { color: var(--ink-3); }
+.cof__term-val { font-size: var(--fs-body); font-weight: 800; }
+.cof__term-val--pos { color: var(--positive-text, var(--positive)); }
+
+/* Bargaining temper hint — honest read of the negotiation odds. */
+.cof__temper, .cof__nego {
+  display: inline-flex; align-items: center; gap: var(--sp-6); align-self: center;
+  font-size: var(--fs-caption); font-weight: 600; line-height: 1.4; margin: 0;
+}
+.cof__temper svg, .cof__nego svg { flex-shrink: 0; }
+.cof__temper--pos { color: var(--positive-text, var(--positive)); }
+.cof__temper--neutral { color: var(--ink-2); }
+.cof__temper--warn { color: var(--warning-text, var(--warning)); }
+.cof__nego--pos { color: var(--positive-text, var(--positive)); }
+.cof__nego--neutral { color: var(--ink-2); }
+
+.cof__actions { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); margin-top: var(--sp-8); }
+
+/* Signed-reveal chips. */
+.cof__chips { display: flex; flex-wrap: wrap; gap: var(--sp-12); justify-content: center; margin: var(--sp-16) 0; width: 100%; }
+.cof__chip {
+  flex: 1 1 calc(50% - var(--sp-12)); min-width: 104px; max-width: 168px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-12); border-radius: var(--r-button);
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  font-size: var(--fs-nano); color: var(--ink-3); font-weight: 600;
+}
+.cof__chip-icon { color: var(--positive); display: inline-flex; }
+.cof__chip strong { font-size: var(--fs-headline); font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+.cof__chip small { font-size: var(--fs-nano); color: var(--ink-3); }

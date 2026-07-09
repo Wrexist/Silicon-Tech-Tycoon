@@ -330,7 +330,7 @@ export function removeItem(layout: PlacedItem[], iid: string): PlacedItem[] {
 export function defaultLayout(): PlacedItem[] {
   const mk = (i: number, type: FurnitureId, c: number, r: number, rot: Rot = 0): PlacedItem => ({ iid: `f${i}`, type, c, r, rot });
   return [
-    mk(1, "desk", 3, 4, 0), // the founder's desk, centred
+    mk(1, "dualDesk", 3, 4, 0), // the founder's desk, centred — a proper dual-screen computer setup
     mk(2, "plantPot", 7, 6, 0), // a single touch of green
   ];
 }
