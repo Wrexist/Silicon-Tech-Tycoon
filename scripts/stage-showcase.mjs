@@ -27,10 +27,11 @@ for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; 
 // A fresh layout (not the starter desk) gives full control; placeFurniture no-ops on collision/OOB.
 s = { ...s, layout: [] };
 const layout = [
-  // ── Engineering: three desk bands in the back half (rows 0-7), one seat per employee. ──
-  ["executiveDesk", 0, 0], ["dualDesk", 5, 0], ["dualDesk", 9, 0],
-  ["deskL", 0, 3], ["dualDesk", 4, 3], ["dualDesk", 8, 3], ["desk", 11, 3],
-  ["dualDesk", 1, 6], ["dualDesk", 5, 6], ["desk", 9, 6],
+  // ── Engineering: three desk bands, one seat per employee. Kept OFF the back wall (rows 1/4/7, not
+  //    row 0) so every employee seats on the camera side and faces the camera — no wall-clip flips. ──
+  ["executiveDesk", 0, 1], ["dualDesk", 5, 1], ["dualDesk", 9, 1],
+  ["deskL", 0, 4], ["dualDesk", 4, 4], ["dualDesk", 8, 4], ["desk", 11, 4],
+  ["dualDesk", 1, 7], ["dualDesk", 5, 7], ["desk", 9, 7],
   // Back-wall dressing + a tech corner.
   ["neonSign", 3, 0], ["serverRack", 12, 0], ["plantTall", 12, 2],
   // ── Lounge (front-left): a sectional on a rug, coffee + TV, a bookshelf and a lamp. ──
