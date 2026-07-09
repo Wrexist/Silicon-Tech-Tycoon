@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Award, Gem, Palette, Trophy, type LucideIcon } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { AWARD_FANS_BONUS, AWARD_REP_BONUS } from "../state/gameState.ts";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
@@ -25,7 +25,7 @@ const CATEGORY_ICON: Record<AwardCategoryId, LucideIcon> = {
 };
 
 export function AwardsCeremonyOverlay() {
-  const { state, paused, setPaused, collectAwards } = useGame();
+  const { state, collectAwards } = useGame();
   const ceremony = state.pendingAwards ?? null;
   const dialogRef = useRef<HTMLDivElement>(null);
   // Serialize interrupts: the ceremony yields to the launch reveal (bus-driven, z60), a pending
@@ -40,28 +40,19 @@ export function AwardsCeremonyOverlay() {
   // flips a frame after show so the tween has a from→to to animate.
   const [revealed, setRevealed] = useState(false);
 
-  // Pause for the moment; restore the prior run state when the stage clears.
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
+  // Hold the sim for the moment; cue + reveal once when the ceremony takes the stage.
+  useHoldSim(showing);
+  const cued = useRef(false);
   useEffect(() => {
-    let raf = 0;
-    if (showing) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-        sfx("era");
-        haptic.success();
-        if ((ceremony?.playerWins ?? 0) > 0) emitCelebrate(); // a trophy came home — confetti
-        raf = requestAnimationFrame(() => setRevealed(true));
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-      setRevealed(false);
-    }
-    return () => { if (raf) cancelAnimationFrame(raf); };
-  }, [showing, paused, setPaused, ceremony]);
+    if (!showing) { cued.current = false; setRevealed(false); return; }
+    if (cued.current) return;
+    cued.current = true;
+    sfx("era");
+    haptic.success();
+    if ((ceremony?.playerWins ?? 0) > 0) emitCelebrate(); // a trophy came home — confetti
+    const raf = requestAnimationFrame(() => setRevealed(true));
+    return () => cancelAnimationFrame(raf);
+  }, [showing, ceremony]);
   useEffect(() => {
     if (!showing) return;
     return registerAppOverlay();

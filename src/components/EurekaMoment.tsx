@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Lightbulb, Landmark, FlaskConical, Sparkles, Cpu } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import type { EurekaResult } from "../state/gameState.ts";
@@ -15,7 +15,7 @@ import { sfx } from "../design/sound.ts";
 import "./eurekaMoment.css";
 
 export function EurekaMoment() {
-  const { state, paused, setPaused, resolveEureka } = useGame();
+  const { state, resolveEureka } = useGame();
   const moment = state.pendingEureka ?? null;
   const [outcome, setOutcome] = useState<EurekaResult | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -28,22 +28,15 @@ export function EurekaMoment() {
   // must survive that, so `outcome` holds the card up until Continue.
   const showing = (moment !== null || outcome !== null) && !higherUp;
 
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
+  useHoldSim(showing);
+  const cued = useRef(false);
   useEffect(() => {
-    if (showing) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-        sfx("rp");
-        haptic.medium?.();
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-    }
-  }, [showing, paused, setPaused]);
+    if (!showing) { cued.current = false; return; }
+    if (cued.current) return;
+    cued.current = true;
+    sfx("rp");
+    haptic.medium?.();
+  }, [showing]);
   useEffect(() => {
     if (!showing) return;
     return registerAppOverlay();

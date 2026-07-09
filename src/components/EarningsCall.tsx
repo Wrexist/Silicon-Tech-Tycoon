@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { TrendingUp, TrendingDown, ShieldCheck } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { companyValuation } from "../state/gameState.ts";
@@ -17,7 +17,7 @@ import { sfx } from "../design/sound.ts";
 import "./earningsCall.css";
 
 export function EarningsCall() {
-  const { state, paused, setPaused, resolveEarnings } = useGame();
+  const { state, resolveEarnings } = useGame();
   const report = state.pendingEarnings ?? null;
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -30,22 +30,16 @@ export function EarningsCall() {
     state.ready.some((p) => !readyLaunchClaimed(p.id));
   const showing = report !== null && !higherUp;
 
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
+  // Hold the sim while the call is up; cue once when it appears (re-armed when it hides).
+  useHoldSim(showing);
+  const cued = useRef(false);
   useEffect(() => {
-    if (showing) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-        sfx(report && report.beat ? "cash" : "error");
-        haptic.medium?.();
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-    }
-  }, [showing, paused, setPaused]);
+    if (!showing) { cued.current = false; return; }
+    if (cued.current) return;
+    cued.current = true;
+    sfx(report?.beat ? "cash" : "error");
+    haptic.medium?.();
+  }, [showing, report?.beat]);
   useEffect(() => {
     if (!showing) return;
     return registerAppOverlay();

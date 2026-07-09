@@ -1,6 +1,17 @@
 .device-wrap {
   display: inline-block;
   line-height: 0;
+  /* The SVG is emitted at a fixed pixel width derived from `size` × the category aspect. Landscape
+     silhouettes (laptop, monitor, console, AR) are far wider than portrait phones/tablets, so at the
+     large hero size they used to overflow their (narrow) column and spill over the card content. Cap
+     the preview to its container and let the SVG scale down proportionally — never larger than its
+     natural size, so small thumbnails are unaffected. */
+  max-width: 100%;
+}
+.device-wrap > svg,
+.device3d svg {
+  max-width: 100%;
+  height: auto;
 }
 
 /* 3D flip card (front <-> back) */
@@ -8,6 +19,7 @@
   display: inline-block;
   perspective: 1400px;
   line-height: 0;
+  max-width: 100%;
 }
 .device3d__inner {
   position: relative;

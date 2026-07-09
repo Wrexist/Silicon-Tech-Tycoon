@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Clock, Factory, Rocket, X } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button, Stat, useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { planProduction } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -20,7 +20,7 @@ import type { ChannelId } from "../engine/marketing.ts";
 import "./readyToLaunch.css";
 
 export function ReadyToLaunch() {
-  const { state, paused, setPaused } = useGame();
+  const { state } = useGame();
   const launchProduct = useLaunchProduct();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -53,22 +53,9 @@ export function ReadyToLaunch() {
     }
   }, [queue, state.ready]);
 
-  // Pause the sim while a popup is up so the world doesn't run on behind the decision; restore the
-  // player's prior run state when the queue empties (respecting a manual resume taken while open).
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
-  useEffect(() => {
-    if (queue.length > 0) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-    }
-  }, [queue.length, paused, setPaused]);
+  // Hold the sim while a popup is up so the world doesn't run on behind the decision; the sim
+  // resumes when the queue empties (ref-counted, so overlapping interrupts can't strand it).
+  useHoldSim(queue.length > 0);
 
   const currentId = queue[0];
   const product = currentId ? state.ready.find((p) => p.id === currentId) ?? null : null;

@@ -2,11 +2,13 @@
 // immediate goal (the next unmet star tier) with live progress, the stars earned so far, and a
 // closure banner on full mastery (3★) or a failed deadline. Reads the pure selector; no new state.
 import { useState } from "react";
-import { Star, Share2 } from "lucide-react";
+import { Star, Share2, Home } from "lucide-react";
 import { Button, Card, Sheet } from "../design/primitives.tsx";
 import { ResultCard } from "./ResultCard.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { scenarioResultFor } from "../state/gameState.ts";
+import { showToast } from "../design/toast.tsx";
+import { haptic } from "../design/haptics.ts";
 import { scenarioById, canEarnStars, type ScenarioMetric, type ScenarioTier } from "../engine/scenarios.ts";
 import { eraName } from "../engine/eras.ts";
 import { dollars, format, formatCount } from "../engine/money.ts";
@@ -38,8 +40,12 @@ function Stars({ n }: { n: number }) {
 }
 
 export function ScenarioTracker() {
-  const { state } = useGame();
+  const { state, homeSaved, returnHome } = useGame();
   const [cardOpen, setCardOpen] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const leave = () => {
+    if (returnHome()) { haptic.success(); showToast("Back to your company — scenario progress is saved.", { tone: "positive" }); }
+  };
   if (!state.activeScenario) return null;
   const scn = scenarioById(state.activeScenario);
   const res = scenarioResultFor(state);
@@ -104,6 +110,23 @@ export function ScenarioTracker() {
         <Button size="sm" variant="secondary" onClick={() => setCardOpen(true)}>
           <Share2 size={15} /> View result card
         </Button>
+      )}
+
+      {/* Your real company was stashed when this scenario began — leave any time to go back to it. */}
+      {homeSaved && (
+        confirmLeave ? (
+          <div className="scn-track__leave">
+            <span className="scn-track__leave-q">Leave this scenario and return to your company? Your progress here is saved.</span>
+            <div className="scn-track__leave-row">
+              <Button size="sm" variant="secondary" onClick={leave}><Home size={15} /> Return home</Button>
+              <Button size="sm" variant="tertiary" onClick={() => setConfirmLeave(false)}>Keep playing</Button>
+            </div>
+          </div>
+        ) : (
+          <Button size="sm" variant="tertiary" onClick={() => setConfirmLeave(true)}>
+            <Home size={15} /> Return to your company
+          </Button>
+        )
       )}
 
       <Sheet open={cardOpen} onClose={() => setCardOpen(false)} label="Scenario">
