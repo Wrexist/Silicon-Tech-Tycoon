@@ -505,27 +505,30 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
           <planeGeometry args={[9.0, 9.0]} />
           <meshStandardMaterial color="#f4f5f8" roughness={0.95} />
         </mesh>
-        {/* low back wall (−z) cluster — hides when the camera swings behind it */}
+        {/* low back wall (−z) cluster — hides when the camera swings behind it. Both back walls were
+            centred + 8.8 long, so each ran 0.4 past their shared corner and the two overshoots crossed
+            into a "+" poking up above the join. Trim the −x end to stop AT the side wall (x = −4.0) so
+            they meet as a clean right-angle corner instead. (The open +x/+z ends stay put.) */}
         <group visible={!cull.a}>
-          <mesh position={[0, 1.25, -4.0]}>
-            <boxGeometry args={[8.8, 2.7, 0.16]} />
+          <mesh position={[0.2, 1.25, -4.0]}>
+            <boxGeometry args={[8.4, 2.7, 0.16]} />
             <meshStandardMaterial color="#eef0f3" roughness={0.96} />
           </mesh>
-          <mesh position={[0, 0.07, -3.95]}>
-            <boxGeometry args={[8.8, 0.14, 0.06]} />
+          <mesh position={[0.2, 0.07, -3.95]}>
+            <boxGeometry args={[8.4, 0.14, 0.06]} />
             <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
           </mesh>
           {/* whiteboard on the low back wall (−z), facing the room — gated (an earned upgrade) */}
           {showWhiteboard && <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />}
         </group>
-        {/* low side wall (−x) cluster */}
+        {/* low side wall (−x) cluster — its −z end likewise stops at the back wall (z = −4.0). */}
         <group visible={!cull.b}>
-          <mesh position={[-4.0, 1.25, 0]}>
-            <boxGeometry args={[0.16, 2.7, 8.8]} />
+          <mesh position={[-4.0, 1.25, 0.2]}>
+            <boxGeometry args={[0.16, 2.7, 8.4]} />
             <meshStandardMaterial color="#e8eaee" roughness={0.96} />
           </mesh>
-          <mesh position={[-3.95, 0.07, 0]}>
-            <boxGeometry args={[0.06, 0.14, 8.8]} />
+          <mesh position={[-3.95, 0.07, 0.2]}>
+            <boxGeometry args={[0.06, 0.14, 8.4]} />
             <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
           </mesh>
         </group>
