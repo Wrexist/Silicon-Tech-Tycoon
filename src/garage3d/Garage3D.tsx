@@ -886,14 +886,18 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1 }: { colorIdx: number
 // into the wall (and an empty chair poke through it). When the seat spot lands inside the walls,
 // flip the seat to the desk's FRONT instead: the figure works facing the wall, exactly like a
 // wall-facing desk in a real office. Checked in world space so every rotation is covered.
-const SEAT_BACK = 0.86; // chair (0.78) + seated-robot pullback (0.08) behind the desk origin
-const SEAT_LIMIT = 3.8; // beyond this the chair/robot visibly enters the ±4.2 walls (base grid)
-function seatFlipped(item: PlacedItem, facilityTier = 1): boolean {
+const SEAT_BACK = 0.86; // chair (0.78) + seated-robot pullback (0.08) from the desk origin
+const SEAT_LIMIT = 3.8; // a seat must stay this far inside the room (scaled by the facility)
+// The desk model seats its user on the +z ("front") side — that's the side the monitor SCREEN faces
+// and where the keyboard sits — so an employee normally sits on the front, FACING their screen (seen
+// from behind, like a real workstation). Only when that front seat would fall off the open floor edge
+// (a desk right at the front/right lip) do we seat them on the back instead, facing into the room.
+function seatFront(item: PlacedItem, facilityTier = 1): boolean {
   const w = worldOf(item, facilityTier);
-  const limit = SEAT_LIMIT * roomScaleFor(facilityTier); // walls scale out with the facility
-  const cx = w.x - Math.sin(w.rotY) * SEAT_BACK;
-  const cz = w.z - Math.cos(w.rotY) * SEAT_BACK;
-  return Math.abs(cx) > limit || Math.abs(cz) > limit;
+  const limit = SEAT_LIMIT * roomScaleFor(facilityTier); // room scales out with the facility
+  const fx = w.x + Math.sin(w.rotY) * SEAT_BACK;
+  const fz = w.z + Math.cos(w.rotY) * SEAT_BACK;
+  return Math.abs(fx) <= limit && Math.abs(fz) <= limit;
 }
 
 // A workstation = the player's placed desk model (which carries its own monitor) + the employee's
@@ -1574,7 +1578,7 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
             {isDeskType(it.type) && (() => {
               // Use the live (drag-adjusted) cell so the chair previews on the correct side while
               // the desk is being dragged toward a wall, not only after it drops.
-              const flip = seatFlipped({ ...it, c: cell.c, r: cell.r }, facilityTier);
+              const flip = seatFront({ ...it, c: cell.c, r: cell.r }, facilityTier);
               return (
                 <group position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
                   <Chair p={p} hue={p.metalDark} />
@@ -1750,7 +1754,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         const w = worldOf(seats[i], facilityTier);
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFlipped(seats[i], facilityTier)} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFront(seats[i], facilityTier)} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
