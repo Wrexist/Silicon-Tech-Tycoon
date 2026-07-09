@@ -31,8 +31,7 @@ import { Settings } from "./screens/Settings.tsx";
 import { ProgressSheet } from "./screens/Progress.tsx";
 import { ScenariosSheet } from "./screens/Scenarios.tsx";
 import { Button, Card } from "./design/primitives.tsx";
-import { AnimatedMoney } from "./design/AnimatedNumber.tsx";
-import { format, toDollars, type Money } from "./engine/money.ts";
+import { format, toDollars } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
 import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState } from "./state/gameState.ts";
@@ -71,7 +70,7 @@ export function App() {
 }
 
 function AppShell() {
-  const { state, offline, clearOffline, tabBlocked, takeOverHere } = useGame();
+  const { state, tabBlocked, takeOverHere } = useGame();
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
@@ -242,7 +241,6 @@ function AppShell() {
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
         <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
       </Sheet>
-      {offline && <OfflineSheet weeks={offline.weeks} gain={offline.gain} topProduct={offline.topProduct} onClose={clearOffline} />}
       {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (
         <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
       )}
@@ -552,49 +550,6 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
       <div>
         <div className="onboard__step-title">{title}</div>
         <div className="onboard__step-text">{text}</div>
-      </div>
-    </div>
-  );
-}
-
-function OfflineSheet({ weeks, gain, topProduct, onClose }: { weeks: number; gain: Money; topProduct: { name: string; units: number } | null; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useDialogFocus(ref, true);
-  useEffect(() => registerAppOverlay(), []); // lower layers (Factory mode) defer Escape to this sheet
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div className="ds-sheet-scrim" onClick={onClose}>
-      <div
-        ref={ref}
-        className="ds-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="offline-title"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="ds-sheet__grab" aria-hidden />
-        <h2 className="app__sheet-title" id="offline-title">While you were away</h2>
-        <p className="app__sheet-text">
-          {weeks} {weeks === 1 ? "week" : "weeks"} passed. Your products kept selling.
-        </p>
-        <Card variant="inset" className="app__offline-card">
-          <span className="app__offline-label">Net change</span>
-          <AnimatedMoney value={gain} sign className="app__offline-value rounded" />
-        </Card>
-        {topProduct && (
-          <Card variant="inset" className="app__offline-card">
-            <span className="app__offline-label">Best seller while away</span>
-            <span className="app__offline-hero">
-              {topProduct.name}<span className="app__offline-units tnum"> · {topProduct.units.toLocaleString()} units</span>
-            </span>
-          </Card>
-        )}
-        <Button block onClick={onClose}>Continue</Button>
       </div>
     </div>
   );

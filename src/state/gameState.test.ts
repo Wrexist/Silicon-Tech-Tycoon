@@ -12,7 +12,6 @@ import {
   skipInterrupt,
   rushBuild,
   launchReady,
-  catchUpOffline,
   newGame,
   planProduction,
   recommendedRun,
@@ -343,51 +342,15 @@ describe("B4 — sellout fan-gain is bounded (no free fan-grind)", () => {
   });
 });
 
-describe("offline catch-up", () => {
-  function launched(seed: number): GameState {
-    let s = { ...newGame(seed), cash: dollars(500_000) };
-    s = startBuild(s, goodPhone(), 800, "none").state;
-    for (let i = 0; i < buildWeeksFor(s) + 1; i++) s = advanceOneWeek(s);
-    s = launchReady(s, s.ready[0].id).state;
-    // Freeze rivals so no mid-life rival-entry haircut perturbs the sales curve — this isolates the
-    // offline mechanic. Keep the roster at full size (so the "refill the field" branch never fires)
-    // but set every rival to never launch, so nothing contests the player's category.
-    return { ...s, competitors: s.competitors.map((c) => ({ ...c, nextLaunchWeek: Number.POSITIVE_INFINITY })) };
-  }
-
-  it("never skips a product's sales — offline catch-up sells through the same as active play", () => {
-    // Reference: a run played straight through actively reaches some final sell-through.
-    let active = launched(42);
-    const curveLen = active.launched[0].weeklyUnits.length;
-    for (let i = 0; i < curveLen + 2; i++) active = advanceOneWeek(active);
-    const activeSold = active.launched[0].unitsSold;
-    expect(activeSold).toBeGreaterThan(0);
-
-    // Offline path: away for the max catch-up window, then finish actively. The old fractional
-    // path advanced the curve a full week per offline tick while banking only half the units, so
-    // the skipped half was lost forever and final unitsSold ended BELOW the active run. The
-    // half-speed-time fix must make the two paths reach an identical total.
-    let off = launched(42);
-    off = { ...off, lastActive: Date.now() - BALANCE.offline.maxCatchUpWeeks * BALANCE.secondsPerTick * 1000 };
-    off = catchUpOffline(off).state;
-    for (let i = 0; i < curveLen + 2; i++) off = advanceOneWeek(off);
-    expect(off.launched[0].unitsSold).toBe(activeSold);
-  });
-
+// Offline catch-up was removed — the sim only advances while the app is open. `advanceOneWeek`'s
+// `offline` flag is retained but dormant; the staff-quit case below still exercises its `!offline`
+// guard directly, and the run-clamp test is unrelated to time.
+describe("live-play guards & run clamping", () => {
   it("clamps a production run to BALANCE.build.maxRun", () => {
     const s = { ...newGame(3), cash: dollars(50_000_000_000), sandboxUnlocked: true };
     const res = startBuild(s, goodPhone(), BALANCE.build.maxRun * 3, "none");
     expect(res.ok).toBe(true);
     expect(res.state.building[0].plannedUnits).toBeLessThanOrEqual(BALANCE.build.maxRun);
-  });
-
-  it("reschedules a stale event so none fires the instant you return", () => {
-    // Away long enough that the event schedule fell behind; events are skipped while offline, so
-    // without the reschedule `week >= nextEventWeek` would be true on the first live tick.
-    const away = BALANCE.offline.maxCatchUpWeeks * BALANCE.secondsPerTick * 1000;
-    const s: GameState = { ...newGame(42), nextEventWeek: 0, lastActive: Date.now() - away };
-    const after = catchUpOffline(s).state;
-    expect(after.nextEventWeek).toBeGreaterThan(after.week);
   });
 
   it("never lets staff quit while offline, though the same at-risk roster can quit while playing", () => {

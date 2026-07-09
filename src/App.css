@@ -224,16 +224,8 @@
   color: var(--ink-2);
   margin-bottom: var(--sp-16);
 }
-.app__offline-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--sp-16);
-  /* Glass well — a clear inset tile so the sheet's frosted material shows through it. */
-  background: var(--glass-well);
-  border: 1px solid var(--glass-well-edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
+/* Shared stat label/value tiles — retained for the IPO "You went public" screen (the "while you
+   were away" sheet that also used them was removed with offline catch-up). */
 .app__offline-label {
   font-size: var(--fs-caption);
   color: var(--ink-2);
@@ -242,17 +234,6 @@
 .app__offline-value {
   font-size: var(--fs-title);
   font-weight: 700;
-}
-.app__offline-hero {
-  font-size: var(--fs-body);
-  font-weight: 700;
-  text-align: right;
-  min-width: 0;
-}
-.app__offline-units {
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--ink-2);
 }
 .ipo__rank-first {
   display: inline-flex;

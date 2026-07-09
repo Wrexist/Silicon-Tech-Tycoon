@@ -4977,30 +4977,10 @@ export function advanceEraAction(state: GameState): GameState {
   return { ...state, era, feed: trimFeed(feed) };
 }
 
-/** Catch up on offline time: advance up to a capped number of weeks at reduced rate. */
-export function catchUpOffline(state: GameState): { state: GameState; weeks: number; gain: Money } {
-  const now = Date.now();
-  const elapsedMs = now - state.lastActive;
-  const realSecondsPerWeek = BALANCE.secondsPerTick;
-  const weeks = Math.min(
-    BALANCE.offline.maxCatchUpWeeks,
-    Math.floor(elapsedMs / 1000 / realSecondsPerWeek),
-  );
-  if (weeks <= 0) return { state: { ...state, lastActive: now }, weeks: 0, gain: ZERO };
-  const cashBefore = state.cash;
-  let s = state;
-  // Offline runs at reduced effectiveness. Simulate FEWER whole weeks at full rate rather than
-  // `weeks` weeks at a fractional rate: that keeps each launched product's finite sales curve in
-  // lockstep with the revenue it banks (the old fractional path advanced the curve a full week
-  // while collecting only half the units, permanently skipping the other half), while burn / RP /
-  // dividends / fan-decay totals stay ~unchanged — they're all per-tick rate-scaled — and
-  // weeksElapsed stays an integer index.
-  const effectiveWeeks = Math.max(1, Math.round(weeks * BALANCE.offline.rate));
-  for (let i = 0; i < effectiveWeeks; i++) s = advanceOneWeek(s, 1, true);
-  // Events are skipped while offline; if the schedule slipped into the past during catch-up, push
-  // it forward so the player isn't hit with an event the instant they return.
-  const nextEventWeek = s.nextEventWeek <= s.week ? s.week + BALANCE.events.everyWeeks : s.nextEventWeek;
-  return { state: { ...s, nextEventWeek, lastActive: now }, weeks, gain: sub(s.cash, cashBefore) };
-}
+// Offline catch-up was removed: the sim advances ONLY while the app is open and running (the weekly
+// tick). Closing or backgrounding the game freezes time; reopening resumes exactly where it stopped,
+// with no wall-clock weeks fast-forwarded and no "while you were away" recap. `advanceOneWeek`'s
+// `offline` parameter is retained but dormant (nothing passes `true` in production) — its `!offline`
+// guards still document which systems are live-play-only.
 
 export { dollars };
