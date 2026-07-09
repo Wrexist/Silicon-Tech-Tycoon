@@ -23,4 +23,13 @@ scripts/.stage.cjs
 scripts/.stage-showcase.cjs
 scripts/.sim.cjs
 scripts/.promo-stage.cjs
+scripts/.newfeat.cjs
+scripts/.livingos.cjs
+scripts/.regions.cjs
+scripts/.nemesis.cjs
+scripts/.eureka.cjs
+scripts/.glasspop.cjs
+scripts/.cma.cjs
+scripts/.ipo.cjs
 .tab-shots/
+.newfeat-shots/

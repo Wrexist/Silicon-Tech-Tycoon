@@ -1162,6 +1162,13 @@
   color: var(--positive-text, var(--positive));
   background: color-mix(in srgb, var(--positive) 12%, transparent);
 }
+/* Growth-earned upgrades (second specialty / bonus trait / team mentor) — a distinct earned look. */
+.co__tag--grown {
+  color: var(--positive-text, var(--positive));
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--positive) 26%, transparent);
+  font-weight: 700;
+}
 .co__raise-btn {
   display: inline-flex;
   align-items: center;

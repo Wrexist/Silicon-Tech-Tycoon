@@ -13,26 +13,28 @@
   position: absolute;
   inset: 0;
   border: none;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Minimal scrim — the reveal card is the glass, not the surround. */
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
 }
 .lreveal__card {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 380px;
+  max-width: 410px;
   max-height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-12);
-  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  padding: var(--sp-28) var(--sp-24) var(--sp-24);
   border-radius: var(--r-sheet);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-floating);
+  /* CLEAR liquid glass — a see-through pane with a bright specular rim. */
+  background: var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid var(--glass-modal-edge);
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5);
   text-align: center;
   animation: lreveal-pop var(--spring-standard) both;
 }
@@ -67,8 +69,10 @@
   width: 44px; height: 44px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-pill);
-  background: var(--surface-2);
-  border: none;
+  /* Glass well — a frosted disc so the close control reads as glass, not a solid chip. */
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   color: var(--ink-2);
 }
 
@@ -124,7 +128,10 @@
 .lreveal__outlet {
   display: inline-flex; align-items: center; gap: var(--sp-6);
   padding: 5px 10px; border-radius: var(--r-pill);
-  background: var(--surface-2); font-size: var(--fs-micro); font-weight: 600;
+  /* Glass well — a clear inset pill so the card's frosted material shows through it. */
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  font-size: var(--fs-micro); font-weight: 600;
 }
 .lreveal__outlet-name { color: var(--ink-2); }
 .lreveal__outlet-score { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; }

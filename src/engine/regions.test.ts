@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { REGIONS, regionById, regionTasteFit, regionReach, shippableRegions } from "./regions.ts";
+import { REGIONS, regionById, regionTasteFit, regionReach, shippableRegions, worldCoverage, regionWorldShare, regionTasteTop } from "./regions.ts";
 import { BALANCE } from "./balance.ts";
 import type { RegionId, Stats } from "./types.ts";
 
@@ -71,5 +71,31 @@ describe("regionReach", () => {
   it("can never ship to a region that isn't unlocked", () => {
     const unlocked: RegionId[] = ["home"];
     expect(regionReach(unlocked, ["home", "asia", "europe"], flat)).toBe(1.0);
+  });
+});
+
+describe("region UI helpers (worldCoverage / share / taste)", () => {
+  it("worldCoverage climbs from a home-only slice to 100% when every market is open", () => {
+    const homeOnly = worldCoverage(["home"]);
+    expect(homeOnly).toBeGreaterThan(0);
+    expect(homeOnly).toBeLessThan(1);
+    const all = worldCoverage(REGIONS.map((r) => r.id));
+    expect(all).toBeCloseTo(1, 6);
+    // Opening another market strictly increases coverage.
+    expect(worldCoverage(["home", "asia"])).toBeGreaterThan(homeOnly);
+  });
+
+  it("regionWorldShare is each region's slice of the world and sums to 1", () => {
+    const sum = REGIONS.reduce((a, r) => a + regionWorldShare(r), 0);
+    expect(sum).toBeCloseTo(1, 6);
+    // Asia is the largest single market in the catalog.
+    expect(regionWorldShare(regionById("asia")!)).toBeGreaterThan(regionWorldShare(regionById("europe")!));
+  });
+
+  it("regionTasteTop names what a market values (empty for flat Home)", () => {
+    expect(regionTasteTop(regionById("home")!)).toEqual([]);
+    // Europe rewards quality + design (its two heaviest weights).
+    expect(new Set(regionTasteTop(regionById("europe")!, 2))).toEqual(new Set(["quality", "design"]));
+    expect(regionTasteTop(regionById("north_america")!, 1)).toEqual(["performance"]);
   });
 });

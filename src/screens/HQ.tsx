@@ -1,8 +1,8 @@
 import {
-  ArrowUp, Building2, Check, ChevronRight, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
+  ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, type LucideIcon,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -19,7 +19,7 @@ import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
-import { dollars, format, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
+import { dollars, format, formatCount, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
   furnitureCost,
@@ -28,7 +28,7 @@ import {
   footprint,
   FURNITURE,
   furnitureDef,
-  GRID,
+  gridN,
   searchFurniture,
   type FurnitureCategory,
   type FurnitureId,
@@ -52,7 +52,8 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, type FeedItem, type GameState } from "../state/gameState.ts";
+import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -101,7 +102,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
 export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
-  const { state, advanceEra, goPublic, resolveChoice, resolvePoach } = useGame();
+  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
@@ -193,7 +194,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
         {state.era < maxEra()
           ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
-          : <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
+          : <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
       </div>
       {(() => {
         const wkRev = nextWeekRevenue(state);
@@ -213,6 +214,14 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* The persistent "Next Move" guidance — takes over once the first-build Coach hands off, so
           the player always has one concrete next step (see engine/objectives.ts). */}
       {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}
+
+      {/* Rolling contract board — live, regenerating goals that give the endgame a directed chase
+          (engine/contracts.ts). Appears once you've shipped; each pays a claimable reward. */}
+      {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
+
+      {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
+          shipped, when the community has an opinion to have. */}
+      {state.launched.length >= 1 && <CommunityCard state={state} />}
 
       {/* Player-choice event card — requires a decision before advancing */}
       {state.pendingChoice && (
@@ -493,11 +502,12 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
       return;
     }
     const def = furnitureDef(type);
-    for (let r = 0; r <= GRID.n - 1; r++) {
-      for (let c = 0; c <= GRID.n - 1; c++) {
+    const n = gridN(state.facilityTier);
+    for (let r = 0; r <= n - 1; r++) {
+      for (let c = 0; c <= n - 1; c++) {
         const fp = footprint(def, 0);
-        if (c + fp.w > GRID.n || r + fp.d > GRID.n) continue;
-        if (canPlace(state.layout, type, c, r, 0)) {
+        if (c + fp.w > n || r + fp.d > n) continue;
+        if (canPlace(state.layout, type, c, r, 0, undefined, state.facilityTier)) {
           snapshot();
           placeFurniture(type, c, r, 0);
           setSelectedIid(`f${state.furnitureCounter}`);
@@ -800,6 +810,13 @@ function Upgrades() {
                   emitHighlight(line.id);
                   showToast(`${line.name}, ${OFFICE_ADDITION[line.id]}`, { tone: "neutral", glyph: <Icon size={15} /> });
                 } : undefined}
+                onKeyDown={cur > 0 ? (e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.preventDefault();
+                  haptic.light();
+                  emitHighlight(line.id);
+                  showToast(`${line.name}, ${OFFICE_ADDITION[line.id]}`, { tone: "neutral", glyph: <Icon size={15} /> });
+                } : undefined}
                 role={cur > 0 ? "button" : undefined}
                 tabIndex={cur > 0 ? 0 : undefined}
               >
@@ -947,6 +964,90 @@ function NextMoveCard({ state, onNavigate }: { state: GameState; onNavigate: (t:
       </div>
     </Card>
   );
+}
+
+/** The rolling contract board — 2–3 live directed goals with delta progress + a claimable reward.
+ *  Regenerates as goals are claimed or expire (the tick keeps the board full); the engine caps targets
+ *  ahead of the player's current standing, so there's always a fresh chase (engine/contracts.ts). */
+function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: string) => void }) {
+  const contracts = state.contracts ?? [];
+  if (contracts.length === 0) return null;
+  const facts = contractFacts(state);
+  return (
+    <Card className="hq__contracts">
+      <div className="hq__contracts-head">
+        <span className="hq__contracts-glyph" aria-hidden><ClipboardList size={18} /></span>
+        <div className="hq__contracts-titles">
+          <span className="hq__contracts-eyebrow">Contracts</span>
+          <span className="hq__contracts-label">Live goals · claim each reward</span>
+        </div>
+      </div>
+      <ul className="hq__contracts-list">
+        {contracts.map((c) => {
+          const p = contractProgress(c, facts);
+          return (
+            <li key={c.id} className={`hq__contract${p.done ? " hq__contract--done" : ""}`}>
+              <div className="hq__contract-top">
+                <span className="hq__contract-title">{c.title}</span>
+                <span className="hq__contract-reward tnum">{rewardSummary(c.reward)}</span>
+              </div>
+              <div className="hq__contract-bar" aria-hidden>
+                <div className="hq__contract-fill" style={{ width: `${Math.round(p.frac * 100)}%` }} />
+              </div>
+              {p.done ? (
+                <Button size="sm" block onClick={() => onClaim(c.id)}>
+                  <Check size={14} /> Claim reward
+                </Button>
+              ) : (
+                <span className="hq__contract-remaining tnum">{contractRemaining(c, facts)}</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
+/** The living fan community — mood thermometer + superfans + a rotating community-moment line. */
+function CommunityCard({ state }: { state: GameState }) {
+  const c = communitySnapshot(state);
+  const meterPct = Math.round(((c.sentiment + 1) / 2) * 100); // −1..+1 → 0..100 on the thermometer
+  return (
+    <Card className={`hq__community hq__community--${c.tier}`}>
+      <div className="hq__community-head">
+        <span className="hq__community-glyph" aria-hidden><Heart size={18} /></span>
+        <div className="hq__community-titles">
+          <span className="hq__community-eyebrow">Fan community</span>
+          <span className="hq__community-label">{formatCount(state.fans)} fans · {c.label}</span>
+        </div>
+        {c.superfans > 0 && (
+          <span className="hq__community-superfans" title="Your most loyal fans — they pre-order hardest">
+            <Flame size={12} aria-hidden /> {formatCount(c.superfans)}
+          </span>
+        )}
+      </div>
+      <div className="hq__community-meter">
+        <div className="hq__community-track" role="progressbar" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(c.sentiment * 100)} aria-label="Community mood">
+          <span className="hq__community-thumb" style={{ left: `${meterPct}%` }} />
+        </div>
+        <div className="hq__community-scale"><span>Restless</span><span>Devoted</span></div>
+      </div>
+      <p className="hq__community-moment"><Sparkles size={12} aria-hidden /> {c.moment}</p>
+    </Card>
+  );
+}
+
+/** A short "to go" line for an in-progress contract (delta from where you are to the target). Pure. */
+function contractRemaining(c: Contract, f: ContractFacts): string {
+  const cur = contractValue(f, c.metric);
+  switch (c.metric) {
+    case "revenue": return `${formatShortDollars(Math.max(0, c.target - cur))} to go`;
+    case "fans": return `${formatCount(Math.max(0, c.target - cur))} fans to go`;
+    case "ships": return `${Math.max(0, c.target - cur)} more to ship`;
+    case "hits": { const n = Math.max(0, c.target - cur); return `${n} hit${n === 1 ? "" : "s"} to go`; }
+    case "rank": return `#${Math.round(cur)} → #${c.target}`;
+  }
 }
 
 /** Compact card showing what's needed to advance to the next era (or reach IPO). */

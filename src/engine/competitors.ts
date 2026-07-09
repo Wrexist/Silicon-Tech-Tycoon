@@ -254,6 +254,10 @@ export function advanceCompetitors(
   era: number,
   rng: Rng,
   recentPlayerHitCats?: readonly CategoryId[],
+  /** The arch-rival's launch edge: while set (and only for that one rival), it biases its launch
+   *  toward the player's top category and adds a heat-scaled strength bonus. Undefined for every rival
+   *  when the player has no nemesis — so the pinned sim, which never forms one, is byte-identical. */
+  nemesisEdge?: { rivalId: string; topCat: CategoryId; turfWeight: number; strengthBonus: number },
 ): { competitors: CompetitorState[]; launches: CompetitorLaunch[]; arcBeats: ArcBeat[] } {
   const launches: CompetitorLaunch[] = [];
   const arcBeats: ArcBeat[] = [];
@@ -281,10 +285,13 @@ export function advanceCompetitors(
 
       // Weighted category selection: preferred categories appear preferredCategoryWeight times; a
       // trend-chaser ALSO piles extra weight onto the player's hot categories (it crowds your wins).
+      const isNemesis = nemesisEdge?.rivalId === c.id;
       const weightedCats: CategoryId[] = [];
       for (const cat of cats) {
         let w = def && (def.preferredCategories as readonly string[]).includes(cat) ? bal.preferredCategoryWeight : 1;
         if (doctrine === "trendChaser" && hot.includes(cat)) w += bal.doctrineTargetWeight;
+        // The arch-rival hunts your turf: extra weight toward the player's strongest category.
+        if (isNemesis && cat === nemesisEdge!.topCat) w += nemesisEdge!.turfWeight;
         for (let i = 0; i < w; i++) weightedCats.push(cat);
       }
       const cat = weightedCats[rng.int(weightedCats.length)];
@@ -309,6 +316,9 @@ export function advanceCompetitors(
       // Durable competition (P3): late eras add a flat strength bump so rivals reach genuine
       // contesting range against a maxed player (the formula otherwise tops out below the cap).
       strength += bal.lateStrengthByEra[eraIdx];
+      // The arch-rival brings a heat-scaled edge to the fight — added PRE-cap, so a bitter rivalry
+      // makes them genuinely tougher without ever breaching the winnability ceiling below.
+      if (isNemesis) strength += nemesisEdge!.strengthBonus;
       // The winnability ceiling applies to EVERY launch, not just defenders — structural, so a future
       // baseStrength/preferredStrengthBonus bump can't silently break the documented cap.
       strength = Math.min(maxStrength, strength);

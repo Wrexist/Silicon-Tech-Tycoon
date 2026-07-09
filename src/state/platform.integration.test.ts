@@ -26,6 +26,13 @@ import {
   foundPlatform,
   canFoundPlatform,
   platformFoundingCost,
+  shipSecurityPatch,
+  platformAppCount,
+  appStoreOpen,
+  osThreatLevel,
+  osSecurityRating,
+  canShipSecurityPatch,
+  weeklyStoreCommission,
   type GameState,
 } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -253,6 +260,70 @@ describe("OS feature modules (state)", () => {
     const after = advanceOneWeek(g);
     expect(after.osBaseHistory.length).toBe(1);
     expect(after.osBaseHistory[0]).toBeGreaterThanOrEqual(12_345); // ≥ this week's installed base
+  });
+});
+
+describe("Living App Store (state + tick)", () => {
+  it("stays closed until the App Marketplace module ships, then the catalogue grows", () => {
+    const sold = [soldPhone(50, 5_000_000)];
+    const dormant = unlockPlatform({ ...newGame(7), launched: sold, osVersion: 3, researchPoints: 9999 } as GameState, true);
+    expect(appStoreOpen(dormant)).toBe(false);
+    const open = installOsFeature(dormant, "appMarket");
+    expect(appStoreOpen(open)).toBe(true);
+    // A tick on the OPEN store publishes far more apps than the dormant trickle.
+    expect(platformAppCount(advanceOneWeek(open))).toBeGreaterThan(platformAppCount(advanceOneWeek(dormant)));
+  });
+
+  it("store commission is bounded, gated on the division, and folds into weekly ecosystem revenue", () => {
+    const many = unlockPlatform({ ...newGame(1), osApps: 10_000 } as GameState, true);
+    expect(toDollars(weeklyStoreCommission(many))).toBeGreaterThan(0);
+    // Locked game earns nothing from a (stale) app count → sim-safe.
+    expect(weeklyStoreCommission({ ...newGame(1), osApps: 10_000 })).toBe(ZERO);
+    // The commission is part of the headline ecosystem-revenue figure.
+    const noStore = { ...many, osApps: 0 } as GameState;
+    expect(toDollars(weeklyEcosystemRevenue(many))).toBeGreaterThan(toDollars(weeklyEcosystemRevenue(noStore)));
+  });
+});
+
+describe("OS security (state + tick)", () => {
+  it("shipping a patch clears threat, hardens, and then sits on cooldown", () => {
+    const g = unlockPlatform({ ...newGame(7), osThreat: 40, osSecurity: 0, week: 20 } as GameState, true);
+    const res = shipSecurityPatch(g);
+    expect(res.ok).toBe(true);
+    expect(osThreatLevel(res.state)).toBeLessThan(40);                                   // threat patched down
+    expect(osSecurityRating(res.state)).toBe(BALANCE.platform.security.patchSecurityGain); // hardened
+    expect(res.state.lastPatchWeek).toBe(20);
+    expect(canShipSecurityPatch(res.state)).toBe(false);   // cooldown
+    expect(shipSecurityPatch(res.state).ok).toBe(false);
+    expect(shipSecurityPatch(newGame(1)).ok).toBe(false);  // locked → no-op
+  });
+
+  it("threat rises in live play but never while offline", () => {
+    const sold = [soldPhone(50, 20_000_000)];
+    const g = unlockPlatform({ ...newGame(7), launched: sold, osThreat: 0, osSecurity: 0 } as GameState, true);
+    expect(osThreatLevel(advanceOneWeek(g))).toBeGreaterThan(0);       // climbs live
+    expect(osThreatLevel(advanceOneWeek(g, 0.5, true))).toBe(0);       // untouched while away
+  });
+
+  it("over-exposure drags reputation in live play", () => {
+    const sold = [soldPhone(50, 20_000_000)];
+    const exposed = unlockPlatform({ ...newGame(7), launched: sold, osThreat: 95, osSecurity: 0, reputation: 60, era: 1 } as GameState, true);
+    expect(advanceOneWeek(exposed).reputation).toBeLessThan(60);
+  });
+
+  it("a full OS version release wipes threat and hardens more than a single patch", () => {
+    const g = unlockPlatform({ ...newGame(1), researched: { software: 3 }, osVersion: 1, osThreat: 80, osSecurity: 10 } as GameState, true);
+    const after = releaseOsVersion(g);
+    expect(osThreatLevel(after)).toBe(0);
+    expect(osSecurityRating(after)).toBe(10 + BALANCE.platform.security.releaseSecurityGain);
+    expect(after.lastPatchWeek).toBe(g.week);
+  });
+
+  it("a locked (base-game) tick never accrues apps, threat or security — determinism preserved", () => {
+    const locked = advanceOneWeek({ ...newGame(7), platformUnlocked: false });
+    expect(locked.osApps ?? 0).toBe(0);
+    expect(locked.osThreat ?? 0).toBe(0);
+    expect(locked.osSecurity ?? 0).toBe(0);
   });
 });
 

@@ -115,6 +115,7 @@ export function SalesCurveChart({
   width?: number;
   height?: number;
 }) {
+  if (weekly.length === 0) return null; // no curve to draw — guards barW = width/0 → Infinity/blank SVG
   const max = Math.max(...weekly, 1);
   const barW = width / weekly.length;
   return (

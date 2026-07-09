@@ -3,6 +3,7 @@
 import { Component, Suspense, lazy, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
+import { PartyPopper, Sparkles, Star, ThumbsUp, Rocket, Frown, CloudRain, BatteryLow, Meh, ThumbsDown } from "lucide-react";
 import * as THREE from "three";
 import { moodBand, type MoodBand } from "../engine/staff.ts";
 import type { Staff } from "../engine/types.ts";
@@ -14,6 +15,8 @@ import {
   footprint,
   furnitureDef,
   GRID,
+  gridN,
+  gridOrigin,
   isDeskType,
   worldOf,
   type FurnitureId,
@@ -41,7 +44,10 @@ function Pulse({ feature, children }: { feature: UpgradeId; children: ReactNode 
 type Upgrades = Partial<Record<UpgradeId, number>>;
 const tierOf = (u: Upgrades, id: UpgradeId) => u[id] ?? 0;
 
-const GRID_ORIGIN = -(GRID.n * GRID.cell) / 2;
+// The office footprint scales with the facility tier (bigger building = more desks + open floor).
+// The room shell + its fixtures render inside a group scaled by this factor, while the furniture
+// grid uses the tier-aware worldOf/gridOrigin so desks fill the larger CENTRED grid at real size.
+const roomScaleFor = (facilityTier: number) => gridN(facilityTier) / GRID.n;
 
 // The room's floor footprint. Sized to the walls (which sit at ±4.2) so the floor ends AT the
 // room instead of sprawling far past it — an oversized 18×18 floor was why furniture/desks near
@@ -119,7 +125,7 @@ let camZoomOffset = 0;
 function getCamZoom(): number { return camZoomOffset; }
 function setCamZoom(v: number): void { camZoomOffset = Math.max(CAM_ZOOM_MIN, Math.min(CAM_ZOOM_MAX, v)); }
 
-function CameraRig({ build = false }: { build?: boolean }) {
+function CameraRig({ build = false, facilityTier = 1 }: { build?: boolean; facilityTier?: number }) {
   const { camera, pointer } = useThree();
   const target = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
   const keys = useRef<Set<string>>(new Set());
@@ -178,8 +184,9 @@ function CameraRig({ build = false }: { build?: boolean }) {
     const ty = build ? 0.5 : 0.7;
 
     // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
-    // and W/S dollies in/out, while pointer parallax + smoothing are preserved.
-    const baseR = Math.hypot(px, pz);
+    // and W/S dollies in/out, while pointer parallax + smoothing are preserved. The radius scales
+    // with the facility so a bigger office (Studio/Campus) is framed whole, not cropped.
+    const baseR = Math.hypot(px, pz) * roomScaleFor(facilityTier);
     const r = Math.max(4, baseR + getCamZoom());
     const ang = Math.atan2(px, pz) + o.yaw;
     const desiredX = Math.sin(ang) * r + pointer.x * (build ? 0.5 : 1.3);
@@ -880,12 +887,16 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1 }: { colorIdx: number
 // flip the seat to the desk's FRONT instead: the figure works facing the wall, exactly like a
 // wall-facing desk in a real office. Checked in world space so every rotation is covered.
 const SEAT_BACK = 0.86; // chair (0.78) + seated-robot pullback (0.08) behind the desk origin
-const SEAT_LIMIT = 3.8; // beyond this the chair/robot visibly enters the ±4.2 walls
-function seatFlipped(item: PlacedItem): boolean {
-  const w = worldOf(item);
+const SEAT_LIMIT = 3.8; // beyond this the chair/robot visibly enters the walls (scaled by facility)
+// Employees sit on the desk's BACK edge facing +z — toward the camera — so the office reads as a row
+// of faces and glowing screens (the standard iso-diorama look). Only when that seat would clip a wall
+// (a desk pushed right against the back/left wall) do we flip them to the front, facing into the room.
+function seatFlipped(item: PlacedItem, facilityTier = 1): boolean {
+  const w = worldOf(item, facilityTier);
+  const limit = SEAT_LIMIT * roomScaleFor(facilityTier); // walls scale out with the facility
   const cx = w.x - Math.sin(w.rotY) * SEAT_BACK;
   const cz = w.z - Math.cos(w.rotY) * SEAT_BACK;
-  return Math.abs(cx) > SEAT_LIMIT || Math.abs(cz) > SEAT_LIMIT;
+  return Math.abs(cx) > limit || Math.abs(cz) > limit;
 }
 
 // A workstation = the player's placed desk model (which carries its own monitor) + the employee's
@@ -930,14 +941,17 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   return (
     <group>
-      {/* The player's ACTUAL placed desk model (each desk model carries its own monitor), drawn
-          through the SAME FurniturePiece + transform the Decorate editor uses, so an occupied desk
-          looks identical in the live office and in edit mode. A standing desk stays a standing desk,
-          an L-desk stays an L-desk, etc. The seated robot + chair are layered on behind it. */}
-      <FurniturePiece type={deskType} p={p} />
-      {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
-          their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}
-      {staff && deskType === "desk" && <DeskClutter seed={seed} p={p} />}
+      {/* The player's ACTUAL placed desk model (each desk model carries its own monitor). The desk
+          model seats its user on the +z side (screen faces +z, keyboard at the front), so we rotate
+          it to FACE the seated employee: when they sit on the back edge (facing the camera) the desk
+          turns 180° so the monitor faces them and the keyboard is nearest them — a correctly-oriented
+          workstation, not one facing backwards. Matches whichever side the employee occupies. */}
+      <group rotation-y={flip ? 0 : Math.PI}>
+        <FurniturePiece type={deskType} p={p} />
+        {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
+            their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}
+        {staff && deskType === "desk" && <DeskClutter seed={seed} p={p} />}
+      </group>
       {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
           back so it rests against the backrest, facing the desk (+z, toward the camera). The
           parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
@@ -1020,18 +1034,25 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
 const LABEL_BG = "rgba(255,255,255,0.94)";
 const LABEL_INK = "#1a1d23";
 const LABEL_INK_SOFT = "#6b7280";
-// Team reaction emotes that pop over a worker's head — a burst on a win, a sigh on a flop.
-const CHEER_EMOJI = ["🎉", "🙌", "✨", "🥳", "🚀"];
-const SLUMP_EMOJI = ["😞", "😔", "😮‍💨", "💤", "🫠"];
-function CheerEmote({ pos, emoji, delay = 0 }: { pos: [number, number, number]; emoji: string; delay?: number }) {
+// Team reaction emotes that pop over a worker's head — a burst on a win, a sigh on a flop. Premium,
+// Lucide-only (the app forbids emoji): a small white chip with a tinted glyph, matching the OfficeLabel
+// pill aesthetic. Colours are scene-constant (like the label pill) so they read in both app themes.
+const CHEER_ICONS = [PartyPopper, Sparkles, Star, ThumbsUp, Rocket];
+const SLUMP_ICONS = [Frown, CloudRain, BatteryLow, Meh, ThumbsDown];
+const CHEER_TINT = "#34c759"; // positive green (matches the Bank dot)
+const SLUMP_TINT = "#64748b"; // muted slate — a quiet sigh, never alarming
+function CheerEmote({ pos, Icon, tone, delay = 0 }: { pos: [number, number, number]; Icon: typeof PartyPopper; tone: "cheer" | "slump"; delay?: number }) {
   return (
     <Html position={pos} center zIndexRange={[30, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
       <div style={{
-        fontSize: 30,
+        display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 999,
+        background: LABEL_BG, color: tone === "cheer" ? CHEER_TINT : SLUMP_TINT,
+        boxShadow: "0 2px 8px rgba(40,60,90,0.28)",
         transform: "translateY(-150%)",   // base spot (used when reduced-motion neutralizes the pop)
-        filter: "drop-shadow(0 3px 7px rgba(0,0,0,0.5))",
         animation: `hq-emote-pop 2s ${delay}ms ease-out both`,
-      }}>{emoji}</div>
+      }}>
+        <Icon size={17} strokeWidth={2.5} aria-hidden />
+      </div>
     </Html>
   );
 }
@@ -1487,11 +1508,13 @@ function TestChamber({ p }: { p: RoomPalette }) {
 // ---- Office builder: furniture + drag-to-move interaction ----
 // Press a piece and drag it across the floor; it follows your finger, snaps to the grid, and
 // drops where you release (green ghost = valid, red = blocked). Tap the palette → tap to place.
-function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIids?: ReadonlySet<string> }) {
+function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: BuildProps; hideIids?: ReadonlySet<string>; facilityTier?: number }) {
   const [dragIid, setDragIid] = useState<string | null>(null);
   const [dragCell, setDragCell] = useState<{ c: number; r: number } | null>(null);
   const [hover, setHover] = useState<{ c: number; r: number } | null>(null);
-  const size = GRID.n * GRID.cell;
+  const n = gridN(facilityTier);
+  const origin = gridOrigin(facilityTier);
+  const size = n * GRID.cell;
   const placeDef = b.placingType ? furnitureDef(b.placingType) : null;
   const placeFp = placeDef ? footprint(placeDef, b.placeRot) : null;
 
@@ -1515,8 +1538,8 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
     return () => window.removeEventListener("pointerup", up);
   }, []);
 
-  const placeOk = hover && b.placingType ? canPlace(b.layout, b.placingType, hover.c, hover.r, b.placeRot) : false;
-  const dragOk = dragCell && dragItem ? canPlace(b.layout, dragItem.type, dragCell.c, dragCell.r, dragItem.rot, dragItem.iid) : false;
+  const placeOk = hover && b.placingType ? canPlace(b.layout, b.placingType, hover.c, hover.r, b.placeRot, undefined, facilityTier) : false;
+  const dragOk = dragCell && dragItem ? canPlace(b.layout, dragItem.type, dragCell.c, dragCell.r, dragItem.rot, dragItem.iid, facilityTier) : false;
   // Feed the live drag target + validity to the window pointer-up handler (which fires outside React's
   // event system), so a blocked drop snaps home instead of committing.
   live.current = { iid: dragIid, cell: dragCell, ok: dragOk, move: b.onMoveItem };
@@ -1528,7 +1551,7 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
         if (hideIids?.has(it.iid)) return null; // occupied desk → live workstation renders instead
         const isDrag = it.iid === dragIid;
         const cell = isDrag && dragCell ? dragCell : { c: it.c, r: it.r };
-        const { x, z, rotY } = worldOf({ ...it, c: cell.c, r: cell.r });
+        const { x, z, rotY } = worldOf({ ...it, c: cell.c, r: cell.r }, facilityTier);
         const def = furnitureDef(it.type);
         const selected = b.build && b.selectedIid === it.iid;
         return (
@@ -1557,7 +1580,7 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
             {isDeskType(it.type) && (() => {
               // Use the live (drag-adjusted) cell so the chair previews on the correct side while
               // the desk is being dragged toward a wall, not only after it drops.
-              const flip = seatFlipped({ ...it, c: cell.c, r: cell.r });
+              const flip = seatFlipped({ ...it, c: cell.c, r: cell.r }, facilityTier);
               return (
                 <group position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
                   <Chair p={p} hue={p.metalDark} />
@@ -1576,27 +1599,27 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
 
       {b.build && (
         <>
-          <gridHelper args={[size, GRID.n, "#7fa8ff", "#465065"]} position={[0, 0.02, 0]} />
+          <gridHelper args={[size, n, "#7fa8ff", "#465065"]} position={[0, 0.02, 0]} />
           {/* invisible floor — drives drag tracking, placement + deselect */}
           <mesh
             rotation-x={-Math.PI / 2}
             position={[0, 0.015, 0]}
             onPointerMove={(e: ThreeEvent<PointerEvent>) => {
               if (dragIid && dragFp) {
-                const c = cellAt(e.point.x, e.point.z, dragFp.w, dragFp.d);
+                const c = cellAt(e.point.x, e.point.z, dragFp.w, dragFp.d, facilityTier);
                 setDragCell((p) => (p && p.c === c.c && p.r === c.r ? p : c)); // skip redundant re-renders
               } else if (b.placingType && placeFp) {
-                const c = cellAt(e.point.x, e.point.z, placeFp.w, placeFp.d);
+                const c = cellAt(e.point.x, e.point.z, placeFp.w, placeFp.d, facilityTier);
                 setHover((p) => (p && p.c === c.c && p.r === c.r ? p : c));
               }
             }}
             onPointerDown={(e: ThreeEvent<PointerEvent>) => {
               e.stopPropagation();
               if (b.placingType && placeFp) {
-                const c = cellAt(e.point.x, e.point.z, placeFp.w, placeFp.d);
+                const c = cellAt(e.point.x, e.point.z, placeFp.w, placeFp.d, facilityTier);
                 // Hard gate: place only where it actually fits (green ghost). Tapping a blocked cell
                 // does nothing instead of relying on a silent reducer no-op — cleaner, "smarter" feel.
-                if (canPlace(b.layout, b.placingType, c.c, c.r, b.placeRot)) b.onPlaceCell(c.c, c.r);
+                if (canPlace(b.layout, b.placingType, c.c, c.r, b.placeRot, undefined, facilityTier)) b.onPlaceCell(c.c, c.r);
               } else {
                 b.onSelectItem(null);
               }
@@ -1608,14 +1631,14 @@ function BuildLayer({ p, b, hideIids }: { p: RoomPalette; b: BuildProps; hideIid
           </mesh>
           {/* ghost while placing a new item */}
           {b.placingType && placeFp && hover && !dragIid && (
-            <mesh position={[GRID_ORIGIN + (hover.c + placeFp.w / 2) * GRID.cell, 0.07, GRID_ORIGIN + (hover.r + placeFp.d / 2) * GRID.cell]}>
+            <mesh position={[origin + (hover.c + placeFp.w / 2) * GRID.cell, 0.07, origin + (hover.r + placeFp.d / 2) * GRID.cell]}>
               <boxGeometry args={[placeFp.w * GRID.cell - 0.06, 0.12, placeFp.d * GRID.cell - 0.06]} />
               <meshBasicMaterial color={placeOk ? "#1eb877" : "#ef4444"} transparent opacity={0.42} depthWrite={false} />
             </mesh>
           )}
           {/* ghost target while dragging */}
           {dragIid && dragFp && dragCell && (
-            <mesh position={[GRID_ORIGIN + (dragCell.c + dragFp.w / 2) * GRID.cell, 0.045, GRID_ORIGIN + (dragCell.r + dragFp.d / 2) * GRID.cell]}>
+            <mesh position={[origin + (dragCell.c + dragFp.w / 2) * GRID.cell, 0.045, origin + (dragCell.r + dragFp.d / 2) * GRID.cell]}>
               <boxGeometry args={[dragFp.w * GRID.cell - 0.05, 0.06, dragFp.d * GRID.cell - 0.05]} />
               <meshBasicMaterial color={dragOk ? "#1eb877" : "#ef4444"} transparent opacity={0.4} depthWrite={false} />
             </mesh>
@@ -1658,11 +1681,16 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   // Occupied desks render as full live workstations, so hide their plain furniture models
   // (cozy view only — in Decorate mode the editable furniture pieces must stay visible).
   const occupiedIids = new Set(seated.map((_, i) => seats[i].iid));
+  // Facility footprint: the room shell + its wall-anchored fixtures render inside a group scaled by
+  // `sc`, so a bigger building (Studio/Campus) grows the walls, floor and props together, while the
+  // furniture grid below fills the larger CENTRED grid at real desk size (tier-aware worldOf).
+  const roomK = roomScaleFor(facilityTier);
+  const sc: [number, number, number] = [roomK, 1, roomK];
   return (
     <>
       <VisibilityPause />
       {!dark && <EnableShadows />}
-      <CameraRig build={!!builder?.build} />
+      <CameraRig build={!!builder?.build} facilityTier={facilityTier} />
       <PinchZoom />
       <ambientLight intensity={dark ? 0.55 : 0.62} color={dark ? "#ffffff" : "#f6f8ff"} />
       {/* soft sky/ground fill — gives the clean diorama an ambient-occlusion-like gradient */}
@@ -1689,8 +1717,11 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.2} distance={7} decay={2} color={p.screen} />
 
       {/* Whiteboard is earned: it appears once the team has real Workstations (computers ≥ 1),
-          so a fresh garage starts bare and upgrading visibly adds the planning board. */}
-      <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={tierOf(upgrades, "computers") >= 1} />
+          so a fresh garage starts bare and upgrading visibly adds the planning board. The room shell
+          scales with the facility so Studio/Campus give a visibly bigger floor to fill. */}
+      <group scale={sc}>
+        <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={tierOf(upgrades, "computers") >= 1} />
+      </group>
       {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
           a clean white void, so no exterior scenery. */}
       {dark && (
@@ -1711,8 +1742,8 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           ))}
         </group>
       )}
-      {/* rug under the pod */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, 0.3]}>
+      {/* rug under the pod — scales with the room so it stays proportional to the floor */}
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, 0.3 * roomK]} scale={[roomK, roomK, 1]}>
         <circleGeometry args={[3.2, 40]} />
         <meshStandardMaterial color={p.screen} transparent opacity={facilityTier > 1 ? 0.1 : 0.05} roughness={1} />
       </mesh>
@@ -1722,10 +1753,10 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           the player put the furniture. Hidden in Decorate mode (the editable desk pieces show
           instead); employees beyond the desk count roam the floor. */}
       {!inBuild && seated.map((s, i) => {
-        const w = worldOf(seats[i]);
+        const w = worldOf(seats[i], facilityTier);
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFlipped(seats[i])} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFlipped(seats[i], facilityTier)} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
@@ -1746,15 +1777,20 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
           hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}
       {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} onTapStaff={onTapStaff} startColorIdx={seats.length} />}
-      <Props p={p} hasProduction={hasProduction} dark={dark} />
-      <Dust />
-      {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
+      {/* wall-anchored fixtures scale with the room so they stay in the corners as the floor grows */}
+      <group scale={sc}>
+        <Props p={p} hasProduction={hasProduction} dark={dark} />
+        <Dust />
+        {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
+      </group>
 
       {/* player-arranged furniture + the drag-to-move builder. Occupied desks are rendered as
           live workstations above, so their plain models are suppressed outside Decorate mode. */}
-      {builder && <BuildLayer p={p} b={builder} hideIids={inBuild ? undefined : occupiedIids} />}
+      {builder && <BuildLayer p={p} b={builder} hideIids={inBuild ? undefined : occupiedIids} facilityTier={facilityTier} />}
 
-      {/* ---- Upgrades made physical: each company upgrade adds real furniture ---- */}
+      {/* ---- Upgrades made physical: each company upgrade adds real furniture. Wall-anchored, so
+             they scale with the room to stay against the walls as the facility grows. ---- */}
+      <group scale={sc}>
       {/* Marketing Suite → a branded wall screen */}
       {tierOf(upgrades, "marketing") >= 1 && (
         <Pulse feature="marketing">
@@ -1783,6 +1819,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       <group onClick={onTapBank && !inBuild ? (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onTapBank(); } : undefined}>
         <Vault />
       </group>
+      </group>
 
       {/* The office keeps ONE floating hint — the interactive Bank pill (your money; tap for
           finances). The old per-employee name pills were removed: a full team piled 7+ overlapping
@@ -1790,16 +1827,16 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           which already lists every name, role and skill), so the labels were pure clutter. */}
       {!builder?.build && (
         <>
-          <OfficeLabel pos={BANK_LABEL_POS} label="Bank" sub="Tap for finances" dot="#34c759" />
+          <OfficeLabel pos={[BANK_LABEL_POS[0] * roomK, BANK_LABEL_POS[1], BANK_LABEL_POS[2] * roomK]} label="Bank" sub="Tap for finances" dot="#34c759" />
           {/* Team reaction — an emote pops right over every worker's head: a burst on a win, a sigh on a flop. */}
           {reaction && [
-            ...seated.map((s, i) => ({ w: worldOf(seats[i]), key: s.id ?? `react-seat${i}`, i })),
+            ...seated.map((s, i) => ({ w: worldOf(seats[i], facilityTier), key: s.id ?? `react-seat${i}`, i })),
             ...podStaff.map((s, i) => ({ w: podWorlds[i], key: s.id ?? `react-pod${i}`, i: seats.length + i })),
           ].map((e) => {
-            const set = reaction === "slump" ? SLUMP_EMOJI : CHEER_EMOJI;
+            const set = reaction === "slump" ? SLUMP_ICONS : CHEER_ICONS;
             // Stagger the pops so the reaction ripples across the team, not all at once — capped so
             // even the last emote's 2s pop still finishes inside the ~2.6s reaction window.
-            return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} emoji={set[e.i % set.length]} delay={Math.min(e.i * 70, 520)} />;
+            return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} Icon={set[e.i % set.length]} tone={reaction === "slump" ? "slump" : "cheer"} delay={Math.min(e.i * 70, 520)} />;
           })}
         </>
       )}
@@ -1810,7 +1847,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           plus desks (staff) and upgrade fixtures. */}
       <ContactShadows
         key={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${Object.values(upgrades).join("")}`}
-        position={[0, 0.02, 0]} scale={16} blur={3.0} far={6} opacity={dark ? 0.5 : 0.45} color={p.shadow} resolution={1024} frames={1} />
+        position={[0, 0.02, 0]} scale={16 * roomK} blur={3.0} far={6} opacity={dark ? 0.5 : 0.45} color={p.shadow} resolution={1024} frames={1} />
     </>
   );
 }

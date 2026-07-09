@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -16,7 +16,7 @@ import { STAT_KEYS } from "../engine/types.ts";
 import { suggestNextName } from "../engine/naming.ts";
 import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
-import { MARKETING_CHANNELS, type ChannelId } from "../engine/marketing.ts";
+import { channelsForEra, type ChannelId } from "../engine/marketing.ts";
 import { activeArchetypes, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
@@ -305,9 +305,10 @@ export function DesignLab({
     setFace("front");
     onSeedConsumed?.();
   }, [seed, onSeedConsumed]);
+  const allCats = useMemo(() => Object.values(CATEGORIES), []);
   const unlockedCats = useMemo(
-    () => Object.values(CATEGORIES).filter((c) => isCategoryUnlocked(c.id, state.era)),
-    [state.era],
+    () => allCats.filter((c) => isCategoryUnlocked(c.id, state.era)),
+    [allCats, state.era],
   );
 
   const stats = productStats(state, draft);
@@ -502,7 +503,7 @@ export function DesignLab({
     // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
     const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
     const res = launchReady(id);
-    if (!res.ok) return;
+    if (!res.ok) { haptic.error(); showToast(res.reason ?? "That product couldn't launch.", { tone: "negative" }); return; }
     haptic.success();
     // launchOutcome keys the celebration off the ACTUAL recorded verdict (competition-adjusted),
     // not the raw score — and is shared with HQ so the two launch surfaces can't drift.
@@ -672,7 +673,12 @@ export function DesignLab({
                 <span className="lab__hero-line-label">Design Language</span>
                 <span className="lab__hero-line-val">
                   <Sparkles size={14} aria-hidden /> <strong>{styleLabel}</strong>
-                  <span className="lab__hero-line-hint">{styleLabel === "Striking" ? ", wins style-led buyers" : ", refine form for appeal"}</span>
+                  <span className="lab__hero-line-hint">
+                    {styleLabel === "Striking" ? ", lifts demand across every buyer"
+                      : styleLabel === "Clean" ? ", refine the form to lift demand further"
+                      : CATEGORIES[draft.category].slots.includes("camera") ? ", notch, cameras & layout shape desirability"
+                      : ", the screen treatment shapes desirability"}
+                  </span>
                 </span>
               </div>
             )}
@@ -716,18 +722,34 @@ export function DesignLab({
 
       {/* Category — always visible above the tab strip */}
       <Card>
-        <SectionHeader title="Category" accessory={`${unlockedCats.length} unlocked`} />
-        <div className="lab__chips">
-          {unlockedCats.map((c) => {
+        <SectionHeader title="Category" accessory={`${unlockedCats.length} of ${allCats.length} unlocked`} />
+        <div className="lab__cats">
+          {allCats.map((c) => {
+            const unlocked = isCategoryUnlocked(c.id, state.era);
+            const on = draft.category === c.id;
             const genCount = state.launched.filter((lp) => lp.product.category === c.id).length;
             const activeSelling = state.launched.some(
               (lp) => lp.product.category === c.id && lp.weeksElapsed < lp.weeklyUnits.length,
             );
+            const marketLabel = c.marketSize >= 0.8 ? "Large" : c.marketSize >= 0.55 ? "Mid-size" : "Niche";
+            // Locked category — a teaser card showing the era it opens up, so the player can see the
+            // road ahead (garage phone → global empire). Non-interactive.
+            if (!unlocked) {
+              return (
+                <div key={c.id} className="lab__cat lab__cat--locked" aria-label={`${c.displayName} — unlocks in era ${c.unlockEra}`}>
+                  <span className="lab__cat-icon" aria-hidden><CategoryIcon id={c.id} size={19} /></span>
+                  <span className="lab__cat-main">
+                    <span className="lab__cat-name">{c.displayName}</span>
+                    <span className="lab__cat-market"><Lock size={9} aria-hidden /> Era {c.unlockEra}</span>
+                  </span>
+                </div>
+              );
+            }
             return (
               <button
                 key={c.id}
-                className={`lab__chip${draft.category === c.id ? " lab__chip--on" : ""}`}
-                aria-pressed={draft.category === c.id}
+                className={`lab__cat${on ? " lab__cat--on" : ""}`}
+                aria-pressed={on}
                 onClick={() => {
                   haptic.light();
                   const tiers: Product["tiers"] = {};
@@ -735,12 +757,16 @@ export function DesignLab({
                   set({ category: c.id, tiers });
                 }}
               >
-                <CategoryIcon id={c.id} size={15} /> {c.displayName}
-                {genCount > 0 && (
-                  <span className={`lab__chip-gen${activeSelling ? " lab__chip-gen--live" : ""}`}>
-                    G{genCount + 1}
+                <span className="lab__cat-icon" aria-hidden><CategoryIcon id={c.id} size={19} /></span>
+                <span className="lab__cat-main">
+                  <span className="lab__cat-name">{c.displayName}</span>
+                  <span className="lab__cat-market">
+                    <span className="lab__cat-market-size">{marketLabel}</span>
+                    {genCount > 0 && (
+                      <span className={`lab__cat-gen${activeSelling ? " lab__cat-gen--live" : ""}`}>G{genCount + 1}</span>
+                    )}
                   </span>
-                )}
+                </span>
               </button>
             );
           })}
@@ -778,19 +804,27 @@ export function DesignLab({
 
       {/* ── Section tab strip ───────────────────────────────── */}
       <div className="lab__tabs" role="tablist" aria-label="Design sections">
-        {LAB_TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={labTab === t.id}
-            className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
-            onClick={() => { haptic.light(); setLabTab(t.id); }}
-          >
-            {/* The 3rd tab is "Camera" only when the device has one; otherwise it holds display/
-                storage specs (a monitor's refresh, a desktop's capacity), so label it "Specs". */}
-            {t.id === "camera" ? (hasCamera ? "Camera" : "Specs") : t.label}
-          </button>
-        ))}
+        {LAB_TABS.map((t) => {
+          // Turn the strip into a checklist: an amber dot flags the Components step while parts are
+          // still missing, and a check lands on Launch once the device is fully specced + named.
+          const needs = t.id === "components" && missing.length > 0;
+          const ready = t.id === "launch" && missing.length === 0 && !!draft.name.trim();
+          return (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={labTab === t.id}
+              className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
+              onClick={() => { haptic.light(); setLabTab(t.id); }}
+            >
+              {/* The 3rd tab is "Camera" only when the device has one; otherwise it holds display/
+                  storage specs (a monitor's refresh, a desktop's capacity), so label it "Specs". */}
+              {t.id === "camera" ? (hasCamera ? "Camera" : "Specs") : t.label}
+              {needs && <span className="lab__tab-badge lab__tab-badge--warn" aria-label="components incomplete" />}
+              {ready && <span className="lab__tab-badge lab__tab-badge--ready" aria-hidden><Check size={10} /></span>}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab content — key forces remount → CSS fade-in on every tab switch */}
@@ -1079,7 +1113,7 @@ export function DesignLab({
               </div>
             </Card>
             <Card>
-              <SectionHeader title="Tuning" accessory={TUNINGS.find((t) => t.id === (draft.tuning ?? "balanced"))?.hint} />
+              <SectionHeader title="Tuning" />
               <div className="lab__chips">
                 {TUNINGS.map((t) => {
                   const on = (draft.tuning ?? "balanced") === t.id;
@@ -1096,6 +1130,11 @@ export function DesignLab({
                   );
                 })}
               </div>
+              {/* Spell out the selected trade-off inline — the per-chip `title` never shows on touch. */}
+              {(() => {
+                const sel = TUNINGS.find((t) => t.id === (draft.tuning ?? "balanced"))!;
+                return <p className="lab__field-effect"><Scale size={12} aria-hidden /> {sel.label} · {sel.hint}</p>;
+              })()}
             </Card>
             <Card>
               <SectionHeader title="Design effort" accessory={`ceiling T${ceiling}`} />
@@ -1145,6 +1184,7 @@ export function DesignLab({
                   return (
                     <>
                       <div className="lab__comp">
+                        <span className="lab__comp-tile" aria-hidden><Camera size={20} /></span>
                         <div className="lab__comp-info">
                           <span className="lab__comp-name">Lenses</span>
                           <span className="lab__comp-tier">{draft.camera.count} {draft.camera.count === 1 ? "lens" : "lenses"}</span>
@@ -1192,6 +1232,7 @@ export function DesignLab({
                       options={[["vertical", "Vertical"], ["horizontal", "Row"], ["square", "Square"], ["triangle", "Triangle"]]}
                       onPick={(v) => setCam({ layout: v })}
                     />
+                    {draft.camera.count < 2 && <p className="lab__field-effect">Add a second lens to arrange the array.</p>}
                     <Seg<CameraPosition>
                       label="Position"
                       value={draft.camera.position}
@@ -1342,13 +1383,16 @@ export function DesignLab({
                 }
                 if (!best || best.gain < 2) return null;
                 return (
-                  <div className="lab__upgrade-hint">
+                  // Tappable: jumps straight to Components so the suggested upgrade is one tap away,
+                  // not a dead-end readout the player has to act on manually.
+                  <button className="lab__upgrade-hint" onClick={() => { haptic.light(); setLabTab("components"); }}>
                     <TrendingUp size={11} aria-hidden />
                     <span>
                       <strong>{COMPONENT_LINES[best.kind].displayName} T{(draft.tiers[best.kind] ?? 1) + 1}</strong>
                       {" "}would add <strong>+{best.gain}</strong> Overall
                     </span>
-                  </div>
+                    <ArrowRight size={13} aria-hidden className="lab__hint-go" />
+                  </button>
                 );
               })()}
               {preview != null && (
@@ -1476,7 +1520,7 @@ export function DesignLab({
                         <button
                           key={f.stem}
                           className="lab__line-chip"
-                          onClick={() => { set({ name: suggestNextName(f.latestName) }); haptic.light(); }}
+                          onClick={() => { set({ name: suggestNextName(f.latestName).slice(0, 22) }); haptic.light(); }}
                         >
                           {f.name}
                           <span className={`lab__line-tag lab__line-tag--${f.label.toLowerCase().replace(/\s+/g, "")}`}>{f.label}</span>
@@ -1494,7 +1538,12 @@ export function DesignLab({
                 placeholder="Product name"
                 aria-label="Product name"
               />
-              {missing.length > 0 && <p className="lab__warn">Pick every component before building.</p>}
+              {missing.length > 0 && (
+                <button className="lab__warn lab__warn--link" onClick={() => { haptic.light(); setLabTab("components"); }}>
+                  <AlertTriangle size={13} aria-hidden /> Pick every component
+                  <ArrowRight size={13} aria-hidden className="lab__hint-go" />
+                </button>
+              )}
               <Button block onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none">
                 <Hammer size={17} /> Plan production
               </Button>
@@ -1575,14 +1624,19 @@ export function DesignLab({
         const i = LAB_TABS.findIndex((t) => t.id === labTab);
         const prev = i > 0 ? LAB_TABS[i - 1] : null;
         const next = i < LAB_TABS.length - 1 ? LAB_TABS[i + 1] : null;
+        // The 3rd tab is "Specs" (not "Camera") on a device with no camera — keep the Next label in
+        // sync with the tab bar's own swap so they never contradict each other.
+        const nextLabel = next ? (next.id === "camera" ? (hasCamera ? "Camera" : "Specs") : next.label) : null;
         return (
           <div className="lab__nav">
             {prev
               ? <Button variant="secondary" onClick={() => { haptic.light(); setLabTab(prev.id); }}><ArrowLeft size={16} /> Back</Button>
               : <span className="lab__nav-spacer" aria-hidden />}
             {next
-              ? <Button onClick={() => { haptic.light(); setLabTab(next.id); }}>Next: {next.label} <ArrowRight size={16} /></Button>
-              : <span className="lab__nav-spacer" aria-hidden />}
+              ? <Button onClick={() => { haptic.light(); setLabTab(next.id); }}>Next: {nextLabel} <ArrowRight size={16} /></Button>
+              // Last step: the fixed bar's right slot becomes the Build CTA, so "Plan production" is
+              // always one thumb-tap away instead of buried at the bottom of the Launch pane.
+              : <Button onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none"><Hammer size={16} /> Plan production</Button>}
           </div>
         );
       })()}
@@ -1716,7 +1770,7 @@ function DesignCompleteCard({
 
   const launchNow = () => {
     onClose(); // close first so the keynote reveal isn't stacked on the sheet
-    launchProduct(done.builtId);
+    if (!launchProduct(done.builtId)) { haptic.error(); showToast("That product couldn't launch — it may have already shipped.", { tone: "negative" }); }
   };
 
   return (
@@ -2057,7 +2111,7 @@ function BuildWizard({
         <div className="wiz__body">
           <p className="wiz__lead">Pick a launch campaign, bigger campaigns add hype (more demand) for an upfront cost.</p>
           <div className="wiz__channels">
-            {MARKETING_CHANNELS.map((c) => {
+            {channelsForEra(state.era).map((c) => {
               const Icon = WIZARD_CHANNEL_ICONS[c.icon] ?? Ban;
               const aff = state.cash >= c.cost;
               const chanDemand = planProduction(state, prod, units, c.id).totalDemand;

@@ -2,11 +2,11 @@
 // engine: your named OS, its tier, the installed base across every device you've shipped, and the
 // recurring licensing revenue it already earns — plus the version-release "launch day" lever.
 // Tokens + 8pt grid only (RULE #1).
-import { useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   Cpu, Layers, Users, BadgeDollarSign, Rocket, FlaskConical, Check, Lock,
   Store, Cloud, Sparkles, ShieldCheck, HeartPulse, Wallet, Music, Globe, Zap,
-  Handshake, Crown, TrendingUp, type LucideIcon,
+  Handshake, Crown, TrendingUp, Bug, ShieldAlert, Star, RefreshCw, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, Stat, SectionHeader } from "../design/primitives.tsx";
 import { Sparkline } from "../components/charts.tsx";
@@ -26,9 +26,17 @@ import {
   weeklyLicenseFees,
   licenseeHealthOf,
   licenseeMoodOf,
+  platformAppCount,
+  appStoreOpen,
+  osThreatLevel,
+  osSecurityRating,
+  osNetExposure,
+  securityPatchCooldownLeft,
+  canShipSecurityPatch,
+  weeklyStoreCommission,
 } from "../state/gameState.ts";
-import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById, OS_PHILOSOPHIES, philosophyEffectLabel } from "../engine/platform.ts";
-import { format, add, toDollars, type Money } from "../engine/money.ts";
+import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById, OS_PHILOSOPHIES, philosophyEffectLabel, featuredApps, appsPublishedPerWeek, securityStanding } from "../engine/platform.ts";
+import { format, add, toDollars, formatCount, type Money } from "../engine/money.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./platform.css";
@@ -48,8 +56,80 @@ function fmtBase(n: number): string {
   return n.toLocaleString();
 }
 
+// Deterministic hue (0..359) from an app name, so each procedural App Store tile gets a stable,
+// distinct colour. The CSS owns the saturation/lightness (theme-aware); the TSX only passes the hue.
+function appHue(name: string): number {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+
+// A "real" software-update button: pressing it plays a staged install-progress animation (download →
+// verify → patch → harden → finalize) BEFORE the underlying action fires at 100%, so shipping an OS
+// update feels like a genuine update instead of an instant toggle. Reduced-motion skips straight to
+// the action. Reusable for the security patch AND the full version release.
+function OsUpdateButton({ ready, idleLabel, notReadyLabel, icon, stages, durationMs = 1600, onComplete }: {
+  ready: boolean;
+  idleLabel: string;
+  notReadyLabel?: string;
+  icon: ReactNode;
+  stages: readonly string[];
+  durationMs?: number;
+  onComplete: () => void;
+}) {
+  const [installing, setInstalling] = useState(false);
+  const [pct, setPct] = useState(0);
+  const [stageIdx, setStageIdx] = useState(0);
+  const doneRef = useRef(onComplete);
+  doneRef.current = onComplete;
+
+  const start = () => {
+    if (installing || !ready) return;
+    haptic.light();
+    sfx("tap");
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { doneRef.current(); return; }
+    setInstalling(true); setPct(0); setStageIdx(0);
+  };
+
+  useEffect(() => {
+    if (!installing) return;
+    let raf = 0;
+    let cancelled = false;
+    const t0 = performance.now();
+    const loop = (now: number) => {
+      if (cancelled) return;
+      const p = Math.min(1, (now - t0) / durationMs);
+      setPct(Math.round(p * 100));
+      setStageIdx(Math.min(stages.length - 1, Math.floor(p * stages.length)));
+      if (p < 1) { raf = requestAnimationFrame(loop); return; }
+      setInstalling(false); setPct(0); setStageIdx(0);
+      doneRef.current(); // fire the real action at 100%
+    };
+    raf = requestAnimationFrame(loop);
+    return () => { cancelled = true; cancelAnimationFrame(raf); };
+  }, [installing, durationMs, stages.length]);
+
+  if (installing) {
+    return (
+      <div className="plat__update plat__update--installing" role="status" aria-live="polite" aria-label={`${stages[stageIdx]} ${pct}%`}>
+        <div className="plat__update-track"><i className="plat__update-fill" style={{ width: `${pct}%` }} /></div>
+        <div className="plat__update-status">
+          <span className="plat__update-stage">{stages[stageIdx]}</span>
+          <span className="plat__update-pct tnum">{pct}%</span>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <Button block disabled={!ready} onClick={start}>
+      {icon} {ready ? idleLabel : (notReadyLabel ?? idleLabel)}
+    </Button>
+  );
+}
+
 export function PlatformSheet({ onClose }: { onClose: () => void }) {
-  const { state, setOsName, releaseOsVersion, licenseOsToRival, revokeOsLicense, installOsFeature, setOsPhilosophy, signLicenseOffer, declineLicenseOffer } = useGame();
+  const { state, setOsName, releaseOsVersion, shipSecurityPatch, licenseOsToRival, revokeOsLicense, installOsFeature, setOsPhilosophy, signLicenseOffer, declineLicenseOffer } = useGame();
   // The inbound contract just signed — captures the terms so the celebration survives the offer
   // clearing from state the instant it's signed.
   const [signed, setSigned] = useState<{ name: string; bonus: Money; royalty: Money; exclusive: boolean } | null>(null);
@@ -78,6 +158,21 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
   const incomeHint = toDollars(licenseTotal) > 0
     ? `${format(weekly)}/wk services + ${format(licenseTotal)}/wk rival licensing`
     : "Recurring ecosystem-service revenue from your installed base";
+
+  // --- Living App Store ---
+  const storeOpen = appStoreOpen(state);
+  const apps = platformAppCount(state);
+  const appsGrowth = appsPublishedPerWeek(base, state.osVersion, storeOpen);
+  const storeCut = weeklyStoreCommission(state);
+  const featured = storeOpen ? featuredApps(state.seed, apps, state.osVersion, 4) : [];
+
+  // --- Security tug-of-war ---
+  const threat = osThreatLevel(state);
+  const security = osSecurityRating(state);
+  const exposure = osNetExposure(state);
+  const standing = securityStanding(threat, security);
+  const patchReady = canShipSecurityPatch(state);
+  const patchCd = securityPatchCooldownLeft(state);
 
   return (
     <div className="plat">
@@ -160,20 +255,96 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
           <>
             <p className="plat__release-note">
               Your research has moved ahead of your released OS. Ship <strong>{tier.name} ({tier.tier}.0)</strong> to
-              update the whole installed base, a goodwill moment worth <strong>+{reward.fans.toLocaleString()} fans</strong> and reputation.
+              update the whole installed base, a goodwill moment worth <strong>+{reward.fans.toLocaleString()} fans</strong> and reputation. It also wipes outstanding threats and hardens the platform.
             </p>
-            <Button block onClick={() => {
-              haptic.success();
-              releaseOsVersion();
-              setReleased({ version: tier.tier, fans: reward.fans, rep: reward.reputation, base });
-            }}>
-              <Rocket size={15} /> Release {tier.name} {tier.tier}.0
-            </Button>
+            <OsUpdateButton
+              ready
+              idleLabel={`Release ${tier.name} ${tier.tier}.0`}
+              icon={<Rocket size={15} />}
+              durationMs={2000}
+              stages={[`Building ${tier.name} ${tier.tier}.0…`, "Signing the release…", "Staging the rollout…", `Updating ${fmtBase(base)} devices…`, "Going live…"]}
+              onComplete={() => {
+                releaseOsVersion();
+                setReleased({ version: tier.tier, fans: reward.fans, rep: reward.reputation, base });
+              }}
+            />
           </>
         ) : (
           <p className="plat__release-note plat__release-note--muted">
             {osDisplayName(state)} is up to date with your research. Advance the Software line in R&D to unlock a new OS version to release.
           </p>
+        )}
+      </Card>
+
+      <Card>
+        <SectionHeader title="Security" accessory={<span className={`plat__sec-standing plat__sec-standing--${standing.key}`}>{standing.label}</span>} />
+        <p className="plat__release-note plat__release-note--muted">
+          A platform this size is a target. Threats build every week, ship updates to patch them and harden {osDisplayName(state)}. Let exposure run high and buyers' trust erodes.
+        </p>
+        <div className="plat__sec">
+          <div className="plat__sec-meter">
+            <div className="plat__sec-meter-head">
+              <span className="plat__sec-meter-label"><Bug size={13} aria-hidden /> Threat level</span>
+              <span className="plat__sec-meter-val tnum">{Math.round(threat)}</span>
+            </div>
+            <div className="plat__sec-track"><i className="plat__sec-fill plat__sec-fill--threat" style={{ width: `${Math.max(2, threat)}%` }} /></div>
+          </div>
+          <div className="plat__sec-meter">
+            <div className="plat__sec-meter-head">
+              <span className="plat__sec-meter-label"><ShieldCheck size={13} aria-hidden /> Hardening</span>
+              <span className="plat__sec-meter-val tnum">{Math.round(security)}</span>
+            </div>
+            <div className="plat__sec-track"><i className="plat__sec-fill plat__sec-fill--secure" style={{ width: `${Math.max(2, security)}%` }} /></div>
+          </div>
+        </div>
+        {exposure > 0 && (
+          <p className={`plat__sec-exposure plat__sec-exposure--${standing.key}`}>
+            <ShieldAlert size={13} aria-hidden /> Net exposure {Math.round(exposure)}, {exposure >= 55 ? "unpatched vulnerabilities are dragging your reputation." : "keep it low with regular updates."}
+          </p>
+        )}
+        <OsUpdateButton
+          ready={patchReady}
+          idleLabel="Install security update"
+          notReadyLabel={`Up to date · next patch in ${patchCd} wk`}
+          icon={<RefreshCw size={15} />}
+          stages={["Downloading update…", "Verifying signature…", "Patching vulnerabilities…", "Hardening the kernel…", "Finalizing…"]}
+          onComplete={() => { shipSecurityPatch(); }}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader title="App Store" accessory={storeOpen ? `${formatCount(apps)} apps` : "closed"} />
+        {storeOpen ? (
+          <>
+            <div className="plat__store-hero">
+              <div className="plat__store-count">
+                <span className="plat__store-num tnum">{formatCount(apps)}</span>
+                <span className="plat__store-cap">apps on {osDisplayName(state)}</span>
+              </div>
+              <div className="plat__store-meta">
+                <span className="plat__store-grow tnum"><TrendingUp size={12} aria-hidden /> +{Math.round(appsGrowth)}/wk</span>
+                <span className="plat__store-cut tnum">{format(storeCut)}/wk commission</span>
+              </div>
+            </div>
+            <div className="plat__store-strip" aria-label="Featured apps">
+              {featured.map((a) => (
+                <div key={a.name} className="plat__app">
+                  <span className="plat__app-icon" style={{ "--app-h": appHue(a.name) } as CSSProperties} aria-hidden>{a.name.slice(0, 1)}</span>
+                  <span className="plat__app-name">{a.name}</span>
+                  <span className="plat__app-cat">{a.category}</span>
+                  <span className="plat__app-rating tnum"><Star size={10} aria-hidden /> {a.rating.toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+            <p className="plat__rel-note">The more devices in the field and the newer your OS, the more developers publish, and the bigger your cut.</p>
+          </>
+        ) : (
+          <div className="plat__store-closed">
+            <span className="plat__store-closed-glyph" aria-hidden><Store size={22} /></span>
+            <p className="plat__release-note plat__release-note--muted" style={{ margin: 0 }}>
+              Your store is quiet. Research the <strong>App Marketplace</strong> module below to open {osDisplayName(state)} to developers, they'll publish apps and you'll take a cut of every sale.
+            </p>
+          </div>
         )}
       </Card>
 

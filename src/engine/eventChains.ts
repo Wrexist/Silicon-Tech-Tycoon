@@ -77,6 +77,75 @@ export const EVENT_CHAINS: EventChain[] = [
       } },
     ],
   },
+  {
+    id: "supply-shock",
+    minEra: 1,
+    steps: [
+      { kind: "effect", tone: "negative", delayWeeks: 0,
+        title: "A key supplier's plant went dark overnight — parts got scarce and pricey.",
+        effect: { kind: "supplyCrunch", cash: 9_000 } },
+      { kind: "effect", tone: "positive", delayWeeks: 3,
+        title: "You'd quietly stockpiled ahead of the crunch; rivals scrambled while your lines kept moving.",
+        effect: { kind: "repBoost", rep: 3 } },
+      { kind: "choice", delayWeeks: 2, choice: {
+        id: "chain-supply-lockin",
+        title: "Lock In Supply?",
+        body: "The shortage exposed how fragile your sourcing is. Sign a long-term deal for stability, or stay nimble and cheap.",
+        minEra: 1,
+        tone: "accent",
+        options: [
+          { id: "contract", label: "Sign a long-term deal", description: "Guaranteed parts and a steadier reputation for reliability.", effect: { kind: "repBoost", rep: 4 } },
+          { id: "flexible", label: "Stay flexible", description: "Keep your options — and your cash — open. The team gets creative with sourcing.", effect: { kind: "rpBonus", amount: 22 } },
+        ],
+      } },
+    ],
+  },
+  {
+    id: "counterfeit-surge",
+    minEra: 2,
+    steps: [
+      { kind: "effect", tone: "negative", delayWeeks: 0,
+        title: "Convincing counterfeits of your best-seller flooded gray markets — some sales bled away.",
+        effect: { kind: "supplyCrunch", cash: 12_000 } },
+      { kind: "effect", tone: "positive", delayWeeks: 2,
+        title: "Ironically, being the one everyone copies made your brand the name to beat — buzz spiked.",
+        effect: { kind: "fansBonus", fans: 1_800 } },
+      { kind: "choice", delayWeeks: 2, choice: {
+        id: "chain-counterfeit-fight",
+        title: "Fight the Fakes?",
+        body: "The knockoffs aren't going away on their own. Lawyer up and defend the brand, or simply out-build them.",
+        minEra: 2,
+        tone: "accent",
+        options: [
+          { id: "sue", label: "Take them to court", description: "A public win for authenticity — customers trust the real thing more.", effect: { kind: "repBoost", rep: 5 } },
+          { id: "innovate", label: "Out-innovate them", description: "Pour the energy into the next leap instead. Let the copies chase your taillights.", effect: { kind: "rpBonus", amount: 32 } },
+        ],
+      } },
+    ],
+  },
+  {
+    id: "standards-war",
+    minEra: 3,
+    steps: [
+      { kind: "effect", tone: "accent", delayWeeks: 0,
+        title: "A consortium is forming around a new industry standard, and everyone wants your name on it.",
+        effect: { kind: "fansBonus", fans: 1_400 } },
+      { kind: "effect", tone: "negative", delayWeeks: 3,
+        title: "Committee politics dragged on for weeks and quietly drained your engineers' focus.",
+        effect: { kind: "burnout", mood: -6 } },
+      { kind: "choice", delayWeeks: 2, choice: {
+        id: "chain-standards-pick",
+        title: "Which Standard Do You Champion?",
+        body: "You have the clout to tip the outcome. Back the open standard for goodwill, or push your own for a proprietary edge.",
+        minEra: 3,
+        tone: "accent",
+        options: [
+          { id: "open", label: "Back the open standard", description: "The industry applauds a rare act of generosity. Your reputation swells.", effect: { kind: "repBoost", rep: 6 } },
+          { id: "proprietary", label: "Push your own", description: "If it sticks, everyone builds on your terms. Your labs race to make it undeniable.", effect: { kind: "rpBonus", amount: 45 } },
+        ],
+      } },
+    ],
+  },
 ];
 
 export function chainById(id: string): EventChain | undefined {

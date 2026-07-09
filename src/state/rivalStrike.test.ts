@@ -111,7 +111,7 @@ describe("Rival Strikes — responses (all opt-in, sim never calls them)", () =>
     expect(meh.state.reputation).toBe(s.reputation);
   });
 
-  it("price: cuts the contested product's price via the ordinary one-cut rule", () => {
+  it("price: cuts the contested product's price via the ordinary cut path (repeatable up to the cap)", () => {
     const s = struck();
     const before = s.launched.find((lp) => lp.product.id === s.pendingStrike!.productId)!;
     const res = resolveStrike(s, "price");
@@ -120,9 +120,12 @@ describe("Rival Strikes — responses (all opt-in, sim never calls them)", () =>
     expect(after.product.price).toBeLessThan(before.product.price);
     expect(after.priceCuts).toBe(1);
     expect(res.state.pendingStrike ?? null).toBeNull();
-    // A second strike answered by price on the SAME product refuses (one cut per product).
+    // Price cuts are repeatable now — a second strike answered by price on the SAME product succeeds
+    // (each cut smaller as the price nears unit cost), incrementing the counter toward the cap.
     const reStruck: GameState = { ...res.state, pendingStrike: s.pendingStrike };
-    expect(resolveStrike(reStruck, "price").ok).toBe(false);
+    const second = resolveStrike(reStruck, "price");
+    expect(second.ok).toBe(true);
+    expect(second.state.launched.find((lp) => lp.product.id === before.product.id)!.priceCuts).toBe(2);
   });
 
   it("campaign: runs the ordinary push at exactly the strike discount", () => {

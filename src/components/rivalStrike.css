@@ -15,26 +15,30 @@
   position: absolute;
   inset: 0;
   border: none;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Minimal scrim — the popup card is the glass, not the surround. */
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
 }
 .rst__card {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 380px;
+  max-width: 410px;
   max-height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-12);
-  padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  padding: var(--sp-28) var(--sp-28) var(--sp-28);
   border-radius: var(--r-sheet);
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--negative) 35%, var(--hairline));
-  box-shadow: var(--shadow-floating);
+  /* CLEAR liquid glass — a see-through pane, faintly charged red, with a bright specular rim. */
+  background:
+    radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--negative) 10%, transparent), transparent 62%),
+    var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid color-mix(in srgb, var(--negative) 22%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--negative) 38%, transparent);
   text-align: center;
   animation: rst-pop var(--spring-standard) both;
 }
@@ -67,7 +71,12 @@
 .rst__side-score { font-size: var(--fs-headline); font-weight: 800; }
 .rst__side-score--win { color: var(--positive-text, var(--positive)); }
 .rst__vs { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; text-transform: uppercase; color: var(--ink-2); }
-.rst__ghost { width: 72px; height: 72px; border-radius: var(--r-button); background: var(--bg-elevated); }
+.rst__ghost {
+  width: 72px; height: 72px; border-radius: var(--r-button);
+  /* Glass well — a clear inset tile so the card's frosted material shows through it. */
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
 
 .rst__actions { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); }
 /* Response rows: label pinned left, price pinned right — nothing to overflow, perfectly aligned
@@ -75,11 +84,31 @@
 .rst__act {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-10);
   width: 100%; min-height: 50px; padding: 0 var(--sp-14);
-  border: 1px solid var(--hairline); border-radius: var(--r-button);
-  background: var(--surface-2); color: var(--ink);
+  border-radius: var(--r-button);
+  /* Glass well — a clear inset tile so the card's frosted material shows through it. */
+  border: 1px solid var(--glass-well-edge); background: var(--glass-well); color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   font-size: var(--fs-caption); font-weight: 800;
 }
-.rst__act--primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.rst__act--primary {
+  /* Translucent liquid-glass capsule — a bright top sheen + accent glow so it stands out, matching
+     the glass CTA buttons, while the card still refracts through it. */
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 46%, transparent), color-mix(in srgb, #fff 6%, transparent) 34%, transparent 66%),
+    color-mix(in srgb, var(--accent) 78%, transparent);
+  border-color: color-mix(in srgb, #fff 30%, transparent); color: var(--accent-ink);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -16px 26px -18px color-mix(in srgb, #000 42%, transparent),
+    0 12px 30px -10px color-mix(in srgb, var(--accent) 68%, transparent);
+}
+/* Soft accent halo on keyboard focus instead of the hard offset ring (index.css). */
+.rst__act:focus-visible, .rst__hold:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent),
+    0 10px 24px -10px color-mix(in srgb, var(--accent) 55%, transparent);
+}
 .rst__act:disabled { opacity: 0.45; }
 .rst__act-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .rst__act-val { flex-shrink: 0; font-weight: 800; white-space: nowrap; }

@@ -179,6 +179,89 @@
 .plat__syn-eff { flex-shrink: 0; font-size: var(--fs-nano); font-weight: 700; color: var(--ink-3); }
 .plat__syn--on .plat__syn-eff { color: var(--accent); }
 
+/* ---- "Real" software-update button: staged install-progress animation ---- */
+.plat__update {
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--hairline));
+  padding: var(--sp-12) var(--sp-16);
+  animation: plat-update-in var(--spring-snappy) both;
+}
+@keyframes plat-update-in { from { opacity: 0.4; } to { opacity: 1; } }
+.plat__update-track {
+  height: 8px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden;
+}
+.plat__update-fill {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, transparent), var(--accent));
+  background-size: 200% 100%;
+  animation: plat-update-shimmer 1.1s linear infinite;
+}
+@keyframes plat-update-shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
+.plat__update-status { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); margin-top: var(--sp-8); }
+.plat__update-stage { font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2); }
+.plat__update-pct { font-size: var(--fs-caption); font-weight: 800; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .plat__update, .plat__update-fill { animation: none; } }
+
+/* ---- Security console: threat vs. hardening tug-of-war ---- */
+.plat__sec-standing {
+  display: inline-flex; align-items: center; padding: 3px 9px; border-radius: var(--r-pill);
+  font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.02em;
+}
+.plat__sec-standing--fortified { color: var(--positive); background: color-mix(in srgb, var(--positive) 15%, transparent); }
+.plat__sec-standing--hardened { color: var(--accent); background: var(--accent-soft); }
+.plat__sec-standing--watch { color: var(--warning-text, var(--warning)); background: color-mix(in srgb, var(--warning) 16%, transparent); }
+.plat__sec-standing--exposed,
+.plat__sec-standing--critical { color: var(--negative-text, var(--negative)); background: color-mix(in srgb, var(--negative) 16%, transparent); }
+.plat__sec { display: flex; flex-direction: column; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+.plat__sec-meter { display: flex; flex-direction: column; gap: var(--sp-6); }
+.plat__sec-meter-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+.plat__sec-meter-label { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2); }
+.plat__sec-meter-val { font-size: var(--fs-caption); font-weight: 800; color: var(--ink); }
+.plat__sec-track { height: 8px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }
+.plat__sec-fill { display: block; height: 100%; border-radius: var(--r-pill); transition: width var(--spring-gentle); }
+.plat__sec-fill--threat { background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 70%, transparent), var(--negative)); }
+.plat__sec-fill--secure { background: linear-gradient(90deg, color-mix(in srgb, var(--positive) 60%, transparent), var(--positive)); }
+.plat__sec-exposure {
+  display: flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--fs-caption); font-weight: 600; line-height: 1.4;
+  margin: 0 0 var(--sp-12); color: var(--warning-text, var(--warning));
+}
+.plat__sec-exposure--exposed, .plat__sec-exposure--critical { color: var(--negative-text, var(--negative)); }
+
+/* ---- Living App Store ---- */
+.plat__store-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+.plat__store-count { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.plat__store-num { font-size: var(--fs-display, 32px); font-weight: 800; letter-spacing: -0.02em; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.plat__store-cap { font-size: var(--fs-caption); color: var(--ink-2); }
+.plat__store-meta { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-4); flex: none; }
+.plat__store-grow { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-caption); font-weight: 700; color: var(--positive); }
+.plat__store-cut { font-size: var(--fs-nano); font-weight: 600; color: var(--ink-2); }
+.plat__store-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-8);
+}
+.plat__app {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-4); border-radius: var(--r-button);
+  background: var(--surface-2); border: 1px solid var(--hairline); min-width: 0; text-align: center;
+}
+.plat__app-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: var(--fs-headline); font-weight: 800; color: #fff;
+  background: linear-gradient(150deg, hsl(var(--app-h, 210) 72% 60%), hsl(var(--app-h, 210) 66% 46%));
+  box-shadow: var(--shadow-subtle);
+}
+.plat__app-name { font-size: var(--fs-nano); font-weight: 700; color: var(--ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plat__app-cat { font-size: 10px; color: var(--ink-3); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plat__app-rating { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; color: var(--gold, #d9a824); }
+.plat__store-closed { display: flex; align-items: center; gap: var(--sp-12); }
+.plat__store-closed-glyph {
+  width: 40px; height: 40px; flex: none; border-radius: var(--r-button);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated); color: var(--ink-3);
+}
+
 /* OS build progress — the dopamine ladder: every build advances the bar toward a complete platform */
 .plat__os-progress { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
 .plat__os-progress-track { flex: 1; height: 8px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }

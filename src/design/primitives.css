@@ -73,6 +73,46 @@
   background: var(--negative-soft);
   color: var(--negative-text);
 }
+/* Liquid-glass primary CTA inside glass popups — genuinely translucent (the card + game refract
+   through it), lifted by three things so it still reads as THE action, not a faint wash: a bright
+   specular highlight sweeping the top third (the wet "liquid" sheen), a saturated-enough accent tint
+   that keeps the white label legible on both light + dark cards, and an outward accent glow that
+   makes it float off the card. (No own backdrop-filter: the card's blur already frosts everything
+   behind, and nested filters are flaky.) */
+.cele .ds-btn--primary, .rvd .ds-btn--primary, .eur .ds-btn--primary, .awd .ds-btn--primary,
+.rst .ds-btn--primary, .rtl .ds-btn--primary, .lreveal .ds-btn--primary, .dtut .ds-btn--primary,
+.ds-sheet .ds-btn--primary {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 46%, transparent), color-mix(in srgb, #fff 6%, transparent) 34%, transparent 66%),
+    color-mix(in srgb, var(--accent) 78%, transparent);
+  border: 1px solid color-mix(in srgb, #fff 30%, transparent);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -16px 26px -18px color-mix(in srgb, #000 42%, transparent),
+    0 14px 32px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.cele .ds-btn--secondary, .rvd .ds-btn--secondary, .eur .ds-btn--secondary, .awd .ds-btn--secondary,
+.rst .ds-btn--secondary, .rtl .ds-btn--secondary, .lreveal .ds-btn--secondary, .dtut .ds-btn--secondary,
+.ds-sheet .ds-btn--secondary {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 52%),
+    color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+/* Keyboard focus inside a glass popup: swap the hard 2px offset ring (index.css) for a soft accent
+   halo that hugs the capsule — same at-a-glance affordance for keyboard/switch users, none of the
+   detached outline the offset ring draws around a rounded glass button. Only shows for :focus-visible
+   (keyboard), never on touch. */
+.cele .ds-btn:focus-visible, .rvd .ds-btn:focus-visible, .eur .ds-btn:focus-visible,
+.awd .ds-btn:focus-visible, .rst .ds-btn:focus-visible, .rtl .ds-btn:focus-visible,
+.lreveal .ds-btn:focus-visible, .dtut .ds-btn:focus-visible, .ds-sheet .ds-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+    0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent),
+    0 12px 28px -10px color-mix(in srgb, var(--accent) 60%, transparent);
+}
 .ds-btn--sm {
   /* 40px (was 32) — these drive critical actions (Launch, IPO, research buys); HIG wants ≥44,
      40 + the row's surrounding padding gives an effective ≥44pt hit area without bloating cards. */
@@ -320,7 +360,7 @@
 .ds-sheet-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(10, 12, 16, 0.4);
+  background: rgba(10, 12, 16, 0.3);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -332,14 +372,15 @@
   max-width: 540px;
   max-height: 88vh;
   overflow-y: auto;
-  /* One overlay at a time → real backdrop blur is affordable here, and it's where the
-     liquid-glass material pays off most (content slides under the sheet). */
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  backdrop-filter: saturate(170%) blur(22px);
-  -webkit-backdrop-filter: saturate(170%) blur(22px);
-  border-top: 1px solid var(--glass-stroke);
+  /* Clear liquid glass — one overlay at a time, so a real backdrop blur is affordable and the material
+     pays off (content refracts under the sheet). A touch more opaque than the small modal cards so
+     dense sheet content stays legible; the inner Cards sit on top as content backing. */
+  background: color-mix(in srgb, var(--surface) 66%, transparent);
+  backdrop-filter: saturate(185%) blur(26px);
+  -webkit-backdrop-filter: saturate(185%) blur(26px);
+  border-top: 1px solid var(--glass-modal-edge);
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
-  box-shadow: var(--glass-highlight), var(--shadow-floating);
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), var(--shadow-floating);
   padding: var(--sp-24) var(--edge) calc(var(--sp-32) + env(safe-area-inset-bottom));
   animation: ds-rise var(--spring-standard);
   /* drag-to-dismiss snaps back to here when released short of the threshold */
@@ -457,4 +498,38 @@
   to {
     opacity: 0;
   }
+}
+
+/* ── Liquid-glass EDGE REFLECTION ─────────────────────────────────────────────────────────────
+   A thin light-catching rim that glances across a popup's edges — bright at the top-left, fading
+   through the middle, catching again at the bottom-right — like the specular reflection on the edge
+   of real glass. Drawn as a masked gradient-border ring over the card's tinted border. The card's
+   own backdrop-filter still frosts what's directly behind it; the surrounding scrim is left CLEAR
+   (its blur was removed) so the game stays sharp around the popup. */
+.ern__card, .cma__card, .eur__card, .awd__card, .rst__card,
+.rvd__card, .cele__card, .rtl__card, .lreveal__card {
+  position: relative;
+}
+.ern__card::after, .cma__card::after, .eur__card::after, .awd__card::after, .rst__card::after,
+.rvd__card::after, .cele__card::after, .rtl__card::after, .lreveal__card::after, .dtut::after,
+.scn__confirm-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.66),
+    rgba(255, 255, 255, 0.12) 20%,
+    transparent 42%,
+    transparent 58%,
+    rgba(255, 255, 255, 0.16) 80%,
+    rgba(255, 255, 255, 0.5)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 4;
 }

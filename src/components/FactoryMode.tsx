@@ -21,7 +21,7 @@ import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.t
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
-import { format, sub, toDollars } from "../engine/money.ts";
+import { format, formatCount, sub, toDollars } from "../engine/money.ts";
 import type { ComponentKind, FactoryId } from "../engine/types.ts";
 import type { Tab } from "./BottomNav.tsx";
 import { StageTrail } from "./BuildProgress.tsx";
@@ -127,12 +127,6 @@ function useFactoryData() {
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
     floor: state.factoryFloor, lineSpeed, linePct, missing,
   };
-}
-
-function fmtCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
 }
 
 /* --------------------- layout-driven minimap (SVG, zero assets) --------------------- */
@@ -444,7 +438,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__panel fmode__stopped">
             <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
             <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to align every machine and route the belts for you. A wired line builds every run faster.</p>
-            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
+            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); if (!use3d) { showToast("Building needs the 3D factory view — turn it on in Settings.", { tone: "neutral" }); return; } setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
         <div className="fmode__panel">
@@ -740,11 +734,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         <button
           className="fmode__side"
           title={`${d.readyCount} ready to launch`}
+          aria-label={`Back to the office${d.readyCount > 0 ? `, ${d.readyCount} ready to launch` : ""}`}
           onClick={() => { if (onNavigate) { haptic.light(); onClose(); onNavigate("hq"); } }}
         >
           <Truck size={16} aria-hidden />{d.readyCount > 0 && <span className="fmode__side-n tnum">{d.readyCount}</span>}
         </button>
-        <button className="fmode__side" title="Machine shop" onClick={() => { haptic.light(); setSheet("shop"); }}>
+        <button className="fmode__side" title="Machine shop" aria-label="Machine shop" onClick={() => { haptic.light(); setSheet("shop"); }}>
           <ShoppingCart size={16} aria-hidden />
         </button>
       </div>
@@ -806,7 +801,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               const n = d.materials.get(kind) ?? 0;
               return (
                 <span key={kind} className={`fmode__matschip${n === 0 ? " fmode__matschip--zero" : ""}`} title={kind}>
-                  <Icon size={13} aria-hidden /><span className="tnum">{fmtCount(n)}</span>
+                  <Icon size={13} aria-hidden /><span className="tnum">{formatCount(n)}</span>
                 </span>
               );
             })}

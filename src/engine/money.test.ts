@@ -8,9 +8,35 @@ import {
   sum,
   format,
   formatShortDollars,
+  formatCount,
   toDollars,
   type Money,
 } from "./money.ts";
+
+describe("formatCount (shared count formatter for fans/units)", () => {
+  it("shows exact integers below 1,000 with separators", () => {
+    expect(formatCount(0)).toBe("0");
+    expect(formatCount(250)).toBe("250");
+    expect(formatCount(999)).toBe("999");
+  });
+  it("compacts thousands with a lowercase k", () => {
+    expect(formatCount(1_000)).toBe("1k");
+    expect(formatCount(12_500)).toBe("12.5k");
+    expect(formatCount(48_000)).toBe("48k");
+  });
+  it("ROLLS OVER past a million (the bug it replaces rendered 2M fans as '2000.0k')", () => {
+    expect(formatCount(2_000_000)).toBe("2M");
+    expect(formatCount(2_300_000)).toBe("2.3M");
+    expect(formatCount(1_200_000_000)).toBe("1.2B");
+  });
+  it("promotes a boundary that rounds up instead of showing '1000.0k'", () => {
+    expect(formatCount(999_950)).toBe("1M");
+    expect(formatCount(999_400)).toBe("999.4k");
+  });
+  it("handles negatives", () => {
+    expect(formatCount(-4200)).toBe("-4.2k");
+  });
+});
 
 describe("formatShortDollars (shared compact formatter)", () => {
   it("agrees on rounding across the magnitude bands", () => {

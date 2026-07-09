@@ -707,18 +707,4 @@ export function evaluateAchievements(facts: AchievementFacts): string[] {
   return out;
 }
 
-/**
- * Given the previously-unlocked ids and the current facts, return the ids that are NEWLY unlocked
- * this evaluation (satisfied now AND not previously unlocked). Pure; used by the state layer to
- * decide which (if any) celebratory toasts to fire. Order follows the catalog.
- */
-export function newlyUnlocked(previous: readonly string[], facts: AchievementFacts): string[] {
-  const had = new Set(previous);
-  const out: string[] = [];
-  for (const a of ACHIEVEMENTS) {
-    if (!had.has(a.id) && a.predicate(facts)) out.push(a.id);
-  }
-  return out;
-}
-
 export const ACHIEVEMENT_COUNT = ACHIEVEMENTS.length;

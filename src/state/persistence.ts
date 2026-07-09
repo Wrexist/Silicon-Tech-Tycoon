@@ -4,7 +4,7 @@ import { makeRng } from "../engine/rng.ts";
 import { starterFloor, MACHINE_DEFS, MACHINE_MAX_LEVEL, MAX_EXPANSION, type FactoryFloor } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, type PlacedProp } from "../engine/factoryProps.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { canPlace, defaultLayout, deskItems, GRID } from "../engine/furniture.ts";
+import { canPlace, defaultLayout, deskItems, gridN } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
@@ -343,8 +343,66 @@ function migrate(state: GameState): GameState | null {
   // pass. Keep only finite numbers.
   if (!Array.isArray(s.osBaseHistory)) s.osBaseHistory = [];
   else s.osBaseHistory = s.osBaseHistory.filter((n: unknown): n is number => typeof n === "number" && Number.isFinite(n));
+  // Living App Store + Security (added later): default to a fresh, un-threatened platform. Apps
+  // accumulate only once the store is live; threat/security are a 0..100 tug-of-war. Clamp on import.
+  if (!Number.isFinite(s.osApps) || s.osApps < 0) s.osApps = 0;
+  s.osThreat = typeof s.osThreat === "number" && Number.isFinite(s.osThreat) ? Math.max(0, Math.min(100, s.osThreat)) : 0;
+  s.osSecurity = typeof s.osSecurity === "number" && Number.isFinite(s.osSecurity) ? Math.max(0, Math.min(100, s.osSecurity)) : 0;
+  if (s.lastPatchWeek != null && (!Number.isFinite(s.lastPatchWeek) || s.lastPatchWeek < 0)) s.lastPatchWeek = undefined;
+  // Interrupt-budget stamp (added later): a corrupt value would silently gate off ALL opportunistic
+  // interrupts, so drop it to the "long ago" sentinel rather than let it wedge them shut.
+  if (s.lastInterruptWeek != null && !Number.isFinite(s.lastInterruptWeek)) s.lastInterruptWeek = -999;
   // OS philosophy (added later): default none — an un-customized OS with no tilt.
   if (typeof s.osPhilosophy !== "string") s.osPhilosophy = null;
+  // Arch-rival / nemesis (added later): default none. Drop a malformed value from an untrusted import;
+  // a nemesis pointing at a rival that no longer exists is pruned live by the tick.
+  if (s.nemesis != null && (typeof s.nemesis !== "object" || typeof s.nemesis.rivalId !== "string" || !Number.isFinite(s.nemesis.heat))) {
+    s.nemesis = null;
+  }
+  if (s.pendingRivalry != null && (typeof s.pendingRivalry !== "object" || typeof s.pendingRivalry.rivalId !== "string")) {
+    s.pendingRivalry = null;
+  }
+  // Eureka breakthroughs (added later): default none. Drop a malformed pending moment from an import.
+  if (s.pendingEureka != null && (typeof s.pendingEureka !== "object" || !Number.isFinite(s.pendingEureka.bankRp))) {
+    s.pendingEureka = null;
+  }
+  // Staff growth moments (added later): default none. Drop a malformed pending moment (no options).
+  if (s.pendingStaffMoment != null && (typeof s.pendingStaffMoment !== "object" || !Array.isArray(s.pendingStaffMoment.options))) {
+    s.pendingStaffMoment = null;
+  }
+  // Regional loyalty + events (added later): default an empty/neutral map. Drop non-finite entries and
+  // clamp survivors; drop a malformed pending event (no region).
+  if (s.regionLoyalty == null || typeof s.regionLoyalty !== "object") s.regionLoyalty = {};
+  else {
+    const lc = BALANCE.market.regions.loyalty.cap;
+    for (const k of Object.keys(s.regionLoyalty)) {
+      const v = (s.regionLoyalty as Record<string, unknown>)[k];
+      if (typeof v !== "number" || !Number.isFinite(v)) delete (s.regionLoyalty as Record<string, unknown>)[k];
+      else (s.regionLoyalty as Record<string, number>)[k] = Math.max(-lc, Math.min(lc, v));
+    }
+  }
+  if (s.pendingRegionalEvent != null && (typeof s.pendingRegionalEvent !== "object" || typeof s.pendingRegionalEvent.regionId !== "string")) {
+    s.pendingRegionalEvent = null;
+  }
+  // Timed research (added later): default idle. Drop a malformed active-research (no timing / ref).
+  if (s.activeResearch != null && (typeof s.activeResearch !== "object"
+    || typeof s.activeResearch.ref !== "string"
+    || !Number.isFinite(s.activeResearch.startWeek) || !Number.isFinite(s.activeResearch.totalWeeks))) {
+    s.activeResearch = null;
+  }
+  // Research queue (added later): keep only well-formed entries; default empty.
+  if (!Array.isArray(s.researchQueue)) s.researchQueue = [];
+  else s.researchQueue = s.researchQueue.filter((q: unknown): q is { ref: string; rpCost: number; totalWeeks: number } =>
+    !!q && typeof q === "object"
+    && typeof (q as { ref?: unknown }).ref === "string"
+    && Number.isFinite((q as { rpCost?: unknown }).rpCost)
+    && Number.isFinite((q as { totalWeeks?: unknown }).totalWeeks));
+  // Living fan community (added later): default a neutral community. Clamp sentiment to [-1,1].
+  s.fanSentiment = typeof s.fanSentiment === "number" && Number.isFinite(s.fanSentiment) ? Math.max(-1, Math.min(1, s.fanSentiment)) : 0;
+  if (!Number.isFinite(s.superfans) || s.superfans < 0) s.superfans = 0;
+  // Brand awareness (added later): clamp to [0, cap]; absent → 0.
+  if (!Number.isFinite(s.brandAwareness) || s.brandAwareness < 0) s.brandAwareness = 0;
+  else s.brandAwareness = Math.min(BALANCE.brand.cap, s.brandAwareness);
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save
@@ -361,6 +419,7 @@ function migrate(state: GameState): GameState | null {
   }
   // Acquired rivals (Epic B3, added later): default none.
   if (!Array.isArray(s.acquiredRivals)) s.acquiredRivals = [];
+  if (!Number.isFinite(s.absorbedBase) || s.absorbedBase < 0) s.absorbedBase = 0;
   // Delegation toggles (Epic E, added later): default off.
   if (!s.automation || typeof s.automation !== "object") {
     s.automation = { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false };
@@ -513,6 +572,16 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingSideOrder != null && !(soOk(s.pendingSideOrder) && Number.isFinite((s.pendingSideOrder as { expiresWeek?: number }).expiresWeek))) s.pendingSideOrder = null;
   if (s.activeSideOrder != null && !(soOk(s.activeSideOrder) && Number.isFinite((s.activeSideOrder as { startedWeek?: number }).startedWeek))) s.activeSideOrder = null;
 
+  // Contract board (added later) — default to an empty board, and scrub malformed entries so a corrupt
+  // reward can never NaN the wallet on claim. The board refills deterministically on the next tick.
+  s.contracts = (Array.isArray(s.contracts) ? s.contracts : []).filter((c: unknown) => {
+    const x = c as { id?: unknown; target?: unknown; reward?: { cash?: unknown; rep?: unknown; fans?: unknown } } | null;
+    return !!x && typeof x.id === "string" && Number.isFinite(x.target)
+      && !!x.reward && Number.isFinite(x.reward.cash) && Number.isFinite(x.reward.rep) && Number.isFinite(x.reward.fans);
+  });
+  if (!Number.isFinite(s.contractsCompleted) || s.contractsCompleted < 0) s.contractsCompleted = 0;
+  if (!Number.isFinite(s.contractCounter) || s.contractCounter < 0) s.contractCounter = 0;
+
   // Inbound licensing contracts (v-platform): drop a malformed offer (a NaN signing bonus would ride
   // straight into the wallet) and coerce the exclusive map to a clean string→string record.
   const loOk = (o: unknown): boolean => {
@@ -544,11 +613,12 @@ function migrate(state: GameState): GameState | null {
   if (Array.isArray(s.staff)) {
     let desks = deskItems(s.layout).length;
     let guard = 0;
+    const n = gridN(s.facilityTier); // bigger facilities have a bigger grid to seat more desks
     while (desks < s.staff.length && guard++ < 32) {
       let placed = false;
-      outer: for (let r = 0; r < GRID.n; r++) {
-        for (let c = 0; c < GRID.n; c++) {
-          if (canPlace(s.layout, "desk", c, r, 0)) {
+      outer: for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (canPlace(s.layout, "desk", c, r, 0, undefined, s.facilityTier)) {
             s.layout = [...s.layout, { iid: `f${s.furnitureCounter++}`, type: "desk", c, r, rot: 0 }];
             desks++;
             placed = true;

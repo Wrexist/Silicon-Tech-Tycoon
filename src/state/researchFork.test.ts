@@ -1,6 +1,6 @@
 // Research-tree forks (Track D): mutually-exclusive doctrines + their permanent stat identity.
 import { describe, expect, it } from "vitest";
-import { newGame, buyProject, productStats, type GameState } from "./gameState.ts";
+import { newGame, buyProject, productStats, effectiveUnitCost, type GameState } from "./gameState.ts";
 import { forkLockedBy } from "../engine/research.ts";
 import { dollars } from "../engine/money.ts";
 import type { Product } from "../engine/types.ts";
@@ -50,5 +50,43 @@ describe("research fork — Engineering Doctrine", () => {
     s = buyProject(s, "perfHouse"); // rejected
     const houses = s.completedProjects.filter((id) => id === "perfHouse" || id === "effHouse" || id === "qualityHouse");
     expect(houses).toHaveLength(1);
+  });
+});
+
+describe("research fork — Go-to-Market Doctrine", () => {
+  it("choosing a GTM house locks out its siblings", () => {
+    let s = game();
+    s = buyProject(s, "gtmHype");
+    expect(s.completedProjects).toContain("gtmHype");
+    expect(forkLockedBy(s.completedProjects, "gtmDesign")).toBe("gtmHype");
+    expect(forkLockedBy(s.completedProjects, "gtmPrestige")).toBe("gtmHype");
+    expect(buyProject(s, "gtmDesign").completedProjects).not.toContain("gtmDesign");
+  });
+  it("GTM is independent of the engineering doctrine (you pick one of each)", () => {
+    let s = buyProject(game(), "perfHouse");
+    s = buyProject(s, "gtmDesign");
+    expect(s.completedProjects).toContain("perfHouse");
+    expect(s.completedProjects).toContain("gtmDesign");
+  });
+  it("Design House adds Design to every product", () => {
+    const base = productStats(game(), phone());
+    const design = productStats(buyProject(game(), "gtmDesign"), phone());
+    expect(design.design).toBeGreaterThan(base.design);
+  });
+});
+
+describe("research fork — Operations Doctrine", () => {
+  it("choosing an Ops house locks out its siblings", () => {
+    let s = { ...game(), era: 3 };
+    s = buyProject(s, "opsCost");
+    expect(s.completedProjects).toContain("opsCost");
+    expect(forkLockedBy(s.completedProjects, "opsSpeed")).toBe("opsCost");
+    expect(forkLockedBy(s.completedProjects, "opsReach")).toBe("opsCost");
+  });
+  it("Cost House lowers the per-unit build cost", () => {
+    const g = { ...game(), era: 3 } as GameState;
+    const before = effectiveUnitCost(g, phone());
+    const after = effectiveUnitCost(buyProject(g, "opsCost"), phone());
+    expect(after).toBeLessThan(before);
   });
 });

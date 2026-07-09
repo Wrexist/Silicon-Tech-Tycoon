@@ -189,6 +189,28 @@ export const BALANCE = {
       tasteSpread: 1.0, // 0 = taste ignored (pure size), higher = positioning matters more
       fitMin: 0.6,
       fitMax: 1.2,
+      // Per-region LOYALTY — a standing (signed) meter for each expansion market, moved by regional
+      // EVENTS (engine/regionalEvents.ts) and folded into that region's reach. Home is never stored
+      // (always neutral), and a home-only company (the pinned solo sim) has an empty map → every
+      // multiplier is exactly 1.0 → byte-identical.
+      loyalty: {
+        cap: 100,            // |loyalty| is clamped to this
+        maxSwing: 0.15,      // at full loyalty, that region's reach swings ±this
+        decayPerWeek: 0.98,  // loyalty eases back toward neutral without reinforcement
+      },
+      // Regional EVENTS — a periodic respond-or-ignore interrupt for an expansion market (a boom to
+      // ride, a tariff to answer, a rival surge to defend). Player-claimed, gated behind having
+      // expanded past Home, and budget-paced; the solo sim never expands → never fires one.
+      events: {
+        cadenceWeeks: 30,      // avg weeks between regional events (≈1/N chance per eligible week)
+        cooldownWeeks: 18,     // hard minimum between them
+        minEra: 2,             // expansion is a growth-era-and-beyond concern
+        costBase: dollars(45_000),  // era-1 cost to respond…
+        costPerEra: 0.6,            // …+60% per era past 1 (bigger markets, bigger stakes)
+        boomLoyaltyRespond: 34, boomLoyaltyIgnore: 8,   // a boom rewards riding it; ignoring still trickles up
+        tariffLoyaltyRespond: 6, tariffLoyaltyIgnore: -26, // answer a tariff to hold standing, or take the hit
+        surgeLoyaltyRespond: 14, surgeLoyaltyIgnore: -20,  // defend against a rival surge, or cede ground
+      },
     },
     // --- Forecast confidence (Epic C2 — the converging pre-launch forecast) ---
     // The wizard shows a demand RANGE; its width — and how far the real launch can land from the
@@ -210,11 +232,20 @@ export const BALANCE = {
     // fit ONLY (engine/aesthetics.ts → segments.ts), so a striking design wins design-led buyers
     // without touching the global economy. A fully-considered design exactly reaches maxStyleAppeal.
     aesthetics: {
-      maxStyleAppeal: 8,             // cap on form-driven Style-segment fit points
+      maxStyleAppeal: 10,            // cap on form-driven fit points (a striking design is a real lever)
       notch: { island: 3, punch: 2, none: 1, notch: 0 } as Record<string, number>, // modern screen treatment
       module: { squircle: 2, pill: 2, circle: 1 } as Record<string, number>,        // camera module shape
       coherentLayoutBonus: 2,        // a camera layout that suits the lens count reads intentional
+      // More lenses read as ambition on the spec sheet (indexed by count-1: 1→0, 2→+1, 3→+2, 4→+2, a
+      // diminishing return). Only counted when the layout SUITS the count (gated in aesthetics.ts), so a
+      // cluttered strip of lenses earns nothing — form still has to be coherent.
+      lensCountAppeal: [0, 1, 2, 2],
       flashBonus: 1,                 // a complete camera system
+      // Form is a BROAD sales lever, not a Style-only niche: a striking design lifts every buyer segment
+      // in proportion to how much it values design (its `design` weight ÷ styleDesignWeight × broadenShare),
+      // with the design-led Style segment always getting the full lift.
+      styleDesignWeight: 1.6,        // the Style segment's design weight — the reference for the scaling
+      broadenShare: 0.55,            // share of the design lift the non-Style segments receive
     },
   },
 
@@ -238,7 +269,49 @@ export const BALANCE = {
   marketingPush: {
     boost: 0.3,    // +30% to each remaining week's units (then capped at plannedUnits)
     costPct: 0.35, // cash cost = 35% of the extra revenue the push unlocks
-    maxPerProduct: 1,
+    // A launched product is no longer a frozen annuity — you can keep promoting it through its life,
+    // but with DIMINISHING RETURNS so it's a real decision, not a spam button: each push's boost is
+    // pushFalloff× the previous one's (0.30 → 0.165 → 0.09…). Still capped at plannedUnits (only ever
+    // clears real surplus inventory), so an over-pushed product with no surplus simply quotes nothing.
+    maxPerProduct: 3,
+    pushFalloff: 0.55,
+  },
+  // Brand awareness — a company-wide meter you invest cash into BETWEEN launches. It decays weekly, so
+  // it's a standing commitment (not a one-off), and it contributes a bounded, permanent lift to launch
+  // hype for as long as you keep it up. Gated behind spending: at 0 it's a no-op → the pinned sim
+  // (which never invests) is byte-identical.
+  brand: {
+    cap: 100,               // meter runs 0..this
+    hypeMax: 0.22,          // at a full meter, the extra launch-hype contribution (bounded by HYPE_BONUS_MAX)
+    decayPerWeek: 0.94,     // awareness fades ~6%/week without reinvestment
+    costPerPoint: dollars(2_400), // era-1 cost to raise the meter by 1 point (scaled by era below)
+    costPerPointPerEra: 0.9,      // +90% cost per era past 1 (bigger company, pricier campaigns)
+    maxStep: 25,            // one investment raises the meter by at most this many points
+  },
+  // --- Interrupt budget (UX pacing) — one global governor over the OPPORTUNISTIC full-screen cards
+  // (rival strike, eureka, community ask, earnings call, rivalry reveal, regional event, staff moment).
+  // Each has its own cadence/cooldown, but without a shared floor they can still cluster across
+  // consecutive weeks and turn the game into a wall of modals. A single `lastInterruptWeek` stamp +
+  // this minimum gap guarantees quiet weeks between any two opportunistic interrupts, so each one
+  // lands as a moment instead of a nag. Scheduled ceremonies (the year-52 awards) are EXEMPT from the
+  // gate — they must fire on their week — but still stamp, so nothing piles on right after them.
+  interrupts: {
+    minGapWeeks: 3, // at least this many quiet weeks between opportunistic full-screen interrupts
+  },
+  // Mid-lifecycle price cuts, now repeatable (a fading product can be marked down more than once).
+  // Each cut must still be below the current price and above unit cost, so the price naturally floors
+  // out after a few cuts — the diminishing return is built into the mechanic, no extra falloff needed.
+  priceCut: {
+    maxPerProduct: 3,
+  },
+  // Restock / reorder — the headline "living product" lever. A launched product used to be a frozen
+  // 16-week annuity: if it sold out, you could do nothing. Now you can fund another production run to
+  // meet demand you under-supplied. It is DEMAND-CAPPED (you can never order more than the current
+  // market still wants — planProduction.totalDemand minus what's already scheduled to sell), so it
+  // captures unmet demand rather than printing money, and each reorder shrinks the remaining headroom.
+  // No new tooling (the line is already set up) — you pay pure per-unit production. Bounded per product.
+  restock: {
+    maxPerProduct: 3,
   },
 
   // --- Fans / loyal customer base ---
@@ -269,6 +342,39 @@ export const BALANCE = {
     preOrderCap: 0.6, // pre-orders can satisfy at most this fraction of total demand
     selloutMinDemandShare: 0.5, // run must cover ≥ this share of demand to earn the sellout buzz
     undersupplyFanPenalty: 0.05, // fans lost when a sellout met < selloutMinDemandShare of demand
+    // Living fan COMMUNITY — fans are a community with a mood, not a lone decaying number. Sentiment
+    // (−1..+1) evolves from how you treat them (hits/solids delight, flops sour, neglect cools it) and
+    // modulates retention (a beloved community churns slower). Superfans are the loyal core that
+    // sentiment creates — they pre-order harder. All gated behind having SHIPPED: the pinned auto-player
+    // never launches, so sentiment stays 0 → every effect is a no-op → byte-identical.
+    community: {
+      windowWeeks: 14,          // recent verdicts within this window shape the mood
+      inertia: 0.85,            // sentiment moves (1-inertia) toward its target each week
+      hitTarget: 0.28,          // a recent hit pulls the mood up by this (a solid = half)…
+      flopTarget: 0.5,          // …a recent flop pulls it down by this (flops sting more)
+      freshBonus: 0.18,         // a launch within freshWeeks keeps the community engaged (+)…
+      freshWeeks: 8,
+      staleWeeks: 30,           // …going this long with no launch sours the mood (−)
+      stalePenalty: 0.22,
+      retentionSwing: 0.45,     // at |sentiment|=1, weekly fan loss is scaled ±this vs neutral
+      superfanShareAtMax: 0.16, // at sentiment=+1, this fraction of fans are superfans
+      superfanPreorderMult: 1.8,// superfans pre-order this × harder than an ordinary fan
+      // Community ASKS — periodic fan requests (an AMA, a public beta, a merch drop, a meetup) you can
+      // ANSWER for cash to grow + delight the base, or PASS. Player-claimed via an opt-in reducer and
+      // gated behind having launched, so the pinned solo sim never raises one → byte-identical.
+      asks: {
+        cadenceWeeks: 22,          // ~one derived-hash chance per this window
+        cooldownWeeks: 14,         // minimum weeks between asks
+        minWeeksSinceLaunch: 3,    // let a launch's dust settle before the fans ask for more
+        costBase: dollars(60_000), // floor cost to answer…
+        costPerFanCents: 700,      // …+ this per current fan (a bigger base → a bigger event)
+        costMax: dollars(40_000_000),
+        fanGainShare: 0.07,        // answering grows the base by this fraction (one-time)…
+        fanGainMin: 250,           // …or at least this many
+        sentimentGain: 0.16,       // …and lifts the mood (then decays via the normal EMA)
+        passSentiment: -0.05,      // passing lets the fans down a little
+      },
+    },
   },
 
   // --- Reputation dynamics ---
@@ -341,10 +447,39 @@ export const BALANCE = {
     // tech unlocks now cost RP (a fraction of the old cash R&D cost, converted)
     rdCashToRp: 1 / 1400, // dollars of old rdCost -> RP cost
     minTechRp: 4,
+    // Timed research — a started tier/project no longer completes on the click; the lab develops it
+    // over WEEKS (a progress-ring timer, like a production run), and only ONE runs at a time, so
+    // "what do we research next?" becomes a real focus decision instead of a spend-all-RP dump. The
+    // RP is paid up front (economy + balance unchanged); the weeks scale with the project's RP cost
+    // (a bigger breakthrough takes longer), clamped to a sane band. Player-only: the pinned solo sim
+    // never starts research → activeResearch stays null → byte-identical.
+    timer: {
+      rpPerWeek: 24, // ~RP of cost developed per week → weeks = round(rpCost / this)
+      minWeeks: 1,
+      maxWeeks: 6,
+      maxQueue: 4,   // researches you can line up behind the active one (each paid up front)
+    },
     // Research excitement: a strong launch funds your next breakthrough — hits/solids award RP, so
     // the tree advances through PLAY, not just idle ticks. Tuned vs project costs (20–140 RP).
     launchRpHit: 16,
     launchRpSolid: 7,
+    // EUREKA breakthroughs — an active, funded lab occasionally has a flash of insight (a staged
+    // moment + a real bet: bank a guaranteed RP windfall, or CHASE a prototype for a jackpot-or-fizzle
+    // gamble). Cadence is a derived hash (never the sim RNG); the payoff is player-CLAIMED, so a
+    // do-nothing pinned run — no researchers, no resolve — never fires one and stays byte-identical.
+    eureka: {
+      minEra: 2,            // the garage era is a protected sandbox
+      minRnDStaff: 1,       // needs an active lab (≥1 staffer assigned to R&D)
+      cadenceWeeks: 20,     // avg weeks between insights (≈1/N chance per eligible week)
+      cooldownWeeks: 12,    // hard minimum between breakthroughs (so it's a treat, not a nag)
+      bankRpBase: 18,       // guaranteed RP if you bank the insight…
+      bankRpPerEra: 9,      // …+ this per era (scales with the game)
+      jackpotMult: 2.6,     // CHASE jackpot = bank × this
+      fizzleMult: 0.25,     // CHASE fizzle  = bank × this
+      jackpotChance: 0.5,   // odds the chase pays off
+      jackpotRepBonus: 1,   // a little reputation when a prototype lands (word gets out)
+      jackpotFanBonus: 300, // …and a few fans
+    },
   },
 
   // --- Employees: XP & leveling ---
@@ -362,6 +497,21 @@ export const BALANCE = {
     maxSkill: 10,
     // Paid training: instant +1 skill.
     trainCostPerSkill: dollars(1800),
+    // Staff GROWTH MOMENTS (engine/staffMoment.ts) — a tenured, senior staffer periodically earns a
+    // permanent character upgrade the player CHOOSES: a second design specialty, a second (stacking)
+    // trait, or becoming a team mentor. Surfaced as an opt-in interrupt that respects the global
+    // interrupt budget. Gated on era + a real, established team; the founder is never a target and the
+    // pinned solo sim (founder only) never raises one → optional fields stay unset → byte-identical.
+    growth: {
+      minEra: 2,             // the garage era is a protected sandbox
+      minSkill: 6,           // a senior contributor, not a fresh hire
+      minTenureWeeks: 18,    // has been with the company a while
+      cadenceWeeks: 34,      // avg weeks between growth moments (≈1/N chance per eligible week)
+      cooldownWeeks: 20,     // hard minimum between moments (a treat, not a nag)
+      mentorXpBonus: 0.12,   // each mentor adds this to EVERY other staffer's weekly XP…
+      mentorXpCap: 0.3,      // …capped, so a room full of mentors can't runaway-train the team
+      secondSpecialtyWeight: 0.8, // the second specialty's design bonus vs the primary's (1.0)
+    },
   },
 
   // --- Recruitment: pay to run a search; after `weeks` it returns `candidates` applicants with
@@ -561,6 +711,20 @@ export const BALANCE = {
         declining: { stable: 0.6, ascending: 0.4 },
       } as Record<string, Record<string, number>>,
     },
+    // The ARCH-RIVAL / NEMESIS — one rival becomes YOUR villain. A living "heat" meter + a head-to-head
+    // record that escalates on every clash (you overtake them, they strike you, an awards duel) and cools
+    // in quiet weeks; a hot nemesis fights back with a launch edge on your turf. All gated behind the
+    // nemesis FORMING, which needs a player clash — the pinned auto-player never clashes, so it's byte-
+    // identical. Deliberately restrained: the launch edge stays under the existing winnability ceiling.
+    nemesis: {
+      formHeat: 30,             // heat a freshly-declared rivalry starts at
+      decayPerWeek: 2,          // heat ebbs this much on a quiet week (no clash with the nemesis)
+      heat: {                   // heat added per clash kind
+        overtake: 12, dethroned: 24, struck: 16, awardWin: 12, awardLoss: 16,
+      } as Record<string, number>,
+      turfCategoryWeight: 3,    // extra launch-category weight the nemesis piles onto your top category
+      turfStrengthBonusAtMaxHeat: 8, // extra launch strength at heat 100 (scaled by heat/100; pre-cap)
+    },
   },
 
   // --- Product franchises / brand equity (the "IP & fanbase" lever) ---
@@ -591,6 +755,31 @@ export const BALANCE = {
     fansPerRepPoint: 220,     // fans absorbed per point of the acquired rival's reputation
     fansCap: 80_000,          // hard cap on absorbed fans (no free faucet)
     entryChancePerWeek: 0.06, // weekly chance a new challenger refills a thinned field (~16wk mean)
+    // Acquiring a rival used to only DELETE it for a rep + fans bump — you inherited none of its
+    // productive assets, so M&A was near-cosmetic. You now also absorb:
+    //  • their R&D pipeline / patents → a one-time RP windfall (scaled by the rival's reputation);
+    //  • their installed base → a permanent services annuity (their customers now pay YOU each week).
+    // Both scale with the rival's reputation and are bounded by how many rivals you can acquire
+    // (minActiveRivals floor + the escalating market-cap cost), so it's a real late-game power move,
+    // not a faucet. Opt-in (the pinned sim never acquires), so the tuned baseline is untouched.
+    rpPerRepPoint: 2,          // one-time RP absorbed per point of the acquired rival's reputation
+    installedBasePerRep: 800,  // "installed base" (customers) absorbed per rival reputation point
+    absorbedServiceRate: 1.0,  // cents/week each absorbed customer pays in services (recurring annuity)
+    // Controlling-stake TAKEOVERS — a slower, cheaper alternative to a straight cash buyout. Accumulate
+    // a rival's shares on the open market and two things unlock, turning the stock game into a takeover
+    // runway rather than a side annuity:
+    //  • boardSeatFrac of the float → a BOARD SEAT: insider intel on that rival (its hidden arc phase /
+    //    momentum), so you can trade it — and time a takeover — with information nobody else has;
+    //  • controlFrac of the float → a CONTROLLING STAKE: you already hold effective control, so a buyout
+    //    pays only hostilePremium instead of the full acquisitionPremium (the ~35% control premium
+    //    collapses to ~8%). Since shares are bought near fair value, the accumulate-then-pounce path
+    //    costs ~20% less than a cold buyout — the reward for patience, capital lockup, and price risk.
+    // All three are player-driven (buy shares / acquire); the pinned sim never trades, so it's untouched.
+    takeover: {
+      boardSeatFrac: 0.10,  // own this fraction of a rival's shares → board-seat intel
+      controlFrac: 0.5,     // own this → a controlling stake (hostile buyout at the reduced premium)
+      hostilePremium: 1.08, // control premium on a controlled (hostile) takeover, vs acquisitionPremium
+    },
   },
 
   // --- IPO / prestige ---
@@ -608,6 +797,21 @@ export const BALANCE = {
     defaultStake: 0.2, // 20% sold by default at IPO
     maxStakePerSale: 0.49, // never sell majority control in one go
     valuationGrowthPerWeek: 0.004, // company value drifts up with momentum
+    // --- Post-IPO shareholder loop ---
+    // Once listed, the street sets a quarterly revenue expectation and reacts to whether you beat or
+    // miss it (moving the valuation-momentum overlay = the share price). You can buy back shares to
+    // steady the price + reconsolidate ownership — a real late-game cash sink. All gated on `listed`,
+    // so the pinned solo sim (never IPOs) is byte-identical.
+    shareholders: {
+      quarterWeeks: 13,          // an earnings call every fiscal quarter
+      expectedGrowth: 0.06,      // the street wants +6% revenue quarter-over-quarter
+      minExpectation: dollars(50_000) as Money, // a floor so a tiny quarter still has a bar to clear
+      priceSensitivity: 0.5,     // share-price move = surprise% × this…
+      maxPriceMove: 0.06,        // …clamped to ±6% momentum per quarter (the overlay caps at ±15%)
+      defendBuybackPct: 0.03,    // a defensive buyback on a miss spends up to this fraction of valuation
+      buybackBumpPerPct: 0.004,  // buying back 1% of the company nudges momentum up by this
+      maxOwnership: 0.98,        // buybacks can't fully re-privatize the company
+    },
   },
 
   // --- Performance-reactive company value (Track B) ---
@@ -721,6 +925,40 @@ export const BALANCE = {
       churnThreshold: 28,      // at/below this satisfaction, the licensee may walk
       churnChancePerWeek: 0.14,// per-week probability they drop the license once unhappy
     },
+    // App Store — a LIVING marketplace on your OS. It stays dormant (a trickle of apps) until you
+    // research the App Marketplace module (OS_FEATURES.appMarket); after that developers flock in as
+    // your installed base and OS version grow, and you take a weekly commission on the catalogue. A
+    // flavourful, BOUNDED revenue line (the real money is still services + licensing). All gated
+    // behind platformUnlocked → 0 in the base game (determinism preserved).
+    appStore: {
+      dormantAppsPerWeek: 1,        // a bare store before the Marketplace module — barely alive
+      baseAppsPerWeek: 4,           // indie devs shipping once the Marketplace opens
+      appsPerMillionInstalled: 55,  // + apps/wk per million devices in the field (devs follow users)
+      appsPerVersion: 14,           // + apps/wk per OS version released above v1 (a better SDK)
+      storeCutPerAppWeek: 1.2,      // $/wk store commission per published app
+      storeCutCapDollars: 60_000,   // hard cap on weekly store-cut (no runaway faucet)
+    },
+    // Security — a tug-of-war the player actively works. THREAT creeps up every live week (a bigger
+    // platform is a bigger target); SECURITY (hardening) is what you build by shipping patches. When
+    // net exposure (threat − security) runs high, reputation bleeds — so you keep the OS patched.
+    // Shipping a patch is the "update button": an immediate, satisfying threat-clear + hardening jump.
+    // A full OS version release is an even bigger security event. All gated behind platformUnlocked.
+    security: {
+      threatRiseBase: 1.5,          // threat added each live week (the world probes your OS)
+      threatRisePerMillion: 0.6,    // + per million devices in the field (bigger target)
+      threatRiseCap: 6,             // max threat added in a single week
+      privacySuiteMitigation: 0.5,  // the Privacy Suite module halves incoming threat
+      securityDecayPerWeek: 0.6,    // hardening erodes as new exploits appear
+      patchCooldownWeeks: 5,        // weeks between shippable security patches (the update button)
+      patchThreatClear: 0.7,        // a patch clears this fraction of current threat
+      patchSecurityGain: 12,        // + hardening rating per patch
+      patchRepBonus: 1,             // small goodwill for staying responsive
+      patchFanBonus: 400,           // a few fans notice the diligence
+      releaseThreatClear: 1.0,      // a full OS version release wipes threat…
+      releaseSecurityGain: 20,      // …and hardens more than a single patch
+      exposureRepThreshold: 55,     // net exposure above this drags reputation
+      exposureRepDragPerWeek: 0.3,  // reputation lost per live week while over-exposed
+    },
   },
 
   // --- Staff churn: underpaid or burnt-out staff eventually quit ---
@@ -746,6 +984,13 @@ export const BALANCE = {
     maxTargetLift: 24,      // cap on the combined target lift (a fully-leveled lead, no runaway)
     weeklyMoodLift: 2.5,    // steady weekly mood nudge for the whole team (people ops in action)
     underpaidRelief: 0.6,   // fraction of the underpaid mood penalty a People Lead absorbs
+    // A People Lead no longer makes sustained burnout CONSEQUENCE-FREE (which, with the 0.82 output
+    // floor, removed all downside to running the team at mood 0). They now SCALE DOWN the weekly
+    // quit chance — skill-scaled retention — but never to zero, so morale keeps its teeth. In
+    // practice their mood lifts keep the team out of the danger zone anyway; this only bites when the
+    // player actively neglects the team. No lead → the full base chance (byte-identical, incl. sim).
+    quitChanceReliefPerSkill: 0.07, // each People-Lead skill point cuts the quit chance by this fraction
+    minQuitChanceMult: 0.25,        // …floored here — even a maxed lead can't fully immunize burnout
   },
 
   // --- Rival poaching (Track C) — a rival on the rise tries to HIRE AWAY one of your best, surfaced

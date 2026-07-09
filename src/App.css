@@ -229,6 +229,10 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--sp-16);
+  /* Glass well — a clear inset tile so the sheet's frosted material shows through it. */
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .app__offline-label {
   font-size: var(--fs-caption);

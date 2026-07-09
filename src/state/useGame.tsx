@@ -21,11 +21,28 @@ import {
   skipInterrupt,
   evaluateAndUnlock,
   evaluateObjectives,
-  buyProject,
+  startResearchProject,
+  startResearchTier,
+  cancelResearch,
+  cancelQueuedResearch,
   hostKeynote,
   resolveStrike,
   collectAwards,
+  dismissRivalry,
+  resolveEureka,
+  type EurekaResult,
+  resolveCommunityAsk,
+  type CommunityAskResult,
+  resolveStaffMoment,
+  type StaffMomentResult,
+  resolveRegionalEvent,
+  type RegionalEventResult,
+  buybackShares,
+  resolveEarnings,
+  type BuybackResult,
+  type EarningsAckResult,
   acceptSideOrder,
+  claimContract,
   declineSideOrder,
   cancelSideOrder,
   REV_MILESTONES,
@@ -38,6 +55,8 @@ import {
   negotiateContract,
   cutProductPrice,
   marketingPush,
+  investBrandAwareness,
+  restockProduct,
   rushBuild,
   buyFloorMachine,
   buyFloorBelt,
@@ -74,7 +93,6 @@ import {
   newGame,
   placeFurniture,
   removeFurniture,
-  researchNext,
   unlockLens,
   unlockFinish,
   resetFurniture,
@@ -103,6 +121,7 @@ import {
   unlockPlatform,
   foundPlatform,
   releaseOsVersion,
+  shipSecurityPatch,
   licenseOsToRival,
   revokeOsLicense,
   signLicenseOffer,
@@ -131,7 +150,7 @@ import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
 import { objectiveById } from "../engine/objectives.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck, FlaskConical, Sparkles } from "lucide-react";
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -185,16 +204,20 @@ function withFanToasts(prev: GameState, next: GameState): void {
   }
 }
 
-/** Fire a toast when any staff member gains a skill level during the live tick. */
+/** Fire a toast when staff gain a skill level during the live tick — coalesced, so a week that levels
+ *  several people (mentors, fast-forward) is a single line, not a stack of toasts. */
 function withStaffLevelToasts(prev: GameState, next: GameState): void {
-  for (const ns of next.staff) {
+  const leveled = next.staff.filter((ns) => {
     const ps = prev.staff.find((s) => s.id === ns.id);
-    if (ps && ns.skill > ps.skill) {
-      try {
-        showToast(`${ns.name} reached Skill ${ns.skill}`, { tone: "positive" });
-      } catch { /* toast host not mounted */ }
-    }
-  }
+    return ps && ns.skill > ps.skill;
+  });
+  if (leveled.length === 0) return;
+  const msg = leveled.length === 1
+    ? `${leveled[0].name} reached Skill ${leveled[0].skill}`
+    : `${leveled.length} teammates leveled up`;
+  try {
+    showToast(msg, { tone: "positive" });
+  } catch { /* toast host not mounted */ }
 }
 
 /** Fire a summary toast when a product finishes its sales run this tick. */
@@ -211,6 +234,19 @@ function withProductFinishToasts(prev: GameState, next: GameState): void {
         { tone },
       );
     } catch { /* toast host not mounted */ }
+  }
+}
+
+/** Celebrate when the lab FINISHES a timed research this tick. Completion happens inside the pure tick
+ *  (activeResearch set → null), so the FX has to come from the diff. Only fires on tick advances — a
+ *  manual cancel goes through its own callback and never reaches this. */
+function withResearchCompleteFx(prev: GameState, next: GameState): void {
+  if (prev.activeResearch && !next.activeResearch) {
+    try {
+      emitCelebrate();
+      sfx("rp");
+      showToast(`Research complete: ${prev.activeResearch.name}`, { tone: "positive", glyph: <FlaskConical size={15} /> });
+    } catch { /* fx host not mounted */ }
   }
 }
 
@@ -389,13 +425,23 @@ interface GameActionsValue {
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
   launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady" };
   research: (kind: ComponentKind) => void;
+  cancelResearch: () => void;
+  cancelQueuedResearch: (ref: string) => void;
   unlockLens: () => void;
   unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
   hostKeynote: () => void;
   resolveStrike: (choice: StrikeResponse) => void;
   collectAwards: () => void;
+  dismissRivalry: () => void;
+  resolveEureka: (choice: "bank" | "chase") => EurekaResult;
+  resolveCommunityAsk: (accept: boolean) => CommunityAskResult;
+  resolveStaffMoment: (optionIndex: number) => StaffMomentResult;
+  resolveRegionalEvent: (respond: boolean) => RegionalEventResult;
+  buybackShares: (amount: Money) => BuybackResult;
+  resolveEarnings: (defend: boolean) => EarningsAckResult;
   acceptSideOrder: () => void;
+  claimContract: (id: string) => void;
   declineSideOrder: () => void;
   cancelSideOrder: () => void;
   buyUpgrade: (id: UpgradeId) => void;
@@ -435,6 +481,7 @@ interface GameActionsValue {
   unlockPlatform: (on: boolean) => void;
   foundPlatform: () => void;
   releaseOsVersion: () => void;
+  shipSecurityPatch: () => boolean;
   licenseOsToRival: (rivalId: string) => void;
   revokeOsLicense: (rivalId: string) => void;
   signLicenseOffer: () => boolean;
@@ -461,6 +508,8 @@ interface GameActionsValue {
   sellOwnStake: (pct: number) => void;
   cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
   marketingPush: (productId: string) => { ok: boolean; reason?: string };
+  investBrandAwareness: (points: number) => { ok: boolean; reason?: string };
+  restockProduct: (productId: string, units: number) => { ok: boolean; reason?: string };
   rushBuild: (productId: string) => { ok: boolean; reason?: string };
   buyFloorMachine: (kind: import("../engine/factoryFloor.ts").MachineKind, c: number, r: number) => { ok: boolean; reason?: string };
   buyFloorBelt: (c: number, r: number, dir: import("../engine/factoryFloor.ts").BeltDir) => { ok: boolean; reason?: string };
@@ -621,6 +670,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           withFanToasts(s, next);
           withStaffLevelToasts(s, next);
           withProductFinishToasts(s, next);
+          withResearchCompleteFx(s, next);
           announceAchievements(unlocked);
           mergeProfileAchievements(unlocked);
           announceObjectives(completed);
@@ -771,11 +821,31 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
   }, []);
 
+  // Start — or queue — the next tier of a component line (timed research). Pays RP up front; the unlock
+  // lands after a few weeks (shown by the progress ring). If the lab is busy it lines up in the queue.
   const research = useCallback((kind: ComponentKind) => {
     const prev = stateRef.current;
-    const next = researchNext(prev, kind);
+    const next = startResearchTier(prev, kind);
+    if (next === prev) { haptic.error(); return; }
     const rpSpent = prev.researchPoints - next.researchPoints;
-    if (rpSpent > 0) { emitRpSpend(rpSpent); sfx("confirm"); }
+    if (rpSpent > 0) { emitRpSpend(rpSpent); sfx("confirm"); haptic.success(); }
+    const queued = (next.researchQueue?.length ?? 0) > (prev.researchQueue?.length ?? 0);
+    showToast(queued ? `Queued ${next.researchQueue!.at(-1)!.name}` : `Researching ${next.activeResearch?.name ?? "tech"}`, { tone: "neutral" });
+    setState(next);
+  }, []);
+  // Cancel the active research (pulls the next queued one up) or a specific queued item — both refund RP.
+  const cancelResearchCb = useCallback(() => {
+    const prev = stateRef.current;
+    const next = cancelResearch(prev);
+    if (next === prev) return;
+    sfx("toggle"); haptic.light();
+    setState(next);
+  }, []);
+  const cancelQueuedResearchCb = useCallback((ref: string) => {
+    const prev = stateRef.current;
+    const next = cancelQueuedResearch(prev, ref);
+    if (next === prev) return;
+    sfx("toggle"); haptic.light();
     setState(next);
   }, []);
 
@@ -793,17 +863,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (rpSpent > 0) emitRpSpend(rpSpent);
     setState(next);
   }, []);
+  // Start developing a company research project (timed). Pays RP up front; the completion celebration
+  // fires from the tick diff (withResearchCompleteFx) when the lab actually finishes it a few weeks on.
   const buyProjectCb = useCallback((id: ProjectId) => {
     const prev = stateRef.current;
-    const next = buyProject(prev, id);
+    const next = startResearchProject(prev, id);
+    if (next === prev) { haptic.error(); return; }
     const rpSpent = prev.researchPoints - next.researchPoints;
-    if (rpSpent > 0) emitRpSpend(rpSpent);
-    // Breakthrough! A completed project is a real milestone — celebrate it.
-    if (next.completedProjects.length > prev.completedProjects.length) {
-      emitCelebrate();
-      sfx("confirm");
-      showToast(`Breakthrough, ${projectById(id).name}`, { tone: "positive" });
-    }
+    if (rpSpent > 0) { emitRpSpend(rpSpent); sfx("confirm"); haptic.success(); }
+    const queued = (next.researchQueue?.length ?? 0) > (prev.researchQueue?.length ?? 0);
+    showToast(`${queued ? "Queued" : "Researching"} ${projectById(id).name}`, { tone: "neutral" });
     setState(next);
   }, []);
   const buyUpgradeCb = useCallback((id: UpgradeId) => {
@@ -819,6 +888,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!res.ok) { showToast(res.reason ?? "Can't take the order", { tone: "negative" }); return; }
     haptic.success();
     sfx("confirm");
+    setState(res.state);
+  }, []);
+  const claimContractCb = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const res = claimContract(prev, id);
+    if (!res.ok) { haptic.error(); showToast(res.reason ?? "Not ready to claim", { tone: "negative" }); return; }
+    haptic.success();
+    sfx("cash");
     setState(res.state);
   }, []);
   const declineSideOrderCb = useCallback(() => {
@@ -844,6 +921,80 @@ export function GameProvider({ children }: { children: ReactNode }) {
       haptic.success();
     }
     setState(next);
+  }, []);
+  const dismissRivalryCb = useCallback(() => setState((s) => dismissRivalry(s)), []);
+  // Resolve a eureka breakthrough — bank the sure RP or chase the prototype gamble. Returns the outcome
+  // so the overlay can stage the reveal; RP-gain FX + sound scale with whether the prototype landed.
+  const resolveEurekaCb = useCallback((choice: "bank" | "chase"): EurekaResult => {
+    const prev = stateRef.current;
+    const { state: next, result } = resolveEureka(prev, choice);
+    if (!result.ok) return result;
+    if (result.jackpot) { emitCelebrate(); sfx("mastery"); haptic.success(); }
+    else { sfx(choice === "bank" ? "rp" : "confirm"); haptic.light(); }
+    setState(next);
+    return result;
+  }, []);
+  // Answer or pass on a community ask. Answering spends cash (spend FX) and delights the base; passing
+  // is a small mood dip. Returns the outcome so the overlay can stage its reveal.
+  const resolveCommunityAskCb = useCallback((accept: boolean): CommunityAskResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingCommunityAsk) return { ok: false }; // a double input is a no-op, not an error
+    const { state: next, result } = resolveCommunityAsk(prev, accept);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    if (result.answered) {
+      const spent = (prev.cash - next.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      sfx("confirm"); haptic.success();
+    } else { sfx("tap"); haptic.light(); }
+    setState(next);
+    return result;
+  }, []);
+  // Apply a staff growth moment's chosen upgrade (a permanent character perk). A celebratory beat.
+  const resolveStaffMomentCb = useCallback((optionIndex: number): StaffMomentResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingStaffMoment) return { ok: false }; // a double input is a no-op, not an error
+    const { state: next, result } = resolveStaffMoment(prev, optionIndex);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    emitCelebrate(); sfx("levelup"); haptic.success();
+    if (result.staffName) showToast(`${result.staffName} grew`, { tone: "positive", glyph: <Sparkles size={15} /> });
+    setState(next);
+    return result;
+  }, []);
+  // Respond to (spend cash) or ignore a regional event; either way it moves that market's standing.
+  const resolveRegionalEventCb = useCallback((respond: boolean): RegionalEventResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingRegionalEvent) return { ok: false }; // a double input is a no-op, not an error
+    const { state: next, result } = resolveRegionalEvent(prev, respond);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    if (respond) {
+      const spent = (prev.cash - next.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      sfx("confirm"); haptic.success();
+    } else { sfx("tap"); haptic.light(); }
+    setState(next);
+    return result;
+  }, []);
+  // Buy back the company's own shares — spend cash to raise ownership + nudge the price up. Spend FX.
+  const buybackSharesCb = useCallback((amount: Money): BuybackResult => {
+    const prev = stateRef.current;
+    const { state: next, result } = buybackShares(prev, amount);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    const spent = (prev.cash - next.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    sfx("cash"); haptic.success();
+    setState(next);
+    return result;
+  }, []);
+  // Acknowledge a quarterly earnings call; on a miss, `defend` runs a steadying buyback.
+  const resolveEarningsCb = useCallback((defend: boolean): EarningsAckResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingEarnings) return { ok: false };
+    const { state: next, result } = resolveEarnings(prev, defend);
+    if (result.defended) { const spent = (prev.cash - next.cash) as Money; if (spent > 0) emitSpend(spent); sfx("cash"); }
+    else sfx("tap");
+    haptic.light();
+    setState(next);
+    return result;
   }, []);
   const resolveStrikeCb = useCallback((choice: StrikeResponse) => {
     const prev = stateRef.current;
@@ -923,8 +1074,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const hireSpecialistCb = useCallback((which: "autoAssign" | "autoResearch") => {
     const prev = stateRef.current;
     const next = hireSpecialist(prev, which);
+    if (next === prev) return; // no-op (division not opened / at capacity) — no false confirmation
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
+    // A specialist joining unlocks delegation — a real moment, not a silent debit (matches hire).
+    haptic.success();
+    sfx("confirm");
+    showToast(
+      which === "autoResearch" ? "Lead Researcher hired — Auto-research unlocked" : "People Lead hired — Auto-assign unlocked",
+      { tone: "positive" },
+    );
     setState(next);
   }, []);
   const recruit = useCallback((tier: RecruitTier) => {
@@ -1033,6 +1192,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+  // Ship a security patch (the immersive "update" button). Returns true so the Platform screen can
+  // fire its update animation; shows the cooldown reason as a toast when it's not ready yet.
+  const shipSecurityPatchCb = useCallback((): boolean => {
+    const res = shipSecurityPatch(stateRef.current);
+    if (!res.ok) { showToast(res.reason ?? "Can't patch right now", { tone: "neutral" }); return false; }
+    haptic.success();
+    sfx("upgrade");
+    setState(res.state);
+    return true;
+  }, []);
   const licenseOsToRivalCb = useCallback((rivalId: string) => setState((s) => licenseOsToRival(s, rivalId)), []);
   const revokeOsLicenseCb = useCallback((rivalId: string) => setState((s) => revokeOsLicense(s, rivalId)), []);
   // Sign the inbound contract: bank the signing bonus (spend FX in reverse — a gain), and return
@@ -1100,6 +1269,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const marketingPushCb = useCallback((productId: string) => {
     const prev = stateRef.current;
     const result = marketingPush(prev, productId);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      setState(result.state);
+    }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const investBrandAwarenessCb = useCallback((points: number) => {
+    const prev = stateRef.current;
+    const result = investBrandAwareness(prev, points);
+    if (result.ok) {
+      const spent = (prev.cash - result.state.cash) as Money;
+      if (spent > 0) emitSpend(spent);
+      sfx("cash"); haptic.success();
+      setState(result.state);
+    } else if (result.reason) showToast(result.reason, { tone: "negative" });
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const restockProductCb = useCallback((productId: string, units: number) => {
+    const prev = stateRef.current;
+    const result = restockProduct(prev, productId, units);
     if (result.ok) {
       const spent = (prev.cash - result.state.cash) as Money;
       if (spent > 0) emitSpend(spent);
@@ -1276,13 +1466,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
       build,
       launchReady: launchReadyCb,
       research,
+      cancelResearch: cancelResearchCb,
+      cancelQueuedResearch: cancelQueuedResearchCb,
       unlockLens: unlockLensCb,
       unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
       hostKeynote: hostKeynoteCb,
       resolveStrike: resolveStrikeCb,
       collectAwards: collectAwardsCb,
+      dismissRivalry: dismissRivalryCb,
+      resolveEureka: resolveEurekaCb,
+      resolveCommunityAsk: resolveCommunityAskCb,
+      resolveStaffMoment: resolveStaffMomentCb,
+      resolveRegionalEvent: resolveRegionalEventCb,
+      buybackShares: buybackSharesCb,
+      resolveEarnings: resolveEarningsCb,
       acceptSideOrder: acceptSideOrderCb,
+      claimContract: claimContractCb,
       declineSideOrder: declineSideOrderCb,
       cancelSideOrder: cancelSideOrderCb,
       buyUpgrade: buyUpgradeCb,
@@ -1316,6 +1516,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       unlockPlatform: unlockPlatformCb,
       foundPlatform: foundPlatformCb,
       releaseOsVersion: releaseOsVersionCb,
+      shipSecurityPatch: shipSecurityPatchCb,
       licenseOsToRival: licenseOsToRivalCb,
       revokeOsLicense: revokeOsLicenseCb,
       signLicenseOffer: signLicenseOfferCb,
@@ -1340,6 +1541,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       sellOwnStake: sellOwnStakeCb,
       cutProductPrice: cutProductPriceCb,
       marketingPush: marketingPushCb,
+      investBrandAwareness: investBrandAwarenessCb,
+      restockProduct: restockProductCb,
       rushBuild: rushBuildCb,
       buyFloorMachine: buyFloorMachineCb,
       buyFloorBelt: buyFloorBeltCb,
@@ -1362,7 +1565,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, acceptSideOrderCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

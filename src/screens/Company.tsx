@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Factory, FlaskConical, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost, navAttention } from "../state/gameState.ts";
@@ -13,7 +13,8 @@ import { RESEARCH_PROJECTS, projectById, hasProject } from "../engine/research.t
 import { acquirableFactories, factoryFor, totalFactoryUpkeep } from "../engine/factories.ts";
 import type { FactoryId } from "../engine/types.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
-import { disciplineOutput, xpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
+import { disciplineOutput, staffXpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
+import { mentorTeamXpMult } from "../engine/staffMoment.ts";
 import { cents, dollars, format, formatShortDollars, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
@@ -1112,7 +1113,7 @@ function TeamOutputCard({ state }: { state: GameState }) {
           .map((s) => {
             // Mirror the roster card's rate, including the mentorship bonus, so the summary and the
             // per-person ETA can't disagree about who levels next.
-            const weeklyXpRate = (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait) * mentorshipXpMult(s, state.staff);
+            const weeklyXpRate = (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * staffXpMult(s) * mentorshipXpMult(s, state.staff) * mentorTeamXpMult(state.staff, s);
             if (weeklyXpRate <= 0) return null;
             const weeksToLevel = Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate);
             return { name: s.name, weeksToLevel, skill: s.skill };
@@ -1180,8 +1181,9 @@ function Member({
   // displayed time-to-level) reflects the mentorship boost.
   const isLead = isDisciplineLead(s, staff);
   const mentorMult = mentorshipXpMult(s, staff);
+  const teamMentorMult = mentorTeamXpMult(staff, s);
   const isMentored = mentorMult > 1;
-  const weeklyXpRate = maxed ? 0 : (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * xpMult(s.trait) * mentorMult;
+  const weeklyXpRate = maxed ? 0 : (s.assignment === "idle" ? BALANCE.staff.xpPerWeekIdle : BALANCE.staff.xpPerWeekOnTask) * staffXpMult(s) * mentorMult * teamMentorMult;
   const weeksToLevel = !maxed && weeklyXpRate > 0 ? Math.ceil((xpToNext(s.skill) - s.xp) / weeklyXpRate) : null;
   const band = moodBand(s.mood);
   // Best-fit: find the discipline this person scores highest in. Only flag a misfit when their
@@ -1255,6 +1257,21 @@ function Member({
         {isMentored && (
           <span className="co__tag co__tag--mentored" title={`Learning faster under the lead (+${Math.round((mentorMult - 1) * 100)}% XP)`}>
             <Sparkles size={11} aria-hidden /> Mentored
+          </span>
+        )}
+        {s.secondSpecialty && (
+          <span className="co__tag co__tag--grown" title="Cross-trained by a growth moment — lifts a second stat on Design">
+            <Gem size={11} aria-hidden /> +{SPECIALTY_TITLE[s.secondSpecialty]}
+          </span>
+        )}
+        {s.bonusTrait && (
+          <span className="co__tag co__tag--grown" title={TRAIT_INFO[s.bonusTrait].blurb}>
+            <Sparkles size={11} aria-hidden /> {TRAIT_INFO[s.bonusTrait].label}
+          </span>
+        )}
+        {s.isMentor && (
+          <span className="co__tag co__tag--grown" title="A team mentor — the whole team learns faster">
+            <Users size={11} aria-hidden /> Team mentor
           </span>
         )}
       </div>
@@ -1368,6 +1385,9 @@ function RecruitPanel({
   onDismiss: () => void;
 }) {
   const full = state.staff.length >= capacity;
+  // A shortlist cost real cash + weeks to produce, so dismissing it is a two-tap confirm (mirrors
+  // the fire flow) instead of a single irreversible tap.
+  const [confirmDismiss, setConfirmDismiss] = useState(false);
 
   // Searching…
   if (state.recruitment) {
@@ -1419,7 +1439,17 @@ function RecruitPanel({
             }}
           />
         ))}
-        <Button size="sm" variant="tertiary" onClick={onDismiss}>Dismiss shortlist</Button>
+        {confirmDismiss ? (
+          <div className="co__confirm" role="group" aria-label="Confirm dismissing the shortlist">
+            <span className="co__confirm-text">Dismiss all {state.candidates.length} candidate{state.candidates.length === 1 ? "" : "s"}? The search fee isn't refunded.</span>
+            <div className="co__confirm-row">
+              <Button size="sm" variant="secondary" onClick={() => setConfirmDismiss(false)}>Keep</Button>
+              <Button size="sm" variant="destructive" onClick={() => { setConfirmDismiss(false); onDismiss(); }}>Dismiss</Button>
+            </div>
+          </div>
+        ) : (
+          <Button size="sm" variant="tertiary" onClick={() => setConfirmDismiss(true)}>Dismiss shortlist</Button>
+        )}
       </>
     );
   }

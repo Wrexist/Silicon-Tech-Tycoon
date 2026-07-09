@@ -17,6 +17,12 @@ import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
 import { RivalStrike } from "./components/RivalStrike.tsx";
 import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
+import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
+import { EurekaMoment } from "./components/EurekaMoment.tsx";
+import { CommunityAsk } from "./components/CommunityAsk.tsx";
+import { StaffMoment } from "./components/StaffMoment.tsx";
+import { RegionalEvent } from "./components/RegionalEvent.tsx";
+import { EarningsCall } from "./components/EarningsCall.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
@@ -220,6 +226,12 @@ function AppShell() {
       <ReadyToLaunch />
       <RivalStrike />
       <AwardsCeremonyOverlay />
+      <RivalryDeclared />
+      <EurekaMoment />
+      <CommunityAsk />
+      <StaffMoment />
+      <RegionalEvent />
+      <EarningsCall />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />

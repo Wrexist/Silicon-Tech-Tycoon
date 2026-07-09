@@ -6,6 +6,7 @@
 import { BALANCE } from "./balance.ts";
 import { tierDef } from "./catalogs.ts";
 import { dollars, type Money } from "./money.ts";
+import { makeRng } from "./rng.ts";
 import type { LaunchedProduct, StatKey } from "./types.ts";
 
 /** Devices in the field running your OS — the sum of units sold across every launched product
@@ -299,4 +300,102 @@ export function canInstallOsFeature(
   if (!feat || featureIds.includes(id)) return false;
   if (Math.max(1, Math.floor(osVersion || 1)) < feat.minVersion) return false;
   return researchPoints >= feat.rpCost;
+}
+
+// ---------- App Store: a living marketplace on your OS ----------
+// Developers publish apps to your platform. Until the App Marketplace module (OS_FEATURES.appMarket)
+// ships, the store is dormant — a real reason to research it. Once open, the catalogue grows with your
+// installed base + OS version, and you take a weekly commission on it (bounded). PURE.
+
+/** New apps published to your store this week. Dormant (a trickle) until the App Marketplace module
+ *  ships; then it scales with your installed base and OS version. */
+export function appsPublishedPerWeek(installedBase: number, osVersion: number, hasMarketplace: boolean): number {
+  const a = BALANCE.platform.appStore;
+  if (!hasMarketplace) return a.dormantAppsPerWeek;
+  const millions = Math.max(0, installedBase) / 1_000_000;
+  const version = Math.max(1, Math.floor(osVersion || 1));
+  return a.baseAppsPerWeek + millions * a.appsPerMillionInstalled + (version - 1) * a.appsPerVersion;
+}
+
+/** Weekly store commission on the published catalogue (bounded — a flavourful, not runaway, line). */
+export function storeCommission(apps: number): Money {
+  const a = BALANCE.platform.appStore;
+  return dollars(Math.min(a.storeCutCapDollars, Math.max(0, apps) * a.storeCutPerAppWeek));
+}
+
+export interface FeaturedApp {
+  name: string;
+  category: string;
+  rating: number; // 4.1..4.9, one decimal
+}
+
+// IP-safe procedural app names — a prefix + suffix pair, so nothing maps to a real product. The strip
+// rotates as the catalogue crosses size buckets, so a growing store visibly refreshes what's featured.
+const APP_PREFIXES = ["Lumin", "Nimbus", "Vertex", "Pulse", "Quill", "Ember", "Drift", "Halo", "Pixel", "Cobalt", "Zephyr", "Sable", "Tide", "Flux", "Orbit", "Fable", "Cinder", "Aura", "Lyric", "Vantage"] as const;
+const APP_SUFFIXES = ["ly", "io", "Kit", "Hub", "Go", "Craft", "Deck", "Lab", "Space", "Board", "Cast", "Flow", "Snap", "Verse", "Mind", "Wave", "Loop", "Pop", "Dash", "Nest"] as const;
+const APP_CATEGORIES = ["Games", "Productivity", "Photo & Video", "Social", "Music", "Finance", "Health", "Travel", "Education", "Utilities", "Creativity"] as const;
+
+/** A small, deterministic "Featured today" strip for the App Store UI. Seeded off (seed, version,
+ *  catalogue bucket) via a derived RNG — NEVER the main sim stream — so it's stable within a bucket
+ *  and refreshes as the store grows. Pure. */
+export function featuredApps(seed: number, apps: number, osVersion: number, count = 4): FeaturedApp[] {
+  const bucket = Math.floor(Math.max(0, apps) / 250); // refresh the strip every ~250 apps
+  const version = Math.max(1, Math.floor(osVersion || 1));
+  const rng = makeRng(((seed >>> 0) ^ Math.imul(bucket + 1, 0x9e3779b1) ^ Math.imul(version, 0x85ebca6b)) >>> 0);
+  const out: FeaturedApp[] = [];
+  const used = new Set<string>();
+  let guard = 0;
+  while (out.length < count && guard++ < count * 6) {
+    const name = APP_PREFIXES[rng.int(APP_PREFIXES.length)] + APP_SUFFIXES[rng.int(APP_SUFFIXES.length)];
+    if (used.has(name)) continue;
+    used.add(name);
+    out.push({
+      name,
+      category: APP_CATEGORIES[rng.int(APP_CATEGORIES.length)],
+      rating: Math.round((4.1 + rng.next() * 0.8) * 10) / 10,
+    });
+  }
+  return out;
+}
+
+// ---------- Security: the threat / hardening tug-of-war ----------
+// THREAT creeps up every live week; SECURITY (hardening) is what you build by shipping patches + OS
+// releases. When net exposure (threat − security) runs high, reputation bleeds. PURE.
+
+/** Clamp a 0..100 security/threat scalar. */
+export function clampSecurity(n: number): number {
+  return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
+}
+
+/** Threat added this week — scales with installed base, halved while the Privacy Suite module ships. */
+export function threatRisePerWeek(installedBase: number, hasPrivacySuite: boolean): number {
+  const s = BALANCE.platform.security;
+  const millions = Math.max(0, installedBase) / 1_000_000;
+  const raw = Math.min(s.threatRiseCap, s.threatRiseBase + millions * s.threatRisePerMillion);
+  return raw * (hasPrivacySuite ? s.privacySuiteMitigation : 1);
+}
+
+/** Net exposure (0..100) — how much unpatched threat outruns your hardening. */
+export function netExposure(threat: number, security: number): number {
+  return clampSecurity(clampSecurity(threat) - clampSecurity(security));
+}
+
+export type SecurityStanding = "fortified" | "hardened" | "watch" | "exposed" | "critical";
+
+/** Bucket net exposure into a UI standing (label + tone). Lower exposure → stronger standing. */
+export function securityStanding(threat: number, security: number): { key: SecurityStanding; label: string } {
+  const s = BALANCE.platform.security;
+  const exposure = netExposure(threat, security);
+  if (exposure >= s.exposureRepThreshold + 20) return { key: "critical", label: "Critical" };
+  if (exposure >= s.exposureRepThreshold) return { key: "exposed", label: "Exposed" };
+  if (exposure >= 25) return { key: "watch", label: "Watch" };
+  if (security >= 55) return { key: "fortified", label: "Fortified" };
+  return { key: "hardened", label: "Hardened" };
+}
+
+/** Weeks remaining before another security patch can ship (0 when ready). */
+export function patchCooldownLeft(week: number, lastPatchWeek: number | undefined): number {
+  const cd = BALANCE.platform.security.patchCooldownWeeks;
+  if (lastPatchWeek == null) return 0;
+  return Math.max(0, cd - (week - lastPatchWeek));
 }

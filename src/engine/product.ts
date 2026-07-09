@@ -9,6 +9,7 @@ import {
   type Product,
   type Stats,
   type ComponentKind,
+  type CategoryId,
 } from "./types.ts";
 
 function emptyStats(): Stats {
@@ -227,14 +228,26 @@ export interface SynergyArchetype {
   blurb: string;
   kinds: ComponentKind[]; // every one must be a category slot AND at a high tier to unlock
   bonus: Partial<Stats>;
+  /** Categories this archetype can unlock in. Omitted = ANY category (the original 5). A category
+   *  restriction lets an archetype be a signature of, say, laptops WITHOUT firing on a phone — which
+   *  keeps the phone-only balance sim byte-identical while giving other categories real identity. */
+  categories?: readonly CategoryId[];
 }
 
 export const SYNERGY_ARCHETYPES: readonly SynergyArchetype[] = [
+  // Universal high-end pairings (any category with the slots) — unchanged; no `categories` restriction.
   { id: "flagship", name: "Flagship Integration", blurb: "A top chip and display tuned as one — fast and gorgeous.", kinds: ["chip", "display"], bonus: { performance: 3, design: 2 } },
   { id: "imaging", name: "Imaging Pipeline", blurb: "A pro camera fed by a powerful chip — computational photography.", kinds: ["camera", "chip"], bonus: { quality: 3, design: 2 } },
   { id: "endurance", name: "All-Day Platform", blurb: "A dense battery + an efficient OS — it just keeps going.", kinds: ["battery", "software"], bonus: { battery: 3, ecosystem: 2 } },
   { id: "crafted", name: "Crafted Premium", blurb: "Exotic materials wrapped around a flagship display — jewel-like.", kinds: ["materials", "display"], bonus: { quality: 2, design: 3 } },
   { id: "unified", name: "Unified Ecosystem", blurb: "A deep OS tightly bound to the silicon — everything in sync.", kinds: ["software", "chip"], bonus: { ecosystem: 3, quality: 2 } },
+  // Category-signature pairings (never fire on phones, so the phone-only sim is untouched) — each
+  // gives a non-phone category a themed high-end identity of its own.
+  { id: "workstation", name: "Workstation Class", blurb: "Raw silicon in a machined chassis — a serious tool.", kinds: ["chip", "materials"], bonus: { performance: 3, quality: 2 }, categories: ["laptop", "desktop"] },
+  { id: "arcade", name: "Living-Room Powerhouse", blurb: "A muscular chip bound to a games platform — built to play.", kinds: ["chip", "software"], bonus: { performance: 3, ecosystem: 2 }, categories: ["console"] },
+  { id: "companion", name: "All-Day Companion", blurb: "A dense cell in a feather-light body — wear it and forget it.", kinds: ["battery", "materials"], bonus: { battery: 3, design: 2 }, categories: ["wearable"] },
+  { id: "canvas", name: "Creative Canvas", blurb: "A gorgeous display married to a creative OS — a studio in hand.", kinds: ["display", "software"], bonus: { design: 3, ecosystem: 2 }, categories: ["tablet"] },
+  { id: "spatial", name: "Spatial Platform", blurb: "Camera sensing woven into the OS — the world becomes the screen.", kinds: ["camera", "software"], bonus: { ecosystem: 3, design: 2 }, categories: ["experimental"] },
 ];
 
 /** Whether a slot is at a "high" tier (≥ highTierFrac of its line's max) — era-robust, since lines
@@ -251,7 +264,11 @@ function isHighTier(product: Product, kind: ComponentKind): boolean {
  *  category slots AND at a high tier). Drives the readable "unlocked" badges in the design lab. */
 export function activeArchetypes(product: Product): SynergyArchetype[] {
   const slots = new Set(CATEGORIES[product.category].slots);
-  return SYNERGY_ARCHETYPES.filter((a) => a.kinds.every((k) => slots.has(k) && isHighTier(product, k)));
+  return SYNERGY_ARCHETYPES.filter(
+    (a) =>
+      (!a.categories || a.categories.includes(product.category)) &&
+      a.kinds.every((k) => slots.has(k) && isHighTier(product, k)),
+  );
 }
 
 /** The summed archetype stat bonus, capped so even a fully-maxed build can't stack past a sane

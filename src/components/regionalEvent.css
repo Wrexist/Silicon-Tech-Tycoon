@@ -1,0 +1,48 @@
+/* Regional event — a boom / tariff / rival-surge moment for an expansion market, tinted by tone. Same
+   clear-liquid-glass modal frame as the eureka / staff-moment cards. Tokens + 8pt grid only. */
+.rge {
+  position: fixed; inset: 0; z-index: 58;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+  --rge-accent: var(--accent);
+}
+.rge--positive { --rge-accent: var(--positive); }
+.rge--negative { --rge-accent: var(--negative); }
+.rge__scrim {
+  position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+}
+.rge__card {
+  position: relative; z-index: 1; width: 100%; max-width: 410px; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-32) var(--sp-28) var(--sp-28);
+  border-radius: var(--r-sheet);
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--rge-accent) 12%, transparent), transparent 62%), var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid color-mix(in srgb, var(--rge-accent) 26%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--rge-accent) 42%, transparent);
+  text-align: center;
+  animation: rge-in var(--spring-gentle) both;
+}
+@keyframes rge-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .rge__card { animation: none; } }
+
+.rge__glyph {
+  width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: color-mix(in srgb, var(--rge-accent) 16%, transparent); color: var(--rge-accent);
+  animation: rge-glyph var(--spring-bounce) both;
+}
+@keyframes rge-glyph { from { transform: scale(0.5) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.rge__region {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: var(--sp-4);
+  font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2);
+}
+.rge__region svg { color: var(--ink-3); }
+.rge__eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--rge-accent); }
+.rge__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
+.rge__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-2) 0 var(--sp-8); }
+.rge__actions { display: flex; flex-direction: column; gap: var(--sp-8); width: 100%; }
+.rge__note { font-size: var(--fs-nano); color: var(--ink-3); margin-top: var(--sp-2); }

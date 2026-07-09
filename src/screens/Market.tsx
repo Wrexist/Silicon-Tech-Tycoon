@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowRight, Building2, ChevronRight, Clock, Crown, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Target, TrendingDown, TrendingUp, Wand2, X, type LucideIcon } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -12,7 +12,7 @@ import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
-import { dollars, format, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
+import { dollars, format, formatCount, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { priceFit } from "../engine/market.ts";
@@ -24,22 +24,31 @@ import {
   canList,
   canAcquire,
   acquisitionCost,
+  ownershipFractionOf,
+  hasBoardSeat,
+  hasControllingStake,
+  rivalBoardIntel,
   companyValuation,
   founderStakeValue,
   industryLeaderboard,
   industryRank,
   marketingPushQuote,
+  restockQuote,
   netWorth,
   nextWeekRevenue,
   osDisplayName,
   osTierInfo,
   productStats,
+  shareholderPulse,
+  investBrandAwarenessQuote,
+  brandAwarenessHype,
   type FeedItem,
 } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } from "../engine/types.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { REGIONS, regionById, regionTasteFit, shippableRegions } from "../engine/regions.ts";
+import { REGIONS, regionById, regionTasteFit, regionLoyaltyMul, shippableRegions, regionWorldShare, worldCoverage, regionTasteTop, type Region } from "../engine/regions.ts";
+import { heatTier, HEAT_TIER_LABEL } from "../engine/nemesis.ts";
 import { supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -47,11 +56,23 @@ import { STAT_INFO } from "../engine/glossary.ts";
 import { StatGlossary } from "../components/StatGlossary.tsx";
 import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
+import { Celebration } from "../design/Celebration.tsx";
 import "./market.css";
 
 const CATEGORY_LABEL: Record<string, string> = {
   phone: "Phone", tablet: "Tablet", laptop: "Laptop", desktop: "Desktop",
   monitor: "Monitor", console: "Console", wearable: "Wearable", experimental: "AR/VR",
+};
+
+// A distinct hue per region so each market emblem reads at a glance (CSS owns the tint formula).
+const REGION_HUE: Record<string, number> = { home: 210, north_america: 222, europe: 265, asia: 32, emerging: 150 };
+
+// Board-seat intel: a rival's hidden arc phase → a plain-language momentum read + a tone.
+const MOMENTUM: Record<string, { label: string; hint: string; tone: "positive" | "negative" | "neutral" }> = {
+  ascending: { label: "Rising", hint: "its shares should keep firming up", tone: "positive" },
+  peaking: { label: "Peaking", hint: "the momentum is starting to fade", tone: "neutral" },
+  declining: { label: "Declining", hint: "expect its shares to soften", tone: "negative" },
+  stable: { label: "Steady", hint: "holding its level for now", tone: "neutral" },
 };
 
 type Verdict = "hit" | "solid" | "steady" | "flop";
@@ -89,7 +110,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   focusProductId?: string | null;
   onFocusConsumed?: () => void;
 } = {}) {
-  const { state, unlockRegion } = useGame();
+  const { state, unlockRegion, investBrandAwareness } = useGame();
   const trends = state.trends;
   const comps = state.competitors;
   // Only show releases from rivals still on the board — an acquired rival's historical releases would
@@ -101,6 +122,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   const [trade, setTrade] = useState<CompetitorState | null>(null);
   const [ipo, setIpo] = useState(false);
   const [sellStake, setSellStake] = useState(false);
+  const [buyback, setBuyback] = useState(false);
+  // The region just licensed — captures it so the "flag planted" celebration survives the card
+  // flipping to Open the instant the market opens.
+  const [openedRegion, setOpenedRegion] = useState<Region | null>(null);
   const sortedProducts = [...state.launched].sort((a, b) => {
     const aLive = a.weeksElapsed < a.weeklyUnits.length ? 1 : 0;
     const bLive = b.weeksElapsed < b.weeklyUnits.length ? 1 : 0;
@@ -114,7 +139,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   // Deep-link hand-off from the launch reveal: open the named product's post-mortem once, consume.
   useEffect(() => {
     if (!focusProductId) return;
-    if (state.launched.some((l) => l.product.id === focusProductId)) setDetailId(focusProductId);
+    if (state.launched.some((l) => l.product.id === focusProductId)) {
+      setMktTab("products"); // land on the Products list so dismissing the post-mortem shows where the device lives
+      setDetailId(focusProductId);
+    }
     onFocusConsumed?.();
     // Consume-once on mount/prop-change; state.launched is read fresh at that moment by design.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,7 +205,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         </div>
         <div className="mkt__nw-row">
           <StatPill label="Cash" value={format(state.cash)} />
-          <StatPill label="Fans" value={state.fans >= 1000 ? `${(state.fans / 1000).toFixed(1)}k` : String(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
+          <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
           <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
           <StatPill label="Weekly" value={`${wkFlowD >= 0 ? "+" : ""}${format(wkFlow)}`} tone={wkFlowD >= 0 ? "positive" : "negative"} />
         </div>
@@ -243,14 +271,74 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
               </div>
             );
           })()
-        ) : state.ownership < 0.06 ? (
-          <p className="mkt__co-hint">Selling more would cut below your 5% founder minimum, so there are no more shares to sell.</p>
         ) : (
-          <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>
-            Sell more shares
-          </Button>
+          <>
+            {(() => {
+              // Shareholder pulse — this quarter's revenue vs the street's expectation + the countdown
+              // to the next earnings call, so the accountability is visible between calls.
+              const pulse = shareholderPulse(state);
+              if (!pulse) return null;
+              const onTrack = pulse.pct >= 100;
+              return (
+                <div className="mkt__pulse">
+                  <div className="mkt__pulse-head">
+                    <span className="mkt__pulse-label">This quarter vs the street</span>
+                    <span className={`mkt__pulse-pct tnum${onTrack ? " mkt__pulse-pct--up" : ""}`}>{pulse.pct}%</span>
+                  </div>
+                  <div className="mkt__pulse-track">
+                    <div className={`mkt__pulse-fill${onTrack ? " mkt__pulse-fill--up" : ""}`} style={{ width: `${Math.min(100, pulse.pct)}%` }} />
+                  </div>
+                  <p className="mkt__co-hint">
+                    {format(pulse.quarterRevenue)} of {format(pulse.expectation)} expected · earnings call in {pulse.weeksToCall} wk
+                  </p>
+                </div>
+              );
+            })()}
+            <div className="mkt__co-actions">
+              {state.ownership < BALANCE.ipo.shareholders.maxOwnership && (
+                <Button block onClick={() => { setBuyback(true); haptic.light(); }}>
+                  <Undo2 size={16} /> Buy back shares
+                </Button>
+              )}
+              {state.ownership >= 0.06 ? (
+                <Button block variant="secondary" onClick={() => { setSellStake(true); haptic.light(); }}>
+                  Sell more shares
+                </Button>
+              ) : (
+                <p className="mkt__co-hint">Selling more would cut below your 5% founder minimum.</p>
+              )}
+            </div>
+          </>
         )}
       </Card>
+
+      {/* Brand awareness — a company-wide marketing meter that lifts every launch's hype. It's a
+          STANDING, decaying investment (not a per-launch campaign), so keeping it up is a real call.
+          Shown once you've shipped (or already hold awareness) → hidden early + sim-safe. */}
+      {(state.launched.length >= 1 || (state.brandAwareness ?? 0) > 0) && (() => {
+        const meter = Math.round(state.brandAwareness ?? 0);
+        const pct = Math.round((meter / BALANCE.brand.cap) * 100);
+        const hypePct = Math.round(brandAwarenessHype(state) * 100);
+        const quote = investBrandAwarenessQuote(state, BALANCE.brand.maxStep);
+        return (
+          <Card>
+            <SectionHeader title="Brand awareness" accessory={hypePct > 0 ? `+${hypePct}% launch hype` : undefined} />
+            <p className="mkt__co-hint">A standing marketing presence that lifts every launch's hype. It fades a little each week, so keep it up.</p>
+            <div className="mkt__pulse-head" style={{ marginTop: "var(--sp-8)" }}>
+              <span className="mkt__pulse-label">Awareness</span>
+              <span className="mkt__pulse-pct mkt__pulse-pct--up tnum">{meter}/{BALANCE.brand.cap}</span>
+            </div>
+            <div className="mkt__pulse-track"><div className="mkt__pulse-fill mkt__pulse-fill--up" style={{ width: `${pct}%` }} /></div>
+            {quote === null ? (
+              <p className="mkt__co-hint" style={{ marginTop: "var(--sp-8)" }}>Your brand is at peak awareness.</p>
+            ) : (
+              <Button block onClick={() => investBrandAwareness(quote.points)}>
+                <Megaphone size={16} /> Run a campaign · {format(quote.cost)}
+              </Button>
+            )}
+          </Card>
+        );
+      })()}
 
       {/* Industry leaderboard — the climb from a garage to the #1 company in the industry */}
       {(() => {
@@ -266,7 +354,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
               {board.map((e, i) => (
                 <div key={e.id} className={`mkt__board-row${e.isPlayer ? " mkt__board-row--me" : ""}`}>
                   <span className={`mkt__board-rank${i === 0 ? " mkt__board-rank--first" : ""}`}>{i === 0 ? <Crown size={13} aria-hidden /> : i + 1}</span>
-                  <span className="mkt__board-name">{e.name}{e.isPlayer ? " · you" : ""}</span>
+                  <span className="mkt__board-name">{e.name}{e.isPlayer ? " · you" : ""}{state.nemesis?.rivalId === e.id && <Swords size={12} className="mkt__board-nemesis" aria-label="your arch-rival" />}</span>
                   <span className="mkt__board-val tnum">{format(e.valuation)}</span>
                 </div>
               ))}
@@ -287,65 +375,113 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       </>)}
 
       {mktTab === "demand" && (<>
-      {/* Global expansion, open new markets to grow your addressable demand (engine/regions.ts) */}
+      {/* Global expansion — license distribution into new markets to grow your reach (engine/regions.ts) */}
       <Card className="mkt__regions">
-        <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length} open`} />
-        <p className="mkt__regions-lead">Expand beyond your home market. Each region adds demand, but its buyers value different things, so design with your markets in mind.</p>
-        <div className="mkt__region-list">
-          {(() => {
-            // Where this week's sales are coming from: each active product's weekly revenue,
-            // apportioned across its shipped regions by share × taste fit (the same weights that
-            // sized its launch). Keeps the card alive once every region is unlocked — an open
-            // region shows its contribution instead of a static "Open" tag.
-            const regionRev = new Map<string, number>();
-            for (const lp of state.launched) {
-              if (lp.weeksElapsed >= lp.weeklyUnits.length) continue;
-              const wkRev = lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price);
-              if (wkRev <= 0) continue;
-              const stats = productStats(state, lp.product);
-              const parts = shippableRegions(state.unlockedRegions, lp.product.regions)
-                .map((id) => { const r = regionById(id)!; return { id, w: r.share * regionTasteFit(stats, r) }; });
-              const total = parts.reduce((a, p) => a + p.w, 0) || 1;
-              for (const p of parts) regionRev.set(p.id, (regionRev.get(p.id) ?? 0) + (wkRev * p.w) / total);
-            }
-            return REGIONS.map((r) => {
-              const open = state.unlockedRegions.includes(r.id);
-              const afford = state.cash >= r.unlockCost;
-              const rev = regionRev.get(r.id) ?? 0;
-              return (
-                <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`}>
-                  <span className="mkt__region-icon">{open ? <Globe size={16} /> : <Lock size={15} />}</span>
-                  <div className="mkt__region-text">
-                    <span className="mkt__region-name">{r.name}</span>
-                    <span className="mkt__region-blurb">{r.blurb}</span>
-                  </div>
-                  {open ? (
-                    rev >= 1 ? (
-                      <span className="mkt__region-tag mkt__region-tag--rev tnum">≈{formatShortDollars(rev)}/wk</span>
-                    ) : (
-                      <span className="mkt__region-tag">{r.id === "home" ? "Home" : "Open"}</span>
-                    )
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      disabled={!afford}
-                      haptics="none"
-                      onClick={() => {
-                        unlockRegion(r.id);
-                        // Opening an entire market is a milestone, not a silent debit.
-                        haptic.success();
-                        sfx("upgrade");
-                        showToast(`${r.name} is open — new demand for every launch`, { tone: "positive", glyph: <Globe size={15} /> });
-                      }}
-                    >
-                      <Globe size={14} aria-hidden /> Unlock · {format(r.unlockCost)}
-                    </Button>
-                  )}
+        <SectionHeader title="Global markets" accessory={`${state.unlockedRegions.length} of ${REGIONS.length}`} />
+        {(() => {
+          const coverage = worldCoverage(state.unlockedRegions);
+          const remaining = REGIONS.length - state.unlockedRegions.length;
+          // Where this week's sales are coming from: each active product's weekly revenue, apportioned
+          // across its shipped regions by share × taste fit (the same weights that sized its launch).
+          const regionRev = new Map<string, number>();
+          for (const lp of state.launched) {
+            if (lp.weeksElapsed >= lp.weeklyUnits.length) continue;
+            const wkRev = lp.weeklyUnits[lp.weeksElapsed] * toDollars(lp.product.price);
+            if (wkRev <= 0) continue;
+            const stats = productStats(state, lp.product);
+            const parts = shippableRegions(state.unlockedRegions, lp.product.regions)
+              .map((id) => { const r = regionById(id)!; return { id, w: r.share * regionTasteFit(stats, r) }; });
+            const total = parts.reduce((a, p) => a + p.w, 0) || 1;
+            for (const p of parts) regionRev.set(p.id, (regionRev.get(p.id) ?? 0) + (wkRev * p.w) / total);
+          }
+          // Your flagship (newest launch) — reads how well your current line suits each market's taste,
+          // so a locked region shows whether it's a natural fit or a market you'd need to design for.
+          const flagshipLp = state.launched.length ? [...state.launched].sort((a, b) => b.launchedWeek - a.launchedWeek)[0] : null;
+          const flagshipStats = flagshipLp ? productStats(state, flagshipLp.product) : null;
+          return (
+            <>
+              {/* Empire reach meter — the "garage → global" fantasy made visible */}
+              <div className="mkt__reach">
+                <div className="mkt__reach-head">
+                  <span className="mkt__reach-label"><Globe size={15} aria-hidden /> World market reached</span>
+                  <span className="mkt__reach-pct tnum">{Math.round(coverage * 100)}%</span>
                 </div>
-              );
-            });
-          })()}
-        </div>
+                <div className="mkt__reach-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(coverage * 100)}>
+                  <i style={{ width: `${Math.max(3, coverage * 100)}%` }} />
+                </div>
+                <span className="mkt__reach-sub">
+                  {remaining === 0 ? "Every market licensed — a truly global empire." : `${remaining} ${remaining === 1 ? "market" : "markets"} left to license — each adds demand for every launch.`}
+                </span>
+              </div>
+
+              <div className="mkt__region-list">
+                {REGIONS.map((r) => {
+                  const open = state.unlockedRegions.includes(r.id);
+                  const afford = state.cash >= r.unlockCost;
+                  const rev = regionRev.get(r.id) ?? 0;
+                  const worldShare = regionWorldShare(r);
+                  const taste = regionTasteTop(r, 2);
+                  const fitRaw = open || r.id === "home" || !flagshipStats ? null : regionTasteFit(flagshipStats, r);
+                  const fit = fitRaw == null ? null : fitRaw >= 1.04 ? { label: "Strong fit", tone: "strong" } : fitRaw <= 0.96 ? { label: "Soft fit", tone: "soft" } : { label: "Fair fit", tone: "fair" };
+                  return (
+                    <div key={r.id} className={`mkt__region${open ? " mkt__region--open" : ""}`} style={{ "--rgn-h": REGION_HUE[r.id] ?? 210 } as CSSProperties}>
+                      <div className="mkt__region-main">
+                        <span className="mkt__region-emblem" aria-hidden>{open ? <Globe size={18} /> : <Lock size={16} />}</span>
+                        <div className="mkt__region-text">
+                          <span className="mkt__region-name">{r.name}{open && r.id !== "home" && <Check size={13} className="mkt__region-check" aria-hidden />}</span>
+                          <span className="mkt__region-blurb">{r.blurb}</span>
+                          {taste.length > 0 && (
+                            <div className="mkt__region-taste">
+                              <span className="mkt__region-taste-lead">Values</span>
+                              {taste.map((k) => <span key={k} className="mkt__region-taste-chip">{STAT_INFO[k].label}</span>)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="mkt__region-size">
+                          <span className="mkt__region-size-val tnum">{Math.round(worldShare * 100)}%</span>
+                          <span className="mkt__region-size-cap">of world</span>
+                        </div>
+                      </div>
+                      <div className="mkt__region-foot">
+                        {open ? (
+                          <>
+                            <span className="mkt__region-tag">{r.id === "home" ? "Home market" : "Licensed"}</span>
+                            {rev >= 1 && <span className="mkt__region-tag mkt__region-tag--rev tnum">≈{formatShortDollars(rev)}/wk</span>}
+                            {r.id !== "home" && (() => {
+                              const loy = state.regionLoyalty?.[r.id] ?? 0;
+                              if (Math.abs(loy) < 1) return null;
+                              const pct = Math.round((regionLoyaltyMul(loy) - 1) * 100);
+                              if (pct === 0) return null;
+                              return <span className={`mkt__region-tag mkt__region-tag--${pct >= 0 ? "up" : "down"} tnum`} title="Your standing here, from regional events — it lifts or dents this market's demand.">Standing {pct >= 0 ? "+" : ""}{pct}%</span>;
+                            })()}
+                          </>
+                        ) : (
+                          <>
+                            {fit && <span className={`mkt__region-fit mkt__region-fit--${fit.tone}`}>{fit.label} for your line</span>}
+                            <Button
+                              variant="secondary"
+                              disabled={!afford}
+                              haptics="none"
+                              onClick={() => {
+                                unlockRegion(r.id);
+                                // Licensing an entire market is a milestone — a "flag planted" moment.
+                                haptic.success();
+                                sfx("upgrade");
+                                setOpenedRegion(r);
+                              }}
+                            >
+                              <Globe size={14} aria-hidden /> Buy licence · {format(r.unlockCost)}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
       </Card>
 
       {/* Rival releases, the real products rivals have shipped (Epic B): see and learn from them */}
@@ -561,7 +697,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
             <button className="mkt__stock-btn" onClick={() => { setTrade(c); haptic.light(); }} aria-label={`Trade ${c.name}`}>
               <div className="mkt__stock-head">
                 <div className="mkt__stock-id">
-                  <span className="mkt__stock-name">{c.name}</span>
+                  <span className="mkt__stock-name">{c.name}{state.nemesis?.rivalId === c.id && <Swords size={12} className="mkt__board-nemesis" aria-label="your arch-rival" />}</span>
                   <span className="mkt__stock-blurb">{c.blurb}</span>
                 </div>
                 <div className="mkt__stock-price">
@@ -844,9 +980,28 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       <Sheet open={sellStake} onClose={() => setSellStake(false)} label="Sell your stake">
         {sellStake && <SellStakeSheet onClose={() => setSellStake(false)} />}
       </Sheet>
+      <Sheet open={buyback} onClose={() => setBuyback(false)} label="Buy back shares">
+        {buyback && <BuybackSheet onClose={() => setBuyback(false)} />}
+      </Sheet>
       <Sheet open={feedOpen} onClose={() => setFeedOpen(false)} label="Market feed">
         <FeedSheet feed={state.feed} onClose={() => setFeedOpen(false)} />
       </Sheet>
+
+      {openedRegion && (
+        <Celebration
+          eyebrow="New market licensed"
+          title={`${openedRegion.name} is open`}
+          sub={`Your devices can now ship to ${openedRegion.name}. Every launch reaches a bigger world${regionTasteTop(openedRegion, 2).length ? `, and these buyers reward ${regionTasteTop(openedRegion, 2).map((k) => STAT_INFO[k].label.toLowerCase()).join(" & ")}` : ""}.`}
+          icon={<Globe size={32} />}
+          sound="era"
+          chips={[
+            { icon: <Globe size={14} />, value: `+${Math.round(regionWorldShare(openedRegion) * 100)}%`, label: "world market", sub: "addressable" },
+            { icon: <TrendingUp size={14} />, value: `${Math.round(worldCoverage(state.unlockedRegions) * 100)}%`, label: "global reach", sub: "now open" },
+          ]}
+          confirmLabel="Plant the flag"
+          onConfirm={() => setOpenedRegion(null)}
+        />
+      )}
     </div>
   );
 }
@@ -992,9 +1147,10 @@ function ProductDetailSheet({
   onClose: () => void;
   onDesignSuccessor?: (p: Product) => void;
 }) {
-  const { cutProductPrice, marketingPush } = useGame();
+  const { state, cutProductPrice, marketingPush, restockProduct } = useGame();
   const [priceCutOpen, setPriceCutOpen] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
+  const [restockOpen, setRestockOpen] = useState(false);
   // Only phones & tablets are flat slabs with a real back face (camera module); for those, let the
   // player flip the hardware to inspect the rear.
   const canFlip = lp.product.category === "phone" || lp.product.category === "tablet";
@@ -1027,7 +1183,13 @@ function ProductDetailSheet({
   const suggestedCut = dollars(Math.max(toDollars(lp.unitCost) + 1, Math.round(toDollars(lp.product.price) * 0.85 / 10) * 10));
   // Marketing push quote — only offered when there's genuine surplus inventory left to clear.
   const pushQuote = marketingPushQuote(lp);
-  const pushed = (lp.marketingPushes ?? 0) >= 1;
+  const pushed = (lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct;
+  // Restock ("living product" lever): reorder to meet demand you under-supplied. The engine caps the
+  // amount to the market's unmet appetite; here we also cap the offer at what the player can afford now.
+  const restockQ = live ? restockQuote(state, lp) : null;
+  const restockAfford = restockQ ? Math.floor(toDollars(state.cash) / Math.max(1, toDollars(restockQ.unitCost))) : 0;
+  const restockUnits = restockQ ? Math.min(restockQ.maxUnits, restockAfford) : 0;
+  const restockCost = restockQ ? cents(restockQ.unitCost * restockUnits) : dollars(0);
 
   return (
     <div className="pd">
@@ -1170,10 +1332,10 @@ function ProductDetailSheet({
       {/* Mid-lifecycle price cut — only for live products */}
       {live && (
         <div className="pd__pricecut">
-          {(lp.priceCuts ?? 0) >= 1 ? (
+          {(lp.priceCuts ?? 0) >= BALANCE.priceCut.maxPerProduct ? (
             <div className="pd__pricecut-done">
               <TrendingDown size={13} aria-hidden />
-              <span>Price reduced to <strong className="tnum">{format(lp.product.price)}</strong></span>
+              <span>Price cut to <strong className="tnum">{format(lp.product.price)}</strong> — as low as it goes</span>
             </div>
           ) : !priceCutOpen ? (
             <button className="pd__pricecut-trigger" onClick={() => { setPriceCutOpen(true); haptic.light(); }}>
@@ -1198,7 +1360,7 @@ function ProductDetailSheet({
                 const boostPct = oldFit > 0 ? Math.round(((newFit / oldFit) - 1) * 100) : 0;
                 return (
                   <p className="pd__pricecut-hint">
-                    {boostPct > 0 ? `~+${boostPct}% estimated demand uplift · ` : ""}One adjustment per product.
+                    {boostPct > 0 ? `~+${boostPct}% estimated demand uplift · ` : ""}Repeatable, each cut smaller as the price nears cost.
                   </p>
                 );
               })()}
@@ -1248,7 +1410,7 @@ function ProductDetailSheet({
                 <span>Marketing push</span>
               </div>
               <p className="pd__pricecut-hint">
-                Sell ~<strong className="tnum">{pushQuote!.addedUnits.toLocaleString()}</strong> more units at full price, no margin cut. One campaign per product.
+                Sell ~<strong className="tnum">{formatCount(pushQuote!.addedUnits)}</strong> more units at full price, no margin cut. Repeatable, each campaign smaller than the last.
               </p>
               <div className="pd__pricecut-actions">
                 <Button
@@ -1268,6 +1430,49 @@ function ProductDetailSheet({
                   Confirm · {format(pushQuote!.cost)}
                 </Button>
                 <Button block variant="tertiary" onClick={() => { setPushOpen(false); haptic.light(); }}>Cancel</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Restock / reorder — the "living product" lever: make more of a sell-out to capture demand you
+          under-supplied. Shown only while the market still wants more AND you can afford a real run. */}
+      {live && restockQ && restockUnits >= BALANCE.build.minRun && (
+        <div className="pd__pricecut">
+          {!restockOpen ? (
+            <button className="pd__pricecut-trigger" onClick={() => { setRestockOpen(true); haptic.light(); }}>
+              <Package size={13} aria-hidden />
+              <span>Restock · <span className="tnum">{formatCount(restockQ.maxUnits)}</span> units of demand unmet</span>
+              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
+            </button>
+          ) : (
+            <div className="pd__pricecut-panel">
+              <div className="pd__pricecut-title">
+                <Package size={14} aria-hidden />
+                <span>Restock production</span>
+              </div>
+              <p className="pd__pricecut-hint">
+                Build ~<strong className="tnum">{formatCount(restockUnits)}</strong> more units to meet demand you under-supplied — no new tooling, you pay production only.
+              </p>
+              <div className="pd__pricecut-actions">
+                <Button
+                  block
+                  onClick={() => {
+                    const result = restockProduct(lp.product.id, restockUnits);
+                    if (result.ok) {
+                      haptic.success();
+                      showToast("Restocked — more units on the line", { tone: "positive" });
+                      setRestockOpen(false);
+                    } else {
+                      haptic.medium();
+                      showToast(result.reason ?? "Can't restock", { tone: "negative" });
+                    }
+                  }}
+                >
+                  Confirm · {format(restockCost)}
+                </Button>
+                <Button block variant="tertiary" onClick={() => { setRestockOpen(false); haptic.light(); }}>Cancel</Button>
               </div>
             </div>
           )}
@@ -1324,12 +1529,6 @@ function ProductDetailSheet({
   );
 }
 
-function fmtCompact(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${Math.floor(n / 1000)}k`;
-  return n.toLocaleString();
-}
-
 /** The player's product lines grouped by brand equity — the IP lens over the catalog. Each row opens
  *  a detail sheet: the line's "chapters" (every product, newest first) with its verdict + numbers. */
 function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
@@ -1348,7 +1547,7 @@ function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
               <ChevronRight size={16} className="mkt__fr-chev" aria-hidden />
             </div>
             <div className="mkt__fr-sub">
-              {f.entries} product{f.entries > 1 ? "s" : ""} · {fmtCompact(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
+              {f.entries} product{f.entries > 1 ? "s" : ""} · {formatCount(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
             </div>
             <div className="mkt__fr-bar" aria-hidden><span className="mkt__fr-fill" style={{ width: `${Math.round(Math.max(0, f.equity) * 100)}%` }} /></div>
           </button>
@@ -1380,7 +1579,7 @@ function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; lau
 
       <div className="frd__stats">
         <Stat label="Lifetime revenue" value={format(summary.revenue)} tone="positive" />
-        <Stat label="Units sold" value={fmtCompact(summary.unitsSold)} />
+        <Stat label="Units sold" value={formatCount(summary.unitsSold)} />
         <Stat label="Brand equity" value={`${equityPct}%`} tone="accent" />
       </div>
 
@@ -1392,7 +1591,7 @@ function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; lau
               <div className="frd__thumb" aria-hidden><DeviceRenderer product={lp.product} size={48} /></div>
               <div className="frd__row-main">
                 <span className="frd__row-name">{lp.product.name}</span>
-                <span className="frd__row-meta">{CATEGORY_LABEL[lp.product.category] ?? lp.product.category} · wk {lp.launchedWeek} · {fmtCompact(lp.unitsSold)} sold</span>
+                <span className="frd__row-meta">{CATEGORY_LABEL[lp.product.category] ?? lp.product.category} · wk {lp.launchedWeek} · {formatCount(lp.unitsSold)} sold</span>
               </div>
               <div className="frd__row-side">
                 <span className={`frd__verdict frd__verdict--${VERDICT_TONE[v]}`}>{VERDICT_LABEL[v]}</span>
@@ -1417,12 +1616,20 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
   const buyout = acquisitionCost(state, comp.id);
   const established = toDollars(state.cumulativeRevenue) >= toDollars(BALANCE.ipo.minRevenueToList);
   const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
+  // Assets you'd inherit on acquisition (previewed in the note) — mirrors acquireRival's math.
+  const acqRep = rivalDef(comp.id)?.reputation ?? comp.reputation;
+  const inheritRp = Math.round(Math.max(0, acqRep) * BALANCE.mergers.rpPerRepPoint);
+  const inheritBase = Math.round(Math.max(0, acqRep) * BALANCE.mergers.installedBasePerRep);
+  const inheritAnnuity = cents(Math.round(inheritBase * BALANCE.mergers.absorbedServiceRate));
   // Your relationships with this rival: do they license your OS, and do you hold their shares?
   const licensed = state.osLicensees.includes(comp.id);
   const licenseFee = licensed ? rivalLicenseFee(comp.reputation, osTierInfo(state).tier) : null;
   const held = state.holdings[comp.id] ?? 0;
   const totalShares = rivalDef(comp.id)?.shares ?? 0;
   const ownPct = totalShares > 0 ? (held / totalShares) * 100 : 0;
+  const board = hasBoardSeat(state, comp.id);
+  const controlling = hasControllingStake(state, comp.id);
+  const intel = rivalBoardIntel(state, comp.id);
   return (
     <div className="rprof">
       <div className="rprof__head">
@@ -1432,6 +1639,30 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
           <p className="rprof__sub">{comp.blurb}</p>
         </div>
       </div>
+      {state.nemesis?.rivalId === comp.id && (() => {
+        const n = state.nemesis!;
+        const tier = heatTier(n.heat);
+        return (
+          <div className={`rprof__rivalry rprof__rivalry--${tier}`}>
+            <div className="rprof__rivalry-head">
+              <span className="rprof__rivalry-glyph" aria-hidden><Swords size={15} /></span>
+              <span className="rprof__rivalry-label">Your arch-rival</span>
+              <span className={`rprof__rivalry-tier rprof__rivalry-tier--${tier}`}>{HEAT_TIER_LABEL[tier]}</span>
+            </div>
+            <div className="rprof__rivalry-record" aria-label={`Head to head, you ${n.playerWins}, them ${n.rivalWins}`}>
+              <span className="rprof__rivalry-score rprof__rivalry-score--you tnum">{n.playerWins}</span>
+              <span className="rprof__rivalry-dash">–</span>
+              <span className="rprof__rivalry-score rprof__rivalry-score--them tnum">{n.rivalWins}</span>
+              <span className="rprof__rivalry-record-cap">head-to-head</span>
+            </div>
+            <div className="rprof__rivalry-heat">
+              <div className="rprof__rivalry-heat-track"><i style={{ width: `${Math.max(3, n.heat)}%` }} /></div>
+              <span className="rprof__rivalry-heat-val tnum">{Math.round(n.heat)}° heat</span>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="rprof__spark">
         <Sparkline data={comp.priceHistory} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} height={40} />
       </div>
@@ -1459,7 +1690,18 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
               You own {held.toLocaleString()} share{held !== 1 ? "s" : ""}{ownPct >= 0.1 ? ` · ${ownPct.toFixed(1)}%` : ""}
             </span>
           )}
+          {controlling ? (
+            <span className="rprof__badge rprof__badge--control"><Crown size={11} aria-hidden /> Controlling stake</span>
+          ) : board ? (
+            <span className="rprof__badge rprof__badge--board"><Eye size={11} aria-hidden /> Board seat</span>
+          ) : null}
         </div>
+      )}
+
+      {intel && (
+        <p className={`rprof__intel rprof__intel--${MOMENTUM[intel.arcPhase].tone}`}>
+          <Eye size={13} aria-hidden /> <strong>Board intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.
+        </p>
       )}
 
       {lines.length > 0 && (
@@ -1514,11 +1756,13 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
             }}
           >
             <Crown size={14} />
-            {armAcquire ? `Confirm buyout · ${format(buyout)}` : `Acquire ${comp.name} · ${format(buyout)}`}
+            {armAcquire
+              ? `Confirm ${controlling ? "takeover" : "buyout"} · ${format(buyout)}`
+              : `${controlling ? "Hostile takeover" : "Acquire"} ${comp.name} · ${format(buyout)}`}
           </Button>
           <p className="rprof__acquire-note">
             {acquirable
-              ? "Buy them out: remove them from competition and absorb their brand + customers."
+              ? `${controlling ? "You hold a controlling stake — force the buyout at a reduced premium. " : "Buy them out: "}remove them from competition and inherit their brand (+${BALANCE.mergers.repBonus} rep), ${inheritRp} research from their patents, and ${formatCount(inheritBase)} customers paying ~${format(inheritAnnuity)}/wk in services.`
               : atFloor
                 ? "The market needs at least a couple of rivals, you can't acquire any more right now."
                 : state.cash < buyout
@@ -1543,6 +1787,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
   const buyout = acquisitionCost(state, comp.id);
   const acquirable = canAcquire(state, comp.id);
   const atFloor = state.competitors.length <= BALANCE.mergers.minActiveRivals;
+  const controlling = hasControllingStake(state, comp.id);
   const cost = buyCost(comp.sharePrice, qty);
   const proceeds = sellProceeds(comp.sharePrice, qty);
   const canBuy = state.cash >= cost;
@@ -1612,6 +1857,43 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
           ~{format(cents(Math.round(comp.sharePrice * 100 * BALANCE.stocks.dividendYieldPerWeek)))}/wk per 100 shares · {(BALANCE.stocks.dividendYieldPerWeek * 52 * 100).toFixed(1)}% annual yield
         </span>
       </div>
+
+      {/* Takeover runway — accumulate shares toward a board seat (intel) then a controlling stake. */}
+      {(() => {
+        const t = BALANCE.mergers.takeover;
+        const frac = ownershipFractionOf(state, comp.id);
+        const pct = frac * 100;
+        const board = hasBoardSeat(state, comp.id);
+        const control = hasControllingStake(state, comp.id);
+        const intel = rivalBoardIntel(state, comp.id);
+        return (
+          <div className="trade__stake">
+            <div className="trade__stake-head">
+              <span className="trade__stake-label">Your stake</span>
+              <span className="trade__stake-pct tnum">{pct > 0 && pct < 0.1 ? "<0.1" : pct.toFixed(1)}%</span>
+            </div>
+            <div className="trade__stake-track" role="presentation">
+              <div className="trade__stake-fill" style={{ width: `${Math.min(100, (frac / t.controlFrac) * 100)}%` }} />
+              <span className="trade__stake-mark" style={{ left: `${(t.boardSeatFrac / t.controlFrac) * 100}%` }} aria-hidden />
+            </div>
+            <div className="trade__stake-tiers">
+              <span className={`trade__stake-tier${board ? " is-on" : ""}`}>
+                <Eye size={11} aria-hidden /> Board seat{board ? "" : ` · ${Math.round(t.boardSeatFrac * 100)}%`}
+              </span>
+              <span className={`trade__stake-tier${control ? " is-on" : ""}`}>
+                <Crown size={11} aria-hidden /> Control{control ? "" : ` · ${Math.round(t.controlFrac * 100)}%`}
+              </span>
+            </div>
+            {intel && (
+              <div className={`trade__stake-intel trade__stake-intel--${MOMENTUM[intel.arcPhase].tone}`}>
+                <Eye size={12} aria-hidden />
+                <span><strong>Board intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="trade__qty">
         <span className="trade__qty-label">Shares</span>
         <div className="trade__stepper">
@@ -1665,11 +1947,15 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
             }}
           >
             <Crown size={14} />
-            {armAcquire ? `Confirm buyout · ${format(buyout)}` : `Acquire ${comp.name} · ${format(buyout)}`}
+            {armAcquire
+              ? `Confirm ${controlling ? "takeover" : "buyout"} · ${format(buyout)}`
+              : `${controlling ? "Hostile takeover" : "Acquire"} ${comp.name} · ${format(buyout)}`}
           </Button>
           <p className="trade__acquire-note">
             {acquirable
-              ? "Buy out the company: remove it from competition and absorb its brand + customers."
+              ? controlling
+                ? "You hold a controlling stake — force the buyout at a reduced premium, remove them from competition, and absorb their brand + customers."
+                : "Buy out the company: remove it from competition and absorb its brand + customers."
               : atFloor
                 ? "The market needs at least a couple of rivals, you can't acquire any more right now."
                 : state.cash < buyout
@@ -1733,6 +2019,45 @@ function SellStakeSheet({ onClose }: { onClose: () => void }) {
       <Button block onClick={() => { sellOwnStake(pct / 100); haptic.success(); sfx("cash"); showToast(`Sold ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); }}>
         Confirm sale
       </Button>
+    </div>
+  );
+}
+
+function BuybackSheet({ onClose }: { onClose: () => void }) {
+  const { state, buybackShares } = useGame();
+  const valuation = companyValuation(state);
+  const valD = toDollars(valuation);
+  // The slider is capped by BOTH your cash and the ownership headroom (buybacks can't fully privatize).
+  const cashPct = valD > 0 ? (toDollars(state.cash) / valD) * 100 : 0;
+  const headroomPct = (BALANCE.ipo.shareholders.maxOwnership - state.ownership) * 100;
+  const maxPct = Math.max(0, Math.floor(Math.min(headroomPct, cashPct)));
+  const [pct, setPct] = useState(Math.min(5, maxPct));
+  const cost = dollars(Math.round(valD * (pct / 100)));
+  const afford = maxPct >= 1;
+  return (
+    <div className="trade">
+      <div className="trade__head">
+        <div>
+          <h2 className="trade__title">Buy back shares</h2>
+          <p className="trade__sub">Spend cash to buy your own shares off the market — you reconsolidate ownership and signal confidence, nudging the price up.</p>
+        </div>
+      </div>
+      <div className="trade__row">
+        <StatPill label="You own" value={`${Math.round(state.ownership * 100)}%`} />
+        <StatPill label="After" value={`${Math.min(100, Math.round(state.ownership * 100 + pct))}%`} />
+      </div>
+      <div className="trade__ipo-amount rounded tnum">−{format(cost)}</div>
+      {afford ? (
+        <>
+          <Slider value={pct} min={1} max={Math.max(1, maxPct)} step={1} ariaLabel="Stake to buy back" accent="var(--accent)" onChange={setPct} />
+          <p className="trade__ipo-pct">Buy back {Math.round(pct)}%</p>
+          <Button block onClick={() => { const r = buybackShares(cost); if (r.ok) { showToast(`Bought back ${Math.round(pct)}% of ${state.companyName}`, { tone: "positive" }); onClose(); } }}>
+            Confirm buyback
+          </Button>
+        </>
+      ) : (
+        <p className="trade__sub">You don't have enough spare cash to buy back a meaningful stake right now.</p>
+      )}
     </div>
   );
 }

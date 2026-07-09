@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronRight, FlaskConical, Lock, MapPin, Users } from "lucide-react";
+import { Check, ChevronRight, Clock, FlaskConical, Lightbulb, Lock, MapPin, Users } from "lucide-react";
 import { Button, Card, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -14,7 +14,8 @@ import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost } from "../state/gameState.ts";
+import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight, researchQueueFull, tierResearchStatus, projectResearchStatus, type ResearchSlotStatus } from "../state/gameState.ts";
+import { ResearchProgress } from "../components/ResearchProgress.tsx";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -131,6 +132,24 @@ function KeynoteButton({ rp, onHost }: { rp: number; onHost: () => void }) {
   );
 }
 
+/** The per-row research control: an "In lab" / "Queued" status pill when that line/project is already
+ *  developing or lined up, otherwise a start-or-queue button (disabled when unaffordable or the queue
+ *  is full). One place so all three lists (sprint picks, projects, component tech) stay consistent. */
+function ResearchAction({ status, cost, affordable, queueFull, weeksAway, onStart }: {
+  status: ResearchSlotStatus; cost: number | null; affordable: boolean; queueFull: boolean; weeksAway?: number | null; onStart: () => void;
+}) {
+  if (status === "active") return <span className="rd__slot rd__slot--active"><FlaskConical size={12} aria-hidden /> In lab</span>;
+  if (status === "queued") return <span className="rd__slot rd__slot--queued"><Clock size={12} aria-hidden /> Queued</span>;
+  return (
+    <>
+      <Button size="sm" variant={affordable && !queueFull ? "primary" : "tertiary"} disabled={!affordable || queueFull} haptics="none" onClick={onStart}>
+        {queueFull ? "Queue full" : cost !== null ? `${cost} RP` : "—"}
+      </Button>
+      {!queueFull && !affordable && weeksAway != null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+    </>
+  );
+}
+
 export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
   const { state, research, buyProject, hostKeynote, unlockLens, unlockFinish } = useGame();
   // Once many projects are complete, the full-blurb list grows into a long scroll. Default to a
@@ -142,6 +161,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   const kinds = Object.keys(COMPONENT_LINES) as ComponentKind[];
   const rp = Math.floor(state.researchPoints);
   const perWeek = weeklyRpGen(state);
+  // One research develops at a time; buying more lines them up in the queue (shown on the ring card).
+  // The action per row depends on whether that line/project is already developing, queued, or startable.
+  const queueFull = researchQueueFull(state);
 
   // Sort component tech by actionability: affordable → saveable (≤10wk) → needs time → locked → maxed
   const sortedKinds = [...kinds].sort((a, b) => {
@@ -174,6 +196,12 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         <p className="rd__subtitle">Spend Research Points to unlock new tech and abilities.</p>
         <span className="rd__era-badge"><FlaskConical size={13} aria-hidden /> {eraName(state.era)}</span>
       </div>
+      {/* Active research — the hero when the lab is developing something (a filling progress ring). */}
+      {state.activeResearch && (
+        <Card className="rd__active">
+          <ResearchProgress research={state.activeResearch} />
+        </Card>
+      )}
       {/* RP banner */}
       <Card className="rd__bank">
         <div className="rd__bank-backdrop" aria-hidden>
@@ -238,6 +266,15 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               Every project here is researched. Spend RP on component tech below{state.platformUnlocked ? ", OS modules in Platform," : ""} or rally the community with a keynote{state.era < maxEra() ? " — new projects arrive with the next era" : ""}.
             </p>
             <KeynoteButton rp={rp} onHost={() => { hostKeynote(); haptic.success(); }} />
+          </div>
+        )}
+        {/* Eureka insight meter — a funded lab occasionally has a flash of insight (a bank-or-chase
+            breakthrough). This gauge shows it priming; only meaningful once the lab is active + past era 1. */}
+        {state.era >= BALANCE.research.eureka.minEra && perWeek > 0 && (
+          <div className="rd__insight" title="A funded lab occasionally has a flash of insight — a bank-or-chase breakthrough.">
+            <span className="rd__insight-label"><Lightbulb size={12} aria-hidden /> Insight</span>
+            <div className="rd__insight-track"><i style={{ width: `${Math.round(eurekaInsight(state) * 100)}%` }} /></div>
+            <span className="rd__insight-hint">the lab is onto something</span>
           </div>
         )}
       </Card>
@@ -377,15 +414,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                       <span className="rd__sprint-line">{contrib ? `${line.displayName} · ${contrib}` : line.displayName}</span>
                     </div>
                     <div className="rd__sprint-action">
-                      <Button
-                        size="sm"
-                        variant={affordable ? "primary" : "tertiary"}
-                        disabled={!affordable}
-                        haptics="none" onClick={() => { research(kind); haptic.success(); }}
-                      >
-                        {cost} RP
-                      </Button>
-                      {!affordable && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+                      <ResearchAction status={tierResearchStatus(state, kind)} cost={cost} affordable={affordable} queueFull={queueFull} weeksAway={weeksAway} onStart={() => research(kind)} />
                     </div>
                   </div>
                 );
@@ -483,10 +512,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     <span className="rd__locked" title={`You chose ${projectById(forkLock).name}`}><Lock size={12} /> Locked</span>
                   ) : (
                     <div className="rd__project-action">
-                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} haptics="none" onClick={() => { buyProject(p.id); haptic.success(); }}>
-                        {p.rpCost} RP
-                      </Button>
-                      {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+                      <ResearchAction status={projectResearchStatus(state, p.id)} cost={p.rpCost} affordable={affordable} queueFull={queueFull} weeksAway={weeksAway} onStart={() => buyProject(p.id)} />
                     </div>
                   )}
                 </Card>
@@ -573,12 +599,8 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 </div>
                 {!maxed && !eraLocked && (
                   <div className="rd__comp-buy">
-                    <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} haptics="none" onClick={() => { research(kind); haptic.success(); }}>
-                      {cost !== null ? `${cost} RP` : "—"}
-                    </Button>
-                    {!affordable && cost !== null && perWeek > 0 && (
-                      <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)}wk</span>
-                    )}
+                    <ResearchAction status={tierResearchStatus(state, kind)} cost={cost} affordable={affordable} queueFull={queueFull}
+                      weeksAway={cost !== null && perWeek > 0 ? Math.ceil((cost - rp) / perWeek) : null} onStart={() => research(kind)} />
                   </div>
                 )}
               </div>

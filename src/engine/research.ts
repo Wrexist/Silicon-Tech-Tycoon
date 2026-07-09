@@ -31,7 +31,13 @@ export type ProjectId =
   | "aiCopilot"
   | "lightsOut"
   | "predictiveSupply"
-  | "neuralMarketing";
+  | "neuralMarketing"
+  | "gtmHype"
+  | "gtmDesign"
+  | "gtmPrestige"
+  | "opsSpeed"
+  | "opsCost"
+  | "opsReach";
 
 export interface ResearchProject {
   id: ProjectId;
@@ -83,6 +89,15 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   { id: "perfHouse",    name: "Performance House",  blurb: "Commit to raw power: +5 Performance on every product (locks the other doctrines).", rpCost: 70, era: 2, fork: "engDoctrine" },
   { id: "effHouse",     name: "Efficiency House",   blurb: "Commit to endurance: +5 Battery on every product (locks the other doctrines).",     rpCost: 70, era: 2, fork: "engDoctrine" },
   { id: "qualityHouse", name: "Reliability House",  blurb: "Commit to craft: +5 Quality on every product (locks the other doctrines).",         rpCost: 70, era: 2, fork: "engDoctrine" },
+  // Go-to-Market Doctrine — a second MUTUALLY-EXCLUSIVE fork: commit to ONE way of winning the
+  // customer (the others lock out). Layers a distinct market identity on top of the engineering house.
+  { id: "gtmHype",     name: "Hype House",     blurb: "Win on marketing: +0.30 hype on every launch (locks the other GTM houses).",   rpCost: 74, era: 2, fork: "gtmDoctrine" },
+  { id: "gtmDesign",   name: "Design House",   blurb: "Win on desirability: +6 Design on every product (locks the other GTM houses).", rpCost: 74, era: 2, fork: "gtmDoctrine" },
+  { id: "gtmPrestige", name: "Prestige House", blurb: "Win on brand: +2 reputation from every launch (locks the other GTM houses).",   rpCost: 74, era: 2, fork: "gtmDoctrine" },
+  // Operations Doctrine — a third MUTUALLY-EXCLUSIVE fork: commit to ONE way of running the factory.
+  { id: "opsSpeed", name: "Speed House", blurb: "Run fast: production runs finish 1 week sooner (locks the other Ops houses).", rpCost: 118, era: 3, fork: "opsDoctrine" },
+  { id: "opsCost",  name: "Cost House",  blurb: "Run cheap: per-unit build cost 18% lower (locks the other Ops houses).",        rpCost: 118, era: 3, fork: "opsDoctrine" },
+  { id: "opsReach", name: "Reach House", blurb: "Run wide: reach 25% more customers (locks the other Ops houses).",              rpCost: 118, era: 3, fork: "opsDoctrine" },
   // Delegation divisions: premium, late-tree investments that OPEN a specialist hire. Each only pays
   // off once you recruit the matching specialist (whose salary is the standing weekly cost), so the RP
   // here buys the right to delegate, not the automation itself.

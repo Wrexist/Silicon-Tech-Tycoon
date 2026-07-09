@@ -117,8 +117,9 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
 
       {confirmScenario && (
         <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting scenario"
-          onKeyDown={(e) => { if (e.key === "Escape") setConfirmId(null); }}>
-          <div className="scn__confirm-card">
+          onClick={() => setConfirmId(null)}
+          onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setConfirmId(null); } }}>
+          <div className="scn__confirm-card" onClick={(e) => e.stopPropagation()}>
             <p className="scn__confirm-title">Start “{confirmScenario.name}”?</p>
             <p className="scn__confirm-text">
               This replaces <strong>{state.companyName}</strong> (Wk {state.week} · {format(netWorth(state))} net worth).

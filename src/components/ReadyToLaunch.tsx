@@ -14,6 +14,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { format, toDollars } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { showToast } from "../design/toast.tsx";
 import { readyLaunchClaimed, registerAppOverlay } from "../design/overlayGuard.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import "./readyToLaunch.css";
@@ -103,7 +104,7 @@ export function ReadyToLaunch() {
   const launchNow = () => {
     // Close THIS popup first so the keynote reveal isn't stacked on top of it, then ship.
     dequeue();
-    launchProduct(product.id);
+    if (!launchProduct(product.id)) { haptic.error(); showToast("That product couldn't launch — it may have already shipped.", { tone: "negative" }); }
   };
   const later = () => { haptic.light(); dequeue(); };
 

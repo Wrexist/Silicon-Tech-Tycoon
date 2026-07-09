@@ -1,4 +1,5 @@
 // Staff identity — appearance, specialty, trait, mood — plus their gameplay effects. PURE.
+import { BALANCE } from "./balance.ts";
 import type { Rng } from "./rng.ts";
 import type {
   Accessory,
@@ -185,10 +186,23 @@ export function xpMult(t: Trait): number {
   return t === "fastLearner" ? 1.5 : 1;
 }
 
+/** A person's combined output multiplier from BOTH their primary trait and any earned bonus trait
+ *  (growth moments). The bonus trait stacks multiplicatively; undefined → just the primary → unchanged. */
+function combinedOutputMult(s: Staff): number {
+  const base = traitOutputMult(s.trait);
+  return s.bonusTrait && s.bonusTrait !== s.trait ? base * traitOutputMult(s.bonusTrait) : base;
+}
+
+/** A person's combined weekly-XP multiplier from primary + bonus trait (fastLearner stacks). */
+export function staffXpMult(s: Staff): number {
+  const base = xpMult(s.trait);
+  return s.bonusTrait && s.bonusTrait !== s.trait ? base * xpMult(s.bonusTrait) : base;
+}
+
 /** A person's headline effectiveness (uses their 1..10 level). Kept for any generic use. */
 export function output(s: Staff): number {
   const skill = Number.isFinite(s.skill) ? Math.max(0, s.skill) : 0; // immunize the sim from a corrupt skill
-  return skill * moodMult(s.mood) * traitOutputMult(s.trait);
+  return skill * moodMult(s.mood) * combinedOutputMult(s);
 }
 
 /** Which 0..100 discipline a given task draws on. This is what makes people "good at different
@@ -208,29 +222,37 @@ function disciplineScore(s: Staff, d: Discipline): number {
 /** A person's effective contribution to a specific discipline of work, on the SAME 1..10-ish
  *  scale as `output()` (so existing balance holds when people work their primary discipline). */
 export function disciplineOutput(s: Staff, d: Discipline): number {
-  return (disciplineScore(s, d) / 10) * moodMult(s.mood) * traitOutputMult(s.trait);
+  return (disciplineScore(s, d) / 10) * moodMult(s.mood) * combinedOutputMult(s);
 }
 
 /** Build-time stat bonus from designers (assigned to Design) whose specialty matches a stat —
- *  scaled by their Design discipline. */
+ *  scaled by their Design discipline. A growth-earned SECOND specialty adds a (lighter) bonus too. */
 export function designSpecialtyBonus(staff: readonly Staff[]): Partial<Record<StatKey, number>> {
   const bonus: Partial<Record<StatKey, number>> = {};
   for (const s of staff) {
     if (s.assignment !== "design") continue;
     const amt = 1.2 * Math.sqrt(disciplineScore(s, "design") / 10) * moodMult(s.mood);
     bonus[s.specialty] = (bonus[s.specialty] ?? 0) + amt;
+    if (s.secondSpecialty && s.secondSpecialty !== s.specialty) {
+      bonus[s.secondSpecialty] = (bonus[s.secondSpecialty] ?? 0) + amt * BALANCE.staff.growth.secondSpecialtyWeight;
+    }
   }
   return bonus;
 }
 
-/** Extra launch hype from visionaries assigned to marketing. */
+/** Does this person carry the given trait, whether as their primary or a growth-earned bonus trait? */
+function hasTrait(s: Staff, t: Trait): boolean {
+  return s.trait === t || s.bonusTrait === t;
+}
+
+/** Extra launch hype from visionaries (primary or bonus trait) assigned to marketing. */
 export function visionaryHype(staff: readonly Staff[]): number {
   let h = 0;
-  for (const s of staff) if (s.trait === "visionary" && s.assignment === "marketing") h += 0.12;
+  for (const s of staff) if (hasTrait(s, "visionary") && s.assignment === "marketing") h += 0.12;
   return h;
 }
 
-/** Perfectionist designers each lift the design-tier ceiling by 1. */
+/** Perfectionist designers (primary or bonus trait) each lift the design-tier ceiling by 1. */
 export function perfectionistCeilingBonus(staff: readonly Staff[]): number {
-  return staff.filter((s) => s.assignment === "design" && s.trait === "perfectionist").length;
+  return staff.filter((s) => s.assignment === "design" && hasTrait(s, "perfectionist")).length;
 }

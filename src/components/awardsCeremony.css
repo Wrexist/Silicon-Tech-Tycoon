@@ -15,28 +15,30 @@
 .awd__scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Minimal scrim — the popup card is the glass, not the surround. */
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
 }
 .awd__card {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 380px;
+  max-width: 410px;
   max-height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--sp-10);
-  padding: var(--sp-28) var(--sp-20) var(--sp-20);
+  padding: var(--sp-32) var(--sp-28) var(--sp-28);
   border-radius: var(--r-sheet);
+  /* CLEAR liquid glass, warmed with gold — a see-through pane with a bright specular rim. */
   background:
-    radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--gold, #d9a824) 16%, transparent), transparent 60%),
-    var(--surface);
-  border: 1px solid color-mix(in srgb, var(--gold, #d9a824) 42%, var(--hairline));
-  box-shadow: var(--shadow-floating);
+    radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--gold, #d9a824) 12%, transparent), transparent 62%),
+    var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid color-mix(in srgb, var(--gold, #d9a824) 28%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--gold, #d9a824) 40%, transparent);
   text-align: center;
   animation: awd-pop var(--spring-standard) both;
 }
@@ -80,7 +82,9 @@
   overflow: hidden;
   display: flex; align-items: center; gap: var(--sp-10); text-align: left;
   padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
-  border: 1px solid var(--hairline); background: var(--surface-2);
+  /* Glass well — a clear inset tile so the card's frosted material shows through it. */
+  border: 1px solid var(--glass-well-edge); background: var(--glass-well);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   animation: awd-row-in var(--spring-standard) both;
   animation-delay: calc(120ms + var(--i) * 95ms);
 }
@@ -90,7 +94,7 @@
 }
 .awd__row--win {
   border-color: color-mix(in srgb, var(--gold, #d9a824) 60%, transparent);
-  background: color-mix(in srgb, var(--gold, #d9a824) 12%, var(--surface-2));
+  background: color-mix(in srgb, var(--gold, #d9a824) 18%, var(--glass-well));
 }
 /* Gold shimmer sweeps across a home win once it has settled in. */
 .awd__row--win::after {

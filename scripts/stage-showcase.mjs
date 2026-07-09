@@ -8,7 +8,7 @@ import {
   newGame, placeFurniture, hireStaff, assignStaff, startBuild, launchReady,
   advanceOneWeek, buildWeeksFor, upgradeFacility, recommendedRun, productStats,
 } from "../src/state/gameState.ts";
-import { demoFloor, machineCells } from "../src/engine/factoryFloor.ts";
+import { demoFloor, floorWidth } from "../src/engine/factoryFloor.ts";
 import { canPlaceProp, propCells } from "../src/engine/factoryProps.ts";
 import { generateSideOrder } from "../src/engine/sideOrders.ts";
 import { priceGuidance } from "../src/engine/market.ts";
@@ -20,19 +20,37 @@ s = { ...s, onboarded: true, tutorialDone: true, factoryFloor: demoFloor(), comp
   reputation: 78, researched: { chip: 5, display: 5, battery: 4, materials: 4, software: 4, camera: 4 } };
 for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; }
 
-// Office: two tidy rows of desks + warm decor so the HQ still reads as a scaled studio.
+// Office: a LAVISH Campus — the facility is tier 3, so the office grid is a roomy 13×13. Lay the
+// team out as an OPEN-PLAN floor (three tidy desk bands across the back half) with distinct front
+// zones — a sectional lounge, a meeting corner, a games/amenities nook and greenery along the walls —
+// leaving real open floor between them so it reads as a spacious studio, never a cramped huddle.
+// A fresh layout (not the starter desk) gives full control; placeFurniture no-ops on collision/OOB.
+s = { ...s, layout: [] };
+// Deliberately SPARE — a clean, real office is desks + open floor, not a pile of furniture. A single
+// tidy lounge, one meeting table, a couple of plants along the walls; everything else stays open.
 const layout = [
-  ["desk", 0, 0], ["desk", 3, 0], ["desk", 6, 0],
-  ["desk", 0, 2], ["desk", 3, 2], ["desk", 6, 2],
-  ["plantTall", 8, 0], ["bookshelf", 8, 2], ["arcade", 8, 4],
-  ["rug", 2, 5], ["sofa", 0, 5], ["coffeeTable", 0, 7],
-  ["meetingTable", 5, 5], ["plantPot", 8, 6], ["serverRack", 8, 7],
+  // ── Engineering: three desk bands, one seat per employee. Off the back wall (rows 1/4/7) so every
+  //    employee faces the camera. This is the ROOM — desks in clean rows with walkways between. ──
+  ["executiveDesk", 0, 1], ["dualDesk", 5, 1], ["dualDesk", 9, 1],
+  ["deskL", 0, 4], ["dualDesk", 4, 4], ["dualDesk", 8, 4], ["desk", 11, 4],
+  ["dualDesk", 1, 7], ["dualDesk", 5, 7], ["desk", 9, 7],
+  // ── One tidy lounge in the front-left corner: a sectional on a rug + a coffee table beside it. ──
+  ["rugRound", 0, 10], ["sofaL", 0, 10], ["coffeeTable", 2, 10],
+  // ── One meeting table, centre-front, with open floor all around it. ──
+  ["meetingTable", 6, 10],
+  // ── Restraint: just the brand sign on the back wall + a few tall plants in the corners / by the
+  //    windows. No fridge / vending / benches / shelves cluttering the floor. ──
+  ["neonSign", 6, 0],
+  ["plantTall", 12, 2], ["plantTall", 12, 11], ["plantTall", 10, 12], ["plantTall", 0, 8],
 ];
-for (const [type, c, r] of layout) { const n = placeFurniture(s, type, c, r, 0); if (n !== s) s = n; }
+let placed = 0;
+for (const [type, c, r] of layout) { const n = placeFurniture(s, type, c, r, 0); if (n !== s) { s = n; placed++; } }
+s = { ...s, desktops: 0 }; // no standalone pods — every employee has a real desk in the open plan
 
 const hires = [
   ["engineer", 6, "Mara"], ["engineer", 5, "Devin"], ["designer", 6, "Lena"],
   ["marketer", 5, "Cole"], ["engineer", 4, "Priya"], ["designer", 4, "Theo"],
+  ["engineer", 5, "Kai"], ["marketer", 4, "Nadia"], ["designer", 5, "Bo"],
 ];
 for (const [role, skill, name] of hires) { const n = hireStaff(s, role, skill, name); if (n !== s) s = n; }
 const a = s.staff;
@@ -84,27 +102,45 @@ for (const base of catalog) {
   else console.error("in-progress build failed:", r.reason);
 }
 
-// ---- Dress the factory floor: upgrade a few machines (tier pips) + place decor props + paint. ----
-const floor = demoFloor();
-const bump = { "st-mill": 3, "st-press": 2, "st-screen": 2, "st-arm": 3, "st-qa": 2 };
-floor.machines = floor.machines.map((m) => (bump[m.id] ? { ...m, level: bump[m.id] } : m));
-// Props in the open aisles — each validated against the live floor so nothing overlaps a
-// machine, a belt, or another prop (invalid candidates are simply skipped).
+// ---- Dress the factory floor LAVISHLY: a compact but PACKED floor — three full production rows
+// wall-to-wall, conveyor aisles between them, a frontmost row of decor, every machine at its top
+// tier, and a premium marble/ocean finish. Deliberately a MODEST expansion (not max): the floor is
+// 16-wide × 10-deep, so widening to the full 28 goes wide-and-shallow and the 3D camera zooms out
+// to fit it, leaving an empty foreground. 20 wide stays near-square and fills the portrait view. ----
+const EXP = 1;                        // 20-wide floor: room for a fuller line, still frame-filling
+const maxW = floorWidth(EXP);         // = 20 cells wide
+const floor = demoFloor();            // keep the known-good animated line (belts on row 2)
+// Every original machine upgraded to level 3 — the priciest, most detailed models (tier pips lit).
+floor.machines = floor.machines.map((m) => ({ ...m, level: 3 }));
+// Densify: a full MIDDLE production row (demoFloor leaves rows 3-5 bare) plus an east extension of
+// the back and front rows into the new bays. Machines are 2×2 on a 3-col pitch so nothing overlaps;
+// row 5 stays clear as a return aisle. All top tier.
+const extraMachines = [
+  ["mill", 2, 3], ["press", 5, 3], ["arm", 8, 3], ["qa", 11, 3], ["packer", 14, 3], ["intake", 17, 3], // mid row
+  ["mill", 13, 0], ["screen", 16, 0],   // back row → east bays
+  ["press", 13, 6], ["arm", 16, 6],      // front row → east bays
+];
+extraMachines.forEach(([kind, c, r], i) => floor.machines.push({ id: `st-x${i}`, kind, c, r, level: 3 }));
+// A west→east return belt on the free row-5 aisle, spanning the width beneath the middle row.
+for (let c = 1; c <= 18; c++) floor.belts.push({ c, r: 5, dir: "w" });
+// Decorate the frontmost row (row 9 is entirely clear) + the aisle ends; each candidate is validated
+// against the live floor (skips anything overlapping a machine, belt, or another prop).
 let props = [];
 const propWishlist = [
-  ["rack", 6, 4], ["rack", 9, 4], ["bench", 2, 4], ["plant", 14, 1], ["plant", 14, 8],
-  ["crates", 0, 4], ["crates", 14, 4], ["pallet", 14, 6], ["barrel", 2, 8], ["barrel", 13, 8],
-  ["cone", 4, 5], ["cone", 11, 5], ["sign", 0, 8], ["plant", 8, 5],
+  ["plant", 0, 9], ["crates", 2, 9], ["barrel", 4, 9], ["rack", 6, 9], ["sign", 8, 9],
+  ["pallet", 10, 9], ["cone", 12, 9], ["plant", 14, 9], ["crates", 16, 9], ["barrel", 18, 9],
+  ["plant", 0, 2], ["rack", 19, 2], ["plant", 0, 5], ["rack", 19, 5], ["plant", 19, 8], ["cone", 0, 8],
 ];
 for (const [kind, c, r] of propWishlist) {
-  if (canPlaceProp(floor, props, kind, c, r, 16)) props.push({ id: `fp-show-${props.length}`, kind, c, r });
+  if (c < maxW && canPlaceProp(floor, props, kind, c, r, maxW)) props.push({ id: `fp-show-${props.length}`, kind, c, r });
 }
 s = {
   ...s,
   factoryFloor: floor,
   factoryProps: props,
-  factoryDecor: { wall: 1, floor: 1 }, // Ocean walls, Warm floor
-  factoryPieceCounter: 200,
+  factoryExpansion: EXP,
+  factoryDecor: { wall: 8, floor: 7 }, // Ocean walls + Marble floor — a premium, high-tech finish
+  factoryPieceCounter: 400,
   reputation: Math.max(s.reputation, 80),
   fans: Math.max(s.fans, 240_000),
   cumulativeRevenue: Math.max(s.cumulativeRevenue, 90_000_000_000),
@@ -147,6 +183,21 @@ const strike = {
 
 // A side-order commission offer, generated by the real derived stream for the staged seed/week.
 const sideOrder = generateSideOrder(s.seed, s.week, s.era);
+
+// ---- Seed the newest systems so their frames read as live: a research developing on the ring with
+// a queue behind it, a standing brand-awareness meter, and per-region loyalty from regional events. ----
+s = {
+  ...s,
+  activeResearch: { kind: "project", ref: "brandStudio", name: "Brand Studio", blurb: "Every launch gets more hype.", rpCost: 66, startWeek: s.week - 2, totalWeeks: 4 },
+  researchQueue: [
+    { kind: "tier", ref: "chip", tierLevel: 6, name: "QuantumCore Q2", blurb: "A stronger chip tier.", rpCost: 60, totalWeeks: 3 },
+    { kind: "project", ref: "loyaltyProgram", name: "Loyalty Program", blurb: "Fan base decays 50% more slowly.", rpCost: 80, totalWeeks: 3 },
+  ],
+  researchPoints: 240,
+  brandAwareness: 64,
+  unlockedRegions: ["home", "north_america", "europe", "asia"],
+  regionLoyalty: { asia: 62, europe: -28, north_america: 40 },
+};
 
 writeFileSync("/tmp/silicon-showcase.json", JSON.stringify(s));
 writeFileSync("/tmp/silicon-showcase-overlays.json", JSON.stringify({ awards, strike, rivalRelease, sideOrder }));

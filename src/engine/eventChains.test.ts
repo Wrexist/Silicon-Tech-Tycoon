@@ -47,6 +47,19 @@ describe("event chains (Track B)", () => {
       ? "chain-recall-talent" : "");
   });
 
+  it("a newly-added chain (counterfeit-surge) fires its fan bump then hands off its choice", () => {
+    const before: GameState = { ...newGame(9), onboarded: true, era: 2, week: 25, cash: dollars(5_000_000), nextEventWeek: 999,
+      eventChain: { id: "counterfeit-surge", step: 1, nextWeek: 25 } };
+    const mid = advanceOneWeek(before);
+    expect(mid.fans).toBeGreaterThan(before.fans); // step 1 = fansBonus
+    expect(mid.eventChain?.step).toBe(2);
+    const atChoiceInput: GameState = { ...newGame(9), onboarded: true, era: 2, week: 27, cash: dollars(5_000_000), nextEventWeek: 999,
+      eventChain: { id: "counterfeit-surge", step: 2, nextWeek: 27 } };
+    const after = advanceOneWeek(atChoiceInput);
+    expect(after.eventChain ?? null).toBeNull();
+    expect(after.pendingChoice?.event.id).toBe("chain-counterfeit-fight");
+  });
+
   it("a chain never bankrupts: its supply-crunch beat is capped to a share of cash", () => {
     const before: GameState = { ...newGame(7), onboarded: true, era: 2, week: 12, cash: dollars(20_000), nextEventWeek: 999,
       eventChain: { id: "recall-ripple", step: 1, nextWeek: 12 } };

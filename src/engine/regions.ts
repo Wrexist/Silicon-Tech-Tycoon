@@ -12,7 +12,7 @@
 import { BALANCE } from "./balance.ts";
 import { regionShockMul } from "./climate.ts";
 import { dollars, type Money } from "./money.ts";
-import { STAT_KEYS, type RegionId, type Stats } from "./types.ts";
+import { STAT_KEYS, type RegionId, type Stats, type StatKey } from "./types.ts";
 
 export interface Region {
   id: RegionId;
@@ -77,6 +77,27 @@ export function regionById(id: RegionId): Region | undefined {
   return REGIONS.find((r) => r.id === id);
 }
 
+/** A region's slice of the total world market (0..1) — "how big" it is, for the UI. */
+export function regionWorldShare(region: Region): number {
+  const total = REGIONS.reduce((a, r) => a + r.share, 0);
+  return total > 0 ? region.share / total : 0;
+}
+
+/** Share of the world market the player currently reaches (Σ open region shares ÷ total). Drives the
+ *  "global reach" empire meter — 100% once every market is licensed. */
+export function worldCoverage(unlocked: readonly RegionId[]): number {
+  const total = REGIONS.reduce((a, r) => a + r.share, 0);
+  const open = REGIONS.reduce((a, r) => a + (unlocked.includes(r.id) ? r.share : 0), 0);
+  return total > 0 ? open / total : 0;
+}
+
+/** The stats a region's buyers value most (top-n by taste weight); [] for Home (flat taste). Lets the
+ *  UI say "Europe values Quality · Design" so expanding is a legible strategic bet, not a blind buy. */
+export function regionTasteTop(region: Region, n = 2): StatKey[] {
+  if (region.id === "home") return [];
+  return [...STAT_KEYS].sort((a, b) => region.weights[b] - region.weights[a]).slice(0, n);
+}
+
 function clamp(n: number, lo: number, hi: number): number {
   return n < lo ? lo : n > hi ? hi : n;
 }
@@ -125,6 +146,15 @@ export function shippableRegions(
   return out.length ? out : ["home"];
 }
 
+/** A region's reach MULTIPLIER from your standing there (regional loyalty, moved by regional events).
+ *  Neutral/missing loyalty (and Home) → exactly 1.0, so a home-only company is never affected. */
+export function regionLoyaltyMul(loyalty: number | undefined): number {
+  const cfg = BALANCE.market.regions.loyalty;
+  if (!loyalty || !Number.isFinite(loyalty)) return 1;
+  const v = clamp(loyalty, -cfg.cap, cfg.cap);
+  return 1 + (v / cfg.cap) * cfg.maxSwing;
+}
+
 /** The market-size MULTIPLIER for a launch: Σ over shipped regions of (share × tasteFit). Home alone
  *  is exactly 1.0 (no regression); each added region grows the addressable market by its share,
  *  modulated by how well the product fits that region's taste. */
@@ -135,13 +165,17 @@ export function regionReach(
   /** Track B — current week, to apply periodic regional crises (engine/climate.ts). Omitted → no
    *  shock, and Home is never shocked anyway, so a domestic launch and old saves are byte-identical. */
   week?: number,
+  /** Per-region loyalty (regional events). Omitted/empty → every multiplier is 1.0 → unchanged. Home
+   *  is never keyed, so a home-only launch is byte-identical. */
+  loyalty?: Partial<Record<RegionId, number>>,
 ): number {
   const ships = shippableRegions(unlocked, chosen);
   let reach = 0;
   for (const id of ships) {
     const r = regionById(id)!;
     const shock = week === undefined ? 1 : regionShockMul(id, week);
-    reach += r.share * regionTasteFit(stats, r) * shock;
+    const loyal = id === "home" ? 1 : regionLoyaltyMul(loyalty?.[id]);
+    reach += r.share * regionTasteFit(stats, r) * shock * loyal;
   }
   return reach;
 }

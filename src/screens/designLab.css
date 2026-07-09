@@ -29,7 +29,23 @@
   padding: 0 var(--edge);
   pointer-events: none;
 }
+/* Backdrop wash: a soft fade to the page colour behind the buttons so mid-scroll content dissolves
+   cleanly UNDER the action bar instead of colliding with the two floating buttons (swatches, spec
+   pickers, etc. used to peek out around them). Click-through; it never captures taps. */
+.lab__nav::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -34px;
+  bottom: calc(-1 * (60px + env(safe-area-inset-bottom)) - 6px);
+  /* Opaque by the button's top edge (~34px down) so nothing shows THROUGH the bar; the 34px band
+     above is a soft dissolve so content fades out rather than hitting a hard line. */
+  background: linear-gradient(to bottom, transparent 0, var(--bg) 34px);
+  pointer-events: none;
+}
 .lab__nav > button {
+  position: relative;
   pointer-events: auto;
   box-shadow: var(--shadow-floating);
 }
@@ -86,7 +102,7 @@
   border-radius: 50%;
   background: var(--warning);
   flex-shrink: 0;
-  animation: mkt-pulse 1.2s ease-in-out infinite;
+  animation: mkt-pulse 2.2s ease-in-out infinite;
 }
 .lab__trend-shift strong {
   color: var(--warning);
@@ -359,6 +375,106 @@
   background: color-mix(in srgb, currentColor 20%, transparent);
   color: inherit;
 }
+
+/* ── Category cards — a 2-column showcase of the device categories. Each reads its own personality
+   (icon + market size + your generation), locked ones tease the era they open. Richer + more fun
+   than the old flat pills, and its own class so the Style-tab chips stay untouched. ── */
+.lab__cats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+}
+.lab__cat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  min-width: 0;
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-card);
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  text-align: left;
+  transition: transform var(--spring-snappy), border-color var(--spring-snappy), background var(--spring-snappy), box-shadow var(--spring-snappy);
+}
+.lab__cat:active { transform: scale(0.97); }
+.lab__cat-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
+  color: var(--accent);
+  transition: background var(--spring-snappy), color var(--spring-snappy);
+}
+.lab__cat-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.lab__cat-name {
+  max-width: 100%;
+  font-size: var(--fs-fx);
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lab__cat-market {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: var(--fs-nano);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.lab__cat-market-size { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Selected — an accent-filled card with a glowing lift. The one you're building "lights up" (the
+   green fill is the selection signal, no separate checkmark needed). */
+.lab__cat--on {
+  border-color: transparent;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 90%, white), var(--accent));
+  box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 30%, transparent);
+}
+.lab__cat--on .lab__cat-icon { background: color-mix(in srgb, #fff 24%, transparent); color: var(--accent-ink); }
+.lab__cat--on .lab__cat-name { color: var(--accent-ink); }
+.lab__cat--on .lab__cat-market { color: color-mix(in srgb, var(--accent-ink) 78%, transparent); }
+/* Locked teaser — dimmed + dashed, shows the era it unlocks. Not a button (no tap). */
+.lab__cat--locked {
+  opacity: 0.6;
+  background: var(--bg-elevated);
+  border-style: dashed;
+}
+.lab__cat--locked .lab__cat-icon { background: color-mix(in srgb, var(--ink-3) 12%, transparent); color: var(--ink-3); }
+.lab__cat--locked .lab__cat-name { color: var(--ink-2); }
+.lab__cat--locked .lab__cat-market svg { color: var(--ink-3); }
+/* Generation badge — inline after the name; a live pulse when a product in this line is still selling. */
+.lab__cat-gen {
+  flex-shrink: 0;
+  font-size: var(--fs-nano);
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink-3) 16%, transparent);
+  color: var(--ink-2);
+}
+.lab__cat-gen--live {
+  background: color-mix(in srgb, var(--positive) 20%, transparent);
+  color: var(--positive-text, var(--positive));
+  animation: lab-cat-live 2.4s ease-in-out infinite;
+}
+@keyframes lab-cat-live {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--positive) 40%, transparent); }
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 0%, transparent); }
+}
+.lab__cat--on .lab__cat-gen { background: color-mix(in srgb, #fff 22%, transparent); color: var(--accent-ink); }
+.lab__cat--on .lab__cat-gen--live { background: color-mix(in srgb, #fff 22%, transparent); color: var(--accent-ink); animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .lab__cat-gen--live { animation: none; }
+}
 .lab__components {
   display: flex;
   flex-direction: column;
@@ -429,6 +545,28 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Sub-value under a comp-name (e.g. the lens count) — was previously unstyled, so it sat as raw
+   body text next to the real component rows. */
+.lab__comp-tier {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+/* Inline effect/help caption under a control (tuning trade-off, disabled-picker hint) — surfaces
+   what a choice does on touch, where the per-control `title` never shows. */
+.lab__field-effect {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.lab__field-effect svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
 }
 .lab__comp-meta {
   display: flex;
@@ -732,6 +870,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-6);
+  width: 100%;
   margin-top: var(--sp-8);
   padding: var(--sp-8) var(--sp-10);
   border-radius: var(--r-button);
@@ -740,10 +879,23 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
   line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--spring-snappy), transform var(--spring-snappy);
+}
+.lab__upgrade-hint:active {
+  transform: scale(0.99);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .lab__upgrade-hint strong {
   color: var(--accent);
   font-weight: 700;
+}
+/* Arrow parked at the far right of a deep-link hint — the "go here" affordance. */
+.lab__hint-go {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--accent);
 }
 
 /* Competitive position indicator — shown below StatBars in the Stats card */
@@ -817,6 +969,27 @@
   font-size: var(--fs-caption);
   color: var(--warning);
   font-weight: 600;
+}
+/* Tappable variant — jumps to the Components step. Reads as a warning banner you can act on. */
+.lab__warn--link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  width: 100%;
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 24%, transparent);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--spring-snappy), transform var(--spring-snappy);
+}
+.lab__warn--link:active {
+  transform: scale(0.99);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+}
+.lab__warn--link .lab__hint-go {
+  color: var(--warning);
 }
 .lab__price {
   display: flex;
@@ -1209,6 +1382,7 @@
   border-radius: var(--r-pill);
 }
 .lab__tab {
+  position: relative;
   flex: 1;
   min-height: 44px;
   display: inline-flex;
@@ -1221,6 +1395,32 @@
   color: var(--ink-3);
   transition: all var(--spring-snappy);
   white-space: nowrap;
+}
+/* Checklist badge in the tab's top-right corner: amber = this step still needs input, green check
+   = the device is ready to build. The ring matches the tab background so it reads as a clean pip. */
+.lab__tab-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-elevated);
+}
+.lab__tab-badge--warn {
+  width: 8px;
+  height: 8px;
+  background: var(--warning);
+}
+.lab__tab-badge--ready {
+  width: 15px;
+  height: 15px;
+  background: var(--positive);
+  color: #fff;
+}
+.lab__tab--on .lab__tab-badge {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 .lab__tab--on {
   background: var(--accent);

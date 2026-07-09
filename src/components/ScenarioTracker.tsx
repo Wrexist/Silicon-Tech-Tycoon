@@ -9,7 +9,7 @@ import { useGame } from "../state/useGame.tsx";
 import { scenarioResultFor } from "../state/gameState.ts";
 import { scenarioById, canEarnStars, type ScenarioMetric, type ScenarioTier } from "../engine/scenarios.ts";
 import { eraName } from "../engine/eras.ts";
-import { dollars, format } from "../engine/money.ts";
+import { dollars, format, formatCount } from "../engine/money.ts";
 import "../screens/scenarios.css";
 
 function fmtMetric(metric: ScenarioMetric, value: number): string {
@@ -18,7 +18,7 @@ function fmtMetric(metric: ScenarioMetric, value: number): string {
     case "netWorth":
       return format(dollars(Math.round(value)));
     case "fans":
-      return value >= 1000 ? `${(value / 1000).toFixed(value >= 10_000 ? 0 : 1)}k` : String(Math.round(value));
+      return formatCount(value);
     case "era":
       return eraName(Math.round(value));
     default:

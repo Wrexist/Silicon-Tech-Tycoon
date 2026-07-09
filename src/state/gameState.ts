@@ -11,7 +11,13 @@ import {
   spawnChallenger,
   RIVALS,
   type CompetitorLaunch,
+  type RivalArcPhase,
 } from "../engine/competitors.ts";
+import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
+import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
+import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
+import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
+import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
   assignedSkill,
   buildWeeks,
@@ -93,6 +99,7 @@ import {
   cents,
   dollars,
   format,
+  gte,
   scale,
   sub,
   toDollars,
@@ -117,8 +124,10 @@ import {
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
 import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
 import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
+import { CONTRACT_BOARD_SIZE, contractDone, generateContract, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
 import { REGIONS, regionById, regionReach } from "../engine/regions.ts";
+import { regionalEventDue, generateRegionalEvent, REGIONAL_EVENT_COPY, type RegionalEvent } from "../engine/regionalEvents.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { noveltyFor } from "../engine/novelty.ts";
@@ -129,7 +138,7 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
-import { canInstallOsFeature, canReleaseVersion, installedBase, licenseeMood, licenseeStrengthUplift, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
+import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { generateLicenseOffer, licenseOfferDue, type LicenseOffer, type LicenseSuitor } from "../engine/licenseOffers.ts";
 import { perkBonuses } from "../engine/perks.ts";
 import type {
@@ -178,6 +187,29 @@ export interface RivalStrike {
   playerOverall: number;
 }
 
+/** A research waiting in the queue (paid up front, develops once it reaches the front). Same shape as
+ *  ActiveResearch without the timing, which is stamped when it becomes active. */
+export type QueuedResearch = Omit<ActiveResearch, "startWeek">;
+
+/** A research the lab is developing over time (the timed-research slot). Paid up front at start; the
+ *  unlock is applied when `week - startWeek >= totalWeeks`. */
+export interface ActiveResearch {
+  /** A component-line tier, or a company project. */
+  kind: "tier" | "project";
+  /** The ComponentKind (tier) or ProjectId (project) being researched. */
+  ref: string;
+  /** For a tier: the level being unlocked (applied on completion). */
+  tierLevel?: number;
+  /** Display name + one-line of what it does. */
+  name: string;
+  blurb: string;
+  /** RP paid up front (refunded on cancel; shown on the ring). */
+  rpCost: number;
+  /** Week the research started, and how many weeks it takes — drive the progress ring + "X wk left". */
+  startWeek: number;
+  totalWeeks: number;
+}
+
 export interface GameState {
   version: number;
   seed: number;
@@ -187,6 +219,14 @@ export interface GameState {
   cash: Money;
   reputation: number;
   fans: number; // loyal customer base — guaranteed pre-orders, grows with hits
+  /** Living community MOOD (−1..+1). Evolves from how you treat your fans; modulates retention. Only
+   *  moves once you've shipped, so a fresh/never-launched game (and the pinned sim) stays at 0. */
+  fanSentiment?: number;
+  /** The loyal core sentiment creates — they pre-order hardest. 0 until the community warms up. */
+  superfans?: number;
+  /** Company-wide brand awareness (0..BALANCE.brand.cap). Fed by cash investment, decays weekly, and
+   *  contributes a bounded lift to every launch's hype. 0 until you invest → sim-safe. */
+  brandAwareness?: number;
   era: number;
   cumulativeRevenue: Money;
   trends: ConsumerTrends;
@@ -208,8 +248,18 @@ export interface GameState {
   upgrades: Partial<Record<UpgradeId, number>>;
   researchPoints: number;
   completedProjects: ProjectId[];
+  /** The research the lab is currently developing (a timed tier/project). One at a time; the RP is
+   *  paid at start and the unlock lands after `totalWeeks`. Optional/null → idle lab + golden-invariant
+   *  safe (the pinned solo sim never starts one). */
+  activeResearch?: ActiveResearch | null;
+  /** Researches lined up behind the active one (paid up front; each auto-starts when it reaches the
+   *  front). A component line / project can be active OR queued at most once. Optional/[] → empty. */
+  researchQueue?: QueuedResearch[];
   /** Geographic markets unlocked for distribution (engine/regions.ts). Always contains "home". */
   unlockedRegions: RegionId[];
+  /** Per-region LOYALTY (a signed standing that lifts/dents that region's reach), moved by regional
+   *  events. Home is never keyed. Optional/empty → every region is neutral → golden-invariant safe. */
+  regionLoyalty?: Partial<Record<RegionId, number>>;
   /** Owned manufacturing lines the player has acquired (engine/factories.ts). Each carries weekly
    *  upkeep and can be selected for builds. Empty for contract-only companies / older saves. */
   ownedFactories: FactoryId[];
@@ -293,6 +343,52 @@ export interface GameState {
   pendingStrike?: RivalStrike | null;
   /** Week of the last strike interrupt — enforces the cooldown so strikes stay events, not nags. */
   lastStrikeWeek?: number;
+  /** The arch-rival: one rival elevated to YOUR nemesis, with a living heat meter + head-to-head
+   *  record that escalates on every clash. Forms only when the player clashes (overtake / struck /
+   *  awards duel), so the pinned auto-player never forms one → optional/null keeps it byte-identical. */
+  nemesis?: Nemesis | null;
+  /** A just-declared rivalry waiting for its reveal moment (set the week a nemesis forms, cleared by
+   *  the player via dismissRivalry). Optional/null → golden-invariant safe. */
+  pendingRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
+  /** An R&D "eureka" breakthrough on the table — bank a guaranteed RP windfall or chase a prototype
+   *  gamble (resolveEureka). Fires only for an active, funded lab; the pinned solo sim never has one. */
+  pendingEureka?: EurekaMoment | null;
+  /** Week of the last eureka breakthrough — enforces the cooldown + drives the Insight meter. */
+  lastEurekaWeek?: number;
+  /** A community "ask" on the table — the fans want an AMA / beta / merch / meetup; answer it for cash
+   *  to grow + delight the base, or pass (resolveCommunityAsk). Fires only once you've launched; the
+   *  pinned solo sim never has one. Optional/null → golden-invariant safe. */
+  pendingCommunityAsk?: CommunityAsk | null;
+  /** Week of the last community ask — enforces the cooldown between asks. */
+  lastCommunityAskWeek?: number;
+  /** A staff GROWTH moment on the table — a senior, tenured staffer earns a permanent character
+   *  upgrade the player picks (resolveStaffMoment). Fires only for an established team; the pinned
+   *  solo sim is founder-only and never raises one. Optional/null → golden-invariant safe. */
+  pendingStaffMoment?: StaffMoment | null;
+  /** Week of the last staff growth moment — enforces the cooldown between them. */
+  lastStaffMomentWeek?: number;
+  /** A regional event on the table — an expansion market's boom / tariff / rival surge to respond to
+   *  (resolveRegionalEvent). Fires only once you've expanded past Home; the pinned solo sim never
+   *  does. Optional/null → golden-invariant safe. */
+  pendingRegionalEvent?: RegionalEvent | null;
+  /** Week of the last regional event — enforces the cooldown between them. */
+  lastRegionalEventWeek?: number;
+  /** Week the last OPPORTUNISTIC full-screen interrupt fired (strike / eureka / community / earnings /
+   *  rivalry / regional / staff moment). One shared stamp enforces a minimum quiet gap between any two
+   *  so modals never cluster (BALANCE.interrupts.minGapWeeks). Optional → old saves + the pinned solo
+   *  sim (which raises none) default to -999, so the gate is a pure no-op there → byte-identical. */
+  lastInterruptWeek?: number;
+  // --- Post-IPO shareholder loop (all optional/null → golden-invariant safe; only live once listed) ---
+  /** A quarterly earnings result waiting to be shown — beat/miss vs the street + the share-price move. */
+  pendingEarnings?: EarningsReport | null;
+  /** The revenue the street expects THIS quarter. */
+  earningsExpectation?: Money;
+  /** cumulativeRevenue at the start of the current quarter (to measure the quarter's revenue). */
+  quarterStartRevenue?: Money;
+  /** Week of the last earnings call (= the listing week initially); paces the quarterly cadence. */
+  lastEarningsWeek?: number;
+  /** 1-based count of earnings calls delivered since listing. */
+  earningsQuarter?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -307,6 +403,14 @@ export interface GameState {
   activeSideOrder?: ActiveSideOrder | null;
   /** Lifetime completed commissions — flavor + a future achievement hook. */
   sideOrdersCompleted?: number;
+  /** Rolling contract board (engine/contracts.ts) — 2–3 live directed goals that regenerate on claim
+   *  or expiry, giving the post-tutorial/endgame a chase. Empty until the first ship; the reward is
+   *  player-CLAIMED, so the pinned sim (which ships nothing) is byte-identical. Optional → old saves
+   *  default to an empty board on migrate. `contractCounter` is the monotonic salt for deterministic
+   *  generation (like candidateCounter). */
+  contracts?: Contract[];
+  contractsCompleted?: number;
+  contractCounter?: number;
   /** Outstanding debt-financing loans (Track C). Optional/empty → golden-invariant safe (old saves
    *  load debt-free). Each loan is amortized weekly in the tick; see engine/financing.ts. */
   loans?: Loan[];
@@ -356,6 +460,18 @@ export interface GameState {
   /** Licensees who signed an EXCLUSIVE deal: rivalId → the category they locked. Exclusive partners
    *  pay a richer royalty and no other suitor can license that category while it's held. */
   osExclusive?: Record<string, string>;
+  /** Living App Store — cumulative apps published to your platform. Dormant until the App Marketplace
+   *  module ships, then grows with installed base + OS version; you take a weekly commission on it.
+   *  Optional/backfilled → 0 in old saves and in the base game (gated behind platformUnlocked). */
+  osApps?: number;
+  /** Security tug-of-war — current THREAT pressure (0..100). Creeps up each live week; cleared by
+   *  shipping a security patch or a full OS release. Undefined/0 until the division is live. */
+  osThreat?: number;
+  /** Security tug-of-war — current SECURITY hardening rating (0..100). Built by shipping patches/
+   *  releases; decays slowly. Net exposure (threat − security) drags reputation when it runs high. */
+  osSecurity?: number;
+  /** Week the last security patch shipped, for the patch cooldown (the immersive "update" button). */
+  lastPatchWeek?: number;
   /** Epic B — rivals' recently-released products (newest first, capped). Each is a real renderable
    *  device the player can see and learn from, instead of an invisible "strength" number. */
   rivalReleases: RivalRelease[];
@@ -366,6 +482,10 @@ export interface GameState {
   /** Epic B3 — ids of rivals the player has acquired (removed from competition). Tracked so an
    *  acquired rival never re-enters as a fresh challenger, and for UI/achievements. */
   acquiredRivals: string[];
+  /** Installed base (customers) absorbed from acquired rivals — a permanent services annuity feeding
+   *  weekly ecosystem revenue (see absorbedServicesRevenue). 0 until the first acquisition; old saves
+   *  default to 0 on migrate. */
+  absorbedBase: number;
   /** Epic E delegation toggles. Each automates an action the player can already do, gated behind a
    *  premium research division + a recruited specialist (whose salary is the standing weekly cost).
    *  The `*Free` flags grandfather saves that already had an automation ON before the gating shipped,
@@ -495,6 +615,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     cash: add(BALANCE.startingCash, lb.cash),
     reputation: BALANCE.startingReputation + lb.reputation,
     fans: BALANCE.fans.starting + lb.fans,
+    fanSentiment: 0,
+    superfans: 0,
+    brandAwareness: 0,
     era: 1,
     cumulativeRevenue: ZERO,
     trends,
@@ -510,6 +633,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     upgrades: {},
     researchPoints: lb.rp,
     completedProjects: [],
+    activeResearch: null,
+    researchQueue: [],
     unlockedRegions: ["home"],
     ownedFactories: [],
     building: [],
@@ -554,11 +679,31 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingPoach: null,
     pendingStrike: null,
     lastStrikeWeek: -999,
+    nemesis: null,
+    pendingRivalry: null,
+    pendingEureka: null,
+    lastEurekaWeek: -999,
+    pendingCommunityAsk: null,
+    lastCommunityAskWeek: -999,
+    pendingStaffMoment: null,
+    lastStaffMomentWeek: -999,
+    regionLoyalty: {},
+    pendingRegionalEvent: null,
+    lastRegionalEventWeek: -999,
+    lastInterruptWeek: -999,
+    pendingEarnings: null,
+    earningsExpectation: ZERO,
+    quarterStartRevenue: ZERO,
+    lastEarningsWeek: -999,
+    earningsQuarter: 0,
     pendingAwards: null,
     awardsHistory: [],
     pendingSideOrder: null,
     activeSideOrder: null,
     sideOrdersCompleted: 0,
+    contracts: [],
+    contractsCompleted: 0,
+    contractCounter: 0,
     loans: [],
     moraleCooldownUntil: 0,
     resolvedChoices: [],
@@ -577,9 +722,13 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     osPhilosophy: null,
     pendingLicenseOffer: null,
     osExclusive: {},
+    osApps: 0,
+    osThreat: 0,
+    osSecurity: 0,
     rivalReleases: [],
     rivalLineCounters: {},
     acquiredRivals: [],
+    absorbedBase: 0,
     automation: { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false },
   };
 }
@@ -737,7 +886,14 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "marketingAutomation") ? 0.20 : 0) +
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
   (hasProject(s.completedProjects, "neuralMarketing") ? 0.25 : 0) +
-  visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype;
+  (hasProject(s.completedProjects, "gtmHype") ? 0.30 : 0) + // Go-to-Market doctrine: Hype House
+  visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype + brandAwarenessHype(s);
+
+/** The bounded launch-hype contribution from the company's brand-awareness meter. 0 when the meter is
+ *  0 (absent) → folds into hypeBonus with no effect until the player invests, so the pinned sim stays
+ *  byte-identical. Reaches both the real launch and the live preview through hypeBonus. */
+export const brandAwarenessHype = (s: GameState): number =>
+  (Math.max(0, Math.min(BALANCE.brand.cap, s.brandAwareness ?? 0)) / BALANCE.brand.cap) * BALANCE.brand.hypeMax;
 
 /** Ceiling for the summed launch hype bonus (studio + visionary marketers + marketing
  * upgrade + channel). scoreLaunch clamps total hype too; this caps the bonus side so
@@ -764,6 +920,7 @@ export function productStats(s: GameState, product: Product): Stats {
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
   if (hasProject(s.completedProjects, "effHouse")) bonus.battery = (bonus.battery ?? 0) + 5;
   if (hasProject(s.completedProjects, "qualityHouse")) bonus.quality = (bonus.quality ?? 0) + 5;
+  if (hasProject(s.completedProjects, "gtmDesign")) bonus.design = (bonus.design ?? 0) + 6; // GTM doctrine: Design House
   // Performance/efficiency tuning — trades points between performance and battery (a real build
   // choice that depends on what the market wants). Neutral when balanced/undefined → no ripple.
   const shift = BALANCE.design.tuningShift;
@@ -941,7 +1098,8 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   const contract = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * (product ? factorySpeedMult(product) : 1));
   const assembly = (lineMult < 1 ? Math.max(1, Math.floor(contract * lineMult)) : contract)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0)
-    - (hasProject(s.completedProjects, "lightsOut") ? 1 : 0);
+    - (hasProject(s.completedProjects, "lightsOut") ? 1 : 0)
+    - (hasProject(s.completedProjects, "opsSpeed") ? 1 : 0); // Operations doctrine: Speed House
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
   // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
   const eraLead = eraModifier(s.era).leadWeeks;
@@ -982,6 +1140,7 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "leanSupply")) unitCost = scale(unitCost, 0.85);
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   if (hasProject(s.completedProjects, "predictiveSupply")) unitCost = scale(unitCost, 0.90);
+  if (hasProject(s.completedProjects, "opsCost")) unitCost = scale(unitCost, 0.82); // Operations doctrine: Cost House
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   // Supplier relationship: repeat business earns a standing discount (engine/suppliers.ts). 0 when
@@ -1049,12 +1208,13 @@ export function planProduction(
 
   let marketSize = CATEGORIES[product.category].marketSize;
   if (hasProject(s.completedProjects, "globalDistribution")) marketSize *= 1.25;
+  if (hasProject(s.completedProjects, "opsReach")) marketSize *= 1.25; // Operations doctrine: Reach House
   // Era-scaled volume — small early market (slow garage phase), grows each era.
   const eraScales = BALANCE.market.eraVolumeScale;
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
   // Global expansion (engine/regions.ts): scale the addressable market by the regions this product
   // ships to. Home-only is exactly ×1.0, so this never changes a domestic launch or an old save.
-  marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week);
+  marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week, s.regionLoyalty);
 
   // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
   // weighting the five stats AND price differently; the product wins a share of each, summed. This
@@ -1123,8 +1283,12 @@ export function planProduction(
       selfCompeting * comp.selfPenalty);
 
   const demandFit = breakdown.demand;
-  // A proven line's loyal followers pre-order more strongly (brand equity → preorder lift).
-  const rawPreOrders = Math.round(s.fans * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
+  // A proven line's loyal followers pre-order more strongly (brand equity → preorder lift). Superfans
+  // (the community's loyal core) pre-order harder still — added as extra fan-equivalents on top of the
+  // base, so a game with no superfans (and the pinned sim) is byte-identical.
+  const superfans = s.superfans ?? 0;
+  const fanBase = s.fans + superfans * (BALANCE.fans.community.superfanPreorderMult - 1);
+  const rawPreOrders = Math.round(fanBase * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
   const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
   const competedOrganic = Math.round(organic * competitionFactor); // before market fatigue
   // Market fatigue: a product too similar to a recent same-category launch loses ORGANIC demand
@@ -1258,6 +1422,12 @@ export const osServicesMult = (s: GameState): number =>
       )
     : 1;
 
+/** Weekly App Store commission — a bounded cut of your published catalogue (0 unless the Platform
+ *  division is unlocked). Grows as developers publish to the store (see the tick's App Store block). */
+export function weeklyStoreCommission(s: GameState): Money {
+  return s.platformUnlocked ? storeCommission(s.osApps ?? 0) : ZERO;
+}
+
 /** Weekly ecosystem service income from all launched products with an ecosystem stat above threshold. */
 export function weeklyEcosystemRevenue(s: GameState): Money {
   // Epic D — the Platform/AI eras amplify ecosystem lock-in (services pay more).
@@ -1269,7 +1439,9 @@ export function weeklyEcosystemRevenue(s: GameState): Money {
     if (eco > minStat) acc += lp.unitsSold * eco * rate;
   }
   // OS feature modules + version multiply recurring services (1.0 when the division is off → unchanged).
-  return cents(Math.round(acc * osServicesMult(s)));
+  // Plus the annuity from any absorbed installed base (0 until the first buyout) and the App Store
+  // commission (0 until the store is live) — the full recurring platform economy in one figure.
+  return add(cents(Math.round(acc * osServicesMult(s))), add(absorbedServicesRevenue(s), weeklyStoreCommission(s)));
 }
 
 export function nextWeekRevenue(s: GameState): Money {
@@ -1303,6 +1475,40 @@ export function rdRpCostFor(s: GameState, kind: ComponentKind): number | null {
 
 // ---------- Reducers (pure: return a NEW state) ----------
 
+/** Read-only facts the contract board evaluates against, derived from the full state. Pure adapter
+ *  (money in DOLLARS). Exported so the UI can compute per-contract progress from the same source. */
+export function contractFacts(s: GameState): ContractFacts {
+  return {
+    revenue: toDollars(s.cumulativeRevenue),
+    fans: s.fans,
+    ships: s.launched.length,
+    hits: s.launched.filter((lp) => lp.verdict === "hit").length,
+    rank: industryRank(s),
+    week: s.week,
+  };
+}
+
+/** Claim a completed contract's reward (cash/rep/fans); its board slot refills on the next tick.
+ *  Opt-in — the pinned auto-player never claims, so the baseline economy is untouched. */
+export function claimContract(state: GameState, id: string): ActionResult {
+  const c = (state.contracts ?? []).find((x) => x.id === id);
+  if (!c) return { state, ok: false, reason: "No such contract." };
+  if (!contractDone(c, contractFacts(state))) return { state, ok: false, reason: "This contract isn't complete yet." };
+  const feed = [...state.feed, feedItem(state.week, `Contract complete — “${c.title}”. ${rewardSummary(c.reward)}.`, "positive")];
+  return {
+    state: {
+      ...state,
+      cash: add(state.cash, c.reward.cash),
+      reputation: Math.min(BALANCE.reputation.max, state.reputation + c.reward.rep),
+      fans: state.fans + c.reward.fans,
+      contracts: (state.contracts ?? []).filter((x) => x.id !== id),
+      contractsCompleted: (state.contractsCompleted ?? 0) + 1,
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
 export function advanceOneWeek(state: GameState, rate = 1, offline = false): GameState {
   if (state.bankrupt) return state;
   // Delegation (Epic E): apply enabled, capability-gated automations BEFORE the week runs, so an
@@ -1330,7 +1536,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const recentPlayerHitCats = state.launched
     .filter((lp) => lp.launchedWeek >= week - hitWindow && (lp.verdict === "hit" || lp.verdict === "solid"))
     .map((lp) => lp.product.category);
-  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats);
+  // The arch-rival hunts your turf: its heat-scaled launch edge (undefined unless a nemesis exists, so
+  // the pinned sim never passes it → byte-identical). Reads last week's nemesis; topCat = your line.
+  const nem = state.nemesis ?? null;
+  const nemEdgeRaw = nem ? nemesisLaunchEdge(nem, nem.rivalId) : null;
+  const nemEdge = nem && nemEdgeRaw ? { rivalId: nem.rivalId, topCat: playerTopCategory(state), ...nemEdgeRaw } : undefined;
+  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats, nemEdge);
   // `let` so B3 can append a fresh challenger that rises to refill a field thinned by acquisitions.
   let competitors = competitorsBase;
 
@@ -1388,6 +1599,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       cash = add(cash, cents(Math.round(lp.unitsSold * eco * ecosystemRate * osMult * rate)));
     }
   }
+  // Absorbed installed base (from acquisitions) pays a flat services annuity each week (0 if none).
+  cash = add(cash, scale(absorbedServicesRevenue(state), rate));
+
+  // App Store commission — a weekly cut of the published catalogue (0 until the store is live). Reads
+  // last week's catalogue (a one-week lag, like collecting on an established store) — sim-safe.
+  cash = add(cash, scale(weeklyStoreCommission(state), rate));
 
   // Platform licensing fees — recurring income from rivals licensing your OS (Phase C).
   cash = add(cash, scale(weeklyLicenseFees(state), rate));
@@ -1483,13 +1700,25 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
   });
 
+  // Arch-rival clash signals harvested this tick (strike / overtake / awards duel) → fed to the nemesis
+  // engine below. Stays empty in a do-nothing pinned run (no strike, no overtake, no award duel), so
+  // the nemesis never forms and the sim is byte-identical.
+  const clashSignals: ClashSignal[] = [];
+
   // Rival Strike (fun track): the haircut above already landed — unchanged, unconditional — but a
   // contested entry ALSO raises a respond-or-hold interrupt so the attack is a moment the player
   // answers, not a feed line they read. One at a time, cooldown-gated; the interrupt itself changes
   // no economy numbers (responses are opt-in reducers the pinned sim never calls).
+  // Global interrupt budget: at least minGapWeeks of quiet between any two OPPORTUNISTIC full-screen
+  // cards. Read from the tick-start stamp (a const, so every setter this tick sees the same value);
+  // whichever card fires sets lastInterruptWeek = week, deferring the rest to a later quiet week. The
+  // pinned solo sim raises no interrupts, so this stays -999 → interruptQuiet is always true → no-op.
+  const interruptQuiet = week - (state.lastInterruptWeek ?? -999) >= BALANCE.interrupts.minGapWeeks;
+  let lastInterruptWeek = state.lastInterruptWeek ?? -999;
   let pendingStrike = state.pendingStrike ?? null;
   if (
     !pendingStrike &&
+    interruptQuiet &&
     state.era >= 2 && // the Garage era is a protected learning sandbox — no strike interrupts
     contestedCats.size > 0 &&
     week - (state.lastStrikeWeek ?? -999) >= BALANCE.market.competition.strike.cooldownWeeks
@@ -1512,6 +1741,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         productName: target.product.name,
         playerOverall: overallScore(target.stats, target.product.category),
       };
+      lastInterruptWeek = week; // consume the interrupt budget so nothing else piles on this week
+      // The aggressor picks a fight → a nemesis-forming clash (they landed the blow).
+      clashSignals.push({ kind: "struck", rivalId: release.rivalId });
     }
   }
 
@@ -1526,6 +1758,18 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (ceremony) {
       pendingAwards = ceremony;
       awardsHistory = [ceremony, ...awardsHistory].slice(0, 20);
+      lastInterruptWeek = week; // the year's big moment — keep the following weeks quiet
+      // Awards duel: the marquee Device-of-the-Year result is a head-to-head clash — but ONLY when the
+      // player actually competed this year (shipped a device). A do-nothing run where rivals win among
+      // themselves is no rivalry, so it never forges a nemesis (keeps the pinned sim clash-free).
+      const playerCompeted = launchedFinal.some((lp) => lp.launchedWeek >= week - 51 && lp.launchedWeek <= week);
+      const device = ceremony.winners.find((w) => w.categoryId === "device");
+      if (playerCompeted && device && !device.byPlayer) {
+        const rivalId = competitors.find((c) => c.name === device.companyName)?.id;
+        if (rivalId) clashSignals.push({ kind: "awardLoss", rivalId });
+      } else if (device && device.byPlayer && state.nemesis) {
+        clashSignals.push({ kind: "awardWin", rivalId: state.nemesis.rivalId });
+      }
     }
   }
 
@@ -1572,7 +1816,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Staff XP / leveling + mood drift + churn
   const cashDropping = cash < state.cash;
-  const teamPlayers = state.staff.filter((s) => s.trait === "teamPlayer").length;
+  const teamPlayers = state.staff.filter((s) => s.trait === "teamPlayer" || s.bonusTrait === "teamPlayer").length;
   const churnCfg = BALANCE.churn;
   // People Operations: a People Lead (hr) keeps the whole team happy and resolves burnout before it
   // forces anyone out. The strongest lead drives the effect; presence (not count) gates the no-quit
@@ -1583,7 +1827,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const hrTargetLift = hasPeopleLead ? Math.min(hrCfg.maxTargetLift, hrCfg.moodTargetBase + peopleLeadSkill * hrCfg.perSkillTarget) : 0;
   const quitIds: string[] = [];
   const staff = state.staff.map((s) => {
-    const { staff: levelResult, leveledUp } = gainWeeklyXp(s, mentorshipXpMult(s, state.staff));
+    const { staff: levelResult, leveledUp } = gainWeeklyXp(s, mentorshipXpMult(s, state.staff) * mentorTeamXpMult(state.staff, s));
     if (leveledUp) feed.push(feedItem(week, `${s.name} leveled up to skill ${levelResult.skill}.`, "positive"));
     // Salary is NOT auto-updated on level-up — player must give a raise manually.
     // Underpaid staff drift unhappy over time and may eventually quit.
@@ -1612,11 +1856,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     // (mirrors the fan-decay offline protection). At-risk staff can still quit on the next ONLINE
     // tick, giving the player a chance to intervene (e.g. a raise). `!offline` is first so the
     // active path's rng consumption is unchanged (the determinism test runs active-only).
-    // A People Lead resolves burnout before it forces anyone out: while one is employed, sustained
-    // low mood never triggers a quit. `!hasPeopleLead` is placed BEFORE rng.next() so a roster with
-    // no People Lead consumes the rng exactly as before (determinism preserved for old saves).
-    if (!offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk && !hasPeopleLead && rng.next() < churnCfg.quitChancePerWeek) {
-      quitIds.push(next.id);
+    const atRisk = !offline && next.id !== "s0" && toDollars(next.salary) > 0 && newLowWeeks >= churnCfg.weeksUntilQuitRisk;
+    if (atRisk) {
+      // A People Lead SCALES DOWN the weekly quit chance (skill-scaled retention) rather than making
+      // burnout consequence-free — so neglect still has teeth. rng is drawn here in BOTH cases; the
+      // no-People-Lead path uses the full base chance and consumes rng exactly as before, so the
+      // determinism pin (a solo founder, no hr) is byte-identical.
+      const quitChance = hasPeopleLead
+        ? churnCfg.quitChancePerWeek * Math.max(hrCfg.minQuitChanceMult, 1 - peopleLeadSkill * hrCfg.quitChanceReliefPerSkill)
+        : churnCfg.quitChancePerWeek;
+      if (rng.next() < quitChance) quitIds.push(next.id);
     }
     return { ...next, skills, mood, moodLowWeeks: newLowWeeks };
   });
@@ -1669,6 +1918,28 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (osBaseHistory.length > 40) osBaseHistory = osBaseHistory.slice(-40);
   }
 
+  // Living App Store — developers publish to your platform each week. Dormant (a trickle) until the
+  // App Marketplace module ships; then the catalogue grows with your installed base + OS version. The
+  // catalogue only grows; you take a weekly store commission on it (added to cash near the ecosystem
+  // revenue). Gated behind platformUnlocked → 0 in the base game (determinism preserved).
+  let osApps = state.osApps ?? 0;
+  if (state.platformUnlocked) {
+    const hasMarketplace = state.osFeatures.includes("appMarket");
+    osApps += appsPublishedPerWeek(installedBase(launched), state.osVersion, hasMarketplace) * rate;
+  }
+
+  // Security tug-of-war — THREAT creeps up (a bigger installed base is a bigger target) while your
+  // hardening erodes as new exploits surface. Live play only (never offline), so a returning player
+  // never comes back to a threat spike they had no chance to patch (mirrors the licensee-churn gate).
+  // Net exposure drags reputation in the reputation block below; a patch/release clears it (reducers).
+  let osThreat = state.osThreat ?? 0;
+  let osSecurity = state.osSecurity ?? 0;
+  if (!offline && state.platformUnlocked) {
+    const hasPrivacy = state.osFeatures.includes("privacy");
+    osThreat = clampSecurity(osThreat + threatRisePerWeek(installedBase(launched), hasPrivacy) * rate);
+    osSecurity = clampSecurity(osSecurity - BALANCE.platform.security.securityDecayPerWeek * rate);
+  }
+
   // Licensee relationships: a rival paying to license your OS resents being dominated. Each live week
   // their satisfaction shifts with your reputation lead, and an unhappy licensee may walk (churn).
   // Gated to live play (never offline) so a returning player can't lose partners while away.
@@ -1719,13 +1990,37 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
-  const loyaltyDecay = hasProject(state.completedProjects, "loyaltyProgram")
+  // Living fan community — sentiment evolves from how you've treated your audience (recent verdicts +
+  // launch freshness) and modulates retention (a beloved community churns slower). Gated on having
+  // shipped, so a never-launched game + the pinned auto-player keep sentiment 0 → the decay below is
+  // byte-identical.
+  let fanSentiment = state.fanSentiment ?? 0;
+  if (state.launched.length >= 1) {
+    const cw = BALANCE.fans.community.windowWeeks;
+    let hits = 0, solids = 0, flops = 0, lastLaunchWeek = -Infinity;
+    for (const lp of state.launched) {
+      if (lp.launchedWeek > lastLaunchWeek) lastLaunchWeek = lp.launchedWeek;
+      if (lp.launchedWeek < week - cw) continue;
+      if (lp.verdict === "hit") hits++;
+      else if (lp.verdict === "solid") solids++;
+      else if (lp.verdict === "flop") flops++;
+    }
+    const facts: CommunityFacts = { hits, solids, flops, weeksSinceLaunch: week - lastLaunchWeek, fans: state.fans };
+    fanSentiment = evolveSentiment(fanSentiment, facts);
+  }
+
+  const baseDecay = hasProject(state.completedProjects, "loyaltyProgram")
     ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
     : BALANCE.fans.decayPerWeek;
+  const loyaltyDecay = sentimentDecayFactor(baseDecay, fanSentiment); // = baseDecay exactly at sentiment 0
   const newFans = Math.round(
     state.fans * Math.pow(loyaltyDecay, rate)
     + (hasProject(state.completedProjects, "contentMarketing") ? 100 * rate : 0)
   );
+  // Superfans track the (post-decay) fanbase — 0 whenever sentiment ≤ 0, so a neutral game has none.
+  const superfans = superfansFrom(fanSentiment, newFans);
+  // Brand awareness fades without reinvestment (rate-scaled to match the fan decay). 0 → 0, a no-op.
+  const brandAwareness = Math.max(0, (state.brandAwareness ?? 0) * Math.pow(BALANCE.brand.decayPerWeek, rate));
 
   // Quarterly checkpoint: a snapshot feed item every BALANCE.quartersWeeks weeks to mark
   // the end of a "fiscal quarter" — gives the player a regular moment of reflection.
@@ -1750,6 +2045,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       // of the tick math, which weights offline weeks by `rate`).
       reputation = Math.max(rc.decayFloor, reputation - rc.decayPerWeekLate * rate);
     }
+    // Security exposure drag — an over-exposed, unpatched OS bleeds goodwill until you ship a patch or
+    // a new version (the reducers clear the threat). Live play only, so it can never surprise a
+    // returning player. Sim-safe: platformUnlocked is false in the pinned auto-player run.
+    if (!offline && !bankrupt && state.platformUnlocked) {
+      const sc = BALANCE.platform.security;
+      if (netExposure(osThreat, osSecurity) > sc.exposureRepThreshold) {
+        reputation = Math.max(0, reputation - sc.exposureRepDragPerWeek * rate);
+        if (!feed.some((f) => f.week === week && f.text.includes("exposed")))
+          feed.push(feedItem(week, `${osDisplayName(state)} is exposed, unpatched vulnerabilities are eroding trust. Ship a security patch.`, "negative"));
+      }
+    }
   }
 
   // Supplier contracts tick down each week; an expired one drops back to spot pricing (with a heads-up).
@@ -1772,6 +2078,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     reputation,
     cumulativeRevenue,
     fans: newFans,
+    fanSentiment,
+    superfans,
+    brandAwareness,
     researchPoints,
     building,
     ready,
@@ -1786,6 +2095,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     competitors,
     launched: launchedFinal,
     pendingStrike,
+    lastInterruptWeek,
     pendingAwards,
     awardsHistory,
     pendingSideOrder,
@@ -1793,6 +2103,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     sideOrdersCompleted,
     cashHistory,
     osBaseHistory,
+    osApps,
+    osThreat,
+    osSecurity,
     osLicensees,
     osLicenseeHealth,
     osExclusive,
@@ -1805,6 +2118,30 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     bankrupt,
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
+
+  // Timed research (the active slot + queue): when the development window elapses, apply the unlock —
+  // the SAME effect as the instant path, just delayed — then pull the next queued research up to
+  // develop. The RP was paid at start. Gated on an active research, which the pinned solo sim never
+  // starts → activeResearch stays null (+ empty queue) → byte-identical.
+  if (base.activeResearch && week - base.activeResearch.startWeek >= base.activeResearch.totalWeeks) {
+    const a = base.activeResearch;
+    if (a.kind === "tier" && a.tierLevel != null) {
+      base.researched = { ...base.researched, [a.ref as ComponentKind]: a.tierLevel };
+    } else if (a.kind === "project" && !base.completedProjects.includes(a.ref as ProjectId)) {
+      base.completedProjects = [...base.completedProjects, a.ref as ProjectId];
+    }
+    base.feed.push(feedItem(week, `Research complete: ${a.name} is ready.`, "positive"));
+    // Advance the queue: the next lined-up research starts developing this same week.
+    const queue = base.researchQueue ?? [];
+    if (queue.length > 0) {
+      const [nextUp, ...rest] = queue;
+      base.activeResearch = { ...nextUp, startWeek: week };
+      base.researchQueue = rest;
+      base.feed.push(feedItem(week, `The lab moved on to ${nextUp.name}.`, "accent"));
+    } else {
+      base.activeResearch = null;
+    }
+  }
 
   // Rival poaching (Track C): a rival on the rise occasionally tries to hire away one of your best —
   // surfaced as a counter-offer DECISION, not a silent stat drop. A DERIVED rng keeps the main sim
@@ -1822,6 +2159,145 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
   }
 
+  // Eureka breakthroughs (engine/eureka.ts) — an active, funded lab occasionally has a flash of insight
+  // (a bank-or-chase bet). Derived-hash cadence (never the sim rng) + a player-CLAIMED payoff, gated on
+  // real researchers + era + cooldown, and it yields to any other pending interrupt. The solo pinned
+  // sim assigns no researchers, so it never fires or resolves one → byte-identical.
+  {
+    const eu = BALANCE.research.eureka;
+    if (
+      !offline && !bankrupt && interruptQuiet &&
+      !base.pendingEureka && !base.pendingStrike && !base.pendingPoach && !base.pendingChoice &&
+      base.era >= eu.minEra &&
+      base.staff.filter((s) => s.assignment === "rnd").length >= eu.minRnDStaff &&
+      week - (state.lastEurekaWeek ?? -999) >= eu.cooldownWeeks &&
+      eurekaDue(state.seed, week)
+    ) {
+      const moment = generateEureka(state.seed, week, base.era);
+      base.pendingEureka = moment;
+      base.lastEurekaWeek = week;
+      base.lastInterruptWeek = week;
+      base.feed.push(feedItem(week, `Your lab had a breakthrough in the ${moment.componentKind} line. Bank it, or chase the prototype?`, "accent"));
+    }
+  }
+
+  // Community ASK: once you have a fanbase (launched ≥ 1), the community periodically asks for
+  // something — answer it (resolveCommunityAsk) to grow + delight the base, or pass. Derived-hash
+  // cadence + cooldown + a fresh-launch cooloff; yields to any other pending interrupt. The pinned
+  // solo sim never launches, so it never raises one → byte-identical.
+  {
+    const ca = BALANCE.fans.community.asks;
+    const lastLaunchWeek = state.launched.reduce((m, lp) => Math.max(m, lp.launchedWeek), -Infinity);
+    if (
+      !offline && !bankrupt && interruptQuiet &&
+      state.launched.length >= 1 &&
+      !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike && !base.pendingPoach &&
+      !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
+      week - (state.lastCommunityAskWeek ?? -999) >= ca.cooldownWeeks &&
+      week - lastLaunchWeek >= ca.minWeeksSinceLaunch &&
+      communityAskDue(state.seed, week)
+    ) {
+      const ask = generateCommunityAsk(state.seed, week, base.fans);
+      base.pendingCommunityAsk = ask;
+      base.lastCommunityAskWeek = week;
+      base.lastInterruptWeek = week;
+      base.feed.push(feedItem(week, `The community is asking: ${ASK_INFO[ask.kind].title.toLowerCase()}. Answer the call, or let it pass?`, "accent"));
+    }
+  }
+
+  // Staff GROWTH moment: a senior, tenured staffer occasionally earns a permanent character upgrade
+  // the player picks (resolveStaffMoment). Derived-hash cadence + cooldown; yields to any other pending
+  // interrupt and respects the global budget. Gated on era + a real team with an eligible non-founder,
+  // so the pinned solo sim (founder only) never raises one → byte-identical.
+  {
+    const g = BALANCE.staff.growth;
+    if (
+      !offline && !bankrupt && interruptQuiet &&
+      base.era >= g.minEra && base.staff.length >= 2 &&
+      !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
+      !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
+      week - (state.lastStaffMomentWeek ?? -999) >= g.cooldownWeeks &&
+      staffMomentDue(state.seed, week)
+    ) {
+      const target = pickGrowthTarget(base.staff, week);
+      if (target) {
+        const moment = generateStaffMoment(target, state.seed, week);
+        if (moment.options.length > 0) {
+          base.pendingStaffMoment = moment;
+          base.lastStaffMomentWeek = week;
+          base.lastInterruptWeek = week;
+          base.feed.push(feedItem(week, `${target.name} has grown into a real force on the team — there's a way to develop them further.`, "accent"));
+        }
+      }
+    }
+  }
+
+  // Regional loyalty + EVENTS — only once you've expanded past Home (so the solo sim, home-only, is
+  // untouched → byte-identical). Loyalty eases back toward neutral each week; then, budget-paced, a
+  // foreign market may raise a respond-or-ignore event (a boom / tariff / rival surge).
+  {
+    const rc = BALANCE.market.regions;
+    const foreign = base.unlockedRegions.filter((id) => id !== "home");
+    if (foreign.length > 0) {
+      // Decay standing toward neutral (only touch non-neutral entries; keep the map tidy).
+      const cur = base.regionLoyalty ?? {};
+      let decayed: Partial<Record<RegionId, number>> | undefined;
+      for (const [id, v] of Object.entries(cur) as [RegionId, number][]) {
+        if (!v) continue;
+        const next = v * Math.pow(rc.loyalty.decayPerWeek, rate);
+        (decayed ??= { ...cur })[id] = Math.abs(next) < 0.5 ? 0 : next;
+      }
+      if (decayed) base.regionLoyalty = decayed;
+
+      // Raise a regional event (opt-in interrupt), respecting the global budget + one-at-a-time rule.
+      const ev = rc.events;
+      if (
+        !offline && !bankrupt && interruptQuiet &&
+        base.era >= ev.minEra &&
+        !base.pendingRegionalEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
+        !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
+        week - (state.lastRegionalEventWeek ?? -999) >= ev.cooldownWeeks &&
+        regionalEventDue(state.seed, week)
+      ) {
+        const event = generateRegionalEvent(state.seed, week, foreign, base.era);
+        base.pendingRegionalEvent = event;
+        base.lastRegionalEventWeek = week;
+        base.lastInterruptWeek = week;
+        const rname = regionById(event.regionId)?.name ?? "A market";
+        base.feed.push(feedItem(week, `${rname}: ${REGIONAL_EVENT_COPY[event.kind].feed} How do you respond?`, "accent"));
+      }
+    }
+  }
+
+  // Quarterly EARNINGS (post-IPO): every fiscal quarter the street judges the quarter's revenue vs its
+  // expectation → a share-price move (valuation-momentum delta, applied here before Track B decays it,
+  // just like a launch pop) + a staged earnings call. Gated on `listed`, yields to any other pending
+  // interrupt; the pinned solo sim never IPOs → never runs → byte-identical.
+  if (
+    !offline && !bankrupt && base.listed && interruptQuiet &&
+    !base.pendingEarnings && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
+    !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
+    week - (state.lastEarningsWeek ?? week) >= BALANCE.ipo.shareholders.quarterWeeks
+  ) {
+    const sh = BALANCE.ipo.shareholders;
+    const quarterRev = sub(base.cumulativeRevenue, state.quarterStartRevenue ?? base.cumulativeRevenue);
+    const q = (state.earningsQuarter ?? 0) + 1;
+    const report = judgeQuarter(q, week, quarterRev, (state.earningsExpectation ?? sh.minExpectation) as Money);
+    const vmCap = BALANCE.valuationMomentum.cap;
+    base.valuationMomentum = Math.max(-vmCap, Math.min(vmCap, (base.valuationMomentum ?? 0) + report.priceMovePct));
+    base.pendingEarnings = report;
+    base.earningsQuarter = q;
+    base.lastEarningsWeek = week;
+    base.lastInterruptWeek = week;
+    base.quarterStartRevenue = base.cumulativeRevenue;
+    base.earningsExpectation = nextExpectation(quarterRev);
+    base.feed.push(feedItem(week,
+      report.beat
+        ? `Q${q} earnings beat the street — ${base.companyName}'s shares jumped ${Math.round(report.priceMovePct * 100)}%.`
+        : `Q${q} earnings missed the street — ${base.companyName}'s shares slid ${Math.round(Math.abs(report.priceMovePct) * 100)}%.`,
+      report.beat ? "positive" : "negative"));
+  }
+
   // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
   // the player against the six public rivals. Climbing to a new best rank (overtaking a rival, all
   // the way to #1) is the late-game chase — celebrate it. Rank is monotonic-best so a rival's share
@@ -1834,12 +2310,19 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         const overtaken = board
           .slice(newRank, Math.min(state.bestIndustryRank, board.length))
           .filter((e) => !e.isPlayer);
-        for (const r of overtaken) {
-          base.feed.push(feedItem(week, `${base.companyName} overtook ${r.name}, now #${newRank} in the industry.`, "positive"));
+        // Coalesce a multi-rank jump into ONE line instead of a near-identical line per rival passed.
+        if (overtaken.length === 1) {
+          base.feed.push(feedItem(week, `${base.companyName} overtook ${overtaken[0].name}, now #${newRank} in the industry.`, "positive"));
+        } else if (overtaken.length > 1) {
+          const lead = overtaken[0].name;
+          base.feed.push(feedItem(week, `${base.companyName} climbed past ${lead} and ${overtaken.length - 1} other${overtaken.length - 1 > 1 ? "s" : ""} to #${newRank} in the industry.`, "positive"));
         }
         if (newRank === 1) {
           base.feed.push(feedItem(week, `${base.companyName} is now the #1 company in the industry. The throne is yours.`, "positive"));
         }
+        // Overtaking a rival is a clash. The biggest one you pass (board is valuation-sorted, so the
+        // first entry) is the marquee scalp — a "dethroning" when it takes you to #1.
+        overtaken.forEach((r, i) => clashSignals.push({ kind: i === 0 && newRank === 1 ? "dethroned" : "overtake", rivalId: r.id }));
       }
       base.bestIndustryRank = newRank;
     }
@@ -1856,6 +2339,66 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       const sample = toDollars(companyValuation(base));
       base.valuationHistory = [...(base.valuationHistory ?? []), sample].slice(-vm.historyLength);
     }
+  }
+
+  // The ARCH-RIVAL / NEMESIS (engine/nemesis.ts) — fold this tick's clash signals into a persistent
+  // 1:1 rivalry: form one on the first clash, escalate its heat + head-to-head record, and let a hot
+  // rivalry taunt you. Live play only (so a returning player never comes back mid-feud), and skipped
+  // entirely when there were no clashes — so the pinned auto-player never forms a nemesis → byte-
+  // identical. The launch edge (applied above in advanceCompetitors) reads LAST week's nemesis.
+  if (!offline && !bankrupt) {
+    const res = updateNemesis({
+      current: base.nemesis ?? null,
+      signals: clashSignals,
+      week,
+      existsById: (id) => base.competitors.some((c) => c.id === id),
+      pickWeight: (id) => base.competitors.find((c) => c.id === id)?.reputation ?? 0,
+    });
+    base.nemesis = res.nemesis;
+    if (res.declared) {
+      const rival = base.competitors.find((c) => c.id === res.declared!.rivalId);
+      const doctrine = rivalDef(res.declared.rivalId)?.doctrine ?? "generalist";
+      base.feed.push(feedItem(week, `${rival?.name ?? "A rival"} has become your arch-rival. It's personal now.`, "negative"));
+      // The reveal CARD respects the interrupt budget AND never doubles up with another pending modal
+      // (a nemesis usually forms from the very strike already on screen). If suppressed the nemesis
+      // still forms and the feed still announces it — only the extra full-screen card is skipped.
+      if (
+        interruptQuiet &&
+        !base.pendingRivalry && !base.pendingStrike && !base.pendingEureka && !base.pendingCommunityAsk &&
+        !base.pendingEarnings && !base.pendingPoach && !base.pendingChoice && !base.pendingAwards
+      ) {
+        base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
+        base.lastInterruptWeek = week;
+      }
+    } else if (res.nemesis && clashSignals.some((s) => s.rivalId === res.nemesis!.rivalId)) {
+      // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency).
+      const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);
+      const doctrine = rivalDef(res.nemesis.rivalId)?.doctrine ?? "generalist";
+      base.feed.push(feedItem(week, `${rival?.name ?? "Your rival"}: “${nemesisTaunt(doctrine, base.seed, week)}”`, "accent"));
+    }
+  }
+
+  // Rolling contract board (engine/contracts.ts) — 2–3 live, directed goals that regenerate on claim
+  // or expiry, giving the post-tutorial/endgame a chase. Deterministic (derived hash, never the sim
+  // rng) and the reward is player-CLAIMED, so the pinned auto-player (which ships nothing → the board
+  // never opens) stays byte-identical. Runs before the event returns so every path carries the board.
+  if (base.launched.length >= 1) {
+    const facts = contractFacts(base);
+    // Keep unclaimed-but-completed contracts (they wait to be claimed); drop ones that lapsed unmet.
+    const kept: Contract[] = [];
+    for (const c of base.contracts ?? []) {
+      if (week > c.expiresWeek && !contractDone(c, facts)) {
+        if (!offline) base.feed.push(feedItem(week, `The “${c.title}” contract lapsed.`, "neutral"));
+      } else kept.push(c);
+    }
+    let contracts = kept;
+    let contractCounter = base.contractCounter ?? 0;
+    while (contracts.length < CONTRACT_BOARD_SIZE) {
+      contracts = [...contracts, generateContract(base.seed, contractCounter, base.era, facts)];
+      contractCounter += 1;
+    }
+    base.contracts = contracts;
+    base.contractCounter = contractCounter;
   }
 
   // Resolve an in-progress event chain (Track B) on its OWN schedule, independent of the normal
@@ -2199,6 +2742,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
   if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);
+  if (hasProject(state.completedProjects, "gtmPrestige")) reputation = Math.min(rep.max, reputation + 2); // GTM doctrine: Prestige House
   // Ethics of the supply chain: responsible sourcing slowly builds the brand; cheap/exploitative
   // sourcing erodes it (0 for standard sourcing → no change for older saves / default builds).
   const ethicsRep = supplierEthicsRepDelta(product);
@@ -2549,7 +3093,7 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
   if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };
   if (newPrice >= lp.product.price) return { state, ok: false, reason: "New price must be lower than current price." };
   if (newPrice < lp.unitCost) return { state, ok: false, reason: "Price can't go below unit cost." };
-  if ((lp.priceCuts ?? 0) >= 1) return { state, ok: false, reason: "Price has already been adjusted on this product." };
+  if ((lp.priceCuts ?? 0) >= BALANCE.priceCut.maxPerProduct) return { state, ok: false, reason: "This product has been marked down as far as it can go." };
 
   // Compute the priceFit improvement ratio — this scales remaining weekly demand proportionally.
   const oldFit = priceFit(lp.product.price, lp.stats, lp.product.category);
@@ -2582,13 +3126,22 @@ export function cutProductPrice(state: GameState, productId: string, newPrice: M
   };
 }
 
+/** The effective per-week demand boost for the NEXT marketing push on this product. Diminishes with
+ *  each push already run (BALANCE.marketingPush.pushFalloff), so repeat campaigns still help but each
+ *  less than the last — keeping it a real decision rather than a spam button. */
+function marketingPushBoost(lp: LaunchedProduct): number {
+  return BALANCE.marketingPush.boost * Math.pow(BALANCE.marketingPush.pushFalloff, lp.marketingPushes ?? 0);
+}
+
 /** A quote for a mid-lifecycle marketing push, or null when there's nothing left to promote (no
- *  surplus inventory) or the lifecycle has ended. Pure — drives both the UI preview and the action,
- *  so the number the player sees is the number they pay. */
+ *  surplus inventory), the push cap is reached, or the lifecycle has ended. Pure — drives both the UI
+ *  preview and the action, so the number the player sees is the number they pay. */
 export function marketingPushQuote(lp: LaunchedProduct): { cost: Money; addedUnits: number } | null {
   if (lp.weeksElapsed >= lp.weeklyUnits.length) return null;
+  if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return null;
   const cap = lp.plannedUnits ?? lp.totalUnits;
-  const boosted = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
+  const eff = marketingPushBoost(lp);
+  const boosted = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + eff))));
   const newTotal = Math.min(cap, boosted.reduce((a, b) => a + b, 0));
   const oldTotal = Math.min(cap, lp.weeklyUnits.reduce((a, b) => a + b, 0));
   const addedUnits = Math.max(0, newTotal - oldTotal);
@@ -2603,13 +3156,14 @@ export function marketingPush(state: GameState, productId: string): ActionResult
   const lp = state.launched.find((l) => l.product.id === productId);
   if (!lp) return { state, ok: false, reason: "Product not found." };
   if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };
-  if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return { state, ok: false, reason: "This product has already had a marketing push." };
+  if ((lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct) return { state, ok: false, reason: "This product has had the most marketing pushes it can take." };
   const quote = marketingPushQuote(lp);
   if (!quote) return { state, ok: false, reason: "No unsold inventory left to promote." };
   if (state.cash < quote.cost) return { state, ok: false, reason: `Need ${format(sub(quote.cost, state.cash))} more for the campaign.` };
 
   const cap = lp.plannedUnits ?? lp.totalUnits;
-  const newWeeklyUnits = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + BALANCE.marketingPush.boost))));
+  const eff = marketingPushBoost(lp);
+  const newWeeklyUnits = lp.weeklyUnits.map((u, i) => (i < lp.weeksElapsed ? u : Math.round(u * (1 + eff))));
   const newTotalUnits = Math.min(cap, newWeeklyUnits.reduce((a, b) => a + b, 0));
 
   const feed = [...state.feed];
@@ -2628,6 +3182,82 @@ export function marketingPush(state: GameState, productId: string): ActionResult
     },
     ok: true,
   };
+}
+
+/** Quote a brand-awareness investment: the cost to raise the meter by up to `points` (clamped to the
+ *  cap headroom + one-step max), or null if the meter is already full. Cost scales with era. Pure. */
+export function investBrandAwarenessQuote(state: GameState, points: number): { cost: Money; points: number } | null {
+  const b = BALANCE.brand;
+  const current = Math.max(0, Math.min(b.cap, state.brandAwareness ?? 0));
+  const pts = Math.max(0, Math.min(Math.floor(points), b.maxStep, Math.floor(b.cap - current)));
+  if (pts <= 0) return null;
+  const eraMult = 1 + (Math.max(1, state.era) - 1) * b.costPerPointPerEra;
+  return { cost: cents(Math.round((b.costPerPoint as number) * eraMult * pts)), points: pts };
+}
+
+/** Invest cash in brand awareness — a standing, decaying meter that lifts every future launch's hype. */
+export function investBrandAwareness(state: GameState, points: number): ActionResult {
+  const quote = investBrandAwarenessQuote(state, points);
+  if (!quote) return { state, ok: false, reason: "Brand awareness is already at its peak." };
+  if (state.cash < quote.cost) return { state, ok: false, reason: `Need ${format(sub(quote.cost, state.cash))} more for the campaign.` };
+  const brandAwareness = Math.min(BALANCE.brand.cap, (state.brandAwareness ?? 0) + quote.points);
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Brand campaign ran — awareness now ${Math.round(brandAwareness)}/${BALANCE.brand.cap}.`, "accent"));
+  return { state: { ...state, cash: sub(state.cash, quote.cost), brandAwareness, feed: trimFeed(feed) }, ok: true };
+}
+
+/** A quote for restocking (reordering) a launched product, or null when it can't be restocked
+ *  (lifecycle ended, reorder cap reached, or the market has no meaningful unmet demand left).
+ *  DEMAND-CAPPED: maxUnits is how many more the current market still wants beyond what's already
+ *  scheduled to sell (planProduction.totalDemand − totalUnits), so a restock captures unmet demand
+ *  and can never print money. Pure — drives both the UI stepper bounds and the action. */
+export function restockQuote(s: GameState, lp: LaunchedProduct): { maxUnits: number; unitCost: Money } | null {
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return null;            // lifecycle ended
+  if ((lp.restocks ?? 0) >= BALANCE.restock.maxPerProduct) return null; // reorder cap reached
+  const channelId = (lp.product.channelId ?? "none") as ChannelId;
+  // Estimate the market's true appetite for this product WITHOUT counting it against itself: its own
+  // active listing would otherwise trigger self-cannibalization + market-fatigue penalties on the very
+  // product we're reordering, wrongly collapsing the demand a restock is meant to meet.
+  const sansSelf: GameState = { ...s, launched: s.launched.filter((l) => l.product.id !== lp.product.id) };
+  const plan = planProduction(sansSelf, lp.product, lp.plannedUnits ?? lp.totalUnits, channelId);
+  const headroom = Math.max(0, Math.round(plan.totalDemand) - lp.totalUnits);
+  if (headroom < BALANCE.build.minRun) return null;                    // not enough unmet demand to bother
+  return { maxUnits: headroom, unitCost: effectiveUnitCost(s, lp.product) };
+}
+
+/** Restock (reorder) a launched product: fund another production run to meet demand you under-supplied
+ *  instead of leaving a sell-out's revenue on the table. Appends a fresh sales wave (distributeOverCurve)
+ *  from the current week and raises the product's supply + forecast, bounded by restockQuote's demand
+ *  cap, so lifetime sales can never exceed what the market actually wants. No new tooling (the line is
+ *  already set up) — you pay pure per-unit production. Opt-in: the pinned sim never calls this. */
+export function restockProduct(state: GameState, productId: string, units: number): ActionResult {
+  const idx = state.launched.findIndex((l) => l.product.id === productId);
+  if (idx < 0) return { state, ok: false, reason: "Product not found." };
+  const lp = state.launched[idx];
+  const quote = restockQuote(state, lp);
+  if (!quote) return { state, ok: false, reason: "There's no unmet demand left to restock." };
+  const want = Math.min(Math.max(0, Math.floor(units)), quote.maxUnits);
+  if (want < BALANCE.build.minRun) return { state, ok: false, reason: `Restock at least ${BALANCE.build.minRun.toLocaleString()} units.` };
+  const cost = scale(quote.unitCost, want);
+  if (state.cash < cost) return { state, ok: false, reason: `Need ${format(sub(cost, state.cash))} more to restock.` };
+  // A fresh wave of sales for the added units, overlaid onto the curve from the current week (renewed
+  // availability). distributeOverCurve sums to exactly `want`, so sell-through stays honest.
+  const wave = distributeOverCurve(want);
+  const weeklyUnits = [...lp.weeklyUnits];
+  for (let i = 0; i < wave.length; i++) {
+    const at = lp.weeksElapsed + i;
+    weeklyUnits[at] = (weeklyUnits[at] ?? 0) + wave[i];
+  }
+  const launched = [...state.launched];
+  launched[idx] = {
+    ...lp,
+    weeklyUnits,
+    totalUnits: lp.totalUnits + want,
+    plannedUnits: (lp.plannedUnits ?? lp.totalUnits) + want,
+    restocks: (lp.restocks ?? 0) + 1,
+  };
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Restocked “${lp.product.name}” — ${want.toLocaleString()} more units on the line to meet demand.`, "accent")]);
+  return { state: { ...state, cash: sub(state.cash, cost), launched, feed }, ok: true };
 }
 
 /** How the player answers a Rival Strike. All three are OPT-IN (the pinned sim never calls this),
@@ -2978,6 +3608,121 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
   };
 }
 
+// ---------- Timed research (the active slot + a queue) ----------
+// The live game researches through these; researchNext/buyProject above stay as the instant primitives
+// (tests + the auto-research delegation use them). One research DEVELOPS at a time (the progress ring),
+// paid up front; buying more lines them up in a QUEUE and each auto-starts when it reaches the front.
+// Rule: a component line / project can be active OR queued at most once (keeps tier costs simple).
+
+/** Weeks a research of `rpCost` takes to complete — cost-scaled, clamped to the tuned band. */
+export function researchWeeksFor(rpCost: number): number {
+  const t = BALANCE.research.timer;
+  return Math.max(t.minWeeks, Math.min(t.maxWeeks, Math.round(rpCost / t.rpPerWeek)));
+}
+
+/** Is the lab currently developing a research? */
+export const researchBusy = (s: GameState): boolean => (s.activeResearch ?? null) !== null;
+/** The researches lined up behind the active one (never undefined). */
+export const researchQueueList = (s: GameState): QueuedResearch[] => s.researchQueue ?? [];
+/** Is the queue at capacity (so nothing more can be lined up)? */
+export const researchQueueFull = (s: GameState): boolean => researchQueueList(s).length >= BALANCE.research.timer.maxQueue;
+
+export type ResearchSlotStatus = "active" | "queued" | null;
+/** Whether a component line is currently developing, waiting in the queue, or neither (for the UI). */
+export function tierResearchStatus(s: GameState, kind: ComponentKind): ResearchSlotStatus {
+  if (s.activeResearch?.kind === "tier" && s.activeResearch.ref === kind) return "active";
+  return researchQueueList(s).some((q) => q.kind === "tier" && q.ref === kind) ? "queued" : null;
+}
+/** Whether a project is currently developing, waiting in the queue, or neither (for the UI). */
+export function projectResearchStatus(s: GameState, id: ProjectId): ResearchSlotStatus {
+  if (s.activeResearch?.kind === "project" && s.activeResearch.ref === id) return "active";
+  return researchQueueList(s).some((q) => q.kind === "project" && q.ref === id) ? "queued" : null;
+}
+
+/** Progress 0..1 of the active research (0 when idle). Whole-week granularity; the UI smooths it. */
+export function activeResearchFrac(s: GameState): number {
+  const a = s.activeResearch;
+  if (!a || a.totalWeeks <= 0) return a ? 1 : 0;
+  return Math.max(0, Math.min(1, (s.week - a.startWeek) / a.totalWeeks));
+}
+
+/** Whole weeks remaining on the active research (0 when idle or finishing this week). */
+export function researchWeeksLeft(s: GameState): number {
+  const a = s.activeResearch;
+  if (!a) return 0;
+  return Math.max(0, a.totalWeeks - (s.week - a.startWeek));
+}
+
+/** Place a paid research spec: start it if the lab is idle, else append it to the queue. Returns the
+ *  original state (no-op) if the queue is full. Shared by the tier + project entry points. */
+function placeResearch(state: GameState, spec: QueuedResearch): GameState {
+  if (!state.activeResearch) {
+    return {
+      ...state,
+      researchPoints: state.researchPoints - spec.rpCost,
+      activeResearch: { ...spec, startWeek: state.week },
+      feed: trimFeed([...state.feed, feedItem(state.week, `The lab started developing ${spec.name}.`, "accent")]),
+    };
+  }
+  if (researchQueueFull(state)) return state;
+  return {
+    ...state,
+    researchPoints: state.researchPoints - spec.rpCost,
+    researchQueue: [...researchQueueList(state), spec],
+    feed: trimFeed([...state.feed, feedItem(state.week, `Queued research: ${spec.name}.`, "accent")]),
+  };
+}
+
+/** Start — or queue — the next tier of a component line (timed). Pays the RP up front. No-op if the
+ *  line is already active/queued, it's maxed, the queue is full, or you can't afford it. */
+export function startResearchTier(state: GameState, kind: ComponentKind): GameState {
+  if (tierResearchStatus(state, kind) !== null) return state; // already active or queued
+  const cost = rdRpCostFor(state, kind);
+  if (cost === null || state.researchPoints < cost) return state;
+  const next = researchedTier(state, kind) + 1;
+  const def = tierDef(kind, next);
+  if (!def) return state;
+  return placeResearch(state, {
+    kind: "tier", ref: kind, tierLevel: next, name: def.name,
+    blurb: `A stronger ${kind} tier for everything you build next.`,
+    rpCost: cost, totalWeeks: researchWeeksFor(cost),
+  });
+}
+
+/** Start — or queue — a company research project (timed). Pays the RP up front. No-op if it's already
+ *  active/queued/owned, fork-locked, too advanced, the queue is full, or you can't afford it. */
+export function startResearchProject(state: GameState, id: ProjectId): GameState {
+  if (projectResearchStatus(state, id) !== null) return state; // already active or queued
+  if (hasProject(state.completedProjects, id)) return state;
+  const proj = projectById(id);
+  if (proj.era > state.era || state.researchPoints < proj.rpCost) return state;
+  if (forkLockedBy(state.completedProjects, id)) return state;
+  return placeResearch(state, {
+    kind: "project", ref: id, name: proj.name, blurb: proj.blurb,
+    rpCost: proj.rpCost, totalWeeks: researchWeeksFor(proj.rpCost),
+  });
+}
+
+/** Cancel the ACTIVE research (refund the RP) and pull the next queued item up to develop, if any. */
+export function cancelResearch(state: GameState): GameState {
+  const a = state.activeResearch;
+  if (!a) return state;
+  const [nextUp, ...rest] = researchQueueList(state);
+  const nextActive = nextUp ? { ...nextUp, startWeek: state.week } : null;
+  const feed = trimFeed([...state.feed, feedItem(state.week,
+    `Shelved research: ${a.name}. RP refunded.${nextActive ? ` Now developing ${nextActive.name}.` : ""}`, "neutral")]);
+  return { ...state, researchPoints: state.researchPoints + a.rpCost, activeResearch: nextActive, researchQueue: rest, feed };
+}
+
+/** Remove a QUEUED research (refund the RP). No-op if `ref` isn't in the queue. */
+export function cancelQueuedResearch(state: GameState, ref: string): GameState {
+  const queue = researchQueueList(state);
+  const item = queue.find((q) => q.ref === ref);
+  if (!item) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Removed ${item.name} from the research queue. RP refunded.`, "neutral")]);
+  return { ...state, researchPoints: state.researchPoints + item.rpCost, researchQueue: queue.filter((q) => q.ref !== ref), feed };
+}
+
 // Late-game repeatable RP sink: once the tree (and component tiers) are bought out, RP would
 // otherwise accrue forever with nothing to do. A developer keynote converts research momentum
 // into audience — fans + a point of reputation — repeatable at a real price, so an R&D-heavy
@@ -3004,16 +3749,16 @@ export function placeFurniture(state: GameState, type: FurnitureId, c: number, r
   const cost = dollars(furnitureCost(type));
   if (state.cash < cost) return state; // can't afford — no-op (the UI surfaces "Need $X")
   const iid = `f${state.furnitureCounter}`;
-  const layout = addFurniture(state.layout, iid, type, c, r, rot);
+  const layout = addFurniture(state.layout, iid, type, c, r, rot, state.facilityTier);
   if (layout === state.layout) return state; // rejected (overlap / out of bounds) — no charge
   return { ...state, cash: sub(state.cash, cost), layout, furnitureCounter: state.furnitureCounter + 1 };
 }
 export function moveFurniture(state: GameState, iid: string, c: number, r: number): GameState {
-  const layout = moveFurnitureOp(state.layout, iid, c, r);
+  const layout = moveFurnitureOp(state.layout, iid, c, r, state.facilityTier);
   return layout === state.layout ? state : { ...state, layout };
 }
 export function rotateFurniture(state: GameState, iid: string): GameState {
-  const layout = rotateFurnitureOp(state.layout, iid);
+  const layout = rotateFurnitureOp(state.layout, iid, state.facilityTier);
   return layout === state.layout ? state : { ...state, layout };
 }
 /** Sell a placed item back to the shop — removes it and refunds BALANCE.shop.resaleRate of its cost. */
@@ -3044,7 +3789,7 @@ export function duplicateFurniture(state: GameState, iid: string): GameState {
   if (state.cash < cost) return state; // can't afford
   for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [2, 0], [0, 2], [-2, 0]]) {
     const c = it.c + dc, r = it.r + dr;
-    if (canPlace(state.layout, it.type, c, r, it.rot)) {
+    if (canPlace(state.layout, it.type, c, r, it.rot, undefined, state.facilityTier)) {
       const copy: PlacedItem = { ...it, iid: `f${state.furnitureCounter}`, c, r };
       return { ...state, cash: sub(state.cash, cost), layout: [...state.layout, copy], furnitureCounter: state.furnitureCounter + 1 };
     }
@@ -3151,6 +3896,7 @@ export function releaseOsVersion(state: GameState): GameState {
   if (!state.platformUnlocked || !canReleaseOsVersion(state)) return state;
   const newVersion = osTierInfo(state).tier;
   const reward = osReleaseReward(platformInstalledBase(state));
+  const sc = BALANCE.platform.security;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `${osDisplayName(state)} ${newVersion}.0 released, the installed base updated. +${reward.fans.toLocaleString()} fans.`, "positive"));
   return {
@@ -3158,7 +3904,36 @@ export function releaseOsVersion(state: GameState): GameState {
     osVersion: newVersion,
     reputation: Math.min(100, state.reputation + reward.reputation),
     fans: state.fans + reward.fans,
+    // A full release is also the biggest security event there is: it wipes the current threat and
+    // hardens the platform, and counts as a patch for the cooldown (you just shipped the newest build).
+    osThreat: clampSecurity((state.osThreat ?? 0) * (1 - sc.releaseThreatClear)),
+    osSecurity: clampSecurity((state.osSecurity ?? 0) + sc.releaseSecurityGain),
+    lastPatchWeek: state.week,
     feed: trimFeed(feed),
+  };
+}
+
+/** Ship a security patch — the immersive "update" action. Clears most of the current threat, hardens
+ *  the platform, and earns a little goodwill. On a cooldown so it's a deliberate, periodic ritual, not
+ *  a spam button. No-op unless the division is unlocked and the cooldown has elapsed. */
+export function shipSecurityPatch(state: GameState): ActionResult {
+  if (!state.platformUnlocked) return { state, ok: false, reason: "Found the Platform division first." };
+  const left = patchCooldownLeft(state.week, state.lastPatchWeek);
+  if (left > 0) return { state, ok: false, reason: `Next patch ready in ${left} week${left === 1 ? "" : "s"}.` };
+  const sc = BALANCE.platform.security;
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `Shipped a ${osDisplayName(state)} security update, threats patched and the platform hardened.`, "positive"));
+  return {
+    state: {
+      ...state,
+      osThreat: clampSecurity((state.osThreat ?? 0) * (1 - sc.patchThreatClear)),
+      osSecurity: clampSecurity((state.osSecurity ?? 0) + sc.patchSecurityGain),
+      reputation: Math.min(100, state.reputation + sc.patchRepBonus),
+      fans: state.fans + sc.patchFanBonus,
+      lastPatchWeek: state.week,
+      feed: trimFeed(feed),
+    },
+    ok: true,
   };
 }
 
@@ -3248,6 +4023,22 @@ export const osFeatureList = (s: GameState): OsFeatureRow[] =>
 /** Ecosystem-stat points the OS currently adds to every device you launch (0 unless unlocked). */
 export const osEcoBonus = (s: GameState): number =>
   s.platformUnlocked ? osEcosystemBonus(s.osFeatures) : 0;
+
+// ---- Living App Store + Security (the immersive OS layer) ----
+/** Apps published to your App Store (0 unless the division is live). */
+export const platformAppCount = (s: GameState): number => (s.platformUnlocked ? Math.floor(s.osApps ?? 0) : 0);
+/** Whether the App Store is open for business (the App Marketplace module is installed). */
+export const appStoreOpen = (s: GameState): boolean => s.platformUnlocked && s.osFeatures.includes("appMarket");
+/** Current OS threat pressure (0..100), 0 unless the division is live. */
+export const osThreatLevel = (s: GameState): number => (s.platformUnlocked ? clampSecurity(s.osThreat ?? 0) : 0);
+/** Current OS security hardening (0..100), 0 unless the division is live. */
+export const osSecurityRating = (s: GameState): number => (s.platformUnlocked ? clampSecurity(s.osSecurity ?? 0) : 0);
+/** Net security exposure (0..100) — how far current threat outruns your hardening. */
+export const osNetExposure = (s: GameState): number => (s.platformUnlocked ? netExposure(s.osThreat ?? 0, s.osSecurity ?? 0) : 0);
+/** Weeks until another security patch can ship (0 = ready). */
+export const securityPatchCooldownLeft = (s: GameState): number => patchCooldownLeft(s.week, s.lastPatchWeek);
+/** Can a security patch ship right now (division live + cooldown elapsed)? */
+export const canShipSecurityPatch = (s: GameState): boolean => s.platformUnlocked && securityPatchCooldownLeft(s) <= 0;
 
 /** Can a specific OS feature module be installed right now? */
 export const canInstallFeature = (s: GameState, id: string): boolean =>
@@ -3467,6 +4258,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     salary: salaryFor(role, finalSkill),
     assignment: ROLE_ASSIGNMENT[role],
     xp: 0,
+    hiredWeek: state.week,
     ...identity,
   };
   const feed = [...state.feed];
@@ -3561,6 +4353,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     salary: cand.salary,
     assignment: ROLE_ASSIGNMENT[cand.role],
     xp: 0,
+    hiredWeek: state.week,
     specialty: cand.specialty,
     trait: cand.trait,
     mood: cand.mood,
@@ -3716,6 +4509,233 @@ export function industryRank(state: GameState): number {
   return idx < 0 ? board.length : idx + 1;
 }
 
+/** The player's strongest category — the one their launches have sold the most units in (their main
+ *  line), defaulting to phone. Drives where the arch-rival aims its launches. Pure. */
+export function playerTopCategory(s: GameState): CategoryId {
+  const units = new Map<CategoryId, number>();
+  for (const lp of s.launched) units.set(lp.product.category, (units.get(lp.product.category) ?? 0) + lp.unitsSold);
+  let best: CategoryId = "phone";
+  let bestN = -1;
+  for (const [cat, n] of units) if (n > bestN) { best = cat; bestN = n; }
+  return best;
+}
+
+/** The arch-rival's live competitor state (null if none, or if it's been acquired/removed). */
+export const nemesisRival = (s: GameState): CompetitorState | null =>
+  s.nemesis ? s.competitors.find((c) => c.id === s.nemesis!.rivalId) ?? null : null;
+
+/** Is this rival the player's arch-rival? */
+export const isNemesis = (s: GameState, rivalId: string): boolean => (s.nemesis?.rivalId ?? null) === rivalId;
+
+/** Dismiss the "rivalry declared" reveal (the moment has been seen). Clears the transient flag only. */
+export function dismissRivalry(state: GameState): GameState {
+  if (!state.pendingRivalry) return state;
+  return { ...state, pendingRivalry: null };
+}
+
+// ---- Living fan community ----
+export interface CommunitySnapshot { sentiment: number; superfans: number; tier: MoodTier; label: string; moment: string; }
+/** A read-only snapshot of the fan community's mood for the HQ panel (mood tier + superfans + a rotating
+ *  community-moment line). Pure; the moment uses a derived hash, never the sim RNG. */
+export function communitySnapshot(s: GameState): CommunitySnapshot {
+  const sentiment = s.fanSentiment ?? 0;
+  const tier = moodTier(sentiment);
+  return { sentiment, superfans: s.superfans ?? 0, tier, label: MOOD_LABEL[tier], moment: communityMoment(s.seed, s.week, sentiment) };
+}
+
+// ---- Eureka R&D breakthroughs ----
+/** The R&D "insight building" gauge (0..1) for the Research banner. */
+export const eurekaInsight = (s: GameState): number => insightProgress(s.week, s.lastEurekaWeek);
+/** How many staff are currently assigned to R&D (an active lab). */
+export const rndStaffCount = (s: GameState): number => s.staff.filter((x) => x.assignment === "rnd").length;
+
+export interface EurekaResult { ok: boolean; jackpot?: boolean; rp?: number; reason?: string; }
+
+/** Resolve the breakthrough on the table. "bank" takes the guaranteed RP; "chase" rolls the prototype
+ *  gamble (a deterministic hash on the moment's week) for a jackpot or a fizzle, with a little rep/fans
+ *  on a jackpot. No-op if nothing's pending. Returns the outcome so the UI can stage the reveal. */
+export function resolveEureka(state: GameState, choice: "bank" | "chase"): { state: GameState; result: EurekaResult } {
+  const moment = state.pendingEureka ?? null;
+  if (!moment) return { state, result: { ok: false, reason: "No breakthrough to resolve." } };
+  const eu = BALANCE.research.eureka;
+  const feed = [...state.feed];
+  if (choice === "bank") {
+    feed.push(feedItem(state.week, `Banked the ${moment.componentKind} breakthrough, +${moment.bankRp} RP to the lab.`, "positive"));
+    return {
+      state: { ...state, researchPoints: state.researchPoints + moment.bankRp, pendingEureka: null, feed: trimFeed(feed) },
+      result: { ok: true, jackpot: false, rp: moment.bankRp },
+    };
+  }
+  const outcome = resolveEurekaChase(state.seed, moment);
+  if (outcome.jackpot) {
+    feed.push(feedItem(state.week, `The prototype worked, a genuine ${moment.componentKind} breakthrough. +${outcome.rp} RP, and word gets out.`, "positive"));
+    return {
+      state: {
+        ...state,
+        researchPoints: state.researchPoints + outcome.rp,
+        reputation: Math.min(BALANCE.reputation.max, state.reputation + eu.jackpotRepBonus),
+        fans: state.fans + eu.jackpotFanBonus,
+        pendingEureka: null,
+        feed: trimFeed(feed),
+      },
+      result: { ok: true, jackpot: true, rp: outcome.rp },
+    };
+  }
+  feed.push(feedItem(state.week, `The prototype fizzled, only +${outcome.rp} RP salvaged. Should've banked it.`, "neutral"));
+  return {
+    state: { ...state, researchPoints: state.researchPoints + outcome.rp, pendingEureka: null, feed: trimFeed(feed) },
+    result: { ok: true, jackpot: false, rp: outcome.rp },
+  };
+}
+
+// ---- Staff growth moments ----
+export interface StaffMomentResult { ok: boolean; reason?: string; kind?: string; staffName?: string; }
+
+/** Resolve the staff growth moment on the table: apply the CHOSEN option (index into moment.options)
+ *  to the target staffer as a permanent character upgrade. No-op if nothing's pending or the target
+ *  has since left. Player-opt-in, so the pinned sim never calls it → byte-identical. */
+export function resolveStaffMoment(state: GameState, optionIndex: number): { state: GameState; result: StaffMomentResult } {
+  const moment = state.pendingStaffMoment ?? null;
+  if (!moment) return { state, result: { ok: false, reason: "No growth moment to resolve." } };
+  const opt = moment.options[optionIndex];
+  if (!opt) return { state: { ...state, pendingStaffMoment: null }, result: { ok: false, reason: "No such option." } };
+  const idx = state.staff.findIndex((s) => s.id === moment.staffId);
+  if (idx < 0) return { state: { ...state, pendingStaffMoment: null }, result: { ok: false, reason: "That teammate has left." } };
+  const s = state.staff[idx];
+  let upgraded = s;
+  let line = "";
+  if (opt.kind === "specialty" && opt.specialty) {
+    upgraded = { ...s, secondSpecialty: opt.specialty };
+    line = `${s.name} picked up ${opt.label} — they now lift a second stat on Design.`;
+  } else if (opt.kind === "trait" && opt.trait) {
+    upgraded = { ...s, bonusTrait: opt.trait };
+    line = `${s.name} developed a ${opt.label.toLowerCase()}.`;
+  } else if (opt.kind === "mentor") {
+    upgraded = { ...s, isMentor: true };
+    line = `${s.name} became a team mentor — the whole team learns faster now.`;
+  } else {
+    return { state: { ...state, pendingStaffMoment: null }, result: { ok: false, reason: "Unknown upgrade." } };
+  }
+  const staff = [...state.staff];
+  staff[idx] = upgraded;
+  const feed = [...state.feed, feedItem(state.week, line, "positive")];
+  return { state: { ...state, staff, pendingStaffMoment: null, feed: trimFeed(feed) }, result: { ok: true, kind: opt.kind, staffName: s.name } };
+}
+
+// ---- Regional events ----
+export interface RegionalEventResult { ok: boolean; reason?: string; responded?: boolean; regionId?: RegionId; }
+
+/** Resolve the regional event on the table. RESPOND (spend the cash) or IGNORE, either way moving that
+ *  region's loyalty by the event's respond/ignore delta (clamped). No-op if nothing's pending; respond
+ *  fails if you can't afford it (the card stays up so you can ignore instead). Player-opt-in, so the
+ *  home-only pinned sim never reaches it → byte-identical. */
+export function resolveRegionalEvent(state: GameState, respond: boolean): { state: GameState; result: RegionalEventResult } {
+  const event = state.pendingRegionalEvent ?? null;
+  if (!event) return { state, result: { ok: false, reason: "No regional event to resolve." } };
+  const rname = regionById(event.regionId)?.name ?? "the market";
+  if (respond && state.cash < event.cost) {
+    return { state, result: { ok: false, reason: `You can't afford to respond in ${rname}.` } };
+  }
+  const delta = respond ? event.loyaltyRespond : event.loyaltyIgnore;
+  const cap = BALANCE.market.regions.loyalty.cap;
+  const cur = state.regionLoyalty ?? {};
+  const regionLoyalty = { ...cur, [event.regionId]: Math.max(-cap, Math.min(cap, (cur[event.regionId] ?? 0) + delta)) };
+  const cash = respond ? sub(state.cash, event.cost) : state.cash;
+  const line = `${rname}: standing ${delta >= 0 ? "rose" : "slipped"} ${delta >= 0 ? "+" : ""}${delta}.`;
+  const feed = [...state.feed, feedItem(state.week, line, delta >= 0 ? "positive" : "negative")];
+  return {
+    state: { ...state, cash, regionLoyalty, pendingRegionalEvent: null, feed: trimFeed(feed) },
+    result: { ok: true, responded: respond, regionId: event.regionId },
+  };
+}
+
+export interface CommunityAskResult { ok: boolean; reason?: string; answered?: boolean; fanGain?: number; }
+/** Resolve a pending community ask. ANSWER it (accept=true): spend the cash, grow the base by fanGain,
+ *  and lift the mood (which then decays via the normal EMA). PASS (accept=false): a small mood dip. Both
+ *  clear the pending ask. No-op if nothing's pending or you can't afford to answer. Player-claimed, so
+ *  the pinned sim (which never launches) never reaches it → byte-identical. */
+export function resolveCommunityAsk(state: GameState, accept: boolean): { state: GameState; result: CommunityAskResult } {
+  const ask = state.pendingCommunityAsk ?? null;
+  if (!ask) return { state, result: { ok: false, reason: "No community ask to resolve." } };
+  const clampSent = (n: number): number => (n < -1 ? -1 : n > 1 ? 1 : n);
+  const feed = [...state.feed];
+  if (!accept) {
+    const fanSentiment = clampSent((state.fanSentiment ?? 0) + ask.passSentiment);
+    feed.push(feedItem(state.week, "You passed on the community's ask — the fans are a little let down.", "neutral"));
+    return { state: { ...state, fanSentiment, pendingCommunityAsk: null, feed: trimFeed(feed) }, result: { ok: true, answered: false } };
+  }
+  if (!gte(state.cash, ask.cost)) return { state, result: { ok: false, reason: "Not enough cash to answer this." } };
+  const info = ASK_INFO[ask.kind];
+  const fanSentiment = clampSent((state.fanSentiment ?? 0) + ask.sentimentGain);
+  feed.push(feedItem(state.week, `${info.done} +${ask.fanGain.toLocaleString()} fans join the community.`, "positive"));
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, ask.cost),
+      fans: state.fans + ask.fanGain,
+      fanSentiment,
+      pendingCommunityAsk: null,
+      feed: trimFeed(feed),
+    },
+    result: { ok: true, answered: true, fanGain: ask.fanGain },
+  };
+}
+
+// ---------- Post-IPO shareholder loop: buybacks + quarterly earnings ----------
+
+export interface BuybackResult { ok: boolean; reason?: string; gained?: number; spent?: Money; }
+/** Buy back `amount` (cash) worth of the company's own shares at the current valuation: raise the
+ *  founder's ownership, spend the cash (a real sink), and signal confidence (a small momentum bump).
+ *  Capped so buybacks can't fully re-privatize. No-op if not listed / can't afford / already at cap. */
+export function buybackShares(state: GameState, amount: Money): { state: GameState; result: BuybackResult } {
+  if (!state.listed) return { state, result: { ok: false, reason: "Company isn't public." } };
+  const sh = BALANCE.ipo.shareholders;
+  const headroom = sh.maxOwnership - state.ownership;
+  if (headroom <= 0.0005) return { state, result: { ok: false, reason: "You already hold nearly all the shares." } };
+  const val = companyValuation(state);
+  const gain = Math.min(buybackOwnershipGain(amount, val), headroom);
+  if (gain <= 0) return { state, result: { ok: false, reason: "Nothing to buy back." } };
+  const spend = scale(val, gain);
+  if (!gte(state.cash, spend)) return { state, result: { ok: false, reason: "Not enough cash for that buyback." } };
+  const vmCap = BALANCE.valuationMomentum.cap;
+  const momentum = Math.max(-vmCap, Math.min(vmCap, (state.valuationMomentum ?? 0) + buybackMomentumBump(gain)));
+  const feed = [...state.feed];
+  feed.push(feedItem(state.week, `${state.companyName} bought back ${(gain * 100).toFixed(1)}% of its shares for ${format(spend)}.`, "accent"));
+  return {
+    state: { ...state, cash: sub(state.cash, spend), ownership: Math.min(1, state.ownership + gain), valuationMomentum: momentum, feed: trimFeed(feed) },
+    result: { ok: true, gained: gain, spent: spend },
+  };
+}
+
+export interface EarningsAckResult { ok: boolean; defended?: boolean; }
+/** Acknowledge a quarterly earnings result. On a MISS you may DEFEND the price: spend a slice of the
+ *  valuation on a buyback to steady the shares (+ reconsolidate ownership). Beats (and "ride it out")
+ *  just clear the call. No-op if nothing's pending. */
+export function resolveEarnings(state: GameState, defend: boolean): { state: GameState; result: EarningsAckResult } {
+  const report = state.pendingEarnings ?? null;
+  if (!report) return { state, result: { ok: false } };
+  const cleared: GameState = { ...state, pendingEarnings: null };
+  if (defend && !report.beat) {
+    const amount = scale(companyValuation(state), BALANCE.ipo.shareholders.defendBuybackPct);
+    const bb = buybackShares(cleared, amount);
+    return { state: bb.state, result: { ok: true, defended: bb.result.ok } };
+  }
+  return { state: cleared, result: { ok: true, defended: false } };
+}
+
+export interface ShareholderPulse { expectation: Money; quarterRevenue: Money; pct: number; weeksToCall: number; }
+/** A read-only snapshot of where this quarter stands vs the street's expectation, for the equity card.
+ *  Null when the company isn't public. */
+export function shareholderPulse(state: GameState): ShareholderPulse | null {
+  if (!state.listed) return null;
+  const sh = BALANCE.ipo.shareholders;
+  const quarterRevenue = sub(state.cumulativeRevenue, (state.quarterStartRevenue ?? state.cumulativeRevenue) as Money);
+  const expectation = (Math.max(1, (state.earningsExpectation ?? sh.minExpectation) as number)) as Money;
+  const pct = Math.min(999, Math.round((toDollars(quarterRevenue) / toDollars(expectation)) * 100));
+  const weeksToCall = Math.max(0, sh.quarterWeeks - (state.week - (state.lastEarningsWeek ?? state.week)));
+  return { expectation, quarterRevenue, pct, weeksToCall };
+}
+
 /** Era-scaled verdict score bands. effectiveScore (= launchScore × competitionFactor) at or above
  *  `hit` is a hit, at/below `flop` is a flop, ≥ `solid` (but under hit) is a solid performer, else a
  *  steady seller. The bars rise with the era so late-game hits must be earned (Phase-2 scaling). The
@@ -3738,7 +4758,20 @@ export function listCompany(state: GameState, stake: number): GameState {
   const raised = scale(companyValuation(state), pct);
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `${state.companyName} IPO'd, raised ${format(raised)} for ${Math.round(pct * 100)}%.`, "positive"));
-  return { ...state, listed: true, ownership: 1 - pct, cash: add(state.cash, raised), feed: trimFeed(feed) };
+  // Kick off the shareholder loop: the street's first quarterly bar is set from the current run-rate.
+  const quarterEstimate = scale(nextWeekRevenue(state), BALANCE.ipo.shareholders.quarterWeeks);
+  return {
+    ...state,
+    listed: true,
+    ownership: 1 - pct,
+    cash: add(state.cash, raised),
+    lastEarningsWeek: state.week,
+    quarterStartRevenue: state.cumulativeRevenue,
+    earningsExpectation: nextExpectation(quarterEstimate),
+    earningsQuarter: 0,
+    pendingEarnings: null,
+    feed: trimFeed(feed),
+  };
 }
 
 /** Sell an additional `pct` of the company post-IPO for cash (dilution; keeps ≥5%). */
@@ -3759,7 +4792,23 @@ export function buyShares(state: GameState, id: string, qty: number): GameState 
   if (!comp) return state;
   const cost = buyCost(comp.sharePrice, qty);
   if (state.cash < cost) return state;
-  return { ...state, cash: sub(state.cash, cost), holdings: { ...state.holdings, [id]: (state.holdings[id] ?? 0) + qty } };
+  const held = state.holdings[id] ?? 0;
+  const next: GameState = { ...state, cash: sub(state.cash, cost), holdings: { ...state.holdings, [id]: held + qty } };
+  // Crossing an ownership threshold is a milestone — announce the board seat / controlling stake so the
+  // takeover runway is legible (a feed line, not an interrupt: low-noise, and never fired by the pinned
+  // sim, which doesn't trade). Only the highest threshold newly crossed is reported.
+  const t = BALANCE.mergers.takeover;
+  const before = ownershipFractionOf(state, id);
+  const after = ownershipFractionOf(next, id);
+  if (before < t.controlFrac && after >= t.controlFrac) {
+    const feed = [...state.feed, feedItem(state.week, `You now hold a controlling stake in ${comp.name} — a hostile buyout is on the table at a reduced premium.`, "positive")];
+    return { ...next, feed: trimFeed(feed) };
+  }
+  if (before < t.boardSeatFrac && after >= t.boardSeatFrac) {
+    const feed = [...state.feed, feedItem(state.week, `Your stake in ${comp.name} earned you a board seat — you can now read their momentum from the inside.`, "accent")];
+    return { ...next, feed: trimFeed(feed) };
+  }
+  return next;
 }
 
 /** Sell up to `qty` shares of a rival company. */
@@ -3773,13 +4822,43 @@ export function sellShares(state: GameState, id: string, qty: number): GameState
   return { ...state, cash: add(state.cash, sellProceeds(comp.sharePrice, q)), holdings };
 }
 
+/** The player's ownership fraction of rival `id` (shares held ÷ the rival's float, clamped 0..1). */
+export function ownershipFractionOf(state: GameState, id: string): number {
+  const total = rivalDef(id)?.shares ?? 0;
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(1, (state.holdings[id] ?? 0) / total));
+}
+
+/** A board seat — insider intel access — earned by holding boardSeatFrac of a rival's float. */
+export function hasBoardSeat(state: GameState, id: string): boolean {
+  return ownershipFractionOf(state, id) >= BALANCE.mergers.takeover.boardSeatFrac;
+}
+
+/** A controlling stake — the hostile-takeover discount — earned by holding controlFrac of the float. */
+export function hasControllingStake(state: GameState, id: string): boolean {
+  return ownershipFractionOf(state, id) >= BALANCE.mergers.takeover.controlFrac;
+}
+
+/** Board-seat intel on a rival: its otherwise-hidden arc phase (momentum) + next-launch week. Null
+ *  until you hold a board seat — the payoff for accumulating a real stake. Pure read (UI-only). */
+export function rivalBoardIntel(state: GameState, id: string): { arcPhase: RivalArcPhase; nextLaunchWeek: number } | null {
+  if (!hasBoardSeat(state, id)) return null;
+  const c = state.competitors.find((x) => x.id === id);
+  if (!c) return null;
+  return { arcPhase: c.arcPhase ?? "stable", nextLaunchWeek: c.nextLaunchWeek };
+}
+
 /** B3 — the all-cash cost to acquire a rival outright: its market cap × the control premium, LESS
- *  the market value of any shares the player already holds (you only pay for the rest). Null if the
- *  rival isn't on the board. Floored at a token amount so it's never free. */
+ *  the market value of any shares the player already holds (you only pay for the rest). A CONTROLLING
+ *  STAKE (controlFrac of the float) drops the premium to the reduced hostile rate — you already hold
+ *  effective control. Null if the rival isn't on the board. Floored at a token amount so it's never free. */
 export function acquisitionCost(state: GameState, id: string): Money | null {
   const c = state.competitors.find((x) => x.id === id);
   if (!c) return null;
-  const gross = scale(rivalMarketCap(c), BALANCE.mergers.acquisitionPremium);
+  const premium = hasControllingStake(state, id)
+    ? BALANCE.mergers.takeover.hostilePremium
+    : BALANCE.mergers.acquisitionPremium;
+  const gross = scale(rivalMarketCap(c), premium);
   const ownedValue = cents(Math.max(0, state.holdings[id] ?? 0) * c.sharePrice);
   const net = sub(gross, ownedValue);
   return toDollars(net) > 0 ? (net as Money) : cents(1);
@@ -3815,13 +4894,23 @@ export function acquireRival(state: GameState, id: string): GameState {
   delete osLicenseeHealth[id];
   const fansGain = Math.min(m.fansCap, Math.round(Math.max(0, rivalRep) * m.fansPerRepPoint));
   const reputation = Math.min(BALANCE.reputation.max, state.reputation + m.repBonus);
+  // Absorb their productive assets: R&D pipeline → a one-time RP windfall; installed base → a
+  // permanent services annuity (see absorbedServicesRevenue). Both scale with the rival's reputation.
+  const rpWindfall = Math.round(Math.max(0, rivalRep) * m.rpPerRepPoint);
+  const baseGain = Math.round(Math.max(0, rivalRep) * m.installedBasePerRep);
 
   const feed = [...state.feed];
   feed.push(feedItem(
     state.week,
-    `Acquired ${c.name} for ${format(cost)}, absorbed their brand (+${m.repBonus} rep) and ${fansGain.toLocaleString()} customers.`,
+    `Acquired ${c.name} for ${format(cost)} — absorbed their brand (+${m.repBonus} rep), ${fansGain.toLocaleString()} fans, ${rpWindfall} research from their patents, and ${baseGain.toLocaleString()} customers onto your services.`,
     "positive",
   ));
+  // Buying out your arch-rival is the ultimate way to settle the score — the rivalry ends in your
+  // favour, with a climactic feed beat instead of a silent prune.
+  const wasNemesis = state.nemesis?.rivalId === id;
+  if (wasNemesis) {
+    feed.push(feedItem(state.week, `You bought out ${c.name}, your arch-rival, ${state.nemesis!.playerWins}–${state.nemesis!.rivalWins} in the end. The feud is over. You won.`, "positive"));
+  }
 
   return {
     ...state,
@@ -3832,9 +4921,19 @@ export function acquireRival(state: GameState, id: string): GameState {
     osLicenseeHealth,
     fans: state.fans + fansGain,
     reputation,
+    researchPoints: state.researchPoints + rpWindfall,
+    absorbedBase: (state.absorbedBase ?? 0) + baseGain,
     acquiredRivals: [...state.acquiredRivals, id],
+    nemesis: wasNemesis ? null : state.nemesis,
     feed: trimFeed(feed),
   };
+}
+
+/** Recurring weekly services income from the installed base absorbed via acquisitions — the rivals'
+ *  former customers now pay YOU. 0 until the first acquisition, so a game that never acquires (and the
+ *  pinned sim) is byte-identical. Pure; shared by the tick and the revenue-preview selector. */
+export function absorbedServicesRevenue(s: GameState): Money {
+  return cents(Math.round((s.absorbedBase ?? 0) * BALANCE.mergers.absorbedServiceRate));
 }
 
 /**

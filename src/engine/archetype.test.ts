@@ -43,6 +43,18 @@ describe("synergy archetypes", () => {
     expect(total).toBeLessThanOrEqual(BALANCE.design.archetype.maxTotalBonus + 1); // rounding slack
   });
 
+  it("category-scoped archetypes fire only for their categories — phones untouched (sim-safe)", () => {
+    // Workstation Class is laptop/desktop-only: it unlocks on a maxed laptop…
+    const laptop: Product = { ...phone({ chip: top("chip"), materials: top("materials") }), category: "laptop" };
+    expect(activeArchetypes(laptop).map((x) => x.id)).toContain("workstation");
+    // …but NEVER on a phone, even fully maxed — so the phone-only balance sim stays byte-identical.
+    const maxedPhone = phone({ chip: top("chip"), display: top("display"), battery: top("battery"), materials: top("materials"), software: top("software"), camera: top("camera") });
+    const phoneIds = activeArchetypes(maxedPhone).map((x) => x.id);
+    for (const scoped of ["workstation", "arcade", "companion", "canvas", "spatial"]) {
+      expect(phoneIds).not.toContain(scoped);
+    }
+  });
+
   it("every archetype's components are a plausible high-end pairing (2 kinds, named)", () => {
     for (const a of SYNERGY_ARCHETYPES) {
       expect(a.kinds.length).toBeGreaterThanOrEqual(2);
