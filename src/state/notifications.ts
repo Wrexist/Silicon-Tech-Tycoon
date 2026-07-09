@@ -10,7 +10,7 @@
 // pings) for a lapsed one who ignores them.
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import { dailyChallenge, dateKeyOf } from "../engine/challenges.ts";
+import { challengeTeaser, dailyChallenge, dateKeyOf } from "../engine/challenges.ts";
 import { getSettings, setSettings } from "./settings.ts";
 
 /** Deterministic id per calendar day so re-scheduling replaces, never duplicates. */
@@ -36,11 +36,13 @@ async function scheduleWindow(): Promise<void> {
   for (let d = 0; d < WINDOW_DAYS; d++) {
     const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, REMINDER_HOUR, 0, 0);
     if (day <= now) continue; // today's slot already passed
-    const c = dailyChallenge(dateKeyOf(day));
+    // Each day pushes a DIFFERENT immersive hook (date-seeded), teasing that day's real twist + goal
+    // — a re-engagement nudge that reads fresh, not the same line on repeat.
+    const teaser = challengeTeaser(dailyChallenge(dateKeyOf(day)));
     notifications.push({
-      id: idFor(c.dateKey),
-      title: "Today's challenge is live",
-      body: `${c.mutators.map((m) => m.name).join(" · ")} — a fresh seeded run, beat your best.`,
+      id: idFor(dateKeyOf(day)),
+      title: teaser.title,
+      body: teaser.body,
       schedule: { at: day },
     });
   }

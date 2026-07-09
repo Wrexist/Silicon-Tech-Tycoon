@@ -202,6 +202,91 @@
   to   { opacity: 1; transform: none; }
 }
 
+/* --- Notification opt-in (founding beat) --- reuses the .onboard chrome; the bell glyph glows like
+   the logo, and the preview renders today's REAL teaser as a mock iOS notification so the value the
+   player is opting into is concrete, not abstract. */
+.notifopt__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto var(--sp-8);
+  border-radius: 24px;
+  color: var(--accent);
+  background: radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 72%);
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 14px 44px -16px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.notifopt__preview {
+  margin: var(--sp-8) 0 var(--sp-24);
+}
+.notifopt__preview-cap {
+  display: block;
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: var(--sp-8);
+}
+.notifopt__note {
+  display: flex;
+  gap: var(--sp-12);
+  align-items: flex-start;
+  text-align: left;
+  padding: var(--sp-12) var(--sp-16);
+  border-radius: 22px;
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 18px 44px -22px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+.notifopt__note-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 50%, #10163a));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.notifopt__note-body {
+  min-width: 0;
+  flex: 1;
+}
+.notifopt__note-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-8);
+}
+.notifopt__note-app {
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.notifopt__note-time {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.notifopt__note-title {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  margin-top: 1px;
+}
+.notifopt__note-text {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
 /* Team reaction emote (Garage3D CheerEmote): a quick pop, a beat, then a slow rise + fade so the
    whole office visibly reacts to a launch. Reduced-motion neutralizes this (index.css) — the base
    inline transform keeps the emote parked above the worker's head instead. */

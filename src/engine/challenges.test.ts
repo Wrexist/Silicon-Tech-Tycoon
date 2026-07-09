@@ -9,6 +9,7 @@ import {
   hashSeed,
   formatScore,
   scoreMetricLabel,
+  challengeTeaser,
   encodeChallengeCode,
   decodeChallengeCode,
 } from "./challenges.ts";
@@ -139,5 +140,37 @@ describe("score formatting", () => {
   it("labels every metric", () => {
     expect(scoreMetricLabel("netWorth")).toBe("net worth");
     expect(scoreMetricLabel("fans")).toBe("fans");
+  });
+});
+
+describe("challengeTeaser (daily-reminder copy)", () => {
+  it("is deterministic per date", () => {
+    const a = challengeTeaser(dailyChallenge("2026-07-09"));
+    const b = challengeTeaser(dailyChallenge("2026-07-09"));
+    expect(a).toEqual(b);
+  });
+
+  it("weaves in the challenge's real twist name", () => {
+    const ch = dailyChallenge("2026-07-09");
+    const t = challengeTeaser(ch);
+    expect(t.body).toContain(ch.mutators[0].name);
+    expect(t.title.length).toBeGreaterThan(0);
+    expect(t.body.length).toBeGreaterThan(0);
+  });
+
+  it("varies across days — not the same repeated line", () => {
+    const titles = new Set<string>();
+    for (let d = 1; d <= 28; d++) {
+      const key = `2026-07-${String(d).padStart(2, "0")}`;
+      titles.add(challengeTeaser(dailyChallenge(key)).title);
+    }
+    // With 8 hooks over 28 days we expect several distinct titles (the old copy had exactly 1).
+    expect(titles.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it("works for weekly challenges too (multi-twist, week 104)", () => {
+    const t = challengeTeaser(weeklyChallenge("2026-07-09"));
+    expect(t.title.length).toBeGreaterThan(0);
+    expect(t.body.length).toBeGreaterThan(0);
   });
 });

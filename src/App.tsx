@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowRight, BadgeDollarSign, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
@@ -30,6 +30,9 @@ import { registerAppOverlay } from "./design/overlayGuard.ts";
 import { Settings } from "./screens/Settings.tsx";
 import { ProgressSheet } from "./screens/Progress.tsx";
 import { ScenariosSheet } from "./screens/Scenarios.tsx";
+import { enableDailyReminders, notificationsAvailable } from "./state/notifications.ts";
+import { getSettings, setSettings } from "./state/settings.ts";
+import { challengeTeaser, dailyChallenge, dateKeyOf } from "./engine/challenges.ts";
 import { Button, Card } from "./design/primitives.tsx";
 import { format, toDollars } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
@@ -495,11 +498,23 @@ function Onboarding({ onStart }: { onStart: () => void }) {
   const { markOnboarded, setCompanyName } = useGame();
   const [name, setName] = useState("");
   const [scenariosOpen, setScenariosOpen] = useState(false);
+  const [phase, setPhase] = useState<"intro" | "notify">("intro");
+  // Enter the game (flips onboarded → the game screen replaces this one). Kept until the LAST step so
+  // the notification opt-in can render as a founding beat while Onboarding is still mounted.
+  const enterGame = () => { markOnboarded(); onStart(); };
   const found = () => {
     if (name.trim()) setCompanyName(name);
-    markOnboarded();
-    onStart();
+    // Ask once about daily reminders (native only, if not already prompted/on) — a natural founding
+    // beat — otherwise drop straight into the game.
+    if (notificationsAvailable() && !getSettings().notifPrompted && !getSettings().dailyReminder) {
+      setPhase("notify");
+    } else {
+      enterGame();
+    }
   };
+  if (phase === "notify") {
+    return <NotifyOptIn companyName={name.trim() || "Silicon"} onDone={enterGame} />;
+  }
   return (
     <div className="onboard">
       <div className="onboard__scroll">
@@ -539,6 +554,64 @@ function Onboarding({ onStart }: { onStart: () => void }) {
       <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)} label="Scenarios">
         <ScenariosSheet onClose={() => setScenariosOpen(false)} />
       </Sheet>
+    </div>
+  );
+}
+
+/** One-time founding-beat opt-in for daily-challenge reminders (native only). Previews TODAY's actual
+ *  teaser as a mock notification so the value is concrete, then triggers the OS permission prompt.
+ *  Either choice marks `notifPrompted` so it's asked exactly once. */
+function NotifyOptIn({ companyName, onDone }: { companyName: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const teaser = challengeTeaser(dailyChallenge(dateKeyOf(new Date())));
+  const enable = () => {
+    if (busy) return;
+    setBusy(true);
+    haptic.medium();
+    void enableDailyReminders().then((granted) => {
+      setSettings({ notifPrompted: true });
+      showToast(
+        granted ? "Reminders on — see you when the next challenge drops." : "Notifications are off for Silicon in iOS Settings.",
+        { tone: granted ? "positive" : "neutral" },
+      );
+      onDone();
+    });
+  };
+  const skip = () => { haptic.light(); setSettings({ notifPrompted: true }); onDone(); };
+  return (
+    <div className="onboard">
+      <div className="onboard__scroll">
+        <div className="onboard__inner onboard__inner--notify">
+          <div className="notifopt__glyph"><BellRing size={40} strokeWidth={1.7} /></div>
+          <h1 className="onboard__title">Never miss a run</h1>
+          <p className="onboard__tag">
+            A fresh, seeded challenge drops every day. Get one nudge when it goes live — jump in, beat your best, climb your own board.
+          </p>
+
+          {/* A live preview of exactly the kind of nudge you'll get — today's real challenge, in the flesh. */}
+          <div className="notifopt__preview">
+            <span className="notifopt__preview-cap">Preview</span>
+            <div className="notifopt__note" role="img" aria-label={`Example notification: ${teaser.title}. ${teaser.body}`}>
+              <div className="notifopt__note-icon"><Cpu size={22} strokeWidth={2} /></div>
+              <div className="notifopt__note-body">
+                <div className="notifopt__note-top">
+                  <span className="notifopt__note-app">SILICON</span>
+                  <span className="notifopt__note-time">now</span>
+                </div>
+                <div className="notifopt__note-title">{teaser.title}</div>
+                <div className="notifopt__note-text">{teaser.body}</div>
+              </div>
+            </div>
+          </div>
+
+          <Button block onClick={enable} disabled={busy}>
+            <Bell size={16} /> Enable reminders
+          </Button>
+          <button className="onboard__scenario-link" onClick={skip}>
+            Not now — start building {companyName}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
