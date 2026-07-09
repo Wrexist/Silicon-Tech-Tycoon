@@ -26,22 +26,22 @@ for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; 
 // leaving real open floor between them so it reads as a spacious studio, never a cramped huddle.
 // A fresh layout (not the starter desk) gives full control; placeFurniture no-ops on collision/OOB.
 s = { ...s, layout: [] };
+// Deliberately SPARE — a clean, real office is desks + open floor, not a pile of furniture. A single
+// tidy lounge, one meeting table, a couple of plants along the walls; everything else stays open.
 const layout = [
-  // ── Engineering: three desk bands, one seat per employee. Kept OFF the back wall (rows 1/4/7, not
-  //    row 0) so every employee seats on the camera side and faces the camera — no wall-clip flips. ──
+  // ── Engineering: three desk bands, one seat per employee. Off the back wall (rows 1/4/7) so every
+  //    employee faces the camera. This is the ROOM — desks in clean rows with walkways between. ──
   ["executiveDesk", 0, 1], ["dualDesk", 5, 1], ["dualDesk", 9, 1],
   ["deskL", 0, 4], ["dualDesk", 4, 4], ["dualDesk", 8, 4], ["desk", 11, 4],
   ["dualDesk", 1, 7], ["dualDesk", 5, 7], ["desk", 9, 7],
-  // Back-wall dressing + a tech corner.
-  ["neonSign", 3, 0], ["serverRack", 12, 0], ["plantTall", 12, 2],
-  // ── Lounge (front-left): a sectional on a rug, coffee + TV, a bookshelf and a lamp. ──
-  ["rugRound", 1, 9], ["sofaL", 1, 9], ["coffeeTable", 1, 11], ["tvStand", 4, 11], ["bookshelf", 4, 9], ["floorLamp", 0, 10],
-  // ── Collaboration (centre-front): a meeting table + whiteboard. ──
-  ["meetingTable", 6, 9], ["easel", 6, 8],
-  // ── Games + amenities (front-right): arcade, vending, water cooler, a coffee run. ──
-  ["arcade", 9, 9], ["vending", 11, 9], ["watercooler", 12, 11], ["coffeeTable", 9, 11],
-  // ── Greenery along the walls + corners — the "living" studio. ──
-  ["planterBox", 11, 6], ["monstera", 12, 5], ["plantTall", 12, 8], ["monstera", 11, 12], ["bonsai", 8, 11], ["plantTall", 0, 12], ["plantPot", 13 - 1, 13 - 1],
+  // ── One tidy lounge in the front-left corner: a sectional on a rug + a coffee table beside it. ──
+  ["rugRound", 0, 10], ["sofaL", 0, 10], ["coffeeTable", 2, 10],
+  // ── One meeting table, centre-front, with open floor all around it. ──
+  ["meetingTable", 6, 10],
+  // ── Restraint: just the brand sign on the back wall + a few tall plants in the corners / by the
+  //    windows. No fridge / vending / benches / shelves cluttering the floor. ──
+  ["neonSign", 6, 0],
+  ["plantTall", 12, 2], ["plantTall", 12, 11], ["plantTall", 10, 12], ["plantTall", 0, 8],
 ];
 let placed = 0;
 for (const [type, c, r] of layout) { const n = placeFurniture(s, type, c, r, 0); if (n !== s) { s = n; placed++; } }
