@@ -72,13 +72,27 @@ export default function GltfRobot({ asset, clip, seed = 0 }: { asset: RobotAsset
     };
   }, [actions, names, clip]);
 
+  // Per-instance idle jitter, hashed from `seed` (stable — never RNG), so several copies of the SAME
+  // un-rigged model don't breathe in lockstep: each gets a slightly different bob/sway amplitude and
+  // frequency. `h`/`g` are two decorrelated 0..1 values from the seed.
+  const jitter = useMemo(() => {
+    const h = Math.abs(Math.sin(seed * 91.7)) % 1;       // 0..1
+    const g = Math.abs(Math.sin(seed * 57.3 + 2.1)) % 1; // 0..1, decorrelated from h
+    return {
+      bobFreq: 1.4 * (0.85 + h * 0.3),  // ±15% frequency spread
+      bobAmp: 0.04 * (0.8 + g * 0.4),   // ±20% amplitude spread
+      swayFreq: 0.6 * (0.85 + g * 0.3),
+      swayAmp: 0.025 * (0.8 + h * 0.4),
+    };
+  }, [seed]);
+
   // If the model ships no animation clip (e.g. an un-rigged Meshy export), apply a gentle
   // procedural idle — breathing bob + slow sway — so static models still feel alive without Mixamo.
   useFrame((st) => {
     if (hasClip.current || !ref.current) return;
     const t = st.clock.elapsedTime + seed;
-    ref.current.position.y = Math.sin(t * 1.4) * 0.04;
-    ref.current.rotation.z = Math.sin(t * 0.6) * 0.025;
+    ref.current.position.y = Math.sin(t * jitter.bobFreq) * jitter.bobAmp;
+    ref.current.rotation.z = Math.sin(t * jitter.swayFreq) * jitter.swayAmp;
   });
 
   return (
