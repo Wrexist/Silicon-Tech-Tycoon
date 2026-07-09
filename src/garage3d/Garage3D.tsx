@@ -941,14 +941,17 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   return (
     <group>
-      {/* The player's ACTUAL placed desk model (each desk model carries its own monitor), drawn
-          through the SAME FurniturePiece + transform the Decorate editor uses, so an occupied desk
-          looks identical in the live office and in edit mode. A standing desk stays a standing desk,
-          an L-desk stays an L-desk, etc. The seated robot + chair are layered on behind it. */}
-      <FurniturePiece type={deskType} p={p} />
-      {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
-          their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}
-      {staff && deskType === "desk" && <DeskClutter seed={seed} p={p} />}
+      {/* The player's ACTUAL placed desk model (each desk model carries its own monitor). The desk
+          model seats its user on the +z side (screen faces +z, keyboard at the front), so we rotate
+          it to FACE the seated employee: when they sit on the back edge (facing the camera) the desk
+          turns 180° so the monitor faces them and the keyboard is nearest them — a correctly-oriented
+          workstation, not one facing backwards. Matches whichever side the employee occupies. */}
+      <group rotation-y={flip ? 0 : Math.PI}>
+        <FurniturePiece type={deskType} p={p} />
+        {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
+            their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}
+        {staff && deskType === "desk" && <DeskClutter seed={seed} p={p} />}
+      </group>
       {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
           back so it rests against the backrest, facing the desk (+z, toward the camera). The
           parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
