@@ -359,7 +359,10 @@ function DualDesk({ p }: { p: RoomPalette }) {
       {[-0.34, 0.34].map((x, i) => (
         <group key={i} position={[x, 0.78, -0.2]} rotation-y={i ? -0.12 : 0.12}>
           <mesh position={[0, 0.32, 0]}><boxGeometry args={[0.56, 0.34, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+          {/* screen glows on BOTH faces so a lit screen reads from the camera whichever way the desk is
+              turned to face its worker — a workstation that clearly HAS a screen, not a dark panel back. */}
           <mesh position={[0, 0.32, 0.022]}><planeGeometry args={[0.5, 0.28]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.2} toneMapped={false} /></mesh>
+          <mesh position={[0, 0.32, -0.022]} rotation-y={Math.PI}><planeGeometry args={[0.5, 0.28]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.15} toneMapped={false} /></mesh>
           <mesh position={[0, 0.1, 0]}><boxGeometry args={[0.04, 0.2, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
         </group>
       ))}

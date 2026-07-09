@@ -512,7 +512,7 @@
 }
 .ern__card::after, .cma__card::after, .eur__card::after, .awd__card::after, .rst__card::after,
 .rvd__card::after, .cele__card::after, .rtl__card::after, .lreveal__card::after, .dtut::after,
-.rev__card::after, .scn__confirm-card::after {
+.rev__card::after, .scn__confirm-card::after, .cof__card::after {
   content: "";
   position: absolute;
   inset: 0;

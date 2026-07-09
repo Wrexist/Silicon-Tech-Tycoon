@@ -36,8 +36,12 @@
 }
 .plat__offer-sub { margin: var(--sp-10) 0 0; font-size: var(--fs-caption); font-weight: 500; color: var(--ink-2); line-height: 1.4; }
 .plat__offer-terms { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); margin-top: var(--sp-12); }
-.plat__offer-actions { display: flex; gap: var(--sp-8); align-items: center; margin-top: var(--sp-12); }
-.plat__offer-actions > :first-child { flex: 1; }
+.plat__offer-temper {
+  display: flex; align-items: center; gap: var(--sp-6);
+  margin-top: var(--sp-10); font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2);
+}
+.plat__offer-temper svg { color: var(--ink-3); flex-shrink: 0; }
+.plat__offer-actions { display: flex; flex-direction: column; gap: var(--sp-8); align-items: stretch; margin-top: var(--sp-12); }
 .plat__head { display: flex; align-items: flex-start; gap: var(--sp-12); }
 .plat__brand {
   width: 40px; height: 40px; flex-shrink: 0;
@@ -91,8 +95,21 @@
 }
 .plat__rival-top { display: flex; align-items: center; gap: var(--sp-8); }
 .plat__rival--on { border-color: color-mix(in srgb, var(--accent) 36%, var(--hairline)); background: var(--accent-soft); }
-.plat__rival-name { font-weight: 600; font-size: var(--fs-body); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plat__rival-name { font-weight: 600; font-size: var(--fs-body); flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: var(--sp-6); overflow: hidden; }
+.plat__rival-excl {
+  display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
+  padding: 1px var(--sp-6); border-radius: var(--r-pill);
+  font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase;
+  background: color-mix(in srgb, var(--gold, #d9a824) 20%, transparent); color: var(--gold, #d9a824);
+}
 .plat__rival-fee { font-size: var(--fs-caption); color: var(--ink-2); flex-shrink: 0; }
+/* Empty licensees state — no partners yet; contracts are the way in. */
+.plat__licensees-empty { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-4) 0; }
+.plat__licensees-empty-glyph {
+  width: 44px; height: 44px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-button); background: var(--accent-soft); color: var(--accent);
+}
 /* Licensee relationship strip */
 .plat__rel { display: flex; align-items: center; gap: var(--sp-8); }
 .plat__rel-bar { flex: 1; height: 6px; border-radius: var(--r-pill); background: var(--bg-elevated); overflow: hidden; }

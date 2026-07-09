@@ -52,9 +52,11 @@ celebration style — leave them as-is.
   established pattern: pure engine gated on optional fields → derived-hash interrupt (`pendingX`) →
   opt-in reducer → staged overlay mounted in `App.tsx` (see nemesis / eureka / community / earnings /
   staff moments / regional events). **Pick a fresh salt** for any new derived-hash stream — in use:
-  11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 211, 223, 227.
+  11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211, 223, 227.
+  (91/101/113/127 = inbound licensing offers; 163 = contract negotiation outcome.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
-  (strike / eureka / community / earnings / rivalry / staff moment / regional event) must gate on
+  (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
+  contract offer) must gate on
   `interruptQuiet` (≥ `BALANCE.interrupts.minGapWeeks` since `lastInterruptWeek`) AND the full
   `!base.pendingX` chain, and stamp `base.lastInterruptWeek = week` when it fires — so modals never
   cluster. Scheduled ceremonies (year-52 awards) are exempt from the gate but still stamp.

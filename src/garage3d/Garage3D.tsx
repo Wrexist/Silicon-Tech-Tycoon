@@ -890,13 +890,20 @@ const SEAT_BACK = 0.86; // chair (0.78) + seated-robot pullback (0.08) behind th
 const SEAT_LIMIT = 3.8; // beyond this the chair/robot visibly enters the walls (scaled by facility)
 // Employees sit on the desk's BACK edge facing +z — toward the camera — so the office reads as a row
 // of faces and glowing screens (the standard iso-diorama look). Only when that seat would clip a wall
-// (a desk pushed right against the back/left wall) do we flip them to the front, facing into the room.
+// (a desk pushed right against the wall it BACKS ONTO) do we flip them to the front, facing the room.
 function seatFlipped(item: PlacedItem, facilityTier = 1): boolean {
   const w = worldOf(item, facilityTier);
   const limit = SEAT_LIMIT * roomScaleFor(facilityTier); // walls scale out with the facility
-  const cx = w.x - Math.sin(w.rotY) * SEAT_BACK;
-  const cz = w.z - Math.cos(w.rotY) * SEAT_BACK;
-  return Math.abs(cx) > limit || Math.abs(cz) > limit;
+  // The chair sits SEAT_BACK behind the desk ALONG ITS FACING AXIS, and a flip moves it to the front
+  // along that SAME axis. So only the wall the seat actually backs onto can be escaped by flipping —
+  // the cross-axis position is fixed by the desk and no flip can change it. The old check tested BOTH
+  // axes (|cx| OR |cz|), so a desk merely sitting near a SIDE wall got needlessly flipped, parking its
+  // chair on the wrong side of the table. Test only the along-axis coordinate, in the seat's direction.
+  const backX = w.x - Math.sin(w.rotY) * SEAT_BACK;
+  const backZ = w.z - Math.cos(w.rotY) * SEAT_BACK;
+  return Math.abs(Math.cos(w.rotY)) > 0.5
+    ? (Math.cos(w.rotY) > 0 ? backZ < -limit : backZ > limit) // desk faces ±z → seat moves along z
+    : (Math.sin(w.rotY) > 0 ? backX < -limit : backX > limit); // desk faces ±x → seat moves along x
 }
 
 // A workstation = the player's placed desk model (which carries its own monitor) + the employee's

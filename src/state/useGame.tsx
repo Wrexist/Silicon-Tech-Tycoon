@@ -12,6 +12,7 @@ import {
 } from "react";
 import { BALANCE } from "../engine/balance.ts";
 import { dollars, format, toDollars, type Money } from "../engine/money.ts";
+import type { NegotiationOutcome } from "../engine/licenseOffers.ts";
 import type { ComponentKind, FactoryId, Product, RecruitTier, RegionId, StaffRole, SupplierId } from "../engine/types.ts";
 import type { ContractTerm } from "../engine/suppliers.ts";
 import {
@@ -125,6 +126,7 @@ import {
   revokeOsLicense,
   signLicenseOffer,
   declineLicenseOffer,
+  negotiateLicenseOffer,
   installOsFeature,
   setOsPhilosophy,
   type GameState,
@@ -479,6 +481,7 @@ interface GameActionsValue {
   revokeOsLicense: (rivalId: string) => void;
   signLicenseOffer: () => boolean;
   declineLicenseOffer: () => void;
+  negotiateLicenseOffer: () => { outcome: NegotiationOutcome; bonusDelta: Money } | null;
   installOsFeature: (id: string) => void;
   setOsPhilosophy: (id: string | null) => void;
   // office builder
@@ -1154,6 +1157,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
     haptic.light();
     setState((s) => declineLicenseOffer(s).state);
   }, []);
+  // Push the inbound contract for a bigger bonus — a one-shot gamble. Returns the outcome (+ any bonus
+  // won) so the popup can play the right reveal; applies whatever the deterministic engine decided.
+  const negotiateLicenseOfferCb = useCallback((): { outcome: NegotiationOutcome; bonusDelta: Money } | null => {
+    const res = negotiateLicenseOffer(stateRef.current);
+    if (!res.ok || !res.negotiationOutcome) { showToast(res.reason ?? "Can't negotiate that", { tone: "negative" }); return null; }
+    const outcome = res.negotiationOutcome;
+    if (outcome === "improved") { haptic.success(); sfx("cash"); }
+    else if (outcome === "walked") { haptic.error(); sfx("error"); }
+    else { haptic.medium(); sfx("toggle"); }
+    setState(res.state);
+    return { outcome, bonusDelta: res.negotiationBonusDelta ?? (0 as Money) };
+  }, []);
   // Building an OS module spends RP (emit the spend FX) and can trip the Platform Pioneer / Walled
   // Garden milestones — fold + celebrate them here on the value-call path, not on the next tick.
   const installOsFeatureCb = useCallback((id: string) => {
@@ -1491,6 +1506,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       revokeOsLicense: revokeOsLicenseCb,
       signLicenseOffer: signLicenseOfferCb,
       declineLicenseOffer: declineLicenseOfferCb,
+      negotiateLicenseOffer: negotiateLicenseOfferCb,
       installOsFeature: installOsFeatureCb,
       setOsPhilosophy: setOsPhilosophyCb,
       placeFurniture: placeFurnitureCb,

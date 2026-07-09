@@ -78,10 +78,12 @@ describe("furniture grid model", () => {
     expect(solids).toBeGreaterThan(0);
   });
 
-  it("the starter garage is exactly a desk + a plant (one seat for the founder)", () => {
+  it("the starter garage is exactly the founder's desk + a plant (one seat for the founder)", () => {
     const l = defaultLayout();
-    expect(l.map((i) => i.type).sort()).toEqual(["desk", "plantPot"]);
+    expect(l.map((i) => i.type).sort()).toEqual(["dualDesk", "plantPot"]);
+    // the one desk-category item is the founder's seat
     expect(deskItems(l)).toHaveLength(1);
+    expect(deskItems(l)[0].type).toBe("dualDesk");
   });
 
   it("default layout seats the founder (≥1 desk) and deskItems keeps a stable placement order", () => {

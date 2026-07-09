@@ -12,6 +12,7 @@ import {
   revokeOsLicense,
   signLicenseOffer,
   declineLicenseOffer,
+  negotiateLicenseOffer,
   weeklyLicenseFees,
   installOsFeature,
   canInstallFeature,
@@ -354,5 +355,36 @@ describe("inbound licensing contracts", () => {
     expect(declined.ok).toBe(true);
     expect(declined.state.pendingLicenseOffer).toBeNull();
     expect(declined.state.cash).toBe(ZERO); // walking away costs nothing
+  });
+
+  it("negotiating applies the deterministic outcome and is a one-shot per offer", () => {
+    const base = unlockPlatform({ ...newGame(7), cash: ZERO } as GameState, true);
+    const rid = base.competitors[0].id;
+    const offer = {
+      id: "lo-5", rivalId: rid, rivalName: base.competitors[0].name, category: "phone" as const,
+      exclusive: false, signingBonus: dollars(100_000), royaltyPerWeek: dollars(3_000),
+      termWeeks: 52, expiresWeek: 8, week: 5, temper: "eager" as const, negotiated: false,
+    };
+
+    // No offer / locked → no-op.
+    expect(negotiateLicenseOffer(base).ok).toBe(false);
+    // An already-pushed offer can't be pushed again.
+    expect(negotiateLicenseOffer({ ...base, pendingLicenseOffer: { ...offer, negotiated: true } } as GameState).ok).toBe(false);
+
+    // A fresh push applies whatever the engine decided.
+    const res = negotiateLicenseOffer({ ...base, pendingLicenseOffer: offer } as GameState);
+    expect(res.ok).toBe(true);
+    expect(["improved", "firm", "walked"]).toContain(res.negotiationOutcome);
+    if (res.negotiationOutcome === "walked") {
+      expect(res.state.pendingLicenseOffer).toBeNull(); // suitor pulled the deal
+    } else {
+      expect(res.state.pendingLicenseOffer?.negotiated).toBe(true); // now spent
+      if (res.negotiationOutcome === "improved") {
+        expect(res.state.pendingLicenseOffer!.signingBonus).toBeGreaterThan(dollars(100_000));
+        expect(res.negotiationBonusDelta as number).toBeGreaterThan(0);
+      }
+      // One-shot: the follow-up push is rejected.
+      expect(negotiateLicenseOffer(res.state).ok).toBe(false);
+    }
   });
 });
