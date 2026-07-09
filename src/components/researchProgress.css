@@ -101,6 +101,28 @@
 .rprog--near .rprog__bar--done { background: color-mix(in srgb, var(--positive) 55%, var(--hairline)); }
 .rprog--near .rprog__step--active .rprog__node { background: var(--positive); box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 22%, transparent); }
 
+/* Queue — the researches lined up behind the active one. Each auto-starts when it reaches the front. */
+.rprog__queue { display: flex; flex-direction: column; gap: var(--sp-6); padding-top: var(--sp-12); border-top: 1px solid var(--hairline); }
+.rprog__queue-label { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+.rprog__queue-list { display: flex; flex-direction: column; gap: var(--sp-6); margin: 0; padding: 0; list-style: none; }
+.rprog__queue-item {
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-6) var(--sp-10); border-radius: var(--r-button);
+  background: var(--surface-2); border: 1px solid var(--hairline);
+}
+.rprog__queue-n {
+  flex-shrink: 0; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent); font-size: var(--fs-nano); font-weight: 800;
+}
+.rprog__queue-name { flex: 1; min-width: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rprog__queue-weeks { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 600; color: var(--ink-3); }
+.rprog__queue-x {
+  flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%;
+  background: transparent; border: none; color: var(--ink-3); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: color 160ms ease, background 160ms ease;
+}
+.rprog__queue-x:hover { color: var(--negative); background: color-mix(in srgb, var(--negative) 10%, transparent); }
+
 @keyframes rprog-node-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent-soft); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 12%, transparent); } }
 @keyframes rprog-spin { to { transform: rotate(360deg); } }
 @keyframes rprog-halo { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }

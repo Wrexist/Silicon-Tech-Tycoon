@@ -187,6 +187,10 @@ export interface RivalStrike {
   playerOverall: number;
 }
 
+/** A research waiting in the queue (paid up front, develops once it reaches the front). Same shape as
+ *  ActiveResearch without the timing, which is stamped when it becomes active. */
+export type QueuedResearch = Omit<ActiveResearch, "startWeek">;
+
 /** A research the lab is developing over time (the timed-research slot). Paid up front at start; the
  *  unlock is applied when `week - startWeek >= totalWeeks`. */
 export interface ActiveResearch {
@@ -248,6 +252,9 @@ export interface GameState {
    *  paid at start and the unlock lands after `totalWeeks`. Optional/null → idle lab + golden-invariant
    *  safe (the pinned solo sim never starts one). */
   activeResearch?: ActiveResearch | null;
+  /** Researches lined up behind the active one (paid up front; each auto-starts when it reaches the
+   *  front). A component line / project can be active OR queued at most once. Optional/[] → empty. */
+  researchQueue?: QueuedResearch[];
   /** Geographic markets unlocked for distribution (engine/regions.ts). Always contains "home". */
   unlockedRegions: RegionId[];
   /** Per-region LOYALTY (a signed standing that lifts/dents that region's reach), moved by regional
@@ -627,6 +634,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     researchPoints: lb.rp,
     completedProjects: [],
     activeResearch: null,
+    researchQueue: [],
     unlockedRegions: ["home"],
     ownedFactories: [],
     building: [],
@@ -2111,9 +2119,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
 
-  // Timed research (the active-research slot): when the development window elapses, apply the unlock —
-  // the SAME effect as the instant path, just delayed. The RP was paid at start. Gated on an active
-  // research, which the pinned solo sim never starts → activeResearch stays null → byte-identical.
+  // Timed research (the active slot + queue): when the development window elapses, apply the unlock —
+  // the SAME effect as the instant path, just delayed — then pull the next queued research up to
+  // develop. The RP was paid at start. Gated on an active research, which the pinned solo sim never
+  // starts → activeResearch stays null (+ empty queue) → byte-identical.
   if (base.activeResearch && week - base.activeResearch.startWeek >= base.activeResearch.totalWeeks) {
     const a = base.activeResearch;
     if (a.kind === "tier" && a.tierLevel != null) {
@@ -2121,8 +2130,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     } else if (a.kind === "project" && !base.completedProjects.includes(a.ref as ProjectId)) {
       base.completedProjects = [...base.completedProjects, a.ref as ProjectId];
     }
-    base.activeResearch = null;
     base.feed.push(feedItem(week, `Research complete: ${a.name} is ready.`, "positive"));
+    // Advance the queue: the next lined-up research starts developing this same week.
+    const queue = base.researchQueue ?? [];
+    if (queue.length > 0) {
+      const [nextUp, ...rest] = queue;
+      base.activeResearch = { ...nextUp, startWeek: week };
+      base.researchQueue = rest;
+      base.feed.push(feedItem(week, `The lab moved on to ${nextUp.name}.`, "accent"));
+    } else {
+      base.activeResearch = null;
+    }
   }
 
   // Rival poaching (Track C): a rival on the rise occasionally tries to hire away one of your best —
@@ -3590,10 +3608,11 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
   };
 }
 
-// ---------- Timed research (the active-research slot) ----------
+// ---------- Timed research (the active slot + a queue) ----------
 // The live game researches through these; researchNext/buyProject above stay as the instant primitives
-// (tests + the auto-research delegation use them). The player STARTS a research (pays RP up front, one
-// slot), it develops over cost-scaled weeks with a progress ring, and the tick applies the unlock.
+// (tests + the auto-research delegation use them). One research DEVELOPS at a time (the progress ring),
+// paid up front; buying more lines them up in a QUEUE and each auto-starts when it reaches the front.
+// Rule: a component line / project can be active OR queued at most once (keeps tier costs simple).
 
 /** Weeks a research of `rpCost` takes to complete — cost-scaled, clamped to the tuned band. */
 export function researchWeeksFor(rpCost: number): number {
@@ -3601,8 +3620,24 @@ export function researchWeeksFor(rpCost: number): number {
   return Math.max(t.minWeeks, Math.min(t.maxWeeks, Math.round(rpCost / t.rpPerWeek)));
 }
 
-/** Is the lab busy developing a research right now? (One slot — you can't start another until it's done.) */
+/** Is the lab currently developing a research? */
 export const researchBusy = (s: GameState): boolean => (s.activeResearch ?? null) !== null;
+/** The researches lined up behind the active one (never undefined). */
+export const researchQueueList = (s: GameState): QueuedResearch[] => s.researchQueue ?? [];
+/** Is the queue at capacity (so nothing more can be lined up)? */
+export const researchQueueFull = (s: GameState): boolean => researchQueueList(s).length >= BALANCE.research.timer.maxQueue;
+
+export type ResearchSlotStatus = "active" | "queued" | null;
+/** Whether a component line is currently developing, waiting in the queue, or neither (for the UI). */
+export function tierResearchStatus(s: GameState, kind: ComponentKind): ResearchSlotStatus {
+  if (s.activeResearch?.kind === "tier" && s.activeResearch.ref === kind) return "active";
+  return researchQueueList(s).some((q) => q.kind === "tier" && q.ref === kind) ? "queued" : null;
+}
+/** Whether a project is currently developing, waiting in the queue, or neither (for the UI). */
+export function projectResearchStatus(s: GameState, id: ProjectId): ResearchSlotStatus {
+  if (s.activeResearch?.kind === "project" && s.activeResearch.ref === id) return "active";
+  return researchQueueList(s).some((q) => q.kind === "project" && q.ref === id) ? "queued" : null;
+}
 
 /** Progress 0..1 of the active research (0 when idle). Whole-week granularity; the UI smooths it. */
 export function activeResearchFrac(s: GameState): number {
@@ -3618,54 +3653,74 @@ export function researchWeeksLeft(s: GameState): number {
   return Math.max(0, a.totalWeeks - (s.week - a.startWeek));
 }
 
-/** Start developing the next tier of a component line (timed). Pays the RP up front. No-op if the lab
- *  is busy, the line is maxed, or you can't afford it. */
+/** Place a paid research spec: start it if the lab is idle, else append it to the queue. Returns the
+ *  original state (no-op) if the queue is full. Shared by the tier + project entry points. */
+function placeResearch(state: GameState, spec: QueuedResearch): GameState {
+  if (!state.activeResearch) {
+    return {
+      ...state,
+      researchPoints: state.researchPoints - spec.rpCost,
+      activeResearch: { ...spec, startWeek: state.week },
+      feed: trimFeed([...state.feed, feedItem(state.week, `The lab started developing ${spec.name}.`, "accent")]),
+    };
+  }
+  if (researchQueueFull(state)) return state;
+  return {
+    ...state,
+    researchPoints: state.researchPoints - spec.rpCost,
+    researchQueue: [...researchQueueList(state), spec],
+    feed: trimFeed([...state.feed, feedItem(state.week, `Queued research: ${spec.name}.`, "accent")]),
+  };
+}
+
+/** Start — or queue — the next tier of a component line (timed). Pays the RP up front. No-op if the
+ *  line is already active/queued, it's maxed, the queue is full, or you can't afford it. */
 export function startResearchTier(state: GameState, kind: ComponentKind): GameState {
-  if (researchBusy(state)) return state;
+  if (tierResearchStatus(state, kind) !== null) return state; // already active or queued
   const cost = rdRpCostFor(state, kind);
   if (cost === null || state.researchPoints < cost) return state;
   const next = researchedTier(state, kind) + 1;
   const def = tierDef(kind, next);
   if (!def) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, `The lab started developing ${def.name}.`, "accent")]);
-  return {
-    ...state,
-    researchPoints: state.researchPoints - cost,
-    activeResearch: {
-      kind: "tier", ref: kind, tierLevel: next, name: def.name,
-      blurb: `A stronger ${kind} tier for everything you build next.`,
-      rpCost: cost, startWeek: state.week, totalWeeks: researchWeeksFor(cost),
-    },
-    feed,
-  };
+  return placeResearch(state, {
+    kind: "tier", ref: kind, tierLevel: next, name: def.name,
+    blurb: `A stronger ${kind} tier for everything you build next.`,
+    rpCost: cost, totalWeeks: researchWeeksFor(cost),
+  });
 }
 
-/** Start developing a company research project (timed). Pays the RP up front. No-op if the lab is busy,
- *  it's already owned / fork-locked / too advanced, or you can't afford it. */
+/** Start — or queue — a company research project (timed). Pays the RP up front. No-op if it's already
+ *  active/queued/owned, fork-locked, too advanced, the queue is full, or you can't afford it. */
 export function startResearchProject(state: GameState, id: ProjectId): GameState {
-  if (researchBusy(state)) return state;
+  if (projectResearchStatus(state, id) !== null) return state; // already active or queued
   if (hasProject(state.completedProjects, id)) return state;
   const proj = projectById(id);
   if (proj.era > state.era || state.researchPoints < proj.rpCost) return state;
   if (forkLockedBy(state.completedProjects, id)) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, `The lab started developing ${proj.name}.`, "accent")]);
-  return {
-    ...state,
-    researchPoints: state.researchPoints - proj.rpCost,
-    activeResearch: {
-      kind: "project", ref: id, name: proj.name, blurb: proj.blurb,
-      rpCost: proj.rpCost, startWeek: state.week, totalWeeks: researchWeeksFor(proj.rpCost),
-    },
-    feed,
-  };
+  return placeResearch(state, {
+    kind: "project", ref: id, name: proj.name, blurb: proj.blurb,
+    rpCost: proj.rpCost, totalWeeks: researchWeeksFor(proj.rpCost),
+  });
 }
 
-/** Cancel the active research and refund the RP paid (nothing was applied yet). No-op if idle. */
+/** Cancel the ACTIVE research (refund the RP) and pull the next queued item up to develop, if any. */
 export function cancelResearch(state: GameState): GameState {
   const a = state.activeResearch;
   if (!a) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, `Shelved research: ${a.name}. RP refunded.`, "neutral")]);
-  return { ...state, researchPoints: state.researchPoints + a.rpCost, activeResearch: null, feed };
+  const [nextUp, ...rest] = researchQueueList(state);
+  const nextActive = nextUp ? { ...nextUp, startWeek: state.week } : null;
+  const feed = trimFeed([...state.feed, feedItem(state.week,
+    `Shelved research: ${a.name}. RP refunded.${nextActive ? ` Now developing ${nextActive.name}.` : ""}`, "neutral")]);
+  return { ...state, researchPoints: state.researchPoints + a.rpCost, activeResearch: nextActive, researchQueue: rest, feed };
+}
+
+/** Remove a QUEUED research (refund the RP). No-op if `ref` isn't in the queue. */
+export function cancelQueuedResearch(state: GameState, ref: string): GameState {
+  const queue = researchQueueList(state);
+  const item = queue.find((q) => q.ref === ref);
+  if (!item) return state;
+  const feed = trimFeed([...state.feed, feedItem(state.week, `Removed ${item.name} from the research queue. RP refunded.`, "neutral")]);
+  return { ...state, researchPoints: state.researchPoints + item.rpCost, researchQueue: queue.filter((q) => q.ref !== ref), feed };
 }
 
 // Late-game repeatable RP sink: once the tree (and component tiers) are bought out, RP would

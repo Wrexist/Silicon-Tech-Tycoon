@@ -36,6 +36,10 @@ base.activeResearch = {
   blurb: "Every launch gets more hype.", rpCost: 66,
   startWeek: base.week - 2, totalWeeks: 4, // → 50%, 2 wk left, "Testing"
 };
+base.researchQueue = [
+  { kind: "tier", ref: "chip", tierLevel: 3, name: "QuantumCore Q1", blurb: "A stronger chip tier.", rpCost: 48, totalWeeks: 2 },
+  { kind: "project", ref: "loyaltyProgram", name: "Loyalty Program", blurb: "Fan base decays 50% more slowly.", rpCost: 80, totalWeeks: 3 },
+];
 base.researchPoints = 180;
 for (const k of ["pendingStrike", "pendingRivalry", "pendingEureka", "pendingCommunityAsk", "pendingEarnings", "pendingAwards", "pendingPoach", "pendingChoice", "pendingStaffMoment", "pendingRegionalEvent"]) base[k] = null;
 base.ready = [];

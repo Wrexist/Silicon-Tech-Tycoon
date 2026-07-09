@@ -390,6 +390,13 @@ function migrate(state: GameState): GameState | null {
     || !Number.isFinite(s.activeResearch.startWeek) || !Number.isFinite(s.activeResearch.totalWeeks))) {
     s.activeResearch = null;
   }
+  // Research queue (added later): keep only well-formed entries; default empty.
+  if (!Array.isArray(s.researchQueue)) s.researchQueue = [];
+  else s.researchQueue = s.researchQueue.filter((q: unknown): q is { ref: string; rpCost: number; totalWeeks: number } =>
+    !!q && typeof q === "object"
+    && typeof (q as { ref?: unknown }).ref === "string"
+    && Number.isFinite((q as { rpCost?: unknown }).rpCost)
+    && Number.isFinite((q as { totalWeeks?: unknown }).totalWeeks));
   // Living fan community (added later): default a neutral community. Clamp sentiment to [-1,1].
   s.fanSentiment = typeof s.fanSentiment === "number" && Number.isFinite(s.fanSentiment) ? Math.max(-1, Math.min(1, s.fanSentiment)) : 0;
   if (!Number.isFinite(s.superfans) || s.superfans < 0) s.superfans = 0;

@@ -54,7 +54,8 @@ function useSmoothWeeks(elapsed: number, totalWeeks: number): number {
 }
 
 export function ResearchProgress({ research }: { research: ActiveResearch }) {
-  const { state, cancelResearch } = useGame();
+  const { state, cancelResearch, cancelQueuedResearch } = useGame();
+  const queue = state.researchQueue ?? [];
   const elapsed = Math.max(0, state.week - research.startWeek);
   const smoothWeeks = useSmoothWeeks(elapsed, research.totalWeeks);
   const frac = Math.max(0, Math.min(1, smoothWeeks / Math.max(1e-6, research.totalWeeks)));
@@ -117,6 +118,24 @@ export function ResearchProgress({ research }: { research: ActiveResearch }) {
           );
         })}
       </ol>
+
+      {queue.length > 0 && (
+        <div className="rprog__queue">
+          <span className="rprog__queue-label">Up next · {queue.length}</span>
+          <ul className="rprog__queue-list">
+            {queue.map((q, i) => (
+              <li key={q.ref} className="rprog__queue-item">
+                <span className="rprog__queue-n tnum">{i + 1}</span>
+                <span className="rprog__queue-name">{q.name}</span>
+                <span className="rprog__queue-weeks tnum">{q.totalWeeks} wk</span>
+                <button className="rprog__queue-x" onClick={() => cancelQueuedResearch(q.ref)} aria-label={`Remove ${q.name} from the queue`} title="Remove — refunds the RP">
+                  <X size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

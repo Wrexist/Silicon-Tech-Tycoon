@@ -457,6 +457,7 @@ export const BALANCE = {
       rpPerWeek: 24, // ~RP of cost developed per week → weeks = round(rpCost / this)
       minWeeks: 1,
       maxWeeks: 6,
+      maxQueue: 4,   // researches you can line up behind the active one (each paid up front)
     },
     // Research excitement: a strong launch funds your next breakthrough — hits/solids award RP, so
     // the tree advances through PLAY, not just idle ticks. Tuned vs project costs (20–140 RP).

@@ -3,8 +3,9 @@
 // pinned solo sim never starts research → activeResearch stays null → byte-identical.
 import { describe, it, expect } from "vitest";
 import {
-  newGame, startResearchTier, startResearchProject, cancelResearch, researchWeeksFor,
-  researchBusy, researchWeeksLeft, researchedTier, advanceOneWeek, type GameState,
+  newGame, startResearchTier, startResearchProject, cancelResearch, cancelQueuedResearch, researchWeeksFor,
+  researchBusy, researchWeeksLeft, researchQueueList, researchQueueFull,
+  tierResearchStatus, projectResearchStatus, researchedTier, advanceOneWeek, type GameState,
 } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
 
@@ -36,11 +37,12 @@ describe("starting research", () => {
     expect(researchBusy(s)).toBe(true);
   });
 
-  it("only one research at a time — a second start is a no-op", () => {
+  it("only one research develops at a time — a second start queues instead of a no-op", () => {
     const s = startResearchTier(labbed(), "chip");
     const s2 = startResearchTier(s, "display");
-    expect(s2).toBe(s);
-    expect(startResearchProject(s, "assemblyLine")).toBe(s);
+    expect(s2).not.toBe(s); // accepted (queued), not a no-op
+    expect(s2.activeResearch!.ref).toBe("chip"); // chip is still the only one developing
+    expect(researchQueueList(s2).map((q) => q.ref)).toEqual(["display"]);
   });
 
   it("completes after totalWeeks, applying the tier (same effect as the instant path)", () => {
@@ -63,14 +65,72 @@ describe("starting research", () => {
   });
 });
 
+describe("queue", () => {
+  it("a second buy lines up behind the active one (one develops at a time)", () => {
+    let s = startResearchTier(labbed(), "chip");
+    s = startResearchProject(s, "assemblyLine");
+    expect(s.activeResearch!.ref).toBe("chip"); // still the first one
+    expect(researchQueueList(s).map((q) => q.ref)).toEqual(["assemblyLine"]);
+    expect(projectResearchStatus(s, "assemblyLine")).toBe("queued");
+    expect(tierResearchStatus(s, "chip")).toBe("active");
+  });
+
+  it("the same line/project can't be queued twice", () => {
+    let s = startResearchTier(labbed(), "chip");   // chip active
+    s = startResearchProject(s, "assemblyLine");    // queued
+    expect(startResearchTier(s, "chip")).toBe(s);          // chip already active
+    expect(startResearchProject(s, "assemblyLine")).toBe(s); // already queued
+  });
+
+  it("the queue caps at maxQueue", () => {
+    let s = startResearchTier(labbed(), "chip"); // active
+    const lines = ["display", "battery", "materials", "software", "camera"] as const;
+    for (const k of lines) s = startResearchTier(s, k);
+    expect(researchQueueList(s).length).toBe(BALANCE.research.timer.maxQueue);
+    expect(researchQueueFull(s)).toBe(true);
+  });
+
+  it("completing the active one auto-starts the next in line", () => {
+    let s = startResearchTier(labbed(), "chip");
+    s = startResearchProject(s, "assemblyLine");
+    const weeks = s.activeResearch!.totalWeeks;
+    for (let w = 0; w < weeks; w++) s = advanceOneWeek(s);
+    expect(researchedTier(s, "chip")).toBeGreaterThan(researchedTier(labbed(), "chip")); // first applied
+    expect(s.activeResearch!.ref).toBe("assemblyLine"); // next now developing
+    expect(researchQueueList(s).length).toBe(0);
+  });
+});
+
 describe("cancel", () => {
-  it("refunds the RP and frees the slot", () => {
+  it("cancelling the active one refunds it and pulls the next queued up", () => {
+    const g = labbed();
+    let s = startResearchTier(g, "chip");
+    const chipCost = g.researchPoints - s.researchPoints;
+    s = startResearchProject(s, "assemblyLine");
+    const beforeCancel = s.researchPoints;
+    const c = cancelResearch(s);
+    expect(c.activeResearch!.ref).toBe("assemblyLine"); // promoted
+    expect(c.researchPoints).toBe(beforeCancel + chipCost); // chip refunded; assemblyLine stays paid
+    expect(researchQueueList(c).length).toBe(0);
+  });
+
+  it("cancelling with an empty queue frees the slot", () => {
     const g = labbed();
     const s = startResearchTier(g, "chip");
     const c = cancelResearch(s);
     expect(c.activeResearch ?? null).toBeNull();
     expect(c.researchPoints).toBe(g.researchPoints); // fully refunded
     expect(researchBusy(c)).toBe(false);
+  });
+
+  it("a queued item can be removed and refunded without touching the active one", () => {
+    let s = startResearchTier(labbed(), "chip");
+    const activeRp = s.researchPoints;
+    s = startResearchProject(s, "assemblyLine");
+    const c = cancelQueuedResearch(s, "assemblyLine");
+    expect(c.activeResearch!.ref).toBe("chip"); // untouched
+    expect(researchQueueList(c).length).toBe(0);
+    expect(c.researchPoints).toBe(activeRp); // the queued item's RP came back
   });
 });
 

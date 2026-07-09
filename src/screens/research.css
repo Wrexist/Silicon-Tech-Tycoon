@@ -411,6 +411,14 @@
   color: var(--ink-3);
   white-space: nowrap;
 }
+/* Status pill on a research row that's already developing (active) or lined up (queued). */
+.rd__slot {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;
+  padding: 5px 10px; border-radius: var(--r-pill);
+  font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.01em;
+}
+.rd__slot--active { color: var(--accent); background: var(--accent-soft); }
+.rd__slot--queued { color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--hairline); }
 
 /* Era roadmap card */
 .rd__roadmap { gap: var(--sp-12); }

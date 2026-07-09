@@ -24,6 +24,7 @@ import {
   startResearchProject,
   startResearchTier,
   cancelResearch,
+  cancelQueuedResearch,
   hostKeynote,
   resolveStrike,
   collectAwards,
@@ -425,6 +426,7 @@ interface GameActionsValue {
   launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady" };
   research: (kind: ComponentKind) => void;
   cancelResearch: () => void;
+  cancelQueuedResearch: (ref: string) => void;
   unlockLens: () => void;
   unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
@@ -819,20 +821,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
   }, []);
 
-  // Start developing the next tier of a component line (timed research). Pays RP up front; the unlock
-  // lands after a few weeks (shown by the progress ring), so this kicks it off rather than completing it.
+  // Start — or queue — the next tier of a component line (timed research). Pays RP up front; the unlock
+  // lands after a few weeks (shown by the progress ring). If the lab is busy it lines up in the queue.
   const research = useCallback((kind: ComponentKind) => {
     const prev = stateRef.current;
     const next = startResearchTier(prev, kind);
     if (next === prev) { haptic.error(); return; }
     const rpSpent = prev.researchPoints - next.researchPoints;
     if (rpSpent > 0) { emitRpSpend(rpSpent); sfx("confirm"); haptic.success(); }
+    const queued = (next.researchQueue?.length ?? 0) > (prev.researchQueue?.length ?? 0);
+    showToast(queued ? `Queued ${next.researchQueue!.at(-1)!.name}` : `Researching ${next.activeResearch?.name ?? "tech"}`, { tone: "neutral" });
     setState(next);
   }, []);
-  // Cancel the active research and get the RP back.
+  // Cancel the active research (pulls the next queued one up) or a specific queued item — both refund RP.
   const cancelResearchCb = useCallback(() => {
     const prev = stateRef.current;
     const next = cancelResearch(prev);
+    if (next === prev) return;
+    sfx("toggle"); haptic.light();
+    setState(next);
+  }, []);
+  const cancelQueuedResearchCb = useCallback((ref: string) => {
+    const prev = stateRef.current;
+    const next = cancelQueuedResearch(prev, ref);
     if (next === prev) return;
     sfx("toggle"); haptic.light();
     setState(next);
@@ -860,7 +871,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (next === prev) { haptic.error(); return; }
     const rpSpent = prev.researchPoints - next.researchPoints;
     if (rpSpent > 0) { emitRpSpend(rpSpent); sfx("confirm"); haptic.success(); }
-    showToast(`Researching ${projectById(id).name}`, { tone: "neutral" });
+    const queued = (next.researchQueue?.length ?? 0) > (prev.researchQueue?.length ?? 0);
+    showToast(`${queued ? "Queued" : "Researching"} ${projectById(id).name}`, { tone: "neutral" });
     setState(next);
   }, []);
   const buyUpgradeCb = useCallback((id: UpgradeId) => {
@@ -1455,6 +1467,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       launchReady: launchReadyCb,
       research,
       cancelResearch: cancelResearchCb,
+      cancelQueuedResearch: cancelQueuedResearchCb,
       unlockLens: unlockLensCb,
       unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
@@ -1552,7 +1565,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, cancelResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [clearOffline, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer
