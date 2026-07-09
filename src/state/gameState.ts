@@ -796,14 +796,16 @@ export function challengeViewFor(state: GameState): ChallengeView | null {
  *  top (era/cash/reputation/fans — the fields that vary a start without touching protected engine
  *  init). Scenarios skip the freeform onboarding + tutorial coach (the player chose a goal-driven
  *  run, not a fresh founding). Unknown id → a normal freeform game (defensive). */
-export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): GameState {
+export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, name?: string): GameState {
   const base = newGame(seed, legacy);
+  // Carry the founder's chosen company name (from onboarding) into the scenario run; blank → default.
+  const named = name?.trim() ? { ...base, companyName: name.trim() } : base;
   const scn = scenarioById(scenarioId);
-  if (!scn) return base;
+  if (!scn) return named;
   const { era, cash, reputation, fans } = scn.setup;
   const startCash = cash ?? base.cash;
   return {
-    ...base,
+    ...named,
     activeScenario: scenarioId,
     era: era ?? base.era,
     cash: startCash,

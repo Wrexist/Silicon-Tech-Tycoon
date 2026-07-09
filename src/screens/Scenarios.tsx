@@ -40,7 +40,7 @@ function Stars({ n, size = 16 }: { n: number; size?: number }) {
   );
 }
 
-export function ScenariosSheet({ onClose }: { onClose: () => void }) {
+export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; initialName?: string }) {
   const { state, startScenario } = useGame();
   const best = getScenarioStars();
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
 
   const begin = (id: string) => {
     const sc = SCENARIOS.find((x) => x.id === id);
-    startScenario(id);
+    startScenario(id, initialName);
     // Resetting the whole world deserves an acknowledging beat, plus the first goal to chase.
     haptic.success();
     sfx("confirm");

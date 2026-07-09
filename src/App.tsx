@@ -560,7 +560,7 @@ function Onboarding({ onStart }: { onStart: () => void }) {
         </div>
       </div>
       <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)} label="Scenarios">
-        <ScenariosSheet onClose={() => setScenariosOpen(false)} />
+        <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
       </Sheet>
     </div>
   );

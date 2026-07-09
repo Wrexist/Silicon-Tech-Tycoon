@@ -151,19 +151,21 @@ export function clearSave(): void {
 const HOME_KEY = `${KEY}.home`; // = "silicon.save.v1.home"
 
 /** Stash the freeform company so a challenge/scenario can take over the main slot without losing it. */
-export function stashHomeSave(state: GameState): void {
+export function stashHomeSave(state: GameState): boolean {
   try {
     const json = JSON.stringify(state);
     localStorage.setItem(HOME_KEY, json);
     mirrorToNative(HOME_KEY, json);
+    return true;
   } catch (e) {
     // Quota-safe: a trimmed copy still lets the player return home (history/feed are non-essential).
-    if (!isQuotaError(e)) return;
+    if (!isQuotaError(e)) return false;
     try {
       const json = JSON.stringify(trimState(state));
       localStorage.setItem(HOME_KEY, json);
       mirrorToNative(HOME_KEY, json);
-    } catch { /* best effort — if even the trim won't fit, return-home is unavailable */ }
+      return true;
+    } catch { return false; /* best effort — if even the trim won't fit, return-home is unavailable */ }
   }
 }
 
