@@ -52,8 +52,9 @@ celebration style — leave them as-is.
   established pattern: pure engine gated on optional fields → derived-hash interrupt (`pendingX`) →
   opt-in reducer → staged overlay mounted in `App.tsx` (see nemesis / eureka / community / earnings /
   staff moments / regional events). **Pick a fresh salt** for any new derived-hash stream — in use:
-  11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211, 223, 227.
-  (91/101/113/127 = inbound licensing offers; 163 = contract negotiation outcome.)
+  11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211, 223, 227, 229.
+  (91/101/113/127 = inbound licensing offers; 163 = contract negotiation outcome; 229 = side-order duration,
+  kept distinct from 71, which eureka's fire-gate draws.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
   contract offer) must gate on

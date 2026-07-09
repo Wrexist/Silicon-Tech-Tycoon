@@ -560,6 +560,43 @@ describe("marketing push (mid-life, margin-preserving)", () => {
     const soldOut = surplusLaunch({ plannedUnits: 510 });
     expect(marketingPushQuote(soldOut)).toBeNull();
   });
+
+  it("never books revenue for units beyond the production run when the demand curve overshoots it", () => {
+    // The exact post-boost state a price cut / marketing push can create: they inflate the REMAINING
+    // weeklyUnits but cap only totalUnits, so the curve's remaining weeks can sum ABOVE the run. The
+    // tick must sell — and bank revenue for — at most `totalUnits`, never the inflated curve.
+    const lp = surplusLaunch({
+      weeklyUnits: [100, 100, 100, 200, 200, 200, 0, 0, 0, 0], // sold 0..2; weeks 3..5 want 600 more
+      unitsSold: 300,
+      weeksElapsed: 3,
+      totalUnits: 450, // the run only allows 150 more units than already sold
+      plannedUnits: 450,
+      revenueToDate: dollars(180_000), // 300 × $600
+    });
+    // Sanity: the remaining curve genuinely overshoots the production run.
+    const remaining = lp.weeklyUnits.slice(lp.weeksElapsed).reduce((a, b) => a + b, 0);
+    expect(lp.unitsSold + remaining).toBeGreaterThan(lp.totalUnits);
+
+    const base = newGame(37);
+    let cur: GameState = {
+      ...base,
+      cash: dollars(1_000_000),
+      launched: [lp],
+      nextEventWeek: 9_999,
+      competitors: base.competitors.map((c) => ({ ...c, nextLaunchWeek: 9_999 })), // no rival-entry haircut
+    };
+    for (let i = 0; i < 10 && cur.launched[0].weeksElapsed < cur.launched[0].weeklyUnits.length; i++) {
+      cur = advanceOneWeek(cur);
+    }
+    const done = cur.launched[0];
+    // Units sold can never exceed the run that was actually built...
+    expect(done.unitsSold).toBe(450);
+    // ...and revenue only ever reflects real, built units (150 more × $600 = $90k), NOT the 600-unit
+    // curve (which pre-fix booked 600 × $600 = $360k of phantom revenue into cash/cumulativeRevenue).
+    const revSince = toDollars(done.revenueToDate) - toDollars(lp.revenueToDate);
+    expect(revSince).toBeCloseTo(600 * (done.unitsSold - lp.unitsSold), 2);
+    expect(revSince).toBeCloseTo(90_000, 2);
+  });
 });
 
 describe("restock (mid-life reorder, demand-capped)", () => {

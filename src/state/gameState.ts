@@ -1552,12 +1552,18 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const launched = state.launched.map((lp) => {
     if (lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
     const units = lp.weeklyUnits[lp.weeksElapsed];
+    // Sales — and the revenue booked for them — are hard-capped to the production run. A price cut
+    // or marketing push inflates the REMAINING weeklyUnits but caps only totalUnits, so the boosted
+    // array can sum ABOVE totalUnits; clamp the sellable count here (unitsSold was already capped the
+    // same way, so this is algebraically identical for the count) so the tick can never book
+    // price × phantom-units into cash / cumulativeRevenue for units that were never built.
+    const soldUnits = Math.min(Math.round(units * rate), Math.max(0, lp.totalUnits - lp.unitsSold));
     // Production was paid upfront at build, so each sale brings FULL price into cash.
-    const gross = scale(lp.product.price, units * rate);
+    const gross = scale(lp.product.price, soldUnits);
     cash = add(cash, gross);
     cumulativeRevenue = add(cumulativeRevenue, gross);
     const newElapsed = lp.weeksElapsed + 1;
-    const newUnitsSold = Math.min(lp.totalUnits, lp.unitsSold + Math.round(units * rate));
+    const newUnitsSold = lp.unitsSold + soldUnits;
     const newRevenue = add(lp.revenueToDate, gross);
     // When the last sales week completes, surface a lifecycle summary in the feed.
     if (newElapsed >= lp.weeklyUnits.length) {
@@ -3655,13 +3661,6 @@ export function tierResearchStatus(s: GameState, kind: ComponentKind): ResearchS
 export function projectResearchStatus(s: GameState, id: ProjectId): ResearchSlotStatus {
   if (s.activeResearch?.kind === "project" && s.activeResearch.ref === id) return "active";
   return researchQueueList(s).some((q) => q.kind === "project" && q.ref === id) ? "queued" : null;
-}
-
-/** Progress 0..1 of the active research (0 when idle). Whole-week granularity; the UI smooths it. */
-export function activeResearchFrac(s: GameState): number {
-  const a = s.activeResearch;
-  if (!a || a.totalWeeks <= 0) return a ? 1 : 0;
-  return Math.max(0, Math.min(1, (s.week - a.startWeek) / a.totalWeeks));
 }
 
 /** Whole weeks remaining on the active research (0 when idle or finishing this week). */

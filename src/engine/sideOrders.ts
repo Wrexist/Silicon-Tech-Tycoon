@@ -73,7 +73,7 @@ export function generateSideOrder(seed: number, week: number, era: number): Side
   const eraScale = 1 + (Math.max(1, Math.min(4, era)) - 1) * 0.7;
   const units = Math.round((500 + hash01(seed, week, 37) * 900) * eraScale / 50) * 50;
   const feePerUnit = dollars(Math.round(9 + hash01(seed, week, 53) * 9)) as Money;
-  const weeksNeeded = 3 + Math.floor(hash01(seed, week, 71) * 3); // 3..5
+  const weeksNeeded = 3 + Math.floor(hash01(seed, week, 229) * 3); // 3..5 — salt 229: own stream, must NOT reuse 71 (eureka.eurekaDue draws it)
   return {
     id: `so-${week}`,
     clientName: client.name,

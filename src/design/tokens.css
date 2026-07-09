@@ -81,6 +81,7 @@
   --mat-ti-2: #78716c;
   --mat-gold: #d4af37;
   --gold-ink: #3d2c00; /* dark text for a solid gold chip (rank-1 medal) — readable in both themes */
+  --gold: #d9a824; /* prestige / awards / contract-offer accent. Was consumed as an undefined var(--gold, #d9a824) fallback in ~31 places (awards, platform, contracts, market); now owned by the token system. Single value keeps both themes byte-identical to the old fallback. */
 
   /* Spacing — strict 8pt scale (with 2/6 half-steps for fine details) */
   --sp-2: 2px;
