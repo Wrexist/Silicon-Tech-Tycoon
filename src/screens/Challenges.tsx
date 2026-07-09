@@ -2,9 +2,9 @@
 // codes. Reuses the scenarios card visual language (scenarios.css). Starting a challenge parks the
 // player's freeform company (stashed, restorable via the tracker's "return to your company"), so it
 // confirms first but never destroys the company.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CalendarDays, CalendarRange, Target, Trophy, Share2 } from "lucide-react";
-import { Button } from "../design/primitives.tsx";
+import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { showToast } from "../design/toast.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -80,6 +80,10 @@ function ChallengeCard({ challenge, onPlay }: { challenge: Challenge; onPlay: ()
 export function ChallengesSheet({ onClose }: { onClose: () => void }) {
   const { state, startChallenge } = useGame();
   const [confirm, setConfirm] = useState<Target | null>(null);
+  // Trap Tab inside the confirm card and restore focus to the opener on close (parity with the shared
+  // Sheet dialogs) — this "replace your run" confirm must not leak focus to the buttons behind it.
+  const confirmRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(confirmRef, confirm !== null);
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState(false);
   const today = dateKeyOf(new Date());
@@ -164,7 +168,7 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
         <div className="scn__confirm" role="dialog" aria-modal="true" aria-label="Confirm starting challenge"
           onClick={() => setConfirm(null)}
           onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setConfirm(null); } }}>
-          <div className="scn__confirm-card" onClick={(e) => e.stopPropagation()}>
+          <div ref={confirmRef} tabIndex={-1} className="scn__confirm-card" onClick={(e) => e.stopPropagation()}>
             <p className="scn__confirm-title">Start this {confirm.kind} challenge?</p>
             {state.activeChallenge || state.activeScenario ? (
               <p className="scn__confirm-text">

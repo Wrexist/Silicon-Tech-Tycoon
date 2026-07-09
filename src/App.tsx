@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
@@ -86,6 +86,10 @@ function AppShell() {
     setProgressOpen(true);
   };
   const [bankOpen, setBankOpen] = useState(false);
+  // Stable identity: this handler reaches the memoized Garage3D office scene (HQ → OfficeScene →
+  // onTapBank). A fresh inline arrow each render defeats its shallow prop compare and re-renders the
+  // ~1,900-line 3D scene every sim tick, even while it's hidden. setBankOpen is a stable setter.
+  const openBank = useCallback(() => setBankOpen(true), []);
   // Initialized to wentPublic so loading a save that already IPO'd never replays the takeover —
   // same guard the era modal uses below. It only fires when wentPublic flips DURING play.
   const [ipoSeen, setIpoSeen] = useState(state.wentPublic);
@@ -156,7 +160,7 @@ function AppShell() {
     <div className="app">
       <Hud
         onSettings={() => setSettingsOpen(true)}
-        onOpenBank={() => setBankOpen(true)}
+        onOpenBank={openBank}
         onOpenProgress={hasShipped ? () => openProgress() : undefined}
       />
       <main className="app__main">
@@ -187,7 +191,7 @@ function AppShell() {
             </div>
           </div>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-            <HQ onNavigate={setTab} onOpenBank={() => setBankOpen(true)} onOpenChallenges={() => openProgress("challenges")} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq"} world={hqWorld} />
+            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => openProgress("challenges")} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq"} world={hqWorld} />
           </ErrorBoundary>
         </div>
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that

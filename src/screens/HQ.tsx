@@ -398,6 +398,9 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   const dark = isDarkTheme();
   // If the GPU drops the WebGL context mid-game, fall back to the 2D IsoScene instead of black.
   const [glLost, setGlLost] = useState(false);
+  // Stable identity so the memoized Garage3D office scene isn't re-rendered every sim tick by a fresh
+  // inline arrow (its shallow prop compare would fail). onNavigate is a useState setter (stable).
+  const handleTapStaff = useCallback(() => onNavigate("company"), [onNavigate]);
 
   // Decorate is a full-screen overlay: lock background page scroll while it's open so a drag on
   // the editor can't scroll HQ underneath it.
@@ -542,7 +545,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 desktops={state.desktops}
                 height={build ? "100%" : 420}
                 paused={!active}
-                onTapStaff={() => onNavigate("company")}
+                onTapStaff={handleTapStaff}
                 onTapBank={onOpenBank}
               />
             </Suspense>

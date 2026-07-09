@@ -156,6 +156,32 @@ describe("game state reducers", () => {
     expect(new Set(a.feed.map((f) => f.id)).size).toBe(a.feed.length);
   });
 
+  it("the 160-week do-nothing run matches its frozen golden snapshot (criterion-b guard)", () => {
+    // GOLDEN MASTER companion to the self-consistency pin above. That test runs the same code twice,
+    // so it structurally CANNOT catch a criterion-(b) regression — a newly-added system that fires in
+    // a do-nothing run shifts both runs identically and they still agree. This pins the actual
+    // week-160 outcome of seed 7777 (cash-boosted, zero player actions) to frozen values, so an
+    // un-gated new system, a re-salted derived-hash stream, or any drift in the base sim fails HERE.
+    // Every value is an integer → robust across platforms (no float-representation risk): rngState is
+    // the main-RNG draw fingerprint; feed length + the economy + the interrupt-cadence stamp catch
+    // side-channel (derived-hash) drift that never touches the main RNG. If you changed the sim on
+    // purpose, re-derive these from the run and update them in the SAME commit — that is the point.
+    let s = { ...newGame(7777), cash: dollars(5_000_000) };
+    for (let w = 0; w < 160; w++) s = advanceOneWeek(s);
+    expect(s.week).toBe(160);
+    expect(s.rngState).toBe(1_964_288_166);
+    expect(toDollars(s.cash)).toBe(4_975_300);
+    expect(toDollars(s.cumulativeRevenue)).toBe(0);
+    expect(s.fans).toBe(304);
+    expect(s.reputation).toBe(8);
+    expect(s.era).toBe(1);
+    expect(s.researchPoints).toBe(555);
+    expect(s.competitors.length).toBe(12);
+    expect(s.feed.length).toBe(60);
+    expect(s.nextEventWeek).toBe(174);
+    expect(s.lastInterruptWeek).toBe(156);
+  });
+
   it("builds then launches a product, accruing revenue over weeks", () => {
     // Production + tooling are paid upfront now, so seed enough cash to fund a real run + runway.
     let s = { ...newGame(42), cash: dollars(500_000) };
