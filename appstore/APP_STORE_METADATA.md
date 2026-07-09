@@ -20,73 +20,142 @@ string through an ASO tool.
 | **Primary Language** | English (U.S.) | — |
 | **Age Rating** | **4+** | — |
 
+**Subtitle is indexed for search** — it's a second keyword field, so make its words earn their place.
+The current one is strong and brand-clear; A/B-test these keyword-denser alternates via Product Page
+Optimization:
+- `Startup to empire — build it all` (30) — adds *startup*
+- `Design devices, build the line` (30) — adds *build/line* (factory)
+- `Business & factory tycoon sim` (29) — front-loads *business, factory, sim* (repeats *tycoon* from the
+  name, so slightly wasteful — use only if a tool shows it converts better)
+
 ---
 
 ## 2. Promotional Text (≤170 chars — editable anytime without review)
 
 ```
-Now on iPhone: design devices down to the chip, time your launch, and race six rivals from a one-room garage to the #1 tech empire. Premium, offline, no ads.
+The biggest update yet: build a 3D factory line, turn a rival into your nemesis, take your company public, and expand worldwide. Design devices down to the chip.
 ```
-(152 chars)
+(159 chars)
+
+**Alternates to A/B test (all ≤170):**
+```
+Design devices down to the chip, build a real 3D factory, crush a dozen rivals, and rule the industry — from a one-room garage to the world. Premium, offline, no ads.
+```
+```
+Found a tech startup, design every device, build the factory, make an arch-rival, go public, and take over the industry. A premium tycoon sim. Offline. No ads, ever.
+```
 
 ---
 
 ## 3. Keywords (≤100 chars, comma-separated, NO spaces after commas)
 
 ```
-tycoon,business,simulation,management,startup,company,phone,gadget,empire,strategy,builder,ceo,money
+business,simulation,management,idle,factory,empire,startup,strategy,mogul,magnate,builder,ceo,gadget
 ```
-(101 → trim if ASC rejects: drop `money` → 95 chars. Validate with an ASO tool first.)
+(100 chars exactly.)
 
-**Reserve pool** (swap in for A/B testing): `idle,manager,factory,product,device,tech,investor,entrepreneur,sim`
+**Why this set:** the App Name (`Silicon: Tech Tycoon`) and Subtitle are ALREADY indexed for search,
+so `tycoon`, `tech`, `silicon`, `design`, `empire`(subtitle) are redundant to repeat here — every
+keyword slot is spent on a term NOT already covered. Apple also auto-matches most singular/plural
+forms, so use singulars only. The App Store *combines* your keyword words with the words in the
+name/subtitle, so e.g. "business tycoon", "idle tycoon", "factory tycoon", "startup empire" all match.
+
+**Reserve pool** (swap via A/B test in App Store Connect Product Page Optimization):
+`capitalist,industry,invest,company,billionaire,manager,device,economy,sim,entrepreneur`
+
+**Do NOT add:** competitor brand names, real company/phone names, or `game`/`app`/`free` (wasted slots —
+Apple ignores them). Validate the final string in an ASO tool (AppTweak / Sensor Tower) before submit.
 
 ---
 
 ## 4. Description (≤4000 chars — paste as plain text, no markdown)
 
 ```
-Build a tech company from a garage to a global empire — one device at a time.
+Build a tech company from a one-room garage to a global empire — one device at a time.
 
-Silicon is a premium management simulation. You don't just watch numbers tick — you DESIGN the products. Pick the chip, display, battery, materials, and camera array, choose a finish and colour, and watch a phone, tablet, laptop, or console render live in a crisp, parametric vector preview. Then read the market, time your launch to the week, price it right, and bet on the campaign that fits your budget.
+Silicon is a premium business simulation and tycoon game. You don't just watch numbers tick — you DESIGN the products, BUILD the factory that makes them, and RUN the company that sells them. Found a startup, ship something great, crush your rivals, take it public, and rule the industry.
 
-DESIGN EVERY DETAIL
-Customise your device from the inside out: processor tier, display tech, battery size, frame material, camera layout, lens count, body finish, and colour. Every choice shows in the live render — and in your cost, your margin, and how the market reacts.
+DESIGN EVERY DEVICE
+Customise phones, tablets, laptops, consoles, monitors and AR glasses from the inside out — chip, display, battery, materials, camera array, finish and colour — and watch each one render live in a crisp vector preview. Every choice moves your cost, your margin, and how the market reacts. Form matters too: a striking design sells.
+
+BUILD A REAL FACTORY
+Factory Mode is a living 3D production line you build yourself. Lay conveyor belts, place and upgrade machines, and wire the floor so it builds faster — each device needs the right machines (a phone wants a screen bonder, a laptop a chassis mill). Decorate with props and painted walls, expand the building, and take Side Order commissions to keep the line busy between launches.
 
 TIME THE MARKET
-Consumer taste shifts week by week. Launch too early and you leave money on the table; launch into a cold market and you flop. Read the trend, watch your rivals, and find your window. The game always tells you WHY a product won or flopped, so every launch teaches you something.
+Consumer taste shifts week by week. Read the trend, price it right, pick the campaign that fits your budget, and find your launch window. The game always tells you WHY a product won or flopped — so every launch teaches you something.
 
-BUILD YOUR TEAM AND HQ
-Hire engineers, designers, and marketers — each with a specialty, a personality, and a mood that moves their output. Buy desks, expand from a one-room garage to a campus, and watch your real-time 3D headquarters fill with life as the company grows.
-
-RESEARCH THE FRONTIER
-Spend Research Points across a deep tech tree — chips, displays, batteries, materials, software, and cameras. Each era unlocks components, premium finishes, and camera modules that let you build things your rivals can't.
+MAKE ENEMIES
+Race a dozen fictional rivals up the live industry leaderboard. One becomes your arch-rival — a living nemesis you clash with again and again. When a rival strikes your category, duel their device head-to-head and answer back. Every year the Silicon Awards judge every launch across Device of the Year, Design and Value — sweep the ceremony or build a grudge.
 
 PLAY THE MARKET
-Track your market cap against six fictional rivals on the live industry leaderboard. Trade their shares, take your own company public, and climb to the #1 spot — then start a New Game+ that carries a permanent legacy bonus into your next empire.
+Trade rival shares, buy a board seat for insider intel, take a controlling stake for a discounted hostile takeover, or acquire a rival outright to absorb its brand, fans and patents. Then take your own company public and beat Wall Street's quarterly earnings expectations.
+
+GO GLOBAL
+License new regions — each with its own taste and market size — then weather regional events: booms to ride, tariffs to answer, and rival surges to defend your standing.
+
+RESEARCH THE FRONTIER
+Develop a deep tech tree over time on a live progress ring — queue your next breakthroughs, commit to research doctrines that give your products identity, and chase Eureka flashes of insight for a jackpot.
+
+BUILD A TEAM AND HQ
+Hire engineers, designers and marketers — each with a specialty, a trait and a mood that moves their output. Senior staff grow into mentors and masters. Watch your real-time 3D headquarters fill with life from garage to campus.
 
 PREMIUM. OFFLINE. YOURS.
-No ads. No timers. No energy. No currencies. No dark patterns. The base game is complete and winnable with a single purchase, and it works fully offline. One optional Creative Mode unlock lets you design in a no-limits sandbox — the only in-app purchase, ever.
+No ads. No timers. No energy. No currencies. No dark patterns. The base game is complete and winnable with a single purchase, and it works fully offline. One optional Creative Mode sandbox is the only in-app purchase, ever.
 
 Found your company. Ship something great. Run the industry.
 ```
-(~2,050 chars)
+(~3,050 chars — under the 4,000 limit)
 
 ---
 
 ## 5. What's New (release notes for v1.1.0)
 
-```
-Your factory floor is now yours to build — and the industry just got fiercer.
+> The biggest release since launch — it bundles the Factory Mode rebuild, the arch-rival / awards /
+> side-order systems, the living-industry audit (M&A, IPO loop, OS platform, global regions, fan
+> community), and the follow-up depth pass (brand meter, doctrines, hostile takeovers, staff growth,
+> regional events, timed research + queue). Notes are grouped so a long changelog still scans fast.
 
-• Factory Mode: lay conveyor belts, place and upgrade machines, and watch a real 3D production line run your builds. A well-wired floor builds faster, and each device wants the right machines — a phone needs a screen bonder, a laptop a mill. Decorate it with props and painted walls, then expand the building as you grow.
-• Rival Strikes: when a rival launches into a category you're selling in, it becomes a decision, not a headline. Duel their device against yours and choose your answer — cut price, fire a counter-campaign, or hold the line when your device is better.
-• The Silicon Awards: every year the industry judges every launch — yours and the rivals' — across Device of the Year, Design and Value. Sweep the ceremony for a reputation and fan boost, or watch a rival take the stage and build a nemesis.
-• Side Orders: clients commission production runs on your line. Meet the deadline, bank the fee, and keep the factory busy between your own launches.
-• AI Era breakthroughs: four new late-game research projects, plus a Developer Keynote to keep research meaningful once the tree is bought out.
-• A smoother start: more starting capital and a gentler early game, so one mispriced launch no longer ends the company before it begins.
-• Design → launch is now one continuous flow, with live in-production tracking and a "start from" option to iterate a franchise.
-• A big accessibility pass: screen-reader labels across menus and dialogs, focus that returns where you left it, and a colour-blind-safe "in demand" indicator.
-• Dozens of fixes and polish: honest runway that accounts for loan payments, smoother build progress, sturdier saves, and a more premium awards celebration.
+```
+The biggest Silicon update yet. Build a real production line, turn your rivals into enemies, take your company public, and run the whole industry.
+
+BUILD YOUR FACTORY
+• Factory Mode: lay conveyor belts, place and upgrade machines, and watch a real 3D production line run your builds. A well-wired floor builds faster, and each device wants the right machines — a phone needs a screen bonder, a laptop a mill. Decorate with props and painted walls, then expand the building as you grow.
+• Side Orders: clients commission production runs on your line — meet the deadline, bank the fee, and keep the factory busy between your own launches.
+
+FIGHT YOUR RIVALS
+• Arch-Rivals: one rival becomes your nemesis, with a living heat meter and a head-to-head record that escalates every time you clash.
+• Rival Strikes: when a rival launches into your category it's a decision, not a headline — duel their device against yours, then cut price, fire a counter-campaign, or hold the line.
+• The Silicon Awards: every year the industry judges every launch across Device of the Year, Design and Value. Sweep the ceremony for a reputation and fan boost, or watch a rival take the stage.
+
+PLAY THE MARKET
+• Buy rival shares for a board seat and insider intel, take a controlling stake for a discounted hostile takeover, or acquire a rival outright to absorb its brand, fans and patents.
+• Go public: IPO your company, then beat the street's quarterly earnings and buy back shares.
+
+GO GLOBAL
+• License new regions, each with its own taste and size, then weather regional events — booms to ride, tariffs to answer, rival surges to defend.
+
+DEEPEN YOUR COMPANY
+• Timed research: breakthroughs now develop over time on a live progress ring, and you can queue your next projects. Commit to research doctrines that give your products identity.
+• Eureka breakthroughs: your lab has flashes of insight — bank a windfall or chase the prototype for a jackpot. Plus new AI-era projects and a Developer Keynote to keep research meaningful once the tree is bought out.
+• A living team: senior staff earn permanent growth you choose — a second specialty, a new trait, or a mentor who lifts the whole team.
+• A living fanbase with a mood and superfans who answer your community events, plus a brand-awareness meter that lifts every launch.
+• Run your own OS platform — an App Store, a security console, and licensing deals with rivals.
+
+PLUS
+• A smoother start with more capital; deeper devices (tablets, monitors, AR glasses); a continuous design-to-launch flow with live in-production tracking and "start from" to iterate a franchise; living products you can restock and re-market; a premium liquid-glass redesign; a big accessibility pass; and dozens of fixes.
+```
+(~2,250 chars — under the 4,000 limit)
+
+**Shorter alternate** (if you prefer a tighter note — ~1,150 chars):
+```
+The biggest Silicon update yet.
+
+• Factory Mode: build a real 3D production line — lay belts, place and upgrade machines, and wire the floor so it builds faster. Each device needs the right machines. Decorate and expand it.
+• Arch-Rivals & Rival Strikes: one rival becomes your nemesis, and a contested launch is a duel — cut price, counter-campaign, or hold the line.
+• The Silicon Awards: an annual ceremony that judges every launch. Sweep it, or build a grudge.
+• Play the market: take a controlling stake for a hostile takeover, acquire rivals to absorb their brand, or take your own company public.
+• Go global: license regions and weather booms, tariffs and rival surges.
+• Timed research with a queue, research doctrines, Eureka breakthroughs, a living team and fanbase, side orders, your own OS platform — plus a smoother start, a premium redesign, a big accessibility pass, and dozens of fixes.
 ```
 
 ---
@@ -219,12 +288,46 @@ required sizes. See `appstore/SCREENSHOT_PROMPT.md` for the recommended set, cap
 how to generate the finished marketing frames from the raw captures in
 `appstore/screenshots/raw/`.
 
-Recommended upload order (first 3 are what most users see in search):
-1. Design Lab — **"Design every detail"**
-2. Market / leaderboard — **"Race six rivals to #1"**
-3. 3D HQ — **"From a garage to a global empire"**
-4. Research — **"Research the next era"**
-5. Performance / launch — **"Time the market"**
+Recommended upload order (first 3 are what most users see in search — lead with the newest, most
+visually distinctive hero shots so the thumbnail sells the update):
+1. Factory Mode (3D line) — **"Build a real production line"**
+2. Design Lab — **"Design every device, down to the chip"**
+3. Market / leaderboard + arch-rival — **"Crush a dozen rivals to #1"**
+4. 3D HQ — **"From a garage to a global empire"**
+5. Rival Strike or Silicon Awards — **"Every launch is a fight"**
+6. Research (timed ring + queue) — **"Research the next era"** *(optional 6th)*
+
+Caption text goes ON the marketing frame (large, legible), not just the alt text — the first two words
+of each caption matter most in the small search thumbnail. Localise captions for your top markets.
+
+---
+
+## 11b. ASO ranking levers (what actually moves the ranking, in priority order)
+
+Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + velocity. In order of impact:
+
+1. **App Name + Subtitle + Keywords** (this doc). Highest weight is the **name**, then **subtitle**, then
+   the keyword field. Never waste a slot repeating a word across the three — they're searched together.
+2. **Conversion rate** (installs ÷ impressions). Driven by the **icon**, the **first 1–2 screenshots**,
+   and the title. Ship the new Factory Mode / rivalry hero shots (§11) and A/B them.
+3. **In-App Events** (App Store Connect → Features → In-App Events). These get their own search + Today/
+   Games surfaces and are a real 2024+ ranking/visibility lever. This release gives you three easy ones:
+   - **"The Silicon Awards"** — an annual in-game ceremony → run as a recurring event card.
+   - **"Launch season"** — themed challenge to ship a hit device.
+   - **"Go global"** — event tied to the new regional-expansion + regional-events feature.
+4. **Product Page Optimization (PPO)** — A/B test up to 3 icon/screenshot/subtitle variants natively in
+   ASC. Use it for the subtitle + screenshot-order options above; keep the winner.
+5. **Custom Product Pages** — make dedicated pages (different screenshots/promo text) for specific
+   keyword themes ("factory tycoon", "business sim") and point paid/organic traffic at the best match.
+6. **Ratings & reviews volume + recency** — prompt for a rating after a *win* moment (first hit launch /
+   reaching #1), never mid-task. Higher star average + fresh reviews lift both rank and conversion.
+7. **Update cadence** — a substantive update (like this 1.1.0) refreshes the "recency" signal; ship the
+   new What's New and refresh at least one screenshot each version.
+8. **Localization** — even just localizing the **keyword field + subtitle + first screenshot captions**
+   for your top non-English markets (de, fr, es, ja, pt-BR, ko) multiplies indexed terms per market.
+
+**Category:** keep **Simulation** primary (that's where "tycoon/business sim" browsers live) and
+**Strategy** secondary. Don't chase a less-competitive category at the cost of intent match.
 
 ---
 
