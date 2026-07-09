@@ -25,6 +25,11 @@ export const FLOOR_FINISHES: FloorFinish[] = [
   { id: "slate", name: "Slate", dark: "#262b33", light: "#c8cdd4", lineDark: "#191d23", lineLight: "#aab0b8", roughness: 0.5, metalness: 0.1, pattern: "tile" },
   { id: "marble", name: "Marble", dark: "#20242b", light: "#eceef2", lineDark: "#161a20", lineLight: "#d2d6dd", roughness: 0.14, metalness: 0.2, pattern: "tile" },
   { id: "moss", name: "Moss Carpet", dark: "#28362c", light: "#b7c9ac", lineDark: "#28362c", lineLight: "#b7c9ac", roughness: 1.0, metalness: 0.0, pattern: "none" },
+  // Appended (saved as numeric indices — never reorder/prepend the rows above).
+  { id: "oak", name: "Oak", dark: "#6b4e30", light: "#d8b483", lineDark: "#4a3620", lineLight: "#b89055", roughness: 0.68, metalness: 0.0, pattern: "plank" },
+  { id: "checker", name: "Checker", dark: "#232833", light: "#e4e7ec", lineDark: "#12151b", lineLight: "#b7bcc6", roughness: 0.30, metalness: 0.10, pattern: "tile" },
+  { id: "neonGrid", name: "Neon Grid", dark: "#141a24", light: "#e9f4fb", lineDark: "#2bd4d0", lineLight: "#3aa0d8", roughness: 0.22, metalness: 0.28, pattern: "grid" },
+  { id: "campusCarpet", name: "Campus Carpet", dark: "#2c343a", light: "#c2ccc9", lineDark: "#2c343a", lineLight: "#c2ccc9", roughness: 1.0, metalness: 0.0, pattern: "none" },
 ];
 
 export type WallKind = "brick" | "paint" | "concrete" | "panel";
@@ -48,6 +53,11 @@ export const WALL_STYLES: WallStyle[] = [
   { id: "blush", name: "Blush", kind: "paint", dark: "#3a2830", light: "#f0dfe2" },
   { id: "ocean", name: "Ocean", kind: "paint", dark: "#1e2f3d", light: "#cfe0ee" },
   { id: "charcoal", name: "Charcoal", kind: "concrete", dark: "#23262b", light: "#40454d" },
+  // Appended (saved as numeric indices — never reorder/prepend the rows above).
+  { id: "whitebrick", name: "Whitewash Brick", kind: "brick", dark: "#4a4d55", light: "#e8e6e2" },
+  { id: "navy", name: "Navy", kind: "paint", dark: "#1b2438", light: "#c6d0e6" },
+  { id: "terracotta", name: "Terracotta", kind: "paint", dark: "#3d2820", light: "#e4b79a" },
+  { id: "felt", name: "Acoustic Felt", kind: "panel", dark: "#2a2e36", light: "#b9bec7" },
 ];
 
 export function floorFinish(i: number): FloorFinish {

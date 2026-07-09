@@ -1,8 +1,10 @@
 // Parametric 3D renderers for each placeable furniture item. Pure primitives, zero assets.
 // Every piece is modelled centred on the origin, resting on the floor (y=0 up), sized to its
 // grid footprint so the placement wrapper just sets position + Y-rotation.
-import { Component, Suspense, lazy, memo, type ReactNode } from "react";
+import { Component, Suspense, lazy, memo, useRef, type ReactNode } from "react";
 import { RoundedBox } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import type { Group } from "three";
 import type { FurnitureId } from "../engine/furniture.ts";
 import { GRID, FURNITURE } from "../engine/furniture.ts";
 import { modelFor } from "./furnitureModels.ts";
@@ -881,6 +883,430 @@ function CoffeeBar({ p }: { p: RoomPalette }) {
   );
 }
 
+// ---------------- Furniture catalog expansion (premium office + tech) ----------------
+function Aquarium() {
+  const w = 3 * C;
+  return (
+    <group>
+      {/* dark-wood cabinet */}
+      <RoundedBox args={[w - 0.1, 0.72, C - 0.1]} radius={0.03} position={[0, 0.36, 0]}><meshStandardMaterial color="#2e2016" roughness={0.6} /></RoundedBox>
+      {/* faint blue emissive backlight */}
+      <mesh position={[0, 1.02, -C / 2 + 0.07]}><planeGeometry args={[w - 0.24, 0.5]} /><meshStandardMaterial color="#2a6fae" emissive="#2f7fd0" emissiveIntensity={0.6} toneMapped={false} /></mesh>
+      {/* water body — transparent bluish glass */}
+      <mesh position={[0, 1.02, 0]}><boxGeometry args={[w - 0.22, 0.5, C - 0.24]} /><meshPhysicalMaterial color="#7fc4e8" transparent opacity={0.32} roughness={0.08} transmission={0.6} thickness={0.4} /></mesh>
+      {/* glass tank shell */}
+      <mesh position={[0, 1.02, 0]}><boxGeometry args={[w - 0.2, 0.52, C - 0.22]} /><meshStandardMaterial color="#9fb4c4" transparent opacity={0.12} roughness={0.05} metalness={0.3} /></mesh>
+      {/* emissive coral cones */}
+      {([[-0.9, "#ff7043"], [-0.2, "#ffb74d"], [0.7, "#ef5a8a"]] as const).map((c, i) => (
+        <mesh key={i} position={[c[0], 0.86, 0.05]}><coneGeometry args={[0.06, 0.28, 8]} /><meshStandardMaterial color={c[1]} emissive={c[1]} emissiveIntensity={0.5} roughness={0.6} /></mesh>
+      ))}
+      {/* tiny fish */}
+      {([[-0.5, 1.12, 0.18], [0.3, 1.0, -0.14], [0.9, 1.15, 0.1]] as const).map((f, i) => (
+        <mesh key={`f${i}`} position={[f[0], f[1], f[2]]} rotation-y={i * 0.6}><boxGeometry args={[0.09, 0.05, 0.03]} /><meshStandardMaterial color={i % 2 ? "#ffd54f" : "#ff8a65"} emissive={i % 2 ? "#ffd54f" : "#ff8a65"} emissiveIntensity={0.3} /></mesh>
+      ))}
+    </group>
+  );
+}
+
+function SuperCluster() {
+  return (
+    <group>
+      {[-0.42, 0.42].map((x, r) => (
+        <group key={r} position={[x, 0, 0]}>
+          <RoundedBox args={[0.72, 1.8, 0.6]} radius={0.02} position={[0, 0.9, 0]}><meshStandardMaterial color="#0e1116" roughness={0.5} metalness={0.35} /></RoundedBox>
+          {/* glass front */}
+          <mesh position={[0, 0.9, 0.31]}><planeGeometry args={[0.6, 1.6]} /><meshPhysicalMaterial color="#0a0d13" transparent opacity={0.35} roughness={0.05} transmission={0.4} metalness={0.2} /></mesh>
+          {/* dense status LEDs */}
+          {Array.from({ length: 8 }).map((_, i) => [-0.18, -0.06, 0.06, 0.18].map((lx, j) => (
+            <mesh key={`${i}-${j}`} position={[lx, 0.28 + i * 0.18, 0.315]}><sphereGeometry args={[0.014, 6, 6]} /><meshStandardMaterial color={(i + j) % 3 ? "#10b981" : "#f59e0b"} emissive={(i + j) % 3 ? "#10b981" : "#f59e0b"} emissiveIntensity={1.2} toneMapped={false} /></mesh>
+          )))}
+        </group>
+      ))}
+      {/* cable bundles on top */}
+      {[-0.3, 0, 0.3].map((x, i) => (
+        <mesh key={i} position={[x, 1.84, -0.1]} rotation-x={Math.PI / 2}><torusGeometry args={[0.1, 0.03, 8, 16, Math.PI]} /><meshStandardMaterial color={i % 2 ? "#3a3f48" : "#c0392b"} roughness={0.7} /></mesh>
+      ))}
+    </group>
+  );
+}
+
+function HoloGlobe() {
+  const R = 0.34;
+  return (
+    <group>
+      {/* dark metal ring base */}
+      <mesh position={[0, 0.06, 0]}><cylinderGeometry args={[0.24, 0.26, 0.06, 24]} /><meshStandardMaterial color="#1a1d23" roughness={0.4} metalness={0.5} /></mesh>
+      <mesh position={[0, 0.12, 0]} rotation-x={Math.PI / 2}><torusGeometry args={[0.22, 0.03, 12, 32]} /><meshStandardMaterial color="#2a2f37" metalness={0.6} roughness={0.3} /></mesh>
+      {/* floating cyan wireframe sphere */}
+      <mesh position={[0, 0.78, 0]}><sphereGeometry args={[R, 16, 12]} /><meshBasicMaterial color="#38e6ff" wireframe transparent opacity={0.55} toneMapped={false} /></mesh>
+      <mesh position={[0, 0.78, 0]}><sphereGeometry args={[R - 0.01, 20, 16]} /><meshStandardMaterial color="#0aa0c0" emissive="#22cfe6" emissiveIntensity={0.5} transparent opacity={0.12} toneMapped={false} /></mesh>
+      {/* thin latitude rings */}
+      {[-0.18, 0, 0.18].map((yo, i) => {
+        const rr = Math.sqrt(Math.max(0, R * R - yo * yo));
+        return <mesh key={i} position={[0, 0.78 + yo, 0]} rotation-x={Math.PI / 2}><torusGeometry args={[rr, 0.006, 6, 32]} /><meshBasicMaterial color="#38e6ff" transparent opacity={0.7} toneMapped={false} /></mesh>;
+      })}
+    </group>
+  );
+}
+
+function QuantumRig() {
+  const plates = [[1.15, 0.32], [0.95, 0.27], [0.75, 0.22], [0.55, 0.17], [0.35, 0.12]] as const;
+  return (
+    <group>
+      {/* dark pedestal */}
+      <RoundedBox args={[0.5, 0.3, 0.5]} radius={0.03} position={[0, 0.15, 0]}><meshStandardMaterial color="#15181d" roughness={0.5} metalness={0.3} /></RoundedBox>
+      {/* faint cyan base glow */}
+      <mesh position={[0, 0.32, 0]} rotation-x={-Math.PI / 2}><circleGeometry args={[0.3, 24]} /><meshBasicMaterial color="#22cfe6" transparent opacity={0.35} toneMapped={false} /></mesh>
+      {/* thin rods */}
+      {([[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]] as const).map((l, i) => (
+        <mesh key={i} position={[l[0], 0.75, l[1]]}><cylinderGeometry args={[0.012, 0.012, 0.9, 8]} /><meshStandardMaterial color="#c9a24a" metalness={0.7} roughness={0.3} /></mesh>
+      ))}
+      {/* stacked descending gold torus plates */}
+      {plates.map((pl, i) => (
+        <mesh key={i} position={[0, pl[0], 0]} rotation-x={Math.PI / 2}><torusGeometry args={[pl[1], 0.03, 10, 32]} /><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.25} /></mesh>
+      ))}
+    </group>
+  );
+}
+
+function EspressoRobot() {
+  return (
+    <group>
+      {/* chrome cylinder body */}
+      <mesh position={[0, 0.5, 0]}><cylinderGeometry args={[0.22, 0.24, 1.0, 24]} /><meshStandardMaterial color="#c7ccd4" metalness={0.85} roughness={0.18} /></mesh>
+      <mesh position={[0, 1.0, 0]}><cylinderGeometry args={[0.2, 0.22, 0.12, 24]} /><meshStandardMaterial color="#9aa1ab" metalness={0.7} roughness={0.3} /></mesh>
+      {/* green status LED */}
+      <mesh position={[0, 0.72, 0.23]}><sphereGeometry args={[0.03, 10, 10]} /><meshStandardMaterial color="#10b981" emissive="#10b981" emissiveIntensity={1.3} toneMapped={false} /></mesh>
+      {/* articulated arm holding a cup */}
+      <mesh position={[0.18, 0.62, 0.16]} rotation-z={-0.5}><boxGeometry args={[0.28, 0.05, 0.05]} /><meshStandardMaterial color="#8a9099" metalness={0.6} /></mesh>
+      <mesh position={[0.32, 0.5, 0.26]}><cylinderGeometry args={[0.03, 0.03, 0.16, 10]} /><meshStandardMaterial color="#8a9099" metalness={0.6} /></mesh>
+      <mesh position={[0.32, 0.4, 0.26]}><cylinderGeometry args={[0.05, 0.04, 0.09, 14]} /><meshStandardMaterial color="#efeae0" roughness={0.5} /></mesh>
+      {/* drip tray */}
+      <mesh position={[0.32, 0.33, 0.26]}><boxGeometry args={[0.16, 0.03, 0.16]} /><meshStandardMaterial color="#4a505a" metalness={0.5} /></mesh>
+      {/* steam wand */}
+      <mesh position={[-0.16, 0.7, 0.18]} rotation-z={0.4}><cylinderGeometry args={[0.012, 0.012, 0.24, 8]} /><meshStandardMaterial color="#9aa1ab" metalness={0.7} /></mesh>
+    </group>
+  );
+}
+
+function DronePad() {
+  const drone = useRef<Group>(null);
+  // Gentle idle bob — deterministic (fixed phase, driven by clock.elapsedTime; never Math.random).
+  useFrame((st) => {
+    if (drone.current) drone.current.position.y = 0.85 + Math.sin(st.clock.elapsedTime * 1.5) * 0.05;
+  });
+  return (
+    <group>
+      {/* flat hex landing pad */}
+      <mesh position={[0, 0.03, 0]} rotation-y={Math.PI / 6}><cylinderGeometry args={[0.8, 0.8, 0.06, 6]} /><meshStandardMaterial color="#2a2f37" roughness={0.7} /></mesh>
+      {/* emissive-yellow perimeter */}
+      <mesh position={[0, 0.065, 0]} rotation-x={-Math.PI / 2} rotation-z={Math.PI / 6}><ringGeometry args={[0.66, 0.74, 6]} /><meshBasicMaterial color="#f5c542" transparent opacity={0.9} toneMapped={false} side={2} /></mesh>
+      {/* painted "H" */}
+      <group position={[0, 0.062, 0]} rotation-x={-Math.PI / 2}>
+        {[-0.14, 0.14].map((x, i) => <mesh key={i} position={[x, 0, 0]}><planeGeometry args={[0.06, 0.4]} /><meshBasicMaterial color="#e8ecf2" /></mesh>)}
+        <mesh><planeGeometry args={[0.28, 0.06]} /><meshBasicMaterial color="#e8ecf2" /></mesh>
+      </group>
+      {/* hovering quadcopter */}
+      <group ref={drone} position={[0, 0.85, 0]}>
+        <RoundedBox args={[0.22, 0.1, 0.22]} radius={0.03} position={[0, 0, 0]}><meshStandardMaterial color="#1a1d23" roughness={0.5} metalness={0.3} /></RoundedBox>
+        <mesh position={[0, -0.03, 0]}><sphereGeometry args={[0.05, 10, 10]} /><meshStandardMaterial color="#22cfe6" emissive="#22cfe6" emissiveIntensity={0.9} toneMapped={false} /></mesh>
+        {/* crossed arms */}
+        {[Math.PI / 4, -Math.PI / 4].map((a, i) => (
+          <mesh key={i} rotation-y={a}><boxGeometry args={[0.56, 0.02, 0.02]} /><meshStandardMaterial color="#3a3f48" metalness={0.4} /></mesh>
+        ))}
+        {/* rotor discs */}
+        {([[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]] as const).map((l, i) => (
+          <mesh key={`rot${i}`} position={[l[0], 0.03, l[1]]}><cylinderGeometry args={[0.1, 0.1, 0.008, 16]} /><meshStandardMaterial color="#5b9dff" transparent opacity={0.35} /></mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+function ZenFountain() {
+  return (
+    <group>
+      {/* circular stone basin */}
+      <mesh position={[0, 0.1, 0]}><cylinderGeometry args={[0.62, 0.66, 0.2, 32]} /><meshStandardMaterial color="#8a8f96" roughness={0.85} /></mesh>
+      <mesh position={[0, 0.19, 0]}><cylinderGeometry args={[0.56, 0.56, 0.04, 32]} /><meshStandardMaterial color="#5a9db8" transparent opacity={0.5} roughness={0.1} metalness={0.2} /></mesh>
+      {/* stacked slate discs */}
+      <mesh position={[0, 0.3, 0]}><cylinderGeometry args={[0.34, 0.38, 0.14, 24]} /><meshStandardMaterial color="#4a5058" roughness={0.7} /></mesh>
+      <mesh position={[0, 0.44, 0]}><cylinderGeometry args={[0.22, 0.26, 0.12, 24]} /><meshStandardMaterial color="#565c64" roughness={0.7} /></mesh>
+      {/* thin transparent emissive-blue water column */}
+      <mesh position={[0, 0.55, 0]}><cylinderGeometry args={[0.03, 0.04, 0.5, 12]} /><meshStandardMaterial color="#7fd4f0" emissive="#4fbfe8" emissiveIntensity={0.7} transparent opacity={0.6} toneMapped={false} /></mesh>
+      {/* ring of pebbles */}
+      {Array.from({ length: 10 }).map((_, i) => {
+        const a = (i / 10) * Math.PI * 2;
+        return <mesh key={i} position={[Math.cos(a) * 0.5, 0.22, Math.sin(a) * 0.5]}><sphereGeometry args={[0.05, 8, 8]} /><meshStandardMaterial color={i % 2 ? "#6b7078" : "#565c64"} roughness={0.8} /></mesh>;
+      })}
+    </group>
+  );
+}
+
+function TrophyCase({ p }: { p: RoomPalette }) {
+  const w = 2 * C;
+  return (
+    <group>
+      {/* cabinet body */}
+      <RoundedBox args={[w - 0.1, 1.8, 0.4]} radius={0.03} position={[0, 0.9, 0]}><meshStandardMaterial color={p.deskDark} roughness={0.6} /></RoundedBox>
+      {/* warm backlit interior */}
+      <mesh position={[0, 0.9, -0.16]}><planeGeometry args={[w - 0.24, 1.6]} /><meshStandardMaterial color="#ffdca0" emissive="#ffcf86" emissiveIntensity={0.5} toneMapped={false} /></mesh>
+      {/* glass front */}
+      <mesh position={[0, 0.9, 0.2]}><planeGeometry args={[w - 0.18, 1.66]} /><meshPhysicalMaterial color="#cfe0ee" transparent opacity={0.14} roughness={0.05} transmission={0.6} /></mesh>
+      {/* shelves with gold trophies + medals */}
+      {[0.45, 0.95, 1.45].map((y, s) => (
+        <group key={s} position={[0, y, 0]}>
+          <mesh position={[0, -0.02, 0]}><boxGeometry args={[w - 0.16, 0.03, 0.34]} /><meshStandardMaterial color={p.desk} roughness={0.6} /></mesh>
+          {/* trophy cup: base + stem + bowl */}
+          <mesh position={[-0.2, 0.04, 0]}><cylinderGeometry args={[0.05, 0.06, 0.03, 12]} /><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.3} /></mesh>
+          <mesh position={[-0.2, 0.09, 0]}><cylinderGeometry args={[0.012, 0.012, 0.07, 8]} /><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.3} /></mesh>
+          <mesh position={[-0.2, 0.15, 0]}><sphereGeometry args={[0.055, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} /><meshStandardMaterial color="#e6c34a" metalness={0.8} roughness={0.3} side={2} /></mesh>
+          {/* medal disc */}
+          <mesh position={[0.18, 0.08, 0.02]} rotation-x={Math.PI / 2}><cylinderGeometry args={[0.06, 0.06, 0.015, 20]} /><meshStandardMaterial color={s % 2 ? "#c0c5cc" : "#d4af37"} metalness={0.7} roughness={0.3} /></mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function NapPod() {
+  return (
+    <group>
+      {/* egg-shaped shell, opening facing +z */}
+      <mesh position={[0, 0.55, -0.1]} scale={[1, 1.15, 1]}><sphereGeometry args={[0.6, 24, 20]} /><meshStandardMaterial color="#dfe3e8" roughness={0.5} metalness={0.1} /></mesh>
+      {/* interior recess */}
+      <mesh position={[0, 0.5, 0.05]} scale={[0.8, 0.95, 0.8]}><sphereGeometry args={[0.5, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.7]} /><meshStandardMaterial color="#2f353d" roughness={0.8} side={2} /></mesh>
+      {/* privacy hood lip */}
+      <mesh position={[0, 0.95, 0.12]} rotation-x={-0.5}><torusGeometry args={[0.42, 0.05, 12, 24, Math.PI]} /><meshStandardMaterial color="#c5cad0" roughness={0.5} /></mesh>
+      {/* soft cushion + back pillow */}
+      <RoundedBox args={[0.7, 0.16, 0.5]} radius={0.07} position={[0, 0.28, 0.12]}><meshStandardMaterial color={FABRIC_2} roughness={0.85} /></RoundedBox>
+      <RoundedBox args={[0.6, 0.3, 0.14]} radius={0.06} position={[0, 0.45, -0.22]}><meshStandardMaterial color={FABRIC} roughness={0.85} /></RoundedBox>
+      {/* subtle interior LED */}
+      <mesh position={[0, 0.9, -0.3]}><sphereGeometry args={[0.03, 8, 8]} /><meshStandardMaterial color="#8ecbff" emissive="#8ecbff" emissiveIntensity={0.8} toneMapped={false} /></mesh>
+    </group>
+  );
+}
+
+function MicroKitchen({ p }: { p: RoomPalette }) {
+  const w = 3 * C;
+  return (
+    <group>
+      {/* lower counter run */}
+      <RoundedBox args={[w - 0.1, 0.9, C - 0.15]} radius={0.03} position={[0, 0.45, 0]}><meshStandardMaterial color={p.desk} roughness={0.6} /></RoundedBox>
+      <RoundedBox args={[w, 0.06, C - 0.08]} radius={0.02} position={[0, 0.93, 0]}><meshStandardMaterial color="#d9dde4" roughness={0.4} metalness={0.1} /></RoundedBox>
+      {/* upper cabinets */}
+      <RoundedBox args={[w - 1.0, 0.5, 0.28]} radius={0.03} position={[-0.35, 1.7, -C / 2 + 0.18]}><meshStandardMaterial color={p.deskDark} roughness={0.6} /></RoundedBox>
+      {/* sink basin + faucet */}
+      <mesh position={[-w / 4, 0.92, 0.02]}><boxGeometry args={[0.3, 0.06, 0.34]} /><meshStandardMaterial color="#8a9099" metalness={0.6} roughness={0.3} /></mesh>
+      <mesh position={[-w / 4, 1.02, -0.14]} rotation-x={0.3}><cylinderGeometry args={[0.015, 0.015, 0.14, 8]} /><meshStandardMaterial color="#9aa1ab" metalness={0.7} /></mesh>
+      {/* colored mini-fridge */}
+      <RoundedBox args={[0.5, 0.86, C - 0.2]} radius={0.03} position={[w / 2 - 0.3, 0.45, 0]}><meshStandardMaterial color="#3f7fbf" roughness={0.5} metalness={0.15} /></RoundedBox>
+      <mesh position={[w / 2 - 0.48, 0.55, 0.28]}><boxGeometry args={[0.03, 0.2, 0.02]} /><meshStandardMaterial color="#c0c5cc" metalness={0.5} /></mesh>
+      {/* fruit bowl */}
+      <mesh position={[0.2, 0.99, 0]}><cylinderGeometry args={[0.11, 0.08, 0.06, 16]} /><meshStandardMaterial color="#c98b5a" roughness={0.5} /></mesh>
+      {([["#e2452f", -0.05, -0.03], ["#f0a63a", 0.05, -0.03], ["#7cb342", 0, 0.04]] as const).map((f, i) => (
+        <mesh key={i} position={[0.2 + f[1], 1.06, f[2]]}><sphereGeometry args={[0.045, 10, 10]} /><meshStandardMaterial color={f[0]} roughness={0.6} /></mesh>
+      ))}
+      {/* coffee carafe */}
+      <mesh position={[-0.1, 1.02, 0.02]}><cylinderGeometry args={[0.05, 0.055, 0.14, 14]} /><meshStandardMaterial color="#2a2f37" roughness={0.4} /></mesh>
+    </group>
+  );
+}
+
+function FocusPod({ p }: { p: RoomPalette }) {
+  return (
+    <group>
+      {/* corner frame */}
+      {([[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]] as const).map((l, i) => (
+        <mesh key={i} position={[l[0], 1.0, l[1]]}><boxGeometry args={[0.04, 2.0, 0.04]} /><meshStandardMaterial color={p.metalDark} metalness={0.5} /></mesh>
+      ))}
+      {/* frosted glass walls */}
+      {([[0, -0.4, 0.8, 0], [0, 0.4, 0.8, 0], [-0.4, 0, 0.8, Math.PI / 2], [0.4, 0, 0.8, Math.PI / 2]] as const).map((wl, i) => (
+        <mesh key={`g${i}`} position={[wl[0], 1.0, wl[1]]} rotation-y={wl[3]}><planeGeometry args={[wl[2], 1.9]} /><meshPhysicalMaterial color="#e6ecf2" transparent opacity={0.22} roughness={0.4} transmission={0.5} side={2} /></mesh>
+      ))}
+      {/* roof */}
+      <RoundedBox args={[0.86, 0.06, 0.86]} radius={0.02} position={[0, 2.0, 0]}><meshStandardMaterial color={p.deskDark} roughness={0.6} /></RoundedBox>
+      {/* door seam */}
+      <mesh position={[0.0, 1.0, 0.41]}><boxGeometry args={[0.015, 1.8, 0.01]} /><meshStandardMaterial color={p.metalDark} metalness={0.4} /></mesh>
+      {/* interior stool */}
+      <mesh position={[0, 0.5, 0.05]}><cylinderGeometry args={[0.14, 0.14, 0.06, 16]} /><meshStandardMaterial color={FABRIC_2} roughness={0.7} /></mesh>
+      <mesh position={[0, 0.25, 0.05]}><cylinderGeometry args={[0.03, 0.03, 0.5, 8]} /><meshStandardMaterial color={p.metal} metalness={0.6} /></mesh>
+      {/* tiny screen glow */}
+      <mesh position={[0, 1.0, -0.36]}><planeGeometry args={[0.3, 0.2]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={0.8} toneMapped={false} /></mesh>
+    </group>
+  );
+}
+
+function IdeaWall({ p }: { p: RoomPalette }) {
+  const w = 2 * C;
+  const notes = ["#f6c945", "#4e9d6b", "#5b9dff", "#e2452f", "#c77dff", "#f0883a"];
+  return (
+    <group>
+      {/* stand legs + foot */}
+      {[-w / 2 + 0.2, w / 2 - 0.2].map((x, i) => <mesh key={i} position={[x, 0.55, 0.06]}><boxGeometry args={[0.05, 1.1, 0.05]} /><meshStandardMaterial color={p.metalDark} metalness={0.4} /></mesh>)}
+      <mesh position={[0, 0.06, 0.06]}><boxGeometry args={[w - 0.3, 0.04, 0.4]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+      {/* whiteboard */}
+      <RoundedBox args={[w - 0.1, 0.9, 0.05]} radius={0.02} position={[0, 1.15, 0]}><meshStandardMaterial color={p.board} roughness={0.5} /></RoundedBox>
+      {/* colorful sticky notes */}
+      {notes.map((c, i) => {
+        const col = i % 3, row = Math.floor(i / 3);
+        return <mesh key={i} position={[-0.4 + col * 0.4, 1.32 - row * 0.34, 0.03]} rotation-z={(i % 2 ? 1 : -1) * 0.08}><planeGeometry args={[0.16, 0.16]} /><meshStandardMaterial color={c} roughness={0.7} /></mesh>;
+      })}
+      {/* marker scribble */}
+      <mesh position={[0.44, 1.0, 0.03]} rotation-z={0.2}><planeGeometry args={[0.28, 0.012]} /><meshBasicMaterial color="#e2452f" /></mesh>
+      <mesh position={[0.4, 0.92, 0.03]} rotation-z={-0.15}><planeGeometry args={[0.22, 0.012]} /><meshBasicMaterial color="#5b9dff" /></mesh>
+    </group>
+  );
+}
+
+function IndoorTree({ p }: { p: RoomPalette }) {
+  return (
+    <group>
+      {/* planter */}
+      <mesh position={[0, 0.25, 0]}><cylinderGeometry args={[0.32, 0.26, 0.5, 20]} /><meshStandardMaterial color={p.pot} roughness={0.8} /></mesh>
+      <mesh position={[0, 0.5, 0]}><cylinderGeometry args={[0.32, 0.32, 0.04, 20]} /><meshStandardMaterial color="#3a2a1c" roughness={0.9} /></mesh>
+      {/* thick trunk */}
+      <mesh position={[0, 0.95, 0]}><cylinderGeometry args={[0.09, 0.13, 0.9, 12]} /><meshStandardMaterial color={WOOD} roughness={0.85} /></mesh>
+      {/* broad multi-sphere canopy */}
+      {([[0, 1.6, 0, 0.5], [-0.32, 1.45, 0.1, 0.34], [0.3, 1.5, -0.1, 0.36], [0.05, 1.35, 0.3, 0.3], [-0.15, 1.75, -0.15, 0.3]] as const).map((s, i) => (
+        <mesh key={i} position={[s[0], s[1], s[2]]}><sphereGeometry args={[s[3], 14, 14]} /><meshStandardMaterial color={i % 2 ? p.plant : "#3c7e54"} roughness={0.85} /></mesh>
+      ))}
+    </group>
+  );
+}
+
+function KombuchaTap() {
+  return (
+    <group>
+      {/* stainless keg body */}
+      <RoundedBox args={[0.5, 1.1, 0.44]} radius={0.04} position={[0, 0.55, 0]}><meshStandardMaterial color="#b8bec7" metalness={0.7} roughness={0.25} /></RoundedBox>
+      {/* chalkboard label */}
+      <mesh position={[0, 0.78, 0.225]}><planeGeometry args={[0.38, 0.28]} /><meshStandardMaterial color="#1e2228" roughness={0.8} /></mesh>
+      <mesh position={[0, 0.82, 0.23]}><planeGeometry args={[0.24, 0.03]} /><meshBasicMaterial color="#e8ecf2" /></mesh>
+      <mesh position={[0, 0.74, 0.23]}><planeGeometry args={[0.16, 0.02]} /><meshBasicMaterial color="#8ecbff" /></mesh>
+      {/* tap handles */}
+      {[-0.13, 0, 0.13].map((x, i) => (
+        <group key={i} position={[x, 0.42, 0.22]}>
+          <mesh position={[0, 0, 0.04]}><boxGeometry args={[0.03, 0.08, 0.08]} /><meshStandardMaterial color="#4a505a" metalness={0.6} /></mesh>
+          <mesh position={[0, 0.08, 0.02]}><cylinderGeometry args={[0.015, 0.015, 0.12, 8]} /><meshStandardMaterial color={i % 2 ? "#c0392b" : "#2f6f4f"} roughness={0.5} /></mesh>
+        </group>
+      ))}
+      {/* drip tray */}
+      <mesh position={[0, 0.32, 0.24]}><boxGeometry args={[0.42, 0.03, 0.12]} /><meshStandardMaterial color="#6b7178" metalness={0.5} /></mesh>
+    </group>
+  );
+}
+
+function RocketModel({ p }: { p: RoomPalette }) {
+  return (
+    <group>
+      {/* stand ring + legs */}
+      <mesh position={[0, 0.14, 0]} rotation-x={Math.PI / 2}><torusGeometry args={[0.16, 0.02, 10, 24]} /><meshStandardMaterial color={p.metalDark} metalness={0.6} /></mesh>
+      {([[0.13, -0.13], [0.13, 0.13], [-0.15, 0]] as const).map((l, i) => <mesh key={i} position={[l[0], 0.08, l[1]]}><cylinderGeometry args={[0.012, 0.012, 0.16, 6]} /><meshStandardMaterial color={p.metalDark} metalness={0.6} /></mesh>)}
+      {/* white body */}
+      <mesh position={[0, 0.7, 0]}><cylinderGeometry args={[0.11, 0.11, 0.9, 20]} /><meshStandardMaterial color="#eef1f5" roughness={0.4} metalness={0.1} /></mesh>
+      {/* cone nose */}
+      <mesh position={[0, 1.28, 0]}><coneGeometry args={[0.11, 0.32, 20]} /><meshStandardMaterial color="#d05a51" roughness={0.4} /></mesh>
+      {/* window */}
+      <mesh position={[0, 0.95, 0.11]}><circleGeometry args={[0.03, 12]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={0.5} toneMapped={false} /></mesh>
+      {/* dark engine bell */}
+      <mesh position={[0, 0.2, 0]}><cylinderGeometry args={[0.12, 0.08, 0.14, 16]} /><meshStandardMaterial color="#2a2f37" metalness={0.6} roughness={0.4} /></mesh>
+      {/* 4 fins */}
+      {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((a, i) => (
+        <mesh key={i} position={[Math.cos(a) * 0.13, 0.34, Math.sin(a) * 0.13]} rotation-y={-a}><boxGeometry args={[0.02, 0.24, 0.14]} /><meshStandardMaterial color="#c0c5cc" metalness={0.3} /></mesh>
+      ))}
+    </group>
+  );
+}
+
+function TreeLamp({ p }: { p: RoomPalette }) {
+  const arms = [[1.5, 0.35, 0.2], [1.1, -0.3, -0.25], [0.8, 0.25, 0.3]] as const;
+  return (
+    <group>
+      <mesh position={[0, 0.03, 0]}><cylinderGeometry args={[0.14, 0.16, 0.06, 18]} /><meshStandardMaterial color={p.metalDark} metalness={0.5} /></mesh>
+      <mesh position={[0, 0.85, 0]}><cylinderGeometry args={[0.02, 0.02, 1.7, 8]} /><meshStandardMaterial color={p.metalDark} metalness={0.5} /></mesh>
+      {arms.map((a, i) => (
+        <group key={i}>
+          {/* horizontal arm from pole to globe */}
+          <mesh position={[a[1] * 0.5, a[0], a[2] * 0.5]} rotation-y={Math.atan2(a[2], a[1])}><boxGeometry args={[Math.hypot(a[1], a[2]), 0.02, 0.02]} /><meshStandardMaterial color={p.metalDark} metalness={0.5} /></mesh>
+          {/* warm emissive glass globe */}
+          <mesh position={[a[1], a[0], a[2]]}><sphereGeometry args={[0.08, 14, 12]} /><meshStandardMaterial color="#fff2cc" emissive="#ffcf86" emissiveIntensity={1.3} toneMapped={false} transparent opacity={0.92} /></mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function Uplight({ p }: { p: RoomPalette }) {
+  const hue = "#8b5cf6";
+  return (
+    <group>
+      {/* backing panel */}
+      <RoundedBox args={[0.7, 1.2, 0.05]} radius={0.02} position={[0, 0.6, -0.2]}><meshStandardMaterial color={p.deskDark} roughness={0.7} /></RoundedBox>
+      {/* colored wash on the panel */}
+      <mesh position={[0, 0.6, -0.17]}><planeGeometry args={[0.6, 1.1]} /><meshBasicMaterial color={hue} transparent opacity={0.4} toneMapped={false} /></mesh>
+      {/* low floor bar */}
+      <RoundedBox args={[0.66, 0.08, 0.14]} radius={0.03} position={[0, 0.05, -0.1]}><meshStandardMaterial color="#1a1d23" roughness={0.5} /></RoundedBox>
+      {/* emissive strip */}
+      <mesh position={[0, 0.1, -0.05]} rotation-x={-0.5}><planeGeometry args={[0.56, 0.05]} /><meshStandardMaterial color={hue} emissive={hue} emissiveIntensity={1.6} toneMapped={false} /></mesh>
+    </group>
+  );
+}
+
+function PizzaStack() {
+  const boxes = [[0.06, 0.04], [0.18, -0.05], [0.3, 0.03], [0.42, -0.02]] as const;
+  return (
+    <group>
+      {boxes.map((b, i) => (
+        <RoundedBox key={i} args={[0.44, 0.06, 0.44]} radius={0.015} position={[0, b[0] + 0.03, 0]} rotation-y={b[1]}><meshStandardMaterial color={i % 2 ? "#c9a274" : "#b08a52"} roughness={0.8} /></RoundedBox>
+      ))}
+      {/* top box lid ajar */}
+      <mesh position={[0, 0.5, -0.16]} rotation-x={-0.5}><boxGeometry args={[0.44, 0.02, 0.44]} /><meshStandardMaterial color="#c9a274" roughness={0.8} /></mesh>
+      {/* grease-spot label */}
+      <mesh position={[0, 0.46, 0.221]}><planeGeometry args={[0.14, 0.08]} /><meshBasicMaterial color="#c0392b" /></mesh>
+    </group>
+  );
+}
+
+function CableSpool() {
+  const R = 0.3;
+  return (
+    <group position={[0, R, 0]} rotation-z={Math.PI / 2}>
+      {/* two disc ends */}
+      {[-0.22, 0.22].map((y, i) => <mesh key={i} position={[0, y, 0]}><cylinderGeometry args={[R, R, 0.04, 24]} /><meshStandardMaterial color={WOOD} roughness={0.8} /></mesh>)}
+      {/* central drum */}
+      <mesh position={[0, 0, 0]}><cylinderGeometry args={[0.16, 0.16, 0.42, 20]} /><meshStandardMaterial color="#6b5236" roughness={0.85} /></mesh>
+      {/* coiled cable */}
+      {[-0.08, 0, 0.08].map((y, i) => <mesh key={`c${i}`} position={[0, y, 0]}><cylinderGeometry args={[0.2, 0.2, 0.06, 20]} /><meshStandardMaterial color="#2a2f37" roughness={0.7} /></mesh>)}
+      {/* hub holes */}
+      {[-0.24, 0.24].map((y, i) => <mesh key={`h${i}`} position={[0, y, 0]}><cylinderGeometry args={[0.05, 0.05, 0.06, 12]} /><meshStandardMaterial color="#3a3026" /></mesh>)}
+    </group>
+  );
+}
+
+function MascotStandee({ p }: { p: RoomPalette }) {
+  const hue = "#4f7bd8";
+  return (
+    <group>
+      {/* easel foot */}
+      {[-0.16, 0.16].map((x, i) => <mesh key={i} position={[x, 0.32, 0.14]} rotation-x={0.3}><boxGeometry args={[0.04, 0.64, 0.04]} /><meshStandardMaterial color={p.metalDark} metalness={0.4} /></mesh>)}
+      <mesh position={[0, 0.06, 0.16]}><boxGeometry args={[0.42, 0.04, 0.3]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+      {/* flat robot-mascot cutout — colored silhouette planes */}
+      <group position={[0, 0, -0.02]}>
+        <mesh position={[0, 0.62, 0]}><boxGeometry args={[0.5, 0.5, 0.03]} /><meshStandardMaterial color={hue} roughness={0.6} /></mesh>
+        <mesh position={[0, 1.0, 0]}><boxGeometry args={[0.42, 0.34, 0.03]} /><meshStandardMaterial color={hue} roughness={0.6} /></mesh>
+        {/* antenna */}
+        <mesh position={[0, 1.24, 0]}><cylinderGeometry args={[0.012, 0.012, 0.12, 6]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+        <mesh position={[0, 1.32, 0]}><sphereGeometry args={[0.03, 8, 8]} /><meshStandardMaterial color="#f5c542" emissive="#f5c542" emissiveIntensity={0.6} toneMapped={false} /></mesh>
+        {/* eyes + smile */}
+        {[-0.1, 0.1].map((x, i) => <mesh key={i} position={[x, 1.02, 0.02]}><circleGeometry args={[0.05, 14]} /><meshBasicMaterial color="#eef1f5" /></mesh>)}
+        {[-0.1, 0.1].map((x, i) => <mesh key={`p${i}`} position={[x, 1.02, 0.025]}><circleGeometry args={[0.02, 10]} /><meshBasicMaterial color="#1a1d23" /></mesh>)}
+        <mesh position={[0, 0.66, 0.02]}><boxGeometry args={[0.24, 0.05, 0.01]} /><meshBasicMaterial color="#eef1f5" /></mesh>
+      </group>
+    </group>
+  );
+}
+
 /** Render a furniture item by id, centred on the origin. Memoized so the whole layout doesn't
  *  re-render on every drag move / sim tick — only when its type or the palette changes. */
 function renderParametric(type: FurnitureId, p: RoomPalette) {
@@ -951,6 +1377,27 @@ function renderParametric(type: FurnitureId, p: RoomPalette) {
     case "floorVase": return <FloorVase p={p} />;
     case "cubeLamp": return <CubeLamp p={p} />;
     case "coffeeBar": return <CoffeeBar p={p} />;
+    // ---- catalog expansion ----
+    case "aquarium": return <Aquarium />;
+    case "superCluster": return <SuperCluster />;
+    case "holoGlobe": return <HoloGlobe />;
+    case "quantumRig": return <QuantumRig />;
+    case "espressoRobot": return <EspressoRobot />;
+    case "dronePad": return <DronePad />;
+    case "zenFountain": return <ZenFountain />;
+    case "trophyCase": return <TrophyCase p={p} />;
+    case "napPod": return <NapPod />;
+    case "microKitchen": return <MicroKitchen p={p} />;
+    case "focusPod": return <FocusPod p={p} />;
+    case "ideaWall": return <IdeaWall p={p} />;
+    case "indoorTree": return <IndoorTree p={p} />;
+    case "kombuchaTap": return <KombuchaTap />;
+    case "rocketModel": return <RocketModel p={p} />;
+    case "treeLamp": return <TreeLamp p={p} />;
+    case "uplight": return <Uplight p={p} />;
+    case "pizzaStack": return <PizzaStack />;
+    case "cableSpool": return <CableSpool />;
+    case "mascotStandee": return <MascotStandee p={p} />;
     default: return null;
   }
 }
