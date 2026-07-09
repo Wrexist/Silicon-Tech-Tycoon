@@ -14,7 +14,8 @@ import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight } from "../state/gameState.ts";
+import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight, researchBusy } from "../state/gameState.ts";
+import { ResearchProgress } from "../components/ResearchProgress.tsx";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -142,6 +143,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   const kinds = Object.keys(COMPONENT_LINES) as ComponentKind[];
   const rp = Math.floor(state.researchPoints);
   const perWeek = weeklyRpGen(state);
+  // One research develops at a time. While the lab is busy, the "start" buttons are disabled — the
+  // progress ring at the top shows what's cooking (and lets you cancel for a refund).
+  const busy = researchBusy(state);
 
   // Sort component tech by actionability: affordable → saveable (≤10wk) → needs time → locked → maxed
   const sortedKinds = [...kinds].sort((a, b) => {
@@ -174,6 +178,12 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         <p className="rd__subtitle">Spend Research Points to unlock new tech and abilities.</p>
         <span className="rd__era-badge"><FlaskConical size={13} aria-hidden /> {eraName(state.era)}</span>
       </div>
+      {/* Active research — the hero when the lab is developing something (a filling progress ring). */}
+      {state.activeResearch && (
+        <Card className="rd__active">
+          <ResearchProgress research={state.activeResearch} />
+        </Card>
+      )}
       {/* RP banner */}
       <Card className="rd__bank">
         <div className="rd__bank-backdrop" aria-hidden>
@@ -388,13 +398,13 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     <div className="rd__sprint-action">
                       <Button
                         size="sm"
-                        variant={affordable ? "primary" : "tertiary"}
-                        disabled={!affordable}
-                        haptics="none" onClick={() => { research(kind); haptic.success(); }}
+                        variant={affordable && !busy ? "primary" : "tertiary"}
+                        disabled={!affordable || busy}
+                        haptics="none" onClick={() => { research(kind); }}
                       >
                         {cost} RP
                       </Button>
-                      {!affordable && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+                      {!affordable && !busy && <span className="rd__weeks-away">~{weeksAway}wk</span>}
                     </div>
                   </div>
                 );
@@ -492,10 +502,10 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                     <span className="rd__locked" title={`You chose ${projectById(forkLock).name}`}><Lock size={12} /> Locked</span>
                   ) : (
                     <div className="rd__project-action">
-                      <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} haptics="none" onClick={() => { buyProject(p.id); haptic.success(); }}>
+                      <Button size="sm" variant={affordable && !busy ? "primary" : "tertiary"} disabled={!affordable || busy} haptics="none" onClick={() => { buyProject(p.id); }}>
                         {p.rpCost} RP
                       </Button>
-                      {weeksAway !== null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+                      {weeksAway !== null && !busy && <span className="rd__weeks-away">~{weeksAway}wk</span>}
                     </div>
                   )}
                 </Card>
@@ -582,10 +592,10 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                 </div>
                 {!maxed && !eraLocked && (
                   <div className="rd__comp-buy">
-                    <Button size="sm" variant={affordable ? "primary" : "tertiary"} disabled={!affordable} haptics="none" onClick={() => { research(kind); haptic.success(); }}>
+                    <Button size="sm" variant={affordable && !busy ? "primary" : "tertiary"} disabled={!affordable || busy} haptics="none" onClick={() => { research(kind); }}>
                       {cost !== null ? `${cost} RP` : "—"}
                     </Button>
-                    {!affordable && cost !== null && perWeek > 0 && (
+                    {!affordable && !busy && cost !== null && perWeek > 0 && (
                       <span className="rd__weeks-away">~{Math.ceil((cost - rp) / perWeek)}wk</span>
                     )}
                   </div>

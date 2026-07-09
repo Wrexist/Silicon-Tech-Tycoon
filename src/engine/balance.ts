@@ -447,6 +447,17 @@ export const BALANCE = {
     // tech unlocks now cost RP (a fraction of the old cash R&D cost, converted)
     rdCashToRp: 1 / 1400, // dollars of old rdCost -> RP cost
     minTechRp: 4,
+    // Timed research — a started tier/project no longer completes on the click; the lab develops it
+    // over WEEKS (a progress-ring timer, like a production run), and only ONE runs at a time, so
+    // "what do we research next?" becomes a real focus decision instead of a spend-all-RP dump. The
+    // RP is paid up front (economy + balance unchanged); the weeks scale with the project's RP cost
+    // (a bigger breakthrough takes longer), clamped to a sane band. Player-only: the pinned solo sim
+    // never starts research → activeResearch stays null → byte-identical.
+    timer: {
+      rpPerWeek: 24, // ~RP of cost developed per week → weeks = round(rpCost / this)
+      minWeeks: 1,
+      maxWeeks: 6,
+    },
     // Research excitement: a strong launch funds your next breakthrough — hits/solids award RP, so
     // the tree advances through PLAY, not just idle ticks. Tuned vs project costs (20–140 RP).
     launchRpHit: 16,

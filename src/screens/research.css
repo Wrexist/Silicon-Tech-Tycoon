@@ -42,6 +42,11 @@
   background: linear-gradient(135deg, var(--accent-soft), var(--surface));
   border-color: color-mix(in srgb, var(--accent) 42%, var(--hairline));
 }
+/* Active-research hero card — a faint accent wash + edge so the in-progress ring reads as "live". */
+.rd__active {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, var(--surface)), var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--hairline));
+}
 /* Immersive section backdrop matching the share card: an engineering-accent glow, a dot texture,
    and the parametric circuit motif, so the RP bank reads as live research intel. */
 .rd__bank-backdrop { position: absolute; inset: 0; z-index: 0; pointer-events: none; }

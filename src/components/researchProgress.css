@@ -1,0 +1,111 @@
+/* Research progress ring — the active research developing inside a filling "lab halo", with a sweeping
+   accent that keeps it feeling alive. Mirrors the manufacturing BuildProgress ring so the two "in
+   progress" readouts read as one system. Tokens + 8pt grid only. */
+.rprog { display: flex; flex-direction: column; gap: var(--sp-12); }
+.rprog__top { display: flex; align-items: center; gap: var(--sp-16); }
+
+.rprog__ring {
+  position: relative; flex-shrink: 0; width: 92px; height: 92px;
+  display: grid; place-items: center;
+}
+.rprog__halo {
+  position: absolute; inset: 8px; border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, var(--accent-soft), transparent 72%);
+  animation: rprog-halo 3.2s ease-in-out infinite;
+}
+.rprog__sweep {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, color-mix(in srgb, var(--accent) 65%, transparent) 26deg, transparent 52deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+  animation: rprog-spin 2.4s linear infinite;
+  opacity: 0.85;
+}
+.rprog__svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.rprog__track { fill: none; stroke: var(--hairline); stroke-width: 6; }
+.rprog__fill {
+  fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round;
+  transition: stroke-dashoffset 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rprog--near .rprog__fill { stroke: var(--positive); }
+.rprog--near .rprog__halo { background: radial-gradient(50% 50% at 50% 50%, color-mix(in srgb, var(--positive) 22%, transparent), transparent 72%); }
+.rprog--near .rprog__sweep { background: conic-gradient(from 0deg, transparent 0deg, color-mix(in srgb, var(--positive) 65%, transparent) 26deg, transparent 52deg); }
+.rprog__glyph {
+  position: relative; z-index: 1; display: grid; place-items: center; color: var(--accent);
+  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--accent) 22%, transparent));
+}
+.rprog--near .rprog__glyph { color: var(--positive); }
+.rprog__pct {
+  position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); z-index: 2;
+  padding: 1px 8px; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--hairline); box-shadow: var(--shadow-subtle);
+  font-size: var(--fs-caption); font-weight: 800; color: var(--ink); letter-spacing: -0.02em;
+}
+.rprog__pct-sign { font-size: 0.72em; font-weight: 700; color: var(--ink-3); margin-left: 1px; }
+.rprog--near .rprog__pct { color: var(--positive); }
+
+.rprog__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rprog__eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); }
+.rprog--near .rprog__eyebrow { color: var(--positive); }
+.rprog__name { font-weight: 800; font-size: var(--fs-body); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rprog__stage {
+  display: flex; align-items: center; gap: var(--sp-8); margin-top: 1px;
+  animation: rprog-stage-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.rprog__stage-icon {
+  flex-shrink: 0; width: 26px; height: 26px; display: grid; place-items: center;
+  border-radius: var(--r-button); background: var(--accent-soft); color: var(--accent);
+}
+.rprog--near .rprog__stage-icon { background: color-mix(in srgb, var(--positive) 16%, transparent); color: var(--positive); }
+.rprog__stage-text { display: flex; flex-direction: column; min-width: 0; }
+.rprog__stage-text b { font-size: var(--fs-caption); font-weight: 700; color: var(--ink); line-height: 1.2; }
+.rprog__stage-text small { font-size: var(--fs-micro); color: var(--ink-3); }
+.rprog__meta { font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2); margin-top: 1px; }
+.rprog__cost { color: var(--ink-3); font-weight: 600; }
+
+.rprog__cancel {
+  flex-shrink: 0; align-self: flex-start; width: 30px; height: 30px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--hairline); color: var(--ink-3);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: color 160ms ease, background 160ms ease;
+}
+.rprog__cancel:hover { color: var(--negative); background: color-mix(in srgb, var(--negative) 10%, var(--surface-2)); }
+
+/* Stage stepper — the research pipeline as icon nodes filling left→right. "Nice to follow." */
+.rprog__trail { display: flex; align-items: flex-start; margin: 0; padding: 0; list-style: none; }
+.rprog__step { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.rprog__step:not(:last-child) { flex: 1; }
+.rprog__row { display: flex; align-items: center; width: 100%; }
+.rprog__cap {
+  align-self: flex-start; margin-top: 6px; transform: translateX(calc(10px - 50%));
+  font-size: var(--fs-micro); font-weight: 600; line-height: 1.1; letter-spacing: -0.01em;
+  color: var(--ink-3); white-space: nowrap;
+}
+.rprog__step--done .rprog__cap { color: var(--ink-2); }
+.rprog__step--active .rprog__cap { color: var(--accent); font-weight: 700; }
+.rprog--near .rprog__step--active .rprog__cap { color: var(--positive); }
+.rprog__node {
+  flex-shrink: 0; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%;
+  border: 1.5px solid var(--hairline); background: var(--surface); color: var(--ink-3);
+  transition: color 240ms ease, background 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+.rprog__bar { flex: 1; height: 2px; min-width: 6px; margin: 0 3px; border-radius: 2px; background: var(--hairline); transition: background 320ms ease; }
+.rprog__step--done .rprog__node { border-color: transparent; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.rprog__bar--done { background: color-mix(in srgb, var(--accent) 55%, var(--hairline)); }
+.rprog__step--active .rprog__node {
+  border-color: transparent; background: var(--accent); color: var(--on-accent, #fff);
+  box-shadow: 0 0 0 3px var(--accent-soft); animation: rprog-node-pulse 2.4s ease-in-out infinite;
+}
+.rprog--near .rprog__step--done .rprog__node { background: color-mix(in srgb, var(--positive) 16%, transparent); color: var(--positive); }
+.rprog--near .rprog__bar--done { background: color-mix(in srgb, var(--positive) 55%, var(--hairline)); }
+.rprog--near .rprog__step--active .rprog__node { background: var(--positive); box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 22%, transparent); }
+
+@keyframes rprog-node-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent-soft); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 12%, transparent); } }
+@keyframes rprog-spin { to { transform: rotate(360deg); } }
+@keyframes rprog-halo { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+@keyframes rprog-stage-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .rprog__sweep, .rprog__halo, .rprog__stage, .rprog__step--active .rprog__node { animation: none; }
+  .rprog__fill { transition: none; }
+}

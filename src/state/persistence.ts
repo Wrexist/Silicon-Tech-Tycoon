@@ -384,6 +384,12 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingRegionalEvent != null && (typeof s.pendingRegionalEvent !== "object" || typeof s.pendingRegionalEvent.regionId !== "string")) {
     s.pendingRegionalEvent = null;
   }
+  // Timed research (added later): default idle. Drop a malformed active-research (no timing / ref).
+  if (s.activeResearch != null && (typeof s.activeResearch !== "object"
+    || typeof s.activeResearch.ref !== "string"
+    || !Number.isFinite(s.activeResearch.startWeek) || !Number.isFinite(s.activeResearch.totalWeeks))) {
+    s.activeResearch = null;
+  }
   // Living fan community (added later): default a neutral community. Clamp sentiment to [-1,1].
   s.fanSentiment = typeof s.fanSentiment === "number" && Number.isFinite(s.fanSentiment) ? Math.max(-1, Math.min(1, s.fanSentiment)) : 0;
   if (!Number.isFinite(s.superfans) || s.superfans < 0) s.superfans = 0;
