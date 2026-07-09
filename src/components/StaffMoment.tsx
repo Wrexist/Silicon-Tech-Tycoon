@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Award, Gem, GraduationCap, Sparkles } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { ROLE_TITLE } from "../engine/staff.ts";
@@ -21,7 +21,7 @@ const KIND_ICON: Record<StaffGrowthKind, typeof Gem> = {
 };
 
 export function StaffMoment() {
-  const { state, paused, setPaused, resolveStaffMoment } = useGame();
+  const { state, resolveStaffMoment } = useGame();
   const moment = state.pendingStaffMoment ?? null;
   const [chosen, setChosen] = useState<StaffGrowthOption | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -37,22 +37,15 @@ export function StaffMoment() {
   // The reveal must survive `moment` clearing the instant we choose, so `chosen` holds the card up.
   const showing = (moment !== null || chosen !== null) && !higherUp;
 
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
+  useHoldSim(showing);
+  const cued = useRef(false);
   useEffect(() => {
-    if (showing) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-        sfx("levelup");
-        haptic.medium?.();
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-    }
-  }, [showing, paused, setPaused]);
+    if (!showing) { cued.current = false; return; }
+    if (cued.current) return;
+    cued.current = true;
+    sfx("levelup");
+    haptic.medium?.();
+  }, [showing]);
   useEffect(() => {
     if (!showing) return;
     return registerAppOverlay();

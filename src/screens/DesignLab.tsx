@@ -63,7 +63,7 @@ import {
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
@@ -1732,30 +1732,27 @@ function DesignCompleteCard({
   onDesignAnother: () => void;
   onClose: () => void;
 }) {
-  const { state, paused, setPaused } = useGame();
+  const { state } = useGame();
   const launchProduct = useLaunchProduct();
 
   const job = state.building.find((b) => b.product.id === done.builtId) ?? null;
   const readyProduct = state.ready.find((p) => p.id === done.builtId) ?? null;
   const ready = readyProduct !== null;
 
-  // The flip to READY is a beat: sound + haptic once, and pause the sim (like the global popup)
-  // so the world doesn't run on behind the launch decision. Restore the prior run state on close.
-  // Guarded on the claim (owned by DesignLab, released the instant the sheet closes) so a card
-  // lingering through the Sheet's close animation can't fire a ghost celebration/pause.
+  // The flip to READY is a beat: sound + haptic once, and HOLD the sim (like the global popup) so the
+  // world doesn't run on behind the launch decision. Guarded on the claim (owned by DesignLab,
+  // released the instant the sheet closes) so a card lingering through the Sheet's close animation
+  // can't fire a ghost celebration/hold. The hold is ref-counted (useHoldSim), so it releases when
+  // this card unmounts or the product ships — it can never strand the sim paused.
+  const holdReady = ready && readyLaunchClaimed(done.builtId);
+  useHoldSim(holdReady);
   const celebrated = useRef(false);
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
   useEffect(() => {
-    if (!ready || celebrated.current || !readyLaunchClaimed(done.builtId)) return;
+    if (!holdReady || celebrated.current) return;
     celebrated.current = true;
     haptic.success();
     sfx("confirm");
-    wasPaused.current = paused;
-    pausedByUs.current = true;
-    setPaused(true);
-  }, [ready, paused, setPaused]);
-  useEffect(() => () => { if (pausedByUs.current) setPaused(wasPaused.current); }, [setPaused]);
+  }, [holdReady]);
 
   // Fresh numbers for the ready state (demand shifts during the build); the design-time snapshot
   // carries the building state.

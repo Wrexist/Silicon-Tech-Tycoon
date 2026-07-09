@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { maybePromptFirstLaunchReview, requestAppStoreReview } from "./review.ts";
+import { maybePromptFirstLaunchReview, requestAppStoreReview, onReviewPrompt } from "./review.ts";
 
 // node env has no DOM — stub localStorage so the once-flag persists within a test.
 class MemStorage {
@@ -34,6 +34,31 @@ describe("first-launch App Store review prompt", () => {
     maybePromptFirstLaunchReview();
     expect(vi.getTimerCount()).toBe(1); // only the first call scheduled anything
     vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it("fires the review-moment event to subscribers when the delay elapses (once)", () => {
+    vi.useFakeTimers();
+    let fired = 0;
+    const off = onReviewPrompt(() => { fired += 1; });
+    maybePromptFirstLaunchReview();
+    expect(fired).toBe(0); // delayed, not immediate — the launch keynote plays first
+    vi.runAllTimers();
+    expect(fired).toBe(1);
+    off();
+    vi.useRealTimers();
+  });
+
+  it("does not fire the event again on a repeat call (flag already spent)", () => {
+    vi.useFakeTimers();
+    let fired = 0;
+    const off = onReviewPrompt(() => { fired += 1; });
+    maybePromptFirstLaunchReview();
+    vi.runAllTimers();
+    maybePromptFirstLaunchReview(); // second product / prestige
+    vi.runAllTimers();
+    expect(fired).toBe(1);
+    off();
     vi.useRealTimers();
   });
 

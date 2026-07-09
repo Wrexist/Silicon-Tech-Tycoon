@@ -332,3 +332,21 @@
 }
 .scn-track__banner--win { color: var(--positive-text); background: var(--positive-soft); }
 .scn-track__banner--fail { color: var(--negative-text); background: var(--negative-soft); }
+
+/* "Return to your company" — leave a challenge/scenario side-run and restore the stashed freeform
+   company. Two-tap so a long run isn't abandoned by a mistap. */
+.scn-track__leave {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.scn-track__leave-q {
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.scn-track__leave-row {
+  display: flex;
+  gap: var(--sp-8);
+}
+.scn-track__leave-row > * { flex: 1; }

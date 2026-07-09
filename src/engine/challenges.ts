@@ -161,6 +161,30 @@ export function scoreMetricLabel(metric: ScenarioMetric): string {
   return SCORE_METRIC_LABEL[metric];
 }
 
+/** A punchy, immersive re-engagement teaser for a challenge — the copy the daily reminder pushes and
+ *  the onboarding opt-in previews. Weaves in the REAL twist + goal, and the variant is date-seeded so
+ *  the scheduled 7-day window reads as a different hand-picked hook each day instead of the same line
+ *  on repeat (the flaw in the old "a fresh seeded run, beat your best" text). Pure + deterministic. */
+export function challengeTeaser(challenge: Challenge): { title: string; body: string } {
+  const twist = challenge.mutators.map((m) => m.name).join(" + ");
+  const desc = challenge.mutators[0]?.description ?? "A fresh set of constraints to master.";
+  const metric = scoreMetricLabel(challenge.scoreMetric);
+  const week = challenge.scoreWeek;
+  const kindWord = challenge.kind === "weekly" ? "week's" : "day's";
+  const variants: { title: string; body: string }[] = [
+    { title: "Today's brief just dropped", body: `${twist}: ${desc} Chase the most ${metric} by week ${week}.` },
+    { title: "Fresh seed. One run.", body: `This ${kindWord} twist — ${twist}. ${desc} Can you beat your best?` },
+    { title: "The market reset overnight", body: `A new company, a new shot: ${twist}. Race for the ${metric} crown.` },
+    { title: "Your rivals are already shipping", body: `${twist}: ${desc} Out-build them before week ${week}.` },
+    { title: `${week} weeks. One empire.`, body: `${twist}. ${desc} Take it to the top of the ${metric} board.` },
+    { title: "New founder, new fortune", body: `Start condition: ${twist}. ${desc}` },
+    { title: "The clock starts now", body: `${twist} — highest ${metric} by week ${week} wins. Beat yesterday's you.` },
+    { title: "Boot up today's challenge", body: `${twist}: ${desc} A fresh seeded run, yours to master.` },
+  ];
+  const idx = hashSeed(`teaser:${challenge.kind}:${challenge.dateKey}`) % variants.length;
+  return variants[idx];
+}
+
 /** Format a score for display, by metric (money → $; fans → compact; else integer). Pure. */
 export function formatScore(metric: ScenarioMetric, value: number): string {
   const v = Math.round(value);

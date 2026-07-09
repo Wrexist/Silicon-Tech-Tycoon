@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Swords, Flame } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { DOCTRINE_LABEL } from "../engine/competitors.ts";
@@ -22,7 +22,7 @@ const DOCTRINE_TAGLINE: Record<string, string> = {
 };
 
 export function RivalryDeclared() {
-  const { state, paused, setPaused, dismissRivalry } = useGame();
+  const { state, dismissRivalry } = useGame();
   const rivalry = state.pendingRivalry ?? null;
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -33,22 +33,15 @@ export function RivalryDeclared() {
   const higherUp = revealUp || state.pendingStrike != null || state.pendingAwards != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
   const showing = rivalry !== null && !higherUp;
 
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
+  useHoldSim(showing);
+  const cued = useRef(false);
   useEffect(() => {
-    if (showing) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-        sfx("hit");
-        haptic.heavy();
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-    }
-  }, [showing, paused, setPaused]);
+    if (!showing) { cued.current = false; return; }
+    if (cued.current) return;
+    cued.current = true;
+    sfx("hit");
+    haptic.heavy();
+  }, [showing]);
   useEffect(() => {
     if (!showing) return;
     return registerAppOverlay();

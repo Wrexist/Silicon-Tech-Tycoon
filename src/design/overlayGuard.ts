@@ -1,4 +1,4 @@
-// Tracks how many top-level app overlays (the offline recap, era modal, IPO overlay) are open, so
+// Tracks how many top-level app overlays (era modal, IPO overlay, interrupt cards) are open, so
 // lower full-screen layers — chiefly Factory mode — can defer their global Escape handler to the
 // frontmost overlay. Without this, both listen on `window` and a single Escape dismisses the overlay
 // AND falls through to close Factory mode underneath it.

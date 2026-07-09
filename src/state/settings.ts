@@ -20,10 +20,13 @@ export interface Settings {
   factoryTutorialSeen: boolean;
   /** Opt-in daily-challenge reminder (native local notification, 10:00 local). Off by default. */
   dailyReminder: boolean;
+  /** Whether the one-time "enable reminders?" opt-in has been shown at game start (native only), so
+   *  it asks exactly once. Independent of `dailyReminder` (declining still counts as prompted). */
+  notifPrompted: boolean;
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false };
 
 function read(): Settings {
   try {

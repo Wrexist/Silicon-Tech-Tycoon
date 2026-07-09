@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CalendarDays, CalendarRange, Trophy, Share2 } from "lucide-react";
 import { Button, Card, Sheet } from "../design/primitives.tsx";
 import { ResultCard } from "./ResultCard.tsx";
+import { ReturnHomeSection } from "./ReturnHomeSection.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { challengeViewFor } from "../state/gameState.ts";
 import { formatScore, scoreMetricLabel } from "../engine/challenges.ts";
@@ -56,6 +57,12 @@ export function ChallengeTracker() {
           <Share2 size={15} /> View result card
         </Button>
       )}
+
+      {/* Your real company was stashed when this challenge began — leave any time to go back to it. */}
+      <ReturnHomeSection
+        confirmText="Leave this challenge and return to your company? Your best score is kept."
+        toastText="Back to your company — your challenge best is saved."
+      />
 
       <Sheet open={cardOpen} onClose={() => setCardOpen(false)} label="Daily challenge">
         <ResultCard state={state} result={null} />

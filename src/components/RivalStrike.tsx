@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Megaphone, Shield, Swords, TrendingDown } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { marketingPushQuote } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
@@ -18,7 +18,7 @@ import { sfx } from "../design/sound.ts";
 import "./rivalStrike.css";
 
 export function RivalStrike() {
-  const { state, paused, setPaused, resolveStrike } = useGame();
+  const { state, resolveStrike } = useGame();
   const strike = state.pendingStrike ?? null;
   const dialogRef = useRef<HTMLDivElement>(null);
   // Serialize the full-screen interrupts so only one owns the screen (pause + Escape) at a time.
@@ -29,25 +29,18 @@ export function RivalStrike() {
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
 
-  // Pause while the card is up (same contract as ReadyToLaunch): the attack shouldn't keep
-  // eroding the curve while the player weighs the answer. Restore their prior run state after.
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
+  // Hold the sim while the card is up (same contract as ReadyToLaunch): the attack shouldn't keep
+  // eroding the curve while the player weighs the answer. Cue once when it appears.
   const showing = strike !== null && !readyUp && !revealUp;
+  useHoldSim(showing);
+  const cued = useRef(false);
   useEffect(() => {
-    if (showing) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-        haptic.warning?.();
-        sfx("confirm");
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-    }
-  }, [showing, paused, setPaused]);
+    if (!showing) { cued.current = false; return; }
+    if (cued.current) return;
+    cued.current = true;
+    haptic.warning?.();
+    sfx("confirm");
+  }, [showing]);
   useEffect(() => {
     if (!showing) return;
     return registerAppOverlay();

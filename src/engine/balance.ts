@@ -1082,12 +1082,6 @@ export const BALANCE = {
     defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
   },
 
-  // --- Offline catch-up ---
-  offline: {
-    maxCatchUpWeeks: 8, // cap how much offline time is simulated
-    rate: 0.5, // at reduced effectiveness
-  },
-
   // --- Creative / Sandbox mode: design without limits ---
   // Both are TOP-UP floors (never lower what you've legitimately earned). The cash floor is set high
   // enough that any purchase — acquisitions, mega production runs, founding the OS — is trivially

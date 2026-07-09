@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Star, Share2 } from "lucide-react";
 import { Button, Card, Sheet } from "../design/primitives.tsx";
 import { ResultCard } from "./ResultCard.tsx";
+import { ReturnHomeSection } from "./ReturnHomeSection.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { scenarioResultFor } from "../state/gameState.ts";
 import { scenarioById, canEarnStars, type ScenarioMetric, type ScenarioTier } from "../engine/scenarios.ts";
@@ -105,6 +106,12 @@ export function ScenarioTracker() {
           <Share2 size={15} /> View result card
         </Button>
       )}
+
+      {/* Your real company was stashed when this scenario began — leave any time to go back to it. */}
+      <ReturnHomeSection
+        confirmText="Leave this scenario and return to your company? Your progress here is saved."
+        toastText="Back to your company — scenario progress is saved."
+      />
 
       <Sheet open={cardOpen} onClose={() => setCardOpen(false)} label="Scenario">
         <ResultCard state={state} result={res} />

@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Globe, Landmark, Swords, TrendingUp } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { REGIONAL_EVENT_COPY } from "../engine/regionalEvents.ts";
@@ -18,7 +18,7 @@ import "./regionalEvent.css";
 const ICON = { TrendingUp, Landmark, Swords } as const;
 
 export function RegionalEvent() {
-  const { state, paused, setPaused, resolveRegionalEvent } = useGame();
+  const { state, resolveRegionalEvent } = useGame();
   const event = state.pendingRegionalEvent ?? null;
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -31,22 +31,15 @@ export function RegionalEvent() {
     state.pendingStaffMoment != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
   const showing = event !== null && !higherUp;
 
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
+  useHoldSim(showing);
+  const cued = useRef(false);
   useEffect(() => {
-    if (showing) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-        sfx("toggle");
-        haptic.medium?.();
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-    }
-  }, [showing, paused, setPaused]);
+    if (!showing) { cued.current = false; return; }
+    if (cued.current) return;
+    cued.current = true;
+    sfx("toggle");
+    haptic.medium?.();
+  }, [showing]);
   useEffect(() => {
     if (!showing) return;
     return registerAppOverlay();

@@ -78,7 +78,6 @@ import {
   repayLoan,
   boostMorale,
   type MoraleKind,
-  catchUpOffline,
   clearCandidates,
   duplicateFurniture,
   fireStaff,
@@ -144,7 +143,7 @@ import type { StrikeResponse } from "./gameState.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
-import { clearSave, exportSaveString, importSaveString, importProfileFromString, loadResult, save } from "./persistence.ts";
+import { clearSave, exportSaveString, importSaveString, importProfileFromString, loadResult, save, stashHomeSave, readHomeSave, hasHomeSave, clearHomeSave } from "./persistence.ts";
 import { withValidatedSandbox } from "./entitlements.ts";
 import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
@@ -158,25 +157,6 @@ import { sfx } from "../design/sound.ts";
 import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
 import { createElement } from "react";
-
-export interface OfflineSummary {
-  weeks: number;
-  gain: Money;
-  /** The product that sold the most units while the player was away — a recap highlight. */
-  topProduct: { name: string; units: number } | null;
-}
-
-/** The product whose unit sales grew the most across the offline window. Pure diff of the
- *  pre/post catch-up states; null if nothing sold while away. */
-function topSellerWhileAway(before: GameState, after: GameState): { name: string; units: number } | null {
-  const prev = new Map(before.launched.map((lp) => [lp.product.id, lp.unitsSold]));
-  let best: { name: string; units: number } | null = null;
-  for (const lp of after.launched) {
-    const delta = lp.unitsSold - (prev.get(lp.product.id) ?? 0);
-    if (delta > 0 && (!best || delta > best.units)) best = { name: lp.product.name, units: delta };
-  }
-  return best;
-}
 
 function fmtMilestone(d: number): string {
   if (d >= 1_000_000_000) return `$${(d / 1_000_000_000).toFixed(1)}B`;
@@ -325,9 +305,9 @@ function announceObjectives(completed: readonly string[]): void {
  * milestones unlocked AND fires one celebratory toast per new unlock. Only ever called from live
  * actions with a PRECOMPUTED state value — never from inside a setState updater (React invokes
  * updaters more than once under StrictMode, which would double-fire the toasts; the tick gates
- * its announcements per week instead) — and never the boot or offline-catch-up paths, which fold
- * unlocks in SILENTLY (evaluateAndUnlock without toasts) so a returning/away player is never
- * spammed with a backlog of celebrations.
+ * its announcements per week instead) — and never the boot path, which merges the loaded run's
+ * unlocks into the profile SILENTLY so a returning player is never spammed with a backlog of
+ * celebrations.
  */
 /** Cross-run mastery counts for the achievement evaluator, read from the profile stores (which the
  *  pure engine can't reach). Cheap — a couple of small JSON reads; called only on the once-per-week
@@ -407,9 +387,14 @@ interface GameStateValue {
   paused: boolean;
   fast: boolean;
   skipping: boolean;
-  offline: OfflineSummary | null;
   /** True when ANOTHER tab/window took over this save — this tab is frozen (no tick, no saves). */
   tabBlocked: boolean;
+  /** True while ≥1 interrupt overlay is holding the sim (ref-counted, separate from the user's
+   *  manual `paused`). The tick gates on this so the world never runs on behind a decision modal. */
+  suspended: boolean;
+  /** True while a challenge/scenario is running and the player's freeform company is stashed and
+   *  restorable — drives the run trackers' "return to your company" affordance. */
+  homeSaved: boolean;
 }
 
 /** The ACTIONS slice — every callback. All entries are ref-stable for the life of the provider, so
@@ -419,7 +404,12 @@ interface GameActionsValue {
   setPaused: (p: boolean) => void;
   setFast: (f: boolean) => void;
   setSkipping: (v: boolean) => void;
-  clearOffline: () => void;
+  /** Ref-counted sim hold used by interrupt overlays (via useHoldSim). Each mounted overlay pushes
+   *  once and pops on hide/unmount; the sim is suspended while the count is > 0. Kept separate from
+   *  the user's `paused` so overlapping overlays can't corrupt a captured pause state (the old
+   *  per-modal wasPaused pattern could strand the sim paused when two overlays handed off). */
+  pushSuspend: () => void;
+  popSuspend: () => void;
   /** Reload this tab so it boots from the freshest save and claims play back. */
   takeOverHere: () => void;
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
@@ -465,9 +455,12 @@ interface GameActionsValue {
   restart: () => void;
   /** Begin a scenario run (overwrites the current save with the scenario's authored start). */
   startScenario: (id: string) => void;
-  /** Begin a daily/weekly challenge (overwrites the current save). Defaults to today; pass a
-   *  dateKey to play a specific (e.g. shared-by-code or historical) challenge. */
+  /** Begin a daily/weekly challenge (stashing the freeform company first, so returnHome can restore
+   *  it). Defaults to today; pass a dateKey to play a specific (e.g. shared-by-code) challenge. */
   startChallenge: (kind: ChallengeKind, dateKey?: string) => void;
+  /** Leave the active challenge/scenario and restore the stashed freeform company. Returns true if a
+   *  company was restored, false if there was nothing stashed. */
+  returnHome: () => boolean;
   markOnboarded: () => void;
   dismissTutorial: () => void;
   // save export / import (offline backup)
@@ -538,62 +531,55 @@ type GameContextValue = GameStateValue & GameActionsValue;
 const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  // F1 — perform offline catch-up EXACTLY ONCE, here in the lazy initializer, and capture the
-  // {state, weeks, gain} from that single run. The old code ALSO re-ran load()+catchUpOffline in a
-  // mount effect against the still-stale on-disk lastActive, so offline gains applied twice (x4
-  // under StrictMode), corrupting cash + determinism. We compute the summary here and save()
-  // immediately so lastActive persists and can never be re-applied by a later load.
+  // Load the save as-is. Time does NOT advance while the app is closed — the sim only runs on the
+  // weekly tick below — so there is no offline catch-up: a returning player picks up exactly where
+  // they stopped, with no fast-forwarded weeks and no "while you were away" recap.
   const boot = useMemo(() => {
     const res = loadResult();
     if (res.status !== "ok") {
       // ABSENT or UNREADABLE → start fresh. On UNREADABLE the raw save was already copied to a
       // backup key inside loadResult(), so the player's data is preserved, not destroyed.
-      return { state: newGame(undefined, getLegacy()), offline: null as OfflineSummary | null };
+      return newGame(undefined, getLegacy());
     }
     // Honor sandboxUnlocked only when the device actually owns the IAP — an imported or older
     // localStorage save could otherwise unlock the unlimited-cash floor for free.
     const loaded = withValidatedSandbox(res.state);
     // F4 — seed the feed-id counter above restored ids BEFORE any new feed item is generated.
     seedFeedSeq(loaded);
-    // The company doesn't exist until the player founds it: a save written at the onboarding
-    // name screen must not accrue offline weeks (rent/trends would erode an unstarted game).
-    if (!loaded.onboarded || loaded.bankrupt) return { state: loaded, offline: null as OfflineSummary | null };
-    const fansBefore = loaded.fans;
-    const { state: caught, weeks, gain } = catchUpOffline(loaded);
-    // F7 — don't punish a player for being away: pure weekly fan decay over the offline window
-    // (up to 8 weeks of erosion they couldn't react to) is floored at the pre-catchup value.
-    // Online weekly decay in advanceOneWeek is untouched.
-    const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
-    // Fold in any achievements earned while away SILENTLY (no toast backlog on return). migrate()
-    // already backfilled the on-disk earned set; this catches milestones crossed during catch-up.
-    // Record a challenge whose scoreWeek was crossed while away FIRST (silently), so readMasteryInput
-    // below counts it — otherwise challenges-10 would lag a cycle behind the completion.
-    const scored = withScenarioRunStars(withChallengeScore(floored));
-    syncChallengeBest(floored, scored, false);
-    const withAch = evaluateAndUnlock(scored, readMasteryInput()).state;
-    // Latch any objectives completed while away SILENTLY too, so the first live tick doesn't fire a
-    // backlog of "goal complete" toasts on return.
-    const withProgress = evaluateObjectives(withAch).state;
-    mergeProfileAchievements(withProgress.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
-    // Persist immediately so lastActive advances on disk (prevents any re-application of gains).
-    save({ ...withProgress, lastActive: Date.now() });
-    const topProduct = weeks > 0 ? topSellerWhileAway(loaded, withProgress) : null;
-    return { state: withProgress, offline: weeks > 0 ? { weeks, gain, topProduct } : null };
+    // Capture the loaded run's earned achievements into the cross-run profile store — this handles
+    // saves written before the profile-achievements system existed (independent of any catch-up).
+    mergeProfileAchievements(loaded.unlockedAchievements);
+    return loaded;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [state, setState] = useState<GameState>(boot.state);
+  const [state, setState] = useState<GameState>(boot);
   const [paused, setPaused] = useState(false);
-  // Mirror `paused` into a ref so the visibility handler (bound once, [] deps) can read the live
-  // value — a background→foreground resume must NOT catch up wall-clock time while explicitly paused.
-  const pausedRef = useRef(paused);
-  pausedRef.current = paused;
   const [fast, setFast] = useState(false);
   // "Skip to next decision" — run at Fast speed until a week produces something that needs the
   // player's input (skipInterrupt), then auto-pause with a one-line reason. Decision-paced time.
   const [skipping, setSkipping] = useState(false);
-  const [offline, setOffline] = useState<OfflineSummary | null>(boot.offline);
   const [tabBlocked, setTabBlocked] = useState(false);
+  // True while the player's freeform company is stashed because a challenge/scenario is running in the
+  // main slot — drives the "return to your company" affordance in the run trackers. Seeded from disk so
+  // it survives a reload mid-challenge (the stash is a separate key from the autosaved challenge run).
+  const [homeSaved, setHomeSaved] = useState<boolean>(() => hasHomeSave());
+  // Ref-counted sim hold for interrupt overlays. Each visible overlay pushes once (via useHoldSim)
+  // and pops on hide/unmount; the sim is suspended while the count is > 0. This REPLACES the old
+  // pattern where every modal imperatively toggled the shared `paused` flag and tried to restore a
+  // captured `wasPaused` — two overlays handing off (e.g. a finished build's Ready-to-launch popup
+  // overlapping a quarterly earnings call) could capture each other's forced-true value and strand
+  // the sim paused with no visible modal. Counting is monotonic and per-overlay, so it can't corrupt.
+  const suspendCount = useRef(0);
+  const [suspended, setSuspended] = useState(false);
+  const pushSuspend = useCallback(() => {
+    suspendCount.current += 1;
+    setSuspended(suspendCount.current > 0);
+  }, []);
+  const popSuspend = useCallback(() => {
+    suspendCount.current = Math.max(0, suspendCount.current - 1);
+    setSuspended(suspendCount.current > 0);
+  }, []);
   const stateRef = useRef(state);
   stateRef.current = state;
   // Save paths are mount-once effects; they read the live blocked flag through a ref.
@@ -604,16 +590,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // entirely while JS is suspended (iOS). WKWebView fires visibilitychange on iOS background, so
   // this one path covers web + the Capacitor app.
   const [hidden, setHidden] = useState(false);
-  // The wall-clock we last stamped onto the save — the basis for resume catch-up (a hide always
-  // persists first, so this is the moment the sim effectively stopped).
-  const lastActiveRef = useRef(Date.now());
   // The exact state object last written, so the periodic safety-net save can skip when nothing
   // changed (advanceOneWeek + every action return a NEW object, so reference identity = "dirty").
-  const lastSavedRef = useRef<GameState>(boot.state);
-  const hiddenAtRef = useRef(0);
-
-  // F1 — offline catch-up already ran exactly once in the initializer above; do NOT re-run it in
-  // a mount effect (that re-applied gains against the stale on-disk lastActive, x4 under StrictMode).
+  const lastSavedRef = useRef<GameState>(boot);
 
   // Multi-tab single-writer guard: when another tab claims this save, freeze this one — the tick
   // stops below and EVERY save path checks tabBlockedRef, so a stale context can never clobber
@@ -641,7 +620,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // week — state changes (including achievement unlocks) still apply on every invocation.
   const announcedWeekRef = useRef(-1);
   useEffect(() => {
-    if (paused || hidden || state.bankrupt || tabBlocked || !state.onboarded) return;
+    if (paused || suspended || hidden || state.bankrupt || tabBlocked || !state.onboarded) return;
     const ms = (BALANCE.secondsPerTick / (fast || skipping ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
       setState((s) => {
@@ -691,17 +670,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
       });
     }, ms);
     return () => clearInterval(id);
-  }, [paused, hidden, fast, skipping, state.bankrupt, tabBlocked, state.onboarded]);
+  }, [paused, suspended, hidden, fast, skipping, state.bankrupt, tabBlocked, state.onboarded]);
 
-  // One write path for every persistence trigger below: skip while another tab owns the save,
-  // and always stamp lastActive so offline catch-up measures time since the last write. The old
-  // three inlined copies of this had already drifted once (the double-offline bug).
+  // One write path for every persistence trigger below: skip while another tab owns the save. The
+  // old three inlined copies of this had already drifted once (the double-offline bug). `lastActive`
+  // is stamped as a "last saved at" timestamp; nothing reads it anymore (offline catch-up is gone).
   const persistNow = useCallback(() => {
     if (tabBlockedRef.current) return;
     const snap = stateRef.current;
-    const stamped = Date.now();
-    save({ ...snap, lastActive: stamped });
-    lastActiveRef.current = stamped;
+    save({ ...snap, lastActive: Date.now() });
     lastSavedRef.current = snap;
   }, []);
 
@@ -723,56 +700,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [persistNow]);
 
-  // Reconcile elapsed real-time into the sim when returning to the foreground (warm-resume offline
-  // catch-up). Mirrors the cold-boot path: catch up from the lastActive we stamped on hide, so a
-  // long background gap is simulated exactly once here (the tick was paused while hidden) instead
-  // of silently vanishing. Surfaces the "while you were away" sheet only for a real absence.
-  const resumeFromBackground = useCallback(() => {
-    if (tabBlockedRef.current) return;
-    if (pausedRef.current) {
-      // Explicitly paused → time is stopped. Discard the background gap (in memory AND on disk) so
-      // neither this warm resume nor a later cold boot fast-forwards the paused-and-away period.
-      const now = Date.now();
-      lastActiveRef.current = now;
-      const anchored = { ...stateRef.current, lastActive: now };
-      save(anchored);
-      lastSavedRef.current = anchored;
-      return;
-    }
-    const base: GameState = { ...stateRef.current, lastActive: lastActiveRef.current };
-    if (!base.onboarded || base.bankrupt) return;
-    const fansBefore = base.fans;
-    const { state: caught, weeks, gain } = catchUpOffline(base);
-    if (weeks <= 0) return;
-    // F7 — don't punish time away: floor fans at the pre-catchup value (online decay is untouched).
-    const floored: GameState = { ...caught, fans: Math.max(caught.fans, fansBefore) };
-    // Lock + record a challenge that finished while away BEFORE reading mastery input (so it counts).
-    const scored = withScenarioRunStars(withChallengeScore(floored));
-    syncChallengeBest(floored, scored, false);
-    const withAch = evaluateAndUnlock(scored, readMasteryInput()).state;
-    const withProgress = evaluateObjectives(withAch).state; // latch away-completed objectives silently
-    mergeProfileAchievements(withProgress.unlockedAchievements); // capture the loaded run's full set (+ pre-profile saves)
-    const stamped = Date.now();
-    setState(withProgress);
-    save({ ...withProgress, lastActive: stamped });
-    lastActiveRef.current = stamped;
-    lastSavedRef.current = withProgress;
-    // Only interrupt with the recap sheet after a genuine absence — not a quick tab glance.
-    if (Date.now() - hiddenAtRef.current >= 60_000) {
-      setOffline({ weeks, gain, topProduct: topSellerWhileAway(base, withAch) });
-    }
-  }, []);
-
-  // Pause the sim on hide (persisting lastActive first) and reconcile on show; also persist on exit.
+  // Pause the sim on hide (persisting first) and simply resume it on show. Time does NOT advance while
+  // the app is backgrounded and is NOT caught up on return — the player picks up exactly where they
+  // left off. (The tick's `hidden` gate stops the sim; foregrounding clears it and the tick restarts.)
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === "hidden") {
-        hiddenAtRef.current = Date.now();
         persistNow();
         setHidden(true);
       } else {
         setHidden(false);
-        resumeFromBackground();
       }
     };
     document.addEventListener("visibilitychange", onVis);
@@ -781,7 +718,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pagehide", persistNow);
     };
-  }, [persistNow, resumeFromBackground]);
+  }, [persistNow]);
 
   const build = useCallback((product: Product, plannedUnits?: number, channelId?: ChannelId) => {
     const result = startBuild(stateRef.current, product, plannedUnits, channelId);
@@ -1122,7 +1059,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // New Game+ players already know the ropes — skip onboarding + the first-build coach. The
     // lifetime "seen dilemmas" set carries across so the new run surfaces fresh decisions first.
     setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices });
-    setOffline(null);
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
     setSkipping(false);
@@ -1142,7 +1078,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Validate + apply an imported backup. Returns false (and changes nothing) on a bad string, so
   // the caller can surface a clear error. On success we set the migrated state immutably, stamp
-  // lastActive (so offline catch-up doesn't fire on a fresh paste), and persist immediately.
+  // lastActive as the save time, and persist immediately.
   const importSave = useCallback((str: string) => {
     const migrated = importSaveString(str);
     if (!migrated) return false;
@@ -1159,7 +1095,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     seedFeedSeq(next); // keep feed-id counter above the imported ids
     save(next);
     setState(next);
-    setOffline(null);
     setPaused(false);
     setFast(false);
     setSkipping(false);
@@ -1410,14 +1345,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const repayLoanCb = useCallback((id: string) => spendThrough(repayLoan(stateRef.current, id)), [spendThrough]);
   const boostMoraleCb = useCallback((kind: MoraleKind) => spendThrough(boostMorale(stateRef.current, kind)), [spendThrough]);
 
+  // Before a challenge/scenario takes over the main save slot, stash the player's real freeform
+  // company so it survives and can be restored with returnHome(). Only stashes a FREEFORM run (never
+  // a challenge/scenario) so starting a second side-run from within one can't clobber the real
+  // company that's already held. No-op (and leaves any existing stash intact) otherwise.
+  const stashHomeIfFreeform = useCallback(() => {
+    const cur = stateRef.current;
+    if (cur.onboarded && !cur.activeChallenge && !cur.activeScenario) {
+      stashHomeSave(cur);
+      setHomeSaved(true);
+    }
+  }, []);
+
   const restart = useCallback(() => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good
     clearSave();
+    // A deliberate fresh start abandons any held side-trip context too, so a new company never shows a
+    // stale "return to your company" pointing at a company the player chose to leave behind.
+    clearHomeSave();
+    setHomeSaved(false);
     // Platform is an entitlement, not run progress, so it stays across a fresh company. The lifetime
     // "seen dilemmas" set carries across too (as it does in prestige), so a restart surfaces fresh
     // decisions first instead of re-asking ones the player already resolved.
     setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices });
-    setOffline(null);
     setPaused(false);
     setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
     setSkipping(false);
@@ -1425,30 +1375,48 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Scenarios are a level playing field: they deliberately do NOT inherit the prestige legacy bonus
   // (that would break each scenario's hand-authored start, e.g. Bootstrapped's tight cash). The
-  // start values come entirely from the scenario's setup.
+  // start values come entirely from the scenario's setup. The freeform company is stashed first so
+  // it's preserved (returnHome restores it) instead of destroyed.
   const startScenario = useCallback((id: string) => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // keep this run's milestones
+    stashHomeIfFreeform();
     clearSave();
     setState({ ...newScenarioGame(id), platformUnlocked: stateRef.current.platformUnlocked });
-    setOffline(null);
     setPaused(false);
     setFast(false);
     setSkipping(false);
-  }, []);
+  }, [stashHomeIfFreeform]);
 
-  // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this
-  // overwrites the current save; the per-date personal best lives in the profile store.
+  // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this takes
+  // over the main slot — but the freeform company is stashed first (returnHome restores it), so a
+  // challenge is a side trip you can leave, not a company-wipe. The per-date best lives in the profile.
   const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string) => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // keep this run's milestones
+    stashHomeIfFreeform();
     clearSave();
     setState({ ...newChallengeGame(kind, dateKey ?? dateKeyOf(new Date())), platformUnlocked: stateRef.current.platformUnlocked });
-    setOffline(null);
     setPaused(false);
     setFast(false);
     setSkipping(false);
-  }, []);
+  }, [stashHomeIfFreeform]);
 
-  const clearOffline = useCallback(() => setOffline(null), []);
+  // Leave the current challenge/scenario and restore the stashed freeform company to the main slot.
+  // The held company resumes exactly where it was parked — time does NOT advance for the weeks spent
+  // in the side run (lastActive is re-anchored to now, like a paused-then-resumed session), so a
+  // challenge can never bankrupt or age the real company. No-op if nothing is stashed.
+  const returnHome = useCallback(() => {
+    const home = readHomeSave();
+    if (!home) return false;
+    clearHomeSave();
+    setHomeSaved(false);
+    const restored: GameState = { ...home, lastActive: Date.now() };
+    save(restored); // reclaim the main slot from the challenge run
+    setState(restored);
+    setPaused(false);
+    setFast(false);
+    setSkipping(false);
+    return true;
+  }, []);
 
   // All callbacks below are ref-stable (useCallback []/setState setters), so this object is built
   // once and keeps a stable identity. Co-locating the action list here replaces the old 60-entry
@@ -1461,7 +1429,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setPaused,
       setFast,
       setSkipping,
-      clearOffline,
+      pushSuspend,
+      popSuspend,
       takeOverHere,
       build,
       launchReady: launchReadyCb,
@@ -1505,6 +1474,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       restart,
       startScenario,
       startChallenge,
+      returnHome,
       markOnboarded,
       dismissTutorial,
       exportSave,
@@ -1565,14 +1535,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [clearOffline, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer
   // duplicated here, so it can't drift out of sync again.
   const value = useMemo<GameContextValue>(
-    () => ({ state, paused, fast, skipping, offline, tabBlocked, ...actions }),
-    [state, paused, fast, skipping, offline, tabBlocked, actions],
+    () => ({ state, paused, fast, skipping, tabBlocked, suspended, homeSaved, ...actions }),
+    [state, paused, fast, skipping, tabBlocked, suspended, homeSaved, actions],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
@@ -1582,4 +1552,19 @@ export function useGame(): GameContextValue {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error("useGame must be used within GameProvider");
   return ctx;
+}
+
+/** Hold the simulation while an interrupt overlay is on screen. Pass the overlay's own `showing`
+ *  flag: the sim is suspended (the weekly tick stops) while ANY caller holds it, and resumes only
+ *  once every overlay has let go. This is the ONE way overlays should pause the world — it is
+ *  ref-counted and per-overlay, so overlapping overlays stack cleanly and can never strand the sim
+ *  paused (the failure mode of the old capture-and-restore-`paused` pattern). The user's manual
+ *  Pause is a separate flag and is left untouched. */
+export function useHoldSim(active: boolean): void {
+  const { pushSuspend, popSuspend } = useGame();
+  useEffect(() => {
+    if (!active) return;
+    pushSuspend();
+    return popSuspend;
+  }, [active, pushSuspend, popSuspend]);
 }

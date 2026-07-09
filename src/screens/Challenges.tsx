@@ -1,6 +1,7 @@
 // Daily / weekly challenges picker — today's seeded challenges, your best, history, and shareable
-// codes. Reuses the scenarios card visual language (scenarios.css). Starting a challenge replaces
-// the current company, so it confirms first.
+// codes. Reuses the scenarios card visual language (scenarios.css). Starting a challenge parks the
+// player's freeform company (stashed, restorable via the tracker's "return to your company"), so it
+// confirms first but never destroys the company.
 import { useState } from "react";
 import { CalendarDays, CalendarRange, Target, Trophy, Share2 } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
@@ -165,10 +166,17 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
           onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setConfirm(null); } }}>
           <div className="scn__confirm-card" onClick={(e) => e.stopPropagation()}>
             <p className="scn__confirm-title">Start this {confirm.kind} challenge?</p>
-            <p className="scn__confirm-text">
-              This replaces <strong>{state.companyName}</strong> (Wk {state.week} · {format(netWorth(state))} net worth).
-              Your best scores and museum are kept.
-            </p>
+            {state.activeChallenge || state.activeScenario ? (
+              <p className="scn__confirm-text">
+                This starts a fresh {confirm.kind} run in place of the current one. Your parked company is untouched — you'll
+                still return to it. Best scores and museum are kept.
+              </p>
+            ) : (
+              <p className="scn__confirm-text">
+                <strong>{state.companyName}</strong> (Wk {state.week} · {format(netWorth(state))} net worth) is kept safe — return
+                to it any time from the challenge tracker. Your best scores and museum are kept.
+              </p>
+            )}
             <div className="scn__confirm-row">
               <Button variant="secondary" autoFocus onClick={() => setConfirm(null)}>Cancel</Button>
               <Button haptics="none" onClick={() => begin(confirm)}>Start</Button>

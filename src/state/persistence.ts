@@ -143,6 +143,65 @@ export function clearSave(): void {
   mirrorToNative(KEY, null);
 }
 
+/* ---------- Home save (challenge/scenario holdout) ----------
+ * A challenge or scenario run is a SIDE trip, not a replacement. Before one starts, the player's real
+ * freeform company is stashed here so it survives (the main KEY is then overwritten with the challenge
+ * run) and can be restored with a one-tap "return home" — without needing a manual export. This is a
+ * separate slot, so the autosave writing the challenge run onto KEY never touches it. */
+const HOME_KEY = `${KEY}.home`; // = "silicon.save.v1.home"
+
+/** Stash the freeform company so a challenge/scenario can take over the main slot without losing it. */
+export function stashHomeSave(state: GameState): void {
+  try {
+    const json = JSON.stringify(state);
+    localStorage.setItem(HOME_KEY, json);
+    mirrorToNative(HOME_KEY, json);
+  } catch (e) {
+    // Quota-safe: a trimmed copy still lets the player return home (history/feed are non-essential).
+    if (!isQuotaError(e)) return;
+    try {
+      const json = JSON.stringify(trimState(state));
+      localStorage.setItem(HOME_KEY, json);
+      mirrorToNative(HOME_KEY, json);
+    } catch { /* best effort — if even the trim won't fit, return-home is unavailable */ }
+  }
+}
+
+/** The stashed freeform company, migrated, or null if there's none / it can't be read. */
+export function readHomeSave(): GameState | null {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(HOME_KEY);
+  } catch {
+    return null;
+  }
+  if (raw === null) return null;
+  try {
+    return migrate(JSON.parse(raw) as GameState);
+  } catch {
+    return null;
+  }
+}
+
+/** Is there a stashed freeform company to return to? (Drives the "return home" affordance.) */
+export function hasHomeSave(): boolean {
+  try {
+    return localStorage.getItem(HOME_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Drop the stashed company — after it's been restored to the main slot, or deliberately discarded. */
+export function clearHomeSave(): void {
+  try {
+    localStorage.removeItem(HOME_KEY);
+  } catch {
+    /* ignore */
+  }
+  mirrorToNative(HOME_KEY, null);
+}
+
 /* ---------- Save export / import (offline backup; no backend, no accounts) ---------- */
 
 // A short marker prepended to the base64 so a pasted string can be sanity-checked before decode,

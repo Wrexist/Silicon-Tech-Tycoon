@@ -1,7 +1,8 @@
 // Scenarios picker — hand-crafted challenges with tiered star goals (the retention backbone).
 // Premium card list mirroring the Achievements sheet's visual language: difficulty chip, the three
 // star tiers with their objectives, and the player's best stars per scenario (profile-level).
-// Starting a scenario replaces the current company, so it asks for confirmation first.
+// Starting a scenario parks the player's freeform company (stashed, restorable from the scenario
+// tracker's "return to your company"), so it asks for confirmation first but never destroys it.
 import { useState } from "react";
 import { Star, Target, Clock } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
@@ -121,10 +122,17 @@ export function ScenariosSheet({ onClose }: { onClose: () => void }) {
           onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setConfirmId(null); } }}>
           <div className="scn__confirm-card" onClick={(e) => e.stopPropagation()}>
             <p className="scn__confirm-title">Start “{confirmScenario.name}”?</p>
-            <p className="scn__confirm-text">
-              This replaces <strong>{state.companyName}</strong> (Wk {state.week} · {format(netWorth(state))} net worth).
-              Scenario stars and your museum are kept.
-            </p>
+            {state.activeChallenge || state.activeScenario ? (
+              <p className="scn__confirm-text">
+                This starts a fresh scenario run in place of the current one. Your parked company is untouched — you'll still
+                return to it. Scenario stars and your museum are kept.
+              </p>
+            ) : (
+              <p className="scn__confirm-text">
+                <strong>{state.companyName}</strong> (Wk {state.week} · {format(netWorth(state))} net worth) is kept safe — return
+                to it any time from the scenario tracker. Scenario stars and your museum are kept.
+              </p>
+            )}
             <div className="scn__confirm-row">
               <Button variant="secondary" autoFocus onClick={() => setConfirmId(null)}>Cancel</Button>
               <Button haptics="none" onClick={() => begin(confirmScenario.id)}>Start</Button>

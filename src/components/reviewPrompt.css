@@ -1,0 +1,54 @@
+/* "Enjoying Silicon?" review moment — the shared liquid-glass interrupt style with a warm gold
+   (review-star) tint. Clear scrim; the card carries the frosted material; the edge rim comes from the
+   shared …__card::after rule in primitives.css. Tokens + 8pt grid only. */
+.rev {
+  position: fixed; inset: 0; z-index: 56;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.rev__scrim {
+  position: absolute; inset: 0; border: 0; padding: 0;
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+}
+.rev__card {
+  position: relative; z-index: 1; width: 100%; max-width: 400px; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-10);
+  padding: var(--sp-32) var(--sp-28) var(--sp-24);
+  border-radius: var(--r-sheet);
+  background: radial-gradient(130% 80% at 50% -12%, color-mix(in srgb, var(--warning) 18%, transparent), transparent 60%), var(--glass-modal);
+  border: 1px solid color-mix(in srgb, var(--warning) 26%, var(--glass-modal-edge));
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  box-shadow:
+    inset 0 1.5px 0 0 var(--glass-modal-rim),
+    0 24px 70px -24px rgba(0, 0, 0, 0.5),
+    0 0 48px -18px color-mix(in srgb, var(--warning) 45%, transparent);
+  text-align: center;
+  animation: rev-in var(--spring-gentle) both;
+}
+@keyframes rev-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .rev__card { animation: none; }
+  .rev__star { animation: none !important; }
+}
+
+.rev__stars {
+  display: inline-flex; gap: var(--sp-4); color: var(--warning);
+  filter: drop-shadow(0 4px 14px color-mix(in srgb, var(--warning) 45%, transparent));
+  margin-bottom: var(--sp-2);
+}
+.rev__star { display: inline-flex; animation: rev-star var(--spring-bounce) both; }
+@keyframes rev-star { from { opacity: 0; transform: scale(0.3) rotate(-20deg); } to { opacity: 1; transform: none; } }
+
+.rev__eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--warning); }
+.rev__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
+.rev__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-2) 0 var(--sp-8); max-width: 34ch; }
+
+.rev__actions { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); margin-top: var(--sp-4); }
+.rev__later {
+  min-height: 44px; padding: var(--sp-8); background: none; border: none; cursor: pointer;
+  color: var(--ink-2); font-size: var(--fs-caption); font-weight: 600;
+}
+.rev__later:hover { color: var(--ink); }

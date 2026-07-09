@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Heart, MessagesSquare, FlaskConical, Shirt, Users, BadgeDollarSign, Sparkles, type LucideIcon } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { ASK_INFO } from "../engine/community.ts";
@@ -21,7 +21,7 @@ import "./communityAsk.css";
 const ICONS: Record<string, LucideIcon> = { MessagesSquare, FlaskConical, Shirt, Users };
 
 export function CommunityAsk() {
-  const { state, paused, setPaused, resolveCommunityAsk } = useGame();
+  const { state, resolveCommunityAsk } = useGame();
   const ask = state.pendingCommunityAsk ?? null;
   const [answered, setAnswered] = useState<CommunityAskResult | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -36,22 +36,15 @@ export function CommunityAsk() {
   // The reveal must survive `ask` clearing the instant we answer, so `answered` holds the card up.
   const showing = (ask !== null || answered !== null) && !higherUp;
 
-  const pausedByUs = useRef(false);
-  const wasPaused = useRef(false);
+  useHoldSim(showing);
+  const cued = useRef(false);
   useEffect(() => {
-    if (showing) {
-      if (!pausedByUs.current) {
-        wasPaused.current = paused;
-        pausedByUs.current = true;
-        setPaused(true);
-        sfx("toggle");
-        haptic.medium?.();
-      }
-    } else if (pausedByUs.current) {
-      pausedByUs.current = false;
-      setPaused(wasPaused.current);
-    }
-  }, [showing, paused, setPaused]);
+    if (!showing) { cued.current = false; return; }
+    if (cued.current) return;
+    cued.current = true;
+    sfx("toggle");
+    haptic.medium?.();
+  }, [showing]);
   useEffect(() => {
     if (!showing) return;
     return registerAppOverlay();

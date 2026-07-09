@@ -2,11 +2,9 @@
 // vitest runs in the `node` env here (no jsdom), so we stub localStorage on globalThis.
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { dollars } from "../engine/money.ts";
-import { BALANCE } from "../engine/balance.ts";
 import { addItem, deskItems } from "../engine/furniture.ts";
 import {
   newGame,
-  catchUpOffline,
   advanceOneWeek,
   seedFeedSeq,
   launchReady,
@@ -37,7 +35,6 @@ class MemStorage {
 const SAVE_KEY = "silicon.save.v1";
 const BACKUP_KEY = `${SAVE_KEY}.bak`;
 const SAVE_VERSION = 1;
-const MS_PER_WEEK = BALANCE.secondsPerTick * 1000; // one sim "week" of real time
 
 let mem: MemStorage;
 
@@ -68,50 +65,9 @@ function goodPhone(): Product {
   };
 }
 
-describe("F1 — offline catch-up applies exactly once", () => {
-  it("advancing lastActive after one catch-up makes a second catch-up a no-op", () => {
-    const start = { ...newGame(1234), lastActive: Date.now() - 3 * MS_PER_WEEK };
-
-    const first = catchUpOffline(start);
-    expect(first.weeks).toBe(3);
-    const cashAfterOnce = first.state.cash;
-
-    // The initializer persists the caught-up state (lastActive advanced). A subsequent load of
-    // that SAME state must not re-apply any weeks.
-    const second = catchUpOffline(first.state);
-    expect(second.weeks).toBe(0);
-    expect(second.state.cash).toBe(cashAfterOnce);
-  });
-
-  it("the OLD double-apply (re-running against stale lastActive) would diverge — proving the bug", () => {
-    const start = { ...newGame(1234), lastActive: Date.now() - 2 * MS_PER_WEEK };
-    const once = catchUpOffline(start);
-    // The bug: the mount effect re-ran catch-up against the STALE on-disk lastActive (unchanged).
-    const staleRerun = catchUpOffline({ ...once.state, lastActive: start.lastActive });
-    expect(staleRerun.weeks).toBe(2); // extra weeks the fix prevents
-  });
-
-  it("is deterministic: same seed + same elapsed time → identical caught-up cash", () => {
-    const t = Date.now() - 4 * MS_PER_WEEK;
-    const a = catchUpOffline({ ...newGame(777), lastActive: t });
-    const b = catchUpOffline({ ...newGame(777), lastActive: t });
-    expect(a.weeks).toBe(b.weeks);
-    expect(a.state.cash).toBe(b.state.cash);
-  });
-});
-
-describe("F7 — offline fan floor: being away never erodes the fanbase", () => {
-  it("fans floored at their pre-catchup value (engine alone would decay them)", () => {
-    const start = { ...newGame(1234), fans: 1000, lastActive: Date.now() - BALANCE.offline.maxCatchUpWeeks * MS_PER_WEEK };
-    const fansBefore = start.fans;
-    const { state } = catchUpOffline(start);
-    // Engine applies pure weekly decay during catch-up...
-    expect(state.fans).toBeLessThan(fansBefore);
-    // ...but the initializer floors it (replicated here) so the player isn't punished.
-    const floored = Math.max(state.fans, fansBefore);
-    expect(floored).toBe(fansBefore);
-  });
-});
+// Offline catch-up was removed: the sim advances only while the app is open, so there is no
+// wall-clock catch-up on boot/resume and no "while you were away" recap. The former F1 (catch-up
+// applies exactly once) and F7 (offline fan floor) suites tested that removed mechanic and are gone.
 
 describe("F2 — unreadable / newer save is preserved, not destroyed", () => {
   it("absent save returns 'absent' and creates no backup", async () => {
