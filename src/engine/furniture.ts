@@ -56,6 +56,9 @@ export interface FurnitureDef {
   flat?: boolean; // rugs etc. sit on the floor (others can overlap them)
   cost: number; // price in dollars to buy + place in the office shop
   attrs?: FurnitureAttrs; // gameplay attributes (omitted = pure cosmetic)
+  /** Removed from the shop (not purchasable/searchable) but kept in the catalog so saves that
+   *  already own one keep rendering + selling it. Never delete a shipped id — retire it. */
+  retired?: boolean;
 }
 
 // cost = dollars to buy + place. attrs (comfort/focus/inspiration) buff the office (capped in
@@ -66,7 +69,6 @@ export const FURNITURE: FurnitureDef[] = [
   { id: "deskL", name: "L-Desk", category: "desks", icon: "Table2", w: 2, d: 2, cost: 2400, attrs: { focus: 3 } },
   { id: "standingDesk", name: "Standing Desk", category: "desks", icon: "Table", w: 2, d: 1, cost: 2000, attrs: { comfort: 1, focus: 3 } },
   { id: "dualDesk", name: "Dual Setup", category: "desks", icon: "Monitor", w: 2, d: 1, cost: 3500, attrs: { focus: 5 } },
-  { id: "reception", name: "Reception Desk", category: "desks", icon: "Building2", w: 3, d: 1, cost: 4000, attrs: { focus: 1, inspiration: 2 } },
   { id: "executiveDesk", name: "Executive Desk", category: "desks", icon: "Table2", w: 3, d: 2, cost: 8000, attrs: { focus: 4, inspiration: 3 } },
   // ---- Seating (comfort) ----
   { id: "chair", name: "Office Chair", category: "seating", icon: "Armchair", w: 1, d: 1, cost: 300, attrs: { comfort: 1 } },
@@ -103,6 +105,11 @@ export const FURNITURE: FurnitureDef[] = [
   { id: "bonsai", name: "Bonsai", category: "plants", icon: "Sprout", w: 1, d: 1, cost: 400, attrs: { comfort: 2, inspiration: 1 } },
   { id: "indoorTree", name: "Indoor Tree", category: "plants", icon: "TreePine", w: 2, d: 2, cost: 2000, attrs: { comfort: 6 } },
   // ---- Decor (inspiration) ----
+  // RETIRED + reclassified from "desks": the reception model is a bare counter with no computer,
+  // but as a desk staff were SEATED at it — a worker at an empty counter read as a bug. As decor it
+  // never seats anyone (and no longer counts as a hiring seat); retired hides it from the shop
+  // while existing owners keep rendering + selling theirs.
+  { id: "reception", name: "Reception Desk", category: "decor", icon: "Building2", w: 3, d: 1, cost: 4000, attrs: { focus: 1, inspiration: 2 }, retired: true },
   { id: "rug", name: "Rug", category: "decor", icon: "Square", w: 3, d: 2, flat: true, cost: 900, attrs: { comfort: 2 } },
   { id: "rugRound", name: "Round Rug", category: "decor", icon: "CircleDot", w: 2, d: 2, flat: true, cost: 700, attrs: { comfort: 2 } },
   { id: "tvStand", name: "TV & Stand", category: "decor", icon: "Tv", w: 2, d: 1, cost: 1500, attrs: { comfort: 3 } },
@@ -214,7 +221,7 @@ export function searchFurniture(query: string): FurnitureDef[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   return FURNITURE.filter(
-    (f) => f.name.toLowerCase().includes(q) || CATEGORY_LABEL[f.category].toLowerCase().includes(q),
+    (f) => !f.retired && (f.name.toLowerCase().includes(q) || CATEGORY_LABEL[f.category].toLowerCase().includes(q)),
   );
 }
 

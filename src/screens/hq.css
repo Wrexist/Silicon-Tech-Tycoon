@@ -387,6 +387,16 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  /* Stand apart from the furniture categories: this chip is a mode (paint the floor/walls), not
+     another shelf of items — accent-tinted at rest so it can't be scrolled past unnoticed. */
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.hqb__cat--room.hqb__cat--on {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: transparent;
 }
 .hqb__room {
   display: flex;

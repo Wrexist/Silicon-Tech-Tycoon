@@ -412,7 +412,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
 
   const selected = build ? state.layout.find((x) => x.iid === selectedIid) ?? null : null;
   const searching = search.trim().length > 0;
-  const visibleItems = searching ? searchFurniture(search) : FURNITURE.filter((f) => f.category === cat);
+  const visibleItems = searching ? searchFurniture(search) : FURNITURE.filter((f) => f.category === cat && !f.retired);
 
   // Always-current layout for the undo snapshot, so the memoized builder callbacks below don't
   // have to be rebuilt every render just to capture the latest layout reference.
@@ -624,8 +624,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
               </div>
               {!searching && (
                 <div className="hqb__cats">
+                  {/* "Paint", not "Room" — players looking to recolor the floor/walls scan for the
+                      word paint; "Room" read as just another furniture category and got missed. */}
                   <button className={`hqb__cat hqb__cat--room${roomTab ? " hqb__cat--on" : ""}`} onClick={() => { setRoomTab(true); setPlacingType(null); haptic.light(); }}>
-                    <PaintbrushVertical size={13} /> Room
+                    <PaintbrushVertical size={13} /> Paint
                   </button>
                   {CATEGORY_ORDER.map((c) => (
                     <button key={c} className={`hqb__cat${!roomTab && cat === c ? " hqb__cat--on" : ""}`} onClick={() => { setCat(c); setRoomTab(false); haptic.light(); }}>
