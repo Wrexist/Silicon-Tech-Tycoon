@@ -123,9 +123,13 @@ jobs:
         #
         # If the archive instead fails with "choose a certificate to revoke" / "no iOS
         # App Development provisioning profiles", that's the Apple account at its cert
-        # cap, not a workflow bug: revoke stale certs in the developer portal. (CI
-        # automatic signing mints a fresh dev cert per ephemeral runner; the durable
-        # fix is manual signing with an imported identity, not changing this identity.)
+        # cap, not a workflow bug: CI automatic signing mints a fresh dev cert per
+        # ephemeral runner and they pile up. Clear the stale ones and re-run — either in
+        # the developer portal, or in one command with the App Store Connect API key:
+        #   npm run certs:clean            # dry run: lists the stale DEVELOPMENT certs
+        #   npm run certs:clean -- --yes   # revoke them (keeps the newest; never Distribution)
+        # (see scripts/asc-revoke-dev-certs.mjs). The durable fix is manual signing with a
+        # single imported identity, not changing this identity.
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}

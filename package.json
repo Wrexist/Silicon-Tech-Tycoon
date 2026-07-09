@@ -13,6 +13,7 @@
     "typecheck": "tsc -b --noEmit",
     "furniture:fetch": "node scripts/fetch-furniture.mjs",
     "assets:icons": "node scripts/gen-icons.mjs",
+    "certs:clean": "node scripts/asc-revoke-dev-certs.mjs",
     "shots:stage": "esbuild scripts/stage-save.mjs --bundle --platform=node --format=cjs --outfile=scripts/.stage.cjs --log-level=error && node scripts/.stage.cjs",
     "shots:stage:showcase": "esbuild scripts/stage-showcase.mjs --bundle --platform=node --format=cjs --outfile=scripts/.stage-showcase.cjs --log-level=error && node scripts/.stage-showcase.cjs",
     "shots:features": "node scripts/shots-features.mjs",
