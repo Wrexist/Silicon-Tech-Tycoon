@@ -5,7 +5,12 @@
 import { dollars, type Money } from "./money.ts";
 import { FLOOR, machineCells, type FactoryFloor } from "./factoryFloor.ts";
 
-export type PropKind = "crates" | "barrel" | "pallet" | "plant" | "bench" | "rack" | "cone" | "sign";
+export type PropKind =
+  | "crates" | "barrel" | "pallet" | "plant" | "bench" | "rack" | "cone" | "sign"
+  // FACTORY-WORLD beauty pass — additive decor (save-safe: persistence.cleanProps keeps only
+  // kinds present in PROP_DEFS, so appending here can never break an older save).
+  | "hazardStripe" | "extinguisher" | "bollards" | "fan" | "workLight"
+  | "tote" | "compressor" | "toolWall" | "qcStation" | "gantry";
 
 export interface PropDef {
   kind: PropKind;
@@ -24,6 +29,17 @@ export const PROP_DEFS: Record<PropKind, PropDef> = {
   rack: { kind: "rack", name: "Shelving", cost: dollars(800) as Money, w: 2, d: 1 },
   cone: { kind: "cone", name: "Safety cone", cost: dollars(80) as Money, w: 1, d: 1 },
   sign: { kind: "sign", name: "Hazard sign", cost: dollars(120) as Money, w: 1, d: 1 },
+  // — new decor —
+  hazardStripe: { kind: "hazardStripe", name: "Hazard stripe", cost: dollars(60) as Money, w: 1, d: 1 },
+  extinguisher: { kind: "extinguisher", name: "Extinguisher", cost: dollars(120) as Money, w: 1, d: 1 },
+  bollards: { kind: "bollards", name: "Bollards", cost: dollars(110) as Money, w: 1, d: 1 },
+  fan: { kind: "fan", name: "Pedestal fan", cost: dollars(300) as Money, w: 1, d: 1 },
+  workLight: { kind: "workLight", name: "Work light", cost: dollars(260) as Money, w: 1, d: 1 },
+  tote: { kind: "tote", name: "Liquid tote", cost: dollars(350) as Money, w: 1, d: 1 },
+  compressor: { kind: "compressor", name: "Compressor", cost: dollars(400) as Money, w: 1, d: 1 },
+  toolWall: { kind: "toolWall", name: "Tool wall", cost: dollars(500) as Money, w: 2, d: 1 },
+  qcStation: { kind: "qcStation", name: "QC station", cost: dollars(700) as Money, w: 2, d: 1 },
+  gantry: { kind: "gantry", name: "Gantry crane", cost: dollars(2400) as Money, w: 3, d: 1 },
 };
 
 export interface PlacedProp { id: string; kind: PropKind; c: number; r: number }

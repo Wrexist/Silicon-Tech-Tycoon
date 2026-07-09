@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { PROP_DEFS, canPlaceProp, placeProp, propCellSet, removePropAt, propRefund, type PropKind } from "./factoryProps.ts";
-import { demoFloor } from "./factoryFloor.ts";
+import { demoFloor, FLOOR } from "./factoryFloor.ts";
 
 describe("factory props", () => {
   it("places a prop on an empty cell but not on a machine or belt", () => {
@@ -64,5 +64,33 @@ describe("factory props", () => {
       expect(d.w).toBeGreaterThanOrEqual(1);
       expect(d.d).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it("catalog is well-formed: def.kind matches its key, ids unique, footprints within the floor", () => {
+    const seen = new Set<string>();
+    for (const k of Object.keys(PROP_DEFS) as PropKind[]) {
+      const d = PROP_DEFS[k];
+      expect(d.kind).toBe(k);          // the key is the canonical id
+      expect(seen.has(d.kind)).toBe(false);
+      seen.add(d.kind);
+      // A prop's footprint must be placeable somewhere on the grid.
+      expect(d.w).toBeLessThanOrEqual(FLOOR.w);
+      expect(d.d).toBeLessThanOrEqual(FLOOR.h);
+    }
+  });
+
+  it("includes the FACTORY-WORLD decor additions with their expected footprints", () => {
+    const added: Record<string, [number, number]> = {
+      hazardStripe: [1, 1], extinguisher: [1, 1], bollards: [1, 1], fan: [1, 1], workLight: [1, 1],
+      tote: [1, 1], compressor: [1, 1], toolWall: [2, 1], qcStation: [2, 1], gantry: [3, 1],
+    };
+    for (const [kind, [w, d]] of Object.entries(added)) {
+      const def = PROP_DEFS[kind as PropKind];
+      expect(def).toBeDefined();
+      expect(def.cost).toBeGreaterThan(0);
+      expect([def.w, def.d]).toEqual([w, d]);
+    }
+    // The widest addition (gantry, 3×1) still places within bounds on an empty floor.
+    expect(canPlaceProp(demoFloor(), [], "gantry", 12, 8)).toBe(true);
   });
 });

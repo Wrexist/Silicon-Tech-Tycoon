@@ -116,6 +116,15 @@ function eraAccent(era: number): string {
 const AccentContext = createContext<string>(C.accent);
 const useAccent = () => useContext(AccentContext);
 
+/* Stable string hash → for deterministic, per-object jitter/phase (mirrors hashNum in
+ * IsoScene.tsx). Never Math.random() in a frame path — all "alive" phases derive from this + the
+ * shared clock, so a fixed floor animates identically every run. */
+function hashNum(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
 /* ---------------- generic polyline walking (the belts define the path) ---------------- */
 
 interface Polyline { pts: [number, number][]; lens: number[]; total: number }
@@ -131,20 +140,31 @@ function makePolyline(pts: [number, number][]): Polyline {
   return { pts, lens, total };
 }
 
-function polyAt(pl: Polyline, t: number): [number, number] {
-  if (pl.pts.length === 0) return [0, 0];
+/** Position along the polyline at arc-length `t`, written INTO `out` (a caller-owned [x,z] tuple) so
+ *  the hot frame paths — nearestItemDist + every machine + item useFrame — allocate nothing. */
+function polyAtInto(pl: Polyline, t: number, out: [number, number]): [number, number] {
+  if (pl.pts.length === 0) { out[0] = 0; out[1] = 0; return out; }
   let d = ((t % pl.total) + pl.total) % pl.total;
   for (let i = 0; i < pl.lens.length; i++) {
     if (d <= pl.lens[i]) {
       const f = pl.lens[i] === 0 ? 0 : d / pl.lens[i];
       const [ax, az] = pl.pts[i];
       const [bx, bz] = pl.pts[i + 1];
-      return [ax + (bx - ax) * f, az + (bz - az) * f];
+      out[0] = ax + (bx - ax) * f; out[1] = az + (bz - az) * f;
+      return out;
     }
     d -= pl.lens[i];
   }
-  return pl.pts[pl.pts.length - 1];
+  const last = pl.pts[pl.pts.length - 1];
+  out[0] = last[0]; out[1] = last[1];
+  return out;
 }
+
+// Module-level scratch tuples for the hot polyline readers. Safe to share: none of these callers
+// nests another, and each reads x/z out immediately without retaining the tuple across a later call.
+const _scrNID: [number, number] = [0, 0];   // nearestItemDist loop
+const _scrArm: [number, number] = [0, 0];   // RobotArm's own item scan
+const _scrItem: [number, number] = [0, 0];  // TravelingItem placement
 
 /** Distance from the closest traveling item to a floor point (Infinity if the line is empty).
  *  Machines use this to react to the item passing THROUGH them, instead of a free clock. */
@@ -152,7 +172,7 @@ function nearestItemDist(pl: Polyline, itemsT: number[], cx: number, cz: number)
   if (pl.total === 0) return Infinity;
   let best = Infinity;
   for (const t of itemsT) {
-    const [x, z] = polyAt(pl, t);
+    const [x, z] = polyAtInto(pl, t, _scrNID);
     const d = Math.hypot(x - cx, z - cz);
     if (d < best) best = d;
   }
@@ -214,27 +234,31 @@ const SURF_Y = 0.35;       // belt surface height
 
 /** Painted directional chevron lying flush on the belt, pointing +Z (canonical flow). Two thin
  *  angled bars — a tasteful "›", not a chunky cone — brighter on the live chain. */
-function FlowArrow({ live, z = 0 }: { live: boolean; z?: number }) {
+function FlowArrow({ live, z = 0, groupRef }: { live: boolean; z?: number; groupRef?: (g: THREE.Group | null) => void }) {
   const col = live ? C.hazard : "#5c636d";
   return (
-    <group position={[0, SURF_Y + 0.012, z]}>
+    // groupRef registers THIS group (its two bar meshes are the children BeltTiles pulses).
+    <group ref={groupRef} position={[0, SURF_Y + 0.012, z]}>
       {[-1, 1].map((s) => (
         <mesh key={s} position={[s * 0.09, 0, 0.03]} rotation={[0, -s * 0.7, 0]}>
           <boxGeometry args={[0.05, 0.014, 0.24]} />
-          <meshStandardMaterial color={col} emissive={live ? C.hazard : "#000"} emissiveIntensity={live ? 0.5 : 0} roughness={0.6} metalness={0.1} />
+          <meshStandardMaterial color={col} emissive={live ? C.hazard : "#000"} emissiveIntensity={live ? 0.5 : 0} roughness={0.6} metalness={0.1} toneMapped={false} />
         </mesh>
       ))}
     </group>
   );
 }
 
-/** A polished metal cross-roller lying across the flow (canonical: along X). */
-function Roller({ z = 0, len = RUBBER_W + 0.03 }: { z?: number; len?: number }) {
+/** A polished metal cross-roller lying across the flow (canonical: along X). The tilt lives on the
+ *  wrapping group so the inner mesh's local +Y is the roller's long axis — BeltTiles spins it there. */
+function Roller({ z = 0, len = RUBBER_W + 0.03, meshRef }: { z?: number; len?: number; meshRef?: (m: THREE.Mesh | null) => void }) {
   return (
-    <mesh position={[0, SURF_Y + 0.004, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
-      <cylinderGeometry args={[0.042, 0.042, len, 16]} />
-      <meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} />
-    </mesh>
+    <group position={[0, SURF_Y + 0.004, z]} rotation={[0, 0, Math.PI / 2]}>
+      <mesh ref={meshRef} castShadow>
+        <cylinderGeometry args={[0.042, 0.042, len, 16]} />
+        <meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} />
+      </mesh>
+    </group>
   );
 }
 
@@ -242,7 +266,7 @@ function Roller({ z = 0, len = RUBBER_W + 0.03 }: { z?: number; len?: number }) 
  *  the line joins flush and symmetric; straight tiles are authored flow-forward (+Z) then rotated,
  *  a framed rubber belt with seam rollers and subtle painted chevrons. Corners keep the same bed +
  *  frame and curve the flow arrows around the turn. */
-function BeltTiles({ floor, lineOk }: { floor: FactoryFloor; lineOk: boolean }) {
+function BeltTiles({ floor, lineOk, active, overtime }: { floor: FactoryFloor; lineOk: boolean; active: boolean; overtime: boolean }) {
   const at = useMemo(() => new Map(floor.belts.map((b) => [`${b.c},${b.r}`, b])), [floor.belts]);
   /** The direction of the neighbour that flows INTO this tile (null if it's a head). */
   const inflowDir = (b: FactoryFloor["belts"][number]): BeltDir | null => {
@@ -253,9 +277,52 @@ function BeltTiles({ floor, lineOk }: { floor: FactoryFloor; lineOk: boolean }) 
     return null;
   };
 
+  // The conveyor VISIBLY runs when the line is wired AND producing: one useFrame spins every roller
+  // about its long axis and marches the chevron emissive as a pulse travelling down the belt (phase
+  // offset per tile). Refs are collected fresh each render (reset here, repopulated by the inline
+  // ref callbacks on commit); zero per-frame allocation.
+  const rollers = useRef<THREE.Mesh[]>([]);
+  const arrows = useRef<{ grp: THREE.Group; tile: number }[]>([]);
+  rollers.current = [];
+  arrows.current = [];
+  const wasRunning = useRef(false);
+  useFrame(({ clock }) => {
+    const running = lineOk && active;
+    if (!running) {
+      // Settle the chevrons back to their static glow ONCE, then idle (no writes while stopped).
+      if (wasRunning.current) {
+        wasRunning.current = false;
+        const idle = lineOk ? 0.5 : 0;
+        for (const a of arrows.current) {
+          const kids = a.grp.children;
+          for (let i = 0; i < kids.length; i++) {
+            const m = (kids[i] as THREE.Mesh).material as THREE.MeshStandardMaterial;
+            if (m) m.emissiveIntensity = idle;
+          }
+        }
+      }
+      return;
+    }
+    wasRunning.current = true;
+    const t = clock.elapsedTime;
+    const base = overtime ? 2.1 : 1.25;            // matches the item advance speed
+    const spin = (t * base * 4) % (Math.PI * 2);   // rollers turn about their long axis
+    for (const r of rollers.current) r.rotation.y = spin;
+    for (const a of arrows.current) {              // emissive pulse marches tile→tile down the line
+      const pulse = 0.35 + Math.max(0, Math.sin(t * base * 1.6 - a.tile * 0.7));
+      const kids = a.grp.children;
+      for (let i = 0; i < kids.length; i++) {
+        const m = (kids[i] as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        if (m) m.emissiveIntensity = pulse;
+      }
+    }
+  });
+  const regRoller = (m: THREE.Mesh | null) => { if (m) rollers.current.push(m); };
+  const regArrow = (tile: number) => (g: THREE.Group | null) => { if (g) arrows.current.push({ grp: g, tile }); };
+
   return (
     <group>
-      {floor.belts.map((b) => {
+      {floor.belts.map((b, bi) => {
         const [x, z] = worldOf(b.c, b.r);
         const inDir = inflowDir(b);
         const isCorner = inDir != null && inDir !== b.dir && inDir !== OPP[b.dir];
@@ -289,9 +356,9 @@ function BeltTiles({ floor, lineOk }: { floor: FactoryFloor; lineOk: boolean }) 
                   );
                 })}
               {/* curved flow: entry arrow → corner roller → exit arrow */}
-              <group position={[-ix * 0.3, 0, -iz * 0.3]} rotation={[0, DIR_YAW[inDir], 0]}><FlowArrow live={live} /></group>
-              <mesh position={[0, SURF_Y + 0.01, 0]}><cylinderGeometry args={[0.06, 0.06, 0.1, 16]} /><meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} /></mesh>
-              <group position={[ox * 0.3, 0, oz * 0.3]} rotation={[0, DIR_YAW[b.dir], 0]}><FlowArrow live={live} /></group>
+              <group position={[-ix * 0.3, 0, -iz * 0.3]} rotation={[0, DIR_YAW[inDir], 0]}><FlowArrow live={live} groupRef={regArrow(bi)} /></group>
+              <mesh ref={regRoller} position={[0, SURF_Y + 0.01, 0]}><cylinderGeometry args={[0.06, 0.06, 0.1, 16]} /><meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} /></mesh>
+              <group position={[ox * 0.3, 0, oz * 0.3]} rotation={[0, DIR_YAW[b.dir], 0]}><FlowArrow live={live} groupRef={regArrow(bi)} /></group>
             </group>
           );
         }
@@ -310,15 +377,35 @@ function BeltTiles({ floor, lineOk }: { floor: FactoryFloor; lineOk: boolean }) 
               <meshStandardMaterial color={C.beltRubber} roughness={0.9} metalness={0.05} />
             </mesh>
             {/* polished seam rollers — pair up at each tile join */}
-            <Roller z={-0.45} />
-            <Roller z={0.45} />
+            <Roller z={-0.45} meshRef={regRoller} />
+            <Roller z={0.45} meshRef={regRoller} />
             {/* subtle painted chevrons */}
-            <FlowArrow live={live} z={-0.18} />
-            <FlowArrow live={live} z={0.18} />
+            <FlowArrow live={live} z={-0.18} groupRef={regArrow(bi)} />
+            <FlowArrow live={live} z={0.18} groupRef={regArrow(bi)} />
           </group>
         );
       })}
     </group>
+  );
+}
+
+/* Status "andon" light on a machine. When it's the working stage (hot) it burns steady bright in
+ * the era accent; otherwise it doesn't die — it breathes a gentle amber hum so the whole floor reads
+ * powered-on. Phase is hashed off the machine id so the strips never pulse in lockstep. Pure visual,
+ * clock-driven; no allocation in the frame. */
+function AndonStrip({ hot, phase, args, position }: { hot: boolean; phase: number; args: [number, number, number]; position: [number, number, number] }) {
+  const accent = useAccent();
+  const mat = useRef<THREE.MeshStandardMaterial>(null);
+  useFrame(({ clock }) => {
+    if (!mat.current) return;
+    mat.current.emissiveIntensity = hot ? 1.2 : 0.35 + 0.25 * Math.sin(clock.elapsedTime * 1.3 + phase);
+  });
+  const col = hot ? accent : C.amber;
+  return (
+    <mesh position={position}>
+      <boxGeometry args={args} />
+      <meshStandardMaterial ref={mat} color={col} emissive={col} emissiveIntensity={hot ? 1.2 : 0.4} roughness={0.4} toneMapped={false} />
+    </mesh>
   );
 }
 
@@ -387,7 +474,7 @@ function TravelingItem({ index, itemsT, pl, marks, look }: {
   useFrame(() => {
     const t = itemsT.current[index];
     if (t == null || !grp.current || pl.total === 0) return;
-    const [x, z] = polyAt(pl, t);
+    const [x, z] = polyAtInto(pl, t, _scrItem);
     grp.current.position.set(x, 0.46, z);
     const frac = (t % pl.total) / pl.total;
     const f = frac < marks[0] ? 0 : frac < marks[1] ? 1 : frac < marks[2] ? 2 : 3;
@@ -427,7 +514,7 @@ function HotLight({ on, y = 2.4 }: { on: boolean; y?: number }) {
 }
 
 /** Intake hopper — raw material funnels onto the line (Sourcing). */
-function Intake({ active, hot, position, yaw = 0 }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number }) {
+function Intake({ active, hot, position, yaw = 0, phase = 0 }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number }) {
   const accent = useAccent();
   const puff = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
@@ -455,6 +542,8 @@ function Intake({ active, hot, position, yaw = 0 }: { active: boolean; hot: bool
         <boxGeometry args={[0.34, 0.1, 0.3]} />
         <meshStandardMaterial color={C.slab} transparent opacity={0.6} roughness={0.4} />
       </mesh>
+      {/* status andon on the front frame — hums even when idle so the hopper reads powered-on */}
+      <AndonStrip hot={hot} phase={phase} args={[0.14, 0.14, 0.04]} position={[0.55, 1.7, 0.09]} />
       <HazardBase w={1.6} d={1.6} />
       <HotLight on={hot} />
     </group>
@@ -462,7 +551,7 @@ function Intake({ active, hot, position, yaw = 0 }: { active: boolean; hot: bool
 }
 
 /** Gantry press straddling the line — dual pistons stamp passing boards (Tooling). */
-function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const ram = useRef<THREE.Group>(null);
   const eng = useRef(0);
@@ -485,11 +574,8 @@ function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: b
       <RoundedBox args={[2.15, 0.5, 0.8]} radius={0.08} position={[0, 2.15, 0]} castShadow>
         <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.4} />
       </RoundedBox>
-      {/* status strip */}
-      <mesh position={[0, 2.15, 0.42]}>
-        <boxGeometry args={[1.6, 0.1, 0.02]} />
-        <meshStandardMaterial color={hot ? accent : C.amber} emissive={hot ? accent : C.amber} emissiveIntensity={1.2} />
-      </mesh>
+      {/* status strip — steady accent while pressing, gentle amber hum otherwise */}
+      <AndonStrip hot={hot} phase={phase} args={[1.6, 0.1, 0.02]} position={[0, 2.15, 0.42]} />
       <group ref={ram} position={[0, 1.55, 0]}>
         {[-0.45, 0.45].map((dx) => (
           <mesh key={dx} position={[dx, 0, 0]} castShadow>
@@ -508,8 +594,8 @@ function GantryPress({ active, hot, position, yaw = 0, pl, itemsT }: { active: b
 }
 
 /** Industrial robot arm — turntable, shoulder, elbow, wrist, two-finger gripper. */
-function RobotArm({ active, hot, position, pl, itemsT }: {
-  active: boolean; hot: boolean; position: [number, number, number]; pl?: Polyline; itemsT?: ItemsRef;
+function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
+  active: boolean; hot: boolean; position: [number, number, number]; phase?: number; pl?: Polyline; itemsT?: ItemsRef;
 }) {
   const accent = useAccent();
   const yaw = useRef<THREE.Group>(null);
@@ -522,7 +608,7 @@ function RobotArm({ active, hot, position, pl, itemsT }: {
     let d = Infinity, ix = position[0], iz = position[2];
     if (pl && itemsT) {
       for (const t of itemsT.current) {
-        const [x, z] = polyAt(pl, t);
+        const [x, z] = polyAtInto(pl, t, _scrArm);
         const dd = Math.hypot(x - position[0], z - position[2]);
         if (dd < d) { d = dd; ix = x; iz = z; }
       }
@@ -544,6 +630,8 @@ function RobotArm({ active, hot, position, pl, itemsT }: {
         <cylinderGeometry args={[0.5, 0.6, 0.28, 24]} />
         <meshStandardMaterial color={C.dark} roughness={0.7} />
       </mesh>
+      {/* base andon — powered-on hum even when the cell is resting */}
+      <AndonStrip hot={hot} phase={phase} args={[0.3, 0.06, 0.02]} position={[0, 0.2, 0.5]} />
       <group ref={yaw} position={[0, 0.28, 0]}>
         <mesh position={[0, 0.12, 0]} castShadow>
           <cylinderGeometry args={[0.34, 0.42, 0.26, 20]} />
@@ -589,7 +677,7 @@ function RobotArm({ active, hot, position, pl, itemsT }: {
 }
 
 /** QA tunnel — a glass scanner the finished device passes through (Quality). */
-function QaTunnel({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const beam = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
@@ -620,10 +708,7 @@ function QaTunnel({ active, hot, position, yaw = 0, pl, itemsT }: { active: bool
         <boxGeometry args={[0.03, 1.0, 1.1]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.6} transparent opacity={0.5} />
       </mesh>
-      <mesh position={[0, 1.5, 0]}>
-        <boxGeometry args={[1.7, 0.08, 0.02]} />
-        <meshStandardMaterial color={hot ? accent : C.amber} emissive={hot ? accent : C.amber} emissiveIntensity={1.1} />
-      </mesh>
+      <AndonStrip hot={hot} phase={phase} args={[1.7, 0.08, 0.02]} position={[0, 1.5, 0]} />
       <HazardBase w={2.3} d={1.8} />
       <HotLight on={hot} y={2.2} />
     </group>
@@ -631,7 +716,7 @@ function QaTunnel({ active, hot, position, yaw = 0, pl, itemsT }: { active: bool
 }
 
 /** Packer at the end of the line — folding plates box the device (Packaging). */
-function Packer({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function Packer({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const l = useRef<THREE.Mesh>(null);
   const r = useRef<THREE.Mesh>(null);
@@ -657,6 +742,8 @@ function Packer({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolea
         <boxGeometry args={[0.08, 0.7, 1.0]} />
         <meshStandardMaterial color={C.hazard} roughness={0.6} />
       </mesh>
+      {/* front-face andon — the packer hums powered-on between boxings */}
+      <AndonStrip hot={hot} phase={phase} args={[0.9, 0.08, 0.02]} position={[0, 0.72, 0.61]} />
       <HazardBase w={1.9} d={1.6} />
       <HotLight on={hot} y={1.9} />
     </group>
@@ -665,7 +752,7 @@ function Packer({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolea
 
 /** CNC mill — a milling cell the chassis passes through; the spindle traverses + plunges + spins
  *  to cut the unibody (used for laptop / desktop chassis). */
-function CncMill({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const spindle = useRef<THREE.Group>(null);
   const bit = useRef<THREE.Mesh>(null);
@@ -694,7 +781,7 @@ function CncMill({ active, hot, position, yaw = 0, pl, itemsT }: { active: boole
       <RoundedBox args={[2.0, 0.28, 0.5]} radius={0.06} position={[0, 1.75, 0]} castShadow>
         <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.45} />
       </RoundedBox>
-      <mesh position={[0, 1.75, 0.27]}><boxGeometry args={[1.5, 0.08, 0.02]} /><meshStandardMaterial color={hot ? accent : C.amber} emissive={hot ? accent : C.amber} emissiveIntensity={1.0} /></mesh>
+      <AndonStrip hot={hot} phase={phase} args={[1.5, 0.08, 0.02]} position={[0, 1.75, 0.27]} />
       {/* spindle head — traverses + plunges; the bit spins */}
       <group ref={spindle} position={[0, 1.15, 0]}>
         <mesh castShadow><boxGeometry args={[0.3, 0.42, 0.32]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.55} /></mesh>
@@ -708,7 +795,7 @@ function CncMill({ active, hot, position, yaw = 0, pl, itemsT }: { active: boole
 
 /** Screen bonder — a laminating head lowers a display panel onto the device and cures it (used for
  *  phone / tablet screen bonding + monitor panel lamination). */
-function ScreenBonder({ active, hot, position, yaw = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const head = useRef<THREE.Group>(null);
   const glow = useRef<THREE.Mesh>(null);
@@ -733,7 +820,7 @@ function ScreenBonder({ active, hot, position, yaw = 0, pl, itemsT }: { active: 
       <RoundedBox args={[1.9, 0.26, 0.55]} radius={0.06} position={[0, 1.85, 0]} castShadow>
         <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.4} />
       </RoundedBox>
-      <mesh position={[0, 1.85, 0.29]}><boxGeometry args={[1.4, 0.08, 0.02]} /><meshStandardMaterial color={hot ? accent : C.amber} emissive={hot ? accent : C.amber} emissiveIntensity={1.0} /></mesh>
+      <AndonStrip hot={hot} phase={phase} args={[1.4, 0.08, 0.02]} position={[0, 1.85, 0.29]} />
       {/* descending laminator head holding a glass panel */}
       <group ref={head} position={[0, 1.5, 0]}>
         <RoundedBox args={[1.1, 0.16, 0.7]} radius={0.04} castShadow><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></RoundedBox>
@@ -749,6 +836,63 @@ function ScreenBonder({ active, hot, position, yaw = 0, pl, itemsT }: { active: 
 
 const PROP_WOOD = "#7d6743";
 const PROP_GREEN = "#3f8f5a";
+
+/** Pedestal fan — the only moving decor: three caged blades turn SLOWLY, clock-driven, with a
+ *  per-prop phase hashed off the id so a row of fans never spins in lockstep (deterministic). */
+function FanProp({ pos, id }: { pos: [number, number, number]; id: string }) {
+  const blades = useRef<THREE.Group>(null);
+  const phase = (hashNum(id) % 628) / 100;
+  useFrame(({ clock }) => { if (blades.current) blades.current.rotation.z = clock.elapsedTime * 0.9 + phase; });
+  return (
+    <group position={pos}>
+      {/* base + pedestal */}
+      <mesh position={[0, 0.03, 0]} castShadow><cylinderGeometry args={[0.24, 0.28, 0.06, 18]} /><meshStandardMaterial color={C.dark} roughness={0.6} /></mesh>
+      <mesh position={[0, 0.5, 0]}><cylinderGeometry args={[0.04, 0.04, 0.9, 10]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
+      {/* head facing +Z: hub, spinning blades, cage ring */}
+      <group position={[0, 1.0, 0]}>
+        <mesh position={[0, 0, -0.03]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.05, 0.05, 0.12, 10]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
+        <group ref={blades} position={[0, 0, 0.02]}>
+          {[0, 1, 2].map((i) => (
+            <mesh key={i} rotation={[0, 0, (i * Math.PI * 2) / 3]}><boxGeometry args={[0.07, 0.34, 0.01]} /><meshStandardMaterial color="#9aa3ad" roughness={0.4} metalness={0.3} /></mesh>
+          ))}
+        </group>
+        <mesh position={[0, 0, 0.05]}><torusGeometry args={[0.34, 0.02, 8, 24]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></mesh>
+      </group>
+    </group>
+  );
+}
+
+/** Overhead gantry crane — A-frame legs + I-beam + a hoist trolley whose chain-hung hook sways VERY
+ *  slightly (hashed phase, clock-driven). Deterministic; no per-frame allocation. */
+function GantryProp({ pos, id }: { pos: [number, number, number]; id: string }) {
+  const hook = useRef<THREE.Group>(null);
+  const phase = (hashNum(id) % 628) / 100;
+  useFrame(({ clock }) => { if (hook.current) hook.current.rotation.x = Math.sin(clock.elapsedTime * 0.8 + phase) * 0.05; });
+  return (
+    <group position={pos}>
+      {/* two A-frame legs */}
+      {[-1.2, 1.2].map((lx) => (
+        <group key={lx} position={[lx, 0, 0]}>
+          {[-0.18, 0.18].map((dz) => (
+            <mesh key={dz} position={[0, 0.9, dz]} rotation={[0, 0, lx > 0 ? 0.05 : -0.05]} castShadow><boxGeometry args={[0.1, 1.8, 0.1]} /><meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} /></mesh>
+          ))}
+          <mesh position={[0, 0.5, 0]}><boxGeometry args={[0.08, 0.08, 0.44]} /><meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} /></mesh>
+        </group>
+      ))}
+      {/* I-beam spanning the top */}
+      <mesh position={[0, 1.78, 0]} castShadow><boxGeometry args={[2.7, 0.14, 0.18]} /><meshStandardMaterial color={C.rail} roughness={0.45} metalness={0.55} /></mesh>
+      <mesh position={[0, 1.86, 0]}><boxGeometry args={[2.7, 0.04, 0.3]} /><meshStandardMaterial color={C.rail} roughness={0.45} metalness={0.55} /></mesh>
+      {/* hoist trolley + swaying chain & hook */}
+      <group position={[0.3, 1.7, 0]}>
+        <mesh><boxGeometry args={[0.26, 0.14, 0.26]} /><meshStandardMaterial color={C.amber} roughness={0.5} metalness={0.3} /></mesh>
+        <group ref={hook} position={[0, -0.02, 0]}>
+          <mesh position={[0, -0.4, 0]}><cylinderGeometry args={[0.02, 0.02, 0.7, 8]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.6} /></mesh>
+          <mesh position={[0, -0.8, 0]}><torusGeometry args={[0.06, 0.02, 8, 16, Math.PI * 1.4]} /><meshStandardMaterial color={C.rollerHi} roughness={0.35} metalness={0.7} /></mesh>
+        </group>
+      </group>
+    </group>
+  );
+}
 
 /** A cosmetic prop placed on the floor. Static (decor); positioned at its cell centre. */
 function PropAt({ prop }: { prop: PlacedProp }) {
@@ -829,6 +973,132 @@ function PropAt({ prop }: { prop: PlacedProp }) {
           <mesh position={[0, 1.05, 0.02]}><boxGeometry args={[0.04, 0.2, 0.01]} /><meshStandardMaterial color="#1a1a1a" /></mesh>
         </group>
       );
+    case "hazardStripe":
+      return (
+        <group position={pos}>
+          {/* dark painted patch + diagonal amber bars */}
+          <mesh position={[0, 0.011, 0]}><boxGeometry args={[0.92, 0.02, 0.92]} /><meshStandardMaterial color="#141414" roughness={0.85} /></mesh>
+          {[-0.34, -0.11, 0.11, 0.34].map((d, i) => (
+            <mesh key={i} position={[d, 0.024, 0]} rotation={[0, Math.PI / 4, 0]}>
+              <boxGeometry args={[0.13, 0.02, 0.86]} />
+              <meshStandardMaterial color={C.hazard} roughness={0.6} emissive={C.hazard} emissiveIntensity={0.12} />
+            </mesh>
+          ))}
+        </group>
+      );
+    case "extinguisher":
+      return (
+        <group position={pos}>
+          {/* wall board + bracket */}
+          <mesh position={[0, 0.6, -0.3]} castShadow><boxGeometry args={[0.4, 0.7, 0.06]} /><meshStandardMaterial color="#b23b3b" roughness={0.6} /></mesh>
+          <mesh position={[0, 0.55, -0.22]}><boxGeometry args={[0.24, 0.06, 0.14]} /><meshStandardMaterial color={C.dark} roughness={0.5} metalness={0.4} /></mesh>
+          {/* red bottle + neck */}
+          <mesh position={[0, 0.5, -0.16]} castShadow><cylinderGeometry args={[0.13, 0.13, 0.5, 16]} /><meshStandardMaterial color="#d23b30" roughness={0.4} metalness={0.2} emissive="#d23b30" emissiveIntensity={0.28} /></mesh>
+          <mesh position={[0, 0.82, -0.16]}><cylinderGeometry args={[0.05, 0.05, 0.14, 10]} /><meshStandardMaterial color={C.dark} roughness={0.5} metalness={0.5} /></mesh>
+        </group>
+      );
+    case "bollards":
+      return (
+        <group position={pos}>
+          {[-0.28, 0.28].map((dx) => (
+            <group key={dx} position={[dx, 0, 0]}>
+              <mesh position={[0, 0.3, 0]} castShadow><cylinderGeometry args={[0.08, 0.09, 0.6, 14]} /><meshStandardMaterial color={C.hazard} roughness={0.6} /></mesh>
+              <mesh position={[0, 0.62, 0]}><cylinderGeometry args={[0.085, 0.085, 0.06, 14]} /><meshStandardMaterial color={C.hazard} emissive={C.hazard} emissiveIntensity={0.5} roughness={0.5} /></mesh>
+            </group>
+          ))}
+          {/* chain rail slung between the posts */}
+          <mesh position={[0, 0.42, 0]}><boxGeometry args={[0.5, 0.03, 0.03]} /><meshStandardMaterial color={C.dark} roughness={0.5} metalness={0.5} /></mesh>
+        </group>
+      );
+    case "fan":
+      return <FanProp pos={pos} id={prop.id} />;
+    case "workLight":
+      return (
+        <group position={pos}>
+          {/* tripod legs + mast */}
+          {[0, 1, 2].map((i) => { const a = (i * Math.PI * 2) / 3; return (
+            <mesh key={i} position={[Math.cos(a) * 0.18, 0.35, Math.sin(a) * 0.18]} rotation={[Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3]}><boxGeometry args={[0.04, 0.7, 0.04]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
+          ); })}
+          <mesh position={[0, 0.75, 0]}><cylinderGeometry args={[0.03, 0.03, 0.5, 10]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
+          {/* twin lamp heads + a warm work-light pool */}
+          {[-0.16, 0.16].map((dx) => (
+            <mesh key={dx} position={[dx, 1.0, 0.05]}><boxGeometry args={[0.24, 0.16, 0.1]} /><meshStandardMaterial color="#fff4d6" emissive="#ffe8b0" emissiveIntensity={1.4} toneMapped={false} /></mesh>
+          ))}
+          <pointLight position={[0, 1.05, 0.3]} intensity={2.4} distance={4} decay={2} color="#ffd9a0" />
+        </group>
+      );
+    case "tote":
+      return (
+        <group position={pos}>
+          {/* pallet base */}
+          <mesh position={[0, 0.07, 0]} castShadow><boxGeometry args={[0.7, 0.12, 0.7]} /><meshStandardMaterial color={PROP_WOOD} roughness={0.9} /></mesh>
+          {/* translucent liquid cube */}
+          <mesh position={[0, 0.5, 0]}><boxGeometry args={[0.6, 0.6, 0.6]} /><meshStandardMaterial color="#3fa7c9" transparent opacity={0.55} roughness={0.2} metalness={0.1} /></mesh>
+          {/* metal cage: four corner posts + a top frame */}
+          {[[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]].map(([px, pz], i) => (
+            <mesh key={i} position={[px, 0.5, pz]}><boxGeometry args={[0.03, 0.64, 0.03]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.6} /></mesh>
+          ))}
+          {[[0, 0.8, 0.64, 0.03], [0, 0.8, 0.03, 0.64]].map(([bx, by, bw, bd], i) => (
+            <mesh key={`t${i}`} position={[bx, by, 0]}><boxGeometry args={[bw as number, 0.03, bd as number]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.6} /></mesh>
+          ))}
+        </group>
+      );
+    case "compressor":
+      return (
+        <group position={pos}>
+          {/* horizontal tank + domed caps */}
+          <mesh position={[0, 0.32, 0]} rotation={[0, 0, Math.PI / 2]} castShadow><cylinderGeometry args={[0.22, 0.22, 0.8, 20]} /><meshStandardMaterial color="#c0392b" roughness={0.5} metalness={0.3} /></mesh>
+          {[-0.4, 0.4].map((dx) => (<mesh key={dx} position={[dx, 0.32, 0]}><sphereGeometry args={[0.22, 12, 10]} /><meshStandardMaterial color="#a93226" roughness={0.5} metalness={0.3} /></mesh>))}
+          {[-0.3, 0.3].map((dx) => (<mesh key={`ft${dx}`} position={[dx, 0.08, 0]}><boxGeometry args={[0.1, 0.16, 0.34]} /><meshStandardMaterial color={C.dark} roughness={0.6} /></mesh>))}
+          {/* motor box + gauge disc */}
+          <mesh position={[0, 0.62, 0]} castShadow><boxGeometry args={[0.34, 0.26, 0.3]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
+          <mesh position={[0.18, 0.62, 0.16]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.07, 0.07, 0.03, 16]} /><meshStandardMaterial color="#e8ecf2" emissive="#cdd6e0" emissiveIntensity={0.2} roughness={0.3} /></mesh>
+        </group>
+      );
+    case "toolWall":
+      return (
+        <group position={pos}>
+          {/* pegboard panel at the back of the 2-cell footprint */}
+          <mesh position={[0, 0.78, -0.35]} castShadow><boxGeometry args={[1.7, 1.1, 0.06]} /><meshStandardMaterial color="#caa46a" roughness={0.85} /></mesh>
+          {/* peg-hole grid */}
+          {Array.from({ length: 3 }, (_, r) => Array.from({ length: 7 }, (_, c) => (
+            <mesh key={`${r},${c}`} position={[-0.66 + c * 0.22, 0.5 + r * 0.26, -0.31]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.018, 0.018, 0.02, 6]} /><meshStandardMaterial color="#3a3226" /></mesh>
+          )))}
+          {/* hung tool silhouettes: wrench, hammer, screwdriver */}
+          <group position={[-0.5, 0.85, -0.3]}>
+            <mesh><boxGeometry args={[0.06, 0.42, 0.02]} /><meshStandardMaterial color={C.dark} metalness={0.4} roughness={0.5} /></mesh>
+            <mesh position={[0, 0.24, 0]}><torusGeometry args={[0.06, 0.02, 6, 14, Math.PI]} /><meshStandardMaterial color={C.dark} metalness={0.4} roughness={0.5} /></mesh>
+          </group>
+          <group position={[0.05, 0.85, -0.3]}>
+            <mesh><boxGeometry args={[0.05, 0.42, 0.02]} /><meshStandardMaterial color={PROP_WOOD} roughness={0.7} /></mesh>
+            <mesh position={[0, 0.22, 0]}><boxGeometry args={[0.24, 0.09, 0.05]} /><meshStandardMaterial color={C.dark} metalness={0.4} roughness={0.5} /></mesh>
+          </group>
+          <mesh position={[0.55, 0.85, -0.3]}><cylinderGeometry args={[0.02, 0.02, 0.42, 8]} /><meshStandardMaterial color="#b23b3b" roughness={0.5} /></mesh>
+        </group>
+      );
+    case "qcStation":
+      return (
+        <group position={pos}>
+          {/* bench (2 cells wide) */}
+          <RoundedBox args={[1.6, 0.12, 0.7]} radius={0.03} position={[0, 0.62, 0]} castShadow receiveShadow><meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.3} /></RoundedBox>
+          {[[-0.7, -0.28], [0.7, -0.28], [-0.7, 0.28], [0.7, 0.28]].map(([lx, lz], i) => (<mesh key={i} position={[lx, 0.3, lz]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} /></mesh>))}
+          {/* emissive monitor */}
+          <group position={[-0.45, 0.68, -0.05]}>
+            <mesh position={[0, 0.2, 0]}><boxGeometry args={[0.4, 0.28, 0.04]} /><meshStandardMaterial color={C.dark} roughness={0.5} /></mesh>
+            <mesh position={[0, 0.2, 0.025]}><boxGeometry args={[0.34, 0.22, 0.006]} /><meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.8} toneMapped={false} /></mesh>
+            <mesh position={[0, 0.03, 0]}><boxGeometry args={[0.1, 0.1, 0.08]} /><meshStandardMaterial color={C.dark} /></mesh>
+          </group>
+          {/* articulated inspection lamp */}
+          <group position={[0.45, 0.68, 0]}>
+            <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.06, 0.07, 0.1, 12]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
+            <mesh position={[0, 0.32, 0.02]} rotation={[0.4, 0, 0]}><boxGeometry args={[0.03, 0.5, 0.03]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></mesh>
+            <mesh position={[0, 0.56, 0.28]} rotation={[-0.9, 0, 0]}><boxGeometry args={[0.03, 0.4, 0.03]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></mesh>
+            <mesh position={[0, 0.6, 0.5]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.1, 0.03, 8, 20]} /><meshStandardMaterial color="#e8ecf2" emissive="#fff4d6" emissiveIntensity={1.2} toneMapped={false} /></mesh>
+          </group>
+        </group>
+      );
+    case "gantry":
+      return <GantryProp pos={pos} id={prop.id} />;
   }
 }
 
@@ -855,6 +1125,13 @@ function FactoryShell({ wallColor, floorColor, floorW }: { wallColor: string; fl
         <boxGeometry args={[args[0] + 0.02, 0.34, args[2] + 0.02]} />
         <meshStandardMaterial color={C.wallTrim} roughness={0.85} />
       </mesh>
+      {/* horizontal panel-line insets — two recessed seams break the flat wall into clad panels */}
+      {[0.5, 0.82].map((fy, i) => (
+        <mesh key={`seam${i}`} position={[0, wallH * fy + 0.14, 0]}>
+          <boxGeometry args={[args[0] + 0.04, 0.03, args[2] + 0.04]} />
+          <meshStandardMaterial color={C.wallTrim} roughness={0.8} metalness={0.05} />
+        </mesh>
+      ))}
       {/* pale capping rail along the top */}
       <mesh position={[0, wallH + 0.16, 0]}>
         <boxGeometry args={[args[0] + 0.05, 0.1, args[2] + 0.05]} />
@@ -944,8 +1221,15 @@ function Truck({ selling, position, yaw = 0 }: { selling: boolean; position: [nu
   );
 }
 
-function Agvs({ tier, overtime }: { tier: number; overtime: boolean }) {
+function Agvs({ tier, overtime, tail, dock }: {
+  tier: number; overtime: boolean;
+  /** Belt tail (≈ the packer output) and the dock apron — the shuttle ferries crates between them. */
+  tail: [number, number] | null;
+  dock: { road: [number, number, number] } | null;
+}) {
   const refs = useRef<THREE.Group[]>([]);
+  const shuttle = useRef<THREE.Group>(null);
+  const shuttleCrate = useRef<THREE.Group>(null);
   const t0 = useRef(0);
   useFrame((_, dt) => {
     t0.current += dt * 0.8;
@@ -956,8 +1240,23 @@ function Agvs({ tier, overtime }: { tier: number; overtime: boolean }) {
       g.position.set(Math.cos(a) * 7.4, 0.16, Math.sin(a) * 4.4);
       g.rotation.y = -a;
     });
+    // The shuttle runs a fixed packer→dock→back loop (deterministic from the clock): a smoothstep
+    // ping-pong along the tail→dock segment, carrying a crate only on the OUTBOUND (loaded) leg.
+    if (shuttle.current && tail && dock) {
+      const period = overtime ? 3.2 : 5.0;
+      const phase = ((t0.current % period) + period) % period / period; // 0..1
+      const out = phase < 0.5;                                           // first half = outbound, loaded
+      const f = out ? phase * 2 : (1 - phase) * 2;                       // 0→1 ping-pong
+      const e = f * f * (3 - 2 * f);                                     // smoothstep ease
+      const [fx, fz] = tail;
+      const tx = dock.road[0], tz = dock.road[2];
+      shuttle.current.position.set(fx + (tx - fx) * e, 0.16, fz + (tz - fz) * e);
+      shuttle.current.rotation.y = Math.atan2(tx - fx, tz - fz) + (out ? 0 : Math.PI);
+      if (shuttleCrate.current) shuttleCrate.current.visible = out;
+    }
   });
   const n = Math.max(0, Math.min(3, tier));
+  const beacon = overtime ? C.amber : "#34d399";
   return (
     <group>
       {Array.from({ length: n }, (_, i) => (
@@ -971,9 +1270,115 @@ function Agvs({ tier, overtime }: { tier: number; overtime: boolean }) {
           </mesh>
           <mesh position={[0.2, 0.24, 0]}>
             <sphereGeometry args={[0.05, 10, 10]} />
-            <meshStandardMaterial color={overtime ? C.amber : "#34d399"} emissive={overtime ? C.amber : "#34d399"} emissiveIntensity={1.5} />
+            <meshStandardMaterial color={beacon} emissive={beacon} emissiveIntensity={1.5} toneMapped={false} />
           </mesh>
         </group>
+      ))}
+      {/* the dock shuttle — always present (even at tier 0) so the floor has motion end-to-end */}
+      {tail && dock && (
+        <group ref={shuttle}>
+          <RoundedBox args={[0.55, 0.22, 0.4]} radius={0.08} castShadow>
+            <meshStandardMaterial color={C.agv} roughness={0.5} />
+          </RoundedBox>
+          {/* carried crate — toggled off on the empty return leg */}
+          <group ref={shuttleCrate} position={[0, 0.24, 0]}>
+            <RoundedBox args={[0.34, 0.3, 0.34]} radius={0.03} castShadow>
+              <meshStandardMaterial color={C.crate} roughness={0.8} />
+            </RoundedBox>
+          </group>
+          <mesh position={[0.2, 0.24, 0]}>
+            <sphereGeometry args={[0.05, 10, 10]} />
+            <meshStandardMaterial color={beacon} emissive={beacon} emissiveIntensity={1.5} toneMapped={false} />
+          </mesh>
+        </group>
+      )}
+    </group>
+  );
+}
+
+/** A short celebratory beat at the dock every time a unit finishes: the fresh crate pops in with a
+ *  scale overshoot and a little hop while the truck's beacon flashes, ~0.6s, then it settles. Fired
+ *  purely off readyCount rising (tracked in a ref) and the clock — no allocation, pre-mounted refs
+ *  toggled by visibility/scale. Jitter is hashed off the count so no two pops look identical. */
+function CompletionPop({ count, pallet, truck, yaw }: {
+  count: number; pallet: [number, number, number]; truck: [number, number, number]; yaw: number;
+}) {
+  const accent = useAccent();
+  const crate = useRef<THREE.Group>(null);
+  const beacon = useRef<THREE.Mesh>(null);
+  const prev = useRef(count);
+  const born = useRef(-10);
+  const jit = useRef(0);
+  useFrame(({ clock }) => {
+    if (count > prev.current) {                 // a unit just shipped → start a beat
+      born.current = clock.elapsedTime;
+      jit.current = (hashNum(`pop${count}`) % 100) / 100;
+      if (crate.current) crate.current.rotation.y = yaw + (jit.current - 0.5) * 0.9;
+    }
+    prev.current = count;
+    const age = clock.elapsedTime - born.current;
+    const t = age / 0.6;
+    const live = t >= 0 && t <= 1;
+    if (crate.current) {
+      crate.current.visible = live;
+      if (live) {
+        const s = (t < 0.5 ? (t / 0.5) * 1.25 : 1.25 - ((t - 0.5) / 0.5) * 0.25) * 0.5;
+        crate.current.scale.setScalar(Math.max(0.001, s));
+        crate.current.position.y = 0.5 + Math.sin(t * Math.PI) * 0.28;
+      }
+    }
+    if (beacon.current) {
+      beacon.current.visible = live;
+      if (live) (beacon.current.material as THREE.MeshStandardMaterial).emissiveIntensity = Math.sin(t * Math.PI) * 3;
+    }
+  });
+  return (
+    <group>
+      <group ref={crate} position={[pallet[0], 0.5, pallet[2]]} visible={false}>
+        <RoundedBox args={[0.44, 0.36, 0.44]} radius={0.04} castShadow>
+          <meshStandardMaterial color={C.crate} roughness={0.8} />
+        </RoundedBox>
+      </group>
+      <mesh ref={beacon} position={[truck[0], 1.55, truck[2]]} visible={false}>
+        <sphereGeometry args={[0.11, 12, 12]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Deterministic grime + paint on the concrete so the slab reads used, not a flat sheet: a scatter of
+ *  low-opacity oil/wear stains (position, size, rotation all hashed off index) plus two painted
+ *  pedestrian walkway lanes. Static; computed once, no per-frame work. */
+function FloorDecals({ floorW, cx }: { floorW: number; cx: number }) {
+  const stains = useMemo(() => {
+    const out: { x: number; z: number; s: number; rot: number; op: number }[] = [];
+    for (let i = 0; i < 9; i++) {
+      const h = hashNum(`stain${i}`);
+      out.push({
+        x: (((h % 1000) / 1000) - 0.5) * (floorW - 2),
+        z: ((((h >> 6) % 1000) / 1000) - 0.5) * (SHELL.d - 2),
+        s: 0.55 + (((h >> 12) % 100) / 100) * 1.1,
+        rot: (((h >> 18) % 628) / 100),
+        op: 0.10 + (((h >> 22) % 100) / 100) * 0.10,
+      });
+    }
+    return out;
+  }, [floorW]);
+  return (
+    <group position={[cx, 0, 0]}>
+      {stains.map((st, i) => (
+        <mesh key={i} rotation={[-Math.PI / 2, 0, st.rot]} position={[st.x, 0.104, st.z]}>
+          <circleGeometry args={[st.s, 18]} />
+          <meshStandardMaterial color="#181b20" transparent opacity={st.op} roughness={1} depthWrite={false} />
+        </mesh>
+      ))}
+      {/* painted pedestrian walkways framing the working aisle */}
+      {[-(SHELL.d / 2) + 1.35, SHELL.d / 2 - 1.35].map((lz, i) => (
+        <mesh key={`lane${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.103, lz]}>
+          <planeGeometry args={[floorW - 2.2, 0.16]} />
+          <meshStandardMaterial color="#c7ccd4" transparent opacity={0.4} roughness={0.8} depthWrite={false} />
+        </mesh>
       ))}
     </group>
   );
@@ -1058,20 +1463,21 @@ function MachineAt({ m, active, activeKind, pl, itemsT }: {
   const onBelt: [number, number, number] = snap ? [snap.x, 0, snap.z] : [cx, 0, cz];
   const yaw = snap ? snap.yaw : 0;
   const hot = active && activeKind === m.kind; // only the machine working the current step animates
+  const phase = (hashNum(m.id) % 628) / 100;   // stable per-machine andon hum phase (0..~6.28)
   let el: React.ReactElement | null = null;
   let pipPos = onBelt;
   switch (m.kind) {
-    case "intake": el = <Intake active={active} hot={hot} position={onBelt} yaw={yaw} />; break;
-    case "mill": el = <CncMill active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
-    case "press": el = <GantryPress active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
-    case "screen": el = <ScreenBonder active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
-    case "qa": el = <QaTunnel active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
-    case "packer": el = <Packer active={active} hot={hot} position={onBelt} yaw={yaw} pl={pl} itemsT={itemsT} />; break;
+    case "intake": el = <Intake active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} />; break;
+    case "mill": el = <CncMill active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
+    case "press": el = <GantryPress active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
+    case "screen": el = <ScreenBonder active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
+    case "qa": el = <QaTunnel active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
+    case "packer": el = <Packer active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
     case "arm": {
       // beside the belt on the side it was placed, reaching over the line
       const side = snap ? Math.sign((cx - snap.x) * snap.nx + (cz - snap.z) * snap.nz) || 1 : 1;
       const armPos: [number, number, number] = snap ? [snap.x + snap.nx * side * 0.95, 0, snap.z + snap.nz * side * 0.95] : [cx, 0, cz];
-      el = <RobotArm active={active} hot={hot} position={armPos} pl={pl} itemsT={itemsT} />;
+      el = <RobotArm active={active} hot={hot} position={armPos} phase={phase} pl={pl} itemsT={itemsT} />;
       pipPos = armPos;
       break;
     }
@@ -1134,9 +1540,14 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const look = useMemo(() => productLook(p.product), [p.product]);
   const itemsT = useRef<number[]>([0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total)));
   useFrame((_, dt) => {
-    if (!p.active || pl.total === 0) return;
-    const v = (p.overtime ? 2.1 : 1.25) * dt;
-    itemsT.current = itemsT.current.map((t) => (t + v) % pl.total);
+    // Items exist only on a wired line (rendered below when lineOk). When the line is wired but NOT
+    // actively producing, they still CREEP at ~10% so a stopped belt reads as "warming up" rather
+    // than showing parts frozen mid-conveyor. Advance IN PLACE — no per-frame array allocation.
+    if (pl.total === 0 || !p.lineOk) return;
+    const base = p.overtime ? 2.1 : 1.25;
+    const v = (p.active ? base : base * 0.1) * dt;
+    const arr = itemsT.current;
+    for (let i = 0; i < arr.length; i++) arr[i] = (arr[i] + v) % pl.total;
   });
 
   // The grid cell under a pad-space intersection point (read in the WORLD group's local space, so the
@@ -1327,9 +1738,18 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   return (
     <AccentContext.Provider value={accent}>
     <group ref={world} rotation={[0, portrait ? Math.PI / 2 : 0, 0]}>
-      <ambientLight intensity={0.85} />
-      <directionalLight position={[7, 12, 5]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <pointLight position={[0, 7, 0]} intensity={p.overtime ? 34 : 20} distance={18} color={p.overtime ? C.amber : "#ffffff"} />
+      {/* Low fill + a cool overhead hemisphere reads as a big shed lit from the roof; the working
+          light comes from spaced high-bay pools, with one warm lamp over the dock/office corner. The
+          era-tinted HotLight accents on the working machine still punch through this lower base. */}
+      <ambientLight intensity={0.4} />
+      <hemisphereLight args={["#bcd3ff", "#2a2f37", 0.55]} position={[0, 8, 0]} />
+      <directionalLight position={[7, 12, 5]} intensity={1.0} castShadow shadow-mapSize={[1024, 1024]} />
+      {/* overhead high-bay pools spaced down the floor (follow the building's east shift) */}
+      {[-4.2, 0, 4.2].map((dx, i) => (
+        <pointLight key={i} position={[cx + dx, 6, 0]} intensity={p.overtime ? 16 : 10} distance={11} decay={2} color={p.overtime ? C.amber : "#f2f6ff"} />
+      ))}
+      {/* one warm point light at the dock / office corner */}
+      <pointLight position={dock ? [dock.road[0], 3.2, dock.road[2]] : [cx + 6, 3.2, 4]} intensity={p.overtime ? 11 : 7} distance={9} decay={2} color="#ffcf9a" />
 
       {/* grounds */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
@@ -1338,6 +1758,8 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       </mesh>
       {/* the building: concrete floor + painted walls (player-customisable), grows east with expansions */}
       <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} floorW={floorW} />
+      {/* deterministic wear/oil stains + painted walkways so the concrete isn't a flat sheet */}
+      <FloorDecals floorW={floorW} cx={cx} />
       {/* expansion joints double as the build grid, subtle on the concrete */}
       <gridHelper args={[floorW, floorW, C.concreteJoint, C.concreteJoint]} position={[cx, 0.11, 0]} />
       {/* tap-catcher for build mode (invisible, above the pad) — belt tool paints on drag, others tap */}
@@ -1472,7 +1894,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         );
       })()}
 
-      <BeltTiles floor={p.floor} lineOk={p.lineOk} />
+      <BeltTiles floor={p.floor} lineOk={p.lineOk} active={p.active} overtime={p.overtime} />
       {p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} look={look} />)}
       {p.flash && <TapFlash flash={p.flash} />}
 
@@ -1524,7 +1946,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {/* the belt ends at a pallet beside the delivery truck (the dock) */}
       {dock && <Pallet position={dock.pallet} yaw={dock.yaw} count={p.readyCount} />}
       {dock && <Truck selling={p.selling} position={dock.truck} yaw={dock.yaw} />}
-      <Agvs tier={p.robotTier} overtime={p.overtime} />
+      {/* a fresh-crate pop + beacon flash each time the ready count ticks up */}
+      {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
+      <Agvs tier={p.robotTier} overtime={p.overtime} tail={pl.pts.length ? pl.pts[pl.pts.length - 1] : null} dock={dock} />
 
       <ContactShadows position={[0, 0.11, 0]} opacity={0.5} scale={26} blur={2.2} far={4} frames={60} />
     </group>

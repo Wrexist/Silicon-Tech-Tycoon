@@ -11,6 +11,8 @@ import {
   FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
   Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
   TrafficCone, Trash2, TriangleAlert, Truck, Waypoints, Wrench, X, Zap, type LucideIcon,
+  // FACTORY-WORLD decor additions
+  Construction, FireExtinguisher, Fence, Fan, Lamp, Box, Gauge, PocketKnife, SearchCheck, Forklift,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
 import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost, autoConnectQuote } from "../state/gameState.ts";
@@ -64,6 +66,8 @@ const DIR_ROT: Record<BeltDir, number> = { n: 0, e: 90, s: 180, w: 270 };
 const PROP_ICONS: Record<PropKind, LucideIcon> = {
   crates: Boxes, barrel: Container, pallet: Layers3, plant: Sprout,
   bench: Wrench, rack: Library, cone: TrafficCone, sign: TriangleAlert,
+  hazardStripe: Construction, extinguisher: FireExtinguisher, bollards: Fence, fan: Fan, workLight: Lamp,
+  tote: Box, compressor: Gauge, toolWall: PocketKnife, qcStation: SearchCheck, gantry: Forklift,
 };
 
 // Factory building decor palettes — parametric colours (3D uses intrinsic colours, not theme
@@ -205,6 +209,13 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
   // F2 Build mode — the selected tool paints cells on the 3D pad.
   const [buildTool, setBuildTool] = useState<null | MachineKind | PropKind | "belt" | "erase" | "upgrade">(null);
+  // Placement is wired to the 3D pad; in the 2D fallback (3D off / no-WebGL / context lost) a palette
+  // tile would arm a tool that can never drop, so route the same "needs 3D" nudge the Build button
+  // shows instead of silently arming it. (Reachable when the GL context is lost mid-build.)
+  const armTool = (t: MachineKind | PropKind | "belt" | "erase" | "upgrade") => {
+    if (!use3d) { showToast("Building needs the 3D factory view — turn it on in Settings.", { tone: "neutral" }); return; }
+    setBuildTool(t);
+  };
   const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
   const [beltDir, setBeltDir] = useState<BeltDir>("e");
   // Auto quotes BEFORE it spends: first tap arms a Confirm/Cancel strip showing the live price
@@ -646,7 +657,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               <>
                 <button
                   className={`fmode__ptile${buildTool === "belt" ? " fmode__ptile--on" : ""}${state.cash < BELT_COST ? " fmode__ptile--broke" : ""}`}
-                  onClick={() => { haptic.light(); setBuildTool("belt"); }}
+                  onClick={() => { haptic.light(); armTool("belt"); }}
                 >
                   <span className="fmode__ptile-icon" style={{ transform: `rotate(${DIR_ROT[beltDir]}deg)` }}><ArrowUp size={20} /></span>
                   <span className="fmode__ptile-name">Belt</span>
@@ -655,7 +666,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 <button
                   className="fmode__ptile fmode__ptile--util"
                   aria-label="Rotate belt direction"
-                  onClick={() => { haptic.light(); setBeltDir(beltDir === "e" ? "s" : beltDir === "s" ? "w" : beltDir === "w" ? "n" : "e"); setBuildTool("belt"); }}
+                  onClick={() => { haptic.light(); setBeltDir(beltDir === "e" ? "s" : beltDir === "s" ? "w" : beltDir === "w" ? "n" : "e"); armTool("belt"); }}
                 >
                   <span className="fmode__ptile-icon"><RotateCw size={20} /></span>
                   <span className="fmode__ptile-name">Turn</span>
@@ -682,7 +693,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                       key={k}
                       className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
                       title={MACHINE_DEFS[k].blurb}
-                      onClick={() => { haptic.light(); setBuildTool(k); }}
+                      onClick={() => { haptic.light(); armTool(k); }}
                     >
                       <span className="fmode__ptile-icon"><Icon size={20} /></span>
                       <span className="fmode__ptile-name">{MACHINE_SHORT[k]}</span>
@@ -699,7 +710,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                   <button
                     key={k}
                     className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
-                    onClick={() => { haptic.light(); setBuildTool(k); }}
+                    onClick={() => { haptic.light(); armTool(k); }}
                   >
                     <span className="fmode__ptile-icon"><Icon size={20} /></span>
                     <span className="fmode__ptile-name">{PROP_DEFS[k].name}</span>
@@ -711,7 +722,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             {buildCat === "machine" && (
               <button
                 className={`fmode__ptile${buildTool === "upgrade" ? " fmode__ptile--on" : ""}`}
-                onClick={() => { haptic.light(); setBuildTool("upgrade"); }}
+                onClick={() => { haptic.light(); armTool("upgrade"); }}
                 title="Tap a machine to tune it up a tier (faster builds)"
               >
                 <span className="fmode__ptile-icon"><Wrench size={20} /></span>
@@ -720,7 +731,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             )}
             <button
               className={`fmode__ptile fmode__ptile--erase${buildTool === "erase" ? " fmode__ptile--on" : ""}`}
-              onClick={() => { haptic.light(); setBuildTool("erase"); }}
+              onClick={() => { haptic.light(); armTool("erase"); }}
             >
               <span className="fmode__ptile-icon"><Eraser size={20} /></span>
               <span className="fmode__ptile-name">Erase</span>
