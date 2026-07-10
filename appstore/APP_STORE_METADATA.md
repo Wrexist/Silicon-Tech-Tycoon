@@ -323,8 +323,11 @@ Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + 
    reaching #1), never mid-task. Higher star average + fresh reviews lift both rank and conversion.
 7. **Update cadence** — a substantive update (like this 1.1.0) refreshes the "recency" signal; ship the
    new What's New and refresh at least one screenshot each version.
-8. **Localization** — even just localizing the **keyword field + subtitle + first screenshot captions**
-   for your top non-English markets (de, fr, es, ja, pt-BR, ko) multiplies indexed terms per market.
+8. **Localization** — DONE: full metadata for all 39 ASC locales lives in
+   `appstore/localizations/` (fastlane `deliver` layout, one folder per locale, validated by
+   `appstore/localizations/validate.mjs --all`). See that folder's README for the keyword
+   strategy (native-first fields, cross-storefront index exploitation, complementary
+   en-US/GB/AU/CA keyword sets) and paste order.
 
 **Category:** keep **Simulation** primary (that's where "tycoon/business sim" browsers live) and
 **Strategy** secondary. Don't chase a less-competitive category at the cost of intent match.
