@@ -1,1 +1,1 @@
-iş,simülasyon,patron,fabrika,imparatorluk,strateji,para,girişim,yönetim,üretim,borsa,zengin,ekonomi
+simülasyon,patron,fabrika,imparatorluk,strateji,para,girişim,yönetim,üretim,borsa,zengin,ekonomi

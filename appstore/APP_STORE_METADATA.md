@@ -323,7 +323,7 @@ Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + 
    reaching #1), never mid-task. Higher star average + fresh reviews lift both rank and conversion.
 7. **Update cadence** — a substantive update (like this 1.1.0) refreshes the "recency" signal; ship the
    new What's New and refresh at least one screenshot each version.
-8. **Localization** — DONE: full metadata for all 39 ASC locales lives in
+8. **Localization** — DONE: full metadata for all 50 ASC locales lives in
    `appstore/localizations/` (fastlane `deliver` layout, one folder per locale, validated by
    `appstore/localizations/validate.mjs --all`). See that folder's README for the keyword
    strategy (native-first fields, cross-storefront index exploitation, complementary

@@ -337,7 +337,7 @@ Optional for v1.0. If added:
 | Build number | `1` (increment for every TestFlight/ASC upload) |
 | Minimum iOS | **16.0** (Capacitor 6 minimum; covers ~95% of active devices) |
 | Supported devices | iPhone (all sizes); iPad optional (untested) |
-| Localizations | All 39 ASC locales — copy-paste-ready in `appstore/localizations/` |
+| Localizations | All 50 ASC locales — copy-paste-ready in `appstore/localizations/` |
 | Made for Kids | No |
 | Game Center | No |
 | CloudKit | No |

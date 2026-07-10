@@ -1,7 +1,9 @@
-# App Store localizations — all 39 App Store Connect locales
+# App Store localizations — all 50 App Store Connect locales
 
-Copy-paste-ready App Store Connect metadata for every locale ASC supports. English (U.S.)
-master lives in `../APP_STORE_METADATA.md`; each folder here is one ASC localization.
+Copy-paste-ready App Store Connect metadata for every locale ASC/fastlane supports
+(the 50 codes in fastlane's `FastlaneCore::Languages::ALL_LANGUAGES`, including the
+Indic locales, `sl-SI` and `ur-PK` added in 2025). English (U.S.) master lives in
+`../APP_STORE_METADATA.md`; each folder here is one ASC localization.
 
 ## File → App Store Connect field
 
@@ -13,7 +15,7 @@ automated later with `fastlane deliver` by pointing it at this directory:
 | `name.txt` | App Name | 30 |
 | `subtitle.txt` | Subtitle | 30 |
 | `promotional_text.txt` | Promotional Text | 170 |
-| `keywords.txt` | Keywords (comma-separated, no spaces) | 100 |
+| `keywords.txt` | Keywords (comma-separated, no spaces) | **100 UTF-8 bytes** (Apple docs: "up to 100 bytes" — NOT characters; CJK ≈ 3 bytes/char, Cyrillic/Greek/Hebrew/Arabic ≈ 2, Indic ≈ 3) |
 | `description.txt` | Description | 4000 |
 | `release_notes.txt` | What's New | 4000 |
 | `screenshot_captions.txt` | Not an ASC field — the 6 caption lines to bake into localized screenshot frames | — |
@@ -24,9 +26,10 @@ automated later with `fastlane deliver` by pointing it at this directory:
 node appstore/localizations/validate.mjs --all
 ```
 
-Checks Apple's character limits (code-point counting, matches ASC), keyword-field format
-(no spaces after commas, no empty slots), emoji, and keyword slots wasted on words already
-indexed via that locale's name/subtitle. Must print `✓` for every locale.
+Checks Apple's limits (code points for prose fields, **UTF-8 bytes for keywords** — per
+Apple's ASC reference), keyword-field format (no spaces after commas, no empty slots),
+emoji, and keyword slots wasted on words already indexed via that locale's name/subtitle.
+Must print `✓` for every locale.
 
 ## Keyword strategy baked into these files
 
@@ -54,7 +57,7 @@ indexed via that locale's name/subtitle. Must print `✓` for every locale.
 ASC → App → **App Information / Version Information** → `+` next to the localization list.
 Suggested order if you don't paste all at once: `de-DE, ja, fr-FR, zh-Hans, ko, pt-BR, es-MX,
 es-ES, it, en-GB, ru, tr, nl-NL, pl, zh-Hant` … then the rest. Every added localization is
-pure ranking upside; there is no downside to shipping all 39.
+pure ranking upside; there is no downside to shipping all 50.
 
 ## Maintenance
 

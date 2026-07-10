@@ -1,1 +1,1 @@
-gestion,simulation,entreprise,usine,magnat,stratégie,startup,pdg,société,construction,gadget,bourse
+gestion,simulation,entreprise,usine,magnat,stratégie,startup,pdg,argent,construction,gadget,bourse

@@ -1,1 +1,1 @@
-negócio,simulador,gestão,fábrica,magnata,estratégia,startup,empresa,dinheiro,telemóvel,chefe,ceo
+negócio,simulador,gestao,fábrica,magnata,estratégia,startup,empresa,dinheiro,telemóvel,chefe,ceo

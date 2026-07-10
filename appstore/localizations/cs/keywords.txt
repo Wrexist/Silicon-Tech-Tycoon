@@ -1,1 +1,1 @@
-firma,továrna,simulátor,byznys,magnát,strategie,peníze,burza,impérium,podnikání,ekonomika,mobil,šéf
+firma,továrna,simulátor,byznys,magnát,strategie,peníze,burza,podnikání,ekonomika,mobil,šéf

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 
+// Limits per Apple's ASC reference: keywords are capped in BYTES ("up to 100 bytes of
+// content"); every other field is capped in characters (code points).
 const LIMITS = {
   'name.txt': 30,
   'subtitle.txt': 30,
@@ -16,9 +18,12 @@ const LIMITS = {
   'description.txt': 4000,
   'release_notes.txt': 4000,
 };
+const BYTE_LIMITED = new Set(['keywords.txt']);
 const REQUIRED = Object.keys(LIMITS).concat(['screenshot_captions.txt']);
 
-const len = (s) => Array.from(s).length; // code points, matches App Store Connect counting
+const chars = (s) => Array.from(s).length; // code points
+const bytes = (s) => Buffer.byteLength(s, 'utf8');
+const len = (s, file) => (BYTE_LIMITED.has(file) ? bytes(s) : chars(s));
 
 function checkLocale(locale) {
   const dir = join(ROOT, locale);
@@ -31,9 +36,10 @@ function checkLocale(locale) {
     if (!existsSync(p)) { problems.push(`missing ${file}`); continue; }
     const raw = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
     const text = raw.replace(/\n+$/, ''); // trailing newline doesn't count
-    counts[file] = len(text);
-    if (LIMITS[file] && len(text) > LIMITS[file]) {
-      problems.push(`${file}: ${len(text)} chars > limit ${LIMITS[file]}`);
+    counts[file] = len(text, file);
+    if (LIMITS[file] && len(text, file) > LIMITS[file]) {
+      const unit = BYTE_LIMITED.has(file) ? 'bytes' : 'chars';
+      problems.push(`${file}: ${len(text, file)} ${unit} > limit ${LIMITS[file]}`);
     }
     if (text.trim() === '') problems.push(`${file}: empty`);
     if (/\p{Extended_Pictographic}/u.test(text)) problems.push(`${file}: contains emoji`);

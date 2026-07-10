@@ -1,1 +1,1 @@
-cég,gyár,szimulátor,vállalat,üzlet,stratégia,mágnás,pénz,tőzsde,menedzser,gazdaság,főnök,telefon
+cég,gyár,szimulátor,üzlet,stratégia,mágnás,pénz,tőzsde,menedzser,gazdaság,főnök,telefon
