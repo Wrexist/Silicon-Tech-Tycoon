@@ -1,0 +1,1 @@
+negocios,empresa,simulador,fábrica,dinero,estrategia,millonario,empresario,jefe,sim,company,invest
