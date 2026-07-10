@@ -456,7 +456,7 @@ interface GameActionsValue {
   prestige: () => void;
   restart: () => void;
   /** Begin a scenario run (overwrites the current save with the scenario's authored start). */
-  startScenario: (id: string) => void;
+  startScenario: (id: string, name?: string) => void;
   /** Begin a daily/weekly challenge (stashing the freeform company first, so returnHome can restore
    *  it). Defaults to today; pass a dateKey to play a specific (e.g. shared-by-code) challenge. */
   startChallenge: (kind: ChallengeKind, dateKey?: string) => void;
@@ -1364,12 +1364,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // company so it survives and can be restored with returnHome(). Only stashes a FREEFORM run (never
   // a challenge/scenario) so starting a second side-run from within one can't clobber the real
   // company that's already held. No-op (and leaves any existing stash intact) otherwise.
-  const stashHomeIfFreeform = useCallback(() => {
+  const stashHomeIfFreeform = useCallback((): boolean => {
     const cur = stateRef.current;
     if (cur.onboarded && !cur.activeChallenge && !cur.activeScenario) {
-      stashHomeSave(cur);
-      setHomeSaved(true);
+      // Verify the stash actually landed before the caller clears the save — a swallowed quota
+      // failure here would let clearSave() destroy an unrecoverable freeform company.
+      const ok = stashHomeSave(cur);
+      if (ok) setHomeSaved(true);
+      return ok;
     }
+    return true; // nothing freeform to protect (fresh start, or already in a side run)
   }, []);
 
   const restart = useCallback(() => {
@@ -1392,11 +1396,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // (that would break each scenario's hand-authored start, e.g. Bootstrapped's tight cash). The
   // start values come entirely from the scenario's setup. The freeform company is stashed first so
   // it's preserved (returnHome restores it) instead of destroyed.
-  const startScenario = useCallback((id: string) => {
+  const startScenario = useCallback((id: string, name?: string) => {
+    // Park the freeform company FIRST; if the stash can't land (quota), abort instead of clearing the
+    // save out from under an unrecoverable company.
+    if (!stashHomeIfFreeform()) {
+      showToast("Couldn't free up storage to park your company — scenario cancelled to keep it safe.", { tone: "negative" });
+      return;
+    }
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // keep this run's milestones
-    stashHomeIfFreeform();
     clearSave();
-    setState({ ...newScenarioGame(id), platformUnlocked: stateRef.current.platformUnlocked });
+    setState({ ...newScenarioGame(id, undefined, undefined, name), platformUnlocked: stateRef.current.platformUnlocked });
     setPaused(false);
     setFast(false);
     setSkipping(false);
@@ -1406,8 +1415,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // over the main slot — but the freeform company is stashed first (returnHome restores it), so a
   // challenge is a side trip you can leave, not a company-wipe. The per-date best lives in the profile.
   const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string) => {
+    if (!stashHomeIfFreeform()) {
+      showToast("Couldn't free up storage to park your company — challenge cancelled to keep it safe.", { tone: "negative" });
+      return;
+    }
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // keep this run's milestones
-    stashHomeIfFreeform();
     clearSave();
     setState({ ...newChallengeGame(kind, dateKey ?? dateKeyOf(new Date())), platformUnlocked: stateRef.current.platformUnlocked });
     setPaused(false);

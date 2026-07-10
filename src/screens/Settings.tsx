@@ -148,7 +148,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
 
       <div className="set__group">
         {confirmReset ? (
-          <div className="set__confirm">
+          <div className="set__confirm" role="group" aria-label="Confirm starting a new company">
             <span className="set__confirm-text">Start over and lose this company?</span>
             <div className="set__confirm-row">
               <Button variant="tertiary" onClick={() => setConfirmReset(false)}>Cancel</Button>

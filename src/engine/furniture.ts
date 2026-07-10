@@ -5,23 +5,25 @@ export type FurnitureId =
   // desks
   | "desk" | "deskL" | "standingDesk" | "dualDesk" | "reception" | "executiveDesk"
   // seating
-  | "chair" | "armchair" | "sofa" | "stool" | "beanbag" | "gamingChair" | "bench" | "loungeChair" | "sofaL"
+  | "chair" | "armchair" | "sofa" | "stool" | "beanbag" | "gamingChair" | "bench" | "loungeChair" | "sofaL" | "napPod"
   // tables
   | "coffeeTable" | "meetingTable" | "roundTable" | "sideTable" | "barTable"
   // storage
-  | "bookshelf" | "cabinet" | "lockers" | "filingCabinet" | "shelfUnit" | "crates" | "wardrobe"
+  | "bookshelf" | "cabinet" | "lockers" | "filingCabinet" | "shelfUnit" | "crates" | "wardrobe" | "trophyCase"
   // plants
-  | "plantTall" | "plantPot" | "cactus" | "planterBox" | "monstera" | "bonsai"
+  | "plantTall" | "plantPot" | "cactus" | "planterBox" | "monstera" | "bonsai" | "indoorTree"
   // decor
   | "rug" | "rugRound" | "tvStand" | "easel" | "neonSign" | "artStand" | "globe" | "floorClock" | "sculpture" | "divider" | "floorVase"
+  | "aquarium" | "zenFountain" | "focusPod" | "ideaWall" | "rocketModel" | "mascotStandee"
   // lighting
-  | "floorLamp" | "arcLamp" | "lantern" | "cubeLamp"
+  | "floorLamp" | "arcLamp" | "lantern" | "cubeLamp" | "treeLamp" | "uplight"
   // fun
   | "arcade" | "pingpong" | "watercooler" | "foosball" | "vending" | "poolTable" | "treadmill" | "guitar" | "coffeeBar"
+  | "espressoRobot" | "microKitchen" | "kombuchaTap"
   // tech
-  | "serverRack" | "printer" | "robotArm" | "towerPC"
+  | "serverRack" | "printer" | "robotArm" | "towerPC" | "superCluster" | "holoGlobe" | "quantumRig" | "dronePad"
   // garage
-  | "workbench" | "toolCabinet" | "tireStack" | "ladder" | "oilDrum";
+  | "workbench" | "toolCabinet" | "tireStack" | "ladder" | "oilDrum" | "pizzaStack" | "cableSpool";
 
 export type FurnitureCategory =
   | "desks"
@@ -54,6 +56,9 @@ export interface FurnitureDef {
   flat?: boolean; // rugs etc. sit on the floor (others can overlap them)
   cost: number; // price in dollars to buy + place in the office shop
   attrs?: FurnitureAttrs; // gameplay attributes (omitted = pure cosmetic)
+  /** Removed from the shop (not purchasable/searchable) but kept in the catalog so saves that
+   *  already own one keep rendering + selling it. Never delete a shipped id — retire it. */
+  retired?: boolean;
 }
 
 // cost = dollars to buy + place. attrs (comfort/focus/inspiration) buff the office (capped in
@@ -64,7 +69,6 @@ export const FURNITURE: FurnitureDef[] = [
   { id: "deskL", name: "L-Desk", category: "desks", icon: "Table2", w: 2, d: 2, cost: 2400, attrs: { focus: 3 } },
   { id: "standingDesk", name: "Standing Desk", category: "desks", icon: "Table", w: 2, d: 1, cost: 2000, attrs: { comfort: 1, focus: 3 } },
   { id: "dualDesk", name: "Dual Setup", category: "desks", icon: "Monitor", w: 2, d: 1, cost: 3500, attrs: { focus: 5 } },
-  { id: "reception", name: "Reception Desk", category: "desks", icon: "Building2", w: 3, d: 1, cost: 4000, attrs: { focus: 1, inspiration: 2 } },
   { id: "executiveDesk", name: "Executive Desk", category: "desks", icon: "Table2", w: 3, d: 2, cost: 8000, attrs: { focus: 4, inspiration: 3 } },
   // ---- Seating (comfort) ----
   { id: "chair", name: "Office Chair", category: "seating", icon: "Armchair", w: 1, d: 1, cost: 300, attrs: { comfort: 1 } },
@@ -76,6 +80,7 @@ export const FURNITURE: FurnitureDef[] = [
   { id: "bench", name: "Bench", category: "seating", icon: "Armchair", w: 2, d: 1, cost: 500, attrs: { comfort: 1 } },
   { id: "loungeChair", name: "Lounge Chair", category: "seating", icon: "Armchair", w: 1, d: 1, cost: 1400, attrs: { comfort: 4 } },
   { id: "sofaL", name: "Sectional Sofa", category: "seating", icon: "Sofa", w: 2, d: 2, cost: 3200, attrs: { comfort: 7 } },
+  { id: "napPod", name: "Nap Pod", category: "seating", icon: "BedDouble", w: 2, d: 2, cost: 3800, attrs: { comfort: 8 } },
   // ---- Tables ----
   { id: "coffeeTable", name: "Coffee Table", category: "tables", icon: "Coffee", w: 2, d: 1, cost: 600, attrs: { comfort: 1 } },
   { id: "meetingTable", name: "Meeting Table", category: "tables", icon: "Presentation", w: 3, d: 2, cost: 3000, attrs: { focus: 2, inspiration: 2 } },
@@ -90,6 +95,7 @@ export const FURNITURE: FurnitureDef[] = [
   { id: "shelfUnit", name: "Shelving Unit", category: "storage", icon: "Library", w: 1, d: 1, cost: 500, attrs: { focus: 1 } },
   { id: "crates", name: "Crates", category: "storage", icon: "Boxes", w: 1, d: 1, cost: 200 },
   { id: "wardrobe", name: "Wardrobe", category: "storage", icon: "Archive", w: 1, d: 1, cost: 700, attrs: { comfort: 1 } },
+  { id: "trophyCase", name: "Trophy Case", category: "storage", icon: "Trophy", w: 2, d: 1, cost: 3600, attrs: { inspiration: 5 } },
   // ---- Plants (comfort) ----
   { id: "plantTall", name: "Tall Plant", category: "plants", icon: "Trees", w: 1, d: 1, cost: 700, attrs: { comfort: 3 } },
   { id: "plantPot", name: "Potted Plant", category: "plants", icon: "Sprout", w: 1, d: 1, cost: 200, attrs: { comfort: 2 } },
@@ -97,7 +103,13 @@ export const FURNITURE: FurnitureDef[] = [
   { id: "planterBox", name: "Planter Box", category: "plants", icon: "Sprout", w: 2, d: 1, cost: 900, attrs: { comfort: 4 } },
   { id: "monstera", name: "Monstera", category: "plants", icon: "Trees", w: 1, d: 1, cost: 600, attrs: { comfort: 3 } },
   { id: "bonsai", name: "Bonsai", category: "plants", icon: "Sprout", w: 1, d: 1, cost: 400, attrs: { comfort: 2, inspiration: 1 } },
+  { id: "indoorTree", name: "Indoor Tree", category: "plants", icon: "TreePine", w: 2, d: 2, cost: 2000, attrs: { comfort: 6 } },
   // ---- Decor (inspiration) ----
+  // RETIRED + reclassified from "desks": the reception model is a bare counter with no computer,
+  // but as a desk staff were SEATED at it — a worker at an empty counter read as a bug. As decor it
+  // never seats anyone (and no longer counts as a hiring seat); retired hides it from the shop
+  // while existing owners keep rendering + selling theirs.
+  { id: "reception", name: "Reception Desk", category: "decor", icon: "Building2", w: 3, d: 1, cost: 4000, attrs: { focus: 1, inspiration: 2 }, retired: true },
   { id: "rug", name: "Rug", category: "decor", icon: "Square", w: 3, d: 2, flat: true, cost: 900, attrs: { comfort: 2 } },
   { id: "rugRound", name: "Round Rug", category: "decor", icon: "CircleDot", w: 2, d: 2, flat: true, cost: 700, attrs: { comfort: 2 } },
   { id: "tvStand", name: "TV & Stand", category: "decor", icon: "Tv", w: 2, d: 1, cost: 1500, attrs: { comfort: 3 } },
@@ -109,11 +121,19 @@ export const FURNITURE: FurnitureDef[] = [
   { id: "sculpture", name: "Sculpture", category: "decor", icon: "Shapes", w: 1, d: 1, cost: 2500, attrs: { inspiration: 6 } },
   { id: "divider", name: "Partition", category: "decor", icon: "Square", w: 2, d: 1, cost: 500, attrs: { focus: 1 } },
   { id: "floorVase", name: "Floor Vase", category: "decor", icon: "Sprout", w: 1, d: 1, cost: 600, attrs: { inspiration: 2 } },
+  { id: "aquarium", name: "Reef Aquarium", category: "decor", icon: "Fish", w: 3, d: 1, cost: 9000, attrs: { comfort: 5, inspiration: 4 } },
+  { id: "zenFountain", name: "Zen Fountain", category: "decor", icon: "Droplets", w: 2, d: 2, cost: 4200, attrs: { comfort: 4, inspiration: 2 } },
+  { id: "focusPod", name: "Focus Pod", category: "decor", icon: "Container", w: 1, d: 1, cost: 2200, attrs: { focus: 4 } },
+  { id: "ideaWall", name: "Idea Wall", category: "decor", icon: "Frame", w: 2, d: 1, cost: 1600, attrs: { focus: 2, inspiration: 3 } },
+  { id: "rocketModel", name: "Rocket Model", category: "decor", icon: "Rocket", w: 1, d: 1, cost: 2800, attrs: { inspiration: 6 } },
+  { id: "mascotStandee", name: "Mascot Standee", category: "decor", icon: "Sparkle", w: 1, d: 1, cost: 250 }, // flavour — cosmetic only
   // ---- Lighting ----
   { id: "floorLamp", name: "Floor Lamp", category: "lighting", icon: "Lamp", w: 1, d: 1, cost: 400, attrs: { comfort: 1 } },
   { id: "arcLamp", name: "Arc Lamp", category: "lighting", icon: "Lamp", w: 1, d: 1, cost: 900, attrs: { comfort: 2, inspiration: 1 } },
   { id: "lantern", name: "Lantern", category: "lighting", icon: "Lightbulb", w: 1, d: 1, cost: 300, attrs: { comfort: 1 } },
   { id: "cubeLamp", name: "Cube Lamp", category: "lighting", icon: "Lightbulb", w: 1, d: 1, cost: 700, attrs: { comfort: 1, inspiration: 1 } },
+  { id: "treeLamp", name: "Tree Lamp", category: "lighting", icon: "Lightbulb", w: 1, d: 1, cost: 850, attrs: { comfort: 2, inspiration: 1 } },
+  { id: "uplight", name: "Uplight Bar", category: "lighting", icon: "Zap", w: 1, d: 1, cost: 500, attrs: { inspiration: 2 } },
   // ---- Fun (big comfort) ----
   { id: "arcade", name: "Arcade", category: "fun", icon: "Gamepad2", w: 1, d: 1, cost: 4500, attrs: { comfort: 8 } },
   { id: "pingpong", name: "Ping-Pong", category: "fun", icon: "Table2", w: 3, d: 2, cost: 3500, attrs: { comfort: 7 } },
@@ -122,19 +142,28 @@ export const FURNITURE: FurnitureDef[] = [
   { id: "vending", name: "Vending Machine", category: "fun", icon: "Refrigerator", w: 1, d: 1, cost: 2000, attrs: { comfort: 5 } },
   { id: "poolTable", name: "Pool Table", category: "fun", icon: "Target", w: 3, d: 2, cost: 6000, attrs: { comfort: 9 } },
   { id: "treadmill", name: "Treadmill", category: "fun", icon: "Footprints", w: 2, d: 1, cost: 2500, attrs: { comfort: 3, focus: 1 } },
-  { id: "guitar", name: "Guitar", category: "fun", icon: "Music", w: 1, d: 1, cost: 900, attrs: { comfort: 3, inspiration: 2 } },
+  { id: "guitar", name: "Guitar", category: "fun", icon: "Music", w: 1, d: 1, cost: 1200, attrs: { comfort: 3, inspiration: 2 } }, // was $900 — best-value outlier ($180/pt); bumped toward peers
   { id: "coffeeBar", name: "Coffee Bar", category: "fun", icon: "Coffee", w: 2, d: 1, cost: 3000, attrs: { comfort: 6 } },
+  { id: "espressoRobot", name: "Barista Bot", category: "fun", icon: "Bot", w: 1, d: 1, cost: 5000, attrs: { comfort: 7 } },
+  { id: "microKitchen", name: "Micro-Kitchen", category: "fun", icon: "Utensils", w: 3, d: 1, cost: 4500, attrs: { comfort: 7 } },
+  { id: "kombuchaTap", name: "Cold-Brew Tap", category: "fun", icon: "CupSoda", w: 1, d: 1, cost: 1500, attrs: { comfort: 4 } },
   // ---- Tech (focus) ----
   { id: "serverRack", name: "Server Rack", category: "tech", icon: "Server", w: 1, d: 1, cost: 5000, attrs: { focus: 6 } },
   { id: "printer", name: "3D Printer", category: "tech", icon: "Printer", w: 1, d: 1, cost: 4000, attrs: { focus: 4, inspiration: 1 } },
-  { id: "robotArm", name: "Robot Arm", category: "tech", icon: "Bot", w: 1, d: 1, cost: 6000, attrs: { focus: 6 } },
+  { id: "robotArm", name: "Robot Arm", category: "tech", icon: "Bot", w: 1, d: 1, cost: 5000, attrs: { focus: 6 } }, // was $6000 — aligned to serverRack's ~$833/focus-pt
   { id: "towerPC", name: "Tower PC", category: "tech", icon: "Monitor", w: 1, d: 1, cost: 3000, attrs: { focus: 5 } },
+  { id: "superCluster", name: "GPU Supercluster", category: "tech", icon: "Server", w: 2, d: 1, cost: 8500, attrs: { focus: 9 } },
+  { id: "holoGlobe", name: "Holo Globe", category: "tech", icon: "Globe", w: 1, d: 1, cost: 7000, attrs: { focus: 3, inspiration: 5 } },
+  { id: "quantumRig", name: "Quantum Rig", category: "tech", icon: "Atom", w: 1, d: 1, cost: 8000, attrs: { focus: 6, inspiration: 2 } },
+  { id: "dronePad", name: "Drone Pad", category: "tech", icon: "Radar", w: 2, d: 2, cost: 4800, attrs: { focus: 4, inspiration: 3 } },
   // ---- Garage (focus / theme) ----
   { id: "workbench", name: "Workbench", category: "garage", icon: "Hammer", w: 2, d: 1, cost: 1500, attrs: { focus: 3 } },
   { id: "toolCabinet", name: "Tool Cabinet", category: "garage", icon: "Wrench", w: 1, d: 1, cost: 700, attrs: { focus: 2 } },
   { id: "tireStack", name: "Tire Stack", category: "garage", icon: "Disc", w: 1, d: 1, cost: 200 },
   { id: "ladder", name: "Step Ladder", category: "garage", icon: "Construction", w: 1, d: 1, cost: 150 },
   { id: "oilDrum", name: "Oil Drum", category: "garage", icon: "Cylinder", w: 1, d: 1, cost: 200 },
+  { id: "pizzaStack", name: "Pizza Stack", category: "garage", icon: "Boxes", w: 1, d: 1, cost: 120 }, // flavour — cosmetic only
+  { id: "cableSpool", name: "Cable Spool", category: "garage", icon: "Disc", w: 1, d: 1, cost: 150 }, // flavour — cosmetic only
 ];
 
 const BY_ID: Record<string, FurnitureDef> = Object.fromEntries(FURNITURE.map((f) => [f.id, f]));
@@ -192,7 +221,7 @@ export function searchFurniture(query: string): FurnitureDef[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   return FURNITURE.filter(
-    (f) => f.name.toLowerCase().includes(q) || CATEGORY_LABEL[f.category].toLowerCase().includes(q),
+    (f) => !f.retired && (f.name.toLowerCase().includes(q) || CATEGORY_LABEL[f.category].toLowerCase().includes(q)),
   );
 }
 

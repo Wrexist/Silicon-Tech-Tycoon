@@ -2,7 +2,7 @@
 // from primitives + materials + real lights. Scoped to the garage only; devices stay SVG.
 import { Component, Suspense, lazy, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
+import { ContactShadows, RoundedBox, Html, Environment, Lightformer } from "@react-three/drei";
 import { PartyPopper, Sparkles, Star, ThumbsUp, Rocket, Frown, CloudRain, BatteryLow, Meh, ThumbsDown } from "lucide-react";
 import * as THREE from "three";
 import { moodBand, type MoodBand } from "../engine/staff.ts";
@@ -121,6 +121,10 @@ function roamHomeFor(i: number): [number, number] {
 // Mirrors the hqReaction event-bus pattern used elsewhere in this scene.
 const CAM_ZOOM_MIN = -6;
 const CAM_ZOOM_MAX = 13;
+// Seconds of no input (no movement key, no pointer travel) before the idle "breathing" camera drift
+// ramps in. Kept generous so it never fights an active viewer — it's a screensaver for an office
+// left alone, and collapses back to zero the instant the controls are touched (so `settled` fires).
+const IDLE_DRIFT_DELAY = 6;
 let camZoomOffset = 0;
 function getCamZoom(): number { return camZoomOffset; }
 function setCamZoom(v: number): void { camZoomOffset = Math.max(CAM_ZOOM_MIN, Math.min(CAM_ZOOM_MAX, v)); }
@@ -131,6 +135,7 @@ function CameraRig({ build = false, facilityTier = 1 }: { build?: boolean; facil
   const keys = useRef<Set<string>>(new Set());
   const orbit = useRef({ yaw: 0, lift: 0 }); // player camera offsets (zoom lives in the shared singleton)
   const lastPointer = useRef({ x: 0, y: 0 }); // for the settle check
+  const idleT = useRef(0); // seconds since the last input — drives the idle breathing drift
 
   // Each mode (decorate vs. normal) has its own default framing, so reset the dolly when the mode
   // flips, otherwise a big pinch-out in Decorate would leave the normal office zoomed out too.
@@ -159,7 +164,7 @@ function CameraRig({ build = false, facilityTier = 1 }: { build?: boolean; facil
     };
   }, []);
 
-  useFrame((_, dt) => {
+  useFrame((st, dt) => {
     // Apply held keys to the orbit offsets (frame-rate independent).
     const ks = keys.current;
     const o = orbit.current;
@@ -172,6 +177,28 @@ function CameraRig({ build = false, facilityTier = 1 }: { build?: boolean; facil
     if (ks.has("s")) setCamZoom(getCamZoom() + zoomSpd); // farther
     if (ks.has("q") || ks.has("r")) o.lift = Math.min(7, o.lift + liftSpd); // higher
     if (ks.has("e") || ks.has("f")) o.lift = Math.max(-3, o.lift - liftSpd); // lower
+
+    // Input detection (also drives the settle saver below). Any held movement key or pointer travel
+    // counts as active use and zeroes the idle timer. (`pointer` is the live object from useThree.)
+    const keyHeld = ks.size > 0;
+    const pointerStill =
+      Math.abs(pointer.x - lastPointer.current.x) < 1e-4 && Math.abs(pointer.y - lastPointer.current.y) < 1e-4;
+    lastPointer.current.x = pointer.x;
+    lastPointer.current.y = pointer.y;
+    if (keyHeld || !pointerStill) idleT.current = 0; else idleT.current += dt;
+
+    // Idle breathing drift: after IDLE_DRIFT_DELAY of no input, add a very slow yaw/height sway so an
+    // unattended office feels alive. The offset is EXACTLY zero until then (ramped in over ~3s), so the
+    // `settled` early-return below still fires the instant the camera reaches its resting pose after any
+    // interaction — the drift only spends frames once the viewer has truly walked away, and collapses
+    // back to zero (letting the camera re-settle) the moment the controls are touched again.
+    const driftK = Math.max(0, Math.min(1, (idleT.current - IDLE_DRIFT_DELAY) / 3));
+    let driftYaw = 0, driftLift = 0;
+    if (driftK > 0) {
+      const e = st.clock.elapsedTime;
+      driftYaw = Math.sin(e * 0.13) * 0.018 * driftK;
+      driftLift = Math.sin(e * 0.09) * 0.14 * driftK;
+    }
 
     const k = Math.min(1, dt * 2.5);
     // Decorate view was framed close (baseR ≈ 10.6) for precise placement, but that cropped the
@@ -188,18 +215,15 @@ function CameraRig({ build = false, facilityTier = 1 }: { build?: boolean; facil
     // with the facility so a bigger office (Studio/Campus) is framed whole, not cropped.
     const baseR = Math.hypot(px, pz) * roomScaleFor(facilityTier);
     const r = Math.max(4, baseR + getCamZoom());
-    const ang = Math.atan2(px, pz) + o.yaw;
+    const ang = Math.atan2(px, pz) + o.yaw + driftYaw;
     const desiredX = Math.sin(ang) * r + pointer.x * (build ? 0.5 : 1.3);
     const desiredZ = Math.cos(ang) * r;
-    const desiredY = Math.max(1.2, py + o.lift - pointer.y * (build ? 0.3 : 0.9));
+    const desiredY = Math.max(1.2, py + o.lift + driftLift - pointer.y * (build ? 0.3 : 0.9));
 
     // Settle: if no movement key is held, the pointer hasn't moved, and we're already within
-    // epsilon of where we want to be, stop writing camera.position/lookAt to save battery.
-    const keyHeld = ks.size > 0;
-    const pointerStill =
-      Math.abs(pointer.x - lastPointer.current.x) < 1e-4 && Math.abs(pointer.y - lastPointer.current.y) < 1e-4;
-    lastPointer.current.x = pointer.x;
-    lastPointer.current.y = pointer.y;
+    // epsilon of where we want to be, stop writing camera.position/lookAt to save battery. When the
+    // idle drift is active `desired` keeps moving, so this naturally stays awake to animate it; the
+    // moment input resumes, driftYaw/driftLift return to 0 and the camera settles as before.
     const dx = desiredX - camera.position.x;
     const dy = desiredY - camera.position.y;
     const dz = desiredZ - camera.position.z;
@@ -408,11 +432,34 @@ function GarageDoor({ p, z = -3.96, big = 0 }: { p: RoomPalette; z?: number; big
   );
 }
 
-// Warm festoon string lights strung in a catenary near the ceiling.
+// Shared ship-day celebration target (the positive green, matching CHEER_TINT / the Bank dot). One
+// module-level THREE.Color reused by the string lights and the desk monitors so the cheer light-beat
+// (item 7) allocates nothing per frame. STRING_WARM is the bulbs' resting emissive.
+const CHEER_GREEN = new THREE.Color("#34c759");
+const STRING_WARM = new THREE.Color("#ffce74");
+
+// Warm festoon string lights strung in a catenary near the ceiling. Each bulb twinkles on a slow
+// seeded phase (per-bulb `i` offset) so the strand shimmers instead of glowing dead-flat, and a
+// ship-day cheer pulses the whole run toward the positive green (item 7). One tiny useFrame drives
+// all 13 bulbs. Dark-mode only — the caller already gates the whole component.
 function StringLights() {
   const a = [-3.8, 4.5, -3.6];
   const b = [3.6, 4.5, 2.9];
   const n = 13;
+  const mats = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
+  const scratch = useMemo(() => new THREE.Color(), []); // reused so the cheer lerp allocates nothing
+  useFrame((st) => {
+    const t = st.clock.elapsedTime;
+    const cheer = reactionIntensity("cheer");
+    scratch.copy(STRING_WARM);
+    if (cheer > 0) scratch.lerp(CHEER_GREEN, cheer * 0.7);
+    for (let i = 0; i < n; i++) {
+      const m = mats.current[i];
+      if (!m) continue;
+      m.emissiveIntensity = 1.5 + Math.sin(t * 0.7 + i) * 0.2 + cheer * 0.8;
+      m.emissive.copy(scratch);
+    }
+  });
   return (
     <group>
       {Array.from({ length: n }).map((_, i) => {
@@ -423,7 +470,7 @@ function StringLights() {
         return (
           <mesh key={i} position={[x, yy, z]}>
             <sphereGeometry args={[0.05, 8, 8]} />
-            <meshStandardMaterial color="#ffe6b0" emissive="#ffce74" emissiveIntensity={1.7} toneMapped={false} />
+            <meshStandardMaterial ref={(el) => { mats.current[i] = el; }} color="#ffe6b0" emissive="#ffce74" emissiveIntensity={1.7} toneMapped={false} />
           </mesh>
         );
       })}
@@ -697,6 +744,11 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     // a flop (slump). Both decay over the reaction window (hqReaction).
     const cheer = reactionIntensity("cheer");
     const slump = reactionIntensity("slump");
+    // Seated robots idly "type": a small forearm oscillation (left/right thrown out of phase) plus a
+    // subtle head dip toward the screen sharing the same phase, so a bank of desks reads as busy
+    // rather than frozen. Seeded (t already carries +seed; the extra +seed*3 further decorrelates)
+    // so no two robots tap in lockstep. Purely additive over the folded sitting pose; zero when standing.
+    const type = sitting ? Math.sin(t * 7 + seed * 3) * 0.05 : 0;
     // Seated robots are lifted onto the seat (SIT_LIFT above the floor pivot) and stay planted — no
     // standing bob — with a cheer reduced to a small in-seat bounce. SIT_LIFT lives here (not on the
     // parent) so a rigged .glb playing its own grounded "Sitting" clip isn't pushed off the chair.
@@ -709,7 +761,8 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
       const calm = 1 - slump;
       headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22) * calm;
       headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04 * calm;
-      headRef.current.rotation.x = slump * 0.55; // head hangs down
+      // hangs down on a flop; when seated, a tiny forward nod toward the screen shares the typing phase
+      headRef.current.rotation.x = slump * 0.55 + (sitting ? 0.02 * (0.5 + 0.5 * Math.sin(t * 7 + seed * 3)) : 0);
     }
     if (antRef.current) {
       antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6) * (1 - slump);
@@ -720,8 +773,8 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
     const cheerArm = -2.0 * cheer; // raise both arms up
     const sitArm = sitting ? -0.55 : 0; // bring hands forward onto the desk/lap
-    if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm + cheerArm + sitArm;
-    if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm + cheerArm + sitArm;
+    if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm + cheerArm + sitArm + type;
+    if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm + cheerArm + sitArm - type;
     // legs: brisk stride while walking, still when idle, folded forward at the hip when seated so
     // the thighs run forward over the seat and tuck under the desk (the seated "L" silhouette).
     if (sitting) {
@@ -946,9 +999,67 @@ function DeskClutter({ seed, p }: { seed: number; p: RoomPalette }) {
   );
 }
 
-function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean }) {
+// The living monitor on an OCCUPIED plain desk: a breathing emissive quad overlaid exactly on the
+// "desk" model's screen (its group sits at [0.12,0.78,-0.18] and the screen plane at [0,0.38,0.023]
+// → [0.12,1.16,-0.157], facing +z). Rendered INSIDE the Workstation's flip-rotated desk group, so it
+// inherits the flip and always lands on the real screen. Slow emissive breathing; a warmer/busier
+// tint while the company is shipping units; an occasional seeded "notification" blip; and a ship-day
+// cheer pulse toward positive green. Throttled to ~15fps like Dust/Mug — it's pure flavour.
+// Scoped to deskType "desk" (the one screen whose local position is known) like DeskClutter, so a
+// fancier desk's own detailing is never overlaid at the wrong spot.
+function LivingMonitor({ seed, hasProduction, p }: { seed: number; hasProduction: boolean; p: RoomPalette }) {
+  const mat = useRef<THREE.MeshStandardMaterial>(null);
+  // Resting screen tint, nudged warmer/busier while production runs (a "compiling/shipping" glow).
+  const base = useMemo(() => {
+    const c = new THREE.Color(p.screen);
+    if (hasProduction) c.lerp(new THREE.Color("#ffb060"), 0.22);
+    return c;
+  }, [p.screen, hasProduction]);
+  const scratch = useMemo(() => new THREE.Color(), []);
+  const acc = useRef(0);
+  useFrame((st, delta) => {
+    const m = mat.current;
+    if (!m) return;
+    acc.current += delta;
+    if (acc.current < 1 / 15) return; // ~15fps like Dust/Mug
+    acc.current = 0;
+    const et = st.clock.elapsedTime;
+    // Notification blip: chop time into 6s windows; a stable hash of (window, seed) decides whether
+    // THIS desk pings this window, then a short half-second cosine bump lights it. Deterministic —
+    // derived from the clock + the per-desk seed, never Math.random in the frame path.
+    const period = 6;
+    const win = Math.floor(et / period);
+    let spike = 0;
+    if (Math.abs(Math.sin((win + seed) * 91.7)) > 0.6) {
+      const into = et - win * period;
+      if (into < 0.6) spike = Math.sin((into / 0.6) * Math.PI) * 0.9;
+    }
+    const cheer = reactionIntensity("cheer");
+    scratch.copy(base);
+    if (cheer > 0) scratch.lerp(CHEER_GREEN, cheer * 0.7); // ship-day green pulse (item 7)
+    m.color.copy(scratch);
+    m.emissive.copy(scratch);
+    m.emissiveIntensity = 0.9 + Math.sin(et * 1.3 + seed) * 0.12 + spike + cheer * 0.5;
+  });
+  return (
+    <mesh position={[0.12, 1.16, -0.153]}>
+      <planeGeometry args={[0.62, 0.35]} />
+      <meshStandardMaterial ref={mat} color={p.screen} emissive={p.screen} emissiveIntensity={0.95} toneMapped={false} />
+    </mesh>
+  );
+}
+
+function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false, hasProduction = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean }) {
   const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
+  // Occasional chair swivel: an occupied seat rotates a few degrees on a slow seeded cadence so a row
+  // of workers isn't dead-still. Additive over the seat's base facing (the flip). Empty pod desks
+  // (no staff) stay put. One cheap sine per occupied station; the slow frequency is its own smoothing.
+  const seatRef = useRef<THREE.Group>(null);
+  const seatBase = flip ? Math.PI : 0;
+  useFrame((st) => {
+    if (staff && seatRef.current) seatRef.current.rotation.y = seatBase + Math.sin(st.clock.elapsedTime * 0.4 + seed) * 0.06;
+  });
   return (
     <group>
       {/* The player's ACTUAL placed desk model (each desk model carries its own monitor). The desk
@@ -961,11 +1072,14 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
         {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
             their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}
         {staff && deskType === "desk" && <DeskClutter seed={seed} p={p} />}
+        {/* the screen comes alive on an occupied plain desk (breathing / notifications / ship-day pulse) */}
+        {staff && deskType === "desk" && <LivingMonitor seed={seed} hasProduction={hasProduction} p={p} />}
       </group>
       {/* chair + robot SEATED on it: the figure is lifted onto the seat (≈0.58 high) and pulled
           back so it rests against the backrest, facing the desk (+z, toward the camera). The
-          parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead. */}
-      <group position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
+          parametric robot folds into a sitting pose; a rigged .glb plays its "Sitting" clip instead.
+          The group ref lets the slow chair-swivel above rotate the whole seat (chair + robot). */}
+      <group ref={seatRef} position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
         <Chair p={p} hue={hue} />
         {staff && (
           <group position={[0, 0, -0.08]}>
@@ -993,14 +1107,14 @@ function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] 
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
 }
-function DesktopPod({ p, worlds, staff, monitors, onTapStaff, startColorIdx }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; onTapStaff?: (id: string) => void; startColorIdx: number }) {
+function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapStaff, startColorIdx }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; hasProduction?: boolean; onTapStaff?: (id: string) => void; startColorIdx: number }) {
   return (
     <group>
       {worlds.map((w, i) => {
         const s = staff[i];
         return (
           <group key={i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} powered />
+            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} hasProduction={hasProduction} powered />
             {/* invisible tap target → opens this employee's roster card (matches the placed desks) */}
             {onTapStaff && s?.id && (
               <mesh
@@ -1696,12 +1810,27 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   // furniture grid below fills the larger CENTRED grid at real desk size (tier-aware worldOf).
   const roomK = roomScaleFor(facilityTier);
   const sc: [number, number, number] = [roomK, 1, roomK];
+  // Procedural studio IBL (no HDR assets): a few soft area-light rects baked into an environment map
+  // so every metalness surface (vault, coffee machine, robot neck rings, printer) reflects a real
+  // soft-box rig instead of a flat colour. Memoized with a stable element identity + frames={1} so the
+  // PMREM bakes ONCE and never re-bakes on a Scene re-render (the house battery/GPU rule). Kept
+  // theme-independent — the ambient/directional lights already carry the dark-vs-light mood — so a
+  // theme flip never dirties it. Each Lightformer defaults to looking at the origin, so I only place them.
+  const studioEnv = useMemo(() => (
+    <Environment resolution={64} frames={1}>
+      <Lightformer form="rect" intensity={1.1} color="#ffffff" position={[0, 6, 1]} scale={[9, 4, 1]} />
+      <Lightformer form="rect" intensity={0.7} color="#cfe0ff" position={[-6, 3, -2]} scale={[3, 5, 1]} />
+      <Lightformer form="rect" intensity={0.6} color="#ffe6c2" position={[6, 3, 2]} scale={[3, 5, 1]} />
+      <Lightformer form="rect" intensity={0.5} color="#ffffff" position={[0, 2, -6]} scale={[6, 3, 1]} />
+    </Environment>
+  ), []);
   return (
     <>
       <VisibilityPause />
       {!dark && <EnableShadows />}
       <CameraRig build={!!builder?.build} facilityTier={facilityTier} />
       <PinchZoom />
+      {studioEnv}
       <ambientLight intensity={dark ? 0.55 : 0.62} color={dark ? "#ffffff" : "#f6f8ff"} />
       {/* soft sky/ground fill — gives the clean diorama an ambient-occlusion-like gradient */}
       {!dark && <hemisphereLight args={["#ffffff", "#dfe4ec", 0.85]} />}
@@ -1723,6 +1852,10 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         shadow-bias={-0.0006}
       />
       <directionalLight position={[-5, 8, 4]} intensity={dark ? 0.15 : 0.4} color={dark ? "#c0d4ff" : "#e8f0ff"} />
+      {/* cool rim from behind-above the desk bank — the third point of a three-point rig, so the
+          seated robots read as separated silhouettes against the back wall instead of flat cutouts.
+          No shadows (rim/accent only). */}
+      <directionalLight position={[-4, 7, -6]} intensity={dark ? 0.35 : 0.5} color="#bcd4ff" />
       <pointLight position={[0, 3.4, 0]} intensity={dark ? 14 : 4} distance={12} decay={2} color={p.lamp} />
       <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.2} distance={7} decay={2} color={p.screen} />
 
@@ -1766,7 +1899,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         const w = worldOf(seats[i], facilityTier);
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFlipped(seats[i], facilityTier)} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFlipped(seats[i], facilityTier)} hasProduction={hasProduction} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
@@ -1786,7 +1919,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       ))}
       {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
           hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}
-      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} onTapStaff={onTapStaff} startColorIdx={seats.length} />}
+      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} hasProduction={hasProduction} onTapStaff={onTapStaff} startColorIdx={seats.length} />}
       {/* wall-anchored fixtures scale with the room so they stay in the corners as the floor grows */}
       <group scale={sc}>
         <Props p={p} hasProduction={hasProduction} dark={dark} />
@@ -1912,7 +2045,7 @@ export const Garage3D = memo(function Garage3D({
         frameloop={paused ? "never" : "always"}
         dpr={[1, 1.75]}
         shadows={dark ? false : { type: THREE.VSMShadowMap }}
-        gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+        gl={{ alpha: true, antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
         camera={{ position: [15.5, 13.0, 17.5], fov: 25 }}
         style={{ touchAction: builder?.build ? "none" : "pan-y" }}
         onCreated={({ gl }) => {

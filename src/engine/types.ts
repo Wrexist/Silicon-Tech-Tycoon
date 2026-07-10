@@ -308,14 +308,6 @@ export interface BuildJob {
   channelId?: string; // marketing channel selected at launch
 }
 
-export interface FacilityTier {
-  tier: number;
-  name: string;
-  staffCapacity: number;
-  weeklyRent: Money;
-  upgradeCost: Money;
-}
-
 export interface ConsumerTrends {
   weights: Stats; // normalized-ish weights (sum ~1) of what consumers want now
   targetWeights: Stats; // drifting target the weights ease toward

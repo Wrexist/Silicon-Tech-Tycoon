@@ -115,6 +115,45 @@ describe("office shop catalog", () => {
   });
 });
 
+describe("catalog integrity", () => {
+  it("every furniture id is unique", () => {
+    const ids = FURNITURE.map((f) => f.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("every item has a footprint of at least 1×1 cell", () => {
+    for (const f of FURNITURE) {
+      expect(f.w).toBeGreaterThanOrEqual(1);
+      expect(f.d).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("attrs are non-negative wherever present (cosmetics may omit them)", () => {
+    for (const f of FURNITURE) {
+      if (!f.attrs) continue;
+      expect(f.attrs.comfort ?? 0).toBeGreaterThanOrEqual(0);
+      expect(f.attrs.focus ?? 0).toBeGreaterThanOrEqual(0);
+      expect(f.attrs.inspiration ?? 0).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("the 20 catalog-expansion items exist with their expected categories", () => {
+    const expected: Record<string, string> = {
+      aquarium: "decor", superCluster: "tech", holoGlobe: "tech", quantumRig: "tech",
+      espressoRobot: "fun", dronePad: "tech", zenFountain: "decor", trophyCase: "storage",
+      napPod: "seating", microKitchen: "fun", focusPod: "decor", ideaWall: "decor",
+      indoorTree: "plants", kombuchaTap: "fun", rocketModel: "decor", treeLamp: "lighting",
+      uplight: "lighting", pizzaStack: "garage", cableSpool: "garage", mascotStandee: "decor",
+    };
+    for (const [id, category] of Object.entries(expected)) {
+      const def = FURNITURE.find((f) => f.id === id);
+      expect(def, `missing catalog item: ${id}`).toBeDefined();
+      expect(def!.category).toBe(category);
+      expect(def!.cost).toBeGreaterThan(0); // pinned by the shop's positive-price rule
+    }
+  });
+});
+
 describe("office grid grows with the facility tier", () => {
   it("gridN: Garage stays 9, Studio 11, Campus 13; unknown/base defaults to 9", () => {
     expect(gridN(1)).toBe(9);   // Garage — unchanged, so existing garages never shift

@@ -398,6 +398,9 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   const dark = isDarkTheme();
   // If the GPU drops the WebGL context mid-game, fall back to the 2D IsoScene instead of black.
   const [glLost, setGlLost] = useState(false);
+  // Stable identity so the memoized Garage3D office scene isn't re-rendered every sim tick by a fresh
+  // inline arrow (its shallow prop compare would fail). onNavigate is a useState setter (stable).
+  const handleTapStaff = useCallback(() => onNavigate("company"), [onNavigate]);
 
   // Decorate is a full-screen overlay: lock background page scroll while it's open so a drag on
   // the editor can't scroll HQ underneath it.
@@ -409,7 +412,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
 
   const selected = build ? state.layout.find((x) => x.iid === selectedIid) ?? null : null;
   const searching = search.trim().length > 0;
-  const visibleItems = searching ? searchFurniture(search) : FURNITURE.filter((f) => f.category === cat);
+  const visibleItems = searching ? searchFurniture(search) : FURNITURE.filter((f) => f.category === cat && !f.retired);
 
   // Always-current layout for the undo snapshot, so the memoized builder callbacks below don't
   // have to be rebuilt every render just to capture the latest layout reference.
@@ -542,7 +545,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 desktops={state.desktops}
                 height={build ? "100%" : 420}
                 paused={!active}
-                onTapStaff={() => onNavigate("company")}
+                onTapStaff={handleTapStaff}
                 onTapBank={onOpenBank}
               />
             </Suspense>
@@ -621,8 +624,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
               </div>
               {!searching && (
                 <div className="hqb__cats">
+                  {/* "Paint", not "Room" — players looking to recolor the floor/walls scan for the
+                      word paint; "Room" read as just another furniture category and got missed. */}
                   <button className={`hqb__cat hqb__cat--room${roomTab ? " hqb__cat--on" : ""}`} onClick={() => { setRoomTab(true); setPlacingType(null); haptic.light(); }}>
-                    <PaintbrushVertical size={13} /> Room
+                    <PaintbrushVertical size={13} /> Paint
                   </button>
                   {CATEGORY_ORDER.map((c) => (
                     <button key={c} className={`hqb__cat${!roomTab && cat === c ? " hqb__cat--on" : ""}`} onClick={() => { setCat(c); setRoomTab(false); haptic.light(); }}>

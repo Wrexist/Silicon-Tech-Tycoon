@@ -46,6 +46,16 @@ describe("newScenarioGame", () => {
     const g = newScenarioGame("does-not-exist", 7);
     expect(g.activeScenario).toBe(null);
   });
+
+  it("carries the founder's chosen company name into the run (blank → default)", () => {
+    expect(newScenarioGame("first-light", 42, 0, "Acme Corp").companyName).toBe("Acme Corp");
+    expect(newScenarioGame("first-light", 42, 0, "  Trimmed  ").companyName).toBe("Trimmed");
+    // Blank / omitted keeps newGame's default so in-game starts (no typed name) don't regress.
+    expect(newScenarioGame("first-light", 42, 0, "   ").companyName).toBe(newGame(42).companyName);
+    expect(newScenarioGame("first-light", 42).companyName).toBe(newGame(42).companyName);
+    // Even the defensive unknown-id path honors the founder's name.
+    expect(newScenarioGame("does-not-exist", 7, 0, "Acme").companyName).toBe("Acme");
+  });
 });
 
 describe("withScenarioRunStars (run-scoped, replay-safe)", () => {
