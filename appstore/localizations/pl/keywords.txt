@@ -1,1 +1,1 @@
-biznes,symulator,fabryka,magnat,strategia,zarządzanie,startup,pieniądze,prezes,ekonomia,giełda,firma
+biznes,symulator,fabryka,magnat,strategia,zarządzanie,startup,pieniądze,prezes,ekonomia,giełda,szef

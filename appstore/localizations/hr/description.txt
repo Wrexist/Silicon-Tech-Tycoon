@@ -3,7 +3,7 @@ Pretvori garažu u globalno tehnološko carstvo — uređaj po uređaj.
 Silicon je premium poslovna simulacija i prava tycoon igra. Ne gledaš samo kako brojke rastu: ti DIZAJNIRAŠ proizvode, GRADIŠ tvornicu koja ih proizvodi i VODIŠ tvrtku koja ih prodaje. Osnuj startup, izbaci hit, pregazi suparnike, izađi na burzu i zavladaj cijelom industrijom.
 
 DIZAJNIRAJ SVAKI UREĐAJ
-Prilagodi mobitele, tablete, laptope, konzole, monitore i AR naočale iznutra prema van — čip, ekran, baterija, materijali, kamere, završna obrada i boja — i gledaj kako svaki oživljava u oštrom vektorskom pregledu. Svaka odluka pomiče tvoj trošak, maržu i reakciju tržišta. A i forma prodaje: upečatljiv dizajn prodaje se sam.
+Prilagodi mobitele, tablete, laptope, konzole, monitore i AR naočale iznutra prema van — čip, ekran, baterija, materijali, kamere, završna obrada i boja — i gledaj kako svaki oživljava u oštrom vektorskom pregledu. Svaka odluka pomiče tvoj trošak, maržu i reakciju tržišta. A i forma je bitna: upečatljiv dizajn prodaje se sam.
 
 IZGRADI PRAVU TVORNICU
 Tvornički način je živa 3D proizvodna linija koju slažeš vlastitim rukama. Postavljaj pokretne trake, dodaj i nadograđuj strojeve i posloži pogon da proizvodi brže — svaki uređaj traži prave strojeve (mobitel treba stroj za lijepljenje ekrana, laptop glodalicu za kućišta). Ukrasi pogon rekvizitima i obojenim zidovima, proširi zgradu i primaj vanjske narudžbe da linija ne stoji između lansiranja.
@@ -12,7 +12,7 @@ POGODI TRENUTAK NA TRŽIŠTU
 Ukus potrošača mijenja se iz tjedna u tjedan. Očitaj trend, odredi pravu cijenu, odaberi kampanju po mjeri budžeta i pronađi svoj prozor za lansiranje. Igra ti uvijek kaže ZAŠTO je proizvod uspio ili propao — pa te svako lansiranje nečemu nauči.
 
 STVARAJ NEPRIJATELJE
-Utrkuj se s desetak izmišljenih suparnika na živoj ljestvici industrije. Jedan od njih postaje tvoj najveći neprijatelj — živi nemesis s kojim se sudaraš iznova i iznova. Kad suparnik udari na tvoju kategoriju, suoči njegov uređaj sa svojim u dvoboju i uzvrati. A svake godine Silicon Awards ocjenjuje sva lansiranja u kategorijama Uređaj godine, Dizajn i Vrijednost — počisti pozornicu ili zapamti nepravdu.
+Utrkuj se s desetak izmišljenih suparnika na živoj ljestvici industrije. Jedan od njih postaje tvoj najveći neprijatelj — živi nemesis s kojim se sudaraš iznova i iznova. Kad suparnik udari na tvoju kategoriju, suoči njegov uređaj sa svojim u dvoboju i uzvrati. A svake godine Silicon Awards ocjenjuje sva lansiranja u kategorijama Uređaj godine, Dizajn i Vrijednost — pokupi sve nagrade ili zapamti nepravdu.
 
 IGRAJ NA BURZI
 Trguj dionicama suparnika, kupi mjesto u upravnom odboru za povlaštene informacije, uzmi kontrolni paket za neprijateljsko preuzimanje s popustom ili kupi suparnika u cijelosti i preuzmi njegov brend, obožavatelje i patente. Zatim izvedi vlastitu tvrtku na burzu i nadmaši kvartalna očekivanja analitičara.
@@ -27,6 +27,6 @@ SASTAVI TIM I SJEDIŠTE
 Zapošljavaj inženjere, dizajnere i marketingaše — svatko ima specijalnost, osobinu i raspoloženje koje mu pomiče učinak. Iskusni zaposlenici izrastaju u mentore i majstore. Gledaj kako se tvoje 3D sjedište u stvarnom vremenu puni životom, od garaže do kampusa.
 
 PREMIUM. OFFLINE. TVOJE.
-Bez oglasa. Bez tajmera. Bez energije. Bez valuta. Bez prljavih trikova. Osnovna igra je potpuna i može se prijeći uz jednu jedinu kupnju, a radi u potpunosti offline. Jedina kupnja unutar aplikacije, ikad, jest neobavezni kreativni način — sandbox.
+Bez oglasa. Bez tajmera. Bez energije. Bez valuta. Bez prljavih trikova. Osnovna igra je potpuna i može se prijeći uz jednu jedinu kupnju, a radi u potpunosti offline. Jedina kupnja unutar aplikacije koja će ikad postojati jest neobavezni kreativni način — sandbox.
 
 Osnuj tvrtku. Izbaci nešto veliko. Zavladaj industrijom.
