@@ -240,8 +240,23 @@ Each item is independently shippable. Progress is tracked by checking items off 
 
 ## Status
 
+**Phase 1 — Connective & Alive: COMPLETE ✅**
 - [x] 1.1 Word-of-mouth sales curves
 - [x] 1.2 Office = your team
 - [x] 1.3 Marketing targeting
 - [x] 1.4 Rivals named in events
-- [ ] Phases 2–5 (see above)
+
+**Phase 2 — Personality & World Reactivity: in progress**
+- [x] 2.1 Real employee characters (full names + bios)
+- [ ] 2.2 Per-employee morale/life events (salt 233)
+- [ ] 2.3 Nemesis storyline (salt 241)
+- [ ] 2.4 Rival-vs-rival dynamics (salt 239)
+- [ ] 2.5 Narrate climate + trend system (salt 251)
+- [ ] 2.6 Reviews feed the world
+
+**Phases 3–5:** not started (see sections above).
+
+> Note on remaining sequencing: items that mutate the live sim/economy (2.4 rival-vs-rival, 2.5 trends,
+> 3.x factory economics + segment-textured demand, 4.x endgame/research/prestige) each want their own
+> focused pass with `npm run sim` re-validation, so they land as reviewable, individually-verified
+> changes rather than one large balance-shifting diff.
