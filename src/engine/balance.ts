@@ -90,6 +90,10 @@ export const BALANCE = {
       marketerWeight: 0.05, // per effective marketer skill point
       base: 0.9,
       max: 2.4,
+      // A launch campaign's hype is added ON TOP of the (clamped) passive hype and bounded by this on
+      // its own — so each campaign tier stays distinct even for a maxed-out company. Sized to fit the
+      // biggest channel (Global Launch, hype 1.2) after era amplification with headroom to spare.
+      campaignMax: 2.4,
     },
     price: {
       // priceFit peaks when price ≈ perceivedValue*idealMargin; falls off both sides.
@@ -1033,7 +1037,11 @@ export const BALANCE = {
     minLoan: 25_000 * 100,        // smallest drawdown ($25K)
     creditFloor: 75_000 * 100,    // a garage can borrow at least this (before subtracting existing debt)
     creditRevenueWeeks: 16,       // + this many weeks of recent revenue as borrowing headroom
-    maxCredit: 8_000_000 * 100,   // hard ceiling on total outstanding debt ($8M)
+    creditNetWorthFrac: 0.18,     // + this fraction of NET WORTH — financing scales with how big/valuable
+                                  //   the company is (a $100M business can raise ~$18M, not a flat pittance)
+    creditProfitWeeks: 26,        // + this many weeks of weekly PROFIT — cash flow that services the debt
+    maxCredit: 8_000_000 * 100,   // FLAT floor of the hard ceiling ($8M) for a small company…
+    maxCreditNetWorthFrac: 0.45,  // …but the ceiling grows to this fraction of net worth for a big one
     originationFee: 0.01,         // 1% taken off the top on drawdown (you receive principal × 0.99)
   },
 

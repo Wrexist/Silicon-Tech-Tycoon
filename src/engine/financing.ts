@@ -25,21 +25,37 @@ export function weeklyDebtService(loans: readonly Loan[]): number {
   return loans.reduce((a, l) => a + l.weeklyPayment, 0);
 }
 
-/** How much MORE the player can borrow (cents): a flat floor so even a garage can raise a little,
- *  plus a multiple of recent weekly revenue, capped, minus what they already owe. */
-export function creditLimit(weeklyRevenueCents: number, loans: readonly Loan[]): number {
+/** The total credit CEILING (cents) a company can carry — the size of the business, not what's still
+ *  available. Scales with the three signals a lender actually underwrites: recent weekly revenue,
+ *  the company's NET WORTH (a big, valuable company can carry far more debt), and its weekly
+ *  PROFITABILITY (cash flow that services the debt). The hard cap itself grows with net worth, so
+ *  financing stays relevant for a $100M company instead of freezing at a tiny flat ceiling.
+ *  netWorthCents / weeklyProfitCents default to 0 → the pre-scaling revenue-only behaviour. */
+export function creditCeiling(weeklyRevenueCents: number, netWorthCents = 0, weeklyProfitCents = 0): number {
   const f = BALANCE.financing;
-  const headroom = f.creditFloor + Math.max(0, weeklyRevenueCents) * f.creditRevenueWeeks;
-  const cap = Math.min(headroom, f.maxCredit);
+  const headroom =
+    f.creditFloor +
+    Math.max(0, weeklyRevenueCents) * f.creditRevenueWeeks +
+    Math.max(0, netWorthCents) * f.creditNetWorthFrac +
+    Math.max(0, weeklyProfitCents) * f.creditProfitWeeks;
+  // The ceiling grows with net worth so a large, valuable company isn't stuck at the flat floor.
+  const ceiling = Math.max(f.maxCredit, Math.max(0, netWorthCents) * f.maxCreditNetWorthFrac);
+  return Math.min(headroom, ceiling);
+}
+
+/** How much MORE the player can borrow (cents): the credit ceiling minus what they already owe. */
+export function creditLimit(weeklyRevenueCents: number, loans: readonly Loan[], netWorthCents = 0, weeklyProfitCents = 0): number {
+  const cap = creditCeiling(weeklyRevenueCents, netWorthCents, weeklyProfitCents);
   return Math.max(0, Math.round(cap - totalDebt(loans)));
 }
 
 /** The weekly interest rate offered right now: cheaper as reputation rises above the midpoint,
  *  pricier as the player approaches their credit ceiling (leverage premium). Floored so it's never
- *  free money. */
-export function loanRate(reputation: number, weeklyRevenueCents: number, loans: readonly Loan[]): number {
+ *  free money. Net worth + profitability lift the ceiling, so the same loan reads as lower leverage
+ *  (cheaper) for a bigger, more profitable company. */
+export function loanRate(reputation: number, weeklyRevenueCents: number, loans: readonly Loan[], netWorthCents = 0, weeklyProfitCents = 0): number {
   const f = BALANCE.financing;
-  const cap = Math.min(f.creditFloor + Math.max(0, weeklyRevenueCents) * f.creditRevenueWeeks, f.maxCredit);
+  const cap = creditCeiling(weeklyRevenueCents, netWorthCents, weeklyProfitCents);
   const leverage = cap > 0 ? Math.min(1, totalDebt(loans) / cap) : 1;
   let r = f.baseRatePerWeek;
   r -= Math.max(0, reputation - 50) * f.rateRepDiscount;
@@ -57,9 +73,9 @@ export function weeklyPaymentFor(principalCents: number, ratePerWeek: number, te
 }
 
 /** Build a fresh loan at the rate/term offered now. */
-export function makeLoan(id: string, principalCents: number, reputation: number, weeklyRevenueCents: number, loans: readonly Loan[], week: number): Loan {
+export function makeLoan(id: string, principalCents: number, reputation: number, weeklyRevenueCents: number, loans: readonly Loan[], week: number, netWorthCents = 0, weeklyProfitCents = 0): Loan {
   const f = BALANCE.financing;
-  const rate = loanRate(reputation, weeklyRevenueCents, loans);
+  const rate = loanRate(reputation, weeklyRevenueCents, loans, netWorthCents, weeklyProfitCents);
   const weeklyPayment = weeklyPaymentFor(principalCents, rate, f.termWeeks);
   return { id, principal: principalCents, balance: principalCents, weeklyPayment, ratePerWeek: rate, termWeeks: f.termWeeks, takenWeek: week };
 }

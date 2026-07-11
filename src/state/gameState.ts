@@ -1242,10 +1242,14 @@ export function planProduction(
     reputation: s.reputation,
     marketerSkill: marketerSkill(s) * mktMult,
     competitorStrength: 0,
-    // Bound the combined hype bonus (studio + visionary marketers + marketing upgrade +
-    // channel) before it reaches scoreLaunch, which also clamps total hype. Without this,
-    // stacking many visionary marketers makes launchScore/volume explode. Safety guard.
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, (hypeBonus(s) + channel.hype) * mktMult + equityHypeBonus(brand.equity))),
+    // Bound the PASSIVE hype bonus (studio + visionary marketers + marketing upgrade + brand equity)
+    // before it reaches scoreLaunch, which also clamps it. Without this, stacking many visionary
+    // marketers makes launchScore/volume explode. Safety guard. The chosen launch CAMPAIGN is passed
+    // SEPARATELY (campaignHype) so it lands on TOP of this clamp — a bigger campaign always lifts the
+    // launch instead of being absorbed once the company's passive hype maxes out (the "every tier
+    // shows the same units" bug in a mature company).
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, hypeBonus(s) * mktMult + equityHypeBonus(brand.equity))),
+    campaignHype: Math.max(0, channel.hype) * mktMult,
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: componentSynergy(product).factor,
@@ -3510,14 +3514,27 @@ function weeklyRevenueCents(state: GameState): number {
   return Math.round(toDollars(nextWeekRevenue(state)) * 100);
 }
 
+/** The company's NET WORTH in CENTS — the size/valuation signal that scales financing so a large
+ *  company can borrow proportionally more (engine/financing.ts). */
+function netWorthCents(state: GameState): number {
+  return Math.round(toDollars(netWorth(state)) * 100);
+}
+
+/** Operational weekly PROFIT in CENTS (revenue − burn, before debt service) — the cash-flow signal
+ *  that lifts credit for a profitable company. Negative profit contributes nothing (clamped in the
+ *  engine). */
+function weeklyProfitCents(state: GameState): number {
+  return Math.round(toDollars(sub(nextWeekRevenue(state), burn(state))) * 100);
+}
+
 /** How much the player can still borrow right now (Money). Exposed for the financing UI. */
 export function loanCreditAvailable(state: GameState): Money {
-  return cents(creditLimit(weeklyRevenueCents(state), state.loans ?? []));
+  return cents(creditLimit(weeklyRevenueCents(state), state.loans ?? [], netWorthCents(state), weeklyProfitCents(state)));
 }
 
 /** The weekly interest rate the player would be offered for a new loan right now (0..1). */
 export function loanRateNow(state: GameState): number {
-  return loanRate(state.reputation, weeklyRevenueCents(state), state.loans ?? []);
+  return loanRate(state.reputation, weeklyRevenueCents(state), state.loans ?? [], netWorthCents(state), weeklyProfitCents(state));
 }
 
 /** Take on a debt-financing loan (Track C): receive the principal (less a small origination fee) as
@@ -3528,9 +3545,11 @@ export function takeLoan(state: GameState, principalCents: number): GameState {
   const loans = state.loans ?? [];
   const f = BALANCE.financing;
   const principal = Math.round(principalCents);
-  const limit = creditLimit(weeklyRevenueCents(state), loans);
+  const nwCents = netWorthCents(state);
+  const profitCents = weeklyProfitCents(state);
+  const limit = creditLimit(weeklyRevenueCents(state), loans, nwCents, profitCents);
   if (principal < f.minLoan || principal > limit) return state;
-  const loan = makeLoan(`loan-${state.week}-${loans.length}`, principal, state.reputation, weeklyRevenueCents(state), loans, state.week);
+  const loan = makeLoan(`loan-${state.week}-${loans.length}`, principal, state.reputation, weeklyRevenueCents(state), loans, state.week, nwCents, profitCents);
   const proceeds = Math.round(principal * (1 - f.originationFee));
   const aprPct = Math.round(loan.ratePerWeek * 52 * 100);
   const feed = trimFeed([
