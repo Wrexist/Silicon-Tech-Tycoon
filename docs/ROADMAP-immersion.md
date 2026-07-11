@@ -248,10 +248,16 @@ surfaced in a new HQ "Legacy Era" card with a live mandate progress meter. Every
 (mandate tick + `fundMegaproject`/`mandateFacts`), `state/useGame.tsx`, `state/persistence.ts`,
 `screens/HQ.tsx` (`LegacyEraCard`), `engine/endgame.test.ts`.
 
-### 4.2 Research → branching tree
-Add `ResearchProject.requires?`, more mutually-exclusive forks, and era **capstones**; deeper era-4 RP
-sinks. Turns the "buy everything" checklist into route-planning. Property-test reachability.
-**Files:** `engine/research.ts`, `screens/Research.tsx`, `engine/balance.ts`.
+### 4.2 Research → branching tree — SHIPPED
+Added `ResearchProject.requires?` (prerequisites) + a `capstone` flag, and three era **capstones** —
+Growth Engine (E2, req brandStudio+loyaltyProgram), Platform Dominance (E3, req globalDistribution+
+verticalIntegration), Singularity Lab (E4, req aiCopilot+neuralMarketing) — each a deep RP sink behind
+a real route with a compound payoff (hype / reach / unit-cost / ecosystem / fan-decay). Prereq gate is
+enforced in `buyProject`, `startResearchProject`, and both auto-research filters; the Research screen
+shows a "Requires …" lock + a "Capstone" tag. Property tests prove the graph is acyclic, every project
+reachable, and prereqs sit at an era ≤ their dependant. The sim never buys projects → byte-identical.
+**Files (done):** `engine/research.ts` (`requires`/`capstone`, `prereqsMissing`, `projectUnlocked`),
+`state/gameState.ts` (gates + capstone effects), `screens/Research.tsx`, `state/researchCapstone.test.ts`.
 
 ### 4.3 Prestige meta-tree
 Replace the fixed 10-perk drip with a spend-tree: earn Legacy Points, pick 2 of 4 perks per tier,
@@ -319,7 +325,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 
 **Phase 4 — Meta-progression & Endgame: in progress**
 - [x] 4.1 Post-IPO "Legacy Era" endgame (salt 263) — board mandates + megaprojects + Legacy Points
-- [ ] 4.2 Research → branching tree
+- [x] 4.2 Research → branching tree — prerequisites + 3 era capstones, reachability property-tested
 - [ ] 4.3 Prestige meta-tree (will spend Legacy Points from 4.1)
 - [ ] 4.4 Doctrines across the whole arc
 

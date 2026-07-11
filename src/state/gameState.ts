@@ -35,6 +35,7 @@ import {
   forkLockedBy,
   hasProject,
   launchRpReward,
+  prereqsMissing,
   projectById,
   RESEARCH_PROJECTS,
   rpSources,
@@ -947,6 +948,8 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
   (hasProject(s.completedProjects, "neuralMarketing") ? 0.25 : 0) +
   (hasProject(s.completedProjects, "gtmHype") ? 0.30 : 0) + // Go-to-Market doctrine: Hype House
+  (hasProject(s.completedProjects, "growthEngine") ? 0.20 : 0) +   // Era-2 capstone (item 4.2)
+  (hasProject(s.completedProjects, "singularityLab") ? 0.20 : 0) + // Era-4 capstone (item 4.2)
   visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype + brandAwarenessHype(s);
 
 /** The bounded launch-hype contribution from the company's brand-awareness meter. 0 when the meter is
@@ -975,6 +978,7 @@ export function productStats(s: GameState, product: Product): Stats {
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
   if (hasProject(s.completedProjects, "aiCopilot")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 4;
+  if (hasProject(s.completedProjects, "singularityLab")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 3; // Era-4 capstone (item 4.2)
   // Engineering Doctrine fork (Track D): the chosen house stamps a permanent stat identity on every
   // product. Mutually exclusive, so at most one of these ever applies.
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
@@ -1208,6 +1212,7 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   if (hasProject(s.completedProjects, "predictiveSupply")) unitCost = scale(unitCost, 0.90);
   if (hasProject(s.completedProjects, "opsCost")) unitCost = scale(unitCost, 0.82); // Operations doctrine: Cost House
+  if (hasProject(s.completedProjects, "platformDominance")) unitCost = scale(unitCost, 0.90); // Era-3 capstone (item 4.2)
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   // Player-built line automation (item 3.1): a complete floor trims per-unit cost, clamped ≤1 so an
@@ -1279,6 +1284,7 @@ export function planProduction(
   let marketSize = CATEGORIES[product.category].marketSize;
   if (hasProject(s.completedProjects, "globalDistribution")) marketSize *= 1.25;
   if (hasProject(s.completedProjects, "opsReach")) marketSize *= 1.25; // Operations doctrine: Reach House
+  if (hasProject(s.completedProjects, "platformDominance")) marketSize *= 1.15; // Era-3 capstone (item 4.2)
   // Era-scaled volume — small early market (slow garage phase), grows each era.
   const eraScales = BALANCE.market.eraVolumeScale;
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
@@ -2108,9 +2114,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     fanSentiment = evolveSentiment(fanSentiment, facts);
   }
 
-  const baseDecay = hasProject(state.completedProjects, "loyaltyProgram")
-    ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
-    : BALANCE.fans.decayPerWeek;
+  // Fan-decay softeners stack multiplicatively on the weekly loss: Loyalty Program halves it, the
+  // Growth Engine capstone (item 4.2) trims a further 25%. No project → factor 1 → unchanged.
+  let decayLoss = 1;
+  if (hasProject(state.completedProjects, "loyaltyProgram")) decayLoss *= 0.5;
+  if (hasProject(state.completedProjects, "growthEngine")) decayLoss *= 0.75;
+  const baseDecay = decayLoss < 1 ? 1 - (1 - BALANCE.fans.decayPerWeek) * decayLoss : BALANCE.fans.decayPerWeek;
   const loyaltyDecay = sentimentDecayFactor(baseDecay, fanSentiment); // = baseDecay exactly at sentiment 0
   const newFans = Math.round(
     state.fans * Math.pow(loyaltyDecay, rate)
@@ -3933,6 +3942,8 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
   if (proj.era > state.era || state.researchPoints < proj.rpCost) return state;
   // Research-tree fork (Track D): refuse if a mutually-exclusive sibling doctrine is already chosen.
   if (forkLockedBy(state.completedProjects, id)) return state;
+  // Item 4.2 — prerequisites: refuse a capstone until its required projects are all completed.
+  if (prereqsMissing(state.completedProjects, id).length > 0) return state;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Completed research project: ${proj.name}.`, "positive"));
   return {
@@ -4025,6 +4036,8 @@ export function startResearchProject(state: GameState, id: ProjectId): GameState
   const proj = projectById(id);
   if (proj.era > state.era || state.researchPoints < proj.rpCost) return state;
   if (forkLockedBy(state.completedProjects, id)) return state;
+  // Item 4.2 — prerequisites must be completed first.
+  if (prereqsMissing(state.completedProjects, id).length > 0) return state;
   return placeResearch(state, {
     kind: "project", ref: id, name: proj.name, blurb: proj.blurb,
     rpCost: proj.rpCost, totalWeeks: researchWeeksFor(proj.rpCost),
@@ -4465,7 +4478,7 @@ export function autoClaimResearch(state: GameState): GameState {
   const next = RESEARCH_PROJECTS
     // Skip fork-locked doctrine siblings: buyProject would no-op on them, stalling the automation on a
     // permanently-unbuyable cheapest pick. Doctrine choices stay a manual decision (a real fork).
-    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints && !p.fork)
+    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints && !p.fork && prereqsMissing(state.completedProjects, p.id).length === 0)
     .sort((a, b) => a.rpCost - b.rpCost)[0];
   return next ? buyProject(state, next.id) : state;
 }
@@ -4783,7 +4796,7 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
 export function researchReady(state: GameState): boolean {
   const rp = Math.floor(state.researchPoints);
   return RESEARCH_PROJECTS.some(
-    (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id),
+    (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0,
   );
 }
 
