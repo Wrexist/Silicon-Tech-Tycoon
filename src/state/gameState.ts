@@ -1889,7 +1889,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // cards. Read from the tick-start stamp (a const, so every setter this tick sees the same value);
   // whichever card fires sets lastInterruptWeek = week, deferring the rest to a later quiet week. The
   // pinned solo sim raises no interrupts, so this stays -999 → interruptQuiet is always true → no-op.
-  const interruptQuiet = week - (state.lastInterruptWeek ?? -999) >= BALANCE.interrupts.minGapWeeks;
+  // Item C2 — the gap tightens in the late eras (longer, weightier builds → more should happen in the
+  // wait). The pinned solo sim raises no interrupts, so lastInterruptWeek stays -999 and this is a
+  // no-op there regardless of the gap value.
+  const minGap = state.era >= BALANCE.interrupts.lateEra ? BALANCE.interrupts.minGapWeeksLate : BALANCE.interrupts.minGapWeeks;
+  const interruptQuiet = week - (state.lastInterruptWeek ?? -999) >= minGap;
   let lastInterruptWeek = state.lastInterruptWeek ?? -999;
   let pendingStrike = state.pendingStrike ?? null;
   if (

@@ -37,6 +37,19 @@ describe("interrupt budget", () => {
     expect(s.pendingEarnings ?? null).not.toBeNull();
   });
 
+  it("item C2: the quiet gap is TIGHTER in the late eras (more happens in the wait)", () => {
+    const late = BALANCE.interrupts.minGapWeeksLate;
+    expect(late).toBeLessThan(GAP); // the late gap is genuinely shorter
+    // A listed company advanced to a late era defers a due earnings call by only the SHORTER gap.
+    let s = { ...listed(9), era: BALANCE.interrupts.lateEra } as GameState;
+    for (let w = 0; w < SH.quarterWeeks - 1; w++) s = advanceOneWeek(s);
+    s = { ...s, era: BALANCE.interrupts.lateEra, lastInterruptWeek: s.week } as GameState;
+    // It waits only `late - 1` quiet weeks, then lands on the next — proving the tighter late gap.
+    for (let w = 0; w < late - 1; w++) { s = advanceOneWeek(s); s = { ...s, era: BALANCE.interrupts.lateEra }; expect(s.pendingEarnings ?? null).toBeNull(); }
+    s = advanceOneWeek(s);
+    expect(s.pendingEarnings ?? null).not.toBeNull();
+  });
+
   it("a firing interrupt stamps the shared budget", () => {
     let s = listed(7);
     for (let w = 0; w < SH.quarterWeeks + 1; w++) s = advanceOneWeek(s);

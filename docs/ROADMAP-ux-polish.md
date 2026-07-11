@@ -75,4 +75,4 @@ ship only after the sim confirms 0 bankruptcies, all eras reached, and a healthy
 ## Status
 - [x] A1 · [x] A2 · [x] A3
 - [x] B1 · [~] B2 (addressed via the B1 reorder)
-- [x] C1 (surface) · [ ] C2 · [ ] C3
+- [x] C1 (surface) · [x] C2 (late-era interrupt density) · [ ] C3
