@@ -506,13 +506,16 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
                       {p.capstone && <span className="rd__fork-tag" title="A capstone — the end of this era's tree, behind its prerequisites">Capstone</span>}
                     </span>
                     <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
+                    {/* Item A3 — the "why" that used to live in a hover title, now inline (touch-visible). */}
+                    {p.fork && !done && !forkLock && <span className="rd__fork-note">Doctrine — you can only ever pick ONE of these; it permanently stamps every product you ship.</span>}
+                    {p.capstone && !done && <span className="rd__fork-note">Capstone — the end of this era's tree, unlocked once its prerequisite projects are complete.</span>}
                   </div>
                   {done ? (
                     <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> {p.fork ? "Chosen" : "Done"}</span>
                   ) : locked ? (
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
                   ) : forkLock ? (
-                    <span className="rd__locked" title={`You chose ${projectById(forkLock).name}`}><Lock size={12} /> Locked</span>
+                    <span className="rd__locked"><Lock size={12} /> {projectById(forkLock).name} chosen</span>
                   ) : prereqLock.length > 0 ? (
                     <span className="rd__locked" title={`Requires ${prereqLock.map((r) => projectById(r).name).join(", ")}`}><Lock size={12} /> Requires {prereqLock.map((r) => projectById(r).name).join(", ")}</span>
                   ) : (

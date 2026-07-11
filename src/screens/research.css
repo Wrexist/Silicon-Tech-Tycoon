@@ -223,6 +223,13 @@
 .rd__contrib--muted {
   color: var(--ink-2);
 }
+/* Item A3 — the doctrine/capstone "why", inline (touch-visible) instead of a hover-only title. */
+.rd__fork-note {
+  font-size: var(--fs-micro, 10px);
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--accent) 85%, var(--ink-2));
+  margin-top: 2px;
+}
 .rd__intro {
   font-size: var(--fs-caption);
   color: var(--ink-2);
