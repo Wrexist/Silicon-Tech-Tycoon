@@ -259,10 +259,18 @@ reachable, and prereqs sit at an era ≤ their dependant. The sim never buys pro
 **Files (done):** `engine/research.ts` (`requires`/`capstone`, `prereqsMissing`, `projectUnlocked`),
 `state/gameState.ts` (gates + capstone effects), `screens/Research.tsx`, `state/researchCapstone.test.ts`.
 
-### 4.3 Prestige meta-tree
-Replace the fixed 10-perk drip with a spend-tree: earn Legacy Points, pick 2 of 4 perks per tier,
-weight the resource bonus. Every prestige becomes a distinct build. **Files:** `engine/perks.ts`,
-`state/legacy.ts`, `state/gameState.ts`, `App.tsx`.
+### 4.3 Prestige meta-tree — SHIPPED (in-run Legacy tree)
+New `engine/legacyTree.ts`: a tiered spend-tree (3 tiers × 4 routes — power/marketing/research/margin)
+the player buys with the **Legacy Points** earned from 4.1's megaprojects. Higher tiers gate on how
+many perks you already own, so each Legacy Era commits to a route and plays as a distinct build. The
+boons reuse the `PerkBonus` shape and fold through a new `prestigeBonuses(s)` (founder-perk drip +
+Legacy tree) that every hype/RP/design/cost selector now reads — so both sources apply everywhere at
+once. Surfaced in the HQ Legacy Era card. Empty selection + legacy 0 = the neutral bonus → the pinned
+sim is byte-identical.
+**Deferred:** making Legacy Points PERSIST across prestige (a cross-run profile tree) — the current
+tree is per-run to avoid a save-layer/`legacy.ts` redesign; noted for a follow-up.
+**Files (done):** `engine/legacyTree.ts`, `state/gameState.ts` (`prestigeBonuses` + `buyLegacyPerk` +
+`legacyPerks`), `state/useGame.tsx`, `state/persistence.ts`, `screens/HQ.tsx`, `state/legacyTree.test.ts`.
 
 ### 4.4 Doctrines across the whole arc
 A tier-2 project per doctrine (researchable only if you chose that House), doctrine-flavored events,
@@ -326,7 +334,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 **Phase 4 — Meta-progression & Endgame: in progress**
 - [x] 4.1 Post-IPO "Legacy Era" endgame (salt 263) — board mandates + megaprojects + Legacy Points
 - [x] 4.2 Research → branching tree — prerequisites + 3 era capstones, reachability property-tested
-- [ ] 4.3 Prestige meta-tree (will spend Legacy Points from 4.1)
+- [x] 4.3 Prestige meta-tree — in-run Legacy Points spend-tree; cross-prestige persistence deferred
 - [ ] 4.4 Doctrines across the whole arc
 
 **Phase 5:** not started (see sections above).

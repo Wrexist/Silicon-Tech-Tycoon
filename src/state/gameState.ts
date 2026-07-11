@@ -146,7 +146,8 @@ import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scena
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
-import { perkBonuses } from "../engine/perks.ts";
+import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
+import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable } from "../engine/legacyTree.ts";
 import type {
   Assignment,
   BuildJob,
@@ -423,8 +424,11 @@ export interface GameState {
   // --- Legacy Era (item 4.1): the post-IPO endgame — only live once wentPublic → golden-invariant safe ---
   /** Megaproject ids the player has funded (moonshots with prestige payoffs). Optional → [] on old saves. */
   megaprojectsFunded?: string[];
-  /** Legacy Points banked from completed megaprojects (a prestige currency; item 4.3 will spend them). */
+  /** Legacy Points banked from completed megaprojects — the currency spent on the Legacy tree (4.3). */
   legacyPoints?: number;
+  /** Legacy-tree perks bought this run (item 4.3), by id. Folded through `prestigeBonuses`. Optional →
+   *  [] on old saves; empty aggregates to the neutral bonus, so a run that spends nothing is unchanged. */
+  legacyPerks?: string[];
   /** The board's current quarterly mandate (auto-resolves at its dueWeek). Optional/null on old saves. */
   boardMandate?: import("../engine/endgame.ts").BoardMandate | null;
   /** cumulativeRevenue when the current mandate was issued (to measure the quarter's revenue). */
@@ -749,6 +753,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     quarterStartRevenue: ZERO,
     megaprojectsFunded: [],
     legacyPoints: 0,
+    legacyPerks: [],
     boardMandate: null,
     mandateStartRevenue: ZERO,
     mandateQuarter: 0,
@@ -913,8 +918,22 @@ export const burn = (s: GameState): Money =>
  *  "cash running low"); the tick deducts burn and loan payments separately, so it must NOT use this. */
 export const weeklyOutflow = (s: GameState): Money =>
   add(burn(s), cents(weeklyDebtService(s.loans ?? []))) as Money;
+/** Combined prestige bonuses: the founder-perk drip (from prestige `legacy` level) PLUS the in-run
+ *  Legacy Points spend-tree (item 4.3). legacy 0 + no legacy perks → all-zero, so the pinned sim is
+ *  byte-identical. The build-cost reduction is clamped so cost never dips below 60% however it's
+ *  stacked. Every selector reads bonuses through this, so both sources apply everywhere at once. */
+export const prestigeBonuses = (s: GameState): PerkBonus => {
+  const base = perkBonuses(s.legacy);
+  const tree = legacyTreeBonuses(s.legacyPerks);
+  return {
+    designCeiling: base.designCeiling + tree.designCeiling,
+    hype: base.hype + tree.hype,
+    rpMult: base.rpMult + tree.rpMult,
+    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult)),
+  };
+};
 export const designTierCeiling = (s: GameState) =>
-  designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + perkBonuses(s.legacy).designCeiling;
+  designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + prestigeBonuses(s).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
 /** Mood-target bonus from the room's comfort furniture (capped). Added to the weekly mood target. */
 export const officeComfortMoodBonus = (s: GameState): number =>
@@ -929,10 +948,10 @@ export const officeInspoBonus = (s: GameState): number =>
 export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
   s.cash >= dollars(furnitureCost(type));
 
-export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + prestigeBonuses(s).rpMult);
 
 /** The global multiplier applied to base RP output (R&D upgrades × office focus × legacy perk). */
-const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + prestigeBonuses(s).rpMult);
 
 /** Weekly RP itemized by source, with the global multiplier folded in — so the displayed sum equals
  *  weeklyRpGen(s). Sorted by contribution, biggest first. For the Research "income" breakdown. */
@@ -950,7 +969,7 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "gtmHype") ? 0.30 : 0) + // Go-to-Market doctrine: Hype House
   (hasProject(s.completedProjects, "growthEngine") ? 0.20 : 0) +   // Era-2 capstone (item 4.2)
   (hasProject(s.completedProjects, "singularityLab") ? 0.20 : 0) + // Era-4 capstone (item 4.2)
-  visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype + brandAwarenessHype(s);
+  visionaryHype(s.staff) + marketingHype(s.upgrades) + prestigeBonuses(s).hype + brandAwarenessHype(s);
 
 /** The bounded launch-hype contribution from the company's brand-awareness meter. 0 when the meter is
  *  0 (absent) → folds into hypeBonus with no effect until the player invests, so the pinned sim stays
@@ -1197,7 +1216,7 @@ export function capacityPlan(s: GameState, product: Product, plannedUnits: numbe
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
-  const perk = 1 - perkBonuses(s.legacy).buildCostMult; // NG+ Supply Chain / Industrialist perks
+  const perk = 1 - prestigeBonuses(s).buildCostMult; // NG+ Supply Chain / Industrialist perks
   // Living Late Game: late eras tool up bigger (eraModifier.toolingMult; 1.0 in eras 1–2 → no-op).
   const eraTooling = eraModifier(s.era).toolingMult;
   const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product) * eraTooling);
@@ -1213,7 +1232,7 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "predictiveSupply")) unitCost = scale(unitCost, 0.90);
   if (hasProject(s.completedProjects, "opsCost")) unitCost = scale(unitCost, 0.82); // Operations doctrine: Cost House
   if (hasProject(s.completedProjects, "platformDominance")) unitCost = scale(unitCost, 0.90); // Era-3 capstone (item 4.2)
-  unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
+  unitCost = scale(unitCost, 1 - prestigeBonuses(s).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   // Player-built line automation (item 3.1): a complete floor trims per-unit cost, clamped ≤1 so an
   // unwired/bare floor is exactly ×1 (baseline + pinned sim byte-identical). Pure upside.
@@ -4865,6 +4884,29 @@ export function fundMegaproject(state: GameState, id: string): ActionResult {
       fans,
       legacyPoints: (state.legacyPoints ?? 0) + (mp.reward.legacyPoints ?? 0),
       megaprojectsFunded: [...(state.megaprojectsFunded ?? []), id],
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
+/** Spend Legacy Points on a Legacy-tree perk (item 4.3): a permanent-for-this-run boon that folds
+ *  through `prestigeBonuses` (hype / research / design ceiling / build cost). Gated on wentPublic +
+ *  the tier gate + affordability. Opt-in — the pinned sim never IPOs, so it never spends → identical. */
+export function buyLegacyPerk(state: GameState, id: string): ActionResult {
+  if (!state.wentPublic) return { state, ok: false, reason: "Available after going public." };
+  const perk = legacyPerkById(id);
+  if (!perk) return { state, ok: false, reason: "No such Legacy perk." };
+  const chosen = state.legacyPerks ?? [];
+  if (chosen.includes(id)) return { state, ok: false, reason: "Already unlocked." };
+  if (!legacyPerkAvailable(chosen, id)) return { state, ok: false, reason: "Unlock an earlier-tier perk first." };
+  if ((state.legacyPoints ?? 0) < perk.cost) return { state, ok: false, reason: `Needs ${perk.cost} Legacy Points.` };
+  const feed = [...state.feed, feedItem(state.week, `Legacy perk unlocked — ${perk.name}. ${perk.description}`, "positive")];
+  return {
+    state: {
+      ...state,
+      legacyPoints: (state.legacyPoints ?? 0) - perk.cost,
+      legacyPerks: [...chosen, id],
       feed: trimFeed(feed),
     },
     ok: true,

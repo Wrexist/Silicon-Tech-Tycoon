@@ -55,6 +55,7 @@ import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, type FeedItem, type GameState } from "../state/gameState.ts";
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary } from "../engine/endgame.ts";
+import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -103,7 +104,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
 export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
-  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject } = useGame();
+  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
@@ -221,7 +222,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
 
       {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
-      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} />}
+      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} />}
 
       {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
           shipped, when the community has an opinion to have. */}
@@ -1020,11 +1021,14 @@ function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: str
 
 /** Legacy Era (item 4.1) — the post-IPO endgame: the board's current mandate (with a live progress
  *  meter) and the moonshot megaproject slate the player funds for permanent prestige payoffs. */
-function LegacyEraCard({ state, onFund }: { state: GameState; onFund: (id: string) => void }) {
+function LegacyEraCard({ state, onFund, onBuyPerk }: { state: GameState; onFund: (id: string) => void; onBuyPerk: (id: string) => void }) {
   const mandate = state.boardMandate ?? null;
   const facts = mandateFacts(state);
   const slate = availableMegaprojects(state.megaprojectsFunded ?? []);
   const legacyPoints = state.legacyPoints ?? 0;
+  const chosen = state.legacyPerks ?? [];
+  // The Legacy tree: perks not yet owned whose tier gate is met, cheapest first (item 4.3).
+  const treeOffers = LEGACY_TREE.filter((p) => legacyPerkAvailable(chosen, p.id)).sort((a, b) => a.cost - b.cost);
   return (
     <Card className="hq__contracts">
       <div className="hq__contracts-head">
@@ -1071,6 +1075,26 @@ function LegacyEraCard({ state, onFund }: { state: GameState; onFund: (id: strin
         <p className="hq__contract-remaining" style={{ padding: "4px 2px" }}>
           Every moonshot funded — a legacy without equal.
         </p>
+      )}
+      {/* Legacy Points spend-tree (item 4.3) — route your Legacy Points into a distinct build. */}
+      {legacyPoints > 0 && treeOffers.length > 0 && (
+        <ul className="hq__contracts-list">
+          {treeOffers.map((p) => {
+            const affordable = legacyPoints >= p.cost;
+            return (
+              <li key={p.id} className="hq__contract">
+                <div className="hq__contract-top">
+                  <span className="hq__contract-title">{p.name} <span className="rd__fork-tag">T{p.tier}</span></span>
+                  <span className="hq__contract-reward tnum">{p.cost} LP</span>
+                </div>
+                <span className="hq__contract-remaining">{p.description}</span>
+                <Button size="sm" block disabled={!affordable} onClick={() => onBuyPerk(p.id)}>
+                  <Sparkles size={14} /> Unlock
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </Card>
   );

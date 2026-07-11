@@ -482,6 +482,7 @@ function migrate(state: GameState): GameState | null {
   // Legacy Era (item 4.1, added later): defaults for the post-IPO endgame — only ever live post-IPO.
   if (!Array.isArray(s.megaprojectsFunded)) s.megaprojectsFunded = [];
   if (!Number.isFinite(s.legacyPoints)) s.legacyPoints = 0;
+  if (!Array.isArray(s.legacyPerks)) s.legacyPerks = [];
   if (s.boardMandate === undefined) s.boardMandate = null;
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
