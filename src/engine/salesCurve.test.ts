@@ -6,7 +6,6 @@ import { BALANCE } from "./balance.ts";
 
 const TOTAL = 100_000;
 const backHalf = (w: number[]) => w.slice(Math.floor(w.length / 2)).reduce((a, b) => a + b, 0);
-const peakWeek = (w: number[]) => w.indexOf(Math.max(...w));
 
 describe("word-of-mouth sales curves", () => {
   it("every shape distributes EXACTLY the lifetime total (no units lost or invented)", () => {
