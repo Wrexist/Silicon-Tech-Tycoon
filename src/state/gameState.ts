@@ -1003,6 +1003,10 @@ export function productStats(s: GameState, product: Product): Stats {
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
   if (hasProject(s.completedProjects, "effHouse")) bonus.battery = (bonus.battery ?? 0) + 5;
   if (hasProject(s.completedProjects, "qualityHouse")) bonus.quality = (bonus.quality ?? 0) + 5;
+  // Doctrine tier-2 (item 4.4): a deeper commitment to the chosen House pays a further stat bump.
+  if (hasProject(s.completedProjects, "overclockLab")) bonus.performance = (bonus.performance ?? 0) + 4;
+  if (hasProject(s.completedProjects, "enduranceCells")) bonus.battery = (bonus.battery ?? 0) + 4;
+  if (hasProject(s.completedProjects, "zeroDefectLine")) bonus.quality = (bonus.quality ?? 0) + 4;
   if (hasProject(s.completedProjects, "gtmDesign")) bonus.design = (bonus.design ?? 0) + 6; // GTM doctrine: Design House
   // Performance/efficiency tuning — trades points between performance and battery (a real build
   // choice that depends on what the market wants). Neutral when balanced/undefined → no ripple.

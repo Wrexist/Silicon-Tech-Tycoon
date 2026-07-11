@@ -45,7 +45,7 @@ import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState }
 import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
-import { RESEARCH_PROJECTS } from "./engine/research.ts";
+import { RESEARCH_PROJECTS, doctrineSummary } from "./engine/research.ts";
 import { HQ } from "./screens/HQ.tsx";
 import { DesignLab } from "./screens/DesignLab.tsx";
 import { Research } from "./screens/Research.tsx";
@@ -469,6 +469,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             products: state.launched.length,
             fans: state.fans,
             legacy: state.legacy,
+            doctrine: doctrineSummary(state.completedProjects),
           })}
         </p>
         <Card variant="inset" className="ipo__legacy">

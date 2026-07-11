@@ -41,7 +41,11 @@ export type ProjectId =
   // Era CAPSTONES (item 4.2) — deep, prerequisite-gated end-of-tree projects.
   | "growthEngine"
   | "platformDominance"
-  | "singularityLab";
+  | "singularityLab"
+  // Doctrine tier-2 projects (item 4.4) — each requires the matching engineering House.
+  | "overclockLab"
+  | "enduranceCells"
+  | "zeroDefectLine";
 
 export interface ResearchProject {
   id: ProjectId;
@@ -117,6 +121,12 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   // Era CAPSTONES (item 4.2) — the end of each era's tree. Each REQUIRES two earlier projects, so it
   // sits behind a deliberate route (not a checklist buy), and pays a strong compound bonus. Deep RP
   // sinks that give the late tree somewhere to spend. Reachability is property-tested.
+  // Doctrine tier-2 projects (item 4.4): a deeper commitment unlocked ONLY once you've chosen the
+  // matching engineering House (item 4.2 `requires`). Since the House is a fork, at most one of these
+  // is ever reachable — the doctrine you committed to keeps paying off deeper into the tree.
+  { id: "overclockLab",   name: "Overclock Lab",    blurb: "Performance doctrine: a further +4 Performance on every product.", rpCost: 150, era: 3, requires: ["perfHouse"] },
+  { id: "enduranceCells", name: "Endurance Cells",  blurb: "Efficiency doctrine: a further +4 Battery on every product.",     rpCost: 150, era: 3, requires: ["effHouse"] },
+  { id: "zeroDefectLine", name: "Zero-Defect Line", blurb: "Reliability doctrine: a further +4 Quality on every product.",    rpCost: 150, era: 3, requires: ["qualityHouse"] },
   { id: "growthEngine",      name: "Growth Engine",       blurb: "Capstone: +0.20 hype and 25% slower fan decay stack on your growth machine.", rpCost: 220, era: 2, capstone: true, requires: ["brandStudio", "loyaltyProgram"] },
   { id: "platformDominance", name: "Platform Dominance",  blurb: "Capstone: reach 15% more customers and a further 10% off unit cost.",           rpCost: 340, era: 3, capstone: true, requires: ["globalDistribution", "verticalIntegration"] },
   { id: "singularityLab",    name: "Singularity Lab",     blurb: "Capstone: +3 Ecosystem on every product and +0.20 hype on every launch.",       rpCost: 420, era: 4, capstone: true, requires: ["aiCopilot", "neuralMarketing"] },
@@ -151,6 +161,23 @@ export function prereqsMissing(completed: readonly ProjectId[], id: ProjectId): 
  *  chosen, and every prerequisite met. (Era + RP affordability are checked by the caller.) Pure. */
 export function projectUnlocked(completed: readonly ProjectId[], id: ProjectId): boolean {
   return !completed.includes(id) && !forkLockedBy(completed, id) && prereqsMissing(completed, id).length === 0;
+}
+
+// Item 4.4 — the human name of each doctrine House, for the epilogue clause + UI. Keyed by the fork
+// project id the company committed to.
+const DOCTRINE_LABEL: Partial<Record<ProjectId, string>> = {
+  perfHouse: "a Performance house", effHouse: "an Efficiency house", qualityHouse: "a Reliability house",
+  gtmHype: "a Hype-driven brand", gtmDesign: "a Design-led brand", gtmPrestige: "a Prestige brand",
+  opsSpeed: "a Speed operation", opsCost: "a Cost operation", opsReach: "a Reach operation",
+};
+
+/** Item 4.4 — a short clause naming the doctrines a company committed to (engineering + GTM houses),
+ *  for the campaign epilogue. Empty string when no doctrine was chosen. Pure. */
+export function doctrineSummary(completed: readonly ProjectId[]): string {
+  const chosen = completed.map((id) => DOCTRINE_LABEL[id]).filter(Boolean) as string[];
+  if (chosen.length === 0) return "";
+  if (chosen.length === 1) return `It was built as ${chosen[0]}.`;
+  return `It was built as ${chosen.slice(0, -1).join(", ")} and ${chosen[chosen.length - 1]}.`;
 }
 
 /** The maximum number of projects a single company can ever complete: every non-forked project, plus

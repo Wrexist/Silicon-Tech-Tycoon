@@ -272,10 +272,15 @@ tree is per-run to avoid a save-layer/`legacy.ts` redesign; noted for a follow-u
 **Files (done):** `engine/legacyTree.ts`, `state/gameState.ts` (`prestigeBonuses` + `buyLegacyPerk` +
 `legacyPerks`), `state/useGame.tsx`, `state/persistence.ts`, `screens/HQ.tsx`, `state/legacyTree.test.ts`.
 
-### 4.4 Doctrines across the whole arc
-A tier-2 project per doctrine (researchable only if you chose that House), doctrine-flavored events,
-and a doctrine clause in the epilogue. **Files:** `engine/research.ts`, `engine/events.ts`,
-`engine/epilogue.ts`.
+### 4.4 Doctrines across the whole arc — SHIPPED (tier-2 + epilogue)
+A tier-2 project per engineering House — Overclock Lab / Endurance Cells / Zero-Defect Line — each
+`requires` the matching House (4.2), so it's reachable only once you've committed to that doctrine (and
+fork-exclusivity means at most one is ever available). Each stamps a further +4 to the House's stat, so
+the doctrine keeps paying off deeper into the tree. The campaign epilogue now names the Houses the
+company committed to via a new `doctrineSummary` (engineering + GTM), silent for an unforked run.
+**Deferred:** doctrine-flavored mid-game events — noted for a later events pass.
+**Files (done):** `engine/research.ts` (3 doctrine projects + `doctrineSummary`), `state/gameState.ts`
+(stat bumps), `engine/epilogue.ts` (doctrine clause), `App.tsx`, `state/doctrineArc.test.ts`.
 
 ---
 
@@ -335,7 +340,9 @@ Each item is independently shippable. Progress is tracked by checking items off 
 - [x] 4.1 Post-IPO "Legacy Era" endgame (salt 263) — board mandates + megaprojects + Legacy Points
 - [x] 4.2 Research → branching tree — prerequisites + 3 era capstones, reachability property-tested
 - [x] 4.3 Prestige meta-tree — in-run Legacy Points spend-tree; cross-prestige persistence deferred
-- [ ] 4.4 Doctrines across the whole arc
+- [x] 4.4 Doctrines across the whole arc — tier-2 House projects + epilogue clause; flavored events deferred
+
+**Phase 4 complete** (core scope; deferred: cross-prestige Legacy persistence, doctrine-flavored events).
 
 **Phase 5:** not started (see sections above).
 
