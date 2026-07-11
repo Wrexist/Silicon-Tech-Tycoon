@@ -47,6 +47,7 @@ export function heatTier(heat: number): HeatTier {
 export const HEAT_TIER_LABEL: Record<HeatTier, string> = {
   simmering: "Simmering", heated: "Heated", bitter: "Bitter", allout: "All-out war",
 };
+const HEAT_TIER_RANK: Record<HeatTier, number> = { simmering: 0, heated: 1, bitter: 2, allout: 3 };
 
 /** Advance the rivalry one week: prune if the rival is gone, form on the strongest forming clash when
  *  there's no nemesis, apply this week's clashes with the nemesis, else decay. Returns the (possibly
@@ -105,22 +106,24 @@ export function nemesisLaunchEdge(nemesis: Nemesis | null | undefined, rivalId: 
   return { turfWeight: n.turfCategoryWeight, strengthBonus: n.turfStrengthBonusAtMaxHeat * (Math.max(0, Math.min(100, nemesis.heat)) / 100) };
 }
 
-// Doctrine-flavoured first-person taunts (the state layer prefixes the rival's name). IP-safe, fictional.
+// Doctrine-flavoured first-person taunts (the state layer prefixes the rival's name). `{turf}` is
+// replaced with the player's strongest category ("phone", "laptop", …) so the jab lands on the exact
+// market the feud is being fought over. IP-safe, fictional.
 const TAUNTS: Record<string, readonly string[]> = {
   defender: [
     "Enjoy the spotlight. We were here first, and we'll be here last.",
     "A neat little launch. We'll answer it before your buyers notice.",
-    "You're renting our market. We're about to collect.",
+    "The {turf} market is ours — you're just renting it. We're about to collect.",
   ],
   trendChaser: [
     "Cute idea. We'll ship it better, and sooner.",
     "Thanks for the market research. We'll take it from here.",
-    "Whatever you just launched, expect ours next quarter.",
+    "Whatever you just did in {turf}, expect ours next quarter — only bigger.",
   ],
   undercutter: [
     "Beautiful margins you've got there. Shame if someone undercut them.",
     "We'll sell the same thing for less, and your fans will notice.",
-    "Premium is a nice word for overpriced. We'll fix that.",
+    "Premium is a nice word for overpriced. We'll fix that in {turf}.",
   ],
   generalist: [
     "Don't get comfortable at the top. We're just warming up.",
@@ -128,13 +131,45 @@ const TAUNTS: Record<string, readonly string[]> = {
     "You made this personal. We're happy to oblige.",
   ],
 };
+// At all-out war the gloves come off — venomous lines that override the doctrine flavour.
+const ALLOUT_TAUNTS: readonly string[] = [
+  "This isn't business anymore. We will bury you in {turf}.",
+  "We've stopped competing with you. Now we're just here to end you.",
+  "Every board in this company has one line item: beat you. We intend to.",
+];
 
 /** A doctrine-flavoured taunt, deterministically picked from a derived hash of (seed, week) — never the
- *  sim RNG. The caller prefixes the rival's name (the engine stays name-agnostic + IP-safe). */
-export function nemesisTaunt(doctrine: string, seed: number, week: number): string {
-  const pool = TAUNTS[doctrine] ?? TAUNTS.generalist;
+ *  sim RNG. The caller prefixes the rival's name (the engine stays name-agnostic + IP-safe). At all-out
+ *  war the venom pool takes over; `turf` names the contested category. */
+export function nemesisTaunt(doctrine: string, seed: number, week: number, opts?: { tier?: HeatTier; turf?: string }): string {
+  const pool = opts?.tier === "allout" ? ALLOUT_TAUNTS : TAUNTS[doctrine] ?? TAUNTS.generalist;
   let h = ((seed >>> 0) ^ Math.imul((week + 1) >>> 0, 0x9e3779b1)) >>> 0;
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
-  return pool[(h >>> 0) % pool.length];
+  const line = pool[(h >>> 0) % pool.length];
+  return line.replace(/\{turf\}/g, opts?.turf || "the market");
+}
+
+/** A milestone beat when the rivalry crosses a threshold between `prev` and `next` — a tier escalation
+ *  (heated → bitter → all-out) or a head-to-head record crossing. Returns a `{rival}`-templated line the
+ *  state layer name-fills, or null on a quiet week. This is what turns the feud from a heat number into
+ *  a STORY with turning points. Pure. */
+export function nemesisMilestone(prev: Nemesis | null, next: Nemesis): { text: string; tone: "positive" | "negative" | "accent" } | null {
+  // Tier escalation (only upward — heat's peak never regresses in feel).
+  if (prev) {
+    const before = HEAT_TIER_RANK[heatTier(prev.heat)];
+    const after = HEAT_TIER_RANK[heatTier(next.heat)];
+    if (after > before) {
+      if (heatTier(next.heat) === "allout") return { text: "{rival} has declared all-out war. There's no backing down now.", tone: "negative" };
+      return { text: `The rivalry with {rival} has escalated to ${HEAT_TIER_LABEL[heatTier(next.heat)].toLowerCase()}.`, tone: "negative" };
+    }
+  }
+  // Head-to-head record crossings (fire once, on the crossing week).
+  const pw0 = prev?.playerWins ?? 0, rw0 = prev?.rivalWins ?? 0;
+  const WIN_MARKS = [3, 5, 10, 20];
+  for (const m of WIN_MARKS) {
+    if (pw0 < m && next.playerWins >= m) return { text: `That's ${m} times you've bested {rival}. They're rattled — and dangerous.`, tone: "positive" };
+    if (rw0 < m && next.rivalWins >= m) return { text: `{rival} has gotten the better of you ${m} times now. Answer them, or lose the narrative.`, tone: "negative" };
+  }
+  return null;
 }

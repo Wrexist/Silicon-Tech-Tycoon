@@ -106,3 +106,42 @@ describe("heatTier + taunts", () => {
     expect(typeof nemesisTaunt("mystery", 1, 1)).toBe("string");
   });
 });
+
+describe("nemesis storyline (item 2.3)", () => {
+  const mk = (over: Partial<Nemesis>): Nemesis => ({ rivalId: "mid", sinceWeek: 1, heat: 40, peakHeat: 40, playerWins: 0, rivalWins: 0, lastClashWeek: 1, ...over });
+
+  it("taunts name the contested turf and turn venomous at all-out war", async () => {
+    const { nemesisTaunt } = await import("./nemesis.ts");
+    const calm = nemesisTaunt("defender", 123, 5, { tier: "heated", turf: "laptop" });
+    // turf interpolation: no leftover placeholder, and some lines mention the category
+    expect(calm).not.toContain("{turf}");
+    const allout = nemesisTaunt("defender", 123, 5, { tier: "allout", turf: "phone" });
+    // the all-out pool is distinct from the calm/doctrine pool
+    expect(["bury", "end you", "beat you"].some((w) => allout.toLowerCase().includes(w))).toBe(true);
+  });
+
+  it("fires a milestone when the heat tier escalates", async () => {
+    const { nemesisMilestone } = await import("./nemesis.ts");
+    const prev = mk({ heat: 50 }); // heated
+    const next = mk({ heat: 60 }); // bitter
+    const ms = nemesisMilestone(prev, next);
+    expect(ms).not.toBeNull();
+    expect(ms!.text).toContain("{rival}");
+    // all-out war has its own line
+    expect(nemesisMilestone(mk({ heat: 70 }), mk({ heat: 85 }))!.text.toLowerCase()).toContain("all-out war");
+    // no escalation → no beat
+    expect(nemesisMilestone(mk({ heat: 60 }), mk({ heat: 62 }))).toBeNull();
+  });
+
+  it("fires a milestone when the head-to-head record crosses a mark (once)", async () => {
+    const { nemesisMilestone } = await import("./nemesis.ts");
+    const cross = nemesisMilestone(mk({ heat: 40, playerWins: 2 }), mk({ heat: 40, playerWins: 3 }));
+    expect(cross).not.toBeNull();
+    expect(cross!.tone).toBe("positive");
+    // already past the mark → doesn't re-fire
+    expect(nemesisMilestone(mk({ heat: 40, playerWins: 3 }), mk({ heat: 40, playerWins: 4 }))).toBeNull();
+    // rival pulling ahead reads as a threat
+    const losing = nemesisMilestone(mk({ heat: 40, rivalWins: 2 }), mk({ heat: 40, rivalWins: 3 }));
+    expect(losing!.tone).toBe("negative");
+  });
+});

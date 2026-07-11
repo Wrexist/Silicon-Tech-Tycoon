@@ -13,7 +13,7 @@ import {
   type CompetitorLaunch,
   type RivalArcPhase,
 } from "../engine/competitors.ts";
-import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
+import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
@@ -2356,8 +2356,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // entirely when there were no clashes — so the pinned auto-player never forms a nemesis → byte-
   // identical. The launch edge (applied above in advanceCompetitors) reads LAST week's nemesis.
   if (!offline && !bankrupt) {
+    const prevNem = base.nemesis ?? null; // pre-update, for milestone detection (item 2.3)
     const res = updateNemesis({
-      current: base.nemesis ?? null,
+      current: prevNem,
       signals: clashSignals,
       week,
       existsById: (id) => base.competitors.some((c) => c.id === id),
@@ -2380,10 +2381,22 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         base.lastInterruptWeek = week;
       }
     } else if (res.nemesis && clashSignals.some((s) => s.rivalId === res.nemesis!.rivalId)) {
-      // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency).
+      // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency). The
+      // taunt is now turf- and heat-aware (item 2.3): it names the category you're fighting over and
+      // turns venomous at all-out war.
       const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);
       const doctrine = rivalDef(res.nemesis.rivalId)?.doctrine ?? "generalist";
-      base.feed.push(feedItem(week, `${rival?.name ?? "Your rival"}: “${nemesisTaunt(doctrine, base.seed, week)}”`, "accent"));
+      const turf = CATEGORIES[playerTopCategory(base)]?.displayName?.toLowerCase();
+      base.feed.push(feedItem(week, `${rival?.name ?? "Your rival"}: “${nemesisTaunt(doctrine, base.seed, week, { tier: heatTier(res.nemesis.heat), turf })}”`, "accent"));
+    }
+    // Milestone beat (item 2.3) — a tier escalation or a head-to-head record crossing turns the feud
+    // into a story with turning points. Independent of the taunt, so a quiet-week escalation still speaks.
+    if (res.nemesis) {
+      const ms = nemesisMilestone(prevNem, res.nemesis);
+      if (ms) {
+        const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);
+        base.feed.push(feedItem(week, ms.text.replace(/\{rival\}/g, rival?.name ?? "Your rival"), ms.tone as FeedTone));
+      }
     }
   }
 

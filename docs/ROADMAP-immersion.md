@@ -120,7 +120,7 @@ that move mood/loyalty/skill. Converts fire-and-forget morale into personal micr
 **Files:** new `engine/staffEvent.ts`, `state/gameState.ts`, new `components/StaffEvent.tsx`, App
 overlay stack. **Guardrails:** derived-hash, interrupt budget.
 
-### 2.3 Nemesis storyline (salt 241)
+### 2.3 Nemesis storyline (salt 241) ✅
 Multi-beat authored arc (first blood → rematch → all-out war → showdown), taunts that **name the
 product** that beat you, and record milestones ("you've bested them 5 times"). Deepens the game's best
 personality hook.
@@ -249,7 +249,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 **Phase 2 — Personality & World Reactivity: in progress**
 - [x] 2.1 Real employee characters (full names + bios)
 - [ ] 2.2 Per-employee morale/life events (salt 233)
-- [ ] 2.3 Nemesis storyline (salt 241)
+- [x] 2.3 Nemesis storyline (turf taunts + milestone beats)
 - [ ] 2.4 Rival-vs-rival dynamics (salt 239)
 - [ ] 2.5 Narrate climate + trend system (salt 251)
 - [ ] 2.6 Reviews feed the world
