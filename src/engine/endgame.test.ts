@@ -25,6 +25,28 @@ describe("megaprojects — engine", () => {
     expect(canFundMegaproject(first, first.cashCost, 0)).toBe(false);        // no rp
     expect(megaprojectById(first.id)).toBe(first);
   });
+
+  it("the slate never empties — a repeatable Moonshot Program follows the authored slate", async () => {
+    const { repeatableMegaproject } = await import("./endgame.ts");
+    const allAuthored = MEGAPROJECTS.map((m) => m.id);
+    // With every authored moonshot funded, exactly one repeatable is offered (id moonshot-<count>).
+    const slate = availableMegaprojects(allAuthored);
+    expect(slate).toHaveLength(1);
+    expect(slate[0].id).toBe(`moonshot-${MEGAPROJECTS.length}`);
+    expect(megaprojectById(slate[0].id)).toEqual(slate[0]); // resolvable by id
+    // Funding it offers the NEXT one (always something to chase).
+    const next = availableMegaprojects([...allAuthored, slate[0].id]);
+    expect(next[0].id).toBe(`moonshot-${MEGAPROJECTS.length + 1}`);
+    // Each tier costs more and pays more Legacy Points than the last.
+    const t1 = repeatableMegaproject(MEGAPROJECTS.length);
+    const t2 = repeatableMegaproject(MEGAPROJECTS.length + 1);
+    expect(Number(t2.cashCost)).toBeGreaterThan(Number(t1.cashCost));
+    expect(t2.rpCost).toBeGreaterThan(t1.rpCost);
+    expect(t2.reward.legacyPoints!).toBeGreaterThan(t1.reward.legacyPoints!);
+    // A stray/invalid id doesn't resolve.
+    expect(megaprojectById("moonshot-0")).toBeUndefined();
+    expect(megaprojectById("nope")).toBeUndefined();
+  });
 });
 
 describe("board mandates — engine", () => {

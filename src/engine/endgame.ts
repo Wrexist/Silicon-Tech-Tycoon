@@ -65,14 +65,47 @@ export const MEGAPROJECTS: readonly Megaproject[] = [
   },
 ];
 
-export function megaprojectById(id: string): Megaproject | undefined {
-  return MEGAPROJECTS.find((m) => m.id === id);
+// Repeatable "Moonshot Program" tier — once the four authored megaprojects are funded, the Legacy Era
+// keeps offering a procedurally-scaling moonshot (rising cost, rising Legacy-Point reward) so the sink
+// never fully empties and the endgame always has a next big-ticket goal. IP-clean, deterministic.
+const MEGAPROJECT_REPEAT = { growthPerTier: 1.6, cashMult: 1.4, rpMult: 1.35, legacyPointsBase: 6 } as const;
+
+/** The procedurally-scaling repeatable megaproject at `index` (index ≥ MEGAPROJECTS.length). Cost climbs
+ *  each tier off the last authored moonshot; the reward is a rising Legacy-Point + reputation payout. */
+export function repeatableMegaproject(index: number): Megaproject {
+  const tier = index - MEGAPROJECTS.length + 1; // 1, 2, 3, …
+  const last = MEGAPROJECTS[MEGAPROJECTS.length - 1];
+  const scaleUp = MEGAPROJECT_REPEAT.cashMult * Math.pow(MEGAPROJECT_REPEAT.growthPerTier, tier - 1);
+  const rpScaleUp = MEGAPROJECT_REPEAT.rpMult * Math.pow(MEGAPROJECT_REPEAT.growthPerTier, tier - 1);
+  const legacyPoints = MEGAPROJECT_REPEAT.legacyPointsBase + tier;
+  return {
+    id: `moonshot-${index}`,
+    name: `Moonshot Program ${tier}`,
+    blurb: "An open-ended research frontier — pour resources in, push the whole industry forward.",
+    cashCost: scale(last.cashCost, scaleUp),
+    rpCost: Math.round(last.rpCost * rpScaleUp),
+    reward: { reputation: 3, legacyPoints, blurb: `+3 reputation · +${legacyPoints} Legacy Points` },
+  };
 }
 
-/** The megaprojects not yet funded, in order — the live slate the endgame HQ shows. */
+export function megaprojectById(id: string): Megaproject | undefined {
+  const authored = MEGAPROJECTS.find((m) => m.id === id);
+  if (authored) return authored;
+  const m = /^moonshot-(\d+)$/.exec(id);
+  if (m) {
+    const index = Number(m[1]);
+    return index >= MEGAPROJECTS.length ? repeatableMegaproject(index) : undefined;
+  }
+  return undefined;
+}
+
+/** The megaprojects on offer: the authored slate not yet funded, and — once those are all funded — the
+ *  single next repeatable Moonshot Program, so the endgame slate is never empty. */
 export function availableMegaprojects(funded: readonly string[]): Megaproject[] {
   const done = new Set(funded);
-  return MEGAPROJECTS.filter((m) => !done.has(m.id));
+  const out = MEGAPROJECTS.filter((m) => !done.has(m.id));
+  if (out.length === 0) out.push(repeatableMegaproject(funded.length));
+  return out;
 }
 
 /** Can the company afford this moonshot right now (cash AND research points)? */
