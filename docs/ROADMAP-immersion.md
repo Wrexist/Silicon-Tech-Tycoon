@@ -288,7 +288,16 @@ company committed to via a new `doctrineSummary` (engineering + GTM), silent for
 
 Long-tail goals and daily hooks.
 
-### 5.1 Scenario campaign — unlock chain + star rewards (`scenarios.ts`, `scenarioProgress.ts`, `Scenarios.tsx`)
+### 5.1 Scenario campaign — unlock chain + star rewards — SHIPPED
+The flat scenario menu is now a CAMPAIGN CHAIN: each scenario unlocks only once you've banked enough
+total stars across the ones already beaten (`scenarioUnlockStars` — intro 0, standard 2, hard 5, expert
+9, overridable per-scenario via `unlockAtStars`). `scenarioUnlocked(scenario, totalStars)` gates the
+Scenarios picker (locked cards show "N★ to unlock", the play button disables) and is re-checked in
+`startScenario` so a stale UI can't bypass it. A property test proves the chain is completable and every
+gate is reachable from earlier scenarios alone (you never need a locked scenario to unlock another). All
+profile/UI — scenarios are opt-in, so the sim is untouched.
+**Files (done):** `engine/scenarios.ts` (`unlockAtStars`/`scenarioUnlocked`/`scenarioUnlockStars`),
+`screens/Scenarios.tsx`, `screens/scenarios.css`, `state/useGame.tsx`, `engine/scenarioCampaign.test.ts`.
 ### 5.2 Museum & Franchise collection goals — SHIPPED
 New pure `engine/collections.ts`: six long-tail "collect them all" goals evaluated against the
 cross-run device museum — The Polymath (every category), Hitmaker (10 hits), Across the Ages (all four

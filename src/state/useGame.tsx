@@ -142,7 +142,7 @@ import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioPro
 import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
 import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
 import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
-import { scenarioById, canEarnStars, SCENARIOS } from "../engine/scenarios.ts";
+import { scenarioById, canEarnStars, scenarioUnlocked, scenarioUnlockStars, SCENARIOS } from "../engine/scenarios.ts";
 import type { MasteryInput } from "../engine/achievements.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
@@ -1445,6 +1445,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // start values come entirely from the scenario's setup. The freeform company is stashed first so
   // it's preserved (returnHome restores it) instead of destroyed.
   const startScenario = useCallback((id: string, name?: string) => {
+    // Item 5.1 — enforce the campaign chain: a locked scenario can't be started even if a stale UI
+    // slips through. Total stars come from the profile store.
+    const sc = scenarioById(id);
+    if (sc) {
+      const stars = getScenarioStars();
+      const total = Object.values(stars).reduce((a, b) => a + (b ?? 0), 0);
+      if (!scenarioUnlocked(sc, total)) {
+        showToast(`Locked — earn ${scenarioUnlockStars(sc)}★ across the scenarios to unlock this one.`, { tone: "negative" });
+        return;
+      }
+    }
     // Park the freeform company FIRST; if the stash can't land (quota), abort instead of clearing the
     // save out from under an unrecoverable company.
     if (!stashHomeIfFreeform()) {

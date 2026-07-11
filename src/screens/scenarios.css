@@ -72,6 +72,12 @@
 .scn__card--played {
   border-color: color-mix(in srgb, var(--mat-gold) 34%, var(--hairline));
 }
+/* Item 5.1 — a scenario still locked behind the campaign star gate. */
+.scn__card--locked { opacity: 0.62; }
+.scn__lock {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  font-size: var(--fs-caption); font-weight: 700; color: var(--ink-3);
+}
 .scn__card-top {
   display: flex;
   align-items: center;
