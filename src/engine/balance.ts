@@ -90,6 +90,10 @@ export const BALANCE = {
       marketerWeight: 0.05, // per effective marketer skill point
       base: 0.9,
       max: 2.4,
+      // A launch campaign's hype is added ON TOP of the (clamped) passive hype and bounded by this on
+      // its own — so each campaign tier stays distinct even for a maxed-out company. Sized to fit the
+      // biggest channel (Global Launch, hype 1.2) after era amplification with headroom to spare.
+      campaignMax: 2.4,
     },
     price: {
       // priceFit peaks when price ≈ perceivedValue*idealMargin; falls off both sides.
@@ -409,6 +413,19 @@ export const BALANCE = {
     hitThresholdByEra: [70, 80, 156, 192],
     solidThresholdByEra: [45, 56, 135, 175],
     flopThresholdByEra: [10, 21, 27, 35],
+    // Dynamic "expectations" (Track D — the anti-"every device is a hit" system). The static bars
+    // above anchor a young company (and the very first launch), but as you rack up strong launches a
+    // ROLLING baseline of your recent competition-adjusted scores raises the bar: a HIT must beat your
+    // own recent track record, not just clear a fixed line. So maxing every component + the right price
+    // slides from a guaranteed "hit" to a merely "solid" release once you're the establishment — hits
+    // now demand a genuine step up (fresh tech/category, on-trend timing, a bigger campaign, a product
+    // that tops your last), which is the whole point of the design. Self-balancing across all eras.
+    expectation: {
+      alpha: 0.5,        // how fast the rolling baseline tracks each new launch (EMA weight)
+      hitMargin: 1.14,   // a hit must beat the rolling baseline by this (top your recent best)
+      solidMargin: 0.6,  // at/above this fraction of the baseline is a solid, competent release
+      flopMargin: 0.4,   // below this (relative to what you'd been shipping) it disappoints → flop
+    },
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
     // hits rather than banked once and coasted on. A hit is +8 rep, so an active shipper (a launch
@@ -1033,7 +1050,11 @@ export const BALANCE = {
     minLoan: 25_000 * 100,        // smallest drawdown ($25K)
     creditFloor: 75_000 * 100,    // a garage can borrow at least this (before subtracting existing debt)
     creditRevenueWeeks: 16,       // + this many weeks of recent revenue as borrowing headroom
-    maxCredit: 8_000_000 * 100,   // hard ceiling on total outstanding debt ($8M)
+    creditNetWorthFrac: 0.18,     // + this fraction of NET WORTH — financing scales with how big/valuable
+                                  //   the company is (a $100M business can raise ~$18M, not a flat pittance)
+    creditProfitWeeks: 26,        // + this many weeks of weekly PROFIT — cash flow that services the debt
+    maxCredit: 8_000_000 * 100,   // FLAT floor of the hard ceiling ($8M) for a small company…
+    maxCreditNetWorthFrac: 0.45,  // …but the ceiling grows to this fraction of net worth for a big one
     originationFee: 0.01,         // 1% taken off the top on drawdown (you receive principal × 0.99)
   },
 

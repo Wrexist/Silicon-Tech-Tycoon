@@ -464,6 +464,16 @@ function migrate(state: GameState): GameState | null {
   // Brand awareness (added later): clamp to [0, cap]; absent → 0.
   if (!Number.isFinite(s.brandAwareness) || s.brandAwareness < 0) s.brandAwareness = 0;
   else s.brandAwareness = Math.min(BALANCE.brand.cap, s.brandAwareness);
+  // Rolling launch-expectations baseline (added later): absent → seed from the recent launch history
+  // so loading an established save doesn't reset the "rising bar" (and hand a free hit). Uses the
+  // stored launchScore of the last few launches as a stand-in for the competition-adjusted score.
+  if (!Number.isFinite(s.launchExpectation) || (s.launchExpectation as number) < 0) {
+    const recent = Array.isArray(s.launched) ? s.launched.slice(0, 4) : [];
+    const scores = recent
+      .map((lp: { launchScore?: number }) => (Number.isFinite(lp?.launchScore) ? (lp.launchScore as number) : 0))
+      .filter((n: number) => n > 0);
+    s.launchExpectation = scores.length ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0;
+  }
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

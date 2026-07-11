@@ -148,6 +148,12 @@ export function scoreLaunch(args: {
   marketerSkill: number;
   competitorStrength: number;
   hypeBonus?: number;
+  /** The chosen launch CAMPAIGN's hype, kept SEPARATE from `hypeBonus` (passive/company hype) so it
+   *  is added ON TOP of the passive-hype clamp — a bigger campaign always lifts the launch, even for
+   *  a mature company whose passive hype already sits at the ceiling (before this, every campaign tier
+   *  read identically once passive hype saturated). Bounded on its own so it can't explode either.
+   *  Defaults to 0 → identical to the pre-campaign-lane behaviour for callers that don't pass it. */
+  campaignHype?: number;
   /** Component-combination synergy multiplier (see product.componentSynergy). Defaults to 1 so
    *  callers that don't model it (and the bounds tests) are unaffected. */
   synergy?: number;
@@ -167,7 +173,12 @@ export function scoreLaunch(args: {
   // intact while preventing runaway scores.
   const hypeCeiling = BALANCE.market.hype.max * 2;
   const rawHype = hypeMultiplier(args.reputation, args.marketerSkill) + (args.hypeBonus ?? 0);
-  const hype = Math.min(hypeCeiling, Math.max(0, rawHype));
+  const passiveHype = Math.min(hypeCeiling, Math.max(0, rawHype));
+  // The launch campaign adds its hype ON TOP of the clamped passive hype (its own bound keeps it
+  // sane), so each campaign tier stays distinct and keeps mattering into the late game instead of
+  // vanishing into the passive-hype ceiling.
+  const campaignHype = Math.max(0, Math.min(BALANCE.market.hype.campaignMax, args.campaignHype ?? 0));
+  const hype = passiveHype + campaignHype;
   const pf = args.priceFitOverride ?? priceFit(args.price, args.stats, args.category);
   const competitionFactor = 1 / (1 + args.competitorStrength * BALANCE.market.competition.factorK);
   const synergy = args.synergy ?? 1;

@@ -694,16 +694,27 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
 }
 
 function Chair({ p, hue }: { p: RoomPalette; hue: string }) {
+  // The seated robot's torso (a ~0.35r capsule pulled back toward the backrest) used to bulge
+  // BEHIND the old thin backrest (depth 0.12 @ z=-0.28), so from behind you could "see through the
+  // chair" to the robot's back. The backrest is now deeper and pushed back so its rear face sits
+  // behind the robot's back, fully hiding it, and taller so it frames the shoulders. Wings on the
+  // sides close off the last sliver of colour that peeked around the edges.
   return (
     <group>
-      <RoundedBox args={[0.7, 0.12, 0.6]} radius={0.05} smoothness={2} position={[0, 0.52, 0]}>
+      <RoundedBox args={[0.72, 0.12, 0.62]} radius={0.05} smoothness={2} position={[0, 0.52, -0.02]}>
         <meshStandardMaterial color={p.metal} roughness={0.7} />
       </RoundedBox>
-      <RoundedBox args={[0.7, 0.7, 0.12]} radius={0.06} smoothness={2} position={[0, 0.9, -0.28]}>
+      <RoundedBox args={[0.74, 0.84, 0.18]} radius={0.07} smoothness={3} position={[0, 0.96, -0.37]}>
         <meshStandardMaterial color={p.metalDark} roughness={0.7} />
       </RoundedBox>
-      <mesh position={[0, 0.9, -0.21]}>
-        <planeGeometry args={[0.62, 0.18]} />
+      {/* slim side wings that wrap forward, so the robot's coloured shell can't peek past the edges */}
+      {[-0.35, 0.35].map((x, i) => (
+        <RoundedBox key={i} args={[0.09, 0.7, 0.34]} radius={0.04} smoothness={2} position={[x, 0.92, -0.26]}>
+          <meshStandardMaterial color={p.metalDark} roughness={0.7} />
+        </RoundedBox>
+      ))}
+      <mesh position={[0, 0.96, -0.275]}>
+        <planeGeometry args={[0.6, 0.4]} />
         <meshStandardMaterial color={hue} roughness={0.6} />
       </mesh>
     </group>
@@ -1060,6 +1071,12 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
   useFrame((st) => {
     if (staff && seatRef.current) seatRef.current.rotation.y = seatBase + Math.sin(st.clock.elapsedTime * 0.4 + seed) * 0.06;
   });
+  // An OCCUPIED desk turns 180° so its monitor faces the seated robot (who faces the camera) — from
+  // the front we see the robot with the screen glow behind it. An EMPTY, ready desk has no robot to
+  // hide the monitor's dark back, so it faces the OPPOSITE way: the glowing screen points at the
+  // camera, reading as a set-up "ready" workstation instead of a floating black slab (the empty-desk
+  // bug). The chair stays put; the robot slots in when the desk is filled.
+  const deskRotY = staff ? (flip ? 0 : Math.PI) : (flip ? Math.PI : 0);
   return (
     <group>
       {/* The player's ACTUAL placed desk model (each desk model carries its own monitor). The desk
@@ -1067,7 +1084,7 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
           it to FACE the seated employee: when they sit on the back edge (facing the camera) the desk
           turns 180° so the monitor faces them and the keyboard is nearest them — a correctly-oriented
           workstation, not one facing backwards. Matches whichever side the employee occupies. */}
-      <group rotation-y={flip ? 0 : Math.PI}>
+      <group rotation-y={deskRotY}>
         <FurniturePiece type={deskType} p={p} />
         {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
             their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}

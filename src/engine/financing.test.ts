@@ -23,6 +23,25 @@ describe("financing — credit + rate", () => {
     expect(creditLimit(0, [loan])).toBe(Math.max(0, f.creditFloor - loan.balance));
   });
 
+  it("credit scales with net worth and profitability, and the ceiling grows past the flat cap", () => {
+    const base = creditLimit(0, []); // revenue-only floor
+    // A valuable company can borrow far more than the flat floor…
+    const withNetWorth = creditLimit(0, [], 50_000_000 * 100, 0);
+    expect(withNetWorth).toBeGreaterThan(base);
+    // …and weekly profit (cash flow that services the debt) adds headroom too.
+    const withProfit = creditLimit(0, [], 0, 400_000 * 100);
+    expect(withProfit).toBeGreaterThan(base);
+    // The hard ceiling itself scales with net worth, so a big company isn't frozen at f.maxCredit.
+    const huge = creditLimit(0, [], 500_000_000 * 100, 0);
+    expect(huge).toBeGreaterThan(f.maxCredit);
+    // More net worth ⇒ more credit (monotonic).
+    expect(creditLimit(0, [], 100_000_000 * 100, 0)).toBeGreaterThan(withNetWorth);
+    // A bigger, more profitable company is charged LESS for the same loan (lower leverage on a
+    // bigger ceiling).
+    const loan = makeLoan("l", 2_000_000 * 100, 50, 0, [], 1);
+    expect(loanRate(50, 0, [loan], 100_000_000 * 100, 500_000 * 100)).toBeLessThan(loanRate(50, 0, [loan]));
+  });
+
   it("higher reputation earns a cheaper rate; leverage makes it pricier", () => {
     const lowRep = loanRate(40, 0, []);
     const highRep = loanRate(90, 0, []);

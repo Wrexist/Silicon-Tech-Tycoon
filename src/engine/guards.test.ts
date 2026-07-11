@@ -62,13 +62,36 @@ describe("hype / launchScore stays bounded", () => {
 
   it("stacking hype cannot make launchScore explode past the clamped ceiling", () => {
     // Both bonuses already push hype past the ceiling, so the resulting scores are identical
-    // — proving extra stacked hype buys nothing once the clamp is hit (no runaway volume).
+    // — proving extra stacked PASSIVE hype buys nothing once the clamp is hit (no runaway volume).
     const ceiling = BALANCE.market.hype.max * 2;
     const a = score(50);
     const b = score(50_000);
     expect(a.hype).toBe(ceiling);
     expect(b.hype).toBe(ceiling);
     expect(b.launchScore).toBe(a.launchScore);
+  });
+
+  it("a launch campaign adds hype ON TOP of the passive clamp, so tiers stay distinct when maxed", () => {
+    // Regression: a mature company's passive hype saturates the ceiling, so EVERY campaign tier used
+    // to produce the identical launch (the "same +units on all campaigns" bug). campaignHype now lands
+    // above the clamp — each bigger campaign lifts the launch, and it's still bounded (no explosion).
+    const ceiling = BALANCE.market.hype.max * 2;
+    const withCampaign = (campaignHype: number) =>
+      scoreLaunch({
+        stats: MID, category: "phone", price: dollars(800), trends: TRENDS,
+        reputation: 100, marketerSkill: 30, competitorStrength: 0,
+        hypeBonus: 5, // passive already past the ceiling
+        campaignHype,
+      });
+    const none = withCampaign(0);
+    const small = withCampaign(0.16); // Social Media
+    const big = withCampaign(1.2); // Global Launch
+    expect(none.hype).toBe(ceiling); // passive alone still clamps
+    expect(small.hype).toBeGreaterThan(none.hype); // the campaign lifts above the clamp…
+    expect(big.hype).toBeGreaterThan(small.hype); // …and a bigger campaign lifts more
+    expect(big.launchScore).toBeGreaterThan(small.launchScore);
+    // Still bounded — the campaign lane has its own cap.
+    expect(withCampaign(999).hype).toBeLessThanOrEqual(ceiling + BALANCE.market.hype.campaignMax);
   });
 });
 

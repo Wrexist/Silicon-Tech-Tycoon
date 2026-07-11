@@ -409,36 +409,139 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w, bloc
   return lineComplete(routed) ? routed : null;
 }
 
-/** Auto-TIDY: reposition every machine into clean left→right lanes in recipe order (Intake first,
- *  Packer last), then wire the whole thing with autoRouteBelts — so a sloppily-placed floor becomes
- *  one long, straight production line in a single tap. Machines are packed edge-to-edge in bands
- *  (2 machine rows + 1 belt lane below), skipping any cell a decor prop blocks; ids, kinds and
- *  upgrade levels are preserved. Returns the tidied + routed floor, or null when there's no
- *  Intake/Packer or the machines can't fit the current floor (caller: "expand first"). Pure +
- *  deterministic (fixed recipe order, reading-order packing). */
+const dirOf = (from: readonly [number, number], to: readonly [number, number]): BeltDir => {
+  const dc = to[0] - from[0], dr = to[1] - from[1];
+  return dc > 0 ? "e" : dc < 0 ? "w" : dr > 0 ? "s" : "n";
+};
+
+/** The serpentine belt-lane geometry for a floor `W` wide. Three full-width belt lanes (rows 2, 5, 8)
+ *  snake down the floor — east on the top lane, west on the middle, east on the bottom — joined by
+ *  short vertical links, so the track is one long S from beside the Intake (head) to beside the
+ *  Packer (tail). Machines live in the 2-row bands ABOVE each lane (rows 0-1, 3-4, 6-7), every one
+ *  of them sitting right beside a belt. Returns the ordered cell path (head → tail). Pure. */
+const TRACK_LANES = [2, 5, 8] as const;      // belt rows
+const TRACK_BANDS = [0, 3, 6] as const;      // machine band top-rows (2 tall), one above each lane
+function serpentineCells(W: number): [number, number][] {
+  const lo = 1, hi = W - 2; // leave col 0 for the Intake head and the outer frame tidy
+  const cells: [number, number][] = [];
+  TRACK_LANES.forEach((row, li) => {
+    const eastward = li % 2 === 0;
+    if (eastward) for (let c = lo; c <= hi; c++) cells.push([c, row]);
+    else for (let c = hi; c >= lo; c--) cells.push([c, row]);
+    // vertical link down to the next lane, at whichever end this lane finished on
+    if (li < TRACK_LANES.length - 1) {
+      const linkCol = eastward ? hi : lo;
+      for (let r = row + 1; r < TRACK_LANES[li + 1]; r++) cells.push([linkCol, r]);
+    }
+  });
+  return cells;
+}
+
+/** Auto-lay THE TRACK: drop a long serpentine conveyor across the whole floor and tidy the machines
+ *  into recipe-order bands beside it, so one tap turns a bare (or messy) floor into a proper
+ *  production line the player can keep building along. The Intake anchors the head (top-left), the
+ *  Packer the far tail (bottom-right), and the belt snakes the full width between them — so the track
+ *  is long and roomy even when only the two starter machines exist. Existing processing machines are
+ *  repositioned (ids, kinds and upgrade levels preserved) into the open bands beside the lanes.
+ *
+ *  Falls back to the compact tidy+route (autoRouteBelts) when the serpentine can't be laid cleanly
+ *  — e.g. a decor prop sits on a lane, or the machines don't fit the bands. Returns null only when
+ *  there's no Intake/Packer or nothing fits at all. Pure + deterministic. */
 export function autoTidyFloor(floor: FactoryFloor, maxW: number = FLOOR.w, blockedCells?: Iterable<string>): FactoryFloor | null {
   const intake = floor.machines.find((m) => m.kind === "intake");
   const packer = floor.machines.find((m) => m.kind === "packer");
   if (!intake || !packer) return null;
-  // Intake → processing (recipe order) → any unknown/extra kinds → Packer.
+
+  const props = new Set<string>(blockedCells);
+  // Intake → processing (recipe order) → any unknown/extra kinds; the Packer is anchored separately.
   const processing = ROUTE_STAGE_ORDER.flatMap((k) => floor.machines.filter((m) => m.kind === k));
   const extras = floor.machines.filter(
     (m) => m.kind !== "intake" && m.kind !== "packer" && !ROUTE_STAGE_ORDER.includes(m.kind),
   );
-  const order = [intake, ...processing, ...extras, packer];
+  const proc = [...processing, ...extras];
 
-  const blocked = new Set<string>(blockedCells);
+  const serp = tidyAlongTrack(intake, packer, proc, maxW, props);
+  if (serp) return serp;
+  return tidyCompact(intake, packer, [...processing, ...extras], maxW, props);
+}
+
+/** The serpentine layout (primary path of autoTidyFloor). Returns null if it can't lay a clean track
+ *  (prop on a lane / anchor, or the machines don't fit the bands) so the caller can fall back. */
+function tidyAlongTrack(
+  intake: PlacedMachine, packer: PlacedMachine, proc: PlacedMachine[], maxW: number, props: Set<string>,
+): FactoryFloor | null {
+  const W = maxW;
+  const path = serpentineCells(W);
+  if (path.length < 2) return null;
+  const beltSet = new Set(path.map(([c, r]) => `${c},${r}`));
+  // The track must be clear of decor props — a fixed serpentine can't weave around them.
+  for (const k of beltSet) if (props.has(k)) return null;
+
+  // Anchors: Intake top-left (beside the head cell), Packer bottom-right (beside the tail cell).
+  const pDef = MACHINE_DEFS[packer.kind];
+  const iAnchor: [number, number] = [0, TRACK_BANDS[0]];
+  const pAnchor: [number, number] = [W - pDef.w, TRACK_BANDS[TRACK_BANDS.length - 1]];
+
+  const placed: PlacedMachine[] = [];
+  const cellsOf = (kind: MachineKind, c: number, r: number) => machineCells({ kind, c, r });
+  const fits = (kind: MachineKind, c: number, r: number): boolean => {
+    const def = MACHINE_DEFS[kind];
+    if (c < 0 || r < 0 || c + def.w > W || r + def.d > FLOOR.h) return false;
+    for (const cell of cellsOf(kind, c, r)) {
+      if (props.has(cell) || beltSet.has(cell)) return false;
+      for (const p of placed) if (machineCells(p).includes(cell)) return false;
+    }
+    return true;
+  };
+
+  if (!fits(intake.kind, iAnchor[0], iAnchor[1])) return null;
+  placed.push({ ...intake, c: iAnchor[0], r: iAnchor[1] });
+  if (!fits(packer.kind, pAnchor[0], pAnchor[1])) return null;
+  placed.push({ ...packer, c: pAnchor[0], r: pAnchor[1] });
+
+  // Pack the processing machines into the open bands beside the lanes, band by band, left→right.
+  let idx = 0;
+  for (const bandTop of TRACK_BANDS) {
+    let c = 0;
+    while (c < W && idx < proc.length) {
+      const m = proc[idx];
+      if (fits(m.kind, c, bandTop)) { placed.push({ ...m, c, r: bandTop }); idx += 1; c += MACHINE_DEFS[m.kind].w; }
+      else c += 1;
+    }
+  }
+  if (idx < proc.length) return null; // didn't fit — fall back / suggest expanding
+
+  const belts: BeltTile[] = path.map((cell, i) => {
+    if (i < path.length - 1) return { c: cell[0], r: cell[1], dir: dirOf(cell, path[i + 1]) };
+    // final tile aims into the Packer footprint
+    let best: BeltDir = "e", bestD = Infinity;
+    for (const s of machineCells({ kind: packer.kind, c: pAnchor[0], r: pAnchor[1] })) {
+      const [mc, mr] = s.split(",").map(Number);
+      const dc = mc - cell[0], dr = mr - cell[1], d = Math.abs(dc) + Math.abs(dr);
+      if (d < bestD) { bestD = d; best = Math.abs(dc) >= Math.abs(dr) ? (dc >= 0 ? "e" : "w") : (dr >= 0 ? "s" : "n"); }
+    }
+    return { c: cell[0], r: cell[1], dir: best };
+  });
+  const routed = { machines: placed, belts };
+  return lineComplete(routed) ? routed : null;
+}
+
+/** Compact fallback tidy: pack every machine into recipe-order bands and wire them with the
+ *  turn-penalised router. Used when the serpentine track can't be laid (props on a lane, etc.). */
+function tidyCompact(
+  intake: PlacedMachine, packer: PlacedMachine, middle: PlacedMachine[], maxW: number, props: Set<string>,
+): FactoryFloor | null {
+  const order = [intake, ...middle, packer];
   const placed: PlacedMachine[] = [];
   const fits = (c: number, r: number, w: number, d: number): boolean => {
     for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) {
       const cc = c + dc, rr = r + dr;
       if (cc < 0 || rr < 0 || cc >= maxW || rr >= FLOOR.h) return false;
-      if (blocked.has(`${cc},${rr}`)) return false;
+      if (props.has(`${cc},${rr}`)) return false;
       for (const p of placed) if (machineCells(p).includes(`${cc},${rr}`)) return false;
     }
     return true;
   };
-
   const BAND = 3; // 2 machine rows + 1 belt lane beneath, so a straight belt runs beside every machine
   let idx = 0;
   for (let laneTop = 0; laneTop + 2 <= FLOOR.h && idx < order.length; laneTop += BAND) {
@@ -449,12 +552,11 @@ export function autoTidyFloor(floor: FactoryFloor, maxW: number = FLOOR.w, block
       if (!fits(c, laneTop, def.w, def.d)) { c += 1; continue; }
       placed.push({ ...m, c, r: laneTop });
       idx += 1;
-      c += def.w; // edge-to-edge; the belt lane below carries the line past each machine
+      c += def.w;
     }
   }
-  if (idx < order.length) return null; // ran out of floor — the caller should suggest expanding
-
-  return autoRouteBelts({ machines: placed, belts: [] }, maxW, blockedCells);
+  if (idx < order.length) return null;
+  return autoRouteBelts({ machines: placed, belts: [] }, maxW, props);
 }
 
 /** How the player-built line affects production — a build-TIME multiplier the sim reads.
