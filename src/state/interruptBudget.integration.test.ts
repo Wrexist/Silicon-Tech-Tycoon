@@ -50,6 +50,24 @@ describe("interrupt budget", () => {
     expect(s.pendingEarnings ?? null).not.toBeNull();
   });
 
+  it("yields a due earnings call while ANY other interrupt card is still unresolved", () => {
+    // Regression for the guard-drift fix: every opportunistic block gates on the shared
+    // `noPendingInterrupt` predicate, so a due earnings call must NOT stack on top of an
+    // unresolved card that has no auto-expiry (e.g. a post-launch event).
+    let s = listed(3);
+    for (let w = 0; w < SH.quarterWeeks + 1; w++) {
+      // Keep a foreign interrupt pinned "open" the whole time — it never auto-clears.
+      s = { ...s, pendingPostLaunch: { week: s.week, productId: "p", productName: "P", kind: "stall", title: "t", body: "b", options: [] } } as GameState;
+      s = advanceOneWeek(s);
+    }
+    expect(s.pendingEarnings ?? null).toBeNull(); // deferred: the screen is busy
+
+    // Clear the blocking card; the deferred earnings call lands on the next quiet week.
+    s = { ...s, pendingPostLaunch: null } as GameState;
+    s = advanceOneWeek(s);
+    expect(s.pendingEarnings ?? null).not.toBeNull();
+  });
+
   it("a firing interrupt stamps the shared budget", () => {
     let s = listed(7);
     for (let w = 0; w < SH.quarterWeeks + 1; w++) s = advanceOneWeek(s);

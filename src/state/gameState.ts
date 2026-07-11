@@ -956,6 +956,16 @@ export const lateEraDrag = (s: GameState): Money => {
  *  this. */
 export const weeklyOutflow = (s: GameState): Money =>
   add(add(burn(s), cents(weeklyDebtService(s.loans ?? []))), lateEraDrag(s)) as Money;
+
+/** The complete set of opportunistic full-screen interrupt cards. Any one being pending means a modal
+ *  already owns the screen, so EVERY cadence-driven interrupt must yield to ALL of them so they never
+ *  stack (CLAUDE.md interrupt-budget rule). Centralised as one predicate because the per-block
+ *  `!base.pendingX` chains had drifted — each hand-maintained list excluded a different subset, letting
+ *  e.g. a staff event fire on top of an unresolved post-launch card. A single source can't drift. */
+export const noPendingInterrupt = (b: GameState): boolean =>
+  !b.pendingStrike && !b.pendingEureka && !b.pendingCommunityAsk && !b.pendingRivalry &&
+  !b.pendingStaffMoment && !b.pendingStaffEvent && !b.pendingRegionalEvent && !b.pendingPostLaunch &&
+  !b.pendingEarnings && !b.pendingLicenseOffer && !b.pendingAwards && !b.pendingChoice && !b.pendingPoach;
 /** Combined prestige bonuses: the founder-perk drip (from prestige `legacy` level) PLUS the in-run
  *  Legacy Points spend-tree (item 4.3). legacy 0 + no legacy perks → all-zero, so the pinned sim is
  *  byte-identical. The build-cost reduction is clamped so cost never dips below 60% however it's
@@ -1912,7 +1922,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let lastInterruptWeek = state.lastInterruptWeek ?? -999;
   let pendingStrike = state.pendingStrike ?? null;
   if (
-    !pendingStrike &&
+    noPendingInterrupt(state) && // yields to every other pending card (this phase reads last week's)
     interruptQuiet &&
     state.era >= 2 && // the Garage era is a protected learning sandbox — no strike interrupts
     contestedCats.size > 0 &&
@@ -2362,8 +2372,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   {
     const eu = BALANCE.research.eureka;
     if (
-      !offline && !bankrupt && interruptQuiet &&
-      !base.pendingEureka && !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingLicenseOffer &&
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
       base.era >= eu.minEra &&
       base.staff.filter((s) => s.assignment === "rnd").length >= eu.minRnDStaff &&
       week - (state.lastEurekaWeek ?? -999) >= eu.cooldownWeeks &&
@@ -2385,10 +2394,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const ca = BALANCE.fans.community.asks;
     const lastLaunchWeek = state.launched.reduce((m, lp) => Math.max(m, lp.launchedWeek), -Infinity);
     if (
-      !offline && !bankrupt && interruptQuiet &&
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
       state.launched.length >= 1 &&
-      !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike && !base.pendingPoach &&
-      !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingLicenseOffer &&
       week - (state.lastCommunityAskWeek ?? -999) >= ca.cooldownWeeks &&
       week - lastLaunchWeek >= ca.minWeeksSinceLaunch &&
       communityAskDue(state.seed, week)
@@ -2408,10 +2415,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   {
     const g = BALANCE.staff.growth;
     if (
-      !offline && !bankrupt && interruptQuiet &&
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
       base.era >= g.minEra && base.staff.length >= 2 &&
-      !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
-      !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings && !base.pendingLicenseOffer &&
       week - (state.lastStaffMomentWeek ?? -999) >= g.cooldownWeeks &&
       staffMomentDue(state.seed, week)
     ) {
@@ -2435,11 +2440,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   {
     const le = BALANCE.staff.lifeEvents;
     if (
-      !offline && !bankrupt && interruptQuiet &&
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
       base.era >= le.minEra && base.staff.length >= 2 &&
-      !base.pendingStaffEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
-      !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
-      !base.pendingEarnings && !base.pendingLicenseOffer && !base.pendingRegionalEvent &&
       week - (state.lastStaffEventWeek ?? -999) >= le.cooldownWeeks &&
       staffEventDue(state.seed, week)
     ) {
@@ -2472,10 +2474,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       // Raise a regional event (opt-in interrupt), respecting the global budget + one-at-a-time rule.
       const ev = rc.events;
       if (
-        !offline && !bankrupt && interruptQuiet &&
+        !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
         base.era >= ev.minEra &&
-        !base.pendingRegionalEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
-        !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings && !base.pendingLicenseOffer &&
         week - (state.lastRegionalEventWeek ?? -999) >= ev.cooldownWeeks &&
         regionalEventDue(state.seed, week)
       ) {
@@ -2500,9 +2500,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // just like a launch pop) + a staged earnings call. Gated on `listed`, yields to any other pending
   // interrupt; the pinned solo sim never IPOs → never runs → byte-identical.
   if (
-    !offline && !bankrupt && base.listed && interruptQuiet &&
-    !base.pendingEarnings && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
-    !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingLicenseOffer &&
+    !offline && !bankrupt && base.listed && interruptQuiet && noPendingInterrupt(base) &&
     week - (state.lastEarningsWeek ?? week) >= BALANCE.ipo.shareholders.quarterWeeks
   ) {
     const sh = BALANCE.ipo.shareholders;
@@ -2624,11 +2622,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       // The reveal CARD respects the interrupt budget AND never doubles up with another pending modal
       // (a nemesis usually forms from the very strike already on screen). If suppressed the nemesis
       // still forms and the feed still announces it — only the extra full-screen card is skipped.
-      if (
-        interruptQuiet &&
-        !base.pendingRivalry && !base.pendingStrike && !base.pendingEureka && !base.pendingCommunityAsk &&
-        !base.pendingEarnings && !base.pendingPoach && !base.pendingChoice && !base.pendingAwards && !base.pendingLicenseOffer
-      ) {
+      if (interruptQuiet && noPendingInterrupt(base)) {
         base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
         base.lastInterruptWeek = week;
       }
@@ -2660,10 +2654,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // byte-identical. Suitors exclude current licensees and any exclusivity-locked category; prouder
   // brands demand exclusivity and drive a harder bargain (see licenseOffers.ts).
   if (
-    !offline && !bankrupt && interruptQuiet && state.platformUnlocked && !base.pendingLicenseOffer &&
-    !base.pendingEureka && !base.pendingCommunityAsk && !base.pendingStrike && !base.pendingPoach &&
-    !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
-    !base.pendingStaffMoment && !base.pendingRegionalEvent
+    !offline && !bankrupt && interruptQuiet && state.platformUnlocked && noPendingInterrupt(base)
   ) {
     const osTierNum = osTier(base.researched.software).tier;
     if (licenseOfferDue(state.seed, week, osTierNum)) {
@@ -2689,11 +2680,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   {
     const pc = BALANCE.postLaunch;
     if (
-      !offline && !bankrupt && interruptQuiet &&
-      base.era >= pc.minEra && !base.pendingPostLaunch &&
-      !base.pendingStaffEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
-      !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
-      !base.pendingEarnings && !base.pendingLicenseOffer && !base.pendingRegionalEvent &&
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
+      base.era >= pc.minEra &&
       week - (state.lastPostLaunchWeek ?? -999) >= pc.cooldownWeeks &&
       postLaunchDue(state.seed, week)
     ) {

@@ -3,6 +3,7 @@
 // permanent trophy — retention via collection, matching the museum's philosophy, NOT engagement
 // farming. PURE + deterministic: reads a lightweight record of shipped devices, no game state, no RNG,
 // so it never touches the sim. The Museum screen renders the progress + completed badges.
+import { BALANCE } from "./balance.ts";
 import { CATEGORIES } from "./catalogs.ts";
 import { franchiseStem } from "./franchise.ts";
 import type { CategoryId } from "./types.ts";
@@ -26,7 +27,7 @@ export interface CollectionFacts {
 }
 
 const ALL_CATEGORIES = Object.keys(CATEGORIES) as CategoryId[];
-const ERA_COUNT = 4;
+const ERA_COUNT = BALANCE.eras.length; // derive from the canonical era table (was hard-coded 4)
 
 export function collectionFacts(devices: readonly DeviceRecord[]): CollectionFacts {
   const categories = new Set<CategoryId>();

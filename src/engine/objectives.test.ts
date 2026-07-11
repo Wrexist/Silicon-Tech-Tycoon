@@ -8,6 +8,7 @@ import {
   newlyCompletedObjectives,
 } from "./objectives.ts";
 import { newGame, type GameState } from "../state/gameState.ts";
+import { MEGAPROJECTS } from "./endgame.ts";
 
 /** A fresh garage with the given overrides applied. */
 function game(overrides: Partial<GameState> = {}): GameState {
@@ -107,6 +108,9 @@ describe("satisfied / newly-completed", () => {
     expect(satisfiedObjectiveIds(game({ megaprojectsFunded: ["quantumFab"] }))).toContain("fund-megaproject");
     expect(satisfiedObjectiveIds(game({ legacyPerks: ["lt-hype1"] }))).toContain("spend-legacy-point");
     expect(satisfiedObjectiveIds(game({ bestIndustryRank: 1 }))).toContain("reach-number-one");
+    // The capstone rung: funding the entire authored slate (boundary on MEGAPROJECTS.length).
+    expect(satisfiedObjectiveIds(game({ megaprojectsFunded: MEGAPROJECTS.map((m) => m.id) }))).toContain("fund-all-megaprojects");
+    expect(satisfiedObjectiveIds(game({ megaprojectsFunded: MEGAPROJECTS.slice(0, 1).map((m) => m.id) }))).not.toContain("fund-all-megaprojects");
   });
 
   it("explicit era rungs latch as the company advances", () => {

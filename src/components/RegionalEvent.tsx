@@ -55,7 +55,7 @@ export function RegionalEvent() {
   return (
     <div className={`rge rge--${copy.tone}`}>
       <div className="rge__scrim" aria-hidden />
-      <div ref={dialogRef} tabIndex={-1} className="rge__card" role="dialog" aria-modal="true" aria-label={copy.title}>
+      <div ref={dialogRef} tabIndex={-1} className="rge__card" role="dialog" aria-modal="true" aria-label={event.rivalName ? `${event.rivalName} is surging here` : copy.title}>
         <div className="rge__glyph" aria-hidden><Icon size={28} /></div>
         <div className="rge__region"><Globe size={12} aria-hidden /> {region?.name ?? "A market"}</div>
         <div className="rge__eyebrow">{copy.eyebrow}</div>

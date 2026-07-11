@@ -184,7 +184,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   // Find the cheapest unaffordable project the player could save toward (excluding fork-locked
   // doctrine siblings, which can't be researched once a doctrine is chosen).
   const nextGoal = RESEARCH_PROJECTS
-    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost && !forkLockedBy(state.completedProjects, p.id))
+    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0)
     .sort((a, b) => a.rpCost - b.rpCost)[0] ?? null;
   const goalPct = nextGoal ? Math.min(100, Math.round((rp / nextGoal.rpCost) * 100)) : 0;
   const goalWeeks = nextGoal && perWeek > 0 ? Math.ceil((nextGoal.rpCost - rp) / perWeek) : null;
@@ -217,7 +217,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </div>
           {(() => {
             const buyableNow = RESEARCH_PROJECTS.filter(
-              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id),
+              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0,
             ).length;
             if (buyableNow === 0) return null;
             return (
