@@ -2,7 +2,7 @@ import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, type LucideIcon,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -17,6 +17,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
+import { REGIONS } from "../engine/regions.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
 import { dollars, format, formatCount, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
@@ -1422,6 +1423,44 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
         tab: "design",
       });
     }
+  }
+
+  // 10. Depth-system nudges — once the core-loop hints are satisfied, point the player at the strategic
+  // systems they may never have discovered (design briefs, doctrines, expansion, the Legacy tree).
+  // 10a. Never committed a Design Brief — targeting a segment earns bonus rep + fans.
+  if (insights.length < 3 && state.launched.length >= 3 && !state.launched.some((lp) => lp.product.targetSegment)) {
+    insights.push({
+      icon: Target,
+      text: "You've never set a Design Brief — commit a product to a target segment in the Design Lab for bonus reputation and fans when you nail it.",
+      tab: "design",
+    });
+  }
+  // 10b. Past the garage with no engineering doctrine chosen — a permanent company identity is waiting.
+  if (insights.length < 3 && state.era >= 2 && !["perfHouse", "effHouse", "qualityHouse"].some((id) => state.completedProjects.includes(id as never))) {
+    insights.push({
+      icon: FlaskConical,
+      text: "Pick an engineering doctrine in R&D — a permanent identity (+performance, battery, or quality) stamped on every product you ship.",
+      tab: "research",
+    });
+  }
+  // 10c. Still home-only with room to expand — open the first overseas market.
+  if (insights.length < 3 && state.unlockedRegions.length === 1 && state.launched.length >= 2) {
+    const firstRegion = REGIONS.find((r) => !state.unlockedRegions.includes(r.id) && state.cash >= (r.unlockCost as number));
+    if (firstRegion) {
+      insights.push({
+        icon: TrendingUp,
+        text: `Open ${firstRegion.name} to grow your addressable market — global reach lifts every launch's volume.`,
+        tab: "market",
+      });
+    }
+  }
+  // 10d. Post-IPO with Legacy Points burning a hole — route them in the Legacy tree.
+  if (insights.length < 3 && state.wentPublic && (state.legacyPoints ?? 0) > 0) {
+    insights.push({
+      icon: Sparkles,
+      text: `You have ${state.legacyPoints} Legacy Point${(state.legacyPoints ?? 0) > 1 ? "s" : ""} to spend — invest them in the Legacy tree for a permanent, build-defining boon.`,
+      tab: "hq",
+    });
   }
 
   if (insights.length === 0) return null;

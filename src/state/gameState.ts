@@ -18,7 +18,7 @@ import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type Eu
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
 import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
-import { generateBoardMandate, mandateComplete, mandateRewardSummary, megaprojectById, canFundMegaproject, type MandateFacts } from "../engine/endgame.ts";
+import { generateBoardMandate, mandateComplete, mandateRewardSummary, megaprojectById, canFundMegaproject, availableMegaprojects, type MandateFacts } from "../engine/endgame.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
@@ -165,7 +165,7 @@ export function challengeRules(s: GameState): { demandMult: number; noMarketing:
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
-import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable } from "../engine/legacyTree.ts";
+import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
 import type {
   Assignment,
   BuildJob,
@@ -4268,12 +4268,23 @@ export interface NavAttention { hq: boolean; design: boolean; research: boolean;
 export function navAttention(s: GameState): NavAttention {
   const shipped = s.launched.length >= 1;
   const cash = s.cash as number;
+  // A completed contract sitting on the board, waiting to be claimed for its reward.
+  const claimableContract = (s.contracts ?? []).some((c) => contractDone(c, contractFacts(s)));
+  // A pending client commission on the factory floor, waiting to be accepted.
+  const pendingSideOrder = (s.pendingSideOrder ?? null) != null;
+  // Legacy Era actions (post-IPO): a moonshot you can afford, or Legacy Points ready to spend.
+  const affordableMegaproject = s.wentPublic &&
+    availableMegaprojects(s.megaprojectsFunded ?? []).some((mp) => canFundMegaproject(mp, s.cash, s.researchPoints));
+  const spendableLegacyPoint = s.wentPublic && (s.legacyPoints ?? 0) > 0 &&
+    LEGACY_TREE.some((p) => legacyPerkAvailable(s.legacyPerks ?? [], p.id) && (s.legacyPoints ?? 0) >= p.cost);
   return {
-    // A milestone or a personal decision waiting at HQ.
-    hq: canAdvance(s) || canIPO(s) || s.pendingChoice != null || (s.pendingPoach ?? null) != null,
+    // A milestone, a personal decision, or a claimable / affordable reward waiting at HQ. Broadened
+    // so the many HQ-surfaced systems (contracts, side orders, the Legacy Era) can each light the dot.
+    hq: canAdvance(s) || canIPO(s) || s.pendingChoice != null || (s.pendingPoach ?? null) != null ||
+      claimableContract || pendingSideOrder || affordableMegaproject || spendableLegacyPoint,
     // Pipeline idle once you're rolling → design the next product.
     design: shipped && s.building.length === 0 && s.ready.length === 0,
-    // A project or component upgrade you can afford right now.
+    // A project or component upgrade you can afford right now (includes doctrines + capstones).
     research: researchReady(s),
     // A new region you can afford to open.
     market: REGIONS.some((r) => !s.unlockedRegions.includes(r.id) && cash >= (r.unlockCost as number)),
