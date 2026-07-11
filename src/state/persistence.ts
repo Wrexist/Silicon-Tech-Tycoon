@@ -480,6 +480,8 @@ function migrate(state: GameState): GameState | null {
   // Side-order client loyalty (item 3.5, added later): default empty — repopulates as orders complete.
   if (!s.sideOrderClients || typeof s.sideOrderClients !== "object") s.sideOrderClients = {};
   // Legacy Era (item 4.1, added later): defaults for the post-IPO endgame — only ever live post-IPO.
+  // Choice-consequence flags (item 5.9, added later): default empty — repopulates as you make choices.
+  if (!Array.isArray(s.choiceFlags)) s.choiceFlags = [];
   if (!Array.isArray(s.megaprojectsFunded)) s.megaprojectsFunded = [];
   if (!Number.isFinite(s.legacyPoints)) s.legacyPoints = 0;
   if (!Array.isArray(s.legacyPerks)) s.legacyPerks = [];

@@ -28,7 +28,9 @@ describe("choice events catalog", () => {
 
   it("never re-offers a resolved choice, and dries up once all are resolved", () => {
     const era = 3;
-    const eligible = CHOICE_EVENTS.filter((e) => e.minEra <= era).map((e) => e.id);
+    // Flag-gated events (item 5.9) can't be offered without their flag, so they're not in the drainable
+    // pool when no flags are supplied.
+    const eligible = CHOICE_EVENTS.filter((e) => e.minEra <= era && !e.requiresFlag).map((e) => e.id);
     const rng = makeRng(123);
     const resolved: string[] = [];
     // Drain the pool: each pick must be a fresh, era-eligible event.

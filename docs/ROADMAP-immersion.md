@@ -348,7 +348,17 @@ row. Purely-decorative props (plant/cone/…) grant nothing.
 **Deferred:** the era/research-gated machine palette — noted for a later Factory-Mode UI pass.
 **Files (done):** `engine/factoryProps.ts` (`factoryDecorSpeedMult`/`utilityDecorKinds`),
 `state/gameState.ts`, `components/FactoryMode.tsx`, `engine/factoryProps.test.ts`.
-### 5.9 Choice-event consequence flags/callbacks (`events.ts`, `eventChains.ts`, `state`)
+### 5.9 Choice-event consequence flags/callbacks — SHIPPED
+Choices now ECHO. A `ChoiceOption` can raise a named `setsFlag`, and a `ChoiceEvent` can gate itself on
+a prior `requiresFlag` — so a decision comes home to roost later. `resolveChoice` records the option's
+flag plus a generic `eventId:optionId` record on new `state.choiceFlags`; `pickChoiceEvent` takes the
+flags and excludes any `requiresFlag` event until its flag is present. First callback pair shipped: the
+"Flagship Store" dilemma's *build* option raises `flagshipOpen`, and a later "The Flagship Comes of Age"
+event only ever appears if you actually opened it. With no flags (and the pinned sim never resolves a
+choice) every callback event is excluded, so the reachable pool is exactly as before → byte-identical.
+**Files (done):** `engine/events.ts` (`setsFlag`/`requiresFlag`/flag-filtered `pickChoiceEvent` + the
+callback pair), `state/gameState.ts` (`choiceFlags` + `resolveChoice`), `state/persistence.ts`,
+`state/choiceFlags.test.ts`.
 
 ---
 

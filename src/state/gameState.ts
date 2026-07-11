@@ -489,6 +489,10 @@ export interface GameState {
   /** IDs of choice events resolved across ALL companies (carried through New Game+ like the legacy
    *  bonus) — lets pickChoiceEvent surface never-seen dilemmas first so a prestige run feels fresh. */
   seenChoices: string[];
+  /** Item 5.9 — consequence FLAGS raised by the specific OPTIONS chosen this run (a choice's
+   *  `setsFlag`, plus a generic `eventId:optionId` record). Later flag-gated events react to them, so a
+   *  decision echoes. Optional/backfilled → [] on old saves; empty gates out every callback event. */
+  choiceFlags?: string[];
   /** Scenario this run is playing (id from engine/scenarios.ts), or null for a freeform game.
    *  Per-RUN only — the BEST stars earned per scenario live in the profile store (scenarioProgress). */
   activeScenario: string | null;
@@ -789,6 +793,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     moraleCooldownUntil: 0,
     resolvedChoices: [],
     seenChoices: [],
+    choiceFlags: [],
     activeScenario: null,
     scenarioRunStars: 0,
     activeChallenge: null,
@@ -2713,7 +2718,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   if (!offline && !bankrupt && !base.pendingPoach && week >= state.nextEventWeek) {
     // Choice events also require the player to be present to resolve them.
     if (!state.pendingChoice) {
-      const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices, state.seenChoices);
+      const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices, state.seenChoices, state.choiceFlags ?? []);
       if (choice) {
         const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
         return {
@@ -3810,6 +3815,12 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
   if (!option) return state;
   const feedText = `${pc.event.title}, you chose: "${option.label}".`;
   const applied = applyEventEffect(state, option.effect, state.week, feedText, pc.event.tone as FeedTone);
+  // Item 5.9 — record the consequence flags this choice raises: the option's explicit setsFlag, plus a
+  // generic `eventId:optionId` record so any later event can react to exactly what was decided.
+  const rec = `${pc.event.id}:${option.id}`;
+  const nextFlags = [...(state.choiceFlags ?? [])];
+  if (!nextFlags.includes(rec)) nextFlags.push(rec);
+  if (option.setsFlag && !nextFlags.includes(option.setsFlag)) nextFlags.push(option.setsFlag);
   return {
     ...applied,
     pendingChoice: null,
@@ -3817,6 +3828,7 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
     seenChoices: state.seenChoices.includes(pc.event.id)
       ? state.seenChoices
       : [...state.seenChoices, pc.event.id],
+    choiceFlags: nextFlags,
   };
 }
 

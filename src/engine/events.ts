@@ -10,6 +10,9 @@ export interface ChoiceOption {
   label: string;
   description: string;
   effect: EventEffect;
+  /** Item 5.9 — a named consequence FLAG this option raises, so a later event can react to the choice
+   *  you made (not just that you decided). Optional. */
+  setsFlag?: string;
 }
 
 export interface ChoiceEvent {
@@ -19,6 +22,9 @@ export interface ChoiceEvent {
   minEra: number;
   tone: "positive" | "negative" | "neutral" | "accent";
   options: readonly [ChoiceOption, ChoiceOption];
+  /** Item 5.9 — this event only enters the pool once a prior choice raised this flag (a CALLBACK:
+   *  the earlier decision comes home to roost). Optional → an ordinary, always-eligible event. */
+  requiresFlag?: string;
 }
 
 export type EventEffect =
@@ -241,8 +247,22 @@ export const CHOICE_EVENTS: ChoiceEvent[] = [
     minEra: 3,
     tone: "accent",
     options: [
-      { id: "build", label: "Open the flagship", description: "A landmark retail experience, fans flock to it.", effect: { kind: "fansBonus", fans: 4_000 } },
+      { id: "build", label: "Open the flagship", description: "A landmark retail experience, fans flock to it.", effect: { kind: "fansBonus", fans: 4_000 }, setsFlag: "flagshipOpen" },
       { id: "online", label: "Stay online-only", description: "Pocket the capital and double down on direct sales.", effect: { kind: "cashWindfall", cash: 120_000 } },
+    ],
+  },
+  {
+    // Item 5.9 — a CALLBACK: your flagship store, opened earlier, comes back around. Only ever appears
+    // if you actually built it (requiresFlag), so the earlier decision has a lasting, echoing life.
+    id: "flagship_legacy",
+    title: "The Flagship Comes of Age",
+    body: "Your flagship store has become a destination — a pilgrimage for fans. Do you crown it with a costly renovation that cements the legend, or keep it humble and bank the difference?",
+    minEra: 3,
+    tone: "accent",
+    requiresFlag: "flagshipOpen",
+    options: [
+      { id: "renovate", label: "Renovate into a landmark", description: "A costly refit — but the brand becomes iconic.", effect: { kind: "pressFeature", reputation: 5 } },
+      { id: "keep", label: "Keep it humble", description: "Let the store speak for itself and win new fans.", effect: { kind: "fansBonus", fans: 5_000 } },
     ],
   },
   {
@@ -495,8 +515,14 @@ export function pickChoiceEvent(
   era: number,
   resolvedIds: readonly string[],
   seenIds: readonly string[] = [],
+  /** Item 5.9 — consequence flags raised by prior choices. An event with `requiresFlag` only enters
+   *  the pool once its flag is present. Empty (the default, and the pinned sim, which never resolves a
+   *  choice) → flag-gated events are all excluded, so the pool is exactly as before → byte-identical. */
+  flags: readonly string[] = [],
 ): ChoiceEvent | null {
-  const pool = CHOICE_EVENTS.filter((e) => e.minEra <= era && !resolvedIds.includes(e.id));
+  const pool = CHOICE_EVENTS.filter(
+    (e) => e.minEra <= era && !resolvedIds.includes(e.id) && (!e.requiresFlag || flags.includes(e.requiresFlag)),
+  );
   if (pool.length === 0 || rng.next() > 0.30) return null;
   const unseen = pool.filter((e) => !seenIds.includes(e.id));
   const chooseFrom = unseen.length > 0 ? unseen : pool;
