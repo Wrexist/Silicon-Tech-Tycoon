@@ -474,6 +474,9 @@ function migrate(state: GameState): GameState | null {
       .filter((n: number) => n > 0);
     s.launchExpectation = scores.length ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0;
   }
+  // Outlet review threads (item 2.6, added later): default empty — they repopulate as you ship, so a
+  // returning player just starts each outlet's running stance from a clean slate.
+  if (!s.reviewThreads || typeof s.reviewThreads !== "object") s.reviewThreads = {};
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

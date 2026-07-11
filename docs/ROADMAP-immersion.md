@@ -146,10 +146,17 @@ non-economic; revisit alongside 1.3's segment targeting.
 weekly climate beat), `engine/climate.test.ts`.
 
 ### 2.6 Reviews feed the world
-Persist per-outlet stance across launches; a landmark award spikes fan sentiment and provokes the
-nemesis; a repeat scathing outlet becomes a running thread. Wire review score into the early curve
-(pairs with 1.1). **Files:** `engine/reviews.ts`, `engine/community.ts`, `engine/nemesis.ts`,
-`state/gameState.ts`.
+**Shipped (running-thread scope):** critic reviews now PERSIST. `foldOutletThreads` folds each
+launch's (already-deterministic) outlet scores into a per-outlet warm/cold streak on
+`state.reviewThreads`; when an outlet crosses a repeat pan (or repeat rave), a feed beat surfaces
+the running thread ("Teardown Weekly pans you too — that's 2 cold takes running"). Harshest outlet
+wins the single beat; a middling score breaks a streak. Feed-text only, its own hashed RNG → the
+determinism pin and balance sim stay byte-identical. Backfilled to `{}` on old saves.
+**Deferred follow-ups:** the landmark-award → fan-sentiment/nemesis provocation, and wiring the
+review aggregate into the early sales curve (balance-touching; pairs with 1.1) — held back so 2.6
+stays non-economic.
+**Files (done):** `engine/reviews.ts` (`foldOutletThreads`), `state/gameState.ts` (launch fold +
+`reviewThreads` field), `state/persistence.ts` (backfill), `engine/reviews.test.ts`.
 
 ---
 
@@ -257,7 +264,9 @@ Each item is independently shippable. Progress is tracked by checking items off 
 - [x] 2.3 Nemesis storyline (turf taunts + milestone beats)
 - [x] 2.4 Rival-vs-rival dynamics (salt 239)
 - [x] 2.5 Narrate climate + trend system — narration scope shipped; "hot look" cosmetic redemption deferred
-- [ ] 2.6 Reviews feed the world
+- [x] 2.6 Reviews feed the world — outlet running-threads shipped; award-provocation + review→curve deferred
+
+**Phase 2 complete** (narration/thread scope; the two balance-touching follow-ups noted above ride with Phase 3).
 
 **Phases 3–5:** not started (see sections above).
 

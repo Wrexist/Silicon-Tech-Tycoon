@@ -165,6 +165,7 @@ import type {
 import { FINISH_ORDER, STAT_KEYS } from "../engine/types.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { climateNarration } from "../engine/climate.ts";
+import { criticReviews, foldOutletThreads, type OutletThreads } from "../engine/reviews.ts";
 
 export const SAVE_VERSION = 1;
 
@@ -324,6 +325,10 @@ export interface GameState {
    *  re-shipping the same maxed spec: the bar rises with your own track record. 0/undefined on a new
    *  company → the static era bars apply, so early launches (and the pinned sim's opener) are unchanged. */
   launchExpectation?: number;
+  /** Running per-outlet critic stance (item 2.6): warm/cold streaks keyed by outlet name, folded from
+   *  each launch's (deterministic) reviews. Drives the "this outlet keeps panning you" feed threads.
+   *  Optional/backfilled → `{}` on old saves; feed-text only, so it never touches balance. */
+  reviewThreads?: OutletThreads;
   /** Recent company-valuation samples for the sparkline (newest last). Optional on old saves. */
   valuationHistory?: number[];
   /** An in-progress cascading event chain (Track B): which chain, the next beat to fire, and when.
@@ -687,6 +692,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     ownership: 1,
     valuationMomentum: 0,
     launchExpectation: 0,
+    reviewThreads: {},
     valuationHistory: [],
     eventChain: null,
     holdings: {},
@@ -2963,11 +2969,26 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   }
   for (const item of fanMilestones.feed) feed.push(item);
 
+  // Item 2.6 — fold this launch's (deterministic) critic reviews into the running per-outlet stance,
+  // so an outlet that keeps panning (or keeps championing) you becomes a thread in the feed. The
+  // reviews use their own hashed RNG (not the sim RNG) and only produce feed text → balance untouched.
+  const launchReviews = criticReviews({
+    productId: lp.product.id,
+    stats: lp.stats,
+    verdict: outcome,
+    demandFit: lp.insight?.demandFit ?? 60,
+    priceFit: lp.insight?.priceFit ?? 1,
+    betterRivals: lp.insight?.betterRivals ?? 0,
+  });
+  const outletThreads = foldOutletThreads(state.reviewThreads, launchReviews, product.name);
+  if (outletThreads.beat) feed.push(feedItem(state.week, outletThreads.beat.text, outletThreads.beat.tone));
+
   return {
     state: {
       ...state,
       ready: state.ready.filter((p) => p.id !== productId),
       launched: [lp, ...state.launched],
+      reviewThreads: outletThreads.threads,
       reputation,
       valuationMomentum,
       fans,
