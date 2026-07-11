@@ -940,7 +940,7 @@ function GetStartedCard({ state, onNavigate }: { state: GameState; onNavigate: (
 }
 
 const OBJECTIVE_ICONS: Record<ObjectiveIconName, LucideIcon> = {
-  Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy,
+  Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy, Crown, Cpu,
 };
 
 /** The persistent next-step card: the first unfinished rung of the objective ladder, with a one-line
