@@ -35,7 +35,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineEfficiency, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
@@ -128,11 +128,13 @@ function useFactoryData() {
   // Item 3.1 — the wired line also widens throughput and trims per-unit cost (both pure upside).
   const lineCapPct = Math.round((lineCapacityMult(state.factoryFloor) - 1) * 100); // % extra capacity
   const lineUnitPct = Math.round((1 - lineUnitMult(state.factoryFloor)) * 100);     // % cheaper per unit
+  // Item 3.2 — how tidily the line is laid (recipe order + straight lanes), 0–100%. Scales the bonuses.
+  const layoutPct = Math.round(lineEfficiency(state.factoryFloor) * 100);
 
   return {
     game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
-    floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct,
+    floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct,
   };
 }
 
@@ -814,6 +816,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <span>Line unit cost</span>
             <span className={`tnum ${d.lineUnitPct > 0 ? "fmode__pos" : ""}`}>
               {d.lineUnitPct > 0 ? `−${d.lineUnitPct}%` : "baseline"}
+            </span>
+          </div>
+          <div className="fmode__stat">
+            <span>Layout quality</span>
+            <span className={`tnum ${d.layoutPct >= 85 ? "fmode__pos" : ""}`}>
+              {d.layoutPct > 0 ? `${d.layoutPct}%` : "—"}
             </span>
           </div>
           {d.missing.length > 0 ? (

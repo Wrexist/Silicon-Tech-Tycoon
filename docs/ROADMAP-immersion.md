@@ -174,10 +174,14 @@ surfaced as "Line capacity" + "Line unit cost" rows in the Factory stats sheet.
 **Files (done):** `engine/factoryFloor.ts`, `state/gameState.ts`, `components/FactoryMode.tsx`,
 `engine/factoryFloor.test.ts`.
 
-### 3.2 Reward layout quality
-`lineEfficiency(floor)` scoring recipe-order adjacency + path straightness (reuse `beltChain`/
-`formMarks`), fed into the line multipliers, with a 0–100% meter. Makes hand-laying a real puzzle.
-**Files:** `engine/factoryFloor.ts`, `components/FactoryMode.tsx`.
+### 3.2 Reward layout quality — SHIPPED
+`lineEfficiency(floor)` (0..1) scores recipe-order adjacency (present processing machines must
+advance in mill→…→qa order along the belt path) + straightness (long lanes beat staircases), reusing
+`beltChain`/`beltPath` geometry. A `layoutBonusScale` (∈[0.6, 1]) folds it into all three line
+multipliers (speed/capacity/unit) — a complete line always keeps ≥60% of its bonus (never a trap),
+tidy work earns the full 100%. A fresh auto-route scores ~1.0 (so 3.1's pins are unchanged); the sim
+uses the unwired starter so it stays byte-identical. Surfaced as a "Layout quality" 0–100% row.
+**Files (done):** `engine/factoryFloor.ts`, `components/FactoryMode.tsx`, `engine/factoryFloor.test.ts`.
 
 ### 3.3 Committed target-segment "design brief"
 Add `Product.targetSegment?`; score `perSegment[target].captured` against a threshold for bonus
@@ -274,7 +278,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 
 **Phase 3 — Depth of Core Decisions: in progress**
 - [x] 3.1 Factory floor drives capacity + unit cost (pure-upside; sim byte-identical)
-- [ ] 3.2 Reward layout quality
+- [x] 3.2 Reward layout quality (lineEfficiency meter feeds all three line mults)
 - [ ] 3.3 Committed target-segment "design brief"
 - [ ] 3.4 Segment-textured tuning & regions
 - [ ] 3.5 Side-orders → contract pipeline
