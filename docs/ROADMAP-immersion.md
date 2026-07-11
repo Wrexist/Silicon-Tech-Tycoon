@@ -317,7 +317,16 @@ our next breakthrough" — distinct from buyProject's completion line). Only fir
 and the Lead is employed + an action happened, so a delegation-OFF save (the pinned sim) is a pure
 no-op returning the same state object → byte-identical.
 **Files (done):** `state/gameState.ts` (`applyWeeklyAutomation`), `state/delegationReport.test.ts`.
-### 5.7 Region-specific event flavor tied to taste + the actual surging rival (salt 269) (`regionalEvents.ts`)
+### 5.7 Region-specific event flavor tied to taste + the actual surging rival (salt 269) — SHIPPED
+Regional events are no longer faceless. A `rivalSurge` now names the ACTUAL surging rival, picked from
+the live competitor field via a derived hash (salt 269), and every event carries the region's buying
+TASTE (`regionTasteLabel` — "design-led", "performance-hungry", …, derived from the same weights that
+size regional reach, so it can't drift). The feed line and the interrupt card both interpolate the
+rival name + taste ("Pomelo is gaining ground in this design-led market…"). Both params are optional
+so older callers/tests are unaffected, and the sim is home-only (never fires a regional event) →
+byte-identical.
+**Files (done):** `engine/regionalEvents.ts` (rival + taste), `engine/regions.ts` (`regionTasteLabel`),
+`state/gameState.ts`, `components/RegionalEvent.tsx`, `state/regionalEvents.integration.test.ts`.
 ### 5.8 Factory decor soft effects — SHIPPED (utility equipment bonus)
 UTILITY props (bench, rack, tool wall, QC station, gantry, compressor, work light) stopped being pure
 dressing: `factoryDecorSpeedMult` shaves −0.8% build time per DISTINCT utility kind on the floor, down

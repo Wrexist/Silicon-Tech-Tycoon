@@ -59,8 +59,12 @@ export function RegionalEvent() {
         <div className="rge__glyph" aria-hidden><Icon size={28} /></div>
         <div className="rge__region"><Globe size={12} aria-hidden /> {region?.name ?? "A market"}</div>
         <div className="rge__eyebrow">{copy.eyebrow}</div>
-        <h2 className="rge__title">{copy.title}</h2>
-        <p className="rge__sub">{copy.blurb}</p>
+        <h2 className="rge__title">{event.rivalName ? `${event.rivalName} is surging here` : copy.title}</h2>
+        <p className="rge__sub">
+          {event.rivalName
+            ? `${event.rivalName} is gaining ground in this ${event.tasteLabel ? `${event.tasteLabel} ` : ""}market. Answer with a counter-campaign to defend your standing, or cede the region for now.`
+            : copy.blurb}
+        </p>
         <div className="rge__actions">
           <Button
             block

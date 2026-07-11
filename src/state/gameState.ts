@@ -133,7 +133,7 @@ import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
 import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
 import { CONTRACT_BOARD_SIZE, contractDone, generateContract, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { segmentDemand, tuningSegmentBias, type SegmentDemand } from "../engine/segments.ts";
-import { REGIONS, regionById, regionReach } from "../engine/regions.ts";
+import { REGIONS, regionById, regionReach, regionTasteLabel } from "../engine/regions.ts";
 import { regionalEventDue, generateRegionalEvent, REGIONAL_EVENT_COPY, type RegionalEvent } from "../engine/regionalEvents.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
@@ -2418,12 +2418,18 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         week - (state.lastRegionalEventWeek ?? -999) >= ev.cooldownWeeks &&
         regionalEventDue(state.seed, week)
       ) {
-        const event = generateRegionalEvent(state.seed, week, foreign, base.era);
+        // Item 5.7 — flavor the event with the ACTUAL surging rival (from the live field) and the
+        // chosen region's buying taste. tasteLabel is filled from the event's own region so it matches.
+        const event = generateRegionalEvent(state.seed, week, foreign, base.era, base.competitors.map((c) => c.name));
+        event.tasteLabel = regionTasteLabel(event.regionId);
         base.pendingRegionalEvent = event;
         base.lastRegionalEventWeek = week;
         base.lastInterruptWeek = week;
         const rname = regionById(event.regionId)?.name ?? "A market";
-        base.feed.push(feedItem(week, `${rname}: ${REGIONAL_EVENT_COPY[event.kind].feed} How do you respond?`, "accent"));
+        // Name the surging rival when we have one; otherwise the generic line.
+        const surgeFeed = event.rivalName ? `${event.rivalName} is winning buyers there.` : REGIONAL_EVENT_COPY[event.kind].feed;
+        const tasteBit = event.tasteLabel ? ` This ${event.tasteLabel} market is worth defending.` : "";
+        base.feed.push(feedItem(week, `${rname}: ${surgeFeed}${event.kind === "rivalSurge" ? tasteBit : ""} How do you respond?`, "accent"));
       }
     }
   }

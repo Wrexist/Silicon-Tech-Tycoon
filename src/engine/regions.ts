@@ -77,6 +77,26 @@ export function regionById(id: RegionId): Region | undefined {
   return REGIONS.find((r) => r.id === id);
 }
 
+/** Item 5.7 — the stat a region weights most (its buying TASTE), lower-cased for flavor prose. Drives
+ *  region-specific event copy ("this design-led market…"). Pure; ties to the same weights that size a
+ *  launch's regional reach, so the flavor can never drift from the mechanics. */
+const STAT_TASTE: Record<string, string> = {
+  performance: "performance-hungry", quality: "quality-conscious", battery: "endurance-focused",
+  design: "design-led", ecosystem: "ecosystem-driven",
+};
+export function regionTasteLabel(id: RegionId): string {
+  const r = regionById(id);
+  if (!r) return "";
+  const entries = Object.entries(r.weights);
+  let topKey = entries[0][0];
+  let topVal = -Infinity;
+  for (const [k, v] of entries) if (v > topVal) { topVal = v; topKey = k; }
+  // Flat-taste markets (Home, weights all equal) have no standout → no taste label.
+  const atTop = entries.filter(([, v]) => v >= topVal - 1e-9).length;
+  if (atTop === entries.length) return "";
+  return STAT_TASTE[topKey] ?? "";
+}
+
 /** A region's slice of the total world market (0..1) — "how big" it is, for the UI. */
 export function regionWorldShare(region: Region): number {
   const total = REGIONS.reduce((a, r) => a + r.share, 0);
