@@ -298,7 +298,15 @@ the museum once; each collection reports capped progress + done. Surfaced as a "
 sim touch. Targets read from the live category/era tables so they can't drift.
 **Files (done):** `engine/collections.ts`, `screens/Museum.tsx`, `screens/museum.css`,
 `engine/collections.test.ts`.
-### 5.3 Live industry-rank ladder with named rival "bosses" (`objectives.ts`, `competitors.ts`, `HQ.tsx`)
+### 5.3 Live industry-rank ladder with named rival "bosses" — SHIPPED
+New pure `nextRankRival(state)` returns the named rival directly above the player on the
+valuation-sorted leaderboard — the current "boss" to overtake — plus the exact gap and their rank
+(null at #1). The Market leaderboard's overtake nudge now shares this helper (DRY), and the HQ home
+screen shows a compact ladder line ("#4 · $X to overtake Rival for #3", arch-rival flagged with the
+Swords icon) so the climb is a forward chase from the main view. The overtake-by-name celebration in
+the tick already existed. Pure read — no tick change → sim byte-identical.
+**Files (done):** `state/gameState.ts` (`nextRankRival`), `screens/Market.tsx`, `screens/HQ.tsx`,
+`screens/hq.css`, `state/rankLadder.test.ts`.
 ### 5.4 Challenge sim-mutators (no-marketing / fixed-price / recession) + weekly ladder (`challenges.ts`)
 ### 5.5 Office zones / per-desk proximity bonuses (salt-free, derived) (`furniture.ts`, `Garage3D.tsx`)
 ### 5.6 Delegation specialists "report in" with named recommendations (`gameState.ts`, feed)

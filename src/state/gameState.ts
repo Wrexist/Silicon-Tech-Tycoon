@@ -4968,6 +4968,18 @@ export function industryRank(state: GameState): number {
   return idx < 0 ? board.length : idx + 1;
 }
 
+/** Item 5.3 — the "boss" directly above the player on the ladder: the next rival to overtake, the
+ *  valuation gap to them, and the player's rank. null when the player is already #1. The gap is the
+ *  live chase target the HQ shows so climbing the ladder is a forward goal, not just a reaction. */
+export function nextRankRival(state: GameState): { name: string; rank: number; gap: Money } | null {
+  const board = industryLeaderboard(state);
+  const idx = board.findIndex((e) => e.isPlayer);
+  if (idx <= 0) return null; // already #1 (or not found)
+  const boss = board[idx - 1];
+  const gap = Math.max(0, toDollars(boss.valuation) - toDollars(board[idx].valuation));
+  return { name: boss.name, rank: idx, gap: dollars(gap) };
+}
+
 /** The player's strongest category — the one their launches have sold the most units in (their main
  *  line), defaulting to phone. Drives where the arch-rival aims its launches. Pure. */
 export function playerTopCategory(s: GameState): CategoryId {

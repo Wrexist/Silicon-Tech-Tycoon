@@ -82,6 +82,14 @@
   gap: var(--sp-8);
   margin-top: calc(var(--sp-8) * -1);
 }
+/* Item 5.3 — the rank-ladder "next boss" line on the home screen. */
+.hq__ladder {
+  display: flex; align-items: center; gap: var(--sp-4);
+  font-size: var(--fs-caption); color: var(--ink-2);
+}
+.hq__ladder strong { color: var(--ink-1); font-weight: 700; }
+.hq__ladder svg { color: var(--accent); flex: none; }
+.hq__ladder--top svg { color: var(--positive); }
 .hq__cta-text,
 .hq__latest {
   font-size: var(--fs-body);

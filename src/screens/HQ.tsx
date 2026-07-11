@@ -2,7 +2,7 @@ import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, type LucideIcon,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -52,7 +52,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, type FeedItem, type GameState } from "../state/gameState.ts";
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary } from "../engine/endgame.ts";
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
@@ -209,6 +209,20 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
             <StatPill label="Cash" value={format(state.cash)} tone={state.cash >= 0 ? "neutral" : "negative"} />
             <StatPill label="Runway" value={runwayLabel} tone={runwayTone as "positive" | "negative" | "neutral"} />
           </div>
+        );
+      })()}
+      {/* Item 5.3 — the live rank ladder: the named rival "boss" directly above, and the gap to pass
+          them. A forward chase target on the home screen (the full board lives in Market). */}
+      {state.launched.length >= 1 && (() => {
+        const boss = nextRankRival(state);
+        if (!boss) return (
+          <p className="hq__ladder hq__ladder--top"><Crown size={12} aria-hidden /> #1 in the industry — the throne is yours.</p>
+        );
+        return (
+          <p className="hq__ladder">
+            <TrendingUp size={12} aria-hidden /> #{boss.rank + 1} · {format(boss.gap)} to overtake <strong>{boss.name}</strong> for #{boss.rank}
+            {state.nemesis?.rivalId && state.competitors.find((c) => c.id === state.nemesis!.rivalId)?.name === boss.name && <Swords size={11} aria-label="your arch-rival" />}
+          </p>
         );
       })()}
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
