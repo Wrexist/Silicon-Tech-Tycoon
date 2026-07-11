@@ -243,5 +243,5 @@ Each item is independently shippable. Progress is tracked by checking items off 
 - [x] 1.1 Word-of-mouth sales curves
 - [x] 1.2 Office = your team
 - [x] 1.3 Marketing targeting
-- [ ] 1.4 Rivals named in events
+- [x] 1.4 Rivals named in events
 - [ ] Phases 2–5 (see above)

@@ -2473,12 +2473,42 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
 /** Apply a single EventEffect to the state and push a feed item. Shared by market events and
  *  choice resolutions. Exported for tests (the crunch cash-clamp is a bankruptcy-fairness guard). */
+/** Item 1.4 — tiny derived-hash → [0,1), same recipe as eureka / side orders. Picks the rival an
+ *  event is about WITHOUT touching the sim RNG stream (salt 271), so naming events never perturbs
+ *  determinism. */
+function eventHash01(seed: number, week: number, salt: number): number {
+  let h = (seed ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(salt + 1, 0x85ebca77)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+  h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0;
+  h ^= h >>> 15;
+  return (h >>> 0) / 4294967296;
+}
+
+/** Item 1.4 — the real competitor a `{rival}`-slotted event is about. Prefers your NEMESIS (so the
+ *  feud pervades the world), else "leader" = the strongest rival, else a stable derived pick. Null
+ *  when there are no rivals (the caller falls back to generic text). */
+function resolveEventRival(s: GameState, ev: MarketEvent, week: number): CompetitorState | null {
+  if (!ev.rivalSlot) return null;
+  const alive = s.competitors;
+  if (alive.length === 0) return null;
+  const nem = s.nemesis ? alive.find((c) => c.id === s.nemesis!.rivalId) : undefined;
+  if (nem) return nem; // the nemesis stars in the world's gossip whenever a rival is named
+  if (ev.rivalSlot === "leader") {
+    return alive.reduce((best, c) => (c.reputation > best.reputation ? c : best), alive[0]);
+  }
+  return alive[Math.floor(eventHash01(s.seed, week, 271) * alive.length) % alive.length];
+}
+
 export function applyEventEffect(
   s: GameState,
   eff: MarketEvent["effect"],
   week: number,
   feedText: string,
   feedTone: FeedTone,
+  /** Item 1.4 — when the event named a specific rival, a `rivalScandal` is scoped to THAT rival
+   *  (strength haircut + a share-price dip) so the text and the mechanics agree. Omitted → the legacy
+   *  field-wide behaviour (used by choice events / event chains). */
+  targetRivalId?: string,
 ): GameState {
   const feed = [...s.feed];
   let text = feedText; // mutable so a supply crunch can annotate WHY it cost more / less
@@ -2502,9 +2532,13 @@ export function applyEventEffect(
       break;
     case "rivalScandal":
       competitors = s.competitors.map((c) => {
+        // Scoped to the NAMED rival when the event named one (so text + mechanics agree); otherwise
+        // the legacy field-wide effect. A named scandal also dents that rival's share price.
+        if (targetRivalId && c.id !== targetRivalId) return c;
         const next: typeof c.strengthByCategory = {};
         for (const [cat, v] of Object.entries(c.strengthByCategory)) next[cat as keyof typeof next] = (v as number) * eff.factor;
-        return { ...c, strengthByCategory: next };
+        const sharePrice = targetRivalId ? Math.max(1, Math.round(c.sharePrice * (0.85 + 0.1 * eff.factor))) : c.sharePrice;
+        return { ...c, strengthByCategory: next, sharePrice };
       });
       break;
     case "talentWave":
@@ -2544,9 +2578,15 @@ export function applyEventEffect(
 }
 
 function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: ReturnType<typeof rngFrom>): GameState {
-  const applied = applyEventEffect(s, ev.effect, week, ev.title, ev.tone as FeedTone);
+  // Item 1.4 — bind the event to a REAL rival: swap `{rival}` for an actual competitor's name
+  // (preferring the nemesis) and, for a scandal, route the mechanical hit to THAT rival.
+  const rival = resolveEventRival(s, ev, week);
+  const title = ev.title.includes("{rival}")
+    ? ev.title.replace(/\{rival\}/g, rival?.name ?? "A rival")
+    : ev.title;
+  const applied = applyEventEffect(s, ev.effect, week, title, ev.tone as FeedTone, rival?.id);
   const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
-  return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
+  return { ...applied, nextEventWeek, lastEvent: { text: title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
 }
 
 /** Start a cascading event chain (Track B): fire its opening beat now and schedule the next. */
