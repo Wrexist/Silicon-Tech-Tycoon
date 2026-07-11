@@ -133,7 +133,7 @@ import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { noveltyFor } from "../engine/novelty.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
-import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
+import { distributeOverCurve, forecast, verdictCurveShape } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
@@ -2734,7 +2734,13 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // Sales are still capped by the production run — you can never sell more than you built.
   const totalUnits = Math.min(plannedUnits, realizedDemand);
   const sellsOut = realizedDemand > plannedUnits && plannedUnits > 0;
-  const weeklyUnits = distributeOverCurve(totalUnits);
+  // Verdict is needed up front to SHAPE the sales curve (item 1.1 word-of-mouth): a hit ramps fast
+  // and sells for weeks with a mid-tail second wind; a flop spikes and collapses. Same lifetime
+  // total — only WHEN the units land changes. effectiveScore/outcome are reused by the reputation +
+  // fans response below (declared once here).
+  const effectiveScore = plan.launchScore * plan.competitionFactor;
+  const outcome = verdictFor(state, effectiveScore);
+  const weeklyUnits = distributeOverCurve(totalUnits, verdictCurveShape(outcome));
 
   const lp: LaunchedProduct = {
     product,
@@ -2757,17 +2763,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const qa = hasProject(state.completedProjects, "qaLab");
   let reputation = state.reputation;
   const rep = BALANCE.reputation;
-  // F8 — hit/flop must track ACTUAL performance, not the competition-FREE launchScore. A product
-  // can score well in isolation yet sell almost nothing once rivals split the market, so flagging
-  // it "a hit" (+rep/+fans) would be a lie. Gate on the competition-adjusted score: launchScore
-  // scaled by the same competitionFactor that already discounts real demand. The thresholds in
-  // BALANCE.reputation keep their meaning (they're applied to the same score scale).
-  const effectiveScore = plan.launchScore * plan.competitionFactor;
-  // Verdict against the LIVE bars: the static era bar RAISED by the company's own rolling
-  // expectations (recent track record). A hit must beat what you've been shipping — so a mature
-  // studio can't guarantee a hit by re-maxing the same spec. hitFactory + era scaling still apply
-  // (folded into launchBars). Early launches (expectation 0) use the plain era bars, unchanged.
-  const outcome = verdictFor(state, effectiveScore);
+  // F8 — hit/flop tracks ACTUAL performance (the competition-adjusted effectiveScore computed above),
+  // not the competition-FREE launchScore, and is judged against the LIVE expectation bars (the static
+  // era bar raised by the company's own recent track record — see launchBars/verdictFor). A product
+  // can score well in isolation yet sell little once rivals split the market, so it wouldn't be "a
+  // hit". effectiveScore + outcome were declared above (they also shape the sales curve).
   const isHit = outcome === "hit";
   const isFlop = outcome === "flop";
   const isSolid = outcome === "solid";

@@ -264,6 +264,17 @@ export const BALANCE = {
     // even a weak product that ships should sell *something* (× marketSize), but small enough
     // that a flop can't recoup its tooling — so launch quality genuinely matters.
     floorUnits: 18,
+    // Word-of-mouth curve shaping (item 1.1) — the SAME lifetime total is redistributed over weeks by
+    // verdict, so a loved product *feels* loved (fast ramp, long tail, a mid-tail second wind) and a
+    // panned one spikes then collapses. Does NOT change totalUnits (revenue-neutral in aggregate for a
+    // given score) — only WHEN the units land. "steady" reproduces the legacy curve exactly, so
+    // ordinary launches are unchanged. rampPow ↓ = quicker to peak; declinePow ↓ = longer tail.
+    wordOfMouth: {
+      hit: { rampPow: 1.35, declinePow: 0.9, tailLift: 0.32 },
+      solid: { rampPow: 1.5, declinePow: 1.12, tailLift: 0.1 },
+      steady: { rampPow: 1.6, declinePow: 1.25, tailLift: 0 }, // == legacy default
+      flop: { rampPow: 1.95, declinePow: 1.75, tailLift: 0 },
+    } as Record<"hit" | "solid" | "steady" | "flop", { rampPow: number; declinePow: number; tailLift: number }>,
   },
 
   // --- Mid-lifecycle marketing push (the margin-preserving sibling of a price cut) ---

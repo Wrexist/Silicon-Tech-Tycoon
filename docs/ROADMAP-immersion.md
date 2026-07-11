@@ -240,7 +240,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 
 ## Status
 
-- [ ] 1.1 Word-of-mouth sales curves
+- [x] 1.1 Word-of-mouth sales curves
 - [ ] 1.2 Office = your team
 - [ ] 1.3 Marketing targeting
 - [ ] 1.4 Rivals named in events
