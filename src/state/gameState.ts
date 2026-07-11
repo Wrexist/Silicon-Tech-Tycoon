@@ -47,6 +47,8 @@ import {
   perfectionistCeilingBonus,
   ROLE_DISCIPLINE,
   ROLE_TITLE,
+  staffBio,
+  staffName,
   visionaryHype,
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
@@ -568,8 +570,9 @@ function rngFrom(state: GameState): Rng {
 }
 
 const STARTER_NAMES = ["You (Founder)"];
+// Employee names now come from staffName() (full first+last, item 2.1); the old 16-name first-only
+// pool was removed to stop routine duplicate hires.
 // Applicant name pool for recruitment (no real people / brands).
-const NAMES = ["Riley", "Sam", "Jordan", "Casey", "Ari", "Noa", "Quinn", "Devin", "Max", "Robin", "Sky", "Frankie", "Ellis", "Rowan", "Tatum", "Wren"];
 
 export interface LegacyBonus {
   cash: Money;
@@ -4375,6 +4378,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     xp: 0,
     hiredWeek: state.week,
     ...identity,
+    bio: staffBio(identity.trait, identity.specialty, state.staffCounter),
   };
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Hired ${name}, ${ROLE_TITLE[role]}.`, "accent"));
@@ -4402,8 +4406,7 @@ export function specialistHireFee(state: GameState, which: "autoAssign" | "autoR
 export function hireSpecialist(state: GameState, which: "autoAssign" | "autoResearch"): GameState {
   const { project, role } = DELEGATION_REQ[which];
   if (!hasProject(state.completedProjects, project)) return state; // division not opened yet
-  const name = NAMES[(state.staffCounter * 7) % NAMES.length];
-  return hireStaff(state, role, SPECIALIST_SKILL, name);
+  return hireStaff(state, role, SPECIALIST_SKILL, staffName(state.staffCounter));
 }
 
 // ---------- Recruitment: search → candidates → sign ----------
@@ -4438,15 +4441,17 @@ function generateCandidates(state: GameState, tier: RecruitTier, rng: Rng): { ca
     const headline = levelFromSkills(skills, role);
     const identity = makeIdentity(rng, role);
     out.push({
-      id: `c${counter++}`,
+      id: `c${counter}`,
       role,
-      name: NAMES[(counter * 7 + level) % NAMES.length],
+      name: staffName(counter),
       skill: headline,
       skills,
       salary: salaryFor(role, headline),
       hireFee: hireCostFor(role, headline, hasProject(state.completedProjects, "talentNetwork")),
       ...identity,
+      bio: staffBio(identity.trait, identity.specialty, counter),
     });
+    counter++;
   }
   return { candidates: out, counter };
 }
@@ -4473,6 +4478,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     trait: cand.trait,
     mood: cand.mood,
     appearance: cand.appearance,
+    bio: cand.bio,
   };
   const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name}, ${ROLE_TITLE[cand.role]}.`, "positive")]);
   return {

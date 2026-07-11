@@ -40,3 +40,24 @@ describe("makeSkills — the role's discipline is always the strongest", () => {
     }
   });
 });
+
+describe("staff names & bios (item 2.1) — every hire is a distinct character", () => {
+  it("full names rarely collide across a realistic hiring run (was routine duplicates before)", async () => {
+    const { staffName } = await import("./staff.ts");
+    const names = Array.from({ length: 20 }, (_, i) => staffName(i));
+    const unique = new Set(names);
+    // The old 16-first-name modulo pool guaranteed duplicates by hire 17; full names should be
+    // all-distinct across 20 hires.
+    expect(unique.size).toBe(names.length);
+    expect(names[0]).toMatch(/^\S+ \S+$/); // first + last
+  });
+
+  it("names and bios are deterministic and RNG-free (same index → same output)", async () => {
+    const { staffName, staffBio } = await import("./staff.ts");
+    expect(staffName(5)).toBe(staffName(5));
+    expect(staffBio("hustler", "performance", 3)).toBe(staffBio("hustler", "performance", 3));
+    // trait drives the hook; specialty drives the origin — different traits read differently.
+    expect(staffBio("visionary", "design", 3)).not.toBe(staffBio("veteran", "design", 3));
+    expect(staffBio("hustler", "battery", 3)).toContain("cell chemist");
+  });
+});

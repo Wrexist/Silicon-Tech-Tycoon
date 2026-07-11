@@ -272,6 +272,8 @@ export interface Staff {
   /** Whether this person mentors the whole team — a small company-wide weekly XP lift for everyone else. */
   isMentor?: boolean;
   appearance: Appearance;
+  /** A one-line character bio/quirk (item 2.1). Cosmetic; optional on old saves (shown blank). */
+  bio?: string;
 }
 
 /** A potential hire produced by a recruitment search — not yet on the team. */
@@ -287,6 +289,8 @@ export interface Candidate {
   trait: Trait;
   mood: number;
   appearance: Appearance;
+  /** A one-line character bio/quirk (item 2.1). Cosmetic. */
+  bio?: string;
 }
 
 /** Recruitment channel: a cheaper/slower board vs. a pricey headhunter that finds stronger people. */

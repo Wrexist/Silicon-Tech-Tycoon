@@ -1207,6 +1207,7 @@ function Member({
         <div className="co__member-info">
           <span className="co__member-name">{s.name}</span>
           <span className="co__member-role">{ROLE_LABEL[s.role]} · {SPECIALTY_TITLE[s.specialty]}</span>
+          {s.bio && <span className="co__member-bio">{s.bio}</span>}
           <span className="co__member-sub">{format(s.salary)}/wk</span>
         </div>
         {s.id !== "s0" && !confirmFire && (
@@ -1519,6 +1520,7 @@ function CandidateCard({ c, canHire, onHire }: { c: Candidate; canHire: boolean;
         <div className="co__member-info">
           <span className="co__member-name">{c.name} · {ROLE_LABEL[c.role]}</span>
           <span className="co__member-role">{SPECIALTY_TITLE[c.specialty]} · {TRAIT_INFO[c.trait].label}</span>
+          {c.bio && <span className="co__member-bio">{c.bio}</span>}
         </div>
         <span className="co__cand-level tnum">Lv {c.skill}</span>
       </div>

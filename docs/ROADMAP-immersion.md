@@ -107,7 +107,7 @@ unchanged. **Risk:** low–medium.
 
 Make the team and the world feel alive and full of stakes.
 
-### 2.1 Real employee characters
+### 2.1 Real employee characters ✅
 Full **first+last names** (drop the 16-name modulo reuse) + a one-line generated **bio/quirk** keyed
 to role/trait/specialty. Purely cosmetic → sim-safe.
 **Files:** `engine/staff.ts` (name tables, `makeIdentity`), `engine/types.ts` (`Staff.bio`),

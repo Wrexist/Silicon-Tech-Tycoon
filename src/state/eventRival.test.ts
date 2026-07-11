@@ -1,9 +1,8 @@
 // Item 1.4 — market events name a REAL rival (preferring the nemesis) and route a scandal's hit to
 // that rival, so the world's most frequent speech connects to the roster the player actually knows.
 import { describe, expect, it } from "vitest";
-import { newGame, applyEventEffect } from "./gameState.ts";
+import { newGame, applyEventEffect, type GameState } from "./gameState.ts";
 import { MARKET_EVENTS } from "../engine/events.ts";
-import type { GameState } from "../engine/types.ts";
 
 describe("market events name real rivals (item 1.4)", () => {
   it("every {rival}-slotted event declares a rivalSlot (and vice versa)", () => {
