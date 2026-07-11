@@ -137,20 +137,9 @@ function AppShell() {
   useEffect(() => onCelebrate(() => emitHqReaction("cheer")), []);
 
   // The first ship silently unlocks half the meta-game (Progress hub, stock market, financing,
-  // morale, daily challenges). Say so ONCE — deferred so the launch reveal + verdict own the
-  // moment and this lands as the "what's next" beat after the confetti settles.
+  // morale, daily challenges). Item A1 — instead of a blink-and-miss toast, a persistent, dismissible
+  // "what just unlocked" card renders on HQ (UnlockCard) until the player taps it, so nothing is lost.
   const hasShippedNow = state.launched.length >= 1 || state.legacy > 0;
-  const announcedUnlocks = useRef(hasShippedNow); // pre-shipped saves don't get re-told
-  useEffect(() => {
-    if (!hasShippedNow || announcedUnlocks.current) return;
-    // Mark inside the timeout, not before it — so a StrictMode mount/cleanup/remount (which fires
-    // the effect twice with the same ref) doesn't consume the announcement on the discarded pass.
-    const t = setTimeout(() => {
-      announcedUnlocks.current = true;
-      showToast("New unlocked: Progress hub (trophy), stock market & financing", { tone: "positive", glyph: <Trophy size={15} /> });
-    }, 4200);
-    return () => clearTimeout(t);
-  }, [hasShippedNow]);
 
   if (!state.onboarded) return <Onboarding onStart={() => setTab("design")} />;
 

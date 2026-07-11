@@ -485,6 +485,10 @@ export interface GameState {
   /** Week until which another company-wide morale spend (offsite/bonus) is unavailable (Track C).
    *  Optional → old saves default 0 (available immediately). */
   moraleCooldownUntil?: number;
+  /** Item A1 — whether the "what your first ship unlocked" card has been dismissed. Set true once the
+   *  player taps it (or for a returning save that has already shipped), so the one-time card never
+   *  re-appears. Optional/backfilled. */
+  seenFirstShipUnlocks?: boolean;
   /** IDs of choice events already resolved THIS RUN — prevents repeats within a company. */
   resolvedChoices: string[];
   /** IDs of choice events resolved across ALL companies (carried through New Game+ like the legacy
@@ -792,6 +796,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     contractCounter: 0,
     loans: [],
     moraleCooldownUntil: 0,
+    seenFirstShipUnlocks: false,
     resolvedChoices: [],
     seenChoices: [],
     choiceFlags: [],

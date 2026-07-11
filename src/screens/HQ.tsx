@@ -228,6 +228,12 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       })()}
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
 
+      {/* Item A1 — a one-time, persistent "what your first ship just unlocked" card (replaces the old
+          blink-and-miss toast). Only on a first-legacy company that has shipped and not yet dismissed it. */}
+      {state.launched.length >= 1 && state.legacy === 0 && !state.seenFirstShipUnlocks && (
+        <UnlockCard onOpenBank={onOpenBank} onOpenProgress={onOpenChallenges} />
+      )}
+
       {/* The persistent "Next Move" guidance — takes over once the first-build Coach hands off, so
           the player always has one concrete next step (see engine/objectives.ts). */}
       {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}
@@ -943,6 +949,34 @@ function GetStartedCard({ state, onNavigate }: { state: GameState; onNavigate: (
 const OBJECTIVE_ICONS: Record<ObjectiveIconName, LucideIcon> = {
   Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy, Crown, Cpu,
 };
+
+/** Item A1 — the one-time "what your first ship unlocked" card. Persists on HQ until tapped (unlike
+ *  the old 4.2s toast), so the meta-game reveal is never a blink-and-miss. Deep-links to the two new
+ *  homes (Progress hub + Bank) and dismisses via markUnlocksSeen. */
+function UnlockCard({ onOpenBank, onOpenProgress }: { onOpenBank: () => void; onOpenProgress?: () => void }) {
+  const { markUnlocksSeen } = useGame();
+  return (
+    <Card className="hq__next hq__unlock">
+      <div className="hq__next-head">
+        <span className="hq__next-glyph" aria-hidden><Sparkles size={18} /></span>
+        <div className="hq__next-titles">
+          <span className="hq__next-eyebrow">Your first ship opened up the game</span>
+          <span className="hq__next-label">New systems are live</span>
+        </div>
+      </div>
+      <ul className="hq__unlock-list">
+        <li><Trophy size={13} aria-hidden /> <strong>Progress hub</strong> — achievements, scenarios, daily challenges &amp; your device museum (trophy icon, top bar).</li>
+        <li><Building2 size={13} aria-hidden /> <strong>Stock market &amp; financing</strong> — trade rival shares and take loans from the Bank.</li>
+        <li><Users size={13} aria-hidden /> <strong>Team morale</strong> — your staff now have moods and moments to manage.</li>
+      </ul>
+      <div className="hq__unlock-actions">
+        {onOpenProgress && <Button size="sm" variant="secondary" onClick={() => { onOpenProgress(); haptic.light(); }}><Trophy size={14} /> Progress</Button>}
+        <Button size="sm" variant="secondary" onClick={() => { onOpenBank(); haptic.light(); }}><Building2 size={14} /> Bank</Button>
+        <Button size="sm" onClick={() => { markUnlocksSeen(); haptic.light(); }}>Got it</Button>
+      </div>
+    </Card>
+  );
+}
 
 /** The persistent next-step card: the first unfinished rung of the objective ladder, with a one-line
  *  why, a progress bar, and a deep-link to the right screen. When the whole ladder is done it retires

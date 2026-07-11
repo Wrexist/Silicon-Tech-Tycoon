@@ -482,6 +482,11 @@ function migrate(state: GameState): GameState | null {
   // Legacy Era (item 4.1, added later): defaults for the post-IPO endgame — only ever live post-IPO.
   // Choice-consequence flags (item 5.9, added later): default empty — repopulates as you make choices.
   if (!Array.isArray(s.choiceFlags)) s.choiceFlags = [];
+  // First-ship unlock card (item A1, added later): a returning save that has already shipped (or is a
+  // prestige run) has long since learned the meta-game, so mark it seen and never re-announce.
+  if (typeof s.seenFirstShipUnlocks !== "boolean") {
+    s.seenFirstShipUnlocks = (Array.isArray(s.launched) && s.launched.length >= 1) || (s.legacy ?? 0) > 0;
+  }
   if (!Array.isArray(s.megaprojectsFunded)) s.megaprojectsFunded = [];
   if (!Number.isFinite(s.legacyPoints)) s.legacyPoints = 0;
   if (!Array.isArray(s.legacyPerks)) s.legacyPerks = [];
