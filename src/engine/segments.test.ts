@@ -5,6 +5,7 @@ import {
   segmentDemand,
   segmentPriceFit,
   segmentFit,
+  tuningSegmentBias,
 } from "./segments.ts";
 import { dollars, toDollars } from "./money.ts";
 import { BALANCE } from "./balance.ts";
@@ -174,5 +175,41 @@ describe("marketing targeting — channel segment bias (item 1.3)", () => {
     // product is ~unchanged by any bias.
     const balanced = stats({ performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 });
     expect(di(balanced, proBias)).toBeCloseTo(di(balanced), 0);
+  });
+});
+
+describe("build-tuning segment positioning (item 3.4)", () => {
+  const perSeg = (s: Stats, tuning?: string) => {
+    const out: Record<string, number> = {};
+    for (const r of segmentDemand(s, dollars(700), flat, "phone", 0, undefined, undefined, tuningSegmentBias(tuning)).perSegment) out[r.id] = r.fit;
+    return out;
+  };
+  const mid = stats({ performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 });
+
+  it("balanced (and undefined) tuning is a pure no-op — byte-identical fit", () => {
+    expect(tuningSegmentBias("balanced")).toEqual({});
+    expect(tuningSegmentBias(undefined)).toEqual({});
+    expect(perSeg(mid, "balanced")).toEqual(perSeg(mid, undefined));
+    expect(perSeg(mid, undefined)).toEqual(perSeg(mid));
+  });
+
+  it("value leans price-led buyers; premium leans the aspirational segments", () => {
+    const base = perSeg(mid);
+    const value = perSeg(mid, "value");
+    expect(value.budget).toBeGreaterThan(base.budget);
+    expect(value.mainstream).toBeGreaterThan(base.mainstream);
+    expect(value.style).toBe(base.style); // untouched segments unchanged
+
+    const premium = perSeg(mid, "premium");
+    expect(premium.style).toBeGreaterThan(base.style);
+    expect(premium.enterprise).toBeGreaterThan(base.enterprise);
+    expect(premium.budget).toBe(base.budget);
+  });
+
+  it("performance leans Pro; efficiency leans Budget — the nudge is bounded (fit ≤ 100)", () => {
+    expect(perSeg(mid, "performance").pro).toBeGreaterThan(perSeg(mid).pro);
+    expect(perSeg(mid, "efficiency").budget).toBeGreaterThan(perSeg(mid).budget);
+    const maxed = stats({ performance: 100, quality: 100, battery: 100, design: 100, ecosystem: 100 });
+    for (const f of Object.values(perSeg(maxed, "performance"))) expect(f).toBeLessThanOrEqual(100);
   });
 });

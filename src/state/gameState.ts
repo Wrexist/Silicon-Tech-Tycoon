@@ -129,7 +129,7 @@ import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/fact
 import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
 import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
 import { CONTRACT_BOARD_SIZE, contractDone, generateContract, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
-import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { segmentDemand, tuningSegmentBias, type SegmentDemand } from "../engine/segments.ts";
 import { REGIONS, regionById, regionReach } from "../engine/regions.ts";
 import { regionalEventDue, generateRegionalEvent, REGIONAL_EVENT_COPY, type RegionalEvent } from "../engine/regionalEvents.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
@@ -1278,7 +1278,7 @@ export function planProduction(
   // Item 1.3 — the launch campaign TARGETS buyer segments: the chosen channel redistributes demand
   // toward the buyers it reaches (Search → Pro/Enterprise, Influencer → Style, …). Renormalised in
   // segmentDemand, so it's positioning, not extra volume. "none" → no bias (unchanged).
-  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, channel.segmentBias);
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, channel.segmentBias, tuningSegmentBias(product.tuning));
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;

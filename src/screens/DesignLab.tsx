@@ -68,7 +68,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { StatBars } from "../components/charts.tsx";
-import { segmentDemand, SEGMENTS, type SegmentDemand } from "../engine/segments.ts";
+import { segmentDemand, tuningSegmentBias, SEGMENTS, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel, playerFranchises } from "../engine/franchise.ts";
 import { segmentWantsById } from "../engine/glossary.ts";
@@ -351,7 +351,8 @@ export function DesignLab({
   // with the actual launch math (it was previously the old single-trend demandScore).
   const styleAp = styleAppeal(draft);
   const styleLabel = styleAppealLabel(styleAp);
-  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week);
+  // Item 3.4 — pass the tuning's segment lean so the live "Fit" preview matches the launch math.
+  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week, undefined, tuningSegmentBias(draft.tuning));
   const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
   const mktMult = eraModifier(state.era).marketingHype; // Epic D — late eras amplify marketing reach
   const liveBrand = brandEquity(state.launched, franchiseStem(draft.name)); // brand-line anticipation
@@ -1134,7 +1135,16 @@ export function DesignLab({
               {/* Spell out the selected trade-off inline — the per-chip `title` never shows on touch. */}
               {(() => {
                 const sel = TUNINGS.find((t) => t.id === (draft.tuning ?? "balanced"))!;
-                return <p className="lab__field-effect"><Scale size={12} aria-hidden /> {sel.label} · {sel.hint}</p>;
+                // Item 3.4 — name the buyer segments this tuning leans toward (positioning, not just stats).
+                const leans = Object.keys(tuningSegmentBias(draft.tuning))
+                  .map((id) => SEGMENTS.find((s) => s.id === id)?.name)
+                  .filter(Boolean);
+                return (
+                  <p className="lab__field-effect">
+                    <Scale size={12} aria-hidden /> {sel.label} · {sel.hint}
+                    {leans.length > 0 && <> · leans {leans.join(" + ")}</>}
+                  </p>
+                );
               })()}
             </Card>
             <Card>

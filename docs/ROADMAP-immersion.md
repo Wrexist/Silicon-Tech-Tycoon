@@ -195,10 +195,16 @@ for a later pass alongside 3.5's side-order pipeline.
 **Files (done):** `engine/types.ts`, `engine/balance.ts` (`briefs`), `state/gameState.ts` (launch
 bonus), `screens/DesignLab.tsx` (picker), `state/designBrief.test.ts`.
 
-### 3.4 Segment-textured tuning & regions
-Tuning (`Performance`/`Value`/…) nudges the fit of the segment that cares; regions carry a
-segment-mix override (like `CATEGORY_MIX`) instead of a single scalar. Removes obvious global levers.
-**Files:** `engine/segments.ts`, `engine/regions.ts`, `screens/DesignLab.tsx`.
+### 3.4 Segment-textured tuning & regions — SHIPPED (tuning)
+Build tuning now shifts WHO the device is for, not just its stats: `tuningSegmentBias(tuning)` gives a
+small additive per-segment fit nudge (Performance→Pro, Efficiency/Value→Budget/Mainstream,
+Premium→Style/Pro/Enterprise), threaded into `segmentDemand` via a new optional `tuningBias` param and
+shown as a "leans …" hint in the Design Lab. "balanced"/undefined returns `{}` → a pure no-op, and the
+sim's auto-player always builds balanced, so the pinned sim stays byte-identical (verified).
+**Deferred:** per-region segment-mix overrides (the sim is home-only, so this is sim-safe but a
+deeper regions integration) — noted for a later pass.
+**Files (done):** `engine/segments.ts` (`tuningSegmentBias` + `tuningBias` param), `state/gameState.ts`,
+`screens/DesignLab.tsx`, `engine/segments.test.ts`.
 
 ### 3.5 Side-orders → contract pipeline — SHIPPED (bonuses + loyalty)
 Client commissions now pay a COMPLETION bonus on top of the base payout, tying the pipeline to the
@@ -296,11 +302,11 @@ Each item is independently shippable. Progress is tracked by checking items off 
 
 **Phase 2 complete** (narration/thread scope; the two balance-touching follow-ups noted above ride with Phase 3).
 
-**Phase 3 — Depth of Core Decisions: in progress**
+**Phase 3 — Depth of Core Decisions: complete** (2 balance-deep follow-ups deferred: periodic cash/RP briefs, region segment-mix, offer slate)
 - [x] 3.1 Factory floor drives capacity + unit cost (pure-upside; sim byte-identical)
 - [x] 3.2 Reward layout quality (lineEfficiency meter feeds all three line mults)
 - [x] 3.3 Committed target-segment "design brief" — core shipped; periodic cash/RP briefs deferred
-- [ ] 3.4 Segment-textured tuning & regions
+- [x] 3.4 Segment-textured tuning & regions — tuning positioning shipped; region segment-mix deferred
 - [x] 3.5 Side-orders → contract pipeline — floor-quality + loyalty completion bonuses; slate deferred
 - [x] 3.6 Post-launch reactive events (salt 257) — momentum / stall / supply, opt-in reducer
 
