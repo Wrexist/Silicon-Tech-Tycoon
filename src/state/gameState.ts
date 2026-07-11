@@ -4507,11 +4507,39 @@ export function autoClaimResearch(state: GameState): GameState {
 }
 
 /** Apply all ENABLED + CAPABLE weekly automations (called at the top of the tick). Pure + deterministic
- *  (no rng). Defaults are off, so a save without delegation runs byte-identically. */
+ *  (no rng). Defaults are off, so a save without delegation runs byte-identically.
+ *
+ *  Item 5.6 — the delegation SPECIALISTS report in: when a Lead actually does something (reassigns
+ *  idle staff / claims a project), they post a short, named line to the feed so delegation feels like
+ *  a real hire making calls, not an invisible toggle. Only fires when an action happened + the Lead is
+ *  employed, and only when delegation is ON — so the pinned sim (delegation off) is byte-identical. */
 export function applyWeeklyAutomation(state: GameState): GameState {
   let s = state;
-  if (state.automation.autoAssign && canAutoAssign(state)) s = autoAssignIdle(s);
-  if (state.automation.autoResearch && canAutoResearch(state)) s = autoClaimResearch(s);
+  if (state.automation.autoAssign && canAutoAssign(state)) {
+    const before = s;
+    s = autoAssignIdle(s);
+    if (s !== before) {
+      const moved = before.staff.filter((x) => x.assignment === "idle").length;
+      const lead = s.staff.find((x) => x.role === DELEGATION_REQ.autoAssign.role);
+      if (moved > 0 && lead) {
+        s = { ...s, feed: trimFeed([...s.feed, feedItem(s.week, `${lead.name} put ${moved} idle teammate${moved > 1 ? "s" : ""} back on task.`, "neutral")]) };
+      }
+    }
+  }
+  if (state.automation.autoResearch && canAutoResearch(state)) {
+    const before = s;
+    s = autoClaimResearch(s);
+    if (s !== before) {
+      const lead = s.staff.find((x) => x.role === DELEGATION_REQ.autoResearch.role);
+      // Forward-looking recommendation (distinct from buyProject's completion line): what's next.
+      const nextUp = RESEARCH_PROJECTS
+        .filter((p) => p.era <= s.era && !hasProject(s.completedProjects, p.id) && !p.fork && prereqsMissing(s.completedProjects, p.id).length === 0)
+        .sort((a, b) => a.rpCost - b.rpCost)[0];
+      if (lead && nextUp) {
+        s = { ...s, feed: trimFeed([...s.feed, feedItem(s.week, `${lead.name} recommends ${nextUp.name} as our next breakthrough.`, "accent")]) };
+      }
+    }
+  }
   return s;
 }
 

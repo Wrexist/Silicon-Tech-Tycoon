@@ -309,7 +309,14 @@ the tick already existed. Pure read — no tick change → sim byte-identical.
 `screens/hq.css`, `state/rankLadder.test.ts`.
 ### 5.4 Challenge sim-mutators (no-marketing / fixed-price / recession) + weekly ladder (`challenges.ts`)
 ### 5.5 Office zones / per-desk proximity bonuses (salt-free, derived) (`furniture.ts`, `Garage3D.tsx`)
-### 5.6 Delegation specialists "report in" with named recommendations (`gameState.ts`, feed)
+### 5.6 Delegation specialists "report in" — SHIPPED
+`applyWeeklyAutomation` now narrates the delegation Leads by name when they actually act: the People
+Lead posts when they reassign idle staff ("Jordan Blake put 2 idle teammates back on task"), and the
+Lead Researcher posts a forward recommendation after a claim ("Dr. Okafor recommends Lean Supply as
+our next breakthrough" — distinct from buyProject's completion line). Only fires when delegation is ON
+and the Lead is employed + an action happened, so a delegation-OFF save (the pinned sim) is a pure
+no-op returning the same state object → byte-identical.
+**Files (done):** `state/gameState.ts` (`applyWeeklyAutomation`), `state/delegationReport.test.ts`.
 ### 5.7 Region-specific event flavor tied to taste + the actual surging rival (salt 269) (`regionalEvents.ts`)
 ### 5.8 Factory decor soft effects + era/research-gated machine palette (`factoryProps.ts`, `factoryFloor.ts`)
 ### 5.9 Choice-event consequence flags/callbacks (`events.ts`, `eventChains.ts`, `state`)
