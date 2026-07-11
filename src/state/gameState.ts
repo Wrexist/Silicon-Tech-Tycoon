@@ -314,6 +314,11 @@ export interface GameState {
   /** Performance-reactive momentum overlay on the company's value (Track B): a fractional swing
    *  (±cap) bumped by launch verdicts + the #1 premium, decaying back to 0. Optional → 0 on old saves. */
   valuationMomentum?: number;
+  /** Rolling "expectations" baseline — a decayed average of recent competition-adjusted launch scores.
+   *  A hit must BEAT this (not just clear the static era bar), so a proven studio can't farm hits by
+   *  re-shipping the same maxed spec: the bar rises with your own track record. 0/undefined on a new
+   *  company → the static era bars apply, so early launches (and the pinned sim's opener) are unchanged. */
+  launchExpectation?: number;
   /** Recent company-valuation samples for the sparkline (newest last). Optional on old saves. */
   valuationHistory?: number[];
   /** An in-progress cascading event chain (Track B): which chain, the next beat to fire, and when.
@@ -669,6 +674,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     listed: false,
     ownership: 1,
     valuationMomentum: 0,
+    launchExpectation: 0,
     valuationHistory: [],
     eventChain: null,
     holdings: {},
@@ -2757,15 +2763,14 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // scaled by the same competitionFactor that already discounts real demand. The thresholds in
   // BALANCE.reputation keep their meaning (they're applied to the same score scale).
   const effectiveScore = plan.launchScore * plan.competitionFactor;
-  // Era-scaled verdict bars (the bar for a "hit" rises as the company grows — see verdictBands).
-  const bands = verdictBands(state.era);
-  // hitFactory lowers the hit threshold, so more polished products qualify as hits
-  const hitThreshold = hasProject(state.completedProjects, "hitFactory")
-    ? Math.round(bands.hit * 0.88)
-    : bands.hit;
-  const isHit = effectiveScore >= hitThreshold;
-  const isFlop = effectiveScore <= bands.flop;
-  const isSolid = !isHit && !isFlop && effectiveScore >= bands.solid;
+  // Verdict against the LIVE bars: the static era bar RAISED by the company's own rolling
+  // expectations (recent track record). A hit must beat what you've been shipping — so a mature
+  // studio can't guarantee a hit by re-maxing the same spec. hitFactory + era scaling still apply
+  // (folded into launchBars). Early launches (expectation 0) use the plain era bars, unchanged.
+  const outcome = verdictFor(state, effectiveScore);
+  const isHit = outcome === "hit";
+  const isFlop = outcome === "flop";
+  const isSolid = outcome === "solid";
   const hasCrisisComms = hasProject(state.completedProjects, "crisisComms");
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
   else if (isSolid) reputation = Math.min(rep.max, reputation + rep.gainPerSolid);
@@ -2853,6 +2858,9 @@ export function launchReady(state: GameState, productId: string): ActionResult {
       reputation,
       valuationMomentum,
       fans,
+      // Roll the expectations baseline forward, so the NEXT launch's bar reflects this one — the
+      // "you're only as good as your last" loop that keeps hits from being farmable.
+      launchExpectation: nextLaunchExpectation(state.launchExpectation, effectiveScore),
       researchPoints: state.researchPoints + rpReward,
       staff,
       feed: trimFeed(feed),
@@ -4808,6 +4816,43 @@ export function verdictBands(era: number): { hit: number; flop: number; solid: n
   const r = BALANCE.reputation;
   const i = Math.max(0, Math.min(era - 1, r.hitThresholdByEra.length - 1));
   return { hit: r.hitThresholdByEra[i], flop: r.flopThresholdByEra[i], solid: r.solidThresholdByEra[i] };
+}
+
+/** The LIVE verdict bars a launch must clear right now — the static era bars, RAISED by the company's
+ *  own rolling expectations baseline (recent track record). A hit must top what you've been shipping,
+ *  so a mature studio can't guarantee a hit by re-maxing the same spec — it takes a genuine step up.
+ *  A brand-new company (launchExpectation 0/undefined) gets the plain static bars, so early launches
+ *  and the pinned sim's opener are unchanged. The hitFactory project keeps lowering the hit bar. */
+export function launchBars(state: GameState): { hit: number; solid: number; flop: number } {
+  const base = verdictBands(state.era);
+  const x = BALANCE.reputation.expectation;
+  const exp = Math.max(0, state.launchExpectation ?? 0);
+  const hitRaw = Math.max(base.hit, exp * x.hitMargin);
+  const hit = hasProject(state.completedProjects, "hitFactory") ? hitRaw * 0.88 : hitRaw;
+  return {
+    hit: Math.round(hit),
+    solid: Math.round(Math.max(base.solid, exp * x.solidMargin)),
+    flop: Math.round(Math.max(base.flop, exp * x.flopMargin)),
+  };
+}
+
+/** The verdict for a competition-adjusted effective score against the live (expectations-raised) bars.
+ *  Shared by the launch reducer and the Design Lab projection so the two always agree. */
+export function verdictFor(state: GameState, effectiveScore: number): "hit" | "solid" | "steady" | "flop" {
+  const b = launchBars(state);
+  if (effectiveScore >= b.hit) return "hit";
+  if (effectiveScore <= b.flop) return "flop";
+  if (effectiveScore >= b.solid) return "solid";
+  return "steady";
+}
+
+/** Roll the expectations baseline forward after a launch scores `effectiveScore` — an EMA that tracks
+ *  your recent competition-adjusted performance, so the NEXT launch's bar reflects it. Pure. */
+export function nextLaunchExpectation(prev: number | undefined, effectiveScore: number): number {
+  const a = BALANCE.reputation.expectation.alpha;
+  const p = Math.max(0, prev ?? 0);
+  const blended = p <= 0 ? effectiveScore * a : p * (1 - a) + effectiveScore * a;
+  return Math.max(0, Math.round(blended));
 }
 
 /** Can the company IPO to raise capital? (Established by revenue, not yet listed.) */

@@ -56,7 +56,7 @@ import {
   productStats,
   recommendedRun,
   researchedTier,
-  verdictBands,
+  launchBars,
   osDisplayName,
   osEcoBonus,
   type GameState,
@@ -402,15 +402,16 @@ export function DesignLab({
   // B7 — the lab's projected verdict must use the SAME gate the launch actually applies:
   // effectiveScore = launchScore × competitionFactor, compared to the era-scaled verdict bands.
   // planProduction supplies the count-based competitionFactor (rivals matching/beating you) that
-  // launchReady uses, and verdictBands(era) is the SAME helper launchReady applies, so "Projected
-  // hit" here matches what happens at launch — including the rising bar in later eras.
+  // launchReady uses, and launchBars(state) is the SAME helper launchReady applies, so "Projected
+  // hit" here matches what happens at launch — including the rising bar from your own track record.
   const preview = missing.length === 0 ? planProduction(state, draft, BALANCE.build.minRun, "none") : null;
   const effectiveScore = preview ? preview.launchScore * preview.competitionFactor : breakdown.launchScore;
-  const bands = verdictBands(state.era);
-  // Match launchReady's Hit Factory bonus (hit bar drops to 88%) so the projection agrees with launch.
-  const hitBar = state.completedProjects.includes("hitFactory") ? Math.round(bands.hit * 0.88) : bands.hit;
+  // Use the SAME live bars the launch applies: the static era bar raised by the company's rolling
+  // expectations (recent track record), so the projection reflects the rising bar — a proven studio
+  // sees "solid" where a newcomer would see "hit" for the identical product.
+  const bands = launchBars(state);
   const verdict =
-    effectiveScore >= hitBar ? { label: "Projected hit", tone: "positive" as const }
+    effectiveScore >= bands.hit ? { label: "Projected hit", tone: "positive" as const }
       : effectiveScore <= bands.flop ? { label: "Likely flop", tone: "negative" as const }
         : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
           : { label: "Steady seller", tone: "accent" as const };
