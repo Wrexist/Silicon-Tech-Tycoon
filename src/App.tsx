@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
@@ -340,6 +340,8 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
 
   return (
     <div className="era-modal">
+      {/* Ambient aurora — a slow drifting glow that makes the takeover feel alive, not a static wall. */}
+      <div className="era-modal__aurora" aria-hidden />
       <div
         ref={ref}
         className="era-modal__inner"
@@ -348,36 +350,58 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
         aria-labelledby="era-modal-title"
         tabIndex={-1}
       >
-        <div className="era-modal__glyph" aria-hidden>
-          {ERA_ICONS[era] ?? <Sparkles size={28} strokeWidth={2.2} />}
+        <div className="era-modal__hero">
+          <div className="era-modal__rays" aria-hidden>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <i key={i} style={{ "--a": `${i * 30}deg`, "--d": `${120 + i * 34}ms` } as CSSProperties} />
+            ))}
+          </div>
+          <div className="era-modal__glyph" aria-hidden>
+            {ERA_ICONS[era] ?? <Sparkles size={34} strokeWidth={2.2} />}
+          </div>
         </div>
-        <div className="era-modal__badge">Era {era}</div>
+        <div className="era-modal__badge">Era {era} unlocked</div>
         <h2 className="era-modal__title" id="era-modal-title">{eraName(era)}</h2>
         <p className="era-modal__tag">{ERA_TAGLINES[era] ?? "A new chapter begins."}</p>
 
+        {/* At-a-glance "what you gained" — the leveling-up beat: two big numbers, not a wall of text. */}
+        {(newCats.length > 0 || newProjects.length > 0) && (
+          <div className="era-modal__stats">
+            {newCats.length > 0 && (
+              <div className="era-modal__stat">
+                <strong className="tnum">{newCats.length}</strong>
+                <small>new categor{newCats.length > 1 ? "ies" : "y"}</small>
+              </div>
+            )}
+            {newProjects.length > 0 && (
+              <div className="era-modal__stat">
+                <strong className="tnum">{newProjects.length}</strong>
+                <small>R&amp;D project{newProjects.length > 1 ? "s" : ""}</small>
+              </div>
+            )}
+          </div>
+        )}
+
         {newCats.length > 0 && (
-          <Card variant="inset" className="era-modal__section">
+          <div className="era-modal__section">
             <p className="era-modal__section-label">New product categories</p>
             <div className="era-modal__chips">
               {newCats.map((c) => (
                 <span key={c.id} className="era-modal__chip">{c.displayName}</span>
               ))}
             </div>
-          </Card>
+          </div>
         )}
 
         {newProjects.length > 0 && (
-          <Card variant="inset" className="era-modal__section">
-            <p className="era-modal__section-label">New R&D projects unlocked</p>
-            <div className="era-modal__projects">
+          <div className="era-modal__section">
+            <p className="era-modal__section-label">New R&amp;D unlocked · research it in the lab</p>
+            <div className="era-modal__pills">
               {newProjects.map((p) => (
-                <div key={p.id} className="era-modal__project">
-                  <span className="era-modal__project-name">{p.name}</span>
-                  <span className="era-modal__project-blurb">{p.blurb}</span>
-                </div>
+                <span key={p.id} className="era-modal__pill" title={p.blurb}>{p.name}</span>
               ))}
             </div>
-          </Card>
+          </div>
         )}
 
         <Button block onClick={onDismiss}>Let's go <ArrowRight size={16} aria-hidden /></Button>

@@ -264,6 +264,37 @@ describe("factory floor grid (F2)", () => {
     expect(autoTidyFloor({ machines: [{ id: "m", kind: "mill", c: 0, r: 0 }], belts: [] })).toBeNull();
   });
 
+  it("auto-tidy lays a LONG serpentine track even on the bare starter (room to place machines)", async () => {
+    const { autoTidyFloor, lineComplete, beltChain, FLOOR } = await import("./factoryFloor.ts");
+    const t = autoTidyFloor(starterFloor())!;
+    expect(t).not.toBeNull();
+    expect(lineComplete(t)).toBe(true);
+    // The whole track is one unbroken chain (Intake head → Packer tail), and it's genuinely long —
+    // a full-floor S, not the old adjacent-stub — so the player has a big canvas to build along.
+    expect(beltChain(t.belts).length).toBe(t.belts.length);
+    expect(t.belts.length).toBeGreaterThan(FLOOR.w * 2);
+    // Only the two starter machines survive, moved to opposite ends (Intake top-left, Packer far end).
+    expect(t.machines.length).toBe(2);
+    const intake = t.machines.find((m) => m.kind === "intake")!;
+    const packer = t.machines.find((m) => m.kind === "packer")!;
+    expect(intake.c).toBeLessThan(packer.c); // packer anchored to the far (east) end
+    expect(packer.r).toBeGreaterThan(intake.r); // and a lower band — opposite corners
+    // Deterministic.
+    expect(autoTidyFloor(starterFloor())).toEqual(t);
+  });
+
+  it("auto-tidy falls back to a valid compact line when a prop sits on the track lanes", async () => {
+    const { autoTidyFloor, lineComplete } = await import("./factoryFloor.ts");
+    // A decor prop dropped on each serpentine lane means the fixed track can't be laid cleanly — the
+    // tidy must fall back to the compact router and still return a complete, valid line (never null
+    // when a route exists), threading around the blocked cells.
+    const blocked = new Set<string>(["7,2", "7,5", "7,8"]);
+    const t = autoTidyFloor(starterFloor(), undefined, blocked)!;
+    expect(t).not.toBeNull();
+    expect(lineComplete(t)).toBe(true);
+    for (const b of t.belts) expect(blocked.has(`${b.c},${b.r}`)).toBe(false); // routed around the props
+  });
+
   it("moveMachine relocates in place (id/kind/level kept), rejects collisions and off-grid", async () => {
     const { moveMachine, machineLevel, upgradeMachineAt } = await import("./factoryFloor.ts");
     const f = demoFloor();

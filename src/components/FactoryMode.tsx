@@ -448,7 +448,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         {!lineOk && (
           <div className="fmode__panel fmode__stopped">
             <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
-            <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to align every machine and route the belts for you. A wired line builds every run faster.</p>
+            <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to lay a long conveyor track across the whole floor and line your machines up along it. A wired line builds every run faster.</p>
             <button className="fmode__stopped-fix" onClick={() => { haptic.light(); if (!use3d) { showToast("Building needs the 3D factory view — turn it on in Settings.", { tone: "neutral" }); return; } setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
@@ -622,15 +622,15 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 return (
                   <>
                     <span className="fmode__autoquote-label">
-                      <Waypoints size={14} aria-hidden /> Tidy the line · {quote.tiles} tiles
+                      <Waypoints size={14} aria-hidden /> Lay the track · {quote.tiles} tiles
                     </span>
                     <button
                       className="fmode__buy fmode__autoquote-go"
                       disabled={tooPricey}
                       onClick={() => {
                         const res = d.game.autoConnectLine();
-                        if (res.ok) { haptic.success(); sfx("build"); showToast("Line tidied — machines aligned, belts routed", { tone: "positive" }); }
-                        else { haptic.warning(); showToast(res.reason ?? "Couldn't tidy the line", { tone: "negative" }); }
+                        if (res.ok) { haptic.success(); sfx("build"); showToast("Track laid — a long line routed; drop machines along it", { tone: "positive" }); }
+                        else { haptic.warning(); showToast(res.reason ?? "Couldn't lay the track", { tone: "negative" }); }
                         setAutoArmed(false);
                       }}
                     >
@@ -673,8 +673,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 </button>
                 <button
                   className={`fmode__ptile fmode__ptile--util${autoArmed ? " fmode__ptile--on" : ""}`}
-                  aria-label="Auto-connect the Intake to the Packer"
-                  title="Tidy the whole line — align every machine into clean lanes and route the belts (shows the price first)"
+                  aria-label="Auto-lay a long conveyor track from the Intake to the Packer"
+                  title="Lay a long conveyor track across the whole floor and tidy your machines into clean lanes beside it (shows the price first)"
                   onClick={() => {
                     haptic.light();
                     if (autoArmed) { setAutoArmed(false); return; }

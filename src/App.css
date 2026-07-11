@@ -569,7 +569,9 @@
   -webkit-user-select: text;
 }
 
-/* Era advancement modal */
+/* Era advancement modal — a full-screen "you levelled up" takeover: an aurora-lit themed gradient,
+   a burst of rays behind the era glyph, two headline stat tiles, then a compact chip/pill summary of
+   everything the new era unlocked (dense, scannable — never a wall of blurbs). */
 .era-modal {
   position: fixed;
   inset: 0;
@@ -579,42 +581,100 @@
   justify-content: center;
   padding: max(var(--edge), env(safe-area-inset-top)) max(var(--edge), env(safe-area-inset-right))
     max(var(--edge), env(safe-area-inset-bottom)) max(var(--edge), env(safe-area-inset-left));
-  background: radial-gradient(140% 80% at 50% -10%, var(--accent-soft), var(--bg) 55%);
-  backdrop-filter: blur(12px);
+  background:
+    radial-gradient(120% 70% at 50% -8%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 60%),
+    radial-gradient(140% 90% at 50% 108%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
+    var(--bg);
   overflow-y: auto;
+  animation: ds-fade var(--spring-standard) both;
+}
+/* Slow-drifting coloured glow blobs behind the content — keeps the takeover feeling alive. */
+.era-modal__aurora {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 32% at 22% 30%, color-mix(in srgb, var(--accent) 40%, transparent), transparent 70%),
+    radial-gradient(34% 30% at 82% 24%, color-mix(in srgb, var(--positive) 28%, transparent), transparent 70%),
+    radial-gradient(40% 34% at 68% 82%, color-mix(in srgb, var(--warning) 24%, transparent), transparent 70%);
+  filter: blur(24px);
+  opacity: 0.7;
+  animation: era-aurora 14s ease-in-out infinite alternate;
 }
 .era-modal__inner {
+  position: relative;
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   text-align: center;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--sp-12);
-  padding: var(--sp-16) 0;
+  padding: var(--sp-24) 0;
 }
+/* cascade the reveal so the hero, badge, title and each section rise in one after another */
+.era-modal__inner > * {
+  animation: era-rise 560ms var(--spring-standard) both;
+}
+.era-modal__inner > *:nth-child(2) { animation-delay: 60ms; }
+.era-modal__inner > *:nth-child(3) { animation-delay: 120ms; }
+.era-modal__inner > *:nth-child(4) { animation-delay: 180ms; }
+.era-modal__inner > *:nth-child(5) { animation-delay: 240ms; }
+.era-modal__inner > *:nth-child(6) { animation-delay: 300ms; }
+.era-modal__inner > *:nth-child(7) { animation-delay: 360ms; }
+.era-modal__inner > *:nth-child(8) { animation-delay: 420ms; }
+
+.era-modal__hero {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.era-modal__rays { position: absolute; inset: 0; }
+.era-modal__rays i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 18px;
+  margin: -9px 0 0 -1.5px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transform-origin: center;
+  transform: rotate(var(--a)) translateY(-58px) scaleY(0);
+  opacity: 0;
+  animation: era-ray 620ms var(--d) cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.era-modal__rays i:nth-child(3n) { background: var(--positive); }
+.era-modal__rays i:nth-child(3n + 1) { background: var(--warning); }
 .era-modal__glyph {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto;
+  position: relative;
+  width: 84px;
+  height: 84px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
-  animation: ds-rise var(--spring-standard);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 86%, white), var(--accent));
+  color: var(--accent-ink, #fff);
+  box-shadow:
+    0 10px 30px -6px color-mix(in srgb, var(--accent) 55%, transparent),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  animation: era-glyph 640ms var(--spring-snappy) both;
 }
 .era-modal__badge {
   font-size: var(--fs-caption);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent);
 }
 .era-modal__title {
   font-size: var(--fs-large-title);
   font-weight: 800;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
   margin: 0;
 }
 .era-modal__tag {
@@ -622,53 +682,104 @@
   color: var(--ink-2);
   line-height: 1.5;
   margin: 0 var(--sp-8);
+  max-width: 340px;
+}
+.era-modal__stats {
+  display: flex;
+  gap: var(--sp-12);
+  width: 100%;
+  justify-content: center;
+}
+.era-modal__stat {
+  flex: 1 1 0;
+  max-width: 168px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--sp-12) var(--sp-8);
+  border-radius: var(--r-card);
+  background: var(--glass-well, var(--surface-2, rgba(255, 255, 255, 0.5)));
+  border: 1px solid var(--glass-well-edge, var(--hairline));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.era-modal__stat strong {
+  font-size: var(--fs-large-title);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--accent);
+}
+.era-modal__stat small {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
 }
 .era-modal__section {
+  width: 100%;
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: var(--sp-8);
 }
 .era-modal__section-label {
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--ink-2);
-  letter-spacing: 0.04em;
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   margin: 0;
 }
-.era-modal__chips {
+.era-modal__chips,
+.era-modal__pills {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-8);
 }
 .era-modal__chip {
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-pill);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 90%, white), var(--accent));
+  color: var(--accent-ink, #fff);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.era-modal__pill {
   padding: var(--sp-4) var(--sp-12);
   border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: var(--fs-caption);
-  font-weight: 700;
-}
-.era-modal__projects {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-}
-.era-modal__project {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.era-modal__project-name {
-  font-size: var(--fs-caption);
-  font-weight: 700;
+  background: var(--glass-well, var(--accent-soft));
+  border: 1px solid var(--glass-well-edge, var(--hairline));
   color: var(--ink);
-}
-.era-modal__project-blurb {
   font-size: var(--fs-micro);
-  color: var(--ink-2);
-  line-height: 1.4;
+  font-weight: 700;
+}
+
+@keyframes era-aurora {
+  from { transform: translate3d(-3%, -2%, 0) scale(1.02); }
+  to { transform: translate3d(3%, 3%, 0) scale(1.08); }
+}
+@keyframes era-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes era-glyph {
+  from { opacity: 0; transform: scale(0.4) rotate(-12deg); }
+  60% { transform: scale(1.12) rotate(4deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes era-ray {
+  from { transform: rotate(var(--a)) translateY(-38px) scaleY(0); opacity: 0; }
+  55% { opacity: 1; }
+  to { transform: rotate(var(--a)) translateY(-58px) scaleY(1); opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .era-modal,
+  .era-modal__aurora,
+  .era-modal__inner > *,
+  .era-modal__rays i,
+  .era-modal__glyph { animation: none; }
+  .era-modal__rays i { opacity: 0.9; transform: rotate(var(--a)) translateY(-58px) scaleY(1); }
 }
 
 /* IPO celebration */
