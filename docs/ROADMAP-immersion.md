@@ -126,7 +126,7 @@ product** that beat you, and record milestones ("you've bested them 5 times"). D
 personality hook.
 **Files:** `engine/nemesis.ts`, `state/gameState.ts` (nemesis fold ~2353).
 
-### 2.4 Rival-vs-rival dynamics (salt 239)
+### 2.4 Rival-vs-rival dynamics (salt 239) ✅
 Low-probability inter-rival events in `advanceCompetitors`: a declining small rival absorbed by a
 giant; two undercutters in one category trigger a mutual dip. The leaderboard moves while you sit
 still. Surface via `buzz.ts` + feed.
@@ -250,7 +250,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 - [x] 2.1 Real employee characters (full names + bios)
 - [x] 2.2 Per-employee morale/life events (salt 233)
 - [x] 2.3 Nemesis storyline (turf taunts + milestone beats)
-- [ ] 2.4 Rival-vs-rival dynamics (salt 239)
+- [x] 2.4 Rival-vs-rival dynamics (salt 239)
 - [ ] 2.5 Narrate climate + trend system (salt 251)
 - [ ] 2.6 Reviews feed the world
 

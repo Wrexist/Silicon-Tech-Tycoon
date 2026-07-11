@@ -1568,7 +1568,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const nem = state.nemesis ?? null;
   const nemEdgeRaw = nem ? nemesisLaunchEdge(nem, nem.rivalId) : null;
   const nemEdge = nem && nemEdgeRaw ? { rivalId: nem.rivalId, topCat: playerTopCategory(state), ...nemEdgeRaw } : undefined;
-  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats, nemEdge);
+  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats, nemEdge, state.seed);
   // `let` so B3 can append a fresh challenger that rises to refill a field thinned by acquisitions.
   let competitors = competitorsBase;
 

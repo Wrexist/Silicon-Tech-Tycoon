@@ -168,3 +168,38 @@ describe("B2 — rival doctrines (variety + presence, not raw difficulty)", () =
     expect(maxSeen).toBeGreaterThan(95);
   });
 });
+
+describe("rival-vs-rival dynamics (item 2.4)", () => {
+  it("no seed → no clashes (byte-identical to before)", () => {
+    const comps = initCompetitors(makeRng(3));
+    // Run many weeks with and without a seed using the SAME sim rng draws; the no-seed path must
+    // never emit a clash beat.
+    let sawClash = false;
+    let cur = comps;
+    const rng = makeRng(3);
+    for (let w = 1; w <= 200; w++) {
+      const r = advanceCompetitors(cur, w, 2, rng); // no seed arg
+      cur = r.competitors;
+      if (r.arcBeats.some((b) => b.text.includes("price war") || b.text.includes("poached"))) sawClash = true;
+    }
+    expect(sawClash).toBe(false);
+  });
+
+  it("with a seed the field clashes on its own — beats fire and reputations move, deterministically", () => {
+    const comps = initCompetitors(makeRng(5));
+    const run = () => {
+      let cur = comps;
+      const beats: string[] = [];
+      const rng = makeRng(5);
+      for (let w = 1; w <= 200; w++) {
+        const r = advanceCompetitors(cur, w, 2, rng, undefined, undefined, 424242);
+        cur = r.competitors;
+        for (const b of r.arcBeats) if (b.text.includes("price war") || b.text.includes("poached")) beats.push(`${b.week}:${b.text}`);
+      }
+      return beats;
+    };
+    const beats = run();
+    expect(beats.length).toBeGreaterThan(0); // the world moved without the player
+    expect(run()).toEqual(beats); // deterministic (derived hash, not the sim RNG)
+  });
+});

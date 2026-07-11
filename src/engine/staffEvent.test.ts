@@ -2,7 +2,6 @@
 // reducer's effect application (mood / cash / loyalty), incl. rejecting an unaffordable option.
 import { describe, expect, it } from "vitest";
 import { lifeEventEligible, staffEventDue, pickLifeEventTarget, generateStaffEvent } from "./staffEvent.ts";
-import { BALANCE } from "./balance.ts";
 import type { Staff } from "./types.ts";
 
 const base: Staff = {

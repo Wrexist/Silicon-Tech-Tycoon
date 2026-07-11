@@ -755,6 +755,19 @@ export const BALANCE = {
         declining: { stable: 0.6, ascending: 0.4 },
       } as Record<string, Record<string, number>>,
     },
+    // Rival-vs-rival dynamics (item 2.4) — the field lives WITHOUT the player: occasional clashes
+    // between two rivals (a price war that bruises both, or a power play where a stronger one poaches
+    // a weaker one's team) shift the leaderboard on their own. Small, bounded reputation nudges +
+    // a feed beat, driven by a DERIVED hash (salt 239) — never the sim RNG — and only when a `seed`
+    // is supplied, so callers that omit it (and the pinned solo sim's direct competitor tests) are
+    // byte-identical.
+    rivalClash: {
+      chancePerWeek: 0.06, // ~one clash every ~16 weeks
+      priceWarRepDip: 2,   // both rivals lose this much reputation in a price war
+      powerPlayWinRep: 2,  // the aggressor gains…
+      powerPlayLoseRep: 3, // …at the target's expense
+      minField: 3,         // never clash below this many rivals
+    },
     // The ARCH-RIVAL / NEMESIS — one rival becomes YOUR villain. A living "heat" meter + a head-to-head
     // record that escalates on every clash (you overtake them, they strike you, an awards duel) and cools
     // in quiet weeks; a hot nemesis fights back with a launch edge on your turf. All gated behind the
