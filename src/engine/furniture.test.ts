@@ -113,6 +113,27 @@ describe("office shop catalog", () => {
     expect(officeAttrs(layout)).toEqual({ comfort: 5, focus: 6, inspiration: 6 });
     expect(officeAttrs([])).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
   });
+
+  it("office zones (item 5.5): a desk beside an amenity earns a bonus; the default office earns none", async () => {
+    const { officeZoneBonus, defaultLayout } = await import("./furniture.ts");
+    // The default office (lone desk + a plant placed far apart) earns nothing — the sim-safe anchor.
+    expect(officeZoneBonus(defaultLayout())).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
+    expect(officeZoneBonus([])).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
+    // A desk with a plant placed immediately beside it forms a zone → a positive bonus.
+    const adjacent: PlacedItem[] = [
+      { iid: "d", type: "dualDesk", c: 3, r: 3, rot: 0 },
+      { iid: "p", type: "plantPot", c: 4, r: 3, rot: 0 }, // one cell east of the desk anchor
+    ];
+    const bonus = officeZoneBonus(adjacent);
+    expect(bonus.comfort).toBeGreaterThan(0);
+    expect(bonus.focus).toBeCloseTo(bonus.comfort * 0.5, 5);
+    // Moving the plant far away removes the zone.
+    const apart: PlacedItem[] = [
+      { iid: "d", type: "dualDesk", c: 3, r: 3, rot: 0 },
+      { iid: "p", type: "plantPot", c: 9, r: 9, rot: 0 },
+    ];
+    expect(officeZoneBonus(apart)).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
+  });
 });
 
 describe("catalog integrity", () => {

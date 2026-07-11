@@ -69,6 +69,7 @@ import {
   furnitureCost,
   moveItem as moveFurnitureOp,
   officeAttrs,
+  officeZoneBonus,
   removeItem as removeFurnitureOp,
   rotateItem as rotateFurnitureOp,
   type FurnitureId,
@@ -958,14 +959,21 @@ export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + prestigeBonuses(s).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
 /** Mood-target bonus from the room's comfort furniture (capped). Added to the weekly mood target. */
+// Item 5.5 — office attributes PLUS the placement zone bonus (desks beside amenities). Zero for the
+// default/never-rearranged office, so the pinned sim is byte-identical.
+const officeAttrsZoned = (s: GameState): Required<ReturnType<typeof officeAttrs>> => {
+  const base = officeAttrs(s.layout);
+  const zone = officeZoneBonus(s.layout);
+  return { comfort: base.comfort + zone.comfort, focus: base.focus + zone.focus, inspiration: base.inspiration + zone.inspiration };
+};
 export const officeComfortMoodBonus = (s: GameState): number =>
-  Math.min(BALANCE.shop.comfortCap, officeAttrs(s.layout).comfort * BALANCE.shop.comfortK);
+  Math.min(BALANCE.shop.comfortCap, officeAttrsZoned(s).comfort * BALANCE.shop.comfortK);
 /** Research multiplier from the room's focus furniture (≥1, capped). */
 export const officeFocusMult = (s: GameState): number =>
-  1 + Math.min(BALANCE.shop.focusCap, officeAttrs(s.layout).focus * BALANCE.shop.focusK);
+  1 + Math.min(BALANCE.shop.focusCap, officeAttrsZoned(s).focus * BALANCE.shop.focusK);
 /** Design-stat bonus from the room's inspiration furniture (capped). */
 export const officeInspoBonus = (s: GameState): number =>
-  Math.min(BALANCE.shop.inspCap, officeAttrs(s.layout).inspiration * BALANCE.shop.inspK);
+  Math.min(BALANCE.shop.inspCap, officeAttrsZoned(s).inspiration * BALANCE.shop.inspK);
 /** Can the player afford to buy + place this furniture id right now? */
 export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
   s.cash >= dollars(furnitureCost(type));

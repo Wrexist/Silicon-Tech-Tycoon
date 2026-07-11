@@ -328,7 +328,15 @@ mid-run constraint, not just a starting hand.
 noted for a follow-up; the `challengeRules` plumbing unblocks both.
 **Files (done):** `engine/challenges.ts` (sim-rule mutators), `state/gameState.ts` (`challengeRules` +
 `effectiveHypeBonus` + demand hook), `state/challengeMutators.test.ts`.
-### 5.5 Office zones / per-desk proximity bonuses (salt-free, derived) (`furniture.ts`, `Garage3D.tsx`)
+### 5.5 Office zones / per-desk proximity bonuses — SHIPPED
+Where a piece SITS now matters, not just that you own it. New pure `officeZoneBonus(layout)` gives a
+small comfort/focus/inspiration lift for each DESK placed immediately beside an amenity (plant /
+lighting / decor / fun), capped per desk — folded into the three office selectors (mood / research /
+design) via `officeAttrsZoned`. Salt-free and fully derived from placement. It's exactly ZERO for the
+default office (its lone desk and plant sit four cells apart) and for any room the player never
+rearranges, so the pinned sim — which never touches furniture — is byte-identical.
+**Files (done):** `engine/furniture.ts` (`officeZoneBonus`), `state/gameState.ts` (`officeAttrsZoned`
++ the three selectors), `engine/furniture.test.ts`.
 ### 5.6 Delegation specialists "report in" — SHIPPED
 `applyWeeklyAutomation` now narrates the delegation Leads by name when they actually act: the People
 Lead posts when they reassign idle staff ("Jordan Blake put 2 idle teammates back on task"), and the
@@ -415,7 +423,18 @@ Each item is independently shippable. Progress is tracked by checking items off 
 
 **Phase 4 complete** (core scope; deferred: cross-prestige Legacy persistence, doctrine-flavored events).
 
-**Phase 5:** not started (see sections above).
+**Phase 5 — Retention & Collection: complete**
+- [x] 5.1 Scenario campaign — unlock chain gated on total stars
+- [x] 5.2 Museum & Franchise collection goals (6 goals + progress UI)
+- [x] 5.3 Live industry-rank ladder with named rival "bosses" (`nextRankRival`)
+- [x] 5.4 Challenge sim-mutators — recession + marketing blackout; fixed-price + weekly ladder deferred
+- [x] 5.5 Office zones / per-desk proximity bonuses (derived, sim byte-identical)
+- [x] 5.6 Delegation specialists "report in" with named lines
+- [x] 5.7 Region event flavor — real surging rival (salt 269) + region taste
+- [x] 5.8 Factory decor soft effects — utility-equipment build-speed; machine palette deferred
+- [x] 5.9 Choice-event consequence flags/callbacks (first callback pair shipped)
+
+**Phase 5 complete** (core scope; deferred: fixed-price mutator + weekly ladder, era/research machine palette).
 
 > Note on remaining sequencing: items that mutate the live sim/economy (2.4 rival-vs-rival, 2.5 trends,
 > 3.x factory economics + segment-textured demand, 4.x endgame/research/prestige) each want their own
