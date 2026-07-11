@@ -15,7 +15,7 @@ const lead = (role: Staff["role"], name: string): Staff => ({
 describe("delegation reports (item 5.6)", () => {
   it("the People Lead reports reassigning idle staff", () => {
     const idle: Staff = { ...lead("engineer", "Sam Rivera"), id: "e1", assignment: "idle" };
-    const peopleLead: Staff = { ...lead("hr", "Jordan Blake"), assignment: "office" };
+    const peopleLead: Staff = { ...lead("hr", "Jordan Blake"), assignment: "marketing" };
     const g: GameState = {
       ...newGame(3),
       completedProjects: ["peopleOps"],

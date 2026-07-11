@@ -125,6 +125,7 @@ import {
 } from "../engine/factoryFloor.ts";
 import {
   PROP_DEFS, placeProp as propsPlace, moveProp as propsMove, propCellSet, removePropAt as propsRemoveAt, propRefund,
+  factoryDecorSpeedMult,
   type PlacedProp, type PropKind,
 } from "../engine/factoryProps.ts";
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
@@ -1181,7 +1182,9 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // a laptop a mill — and the bonus BANKS its fractional week (floor, not round): early builds are
   // only ~3 weeks, and round(3 × 0.95) = 3 would make the first wired line feel like a scam.
   const reqKinds = product ? requiredKindsFor(product.category) : undefined;
-  const lineMult = lineSpeedMult(s.factoryFloor, reqKinds);
+  // The wired line's bonus AND the utility-decor bonus (item 5.8) both shave build time; both are ≤1
+  // and exactly 1.0 for a bare/undecorated floor, so the pinned sim (no line, no props) is unchanged.
+  const lineMult = lineSpeedMult(s.factoryFloor, reqKinds) * factoryDecorSpeedMult(s.factoryProps ?? []);
   const contract = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * (product ? factorySpeedMult(product) : 1));
   const assembly = (lineMult < 1 ? Math.max(1, Math.floor(contract * lineMult)) : contract)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0)

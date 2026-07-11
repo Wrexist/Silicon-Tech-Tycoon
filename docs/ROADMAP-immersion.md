@@ -318,7 +318,16 @@ and the Lead is employed + an action happened, so a delegation-OFF save (the pin
 no-op returning the same state object → byte-identical.
 **Files (done):** `state/gameState.ts` (`applyWeeklyAutomation`), `state/delegationReport.test.ts`.
 ### 5.7 Region-specific event flavor tied to taste + the actual surging rival (salt 269) (`regionalEvents.ts`)
-### 5.8 Factory decor soft effects + era/research-gated machine palette (`factoryProps.ts`, `factoryFloor.ts`)
+### 5.8 Factory decor soft effects — SHIPPED (utility equipment bonus)
+UTILITY props (bench, rack, tool wall, QC station, gantry, compressor, work light) stopped being pure
+dressing: `factoryDecorSpeedMult` shaves −0.8% build time per DISTINCT utility kind on the floor, down
+to a −4% floor, so kitting the floor out with a VARIED set (not spamming one cheap prop) earns a small
+edge. Folded into `buildWeeksFor` alongside the wired-line bonus; an undecorated floor (and the pinned
+sim, which never places a prop) is exactly ×1.0 → byte-identical. Surfaced as a "Floor equipment" stat
+row. Purely-decorative props (plant/cone/…) grant nothing.
+**Deferred:** the era/research-gated machine palette — noted for a later Factory-Mode UI pass.
+**Files (done):** `engine/factoryProps.ts` (`factoryDecorSpeedMult`/`utilityDecorKinds`),
+`state/gameState.ts`, `components/FactoryMode.tsx`, `engine/factoryProps.test.ts`.
 ### 5.9 Choice-event consequence flags/callbacks (`events.ts`, `eventChains.ts`, `state`)
 
 ---

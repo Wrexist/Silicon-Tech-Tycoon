@@ -37,7 +37,7 @@ import { emitCelebrate } from "../design/celebrateFx.ts";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
 import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineEfficiency, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
-import { PROP_DEFS, propCellSet, type PropKind } from "../engine/factoryProps.ts";
+import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
 import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { FactoryTutorial } from "./FactoryTutorial.tsx";
@@ -130,11 +130,14 @@ function useFactoryData() {
   const lineUnitPct = Math.round((1 - lineUnitMult(state.factoryFloor)) * 100);     // % cheaper per unit
   // Item 3.2 — how tidily the line is laid (recipe order + straight lanes), 0–100%. Scales the bonuses.
   const layoutPct = Math.round(lineEfficiency(state.factoryFloor) * 100);
+  // Item 5.8 — a well-EQUIPPED floor (distinct utility props) shaves a little build time.
+  const decorPct = Math.round((1 - factoryDecorSpeedMult(state.factoryProps ?? [])) * 100);
+  const decorKinds = utilityDecorKinds(state.factoryProps ?? []);
 
   return {
     game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
-    floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct,
+    floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct, decorPct, decorKinds,
   };
 }
 
@@ -822,6 +825,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <span>Layout quality</span>
             <span className={`tnum ${d.layoutPct >= 85 ? "fmode__pos" : ""}`}>
               {d.layoutPct > 0 ? `${d.layoutPct}%` : "—"}
+            </span>
+          </div>
+          <div className="fmode__stat" title="Equip the floor with distinct utility props (benches, racks, tool walls, QC stations…) for a small build-speed edge.">
+            <span>Floor equipment</span>
+            <span className={`tnum ${d.decorPct > 0 ? "fmode__pos" : ""}`}>
+              {d.decorPct > 0 ? `−${d.decorPct}% · ${d.decorKinds} kinds` : "baseline"}
             </span>
           </div>
           {d.missing.length > 0 ? (
