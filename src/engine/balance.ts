@@ -1157,6 +1157,18 @@ export const BALANCE = {
     defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
   },
 
+  // --- Late-era operating drag (item C3): the endgame is no longer a free ratchet ---
+  // Running a frontier-scale company costs more the bigger you get. A small weekly cash cost that
+  // scales with lifetime revenue (a proxy for scale/complexity), starting in the AI era, so the late
+  // game has a real headwind that eats into growth and rewards keeping a cash cushion — without being
+  // able to bankrupt a solvent company (capped, and 0 before the drag era so the early game and the
+  // pinned sim's first three eras are byte-identical).
+  lateEra: {
+    dragEra: 4,                       // the drag begins in the AI era
+    dragFracPerWeek: 0.0012,          // weekly cost = this × lifetime revenue
+    dragCap: dollars(10_000_000),     // never more than this per week
+  },
+
   // --- Legacy Era (item 4.1): the post-IPO endgame — board mandates + moonshot megaprojects ---
   // Everything here is gated behind wentPublic, which the pinned solo sim never reaches → byte-identical.
   legacyEra: {

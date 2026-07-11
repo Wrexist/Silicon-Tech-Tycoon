@@ -58,12 +58,17 @@ Between launches the player taps "next". The engine already supports concurrent 
 interrupt density in eras 3–4 (the interrupts are individually rare AND globally throttled to 1/3wk).
 **Files:** `state/gameState.ts` guidance; `engine/balance.ts` interrupt cadences.
 
-### C3. Late-game adversity `(sim)`
-The economy is a one-way ratchet: 0 bankruptcies, rep never dips, four passive income streams vs.
-trivial burn. Add a genuine late-game downside that dents CASH (not just rep) — a periodic high-stakes
-obligation or a market shock — tuned so it restores tension without causing bankruptcies. This is the
-highest-risk item and gets the most `npm run sim` iteration.
-**Files:** `state/gameState.ts`, `engine/balance.ts`, new interrupt/event.
+### C3. Late-game adversity `(sim)` — DONE
+The economy was a one-way ratchet: 0 bankruptcies, rep never dips, four passive income streams vs.
+trivial burn. Added a **late-era operating drag** (`lateEraDrag` in `gameState.ts`, `BALANCE.lateEra`):
+a capped weekly cash cost scaled by lifetime revenue that starts in the AI era, so a frontier-scale
+company pays to keep running and the endgame stops being a free ratchet. It scales with success (a
+gentle rubber-band on the top) and is hard-capped, so it dents growth without ever bankrupting a
+solvent company. `ZERO` before the drag era → the early game and the pinned sim's first three eras
+are byte-identical. Surfaced as the "Scale" line in the Company burn breakdown and folded into
+`weeklyOutflow` (runway/solvency). Tuned via `npm run sim`: median endgame net worth $1708.5M →
+$1602.6M (−6.2%), p10 $1455.5M, **0/40 bankruptcies, all 40 runs reach era 4**, hit-rate unchanged.
+**Files:** `state/gameState.ts`, `engine/balance.ts`, `screens/Company.tsx`, `engine/lateGame.test.ts`.
 
 ---
 
@@ -75,4 +80,4 @@ ship only after the sim confirms 0 bankruptcies, all eras reached, and a healthy
 ## Status
 - [x] A1 · [x] A2 · [x] A3
 - [x] B1 · [~] B2 (addressed via the B1 reorder)
-- [x] C1 (surface) · [x] C2 (late-era interrupt density) · [ ] C3
+- [x] C1 (surface) · [x] C2 (late-era interrupt density) · [x] C3 (late-era operating drag)

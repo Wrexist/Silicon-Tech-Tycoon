@@ -942,10 +942,20 @@ export const facilityRent = (s: GameState): Money =>
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
 export const burn = (s: GameState): Money =>
   add(weeklyBurn(s.staff, facilityRent(s)), totalFactoryUpkeep(s.ownedFactories)) as Money;
-/** Total weekly cash OUTFLOW = operating burn + loan debt service. Display/solvency only (runway,
- *  "cash running low"); the tick deducts burn and loan payments separately, so it must NOT use this. */
+/** Item C3 — late-era operating drag. A frontier-scale company costs more just to keep running the
+ *  bigger it has grown, so the endgame is no longer a free ratchet: the AI era carries a headwind
+ *  scaled by lifetime revenue (capped, so it can never bankrupt a solvent company). 0 before the
+ *  drag era, so the early game and the pinned sim's first three eras stay byte-identical. */
+export const lateEraDrag = (s: GameState): Money => {
+  if (s.era < BALANCE.lateEra.dragEra) return ZERO;
+  const raw = Math.round(toDollars(s.cumulativeRevenue) * BALANCE.lateEra.dragFracPerWeek);
+  return dollars(Math.min(raw, toDollars(BALANCE.lateEra.dragCap)));
+};
+/** Total weekly cash OUTFLOW = operating burn + loan debt service + late-era drag. Display/solvency
+ *  only (runway, "cash running low"); the tick deducts each of these separately, so it must NOT use
+ *  this. */
 export const weeklyOutflow = (s: GameState): Money =>
-  add(burn(s), cents(weeklyDebtService(s.loans ?? []))) as Money;
+  add(add(burn(s), cents(weeklyDebtService(s.loans ?? []))), lateEraDrag(s)) as Money;
 /** Combined prestige bonuses: the founder-perk drip (from prestige `legacy` level) PLUS the in-run
  *  Legacy Points spend-tree (item 4.3). legacy 0 + no legacy perks → all-zero, so the pinned sim is
  *  byte-identical. The build-cost reduction is clamped so cost never dips below 60% however it's
@@ -1785,6 +1795,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Burn
   cash = sub(cash, scale(burn(state), rate));
+
+  // Item C3 — late-era operating drag: a frontier-scale company costs more to run the bigger it gets,
+  // so the endgame stops being a free ratchet. ZERO before the drag era → early game & the pinned
+  // sim's first three eras are byte-identical. Capped, so it never bankrupts a solvent company.
+  cash = sub(cash, scale(lateEraDrag(state), rate));
 
   // Loan debt service (Track C financing): amortize outstanding loans + take this week's payment.
   // Defaults to a no-op when the player has no debt, so a never-borrows game (and the harness) is

@@ -44,6 +44,7 @@ import {
   type MoraleKind,
   nextWeekRevenue,
   restCost,
+  lateEraDrag,
   weeklyEcosystemRevenue,
   weeklyOutflow,
   weeklyRpGen,
@@ -127,8 +128,9 @@ export function Company() {
   // systems before the core design→launch loop is learned.
   const hasShipped = state.launched.length >= 1 || state.legacy > 0;
   const wkBurn = burn(state); // operating burn only (payroll + rent + lines) — for the itemised view
-  const wkOut = weeklyOutflow(state); // the TRUE weekly outflow: burn + loan debt service
-  const wkDebt = sub(wkOut, wkBurn); // debt service alone, for the breakdown line
+  const wkOut = weeklyOutflow(state); // the TRUE weekly outflow: burn + loan debt service + late-era drag
+  const wkDrag = lateEraDrag(state); // frontier-scale operating headwind (0 before the AI era)
+  const wkDebt = sub(sub(wkOut, wkBurn), wkDrag); // debt service alone, for the breakdown line
   const wkPayroll = weeklyPayroll(state.staff);
   const wkRent = facilityRent(state);
   const wkUpkeep = totalFactoryUpkeep(state.ownedFactories);
@@ -243,9 +245,9 @@ export function Company() {
             </div>
           );
         })()}
-        {(state.staff.length > 0 || wkUpkeep > 0 || toDollars(wkDebt) > 0) && (
+        {(state.staff.length > 0 || wkUpkeep > 0 || toDollars(wkDebt) > 0 || toDollars(wkDrag) > 0) && (
           <p className="co__burn-breakdown">
-            Payroll {format(wkPayroll)} · Rent {format(wkRent)}{wkUpkeep > 0 ? ` · Lines ${format(wkUpkeep)}` : ""}{toDollars(wkDebt) > 0 ? ` · Debt ${format(wkDebt)}` : ""} weekly
+            Payroll {format(wkPayroll)} · Rent {format(wkRent)}{wkUpkeep > 0 ? ` · Lines ${format(wkUpkeep)}` : ""}{toDollars(wkDebt) > 0 ? ` · Debt ${format(wkDebt)}` : ""}{toDollars(wkDrag) > 0 ? ` · Scale ${format(wkDrag)}` : ""} weekly
           </p>
         )}
         {(() => {
