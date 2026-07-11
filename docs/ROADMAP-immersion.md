@@ -289,7 +289,15 @@ company committed to via a new `doctrineSummary` (engineering + GTM), silent for
 Long-tail goals and daily hooks.
 
 ### 5.1 Scenario campaign — unlock chain + star rewards (`scenarios.ts`, `scenarioProgress.ts`, `Scenarios.tsx`)
-### 5.2 Museum & Franchise collection goals with rewards (new `engine/collections.ts`, `Museum.tsx`)
+### 5.2 Museum & Franchise collection goals — SHIPPED
+New pure `engine/collections.ts`: six long-tail "collect them all" goals evaluated against the
+cross-run device museum — The Polymath (every category), Hitmaker (10 hits), Across the Ages (all four
+eras), Every Era a Hit, Dynasty (a 5-deep franchise), Prolific (25 devices). `collectionFacts` folds
+the museum once; each collection reports capped progress + done. Surfaced as a "Collections" section
+(N/M collected, progress bars, done badges) atop the Museum sheet. Pure/museum-only — no game-state or
+sim touch. Targets read from the live category/era tables so they can't drift.
+**Files (done):** `engine/collections.ts`, `screens/Museum.tsx`, `screens/museum.css`,
+`engine/collections.test.ts`.
 ### 5.3 Live industry-rank ladder with named rival "bosses" (`objectives.ts`, `competitors.ts`, `HQ.tsx`)
 ### 5.4 Challenge sim-mutators (no-marketing / fixed-price / recession) + weekly ladder (`challenges.ts`)
 ### 5.5 Office zones / per-desk proximity bonuses (salt-free, derived) (`furniture.ts`, `Garage3D.tsx`)
