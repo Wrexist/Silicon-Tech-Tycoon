@@ -16,6 +16,7 @@ import {
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
+import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
@@ -374,6 +375,12 @@ export interface GameState {
   pendingStaffMoment?: StaffMoment | null;
   /** Week of the last staff growth moment — enforces the cooldown between them. */
   lastStaffMomentWeek?: number;
+  /** A staff LIFE event on the table (item 2.2) — a named teammate's burnout / outside offer /
+   *  milestone the player answers (resolveStaffEvent). Fires only for an established team; the pinned
+   *  solo sim never raises one. Optional/null → golden-invariant safe. */
+  pendingStaffEvent?: StaffLifeEvent | null;
+  /** Week of the last staff life event — enforces the cooldown between them. */
+  lastStaffEventWeek?: number;
   /** A regional event on the table — an expansion market's boom / tariff / rival surge to respond to
    *  (resolveRegionalEvent). Fires only once you've expanded past Home; the pinned solo sim never
    *  does. Optional/null → golden-invariant safe. */
@@ -696,6 +703,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastCommunityAskWeek: -999,
     pendingStaffMoment: null,
     lastStaffMomentWeek: -999,
+    pendingStaffEvent: null,
+    lastStaffEventWeek: -999,
     regionLoyalty: {},
     pendingRegionalEvent: null,
     lastRegionalEventWeek: -999,
@@ -2237,6 +2246,30 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
           base.lastInterruptWeek = week;
           base.feed.push(feedItem(week, `${target.name} has grown into a real force on the team — there's a way to develop them further.`, "accent"));
         }
+      }
+    }
+  }
+
+  // Staff LIFE event (item 2.2): a named teammate hits a personal turning point (burnout, an outside
+  // offer, a milestone) and the player answers (resolveStaffEvent). Same guardrails as the growth
+  // moment — derived-hash cadence + cooldown, yields to every other interrupt, gated on an established
+  // team past the garage era, so the founder-only pinned sim never raises one → byte-identical.
+  {
+    const le = BALANCE.staff.lifeEvents;
+    if (
+      !offline && !bankrupt && interruptQuiet &&
+      base.era >= le.minEra && base.staff.length >= 2 &&
+      !base.pendingStaffEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
+      !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
+      !base.pendingEarnings && !base.pendingLicenseOffer && !base.pendingRegionalEvent &&
+      week - (state.lastStaffEventWeek ?? -999) >= le.cooldownWeeks &&
+      staffEventDue(state.seed, week)
+    ) {
+      const target = pickLifeEventTarget(base.staff, week);
+      if (target) {
+        base.pendingStaffEvent = generateStaffEvent(target, state.seed, week);
+        base.lastStaffEventWeek = week;
+        base.lastInterruptWeek = week;
       }
     }
   }
@@ -4754,6 +4787,46 @@ export function resolveStaffMoment(state: GameState, optionIndex: number): { sta
   staff[idx] = upgraded;
   const feed = [...state.feed, feedItem(state.week, line, "positive")];
   return { state: { ...state, staff, pendingStaffMoment: null, feed: trimFeed(feed) }, result: { ok: true, kind: opt.kind, staffName: s.name } };
+}
+
+// ---- Staff life events (item 2.2) ----
+export interface StaffEventResult { ok: boolean; reason?: string; staffName?: string; label?: string; }
+
+/** Resolve the staff life event on the table: apply the CHOSEN option's effect (mood/team-mood/skill/
+ *  loyalty, minus any cash cost). If the player can't afford the cash option, the choice is rejected
+ *  (the card stays up). Player-opt-in, so the pinned sim never calls it → byte-identical. */
+export function resolveStaffEvent(state: GameState, optionIndex: number): { state: GameState; result: StaffEventResult } {
+  const ev = state.pendingStaffEvent ?? null;
+  if (!ev) return { state, result: { ok: false, reason: "No staff event to resolve." } };
+  const opt = ev.options[optionIndex];
+  if (!opt) return { state: { ...state, pendingStaffEvent: null }, result: { ok: false, reason: "No such option." } };
+  const eff: StaffEventEffect = opt.effect;
+  const cost = eff.cashCost ? dollars(eff.cashCost) : ZERO;
+  if (cost > 0 && state.cash < cost) {
+    return { state, result: { ok: false, reason: `Need ${format(cost)} for that.` } }; // keep the card up
+  }
+  const idx = state.staff.findIndex((s) => s.id === ev.staffId);
+  // The teammate may have left (poached/fired) before the player answered — apply team-wide effects
+  // only, and close the card.
+  const staff = state.staff.map((s) => {
+    let m = s;
+    if (eff.teamMood) m = { ...m, mood: clampMood(m.mood + eff.teamMood) };
+    if (idx >= 0 && s.id === ev.staffId) {
+      m = {
+        ...m,
+        mood: clampMood(m.mood + (eff.mood ?? 0)), // their own delta, on top of any team delta already applied
+        moodLowWeeks: (eff.mood ?? 0) > 0 ? 0 : m.moodLowWeeks,
+        skill: eff.skill ? Math.min(BALANCE.staff.maxSkill, m.skill + eff.skill) : m.skill,
+        poachCooldownUntil: eff.retainWeeks ? Math.max(m.poachCooldownUntil ?? 0, state.week + eff.retainWeeks) : m.poachCooldownUntil,
+      };
+    }
+    return m;
+  });
+  const feed = [...state.feed, feedItem(state.week, `${ev.staffName}: you chose "${opt.label}".`, "accent")];
+  return {
+    state: { ...state, staff, cash: cost > 0 ? sub(state.cash, cost) : state.cash, pendingStaffEvent: null, feed: trimFeed(feed) },
+    result: { ok: true, staffName: ev.staffName, label: opt.label },
+  };
 }
 
 // ---- Regional events ----

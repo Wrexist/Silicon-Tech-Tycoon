@@ -540,6 +540,22 @@ export const BALANCE = {
       mentorXpCap: 0.3,      // …capped, so a room full of mentors can't runaway-train the team
       secondSpecialtyWeight: 0.8, // the second specialty's design bonus vs the primary's (1.0)
     },
+    // Staff LIFE events (item 2.2) — periodic human turning points (burnout, an outside offer, a
+    // milestone) the player answers with a small choice. Cadence/cooldown keep them a texture, not a
+    // nag; a struggling teammate is surfaced first so morale becomes an ongoing, personal decision.
+    lifeEvents: {
+      minEra: 2,             // the garage era stays a protected sandbox
+      minTenureWeeks: 10,    // been around long enough to have a "story"
+      cadenceWeeks: 26,      // avg weeks between life events
+      cooldownWeeks: 14,     // hard minimum between them
+      restlessTenureWeeks: 40, // a "wants a bigger challenge" beat needs real tenure…
+      restlessSkill: 6,      // …and seniority
+      retainWeeks: 24,       // loyalty earned: weeks of poach-immunity a good answer buys
+      raiseCost: 6000,       // $ — a retention raise
+      courseCost: 9000,      // $ — funding a course (levels them up)
+      partyCost: 4000,       // $ — a team party
+      protoCost: 5000,       // $ — funding a side prototype
+    },
   },
 
   // --- Recruitment: pay to run a search; after `weeks` it returns `candidates` applicants with

@@ -21,6 +21,7 @@ import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
 import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
+import { StaffEvent } from "./components/StaffEvent.tsx";
 import { RegionalEvent } from "./components/RegionalEvent.tsx";
 import { EarningsCall } from "./components/EarningsCall.tsx";
 import { ContractOffer } from "./components/ContractOffer.tsx";
@@ -238,6 +239,7 @@ function AppShell() {
       <EurekaMoment />
       <CommunityAsk />
       <StaffMoment />
+      <StaffEvent />
       <RegionalEvent />
       <EarningsCall />
       <ContractOffer />

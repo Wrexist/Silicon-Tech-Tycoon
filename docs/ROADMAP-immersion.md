@@ -113,7 +113,7 @@ to role/trait/specialty. Purely cosmetic → sim-safe.
 **Files:** `engine/staff.ts` (name tables, `makeIdentity`), `engine/types.ts` (`Staff.bio`),
 `state/gameState.ts` (hire paths), `screens/Company.tsx` (cards). **Depends on:** pairs well with 1.2.
 
-### 2.2 Per-employee morale/life events (salt 233)
+### 2.2 Per-employee morale/life events (salt 233) ✅
 A `pendingStaffEvent` interrupt (mirrors `staffMoment.ts`/`poaching.ts`): "Ari's thinking of leaving —
 sabbatical / raise / wish them well," keyed to a named person's trait/mood/tenure, with 2–3 choices
 that move mood/loyalty/skill. Converts fire-and-forget morale into personal micro-decisions.
@@ -248,7 +248,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 
 **Phase 2 — Personality & World Reactivity: in progress**
 - [x] 2.1 Real employee characters (full names + bios)
-- [ ] 2.2 Per-employee morale/life events (salt 233)
+- [x] 2.2 Per-employee morale/life events (salt 233)
 - [x] 2.3 Nemesis storyline (turf taunts + milestone beats)
 - [ ] 2.4 Rival-vs-rival dynamics (salt 239)
 - [ ] 2.5 Narrate climate + trend system (salt 251)
