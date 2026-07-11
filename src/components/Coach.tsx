@@ -89,7 +89,9 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
     color: designGreen,
     icon: PencilRuler,
     title: "Design your first device",
-    text: "Work left to right through the tabs up top, Components, Style, Camera, then Launch, to pick parts, a finish, and a price. Then tap Plan production to set a run size and campaign; you pay for the whole run upfront, so keep a cash cushion.",
+    text: tab === "design"
+      ? "It's already specced and fairly priced — you can ship it as-is. Tap the Launch tab up top, then Plan production to set a run size and campaign. (Tweak Components, Style or Specs first if you like.) You pay for the run upfront, so keep a cash cushion."
+      : "A starter device is pre-filled and ready — open the Design Lab and head to the Launch tab to ship it. Tweak the parts and price first if you want.",
     cta: tab === "design" ? undefined : { label: "Open Design Lab", tab: "design" },
   };
 }
