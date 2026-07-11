@@ -477,6 +477,8 @@ function migrate(state: GameState): GameState | null {
   // Outlet review threads (item 2.6, added later): default empty — they repopulate as you ship, so a
   // returning player just starts each outlet's running stance from a clean slate.
   if (!s.reviewThreads || typeof s.reviewThreads !== "object") s.reviewThreads = {};
+  // Side-order client loyalty (item 3.5, added later): default empty — repopulates as orders complete.
+  if (!s.sideOrderClients || typeof s.sideOrderClients !== "object") s.sideOrderClients = {};
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

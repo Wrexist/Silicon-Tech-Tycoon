@@ -116,7 +116,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoTidyFloor, demolitionRefund, floorWidth, lineCapacityMult, lineComplete, lineSpeedMult, lineUnitMult,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoTidyFloor, demolitionRefund, floorWidth, lineCapacityMult, lineComplete, lineEfficiency, lineSpeedMult, lineUnitMult,
   machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
@@ -432,6 +432,10 @@ export interface GameState {
   activeSideOrder?: ActiveSideOrder | null;
   /** Lifetime completed commissions — flavor + a future achievement hook. */
   sideOrdersCompleted?: number;
+  /** Item 3.5 — completed commissions PER client, keyed by client name. Drives the returning-client
+   *  loyalty premium on the completion bonus. Optional/backfilled → `{}`; only ever grows when the
+   *  player completes an (opt-in) order, so the pinned sim never touches it → byte-identical. */
+  sideOrderClients?: Record<string, number>;
   /** Rolling contract board (engine/contracts.ts) — 2–3 live directed goals that regenerate on claim
    *  or expiry, giving the post-tutorial/endgame a chase. Empty until the first ship; the reward is
    *  player-CLAIMED, so the pinned sim (which ships nothing) is byte-identical. Optional → old saves
@@ -736,6 +740,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     awardsHistory: [],
     pendingSideOrder: null,
     activeSideOrder: null,
+    sideOrderClients: {},
     sideOrdersCompleted: 0,
     contracts: [],
     contractsCompleted: 0,
@@ -1859,12 +1864,24 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let pendingSideOrder = state.pendingSideOrder ?? null;
   let activeSideOrder = state.activeSideOrder ?? null;
   let sideOrdersCompleted = state.sideOrdersCompleted ?? 0;
+  let sideOrderClients = state.sideOrderClients ?? {};
   if (pendingSideOrder && week > pendingSideOrder.expiresWeek) pendingSideOrder = null;
   if (activeSideOrder && week >= activeSideOrder.startedWeek + activeSideOrder.weeksNeeded) {
     const payout = sideOrderPayout(activeSideOrder);
-    cash = add(cash, payout);
+    // Item 3.5 — a tidy, capable line (3.1/3.2) and a returning client both earn a completion bonus
+    // ON TOP of the base payout. Pure upside on an already opt-in order, so the sim is unaffected.
+    const so = BALANCE.sideOrders;
+    const priorWithClient = sideOrderClients[activeSideOrder.clientName] ?? 0;
+    const qualityPct = so.qualityBonusPct * lineEfficiency(state.factoryFloor);
+    const loyaltyPct = Math.min(so.loyaltyBonusMaxPct, priorWithClient * so.loyaltyBonusPct);
+    const bonus = Math.round(payout * (qualityPct + loyaltyPct)) as Money;
+    cash = add(add(cash, payout), bonus);
     sideOrdersCompleted += 1;
-    feed.push(feedItem(week, `${activeSideOrder.clientName} took delivery of ${activeSideOrder.units.toLocaleString()} units — ${format(payout)} banked.`, "positive"));
+    sideOrderClients = { ...sideOrderClients, [activeSideOrder.clientName]: priorWithClient + 1 };
+    const bonusStr = bonus > 0
+      ? ` ${format(payout)} + ${format(bonus)} ${loyaltyPct > 0 ? "line-quality & loyalty" : "line-quality"} bonus banked.`
+      : ` ${format(payout)} banked.`;
+    feed.push(feedItem(week, `${activeSideOrder.clientName} took delivery of ${activeSideOrder.units.toLocaleString()} units —${bonusStr}`, "positive"));
     activeSideOrder = null;
   }
   if (!pendingSideOrder && !activeSideOrder && !offline && sideOrderDue(state.seed, week)) {
@@ -2166,6 +2183,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     pendingSideOrder,
     activeSideOrder,
     sideOrdersCompleted,
+    sideOrderClients,
     cashHistory,
     osBaseHistory,
     osApps,

@@ -200,10 +200,16 @@ Tuning (`Performance`/`Value`/…) nudges the fit of the segment that cares; reg
 segment-mix override (like `CATEGORY_MIX`) instead of a single scalar. Removes obvious global levers.
 **Files:** `engine/segments.ts`, `engine/regions.ts`, `screens/DesignLab.tsx`.
 
-### 3.5 Side-orders → contract pipeline
-A rotating slate of 2–3 offers with client reputation and floor-quality-gated bonuses (better line →
-bigger, better-paying contracts + on-time bonus tied to 3.1/3.2). Widen frequency.
-**Files:** `engine/sideOrders.ts`, `state/gameState.ts`, `components/FactoryMode.tsx`.
+### 3.5 Side-orders → contract pipeline — SHIPPED (bonuses + loyalty)
+Client commissions now pay a COMPLETION bonus on top of the base payout, tying the pipeline to the
+floor: a `qualityBonusPct` scaled by `lineEfficiency` (3.1/3.2 — a tidy, capable line delivers
+cleaner) plus a returning-client loyalty premium (`sideOrderClients` tracks completed orders per
+client, capped). All applied at completion of an accepted order → opt-in, so the pinned sim never
+triggers them (byte-identical). The completion feed narrates the bonus.
+**Deferred:** the rotating 2–3-offer slate (single-offer flow kept) and wider offer frequency —
+noted for a later UI pass so this increment stays sim-safe and reviewable.
+**Files (done):** `engine/balance.ts` (`sideOrders`), `state/gameState.ts` (completion bonus +
+`sideOrderClients`), `state/persistence.ts` (backfill), `state/sideOrders.test.ts`.
 
 ### 3.6 Post-launch reactive events (salt 257) — SHIPPED
 New `engine/postLaunchEvent.ts` generalises the Rival Strike interrupt into three mid-lifecycle beats
@@ -295,7 +301,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 - [x] 3.2 Reward layout quality (lineEfficiency meter feeds all three line mults)
 - [x] 3.3 Committed target-segment "design brief" — core shipped; periodic cash/RP briefs deferred
 - [ ] 3.4 Segment-textured tuning & regions
-- [ ] 3.5 Side-orders → contract pipeline
+- [x] 3.5 Side-orders → contract pipeline — floor-quality + loyalty completion bonuses; slate deferred
 - [x] 3.6 Post-launch reactive events (salt 257) — momentum / stall / supply, opt-in reducer
 
 **Phases 4–5:** not started (see sections above).

@@ -1155,6 +1155,14 @@ export const BALANCE = {
     defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
   },
 
+  // --- Side-order pipeline (item 3.5): floor-quality + client-loyalty bonuses on client commissions ---
+  // All applied at COMPLETION of an accepted order (opt-in), so the pinned sim never triggers them.
+  sideOrders: {
+    qualityBonusPct: 0.2,     // max on-delivery bonus from a tidy, capable line (× lineEfficiency, 3.1/3.2)
+    loyaltyBonusPct: 0.05,    // extra bonus per PRIOR completed order with the same client
+    loyaltyBonusMaxPct: 0.25, // cap on the loyalty premium
+  },
+
   // --- Post-launch reactive events (item 3.6): mid-lifecycle moments on a product already selling ---
   // Opportunistic interrupt sharing the global budget; opt-in resolution → the pinned sim raises none.
   postLaunch: {
