@@ -74,5 +74,5 @@ ship only after the sim confirms 0 bankruptcies, all eras reached, and a healthy
 
 ## Status
 - [x] A1 · [x] A2 · [x] A3
-- [ ] B1 · [ ] B2
+- [x] B1 · [~] B2 (addressed via the B1 reorder)
 - [ ] C1 · [ ] C2 · [ ] C3

@@ -131,6 +131,83 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       </div>
       {world === "factory" && <FactoryCard onNavigate={onNavigate} />}
 
+      {/* Item B1 — the "needs you now" priority zone: a finished product waiting to ship is the clearest
+          "act now", so it's pinned at the very top instead of buried below the informational cards. */}
+      {state.ready.length > 0 && (
+        <Card className="hq__ready">
+          <SectionHeader title="Ready to launch" accessory={`${state.ready.length} ready`} />
+          {state.ready.map((p) => (
+            <div className="hq__ready-row" key={p.id}>
+              <div className="hq__ready-thumb"><DeviceRenderer product={p} size={52} /></div>
+              <div className="hq__ready-info">
+                <span className="hq__ready-name">{p.name}</span>
+                {p.plannedUnits != null && <span className="hq__ready-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+              </div>
+              <Button size="sm" onClick={() => onLaunch(p.id)}>
+                <Rocket size={15} /> Launch
+              </Button>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      {/* Player-choice event card — a decision that gates the event flow, so it's in the priority zone. */}
+      {state.pendingChoice && (
+        <Card className="hq__choice">
+          <div className="hq__choice-head">
+            <Zap size={14} className="hq__choice-icon" aria-hidden />
+            <span className="hq__choice-title">{state.pendingChoice.event.title}</span>
+          </div>
+          <p className="hq__choice-body">{state.pendingChoice.event.body}</p>
+          <div className="hq__choice-options">
+            {state.pendingChoice.event.options.map((opt) => (
+              <button
+                key={opt.id}
+                className="hq__choice-opt"
+                onClick={() => { resolveChoice(opt.id); haptic.success(); }}
+              >
+                <span className="hq__choice-opt-label">{opt.label}</span>
+                <span className="hq__choice-opt-desc">{opt.description}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Rival poaching — keep your employee with a counter-offer, or let them walk (Track C) */}
+      {state.pendingPoach && (
+        <Card className="hq__choice">
+          <div className="hq__choice-head">
+            <Crosshair size={14} className="hq__choice-icon" aria-hidden />
+            <span className="hq__choice-title">{state.pendingPoach.rivalName} wants {state.pendingPoach.staffName}</span>
+          </div>
+          <p className="hq__choice-body">
+            {state.pendingPoach.rivalName} has made {state.pendingPoach.staffName} an offer. Match it to keep them, or wish them well.
+          </p>
+          <div className="hq__choice-options">
+            <button
+              className="hq__choice-opt"
+              disabled={state.cash < state.pendingPoach.retainCost}
+              onClick={() => { resolvePoach(true); haptic.success(); }}
+            >
+              <span className="hq__choice-opt-label">Match their offer · {format(state.pendingPoach.retainCost)}</span>
+              <span className="hq__choice-opt-desc">
+                {state.cash < state.pendingPoach.retainCost
+                  ? "You can't cover the signing bonus right now."
+                  : "Pay a signing bonus, lift them to market pay, and keep your talent."}
+              </span>
+            </button>
+            <button
+              className="hq__choice-opt"
+              onClick={() => { resolvePoach(false); haptic.medium(); }}
+            >
+              <span className="hq__choice-opt-label">Let them go</span>
+              <span className="hq__choice-opt-desc">Save the cash, but the rest of the team feels the loss.</span>
+            </button>
+          </div>
+        </Card>
+      )}
+
       {/* Industry Buzz — a live "wire" of authored headlines so the world reacts to you. Once you've
           shipped (an empty garage has no story yet), and only under the office world. */}
       {world === "office" && state.launched.length >= 1 && <BuzzTicker />}
@@ -248,82 +325,6 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
           shipped, when the community has an opinion to have. */}
       {state.launched.length >= 1 && <CommunityCard state={state} />}
-
-      {/* Player-choice event card — requires a decision before advancing */}
-      {state.pendingChoice && (
-        <Card className="hq__choice">
-          <div className="hq__choice-head">
-            <Zap size={14} className="hq__choice-icon" aria-hidden />
-            <span className="hq__choice-title">{state.pendingChoice.event.title}</span>
-          </div>
-          <p className="hq__choice-body">{state.pendingChoice.event.body}</p>
-          <div className="hq__choice-options">
-            {state.pendingChoice.event.options.map((opt) => (
-              <button
-                key={opt.id}
-                className="hq__choice-opt"
-                onClick={() => { resolveChoice(opt.id); haptic.success(); }}
-              >
-                <span className="hq__choice-opt-label">{opt.label}</span>
-                <span className="hq__choice-opt-desc">{opt.description}</span>
-              </button>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Rival poaching — keep your employee with a counter-offer, or let them walk (Track C) */}
-      {state.pendingPoach && (
-        <Card className="hq__choice">
-          <div className="hq__choice-head">
-            <Crosshair size={14} className="hq__choice-icon" aria-hidden />
-            <span className="hq__choice-title">{state.pendingPoach.rivalName} wants {state.pendingPoach.staffName}</span>
-          </div>
-          <p className="hq__choice-body">
-            {state.pendingPoach.rivalName} has made {state.pendingPoach.staffName} an offer. Match it to keep them, or wish them well.
-          </p>
-          <div className="hq__choice-options">
-            <button
-              className="hq__choice-opt"
-              disabled={state.cash < state.pendingPoach.retainCost}
-              onClick={() => { resolvePoach(true); haptic.success(); }}
-            >
-              <span className="hq__choice-opt-label">Match their offer · {format(state.pendingPoach.retainCost)}</span>
-              <span className="hq__choice-opt-desc">
-                {state.cash < state.pendingPoach.retainCost
-                  ? "You can't cover the signing bonus right now."
-                  : "Pay a signing bonus, lift them to market pay, and keep your talent."}
-              </span>
-            </button>
-            <button
-              className="hq__choice-opt"
-              onClick={() => { resolvePoach(false); haptic.medium(); }}
-            >
-              <span className="hq__choice-opt-label">Let them go</span>
-              <span className="hq__choice-opt-desc">Save the cash, but the rest of the team feels the loss.</span>
-            </button>
-          </div>
-        </Card>
-      )}
-
-      {/* Ready to launch */}
-      {state.ready.length > 0 && (
-        <Card className="hq__ready">
-          <SectionHeader title="Ready to launch" accessory={`${state.ready.length} ready`} />
-          {state.ready.map((p) => (
-            <div className="hq__ready-row" key={p.id}>
-              <div className="hq__ready-thumb"><DeviceRenderer product={p} size={52} /></div>
-              <div className="hq__ready-info">
-                <span className="hq__ready-name">{p.name}</span>
-                {p.plannedUnits != null && <span className="hq__ready-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
-              </div>
-              <Button size="sm" onClick={() => onLaunch(p.id)}>
-                <Rocket size={15} /> Launch
-              </Button>
-            </div>
-          ))}
-        </Card>
-      )}
 
       {/* In production */}
       {state.building.length > 0 && (
