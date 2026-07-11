@@ -37,10 +37,13 @@ priority zone at the top (pending choice / poach / ready-to-launch / claimable r
 the player is always first.
 **Files:** `screens/HQ.tsx`.
 
-### B2. Collapse always-present informational cards `(safe)`
-Community / Contracts / Legacy cards render unconditionally; make the informational ones collapsible so
-the scroll stays scannable.
-**Files:** `screens/HQ.tsx`.
+### B2. Collapse always-present informational cards `(safe)` — DONE
+Community / Contracts / Legacy cards render unconditionally; the actionable ones already float to the
+B1 priority zone, so the remaining clutter is the steady-state **Fan community** card. Made it
+collapsible: its header doubles as a full-width toggle (fans + mood always visible; the meter +
+community-moment tuck away), with a rotating chevron. Session-local `useState` — no persistence, no
+determinism surface.
+**Files:** `screens/HQ.tsx`, `screens/hq.css`.
 
 ---
 
@@ -79,5 +82,5 @@ ship only after the sim confirms 0 bankruptcies, all eras reached, and a healthy
 
 ## Status
 - [x] A1 · [x] A2 · [x] A3
-- [x] B1 · [~] B2 (addressed via the B1 reorder)
+- [x] B1 · [x] B2 (collapsible Fan community card)
 - [x] C1 (surface) · [x] C2 (late-era interrupt density) · [x] C3 (late-era operating drag)

@@ -1154,9 +1154,17 @@ function LegacyEraCard({ state, onFund, onBuyPerk }: { state: GameState; onFund:
 function CommunityCard({ state }: { state: GameState }) {
   const c = communitySnapshot(state);
   const meterPct = Math.round(((c.sentiment + 1) / 2) * 100); // −1..+1 → 0..100 on the thermometer
+  // Item B2 — this steady-state informational card is collapsible so the HQ scroll stays scannable;
+  // the header (fans + mood) always shows, the meter + moment tuck away. Session-local (no persist).
+  const [open, setOpen] = useState(true);
   return (
-    <Card className={`hq__community hq__community--${c.tier}`}>
-      <div className="hq__community-head">
+    <Card className={`hq__community hq__community--${c.tier}${open ? "" : " hq__community--collapsed"}`}>
+      <button
+        type="button"
+        className="hq__community-head hq__collapse-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
         <span className="hq__community-glyph" aria-hidden><Heart size={18} /></span>
         <div className="hq__community-titles">
           <span className="hq__community-eyebrow">Fan community</span>
@@ -1167,14 +1175,19 @@ function CommunityCard({ state }: { state: GameState }) {
             <Flame size={12} aria-hidden /> {formatCount(c.superfans)}
           </span>
         )}
-      </div>
-      <div className="hq__community-meter">
-        <div className="hq__community-track" role="progressbar" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(c.sentiment * 100)} aria-label="Community mood">
-          <span className="hq__community-thumb" style={{ left: `${meterPct}%` }} />
-        </div>
-        <div className="hq__community-scale"><span>Restless</span><span>Devoted</span></div>
-      </div>
-      <p className="hq__community-moment"><Sparkles size={12} aria-hidden /> {c.moment}</p>
+        <ChevronRight size={16} className="hq__collapse-chevron" aria-hidden />
+      </button>
+      {open && (
+        <>
+          <div className="hq__community-meter">
+            <div className="hq__community-track" role="progressbar" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(c.sentiment * 100)} aria-label="Community mood">
+              <span className="hq__community-thumb" style={{ left: `${meterPct}%` }} />
+            </div>
+            <div className="hq__community-scale"><span>Restless</span><span>Devoted</span></div>
+          </div>
+          <p className="hq__community-moment"><Sparkles size={12} aria-hidden /> {c.moment}</p>
+        </>
+      )}
     </Card>
   );
 }

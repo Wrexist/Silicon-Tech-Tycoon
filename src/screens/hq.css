@@ -1754,6 +1754,15 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 
 /* Living fan community — mood thermometer + superfans + a rotating community-moment line. */
 .hq__community-head { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+/* Item B2 — collapsible informational card: the header doubles as a full-width toggle button. */
+.hq__collapse-toggle {
+  width: 100%; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
+  text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.hq__community--collapsed .hq__community-head { margin-bottom: 0; }
+.hq__collapse-chevron { flex-shrink: 0; color: var(--ink-3); transition: transform 0.18s ease; transform: rotate(90deg); }
+.hq__community--collapsed .hq__collapse-chevron { transform: rotate(0deg); }
+@media (prefers-reduced-motion: reduce) { .hq__collapse-chevron { transition: none; } }
 .hq__community-glyph {
   display: flex; align-items: center; justify-content: center;
   width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--r-button);
