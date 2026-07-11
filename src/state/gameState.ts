@@ -2930,6 +2930,28 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   }
   fans = Math.round(fans);
 
+  // Item 3.3 — design-brief bonus. Committing a product to a target segment and NAILING its stat fit
+  // at launch earns bonus reputation + fans (scaled from 0 at fitThreshold up to full at fitFull);
+  // missing it just forgoes the bonus, never a penalty. Opt-in (product.targetSegment) → the pinned
+  // sim, which never sets a target, is byte-identical. Applied before fan milestones so the extra
+  // fans can cross a milestone naturally.
+  let briefBeat: FeedItem | null = null;
+  if (product.targetSegment) {
+    const bc = BALANCE.briefs;
+    const seg = plan.segments.perSegment.find((r) => r.id === product.targetSegment);
+    const fit = seg?.fit ?? 0;
+    if (seg && fit >= bc.fitThreshold) {
+      const strength = Math.min(1, (fit - bc.fitThreshold) / Math.max(1, bc.fitFull - bc.fitThreshold));
+      const repAdd = bc.repBonus * strength;
+      const fanAdd = Math.round(bc.fanBonus * strength);
+      reputation = Math.min(rep.max, reputation + repAdd);
+      fans += fanAdd;
+      briefBeat = feedItem(state.week, `Design brief nailed — “${product.name}” won over the ${seg.name} segment (fit ${Math.round(fit)}). +${Math.round(repAdd)} rep · +${fanAdd.toLocaleString()} fans.`, "positive");
+    } else {
+      briefBeat = feedItem(state.week, `Design brief missed — “${product.name}” didn't win over ${seg?.name ?? "the target"} (fit ${Math.round(fit)}, needed ${bc.fitThreshold}).`, "neutral");
+    }
+  }
+
   // Fan milestones — surface crossing big numbers as celebratory feed items + rep bonus.
   const fanMilestones = fanMilestoneResult(state.fans, fans, state.week);
   reputation = Math.min(rep.max, reputation + fanMilestones.repBonus);
@@ -2978,6 +3000,7 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     feed.push(feedItem(state.week, `Overproduced “${product.name}”, unsold stock is a write-off.`, "negative"));
   }
   for (const item of fanMilestones.feed) feed.push(item);
+  if (briefBeat) feed.push(briefBeat); // item 3.3 — design-brief outcome
 
   // Item 2.6 — fold this launch's (deterministic) critic reviews into the running per-outlet stance,
   // so an outlet that keeps panning (or keeps championing) you becomes a thread in the feed. The

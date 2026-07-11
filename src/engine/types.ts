@@ -156,6 +156,10 @@ export interface Product {
   /** Quality-stat penalty BAKED at build time when the "defects" capacity strategy is used (depends
    *  on run size, so it's frozen onto the built product). Optional — absent = none. */
   defectPenalty?: number;
+  /** Item 3.3 — a committed "design brief": the buyer segment this product is aimed at. Optional/opt-in
+   *  (unset = no brief, no bonus, byte-identical baseline). Nailing the target segment's fit at launch
+   *  earns bonus reputation + fans; missing it just forgoes the bonus (never a penalty). */
+  targetSegment?: SegmentId;
 }
 
 export function defaultCameraDesign(): CameraDesign {

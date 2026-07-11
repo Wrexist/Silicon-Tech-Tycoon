@@ -1155,6 +1155,17 @@ export const BALANCE = {
     defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
   },
 
+  // --- Design briefs (item 3.3): commit a product to a target buyer segment for a launch bonus ---
+  // Opt-in only (product.targetSegment). Nailing the target's stat FIT at launch earns bonus rep +
+  // fans; missing it forgoes the bonus but never penalises — so the commitment is a gamble the player
+  // chooses, not a tax. A near-perfect fit scales the bonus up to its full value.
+  briefs: {
+    fitThreshold: 66,   // the target segment's fit (0..100) must clear this to "hit the brief"
+    fitFull: 88,        // …and the bonus reaches full strength at this fit (linearly between the two)
+    repBonus: 4,        // reputation added on a fully-hit brief
+    fanBonus: 500,      // fans added on a fully-hit brief
+  },
+
   // --- Creative / Sandbox mode: design without limits ---
   // Both are TOP-UP floors (never lower what you've legitimately earned). The cash floor is set high
   // enough that any purchase — acquisitions, mega production runs, founding the OS — is trivially

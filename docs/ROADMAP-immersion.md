@@ -183,10 +183,17 @@ tidy work earns the full 100%. A fresh auto-route scores ~1.0 (so 3.1's pins are
 uses the unwired starter so it stays byte-identical. Surfaced as a "Layout quality" 0–100% row.
 **Files (done):** `engine/factoryFloor.ts`, `components/FactoryMode.tsx`, `engine/factoryFloor.test.ts`.
 
-### 3.3 Committed target-segment "design brief"
-Add `Product.targetSegment?`; score `perSegment[target].captured` against a threshold for bonus
-rep/fans at launch. Periodic market briefs grant cash/RP on completion. Converts segmentation from a
-readout into the decision. **Files:** `types.ts`, `DesignLab.tsx`, `state/gameState.ts`, events.
+### 3.3 Committed target-segment "design brief" — SHIPPED (core)
+`Product.targetSegment?` lets the player COMMIT a product to a buyer segment in the Design Lab (a new
+"Design brief" chip row). At launch, if the target segment's stat `fit` clears `briefs.fitThreshold`
+(66), a bonus scaling to full at `fitFull` (88) adds reputation + fans and a "brief nailed" feed
+beat; missing it forgoes the bonus with a "brief missed" note — never a penalty. Opt-in (unset =
+byte-identical baseline; the pinned sim never sets a target). Converts segmentation from a readout
+into a real decision.
+**Deferred:** periodic market briefs granting cash/RP on completion (a contract-like slate) — noted
+for a later pass alongside 3.5's side-order pipeline.
+**Files (done):** `engine/types.ts`, `engine/balance.ts` (`briefs`), `state/gameState.ts` (launch
+bonus), `screens/DesignLab.tsx` (picker), `state/designBrief.test.ts`.
 
 ### 3.4 Segment-textured tuning & regions
 Tuning (`Performance`/`Value`/…) nudges the fit of the segment that cares; regions carry a
@@ -279,7 +286,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 **Phase 3 — Depth of Core Decisions: in progress**
 - [x] 3.1 Factory floor drives capacity + unit cost (pure-upside; sim byte-identical)
 - [x] 3.2 Reward layout quality (lineEfficiency meter feeds all three line mults)
-- [ ] 3.3 Committed target-segment "design brief"
+- [x] 3.3 Committed target-segment "design brief" — core shipped; periodic cash/RP briefs deferred
 - [ ] 3.4 Segment-textured tuning & regions
 - [ ] 3.5 Side-orders → contract pipeline
 - [ ] 3.6 Post-launch reactive events (salt 257)

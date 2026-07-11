@@ -68,7 +68,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { StatBars } from "../components/charts.tsx";
-import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { segmentDemand, SEGMENTS, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel, playerFranchises } from "../engine/franchise.ts";
 import { segmentWantsById } from "../engine/glossary.ts";
@@ -1136,6 +1136,39 @@ export function DesignLab({
                 const sel = TUNINGS.find((t) => t.id === (draft.tuning ?? "balanced"))!;
                 return <p className="lab__field-effect"><Scale size={12} aria-hidden /> {sel.label} · {sel.hint}</p>;
               })()}
+            </Card>
+            <Card>
+              <SectionHeader title="Design brief" accessory="optional" />
+              <div className="lab__chips">
+                <button
+                  className={`lab__chip${!draft.targetSegment ? " lab__chip--on" : ""}`}
+                  aria-pressed={!draft.targetSegment}
+                  title="No committed target — no launch bonus, no risk."
+                  onClick={() => { haptic.light(); set({ targetSegment: undefined }); }}
+                >
+                  No brief
+                </button>
+                {SEGMENTS.map((seg) => {
+                  const on = draft.targetSegment === seg.id;
+                  return (
+                    <button
+                      key={seg.id}
+                      className={`lab__chip${on ? " lab__chip--on" : ""}`}
+                      aria-pressed={on}
+                      title={segmentWantsById(seg.id)}
+                      onClick={() => { haptic.light(); set({ targetSegment: on ? undefined : seg.id }); }}
+                    >
+                      {seg.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="lab__field-effect">
+                <Target size={12} aria-hidden />{" "}
+                {draft.targetSegment
+                  ? `Aim for ${SEGMENTS.find((s) => s.id === draft.targetSegment)!.name} — nail their fit at launch for bonus reputation + fans. Miss it and you just forgo the bonus.`
+                  : "Commit to a buyer segment to chase a launch bonus for nailing their fit."}
+              </p>
             </Card>
             <Card>
               <SectionHeader title="Design effort" accessory={`ceiling T${ceiling}`} />
