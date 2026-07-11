@@ -1559,7 +1559,10 @@ function FeedCard({ feed, week, onNavigate }: { feed: FeedItem[]; week: number; 
   // full stream — milestones included — is one tap away.
   const highlights = all.filter((i) => feedSalience(i) !== "low");
   const limit = 4;
-  const shown = expanded ? all : highlights.slice(0, limit);
+  // Collapsed shows the highlights; but if a recent stretch is ALL low-salience milestones there are
+  // no highlights, so fall back to the plain recent items rather than render an empty News card.
+  const collapsedSource = highlights.length ? highlights : all;
+  const shown = expanded ? all : collapsedSource.slice(0, limit);
   const hidden = expanded ? 0 : all.length - shown.length;
   return (
     <Card>
