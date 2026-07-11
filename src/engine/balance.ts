@@ -1160,7 +1160,9 @@ export const BALANCE = {
   legacyEra: {
     mandate: {
       windowWeeks: 13,            // a fiscal quarter to hit the board's directive
-      escalationPerQuarter: 0.35, // the bar (and reward) rises each quarter
+      escalationPerQuarter: 0.35, // the bar (and reward) rises each quarter…
+      escalationCapQuarters: 12,  // …but plateaus here (~3 years post-IPO) so it stays reachable
+      maxHits: 4,                 // the "land N hits this quarter" bar never exceeds this
       baseRevenue: 40_000_000,    // dollars — quarter-1 revenue target
       fansGrowthTarget: 0.15,     // "grow fans by ~15%" mandate
       fansFloor: 5_000,

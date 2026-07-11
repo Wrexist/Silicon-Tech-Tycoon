@@ -151,7 +151,10 @@ const MANDATE_METRICS: readonly MandateMetric[] = ["revenue", "hits", "fans", "r
 export function generateBoardMandate(seed: number, quarter: number, week: number, currentFans: number): BoardMandate {
   const c = BALANCE.legacyEra.mandate;
   const metric = MANDATE_METRICS[Math.floor(hash01(seed, quarter, 263) * MANDATE_METRICS.length) % MANDATE_METRICS.length];
-  const rung = 1 + quarter * c.escalationPerQuarter; // the bar rises each quarter
+  // The bar rises each quarter but PLATEAUS at escalationCapQuarters, so it stays reachable instead of
+  // eventually outrunning any company and fading into ignorable background noise.
+  const eq = Math.min(quarter, c.escalationCapQuarters);
+  const rung = 1 + eq * c.escalationPerQuarter;
   let target: number;
   let title: string;
   switch (metric) {
@@ -160,7 +163,7 @@ export function generateBoardMandate(seed: number, quarter: number, week: number
       title = `Post $${Math.round(target / 1e6)}M in revenue this quarter`;
       break;
     case "hits":
-      target = 1 + Math.floor(quarter / 2);
+      target = Math.min(c.maxHits, 1 + Math.floor(eq / 2));
       title = `Land ${target} hit launch${target > 1 ? "es" : ""} this quarter`;
       break;
     case "fans":

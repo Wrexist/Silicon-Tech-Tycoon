@@ -65,6 +65,29 @@ describe("board mandates — engine", () => {
     }
   });
 
+  it("the bar plateaus past the escalation cap (stays reachable, never runs away)", async () => {
+    const { BALANCE } = await import("./balance.ts");
+    const cap = BALANCE.legacyEra.mandate.escalationCapQuarters;
+    // A revenue mandate at the cap and far past it must have the SAME target/reward (plateau).
+    const revAt = (q: number) => { for (let s = 0; s < 200; s++) { const m = generateBoardMandate(s, q, 0, 1000); if (m.metric === "revenue") return m; } return null; };
+    // Compare the capped quarter to one well beyond it, at a seed that yields a revenue mandate at both.
+    for (let s = 0; s < 400; s++) {
+      const a = generateBoardMandate(s, cap, 0, 1000);
+      const b = generateBoardMandate(s, cap + 20, 0, 1000);
+      if (a.metric === "revenue" && b.metric === "revenue") {
+        expect(b.target).toBe(a.target);       // plateaued, not runaway
+        expect(b.reward.cash).toBe(a.reward.cash);
+        break;
+      }
+    }
+    expect(revAt(cap)).not.toBeNull();
+    // The hits bar is capped too.
+    for (let s = 0; s < 400; s++) {
+      const m = generateBoardMandate(s, cap + 50, 0, 1000);
+      if (m.metric === "hits") { expect(m.target).toBeLessThanOrEqual(BALANCE.legacyEra.mandate.maxHits); break; }
+    }
+  });
+
   it("completion + progress read the right facts per metric", () => {
     // Find a revenue mandate to test the numeric path.
     let rev = null;
