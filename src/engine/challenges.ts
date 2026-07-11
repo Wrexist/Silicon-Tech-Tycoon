@@ -24,9 +24,15 @@ export interface Mutator {
   reputation?: number;
   /** Override the starting fan count. */
   fans?: number;
+  // --- Sim-RULE mutators (item 5.4) — ongoing constraints the state layer applies while the challenge
+  //     run is active (derived from activeChallenge → challengeRules). Absent = no effect. ---
+  /** Multiply the addressable market for the whole run (e.g. a recession shrinks demand). */
+  demandMult?: number;
+  /** Marketing is off for the run — launch hype collapses to a floor (win on the product alone). */
+  noMarketing?: boolean;
 }
 
-/** Catalog of start-condition mutators (the ones expressible without sim changes). */
+/** Catalog of challenge mutators — start-condition twists AND ongoing sim RULES (item 5.4). */
 export const MUTATORS: readonly Mutator[] = [
   { id: "lean", name: "Lean Start", description: "Begin with half the usual capital.", cashMult: 0.5 },
   { id: "shoestring", name: "Shoestring", description: "A third of the usual capital, every dollar counts.", cashMult: 0.34 },
@@ -36,6 +42,10 @@ export const MUTATORS: readonly Mutator[] = [
   { id: "unknown", name: "Total Unknown", description: "No fans, no recognition, earn every one.", fans: 0 },
   { id: "cult", name: "Cult Following", description: "Begin with a devoted fanbase already in your corner.", fans: 25_000 },
   { id: "frugal", name: "Frugal Founder", description: "Modest capital and a quiet brand. Prove the model.", cashMult: 0.6, reputation: 12, fans: 0 },
+  // Sim-rule twists (item 5.4).
+  { id: "recession", name: "Recession", description: "The whole market has contracted — demand runs 30% cold all run.", demandMult: 0.7 },
+  { id: "downturn", name: "Slow Market", description: "A softer market — demand runs 15% below normal.", demandMult: 0.85 },
+  { id: "blackout", name: "Marketing Blackout", description: "No marketing at all — every launch must win on the product alone.", noMarketing: true },
 ] as const;
 
 export function mutatorById(id: string): Mutator | undefined {

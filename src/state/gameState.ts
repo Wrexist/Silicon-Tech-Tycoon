@@ -145,6 +145,22 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
+
+/** Item 5.4 — the ongoing sim RULES imposed by the active challenge's mutators (recession demand
+ *  penalty / marketing blackout), re-derived from `activeChallenge`. Neutral (demandMult 1, no
+ *  blackout) outside a challenge, so a normal run and the pinned sim are byte-identical. Pure. */
+export function challengeRules(s: GameState): { demandMult: number; noMarketing: boolean } {
+  const ac = s.activeChallenge;
+  if (!ac) return { demandMult: 1, noMarketing: false };
+  const ch = ac.kind === "weekly" ? weeklyChallenge(ac.dateKey) : dailyChallenge(ac.dateKey);
+  let demandMult = 1;
+  let noMarketing = false;
+  for (const m of ch.mutators) {
+    if (m.demandMult != null) demandMult *= m.demandMult;
+    if (m.noMarketing) noMarketing = true;
+  }
+  return { demandMult, noMarketing };
+}
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
@@ -972,6 +988,11 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "singularityLab") ? 0.20 : 0) + // Era-4 capstone (item 4.2)
   visionaryHype(s.staff) + marketingHype(s.upgrades) + prestigeBonuses(s).hype + brandAwarenessHype(s);
 
+/** Launch-hype bonus after any challenge RULE (item 5.4): a Marketing Blackout collapses it to a
+ *  small floor (win on the product alone). Outside a challenge this is exactly `hypeBonus` → no-op. */
+export const effectiveHypeBonus = (s: GameState): number =>
+  challengeRules(s).noMarketing ? hypeBonus(s) * 0.1 : hypeBonus(s);
+
 /** The bounded launch-hype contribution from the company's brand-awareness meter. 0 when the meter is
  *  0 (absent) → folds into hypeBonus with no effect until the player invests, so the pinned sim stays
  *  byte-identical. Reaches both the real launch and the live preview through hypeBonus. */
@@ -1317,6 +1338,8 @@ export function planProduction(
   // Global expansion (engine/regions.ts): scale the addressable market by the regions this product
   // ships to. Home-only is exactly ×1.0, so this never changes a domestic launch or an old save.
   marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week, s.regionLoyalty);
+  // Item 5.4 — a challenge recession contracts the whole market (1.0 outside a challenge → no-op).
+  marketSize *= challengeRules(s).demandMult;
 
   // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
   // weighting the five stats AND price differently; the product wins a share of each, summed. This
@@ -1351,8 +1374,9 @@ export function planProduction(
     // SEPARATELY (campaignHype) so it lands on TOP of this clamp — a bigger campaign always lifts the
     // launch instead of being absorbed once the company's passive hype maxes out (the "every tier
     // shows the same units" bug in a mature company).
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, hypeBonus(s) * mktMult + equityHypeBonus(brand.equity))),
-    campaignHype: Math.max(0, channel.hype) * mktMult,
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, effectiveHypeBonus(s) * mktMult + equityHypeBonus(brand.equity))),
+    // Item 5.4 — a Marketing Blackout also mutes the launch CAMPAIGN (win on the product alone).
+    campaignHype: Math.max(0, channel.hype) * mktMult * (challengeRules(s).noMarketing ? 0.1 : 1),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: componentSynergy(product).factor,

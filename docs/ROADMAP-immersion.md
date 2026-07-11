@@ -307,7 +307,18 @@ Swords icon) so the climb is a forward chase from the main view. The overtake-by
 the tick already existed. Pure read — no tick change → sim byte-identical.
 **Files (done):** `state/gameState.ts` (`nextRankRival`), `screens/Market.tsx`, `screens/HQ.tsx`,
 `screens/hq.css`, `state/rankLadder.test.ts`.
-### 5.4 Challenge sim-mutators (no-marketing / fixed-price / recession) + weekly ladder (`challenges.ts`)
+### 5.4 Challenge sim-mutators — SHIPPED (recession + marketing blackout)
+The challenge system gained its first ONGOING sim-rule mutators (the module previously only had
+start-condition twists): Recession / Slow Market (`demandMult` contracts the whole addressable market)
+and Marketing Blackout (`noMarketing` collapses launch hype + campaign to a floor — win on the product
+alone). A new `challengeRules(state)` re-derives the active rules from `activeChallenge` and folds them
+into `marketSize` and `effectiveHypeBonus`; neutral outside a challenge (demandMult 1, no blackout), so
+a normal run and the pinned sim are byte-identical. The weekly stack can now roll a genuine
+mid-run constraint, not just a starting hand.
+**Deferred:** the fixed-price mutator (needs price-lock plumbing at launch) and a live weekly ladder —
+noted for a follow-up; the `challengeRules` plumbing unblocks both.
+**Files (done):** `engine/challenges.ts` (sim-rule mutators), `state/gameState.ts` (`challengeRules` +
+`effectiveHypeBonus` + demand hook), `state/challengeMutators.test.ts`.
 ### 5.5 Office zones / per-desk proximity bonuses (salt-free, derived) (`furniture.ts`, `Garage3D.tsx`)
 ### 5.6 Delegation specialists "report in" — SHIPPED
 `applyWeeklyAutomation` now narrates the delegation Leads by name when they actually act: the People
