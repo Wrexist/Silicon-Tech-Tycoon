@@ -38,6 +38,8 @@ import {
   type StaffMomentResult,
   resolveStaffEvent,
   type StaffEventResult,
+  resolvePostLaunch,
+  type PostLaunchResult,
   resolveRegionalEvent,
   type RegionalEventResult,
   buybackShares,
@@ -432,6 +434,7 @@ interface GameActionsValue {
   resolveCommunityAsk: (accept: boolean) => CommunityAskResult;
   resolveStaffMoment: (optionIndex: number) => StaffMomentResult;
   resolveStaffEvent: (optionIndex: number) => StaffEventResult;
+  resolvePostLaunch: (optionIndex: number) => PostLaunchResult;
   resolveRegionalEvent: (respond: boolean) => RegionalEventResult;
   buybackShares: (amount: Money) => BuybackResult;
   resolveEarnings: (defend: boolean) => EarningsAckResult;
@@ -908,6 +911,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const prev = stateRef.current;
     if (!prev.pendingStaffEvent) return { ok: false }; // a double input is a no-op, not an error
     const { state: next, result } = resolveStaffEvent(prev, optionIndex);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    sfx("confirm"); haptic.success();
+    setState(next);
+    return result;
+  }, []);
+  // Answer a post-launch reactive event (item 3.6) — a business call on a product already selling.
+  const resolvePostLaunchCb = useCallback((optionIndex: number): PostLaunchResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingPostLaunch) return { ok: false }; // a double input is a no-op, not an error
+    const { state: next, result } = resolvePostLaunch(prev, optionIndex);
     if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
     sfx("confirm"); haptic.success();
     setState(next);
@@ -1488,6 +1501,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       resolveCommunityAsk: resolveCommunityAskCb,
       resolveStaffMoment: resolveStaffMomentCb,
       resolveStaffEvent: resolveStaffEventCb,
+      resolvePostLaunch: resolvePostLaunchCb,
       resolveRegionalEvent: resolveRegionalEventCb,
       buybackShares: buybackSharesCb,
       resolveEarnings: resolveEarningsCb,
@@ -1577,7 +1591,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

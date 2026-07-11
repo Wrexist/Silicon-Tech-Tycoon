@@ -1155,6 +1155,21 @@ export const BALANCE = {
     defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
   },
 
+  // --- Post-launch reactive events (item 3.6): mid-lifecycle moments on a product already selling ---
+  // Opportunistic interrupt sharing the global budget; opt-in resolution → the pinned sim raises none.
+  postLaunch: {
+    minEra: 2,               // the Garage era stays a protected learning sandbox
+    cadenceWeeks: 30,        // ~one per this window (derived hash, salt 257)
+    cooldownWeeks: 16,       // min gap between post-launch events
+    minWeeksLive: 2,         // a product must have been out this long to draw one
+    minWeeksLeft: 2,         // …and still have this much selling window left to matter
+    momentumSellThrough: 0.8, // ≥ this sell-through → the "flying off shelves" beat
+    stallSellThrough: 0.3,   // ≤ this sell-through → the "stalling" beat
+    pushCost: 8_000, pushFans: 600, pushRep: 3,   // hype push on a hot seller
+    clearanceGain: 12_000, clearanceRepDip: 2,    // clearance markdown on a slow mover
+    supplyCost: 10_000, supplyRepDip: 3,          // secure-supply vs. take-the-hit
+  },
+
   // --- Design briefs (item 3.3): commit a product to a target buyer segment for a launch bonus ---
   // Opt-in only (product.targetSegment). Nailing the target's stat FIT at launch earns bonus rep +
   // fans; missing it forgoes the bonus but never penalises — so the commitment is a gamble the player

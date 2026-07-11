@@ -22,6 +22,7 @@ import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
 import { StaffEvent } from "./components/StaffEvent.tsx";
+import { PostLaunchEvent } from "./components/PostLaunchEvent.tsx";
 import { RegionalEvent } from "./components/RegionalEvent.tsx";
 import { EarningsCall } from "./components/EarningsCall.tsx";
 import { ContractOffer } from "./components/ContractOffer.tsx";
@@ -240,6 +241,7 @@ function AppShell() {
       <CommunityAsk />
       <StaffMoment />
       <StaffEvent />
+      <PostLaunchEvent />
       <RegionalEvent />
       <EarningsCall />
       <ContractOffer />

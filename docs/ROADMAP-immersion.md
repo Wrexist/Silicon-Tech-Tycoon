@@ -205,10 +205,17 @@ A rotating slate of 2–3 offers with client reputation and floor-quality-gated 
 bigger, better-paying contracts + on-time bonus tied to 3.1/3.2). Widen frequency.
 **Files:** `engine/sideOrders.ts`, `state/gameState.ts`, `components/FactoryMode.tsx`.
 
-### 3.6 Post-launch reactive events (salt 257)
-Generalize the Rival Strike interrupt into 2–3 mid-lifecycle events on a launched product (sellout →
-hype opportunity; slow weeks → clearance; supply shock). Makes the sell phase active.
-**Files:** `state/gameState.ts`, `engine/balance.ts`, interrupt UI.
+### 3.6 Post-launch reactive events (salt 257) — SHIPPED
+New `engine/postLaunchEvent.ts` generalises the Rival Strike interrupt into three mid-lifecycle beats
+on a product ALREADY selling, keyed to its sell-through: momentum (hot seller → paid hype push),
+stall (slow mover → clearance markdown for cash + a small rep dip), and supply (a parts pinch →
+secure supply vs. take the hit). Derived-hash cadence (salt 257), fired LAST among the opportunistic
+interrupts (shares the global budget, past the garage era, on a live product with runway); resolved
+via an opt-in `resolvePostLaunch` reducer (cash/rep/fans) with a `PostLaunchEvent` liquid-glass card.
+Opt-in → the pinned solo sim raises none → byte-identical.
+**Files (done):** `engine/postLaunchEvent.ts`, `engine/balance.ts` (`postLaunch`), `state/gameState.ts`
+(fire + `resolvePostLaunch`), `state/useGame.tsx`, `components/PostLaunchEvent.tsx`, `App.tsx`,
+`engine/postLaunchEvent.test.ts`.
 
 ---
 
@@ -289,7 +296,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 - [x] 3.3 Committed target-segment "design brief" — core shipped; periodic cash/RP briefs deferred
 - [ ] 3.4 Segment-textured tuning & regions
 - [ ] 3.5 Side-orders → contract pipeline
-- [ ] 3.6 Post-launch reactive events (salt 257)
+- [x] 3.6 Post-launch reactive events (salt 257) — momentum / stall / supply, opt-in reducer
 
 **Phases 4–5:** not started (see sections above).
 

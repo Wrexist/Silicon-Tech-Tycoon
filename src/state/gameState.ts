@@ -17,6 +17,7 @@ import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatT
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
+import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
@@ -388,6 +389,13 @@ export interface GameState {
   pendingStaffEvent?: StaffLifeEvent | null;
   /** Week of the last staff life event — enforces the cooldown between them. */
   lastStaffEventWeek?: number;
+  /** A post-launch reactive event on the table (item 3.6) — a product already selling hits a
+   *  mid-lifecycle moment (hot seller / stalling / supply pinch) the player answers
+   *  (resolvePostLaunch). Fires only past the garage era on a live product; the pinned solo sim
+   *  raises none. Optional/null → golden-invariant safe. */
+  pendingPostLaunch?: PostLaunchEvent | null;
+  /** Week of the last post-launch event — enforces the cooldown between them. */
+  lastPostLaunchWeek?: number;
   /** A regional event on the table — an expansion market's boom / tariff / rival surge to respond to
    *  (resolveRegionalEvent). Fires only once you've expanded past Home; the pinned solo sim never
    *  does. Optional/null → golden-invariant safe. */
@@ -713,6 +721,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastStaffMomentWeek: -999,
     pendingStaffEvent: null,
     lastStaffEventWeek: -999,
+    pendingPostLaunch: null,
+    lastPostLaunchWeek: -999,
     regionLoyalty: {},
     pendingRegionalEvent: null,
     lastRegionalEventWeek: -999,
@@ -2495,6 +2505,41 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         base.pendingLicenseOffer = offer;
         base.lastInterruptWeek = week;
         base.feed.push(feedItem(week, `${offer.rivalName} wants to ship ${osDisplayName(state)} on their ${CATEGORIES[offer.category].displayName.toLowerCase()}s${offer.exclusive ? " — exclusively" : ""}. ${format(offer.signingBonus)} to sign.`, "accent"));
+      }
+    }
+  }
+
+  // Post-launch reactive event (item 3.6): a product ALREADY selling hits a mid-lifecycle moment
+  // (flying off shelves / stalling / a supply pinch) and the player answers (resolvePostLaunch).
+  // Placed LAST among the opportunistic interrupts so its guard need only exclude every OTHER pending;
+  // derived-hash cadence (salt 257, never the sim rng) + cooldown, gated past the garage era on a live
+  // product with runway left. The solo pinned sim ships nothing that lingers → raises none → identical.
+  {
+    const pc = BALANCE.postLaunch;
+    if (
+      !offline && !bankrupt && interruptQuiet &&
+      base.era >= pc.minEra && !base.pendingPostLaunch &&
+      !base.pendingStaffEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
+      !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards &&
+      !base.pendingEarnings && !base.pendingLicenseOffer && !base.pendingRegionalEvent &&
+      week - (state.lastPostLaunchWeek ?? -999) >= pc.cooldownWeeks &&
+      postLaunchDue(state.seed, week)
+    ) {
+      const targets: PostLaunchTarget[] = base.launched
+        .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length) // still in its selling window
+        .map((lp) => ({
+          productId: lp.product.id,
+          productName: lp.product.name,
+          category: lp.product.category,
+          sellThrough: (lp.plannedUnits ?? 0) > 0 ? Math.min(1, lp.unitsSold / (lp.plannedUnits ?? 1)) : 0,
+          weeksLive: week - lp.launchedWeek,
+          weeksLeft: lp.weeklyUnits.length - lp.weeksElapsed,
+        }));
+      const target = pickPostLaunchTarget(targets);
+      if (target) {
+        base.pendingPostLaunch = generatePostLaunchEvent(target, week);
+        base.lastPostLaunchWeek = week;
+        base.lastInterruptWeek = week;
       }
     }
   }
@@ -4901,6 +4946,34 @@ export function resolveStaffEvent(state: GameState, optionIndex: number): { stat
   return {
     state: { ...state, staff, cash: cost > 0 ? sub(state.cash, cost) : state.cash, pendingStaffEvent: null, feed: trimFeed(feed) },
     result: { ok: true, staffName: ev.staffName, label: opt.label },
+  };
+}
+
+// ---- Post-launch reactive events (item 3.6) ----
+export interface PostLaunchResult { ok: boolean; reason?: string; label?: string; }
+
+/** Resolve the post-launch event on the table: apply the CHOSEN option's effect (cash spent/recovered,
+ *  reputation + fans). If the player can't afford a cash option, the choice is rejected (card stays up).
+ *  Player-opt-in, so the pinned sim never calls it → byte-identical. */
+export function resolvePostLaunch(state: GameState, optionIndex: number): { state: GameState; result: PostLaunchResult } {
+  const ev = state.pendingPostLaunch ?? null;
+  if (!ev) return { state, result: { ok: false, reason: "No post-launch event to resolve." } };
+  const opt = ev.options[optionIndex];
+  if (!opt) return { state: { ...state, pendingPostLaunch: null }, result: { ok: false, reason: "No such option." } };
+  const eff: PostLaunchEffect = opt.effect;
+  const cost = eff.cashCost ? dollars(eff.cashCost) : ZERO;
+  if (cost > 0 && state.cash < cost) {
+    return { state, result: { ok: false, reason: `Need ${format(cost)} for that.` } }; // keep the card up
+  }
+  let cash = state.cash;
+  if (cost > 0) cash = sub(cash, cost);
+  if (eff.cashGain) cash = add(cash, dollars(eff.cashGain));
+  const rep = Math.max(BALANCE.reputation.min, Math.min(BALANCE.reputation.max, state.reputation + (eff.rep ?? 0)));
+  const fans = Math.max(0, state.fans + (eff.fans ?? 0));
+  const feed = [...state.feed, feedItem(state.week, `“${ev.productName}”: you chose "${opt.label}".`, "accent")];
+  return {
+    state: { ...state, cash, reputation: rep, fans, pendingPostLaunch: null, feed: trimFeed(feed) },
+    result: { ok: true, label: opt.label },
   };
 }
 

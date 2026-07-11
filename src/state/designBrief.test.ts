@@ -2,11 +2,11 @@
 // stat fit at launch earns bonus reputation + fans; missing it forgoes the bonus (never a penalty);
 // no target is byte-identical to the pre-brief launch.
 import { describe, it, expect } from "vitest";
-import { newGame, launchReady, productStats } from "./gameState.ts";
+import { newGame, launchReady, productStats, type GameState } from "./gameState.ts";
 import { segmentDemand } from "../engine/segments.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { BALANCE } from "../engine/balance.ts";
-import type { GameState, Product, SegmentId } from "../engine/types.ts";
+import type { Product, SegmentId } from "../engine/types.ts";
 
 function product(over: Partial<Product> = {}): Product {
   return {
