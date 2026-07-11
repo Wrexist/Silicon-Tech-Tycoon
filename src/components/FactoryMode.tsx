@@ -35,7 +35,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineComplete, lineSpeedMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
@@ -125,11 +125,14 @@ function useFactoryData() {
   const lineSpeed = lineSpeedMult(state.factoryFloor, reqKinds); // <1 = earned bonus, 1 = neutral (never >1)
   const linePct = Math.round((1 - lineSpeed) * 100);   // % faster the wired line builds
   const missing = reqKinds ? missingMachineKinds(state.factoryFloor, reqKinds) : [];
+  // Item 3.1 — the wired line also widens throughput and trims per-unit cost (both pure upside).
+  const lineCapPct = Math.round((lineCapacityMult(state.factoryFloor) - 1) * 100); // % extra capacity
+  const lineUnitPct = Math.round((1 - lineUnitMult(state.factoryFloor)) * 100);     // % cheaper per unit
 
   return {
     game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
-    floor: state.factoryFloor, lineSpeed, linePct, missing,
+    floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct,
   };
 }
 
@@ -799,6 +802,18 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <span>Line build speed</span>
             <span className={`tnum ${d.linePct > 0 ? "fmode__pos" : ""}`}>
               {d.linePct > 0 ? `+${d.linePct}%` : "baseline"}
+            </span>
+          </div>
+          <div className="fmode__stat">
+            <span>Line capacity</span>
+            <span className={`tnum ${d.lineCapPct > 0 ? "fmode__pos" : ""}`}>
+              {d.lineCapPct > 0 ? `+${d.lineCapPct}%` : "baseline"}
+            </span>
+          </div>
+          <div className="fmode__stat">
+            <span>Line unit cost</span>
+            <span className={`tnum ${d.lineUnitPct > 0 ? "fmode__pos" : ""}`}>
+              {d.lineUnitPct > 0 ? `−${d.lineUnitPct}%` : "baseline"}
             </span>
           </div>
           {d.missing.length > 0 ? (

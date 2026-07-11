@@ -164,11 +164,15 @@ stays non-economic.
 
 Turn obvious levers into strategic ones; tie the factory to real economics.
 
-### 3.1 Factory floor drives capacity + unit cost
-The floor currently only shaves build *weeks* (often 1, once). Add `lineCapacity(floor)` (feeds
-`factoryCapacityPerWeek` → the overtime decision) and `lineUnitMult(floor)` (clamped ≤1, feeds
-`effectiveUnitCost`). Both pure-upside so baseline is untouched.
-**Files:** `engine/factoryFloor.ts`, `state/gameState.ts`, `components/FactoryMode.tsx` (Stats).
+### 3.1 Factory floor drives capacity + unit cost — SHIPPED
+Two new pure line functions: `lineCapacityMult(floor)` (≥1, widens the factory's weekly ceiling so a
+capacity-limited line overtimes later — Arms/QA/upgrades grow it to ×2.0) and `lineUnitMult(floor)`
+(≤1, trims per-unit cost via automation down to ×0.85). Both anchored to exactly ×1 for an
+unwired/bare floor, so the baseline economy + pinned sim stay byte-identical. Wired via
+`effectiveCapacityPerWeek` (capacityPlan + planProduction) and a `scale()` in `effectiveUnitCost`;
+surfaced as "Line capacity" + "Line unit cost" rows in the Factory stats sheet.
+**Files (done):** `engine/factoryFloor.ts`, `state/gameState.ts`, `components/FactoryMode.tsx`,
+`engine/factoryFloor.test.ts`.
 
 ### 3.2 Reward layout quality
 `lineEfficiency(floor)` scoring recipe-order adjacency + path straightness (reuse `beltChain`/
@@ -268,7 +272,15 @@ Each item is independently shippable. Progress is tracked by checking items off 
 
 **Phase 2 complete** (narration/thread scope; the two balance-touching follow-ups noted above ride with Phase 3).
 
-**Phases 3–5:** not started (see sections above).
+**Phase 3 — Depth of Core Decisions: in progress**
+- [x] 3.1 Factory floor drives capacity + unit cost (pure-upside; sim byte-identical)
+- [ ] 3.2 Reward layout quality
+- [ ] 3.3 Committed target-segment "design brief"
+- [ ] 3.4 Segment-textured tuning & regions
+- [ ] 3.5 Side-orders → contract pipeline
+- [ ] 3.6 Post-launch reactive events (salt 257)
+
+**Phases 4–5:** not started (see sections above).
 
 > Note on remaining sequencing: items that mutate the live sim/economy (2.4 rival-vs-rival, 2.5 trends,
 > 3.x factory economics + segment-textured demand, 4.x endgame/research/prestige) each want their own

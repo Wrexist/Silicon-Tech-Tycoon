@@ -115,7 +115,7 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoTidyFloor, demolitionRefund, floorWidth, lineComplete, lineSpeedMult,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoTidyFloor, demolitionRefund, floorWidth, lineCapacityMult, lineComplete, lineSpeedMult, lineUnitMult,
   machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
@@ -1140,10 +1140,17 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
 /** Resolve a run against its factory's capacity + the product's capacity strategy (overtime / stretch
  *  / defects). Shared by planProduction (cost + weeks) and the build wizard (the prospective quality
  *  hit it bakes onto the product). `assemblyWeeks` is the pre-stretch build time. */
+/** The factory's weekly throughput after the player-built line's capacity bonus (item 3.1). Applied
+ *  to the base factory ceiling; ×1 for an unwired floor (Infinity stays Infinity → no-op), so the
+ *  baseline and pinned sim are byte-identical. */
+export function effectiveCapacityPerWeek(s: GameState, product: Product): number {
+  return factoryCapacityPerWeek(product) * lineCapacityMult(s.factoryFloor);
+}
+
 export function capacityPlan(s: GameState, product: Product, plannedUnits: number): CapacityOutcome {
   return resolveCapacity({
     plannedUnits: Math.max(0, Math.round(plannedUnits)),
-    capacityPerWeek: factoryCapacityPerWeek(product),
+    capacityPerWeek: effectiveCapacityPerWeek(s, product),
     assemblyWeeks: buildWeeksFor(s, product),
     strategy: product.capacityStrategy ?? "overtime",
     overtimeSurcharge: BALANCE.factory.overtimeSurcharge,
@@ -1171,6 +1178,9 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "opsCost")) unitCost = scale(unitCost, 0.82); // Operations doctrine: Cost House
   unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
+  // Player-built line automation (item 3.1): a complete floor trims per-unit cost, clamped ≤1 so an
+  // unwired/bare floor is exactly ×1 (baseline + pinned sim byte-identical). Pure upside.
+  unitCost = scale(unitCost, lineUnitMult(s.factoryFloor));
   // Supplier relationship: repeat business earns a standing discount (engine/suppliers.ts). 0 when
   // you've no history with this supplier, so it's a no-op for fresh games / older saves.
   const sid = product.supplierId ?? DEFAULT_SUPPLIER_ID;
@@ -1350,7 +1360,7 @@ export function planProduction(
   // Factory throughput: a run beyond capacity × build-weeks is resolved by the product's capacity
   // strategy — overtime cost, a stretched schedule, or (baked separately) defects. The neutral
   // "standard" factory has unlimited capacity → no overage → zero ripple for old saves/default.
-  const capacityPerWeek = factoryCapacityPerWeek(product);
+  const capacityPerWeek = effectiveCapacityPerWeek(s, product);
   const capOutcome = capacityPlan(s, product, planned);
   const overtimeCost = scale(unitCost, capOutcome.overUnits * capOutcome.overtimeFraction);
 

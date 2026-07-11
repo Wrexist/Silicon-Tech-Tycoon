@@ -586,6 +586,34 @@ export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<Mach
   return Math.min(1, Math.max(0.55, 1 - bonus));
 }
 
+/** Player-built line effect on THROUGHPUT (item 3.1) — a capacity MULTIPLIER the sim applies to the
+ *  factory's weekly ceiling, so a well-machined floor lets a capacity-limited line build more before
+ *  overtime bites. PURE UPSIDE, anchored ×1 for an unwired/bare floor (the contract line carries you,
+ *  so an empty floor is never a penalty). A complete Intake→Packer line earns ×1.15 base; every extra
+ *  Assembly Arm (+12%) and Test Station (+8%) widens the line, each machine-upgrade level a touch more
+ *  (+3%), up to a ×2.0 ceiling. No RNG → the determinism pin is untouched (unwired sim floor = ×1).
+ *  For an unlimited-capacity factory this is a harmless no-op (Infinity × k = Infinity). */
+export function lineCapacityMult(floor: FactoryFloor): number {
+  if (!lineComplete(floor)) return 1;
+  const arms = floor.machines.filter((m) => m.kind === "arm").length;
+  const qas = floor.machines.filter((m) => m.kind === "qa").length;
+  const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
+  const mult = 1.15 + 0.12 * Math.max(0, arms - 1) + 0.08 * Math.max(0, qas - 1) + 0.03 * upg;
+  return Math.min(2.0, Math.max(1, mult));
+}
+
+/** Player-built line effect on per-unit COST (item 3.1) — a multiplier CLAMPED ≤1 (never a penalty).
+ *  A complete line trims unit cost through automation: ×0.97 base, each extra Test Station (−2%) and
+ *  machine-upgrade level (−1%) shaving a little more, down to a ×0.85 floor. Unwired/bare floor → ×1
+ *  (neutral), so the baseline economy and the pinned sim are byte-identical. Pure. */
+export function lineUnitMult(floor: FactoryFloor): number {
+  if (!lineComplete(floor)) return 1;
+  const qas = floor.machines.filter((m) => m.kind === "qa").length;
+  const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
+  const raw = 0.97 - 0.02 * Math.max(0, qas - 1) - 0.01 * upg;
+  return Math.min(1, Math.max(0.85, raw));
+}
+
 /** Which of a device's required machine kinds are NOT on the floor — surfaced in the HUD so the
  *  player knows what to build to speed a given product up. Pure. */
 export function missingMachineKinds(floor: FactoryFloor, requiredKinds: Iterable<MachineKind>): MachineKind[] {

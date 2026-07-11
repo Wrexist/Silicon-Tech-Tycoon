@@ -164,6 +164,33 @@ describe("factory floor grid (F2)", () => {
     expect(lineSpeedMult(wired, phoneReq)).toBeLessThan(1);
   });
 
+  it("line capacity + unit cost (3.1): unwired = neutral, a complete line is pure upside", async () => {
+    const { lineCapacityMult, lineUnitMult, placeMachine, upgradeMachineAt } = await import("./factoryFloor.ts");
+    // Bare start → strictly neutral, so the baseline economy + pinned sim are byte-identical.
+    expect(lineCapacityMult(starterFloor())).toBe(1);
+    expect(lineUnitMult(starterFloor())).toBe(1);
+    // A complete line earns a capacity bonus and a unit-cost discount, both bounded (never a penalty).
+    const f = demoFloor();
+    expect(lineCapacityMult(f)).toBeGreaterThan(1);
+    expect(lineCapacityMult(f)).toBeLessThanOrEqual(2.0);
+    expect(lineUnitMult(f)).toBeLessThan(1);
+    expect(lineUnitMult(f)).toBeGreaterThanOrEqual(0.85);
+    // More arms widen throughput; a second QA deepens the unit-cost discount.
+    const twoArms = placeMachine(f, "arm", 13, 8, "arm2")!;
+    expect(lineCapacityMult(twoArms)).toBeGreaterThan(lineCapacityMult(f));
+    const twoQa = placeMachine(f, "qa", 13, 8, "qa2")!;
+    expect(lineUnitMult(twoQa)).toBeLessThan(lineUnitMult(f));
+    // Machine upgrades nudge both further (still clamped).
+    const qa = f.machines.find((m) => m.kind === "qa")!;
+    const upg = upgradeMachineAt(f, qa.c, qa.r)!;
+    expect(lineCapacityMult(upg)).toBeGreaterThan(lineCapacityMult(f));
+    expect(lineUnitMult(upg)).toBeLessThan(lineUnitMult(f));
+    // Breaking the line drops BOTH bonuses back to neutral — never a punishment.
+    const broken = removeAt(f, 7, 6);
+    expect(lineCapacityMult(broken)).toBe(1);
+    expect(lineUnitMult(broken)).toBe(1);
+  });
+
   it("auto-route lays a valid Intake→Packer chain around machines, or bails cleanly", async () => {
     const { autoRouteBelts, lineComplete, canPlaceBelt } = await import("./factoryFloor.ts");
     // No intake/packer → nothing to route.
