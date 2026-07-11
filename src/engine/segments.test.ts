@@ -152,3 +152,27 @@ describe("no universal recipe — the anti-solved-game guard", () => {
     expect(max - min).toBeGreaterThan(5); // distinct tastes produce distinct fits
   });
 });
+
+describe("marketing targeting — channel segment bias (item 1.3)", () => {
+  const di = (s: Stats, bias?: Partial<Record<import("./types.ts").SegmentId, number>>) =>
+    segmentDemand(s, dollars(700), flat, "phone", 0, undefined, bias).demandIndex;
+  const pro = stats({ performance: 90, quality: 70, battery: 60, design: 40, ecosystem: 85 });
+  const style = stats({ performance: 50, quality: 70, battery: 55, design: 95, ecosystem: 60 });
+  const proBias = { pro: 1.4, enterprise: 1.3, mainstream: 1.05, budget: 0.9, style: 0.8 };
+  const styleBias = { style: 1.5, mainstream: 1.1, budget: 1.05, pro: 0.85, enterprise: 0.75 };
+
+  it("no bias reproduces the base demand exactly", () => {
+    expect(di(pro, undefined)).toBe(di(pro));
+  });
+
+  it("redistributes demand toward the channel's audience (positioning, not free volume)", () => {
+    // A Pro product does better under a Pro-targeting channel than a Style-targeting one, and vice
+    // versa — the campaign REDISTRIBUTES reach toward the buyers it reaches.
+    expect(di(pro, proBias)).toBeGreaterThan(di(pro, styleBias));
+    expect(di(style, styleBias)).toBeGreaterThan(di(style, proBias));
+    // And it never inflates total reach for a uniform product (renormalised): a perfectly balanced
+    // product is ~unchanged by any bias.
+    const balanced = stats({ performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 });
+    expect(di(balanced, proBias)).toBeCloseTo(di(balanced), 0);
+  });
+});

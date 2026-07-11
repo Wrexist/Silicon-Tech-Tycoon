@@ -1230,7 +1230,10 @@ export function planProduction(
   // A balanced product scores ≈ the old single-trend demand (the segment sizes average back to it),
   // so the macro-economy is preserved; lopsided products diverge — that divergence IS the new depth.
   // G1 — the device's form (styleAppeal) lifts the Style segment, so the parametric render is a lever.
-  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week);
+  // Item 1.3 — the launch campaign TARGETS buyer segments: the chosen channel redistributes demand
+  // toward the buyers it reaches (Search → Pro/Enterprise, Influencer → Style, …). Renormalised in
+  // segmentDemand, so it's positioning, not extra volume. "none" → no bias (unchanged).
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, channel.segmentBias);
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;

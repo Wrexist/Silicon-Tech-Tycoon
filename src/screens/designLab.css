@@ -1201,6 +1201,8 @@
 .wiz__channel-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .wiz__channel-name { font-weight: 600; }
 .wiz__channel-blurb { font-size: var(--fs-caption); color: var(--ink-2); }
+.wiz__channel-aud { display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; font-size: var(--fs-micro); font-weight: 700; color: var(--accent); }
+.wiz__channel-aud svg { flex-shrink: 0; }
 .wiz__channel-meta { display: flex; flex-direction: column; align-items: flex-end; font-weight: 700; font-size: var(--fs-caption); }
 .wiz__channel-hype { font-size: var(--fs-micro); color: var(--fn-mkt-text); }
 .wiz__channel-demand { font-size: var(--fs-micro); font-weight: 800; color: var(--positive-text, var(--positive)); }

@@ -221,6 +221,12 @@ export function segmentDemand(
   /** Track B — current week, to apply the market-climate segment cycle (engine/climate.ts). Omitted →
    *  no cycle (sizes are the static base), so every existing caller/test is byte-identical. */
   week?: number,
+  /** Item 1.3 — marketing-channel TARGETING. A per-segment reach multiplier from the chosen launch
+   *  campaign (e.g. Search over-indexes Pro/Enterprise, Influencer over-indexes Style). Applied to the
+   *  segment sizes and RE-NORMALISED to the same total, so a channel REDISTRIBUTES reach toward the
+   *  buyers it's good at (a positioning choice) without inflating total demand — the campaign's raw
+   *  volume still comes from its hype. Omitted → byte-identical to before. */
+  segmentReach?: Partial<Record<SegmentId, number>>,
 ): SegmentDemand {
   // Market climate (Track B): segment sizes swell/fade on slow cycles, RE-NORMALIZED so the cycle
   // redistributes the mix without changing the total market — timing positioning, not free volume.
@@ -240,6 +246,26 @@ export function segmentDemand(
     return out;
   })();
 
+  // Item 1.3 — apply the marketing channel's per-segment reach bias, then re-normalise back to the
+  // pre-bias total so the campaign only REDISTRIBUTES reach toward its favoured buyers (targeting),
+  // never inflates the category's total demand. Omitted bias → sizes unchanged.
+  const reachAdjusted: Record<SegmentId, number> = ((): Record<SegmentId, number> => {
+    if (!segmentReach) return sizeOf;
+    let before = 0;
+    let after = 0;
+    const biased = {} as Record<SegmentId, number>;
+    for (const seg of SEGMENTS) {
+      const b = sizeOf[seg.id] * Math.max(0, segmentReach[seg.id] ?? 1);
+      biased[seg.id] = b;
+      before += sizeOf[seg.id];
+      after += b;
+    }
+    if (after <= 0) return sizeOf;
+    const out = {} as Record<SegmentId, number>;
+    for (const seg of SEGMENTS) out[seg.id] = (biased[seg.id] / after) * before;
+    return out;
+  })();
+
   const ae = BALANCE.market.aesthetics;
   const ap = Math.max(0, styleAppeal);
   const perSegment: SegmentResult[] = SEGMENTS.map((seg) => {
@@ -251,7 +277,7 @@ export function segmentDemand(
     const designShare = seg.id === "style" ? 1 : (seg.weights.design / ae.styleDesignWeight) * ae.broadenShare;
     const fit = Math.min(100, rawFit + ap * designShare);
     const priceFit = segmentPriceFit(price, fit, seg);
-    const size = sizeOf[seg.id];
+    const size = reachAdjusted[seg.id];
     return {
       id: seg.id,
       name: seg.name,
