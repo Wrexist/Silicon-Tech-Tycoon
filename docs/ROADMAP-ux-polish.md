@@ -73,6 +73,6 @@ Phase A → B are safe UI, shipped first and individually. Phase C is sequenced 
 ship only after the sim confirms 0 bankruptcies, all eras reached, and a healthy hit-rate spread.
 
 ## Status
-- [x] A1 · [ ] A2 · [ ] A3
+- [x] A1 · [x] A2 · [ ] A3
 - [ ] B1 · [ ] B2
 - [ ] C1 · [ ] C2 · [ ] C3

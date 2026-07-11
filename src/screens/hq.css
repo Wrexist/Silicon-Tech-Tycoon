@@ -124,6 +124,15 @@
 .hq__feed-item--positive .hq__feed-icon { color: var(--positive); }
 .hq__feed-item--negative .hq__feed-icon { color: var(--negative); }
 .hq__feed-item--accent .hq__feed-icon { color: var(--accent); }
+/* Item A2 — salience: elevate the beats that matter, mute the milestone spam (shown when expanded). */
+.hq__feed-item--high {
+  color: var(--ink-1); font-weight: 600;
+  padding-left: var(--sp-8);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  margin-left: -2px;
+}
+.hq__feed-item--high.hq__feed-item--negative { border-left-color: color-mix(in srgb, var(--negative) 60%, transparent); }
+.hq__feed-item--low { color: var(--ink-3); }
 .hq__feed-week {
   font-size: var(--fs-micro);
   font-weight: 700;

@@ -1527,20 +1527,35 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
   );
 }
 
+/** Item A2 — feed SALIENCE. Classify a feed line so the collapsed view can elevate the beats that
+ *  matter and roll up low-value milestone spam (revenue/fan milestones fire on every threshold). Pure,
+ *  render-time only (reads existing tone + text), so nothing in the engine or the feed data changes. */
+function feedSalience(item: FeedItem): "high" | "normal" | "low" {
+  const t = item.text;
+  if (/revenue milestone|[\d,]+ fans[,!.]/i.test(t)) return "low"; // milestone spam
+  if (item.tone === "negative") return "high";
+  if (item.tone === "positive" && /\bhit\b|went public|overtook|climbed past|#1|Board mandate|Megaproject|Legacy perk|award|reached the (top|pinnacle)/i.test(t)) return "high";
+  return "normal";
+}
+
 function FeedCard({ feed, week, onNavigate }: { feed: FeedItem[]; week: number; onNavigate: (t: Tab) => void }) {
   const [expanded, setExpanded] = useState(false);
   const all = [...feed].reverse();
+  // Collapsed: show the important beats (drop milestone spam) so the top of the feed reads clean; the
+  // full stream — milestones included — is one tap away.
+  const highlights = all.filter((i) => feedSalience(i) !== "low");
   const limit = 4;
-  const shown = expanded ? all : all.slice(0, limit);
-  const hasMore = all.length > limit;
+  const shown = expanded ? all : highlights.slice(0, limit);
+  const hidden = expanded ? 0 : all.length - shown.length;
   return (
     <Card>
       <SectionHeader title="News" accessory={`week ${week}`} />
       <ul className="hq__feed-list">
         {shown.map((item) => {
           const Icon = item.tone === "positive" ? TrendingUp : item.tone === "negative" ? TrendingDown : item.tone === "accent" ? Sparkles : Newspaper;
+          const sal = feedSalience(item);
           return (
-            <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}`}>
+            <li key={item.id} className={`hq__feed-item hq__feed-item--${item.tone}${sal === "high" ? " hq__feed-item--high" : sal === "low" ? " hq__feed-item--low" : ""}`}>
               <span className="hq__feed-icon" aria-hidden><Icon size={11} strokeWidth={2.5} /></span>
               <span className="hq__feed-week">wk {item.week}</span>
               {item.text}
@@ -1548,9 +1563,9 @@ function FeedCard({ feed, week, onNavigate }: { feed: FeedItem[]; week: number; 
           );
         })}
       </ul>
-      {hasMore && (
+      {(hidden > 0 || expanded) && (
         <button className="hq__feed-toggle" onClick={() => setExpanded((x) => !x)}>
-          {expanded ? "Show recent" : `+${all.length - limit} older events`}
+          {expanded ? "Show highlights" : `+${hidden} more (incl. milestones)`}
         </button>
       )}
       <Button block variant="secondary" onClick={() => onNavigate("market")}>View the market</Button>
