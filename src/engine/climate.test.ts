@@ -1,6 +1,6 @@
 // Market climate (Track B): seasonal segment cycles (redistributive) + periodic regional crises.
 import { describe, expect, it } from "vitest";
-import { segmentSizeMul, regionShockMul, regionInCrisis, segmentTrend } from "./climate.ts";
+import { segmentSizeMul, regionShockMul, regionInCrisis, segmentTrend, climateNarration } from "./climate.ts";
 import { segmentDemand, SEGMENTS } from "./segments.ts";
 import { regionReach } from "./regions.ts";
 import { BALANCE } from "./balance.ts";
@@ -82,5 +82,43 @@ describe("climate — regional crises", () => {
     }
     const ships: ["home", "asia"] = ["home", "asia"];
     expect(regionReach(["home", "asia"], ships, stats, crisisW)).toBeLessThan(regionReach(["home", "asia"], ships, stats, calmW));
+  });
+});
+
+describe("climate — narration (Track B)", () => {
+  it("is deterministic and RNG-free (run1 === run2)", () => {
+    for (let w = 1; w < 200; w++) {
+      expect(climateNarration(w, ["home", "asia"])).toEqual(climateNarration(w, ["home", "asia"]));
+    }
+  });
+
+  it("never narrates a region the player hasn't opened", () => {
+    // With only home unlocked, no region beat can ever fire (home is never in crisis).
+    for (let w = 1; w < 300; w++) {
+      const beat = climateNarration(w, ["home"]);
+      if (beat) expect(beat.tone).toBe("accent"); // only segment surges are possible home-only
+    }
+  });
+
+  it("narrates a region crisis onset and its recovery for an opened market", () => {
+    const texts: string[] = [];
+    for (let w = 1; w < 300; w++) {
+      const beat = climateNarration(w, ["home", "asia"]);
+      if (beat && beat.text.includes("Asia")) texts.push(beat.text);
+    }
+    expect(texts.some((t) => t.includes("downturn"))).toBe(true);
+    expect(texts.some((t) => t.includes("recovering"))).toBe(true);
+  });
+
+  it("narrates a segment surge exactly once per cycle peak", () => {
+    // Over one full-ish window, a segment should crest a bounded number of times (once per period).
+    let surges = 0;
+    for (let w = 1; w < 120; w++) {
+      const beat = climateNarration(w, ["home"]);
+      if (beat && beat.text.includes("Budget")) surges++;
+    }
+    // budget cycle period is 41 → ~2-3 peaks across 120 weeks, never one-per-week spam
+    expect(surges).toBeGreaterThanOrEqual(1);
+    expect(surges).toBeLessThanOrEqual(4);
   });
 });

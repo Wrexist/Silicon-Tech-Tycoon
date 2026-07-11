@@ -133,12 +133,17 @@ still. Surface via `buzz.ts` + feed.
 **Files:** `engine/competitors.ts`, `engine/buzz.ts`, `state/gameState.ts`.
 
 ### 2.5 Narrate the climate + a real trend system (salt 251)
-New `engine/trends.ts`: seeded multi-week trend arcs toward a stat/segment/category (rise→peak→fade),
-forecastable. Emit feed + `buzz` beats when a segment/region crosses a rising/falling band. Redeem
-dead cosmetics with a rotating **"hot look"** (finish + color family) that lifts the Style/Mainstream
-segments for matching designs.
-**Files:** new `engine/trends.ts`, `engine/climate.ts`, `engine/aesthetics.ts`, `engine/segments.ts`,
-`engine/buzz.ts`, `state/gameState.ts`, `screens/DesignLab.tsx`.
+**Shipped (narration scope):** the existing (already-forecastable) trend + climate cycles now
+*speak*. On a trend retarget, a feed beat names the rising stat ("The market is warming to build
+quality…"); each week `climateNarration(week, unlockedRegions)` (pure, RNG-free) can surface a
+segment cresting the top of its slow cycle or an opened region tipping into / out of a downturn —
+one calm beat at most, region crises prioritised. All feed-text only, so the determinism pin
+(run1 === run2) and the balance sim are untouched.
+**Deferred follow-up:** the balance-touching **"hot look"** cosmetic redemption (a rotating
+finish+color family that lifts Style/Mainstream for matching designs) — held back so 2.5 stays
+non-economic; revisit alongside 1.3's segment targeting.
+**Files (done):** `engine/climate.ts` (`climateNarration`), `state/gameState.ts` (trend beat +
+weekly climate beat), `engine/climate.test.ts`.
 
 ### 2.6 Reviews feed the world
 Persist per-outlet stance across launches; a landmark award spikes fan sentiment and provokes the
@@ -251,7 +256,7 @@ Each item is independently shippable. Progress is tracked by checking items off 
 - [x] 2.2 Per-employee morale/life events (salt 233)
 - [x] 2.3 Nemesis storyline (turf taunts + milestone beats)
 - [x] 2.4 Rival-vs-rival dynamics (salt 239)
-- [ ] 2.5 Narrate climate + trend system (salt 251)
+- [x] 2.5 Narrate climate + trend system — narration scope shipped; "hot look" cosmetic redemption deferred
 - [ ] 2.6 Reviews feed the world
 
 **Phases 3–5:** not started (see sections above).

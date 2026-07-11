@@ -162,7 +162,9 @@ import type {
   StaffRole,
   Stats,
 } from "../engine/types.ts";
-import { FINISH_ORDER } from "../engine/types.ts";
+import { FINISH_ORDER, STAT_KEYS } from "../engine/types.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
+import { climateNarration } from "../engine/climate.ts";
 
 export const SAVE_VERSION = 1;
 
@@ -1549,14 +1551,31 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let trends = state.trends;
   let trendRetargetWeek = state.trendRetargetWeek;
   let newTarget: Stats | undefined;
+  let trendBeat: FeedItem | undefined;
   if (week >= state.trendRetargetWeek) {
     newTarget = randomTrendTarget(rng);
     trendRetargetWeek =
       week +
       BALANCE.market.trendDrift.retargetEveryWeeks +
       rng.int(BALANCE.market.trendDrift.retargetJitter);
+    // Narrate the biggest riser so a retarget is felt, not silent: which stat the market is now
+    // leaning into, vs. the outgoing target. Pure/derived → identical across a replay.
+    const prevTarget = state.trends.targetWeights;
+    let topStat = STAT_KEYS[0];
+    let topDelta = -Infinity;
+    for (const k of STAT_KEYS) {
+      const d = newTarget[k] - prevTarget[k];
+      if (d > topDelta) { topDelta = d; topStat = k; }
+    }
+    if (topDelta > 0.045) {
+      trendBeat = feedItem(week, `The market is warming to ${STAT_INFO[topStat].prose} — buyers are starting to want more of it.`, "accent");
+    }
   }
   trends = advanceTrends(trends, newTarget);
+
+  // Climate narration (Track B): a segment cresting or a region tipping in/out of a downturn. Pure,
+  // derived from week + unlocked regions — no RNG, so run1 === run2 holds.
+  const climateBeat = climateNarration(week, state.unlockedRegions);
 
   // Competitors — pass the player's recent hit categories so the lead rival can react.
   const hitWindow = BALANCE.competitors.reactHitWindowWeeks;
@@ -1663,6 +1682,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Feed events
   const feed = [...state.feed];
+  if (trendBeat) feed.push(trendBeat);
+  if (climateBeat) feed.push(feedItem(week, climateBeat.text, climateBeat.tone));
   for (const item of productsFeed) feed.push(item);
   // Rival launches: flag when a rival enters a category where the player has an active product.
   const activePlayerCats = new Set<CategoryId>(
