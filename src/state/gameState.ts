@@ -18,6 +18,7 @@ import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type Eu
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
 import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
+import { generateBoardMandate, mandateComplete, mandateRewardSummary, megaprojectById, canFundMegaproject, type MandateFacts } from "../engine/endgame.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
@@ -418,6 +419,17 @@ export interface GameState {
   lastEarningsWeek?: number;
   /** 1-based count of earnings calls delivered since listing. */
   earningsQuarter?: number;
+  // --- Legacy Era (item 4.1): the post-IPO endgame — only live once wentPublic → golden-invariant safe ---
+  /** Megaproject ids the player has funded (moonshots with prestige payoffs). Optional → [] on old saves. */
+  megaprojectsFunded?: string[];
+  /** Legacy Points banked from completed megaprojects (a prestige currency; item 4.3 will spend them). */
+  legacyPoints?: number;
+  /** The board's current quarterly mandate (auto-resolves at its dueWeek). Optional/null on old saves. */
+  boardMandate?: import("../engine/endgame.ts").BoardMandate | null;
+  /** cumulativeRevenue when the current mandate was issued (to measure the quarter's revenue). */
+  mandateStartRevenue?: Money;
+  /** 0-based count of mandates issued since going public — drives the escalating bar. */
+  mandateQuarter?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -734,6 +746,11 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingEarnings: null,
     earningsExpectation: ZERO,
     quarterStartRevenue: ZERO,
+    megaprojectsFunded: [],
+    legacyPoints: 0,
+    boardMandate: null,
+    mandateStartRevenue: ZERO,
+    mandateQuarter: 0,
     lastEarningsWeek: -999,
     earningsQuarter: 0,
     pendingAwards: null,
@@ -2403,6 +2420,41 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         ? `Q${q} earnings beat the street — ${base.companyName}'s shares jumped ${Math.round(report.priceMovePct * 100)}%.`
         : `Q${q} earnings missed the street — ${base.companyName}'s shares slid ${Math.round(Math.abs(report.priceMovePct) * 100)}%.`,
       report.beat ? "positive" : "negative"));
+  }
+
+  // Legacy Era (item 4.1): once the company has gone public, the board sets a recurring quarterly
+  // MANDATE. It auto-resolves at its dueWeek — paying cash + reputation if met — then reissues the
+  // next, escalated bar, so the post-IPO phase always has a target. Gated on wentPublic (the pinned
+  // solo sim never IPOs → byte-identical) and RNG-free (derived hash, salt 263).
+  if (base.wentPublic && !offline && !bankrupt) {
+    let mandate = base.boardMandate ?? null;
+    let mandateQuarter = base.mandateQuarter ?? 0;
+    let mandateStartRevenue = base.mandateStartRevenue ?? base.cumulativeRevenue;
+    if (mandate && week >= mandate.dueWeek) {
+      const facts: MandateFacts = {
+        quarterRevenue: toDollars(sub(base.cumulativeRevenue, mandateStartRevenue)),
+        quarterHits: base.launched.filter((lp) => lp.verdict === "hit" && lp.launchedWeek >= mandate!.issuedWeek).length,
+        fans: base.fans,
+        rank: industryRank(base),
+      };
+      if (mandateComplete(mandate, facts)) {
+        base.cash = add(base.cash, mandate.reward.cash);
+        base.reputation = Math.min(BALANCE.reputation.max, base.reputation + mandate.reward.rep);
+        base.feed.push(feedItem(week, `Board mandate met — “${mandate.title}”. ${mandateRewardSummary(mandate)} awarded.`, "positive"));
+      } else {
+        base.feed.push(feedItem(week, `Board mandate lapsed — “${mandate.title}” went unmet this quarter.`, "neutral"));
+      }
+      mandate = null;
+    }
+    if (!mandate) {
+      mandate = generateBoardMandate(state.seed, mandateQuarter, week, base.fans);
+      mandateStartRevenue = base.cumulativeRevenue;
+      mandateQuarter += 1;
+      base.feed.push(feedItem(week, `The board sets a new mandate — ${mandate.title}. Reward: ${mandateRewardSummary(mandate)}.`, "accent"));
+    }
+    base.boardMandate = mandate;
+    base.mandateQuarter = mandateQuarter;
+    base.mandateStartRevenue = mandateStartRevenue;
   }
 
   // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
@@ -4761,6 +4813,49 @@ export function goPublic(state: GameState): GameState {
   const feed = [...state.feed];
   feed.push(feedItem(state.week, "The company reached the pinnacle of the industry.", "positive"));
   return { ...state, wentPublic: true, feed: trimFeed(feed) };
+}
+
+// ---------- Legacy Era (item 4.1): the post-IPO endgame ----------
+
+/** The live facts the current board mandate is judged against (for the HQ progress meter). */
+export function mandateFacts(state: GameState): MandateFacts {
+  const start = state.mandateStartRevenue ?? state.cumulativeRevenue;
+  const issued = state.boardMandate?.issuedWeek ?? 0;
+  return {
+    quarterRevenue: toDollars(sub(state.cumulativeRevenue, start)),
+    quarterHits: state.launched.filter((lp) => lp.verdict === "hit" && lp.launchedWeek >= issued).length,
+    fans: state.fans,
+    rank: industryRank(state),
+  };
+}
+
+/** Fund a moonshot megaproject: pay its cash + research cost, bank its permanent reward (reputation /
+ *  a kept fan multiplier / Legacy Points). Opt-in, gated on wentPublic — the pinned sim never IPOs, so
+ *  it never funds one → byte-identical. */
+export function fundMegaproject(state: GameState, id: string): ActionResult {
+  if (!state.wentPublic) return { state, ok: false, reason: "Available after going public." };
+  const mp = megaprojectById(id);
+  if (!mp) return { state, ok: false, reason: "No such megaproject." };
+  if ((state.megaprojectsFunded ?? []).includes(id)) return { state, ok: false, reason: "Already funded." };
+  if (!canFundMegaproject(mp, state.cash, state.researchPoints)) {
+    return { state, ok: false, reason: `Needs ${format(mp.cashCost)} and ${mp.rpCost} RP.` };
+  }
+  const rep = Math.min(BALANCE.reputation.max, state.reputation + (mp.reward.reputation ?? 0));
+  const fans = mp.reward.fansMult ? Math.round(state.fans * mp.reward.fansMult) : state.fans;
+  const feed = [...state.feed, feedItem(state.week, `Megaproject complete — ${mp.name}. ${mp.reward.blurb}.`, "positive")];
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, mp.cashCost),
+      researchPoints: state.researchPoints - mp.rpCost,
+      reputation: rep,
+      fans,
+      legacyPoints: (state.legacyPoints ?? 0) + (mp.reward.legacyPoints ?? 0),
+      megaprojectsFunded: [...(state.megaprojectsFunded ?? []), id],
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
 }
 
 // ---------- Equity: company valuation, IPO/listing, ownership, rival share trading ----------

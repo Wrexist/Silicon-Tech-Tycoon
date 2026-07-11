@@ -235,11 +235,18 @@ Opt-in → the pinned solo sim raises none → byte-identical.
 
 The biggest retention gap: the richest phase (era 4 / post-IPO) is nearly empty.
 
-### 4.1 Post-IPO "Legacy Era" endgame (salt 263)
-A 5th escalating phase behind `state.wentPublic`: quarterly **board mandates** + moonshot
-**megaprojects** (big RP+cash sinks with prestige-tier payoffs) instead of an instant reset. Defer the
-reset offer. **Files:** `engine/eras.ts`, `engine/balance.ts`, new `engine/endgame.ts`,
-`state/gameState.ts` (`canIPO`/`goPublic`), `App.tsx` (`IpoOverlay`), new HQ card.
+### 4.1 Post-IPO "Legacy Era" endgame (salt 263) — SHIPPED
+New `engine/endgame.ts` gives the post-IPO phase real content instead of only the reset offer (which
+stays as "Keep building"). Two systems, both gated on `wentPublic`: (1) escalating quarterly **board
+mandates** — a derived-hash directive (revenue / hits / fans / #1-rank) that auto-resolves at its due
+week, pays cash + reputation if met, then reissues a harder bar; (2) a slate of moonshot
+**megaprojects** (Quantum Fab → Fusion Campus) that sink huge cash + RP for permanent payoffs
+(reputation, a kept fan multiplier, and **Legacy Points** — a prestige currency 4.3 will spend). Both
+surfaced in a new HQ "Legacy Era" card with a live mandate progress meter. Everything is behind
+`wentPublic`, which the pinned solo sim never reaches → byte-identical.
+**Files (done):** `engine/endgame.ts`, `engine/balance.ts` (`legacyEra`), `state/gameState.ts`
+(mandate tick + `fundMegaproject`/`mandateFacts`), `state/useGame.tsx`, `state/persistence.ts`,
+`screens/HQ.tsx` (`LegacyEraCard`), `engine/endgame.test.ts`.
 
 ### 4.2 Research → branching tree
 Add `ResearchProject.requires?`, more mutually-exclusive forks, and era **capstones**; deeper era-4 RP
@@ -310,7 +317,13 @@ Each item is independently shippable. Progress is tracked by checking items off 
 - [x] 3.5 Side-orders → contract pipeline — floor-quality + loyalty completion bonuses; slate deferred
 - [x] 3.6 Post-launch reactive events (salt 257) — momentum / stall / supply, opt-in reducer
 
-**Phases 4–5:** not started (see sections above).
+**Phase 4 — Meta-progression & Endgame: in progress**
+- [x] 4.1 Post-IPO "Legacy Era" endgame (salt 263) — board mandates + megaprojects + Legacy Points
+- [ ] 4.2 Research → branching tree
+- [ ] 4.3 Prestige meta-tree (will spend Legacy Points from 4.1)
+- [ ] 4.4 Doctrines across the whole arc
+
+**Phase 5:** not started (see sections above).
 
 > Note on remaining sequencing: items that mutate the live sim/economy (2.4 rival-vs-rival, 2.5 trends,
 > 3.x factory economics + segment-textured demand, 4.x endgame/research/prestige) each want their own

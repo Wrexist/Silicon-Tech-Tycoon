@@ -479,6 +479,10 @@ function migrate(state: GameState): GameState | null {
   if (!s.reviewThreads || typeof s.reviewThreads !== "object") s.reviewThreads = {};
   // Side-order client loyalty (item 3.5, added later): default empty — repopulates as orders complete.
   if (!s.sideOrderClients || typeof s.sideOrderClients !== "object") s.sideOrderClients = {};
+  // Legacy Era (item 4.1, added later): defaults for the post-IPO endgame — only ever live post-IPO.
+  if (!Array.isArray(s.megaprojectsFunded)) s.megaprojectsFunded = [];
+  if (!Number.isFinite(s.legacyPoints)) s.legacyPoints = 0;
+  if (s.boardMandate === undefined) s.boardMandate = null;
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

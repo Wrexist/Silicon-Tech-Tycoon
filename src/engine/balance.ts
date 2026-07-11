@@ -1155,6 +1155,20 @@ export const BALANCE = {
     defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
   },
 
+  // --- Legacy Era (item 4.1): the post-IPO endgame — board mandates + moonshot megaprojects ---
+  // Everything here is gated behind wentPublic, which the pinned solo sim never reaches → byte-identical.
+  legacyEra: {
+    mandate: {
+      windowWeeks: 13,            // a fiscal quarter to hit the board's directive
+      escalationPerQuarter: 0.35, // the bar (and reward) rises each quarter
+      baseRevenue: 40_000_000,    // dollars — quarter-1 revenue target
+      fansGrowthTarget: 0.15,     // "grow fans by ~15%" mandate
+      fansFloor: 5_000,
+      baseReward: 20_000_000,     // dollars — quarter-1 cash reward
+      repReward: 2,
+    },
+  },
+
   // --- Side-order pipeline (item 3.5): floor-quality + client-loyalty bonuses on client commissions ---
   // All applied at COMPLETION of an accepted order (opt-in), so the pinned sim never triggers them.
   sideOrders: {

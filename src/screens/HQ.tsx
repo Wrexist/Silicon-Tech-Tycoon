@@ -2,7 +2,7 @@ import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, type LucideIcon,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -52,8 +52,9 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, type FeedItem, type GameState } from "../state/gameState.ts";
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
+import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary } from "../engine/endgame.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -102,7 +103,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
 export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
-  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract } = useGame();
+  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
@@ -218,6 +219,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* Rolling contract board — live, regenerating goals that give the endgame a directed chase
           (engine/contracts.ts). Appears once you've shipped; each pays a claimable reward. */}
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
+
+      {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
+      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} />}
 
       {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
           shipped, when the community has an opinion to have. */}
@@ -1010,6 +1014,64 @@ function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: str
           );
         })}
       </ul>
+    </Card>
+  );
+}
+
+/** Legacy Era (item 4.1) — the post-IPO endgame: the board's current mandate (with a live progress
+ *  meter) and the moonshot megaproject slate the player funds for permanent prestige payoffs. */
+function LegacyEraCard({ state, onFund }: { state: GameState; onFund: (id: string) => void }) {
+  const mandate = state.boardMandate ?? null;
+  const facts = mandateFacts(state);
+  const slate = availableMegaprojects(state.megaprojectsFunded ?? []);
+  const legacyPoints = state.legacyPoints ?? 0;
+  return (
+    <Card className="hq__contracts">
+      <div className="hq__contracts-head">
+        <span className="hq__contracts-glyph" aria-hidden><Crown size={18} /></span>
+        <div className="hq__contracts-titles">
+          <span className="hq__contracts-eyebrow">Legacy Era</span>
+          <span className="hq__contracts-label">
+            Board mandates & moonshots{legacyPoints > 0 ? ` · ${legacyPoints} Legacy Points` : ""}
+          </span>
+        </div>
+      </div>
+      {mandate && (
+        <div className={`hq__contract${mandateComplete(mandate, facts) ? " hq__contract--done" : ""}`}>
+          <div className="hq__contract-top">
+            <span className="hq__contract-title">{mandate.title}</span>
+            <span className="hq__contract-reward tnum">{mandateRewardSummary(mandate)}</span>
+          </div>
+          <div className="hq__contract-bar" aria-hidden>
+            <div className="hq__contract-fill" style={{ width: `${Math.round(mandateProgress(mandate, facts) * 100)}%` }} />
+          </div>
+          <span className="hq__contract-remaining tnum">Due week {mandate.dueWeek}</span>
+        </div>
+      )}
+      {slate.length > 0 && (
+        <ul className="hq__contracts-list">
+          {slate.map((mp) => {
+            const affordable = state.cash >= mp.cashCost && state.researchPoints >= mp.rpCost;
+            return (
+              <li key={mp.id} className="hq__contract">
+                <div className="hq__contract-top">
+                  <span className="hq__contract-title">{mp.name}</span>
+                  <span className="hq__contract-reward tnum">{format(mp.cashCost)} · {mp.rpCost} RP</span>
+                </div>
+                <span className="hq__contract-remaining">{mp.reward.blurb}</span>
+                <Button size="sm" block disabled={!affordable} onClick={() => onFund(mp.id)}>
+                  <Rocket size={14} /> Fund megaproject
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {slate.length === 0 && (
+        <p className="hq__contract-remaining" style={{ padding: "4px 2px" }}>
+          Every moonshot funded — a legacy without equal.
+        </p>
+      )}
     </Card>
   );
 }
