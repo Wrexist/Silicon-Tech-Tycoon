@@ -53,4 +53,15 @@ export const TERM_INFO: { term: string; def: string }[] = [
   { term: "Research points", def: "RP, the research currency, earned weekly by staff in R&D. Spent on tech tiers and company research projects." },
   { term: "Reputation", def: "How much the market trusts your brand (0–100). Rises with hits, falls with flops; gates new eras and the IPO." },
   { term: "Fans", def: "Loyal customers who pre-order your next product. Hits grow your fanbase; flops shrink it." },
+  // --- Advanced systems: the vocabulary that gates the game's depth, defined in one place ---
+  { term: "Segment fit", def: "How well a design matches ONE buyer segment's wants (0–100). The market sells through five segments (Budget, Mainstream, Pro, Style, Enterprise), each weighting the stats and price differently, so \"who is this for?\" is the core question." },
+  { term: "Design brief", def: "Optionally commit a product to a target segment. Nail that segment's fit at launch for bonus reputation and fans; miss it and you simply forgo the bonus (never a penalty)." },
+  { term: "Doctrine", def: "A mutually-exclusive research fork (Engineering / Go-to-Market / Operations Houses). You can only ever pick ONE per fork — it stamps a permanent identity on every product, so it's a lasting playstyle choice, not a checklist buy." },
+  { term: "Capstone", def: "The deep, end-of-tree research project for an era. It sits behind prerequisites (you must complete the required projects first) and pays a strong compound bonus." },
+  { term: "Supplier loyalty", def: "Repeat business with a component supplier earns a standing per-unit discount that grows the more you order from them. A fixed-price contract locks in a further cut." },
+  { term: "Region standing", def: "Your loyalty in each overseas market. Responding to a region's events lifts it (more reach there); ignoring them lets it drift back toward neutral." },
+  { term: "Nemesis", def: "An arch-rival that forms when a competitor repeatedly clashes with you. It hunts your turf with heat-scaled launches and taunts you — beat it back and the rivalry escalates into a storyline." },
+  { term: "Board mandate", def: "A quarterly directive the board sets once you've gone public (post-IPO). Hit its target — revenue, hits, fans or rank — by the deadline for a cash + reputation reward; then it reissues a tougher bar." },
+  { term: "Megaproject", def: "A post-IPO moonshot: sink a huge amount of cash and research into it for a permanent payoff (reputation, a kept fan boost) and Legacy Points. The slate never fully empties." },
+  { term: "Legacy Points", def: "The prestige currency your megaprojects bank. Spend them in the Legacy tree on permanent, build-defining boons (hype, research, design ceiling, or margin), choosing a route as you climb its tiers." },
 ];
