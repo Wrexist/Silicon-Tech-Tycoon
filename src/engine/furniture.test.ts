@@ -14,6 +14,7 @@ import {
   gridOrigin,
   moveItem,
   officeAttrs,
+  officeZoneBonus,
   removeItem,
   rotateItem,
   worldOf,
@@ -114,8 +115,7 @@ describe("office shop catalog", () => {
     expect(officeAttrs([])).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
   });
 
-  it("office zones (item 5.5): a desk beside an amenity earns a bonus; the default office earns none", async () => {
-    const { officeZoneBonus, defaultLayout } = await import("./furniture.ts");
+  it("office zones (item 5.5): a desk beside an amenity earns a bonus; the default office earns none", () => {
     // The default office (lone desk + a plant placed far apart) earns nothing — the sim-safe anchor.
     expect(officeZoneBonus(defaultLayout())).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
     expect(officeZoneBonus([])).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
