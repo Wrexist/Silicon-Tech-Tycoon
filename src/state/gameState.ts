@@ -13,9 +13,12 @@ import {
   type CompetitorLaunch,
   type RivalArcPhase,
 } from "../engine/competitors.ts";
-import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
+import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
+import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
+import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
+import { generateBoardMandate, mandateComplete, mandateRewardSummary, megaprojectById, canFundMegaproject, availableMegaprojects, type MandateFacts } from "../engine/endgame.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
@@ -32,6 +35,7 @@ import {
   forkLockedBy,
   hasProject,
   launchRpReward,
+  prereqsMissing,
   projectById,
   RESEARCH_PROJECTS,
   rpSources,
@@ -47,6 +51,8 @@ import {
   perfectionistCeilingBonus,
   ROLE_DISCIPLINE,
   ROLE_TITLE,
+  staffBio,
+  staffName,
   visionaryHype,
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
@@ -63,6 +69,7 @@ import {
   furnitureCost,
   moveItem as moveFurnitureOp,
   officeAttrs,
+  officeZoneBonus,
   removeItem as removeFurnitureOp,
   rotateItem as rotateFurnitureOp,
   type FurnitureId,
@@ -112,35 +119,53 @@ import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplie
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
 import type { FactoryId, SupplierId } from "../engine/types.ts";
 import {
-  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoTidyFloor, demolitionRefund, floorWidth, lineComplete, lineSpeedMult,
+  BELT_COST, MACHINE_DEFS, MAX_EXPANSION, autoTidyFloor, demolitionRefund, floorWidth, lineCapacityMult, lineComplete, lineEfficiency, lineSpeedMult, lineUnitMult,
   machineCells, machineUpgradeCostAt, upgradeMachineAt, moveMachine as floorMoveMachine, placeBelt as floorPlaceBelt,
   placeMachine as floorPlaceMachine, removeAt as floorRemoveAt, starterFloor,
   type BeltDir, type FactoryFloor as FloorPlan, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import {
   PROP_DEFS, placeProp as propsPlace, moveProp as propsMove, propCellSet, removePropAt as propsRemoveAt, propRefund,
+  factoryDecorSpeedMult,
   type PlacedProp, type PropKind,
 } from "../engine/factoryProps.ts";
 import { layoutApplyCost, MAX_LAYOUTS, type FactoryLayout } from "../engine/factoryLayout.ts";
 import { judgeAwards, type AwardsCeremony } from "../engine/awards.ts";
 import { SIDE_ORDER_BUILD_DELAY, SIDE_ORDER_CANCEL_PCT, generateSideOrder, sideOrderDue, sideOrderMissingKinds, sideOrderPayout, type ActiveSideOrder, type SideOrderOffer } from "../engine/sideOrders.ts";
 import { CONTRACT_BOARD_SIZE, contractDone, generateContract, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
-import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
-import { REGIONS, regionById, regionReach } from "../engine/regions.ts";
+import { segmentDemand, tuningSegmentBias, type SegmentDemand } from "../engine/segments.ts";
+import { REGIONS, regionById, regionReach, regionTasteLabel } from "../engine/regions.ts";
 import { regionalEventDue, generateRegionalEvent, REGIONAL_EVENT_COPY, type RegionalEvent } from "../engine/regionalEvents.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { noveltyFor } from "../engine/novelty.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
-import { distributeOverCurve, forecast } from "../engine/salesCurve.ts";
+import { distributeOverCurve, forecast, verdictCurveShape } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
+
+/** Item 5.4 — the ongoing sim RULES imposed by the active challenge's mutators (recession demand
+ *  penalty / marketing blackout), re-derived from `activeChallenge`. Neutral (demandMult 1, no
+ *  blackout) outside a challenge, so a normal run and the pinned sim are byte-identical. Pure. */
+export function challengeRules(s: GameState): { demandMult: number; noMarketing: boolean } {
+  const ac = s.activeChallenge;
+  if (!ac) return { demandMult: 1, noMarketing: false };
+  const ch = ac.kind === "weekly" ? weeklyChallenge(ac.dateKey) : dailyChallenge(ac.dateKey);
+  let demandMult = 1;
+  let noMarketing = false;
+  for (const m of ch.mutators) {
+    if (m.demandMult != null) demandMult *= m.demandMult;
+    if (m.noMarketing) noMarketing = true;
+  }
+  return { demandMult, noMarketing };
+}
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
-import { perkBonuses } from "../engine/perks.ts";
+import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
+import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
 import type {
   Assignment,
   BuildJob,
@@ -159,7 +184,10 @@ import type {
   StaffRole,
   Stats,
 } from "../engine/types.ts";
-import { FINISH_ORDER } from "../engine/types.ts";
+import { FINISH_ORDER, STAT_KEYS } from "../engine/types.ts";
+import { STAT_INFO } from "../engine/glossary.ts";
+import { climateNarration } from "../engine/climate.ts";
+import { criticReviews, foldOutletThreads, type OutletThreads } from "../engine/reviews.ts";
 
 export const SAVE_VERSION = 1;
 
@@ -319,6 +347,10 @@ export interface GameState {
    *  re-shipping the same maxed spec: the bar rises with your own track record. 0/undefined on a new
    *  company → the static era bars apply, so early launches (and the pinned sim's opener) are unchanged. */
   launchExpectation?: number;
+  /** Running per-outlet critic stance (item 2.6): warm/cold streaks keyed by outlet name, folded from
+   *  each launch's (deterministic) reviews. Drives the "this outlet keeps panning you" feed threads.
+   *  Optional/backfilled → `{}` on old saves; feed-text only, so it never touches balance. */
+  reviewThreads?: OutletThreads;
   /** Recent company-valuation samples for the sparkline (newest last). Optional on old saves. */
   valuationHistory?: number[];
   /** An in-progress cascading event chain (Track B): which chain, the next beat to fire, and when.
@@ -372,6 +404,19 @@ export interface GameState {
   pendingStaffMoment?: StaffMoment | null;
   /** Week of the last staff growth moment — enforces the cooldown between them. */
   lastStaffMomentWeek?: number;
+  /** A staff LIFE event on the table (item 2.2) — a named teammate's burnout / outside offer /
+   *  milestone the player answers (resolveStaffEvent). Fires only for an established team; the pinned
+   *  solo sim never raises one. Optional/null → golden-invariant safe. */
+  pendingStaffEvent?: StaffLifeEvent | null;
+  /** Week of the last staff life event — enforces the cooldown between them. */
+  lastStaffEventWeek?: number;
+  /** A post-launch reactive event on the table (item 3.6) — a product already selling hits a
+   *  mid-lifecycle moment (hot seller / stalling / supply pinch) the player answers
+   *  (resolvePostLaunch). Fires only past the garage era on a live product; the pinned solo sim
+   *  raises none. Optional/null → golden-invariant safe. */
+  pendingPostLaunch?: PostLaunchEvent | null;
+  /** Week of the last post-launch event — enforces the cooldown between them. */
+  lastPostLaunchWeek?: number;
   /** A regional event on the table — an expansion market's boom / tariff / rival surge to respond to
    *  (resolveRegionalEvent). Fires only once you've expanded past Home; the pinned solo sim never
    *  does. Optional/null → golden-invariant safe. */
@@ -394,6 +439,20 @@ export interface GameState {
   lastEarningsWeek?: number;
   /** 1-based count of earnings calls delivered since listing. */
   earningsQuarter?: number;
+  // --- Legacy Era (item 4.1): the post-IPO endgame — only live once wentPublic → golden-invariant safe ---
+  /** Megaproject ids the player has funded (moonshots with prestige payoffs). Optional → [] on old saves. */
+  megaprojectsFunded?: string[];
+  /** Legacy Points banked from completed megaprojects — the currency spent on the Legacy tree (4.3). */
+  legacyPoints?: number;
+  /** Legacy-tree perks bought this run (item 4.3), by id. Folded through `prestigeBonuses`. Optional →
+   *  [] on old saves; empty aggregates to the neutral bonus, so a run that spends nothing is unchanged. */
+  legacyPerks?: string[];
+  /** The board's current quarterly mandate (auto-resolves at its dueWeek). Optional/null on old saves. */
+  boardMandate?: import("../engine/endgame.ts").BoardMandate | null;
+  /** cumulativeRevenue when the current mandate was issued (to measure the quarter's revenue). */
+  mandateStartRevenue?: Money;
+  /** 0-based count of mandates issued since going public — drives the escalating bar. */
+  mandateQuarter?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -408,6 +467,10 @@ export interface GameState {
   activeSideOrder?: ActiveSideOrder | null;
   /** Lifetime completed commissions — flavor + a future achievement hook. */
   sideOrdersCompleted?: number;
+  /** Item 3.5 — completed commissions PER client, keyed by client name. Drives the returning-client
+   *  loyalty premium on the completion bonus. Optional/backfilled → `{}`; only ever grows when the
+   *  player completes an (opt-in) order, so the pinned sim never touches it → byte-identical. */
+  sideOrderClients?: Record<string, number>;
   /** Rolling contract board (engine/contracts.ts) — 2–3 live directed goals that regenerate on claim
    *  or expiry, giving the post-tutorial/endgame a chase. Empty until the first ship; the reward is
    *  player-CLAIMED, so the pinned sim (which ships nothing) is byte-identical. Optional → old saves
@@ -422,11 +485,19 @@ export interface GameState {
   /** Week until which another company-wide morale spend (offsite/bonus) is unavailable (Track C).
    *  Optional → old saves default 0 (available immediately). */
   moraleCooldownUntil?: number;
+  /** Item A1 — whether the "what your first ship unlocked" card has been dismissed. Set true once the
+   *  player taps it (or for a returning save that has already shipped), so the one-time card never
+   *  re-appears. Optional/backfilled. */
+  seenFirstShipUnlocks?: boolean;
   /** IDs of choice events already resolved THIS RUN — prevents repeats within a company. */
   resolvedChoices: string[];
   /** IDs of choice events resolved across ALL companies (carried through New Game+ like the legacy
    *  bonus) — lets pickChoiceEvent surface never-seen dilemmas first so a prestige run feels fresh. */
   seenChoices: string[];
+  /** Item 5.9 — consequence FLAGS raised by the specific OPTIONS chosen this run (a choice's
+   *  `setsFlag`, plus a generic `eventId:optionId` record). Later flag-gated events react to them, so a
+   *  decision echoes. Optional/backfilled → [] on old saves; empty gates out every callback event. */
+  choiceFlags?: string[];
   /** Scenario this run is playing (id from engine/scenarios.ts), or null for a freeform game.
    *  Per-RUN only — the BEST stars earned per scenario live in the profile store (scenarioProgress). */
   activeScenario: string | null;
@@ -568,8 +639,9 @@ function rngFrom(state: GameState): Rng {
 }
 
 const STARTER_NAMES = ["You (Founder)"];
+// Employee names now come from staffName() (full first+last, item 2.1); the old 16-name first-only
+// pool was removed to stop routine duplicate hires.
 // Applicant name pool for recruitment (no real people / brands).
-const NAMES = ["Riley", "Sam", "Jordan", "Casey", "Ari", "Noa", "Quinn", "Devin", "Max", "Robin", "Sky", "Frankie", "Ellis", "Rowan", "Tatum", "Wren"];
 
 export interface LegacyBonus {
   cash: Money;
@@ -675,6 +747,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     ownership: 1,
     valuationMomentum: 0,
     launchExpectation: 0,
+    reviewThreads: {},
     valuationHistory: [],
     eventChain: null,
     holdings: {},
@@ -693,6 +766,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     lastCommunityAskWeek: -999,
     pendingStaffMoment: null,
     lastStaffMomentWeek: -999,
+    pendingStaffEvent: null,
+    lastStaffEventWeek: -999,
+    pendingPostLaunch: null,
+    lastPostLaunchWeek: -999,
     regionLoyalty: {},
     pendingRegionalEvent: null,
     lastRegionalEventWeek: -999,
@@ -700,20 +777,29 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     pendingEarnings: null,
     earningsExpectation: ZERO,
     quarterStartRevenue: ZERO,
+    megaprojectsFunded: [],
+    legacyPoints: 0,
+    legacyPerks: [],
+    boardMandate: null,
+    mandateStartRevenue: ZERO,
+    mandateQuarter: 0,
     lastEarningsWeek: -999,
     earningsQuarter: 0,
     pendingAwards: null,
     awardsHistory: [],
     pendingSideOrder: null,
     activeSideOrder: null,
+    sideOrderClients: {},
     sideOrdersCompleted: 0,
     contracts: [],
     contractsCompleted: 0,
     contractCounter: 0,
     loans: [],
     moraleCooldownUntil: 0,
+    seenFirstShipUnlocks: false,
     resolvedChoices: [],
     seenChoices: [],
+    choiceFlags: [],
     activeScenario: null,
     scenarioRunStars: 0,
     activeChallenge: null,
@@ -856,30 +942,71 @@ export const facilityRent = (s: GameState): Money =>
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
 export const burn = (s: GameState): Money =>
   add(weeklyBurn(s.staff, facilityRent(s)), totalFactoryUpkeep(s.ownedFactories)) as Money;
-/** Total weekly cash OUTFLOW = operating burn + loan debt service. Display/solvency only (runway,
- *  "cash running low"); the tick deducts burn and loan payments separately, so it must NOT use this. */
+/** Item C3 — late-era operating drag. A frontier-scale company costs more just to keep running the
+ *  bigger it has grown, so the endgame is no longer a free ratchet: the AI era carries a headwind
+ *  scaled by lifetime revenue (capped, so it can never bankrupt a solvent company). 0 before the
+ *  drag era, so the early game and the pinned sim's first three eras stay byte-identical. */
+export const lateEraDrag = (s: GameState): Money => {
+  if (s.era < BALANCE.lateEra.dragEra) return ZERO;
+  const raw = Math.round(toDollars(s.cumulativeRevenue) * BALANCE.lateEra.dragFracPerWeek);
+  return dollars(Math.min(raw, toDollars(BALANCE.lateEra.dragCap)));
+};
+/** Total weekly cash OUTFLOW = operating burn + loan debt service + late-era drag. Display/solvency
+ *  only (runway, "cash running low"); the tick deducts each of these separately, so it must NOT use
+ *  this. */
 export const weeklyOutflow = (s: GameState): Money =>
-  add(burn(s), cents(weeklyDebtService(s.loans ?? []))) as Money;
+  add(add(burn(s), cents(weeklyDebtService(s.loans ?? []))), lateEraDrag(s)) as Money;
+
+/** The complete set of opportunistic full-screen interrupt cards. Any one being pending means a modal
+ *  already owns the screen, so EVERY cadence-driven interrupt must yield to ALL of them so they never
+ *  stack (CLAUDE.md interrupt-budget rule). Centralised as one predicate because the per-block
+ *  `!base.pendingX` chains had drifted — each hand-maintained list excluded a different subset, letting
+ *  e.g. a staff event fire on top of an unresolved post-launch card. A single source can't drift. */
+export const noPendingInterrupt = (b: GameState): boolean =>
+  !b.pendingStrike && !b.pendingEureka && !b.pendingCommunityAsk && !b.pendingRivalry &&
+  !b.pendingStaffMoment && !b.pendingStaffEvent && !b.pendingRegionalEvent && !b.pendingPostLaunch &&
+  !b.pendingEarnings && !b.pendingLicenseOffer && !b.pendingAwards && !b.pendingChoice && !b.pendingPoach;
+/** Combined prestige bonuses: the founder-perk drip (from prestige `legacy` level) PLUS the in-run
+ *  Legacy Points spend-tree (item 4.3). legacy 0 + no legacy perks → all-zero, so the pinned sim is
+ *  byte-identical. The build-cost reduction is clamped so cost never dips below 60% however it's
+ *  stacked. Every selector reads bonuses through this, so both sources apply everywhere at once. */
+export const prestigeBonuses = (s: GameState): PerkBonus => {
+  const base = perkBonuses(s.legacy);
+  const tree = legacyTreeBonuses(s.legacyPerks);
+  return {
+    designCeiling: base.designCeiling + tree.designCeiling,
+    hype: base.hype + tree.hype,
+    rpMult: base.rpMult + tree.rpMult,
+    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult)),
+  };
+};
 export const designTierCeiling = (s: GameState) =>
-  designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + perkBonuses(s.legacy).designCeiling;
+  designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + prestigeBonuses(s).designCeiling;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
 /** Mood-target bonus from the room's comfort furniture (capped). Added to the weekly mood target. */
+// Item 5.5 — office attributes PLUS the placement zone bonus (desks beside amenities). Zero for the
+// default/never-rearranged office, so the pinned sim is byte-identical.
+const officeAttrsZoned = (s: GameState): Required<ReturnType<typeof officeAttrs>> => {
+  const base = officeAttrs(s.layout);
+  const zone = officeZoneBonus(s.layout);
+  return { comfort: base.comfort + zone.comfort, focus: base.focus + zone.focus, inspiration: base.inspiration + zone.inspiration };
+};
 export const officeComfortMoodBonus = (s: GameState): number =>
-  Math.min(BALANCE.shop.comfortCap, officeAttrs(s.layout).comfort * BALANCE.shop.comfortK);
+  Math.min(BALANCE.shop.comfortCap, officeAttrsZoned(s).comfort * BALANCE.shop.comfortK);
 /** Research multiplier from the room's focus furniture (≥1, capped). */
 export const officeFocusMult = (s: GameState): number =>
-  1 + Math.min(BALANCE.shop.focusCap, officeAttrs(s.layout).focus * BALANCE.shop.focusK);
+  1 + Math.min(BALANCE.shop.focusCap, officeAttrsZoned(s).focus * BALANCE.shop.focusK);
 /** Design-stat bonus from the room's inspiration furniture (capped). */
 export const officeInspoBonus = (s: GameState): number =>
-  Math.min(BALANCE.shop.inspCap, officeAttrs(s.layout).inspiration * BALANCE.shop.inspK);
+  Math.min(BALANCE.shop.inspCap, officeAttrsZoned(s).inspiration * BALANCE.shop.inspK);
 /** Can the player afford to buy + place this furniture id right now? */
 export const canAffordFurniture = (s: GameState, type: FurnitureId): boolean =>
   s.cash >= dollars(furnitureCost(type));
 
-export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+export const weeklyRpGen = (s: GameState) => weeklyRp(s.staff, s.era) * rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + prestigeBonuses(s).rpMult);
 
 /** The global multiplier applied to base RP output (R&D upgrades × office focus × legacy perk). */
-const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + perkBonuses(s.legacy).rpMult);
+const rpGlobalMult = (s: GameState) => rpMultiplier(s.upgrades) * officeFocusMult(s) * (1 + prestigeBonuses(s).rpMult);
 
 /** Weekly RP itemized by source, with the global multiplier folded in — so the displayed sum equals
  *  weeklyRpGen(s). Sorted by contribution, biggest first. For the Research "income" breakdown. */
@@ -895,7 +1022,14 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "megaLaunch") ? 0.30 : 0) +
   (hasProject(s.completedProjects, "neuralMarketing") ? 0.25 : 0) +
   (hasProject(s.completedProjects, "gtmHype") ? 0.30 : 0) + // Go-to-Market doctrine: Hype House
-  visionaryHype(s.staff) + marketingHype(s.upgrades) + perkBonuses(s.legacy).hype + brandAwarenessHype(s);
+  (hasProject(s.completedProjects, "growthEngine") ? 0.20 : 0) +   // Era-2 capstone (item 4.2)
+  (hasProject(s.completedProjects, "singularityLab") ? 0.20 : 0) + // Era-4 capstone (item 4.2)
+  visionaryHype(s.staff) + marketingHype(s.upgrades) + prestigeBonuses(s).hype + brandAwarenessHype(s);
+
+/** Launch-hype bonus after any challenge RULE (item 5.4): a Marketing Blackout collapses it to a
+ *  small floor (win on the product alone). Outside a challenge this is exactly `hypeBonus` → no-op. */
+export const effectiveHypeBonus = (s: GameState): number =>
+  challengeRules(s).noMarketing ? hypeBonus(s) * 0.1 : hypeBonus(s);
 
 /** The bounded launch-hype contribution from the company's brand-awareness meter. 0 when the meter is
  *  0 (absent) → folds into hypeBonus with no effect until the player invests, so the pinned sim stays
@@ -923,11 +1057,16 @@ export function productStats(s: GameState, product: Product): Stats {
   bonus.design = (bonus.design ?? 0) + (BALANCE.design.finishDesignBonus[product.finish] ?? 0);
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
   if (hasProject(s.completedProjects, "aiCopilot")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 4;
+  if (hasProject(s.completedProjects, "singularityLab")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 3; // Era-4 capstone (item 4.2)
   // Engineering Doctrine fork (Track D): the chosen house stamps a permanent stat identity on every
   // product. Mutually exclusive, so at most one of these ever applies.
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
   if (hasProject(s.completedProjects, "effHouse")) bonus.battery = (bonus.battery ?? 0) + 5;
   if (hasProject(s.completedProjects, "qualityHouse")) bonus.quality = (bonus.quality ?? 0) + 5;
+  // Doctrine tier-2 (item 4.4): a deeper commitment to the chosen House pays a further stat bump.
+  if (hasProject(s.completedProjects, "overclockLab")) bonus.performance = (bonus.performance ?? 0) + 4;
+  if (hasProject(s.completedProjects, "enduranceCells")) bonus.battery = (bonus.battery ?? 0) + 4;
+  if (hasProject(s.completedProjects, "zeroDefectLine")) bonus.quality = (bonus.quality ?? 0) + 4;
   if (hasProject(s.completedProjects, "gtmDesign")) bonus.design = (bonus.design ?? 0) + 6; // GTM doctrine: Design House
   // Performance/efficiency tuning — trades points between performance and battery (a real build
   // choice that depends on what the market wants). Neutral when balanced/undefined → no ripple.
@@ -1102,7 +1241,9 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   // a laptop a mill — and the bonus BANKS its fractional week (floor, not round): early builds are
   // only ~3 weeks, and round(3 × 0.95) = 3 would make the first wired line feel like a scam.
   const reqKinds = product ? requiredKindsFor(product.category) : undefined;
-  const lineMult = lineSpeedMult(s.factoryFloor, reqKinds);
+  // The wired line's bonus AND the utility-decor bonus (item 5.8) both shave build time; both are ≤1
+  // and exactly 1.0 for a bare/undecorated floor, so the pinned sim (no line, no props) is unchanged.
+  const lineMult = lineSpeedMult(s.factoryFloor, reqKinds) * factoryDecorSpeedMult(s.factoryProps ?? []);
   const contract = Math.round((buildWeeks(rndSkill(s), projectBuildFast(s)) - buildWeekReduction(s.upgrades)) * (product ? factorySpeedMult(product) : 1));
   const assembly = (lineMult < 1 ? Math.max(1, Math.floor(contract * lineMult)) : contract)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0)
@@ -1120,10 +1261,17 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
 /** Resolve a run against its factory's capacity + the product's capacity strategy (overtime / stretch
  *  / defects). Shared by planProduction (cost + weeks) and the build wizard (the prospective quality
  *  hit it bakes onto the product). `assemblyWeeks` is the pre-stretch build time. */
+/** The factory's weekly throughput after the player-built line's capacity bonus (item 3.1). Applied
+ *  to the base factory ceiling; ×1 for an unwired floor (Infinity stays Infinity → no-op), so the
+ *  baseline and pinned sim are byte-identical. */
+export function effectiveCapacityPerWeek(s: GameState, product: Product): number {
+  return factoryCapacityPerWeek(product) * lineCapacityMult(s.factoryFloor);
+}
+
 export function capacityPlan(s: GameState, product: Product, plannedUnits: number): CapacityOutcome {
   return resolveCapacity({
     plannedUnits: Math.max(0, Math.round(plannedUnits)),
-    capacityPerWeek: factoryCapacityPerWeek(product),
+    capacityPerWeek: effectiveCapacityPerWeek(s, product),
     assemblyWeeks: buildWeeksFor(s, product),
     strategy: product.capacityStrategy ?? "overtime",
     overtimeSurcharge: BALANCE.factory.overtimeSurcharge,
@@ -1134,7 +1282,7 @@ export function capacityPlan(s: GameState, product: Product, plannedUnits: numbe
 /** Upfront tooling / first-production-run cost charged when a build starts (Assembly cuts it). */
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
-  const perk = 1 - perkBonuses(s.legacy).buildCostMult; // NG+ Supply Chain / Industrialist perks
+  const perk = 1 - prestigeBonuses(s).buildCostMult; // NG+ Supply Chain / Industrialist perks
   // Living Late Game: late eras tool up bigger (eraModifier.toolingMult; 1.0 in eras 1–2 → no-op).
   const eraTooling = eraModifier(s.era).toolingMult;
   const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product) * eraTooling);
@@ -1149,8 +1297,12 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "verticalIntegration")) unitCost = scale(unitCost, 0.80);
   if (hasProject(s.completedProjects, "predictiveSupply")) unitCost = scale(unitCost, 0.90);
   if (hasProject(s.completedProjects, "opsCost")) unitCost = scale(unitCost, 0.82); // Operations doctrine: Cost House
-  unitCost = scale(unitCost, 1 - perkBonuses(s.legacy).buildCostMult);
+  if (hasProject(s.completedProjects, "platformDominance")) unitCost = scale(unitCost, 0.90); // Era-3 capstone (item 4.2)
+  unitCost = scale(unitCost, 1 - prestigeBonuses(s).buildCostMult);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
+  // Player-built line automation (item 3.1): a complete floor trims per-unit cost, clamped ≤1 so an
+  // unwired/bare floor is exactly ×1 (baseline + pinned sim byte-identical). Pure upside.
+  unitCost = scale(unitCost, lineUnitMult(s.factoryFloor));
   // Supplier relationship: repeat business earns a standing discount (engine/suppliers.ts). 0 when
   // you've no history with this supplier, so it's a no-op for fresh games / older saves.
   const sid = product.supplierId ?? DEFAULT_SUPPLIER_ID;
@@ -1217,12 +1369,15 @@ export function planProduction(
   let marketSize = CATEGORIES[product.category].marketSize;
   if (hasProject(s.completedProjects, "globalDistribution")) marketSize *= 1.25;
   if (hasProject(s.completedProjects, "opsReach")) marketSize *= 1.25; // Operations doctrine: Reach House
+  if (hasProject(s.completedProjects, "platformDominance")) marketSize *= 1.15; // Era-3 capstone (item 4.2)
   // Era-scaled volume — small early market (slow garage phase), grows each era.
   const eraScales = BALANCE.market.eraVolumeScale;
   marketSize *= eraScales[Math.max(0, Math.min(s.era - 1, eraScales.length - 1))];
   // Global expansion (engine/regions.ts): scale the addressable market by the regions this product
   // ships to. Home-only is exactly ×1.0, so this never changes a domestic launch or an old save.
   marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week, s.regionLoyalty);
+  // Item 5.4 — a challenge recession contracts the whole market (1.0 outside a challenge → no-op).
+  marketSize *= challengeRules(s).demandMult;
 
   // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
   // weighting the five stats AND price differently; the product wins a share of each, summed. This
@@ -1230,7 +1385,10 @@ export function planProduction(
   // A balanced product scores ≈ the old single-trend demand (the segment sizes average back to it),
   // so the macro-economy is preserved; lopsided products diverge — that divergence IS the new depth.
   // G1 — the device's form (styleAppeal) lifts the Style segment, so the parametric render is a lever.
-  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week);
+  // Item 1.3 — the launch campaign TARGETS buyer segments: the chosen channel redistributes demand
+  // toward the buyers it reaches (Search → Pro/Enterprise, Influencer → Style, …). Renormalised in
+  // segmentDemand, so it's positioning, not extra volume. "none" → no bias (unchanged).
+  const segments = segmentDemand(stats, product.price, s.trends, product.category, styleAppeal(product), s.week, channel.segmentBias, tuningSegmentBias(product.tuning));
 
   // Epic D — the Platform/AI eras amplify marketing reach (reputation/word-of-mouth is era-neutral).
   const mktMult = eraModifier(s.era).marketingHype;
@@ -1254,8 +1412,9 @@ export function planProduction(
     // SEPARATELY (campaignHype) so it lands on TOP of this clamp — a bigger campaign always lifts the
     // launch instead of being absorbed once the company's passive hype maxes out (the "every tier
     // shows the same units" bug in a mature company).
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, hypeBonus(s) * mktMult + equityHypeBonus(brand.equity))),
-    campaignHype: Math.max(0, channel.hype) * mktMult,
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, effectiveHypeBonus(s) * mktMult + equityHypeBonus(brand.equity))),
+    // Item 5.4 — a Marketing Blackout also mutes the launch CAMPAIGN (win on the product alone).
+    campaignHype: Math.max(0, channel.hype) * mktMult * (challengeRules(s).noMarketing ? 0.1 : 1),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
     // is rewarded — so designing the right MIX of components matters, not just maxing each slot.
     synergy: componentSynergy(product).factor,
@@ -1327,7 +1486,7 @@ export function planProduction(
   // Factory throughput: a run beyond capacity × build-weeks is resolved by the product's capacity
   // strategy — overtime cost, a stretched schedule, or (baked separately) defects. The neutral
   // "standard" factory has unlimited capacity → no overage → zero ripple for old saves/default.
-  const capacityPerWeek = factoryCapacityPerWeek(product);
+  const capacityPerWeek = effectiveCapacityPerWeek(s, product);
   const capOutcome = capacityPlan(s, product, planned);
   const overtimeCost = scale(unitCost, capOutcome.overUnits * capOutcome.overtimeFraction);
 
@@ -1534,14 +1693,31 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let trends = state.trends;
   let trendRetargetWeek = state.trendRetargetWeek;
   let newTarget: Stats | undefined;
+  let trendBeat: FeedItem | undefined;
   if (week >= state.trendRetargetWeek) {
     newTarget = randomTrendTarget(rng);
     trendRetargetWeek =
       week +
       BALANCE.market.trendDrift.retargetEveryWeeks +
       rng.int(BALANCE.market.trendDrift.retargetJitter);
+    // Narrate the biggest riser so a retarget is felt, not silent: which stat the market is now
+    // leaning into, vs. the outgoing target. Pure/derived → identical across a replay.
+    const prevTarget = state.trends.targetWeights;
+    let topStat = STAT_KEYS[0];
+    let topDelta = -Infinity;
+    for (const k of STAT_KEYS) {
+      const d = newTarget[k] - prevTarget[k];
+      if (d > topDelta) { topDelta = d; topStat = k; }
+    }
+    if (topDelta > 0.045) {
+      trendBeat = feedItem(week, `The market is warming to ${STAT_INFO[topStat].prose} — buyers are starting to want more of it.`, "accent");
+    }
   }
   trends = advanceTrends(trends, newTarget);
+
+  // Climate narration (Track B): a segment cresting or a region tipping in/out of a downturn. Pure,
+  // derived from week + unlocked regions — no RNG, so run1 === run2 holds.
+  const climateBeat = climateNarration(week, state.unlockedRegions);
 
   // Competitors — pass the player's recent hit categories so the lead rival can react.
   const hitWindow = BALANCE.competitors.reactHitWindowWeeks;
@@ -1553,7 +1729,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const nem = state.nemesis ?? null;
   const nemEdgeRaw = nem ? nemesisLaunchEdge(nem, nem.rivalId) : null;
   const nemEdge = nem && nemEdgeRaw ? { rivalId: nem.rivalId, topCat: playerTopCategory(state), ...nemEdgeRaw } : undefined;
-  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats, nemEdge);
+  const { competitors: competitorsBase, launches, arcBeats } = advanceCompetitors(state.competitors, week, state.era, rng, recentPlayerHitCats, nemEdge, state.seed);
   // `let` so B3 can append a fresh challenger that rises to refill a field thinned by acquisitions.
   let competitors = competitorsBase;
 
@@ -1630,6 +1806,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Burn
   cash = sub(cash, scale(burn(state), rate));
 
+  // Item C3 — late-era operating drag: a frontier-scale company costs more to run the bigger it gets,
+  // so the endgame stops being a free ratchet. ZERO before the drag era → early game & the pinned
+  // sim's first three eras are byte-identical. Capped, so it never bankrupts a solvent company.
+  cash = sub(cash, scale(lateEraDrag(state), rate));
+
   // Loan debt service (Track C financing): amortize outstanding loans + take this week's payment.
   // Defaults to a no-op when the player has no debt, so a never-borrows game (and the harness) is
   // byte-identical. Scaled by `rate` so a partial offline catch-up tick services debt proportionally.
@@ -1648,6 +1829,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Feed events
   const feed = [...state.feed];
+  if (trendBeat) feed.push(trendBeat);
+  if (climateBeat) feed.push(feedItem(week, climateBeat.text, climateBeat.tone));
   for (const item of productsFeed) feed.push(item);
   // Rival launches: flag when a rival enters a category where the player has an active product.
   const activePlayerCats = new Set<CategoryId>(
@@ -1731,11 +1914,15 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // cards. Read from the tick-start stamp (a const, so every setter this tick sees the same value);
   // whichever card fires sets lastInterruptWeek = week, deferring the rest to a later quiet week. The
   // pinned solo sim raises no interrupts, so this stays -999 → interruptQuiet is always true → no-op.
-  const interruptQuiet = week - (state.lastInterruptWeek ?? -999) >= BALANCE.interrupts.minGapWeeks;
+  // Item C2 — the gap tightens in the late eras (longer, weightier builds → more should happen in the
+  // wait). The pinned solo sim raises no interrupts, so lastInterruptWeek stays -999 and this is a
+  // no-op there regardless of the gap value.
+  const minGap = state.era >= BALANCE.interrupts.lateEra ? BALANCE.interrupts.minGapWeeksLate : BALANCE.interrupts.minGapWeeks;
+  const interruptQuiet = week - (state.lastInterruptWeek ?? -999) >= minGap;
   let lastInterruptWeek = state.lastInterruptWeek ?? -999;
   let pendingStrike = state.pendingStrike ?? null;
   if (
-    !pendingStrike &&
+    noPendingInterrupt(state) && // yields to every other pending card (this phase reads last week's)
     interruptQuiet &&
     state.era >= 2 && // the Garage era is a protected learning sandbox — no strike interrupts
     contestedCats.size > 0 &&
@@ -1797,12 +1984,24 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let pendingSideOrder = state.pendingSideOrder ?? null;
   let activeSideOrder = state.activeSideOrder ?? null;
   let sideOrdersCompleted = state.sideOrdersCompleted ?? 0;
+  let sideOrderClients = state.sideOrderClients ?? {};
   if (pendingSideOrder && week > pendingSideOrder.expiresWeek) pendingSideOrder = null;
   if (activeSideOrder && week >= activeSideOrder.startedWeek + activeSideOrder.weeksNeeded) {
     const payout = sideOrderPayout(activeSideOrder);
-    cash = add(cash, payout);
+    // Item 3.5 — a tidy, capable line (3.1/3.2) and a returning client both earn a completion bonus
+    // ON TOP of the base payout. Pure upside on an already opt-in order, so the sim is unaffected.
+    const so = BALANCE.sideOrders;
+    const priorWithClient = sideOrderClients[activeSideOrder.clientName] ?? 0;
+    const qualityPct = so.qualityBonusPct * lineEfficiency(state.factoryFloor);
+    const loyaltyPct = Math.min(so.loyaltyBonusMaxPct, priorWithClient * so.loyaltyBonusPct);
+    const bonus = Math.round(payout * (qualityPct + loyaltyPct)) as Money;
+    cash = add(add(cash, payout), bonus);
     sideOrdersCompleted += 1;
-    feed.push(feedItem(week, `${activeSideOrder.clientName} took delivery of ${activeSideOrder.units.toLocaleString()} units — ${format(payout)} banked.`, "positive"));
+    sideOrderClients = { ...sideOrderClients, [activeSideOrder.clientName]: priorWithClient + 1 };
+    const bonusStr = bonus > 0
+      ? ` ${format(payout)} + ${format(bonus)} ${loyaltyPct > 0 ? "line-quality & loyalty" : "line-quality"} bonus banked.`
+      : ` ${format(payout)} banked.`;
+    feed.push(feedItem(week, `${activeSideOrder.clientName} took delivery of ${activeSideOrder.units.toLocaleString()} units —${bonusStr}`, "positive"));
     activeSideOrder = null;
   }
   if (!pendingSideOrder && !activeSideOrder && !offline && sideOrderDue(state.seed, week)) {
@@ -2012,9 +2211,12 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     fanSentiment = evolveSentiment(fanSentiment, facts);
   }
 
-  const baseDecay = hasProject(state.completedProjects, "loyaltyProgram")
-    ? 1 - (1 - BALANCE.fans.decayPerWeek) * 0.5
-    : BALANCE.fans.decayPerWeek;
+  // Fan-decay softeners stack multiplicatively on the weekly loss: Loyalty Program halves it, the
+  // Growth Engine capstone (item 4.2) trims a further 25%. No project → factor 1 → unchanged.
+  let decayLoss = 1;
+  if (hasProject(state.completedProjects, "loyaltyProgram")) decayLoss *= 0.5;
+  if (hasProject(state.completedProjects, "growthEngine")) decayLoss *= 0.75;
+  const baseDecay = decayLoss < 1 ? 1 - (1 - BALANCE.fans.decayPerWeek) * decayLoss : BALANCE.fans.decayPerWeek;
   const loyaltyDecay = sentimentDecayFactor(baseDecay, fanSentiment); // = baseDecay exactly at sentiment 0
   const newFans = Math.round(
     state.fans * Math.pow(loyaltyDecay, rate)
@@ -2104,6 +2306,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     pendingSideOrder,
     activeSideOrder,
     sideOrdersCompleted,
+    sideOrderClients,
     cashHistory,
     osBaseHistory,
     osApps,
@@ -2169,8 +2372,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   {
     const eu = BALANCE.research.eureka;
     if (
-      !offline && !bankrupt && interruptQuiet &&
-      !base.pendingEureka && !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingLicenseOffer &&
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
       base.era >= eu.minEra &&
       base.staff.filter((s) => s.assignment === "rnd").length >= eu.minRnDStaff &&
       week - (state.lastEurekaWeek ?? -999) >= eu.cooldownWeeks &&
@@ -2192,10 +2394,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const ca = BALANCE.fans.community.asks;
     const lastLaunchWeek = state.launched.reduce((m, lp) => Math.max(m, lp.launchedWeek), -Infinity);
     if (
-      !offline && !bankrupt && interruptQuiet &&
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
       state.launched.length >= 1 &&
-      !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike && !base.pendingPoach &&
-      !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingLicenseOffer &&
       week - (state.lastCommunityAskWeek ?? -999) >= ca.cooldownWeeks &&
       week - lastLaunchWeek >= ca.minWeeksSinceLaunch &&
       communityAskDue(state.seed, week)
@@ -2215,10 +2415,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   {
     const g = BALANCE.staff.growth;
     if (
-      !offline && !bankrupt && interruptQuiet &&
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
       base.era >= g.minEra && base.staff.length >= 2 &&
-      !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
-      !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings && !base.pendingLicenseOffer &&
       week - (state.lastStaffMomentWeek ?? -999) >= g.cooldownWeeks &&
       staffMomentDue(state.seed, week)
     ) {
@@ -2231,6 +2429,27 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
           base.lastInterruptWeek = week;
           base.feed.push(feedItem(week, `${target.name} has grown into a real force on the team — there's a way to develop them further.`, "accent"));
         }
+      }
+    }
+  }
+
+  // Staff LIFE event (item 2.2): a named teammate hits a personal turning point (burnout, an outside
+  // offer, a milestone) and the player answers (resolveStaffEvent). Same guardrails as the growth
+  // moment — derived-hash cadence + cooldown, yields to every other interrupt, gated on an established
+  // team past the garage era, so the founder-only pinned sim never raises one → byte-identical.
+  {
+    const le = BALANCE.staff.lifeEvents;
+    if (
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
+      base.era >= le.minEra && base.staff.length >= 2 &&
+      week - (state.lastStaffEventWeek ?? -999) >= le.cooldownWeeks &&
+      staffEventDue(state.seed, week)
+    ) {
+      const target = pickLifeEventTarget(base.staff, week);
+      if (target) {
+        base.pendingStaffEvent = generateStaffEvent(target, state.seed, week);
+        base.lastStaffEventWeek = week;
+        base.lastInterruptWeek = week;
       }
     }
   }
@@ -2255,19 +2474,23 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       // Raise a regional event (opt-in interrupt), respecting the global budget + one-at-a-time rule.
       const ev = rc.events;
       if (
-        !offline && !bankrupt && interruptQuiet &&
+        !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
         base.era >= ev.minEra &&
-        !base.pendingRegionalEvent && !base.pendingStaffMoment && !base.pendingCommunityAsk && !base.pendingEureka &&
-        !base.pendingStrike && !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings && !base.pendingLicenseOffer &&
         week - (state.lastRegionalEventWeek ?? -999) >= ev.cooldownWeeks &&
         regionalEventDue(state.seed, week)
       ) {
-        const event = generateRegionalEvent(state.seed, week, foreign, base.era);
+        // Item 5.7 — flavor the event with the ACTUAL surging rival (from the live field) and the
+        // chosen region's buying taste. tasteLabel is filled from the event's own region so it matches.
+        const event = generateRegionalEvent(state.seed, week, foreign, base.era, base.competitors.map((c) => c.name));
+        event.tasteLabel = regionTasteLabel(event.regionId);
         base.pendingRegionalEvent = event;
         base.lastRegionalEventWeek = week;
         base.lastInterruptWeek = week;
         const rname = regionById(event.regionId)?.name ?? "A market";
-        base.feed.push(feedItem(week, `${rname}: ${REGIONAL_EVENT_COPY[event.kind].feed} How do you respond?`, "accent"));
+        // Name the surging rival when we have one; otherwise the generic line.
+        const surgeFeed = event.rivalName ? `${event.rivalName} is winning buyers there.` : REGIONAL_EVENT_COPY[event.kind].feed;
+        const tasteBit = event.tasteLabel ? ` This ${event.tasteLabel} market is worth defending.` : "";
+        base.feed.push(feedItem(week, `${rname}: ${surgeFeed}${event.kind === "rivalSurge" ? tasteBit : ""} How do you respond?`, "accent"));
       }
     }
   }
@@ -2277,9 +2500,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // just like a launch pop) + a staged earnings call. Gated on `listed`, yields to any other pending
   // interrupt; the pinned solo sim never IPOs → never runs → byte-identical.
   if (
-    !offline && !bankrupt && base.listed && interruptQuiet &&
-    !base.pendingEarnings && !base.pendingCommunityAsk && !base.pendingEureka && !base.pendingStrike &&
-    !base.pendingPoach && !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingLicenseOffer &&
+    !offline && !bankrupt && base.listed && interruptQuiet && noPendingInterrupt(base) &&
     week - (state.lastEarningsWeek ?? week) >= BALANCE.ipo.shareholders.quarterWeeks
   ) {
     const sh = BALANCE.ipo.shareholders;
@@ -2299,6 +2520,41 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         ? `Q${q} earnings beat the street — ${base.companyName}'s shares jumped ${Math.round(report.priceMovePct * 100)}%.`
         : `Q${q} earnings missed the street — ${base.companyName}'s shares slid ${Math.round(Math.abs(report.priceMovePct) * 100)}%.`,
       report.beat ? "positive" : "negative"));
+  }
+
+  // Legacy Era (item 4.1): once the company has gone public, the board sets a recurring quarterly
+  // MANDATE. It auto-resolves at its dueWeek — paying cash + reputation if met — then reissues the
+  // next, escalated bar, so the post-IPO phase always has a target. Gated on wentPublic (the pinned
+  // solo sim never IPOs → byte-identical) and RNG-free (derived hash, salt 263).
+  if (base.wentPublic && !offline && !bankrupt) {
+    let mandate = base.boardMandate ?? null;
+    let mandateQuarter = base.mandateQuarter ?? 0;
+    let mandateStartRevenue = base.mandateStartRevenue ?? base.cumulativeRevenue;
+    if (mandate && week >= mandate.dueWeek) {
+      const facts: MandateFacts = {
+        quarterRevenue: toDollars(sub(base.cumulativeRevenue, mandateStartRevenue)),
+        quarterHits: base.launched.filter((lp) => lp.verdict === "hit" && lp.launchedWeek >= mandate!.issuedWeek).length,
+        fans: base.fans,
+        rank: industryRank(base),
+      };
+      if (mandateComplete(mandate, facts)) {
+        base.cash = add(base.cash, mandate.reward.cash);
+        base.reputation = Math.min(BALANCE.reputation.max, base.reputation + mandate.reward.rep);
+        base.feed.push(feedItem(week, `Board mandate met — “${mandate.title}”. ${mandateRewardSummary(mandate)} awarded.`, "positive"));
+      } else {
+        base.feed.push(feedItem(week, `Board mandate lapsed — “${mandate.title}” went unmet this quarter.`, "neutral"));
+      }
+      mandate = null;
+    }
+    if (!mandate) {
+      mandate = generateBoardMandate(state.seed, mandateQuarter, week, base.fans);
+      mandateStartRevenue = base.cumulativeRevenue;
+      mandateQuarter += 1;
+      base.feed.push(feedItem(week, `The board sets a new mandate — ${mandate.title}. Reward: ${mandateRewardSummary(mandate)}.`, "accent"));
+    }
+    base.boardMandate = mandate;
+    base.mandateQuarter = mandateQuarter;
+    base.mandateStartRevenue = mandateStartRevenue;
   }
 
   // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
@@ -2350,8 +2606,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // entirely when there were no clashes — so the pinned auto-player never forms a nemesis → byte-
   // identical. The launch edge (applied above in advanceCompetitors) reads LAST week's nemesis.
   if (!offline && !bankrupt) {
+    const prevNem = base.nemesis ?? null; // pre-update, for milestone detection (item 2.3)
     const res = updateNemesis({
-      current: base.nemesis ?? null,
+      current: prevNem,
       signals: clashSignals,
       week,
       existsById: (id) => base.competitors.some((c) => c.id === id),
@@ -2365,19 +2622,27 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       // The reveal CARD respects the interrupt budget AND never doubles up with another pending modal
       // (a nemesis usually forms from the very strike already on screen). If suppressed the nemesis
       // still forms and the feed still announces it — only the extra full-screen card is skipped.
-      if (
-        interruptQuiet &&
-        !base.pendingRivalry && !base.pendingStrike && !base.pendingEureka && !base.pendingCommunityAsk &&
-        !base.pendingEarnings && !base.pendingPoach && !base.pendingChoice && !base.pendingAwards && !base.pendingLicenseOffer
-      ) {
+      if (interruptQuiet && noPendingInterrupt(base)) {
         base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
         base.lastInterruptWeek = week;
       }
     } else if (res.nemesis && clashSignals.some((s) => s.rivalId === res.nemesis!.rivalId)) {
-      // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency).
+      // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency). The
+      // taunt is now turf- and heat-aware (item 2.3): it names the category you're fighting over and
+      // turns venomous at all-out war.
       const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);
       const doctrine = rivalDef(res.nemesis.rivalId)?.doctrine ?? "generalist";
-      base.feed.push(feedItem(week, `${rival?.name ?? "Your rival"}: “${nemesisTaunt(doctrine, base.seed, week)}”`, "accent"));
+      const turf = CATEGORIES[playerTopCategory(base)]?.displayName?.toLowerCase();
+      base.feed.push(feedItem(week, `${rival?.name ?? "Your rival"}: “${nemesisTaunt(doctrine, base.seed, week, { tier: heatTier(res.nemesis.heat), turf })}”`, "accent"));
+    }
+    // Milestone beat (item 2.3) — a tier escalation or a head-to-head record crossing turns the feud
+    // into a story with turning points. Independent of the taunt, so a quiet-week escalation still speaks.
+    if (res.nemesis) {
+      const ms = nemesisMilestone(prevNem, res.nemesis);
+      if (ms) {
+        const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);
+        base.feed.push(feedItem(week, ms.text.replace(/\{rival\}/g, rival?.name ?? "Your rival"), ms.tone as FeedTone));
+      }
     }
   }
 
@@ -2389,10 +2654,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // byte-identical. Suitors exclude current licensees and any exclusivity-locked category; prouder
   // brands demand exclusivity and drive a harder bargain (see licenseOffers.ts).
   if (
-    !offline && !bankrupt && interruptQuiet && state.platformUnlocked && !base.pendingLicenseOffer &&
-    !base.pendingEureka && !base.pendingCommunityAsk && !base.pendingStrike && !base.pendingPoach &&
-    !base.pendingChoice && !base.pendingRivalry && !base.pendingAwards && !base.pendingEarnings &&
-    !base.pendingStaffMoment && !base.pendingRegionalEvent
+    !offline && !bankrupt && interruptQuiet && state.platformUnlocked && noPendingInterrupt(base)
   ) {
     const osTierNum = osTier(base.researched.software).tier;
     if (licenseOfferDue(state.seed, week, osTierNum)) {
@@ -2406,6 +2668,38 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         base.pendingLicenseOffer = offer;
         base.lastInterruptWeek = week;
         base.feed.push(feedItem(week, `${offer.rivalName} wants to ship ${osDisplayName(state)} on their ${CATEGORIES[offer.category].displayName.toLowerCase()}s${offer.exclusive ? " — exclusively" : ""}. ${format(offer.signingBonus)} to sign.`, "accent"));
+      }
+    }
+  }
+
+  // Post-launch reactive event (item 3.6): a product ALREADY selling hits a mid-lifecycle moment
+  // (flying off shelves / stalling / a supply pinch) and the player answers (resolvePostLaunch).
+  // Placed LAST among the opportunistic interrupts so its guard need only exclude every OTHER pending;
+  // derived-hash cadence (salt 257, never the sim rng) + cooldown, gated past the garage era on a live
+  // product with runway left. The solo pinned sim ships nothing that lingers → raises none → identical.
+  {
+    const pc = BALANCE.postLaunch;
+    if (
+      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
+      base.era >= pc.minEra &&
+      week - (state.lastPostLaunchWeek ?? -999) >= pc.cooldownWeeks &&
+      postLaunchDue(state.seed, week)
+    ) {
+      const targets: PostLaunchTarget[] = base.launched
+        .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length) // still in its selling window
+        .map((lp) => ({
+          productId: lp.product.id,
+          productName: lp.product.name,
+          category: lp.product.category,
+          sellThrough: (lp.plannedUnits ?? 0) > 0 ? Math.min(1, lp.unitsSold / (lp.plannedUnits ?? 1)) : 0,
+          weeksLive: week - lp.launchedWeek,
+          weeksLeft: lp.weeklyUnits.length - lp.weeksElapsed,
+        }));
+      const target = pickPostLaunchTarget(targets);
+      if (target) {
+        base.pendingPostLaunch = generatePostLaunchEvent(target, week);
+        base.lastPostLaunchWeek = week;
+        base.lastInterruptWeek = week;
       }
     }
   }
@@ -2444,7 +2738,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   if (!offline && !bankrupt && !base.pendingPoach && week >= state.nextEventWeek) {
     // Choice events also require the player to be present to resolve them.
     if (!state.pendingChoice) {
-      const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices, state.seenChoices);
+      const choice = pickChoiceEvent(rng, state.era, state.resolvedChoices, state.seenChoices, state.choiceFlags ?? []);
       if (choice) {
         const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
         return {
@@ -2470,12 +2764,42 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
 /** Apply a single EventEffect to the state and push a feed item. Shared by market events and
  *  choice resolutions. Exported for tests (the crunch cash-clamp is a bankruptcy-fairness guard). */
+/** Item 1.4 — tiny derived-hash → [0,1), same recipe as eureka / side orders. Picks the rival an
+ *  event is about WITHOUT touching the sim RNG stream (salt 271), so naming events never perturbs
+ *  determinism. */
+function eventHash01(seed: number, week: number, salt: number): number {
+  let h = (seed ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(salt + 1, 0x85ebca77)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+  h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0;
+  h ^= h >>> 15;
+  return (h >>> 0) / 4294967296;
+}
+
+/** Item 1.4 — the real competitor a `{rival}`-slotted event is about. Prefers your NEMESIS (so the
+ *  feud pervades the world), else "leader" = the strongest rival, else a stable derived pick. Null
+ *  when there are no rivals (the caller falls back to generic text). */
+function resolveEventRival(s: GameState, ev: MarketEvent, week: number): CompetitorState | null {
+  if (!ev.rivalSlot) return null;
+  const alive = s.competitors;
+  if (alive.length === 0) return null;
+  const nem = s.nemesis ? alive.find((c) => c.id === s.nemesis!.rivalId) : undefined;
+  if (nem) return nem; // the nemesis stars in the world's gossip whenever a rival is named
+  if (ev.rivalSlot === "leader") {
+    return alive.reduce((best, c) => (c.reputation > best.reputation ? c : best), alive[0]);
+  }
+  return alive[Math.floor(eventHash01(s.seed, week, 271) * alive.length) % alive.length];
+}
+
 export function applyEventEffect(
   s: GameState,
   eff: MarketEvent["effect"],
   week: number,
   feedText: string,
   feedTone: FeedTone,
+  /** Item 1.4 — when the event named a specific rival, a `rivalScandal` is scoped to THAT rival
+   *  (strength haircut + a share-price dip) so the text and the mechanics agree. Omitted → the legacy
+   *  field-wide behaviour (used by choice events / event chains). */
+  targetRivalId?: string,
 ): GameState {
   const feed = [...s.feed];
   let text = feedText; // mutable so a supply crunch can annotate WHY it cost more / less
@@ -2499,9 +2823,13 @@ export function applyEventEffect(
       break;
     case "rivalScandal":
       competitors = s.competitors.map((c) => {
+        // Scoped to the NAMED rival when the event named one (so text + mechanics agree); otherwise
+        // the legacy field-wide effect. A named scandal also dents that rival's share price.
+        if (targetRivalId && c.id !== targetRivalId) return c;
         const next: typeof c.strengthByCategory = {};
         for (const [cat, v] of Object.entries(c.strengthByCategory)) next[cat as keyof typeof next] = (v as number) * eff.factor;
-        return { ...c, strengthByCategory: next };
+        const sharePrice = targetRivalId ? Math.max(1, Math.round(c.sharePrice * (0.85 + 0.1 * eff.factor))) : c.sharePrice;
+        return { ...c, strengthByCategory: next, sharePrice };
       });
       break;
     case "talentWave":
@@ -2541,9 +2869,15 @@ export function applyEventEffect(
 }
 
 function applyMarketEvent(s: GameState, ev: MarketEvent, week: number, rng: ReturnType<typeof rngFrom>): GameState {
-  const applied = applyEventEffect(s, ev.effect, week, ev.title, ev.tone as FeedTone);
+  // Item 1.4 — bind the event to a REAL rival: swap `{rival}` for an actual competitor's name
+  // (preferring the nemesis) and, for a scandal, route the mechanical hit to THAT rival.
+  const rival = resolveEventRival(s, ev, week);
+  const title = ev.title.includes("{rival}")
+    ? ev.title.replace(/\{rival\}/g, rival?.name ?? "A rival")
+    : ev.title;
+  const applied = applyEventEffect(s, ev.effect, week, title, ev.tone as FeedTone, rival?.id);
   const nextEventWeek = week + BALANCE.events.everyWeeks + rng.int(BALANCE.events.jitter);
-  return { ...applied, nextEventWeek, lastEvent: { text: ev.title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
+  return { ...applied, nextEventWeek, lastEvent: { text: title, tone: ev.tone as FeedTone, week }, rngState: rng.state() };
 }
 
 /** Start a cascading event chain (Track B): fire its opening beat now and schedule the next. */
@@ -2734,7 +3068,13 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   // Sales are still capped by the production run — you can never sell more than you built.
   const totalUnits = Math.min(plannedUnits, realizedDemand);
   const sellsOut = realizedDemand > plannedUnits && plannedUnits > 0;
-  const weeklyUnits = distributeOverCurve(totalUnits);
+  // Verdict is needed up front to SHAPE the sales curve (item 1.1 word-of-mouth): a hit ramps fast
+  // and sells for weeks with a mid-tail second wind; a flop spikes and collapses. Same lifetime
+  // total — only WHEN the units land changes. effectiveScore/outcome are reused by the reputation +
+  // fans response below (declared once here).
+  const effectiveScore = plan.launchScore * plan.competitionFactor;
+  const outcome = verdictFor(state, effectiveScore);
+  const weeklyUnits = distributeOverCurve(totalUnits, verdictCurveShape(outcome));
 
   const lp: LaunchedProduct = {
     product,
@@ -2757,17 +3097,11 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const qa = hasProject(state.completedProjects, "qaLab");
   let reputation = state.reputation;
   const rep = BALANCE.reputation;
-  // F8 — hit/flop must track ACTUAL performance, not the competition-FREE launchScore. A product
-  // can score well in isolation yet sell almost nothing once rivals split the market, so flagging
-  // it "a hit" (+rep/+fans) would be a lie. Gate on the competition-adjusted score: launchScore
-  // scaled by the same competitionFactor that already discounts real demand. The thresholds in
-  // BALANCE.reputation keep their meaning (they're applied to the same score scale).
-  const effectiveScore = plan.launchScore * plan.competitionFactor;
-  // Verdict against the LIVE bars: the static era bar RAISED by the company's own rolling
-  // expectations (recent track record). A hit must beat what you've been shipping — so a mature
-  // studio can't guarantee a hit by re-maxing the same spec. hitFactory + era scaling still apply
-  // (folded into launchBars). Early launches (expectation 0) use the plain era bars, unchanged.
-  const outcome = verdictFor(state, effectiveScore);
+  // F8 — hit/flop tracks ACTUAL performance (the competition-adjusted effectiveScore computed above),
+  // not the competition-FREE launchScore, and is judged against the LIVE expectation bars (the static
+  // era bar raised by the company's own recent track record — see launchBars/verdictFor). A product
+  // can score well in isolation yet sell little once rivals split the market, so it wouldn't be "a
+  // hit". effectiveScore + outcome were declared above (they also shape the sales curve).
   const isHit = outcome === "hit";
   const isFlop = outcome === "flop";
   const isSolid = outcome === "solid";
@@ -2800,6 +3134,28 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     else fans = Math.max(0, fans * (1 - fb.undersupplyFanPenalty));
   }
   fans = Math.round(fans);
+
+  // Item 3.3 — design-brief bonus. Committing a product to a target segment and NAILING its stat fit
+  // at launch earns bonus reputation + fans (scaled from 0 at fitThreshold up to full at fitFull);
+  // missing it just forgoes the bonus, never a penalty. Opt-in (product.targetSegment) → the pinned
+  // sim, which never sets a target, is byte-identical. Applied before fan milestones so the extra
+  // fans can cross a milestone naturally.
+  let briefBeat: FeedItem | null = null;
+  if (product.targetSegment) {
+    const bc = BALANCE.briefs;
+    const seg = plan.segments.perSegment.find((r) => r.id === product.targetSegment);
+    const fit = seg?.fit ?? 0;
+    if (seg && fit >= bc.fitThreshold) {
+      const strength = Math.min(1, (fit - bc.fitThreshold) / Math.max(1, bc.fitFull - bc.fitThreshold));
+      const repAdd = bc.repBonus * strength;
+      const fanAdd = Math.round(bc.fanBonus * strength);
+      reputation = Math.min(rep.max, reputation + repAdd);
+      fans += fanAdd;
+      briefBeat = feedItem(state.week, `Design brief nailed — “${product.name}” won over the ${seg.name} segment (fit ${Math.round(fit)}). +${Math.round(repAdd)} rep · +${fanAdd.toLocaleString()} fans.`, "positive");
+    } else {
+      briefBeat = feedItem(state.week, `Design brief missed — “${product.name}” didn't win over ${seg?.name ?? "the target"} (fit ${Math.round(fit)}, needed ${bc.fitThreshold}).`, "neutral");
+    }
+  }
 
   // Fan milestones — surface crossing big numbers as celebratory feed items + rep bonus.
   const fanMilestones = fanMilestoneResult(state.fans, fans, state.week);
@@ -2849,12 +3205,28 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     feed.push(feedItem(state.week, `Overproduced “${product.name}”, unsold stock is a write-off.`, "negative"));
   }
   for (const item of fanMilestones.feed) feed.push(item);
+  if (briefBeat) feed.push(briefBeat); // item 3.3 — design-brief outcome
+
+  // Item 2.6 — fold this launch's (deterministic) critic reviews into the running per-outlet stance,
+  // so an outlet that keeps panning (or keeps championing) you becomes a thread in the feed. The
+  // reviews use their own hashed RNG (not the sim RNG) and only produce feed text → balance untouched.
+  const launchReviews = criticReviews({
+    productId: lp.product.id,
+    stats: lp.stats,
+    verdict: outcome,
+    demandFit: lp.insight?.demandFit ?? 60,
+    priceFit: lp.insight?.priceFit ?? 1,
+    betterRivals: lp.insight?.betterRivals ?? 0,
+  });
+  const outletThreads = foldOutletThreads(state.reviewThreads, launchReviews, product.name);
+  if (outletThreads.beat) feed.push(feedItem(state.week, outletThreads.beat.text, outletThreads.beat.tone));
 
   return {
     state: {
       ...state,
       ready: state.ready.filter((p) => p.id !== productId),
       launched: [lp, ...state.launched],
+      reviewThreads: outletThreads.threads,
       reputation,
       valuationMomentum,
       fans,
@@ -3463,6 +3835,12 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
   if (!option) return state;
   const feedText = `${pc.event.title}, you chose: "${option.label}".`;
   const applied = applyEventEffect(state, option.effect, state.week, feedText, pc.event.tone as FeedTone);
+  // Item 5.9 — record the consequence flags this choice raises: the option's explicit setsFlag, plus a
+  // generic `eventId:optionId` record so any later event can react to exactly what was decided.
+  const rec = `${pc.event.id}:${option.id}`;
+  const nextFlags = [...(state.choiceFlags ?? [])];
+  if (!nextFlags.includes(rec)) nextFlags.push(rec);
+  if (option.setsFlag && !nextFlags.includes(option.setsFlag)) nextFlags.push(option.setsFlag);
   return {
     ...applied,
     pendingChoice: null,
@@ -3470,6 +3848,7 @@ export function resolveChoice(state: GameState, optionId: string): GameState {
     seenChoices: state.seenChoices.includes(pc.event.id)
       ? state.seenChoices
       : [...state.seenChoices, pc.event.id],
+    choiceFlags: nextFlags,
   };
 }
 
@@ -3651,6 +4030,8 @@ export function buyProject(state: GameState, id: ProjectId): GameState {
   if (proj.era > state.era || state.researchPoints < proj.rpCost) return state;
   // Research-tree fork (Track D): refuse if a mutually-exclusive sibling doctrine is already chosen.
   if (forkLockedBy(state.completedProjects, id)) return state;
+  // Item 4.2 — prerequisites: refuse a capstone until its required projects are all completed.
+  if (prereqsMissing(state.completedProjects, id).length > 0) return state;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Completed research project: ${proj.name}.`, "positive"));
   return {
@@ -3743,6 +4124,8 @@ export function startResearchProject(state: GameState, id: ProjectId): GameState
   const proj = projectById(id);
   if (proj.era > state.era || state.researchPoints < proj.rpCost) return state;
   if (forkLockedBy(state.completedProjects, id)) return state;
+  // Item 4.2 — prerequisites must be completed first.
+  if (prereqsMissing(state.completedProjects, id).length > 0) return state;
   return placeResearch(state, {
     kind: "project", ref: id, name: proj.name, blurb: proj.blurb,
     rpCost: proj.rpCost, totalWeeks: researchWeeksFor(proj.rpCost),
@@ -3897,12 +4280,23 @@ export interface NavAttention { hq: boolean; design: boolean; research: boolean;
 export function navAttention(s: GameState): NavAttention {
   const shipped = s.launched.length >= 1;
   const cash = s.cash as number;
+  // A completed contract sitting on the board, waiting to be claimed for its reward.
+  const claimableContract = (s.contracts ?? []).some((c) => contractDone(c, contractFacts(s)));
+  // A pending client commission on the factory floor, waiting to be accepted.
+  const pendingSideOrder = (s.pendingSideOrder ?? null) != null;
+  // Legacy Era actions (post-IPO): a moonshot you can afford, or Legacy Points ready to spend.
+  const affordableMegaproject = s.wentPublic &&
+    availableMegaprojects(s.megaprojectsFunded ?? []).some((mp) => canFundMegaproject(mp, s.cash, s.researchPoints));
+  const spendableLegacyPoint = s.wentPublic && (s.legacyPoints ?? 0) > 0 &&
+    LEGACY_TREE.some((p) => legacyPerkAvailable(s.legacyPerks ?? [], p.id) && (s.legacyPoints ?? 0) >= p.cost);
   return {
-    // A milestone or a personal decision waiting at HQ.
-    hq: canAdvance(s) || canIPO(s) || s.pendingChoice != null || (s.pendingPoach ?? null) != null,
+    // A milestone, a personal decision, or a claimable / affordable reward waiting at HQ. Broadened
+    // so the many HQ-surfaced systems (contracts, side orders, the Legacy Era) can each light the dot.
+    hq: canAdvance(s) || canIPO(s) || s.pendingChoice != null || (s.pendingPoach ?? null) != null ||
+      claimableContract || pendingSideOrder || affordableMegaproject || spendableLegacyPoint,
     // Pipeline idle once you're rolling → design the next product.
     design: shipped && s.building.length === 0 && s.ready.length === 0,
-    // A project or component upgrade you can afford right now.
+    // A project or component upgrade you can afford right now (includes doctrines + capstones).
     research: researchReady(s),
     // A new region you can afford to open.
     market: REGIONS.some((r) => !s.unlockedRegions.includes(r.id) && cash >= (r.unlockCost as number)),
@@ -4183,17 +4577,45 @@ export function autoClaimResearch(state: GameState): GameState {
   const next = RESEARCH_PROJECTS
     // Skip fork-locked doctrine siblings: buyProject would no-op on them, stalling the automation on a
     // permanently-unbuyable cheapest pick. Doctrine choices stay a manual decision (a real fork).
-    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints && !p.fork)
+    .filter((p) => p.era <= state.era && !hasProject(state.completedProjects, p.id) && p.rpCost <= state.researchPoints && !p.fork && prereqsMissing(state.completedProjects, p.id).length === 0)
     .sort((a, b) => a.rpCost - b.rpCost)[0];
   return next ? buyProject(state, next.id) : state;
 }
 
 /** Apply all ENABLED + CAPABLE weekly automations (called at the top of the tick). Pure + deterministic
- *  (no rng). Defaults are off, so a save without delegation runs byte-identically. */
+ *  (no rng). Defaults are off, so a save without delegation runs byte-identically.
+ *
+ *  Item 5.6 — the delegation SPECIALISTS report in: when a Lead actually does something (reassigns
+ *  idle staff / claims a project), they post a short, named line to the feed so delegation feels like
+ *  a real hire making calls, not an invisible toggle. Only fires when an action happened + the Lead is
+ *  employed, and only when delegation is ON — so the pinned sim (delegation off) is byte-identical. */
 export function applyWeeklyAutomation(state: GameState): GameState {
   let s = state;
-  if (state.automation.autoAssign && canAutoAssign(state)) s = autoAssignIdle(s);
-  if (state.automation.autoResearch && canAutoResearch(state)) s = autoClaimResearch(s);
+  if (state.automation.autoAssign && canAutoAssign(state)) {
+    const before = s;
+    s = autoAssignIdle(s);
+    if (s !== before) {
+      const moved = before.staff.filter((x) => x.assignment === "idle").length;
+      const lead = s.staff.find((x) => x.role === DELEGATION_REQ.autoAssign.role);
+      if (moved > 0 && lead) {
+        s = { ...s, feed: trimFeed([...s.feed, feedItem(s.week, `${lead.name} put ${moved} idle teammate${moved > 1 ? "s" : ""} back on task.`, "neutral")]) };
+      }
+    }
+  }
+  if (state.automation.autoResearch && canAutoResearch(state)) {
+    const before = s;
+    s = autoClaimResearch(s);
+    if (s !== before) {
+      const lead = s.staff.find((x) => x.role === DELEGATION_REQ.autoResearch.role);
+      // Forward-looking recommendation (distinct from buyProject's completion line): what's next.
+      const nextUp = RESEARCH_PROJECTS
+        .filter((p) => p.era <= s.era && !hasProject(s.completedProjects, p.id) && !p.fork && prereqsMissing(s.completedProjects, p.id).length === 0)
+        .sort((a, b) => a.rpCost - b.rpCost)[0];
+      if (lead && nextUp) {
+        s = { ...s, feed: trimFeed([...s.feed, feedItem(s.week, `${lead.name} recommends ${nextUp.name} as our next breakthrough.`, "accent")]) };
+      }
+    }
+  }
   return s;
 }
 
@@ -4332,6 +4754,7 @@ export function hireStaff(state: GameState, role: StaffRole, skill: number, name
     xp: 0,
     hiredWeek: state.week,
     ...identity,
+    bio: staffBio(identity.trait, identity.specialty, state.staffCounter),
   };
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Hired ${name}, ${ROLE_TITLE[role]}.`, "accent"));
@@ -4359,8 +4782,7 @@ export function specialistHireFee(state: GameState, which: "autoAssign" | "autoR
 export function hireSpecialist(state: GameState, which: "autoAssign" | "autoResearch"): GameState {
   const { project, role } = DELEGATION_REQ[which];
   if (!hasProject(state.completedProjects, project)) return state; // division not opened yet
-  const name = NAMES[(state.staffCounter * 7) % NAMES.length];
-  return hireStaff(state, role, SPECIALIST_SKILL, name);
+  return hireStaff(state, role, SPECIALIST_SKILL, staffName(state.staffCounter));
 }
 
 // ---------- Recruitment: search → candidates → sign ----------
@@ -4395,15 +4817,17 @@ function generateCandidates(state: GameState, tier: RecruitTier, rng: Rng): { ca
     const headline = levelFromSkills(skills, role);
     const identity = makeIdentity(rng, role);
     out.push({
-      id: `c${counter++}`,
+      id: `c${counter}`,
       role,
-      name: NAMES[(counter * 7 + level) % NAMES.length],
+      name: staffName(counter),
       skill: headline,
       skills,
       salary: salaryFor(role, headline),
       hireFee: hireCostFor(role, headline, hasProject(state.completedProjects, "talentNetwork")),
       ...identity,
+      bio: staffBio(identity.trait, identity.specialty, counter),
     });
+    counter++;
   }
   return { candidates: out, counter };
 }
@@ -4430,6 +4854,7 @@ export function hireCandidate(state: GameState, candidateId: string): GameState 
     trait: cand.trait,
     mood: cand.mood,
     appearance: cand.appearance,
+    bio: cand.bio,
   };
   const feed = trimFeed([...state.feed, feedItem(state.week, `Signed ${cand.name}, ${ROLE_TITLE[cand.role]}.`, "positive")]);
   return {
@@ -4498,7 +4923,7 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
 export function researchReady(state: GameState): boolean {
   const rp = Math.floor(state.researchPoints);
   return RESEARCH_PROJECTS.some(
-    (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id),
+    (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0,
   );
 }
 
@@ -4528,6 +4953,72 @@ export function goPublic(state: GameState): GameState {
   const feed = [...state.feed];
   feed.push(feedItem(state.week, "The company reached the pinnacle of the industry.", "positive"));
   return { ...state, wentPublic: true, feed: trimFeed(feed) };
+}
+
+// ---------- Legacy Era (item 4.1): the post-IPO endgame ----------
+
+/** The live facts the current board mandate is judged against (for the HQ progress meter). */
+export function mandateFacts(state: GameState): MandateFacts {
+  const start = state.mandateStartRevenue ?? state.cumulativeRevenue;
+  const issued = state.boardMandate?.issuedWeek ?? 0;
+  return {
+    quarterRevenue: toDollars(sub(state.cumulativeRevenue, start)),
+    quarterHits: state.launched.filter((lp) => lp.verdict === "hit" && lp.launchedWeek >= issued).length,
+    fans: state.fans,
+    rank: industryRank(state),
+  };
+}
+
+/** Fund a moonshot megaproject: pay its cash + research cost, bank its permanent reward (reputation /
+ *  a kept fan multiplier / Legacy Points). Opt-in, gated on wentPublic — the pinned sim never IPOs, so
+ *  it never funds one → byte-identical. */
+export function fundMegaproject(state: GameState, id: string): ActionResult {
+  if (!state.wentPublic) return { state, ok: false, reason: "Available after going public." };
+  const mp = megaprojectById(id);
+  if (!mp) return { state, ok: false, reason: "No such megaproject." };
+  if ((state.megaprojectsFunded ?? []).includes(id)) return { state, ok: false, reason: "Already funded." };
+  if (!canFundMegaproject(mp, state.cash, state.researchPoints)) {
+    return { state, ok: false, reason: `Needs ${format(mp.cashCost)} and ${mp.rpCost} RP.` };
+  }
+  const rep = Math.min(BALANCE.reputation.max, state.reputation + (mp.reward.reputation ?? 0));
+  const fans = mp.reward.fansMult ? Math.round(state.fans * mp.reward.fansMult) : state.fans;
+  const feed = [...state.feed, feedItem(state.week, `Megaproject complete — ${mp.name}. ${mp.reward.blurb}.`, "positive")];
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, mp.cashCost),
+      researchPoints: state.researchPoints - mp.rpCost,
+      reputation: rep,
+      fans,
+      legacyPoints: (state.legacyPoints ?? 0) + (mp.reward.legacyPoints ?? 0),
+      megaprojectsFunded: [...(state.megaprojectsFunded ?? []), id],
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
+/** Spend Legacy Points on a Legacy-tree perk (item 4.3): a permanent-for-this-run boon that folds
+ *  through `prestigeBonuses` (hype / research / design ceiling / build cost). Gated on wentPublic +
+ *  the tier gate + affordability. Opt-in — the pinned sim never IPOs, so it never spends → identical. */
+export function buyLegacyPerk(state: GameState, id: string): ActionResult {
+  if (!state.wentPublic) return { state, ok: false, reason: "Available after going public." };
+  const perk = legacyPerkById(id);
+  if (!perk) return { state, ok: false, reason: "No such Legacy perk." };
+  const chosen = state.legacyPerks ?? [];
+  if (chosen.includes(id)) return { state, ok: false, reason: "Already unlocked." };
+  if (!legacyPerkAvailable(chosen, id)) return { state, ok: false, reason: "Unlock an earlier-tier perk first." };
+  if ((state.legacyPoints ?? 0) < perk.cost) return { state, ok: false, reason: `Needs ${perk.cost} Legacy Points.` };
+  const feed = [...state.feed, feedItem(state.week, `Legacy perk unlocked — ${perk.name}. ${perk.description}`, "positive")];
+  return {
+    state: {
+      ...state,
+      legacyPoints: (state.legacyPoints ?? 0) - perk.cost,
+      legacyPerks: [...chosen, id],
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
 }
 
 // ---------- Equity: company valuation, IPO/listing, ownership, rival share trading ----------
@@ -4579,6 +5070,18 @@ export function industryRank(state: GameState): number {
   const board = industryLeaderboard(state);
   const idx = board.findIndex((e) => e.isPlayer);
   return idx < 0 ? board.length : idx + 1;
+}
+
+/** Item 5.3 — the "boss" directly above the player on the ladder: the next rival to overtake, the
+ *  valuation gap to them, and the player's rank. null when the player is already #1. The gap is the
+ *  live chase target the HQ shows so climbing the ladder is a forward goal, not just a reaction. */
+export function nextRankRival(state: GameState): { name: string; rank: number; gap: Money } | null {
+  const board = industryLeaderboard(state);
+  const idx = board.findIndex((e) => e.isPlayer);
+  if (idx <= 0) return null; // already #1 (or not found)
+  const boss = board[idx - 1];
+  const gap = Math.max(0, toDollars(boss.valuation) - toDollars(board[idx].valuation));
+  return { name: boss.name, rank: idx, gap: dollars(gap) };
 }
 
 /** The player's strongest category — the one their launches have sold the most units in (their main
@@ -4692,6 +5195,74 @@ export function resolveStaffMoment(state: GameState, optionIndex: number): { sta
   staff[idx] = upgraded;
   const feed = [...state.feed, feedItem(state.week, line, "positive")];
   return { state: { ...state, staff, pendingStaffMoment: null, feed: trimFeed(feed) }, result: { ok: true, kind: opt.kind, staffName: s.name } };
+}
+
+// ---- Staff life events (item 2.2) ----
+export interface StaffEventResult { ok: boolean; reason?: string; staffName?: string; label?: string; }
+
+/** Resolve the staff life event on the table: apply the CHOSEN option's effect (mood/team-mood/skill/
+ *  loyalty, minus any cash cost). If the player can't afford the cash option, the choice is rejected
+ *  (the card stays up). Player-opt-in, so the pinned sim never calls it → byte-identical. */
+export function resolveStaffEvent(state: GameState, optionIndex: number): { state: GameState; result: StaffEventResult } {
+  const ev = state.pendingStaffEvent ?? null;
+  if (!ev) return { state, result: { ok: false, reason: "No staff event to resolve." } };
+  const opt = ev.options[optionIndex];
+  if (!opt) return { state: { ...state, pendingStaffEvent: null }, result: { ok: false, reason: "No such option." } };
+  const eff: StaffEventEffect = opt.effect;
+  const cost = eff.cashCost ? dollars(eff.cashCost) : ZERO;
+  if (cost > 0 && state.cash < cost) {
+    return { state, result: { ok: false, reason: `Need ${format(cost)} for that.` } }; // keep the card up
+  }
+  const idx = state.staff.findIndex((s) => s.id === ev.staffId);
+  // The teammate may have left (poached/fired) before the player answered — apply team-wide effects
+  // only, and close the card.
+  const staff = state.staff.map((s) => {
+    let m = s;
+    if (eff.teamMood) m = { ...m, mood: clampMood(m.mood + eff.teamMood) };
+    if (idx >= 0 && s.id === ev.staffId) {
+      m = {
+        ...m,
+        mood: clampMood(m.mood + (eff.mood ?? 0)), // their own delta, on top of any team delta already applied
+        moodLowWeeks: (eff.mood ?? 0) > 0 ? 0 : m.moodLowWeeks,
+        skill: eff.skill ? Math.min(BALANCE.staff.maxSkill, m.skill + eff.skill) : m.skill,
+        poachCooldownUntil: eff.retainWeeks ? Math.max(m.poachCooldownUntil ?? 0, state.week + eff.retainWeeks) : m.poachCooldownUntil,
+      };
+    }
+    return m;
+  });
+  const feed = [...state.feed, feedItem(state.week, `${ev.staffName}: you chose "${opt.label}".`, "accent")];
+  return {
+    state: { ...state, staff, cash: cost > 0 ? sub(state.cash, cost) : state.cash, pendingStaffEvent: null, feed: trimFeed(feed) },
+    result: { ok: true, staffName: ev.staffName, label: opt.label },
+  };
+}
+
+// ---- Post-launch reactive events (item 3.6) ----
+export interface PostLaunchResult { ok: boolean; reason?: string; label?: string; }
+
+/** Resolve the post-launch event on the table: apply the CHOSEN option's effect (cash spent/recovered,
+ *  reputation + fans). If the player can't afford a cash option, the choice is rejected (card stays up).
+ *  Player-opt-in, so the pinned sim never calls it → byte-identical. */
+export function resolvePostLaunch(state: GameState, optionIndex: number): { state: GameState; result: PostLaunchResult } {
+  const ev = state.pendingPostLaunch ?? null;
+  if (!ev) return { state, result: { ok: false, reason: "No post-launch event to resolve." } };
+  const opt = ev.options[optionIndex];
+  if (!opt) return { state: { ...state, pendingPostLaunch: null }, result: { ok: false, reason: "No such option." } };
+  const eff: PostLaunchEffect = opt.effect;
+  const cost = eff.cashCost ? dollars(eff.cashCost) : ZERO;
+  if (cost > 0 && state.cash < cost) {
+    return { state, result: { ok: false, reason: `Need ${format(cost)} for that.` } }; // keep the card up
+  }
+  let cash = state.cash;
+  if (cost > 0) cash = sub(cash, cost);
+  if (eff.cashGain) cash = add(cash, dollars(eff.cashGain));
+  const rep = Math.max(BALANCE.reputation.min, Math.min(BALANCE.reputation.max, state.reputation + (eff.rep ?? 0)));
+  const fans = Math.max(0, state.fans + (eff.fans ?? 0));
+  const feed = [...state.feed, feedItem(state.week, `“${ev.productName}”: you chose "${opt.label}".`, "accent")];
+  return {
+    state: { ...state, cash, reputation: rep, fans, pendingPostLaunch: null, feed: trimFeed(feed) },
+    result: { ok: true, label: opt.label },
+  };
 }
 
 // ---- Regional events ----

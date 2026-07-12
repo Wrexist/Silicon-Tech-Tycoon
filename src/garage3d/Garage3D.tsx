@@ -6,7 +6,7 @@ import { ContactShadows, RoundedBox, Html, Environment, Lightformer } from "@rea
 import { PartyPopper, Sparkles, Star, ThumbsUp, Rocket, Frown, CloudRain, BatteryLow, Meh, ThumbsDown } from "lucide-react";
 import * as THREE from "three";
 import { moodBand, type MoodBand } from "../engine/staff.ts";
-import type { Staff } from "../engine/types.ts";
+import type { Accessory, Staff } from "../engine/types.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import {
   canPlace,
@@ -733,10 +733,57 @@ function shade(hex: string, amt: number): string {
 // (Chair seat top ≈ 0.58; the robot's torso underside sits ≈0.18 above its pivot → ≈0.4 lift).
 const SIT_LIFT = 0.4;
 
+// A worn head accessory (item 1.2) so the robot at the desk matches the employee on the roster card —
+// driven by Staff.appearance.accessory. Sits inside the head group (head sphere r≈0.33, eyes at z≈0.3).
+function HeadAccessory({ accessory, metal }: { accessory: Accessory; metal: string }) {
+  if (accessory === "glasses")
+    return (
+      <group position={[0, 0.05, 0.31]}>
+        {[-0.12, 0.12].map((x, i) => (
+          <mesh key={i} position={[x, 0, 0]} rotation-x={Math.PI / 2}>
+            <torusGeometry args={[0.075, 0.014, 8, 20]} />
+            <meshStandardMaterial color="#1a1d23" metalness={0.5} roughness={0.4} />
+          </mesh>
+        ))}
+        <mesh position={[0, 0, 0]}><boxGeometry args={[0.06, 0.012, 0.012]} /><meshStandardMaterial color="#1a1d23" /></mesh>
+      </group>
+    );
+  if (accessory === "headphones")
+    return (
+      <group>
+        <mesh position={[0, 0.34, 0]} rotation-z={Math.PI / 2}><torusGeometry args={[0.34, 0.03, 10, 24, Math.PI]} /><meshStandardMaterial color="#15181d" roughness={0.5} /></mesh>
+        {[-0.34, 0.34].map((x, i) => (
+          <mesh key={i} position={[x, 0.02, 0]}><cylinderGeometry args={[0.09, 0.09, 0.08, 16]} rotation-z={Math.PI / 2} /><meshStandardMaterial color="#15181d" roughness={0.5} /></mesh>
+        ))}
+      </group>
+    );
+  if (accessory === "cap")
+    return (
+      <group position={[0, 0.24, 0]}>
+        <mesh><sphereGeometry args={[0.3, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={metal} roughness={0.6} /></mesh>
+        <mesh position={[0, -0.01, 0.26]} rotation-x={-0.2}><boxGeometry args={[0.34, 0.03, 0.22]} /><meshStandardMaterial color={metal} roughness={0.6} /></mesh>
+      </group>
+    );
+  if (accessory === "beanie")
+    return (
+      <mesh position={[0, 0.26, 0]}><sphereGeometry args={[0.32, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.62]} /><meshStandardMaterial color={metal} roughness={0.85} /></mesh>
+    );
+  if (accessory === "earrings")
+    return (
+      <group>
+        {[-0.31, 0.31].map((x, i) => (
+          <mesh key={i} position={[x, -0.12, 0.02]}><sphereGeometry args={[0.03, 10, 10]} /><meshStandardMaterial color="#e8c14a" metalness={0.7} roughness={0.3} /></mesh>
+        ))}
+      </group>
+    );
+  return null;
+}
+
 // Premium mascot robot: rounded two-tone shell, dark eye-visor with glowing eyes, antenna with a
 // lit tip, little arms + hands, rounded feet, metallic neck ring. ~1.45m tall, grounded at y=0.
 // `walking` toggles a stride swing; `sitting` folds it onto a chair; otherwise a gentle idle.
-function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = false }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean; sitting?: boolean }) {
+// `accessory` (item 1.2) puts the employee's worn item on the head, so the seated robot IS them.
+function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = false, accessory = "none" }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory }) {
   const color = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const belly = useMemo(() => shade(color, 0.32), [color]);
   const dark = useMemo(() => shade(color, -0.5), [color]);
@@ -839,6 +886,8 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
           <mesh position={[0, 0.1, 0]}><cylinderGeometry args={[0.018, 0.018, 0.22, 8]} /><meshStandardMaterial color={metal} metalness={0.6} roughness={0.3} /></mesh>
           <mesh position={[0, 0.24, 0]}><sphereGeometry args={[0.05, 12, 12]} /><meshStandardMaterial color={moodColor ?? "#ff5a5a"} emissive={moodColor ?? "#ff5a5a"} emissiveIntensity={1.4} toneMapped={false} /></mesh>
         </group>
+        {/* the employee's worn accessory (item 1.2) */}
+        <HeadAccessory accessory={accessory} metal={metal} />
       </group>
 
       {/* blob shadow — grounds a standing robot; skipped when seated (it would float at seat
@@ -871,8 +920,8 @@ class RobotBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 /** A robot by colour index: uses a dropped-in .glb model when one exists (see robotModels.ts),
  *  otherwise the hand-built parametric robot. `clip` requests an animation by name (e.g. "Idle",
  *  "Sitting") — ignored if the model doesn't ship that clip. A blob shadow grounds the model. */
-function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false, sitting = false }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean; sitting?: boolean }) {
-  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} sitting={sitting} />;
+function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false, sitting = false, accessory = "none" }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory }) {
+  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} sitting={sitting} accessory={accessory} />;
   const model = robotModelFor(colorIdx);
   if (!model) return parametric;
   return (
@@ -903,7 +952,7 @@ const ROAM_BOUND = 3.4; // stay on the floor slab
 
 // A robot that gently wanders within `radius` of its home, steering around furniture (simple
 // repulsion — the "physics" that keeps it out of the table) and facing its direction of travel.
-function RoamingRobot({ colorIdx, seed, home, radius = 1.1 }: { colorIdx: number; seed: number; home: [number, number]; radius?: number }) {
+function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none" }: { colorIdx: number; seed: number; home: [number, number]; radius?: number; accessory?: Accessory }) {
   const grp = useRef<THREE.Group>(null);
   const s = useRef({ x: home[0], z: home[1], tx: home[0], tz: home[1], next: 0, face: 0 });
   useFrame((st, dt) => {
@@ -944,7 +993,7 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1 }: { colorIdx: number
   });
   return (
     <group ref={grp}>
-      <OfficeRobot colorIdx={colorIdx} seed={seed} clip="Walking" walking />
+      <OfficeRobot colorIdx={colorIdx} seed={seed} clip="Walking" walking accessory={accessory} />
     </group>
   );
 }
@@ -1061,7 +1110,11 @@ function LivingMonitor({ seed, hasProduction, p }: { seed: number; hasProduction
 }
 
 function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false, hasProduction = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean }) {
-  const hue = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
+  // Item 1.2 — the seated robot is the EMPLOYEE: its shell colour + worn accessory come from their
+  // Appearance (stable per person, not per seat), so the office shows your actual, distinct team.
+  const personColor = staff ? staff.appearance.shirt % ROBOT_COLORS.length : colorIdx;
+  const accessory = staff?.appearance.accessory ?? "none";
+  const hue = ROBOT_COLORS[personColor % ROBOT_COLORS.length];
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   // Occasional chair swivel: an occupied seat rotates a few degrees on a slow seeded cadence so a row
   // of workers isn't dead-still. Additive over the seat's base facing (the flip). Empty pod desks
@@ -1100,7 +1153,7 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
         <Chair p={p} hue={hue} />
         {staff && (
           <group position={[0, 0, -0.08]}>
-            <OfficeRobot colorIdx={colorIdx} seed={seed} moodColor={moodColor} clip="Sitting" sitting />
+            <OfficeRobot colorIdx={personColor} seed={seed} moodColor={moodColor} clip="Sitting" sitting accessory={accessory} />
           </group>
         )}
       </group>
@@ -1932,7 +1985,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         );
       })}
       {!inBuild && roaming.map((s, i) => (
-        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={(seats.length + podCount + i) % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} />
+        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={s.appearance.shirt % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} accessory={s.appearance.accessory} />
       ))}
       {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
           hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}

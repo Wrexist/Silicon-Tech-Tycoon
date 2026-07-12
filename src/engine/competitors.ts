@@ -258,6 +258,9 @@ export function advanceCompetitors(
    *  toward the player's top category and adds a heat-scaled strength bonus. Undefined for every rival
    *  when the player has no nemesis — so the pinned sim, which never forms one, is byte-identical. */
   nemesisEdge?: { rivalId: string; topCat: CategoryId; turfWeight: number; strengthBonus: number },
+  /** Item 2.4 — the game seed, so rival-vs-rival clashes can be picked from a DERIVED hash (never the
+   *  sim RNG). Omitted → no clashes (byte-identical); supplied → the field lives on its own. */
+  seed?: number,
 ): { competitors: CompetitorState[]; launches: CompetitorLaunch[]; arcBeats: ArcBeat[] } {
   const launches: CompetitorLaunch[] = [];
   const arcBeats: ArcBeat[] = [];
@@ -343,7 +346,44 @@ export function advanceCompetitors(
     return { ...c, reputation, arcPhase, arcUntil, strengthByCategory, nextLaunchWeek, sharePrice, priceHistory };
   });
 
-  return { competitors, launches, arcBeats };
+  // Rival-vs-rival clash (item 2.4) — the leaderboard shifts on its own. Derived-hash gated (salt 239),
+  // so it never touches the sim RNG; only runs when a seed is supplied.
+  const cl = bal.rivalClash;
+  let out = competitors;
+  if (seed !== undefined && competitors.length >= cl.minField && rvClashHash(seed, week, 239) < cl.chancePerWeek) {
+    const n = competitors.length;
+    const i = Math.floor(rvClashHash(seed, week, 2391) * n) % n;
+    let j = Math.floor(rvClashHash(seed, week, 2392) * n) % n;
+    if (j === i) j = (j + 1) % n;
+    const a = competitors[i], b = competitors[j];
+    const priceWar = rvClashHash(seed, week, 2393) < 0.5;
+    const clampRep = (r: number) => Math.max(bal.arc.repFloor, Math.min(bal.arc.repCeil, r));
+    if (priceWar) {
+      out = competitors.map((c, k) => (k === i || k === j ? { ...c, reputation: clampRep(c.reputation - cl.priceWarRepDip) } : c));
+      arcBeats.push({ competitor: a.name, week, tone: "accent", text: `${a.name} and ${b.name} are locked in a price war — both bleeding margin.` });
+    } else {
+      const winIdx = a.reputation >= b.reputation ? i : j;
+      const loseIdx = winIdx === i ? j : i;
+      const winner = competitors[winIdx], loser = competitors[loseIdx];
+      out = competitors.map((c, k) => {
+        if (k === winIdx) return { ...c, reputation: clampRep(c.reputation + cl.powerPlayWinRep) };
+        if (k === loseIdx) return { ...c, reputation: clampRep(c.reputation - cl.powerPlayLoseRep) };
+        return c;
+      });
+      arcBeats.push({ competitor: winner.name, week, tone: "accent", text: `${winner.name} poached ${loser.name}'s flagship team — the balance of power is shifting.` });
+    }
+  }
+
+  return { competitors: out, launches, arcBeats };
+}
+
+/** Derived hash → [0,1) for rival-vs-rival picks (item 2.4) — same recipe as the other side channels,
+ *  NEVER the sim RNG. */
+function rvClashHash(seed: number, week: number, salt: number): number {
+  let h = (seed ^ Math.imul(week + 1, 0x9e3779b1) ^ Math.imul(salt + 1, 0x85ebca77)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
 /** Every rival's current strength in a category (only those actively shipping there). When the

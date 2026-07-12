@@ -44,6 +44,53 @@ export const TRAIT_INFO: Record<Trait, TraitInfo> = {
 
 const ALL_TRAITS: Trait[] = ["perfectionist", "fastLearner", "hustler", "visionary", "veteran", "teamPlayer"];
 
+// ---------- Names & bios (item 2.1) — every hire is a CHARACTER, not a recycled first name ----------
+// Full first+last names from coprime strides over the two pools, so a game's ~dozen hires almost
+// never collide (the old code recycled 16 first-names by modulo → routine duplicate "Riley"s).
+const FIRST_NAMES = [
+  "Riley", "Sam", "Jordan", "Casey", "Ari", "Noa", "Quinn", "Devin", "Max", "Robin", "Sky", "Frankie",
+  "Ellis", "Rowan", "Tatum", "Wren", "Priya", "Kenji", "Mateo", "Layla", "Omar", "Ines", "Yuki", "Dax",
+  "Nadia", "Theo", "Zoe", "Idris", "Mira", "Cyrus", "Leena", "Bo",
+];
+const LAST_NAMES = [
+  "Chen", "Okafor", "Nakamura", "Silva", "Kowalski", "Reyes", "Haddad", "Novak", "Bauer", "Mensah",
+  "Rossi", "Kim", "Andersson", "Patel", "Vance", "Oyelaran", "Sato", "Moreau", "Costa", "Ibrahim",
+  "Lindqvist", "Delgado", "Fischer", "Adeyemi", "Petrov", "Nguyen", "Marsh", "Cabrera", "Halvorsen", "Ferro",
+];
+
+/** A stable full name for the hire with counter `index` — coprime strides keep collisions rare. */
+export function staffName(index: number): string {
+  const first = FIRST_NAMES[Math.abs(index * 7) % FIRST_NAMES.length];
+  const last = LAST_NAMES[Math.abs(index * 13 + 5) % LAST_NAMES.length];
+  return `${first} ${last}`;
+}
+
+// One-line character hook, chosen deterministically by (trait, index). Keeps hires memorable and makes
+// losing someone to poaching actually sting. Purely cosmetic — never read by the sim.
+const BIO_BY_TRAIT: Record<Trait, string[]> = {
+  perfectionist: ["Redlines every spec twice — ships nothing they're ashamed of.", "Keeps a drawer of rejected prototypes as a warning.", "Will hold a launch over a half-pixel seam."],
+  fastLearner: ["Picked up three toolchains last quarter — allergic to standing still.", "Reads the changelog for fun.", "Onboarded in a week, mentored a junior in two."],
+  hustler: ["First in, last out — runs on cold brew and deadlines.", "Ships on Fridays out of spite.", "Turned a weekend hack into a shipping feature."],
+  visionary: ["Pitches ten-year roadmaps in elevator rides.", "Sketches the next three devices on napkins.", "Already bored of the thing you're launching."],
+  veteran: ["Shipped devices you grew up with — unflappable in a crunch.", "Has a war story for every bug.", "Seen three platform wars; picks their battles."],
+  teamPlayer: ["The glue of every standup — remembers everyone's coffee order.", "Unblocks two people before their first coffee.", "Throws the best release party in the building."],
+};
+const ORIGIN_BY_SPECIALTY: Record<Specialty, string> = {
+  performance: "ex-silicon startup",
+  quality: "former display lab",
+  battery: "ex-cell chemist",
+  design: "art-school dropout",
+  ecosystem: "ex-platform team",
+};
+
+/** A one-line bio/quirk for a hire — a trait-driven hook plus a specialty origin. Deterministic
+ *  (trait + specialty + index), RNG-free, cosmetic. */
+export function staffBio(trait: Trait, specialty: Specialty, index: number): string {
+  const list = BIO_BY_TRAIT[trait];
+  const hook = list[Math.abs(index * 5 + 2) % list.length];
+  return `${ORIGIN_BY_SPECIALTY[specialty]} · ${hook}`;
+}
+
 /** Human-readable role title for feed/log lines. The three product roles keep their lowercase wording
  *  (existing copy unchanged); the specialists get a proper title so "Hired Riley, hr." never ships. */
 export const ROLE_TITLE: Record<StaffRole, string> = {

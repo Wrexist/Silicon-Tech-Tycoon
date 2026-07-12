@@ -43,10 +43,12 @@ describe("Era 4 research projects — the AI Era arrives with real breakthroughs
     notch: "punch",
   } as unknown as import("../engine/types.ts").Product;
 
-  it("ships exactly four era-4 projects", async () => {
+  it("ships exactly four era-4 breakthroughs (plus the era-4 capstone)", async () => {
     const { RESEARCH_PROJECTS } = await import("../engine/research.ts");
     const era4 = RESEARCH_PROJECTS.filter((p) => p.era === 4);
-    expect(era4.map((p) => p.id).sort()).toEqual(["aiCopilot", "lightsOut", "neuralMarketing", "predictiveSupply"]);
+    // The four core breakthroughs (item 4.2 adds the prerequisite-gated Singularity Lab capstone).
+    expect(era4.filter((p) => !p.capstone).map((p) => p.id).sort()).toEqual(["aiCopilot", "lightsOut", "neuralMarketing", "predictiveSupply"]);
+    expect(era4.filter((p) => p.capstone).map((p) => p.id)).toEqual(["singularityLab"]);
     for (const p of era4) expect(p.rpCost).toBeGreaterThan(140); // above era 3's ceiling — endgame sinks
   });
 

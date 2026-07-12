@@ -47,6 +47,10 @@ export interface RegionalEvent {
   cost: Money;             // cash to respond
   loyaltyRespond: number;  // loyalty delta if you respond (and pay)
   loyaltyIgnore: number;   // loyalty delta if you let it pass
+  /** Item 5.7 — the actual rival surging here (a real competitor name, salt 269), on rivalSurge only. */
+  rivalName?: string;
+  /** Item 5.7 — the region's buying taste ("design-led", …) for region-specific flavor. */
+  tasteLabel?: string;
 }
 
 /** Tiny deterministic hash → [0,1), same recipe as eureka / staff moments — never the sim RNG. */
@@ -66,8 +70,14 @@ export function regionalEventDue(seed: number, week: number): boolean {
 }
 
 /** Build the event: pick one of the eligible (non-home, unlocked) regions + a kind, scale the response
- *  cost by era. `regions` must be the player's unlocked NON-HOME markets (non-empty). Pure. */
-export function generateRegionalEvent(seed: number, week: number, regions: readonly RegionId[], era: number): RegionalEvent {
+ *  cost by era. `regions` must be the player's unlocked NON-HOME markets (non-empty). Item 5.7 — pass
+ *  `rivalNames` (live competitor names) so a rivalSurge names the ACTUAL surging rival (salt 269), and
+ *  `tasteLabel` so the copy reflects the region's buying taste. Both optional → older callers/tests
+ *  unaffected. Pure + deterministic. */
+export function generateRegionalEvent(
+  seed: number, week: number, regions: readonly RegionId[], era: number,
+  rivalNames?: readonly string[], tasteLabel?: string,
+): RegionalEvent {
   const ev = BALANCE.market.regions.events;
   const regionId = regions[Math.floor(hash01(seed, week, 223) * regions.length) % regions.length];
   const kind = KINDS[Math.floor(hash01(seed, week, 227) * KINDS.length) % KINDS.length];
@@ -76,5 +86,9 @@ export function generateRegionalEvent(seed: number, week: number, regions: reado
     kind === "boom" ? { r: ev.boomLoyaltyRespond, i: ev.boomLoyaltyIgnore }
     : kind === "tariff" ? { r: ev.tariffLoyaltyRespond, i: ev.tariffLoyaltyIgnore }
     : { r: ev.surgeLoyaltyRespond, i: ev.surgeLoyaltyIgnore };
-  return { week, regionId, kind, cost, loyaltyRespond: loyalty.r, loyaltyIgnore: loyalty.i };
+  // Name the real surging rival on a rivalSurge (derived hash, salt 269 — never the sim rng).
+  const rivalName = kind === "rivalSurge" && rivalNames && rivalNames.length > 0
+    ? rivalNames[Math.floor(hash01(seed, week, 269) * rivalNames.length) % rivalNames.length]
+    : undefined;
+  return { week, regionId, kind, cost, loyaltyRespond: loyalty.r, loyaltyIgnore: loyalty.i, rivalName, tasteLabel };
 }

@@ -559,6 +559,51 @@ function tidyCompact(
   return autoRouteBelts({ machines: placed, belts: [] }, maxW, props);
 }
 
+/** LAYOUT QUALITY (item 3.2) — a 0..1 score for how well the line is HAND-LAID, rewarding tidy work:
+ *    • recipe order — the processing machines, in the sequence the belt threads them, should follow
+ *      the canonical recipe (mill→press→screen→arm→qa); out-of-order machines score lower.
+ *    • straightness — long straight belt lanes score high, staircase zig-zags score low.
+ *  0 for an incomplete/unwired line. A clean reference horseshoe (demoFloor / an auto-route) scores
+ *  near the top. Pure + deterministic (reuses beltChain/beltPath geometry; no RNG). Feeds the layout
+ *  bonus-scaler below, and surfaces as a 0–100% "layout" meter in Factory Mode. */
+export function lineEfficiency(floor: FactoryFloor): number {
+  if (!lineComplete(floor)) return 0;
+  const chain = beltChain(floor.belts);
+  if (chain.length < 2) return 0;
+  // Straightness — fraction of belt steps that DON'T turn (a long lane is all one heading).
+  let straight = 0;
+  for (let i = 1; i < chain.length; i++) if (chain[i].dir === chain[i - 1].dir) straight++;
+  const straightness = straight / (chain.length - 1);
+  // Recipe order — each present processing machine's nearest point along the belt path should
+  // advance in recipe sequence; score = fraction of adjacent present-stage pairs that don't regress.
+  const path = beltPath(floor.belts);
+  const nearestFrac = (kind: MachineKind): number => {
+    const m = floor.machines.find((mm) => mm.kind === kind);
+    if (!m || path.length < 2) return -1;
+    const [mx, mz] = machineCenter(m);
+    let bestI = 0, bestD = Infinity;
+    path.forEach(([x, z], i) => { const d = (x - mx) ** 2 + (z - mz) ** 2; if (d < bestD) { bestD = d; bestI = i; } });
+    return bestI / (path.length - 1);
+  };
+  const present = ROUTE_STAGE_ORDER.filter((k) => floor.machines.some((m) => m.kind === k));
+  let orderScore = 1;
+  if (present.length >= 2) {
+    const fracs = present.map(nearestFrac);
+    let good = 0;
+    for (let i = 1; i < present.length; i++) if (fracs[i] >= fracs[i - 1]) good++;
+    orderScore = good / (present.length - 1);
+  }
+  return Math.max(0, Math.min(1, 0.45 * straightness + 0.55 * orderScore));
+}
+
+// A COMPLETE line always keeps at least LAYOUT_FLOOR of its earned bonus (so wiring up is never a
+// trap); tidy layout (item 3.2) scales the remainder up to the full bonus. layoutBonusScale ∈
+// [LAYOUT_FLOOR, 1]. Pure — an unwired floor never reaches here (the mults early-return ×1).
+const LAYOUT_FLOOR = 0.6;
+function layoutBonusScale(floor: FactoryFloor): number {
+  return LAYOUT_FLOOR + (1 - LAYOUT_FLOOR) * lineEfficiency(floor);
+}
+
 /** How the player-built line affects production — a build-TIME multiplier the sim reads.
  *  The floor is PURE UPSIDE, anchored so a company that never touches it plays the exact baseline:
  *    • no wired line (new games start with just an Intake and a Packer) → ×1, NEUTRAL — the
@@ -570,6 +615,8 @@ function tidyCompact(
  *      with COVERAGE — a freshly wired Intake→Packer keeps 25% of it, and every recipe machine
  *      the player adds grows it toward the full 100%. Every purchase on the $40K+ climb moves
  *      the number; there is no dead zone where wiring the line pays nothing.
+ *    • LAYOUT (item 3.2): the earned bonus is scaled by how tidily the line is laid (lineEfficiency),
+ *      keeping ≥60% even when messy → so hand-laying in recipe order along straight lanes pays off.
  *  Pure + bounded ≤1 (never a penalty); no RNG, so the determinism pin is untouched. */
 export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<MachineKind>): number {
   if (!lineComplete(floor)) return 1;
@@ -583,7 +630,38 @@ export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<Mach
     for (const k of requiredKinds) { total++; if (present.has(k)) covered++; }
     if (total > 0) bonus *= 0.25 + 0.75 * (covered / total);
   }
+  bonus *= layoutBonusScale(floor); // item 3.2 — tidy layouts earn more of the bonus
   return Math.min(1, Math.max(0.55, 1 - bonus));
+}
+
+/** Player-built line effect on THROUGHPUT (item 3.1) — a capacity MULTIPLIER the sim applies to the
+ *  factory's weekly ceiling, so a well-machined floor lets a capacity-limited line build more before
+ *  overtime bites. PURE UPSIDE, anchored ×1 for an unwired/bare floor (the contract line carries you,
+ *  so an empty floor is never a penalty). A complete Intake→Packer line earns ×1.15 base; every extra
+ *  Assembly Arm (+12%) and Test Station (+8%) widens the line, each machine-upgrade level a touch more
+ *  (+3%), up to a ×2.0 ceiling. No RNG → the determinism pin is untouched (unwired sim floor = ×1).
+ *  For an unlimited-capacity factory this is a harmless no-op (Infinity × k = Infinity). */
+export function lineCapacityMult(floor: FactoryFloor): number {
+  if (!lineComplete(floor)) return 1;
+  const arms = floor.machines.filter((m) => m.kind === "arm").length;
+  const qas = floor.machines.filter((m) => m.kind === "qa").length;
+  const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
+  const mult = 1.15 + 0.12 * Math.max(0, arms - 1) + 0.08 * Math.max(0, qas - 1) + 0.03 * upg;
+  const scaled = 1 + (Math.min(2.0, mult) - 1) * layoutBonusScale(floor); // item 3.2 — tidy layout earns more
+  return Math.min(2.0, Math.max(1, scaled));
+}
+
+/** Player-built line effect on per-unit COST (item 3.1) — a multiplier CLAMPED ≤1 (never a penalty).
+ *  A complete line trims unit cost through automation: ×0.97 base, each extra Test Station (−2%) and
+ *  machine-upgrade level (−1%) shaving a little more, down to a ×0.85 floor. Unwired/bare floor → ×1
+ *  (neutral), so the baseline economy and the pinned sim are byte-identical. Pure. */
+export function lineUnitMult(floor: FactoryFloor): number {
+  if (!lineComplete(floor)) return 1;
+  const qas = floor.machines.filter((m) => m.kind === "qa").length;
+  const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
+  const raw = Math.max(0.85, 0.97 - 0.02 * Math.max(0, qas - 1) - 0.01 * upg);
+  const bonus = (1 - raw) * layoutBonusScale(floor); // item 3.2 — tidy layout earns more of the discount
+  return Math.min(1, Math.max(0.85, 1 - bonus));
 }
 
 /** Which of a device's required machine kinds are NOT on the floor — surfaced in the HUD so the

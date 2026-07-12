@@ -11,6 +11,9 @@ export interface EpilogueInput {
   products: number; // lifetime products launched
   fans: number;
   legacy: number; // prestige level (0 = first company)
+  /** Item 4.4 — a doctrine clause (from research.doctrineSummary), naming the Houses the company
+   *  committed to. Empty/undefined → no clause, so an unforked run reads exactly as before. */
+  doctrine?: string;
 }
 
 function fmtFans(n: number): string {
@@ -49,5 +52,7 @@ export function campaignEpilogue(i: EpilogueInput): string {
       ? "Across every company you have founded, the legend of its founder only grows."
       : "The cramped garage where it all began is a stop on the company tour now.";
 
-  return `Five years later. ${standing} ${body} ${close}`;
+  // Item 4.4 — a doctrine clause slots in before the close when the company committed to a House.
+  const doctrine = i.doctrine ? ` ${i.doctrine}` : "";
+  return `Five years later. ${standing} ${body}${doctrine} ${close}`;
 }

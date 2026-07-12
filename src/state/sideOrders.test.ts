@@ -105,6 +105,29 @@ describe("side orders in the tick", () => {
     expect(declined.cash).toBe(withOffer.cash);
   });
 
+  it("item 3.5: a tidy line and a returning client both earn a completion bonus", () => {
+    const seed = 9;
+    const order = { ...generateSideOrder(seed, 30, 1), startedWeek: 0 };
+    const atDelivery = order.startedWeek + order.weeksNeeded - 1;
+    const payout = toDollars(sideOrderPayout(order));
+    const base = (over: Partial<GameState>): GameState => ({
+      ...newGame(seed), week: atDelivery, nextEventWeek: 9_999, activeSideOrder: order, ...over,
+    });
+
+    // Unwired floor (lineEfficiency 0) → no quality bonus. A wired demo floor → a real bonus on top.
+    const bare = advanceOneWeek(base({}));
+    const tidy = advanceOneWeek(base({ factoryFloor: demoFloor() }));
+    const bareGain = toDollars(bare.cash) - payout; // ≈ -week burn (no quality bonus)
+    const tidyGain = toDollars(tidy.cash) - payout;
+    expect(tidyGain).toBeGreaterThan(bareGain); // the tidy line delivered a quality bonus
+    expect(tidy.sideOrderClients?.[order.clientName]).toBe(1); // the delivery is remembered
+
+    // A returning client (prior deliveries) earns a loyalty premium on top of the same quality bonus.
+    const loyal = advanceOneWeek(base({ factoryFloor: demoFloor(), sideOrderClients: { [order.clientName]: 3 } }));
+    expect(toDollars(loyal.cash)).toBeGreaterThan(toDollars(tidy.cash));
+    expect(loyal.sideOrderClients?.[order.clientName]).toBe(4);
+  });
+
   it("starterFloor lacks the machines every client asks for (the tease works)", () => {
     // Every client requires at least one processing machine the bare floor doesn't have.
     for (let w = 16; w < 60; w++) {

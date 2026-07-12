@@ -37,6 +37,37 @@ describe("interrupt budget", () => {
     expect(s.pendingEarnings ?? null).not.toBeNull();
   });
 
+  it("item C2: the quiet gap is TIGHTER in the late eras (more happens in the wait)", () => {
+    const late = BALANCE.interrupts.minGapWeeksLate;
+    expect(late).toBeLessThan(GAP); // the late gap is genuinely shorter
+    // A listed company advanced to a late era defers a due earnings call by only the SHORTER gap.
+    let s = { ...listed(9), era: BALANCE.interrupts.lateEra } as GameState;
+    for (let w = 0; w < SH.quarterWeeks - 1; w++) s = advanceOneWeek(s);
+    s = { ...s, era: BALANCE.interrupts.lateEra, lastInterruptWeek: s.week } as GameState;
+    // It waits only `late - 1` quiet weeks, then lands on the next — proving the tighter late gap.
+    for (let w = 0; w < late - 1; w++) { s = advanceOneWeek(s); s = { ...s, era: BALANCE.interrupts.lateEra }; expect(s.pendingEarnings ?? null).toBeNull(); }
+    s = advanceOneWeek(s);
+    expect(s.pendingEarnings ?? null).not.toBeNull();
+  });
+
+  it("yields a due earnings call while ANY other interrupt card is still unresolved", () => {
+    // Regression for the guard-drift fix: every opportunistic block gates on the shared
+    // `noPendingInterrupt` predicate, so a due earnings call must NOT stack on top of an
+    // unresolved card that has no auto-expiry (e.g. a post-launch event).
+    let s = listed(3);
+    for (let w = 0; w < SH.quarterWeeks + 1; w++) {
+      // Keep a foreign interrupt pinned "open" the whole time — it never auto-clears.
+      s = { ...s, pendingPostLaunch: { week: s.week, productId: "p", productName: "P", kind: "stall", title: "t", body: "b", options: [] } } as GameState;
+      s = advanceOneWeek(s);
+    }
+    expect(s.pendingEarnings ?? null).toBeNull(); // deferred: the screen is busy
+
+    // Clear the blocking card; the deferred earnings call lands on the next quiet week.
+    s = { ...s, pendingPostLaunch: null } as GameState;
+    s = advanceOneWeek(s);
+    expect(s.pendingEarnings ?? null).not.toBeNull();
+  });
+
   it("a firing interrupt stamps the shared budget", () => {
     let s = listed(7);
     for (let w = 0; w < SH.quarterWeeks + 1; w++) s = advanceOneWeek(s);

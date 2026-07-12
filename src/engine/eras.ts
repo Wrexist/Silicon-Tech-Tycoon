@@ -47,15 +47,25 @@ export function eraContext(era: number): EraContext {
   return ERA_CONTEXT[Math.max(1, Math.min(Math.round(era), BALANCE.eras.length))] ?? ERA_CONTEXT[1];
 }
 
-/** Plain-language summary of what the given era changes vs. the baseline (for a legible readout). */
+/** Plain-language summary of what CHANGES entering `era` vs. the previous one (for a legible readout).
+ *  Reads the real levers — not just `eraModifier`, but the competition ramp and market-volume growth —
+ *  so the Garage→Growth step (which has no `eraModifier` delta but a big competition + volume jump) is
+ *  finally surfaced instead of reading as "same era, new categories". Pure. */
 export function eraRuleSummary(era: number): string | null {
-  const m = eraModifier(era);
   const bits: string[] = [];
-  if (m.ecosystemRate > 1) bits.push("ecosystem services pay more");
-  if (m.marketingHype > 1) bits.push("marketing reaches further");
-  if (m.demandVariance > 1) bits.push("demand is more volatile");
-  if (m.toolingMult > 1) bits.push("products cost more to tool up");
-  if (m.leadWeeks > 0) bits.push("builds take longer");
+  const m = eraModifier(era);
+  const prev = eraModifier(era - 1);
+  const P = BALANCE.market.competition.eraPressure;
+  const V = BALANCE.market.eraVolumeScale;
+  const idx = Math.max(0, Math.floor(era) - 1);
+  const pIdx = Math.max(0, idx - 1);
+  if (era >= 2 && P[idx] > P[pIdx] + 1e-9) bits.push("rivals now contest you in force");
+  if (era >= 2 && V[idx] > V[pIdx] + 1e-9) bits.push("the market is bigger");
+  if (m.ecosystemRate > prev.ecosystemRate) bits.push("ecosystem services pay more");
+  if (m.marketingHype > prev.marketingHype) bits.push("marketing reaches further");
+  if (m.demandVariance > prev.demandVariance) bits.push("demand is more volatile");
+  if (m.toolingMult > prev.toolingMult) bits.push("products cost more to tool up");
+  if (m.leadWeeks > prev.leadWeeks) bits.push("builds take longer");
   return bits.length ? bits.join(" · ") : null;
 }
 

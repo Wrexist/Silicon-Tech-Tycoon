@@ -4,9 +4,9 @@
 // Starting a scenario parks the player's freeform company (stashed, restorable from the scenario
 // tracker's "return to your company"), so it asks for confirmation first but never destroys it.
 import { useRef, useState } from "react";
-import { Star, Target, Clock } from "lucide-react";
+import { Star, Target, Clock, Lock } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
-import { SCENARIOS, type Scenario } from "../engine/scenarios.ts";
+import { SCENARIOS, scenarioUnlocked, scenarioUnlockStars, type Scenario } from "../engine/scenarios.ts";
 import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { netWorth } from "../state/gameState.ts";
 import { format } from "../engine/money.ts";
@@ -80,11 +80,14 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
         {SCENARIOS.map((s) => {
           const earned = best[s.id] ?? 0;
           const isActive = state.activeScenario === s.id;
+          // Item 5.1 — the campaign chain: a scenario stays locked until you've banked enough total stars.
+          const unlocked = scenarioUnlocked(s, totalStars);
+          const needStars = scenarioUnlockStars(s);
           return (
-            <li key={s.id} className={`scn__card${earned > 0 ? " scn__card--played" : ""}`}>
+            <li key={s.id} className={`scn__card${earned > 0 ? " scn__card--played" : ""}${!unlocked ? " scn__card--locked" : ""}`}>
               <div className="scn__card-top">
                 <span className={`scn__diff scn__diff--${s.difficulty}`}>{DIFFICULTY_LABEL[s.difficulty]}</span>
-                <Stars n={earned} />
+                {unlocked ? <Stars n={earned} /> : <span className="scn__lock"><Lock size={13} /> {needStars}★ to unlock</span>}
               </div>
               <h3 className="scn__name">{s.name}</h3>
               <p className="scn__tagline">{s.tagline}</p>
@@ -109,9 +112,12 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
                 block
                 size="sm"
                 variant={isActive ? "secondary" : "primary"}
+                disabled={!unlocked}
                 onClick={() => setConfirmId(s.id)}
               >
-                <Target size={15} /> {isActive ? "Restart this scenario" : earned > 0 ? "Play again" : "Play scenario"}
+                {unlocked
+                  ? <><Target size={15} /> {isActive ? "Restart this scenario" : earned > 0 ? "Play again" : "Play scenario"}</>
+                  : <><Lock size={15} /> Earn {needStars}★ to unlock</>}
               </Button>
             </li>
           );

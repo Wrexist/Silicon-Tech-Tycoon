@@ -264,6 +264,17 @@ export const BALANCE = {
     // even a weak product that ships should sell *something* (× marketSize), but small enough
     // that a flop can't recoup its tooling — so launch quality genuinely matters.
     floorUnits: 18,
+    // Word-of-mouth curve shaping (item 1.1) — the SAME lifetime total is redistributed over weeks by
+    // verdict, so a loved product *feels* loved (fast ramp, long tail, a mid-tail second wind) and a
+    // panned one spikes then collapses. Does NOT change totalUnits (revenue-neutral in aggregate for a
+    // given score) — only WHEN the units land. "steady" reproduces the legacy curve exactly, so
+    // ordinary launches are unchanged. rampPow ↓ = quicker to peak; declinePow ↓ = longer tail.
+    wordOfMouth: {
+      hit: { rampPow: 1.35, declinePow: 0.9, tailLift: 0.32 },
+      solid: { rampPow: 1.5, declinePow: 1.12, tailLift: 0.1 },
+      steady: { rampPow: 1.6, declinePow: 1.25, tailLift: 0 }, // == legacy default
+      flop: { rampPow: 1.95, declinePow: 1.75, tailLift: 0 },
+    } as Record<"hit" | "solid" | "steady" | "flop", { rampPow: number; declinePow: number; tailLift: number }>,
   },
 
   // --- Mid-lifecycle marketing push (the margin-preserving sibling of a price cut) ---
@@ -300,7 +311,9 @@ export const BALANCE = {
   // lands as a moment instead of a nag. Scheduled ceremonies (the year-52 awards) are EXEMPT from the
   // gate — they must fire on their week — but still stamp, so nothing piles on right after them.
   interrupts: {
-    minGapWeeks: 3, // at least this many quiet weeks between opportunistic full-screen interrupts
+    minGapWeeks: 3,     // quiet weeks between opportunistic interrupts in the early eras (1–2)
+    minGapWeeksLate: 2, // …tightened in eras 3–4 so the longer, weightier late builds have more to do
+    lateEra: 3,         // the first era that uses the tighter gap
   },
   // Mid-lifecycle price cuts, now repeatable (a fading product can be marked down more than once).
   // Each cut must still be below the current price and above unit cost, so the price naturally floors
@@ -529,6 +542,22 @@ export const BALANCE = {
       mentorXpCap: 0.3,      // …capped, so a room full of mentors can't runaway-train the team
       secondSpecialtyWeight: 0.8, // the second specialty's design bonus vs the primary's (1.0)
     },
+    // Staff LIFE events (item 2.2) — periodic human turning points (burnout, an outside offer, a
+    // milestone) the player answers with a small choice. Cadence/cooldown keep them a texture, not a
+    // nag; a struggling teammate is surfaced first so morale becomes an ongoing, personal decision.
+    lifeEvents: {
+      minEra: 2,             // the garage era stays a protected sandbox
+      minTenureWeeks: 10,    // been around long enough to have a "story"
+      cadenceWeeks: 26,      // avg weeks between life events
+      cooldownWeeks: 14,     // hard minimum between them
+      restlessTenureWeeks: 40, // a "wants a bigger challenge" beat needs real tenure…
+      restlessSkill: 6,      // …and seniority
+      retainWeeks: 24,       // loyalty earned: weeks of poach-immunity a good answer buys
+      raiseCost: 6000,       // $ — a retention raise
+      courseCost: 9000,      // $ — funding a course (levels them up)
+      partyCost: 4000,       // $ — a team party
+      protoCost: 5000,       // $ — funding a side prototype
+    },
   },
 
   // --- Recruitment: pay to run a search; after `weeks` it returns `candidates` applicants with
@@ -727,6 +756,19 @@ export const BALANCE = {
         peaking:   { declining: 0.55, stable: 0.45 },
         declining: { stable: 0.6, ascending: 0.4 },
       } as Record<string, Record<string, number>>,
+    },
+    // Rival-vs-rival dynamics (item 2.4) — the field lives WITHOUT the player: occasional clashes
+    // between two rivals (a price war that bruises both, or a power play where a stronger one poaches
+    // a weaker one's team) shift the leaderboard on their own. Small, bounded reputation nudges +
+    // a feed beat, driven by a DERIVED hash (salt 239) — never the sim RNG — and only when a `seed`
+    // is supplied, so callers that omit it (and the pinned solo sim's direct competitor tests) are
+    // byte-identical.
+    rivalClash: {
+      chancePerWeek: 0.06, // ~one clash every ~16 weeks
+      priceWarRepDip: 2,   // both rivals lose this much reputation in a price war
+      powerPlayWinRep: 2,  // the aggressor gains…
+      powerPlayLoseRep: 3, // …at the target's expense
+      minField: 3,         // never clash below this many rivals
     },
     // The ARCH-RIVAL / NEMESIS — one rival becomes YOUR villain. A living "heat" meter + a head-to-head
     // record that escalates on every clash (you overtake them, they strike you, an awards duel) and cools
@@ -1113,6 +1155,68 @@ export const BALANCE = {
   factory: {
     overtimeSurcharge: 0.6, // +60% on each over-capacity unit ("overtime" strategy)
     defectMaxPenalty: 18, // max quality-stat hit when running fully over capacity ("defects" strategy)
+  },
+
+  // --- Late-era operating drag (item C3): the endgame is no longer a free ratchet ---
+  // Running a frontier-scale company costs more the bigger you get. A small weekly cash cost that
+  // scales with lifetime revenue (a proxy for scale/complexity), starting in the AI era, so the late
+  // game has a real headwind that eats into growth and rewards keeping a cash cushion — without being
+  // able to bankrupt a solvent company (capped, and 0 before the drag era so the early game and the
+  // pinned sim's first three eras are byte-identical).
+  lateEra: {
+    dragEra: 4,                       // the drag begins in the AI era
+    dragFracPerWeek: 0.0012,          // weekly cost = this × lifetime revenue
+    dragCap: dollars(10_000_000),     // never more than this per week
+  },
+
+  // --- Legacy Era (item 4.1): the post-IPO endgame — board mandates + moonshot megaprojects ---
+  // Everything here is gated behind wentPublic, which the pinned solo sim never reaches → byte-identical.
+  legacyEra: {
+    mandate: {
+      windowWeeks: 13,            // a fiscal quarter to hit the board's directive
+      escalationPerQuarter: 0.35, // the bar (and reward) rises each quarter…
+      escalationCapQuarters: 12,  // …but plateaus here (~3 years post-IPO) so it stays reachable
+      maxHits: 4,                 // the "land N hits this quarter" bar never exceeds this
+      baseRevenue: 40_000_000,    // dollars — quarter-1 revenue target
+      fansGrowthTarget: 0.15,     // "grow fans by ~15%" mandate
+      fansFloor: 5_000,
+      baseReward: 20_000_000,     // dollars — quarter-1 cash reward
+      repReward: 2,
+    },
+  },
+
+  // --- Side-order pipeline (item 3.5): floor-quality + client-loyalty bonuses on client commissions ---
+  // All applied at COMPLETION of an accepted order (opt-in), so the pinned sim never triggers them.
+  sideOrders: {
+    qualityBonusPct: 0.2,     // max on-delivery bonus from a tidy, capable line (× lineEfficiency, 3.1/3.2)
+    loyaltyBonusPct: 0.05,    // extra bonus per PRIOR completed order with the same client
+    loyaltyBonusMaxPct: 0.25, // cap on the loyalty premium
+  },
+
+  // --- Post-launch reactive events (item 3.6): mid-lifecycle moments on a product already selling ---
+  // Opportunistic interrupt sharing the global budget; opt-in resolution → the pinned sim raises none.
+  postLaunch: {
+    minEra: 2,               // the Garage era stays a protected learning sandbox
+    cadenceWeeks: 30,        // ~one per this window (derived hash, salt 257)
+    cooldownWeeks: 16,       // min gap between post-launch events
+    minWeeksLive: 2,         // a product must have been out this long to draw one
+    minWeeksLeft: 2,         // …and still have this much selling window left to matter
+    momentumSellThrough: 0.8, // ≥ this sell-through → the "flying off shelves" beat
+    stallSellThrough: 0.3,   // ≤ this sell-through → the "stalling" beat
+    pushCost: 8_000, pushFans: 600, pushRep: 3,   // hype push on a hot seller
+    clearanceGain: 12_000, clearanceRepDip: 2,    // clearance markdown on a slow mover
+    supplyCost: 10_000, supplyRepDip: 3,          // secure-supply vs. take-the-hit
+  },
+
+  // --- Design briefs (item 3.3): commit a product to a target buyer segment for a launch bonus ---
+  // Opt-in only (product.targetSegment). Nailing the target's stat FIT at launch earns bonus rep +
+  // fans; missing it forgoes the bonus but never penalises — so the commitment is a gamble the player
+  // chooses, not a tax. A near-perfect fit scales the bonus up to its full value.
+  briefs: {
+    fitThreshold: 66,   // the target segment's fit (0..100) must clear this to "hit the brief"
+    fitFull: 88,        // …and the bonus reaches full strength at this fit (linearly between the two)
+    repBonus: 4,        // reputation added on a fully-hit brief
+    fanBonus: 500,      // fans added on a fully-hit brief
   },
 
   // --- Creative / Sandbox mode: design without limits ---

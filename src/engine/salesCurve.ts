@@ -6,9 +6,29 @@ export interface SalesForecast {
   weeklyUnits: number[]; // length = sales.totalWeeks
 }
 
-/** Shape weights per week (unnormalized). */
-function curveWeights(): number[] {
-  const { totalWeeks, rampPow, declinePow } = BALANCE.sales;
+/** Word-of-mouth curve shaping (item 1.1). Overrides the default ramp/decline and adds an optional
+ *  late "second wind" hump — so a loved product ramps fast and sells for weeks, a panned one spikes
+ *  and collapses. All fields optional → omitted fields fall back to the flat BALANCE.sales defaults,
+ *  so passing `undefined` reproduces the original curve byte-for-byte. */
+export interface CurveShape {
+  rampPow?: number;
+  declinePow?: number;
+  /** A gentle mid-tail resurgence (word of mouth), added to the decline weights. 0 = none. */
+  tailLift?: number;
+}
+
+/** The curve shape for a launch verdict (item 1.1). "steady" is exactly the legacy default. */
+export function verdictCurveShape(verdict: "hit" | "solid" | "steady" | "flop"): CurveShape {
+  return BALANCE.sales.wordOfMouth[verdict];
+}
+
+/** Shape weights per week (unnormalized). `shape` word-of-mouth-tunes the silhouette; omitted → the
+ *  flat BALANCE.sales defaults (identical to the pre-1.1 curve). */
+function curveWeights(shape?: CurveShape): number[] {
+  const { totalWeeks } = BALANCE.sales;
+  const rampPow = shape?.rampPow ?? BALANCE.sales.rampPow;
+  const declinePow = shape?.declinePow ?? BALANCE.sales.declinePow;
+  const tailLift = Math.max(0, shape?.tailLift ?? 0);
   const peakWeek = Math.min(BALANCE.sales.peakWeek, totalWeeks - 1); // guard divide-by-zero if misconfigured
   const declineSpan = Math.max(1, totalWeeks - peakWeek);
   const w: number[] = [];
@@ -17,16 +37,21 @@ function curveWeights(): number[] {
       w.push(Math.pow((i + 1) / (peakWeek + 1), rampPow));
     } else {
       const t = (i - peakWeek) / declineSpan;
-      w.push(Math.pow(Math.max(0, 1 - t), declinePow));
+      let d = Math.pow(Math.max(0, 1 - t), declinePow);
+      // Word-of-mouth second wind: a soft hump centred mid-decline (peaks ~55% through the tail),
+      // so a hit's sales resurge before the final fade instead of monotonically decaying.
+      if (tailLift > 0) d += tailLift * Math.exp(-((t - 0.55) ** 2) / (2 * 0.22 * 0.22));
+      w.push(d);
     }
   }
   return w;
 }
 
-/** Spread a fixed total over the ramp→peak→decline curve (sums to exactly `totalUnits`). */
-export function distributeOverCurve(totalUnits: number): number[] {
+/** Spread a fixed total over the ramp→peak→decline curve (sums to exactly `totalUnits`). `shape`
+ *  word-of-mouth-tunes the silhouette (item 1.1); omitted → the legacy curve. */
+export function distributeOverCurve(totalUnits: number, shapeOverride?: CurveShape): number[] {
   const total = Math.max(0, Math.round(totalUnits));
-  const shape = curveWeights();
+  const shape = curveWeights(shapeOverride);
   const shapeSum = shape.reduce((a, b) => a + b, 0) || 1;
   const weeklyUnits: number[] = shape.map((s) => Math.floor((s / shapeSum) * total));
   let assigned = weeklyUnits.reduce((a, b) => a + b, 0);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { criticReviews, OUTLETS, type ReviewInputs, type ReviewVerdict } from "./reviews.ts";
+import { criticReviews, foldOutletThreads, OUTLETS, REVIEW_THREAD, type CriticReviews, type ReviewInputs, type ReviewVerdict } from "./reviews.ts";
 import type { Stats } from "./types.ts";
 
 const stats = (over: Partial<Stats> = {}): Stats => ({
@@ -78,5 +78,57 @@ describe("criticReviews", () => {
     const r = criticReviews(base({ verdict: "hit", stats: stats({ design: 90, battery: 20 }) }));
     expect(r.pros.join(" ")).toMatch(/design/);
     expect(r.cons.join(" ")).toMatch(/battery/);
+  });
+});
+
+describe("foldOutletThreads (item 2.6)", () => {
+  const rv = (outlets: { outlet: string; score: number }[]): CriticReviews => ({
+    aggregate: 50, outlets, headline: "", pros: [], cons: [],
+  });
+
+  it("stays silent until an outlet crosses the streak threshold", () => {
+    const one = foldOutletThreads({}, rv([{ outlet: "The Circuit", score: REVIEW_THREAD.panAt - 5 }]), "P1");
+    expect(one.beat).toBeNull();
+    expect(one.threads["The Circuit"]).toEqual({ cold: 1, warm: 0 });
+  });
+
+  it("a repeat pan from the same outlet becomes a running cold thread", () => {
+    let t = foldOutletThreads({}, rv([{ outlet: "Teardown Weekly", score: 30 }]), "P1").threads;
+    const second = foldOutletThreads(t, rv([{ outlet: "Teardown Weekly", score: 25 }]), "P2");
+    expect(second.beat?.tone).toBe("negative");
+    expect(second.beat?.text).toContain("Teardown Weekly");
+    expect(second.threads["Teardown Weekly"].cold).toBe(2);
+  });
+
+  it("a repeat rave becomes a running warm thread", () => {
+    let t = foldOutletThreads({}, rv([{ outlet: "Bitstream", score: 90 }]), "P1").threads;
+    const second = foldOutletThreads(t, rv([{ outlet: "Bitstream", score: 88 }]), "P2");
+    expect(second.beat?.tone).toBe("positive");
+    expect(second.threads["Bitstream"].warm).toBe(2);
+  });
+
+  it("a middling score breaks a running streak", () => {
+    let t = foldOutletThreads({}, rv([{ outlet: "Mainboard", score: 30 }]), "P1").threads;
+    t = foldOutletThreads(t, rv([{ outlet: "Mainboard", score: 65 }]), "P2").threads;
+    expect(t["Mainboard"]).toEqual({ cold: 0, warm: 0 });
+  });
+
+  it("a cold thread wins the single beat over a simultaneous warm one", () => {
+    // Prime both outlets to one step short of telling, then a launch pushes both over.
+    let t = foldOutletThreads({}, rv([{ outlet: "The Circuit", score: 90 }, { outlet: "Slate & Silicon", score: 30 }]), "P1").threads;
+    const out = foldOutletThreads(t, rv([{ outlet: "The Circuit", score: 92 }, { outlet: "Slate & Silicon", score: 28 }]), "P2");
+    expect(out.beat?.tone).toBe("negative");
+    expect(out.beat?.text).toContain("Slate & Silicon");
+    // ...but BOTH streaks still advanced.
+    expect(out.threads["The Circuit"].warm).toBe(2);
+    expect(out.threads["Slate & Silicon"].cold).toBe(2);
+  });
+
+  it("is pure — same inputs, same output, and doesn't mutate the prior map", () => {
+    const prev = { "The Circuit": { cold: 1, warm: 0 } };
+    const a = foldOutletThreads(prev, rv([{ outlet: "The Circuit", score: 30 }]), "P");
+    const b = foldOutletThreads(prev, rv([{ outlet: "The Circuit", score: 30 }]), "P");
+    expect(a).toEqual(b);
+    expect(prev["The Circuit"]).toEqual({ cold: 1, warm: 0 }); // untouched
   });
 });

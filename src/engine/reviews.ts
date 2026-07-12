@@ -135,3 +135,44 @@ export function criticReviews(inp: ReviewInputs): CriticReviews {
 
   return { aggregate, outlets, headline, pros: pros.slice(0, 2), cons: cons.slice(0, 2) };
 }
+
+// --- Outlet running threads (item 2.6) — the press REMEMBERS you. --------------------------------
+// The critic reviews are deterministic per product id, so we can fold each launch's outlet scores
+// into a persistent per-outlet stance: an outlet that keeps panning you becomes a running nemesis
+// in print; one that keeps raving becomes a reliable champion. PURE — reads already-recorded launch
+// metrics (its own hashed RNG, never the sim RNG), touches only feed text, so balance is untouched.
+
+/** Running warm/cold streaks, keyed by outlet name. Optional/backfilled → `{}` on older saves. */
+export type OutletThreads = Record<string, { cold: number; warm: number }>;
+
+export const REVIEW_THREAD = { panAt: 45, raveAt: 82, streakToTell: 2 } as const;
+
+/** Fold one launch's reviews into the running per-outlet stance. Returns the updated map plus, at
+ *  most, one feed beat when an outlet crosses a warm/cold streak (harshest outlet considered first,
+ *  so a cold thread wins the narration). Pure + deterministic. */
+export function foldOutletThreads(
+  prev: OutletThreads | undefined,
+  reviews: CriticReviews,
+  productName: string,
+): { threads: OutletThreads; beat: { text: string; tone: "positive" | "negative" } | null } {
+  const threads: OutletThreads = { ...(prev ?? {}) };
+  let beat: { text: string; tone: "positive" | "negative" } | null = null;
+  // Harshest score first: a cold streak is the more dramatic thread, so it takes the single beat.
+  const sorted = [...reviews.outlets].sort((a, b) => a.score - b.score);
+  for (const o of sorted) {
+    const cur = threads[o.outlet] ?? { cold: 0, warm: 0 };
+    const next =
+      o.score <= REVIEW_THREAD.panAt ? { cold: cur.cold + 1, warm: 0 }
+      : o.score >= REVIEW_THREAD.raveAt ? { cold: 0, warm: cur.warm + 1 }
+      : { cold: 0, warm: 0 }; // a middling score breaks either streak
+    threads[o.outlet] = next;
+    if (!beat) {
+      if (next.cold >= REVIEW_THREAD.streakToTell) {
+        beat = { text: `${o.outlet} pans “${productName}” too — that's ${next.cold} cold takes running from them.`, tone: "negative" };
+      } else if (next.warm >= REVIEW_THREAD.streakToTell) {
+        beat = { text: `${o.outlet} stays in your corner — ${next.warm} straight raves for your line.`, tone: "positive" };
+      }
+    }
+  }
+  return { threads, beat };
+}

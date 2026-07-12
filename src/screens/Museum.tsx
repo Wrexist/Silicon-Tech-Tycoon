@@ -1,7 +1,7 @@
 // Device Museum — a permanent, cross-run gallery of every device you've shipped, re-rendered
 // parametrically from the stored Product (zero image assets). Collection-as-meta-progression.
 import { useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Trophy, Check } from "lucide-react";
 import { Button, EmptyState } from "../design/primitives.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
@@ -10,6 +10,7 @@ import { eraName } from "../engine/eras.ts";
 import { deviceLegacy } from "../engine/deviceLegacy.ts";
 import { postMortem, type Verdict, type FactorKey, type FactorTone } from "../engine/postmortem.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
+import { COLLECTIONS, collectionFacts, collectionProgress, completedCollectionCount } from "../engine/collections.ts";
 import { format } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
 import type { CategoryId, LaunchedProduct } from "../engine/types.ts";
@@ -147,6 +148,9 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
     const live = state.launched.find((l) => l.product.id === selected.product.id) ?? null;
     return <MuseumDetail e={selected} live={live} onBack={() => setSelected(null)} />;
   }
+  // Collection goals (item 5.2) — long-tail "collect them all" objectives over the whole museum.
+  const facts = collectionFacts(all.map((e) => ({ category: e.category, era: e.era, verdict: e.verdict, name: e.name })));
+  const collectionsDone = completedCollectionCount(facts);
   // Categories actually present, in catalog order, so the filter only offers what you own.
   const present = (Object.keys(CATEGORIES) as CategoryId[]).filter((c) => all.some((e) => e.category === c));
   const entries = filter === "all" ? all : all.filter((e) => e.category === filter);
@@ -175,6 +179,31 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+      )}
+
+      {all.length > 0 && (
+        <section className="mus__collections">
+          <div className="mus__group-head">
+            <Trophy size={14} />
+            <span className="mus__group-title">Collections</span>
+            <span className="mus__group-count tnum">{collectionsDone}/{COLLECTIONS.length}</span>
+          </div>
+          <ul className="mus__coll-list">
+            {COLLECTIONS.map((c) => {
+              const p = collectionProgress(c, facts);
+              return (
+                <li key={c.id} className={`mus__coll${p.done ? " mus__coll--done" : ""}`}>
+                  <div className="mus__coll-top">
+                    <span className="mus__coll-name">{p.done && <Check size={12} strokeWidth={3} />} {c.name}</span>
+                    <span className="mus__coll-count tnum">{p.current}/{p.target}</span>
+                  </div>
+                  <span className="mus__coll-desc">{c.description}</span>
+                  <div className="mus__coll-bar" aria-hidden><div className="mus__coll-fill" style={{ width: `${Math.round(p.frac * 100)}%` }} /></div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {all.length === 0 ? (

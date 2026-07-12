@@ -103,7 +103,8 @@ describe("factory floor grid (F2)", () => {
     const { lineSpeedMult, placeMachine } = await import("./factoryFloor.ts");
     expect(lineSpeedMult(starterFloor())).toBe(1);   // bare start → ×1, never a penalty
     const f = demoFloor();
-    expect(lineSpeedMult(f)).toBeCloseTo(0.92, 5);   // wired single-arm line → the earned bonus
+    // wired single-arm line → the earned bonus, lightly scaled by the (near-max) layout quality (3.2)
+    expect(lineSpeedMult(f)).toBeCloseTo(0.9211, 4);
     const twoArms = placeMachine(f, "arm", 13, 8, "arm2")!; // a second arm deepens it
     expect(lineSpeedMult(twoArms)).toBeLessThan(lineSpeedMult(f));
     const broken = removeAt(f, 7, 6); // sever the bottom lane → bonus lost, no punishment
@@ -144,7 +145,7 @@ describe("factory floor grid (F2)", () => {
     const phoneReq = requiredKindsFor("phone"); // slab family: intake, press, screen, qa, packer
     // The demo floor has every machine kind → full recipe coverage → full bonus.
     expect(missingMachineKinds(f, phoneReq)).toEqual([]);
-    expect(lineSpeedMult(f, phoneReq)).toBeCloseTo(0.92, 5);
+    expect(lineSpeedMult(f, phoneReq)).toBeCloseTo(0.9211, 4);
     // Rip out the screen bonder: a phone (which needs it) keeps a SMALLER bonus — partial credit
     // per covered recipe kind, so every machine on the climb moves the number — never a penalty.
     const noScreen = removeAt(f, f.machines.find((m) => m.kind === "screen")!.c, f.machines.find((m) => m.kind === "screen")!.r);
@@ -154,7 +155,7 @@ describe("factory floor grid (F2)", () => {
     // A laptop (clamshell) doesn't use a screen bonder, so the same floor keeps its full bonus.
     const laptopReq = requiredKindsFor("laptop");
     expect(missingMachineKinds(noScreen, laptopReq)).toEqual([]);
-    expect(lineSpeedMult(noScreen, laptopReq)).toBeCloseTo(0.92, 5);
+    expect(lineSpeedMult(noScreen, laptopReq)).toBeCloseTo(0.9211, 4);
     // Day-one payoff: just WIRING the bare starter (intake + packer, 2 of 5 recipe kinds) already
     // earns 25% + coverage of the base bonus — the "wired line builds faster" promise is true
     // from the first belt, not only after the full $40K toolkit.
@@ -162,6 +163,57 @@ describe("factory floor grid (F2)", () => {
     const wired = autoRouteBelts(starterFloor())!;
     expect(lineSpeedMult(wired, phoneReq)).toBeCloseTo(1 - 0.08 * (0.25 + 0.75 * (2 / 5)), 5);
     expect(lineSpeedMult(wired, phoneReq)).toBeLessThan(1);
+  });
+
+  it("layout quality (3.2): efficiency scores tidiness and scales the earned bonus", async () => {
+    const { lineEfficiency, lineSpeedMult, lineCapacityMult, autoRouteBelts, moveMachine } = await import("./factoryFloor.ts");
+    // Unwired → no line → 0. A fresh auto-route is a perfectly straight, in-order line → ~1.0.
+    expect(lineEfficiency(starterFloor())).toBe(0);
+    const clean = autoRouteBelts(starterFloor())!;
+    expect(lineEfficiency(clean)).toBeCloseTo(1, 5);
+    // The reference horseshoe is tidy but its two turns cost a hair vs. a pure straight lane.
+    const demo = demoFloor();
+    expect(lineEfficiency(demo)).toBeGreaterThan(0.9);
+    expect(lineEfficiency(demo)).toBeLessThan(1);
+    // A straighter line keeps MORE of the same base bonus → a lower (faster) speed mult. `clean` and
+    // a single-arm `demo` share the 0.08 base bonus, so layout is the only differentiator.
+    expect(lineSpeedMult(clean)).toBeLessThanOrEqual(lineSpeedMult(demo));
+    // RECIPE ORDER matters: yanking QA up to the front lane (out of sequence) drops efficiency and,
+    // with it, the earned speed + capacity bonus — but the line still RUNS, so it's never a penalty.
+    const qa = demo.machines.find((m) => m.kind === "qa")!;
+    const jumbled = moveMachine(demo, qa.id, 12, 0)!; // QA up on the top lane, violating mill→…→qa
+    expect(jumbled).not.toBeNull();
+    expect(lineEfficiency(jumbled)).toBeLessThan(lineEfficiency(demo));
+    expect(lineSpeedMult(jumbled)).toBeGreaterThan(lineSpeedMult(demo));      // less bonus (mult closer to 1)
+    expect(lineCapacityMult(jumbled)).toBeLessThan(lineCapacityMult(demo));   // …across every line lane
+    expect(lineSpeedMult(jumbled)).toBeLessThan(1);                           // …but STILL a real bonus
+  });
+
+  it("line capacity + unit cost (3.1): unwired = neutral, a complete line is pure upside", async () => {
+    const { lineCapacityMult, lineUnitMult, placeMachine, upgradeMachineAt } = await import("./factoryFloor.ts");
+    // Bare start → strictly neutral, so the baseline economy + pinned sim are byte-identical.
+    expect(lineCapacityMult(starterFloor())).toBe(1);
+    expect(lineUnitMult(starterFloor())).toBe(1);
+    // A complete line earns a capacity bonus and a unit-cost discount, both bounded (never a penalty).
+    const f = demoFloor();
+    expect(lineCapacityMult(f)).toBeGreaterThan(1);
+    expect(lineCapacityMult(f)).toBeLessThanOrEqual(2.0);
+    expect(lineUnitMult(f)).toBeLessThan(1);
+    expect(lineUnitMult(f)).toBeGreaterThanOrEqual(0.85);
+    // More arms widen throughput; a second QA deepens the unit-cost discount.
+    const twoArms = placeMachine(f, "arm", 13, 8, "arm2")!;
+    expect(lineCapacityMult(twoArms)).toBeGreaterThan(lineCapacityMult(f));
+    const twoQa = placeMachine(f, "qa", 13, 8, "qa2")!;
+    expect(lineUnitMult(twoQa)).toBeLessThan(lineUnitMult(f));
+    // Machine upgrades nudge both further (still clamped).
+    const qa = f.machines.find((m) => m.kind === "qa")!;
+    const upg = upgradeMachineAt(f, qa.c, qa.r)!;
+    expect(lineCapacityMult(upg)).toBeGreaterThan(lineCapacityMult(f));
+    expect(lineUnitMult(upg)).toBeLessThan(lineUnitMult(f));
+    // Breaking the line drops BOTH bonuses back to neutral — never a punishment.
+    const broken = removeAt(f, 7, 6);
+    expect(lineCapacityMult(broken)).toBe(1);
+    expect(lineUnitMult(broken)).toBe(1);
   });
 
   it("auto-route lays a valid Intake→Packer chain around machines, or bails cleanly", async () => {

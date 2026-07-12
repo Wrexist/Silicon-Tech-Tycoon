@@ -10,6 +10,9 @@ export interface ChoiceOption {
   label: string;
   description: string;
   effect: EventEffect;
+  /** Item 5.9 — a named consequence FLAG this option raises, so a later event can react to the choice
+   *  you made (not just that you decided). Optional. */
+  setsFlag?: string;
 }
 
 export interface ChoiceEvent {
@@ -19,6 +22,9 @@ export interface ChoiceEvent {
   minEra: number;
   tone: "positive" | "negative" | "neutral" | "accent";
   options: readonly [ChoiceOption, ChoiceOption];
+  /** Item 5.9 — this event only enters the pool once a prior choice raised this flag (a CALLBACK:
+   *  the earlier decision comes home to roost). Optional → an ordinary, always-eligible event. */
+  requiresFlag?: string;
 }
 
 export type EventEffect =
@@ -40,6 +46,11 @@ export interface MarketEvent {
   weight: number;
   effect: EventEffect;
   tone: "positive" | "negative" | "neutral" | "accent";
+  /** Item 1.4 — this event is ABOUT a real competitor. The `{rival}` placeholder in the title is
+   *  replaced with an actual rival's name at fire time (preferring your nemesis), and a `rivalScandal`
+   *  effect is scoped to THAT rival (strength + share-price hit) so the text and the mechanics agree.
+   *  "leader" picks the strongest rival (a juicier recall); "any" picks one; omitted → no naming. */
+  rivalSlot?: "any" | "leader";
 }
 
 // Sentence-form stat copy ("Consumers can't stop talking about …") from the single source
@@ -52,7 +63,7 @@ export const MARKET_EVENTS: MarketEvent[] = [
   // Era 1+
   { id: "press", title: "A glowing review put your brand in the spotlight.", minEra: 1, weight: 3, effect: { kind: "pressFeature", reputation: 5 }, tone: "positive" },
   { id: "rpbreak", title: "A research breakthrough accelerated your labs.", minEra: 1, weight: 3, effect: { kind: "rpBonus", amount: 14 }, tone: "accent" },
-  { id: "scandal", title: "A rival's product was recalled, the field just opened up.", minEra: 1, weight: 2, effect: { kind: "rivalScandal", factor: 0.5 }, tone: "positive" },
+  { id: "scandal", title: "{rival}'s flagship was recalled — the field just opened up.", minEra: 1, weight: 2, effect: { kind: "rivalScandal", factor: 0.5 }, tone: "positive", rivalSlot: "leader" },
   { id: "talent", title: "A wave of fresh energy lifted the whole team.", minEra: 1, weight: 2, effect: { kind: "talentWave", mood: 14 }, tone: "positive" },
   { id: "supply", title: "A supply crunch raised costs this quarter.", minEra: 1, weight: 2, effect: { kind: "supplyCrunch", cash: 8000 }, tone: "negative" },
   { id: "fans-buzz", title: "Word of mouth is spreading, your fans are recruiting new fans.", minEra: 1, weight: 2, effect: { kind: "fansBonus", fans: 400 }, tone: "positive" },
@@ -61,7 +72,7 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: "supplier-fail", title: "A key supplier closed, emergency sourcing strained the budget.", minEra: 1, weight: 1, effect: { kind: "supplyCrunch", cash: 6000 }, tone: "negative" },
   { id: "rp-late-night", title: "Late-night lab sessions paid off, research is ahead of schedule.", minEra: 1, weight: 2, effect: { kind: "rpBonus", amount: 10 }, tone: "accent" },
   { id: "early-fans", title: "Early adopters are raving about your products online.", minEra: 1, weight: 2, effect: { kind: "fansBonus", fans: 300 }, tone: "positive" },
-  { id: "rival-stumble", title: "A rival's delayed launch left an opening in the market.", minEra: 1, weight: 1, effect: { kind: "rivalScandal", factor: 0.65 }, tone: "positive" },
+  { id: "rival-stumble", title: "{rival} delayed their launch, leaving an opening in the market.", minEra: 1, weight: 1, effect: { kind: "rivalScandal", factor: 0.65 }, tone: "positive", rivalSlot: "any" },
   // Era 2+
   { id: "burnout", title: "Crunch time took a toll on morale.", minEra: 2, weight: 2, effect: { kind: "burnout", mood: -12 }, tone: "negative" },
   { id: "press-cover", title: "Your company landed on the cover of a major tech publication.", minEra: 2, weight: 2, effect: { kind: "repBoost", rep: 4 }, tone: "positive" },
@@ -70,7 +81,7 @@ export const MARKET_EVENTS: MarketEvent[] = [
   { id: "rpbreak-major", title: "A major research breakthrough, your lab is ahead of schedule.", minEra: 2, weight: 2, effect: { kind: "rpBonus", amount: 32 }, tone: "accent" },
   { id: "conference-win", title: "An industry conference spotlighted your brand to a global audience.", minEra: 2, weight: 2, effect: { kind: "repBoost", rep: 3 }, tone: "positive" },
   { id: "api-launch", title: "Third-party developers started building on your platform.", minEra: 2, weight: 2, effect: { kind: "fansBonus", fans: 800 }, tone: "positive" },
-  { id: "talent-drain", title: "A rival poached a few industry peers, team morale dipped.", minEra: 2, weight: 1, effect: { kind: "burnout", mood: -8 }, tone: "negative" },
+  { id: "talent-drain", title: "{rival} poached a few industry peers — team morale dipped.", minEra: 2, weight: 1, effect: { kind: "burnout", mood: -8 }, tone: "negative", rivalSlot: "any" },
   { id: "supply-rush", title: "Geopolitical tensions caused a costly last-minute component rush.", minEra: 2, weight: 1, effect: { kind: "supplyCrunch", cash: 18000 }, tone: "negative" },
   { id: "journalist-profile", title: "A journalist published a profile of your startup journey, goodwill gained.", minEra: 2, weight: 2, effect: { kind: "repBoost", rep: 5 }, tone: "positive" },
   // Era 3+
@@ -86,7 +97,7 @@ export const MARKET_EVENTS: MarketEvent[] = [
   // Additional era 1+ events for early-game variety
   { id: "indie-review", title: "An independent reviewer gave you top marks, brand trust climbed.", minEra: 1, weight: 2, effect: { kind: "pressFeature", reputation: 4 }, tone: "positive" },
   { id: "component-deal", title: "A supplier relationship paid off, one-time cost savings.", minEra: 1, weight: 1, effect: { kind: "cashWindfall", cash: 9000 }, tone: "positive" },
-  { id: "competitor-recall", title: "A competitor's product recall made buyers more cautious, and more curious about you.", minEra: 1, weight: 1, effect: { kind: "fansBonus", fans: 500 }, tone: "positive" },
+  { id: "competitor-recall", title: "{rival}'s product recall made buyers cautious — and more curious about you.", minEra: 1, weight: 1, effect: { kind: "fansBonus", fans: 500 }, tone: "positive", rivalSlot: "any" },
   { id: "hackathon-win", title: "Your engineers won an industry hackathon, a morale and press win.", minEra: 1, weight: 1, effect: { kind: "talentWave", mood: 10 }, tone: "positive" },
   { id: "cold-snap", title: "Economic headwinds cooled consumer spending this quarter.", minEra: 1, weight: 1, effect: { kind: "supplyCrunch", cash: 5000 }, tone: "negative" },
   // Additional era 2+ events
@@ -236,8 +247,22 @@ export const CHOICE_EVENTS: ChoiceEvent[] = [
     minEra: 3,
     tone: "accent",
     options: [
-      { id: "build", label: "Open the flagship", description: "A landmark retail experience, fans flock to it.", effect: { kind: "fansBonus", fans: 4_000 } },
+      { id: "build", label: "Open the flagship", description: "A landmark retail experience, fans flock to it.", effect: { kind: "fansBonus", fans: 4_000 }, setsFlag: "flagshipOpen" },
       { id: "online", label: "Stay online-only", description: "Pocket the capital and double down on direct sales.", effect: { kind: "cashWindfall", cash: 120_000 } },
+    ],
+  },
+  {
+    // Item 5.9 — a CALLBACK: your flagship store, opened earlier, comes back around. Only ever appears
+    // if you actually built it (requiresFlag), so the earlier decision has a lasting, echoing life.
+    id: "flagship_legacy",
+    title: "The Flagship Comes of Age",
+    body: "Your flagship store has become a destination — a pilgrimage for fans. Do you crown it with a costly renovation that cements the legend, or keep it humble and bank the difference?",
+    minEra: 3,
+    tone: "accent",
+    requiresFlag: "flagshipOpen",
+    options: [
+      { id: "renovate", label: "Renovate into a landmark", description: "A costly refit — but the brand becomes iconic.", effect: { kind: "pressFeature", reputation: 5 } },
+      { id: "keep", label: "Keep it humble", description: "Let the store speak for itself and win new fans.", effect: { kind: "fansBonus", fans: 5_000 } },
     ],
   },
   {
@@ -490,8 +515,14 @@ export function pickChoiceEvent(
   era: number,
   resolvedIds: readonly string[],
   seenIds: readonly string[] = [],
+  /** Item 5.9 — consequence flags raised by prior choices. An event with `requiresFlag` only enters
+   *  the pool once its flag is present. Empty (the default, and the pinned sim, which never resolves a
+   *  choice) → flag-gated events are all excluded, so the pool is exactly as before → byte-identical. */
+  flags: readonly string[] = [],
 ): ChoiceEvent | null {
-  const pool = CHOICE_EVENTS.filter((e) => e.minEra <= era && !resolvedIds.includes(e.id));
+  const pool = CHOICE_EVENTS.filter(
+    (e) => e.minEra <= era && !resolvedIds.includes(e.id) && (!e.requiresFlag || flags.includes(e.requiresFlag)),
+  );
   if (pool.length === 0 || rng.next() > 0.30) return null;
   const unseen = pool.filter((e) => !seenIds.includes(e.id));
   const chooseFrom = unseen.length > 0 ? unseen : pool;

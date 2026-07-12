@@ -94,3 +94,29 @@ describe("factory props", () => {
     expect(canPlaceProp(demoFloor(), [], "gantry", 12, 8)).toBe(true);
   });
 });
+
+describe("decor soft effect — utility equipment (item 5.8)", () => {
+  it("an undecorated floor is exactly neutral (sim byte-identical)", async () => {
+    const { factoryDecorSpeedMult, utilityDecorKinds } = await import("./factoryProps.ts");
+    expect(factoryDecorSpeedMult([])).toBe(1);
+    expect(utilityDecorKinds([])).toBe(0);
+  });
+
+  it("DISTINCT utility kinds shave build time; pure decor doesn't; bounded to the floor", async () => {
+    const { factoryDecorSpeedMult, utilityDecorKinds } = await import("./factoryProps.ts");
+    const prop = (kind: PropKind, id: string) => ({ id, kind, c: 0, r: 0 });
+    // Pure-decoration props (plant/cone) grant nothing.
+    expect(factoryDecorSpeedMult([prop("plant", "a"), prop("cone", "b")])).toBe(1);
+    // Two DISTINCT utility kinds beat one; duplicates of one kind don't stack.
+    const one = factoryDecorSpeedMult([prop("bench", "a")]);
+    const two = factoryDecorSpeedMult([prop("bench", "a"), prop("rack", "b")]);
+    const dup = factoryDecorSpeedMult([prop("bench", "a"), prop("bench", "b")]);
+    expect(one).toBeLessThan(1);
+    expect(two).toBeLessThan(one);
+    expect(dup).toBe(one); // same KIND twice = one kind's worth
+    expect(utilityDecorKinds([prop("bench", "a"), prop("bench", "b")])).toBe(1);
+    // Bounded: every utility kind at once never drops below the 0.96 floor.
+    const all = (["bench", "rack", "toolWall", "qcStation", "gantry", "compressor", "workLight"] as PropKind[]).map((k, i) => prop(k, `p${i}`));
+    expect(factoryDecorSpeedMult(all)).toBeGreaterThanOrEqual(0.96);
+  });
+});

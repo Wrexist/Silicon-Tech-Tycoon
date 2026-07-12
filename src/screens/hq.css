@@ -82,6 +82,14 @@
   gap: var(--sp-8);
   margin-top: calc(var(--sp-8) * -1);
 }
+/* Item 5.3 — the rank-ladder "next boss" line on the home screen. */
+.hq__ladder {
+  display: flex; align-items: center; gap: var(--sp-4);
+  font-size: var(--fs-caption); color: var(--ink-2);
+}
+.hq__ladder strong { color: var(--ink-1); font-weight: 700; }
+.hq__ladder svg { color: var(--accent); flex: none; }
+.hq__ladder--top svg { color: var(--positive); }
 .hq__cta-text,
 .hq__latest {
   font-size: var(--fs-body);
@@ -116,6 +124,15 @@
 .hq__feed-item--positive .hq__feed-icon { color: var(--positive); }
 .hq__feed-item--negative .hq__feed-icon { color: var(--negative); }
 .hq__feed-item--accent .hq__feed-icon { color: var(--accent); }
+/* Item A2 — salience: elevate the beats that matter, mute the milestone spam (shown when expanded). */
+.hq__feed-item--high {
+  color: var(--ink-1); font-weight: 600;
+  padding-left: var(--sp-8);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  margin-left: -2px;
+}
+.hq__feed-item--high.hq__feed-item--negative { border-left-color: color-mix(in srgb, var(--negative) 60%, transparent); }
+.hq__feed-item--low { color: var(--ink-3); }
 .hq__feed-week {
   font-size: var(--fs-micro);
   font-weight: 700;
@@ -1285,6 +1302,20 @@
 .hq__next {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline));
 }
+/* Item A1 — the one-time "what just unlocked" card. */
+.hq__unlock { border-color: color-mix(in srgb, var(--positive) 40%, var(--hairline)); }
+.hq__unlock-list {
+  list-style: none; display: flex; flex-direction: column; gap: var(--sp-8);
+  margin: var(--sp-12) 0;
+}
+.hq__unlock-list li {
+  display: flex; align-items: flex-start; gap: var(--sp-8);
+  font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4;
+}
+.hq__unlock-list li svg { flex: none; margin-top: 2px; color: var(--accent); }
+.hq__unlock-list strong { color: var(--ink-1); font-weight: 700; }
+.hq__unlock-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.hq__unlock-actions > * { flex: 1 1 auto; }
 .hq__next-head {
   display: flex;
   align-items: center;
@@ -1723,6 +1754,15 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 
 /* Living fan community — mood thermometer + superfans + a rotating community-moment line. */
 .hq__community-head { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+/* Item B2 — collapsible informational card: the header doubles as a full-width toggle button. */
+.hq__collapse-toggle {
+  width: 100%; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
+  text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.hq__community--collapsed .hq__community-head { margin-bottom: 0; }
+.hq__collapse-chevron { flex-shrink: 0; color: var(--ink-3); transition: transform 0.18s ease; transform: rotate(90deg); }
+.hq__community--collapsed .hq__collapse-chevron { transform: rotate(0deg); }
+@media (prefers-reduced-motion: reduce) { .hq__collapse-chevron { transition: none; } }
 .hq__community-glyph {
   display: flex; align-items: center; justify-content: center;
   width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--r-button);

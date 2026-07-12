@@ -36,6 +36,10 @@ import {
   type CommunityAskResult,
   resolveStaffMoment,
   type StaffMomentResult,
+  resolveStaffEvent,
+  type StaffEventResult,
+  resolvePostLaunch,
+  type PostLaunchResult,
   resolveRegionalEvent,
   type RegionalEventResult,
   buybackShares,
@@ -44,6 +48,8 @@ import {
   type EarningsAckResult,
   acceptSideOrder,
   claimContract,
+  fundMegaproject,
+  buyLegacyPerk,
   declineSideOrder,
   cancelSideOrder,
   REV_MILESTONES,
@@ -136,7 +142,7 @@ import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioPro
 import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
 import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
 import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
-import { scenarioById, canEarnStars, SCENARIOS } from "../engine/scenarios.ts";
+import { scenarioById, canEarnStars, scenarioUnlocked, scenarioUnlockStars, SCENARIOS } from "../engine/scenarios.ts";
 import type { MasteryInput } from "../engine/achievements.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
 import type { Assignment } from "../engine/types.ts";
@@ -429,11 +435,15 @@ interface GameActionsValue {
   resolveEureka: (choice: "bank" | "chase") => EurekaResult;
   resolveCommunityAsk: (accept: boolean) => CommunityAskResult;
   resolveStaffMoment: (optionIndex: number) => StaffMomentResult;
+  resolveStaffEvent: (optionIndex: number) => StaffEventResult;
+  resolvePostLaunch: (optionIndex: number) => PostLaunchResult;
   resolveRegionalEvent: (respond: boolean) => RegionalEventResult;
   buybackShares: (amount: Money) => BuybackResult;
   resolveEarnings: (defend: boolean) => EarningsAckResult;
   acceptSideOrder: () => void;
   claimContract: (id: string) => void;
+  fundMegaproject: (id: string) => void;
+  buyLegacyPerk: (id: string) => void;
   declineSideOrder: () => void;
   cancelSideOrder: () => void;
   buyUpgrade: (id: UpgradeId) => void;
@@ -465,6 +475,7 @@ interface GameActionsValue {
   returnHome: () => boolean;
   markOnboarded: () => void;
   dismissTutorial: () => void;
+  markUnlocksSeen: () => void;
   // save export / import (offline backup)
   exportSave: () => string;
   importSave: (str: string) => boolean;
@@ -838,6 +849,30 @@ export function GameProvider({ children }: { children: ReactNode }) {
     sfx("cash");
     setState(res.state);
   }, []);
+  // Fund a moonshot megaproject (item 4.1) — a post-IPO cash + RP sink with a prestige payoff.
+  const fundMegaprojectCb = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const res = fundMegaproject(prev, id);
+    if (!res.ok) { haptic.error(); showToast(res.reason ?? "Can't fund that yet", { tone: "negative" }); return; }
+    // A megaproject buy-in is a large cash + RP spend — surface the same "-$X" / "-RP" feedback as
+    // every other spend action so the outlay is legible.
+    const spent = (prev.cash - res.state.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    const rpSpent = prev.researchPoints - res.state.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    haptic.success();
+    sfx("cash");
+    setState(res.state);
+  }, []);
+  // Spend Legacy Points on a Legacy-tree perk (item 4.3) — a permanent-for-this-run boon.
+  const buyLegacyPerkCb = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const res = buyLegacyPerk(prev, id);
+    if (!res.ok) { haptic.error(); showToast(res.reason ?? "Can't unlock that yet", { tone: "negative" }); return; }
+    haptic.success();
+    sfx("confirm");
+    setState(res.state);
+  }, []);
   const declineSideOrderCb = useCallback(() => {
     haptic.light();
     setState(declineSideOrder(stateRef.current));
@@ -897,6 +932,30 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
     emitCelebrate(); sfx("levelup"); haptic.success();
     if (result.staffName) showToast(`${result.staffName} grew`, { tone: "positive", glyph: <Sparkles size={15} /> });
+    setState(next);
+    return result;
+  }, []);
+  // Answer a staff LIFE event (item 2.2) — a small human choice about a named teammate.
+  const resolveStaffEventCb = useCallback((optionIndex: number): StaffEventResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingStaffEvent) return { ok: false }; // a double input is a no-op, not an error
+    const { state: next, result } = resolveStaffEvent(prev, optionIndex);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    const spent = (prev.cash - next.cash) as Money; // an option may cost cash (a raise, a course)
+    if (spent > 0) emitSpend(spent);
+    sfx("confirm"); haptic.success();
+    setState(next);
+    return result;
+  }, []);
+  // Answer a post-launch reactive event (item 3.6) — a business call on a product already selling.
+  const resolvePostLaunchCb = useCallback((optionIndex: number): PostLaunchResult => {
+    const prev = stateRef.current;
+    if (!prev.pendingPostLaunch) return { ok: false }; // a double input is a no-op, not an error
+    const { state: next, result } = resolvePostLaunch(prev, optionIndex);
+    if (!result.ok) { if (result.reason) showToast(result.reason, { tone: "negative" }); return result; }
+    const spent = (prev.cash - next.cash) as Money; // an option may cost cash (a hype push / securing parts)
+    if (spent > 0) emitSpend(spent);
+    sfx("confirm"); haptic.success();
     setState(next);
     return result;
   }, []);
@@ -1106,6 +1165,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const markOnboarded = useCallback(() => setState((s) => ({ ...s, onboarded: true })), []);
   const dismissTutorial = useCallback(() => setState((s) => ({ ...s, tutorialDone: true })), []);
+  const markUnlocksSeen = useCallback(() => setState((s) => ({ ...s, seenFirstShipUnlocks: true })), []);
   const setCompanyNameCb = useCallback((name: string) => setState((s) => setCompanyName(s, name)), []);
   // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
   // caller (Settings only shows the toggle once the IAP entitlement is held).
@@ -1397,6 +1457,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // start values come entirely from the scenario's setup. The freeform company is stashed first so
   // it's preserved (returnHome restores it) instead of destroyed.
   const startScenario = useCallback((id: string, name?: string) => {
+    // Item 5.1 — enforce the campaign chain: a locked scenario can't be started even if a stale UI
+    // slips through. Total stars come from the profile store.
+    const sc = scenarioById(id);
+    if (sc) {
+      const stars = getScenarioStars();
+      const total = Object.values(stars).reduce((a, b) => a + (b ?? 0), 0);
+      if (!scenarioUnlocked(sc, total)) {
+        showToast(`Locked — earn ${scenarioUnlockStars(sc)}★ across the scenarios to unlock this one.`, { tone: "negative" });
+        return;
+      }
+    }
     // Park the freeform company FIRST; if the stash can't land (quota), abort instead of clearing the
     // save out from under an unrecoverable company.
     if (!stashHomeIfFreeform()) {
@@ -1474,11 +1545,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
       resolveEureka: resolveEurekaCb,
       resolveCommunityAsk: resolveCommunityAskCb,
       resolveStaffMoment: resolveStaffMomentCb,
+      resolveStaffEvent: resolveStaffEventCb,
+      resolvePostLaunch: resolvePostLaunchCb,
       resolveRegionalEvent: resolveRegionalEventCb,
       buybackShares: buybackSharesCb,
       resolveEarnings: resolveEarningsCb,
       acceptSideOrder: acceptSideOrderCb,
       claimContract: claimContractCb,
+      fundMegaproject: fundMegaprojectCb,
+      buyLegacyPerk: buyLegacyPerkCb,
       declineSideOrder: declineSideOrderCb,
       cancelSideOrder: cancelSideOrderCb,
       buyUpgrade: buyUpgradeCb,
@@ -1504,6 +1579,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       returnHome,
       markOnboarded,
       dismissTutorial,
+      markUnlocksSeen,
       exportSave,
       importSave,
       setCompanyName: setCompanyNameCb,
@@ -1563,7 +1639,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

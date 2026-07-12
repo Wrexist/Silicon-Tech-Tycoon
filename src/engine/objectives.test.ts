@@ -8,6 +8,7 @@ import {
   newlyCompletedObjectives,
 } from "./objectives.ts";
 import { newGame, type GameState } from "../state/gameState.ts";
+import { MEGAPROJECTS } from "./endgame.ts";
 
 /** A fresh garage with the given overrides applied. */
 function game(overrides: Partial<GameState> = {}): GameState {
@@ -94,6 +95,28 @@ describe("satisfied / newly-completed", () => {
     expect(satisfiedObjectiveIds(game({ platformUnlocked: true }))).toContain("found-platform");
     expect(satisfiedObjectiveIds(game({ listed: true }))).toContain("go-public");
     expect(satisfiedObjectiveIds(game({ wentPublic: true }))).toContain("reach-pinnacle");
+  });
+
+  it("the ladder extends past the IPO into the Legacy Era (goal spine never dead-ends there)", () => {
+    // With everything up to the pinnacle latched, the next move is the first megaproject — the ladder
+    // no longer dead-ends into undirected free play right after the IPO.
+    const preLegacy = OBJECTIVES.map((o) => o.id).slice(0, OBJECTIVES.findIndex((o) => o.id === "reach-pinnacle") + 1);
+    const justIPOd = game({ wentPublic: true });
+    const next = currentObjective(justIPOd, preLegacy);
+    expect(next?.objective.id).toBe("fund-megaproject");
+    // Legacy-Era rungs latch on the real endgame state.
+    expect(satisfiedObjectiveIds(game({ megaprojectsFunded: ["quantumFab"] }))).toContain("fund-megaproject");
+    expect(satisfiedObjectiveIds(game({ legacyPerks: ["lt-hype1"] }))).toContain("spend-legacy-point");
+    expect(satisfiedObjectiveIds(game({ bestIndustryRank: 1 }))).toContain("reach-number-one");
+    // The capstone rung: funding the entire authored slate (boundary on MEGAPROJECTS.length).
+    expect(satisfiedObjectiveIds(game({ megaprojectsFunded: MEGAPROJECTS.map((m) => m.id) }))).toContain("fund-all-megaprojects");
+    expect(satisfiedObjectiveIds(game({ megaprojectsFunded: MEGAPROJECTS.slice(0, 1).map((m) => m.id) }))).not.toContain("fund-all-megaprojects");
+  });
+
+  it("explicit era rungs latch as the company advances", () => {
+    expect(satisfiedObjectiveIds(game({ era: 3 }))).toContain("reach-era3");
+    expect(satisfiedObjectiveIds(game({ era: 4 }))).toContain("reach-era4");
+    expect(satisfiedObjectiveIds(game({ era: 2 }))).not.toContain("reach-era3");
   });
 
   it("counts an owned office upgrade", () => {

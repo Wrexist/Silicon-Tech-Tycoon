@@ -102,3 +102,28 @@ export function propRefund(props: PlacedProp[], c: number, r: number): Money {
   for (const p of props) if (propCells(p).includes(key)) return Math.round(PROP_DEFS[p.kind].cost / 2) as Money;
   return 0 as Money;
 }
+
+// --- Decor SOFT EFFECT (item 5.8) — a well-EQUIPPED floor works a touch faster ---
+// UTILITY props (real equipment — benches, racks, tool walls, QC stations, cranes) are more than
+// dressing: kitting the floor out shaves a little build time, distinct from the wired line's bonus.
+// PURE UPSIDE + bounded: an undecorated floor (and the pinned solo sim, which never places a prop) is
+// exactly ×1.0 → byte-identical. Each DISTINCT utility prop KIND shaves a bit, so it rewards a varied,
+// well-stocked floor rather than spamming one cheap prop.
+const UTILITY_PROPS: ReadonlySet<PropKind> = new Set<PropKind>([
+  "bench", "rack", "toolWall", "qcStation", "gantry", "compressor", "workLight",
+]);
+const DECOR_SPEED_PER_KIND = 0.008; // −0.8% build time per distinct utility kind
+const DECOR_SPEED_FLOOR = 0.96;     // never more than −4% overall
+
+/** How many DISTINCT utility prop kinds are on the floor (the basis for the decor speed bonus). */
+export function utilityDecorKinds(props: readonly PlacedProp[]): number {
+  const kinds = new Set<PropKind>();
+  for (const p of props) if (UTILITY_PROPS.has(p.kind)) kinds.add(p.kind);
+  return kinds.size;
+}
+
+/** Build-time multiplier from utility decor: 1.0 (undecorated) down to a 0.96 floor. Pure, bounded ≤1. */
+export function factoryDecorSpeedMult(props: readonly PlacedProp[]): number {
+  const bonus = DECOR_SPEED_PER_KIND * utilityDecorKinds(props);
+  return Math.max(DECOR_SPEED_FLOOR, Math.min(1, 1 - bonus));
+}

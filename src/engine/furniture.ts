@@ -191,6 +191,33 @@ export function officeAttrs(layout: readonly PlacedItem[]): Required<FurnitureAt
   return { comfort, focus, inspiration };
 }
 
+// Office ZONES (item 5.5) — where a piece SITS matters, not just that you own it. A desk placed NEXT
+// to an amenity (a plant, a lamp, a bit of decor) forms a pleasant little zone that lifts the room's
+// comfort/focus/inspiration a touch. PURE + derived from placement (no RNG, no salt). Bounded, and
+// exactly ZERO for the default office (its lone desk and plant sit far apart), so a room the player
+// never rearranges — and the pinned sim, which never places furniture — is byte-identical.
+const AMENITY_CATEGORIES: ReadonlySet<FurnitureCategory> = new Set<FurnitureCategory>(["plants", "lighting", "decor", "fun"]);
+const ZONE_PROX_RADIUS = 1;   // Chebyshev cells: an amenity must be immediately beside the desk
+const ZONE_MAX_PER_DESK = 2;  // a desk earns from at most this many nearby amenities
+const ZONE_COMFORT_PER = 1.5; // raw comfort per desk↔amenity pairing (focus/inspiration are half)
+
+/** The extra comfort/focus/inspiration a layout earns from desks sitting beside amenities. Additive on
+ *  top of officeAttrs; the same caps in the state selectors still bound the total. Pure. */
+export function officeZoneBonus(layout: readonly PlacedItem[]): Required<FurnitureAttrs> {
+  const desks = layout.filter((it) => isDeskType(it.type));
+  const amenities = layout.filter((it) => AMENITY_CATEGORIES.has(furnitureDef(it.type).category));
+  let pairs = 0;
+  for (const d of desks) {
+    let near = 0;
+    for (const a of amenities) {
+      if (Math.max(Math.abs(d.c - a.c), Math.abs(d.r - a.r)) <= ZONE_PROX_RADIUS) near++;
+    }
+    pairs += Math.min(near, ZONE_MAX_PER_DESK);
+  }
+  const comfort = pairs * ZONE_COMFORT_PER;
+  return { comfort, focus: comfort * 0.5, inspiration: comfort * 0.5 };
+}
+
 export const CATEGORY_ORDER: FurnitureCategory[] = [
   "desks",
   "seating",

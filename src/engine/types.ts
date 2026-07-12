@@ -156,6 +156,10 @@ export interface Product {
   /** Quality-stat penalty BAKED at build time when the "defects" capacity strategy is used (depends
    *  on run size, so it's frozen onto the built product). Optional — absent = none. */
   defectPenalty?: number;
+  /** Item 3.3 — a committed "design brief": the buyer segment this product is aimed at. Optional/opt-in
+   *  (unset = no brief, no bonus, byte-identical baseline). Nailing the target segment's fit at launch
+   *  earns bonus reputation + fans; missing it just forgoes the bonus (never a penalty). */
+  targetSegment?: SegmentId;
 }
 
 export function defaultCameraDesign(): CameraDesign {
@@ -272,6 +276,8 @@ export interface Staff {
   /** Whether this person mentors the whole team — a small company-wide weekly XP lift for everyone else. */
   isMentor?: boolean;
   appearance: Appearance;
+  /** A one-line character bio/quirk (item 2.1). Cosmetic; optional on old saves (shown blank). */
+  bio?: string;
 }
 
 /** A potential hire produced by a recruitment search — not yet on the team. */
@@ -287,6 +293,8 @@ export interface Candidate {
   trait: Trait;
   mood: number;
   appearance: Appearance;
+  /** A one-line character bio/quirk (item 2.1). Cosmetic. */
+  bio?: string;
 }
 
 /** Recruitment channel: a cheaper/slower board vs. a pricey headhunter that finds stronger people. */

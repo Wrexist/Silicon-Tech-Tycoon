@@ -55,6 +55,9 @@ export interface Scenario {
   setup: ScenarioSetup;
   /** Optional time limit: if the 1★ goal isn't met on or before this week, the run is a loss. */
   deadlineWeek?: number;
+  /** Item 5.1 — total stars (across all scenarios) required to UNLOCK this one in the campaign chain.
+   *  Optional → derived from difficulty (see scenarioUnlockStars). intro scenarios are always open. */
+  unlockAtStars?: number;
   /** [1★, 2★, 3★] — each tier should be strictly harder than the last (pinned by a property test). */
   tiers: [ScenarioTier, ScenarioTier, ScenarioTier];
 }
@@ -143,6 +146,22 @@ export function evaluateScenario(scenario: Scenario, facts: ScenarioFacts): Scen
   const won = stars >= 1;
   const failed = !won && scenario.deadlineWeek != null && facts.week > scenario.deadlineWeek;
   return { stars, won, failed, objectives };
+}
+
+// Item 5.1 — the scenario CAMPAIGN: harder scenarios unlock only once you've banked enough total stars
+// across the ones already beaten, so the picker reads as a progression chain, not a flat menu. The gate
+// is derived from difficulty (intro is always open) unless a scenario overrides it with `unlockAtStars`.
+const DIFFICULTY_UNLOCK: Record<Scenario["difficulty"], number> = { intro: 0, standard: 2, hard: 5, expert: 9 };
+
+/** Total stars (across all scenarios) required before `scenario` unlocks. */
+export function scenarioUnlockStars(scenario: Scenario): number {
+  return scenario.unlockAtStars ?? DIFFICULTY_UNLOCK[scenario.difficulty];
+}
+
+/** Whether a scenario is unlocked given the player's total earned stars. Intro scenarios are always
+ *  open (threshold 0). Pure. */
+export function scenarioUnlocked(scenario: Scenario, totalStars: number): boolean {
+  return totalStars >= scenarioUnlockStars(scenario);
 }
 
 export function scenarioById(id: string): Scenario | undefined {

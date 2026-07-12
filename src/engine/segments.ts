@@ -79,6 +79,19 @@ export function segmentById(id: SegmentId): Segment | undefined {
   return SEGMENTS.find((s) => s.id === id);
 }
 
+/** Item 3.4 — the per-segment FIT nudge a build TUNING confers (points on the 0..100 fit scale), so a
+ *  tuning also chooses WHO the device is for, not just its stats. "balanced" (and any unknown/undefined
+ *  tuning) returns no bias → byte-identical. Tuning stat trades still apply on top in productStats. */
+const TUNING_SEGMENT_BIAS: Record<string, Partial<Record<SegmentId, number>>> = {
+  performance: { pro: 4, enterprise: 1 },        // raw power courts Pro/Enterprise
+  efficiency: { budget: 3, mainstream: 2 },      // long battery courts value buyers
+  value: { budget: 4, mainstream: 2 },           // a value build leans price-led segments
+  premium: { style: 4, pro: 2, enterprise: 2 },  // a premium build leans the aspirational segments
+};
+export function tuningSegmentBias(tuning?: string): Partial<Record<SegmentId, number>> {
+  return (tuning && TUNING_SEGMENT_BIAS[tuning]) || {};
+}
+
 /** The perceived value (0..100) from the BEST-FIT segment, ignoring trend drift. Price guidance
  *  uses it to let a specialised design command more than its all-round average implies: the market
  *  sells through segments, and the segment a lopsided product is built for values its standout stat
@@ -221,6 +234,17 @@ export function segmentDemand(
   /** Track B — current week, to apply the market-climate segment cycle (engine/climate.ts). Omitted →
    *  no cycle (sizes are the static base), so every existing caller/test is byte-identical. */
   week?: number,
+  /** Item 1.3 — marketing-channel TARGETING. A per-segment reach multiplier from the chosen launch
+   *  campaign (e.g. Search over-indexes Pro/Enterprise, Influencer over-indexes Style). Applied to the
+   *  segment sizes and RE-NORMALISED to the same total, so a channel REDISTRIBUTES reach toward the
+   *  buyers it's good at (a positioning choice) without inflating total demand — the campaign's raw
+   *  volume still comes from its hype. Omitted → byte-identical to before. */
+  segmentReach?: Partial<Record<SegmentId, number>>,
+  /** Item 3.4 — build-TUNING positioning. A small additive per-segment fit nudge from the product's
+   *  tuning (e.g. "value" leans Budget/Mainstream, "premium" leans Style/Pro/Enterprise), so tuning
+   *  shifts WHICH buyers a device courts, not just its raw stats. Applied to each segment's fit before
+   *  the price reaction. Omitted / all-zero ("balanced") → byte-identical to before. */
+  tuningBias?: Partial<Record<SegmentId, number>>,
 ): SegmentDemand {
   // Market climate (Track B): segment sizes swell/fade on slow cycles, RE-NORMALIZED so the cycle
   // redistributes the mix without changing the total market — timing positioning, not free volume.
@@ -240,6 +264,26 @@ export function segmentDemand(
     return out;
   })();
 
+  // Item 1.3 — apply the marketing channel's per-segment reach bias, then re-normalise back to the
+  // pre-bias total so the campaign only REDISTRIBUTES reach toward its favoured buyers (targeting),
+  // never inflates the category's total demand. Omitted bias → sizes unchanged.
+  const reachAdjusted: Record<SegmentId, number> = ((): Record<SegmentId, number> => {
+    if (!segmentReach) return sizeOf;
+    let before = 0;
+    let after = 0;
+    const biased = {} as Record<SegmentId, number>;
+    for (const seg of SEGMENTS) {
+      const b = sizeOf[seg.id] * Math.max(0, segmentReach[seg.id] ?? 1);
+      biased[seg.id] = b;
+      before += sizeOf[seg.id];
+      after += b;
+    }
+    if (after <= 0) return sizeOf;
+    const out = {} as Record<SegmentId, number>;
+    for (const seg of SEGMENTS) out[seg.id] = (biased[seg.id] / after) * before;
+    return out;
+  })();
+
   const ae = BALANCE.market.aesthetics;
   const ap = Math.max(0, styleAppeal);
   const perSegment: SegmentResult[] = SEGMENTS.map((seg) => {
@@ -249,9 +293,11 @@ export function segmentDemand(
     // FULL lift and spec-driven Pro/Enterprise buyers barely a nudge. Bounded, and exactly 0 when
     // styleAppeal is 0 — so callers that don't model form stay byte-identical.
     const designShare = seg.id === "style" ? 1 : (seg.weights.design / ae.styleDesignWeight) * ae.broadenShare;
-    const fit = Math.min(100, rawFit + ap * designShare);
+    // Item 3.4 — build tuning nudges the fit of the buyer that cares (0 for balanced → no ripple).
+    const tuneBias = tuningBias?.[seg.id] ?? 0;
+    const fit = Math.max(0, Math.min(100, rawFit + ap * designShare + tuneBias));
     const priceFit = segmentPriceFit(price, fit, seg);
-    const size = sizeOf[seg.id];
+    const size = reachAdjusted[seg.id];
     return {
       id: seg.id,
       name: seg.name,

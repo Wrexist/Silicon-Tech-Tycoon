@@ -5,6 +5,7 @@ import {
   segmentDemand,
   segmentPriceFit,
   segmentFit,
+  tuningSegmentBias,
 } from "./segments.ts";
 import { dollars, toDollars } from "./money.ts";
 import { BALANCE } from "./balance.ts";
@@ -150,5 +151,65 @@ describe("no universal recipe — the anti-solved-game guard", () => {
     const min = Math.min(...fits);
     const max = Math.max(...fits);
     expect(max - min).toBeGreaterThan(5); // distinct tastes produce distinct fits
+  });
+});
+
+describe("marketing targeting — channel segment bias (item 1.3)", () => {
+  const di = (s: Stats, bias?: Partial<Record<import("./types.ts").SegmentId, number>>) =>
+    segmentDemand(s, dollars(700), flat, "phone", 0, undefined, bias).demandIndex;
+  const pro = stats({ performance: 90, quality: 70, battery: 60, design: 40, ecosystem: 85 });
+  const style = stats({ performance: 50, quality: 70, battery: 55, design: 95, ecosystem: 60 });
+  const proBias = { pro: 1.4, enterprise: 1.3, mainstream: 1.05, budget: 0.9, style: 0.8 };
+  const styleBias = { style: 1.5, mainstream: 1.1, budget: 1.05, pro: 0.85, enterprise: 0.75 };
+
+  it("no bias reproduces the base demand exactly", () => {
+    expect(di(pro, undefined)).toBe(di(pro));
+  });
+
+  it("redistributes demand toward the channel's audience (positioning, not free volume)", () => {
+    // A Pro product does better under a Pro-targeting channel than a Style-targeting one, and vice
+    // versa — the campaign REDISTRIBUTES reach toward the buyers it reaches.
+    expect(di(pro, proBias)).toBeGreaterThan(di(pro, styleBias));
+    expect(di(style, styleBias)).toBeGreaterThan(di(style, proBias));
+    // And it never inflates total reach for a uniform product (renormalised): a perfectly balanced
+    // product is ~unchanged by any bias.
+    const balanced = stats({ performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 });
+    expect(di(balanced, proBias)).toBeCloseTo(di(balanced), 0);
+  });
+});
+
+describe("build-tuning segment positioning (item 3.4)", () => {
+  const perSeg = (s: Stats, tuning?: string) => {
+    const out: Record<string, number> = {};
+    for (const r of segmentDemand(s, dollars(700), flat, "phone", 0, undefined, undefined, tuningSegmentBias(tuning)).perSegment) out[r.id] = r.fit;
+    return out;
+  };
+  const mid = stats({ performance: 60, quality: 60, battery: 60, design: 60, ecosystem: 60 });
+
+  it("balanced (and undefined) tuning is a pure no-op — byte-identical fit", () => {
+    expect(tuningSegmentBias("balanced")).toEqual({});
+    expect(tuningSegmentBias(undefined)).toEqual({});
+    expect(perSeg(mid, "balanced")).toEqual(perSeg(mid, undefined));
+    expect(perSeg(mid, undefined)).toEqual(perSeg(mid));
+  });
+
+  it("value leans price-led buyers; premium leans the aspirational segments", () => {
+    const base = perSeg(mid);
+    const value = perSeg(mid, "value");
+    expect(value.budget).toBeGreaterThan(base.budget);
+    expect(value.mainstream).toBeGreaterThan(base.mainstream);
+    expect(value.style).toBe(base.style); // untouched segments unchanged
+
+    const premium = perSeg(mid, "premium");
+    expect(premium.style).toBeGreaterThan(base.style);
+    expect(premium.enterprise).toBeGreaterThan(base.enterprise);
+    expect(premium.budget).toBe(base.budget);
+  });
+
+  it("performance leans Pro; efficiency leans Budget — the nudge is bounded (fit ≤ 100)", () => {
+    expect(perSeg(mid, "performance").pro).toBeGreaterThan(perSeg(mid).pro);
+    expect(perSeg(mid, "efficiency").budget).toBeGreaterThan(perSeg(mid).budget);
+    const maxed = stats({ performance: 100, quality: 100, battery: 100, design: 100, ecosystem: 100 });
+    for (const f of Object.values(perSeg(maxed, "performance"))) expect(f).toBeLessThanOrEqual(100);
   });
 });

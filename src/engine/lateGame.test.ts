@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { dollars, toDollars } from "./money.ts";
 import { eraModifier } from "./eras.ts";
-import { buildWeeksFor, newGame, toolingCost, type GameState } from "../state/gameState.ts";
+import { BALANCE } from "./balance.ts";
+import { buildWeeksFor, lateEraDrag, newGame, toolingCost, weeklyOutflow, type GameState } from "../state/gameState.ts";
 import type { Product } from "./types.ts";
 
 // Living Late Game — Phase 1: late eras make a product a bigger, slower bet (era-scaled tooling
@@ -59,5 +60,43 @@ describe("Living Late Game — era-scaled build economics", () => {
     const w4 = buildWeeksFor(established(4), p);
     expect(w2).toBe(w1); // early game byte-identical
     expect(w4).toBe(w1 + eraModifier(4).leadWeeks);
+  });
+});
+
+// Item C3 — late-era operating drag: the endgame stops being a free ratchet. A capped weekly cash
+// cost scaled by lifetime revenue, starting in the drag era, so a frontier-scale company pays to keep
+// running. ZERO before the drag era, so the early game and the pinned sim's first eras stay identical.
+describe("Late-era operating drag (item C3)", () => {
+  const withRev = (era: number, revenueDollars: number): GameState =>
+    ({ ...newGame(7), era, cumulativeRevenue: dollars(revenueDollars) });
+
+  it("is ZERO before the drag era, whatever the lifetime revenue", () => {
+    for (let era = 1; era < BALANCE.lateEra.dragEra; era++) {
+      expect(toDollars(lateEraDrag(withRev(era, 5_000_000_000)))).toBe(0);
+    }
+  });
+
+  it("charges the drag from the drag era, scaled by lifetime revenue", () => {
+    const era = BALANCE.lateEra.dragEra;
+    const small = toDollars(lateEraDrag(withRev(era, 10_000_000)));
+    const big = toDollars(lateEraDrag(withRev(era, 100_000_000)));
+    expect(small).toBeGreaterThan(0);
+    expect(big).toBeGreaterThan(small); // more lifetime revenue → bigger headwind
+    expect(small).toBeCloseTo(10_000_000 * BALANCE.lateEra.dragFracPerWeek, 2);
+  });
+
+  it("caps the drag so it can never bankrupt a solvent company", () => {
+    const era = BALANCE.lateEra.dragEra;
+    const huge = lateEraDrag(withRev(era, 100_000_000_000)); // far past the cap
+    expect(toDollars(huge)).toBe(toDollars(BALANCE.lateEra.dragCap));
+  });
+
+  it("weeklyOutflow includes the drag in the late era but not before", () => {
+    const base = withRev(1, 50_000_000);
+    const late = withRev(BALANCE.lateEra.dragEra, 50_000_000);
+    // Same everything except era → the difference in outflow is exactly the drag.
+    const delta = toDollars(weeklyOutflow(late)) - toDollars(weeklyOutflow(base));
+    expect(delta).toBeCloseTo(toDollars(lateEraDrag(late)), 2);
+    expect(delta).toBeGreaterThan(0);
   });
 });

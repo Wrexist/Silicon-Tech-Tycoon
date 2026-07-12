@@ -64,3 +64,50 @@ export function segmentTrend(seg: SegmentId, week: number): "rising" | "falling"
   if (delta < -band) return "falling";
   return "steady";
 }
+
+// --- Narration (Track B) — turn the silent climate cycles into readable feed beats. PURE. ---
+// climate.ts is imported by segments.ts / regions.ts, so it can't import their label maps back
+// (circular). The handful of names the narration needs live here, locally.
+const SEGMENT_LABEL: Record<SegmentId, string> = {
+  budget: "Budget", mainstream: "Mainstream", pro: "Pro", style: "Style", enterprise: "Enterprise",
+};
+const REGION_LABEL: Record<string, string> = {
+  north_america: "North America", europe: "Europe", asia: "Asia", emerging: "Emerging Markets",
+};
+// Order the world reads in — deterministic, so run1 === run2.
+const SEGMENT_ORDER: readonly SegmentId[] = ["budget", "mainstream", "pro", "style", "enterprise"];
+const REGION_ORDER: readonly string[] = ["north_america", "europe", "asia", "emerging"];
+
+export type ClimateBeat = { text: string; tone: "positive" | "negative" | "accent" };
+
+/** At most one narration beat for this week's climate, or null. Region crises (rarer, more dramatic)
+ *  take priority over segment surges. Fully derived from `week` + the unlocked-region list — no RNG,
+ *  no state — so it stays byte-identical across a replay. Called weekly; each cycle event fires once
+ *  (crisis onset/recovery on the edge week, a segment surge on the week it tops out). */
+export function climateNarration(week: number, unlockedRegions: readonly RegionId[]): ClimateBeat | null {
+  if (week < 1) return null;
+  // 1) Region crises — a region tipping INTO or OUT OF a downturn, only for markets you've opened.
+  for (const region of REGION_ORDER) {
+    if (!unlockedRegions.includes(region as RegionId)) continue;
+    const now = regionInCrisis(region as RegionId, week);
+    const before = regionInCrisis(region as RegionId, week - 1);
+    if (now && !before) {
+      return { text: `${REGION_LABEL[region]} is sliding into a downturn — demand there will soften for a while.`, tone: "negative" };
+    }
+    if (!now && before) {
+      return { text: `${REGION_LABEL[region]} is climbing out of its slump — demand there is recovering.`, tone: "positive" };
+    }
+  }
+  // 2) Segment surges — a buyer segment cresting the top of its slow cycle (a good window to ship for it).
+  const amp = BALANCE.market.climate.segmentAmplitude;
+  const peakFloor = 1 + amp * 0.82; // only narrate a genuinely swollen segment, not every ripple
+  for (const seg of SEGMENT_ORDER) {
+    const prev = segmentSizeMul(seg, week - 1);
+    const cur = segmentSizeMul(seg, week);
+    const next = segmentSizeMul(seg, week + 1);
+    if (cur > prev && cur >= next && cur >= peakFloor) {
+      return { text: `${SEGMENT_LABEL[seg]} buyers are out in force right now — a strong week to court that segment.`, tone: "accent" };
+    }
+  }
+  return null;
+}

@@ -54,6 +54,23 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--sp-12);
 }
+/* Collection goals (item 5.2) — long-tail "collect them all" progress over the whole museum. */
+.mus__collections { margin-bottom: var(--sp-16); }
+.mus__coll-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); }
+.mus__coll {
+  padding: var(--sp-12);
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+  border-radius: var(--radius-12);
+}
+.mus__coll--done { border-color: color-mix(in srgb, var(--positive) 45%, var(--glass-well-edge)); }
+.mus__coll-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+.mus__coll-name { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-body); font-weight: 700; color: var(--ink-1); }
+.mus__coll--done .mus__coll-name { color: var(--positive); }
+.mus__coll-count { font-size: var(--fs-caption); font-weight: 700; color: var(--ink-3); }
+.mus__coll-desc { display: block; margin: 2px 0 var(--sp-8); font-size: var(--fs-caption); color: var(--ink-3); }
+.mus__coll-bar { height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--ink-3) 22%, transparent); overflow: hidden; }
+.mus__coll-fill { height: 100%; border-radius: 999px; background: var(--accent); transition: width 0.3s ease; }
+.mus__coll--done .mus__coll-fill { background: var(--positive); }
 .mus__card {
   display: flex;
   flex-direction: column;

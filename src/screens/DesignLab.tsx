@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -68,7 +68,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { StatBars } from "../components/charts.tsx";
-import { segmentDemand, type SegmentDemand } from "../engine/segments.ts";
+import { segmentDemand, tuningSegmentBias, SEGMENTS, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel, playerFranchises } from "../engine/franchise.ts";
 import { segmentWantsById } from "../engine/glossary.ts";
@@ -351,7 +351,8 @@ export function DesignLab({
   // with the actual launch math (it was previously the old single-trend demandScore).
   const styleAp = styleAppeal(draft);
   const styleLabel = styleAppealLabel(styleAp);
-  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week);
+  // Item 3.4 — pass the tuning's segment lean so the live "Fit" preview matches the launch math.
+  const liveSegments = segmentDemand(stats, draft.price, state.trends, draft.category, styleAp, state.week, undefined, tuningSegmentBias(draft.tuning));
   const formMatters = CATEGORIES[draft.category].slots.includes("camera") || CATEGORIES[draft.category].slots.includes("display");
   const mktMult = eraModifier(state.era).marketingHype; // Epic D — late eras amplify marketing reach
   const liveBrand = brandEquity(state.launched, franchiseStem(draft.name)); // brand-line anticipation
@@ -1134,8 +1135,50 @@ export function DesignLab({
               {/* Spell out the selected trade-off inline — the per-chip `title` never shows on touch. */}
               {(() => {
                 const sel = TUNINGS.find((t) => t.id === (draft.tuning ?? "balanced"))!;
-                return <p className="lab__field-effect"><Scale size={12} aria-hidden /> {sel.label} · {sel.hint}</p>;
+                // Item 3.4 — name the buyer segments this tuning leans toward (positioning, not just stats).
+                const leans = Object.keys(tuningSegmentBias(draft.tuning))
+                  .map((id) => SEGMENTS.find((s) => s.id === id)?.name)
+                  .filter(Boolean);
+                return (
+                  <p className="lab__field-effect">
+                    <Scale size={12} aria-hidden /> {sel.label} · {sel.hint}
+                    {leans.length > 0 && <> · leans {leans.join(" + ")}</>}
+                  </p>
+                );
               })()}
+            </Card>
+            <Card>
+              <SectionHeader title="Design brief" accessory="optional" />
+              <div className="lab__chips">
+                <button
+                  className={`lab__chip${!draft.targetSegment ? " lab__chip--on" : ""}`}
+                  aria-pressed={!draft.targetSegment}
+                  title="No committed target — no launch bonus, no risk."
+                  onClick={() => { haptic.light(); set({ targetSegment: undefined }); }}
+                >
+                  No brief
+                </button>
+                {SEGMENTS.map((seg) => {
+                  const on = draft.targetSegment === seg.id;
+                  return (
+                    <button
+                      key={seg.id}
+                      className={`lab__chip${on ? " lab__chip--on" : ""}`}
+                      aria-pressed={on}
+                      title={segmentWantsById(seg.id)}
+                      onClick={() => { haptic.light(); set({ targetSegment: on ? undefined : seg.id }); }}
+                    >
+                      {seg.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="lab__field-effect">
+                <Target size={12} aria-hidden />{" "}
+                {draft.targetSegment
+                  ? `Aim for ${SEGMENTS.find((s) => s.id === draft.targetSegment)!.name} — nail their fit at launch for bonus reputation + fans. Miss it and you just forgo the bonus.`
+                  : "Commit to a buyer segment to chase a launch bonus for nailing their fit."}
+              </p>
             </Card>
             <Card>
               <SectionHeader title="Design effort" accessory={`ceiling T${ceiling}`} />
@@ -2120,6 +2163,7 @@ function BuildWizard({
                   <div className="wiz__channel-text">
                     <span className="wiz__channel-name">{c.name}</span>
                     <span className="wiz__channel-blurb">{c.blurb}</span>
+                    {c.audience && <span className="wiz__channel-aud"><Target size={11} aria-hidden /> {c.audience}</span>}
                   </div>
                   <div className="wiz__channel-meta">
                     <span>{c.cost > 0 ? format(c.cost) : "Free"}</span>

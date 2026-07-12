@@ -13,6 +13,15 @@ describe("era-distinct mechanics (Epic D)", () => {
     expect(eraRuleSummary(1)).toBeNull();
   });
 
+  it("the Growth era (C1) surfaces its real change — the competition ramp + a bigger market", () => {
+    // Era 2 has no eraModifier delta, but competition jumps 0.25→1.0 and the market grows; the rule
+    // summary now says so instead of reading as an identical era.
+    const s = eraRuleSummary(2);
+    expect(s).not.toBeNull();
+    expect(s).toMatch(/rivals|contest/i);
+    expect(s).toMatch(/bigger/i);
+  });
+
   it("the Platform era amplifies the ecosystem economy + marketing", () => {
     const m = eraModifier(3);
     expect(m.ecosystemRate).toBeGreaterThan(1);

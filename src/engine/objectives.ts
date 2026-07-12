@@ -11,6 +11,7 @@
 // already tracks, plus a "newly satisfied" diff the state layer announces. Completion is latched by
 // the caller (state.completedObjectives) so a transient dip can never resurrect a finished goal.
 import type { GameState } from "../state/gameState.ts";
+import { MEGAPROJECTS } from "./endgame.ts";
 
 /** Deep-link nav targets — structurally identical to the UI's `Tab` union, declared here so the
  *  engine stays free of any React-component import (golden rule: engine/ imports no React/DOM). */
@@ -27,7 +28,9 @@ export type ObjectiveIconName =
   | "Wrench"
   | "Layers"
   | "Building2"
-  | "Trophy";
+  | "Trophy"
+  | "Crown"
+  | "Cpu";
 
 export interface Objective {
   id: string;
@@ -114,6 +117,15 @@ export const OBJECTIVES: readonly Objective[] = [
     done: ownsAnyUpgrade,
   },
   {
+    id: "reach-era3",
+    label: "Reach the Platform Era",
+    detail: "Keep shipping and building reputation to graduate into Era 3.",
+    tab: "research",
+    cta: "View the roadmap",
+    icon: "Layers",
+    done: (s) => s.era >= 3,
+  },
+  {
     id: "found-platform",
     label: "Found the Platform division",
     detail: "Turn your OS into a business of its own, recurring services and licensing.",
@@ -121,6 +133,15 @@ export const OBJECTIVES: readonly Objective[] = [
     cta: "Go to Company",
     icon: "Layers",
     done: (s) => s.platformUnlocked,
+  },
+  {
+    id: "reach-era4",
+    label: "Reach the AI Era",
+    detail: "The frontier — the last era, where the biggest launches and the IPO await.",
+    tab: "research",
+    cta: "View the roadmap",
+    icon: "Cpu",
+    done: (s) => s.era >= 4,
   },
   {
     id: "go-public",
@@ -134,11 +155,48 @@ export const OBJECTIVES: readonly Objective[] = [
   {
     id: "reach-pinnacle",
     label: "Reach the industry pinnacle",
-    detail: "Climb to the top of the industry and cement your legacy.",
+    detail: "Go public and cement your legacy at the top of the industry.",
     tab: "market",
     cta: "Open the Market",
     icon: "Trophy",
     done: (s) => s.wentPublic,
+  },
+  // --- Post-IPO: the Legacy Era spine, so the longest stretch of the game stays directed ---
+  {
+    id: "fund-megaproject",
+    label: "Fund a moonshot megaproject",
+    detail: "Sink cash + research into a Legacy-Era megaproject for a permanent payoff and Legacy Points.",
+    tab: "hq",
+    cta: "Open the Office",
+    icon: "Rocket",
+    done: (s) => (s.megaprojectsFunded?.length ?? 0) >= 1,
+  },
+  {
+    id: "spend-legacy-point",
+    label: "Invest a Legacy Point",
+    detail: "Spend the Legacy Points your megaprojects bank on a permanent boon in the Legacy tree.",
+    tab: "hq",
+    cta: "Open the Office",
+    icon: "Sparkles",
+    done: (s) => (s.legacyPerks?.length ?? 0) >= 1,
+  },
+  {
+    id: "reach-number-one",
+    label: "Become the #1 company",
+    detail: "Overtake every rival to claim the top of the industry leaderboard.",
+    tab: "market",
+    cta: "Open the Market",
+    icon: "Crown",
+    done: (s) => (s.bestIndustryRank ?? 99) <= 1,
+  },
+  {
+    id: "fund-all-megaprojects",
+    label: "Fund every megaproject",
+    detail: "Complete the full moonshot slate — a legacy without equal.",
+    tab: "hq",
+    cta: "Open the Office",
+    icon: "Building2",
+    done: (s) => (s.megaprojectsFunded?.length ?? 0) >= MEGAPROJECTS.length,
   },
 ];
 

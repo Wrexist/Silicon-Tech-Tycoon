@@ -11,7 +11,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { eraContext, eraName, maxEra } from "../engine/eras.ts";
 import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
-import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
+import { RESEARCH_PROJECTS, forkLockedBy, prereqsMissing, projectById } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
 import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight, researchQueueFull, tierResearchStatus, projectResearchStatus, type ResearchSlotStatus } from "../state/gameState.ts";
@@ -184,7 +184,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   // Find the cheapest unaffordable project the player could save toward (excluding fork-locked
   // doctrine siblings, which can't be researched once a doctrine is chosen).
   const nextGoal = RESEARCH_PROJECTS
-    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost && !forkLockedBy(state.completedProjects, p.id))
+    .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0)
     .sort((a, b) => a.rpCost - b.rpCost)[0] ?? null;
   const goalPct = nextGoal ? Math.min(100, Math.round((rp / nextGoal.rpCost) * 100)) : 0;
   const goalWeeks = nextGoal && perWeek > 0 ? Math.ceil((nextGoal.rpCost - rp) / perWeek) : null;
@@ -217,7 +217,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </div>
           {(() => {
             const buyableNow = RESEARCH_PROJECTS.filter(
-              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id),
+              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0,
             ).length;
             if (buyableNow === 0) return null;
             return (
@@ -493,23 +493,31 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               const locked = p.era > state.era;
               // Research-tree fork (Track D): a forked project is locked once a sibling doctrine is chosen.
               const forkLock = !done ? forkLockedBy(state.completedProjects, p.id) : null;
-              const affordable = rp >= p.rpCost && !locked && !forkLock;
-              const weeksAway = !affordable && !locked && !forkLock && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
+              // Item 4.2 — prerequisites: a capstone is locked until its required projects are done.
+              const prereqLock = !done && !locked && !forkLock ? prereqsMissing(state.completedProjects, p.id) : [];
+              const affordable = rp >= p.rpCost && !locked && !forkLock && prereqLock.length === 0;
+              const weeksAway = !affordable && !locked && !forkLock && prereqLock.length === 0 && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
               return (
-                <Card key={p.id} className={`rd__project${p.fork ? " rd__project--fork" : ""}`}>
+                <Card key={p.id} className={`rd__project${p.fork ? " rd__project--fork" : ""}${p.capstone ? " rd__project--capstone" : ""}`}>
                   <div className="rd__project-info">
                     <span className="rd__next-name">
                       {p.name}
                       {p.fork && <span className="rd__fork-tag" title="A doctrine — choosing one locks out the others">Pick one</span>}
+                      {p.capstone && <span className="rd__fork-tag" title="A capstone — the end of this era's tree, behind its prerequisites">Capstone</span>}
                     </span>
                     <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
+                    {/* Item A3 — the "why" that used to live in a hover title, now inline (touch-visible). */}
+                    {p.fork && !done && !forkLock && <span className="rd__fork-note">Doctrine — you can only ever pick ONE of these; it permanently stamps every product you ship.</span>}
+                    {p.capstone && !done && <span className="rd__fork-note">Capstone — the end of this era's tree, unlocked once its prerequisite projects are complete.</span>}
                   </div>
                   {done ? (
                     <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> {p.fork ? "Chosen" : "Done"}</span>
                   ) : locked ? (
                     <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
                   ) : forkLock ? (
-                    <span className="rd__locked" title={`You chose ${projectById(forkLock).name}`}><Lock size={12} /> Locked</span>
+                    <span className="rd__locked"><Lock size={12} /> {projectById(forkLock).name} chosen</span>
+                  ) : prereqLock.length > 0 ? (
+                    <span className="rd__locked" title={`Requires ${prereqLock.map((r) => projectById(r).name).join(", ")}`}><Lock size={12} /> Requires {prereqLock.map((r) => projectById(r).name).join(", ")}</span>
                   ) : (
                     <div className="rd__project-action">
                       <ResearchAction status={projectResearchStatus(state, p.id)} cost={p.rpCost} affordable={affordable} queueFull={queueFull} weeksAway={weeksAway} onStart={() => buyProject(p.id)} />

@@ -42,6 +42,33 @@ describe("generateRegionalEvent", () => {
   it("regionalEventDue is deterministic for a given seed/week", () => {
     expect(regionalEventDue(7, 30)).toBe(regionalEventDue(7, 30));
   });
+
+  it("item 5.7: a rivalSurge names a real, given rival (deterministically); others don't", () => {
+    const rivals = ["Pomelo", "Vantage", "Nimbus"];
+    // Scan seeds/weeks for one of each kind and check the rival naming rule.
+    let surge = null, nonSurge = null;
+    for (let w = 0; w < 200 && (!surge || !nonSurge); w++) {
+      const e = generateRegionalEvent(3, w, ["asia"], 2, rivals);
+      if (e.kind === "rivalSurge" && !surge) surge = e;
+      if (e.kind !== "rivalSurge" && !nonSurge) nonSurge = e;
+    }
+    expect(surge).not.toBeNull();
+    expect(rivals).toContain(surge!.rivalName); // named from the live field
+    // Deterministic: same inputs → same rival.
+    expect(generateRegionalEvent(3, surge!.week, ["asia"], 2, rivals).rivalName).toBe(surge!.rivalName);
+    // Non-surge events carry no rival name.
+    expect(nonSurge!.rivalName).toBeUndefined();
+    // With no rivals supplied, even a surge has no name (older-caller safe).
+    const noRivals = generateRegionalEvent(3, surge!.week, ["asia"], 2);
+    expect(noRivals.rivalName).toBeUndefined();
+  });
+
+  it("item 5.7: regionTasteLabel names each market's dominant taste", async () => {
+    const { regionTasteLabel } = await import("../engine/regions.ts");
+    expect(regionTasteLabel("europe")).toBeTruthy();   // quality/design-led
+    expect(regionTasteLabel("north_america")).toBeTruthy(); // performance-hungry
+    expect(regionTasteLabel("home")).toBe("");         // home has flat weights → no standout, empty
+  });
 });
 
 describe("resolveRegionalEvent", () => {

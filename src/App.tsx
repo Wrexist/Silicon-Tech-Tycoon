@@ -21,6 +21,8 @@ import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
 import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
+import { StaffEvent } from "./components/StaffEvent.tsx";
+import { PostLaunchEvent } from "./components/PostLaunchEvent.tsx";
 import { RegionalEvent } from "./components/RegionalEvent.tsx";
 import { EarningsCall } from "./components/EarningsCall.tsx";
 import { ContractOffer } from "./components/ContractOffer.tsx";
@@ -43,7 +45,7 @@ import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState }
 import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
-import { RESEARCH_PROJECTS } from "./engine/research.ts";
+import { RESEARCH_PROJECTS, doctrineSummary } from "./engine/research.ts";
 import { HQ } from "./screens/HQ.tsx";
 import { DesignLab } from "./screens/DesignLab.tsx";
 import { Research } from "./screens/Research.tsx";
@@ -135,20 +137,9 @@ function AppShell() {
   useEffect(() => onCelebrate(() => emitHqReaction("cheer")), []);
 
   // The first ship silently unlocks half the meta-game (Progress hub, stock market, financing,
-  // morale, daily challenges). Say so ONCE — deferred so the launch reveal + verdict own the
-  // moment and this lands as the "what's next" beat after the confetti settles.
+  // morale, daily challenges). Item A1 — instead of a blink-and-miss toast, a persistent, dismissible
+  // "what just unlocked" card renders on HQ (UnlockCard) until the player taps it, so nothing is lost.
   const hasShippedNow = state.launched.length >= 1 || state.legacy > 0;
-  const announcedUnlocks = useRef(hasShippedNow); // pre-shipped saves don't get re-told
-  useEffect(() => {
-    if (!hasShippedNow || announcedUnlocks.current) return;
-    // Mark inside the timeout, not before it — so a StrictMode mount/cleanup/remount (which fires
-    // the effect twice with the same ref) doesn't consume the announcement on the discarded pass.
-    const t = setTimeout(() => {
-      announcedUnlocks.current = true;
-      showToast("New unlocked: Progress hub (trophy), stock market & financing", { tone: "positive", glyph: <Trophy size={15} /> });
-    }, 4200);
-    return () => clearTimeout(t);
-  }, [hasShippedNow]);
 
   if (!state.onboarded) return <Onboarding onStart={() => setTab("design")} />;
 
@@ -238,6 +229,8 @@ function AppShell() {
       <EurekaMoment />
       <CommunityAsk />
       <StaffMoment />
+      <StaffEvent />
+      <PostLaunchEvent />
       <RegionalEvent />
       <EarningsCall />
       <ContractOffer />
@@ -465,6 +458,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             products: state.launched.length,
             fans: state.fans,
             legacy: state.legacy,
+            doctrine: doctrineSummary(state.completedProjects),
           })}
         </p>
         <Card variant="inset" className="ipo__legacy">

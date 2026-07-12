@@ -474,6 +474,23 @@ function migrate(state: GameState): GameState | null {
       .filter((n: number) => n > 0);
     s.launchExpectation = scores.length ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0;
   }
+  // Outlet review threads (item 2.6, added later): default empty — they repopulate as you ship, so a
+  // returning player just starts each outlet's running stance from a clean slate.
+  if (!s.reviewThreads || typeof s.reviewThreads !== "object") s.reviewThreads = {};
+  // Side-order client loyalty (item 3.5, added later): default empty — repopulates as orders complete.
+  if (!s.sideOrderClients || typeof s.sideOrderClients !== "object") s.sideOrderClients = {};
+  // Legacy Era (item 4.1, added later): defaults for the post-IPO endgame — only ever live post-IPO.
+  // Choice-consequence flags (item 5.9, added later): default empty — repopulates as you make choices.
+  if (!Array.isArray(s.choiceFlags)) s.choiceFlags = [];
+  // First-ship unlock card (item A1, added later): a returning save that has already shipped (or is a
+  // prestige run) has long since learned the meta-game, so mark it seen and never re-announce.
+  if (typeof s.seenFirstShipUnlocks !== "boolean") {
+    s.seenFirstShipUnlocks = (Array.isArray(s.launched) && s.launched.length >= 1) || (s.legacy ?? 0) > 0;
+  }
+  if (!Array.isArray(s.megaprojectsFunded)) s.megaprojectsFunded = [];
+  if (!Number.isFinite(s.legacyPoints)) s.legacyPoints = 0;
+  if (!Array.isArray(s.legacyPerks)) s.legacyPerks = [];
+  if (s.boardMandate === undefined) s.boardMandate = null;
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save

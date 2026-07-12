@@ -32,6 +32,7 @@ import {
   founderStakeValue,
   industryLeaderboard,
   industryRank,
+  nextRankRival,
   marketingPushQuote,
   restockQuote,
   netWorth,
@@ -344,9 +345,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       {(() => {
         const board = industryLeaderboard(state);
         const myRank = industryRank(state);
-        const me = board.find((e) => e.isPlayer)!;
-        const above = myRank > 1 ? board[myRank - 2] : null;
-        const gap = above ? sub(above.valuation, me.valuation) : null;
+        // Item 5.3 — the "boss" directly above, shared with the HQ ladder surface.
+        const boss = nextRankRival(state);
+        const above = boss ? { name: boss.name } : null;
+        const gap = boss ? boss.gap : null;
         return (
           <Card className="mkt__board">
             <SectionHeader title="Industry leaderboard" accessory={`#${myRank} of ${board.length}`} />
