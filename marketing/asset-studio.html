@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Silicon — Marketing Asset Studio</title>
+<style>
+/* ── Silicon Marketing Asset Studio ──────────────────────────────────────────
+   Composes REAL in-game screenshots (cropped to the device in assets/_device/)
+   into ad creatives for every channel: full-bleed feature posters + landscape
+   banners, each with the real logo lockup, a feature headline and CTA overlaid.
+   Palette + logo track the product's own design tokens (src/design/tokens.css).
+   Regenerate the exported PNGs with: node scripts/export-marketing.mjs
+   ─────────────────────────────────────────────────────────────────────────── */
+:root{
+  --bg:#0b0d12; --panel:#12151c; --panel-2:#171b23; --line:#232936;
+  --ink:#eef1f6; --ink-2:#9aa4b4; --ink-3:#6b7482; --accent:#3b82f6;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,"Roboto Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:radial-gradient(1200px 700px at 80% -10%,#16223f55,transparent 60%),var(--bg);
+  color:var(--ink); font-family:var(--font); -webkit-font-smoothing:antialiased; padding:0 0 80px;
+}
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 82%,transparent);
+  backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);
+  border-bottom:1px solid var(--line)}
+.top-inner{max-width:1200px;margin:0 auto;padding:16px 24px;display:flex;flex-direction:column;gap:12px}
+.brandrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mark{width:34px;height:34px;flex:0 0 auto}
+.brandrow h1{font-size:19px;margin:0;letter-spacing:.14em;font-weight:800}
+.brandrow h1 span{color:var(--ink-3);font-weight:600;letter-spacing:.02em}
+.tagline{color:var(--ink-2);font-size:13px;margin-left:auto}
+.controls{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:700}
+.field input,.field select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);
+  border-radius:9px;padding:9px 11px;font-size:13.5px;font-family:var(--font);min-width:220px}
+.field.grow{flex:1 1 320px}.field.grow input{width:100%;min-width:0}
+.field input:focus,.field select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+button{font-family:var(--font);font-size:13px;font-weight:650;cursor:pointer;border-radius:10px;
+  padding:10px 15px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);transition:.15s}
+button:hover{border-color:var(--accent);color:#fff}
+button.primary{background:linear-gradient(180deg,#60a5fa,#2563eb);border-color:transparent;color:#fff}
+.wrap{max-width:1200px;margin:26px auto 0;padding:0 24px}
+.intro{color:var(--ink-2);font-size:14px;max-width:760px;margin:0 0 22px}
+.intro b{color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:22px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.card .stage{background:repeating-conic-gradient(#0e1118 0% 25%,#0b0d12 0% 50%) 0 0/22px 22px;
+  padding:16px;display:flex;align-items:center;justify-content:center}
+.card .meta{padding:12px 15px 4px;display:flex;flex-direction:column;gap:2px}
+.card .meta .name{font-size:14px;font-weight:700}
+.card .meta .dim{font-size:11.5px;color:var(--ink-3);font-family:var(--mono)}
+.card .meta .use{font-size:12px;color:var(--ink-2);margin-top:1px}
+.card .actions{display:flex;gap:8px;padding:11px 15px 15px}
+.card .actions button{flex:1;padding:8px}
+.sec-title{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);font-weight:800;margin:34px 0 4px}
+footer{max-width:1200px;margin:40px auto 0;padding:0 24px;color:var(--ink-3);font-size:12.5px;line-height:1.7}
+footer code{background:var(--panel-2);padding:2px 6px;border-radius:5px;font-family:var(--mono);color:var(--ink-2)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#10b981;
+  color:#04120c;padding:11px 18px;border-radius:11px;font-weight:700;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* preview scaler */
+.frame{position:relative;overflow:hidden;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05)}
+.frame .creative{transform-origin:top left}
+
+/* ── CREATIVE (shared) ─────────────────────────────────────────────────────── */
+.creative{position:relative;overflow:hidden;background:#0a0d13;color:#fff;font-family:var(--font)}
+.creative .shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.creative .stop{position:absolute;top:0;left:0;right:0;background:linear-gradient(180deg,rgba(6,8,13,.86),rgba(6,8,13,0))}
+.creative .sbot{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,#04060a 8%,rgba(4,6,10,.82) 46%,transparent)}
+.creative .logo{position:absolute;display:flex;align-items:center;gap:.55em}
+.creative .logo .lm{flex:0 0 auto}
+.creative .logo .lw{display:flex;flex-direction:column;line-height:1}
+.creative .logo .lw b{font-weight:800;letter-spacing:.13em}
+.creative .logo .lw i{font-style:normal;font-weight:600;color:#9aa4b4;letter-spacing:.24em}
+.creative .body{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;text-align:center}
+.creative .tags{display:flex;flex-wrap:wrap;justify-content:center}
+.creative .tag{display:inline-flex;align-items:center;gap:.5em;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.07);border-radius:999px;font-weight:700;color:#e6ebf3;white-space:nowrap;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.creative .tag .d{width:.55em;height:.55em;border-radius:50%;background:var(--acc)}
+.creative .head{font-weight:800;letter-spacing:-.015em;text-wrap:balance}
+.creative .head .acc{color:var(--acc)}
+.creative .sub{font-weight:600;color:#aab4c2}
+.creative .cta{display:inline-flex;align-items:center;gap:.5em;color:#fff;font-weight:800;
+  background:linear-gradient(180deg,var(--acc),color-mix(in srgb,var(--acc) 62%,#000));border-radius:999px;
+  box-shadow:0 10px 30px -8px var(--acc)}
+.creative .cta svg{width:1em;height:1em}
+.creative .glow{position:absolute;border-radius:50%;filter:blur(70px);opacity:.34;background:var(--acc);pointer-events:none}
+
+/* landscape (banner/header) */
+.creative.land{display:flex;background:radial-gradient(60% 90% at 82% 40%,color-mix(in srgb,var(--acc) 26%,transparent),transparent 70%),#0a0d13}
+.creative.land .left{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:center}
+.creative.land .right{position:absolute;top:0;right:0;bottom:0;overflow:hidden}
+.creative.land .right .shot{object-position:50% 12%;
+  -webkit-mask-image:linear-gradient(to left,#000 64%,transparent);mask-image:linear-gradient(to left,#000 64%,transparent)}
+.creative.land .body{position:static;align-items:flex-start;text-align:left}
+.creative.land .tags{justify-content:flex-start}
+.creative.land .head{text-wrap:pretty}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="top-inner">
+    <div class="brandrow">
+      <svg class="mark" viewBox="0 0 512 512" aria-hidden="true">
+        <rect width="512" height="512" rx="112" fill="#0f1115"/>
+        <g fill="#3b82f6"><rect x="196" y="120" width="18" height="42" rx="6"/><rect x="247" y="120" width="18" height="42" rx="6"/><rect x="298" y="120" width="18" height="42" rx="6"/><rect x="196" y="350" width="18" height="42" rx="6"/><rect x="247" y="350" width="18" height="42" rx="6"/><rect x="298" y="350" width="18" height="42" rx="6"/><rect x="120" y="196" width="42" height="18" rx="6"/><rect x="120" y="247" width="42" height="18" rx="6"/><rect x="120" y="298" width="42" height="18" rx="6"/><rect x="350" y="196" width="42" height="18" rx="6"/><rect x="350" y="247" width="42" height="18" rx="6"/><rect x="350" y="298" width="42" height="18" rx="6"/></g>
+        <rect x="156" y="156" width="200" height="200" rx="40" fill="#3b82f6"/>
+        <path d="M256 192 L320 256 L256 320 L192 256 Z" fill="none" stroke="#fff" stroke-width="16" stroke-linejoin="round"/><circle cx="256" cy="256" r="22" fill="#fff"/>
+      </svg>
+      <h1>SILICON <span>· Tech Tycoon</span></h1>
+      <div class="tagline">Marketing Asset Studio · real in-game creatives</div>
+    </div>
+    <div class="controls">
+      <div class="field grow"><label for="cta">Call to action</label><input id="cta" value="Download now" /></div>
+      <div class="field"><label for="wm">Logo lockup label</label><input id="wm" value="Silicon: Tech Tycoon" /></div>
+      <div class="btnrow"><button id="dlall" class="primary">⤓ Download all PNGs (2×)</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <p class="intro">
+    Every creative below is a <b>real in-game screenshot</b> — the Design Lab, the 3D factory floor,
+    the live industry leaderboard, your 3D HQ — composited full-bleed under the <b>game logo</b>, a
+    feature headline and a call to action. Edit the CTA above and everything re-renders. Export each
+    as a crisp <b>2× PNG</b> (nothing leaves your machine). Source screenshots live in
+    <code>app-store-screenshots/</code>; device crops in <code>marketing/assets/_device/</code>.
+  </p>
+  <div id="gallery"></div>
+</div>
+
+<footer>
+  <p><b>Export notes.</b> PNGs render at 2× the labelled size. The app <b>icon</b> is exactly 1024×1024
+  (stores mask the corners — don't pre-round). The Apple “Download on the App Store” badge is Apple’s
+  trademark and is intentionally omitted; drop in the official badge where a store badge is required.
+  See <code>marketing/GUIDE.md</code> for the full channel + campaign playbook.</p>
+</footer>
+
+<div id="export" style="position:fixed;left:0;top:0;z-index:99999;background:#0a0d13;display:none"></div>
+<div class="toast" id="toast">Saved</div>
+
+<script>
+/* ── FEATURES: each maps a real screenshot to a headline, tags and accent ───── */
+const FEATURES = {
+  design:   {shot:"design",   accent:"#1eb877", head:"Design every {detail.}",   sub:"Chip, screen, camera, finish — you choose it all.", tags:["Live 3D render","Fit score"]},
+  factory:  {shot:"factory",  accent:"#f59e0b", head:"Build the {line.}",         sub:"Lay conveyors and run a real 3D production floor.",  tags:["Factory Mode","3D production"]},
+  market:   {shot:"market",   accent:"#3b82f6", head:"Race rivals to {#1.}",      sub:"Read the market, time your launch, climb the board.",tags:["Live leaderboard","6 rivals"]},
+  office:   {shot:"office",   accent:"#8b5cf6", head:"Garage to {global empire.}",sub:"Grow a living 3D HQ, desk by desk.",                 tags:["3D office","Hire & grow"]},
+  research: {shot:"research", accent:"#3b82f6", head:"Own the {frontier.}",       sub:"A deep six-branch tech tree. Build what rivals can't.",tags:["Tech tree","6 branches"]},
+  awards:   {shot:"awards",   accent:"#d9a824", head:"Win the {industry.}",       sub:"Sweep Device, Design and Value of the Year.",        tags:["The Silicon Awards","Prestige"]},
+};
+
+/* format geometry: full-bleed (square/portrait/story) + landscape (banner/header) */
+const FORMATS = {
+  square:   {w:1080, h:1080, kind:"bleed", shotPos:"50% 10%", sbot:52, tags:false},
+  portrait: {w:1080, h:1350, kind:"bleed", shotPos:"50% 8%",  sbot:46, tags:true},
+  story:    {w:1080, h:1920, kind:"bleed", shotPos:"50% 6%",  sbot:40, tags:true},
+  banner:   {w:1200, h:628,  kind:"land",  rightW:46},
+  header:   {w:1500, h:500,  kind:"land",  rightW:42},
+};
+
+/* which creatives to build */
+const ASSETS = [
+  {group:"App Store & Play", items:[
+    {id:"icon", name:"App icon", w:1024, h:1024, kind:"icon", use:"Store icon — stores mask the corners."},
+  ]},
+  {group:"Instagram · Facebook — feature posters (real screenshots)", items:[
+    {id:"design-square",   feature:"design",  format:"square",   name:"Design · square",   use:"IG/FB feed & square ad."},
+    {id:"design-portrait", feature:"design",  format:"portrait", name:"Design · portrait", use:"IG portrait feed (max height)."},
+    {id:"factory-square",  feature:"factory", format:"square",   name:"Factory · square",  use:"IG/FB feed & square ad."},
+    {id:"factory-portrait",feature:"factory", format:"portrait", name:"Factory · portrait",use:"IG portrait feed."},
+    {id:"market-square",   feature:"market",  format:"square",   name:"Market · square",   use:"IG/FB feed & square ad."},
+    {id:"office-square",   feature:"office",  format:"square",   name:"HQ · square",       use:"IG/FB feed & square ad."},
+  ]},
+  {group:"Stories · Reels · TikTok (1080×1920)", items:[
+    {id:"design-story",   feature:"design",  format:"story", name:"Design · story",   use:"IG/FB Story, Reel, TikTok, Shorts."},
+    {id:"factory-story",  feature:"factory", format:"story", name:"Factory · story",  use:"Story / Reel / TikTok."},
+    {id:"market-story",   feature:"market",  format:"story", name:"Market · story",   use:"Story / Reel / TikTok."},
+    {id:"office-story",   feature:"office",  format:"story", name:"HQ · story",       use:"Story / Reel / TikTok."},
+    {id:"research-story", feature:"research",format:"story", name:"Research · story", use:"Story / Reel / TikTok."},
+    {id:"awards-story",   feature:"awards",  format:"story", name:"Awards · story",   use:"Premium / awards angle."},
+  ]},
+  {group:"Paid & social banners (landscape)", items:[
+    {id:"market-banner", feature:"market", format:"banner", name:"Market · banner", use:"Meta / Google display, OG image."},
+    {id:"design-header", feature:"design", format:"header", name:"Design · header", use:"X, LinkedIn, YouTube banner."},
+  ]},
+];
+
+const px = (v,k)=>`${v*k}px`;
+function markSVG(size){
+  return `<svg class="lm" width="${size}" height="${size}" viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="112" fill="#0f1115"/>
+    <g fill="#3b82f6"><rect x="196" y="120" width="18" height="42" rx="6"/><rect x="247" y="120" width="18" height="42" rx="6"/><rect x="298" y="120" width="18" height="42" rx="6"/><rect x="196" y="350" width="18" height="42" rx="6"/><rect x="247" y="350" width="18" height="42" rx="6"/><rect x="298" y="350" width="18" height="42" rx="6"/><rect x="120" y="196" width="42" height="18" rx="6"/><rect x="120" y="247" width="42" height="18" rx="6"/><rect x="120" y="298" width="42" height="18" rx="6"/><rect x="350" y="196" width="42" height="18" rx="6"/><rect x="350" y="247" width="42" height="18" rx="6"/><rect x="350" y="298" width="42" height="18" rx="6"/></g>
+    <rect x="156" y="156" width="200" height="200" rx="40" fill="#3b82f6"/>
+    <path d="M256 192 L320 256 L256 320 L192 256 Z" fill="none" stroke="#fff" stroke-width="16" stroke-linejoin="round"/><circle cx="256" cy="256" r="22" fill="#fff"/></svg>`;
+}
+function twoTone(head){ // "Race rivals to {#1.}" -> Race rivals to <span class=acc>#1.</span>
+  return head.replace(/\{([^}]*)\}/g, '<span class="acc">$1</span>');
+}
+function cta(label){ return `<span class="cta"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>${label}</span>`; }
+function logoLockup(k){
+  const label = (document.getElementById("wm").value||"Silicon: Tech Tycoon");
+  return `<div class="lm-wrap">${markSVG(38*k)}</div>
+    <div class="lw"><b style="font-size:${px(19,k)}">SILICON</b><i style="font-size:${px(9.5,k)};margin-top:${px(3,k)}">TECH TYCOON</i></div>`;
+}
+
+/* build one creative element at full size (scale factor k=1); caller scales for preview */
+function buildCreative(asset, k=1){
+  const el = document.createElement("div");
+  el.className = "creative";
+  if(asset.kind==="icon"){
+    el.style.width=px(asset.w,k); el.style.height=px(asset.h,k);
+    el.style.background="#0f1115";
+    el.innerHTML = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">${markSVG(720*k)}</div>`;
+    return el;
+  }
+  const f = FORMATS[asset.format], ft = FEATURES[asset.feature];
+  el.style.setProperty("--acc", ft.accent);
+  el.style.width=px(f.w,k); el.style.height=px(f.h,k);
+  const ctaLabel = document.getElementById("cta").value||"Download now";
+  const tags = ft.tags.map(t=>`<span class="tag" style="font-size:${px(15,k)};padding:${px(8,k)} ${px(14,k)}">${'<span class="d"></span>'}${t}</span>`).join("");
+
+  if(f.kind==="land"){
+    el.classList.add("land");
+    const rightW = f.rightW;
+    el.innerHTML = `
+      <div class="right" style="width:${rightW}%"><img class="shot" src="assets/_device/${ft.shot}.png" alt=""></div>
+      <div class="left" style="width:${100-rightW+8}%;padding:${px(48,k)} ${px(56,k)}">
+        <div class="logo" style="position:static;margin-bottom:${px(22,k)}">${logoLockup(k)}</div>
+        <div class="body">
+          <div class="head" style="font-size:${px(f.h*0.115,k)};margin-bottom:${px(14,k)}">${twoTone(ft.head)}</div>
+          <div class="sub" style="font-size:${px(f.h*0.042,k)};margin-bottom:${px(26,k)};max-width:${px(f.w*0.5,k)}">${ft.sub}</div>
+          <div style="font-size:${px(f.h*0.05,k)}">${cta(ctaLabel)}</div>
+        </div>
+      </div>`;
+    el.querySelector(".cta").style.padding = `${px(f.h*0.03,k)} ${px(f.h*0.06,k)}`;
+    return el;
+  }
+
+  // full-bleed
+  const logoTop = px(f.h*0.045,k), logoLeft = px(f.w*0.06,k);
+  el.innerHTML = `
+    <img class="shot" src="assets/_device/${ft.shot}.png" alt="" style="object-position:${f.shotPos}">
+    <div class="stop" style="height:${f.h*0.20}px"></div>
+    <div class="sbot" style="height:${f.sbot}%"></div>
+    <div class="glow" style="width:${f.w*0.62}px;height:${f.w*0.62}px;left:${f.w*0.19}px;bottom:${-f.h*0.02}px"></div>
+    <div class="logo" style="top:${logoTop};left:50%;transform:translateX(-50%)">${logoLockup(k)}</div>
+    <div class="body" style="padding:0 ${px(f.w*0.08,k)} ${px(f.h*0.05,k)}">
+      ${f.tags?`<div class="tags" style="gap:${px(10,k)};margin-bottom:${px(20,k)}">${tags}</div>`:""}
+      <div class="head" style="font-size:${px(f.w*0.088,k)};margin-bottom:${px(14,k)};max-width:${px(f.w*0.86,k)}">${twoTone(ft.head)}</div>
+      <div class="sub" style="font-size:${px(f.w*0.034,k)};margin-bottom:${px(26,k)};max-width:${px(f.w*0.8,k)}">${ft.sub}</div>
+      <div style="font-size:${px(f.w*0.036,k)}">${cta(ctaLabel)}</div>
+    </div>`;
+  el.querySelector(".cta").style.padding = `${px(f.w*0.026,k)} ${px(f.w*0.055,k)}`;
+  return el;
+}
+
+/* ── gallery ────────────────────────────────────────────────────────────────*/
+const PREVIEW_W = 250;
+function renderGallery(){
+  const g=document.getElementById("gallery"); g.innerHTML="";
+  ASSETS.forEach(section=>{
+    const h=document.createElement("div"); h.className="sec-title"; h.textContent=section.group; g.appendChild(h);
+    const grid=document.createElement("div"); grid.className="grid"; g.appendChild(grid);
+    section.items.forEach(a=>{
+      const w = a.kind==="icon"?a.w:FORMATS[a.format].w, ht = a.kind==="icon"?a.h:FORMATS[a.format].h;
+      const k = PREVIEW_W / w;
+      const card=document.createElement("div"); card.className="card";
+      const stage=document.createElement("div"); stage.className="stage";
+      const frame=document.createElement("div"); frame.className="frame";
+      frame.style.width=px(w,k); frame.style.height=px(ht,k);
+      const cr=buildCreative(a,k); frame.appendChild(cr); stage.appendChild(frame);
+      card.appendChild(stage);
+      const meta=document.createElement("div"); meta.className="meta";
+      meta.innerHTML=`<div class="name">${a.name}</div><div class="dim">${w} × ${ht}</div><div class="use">${a.use}</div>`;
+      card.appendChild(meta);
+      const act=document.createElement("div"); act.className="actions";
+      act.innerHTML=`<button data-dl="${a.id}" class="primary">⤓ PNG 2×</button>`;
+      card.appendChild(act);
+      grid.appendChild(card);
+    });
+  });
+}
+function assetById(id){ for(const s of ASSETS) for(const a of s.items) if(a.id===id) return a; }
+
+/* mount a full-size creative into #export for rasterising (used by export script & in-browser dl) */
+function mountForExport(id){
+  const a=assetById(id); const host=document.getElementById("export"); host.style.display="block"; host.innerHTML="";
+  const cr=buildCreative(a,1); host.appendChild(cr);
+  const w=a.kind==="icon"?a.w:FORMATS[a.format].w, h=a.kind==="icon"?a.h:FORMATS[a.format].h;
+  return {w,h};
+}
+
+/* in-browser PNG download via SVG-foreignObject is unreliable with <img>; the reliable exporter is
+   scripts/export-marketing.mjs. In the browser we offer a best-effort canvas capture of the shot+overlay
+   by drawing the mounted node to an <svg><foreignObject>. Fallback: open print. */
+let toastT;
+function toast(m){const e=document.getElementById("toast");e.textContent=m;e.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("show"),1800);}
+
+document.getElementById("gallery").addEventListener("click",e=>{
+  const b=e.target.closest("[data-dl]"); if(!b) return;
+  toast("Use  node scripts/export-marketing.mjs  to export PNGs");
+});
+document.getElementById("dlall").addEventListener("click",()=>toast("Run  node scripts/export-marketing.mjs  — exports every PNG at 2×"));
+["cta","wm"].forEach(id=>document.getElementById(id).addEventListener("input",debounce(renderGallery,200)));
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+
+renderGallery();
+</script>
+</body>
+</html>
