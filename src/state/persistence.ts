@@ -495,11 +495,15 @@ function migrate(state: GameState): GameState | null {
   // from leaving the Legacy-Era flow reading NaN progress off a half-shaped mandate.
   {
     const m = s.boardMandate as unknown;
+    const reward = (m as { reward?: unknown } | null)?.reward as { cash?: unknown; rep?: unknown } | undefined;
     const valid = !!m && typeof m === "object"
       && typeof (m as { metric?: unknown }).metric === "string"
       && Number.isFinite((m as { target?: unknown }).target)
       && Number.isFinite((m as { dueWeek?: unknown }).dueWeek)
-      && !!(m as { reward?: unknown }).reward && typeof (m as { reward?: unknown }).reward === "object";
+      // reward is dereferenced at read time (reward.cash / reward.rep) — require both as finite numbers
+      // so a partial `{}` reward can't turn reputation into NaN or break the award text.
+      && !!reward && typeof reward === "object"
+      && Number.isFinite(reward.cash) && Number.isFinite(reward.rep);
     if (!valid) s.boardMandate = null;
   }
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
