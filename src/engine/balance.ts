@@ -553,10 +553,10 @@ export const BALANCE = {
       restlessTenureWeeks: 40, // a "wants a bigger challenge" beat needs real tenure…
       restlessSkill: 6,      // …and seniority
       retainWeeks: 24,       // loyalty earned: weeks of poach-immunity a good answer buys
-      raiseCost: 6000,       // $ — a retention raise
-      courseCost: 9000,      // $ — funding a course (levels them up)
-      partyCost: 4000,       // $ — a team party
-      protoCost: 5000,       // $ — funding a side prototype
+      raiseCost: dollars(6000),   // a retention raise
+      courseCost: dollars(9000),  // funding a course (levels them up)
+      partyCost: dollars(4000),   // a team party
+      protoCost: dollars(5000),   // funding a side prototype
     },
   },
 
@@ -1203,9 +1203,9 @@ export const BALANCE = {
     minWeeksLeft: 2,         // …and still have this much selling window left to matter
     momentumSellThrough: 0.8, // ≥ this sell-through → the "flying off shelves" beat
     stallSellThrough: 0.3,   // ≤ this sell-through → the "stalling" beat
-    pushCost: 8_000, pushFans: 600, pushRep: 3,   // hype push on a hot seller
-    clearanceGain: 12_000, clearanceRepDip: 2,    // clearance markdown on a slow mover
-    supplyCost: 10_000, supplyRepDip: 3,          // secure-supply vs. take-the-hit
+    pushCost: dollars(8_000), pushFans: 600, pushRep: 3,   // hype push on a hot seller
+    clearanceGain: dollars(12_000), clearanceRepDip: 2,    // clearance markdown on a slow mover
+    supplyCost: dollars(10_000), supplyRepDip: 3,          // secure-supply vs. take-the-hit
   },
 
   // --- Design briefs (item 3.3): commit a product to a target buyer segment for a launch bonus ---

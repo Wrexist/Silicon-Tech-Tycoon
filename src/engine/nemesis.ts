@@ -143,7 +143,9 @@ const ALLOUT_TAUNTS: readonly string[] = [
  *  war the venom pool takes over; `turf` names the contested category. */
 export function nemesisTaunt(doctrine: string, seed: number, week: number, opts?: { tier?: HeatTier; turf?: string }): string {
   const pool = opts?.tier === "allout" ? ALLOUT_TAUNTS : TAUNTS[doctrine] ?? TAUNTS.generalist;
-  let h = ((seed >>> 0) ^ Math.imul((week + 1) >>> 0, 0x9e3779b1)) >>> 0;
+  // Fresh salt (271) mixed in like every other derived-hash stream, so the taunt pick stays
+  // uncorrelated from other (seed, week) side-channels. Cosmetic-only: never touches the sim.
+  let h = ((seed >>> 0) ^ Math.imul((week + 1) >>> 0, 0x9e3779b1) ^ Math.imul((271 + 1) >>> 0, 0x85ebca77)) >>> 0;
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
   const line = pool[(h >>> 0) % pool.length];

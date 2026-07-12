@@ -7,14 +7,15 @@
 // 257) — and every outcome is player-CHOSEN via an opt-in reducer. A do-nothing run raises none
 // (the pinned solo sim never accepts a choice), so it stays byte-identical.
 import { BALANCE } from "./balance.ts";
+import { format, type Money } from "./money.ts";
 import type { CategoryId } from "./types.ts";
 
 /** A concrete outcome the reducer applies. All fields optional; a do-nothing "hold" option is legal. */
 export interface PostLaunchEffect {
-  /** Up-front cash cost in DOLLARS (a marketing push / securing parts). */
-  cashCost?: number;
-  /** Cash recovered in DOLLARS (a clearance markdown). */
-  cashGain?: number;
+  /** Up-front cash cost (Money, integer cents) — a marketing push / securing parts. */
+  cashCost?: Money;
+  /** Cash recovered (Money, integer cents) — a clearance markdown. */
+  cashGain?: Money;
   /** Reputation delta. */
   rep?: number;
   /** Fanbase delta. */
@@ -95,7 +96,7 @@ export function generatePostLaunchEvent(target: PostLaunchTarget, week: number):
       title: `“${target.productName}” is flying off shelves`,
       body: `Demand for ${target.productName} is outrunning the shelf. Pour fuel on the fire while it's hot?`,
       options: [
-        { label: "Fund a hype push", blurb: `Costs ${fmt(c.pushCost)} — +${c.pushFans} fans, +${c.pushRep} rep off the buzz.`, effect: { cashCost: c.pushCost, fans: c.pushFans, rep: c.pushRep } },
+        { label: "Fund a hype push", blurb: `Costs ${format(c.pushCost)} — +${c.pushFans} fans, +${c.pushRep} rep off the buzz.`, effect: { cashCost: c.pushCost, fans: c.pushFans, rep: c.pushRep } },
         { label: "Let it ride", blurb: "Bank the momentum, spend nothing.", effect: { fans: Math.round(c.pushFans * 0.15) } },
       ],
     };
@@ -109,7 +110,7 @@ export function generatePostLaunchEvent(target: PostLaunchTarget, week: number):
       title: `“${target.productName}” is stalling on shelves`,
       body: `${target.productName} isn't moving. Cut the price to clear stock, or hold the line and protect the brand?`,
       options: [
-        { label: "Run a clearance", blurb: `Recover ${fmt(c.clearanceGain)} in stuck stock — but −${c.clearanceRepDip} rep on the markdown.`, effect: { cashGain: c.clearanceGain, rep: -c.clearanceRepDip } },
+        { label: "Run a clearance", blurb: `Recover ${format(c.clearanceGain)} in stuck stock — but −${c.clearanceRepDip} rep on the markdown.`, effect: { cashGain: c.clearanceGain, rep: -c.clearanceRepDip } },
         { label: "Hold the price", blurb: "Protect the brand and wait it out.", effect: {} },
       ],
     };
@@ -122,13 +123,8 @@ export function generatePostLaunchEvent(target: PostLaunchTarget, week: number):
     title: `Supply pinch on “${target.productName}”`,
     body: `A parts shortage threatens ${target.productName}'s run. Secure supply at a premium, or ride it out and take the hit?`,
     options: [
-      { label: "Secure the parts", blurb: `Costs ${fmt(c.supplyCost)} — keeps the line and the fans happy.`, effect: { cashCost: c.supplyCost, fans: Math.round(c.pushFans * 0.2) } },
+      { label: "Secure the parts", blurb: `Costs ${format(c.supplyCost)} — keeps the line and the fans happy.`, effect: { cashCost: c.supplyCost, fans: Math.round(c.pushFans * 0.2) } },
       { label: "Ride it out", blurb: `Save the cash — but −${c.supplyRepDip} rep as units slip.`, effect: { rep: -c.supplyRepDip } },
     ],
   };
-}
-
-// Small helper so option blurbs read with a $ amount without importing the Money formatter here.
-function fmt(dollars: number): string {
-  return dollars >= 1000 ? `$${Math.round(dollars / 1000)}K` : `$${dollars}`;
 }

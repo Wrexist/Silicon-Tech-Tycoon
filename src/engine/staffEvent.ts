@@ -7,6 +7,7 @@
 // 233) — and the outcome is player-CHOSEN via an opt-in reducer. The founder is never a target and a
 // solo/founder-only team never raises one, so the pinned sim stays byte-identical.
 import { BALANCE } from "./balance.ts";
+import { format, type Money } from "./money.ts";
 import { moodBand } from "./staff.ts";
 import type { Staff, StaffRole } from "./types.ts";
 
@@ -18,8 +19,8 @@ export interface StaffEventEffect {
   teamMood?: number;
   /** +N skill levels for this teammate (a funded course). */
   skill?: number;
-  /** Up-front cash cost in DOLLARS. */
-  cashCost?: number;
+  /** Up-front cash cost (Money, integer cents). */
+  cashCost?: Money;
   /** Extend this teammate's poach-immunity by N weeks (loyalty earned). */
   retainWeeks?: number;
 }
@@ -94,7 +95,7 @@ export function generateStaffEvent(target: Staff, seed: number, week: number): S
       body: `${target.name} has been stretched thin for weeks and is quietly eyeing the door. How do you respond?`,
       options: [
         { label: "Approve a sabbatical", blurb: "A real break — comes back recharged and loyal.", effect: { mood: 30, retainWeeks: c.retainWeeks } },
-        { label: "Give a retention raise", blurb: `Costs ${fmt(c.raiseCost)}, but they feel valued.`, effect: { mood: 20, cashCost: c.raiseCost, retainWeeks: c.retainWeeks } },
+        { label: "Give a retention raise", blurb: `Costs ${format(c.raiseCost)}, but they feel valued.`, effect: { mood: 20, cashCost: c.raiseCost, retainWeeks: c.retainWeeks } },
         { label: "Ask them to push through", blurb: "Saves cash — but morale slips further.", effect: { mood: -8, teamMood: -3 } },
       ],
     };
@@ -107,7 +108,7 @@ export function generateStaffEvent(target: Staff, seed: number, week: number): S
       title: `${target.name} wants a bigger challenge`,
       body: `${target.name} has outgrown their role and hinted at offers elsewhere. What's the play?`,
       options: [
-        { label: "Fund a course", blurb: `Costs ${fmt(c.courseCost)} — they level up.`, effect: { skill: 1, mood: 12, cashCost: c.courseCost, retainWeeks: c.retainWeeks } },
+        { label: "Fund a course", blurb: `Costs ${format(c.courseCost)} — they level up.`, effect: { skill: 1, mood: 12, cashCost: c.courseCost, retainWeeks: c.retainWeeks } },
         { label: "Give them a public win", blurb: "A high-profile project — pride and loyalty, no cash.", effect: { mood: 16, retainWeeks: Math.round(c.retainWeeks / 2) } },
         { label: "Let the itch pass", blurb: "Do nothing — and hope they stay.", effect: { mood: -6 } },
       ],
@@ -122,7 +123,7 @@ export function generateStaffEvent(target: Staff, seed: number, week: number): S
         title: `${target.name} hit a milestone`,
         body: `${target.name} just shipped something they're proud of. Mark the moment?`,
         options: [
-          { label: "Throw a team party", blurb: `Costs ${fmt(c.partyCost)} — lifts the whole room.`, effect: { teamMood: 8, mood: 6, cashCost: c.partyCost } },
+          { label: "Throw a team party", blurb: `Costs ${format(c.partyCost)} — lifts the whole room.`, effect: { teamMood: 8, mood: 6, cashCost: c.partyCost } },
           { label: "Public shout-out", blurb: "Free — a genuine lift for them.", effect: { mood: 12 } },
           { label: "Note it and move on", blurb: "Keep the head down.", effect: {} },
         ],
@@ -133,13 +134,8 @@ export function generateStaffEvent(target: Staff, seed: number, week: number): S
         body: `${target.name} wants a day to chase a side project. Give them room?`,
         options: [
           { label: "Give them the day", blurb: "A morale + creativity boost.", effect: { mood: 14 } },
-          { label: "Fund a small prototype", blurb: `Costs ${fmt(c.protoCost)} — a real spark.`, effect: { mood: 16, cashCost: c.protoCost } },
+          { label: "Fund a small prototype", blurb: `Costs ${format(c.protoCost)} — a real spark.`, effect: { mood: 16, cashCost: c.protoCost } },
           { label: "Not this week", blurb: "Ship first, play later.", effect: { mood: -4 } },
         ],
       };
-}
-
-// Small helper so option blurbs read with a $ amount without importing the Money formatter here.
-function fmt(dollars: number): string {
-  return dollars >= 1000 ? `$${Math.round(dollars / 1000)}K` : `$${dollars}`;
 }

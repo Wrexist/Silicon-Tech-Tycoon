@@ -50,7 +50,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
   amenities: "a coffee station + greenery",
   assembly: "a faster production line",
 };
-import { RESEARCH_PROJECTS, forkLockedBy, projectById } from "../engine/research.ts";
+import { RESEARCH_PROJECTS, forkLockedBy, projectById, type ProjectId } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, type FeedItem, type GameState } from "../state/gameState.ts";
@@ -1484,7 +1484,7 @@ function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavi
     });
   }
   // 10b. Past the garage with no engineering doctrine chosen — a permanent company identity is waiting.
-  if (insights.length < 3 && state.era >= 2 && !["perfHouse", "effHouse", "qualityHouse"].some((id) => state.completedProjects.includes(id as never))) {
+  if (insights.length < 3 && state.era >= 2 && !(["perfHouse", "effHouse", "qualityHouse"] as ProjectId[]).some((id) => state.completedProjects.includes(id))) {
     insights.push({
       icon: FlaskConical,
       text: "Pick an engineering doctrine in R&D — a permanent identity (+performance, battery, or quality) stamped on every product you ship.",

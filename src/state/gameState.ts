@@ -146,22 +146,6 @@ import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } 
 import { makeRng, type Rng } from "../engine/rng.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
-
-/** Item 5.4 — the ongoing sim RULES imposed by the active challenge's mutators (recession demand
- *  penalty / marketing blackout), re-derived from `activeChallenge`. Neutral (demandMult 1, no
- *  blackout) outside a challenge, so a normal run and the pinned sim are byte-identical. Pure. */
-export function challengeRules(s: GameState): { demandMult: number; noMarketing: boolean } {
-  const ac = s.activeChallenge;
-  if (!ac) return { demandMult: 1, noMarketing: false };
-  const ch = ac.kind === "weekly" ? weeklyChallenge(ac.dateKey) : dailyChallenge(ac.dateKey);
-  let demandMult = 1;
-  let noMarketing = false;
-  for (const m of ch.mutators) {
-    if (m.demandMult != null) demandMult *= m.demandMult;
-    if (m.noMarketing) noMarketing = true;
-  }
-  return { demandMult, noMarketing };
-}
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
@@ -190,6 +174,22 @@ import { climateNarration } from "../engine/climate.ts";
 import { criticReviews, foldOutletThreads, type OutletThreads } from "../engine/reviews.ts";
 
 export const SAVE_VERSION = 1;
+
+/** Item 5.4 — the ongoing sim RULES imposed by the active challenge's mutators (recession demand
+ *  penalty / marketing blackout), re-derived from `activeChallenge`. Neutral (demandMult 1, no
+ *  blackout) outside a challenge, so a normal run and the pinned sim are byte-identical. Pure. */
+export function challengeRules(s: GameState): { demandMult: number; noMarketing: boolean } {
+  const ac = s.activeChallenge;
+  if (!ac) return { demandMult: 1, noMarketing: false };
+  const ch = ac.kind === "weekly" ? weeklyChallenge(ac.dateKey) : dailyChallenge(ac.dateKey);
+  let demandMult = 1;
+  let noMarketing = false;
+  for (const m of ch.mutators) {
+    if (m.demandMult != null) demandMult *= m.demandMult;
+    if (m.noMarketing) noMarketing = true;
+  }
+  return { demandMult, noMarketing };
+}
 
 export type FeedTone = "neutral" | "positive" | "negative" | "accent";
 export interface FeedItem {
@@ -5209,7 +5209,7 @@ export function resolveStaffEvent(state: GameState, optionIndex: number): { stat
   const opt = ev.options[optionIndex];
   if (!opt) return { state: { ...state, pendingStaffEvent: null }, result: { ok: false, reason: "No such option." } };
   const eff: StaffEventEffect = opt.effect;
-  const cost = eff.cashCost ? dollars(eff.cashCost) : ZERO;
+  const cost = eff.cashCost ?? ZERO; // already Money (integer cents)
   if (cost > 0 && state.cash < cost) {
     return { state, result: { ok: false, reason: `Need ${format(cost)} for that.` } }; // keep the card up
   }
@@ -5249,13 +5249,13 @@ export function resolvePostLaunch(state: GameState, optionIndex: number): { stat
   const opt = ev.options[optionIndex];
   if (!opt) return { state: { ...state, pendingPostLaunch: null }, result: { ok: false, reason: "No such option." } };
   const eff: PostLaunchEffect = opt.effect;
-  const cost = eff.cashCost ? dollars(eff.cashCost) : ZERO;
+  const cost = eff.cashCost ?? ZERO; // already Money (integer cents)
   if (cost > 0 && state.cash < cost) {
     return { state, result: { ok: false, reason: `Need ${format(cost)} for that.` } }; // keep the card up
   }
   let cash = state.cash;
   if (cost > 0) cash = sub(cash, cost);
-  if (eff.cashGain) cash = add(cash, dollars(eff.cashGain));
+  if (eff.cashGain) cash = add(cash, eff.cashGain);
   const rep = Math.max(BALANCE.reputation.min, Math.min(BALANCE.reputation.max, state.reputation + (eff.rep ?? 0)));
   const fans = Math.max(0, state.fans + (eff.fans ?? 0));
   const feed = [...state.feed, feedItem(state.week, `“${ev.productName}”: you chose "${opt.label}".`, "accent")];

@@ -490,7 +490,18 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.megaprojectsFunded)) s.megaprojectsFunded = [];
   if (!Number.isFinite(s.legacyPoints)) s.legacyPoints = 0;
   if (!Array.isArray(s.legacyPerks)) s.legacyPerks = [];
-  if (s.boardMandate === undefined) s.boardMandate = null;
+  // Board mandate: keep only a well-formed mandate; a missing OR malformed imported value → null (the
+  // read-time mandateStartRevenue/mandateQuarter fallbacks handle the rest). Guards a hand-edited save
+  // from leaving the Legacy-Era flow reading NaN progress off a half-shaped mandate.
+  {
+    const m = s.boardMandate as unknown;
+    const valid = !!m && typeof m === "object"
+      && typeof (m as { metric?: unknown }).metric === "string"
+      && Number.isFinite((m as { target?: unknown }).target)
+      && Number.isFinite((m as { dueWeek?: unknown }).dueWeek)
+      && !!(m as { reward?: unknown }).reward && typeof (m as { reward?: unknown }).reward === "object";
+    if (!valid) s.boardMandate = null;
+  }
   // Rival releases (Epic B, added later): default empty — they repopulate as rivals launch.
   if (!Array.isArray(s.rivalReleases)) s.rivalReleases = [];
   // Rival series counters (added later): default empty; seed from existing releases so a mid-save
