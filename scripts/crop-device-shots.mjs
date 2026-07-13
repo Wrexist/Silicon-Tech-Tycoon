@@ -14,17 +14,21 @@ import { dirname, resolve } from "node:path";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(root, "marketing/assets/_device");
 
-// feature key → source screenshot. Sources are the 1284×2778 store frames.
+// output name → { source screenshot, crop band } — crop drops the baked-in headline (top) and
+// wordmark (bottom), leaving just the device. iPhone frames are 1284×2778; iPad frames 2064×2752.
+const PHONE = { sy: 455, sh: 2130, sw: 1284 };
+const IPAD  = { sy: 400, sh: 2160, sw: 2064 };
 const SHOTS = {
-  design:   "app-store-screenshots/store/03-design.png",
-  factory:  "app-store-screenshots/store/01-factory.png",
-  office:   "app-store-screenshots/store/02-office.png",
-  market:   "app-store-screenshots/store/04-market.png",
-  research: "app-store-screenshots/store/05-research.png",
-  awards:   "app-store-screenshots/store/06-awards.png",
+  design:      { rel: "app-store-screenshots/store/03-design.png", ...PHONE },
+  factory:     { rel: "app-store-screenshots/store/01-factory.png", ...PHONE },
+  office:      { rel: "app-store-screenshots/store/02-office.png", ...PHONE },
+  market:      { rel: "app-store-screenshots/store/04-market.png", ...PHONE },
+  research:    { rel: "app-store-screenshots/store/05-research.png", ...PHONE },
+  awards:      { rel: "app-store-screenshots/store/06-awards.png", ...PHONE },
+  "ipad-hq":     { rel: "app-store-screenshots/ipad/04-hq.png", ...IPAD },
+  "ipad-design": { rel: "app-store-screenshots/ipad/01-design.png", ...IPAD },
+  "ipad-market": { rel: "app-store-screenshots/ipad/03-leaderboard.png", ...IPAD },
 };
-// device band within the 1284×2778 frame: drop headline (top) + wordmark (bottom)
-const SY = 455, SH = 2130, SW = 1284;
 
 let chromium;
 try { ({ chromium } = await import("playwright")); }
@@ -47,15 +51,15 @@ const browser = await chromium.launch({ executablePath: await resolveChrome() })
 const page = await browser.newPage();
 await page.setContent("<body></body>");
 
-for (const [name, rel] of Object.entries(SHOTS)) {
+for (const [name, { rel, sy, sh, sw }] of Object.entries(SHOTS)) {
   const src = "data:image/png;base64," + (await readFile(resolve(root, rel))).toString("base64");
-  const out = await page.evaluate(async ({ src, SY, SW, SH }) => {
+  const out = await page.evaluate(async ({ src, sy, sw, sh }) => {
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej("load fail"); img.src = src; });
-    const c = document.createElement("canvas"); c.width = SW; c.height = SH;
-    c.getContext("2d").drawImage(img, 0, SY, SW, SH, 0, 0, SW, SH);
+    const c = document.createElement("canvas"); c.width = sw; c.height = sh;
+    c.getContext("2d").drawImage(img, 0, sy, sw, sh, 0, 0, sw, sh);
     return c.toDataURL("image/png");
-  }, { src, SY, SW, SH });
+  }, { src, sy, sw, sh });
   await writeFile(resolve(outDir, `${name}.png`), Buffer.from(out.split(",")[1], "base64"));
   process.stdout.write(name + " ");
 }

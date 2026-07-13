@@ -58,14 +58,13 @@ async function exportAt(dsf, ids) {
 const all = await (await browser.newPage()).evaluate(() => 0).catch(() => 0); // warm
 const page0 = await browser.newPage();
 await page0.goto(studio, { waitUntil: "networkidle" });
-const items = await page0.evaluate(() => ASSETS.flatMap((s) => s.items.map((a) => ({ id: a.id, kind: a.kind || "" }))));
+const items = await page0.evaluate(() => ASSETS.flatMap((s) => s.items.map((a) => ({ id: a.id, kind: a.kind || "", format: a.format || "" }))));
 await page0.close();
 
-const iconIds = items.filter((i) => i.kind === "icon");
-const retinaIds = items.filter((i) => i.kind !== "icon");
-
-await exportAt(2, retinaIds);
-await exportAt(1, iconIds);
+// App Store icon + iPad screenshots need exact pixel dimensions → 1×. Everything else → 2× (retina social).
+const exact1x = (i) => i.kind === "icon" || i.format.startsWith("ipad");
+await exportAt(2, items.filter((i) => !exact1x(i)));
+await exportAt(1, items.filter(exact1x));
 
 await browser.close();
 console.log(`\nExported ${items.length} creatives → marketing/assets/`);

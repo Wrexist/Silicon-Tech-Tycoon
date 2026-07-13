@@ -14,24 +14,33 @@ regenerate or restyle any of it.
 
 ```
 marketing/
-├── asset-studio.html      ← open in a browser: preview every creative, edit the CTA/logo label
+├── asset-studio.html      ← open in a browser: preview every creative, switch CTA/logo, edit label
 ├── GUIDE.md               ← this file
+├── VIDEO_SCRIPTS.md       ← shot-by-shot Reels/TikTok/App-Preview gameplay cuts
 └── assets/
     ├── icon-1024x1024.png            ← App Store / Play icon (exactly 1024²)
-    ├── design-square-1080x1080.png   ┐
-    ├── design-portrait-1080x1350.png │  Instagram / Facebook feature posters
-    ├── factory-square … market-square … office-square …
-    ├── design-story-1080x1920.png    ┐
-    ├── factory-story … market-story … office-story …
-    ├── research-story … awards-story │  Stories / Reels / TikTok (1080×1920)
-    ├── market-banner-1200x628.png    ┐
-    ├── design-header-1500x500.png    │  Landscape banners
+    ├── design-square … factory-square … market-square … office-square      ┐ IG/FB feed (1080²)
+    ├── design-portrait … factory-portrait                                  ┘ IG portrait (1080×1350)
+    ├── design-story … factory-story … market-story … office-story …        ┐ Stories / Reels /
+    ├── research-story … awards-story                                        ┘ TikTok (1080×1920)
+    ├── market-banner-1200x628 … design-header-1500x500                      ┐ Landscape banners
+    ├── design-landscape-1920x1080 … market-landscape-1920x1080              ┘ + 16:9 (YouTube/display)
+    ├── hq-ipad-portrait-2048x2732 … design-ipad-portrait-2048x2732          ┐ iPad — App Store 13"
+    ├── market-ipad-landscape-2732x2048                                      ┘ + iPad landscape showcase
+    ├── badges/                       ← Apple "Download on the App Store" badge (black + white SVG)
     └── _device/                      ← device-only crops of the screenshots (hero source images)
 ```
 
-Every PNG is exported at **2× the labelled size** (retina-sharp); the icon is exactly **1024×1024**
-as Apple requires. The device, logo lockup, palette and glass all track the game's own design
-tokens (`src/design/tokens.css`), so the ads and the app read as one brand.
+Most PNGs are exported at **2× the labelled size** (retina-sharp). Exact-size exports (no upscale):
+the **icon** (1024²) and the **iPad App Store** frames (2048×2732 / 2732×2048), because the stores
+require precise dimensions. The device, logo lockup, palette and glass all track the game's own
+design tokens (`src/design/tokens.css`), so the ads and the app read as one brand.
+
+**Call to action.** Every creative ships with the real **Apple “Download on the App Store” badge**
+(`assets/badges/`). In the studio you can switch the CTA to a "Download now" accent pill instead
+(e.g. for pre-launch teasers or Android). The badge is the sanctioned developer artwork for
+promoting your own app — for pixel-exact brand compliance you can also drop in the official badge
+from Apple's *Marketing Guidelines*.
 
 **Each feature has its own accent** pulled from the app's function colours — Design = green,
 Factory = amber, Market = blue, HQ = violet, Awards = gold — so the campaign is varied but coherent.
@@ -71,6 +80,9 @@ top of `asset-studio.html`, then re-run step 2.
 | `*-story` | 1080 × 1920 | Instagram/Facebook **Story & Reel**, **TikTok**, YouTube **Shorts**. |
 | `*-banner` | 1200 × 628 | Meta/Google **display & link ads**; also your website/OG share image. |
 | `*-header` | 1500 × 500 | **X**, LinkedIn, YouTube channel banner. |
+| `*-landscape` | 1920 × 1080 | **YouTube** ads, App Preview poster frame, 16:9 display. |
+| `*-ipad-portrait` | 2048 × 2732 | **App Store iPad 13"** screenshot slot (real iPad capture). |
+| `*-ipad-landscape` | 2732 × 2048 | iPad landscape showcase — App Store landscape slot / site hero. |
 
 Feature angle by screenshot: **design** = "Design every detail", **factory** = "Build the line",
 **market** = "Race rivals to #1", **office** = "Garage to global empire", **research** = "Own the
@@ -93,10 +105,13 @@ Screenshot upload order for the 6.7" set (shown left→right in search):
 variants leading with different feature angles, and point each Apple Search Ads campaign at the
 matching page to compare tap-through.
 
-**Apple's "Download on the App Store" badge is deliberately NOT baked into these creatives** — it's
-Apple's trademark with strict rules. Where a store badge is required, drop in the official badge
-from Apple's *Marketing Guidelines* (developer.apple.com → App Store marketing). The generic
-"Download now" CTA is safe for social/display.
+**iPad.** Your primary iPad App Store screenshots are `*-ipad-portrait` (2048×2732, real iPad
+captures). The `*-ipad-landscape` showcase suits the App Store's landscape slot or a website hero.
+These are exported at exact size (no upscale) so they upload without resampling.
+
+**Store badge.** The creatives carry the real Apple badge (`assets/badges/`). For pixel-exact brand
+compliance on the listing itself you can also use the official artwork from Apple's *Marketing
+Guidelines* (developer.apple.com → App Store marketing).
 
 ---
 
@@ -125,9 +140,9 @@ sticker) overlaps the extreme edges.
 
 ## 6. TikTok, Reels & Shorts
 
-The `*-story` creatives work as the **hook frame and closing CTA card**. For best results, sandwich
-6–15s of screen-recorded gameplay between them (design a device → launch → market cap climbs → the
-leaderboard shows you passing a rival). The `awards-story` is a strong closer for a "prestige" cut.
+The `*-story` creatives are the **hook frame and closing CTA card**; sandwich 6–15s of real
+gameplay between them. Full shot-by-shot cuts (15s hero, factory, progression, rival-tension) plus
+the App Store App Preview spec are in **`marketing/VIDEO_SCRIPTS.md`** — ready to record against.
 
 ---
 
