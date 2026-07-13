@@ -1,7 +1,8 @@
 # marketing/video/ — TikTok / Reels / Shorts B-roll
 
-Five ready-to-post vertical clips (**1080×1920, 30fps**), rendered from **real in-game footage**
-with smooth Ken-Burns motion, clean crossfades and a logo + App Store end card. They are
+Five ready-to-post vertical **MP4** clips (**1080×1920, 30fps, H.264**), rendered from **real
+in-game footage** with smooth Ken-Burns motion, clean crossfades and a logo + App Store end card.
+They are
 deliberately **text-light** so you can **talk over them** or drop your own captions on top — the
 cut *is* the story; you supply the voice.
 
@@ -23,16 +24,12 @@ Full shot lists and more hook variants are in **`../VIDEO_SCRIPTS.md`**.
 3. Hook in the first 1.5s: pair the clip's opening motion with the line above.
 4. Export vertical and post. The end card already has the App Store CTA.
 
-## Format note (important)
+## Format
 
-These are **VP8 `.webm`** — that's the only codec this build environment can encode. Every desktop
-editor above imports webm directly and exports MP4 for you. If you need an **MP4 (H.264)** first
-(e.g. to upload raw to TikTok or iPhone Photos), convert with one command:
+**H.264 `.mp4`** (High profile, yuv420p, `+faststart`) — upload straight to TikTok, Reels, Shorts,
+or import into any editor / iPhone Photos. 1080×1920, 30fps.
 
-```sh
-ffmpeg -i silicon-climb-1080x1920.webm -c:v libx264 -pix_fmt yuv420p -movflags +faststart silicon-climb.mp4
-```
-
-(or drop the webm into any free online converter). Re-render from source any time with
-`node scripts/render-video.mjs` — tweak the scenarios/motion at the top of that script or in
-`animation.html`.
+Re-render or restyle any time with `node scripts/render-video.mjs` — it emits MP4 when an
+H.264-capable ffmpeg is on the machine (a system `ffmpeg`, `$FFMPEG`, or
+`npm i -D @ffmpeg-installer/ffmpeg`), and falls back to `.webm` otherwise. Tweak the scenarios,
+Ken-Burns motion and end card at the top of that script or in `animation.html`.

@@ -4,8 +4,8 @@ Ad-creative kit built from **real in-game screenshots** — for App Store, Insta
 TikTok, and paid/social banners.
 
 - **`GUIDE.md`** — start here. The full asset map + channel-by-channel ad-campaign playbook.
-- **`video/`** — five rendered TikTok/Reels B-roll clips (1080×1920 webm) from real footage, text-light
-  for voiceover, with a viral hook per clip in `video/README.md`.
+- **`video/`** — five rendered TikTok/Reels B-roll clips (1080×1920 **MP4/H.264**) from real footage,
+  text-light for voiceover, with a viral hook per clip in `video/README.md`.
 - **`VIDEO_SCRIPTS.md`** — shot-by-shot Reels / TikTok / App Preview gameplay cuts.
 - **`asset-studio.html`** — open in a browser to preview every creative, switch the CTA (Apple badge
   or pill) and edit the logo label.

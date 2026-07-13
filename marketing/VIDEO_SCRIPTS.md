@@ -4,9 +4,9 @@ Short, shot-by-shot gameplay cuts for vertical video (1080×1920). All are built
 screen recordings** of the game, book-ended by the still creatives in `marketing/assets/` so the
 open and close are on-brand.
 
-> **Already rendered:** five clean, motion-graphic B-roll clips are in **`marketing/video/`** (real
-> footage, Ken-Burns motion, logo + App Store end card, text-light so you can voice over them). See
-> `marketing/video/README.md` for the viral hook per clip and how to convert webm→mp4. Re-render or
+> **Already rendered:** five clean, motion-graphic B-roll clips are in **`marketing/video/`**
+> (**MP4/H.264, 1080×1920**, real footage, Ken-Burns motion, logo + App Store end card, text-light so
+> you can voice over them). See `marketing/video/README.md` for the viral hook per clip. Re-render or
 > restyle with `node scripts/render-video.mjs`. The scripts below are for fuller edits where you cut
 > your own live capture between the stills.
 

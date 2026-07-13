@@ -6,12 +6,12 @@
 //   node scripts/render-video.mjs            # all clips
 //   node scripts/render-video.mjs climb      # a single clip by id
 //
-// Chromium + ffmpeg are resolved like scripts/shots.mjs. The bundled Playwright ffmpeg encodes
-// VP8/webm (H.264 isn't available in this sandbox); import a clip into CapCut/Premiere/Resolve and
-// export MP4 for TikTok, or run:  ffmpeg -i clip.webm -c:v libx264 -pix_fmt yuv420p clip.mp4
+// Output is MP4 (H.264) when an ffmpeg with libx264 is available — a system ffmpeg, $FFMPEG, or the
+// npm `@ffmpeg-installer/ffmpeg` binary (install with `npm i -D @ffmpeg-installer/ffmpeg`). If only
+// Playwright's bundled ffmpeg is found it falls back to VP8/webm (convert later with any editor).
 import { mkdir } from "node:fs/promises";
 import { existsSync, readdirSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -56,20 +56,30 @@ function resolveChrome() {
     const e = d && resolve(base, d, "chrome-linux/chrome"); if (e && existsSync(e)) return e; }
   return undefined;
 }
-function resolveFfmpeg() {
-  if (process.env.FFMPEG) return process.env.FFMPEG;
+const hasX264 = (bin) => { try { return /libx264/.test(spawnSync(bin, ["-hide_banner","-encoders"], { encoding:"utf8" }).stdout || ""); } catch { return false; } };
+async function installerFfmpeg() { try { return (await import("@ffmpeg-installer/ffmpeg")).default.path; } catch { return null; } }
+function bundledFfmpeg() {
   const base = "/opt/pw-browsers";
   if (existsSync(base)) { const d = readdirSync(base).filter((x)=>/^ffmpeg/.test(x)).sort().pop();
     const e = d && resolve(base, d, "ffmpeg-linux"); if (e && existsSync(e)) return e; }
   return "ffmpeg";
 }
-const FFMPEG = resolveFfmpeg();
+// Prefer an H.264-capable ffmpeg (→ .mp4 for TikTok). Fall back to the bundled VP8 build (→ .webm).
+async function resolveEncoder() {
+  const cands = [process.env.FFMPEG, "ffmpeg", await installerFfmpeg()].filter(Boolean);
+  for (const bin of cands) if (hasX264(bin)) return { bin, mp4: true };
+  return { bin: bundledFfmpeg(), mp4: false };
+}
+const ENC = await resolveEncoder();
+const EXT = ENC.mp4 ? "mp4" : "webm";
 
 function encode(frames, outPath) {
+  const vargs = ENC.mp4
+    ? ["-c:v","libx264", "-crf","17", "-preset","slow", "-pix_fmt","yuv420p", "-movflags","+faststart"]
+    : ["-c:v","libvpx", "-b:v","12M", "-deadline","good", "-cpu-used","1", "-auto-alt-ref","0", "-pix_fmt","yuv420p"];
   return new Promise((res, rej) => {
-    const ff = spawn(FFMPEG, ["-y", "-f","image2pipe", "-vcodec","mjpeg", "-framerate", String(FPS), "-i", "pipe:0",
-      "-c:v","libvpx", "-b:v","12M", "-deadline","good", "-cpu-used","1",
-      "-auto-alt-ref","0", "-pix_fmt","yuv420p", outPath], { stdio:["pipe","ignore","inherit"] });
+    const ff = spawn(ENC.bin, ["-y", "-f","image2pipe", "-vcodec","mjpeg", "-framerate", String(FPS), "-i", "pipe:0",
+      ...vargs, outPath], { stdio:["pipe","ignore","inherit"] });
     ff.on("error", rej);
     ff.on("close", (c) => c === 0 ? res() : rej(new Error("ffmpeg exit "+c)));
     (async () => { for (const f of frames) { if (!ff.stdin.write(f)) await new Promise(r=>ff.stdin.once("drain",r)); } ff.stdin.end(); })();
@@ -97,7 +107,7 @@ for (const scn of SCENARIOS) {
     frames.push(await stageEl.screenshot({ type: "jpeg", quality: 82 }));
     if (i % 30 === 0) process.stdout.write(".");
   }
-  await encode(frames, resolve(outDir, `silicon-${scn.id}-1080x1920.webm`));
+  await encode(frames, resolve(outDir, `silicon-${scn.id}-1080x1920.${EXT}`));
   process.stdout.write(" ✓");
 }
 await browser.close();
