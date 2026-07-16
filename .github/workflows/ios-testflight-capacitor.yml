@@ -190,8 +190,9 @@ jobs:
 
       - name: Upload to TestFlight
         # Skipped when the "Submit to TestFlight" toggle is off — you still get the exported .ipa as a
-        # build artifact below, just without pushing it to TestFlight.
-        if: ${{ inputs.submit_testflight }}
+        # build artifact below, just without pushing it to TestFlight. (Bare expression, no ${{ }} —
+        # the GitHub Actions best practice for `if`, avoiding string coercion; actionlint enforces it.)
+        if: inputs.submit_testflight
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
