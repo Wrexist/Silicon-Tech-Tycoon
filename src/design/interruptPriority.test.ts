@@ -4,6 +4,10 @@ import {
   higherPriorityPending,
   decisionPending,
   launchMomentActive,
+  INBOX_INTERRUPTS,
+  isInboxInterrupt,
+  inboxPendingKey,
+  INBOX_LABEL,
   type InterruptKey,
 } from "./interruptPriority.ts";
 import type { GameState } from "../state/gameState.ts";
@@ -69,5 +73,27 @@ describe("canonical interrupt priority", () => {
     expect(decisionPending({ ready: [], pendingChoice: { sentinel: true } } as unknown as GameState)).toBe(true);
     expect(decisionPending({ ready: [], pendingPoach: { sentinel: true } } as unknown as GameState)).toBe(true);
     expect(decisionPending({ ready: [] } as unknown as GameState)).toBe(false);
+  });
+});
+
+describe("decision inbox tier", () => {
+  it("inbox tier is the low-stakes subset; the weighty moments stay full-screen", () => {
+    const takeover: InterruptKey[] = ["strike", "awards", "rivalry", "eureka", "earnings", "licenseOffer"];
+    for (const k of INBOX_INTERRUPTS) expect(isInboxInterrupt(k)).toBe(true);
+    for (const k of takeover) expect(isInboxInterrupt(k)).toBe(false);
+    // every inbox key is a real interrupt key, and has banner copy
+    for (const k of INBOX_INTERRUPTS) {
+      expect(INTERRUPT_ORDER).toContain(k);
+      expect(INBOX_LABEL[k].title.length).toBeGreaterThan(5);
+    }
+  });
+
+  it("inboxPendingKey returns the pending low-stakes stream, ignoring takeover streams", () => {
+    expect(inboxPendingKey(mk())).toBeNull();
+    expect(inboxPendingKey(mk("staffMoment"))).toBe("staffMoment");
+    expect(inboxPendingKey(mk("communityAsk"))).toBe("communityAsk");
+    // a takeover interrupt does NOT register as an inbox item
+    expect(inboxPendingKey(mk("strike"))).toBeNull();
+    expect(inboxPendingKey(mk("earnings"))).toBeNull();
   });
 });

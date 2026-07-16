@@ -26,6 +26,7 @@ import { PostLaunchEvent } from "./components/PostLaunchEvent.tsx";
 import { RegionalEvent } from "./components/RegionalEvent.tsx";
 import { EarningsCall } from "./components/EarningsCall.tsx";
 import { ContractOffer } from "./components/ContractOffer.tsx";
+import { DecisionInbox } from "./components/DecisionInbox.tsx";
 import { ReviewPrompt } from "./components/ReviewPrompt.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
@@ -235,6 +236,8 @@ function AppShell() {
       <RegionalEvent />
       <EarningsCall />
       <ContractOffer />
+      {/* Non-blocking banner for the low-stakes interrupt streams (they open on the player's schedule). */}
+      <DecisionInbox />
       <ReviewPrompt />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />

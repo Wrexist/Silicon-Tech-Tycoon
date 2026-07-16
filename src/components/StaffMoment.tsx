@@ -14,6 +14,7 @@ import type { StaffGrowthKind, StaffGrowthOption } from "../engine/staffMoment.t
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { FirstTimeNote } from "./FirstTimeNote.tsx";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import "./staffMoment.css";
 
 const KIND_ICON: Record<StaffGrowthKind, typeof Gem> = {
@@ -33,7 +34,9 @@ export function StaffMoment() {
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
   const higherUp = revealUp || higherPriorityPending(state, "staffMoment");
   // The reveal must survive `moment` clearing the instant we choose, so `chosen` holds the card up.
-  const showing = (moment !== null || chosen !== null) && !higherUp;
+  // Low-stakes: the pending moment waits in the Decision Inbox banner; the chosen-outcome view always shows.
+  const decisionOpen = useDecisionOpen();
+  const showing = ((moment !== null && decisionOpen) || chosen !== null) && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);

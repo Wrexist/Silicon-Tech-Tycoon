@@ -70,3 +70,38 @@ export function higherPriorityPending(state: GameState, self: InterruptKey): boo
   }
   return false;
 }
+
+// --- Decision Inbox tier ---------------------------------------------------------------------------
+// The LOW-STAKES streams: they carry small RP/mood/fan stakes, so instead of seizing the whole screen
+// they wait in a non-blocking banner (the Decision Inbox) the player opens on their own schedule. The
+// weightier moments (strike / rivalry / eureka / earnings / license / awards) stay full-screen. This
+// is presentation only — the engine still raises the same pending* fields; the budget rule guarantees
+// at most one is pending at a time, so the "inbox" holds 0 or 1.
+export const INBOX_INTERRUPTS: readonly InterruptKey[] = [
+  "communityAsk",
+  "regionalEvent",
+  "staffMoment",
+  "staffEvent",
+  "postLaunch",
+];
+
+export function isInboxInterrupt(key: InterruptKey): boolean {
+  return INBOX_INTERRUPTS.includes(key);
+}
+
+/** Which low-stakes interrupt is currently pending (at most one, by the budget rule), or null. */
+export function inboxPendingKey(state: GameState): InterruptKey | null {
+  for (const key of INBOX_INTERRUPTS) {
+    if (IS_PENDING[key](state)) return key;
+  }
+  return null;
+}
+
+/** Banner copy for each inbox-tier decision — a calm one-liner naming what's waiting. */
+export const INBOX_LABEL: Record<string, { eyebrow: string; title: string }> = {
+  communityAsk: { eyebrow: "Community", title: "Your community is asking for something" },
+  regionalEvent: { eyebrow: "Markets", title: "An overseas market needs a response" },
+  staffMoment: { eyebrow: "Team", title: "A teammate is ready to grow" },
+  staffEvent: { eyebrow: "Team", title: "A teammate hit a turning point" },
+  postLaunch: { eyebrow: "On shelves", title: "A product on shelves needs a decision" },
+};

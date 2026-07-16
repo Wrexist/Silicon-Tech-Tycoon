@@ -17,6 +17,7 @@ import { format } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { FirstTimeNote } from "./FirstTimeNote.tsx";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import "./communityAsk.css";
 
 // The engine ships an icon KEY (it stays DOM-free); map it to a Lucide glyph here.
@@ -33,7 +34,10 @@ export function CommunityAsk() {
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
   const higherUp = revealUp || higherPriorityPending(state, "communityAsk");
   // The reveal must survive `ask` clearing the instant we answer, so `answered` holds the card up.
-  const showing = (ask !== null || answered !== null) && !higherUp;
+  // Low-stakes: the pending ASK waits in the Decision Inbox banner and only opens on demand; the
+  // post-resolution outcome view always shows (it's the reward for deciding).
+  const decisionOpen = useDecisionOpen();
+  const showing = ((ask !== null && decisionOpen) || answered !== null) && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);

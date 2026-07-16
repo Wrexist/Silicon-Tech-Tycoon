@@ -8,6 +8,7 @@ import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { higherPriorityPending } from "../design/interruptPriority.ts";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { REGIONAL_EVENT_COPY } from "../engine/regionalEvents.ts";
 import { regionById } from "../engine/regions.ts";
@@ -27,7 +28,9 @@ export function RegionalEvent() {
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
   const higherUp = revealUp || higherPriorityPending(state, "regionalEvent");
-  const showing = event !== null && !higherUp;
+  // Low-stakes: waits in the Decision Inbox banner, opens on demand (never seizes the screen cold).
+  const decisionOpen = useDecisionOpen();
+  const showing = event !== null && decisionOpen && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);

@@ -12,6 +12,7 @@ import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/laun
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { FirstTimeNote } from "./FirstTimeNote.tsx";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import "./staffMoment.css";
 
 const GLYPH = { momentum: LineChart, stall: TrendingDown, supply: PackageX } as const;
@@ -25,7 +26,9 @@ export function PostLaunchEvent() {
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
   const higherUp = revealUp || higherPriorityPending(state, "postLaunch") || decisionPending(state);
-  const showing = ev !== null && !higherUp;
+  // Low-stakes: waits in the Decision Inbox banner, opens on demand (never seizes the screen cold).
+  const decisionOpen = useDecisionOpen();
+  const showing = ev !== null && decisionOpen && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);
