@@ -390,7 +390,17 @@ export function Company() {
         ) : hasShipped ? (() => {
           const cost = platformFoundingCost();
           const can = canFoundPlatform(state);
-          const shortBy = sub(cost, state.cash);
+          const needRep = BALANCE.platform.foundingMinReputation;
+          const needShips = BALANCE.platform.foundingMinShipped;
+          const shipped = state.launched.length;
+          // The first unmet requirement drives the button label — reputation, then track record, then cash.
+          const label = can
+            ? <>Found · {format(cost)}</>
+            : state.reputation < needRep
+              ? <>Reach {needRep} reputation first</>
+              : shipped < needShips
+                ? <>Ship {needShips} products first</>
+                : <>Save up {format(sub(cost, state.cash))} more · {format(cost)}</>;
           return (
             <Card className="co__found">
               <div className="co__found-head">
@@ -400,13 +410,19 @@ export function Company() {
                   <span className="co__found-sub">Turn {osDisplayName(state)} into a business in its own right: recurring services, OS licensing to rivals, feature modules, and a platform identity.</span>
                 </div>
               </div>
+              {/* A platform is an earned milestone — a respected, proven company builds it, not a nobody. */}
+              <div className="co__found-reqs">
+                <span className={state.reputation >= needRep ? "co__found-req co__found-req--met" : "co__found-req"}>Reputation {state.reputation}/{needRep}</span>
+                <span className={shipped >= needShips ? "co__found-req co__found-req--met" : "co__found-req"}>Products shipped {shipped}/{needShips}</span>
+                <span className={state.cash >= cost ? "co__found-req co__found-req--met" : "co__found-req"}>Cash {format(cost)}</span>
+              </div>
               <Button
                 block
                 variant={can ? "primary" : "tertiary"}
                 disabled={!can}
                 onClick={() => { haptic.success(); foundPlatform(); setFoundedCelebrate(true); }}
               >
-                {can ? <>Found · {format(cost)}</> : <>Save up {format(shortBy)} more · {format(cost)}</>}
+                {label}
               </Button>
             </Card>
           );

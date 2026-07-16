@@ -4299,9 +4299,15 @@ export function unlockPlatform(state: GameState, on: boolean): GameState {
 
 /** The one-time cash cost to found the Platform division — a major reinvestment milestone. */
 export const platformFoundingCost = (): Money => BALANCE.platform.foundingCost;
-/** Can the player found the division right now (not yet founded, and can afford it)? */
+/** Can the player found the division right now? Not yet founded, can afford the (heftier) cost, AND
+ *  has earned it — a respected brand (reputation) with a proven hardware track record (shipped count).
+ *  So a platform is a milestone you build up to, not a thing a nobody unlocks the instant they've saved
+ *  the cash. Sim-safe: never called in the tick; the pinned auto-player never founds the division. */
 export const canFoundPlatform = (s: GameState): boolean =>
-  !s.platformUnlocked && s.cash >= BALANCE.platform.foundingCost;
+  !s.platformUnlocked &&
+  s.cash >= BALANCE.platform.foundingCost &&
+  s.reputation >= BALANCE.platform.foundingMinReputation &&
+  s.launched.length >= BALANCE.platform.foundingMinShipped;
 
 export interface NavAttention { hq: boolean; design: boolean; research: boolean; market: boolean; company: boolean }
 
@@ -4340,9 +4346,10 @@ export function navAttention(s: GameState): NavAttention {
 /** Found the Platform division: pay the founding cost and bring your OS up as a first-class business.
  *  No-op if already founded or unaffordable. The earned, in-game path to the OS (vs. a free toggle). */
 export function foundPlatform(state: GameState): GameState {
-  if (state.platformUnlocked) return state;
+  // Enforce the full gate (cost + earned reputation + shipped track record), not just cash, so the
+  // reducer can't be driven past the requirement the UI shows.
+  if (!canFoundPlatform(state)) return state;
   const cost = BALANCE.platform.foundingCost;
-  if (state.cash < cost) return state;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Founded the Platform division, ${osDisplayName(state)} is now a business in its own right.`, "positive"));
   return { ...state, cash: sub(state.cash, cost) as Money, platformUnlocked: true, feed: trimFeed(feed) };

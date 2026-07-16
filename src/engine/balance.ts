@@ -425,7 +425,12 @@ export const BALANCE = {
     // verdict layer stays a real contest. Eras 1–2 are untouched.
     hitThresholdByEra: [70, 80, 156, 192],
     solidThresholdByEra: [45, 56, 135, 175],
-    flopThresholdByEra: [10, 21, 27, 35],
+    // FLOP FLOOR raised from era 2 on so a phoned-in launch actually FLOPS instead of coasting to a
+    // safe "steady". Era 1 stays low (10) to protect the maiden launch — a brand-new company's hype is
+    // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From
+    // the Growth era on, a mediocre or heavily-contested device lands in the red, so success is earned.
+    // Kept below solidThresholdByEra at every index (flop < solid) and non-decreasing across eras.
+    flopThresholdByEra: [10, 34, 52, 68],
     // Dynamic "expectations" (Track D — the anti-"every device is a hit" system). The static bars
     // above anchor a young company (and the very first launch), but as you rack up strong launches a
     // ROLLING baseline of your recent competition-adjusted scores raises the bar: a HIT must beat your
@@ -437,7 +442,9 @@ export const BALANCE = {
       alpha: 0.5,        // how fast the rolling baseline tracks each new launch (EMA weight)
       hitMargin: 1.14,   // a hit must beat the rolling baseline by this (top your recent best)
       solidMargin: 0.6,  // at/above this fraction of the baseline is a solid, competent release
-      flopMargin: 0.4,   // below this (relative to what you'd been shipping) it disappoints → flop
+      flopMargin: 0.55,  // below this (relative to what you'd been shipping) it disappoints → flop.
+                         // Raised 0.4 → 0.55: re-shipping something meaningfully weaker than your recent
+                         // average now flops, so a proven studio can't coast on mediocre follow-ups.
     },
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
@@ -933,10 +940,15 @@ export const BALANCE = {
   // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
   platform: {
     // Founding the division is a MAJOR late-game reinvestment you save up for over many quarters — an
-    // empire milestone, not a quick mid-game unlock. 30× the starting bankroll: shipping enough product
+    // empire milestone, not a quick mid-game unlock. 90× the starting bankroll: shipping enough product
     // to bank this is the whole point, and once founded the OS is a grind you WORK (land contracts), not
     // a passive faucet. Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
-    foundingCost: dollars(3_000_000),
+    foundingCost: dollars(9_000_000),
+    // …AND an earned reputation: a respected, proven hardware company launches a platform, not a nobody.
+    // (Gates canFoundPlatform alongside the cash cost — see gameState. Kept < the era-3/win reputation so
+    // it's reachable mid-game, but a real "you've made a name" bar, not free the moment you can afford it.)
+    foundingMinReputation: 20, // 0..100 — an established brand
+    foundingMinShipped: 4,     // a proven hardware track record before you build the platform under it
     releaseRepBonus: 3,          // one-time reputation lift per OS version release (leaner)
     releaseFanBaseBonus: 1_000,  // base fans gained on release
     releaseFanPerKInstalled: 2,  // + fans per 1,000 devices in the installed base
