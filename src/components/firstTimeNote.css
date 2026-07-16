@@ -1,0 +1,20 @@
+/* First-meeting explainer inside an interrupt card. Subtle, informational — not a CTA. Tokens only. */
+.firstnote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  margin: 0 0 var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  color: var(--ink-2);
+  text-align: left;
+}
+.firstnote svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--accent);
+}

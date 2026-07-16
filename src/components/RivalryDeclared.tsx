@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Swords, Flame } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { DOCTRINE_LABEL } from "../engine/competitors.ts";
 import { haptic } from "../design/haptics.ts";
@@ -30,7 +31,7 @@ export function RivalryDeclared() {
   // unclaimed ready build, so only one modal pauses + owns Escape at a time.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp = revealUp || state.pendingStrike != null || state.pendingAwards != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "rivalry");
   const showing = rivalry !== null && !higherUp;
 
   useHoldSim(showing);

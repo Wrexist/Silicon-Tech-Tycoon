@@ -2,6 +2,7 @@
 // so preferences survive restarts/new companies. Read synchronously by sound/haptics helpers.
 import { useSyncExternalStore } from "react";
 import { syncStatusBar } from "../native.ts";
+import type { InterruptPace } from "./gameState.ts";
 
 export type ThemePref = "system" | "light" | "dark";
 export interface Settings {
@@ -23,10 +24,14 @@ export interface Settings {
   /** Whether the one-time "enable reminders?" opt-in has been shown at game start (native only), so
    *  it asks exactly once. Independent of `dailyReminder` (declining still counts as prompted). */
   notifPrompted: boolean;
+  /** Calm Mode — how often the game may interrupt with opportunistic full-screen cards. Persisted here
+   *  (survives a new company) and seeded into each game's state, which the pure sim reads. Default
+   *  "standard" keeps the built-in cadence. */
+  interruptPace: InterruptPace;
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard" };
 
 function read(): Settings {
   try {

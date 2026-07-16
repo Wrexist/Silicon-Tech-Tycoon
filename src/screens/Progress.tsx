@@ -5,12 +5,19 @@
 // handler). The sub-sheet's close returns to the hub; the hub's close (or Escape) exits Progress.
 // Gated (in App) on the first ship, so an empty garage isn't buried under systems.
 import { useState } from "react";
-import { Award, Boxes, CalendarDays, Target, Trophy, X } from "lucide-react";
+import { Award, Boxes, CalendarDays, Crown, Target, Trophy, X } from "lucide-react";
+import { ListChecks } from "lucide-react";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ScenariosSheet } from "./Scenarios.tsx";
 import { ChallengesSheet } from "./Challenges.tsx";
 import { MuseumSheet } from "./Museum.tsx";
+import { FounderLegendSheet } from "./FounderLegend.tsx";
+import { GoalsLedgerSheet } from "./GoalsLedger.tsx";
+import { collectGoals } from "../state/goals.ts";
 import { getMuseum } from "../state/museum.ts";
+import { getFounderRecord, legendStanding, liveLegendScore } from "../state/founderLegend.ts";
+import { ipoValuation, industryRank } from "../state/gameState.ts";
+import { toDollars } from "../engine/money.ts";
 import { getProfileAchievements } from "../state/achievementsProfile.ts";
 import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { ACHIEVEMENT_COUNT } from "../engine/achievements.ts";
@@ -18,7 +25,7 @@ import { SCENARIOS } from "../engine/scenarios.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./progress.css";
 
-type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum";
+type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum" | "legend" | "goals";
 
 export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () => void; initialView?: View }) {
   const { state } = useGame();
@@ -33,11 +40,27 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
   const storedScenarioStars = getScenarioStars();
   const scenarioStars = SCENARIOS.reduce((sum, s) => sum + (storedScenarioStars[s.id] ?? 0), 0);
 
+  // Founder Legend standing — lifetime record folded with the live run, so the title is up to date.
+  const legendHits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  const legendTitle = legendStanding(
+    liveLegendScore(getFounderRecord(), {
+      hitsInRun: legendHits,
+      valuationDollars: toDollars(ipoValuation(state)),
+      rank: industryRank(state),
+    }),
+  ).title;
+
+  // Active-goal count + how many are ready to claim right now (the actionable ones).
+  const goals = collectGoals(state);
+  const claimableGoals = goals.filter((g) => g.claimable).length;
+
   // Sub-views render their content directly inside App's single Sheet (back-arrow returns to the hub).
   if (view === "achievements") return <AchievementsSheet unlocked={earnedAchievements} onClose={toHub} />;
   if (view === "scenarios") return <ScenariosSheet onClose={toHub} />;
   if (view === "challenges") return <ChallengesSheet onClose={toHub} />;
   if (view === "museum") return <MuseumSheet onClose={toHub} />;
+  if (view === "legend") return <FounderLegendSheet state={state} onClose={toHub} />;
+  if (view === "goals") return <GoalsLedgerSheet onClose={toHub} />;
 
   return (
     <div className="prog">
@@ -49,6 +72,26 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
         </div>
         <button className="prog__close" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </div>
+
+      <button className="prog__row" onClick={() => setView("goals")}>
+        <span className="prog__row-glyph" aria-hidden><ListChecks size={20} /></span>
+        <span className="prog__row-info">
+          <span className="prog__row-title">Goals</span>
+          <span className="prog__row-sub">{claimableGoals > 0 ? `${claimableGoals} ready to claim` : "Everything you're working toward"}</span>
+        </span>
+        {goals.length > 0 && (
+          <span className={`prog__row-count${claimableGoals > 0 ? " prog__row-count--ready" : ""} tnum`}>{goals.length}</span>
+        )}
+      </button>
+
+      <button className="prog__row" onClick={() => setView("legend")}>
+        <span className="prog__row-glyph" aria-hidden><Crown size={20} /></span>
+        <span className="prog__row-info">
+          <span className="prog__row-title">Founder Legend</span>
+          <span className="prog__row-sub">Your career rank across every company</span>
+        </span>
+        <span className="prog__row-count prog__row-count--title">{legendTitle}</span>
+      </button>
 
       <button className="prog__row" onClick={() => setView("achievements")}>
         <span className="prog__row-glyph" aria-hidden><Award size={20} /></span>

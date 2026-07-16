@@ -26,6 +26,7 @@ import { PostLaunchEvent } from "./components/PostLaunchEvent.tsx";
 import { RegionalEvent } from "./components/RegionalEvent.tsx";
 import { EarningsCall } from "./components/EarningsCall.tsx";
 import { ContractOffer } from "./components/ContractOffer.tsx";
+import { DecisionInbox } from "./components/DecisionInbox.tsx";
 import { ReviewPrompt } from "./components/ReviewPrompt.tsx";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
@@ -42,6 +43,7 @@ import { format, toDollars } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
 import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState } from "./state/gameState.ts";
+import { getFounderRecord, legendStanding, liveLegendScore } from "./state/founderLegend.ts";
 import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
@@ -234,6 +236,8 @@ function AppShell() {
       <RegionalEvent />
       <EarningsCall />
       <ContractOffer />
+      {/* Non-blocking banner for the low-stakes interrupt streams (they open on the player's schedule). */}
+      <DecisionInbox />
       <ReviewPrompt />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
@@ -413,6 +417,14 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const rank = industryRank(state);
   const nextBonus = legacyBonus(state.legacy + 1);
   const nextFounderPerk = nextPerk(state.legacy);
+  // Going public advances your lifetime career rank (recorded in goPublic). Surface the new standing.
+  const legendTitle = legendStanding(
+    liveLegendScore(getFounderRecord(), {
+      hitsInRun: state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length,
+      valuationDollars: toDollars(ipoValuation(state)),
+      rank,
+    }),
+  ).title;
   useDialogFocus(ref, true);
   useEffect(() => registerAppOverlay(), []); // lower layers (Factory mode) defer Escape to this overlay
   useEffect(() => {
@@ -475,6 +487,9 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             </span>
           )}
         </Card>
+        <p className="ipo__legend-line">
+          <Crown size={14} aria-hidden /> Founder Legend, <b>{legendTitle}</b>
+        </p>
         <p className="ipo__sub">
           Each empire you build leaves a bigger legacy. Found your next one stronger, or keep
           building this one.

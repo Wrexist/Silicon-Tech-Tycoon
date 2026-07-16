@@ -8,7 +8,8 @@ import { Award, Gem, Palette, Trophy, type LucideIcon } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { AWARD_FANS_BONUS, AWARD_REP_BONUS } from "../state/gameState.ts";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
@@ -33,7 +34,7 @@ export function AwardsCeremonyOverlay() {
   // at a time. State holds pendingAwards until those clear, then the ceremony takes the stage.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp = revealUp || state.pendingStrike != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "awards");
   const showing = ceremony !== null && !higherUp;
 
   // The scores mount at 0 and count up once the card is on stage (see AnimatedInt). `revealed`

@@ -150,6 +150,7 @@ import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecu
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
 import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
+import { frontierBonuses, frontierCost } from "../engine/frontier.ts";
 import type {
   Assignment,
   BuildJob,
@@ -236,6 +237,15 @@ export interface ActiveResearch {
   /** Week the research started, and how many weeks it takes — drive the progress ring + "X wk left". */
   startWeek: number;
   totalWeeks: number;
+}
+
+/** Calm Mode setting — how often the game may interrupt with opportunistic full-screen cards.
+ *  "standard" is the built-in cadence; "relaxed" and "calm" widen the shared quiet gap. */
+export type InterruptPace = "standard" | "relaxed" | "calm";
+
+/** Multiplier the chosen pace applies to the interrupt min-gap. undefined/"standard" → 1 (unchanged). */
+export function interruptPaceMultiplier(pace: InterruptPace | undefined): number {
+  return pace === "calm" ? 3 : pace === "relaxed" ? 2 : 1;
 }
 
 export interface GameState {
@@ -428,6 +438,12 @@ export interface GameState {
    *  so modals never cluster (BALANCE.interrupts.minGapWeeks). Optional → old saves + the pinned solo
    *  sim (which raises none) default to -999, so the gate is a pure no-op there → byte-identical. */
   lastInterruptWeek?: number;
+  /** Calm Mode — the player's chosen interrupt cadence (Settings). Scales the shared minimum quiet gap
+   *  between opportunistic full-screen cards: "relaxed" doubles it, "calm" triples it. Optional →
+   *  undefined behaves exactly like "standard" (multiplier 1), so old saves and the pinned solo sim
+   *  are byte-identical. A player-facing lever to make the game as quiet as they like without deleting
+   *  any content. */
+  interruptPace?: InterruptPace;
   // --- Post-IPO shareholder loop (all optional/null → golden-invariant safe; only live once listed) ---
   /** A quarterly earnings result waiting to be shown — beat/miss vs the street + the share-price move. */
   pendingEarnings?: EarningsReport | null;
@@ -447,6 +463,10 @@ export interface GameState {
   /** Legacy-tree perks bought this run (item 4.3), by id. Folded through `prestigeBonuses`. Optional →
    *  [] on old saves; empty aggregates to the neutral bonus, so a run that spends nothing is unchanged. */
   legacyPerks?: string[];
+  /** Frontier Tech tier — the endless Legacy-Point sink past the finite tree (engine/frontier.ts).
+   *  Optional → undefined/0 on old saves and the pinned solo sim, which aggregates to the neutral
+   *  bonus, so a run that never advances the frontier is byte-identical. */
+  frontierTier?: number;
   /** The board's current quarterly mandate (auto-resolves at its dueWeek). Optional/null on old saves. */
   boardMandate?: import("../engine/endgame.ts").BoardMandate | null;
   /** cumulativeRevenue when the current mandate was issued (to measure the quarter's revenue). */
@@ -973,11 +993,15 @@ export const noPendingInterrupt = (b: GameState): boolean =>
 export const prestigeBonuses = (s: GameState): PerkBonus => {
   const base = perkBonuses(s.legacy);
   const tree = legacyTreeBonuses(s.legacyPerks);
+  // Frontier Tech — the endless Legacy-Point sink past the finite tree, folded through the SAME
+  // aggregation so it applies everywhere at once. frontierTier 0/undefined → all-zero, so the pinned
+  // solo sim (never IPOs → never buys a tier) and every existing save stay byte-identical.
+  const front = frontierBonuses(s.frontierTier);
   return {
-    designCeiling: base.designCeiling + tree.designCeiling,
-    hype: base.hype + tree.hype,
-    rpMult: base.rpMult + tree.rpMult,
-    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult)),
+    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling,
+    hype: base.hype + tree.hype + front.hype,
+    rpMult: base.rpMult + tree.rpMult + front.rpMult,
+    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult)),
   };
 };
 export const designTierCeiling = (s: GameState) =>
@@ -1917,7 +1941,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Item C2 — the gap tightens in the late eras (longer, weightier builds → more should happen in the
   // wait). The pinned solo sim raises no interrupts, so lastInterruptWeek stays -999 and this is a
   // no-op there regardless of the gap value.
-  const minGap = state.era >= BALANCE.interrupts.lateEra ? BALANCE.interrupts.minGapWeeksLate : BALANCE.interrupts.minGapWeeks;
+  const baseGap = state.era >= BALANCE.interrupts.lateEra ? BALANCE.interrupts.minGapWeeksLate : BALANCE.interrupts.minGapWeeks;
+  // Calm Mode: the player can widen the quiet gap between opportunistic cards (Settings). undefined →
+  // multiplier 1, so the pinned solo sim (which raises no interrupts anyway) stays byte-identical.
+  const minGap = baseGap * interruptPaceMultiplier(state.interruptPace);
   const interruptQuiet = week - (state.lastInterruptWeek ?? -999) >= minGap;
   let lastInterruptWeek = state.lastInterruptWeek ?? -999;
   let pendingStrike = state.pendingStrike ?? null;
@@ -2547,7 +2574,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       mandate = null;
     }
     if (!mandate) {
-      mandate = generateBoardMandate(state.seed, mandateQuarter, week, base.fans);
+      // The revenue earned during the quarter that just ended (0 for the very first mandate, whose
+      // window hasn't started) — the board scales a revenue directive off the company's own trailing
+      // quarter so it never becomes a rubber-stamp for a giant company.
+      const trailingRevenue = toDollars(sub(base.cumulativeRevenue, mandateStartRevenue));
+      mandate = generateBoardMandate(state.seed, mandateQuarter, week, base.fans, trailingRevenue);
       mandateStartRevenue = base.cumulativeRevenue;
       mandateQuarter += 1;
       base.feed.push(feedItem(week, `The board sets a new mandate — ${mandate.title}. Reward: ${mandateRewardSummary(mandate)}.`, "accent"));
@@ -4288,7 +4319,8 @@ export function navAttention(s: GameState): NavAttention {
   const affordableMegaproject = s.wentPublic &&
     availableMegaprojects(s.megaprojectsFunded ?? []).some((mp) => canFundMegaproject(mp, s.cash, s.researchPoints));
   const spendableLegacyPoint = s.wentPublic && (s.legacyPoints ?? 0) > 0 &&
-    LEGACY_TREE.some((p) => legacyPerkAvailable(s.legacyPerks ?? [], p.id) && (s.legacyPoints ?? 0) >= p.cost);
+    (LEGACY_TREE.some((p) => legacyPerkAvailable(s.legacyPerks ?? [], p.id) && (s.legacyPoints ?? 0) >= p.cost) ||
+      (s.legacyPoints ?? 0) >= frontierCost(s.frontierTier));
   return {
     // A milestone, a personal decision, or a claimable / affordable reward waiting at HQ. Broadened
     // so the many HQ-surfaced systems (contracts, side orders, the Legacy Era) can each light the dot.
@@ -5015,6 +5047,26 @@ export function buyLegacyPerk(state: GameState, id: string): ActionResult {
       ...state,
       legacyPoints: (state.legacyPoints ?? 0) - perk.cost,
       legacyPerks: [...chosen, id],
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
+/** Advance Frontier Tech one tier — the endless Legacy-Point sink past the finite tree. Spends the
+ *  escalating cost, bumps `frontierTier`, and the new boon folds through `prestigeBonuses` next tick.
+ *  Gated on wentPublic + affordability. Opt-in — the pinned sim never IPOs, so it never buys → identical. */
+export function buyFrontierTier(state: GameState): ActionResult {
+  if (!state.wentPublic) return { state, ok: false, reason: "Available after going public." };
+  const tier = state.frontierTier ?? 0;
+  const cost = frontierCost(tier);
+  if ((state.legacyPoints ?? 0) < cost) return { state, ok: false, reason: `Needs ${cost} Legacy Points.` };
+  const feed = [...state.feed, feedItem(state.week, `Frontier Tech advanced to tier ${tier + 1} — your labs push past the industry's ceiling.`, "positive")];
+  return {
+    state: {
+      ...state,
+      legacyPoints: (state.legacyPoints ?? 0) - cost,
+      frontierTier: tier + 1,
       feed: trimFeed(feed),
     },
     ok: true,

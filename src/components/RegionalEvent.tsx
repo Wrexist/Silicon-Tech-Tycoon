@@ -6,13 +6,16 @@ import { useEffect, useRef, useState } from "react";
 import { Globe, Landmark, Swords, TrendingUp } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { REGIONAL_EVENT_COPY } from "../engine/regionalEvents.ts";
 import { regionById } from "../engine/regions.ts";
 import { format } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./regionalEvent.css";
 
 const ICON = { TrendingUp, Landmark, Swords } as const;
@@ -24,12 +27,10 @@ export function RegionalEvent() {
 
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.pendingCommunityAsk != null || state.pendingEarnings != null ||
-    state.pendingStaffMoment != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
-  const showing = event !== null && !higherUp;
+  const higherUp = revealUp || higherPriorityPending(state, "regionalEvent");
+  // Low-stakes: waits in the Decision Inbox banner, opens on demand (never seizes the screen cold).
+  const decisionOpen = useDecisionOpen();
+  const showing = event !== null && decisionOpen && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);
@@ -65,6 +66,7 @@ export function RegionalEvent() {
             ? `${event.rivalName} is gaining ground in this ${event.tasteLabel ? `${event.tasteLabel} ` : ""}market. Answer with a counter-campaign to defend your standing, or cede the region for now.`
             : copy.blurb}
         </p>
+        <FirstTimeNote intro="regionalEvent" />
         <div className="rge__actions">
           <Button
             block

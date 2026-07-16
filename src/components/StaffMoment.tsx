@@ -6,12 +6,15 @@ import { useEffect, useRef, useState } from "react";
 import { Award, Gem, GraduationCap, Sparkles } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { ROLE_TITLE } from "../engine/staff.ts";
 import type { StaffGrowthKind, StaffGrowthOption } from "../engine/staffMoment.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import "./staffMoment.css";
 
 const KIND_ICON: Record<StaffGrowthKind, typeof Gem> = {
@@ -29,13 +32,11 @@ export function StaffMoment() {
   // Lowest priority: yield to the player's own launch payoff and every other interrupt card.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.pendingCommunityAsk != null || state.pendingEarnings != null ||
-    state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "staffMoment");
   // The reveal must survive `moment` clearing the instant we choose, so `chosen` holds the card up.
-  const showing = (moment !== null || chosen !== null) && !higherUp;
+  // Low-stakes: the pending moment waits in the Decision Inbox banner; the chosen-outcome view always shows.
+  const decisionOpen = useDecisionOpen();
+  const showing = ((moment !== null && decisionOpen) || chosen !== null) && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);
@@ -82,6 +83,7 @@ export function StaffMoment() {
         <p className="stfm__sub">
           {moment.staffName} has become one of your best — a skill&nbsp;{moment.skill} {ROLE_TITLE[moment.role]}. Choose how they develop. It&apos;s permanent.
         </p>
+        <FirstTimeNote intro="staffMoment" />
         <div className="stfm__choices">
           {moment.options.map((opt, i) => {
             const Icon = KIND_ICON[opt.kind];

@@ -8,13 +8,16 @@ import { useEffect, useRef, useState } from "react";
 import { Heart, MessagesSquare, FlaskConical, Shirt, Users, BadgeDollarSign, Sparkles, type LucideIcon } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { ASK_INFO } from "../engine/community.ts";
 import type { CommunityAskResult } from "../state/gameState.ts";
 import { format } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import "./communityAsk.css";
 
 // The engine ships an icon KEY (it stays DOM-free); map it to a Lucide glyph here.
@@ -29,12 +32,12 @@ export function CommunityAsk() {
   // Serialize below the player's own payoff (launch reveal) and every other interrupt.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "communityAsk");
   // The reveal must survive `ask` clearing the instant we answer, so `answered` holds the card up.
-  const showing = (ask !== null || answered !== null) && !higherUp;
+  // Low-stakes: the pending ASK waits in the Decision Inbox banner and only opens on demand; the
+  // post-resolution outcome view always shows (it's the reward for deciding).
+  const decisionOpen = useDecisionOpen();
+  const showing = ((ask !== null && decisionOpen) || answered !== null) && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);
@@ -104,6 +107,7 @@ export function CommunityAsk() {
             <span className="cma__term-val cma__term-val--pos tnum">+{ask.fanGain.toLocaleString()} fans</span>
           </div>
         </div>
+        <FirstTimeNote intro="communityAsk" />
         <div className="cma__actions">
           <Button
             block

@@ -6,10 +6,13 @@ import { useEffect, useRef, useState } from "react";
 import { HeartHandshake } from "lucide-react";
 import { useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending, decisionPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import "./staffMoment.css";
 
 export function StaffEvent() {
@@ -20,14 +23,10 @@ export function StaffEvent() {
   // Lowest priority: yield to the player's launch payoff and every other interrupt card.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.pendingCommunityAsk != null || state.pendingEarnings != null ||
-    state.pendingStaffMoment != null || state.pendingRegionalEvent != null || state.pendingChoice != null ||
-    state.pendingLicenseOffer != null || state.pendingPoach != null ||
-    state.ready.some((p) => !readyLaunchClaimed(p.id));
-  const showing = ev !== null && !higherUp;
+  const higherUp = revealUp || higherPriorityPending(state, "staffEvent") || decisionPending(state);
+  // Low-stakes: waits in the Decision Inbox banner, opens on demand (never seizes the screen cold).
+  const decisionOpen = useDecisionOpen();
+  const showing = ev !== null && decisionOpen && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);
@@ -54,6 +53,7 @@ export function StaffEvent() {
         <div className="stfm__eyebrow">Your team</div>
         <h2 className="stfm__title">{ev.title}</h2>
         <p className="stfm__sub">{ev.body}</p>
+        <FirstTimeNote intro="staffEvent" />
         <div className="stfm__choices">
           {ev.options.map((opt, i) => (
             <button key={i} className="stfm__choice" onClick={() => resolveStaffEvent(i)}>

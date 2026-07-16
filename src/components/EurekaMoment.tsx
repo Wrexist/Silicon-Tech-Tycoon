@@ -7,11 +7,13 @@ import { useEffect, useRef, useState } from "react";
 import { Lightbulb, Landmark, FlaskConical, Sparkles, Cpu } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import type { EurekaResult } from "../state/gameState.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./eurekaMoment.css";
 
 export function EurekaMoment() {
@@ -23,7 +25,7 @@ export function EurekaMoment() {
   // Serialize below the player's own payoff (launch reveal) and the other interrupts.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp = revealUp || state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "eureka");
   // Keep the stage while resolving: `moment` clears the instant we bank/chase, but the outcome reveal
   // must survive that, so `outcome` holds the card up until Continue.
   const showing = (moment !== null || outcome !== null) && !higherUp;
@@ -75,6 +77,7 @@ export function EurekaMoment() {
         <p className="eur__sub">
           Your researchers stumbled onto something in the <span className="eur__kind"><Cpu size={12} aria-hidden /> {moment.componentKind}</span> line. Cash it in, or push for a prototype?
         </p>
+        <FirstTimeNote intro="eureka" />
         <div className="eur__choices">
           <button className="eur__choice" onClick={() => { const r = resolveEureka("bank"); if (r.ok) setOutcome(r); }}>
             <span className="eur__choice-glyph" aria-hidden><Landmark size={18} /></span>

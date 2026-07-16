@@ -7,13 +7,15 @@ import { useEffect, useRef, useState } from "react";
 import { TrendingUp, TrendingDown, ShieldCheck } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { companyValuation } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { format, scale } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./earningsCall.css";
 
 export function EarningsCall() {
@@ -23,11 +25,7 @@ export function EarningsCall() {
 
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.pendingCommunityAsk != null ||
-    state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "earnings");
   const showing = report !== null && !higherUp;
 
   // Hold the sim while the call is up; cue once when it appears (re-armed when it hides).
@@ -77,6 +75,7 @@ export function EarningsCall() {
             <span className={`ern__term-val tnum ${beat ? "ern__term-val--pos" : "ern__term-val--neg"}`}>{beat ? "+" : "−"}{move}%</span>
           </div>
         </div>
+        <FirstTimeNote intro="earnings" />
         {beat ? (
           <Button block haptics="none" onClick={() => resolveEarnings(false)}>Great quarter</Button>
         ) : (
