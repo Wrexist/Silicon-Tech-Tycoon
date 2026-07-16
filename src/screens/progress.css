@@ -100,3 +100,11 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+/* Text standing (the Founder Legend title) rather than a number — smaller, right-aligned, wraps. */
+.prog__row-count--title {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  max-width: 40%;
+  text-align: right;
+  line-height: 1.2;
+}

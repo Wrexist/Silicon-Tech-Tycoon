@@ -830,6 +830,18 @@
   line-height: 1.5;
   margin: var(--sp-4) 0;
 }
+/* Founder Legend standing — the lifetime career rank this IPO just advanced. */
+.ipo__legend-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  align-self: center;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: var(--sp-2) 0 0;
+}
+.ipo__legend-line svg { color: var(--accent); }
+.ipo__legend-line b { color: var(--ink); font-weight: 700; }
 /* "Five years later" campaign epilogue (Track A): the authored send-off for this company. */
 .ipo__epilogue {
   font-size: var(--fs-body);

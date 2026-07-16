@@ -135,12 +135,15 @@ import {
   negotiateLicenseOffer,
   installOsFeature,
   setOsPhilosophy,
+  ipoValuation,
+  industryRank,
   type GameState,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioProgress.ts";
 import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
 import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
+import { recordFounder, getFounderRecord, mergeFounderRecord } from "./founderLegend.ts";
 import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
 import { scenarioById, canEarnStars, scenarioUnlocked, scenarioUnlockStars, SCENARIOS } from "../engine/scenarios.ts";
 import type { MasteryInput } from "../engine/achievements.ts";
@@ -173,6 +176,20 @@ import { createElement } from "react";
  *  The pure engine's newGame leaves interruptPace undefined (pin-safe); this UI seam applies the pref. */
 function withInterruptPace(s: GameState): GameState {
   return s.interruptPace ? s : { ...s, interruptPace: getSettings().interruptPace };
+}
+
+/** Fold the current run into the lifetime Founder Legend record (a profile-store side-effect, entirely
+ *  outside the sim). Maxima are idempotent, so calling this at both IPO and prestige never double-counts
+ *  the same peaks; the prestige/ipo booleans are the only true increments. */
+function recordFounderFrom(state: GameState, opts: { prestige?: boolean; ipo?: boolean }): void {
+  const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
+  recordFounder({
+    prestige: opts.prestige,
+    ipo: opts.ipo,
+    hitsInRun: hits,
+    valuationDollars: toDollars(ipoValuation(state)),
+    rank: industryRank(state),
+  });
 }
 
 function fmtMilestone(d: number): string {
@@ -1123,8 +1140,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // These actions can immediately satisfy a milestone (reach the final era, IPO, the pinnacle), so
   // fold + celebrate achievements here rather than waiting for the next tick.
   const advanceEra = useCallback(() => setState((s) => withLiveAchievements(advanceEraAction(s))), []);
-  const goPublicCb = useCallback(() => setState((s) => withLiveAchievements(goPublic(s))), []);
+  const goPublicCb = useCallback(() => {
+    const before = stateRef.current;
+    setState((s) => withLiveAchievements(goPublic(s)));
+    // Record the IPO in the lifetime Founder Legend on the first transition to public (guarded so a
+    // no-op call — canIPO false — records nothing).
+    if (!before.wentPublic) {
+      const after = goPublic(before);
+      if (after.wentPublic) recordFounderFrom(after, { ipo: true });
+    }
+  }, []);
   const prestige = useCallback(() => {
+    // Bank the finished empire into the lifetime Founder Legend before the reset wipes the run.
+    recordFounderFrom(stateRef.current, { prestige: true });
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // milestones earned this run persist into NG+
     const next = getLegacy() + 1;
     setLegacy(next);
@@ -1145,6 +1173,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       challengeBests: getChallengeBests(),
       museum: getMuseum(),
       achievements: getProfileAchievements(),
+      founder: getFounderRecord(),
     }),
     [],
   );
@@ -1163,6 +1192,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       mergeChallengeBests(profile.challengeBests);
       mergeMuseum(profile.museum);
       mergeProfileAchievements(Array.isArray(profile.achievements) ? profile.achievements : undefined);
+      mergeFounderRecord(profile.founder);
     }
     const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids

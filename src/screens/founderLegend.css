@@ -1,0 +1,165 @@
+/* Founder Legend sheet — the cross-run prestige ladder. Tokens + 8pt grid only. */
+.fl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-20);
+}
+.fl__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+}
+.fl__head-glyph {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.fl__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  margin: 0;
+}
+.fl__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: var(--sp-2) 0 0;
+}
+
+/* Hero standing */
+.fl__standing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-20);
+  border-radius: var(--r-card);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--hairline));
+}
+.fl__standing-label {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+.fl__standing-title {
+  font-size: var(--fs-large);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.fl__bar {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  overflow: hidden;
+  margin-top: var(--sp-2);
+}
+.fl__bar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-snappy);
+}
+.fl__standing-next {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.fl__standing-next b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Ladder */
+.fl__ladder {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.fl__rung {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  border: 1px solid transparent;
+}
+.fl__rung-mark {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-weight: 700;
+}
+.fl__rung-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.fl__rung-req {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.fl__rung--reached .fl__rung-name { color: var(--ink); }
+.fl__rung--reached .fl__rung-mark { background: var(--positive-soft); color: var(--positive-text); }
+.fl__rung--current {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline));
+}
+.fl__rung--current .fl__rung-mark { background: var(--accent); color: var(--bg); }
+.fl__rung--current .fl__rung-name { color: var(--ink); font-weight: 700; }
+.fl__rung-tag {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+.fl__rung--endless .fl__rung-mark { font-size: var(--fs-headline); line-height: 1; }
+.fl__rung--endless .fl__rung-name { color: var(--ink-2); font-style: italic; font-weight: 500; }
+
+/* Lifetime stats */
+.fl__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-8);
+}
+.fl__stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.fl__stat-value {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  color: var(--ink);
+}
+.fl__stat-label {
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  line-height: 1.3;
+}
+
+@media (max-width: 380px) {
+  .fl__stats { grid-template-columns: repeat(2, 1fr); }
+}
