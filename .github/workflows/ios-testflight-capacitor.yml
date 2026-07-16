@@ -20,6 +20,21 @@ name: iOS TestFlight
 
 on:
   workflow_dispatch:
+    inputs:
+      # Keep the label ONE short line so the mobile "Run workflow" field stays usable — the full
+      # rationale lives here in the comment, not in the input description that crowds the text box:
+      # this is CFBundleShortVersionString (the store-facing version). Apple rejects a build whose
+      # marketing version was already released, so bump it (e.g. 2.5.3 → 2.5.4) for every store push.
+      # The build number is set automatically from the run number, so you only ever type this.
+      marketing_version:
+        description: "App version to ship (e.g. 2.5.3)"
+        required: true
+        type: string
+      submit_testflight:
+        description: "Submit the build to TestFlight after building"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -55,6 +70,18 @@ jobs:
             exit 1
           fi
           echo "All required App Store Connect secrets are present."
+
+      - name: Validate marketing version
+        env:
+          MARKETING_VERSION: ${{ inputs.marketing_version }}
+        run: |
+          # Digits and dots only (e.g. 2.5 or 2.5.3) — catch a fat-fingered value before a 40-minute
+          # build, since App Store Connect would otherwise reject the upload at the very end.
+          if ! printf '%s' "$MARKETING_VERSION" | grep -Eq '^[0-9]+(\.[0-9]+){1,2}$'; then
+            echo "::error::Version to ship must look like 2.5 or 2.5.3 (digits and dots only). Got: '$MARKETING_VERSION'"
+            exit 1
+          fi
+          echo "Shipping marketing version $MARKETING_VERSION (build $GITHUB_RUN_NUMBER)."
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -129,6 +156,7 @@ jobs:
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          MARKETING_VERSION: ${{ inputs.marketing_version }}
         run: |
           xcodebuild \
             -project ios/App/App.xcodeproj \
@@ -142,6 +170,7 @@ jobs:
             -authenticationKeyIssuerID "$ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION="$MARKETING_VERSION" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             archive
 
@@ -160,6 +189,9 @@ jobs:
             -authenticationKeyIssuerID "$ISSUER_ID"
 
       - name: Upload to TestFlight
+        # Skipped when the "Submit to TestFlight" toggle is off — you still get the exported .ipa as a
+        # build artifact below, just without pushing it to TestFlight.
+        if: ${{ inputs.submit_testflight }}
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
