@@ -238,6 +238,15 @@ export interface ActiveResearch {
   totalWeeks: number;
 }
 
+/** Calm Mode setting — how often the game may interrupt with opportunistic full-screen cards.
+ *  "standard" is the built-in cadence; "relaxed" and "calm" widen the shared quiet gap. */
+export type InterruptPace = "standard" | "relaxed" | "calm";
+
+/** Multiplier the chosen pace applies to the interrupt min-gap. undefined/"standard" → 1 (unchanged). */
+export function interruptPaceMultiplier(pace: InterruptPace | undefined): number {
+  return pace === "calm" ? 3 : pace === "relaxed" ? 2 : 1;
+}
+
 export interface GameState {
   version: number;
   seed: number;
@@ -428,6 +437,12 @@ export interface GameState {
    *  so modals never cluster (BALANCE.interrupts.minGapWeeks). Optional → old saves + the pinned solo
    *  sim (which raises none) default to -999, so the gate is a pure no-op there → byte-identical. */
   lastInterruptWeek?: number;
+  /** Calm Mode — the player's chosen interrupt cadence (Settings). Scales the shared minimum quiet gap
+   *  between opportunistic full-screen cards: "relaxed" doubles it, "calm" triples it. Optional →
+   *  undefined behaves exactly like "standard" (multiplier 1), so old saves and the pinned solo sim
+   *  are byte-identical. A player-facing lever to make the game as quiet as they like without deleting
+   *  any content. */
+  interruptPace?: InterruptPace;
   // --- Post-IPO shareholder loop (all optional/null → golden-invariant safe; only live once listed) ---
   /** A quarterly earnings result waiting to be shown — beat/miss vs the street + the share-price move. */
   pendingEarnings?: EarningsReport | null;
@@ -1917,7 +1932,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Item C2 — the gap tightens in the late eras (longer, weightier builds → more should happen in the
   // wait). The pinned solo sim raises no interrupts, so lastInterruptWeek stays -999 and this is a
   // no-op there regardless of the gap value.
-  const minGap = state.era >= BALANCE.interrupts.lateEra ? BALANCE.interrupts.minGapWeeksLate : BALANCE.interrupts.minGapWeeks;
+  const baseGap = state.era >= BALANCE.interrupts.lateEra ? BALANCE.interrupts.minGapWeeksLate : BALANCE.interrupts.minGapWeeks;
+  // Calm Mode: the player can widen the quiet gap between opportunistic cards (Settings). undefined →
+  // multiplier 1, so the pinned solo sim (which raises no interrupts anyway) stays byte-identical.
+  const minGap = baseGap * interruptPaceMultiplier(state.interruptPace);
   const interruptQuiet = week - (state.lastInterruptWeek ?? -999) >= minGap;
   let lastInterruptWeek = state.lastInterruptWeek ?? -999;
   let pendingStrike = state.pendingStrike ?? null;

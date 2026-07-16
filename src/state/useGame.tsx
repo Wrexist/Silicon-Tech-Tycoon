@@ -152,6 +152,8 @@ import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
 import { clearSave, exportSaveString, importSaveString, importProfileFromString, loadResult, save, stashHomeSave, readHomeSave, hasHomeSave, clearHomeSave } from "./persistence.ts";
+import { getSettings, setSettings } from "./settings.ts";
+import type { InterruptPace } from "./gameState.ts";
 import { withValidatedSandbox } from "./entitlements.ts";
 import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
@@ -165,6 +167,13 @@ import { sfx } from "../design/sound.ts";
 import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
 import { createElement } from "react";
+
+/** Seed the player's persisted Calm Mode preference into a game state that doesn't carry one yet
+ *  (a fresh company, or a save written before Calm Mode existed). An explicit saved choice is kept.
+ *  The pure engine's newGame leaves interruptPace undefined (pin-safe); this UI seam applies the pref. */
+function withInterruptPace(s: GameState): GameState {
+  return s.interruptPace ? s : { ...s, interruptPace: getSettings().interruptPace };
+}
 
 function fmtMilestone(d: number): string {
   if (d >= 1_000_000_000) return `$${(d / 1_000_000_000).toFixed(1)}B`;
@@ -481,6 +490,8 @@ interface GameActionsValue {
   importSave: (str: string) => boolean;
   setCompanyName: (name: string) => void;
   setSandboxActive: (on: boolean) => void;
+  /** Calm Mode — set how often the game may raise opportunistic full-screen interrupts. */
+  setInterruptPace: (pace: InterruptPace) => void;
   setAutomation: (patch: Partial<GameState["automation"]>) => void;
   // Platform / OS division (DLC #1)
   setOsName: (name: string) => void;
@@ -553,7 +564,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (res.status !== "ok") {
       // ABSENT or UNREADABLE → start fresh. On UNREADABLE the raw save was already copied to a
       // backup key inside loadResult(), so the player's data is preserved, not destroyed.
-      return newGame(undefined, getLegacy());
+      return withInterruptPace(newGame(undefined, getLegacy()));
     }
     // Honor sandboxUnlocked only when the device actually owns the IAP — an imported or older
     // localStorage save could otherwise unlock the unlimited-cash floor for free.
@@ -563,7 +574,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Capture the loaded run's earned achievements into the cross-run profile store — this handles
     // saves written before the profile-achievements system existed (independent of any catch-up).
     mergeProfileAchievements(loaded.unlockedAchievements);
-    return loaded;
+    return withInterruptPace(loaded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1120,7 +1131,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     clearSave();
     // New Game+ players already know the ropes — skip onboarding + the first-build coach. The
     // lifetime "seen dilemmas" set carries across so the new run surfaces fresh decisions first.
-    setState({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices });
+    setState(withInterruptPace({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices }));
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
     setSkipping(false);
@@ -1170,6 +1181,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
   // caller (Settings only shows the toggle once the IAP entitlement is held).
   const setSandboxActive = useCallback((on: boolean) => setState((s) => setSandbox(s, on)), []);
+  // Calm Mode — persist the choice (survives a new company) and apply it to the live run immediately.
+  const setInterruptPaceCb = useCallback((pace: InterruptPace) => {
+    setSettings({ interruptPace: pace });
+    setState((s) => (s.interruptPace === pace ? s : { ...s, interruptPace: pace }));
+  }, []);
   const setAutomationCb = useCallback((patch: Partial<GameState["automation"]>) => setState((s) => setAutomation(s, patch)), []);
   const setOsNameCb = useCallback((name: string) => setState((s) => setOsName(s, name)), []);
   const unlockPlatformCb = useCallback((on: boolean) => setState((s) => unlockPlatform(s, on)), []);
@@ -1446,7 +1462,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Platform is an entitlement, not run progress, so it stays across a fresh company. The lifetime
     // "seen dilemmas" set carries across too (as it does in prestige), so a restart surfaces fresh
     // decisions first instead of re-asking ones the player already resolved.
-    setState({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices });
+    setState(withInterruptPace({ ...newGame(undefined, getLegacy()), platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices }));
     setPaused(false);
     setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
     setSkipping(false);
@@ -1584,6 +1600,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       importSave,
       setCompanyName: setCompanyNameCb,
       setSandboxActive,
+      setInterruptPace: setInterruptPaceCb,
       setAutomation: setAutomationCb,
       setOsName: setOsNameCb,
       unlockPlatform: unlockPlatformCb,
@@ -1639,7 +1656,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

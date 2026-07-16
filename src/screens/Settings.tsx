@@ -21,7 +21,7 @@ import { showToast } from "../design/toast.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { format, toDollars } from "../engine/money.ts";
-import { netWorth } from "../state/gameState.ts";
+import { netWorth, type InterruptPace } from "../state/gameState.ts";
 import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
 import { disableDailyReminders, enableDailyReminders, notificationsAvailable } from "../state/notifications.ts";
 import { hasSandboxEntitlement } from "../state/entitlements.ts";
@@ -35,9 +35,18 @@ const THEMES: { id: ThemePref; label: string; Icon: typeof Sun }[] = [
   { id: "dark", label: "Dark", Icon: Moon },
 ];
 
+// Calm Mode — how often the game may raise opportunistic full-screen cards (rival strikes, eureka
+// moments, community asks, regional events, staff moments…). Standard is the built-in cadence;
+// Relaxed and Calm widen the shared quiet gap so moments land rarer and each one carries more weight.
+const PACES: { id: InterruptPace; label: string; sub: string }[] = [
+  { id: "standard", label: "Standard", sub: "The normal flow of moments." },
+  { id: "relaxed", label: "Relaxed", sub: "About half as many interruptions." },
+  { id: "calm", label: "Calm", sub: "The quietest — roughly a third as many." },
+];
+
 export function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettings();
-  const { state, restart, unlockPlatform } = useGame();
+  const { state, restart, unlockPlatform, setInterruptPace } = useGame();
   const [confirmReset, setConfirmReset] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -117,6 +126,35 @@ export function Settings({ onClose }: { onClose: () => void }) {
             />
           </Row>
         )}
+      </div>
+
+      <div className="set__group">
+        <span className="set__group-label">Interruptions</span>
+        <p className="set__group-note">
+          How often the game pauses you with a full-screen moment. Turn it down to keep the focus on
+          building — nothing is lost, the rarer moments just carry more weight.
+        </p>
+        <div className="set__seg" role="group" aria-label="Interruption frequency">
+          {PACES.map((p) => {
+            const on = (settings.interruptPace ?? "standard") === p.id;
+            return (
+              <button
+                key={p.id}
+                className={`set__seg-opt${on ? " set__seg-opt--on" : ""}`}
+                aria-pressed={on}
+                aria-label={`${p.label} interruptions`}
+                onClick={() => {
+                  haptic.light();
+                  sfx("toggle");
+                  setInterruptPace(p.id);
+                }}
+              >
+                <Bell size={16} /> {p.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="set__group-note">{PACES.find((p) => p.id === (settings.interruptPace ?? "standard"))?.sub}</p>
       </div>
 
       <CreativeModeGroup />
