@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { Lightbulb, Landmark, FlaskConical, Sparkles, Cpu } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import type { EurekaResult } from "../state/gameState.ts";
 import { haptic } from "../design/haptics.ts";
@@ -23,7 +24,7 @@ export function EurekaMoment() {
   // Serialize below the player's own payoff (launch reveal) and the other interrupts.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp = revealUp || state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "eureka");
   // Keep the stage while resolving: `moment` clears the instant we bank/chase, but the outcome reveal
   // must survive that, so `outcome` holds the card up until Continue.
   const showing = (moment !== null || outcome !== null) && !higherUp;

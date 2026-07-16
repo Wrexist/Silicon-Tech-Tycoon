@@ -8,7 +8,8 @@ import { useEffect, useRef, useState } from "react";
 import { Handshake, Crown, BadgeDollarSign, TrendingUp, Smile, Scale, Flame, Sparkles, DoorClosed, type LucideIcon } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending, decisionPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { osDisplayName } from "../state/gameState.ts";
 import { offerTemper, type SuitorTemper } from "../engine/licenseOffers.ts";
@@ -40,13 +41,7 @@ export function ContractOffer() {
   // Serialize below the player's own payoff (launch reveal) and every other interrupt + unclaimed build.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.pendingCommunityAsk != null || state.pendingStaffMoment != null ||
-    state.pendingRegionalEvent != null || state.pendingEarnings != null ||
-    state.pendingPoach != null || state.pendingChoice != null ||
-    state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "licenseOffer") || decisionPending(state);
   // A reveal (signed / walked) must survive the offer clearing, so those locals hold the card up.
   const showing = (offer !== null || signed !== null || walked !== null) && !higherUp;
 

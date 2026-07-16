@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { HeartHandshake } from "lucide-react";
 import { useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending, decisionPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -20,13 +21,7 @@ export function StaffEvent() {
   // Lowest priority: yield to the player's launch payoff and every other interrupt card.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.pendingCommunityAsk != null || state.pendingEarnings != null ||
-    state.pendingStaffMoment != null || state.pendingRegionalEvent != null || state.pendingChoice != null ||
-    state.pendingLicenseOffer != null || state.pendingPoach != null ||
-    state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "staffEvent") || decisionPending(state);
   const showing = ev !== null && !higherUp;
 
   useHoldSim(showing);

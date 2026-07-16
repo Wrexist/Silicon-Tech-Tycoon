@@ -8,7 +8,8 @@ import { useEffect, useRef, useState } from "react";
 import { Heart, MessagesSquare, FlaskConical, Shirt, Users, BadgeDollarSign, Sparkles, type LucideIcon } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { ASK_INFO } from "../engine/community.ts";
 import type { CommunityAskResult } from "../state/gameState.ts";
@@ -29,10 +30,7 @@ export function CommunityAsk() {
   // Serialize below the player's own payoff (launch reveal) and every other interrupt.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "communityAsk");
   // The reveal must survive `ask` clearing the instant we answer, so `answered` holds the card up.
   const showing = (ask !== null || answered !== null) && !higherUp;
 

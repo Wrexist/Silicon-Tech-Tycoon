@@ -9,8 +9,9 @@ import { useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { marketingPushQuote } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { format, sub, cents, type Money } from "../engine/money.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { haptic } from "../design/haptics.ts";
@@ -25,13 +26,12 @@ export function RivalStrike() {
   // The launch reveal is the player's own payoff and always wins, so a strike waits behind any
   // unclaimed ready build AND behind the bus-driven reveal itself (which leaves the `ready` shelf
   // the instant "Launch now" is tapped); state keeps pendingStrike, so the card pops once it clears.
-  const readyUp = state.ready.some((p) => !readyLaunchClaimed(p.id));
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
 
   // Hold the sim while the card is up (same contract as ReadyToLaunch): the attack shouldn't keep
   // eroding the curve while the player weighs the answer. Cue once when it appears.
-  const showing = strike !== null && !readyUp && !revealUp;
+  const showing = strike !== null && !revealUp && !higherPriorityPending(state, "strike");
   useHoldSim(showing);
   const cued = useRef(false);
   useEffect(() => {

@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Award, Gem, GraduationCap, Sparkles } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { ROLE_TITLE } from "../engine/staff.ts";
 import type { StaffGrowthKind, StaffGrowthOption } from "../engine/staffMoment.ts";
@@ -29,11 +30,7 @@ export function StaffMoment() {
   // Lowest priority: yield to the player's own launch payoff and every other interrupt card.
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.pendingCommunityAsk != null || state.pendingEarnings != null ||
-    state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "staffMoment");
   // The reveal must survive `moment` clearing the instant we choose, so `chosen` holds the card up.
   const showing = (moment !== null || chosen !== null) && !higherUp;
 

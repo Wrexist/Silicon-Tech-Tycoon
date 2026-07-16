@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Globe, Landmark, Swords, TrendingUp } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay, readyLaunchClaimed } from "../design/overlayGuard.ts";
+import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { REGIONAL_EVENT_COPY } from "../engine/regionalEvents.ts";
 import { regionById } from "../engine/regions.ts";
@@ -24,11 +25,7 @@ export function RegionalEvent() {
 
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
-  const higherUp =
-    revealUp ||
-    state.pendingStrike != null || state.pendingAwards != null || state.pendingRivalry != null ||
-    state.pendingEureka != null || state.pendingCommunityAsk != null || state.pendingEarnings != null ||
-    state.pendingStaffMoment != null || state.ready.some((p) => !readyLaunchClaimed(p.id));
+  const higherUp = revealUp || higherPriorityPending(state, "regionalEvent");
   const showing = event !== null && !higherUp;
 
   useHoldSim(showing);
