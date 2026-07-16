@@ -14,6 +14,7 @@ import { regionById } from "../engine/regions.ts";
 import { format } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./regionalEvent.css";
 
 const ICON = { TrendingUp, Landmark, Swords } as const;
@@ -62,6 +63,7 @@ export function RegionalEvent() {
             ? `${event.rivalName} is gaining ground in this ${event.tasteLabel ? `${event.tasteLabel} ` : ""}market. Answer with a counter-campaign to defend your standing, or cede the region for now.`
             : copy.blurb}
         </p>
+        <FirstTimeNote intro="regionalEvent" />
         <div className="rge__actions">
           <Button
             block

@@ -13,6 +13,7 @@ import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/laun
 import type { EurekaResult } from "../state/gameState.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./eurekaMoment.css";
 
 export function EurekaMoment() {
@@ -76,6 +77,7 @@ export function EurekaMoment() {
         <p className="eur__sub">
           Your researchers stumbled onto something in the <span className="eur__kind"><Cpu size={12} aria-hidden /> {moment.componentKind}</span> line. Cash it in, or push for a prototype?
         </p>
+        <FirstTimeNote intro="eureka" />
         <div className="eur__choices">
           <button className="eur__choice" onClick={() => { const r = resolveEureka("bank"); if (r.ok) setOutcome(r); }}>
             <span className="eur__choice-glyph" aria-hidden><Landmark size={18} /></span>

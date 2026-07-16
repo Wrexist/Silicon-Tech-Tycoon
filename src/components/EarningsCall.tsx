@@ -15,6 +15,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { format, scale } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./earningsCall.css";
 
 export function EarningsCall() {
@@ -74,6 +75,7 @@ export function EarningsCall() {
             <span className={`ern__term-val tnum ${beat ? "ern__term-val--pos" : "ern__term-val--neg"}`}>{beat ? "+" : "−"}{move}%</span>
           </div>
         </div>
+        <FirstTimeNote intro="earnings" />
         {beat ? (
           <Button block haptics="none" onClick={() => resolveEarnings(false)}>Great quarter</Button>
         ) : (

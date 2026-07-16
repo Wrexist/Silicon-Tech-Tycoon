@@ -13,6 +13,7 @@ import { ROLE_TITLE } from "../engine/staff.ts";
 import type { StaffGrowthKind, StaffGrowthOption } from "../engine/staffMoment.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./staffMoment.css";
 
 const KIND_ICON: Record<StaffGrowthKind, typeof Gem> = {
@@ -79,6 +80,7 @@ export function StaffMoment() {
         <p className="stfm__sub">
           {moment.staffName} has become one of your best — a skill&nbsp;{moment.skill} {ROLE_TITLE[moment.role]}. Choose how they develop. It&apos;s permanent.
         </p>
+        <FirstTimeNote intro="staffMoment" />
         <div className="stfm__choices">
           {moment.options.map((opt, i) => {
             const Icon = KIND_ICON[opt.kind];

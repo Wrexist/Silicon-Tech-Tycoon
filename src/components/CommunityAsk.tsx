@@ -16,6 +16,7 @@ import type { CommunityAskResult } from "../state/gameState.ts";
 import { format } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./communityAsk.css";
 
 // The engine ships an icon KEY (it stays DOM-free); map it to a Lucide glyph here.
@@ -102,6 +103,7 @@ export function CommunityAsk() {
             <span className="cma__term-val cma__term-val--pos tnum">+{ask.fanGain.toLocaleString()} fans</span>
           </div>
         </div>
+        <FirstTimeNote intro="communityAsk" />
         <div className="cma__actions">
           <Button
             block

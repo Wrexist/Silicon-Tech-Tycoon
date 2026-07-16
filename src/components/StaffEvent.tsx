@@ -11,6 +11,7 @@ import { higherPriorityPending, decisionPending } from "../design/interruptPrior
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./staffMoment.css";
 
 export function StaffEvent() {
@@ -49,6 +50,7 @@ export function StaffEvent() {
         <div className="stfm__eyebrow">Your team</div>
         <h2 className="stfm__title">{ev.title}</h2>
         <p className="stfm__sub">{ev.body}</p>
+        <FirstTimeNote intro="staffEvent" />
         <div className="stfm__choices">
           {ev.options.map((opt, i) => (
             <button key={i} className="stfm__choice" onClick={() => resolveStaffEvent(i)}>

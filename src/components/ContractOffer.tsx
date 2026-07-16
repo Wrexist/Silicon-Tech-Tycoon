@@ -17,6 +17,7 @@ import { CATEGORIES } from "../engine/catalogs.ts";
 import { format, type Money } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./contractOffer.css";
 
 // How a suitor's bargaining temper reads to the player — honest about the negotiation odds (the same
@@ -152,6 +153,7 @@ export function ContractOffer() {
           </p>
         )}
 
+        <FirstTimeNote intro="licenseOffer" />
         <div className="cof__actions">
           <Button
             block
