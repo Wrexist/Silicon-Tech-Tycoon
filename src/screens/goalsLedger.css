@@ -1,0 +1,124 @@
+/* Goals Ledger sheet — one consistent grammar for objectives / contracts / mandates. Tokens only. */
+.gl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-20);
+}
+.gl__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+}
+.gl__head-glyph {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.gl__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  margin: 0;
+}
+.gl__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: var(--sp-2) 0 0;
+}
+
+.gl__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+.gl__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-14) var(--sp-16);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.gl__row--done {
+  border-color: color-mix(in srgb, var(--positive) 40%, var(--hairline));
+  background: color-mix(in srgb, var(--positive) 6%, var(--surface));
+}
+.gl__row-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.gl__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px var(--sp-8);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.gl__chip svg { color: var(--accent); }
+.gl__deadline,
+.gl__met {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+}
+.gl__deadline { color: var(--ink-3); }
+.gl__met { color: var(--positive-text); }
+.gl__row-title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.25;
+}
+.gl__row-detail {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: 0;
+  line-height: 1.4;
+}
+.gl__bar {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  overflow: hidden;
+}
+.gl__bar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-snappy);
+}
+.gl__row--done .gl__bar-fill { background: var(--positive); }
+.gl__row-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  min-height: 1px;
+}
+.gl__reward {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.gl__reward--muted { color: var(--ink-3); font-weight: 500; }
+.gl__row-foot .ds-btn { width: auto; padding-inline: var(--sp-16); }
