@@ -57,6 +57,7 @@ import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue,
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary } from "../engine/endgame.ts";
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
+import { frontierCost, frontierBonuses, frontierBandName } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -105,7 +106,7 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
 export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
-  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk } = useGame();
+  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk, buyFrontierTier } = useGame();
   const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
@@ -320,7 +321,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
 
       {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
-      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} />}
+      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}
 
       {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
           shipped, when the community has an opinion to have. */}
@@ -1071,12 +1072,24 @@ function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: str
 
 /** Legacy Era (item 4.1) — the post-IPO endgame: the board's current mandate (with a live progress
  *  meter) and the moonshot megaproject slate the player funds for permanent prestige payoffs. */
-function LegacyEraCard({ state, onFund, onBuyPerk }: { state: GameState; onFund: (id: string) => void; onBuyPerk: (id: string) => void }) {
+function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state: GameState; onFund: (id: string) => void; onBuyPerk: (id: string) => void; onAdvanceFrontier: () => void }) {
   const mandate = state.boardMandate ?? null;
   const facts = mandateFacts(state);
   const slate = availableMegaprojects(state.megaprojectsFunded ?? []);
   const legacyPoints = state.legacyPoints ?? 0;
   const chosen = state.legacyPerks ?? [];
+  // Frontier Tech — the endless Legacy-Point sink past the finite tree. Always shown in the Legacy Era
+  // (post-IPO): a permanent long-horizon track that never dead-ends.
+  const frontierTier = state.frontierTier ?? 0;
+  const frontierNextCost = frontierCost(frontierTier);
+  const frontierCur = frontierBonuses(frontierTier);
+  const canAdvanceFrontier = legacyPoints >= frontierNextCost;
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const frontierSummary = frontierTier > 0
+    ? [`+${pct(frontierCur.rpMult)} research`, `+${pct(frontierCur.hype)} hype`, `−${pct(frontierCur.buildCostMult)} build cost`]
+        .concat(frontierCur.designCeiling > 0 ? [`+${frontierCur.designCeiling} design ceiling`] : [])
+        .join(" · ")
+    : "Push your tech past the industry ceiling — an endless prestige track.";
   // The Legacy tree: perks not yet owned whose tier gate is met, cheapest first (item 4.3).
   const treeOffers = LEGACY_TREE.filter((p) => legacyPerkAvailable(chosen, p.id)).sort((a, b) => a.cost - b.cost);
   return (
@@ -1146,6 +1159,22 @@ function LegacyEraCard({ state, onFund, onBuyPerk }: { state: GameState; onFund:
           })}
         </ul>
       )}
+
+      {/* Frontier Tech — the endless Legacy-Point sink past the finite tree (engine/frontier.ts). */}
+      <ul className="hq__contracts-list">
+        <li className="hq__contract hq__frontier">
+          <div className="hq__contract-top">
+            <span className="hq__contract-title">
+              <Cpu size={13} aria-hidden /> {frontierBandName(frontierTier)} <span className="rd__fork-tag">Tier {frontierTier}</span>
+            </span>
+            <span className="hq__contract-reward tnum">{frontierNextCost} LP</span>
+          </div>
+          <span className="hq__contract-remaining">{frontierSummary}</span>
+          <Button size="sm" block disabled={!canAdvanceFrontier} onClick={onAdvanceFrontier}>
+            <Cpu size={14} /> Advance the frontier
+          </Button>
+        </li>
+      </ul>
     </Card>
   );
 }

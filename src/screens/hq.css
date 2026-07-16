@@ -1505,6 +1505,12 @@
   border-color: color-mix(in srgb, var(--positive) 45%, var(--hairline));
   background: color-mix(in srgb, var(--positive) 8%, var(--bg-elevated));
 }
+/* Frontier Tech — a subtle accent tint to mark the endless prestige track apart from the contracts. */
+.hq__frontier {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
+}
+.hq__frontier .hq__contract-title svg { color: var(--accent); vertical-align: -1px; }
 .hq__contract-top {
   display: flex;
   align-items: baseline;

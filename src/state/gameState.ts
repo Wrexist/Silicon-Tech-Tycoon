@@ -150,6 +150,7 @@ import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecu
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
 import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
+import { frontierBonuses, frontierCost } from "../engine/frontier.ts";
 import type {
   Assignment,
   BuildJob,
@@ -462,6 +463,10 @@ export interface GameState {
   /** Legacy-tree perks bought this run (item 4.3), by id. Folded through `prestigeBonuses`. Optional →
    *  [] on old saves; empty aggregates to the neutral bonus, so a run that spends nothing is unchanged. */
   legacyPerks?: string[];
+  /** Frontier Tech tier — the endless Legacy-Point sink past the finite tree (engine/frontier.ts).
+   *  Optional → undefined/0 on old saves and the pinned solo sim, which aggregates to the neutral
+   *  bonus, so a run that never advances the frontier is byte-identical. */
+  frontierTier?: number;
   /** The board's current quarterly mandate (auto-resolves at its dueWeek). Optional/null on old saves. */
   boardMandate?: import("../engine/endgame.ts").BoardMandate | null;
   /** cumulativeRevenue when the current mandate was issued (to measure the quarter's revenue). */
@@ -988,11 +993,15 @@ export const noPendingInterrupt = (b: GameState): boolean =>
 export const prestigeBonuses = (s: GameState): PerkBonus => {
   const base = perkBonuses(s.legacy);
   const tree = legacyTreeBonuses(s.legacyPerks);
+  // Frontier Tech — the endless Legacy-Point sink past the finite tree, folded through the SAME
+  // aggregation so it applies everywhere at once. frontierTier 0/undefined → all-zero, so the pinned
+  // solo sim (never IPOs → never buys a tier) and every existing save stay byte-identical.
+  const front = frontierBonuses(s.frontierTier);
   return {
-    designCeiling: base.designCeiling + tree.designCeiling,
-    hype: base.hype + tree.hype,
-    rpMult: base.rpMult + tree.rpMult,
-    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult)),
+    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling,
+    hype: base.hype + tree.hype + front.hype,
+    rpMult: base.rpMult + tree.rpMult + front.rpMult,
+    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult)),
   };
 };
 export const designTierCeiling = (s: GameState) =>
@@ -4306,7 +4315,8 @@ export function navAttention(s: GameState): NavAttention {
   const affordableMegaproject = s.wentPublic &&
     availableMegaprojects(s.megaprojectsFunded ?? []).some((mp) => canFundMegaproject(mp, s.cash, s.researchPoints));
   const spendableLegacyPoint = s.wentPublic && (s.legacyPoints ?? 0) > 0 &&
-    LEGACY_TREE.some((p) => legacyPerkAvailable(s.legacyPerks ?? [], p.id) && (s.legacyPoints ?? 0) >= p.cost);
+    (LEGACY_TREE.some((p) => legacyPerkAvailable(s.legacyPerks ?? [], p.id) && (s.legacyPoints ?? 0) >= p.cost) ||
+      (s.legacyPoints ?? 0) >= frontierCost(s.frontierTier));
   return {
     // A milestone, a personal decision, or a claimable / affordable reward waiting at HQ. Broadened
     // so the many HQ-surfaced systems (contracts, side orders, the Legacy Era) can each light the dot.
@@ -5033,6 +5043,26 @@ export function buyLegacyPerk(state: GameState, id: string): ActionResult {
       ...state,
       legacyPoints: (state.legacyPoints ?? 0) - perk.cost,
       legacyPerks: [...chosen, id],
+      feed: trimFeed(feed),
+    },
+    ok: true,
+  };
+}
+
+/** Advance Frontier Tech one tier — the endless Legacy-Point sink past the finite tree. Spends the
+ *  escalating cost, bumps `frontierTier`, and the new boon folds through `prestigeBonuses` next tick.
+ *  Gated on wentPublic + affordability. Opt-in — the pinned sim never IPOs, so it never buys → identical. */
+export function buyFrontierTier(state: GameState): ActionResult {
+  if (!state.wentPublic) return { state, ok: false, reason: "Available after going public." };
+  const tier = state.frontierTier ?? 0;
+  const cost = frontierCost(tier);
+  if ((state.legacyPoints ?? 0) < cost) return { state, ok: false, reason: `Needs ${cost} Legacy Points.` };
+  const feed = [...state.feed, feedItem(state.week, `Frontier Tech advanced to tier ${tier + 1} — your labs push past the industry's ceiling.`, "positive")];
+  return {
+    state: {
+      ...state,
+      legacyPoints: (state.legacyPoints ?? 0) - cost,
+      frontierTier: tier + 1,
       feed: trimFeed(feed),
     },
     ok: true,
