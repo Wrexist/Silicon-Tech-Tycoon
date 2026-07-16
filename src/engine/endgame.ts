@@ -146,22 +146,31 @@ function hash01(seed: number, quarter: number, salt: number): number {
 
 const MANDATE_METRICS: readonly MandateMetric[] = ["revenue", "hits", "fans", "rank"];
 
-/** Generate the board's directive for a quarter — a metric + target scaled to the era and reward.
- *  Deterministic (derived hash), so the same seed+quarter always issues the same mandate. */
-export function generateBoardMandate(seed: number, quarter: number, week: number, currentFans: number): BoardMandate {
+/** Generate the board's directive for a quarter — a metric + target scaled to the era, the company's
+ *  own scale, and a matching reward. Deterministic (derived hash), so the same seed+quarter+inputs
+ *  always issues the same mandate.
+ *
+ *  `trailingRevenue` is the DOLLARS the company earned in the just-completed quarter; a revenue mandate
+ *  targets the greater of the escalating floor and that trailing quarter grown by `revenueStretch`, so
+ *  it stays a genuine stretch for a giant company instead of a capped rubber-stamp. Defaults to 0 —
+ *  the very first mandate (no history) and any legacy caller get exactly the old floor-only behavior. */
+export function generateBoardMandate(seed: number, quarter: number, week: number, currentFans: number, trailingRevenue = 0): BoardMandate {
   const c = BALANCE.legacyEra.mandate;
   const metric = MANDATE_METRICS[Math.floor(hash01(seed, quarter, 263) * MANDATE_METRICS.length) % MANDATE_METRICS.length];
-  // The bar rises each quarter but PLATEAUS at escalationCapQuarters, so it stays reachable instead of
-  // eventually outrunning any company and fading into ignorable background noise.
+  // The FLOOR rises each quarter but PLATEAUS at escalationCapQuarters, so an early company always has
+  // a reachable base; the scaling below keeps it a stretch for a large one.
   const eq = Math.min(quarter, c.escalationCapQuarters);
   const rung = 1 + eq * c.escalationPerQuarter;
   let target: number;
   let title: string;
   switch (metric) {
-    case "revenue":
-      target = Math.round(c.baseRevenue * rung / 1e6) * 1e6;
+    case "revenue": {
+      const floor = Math.round(c.baseRevenue * rung / 1e6) * 1e6;
+      const stretch = Math.round(Math.max(0, trailingRevenue) * (1 + c.revenueStretch) / 1e6) * 1e6;
+      target = Math.max(floor, stretch);
       title = `Post $${Math.round(target / 1e6)}M in revenue this quarter`;
       break;
+    }
     case "hits":
       target = Math.min(c.maxHits, 1 + Math.floor(eq / 2));
       title = `Land ${target} hit launch${target > 1 ? "es" : ""} this quarter`;
@@ -175,10 +184,13 @@ export function generateBoardMandate(seed: number, quarter: number, week: number
       title = "Hold the #1 spot in the industry";
       break;
   }
-  const reward = {
-    cash: scale(dollars(c.baseReward), rung) as Money,
-    rep: c.repReward,
-  };
+  // Reward tracks the escalating floor as before, but a scaled-up revenue mandate pays a matching
+  // cut of its (larger) target — so chasing a giant bar is worth it, not the same capped pittance.
+  const floorReward = scale(dollars(c.baseReward), rung) as Money;
+  const cash = metric === "revenue"
+    ? (dollars(Math.max(toDollars(floorReward), Math.round(target * c.rewardRevenueFrac))) as Money)
+    : floorReward;
+  const reward = { cash, rep: c.repReward };
   return { id: `mandate-q${quarter}`, quarter, metric, target, title, reward, issuedWeek: week, dueWeek: week + c.windowWeeks };
 }
 

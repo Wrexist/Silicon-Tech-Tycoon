@@ -65,6 +65,31 @@ describe("board mandates — engine", () => {
     }
   });
 
+  it("a revenue mandate scales off the company's trailing quarter (no more rubber-stamp)", () => {
+    // Find a (seed, quarter) that yields a revenue mandate at a plateaued late quarter.
+    const findRev = (): { seed: number; q: number } | null => {
+      for (let s = 0; s < 400; s++) {
+        const m = generateBoardMandate(s, 20, 0, 1000);
+        if (m.metric === "revenue") return { seed: s, q: 20 };
+      }
+      return null;
+    };
+    const hit = findRev();
+    expect(hit).not.toBeNull();
+    const { seed, q } = hit!;
+    const floorOnly = generateBoardMandate(seed, q, 100, 1000, 0);       // no history → the floor
+    const bigTrailing = 5_000_000_000;                                   // a giant $5B quarter
+    const scaled = generateBoardMandate(seed, q, 100, 1000, bigTrailing);
+    // The giant company's bar is a genuine stretch above its last quarter, far past the capped floor.
+    expect(scaled.target).toBeGreaterThan(floorOnly.target);
+    expect(scaled.target).toBeGreaterThanOrEqual(bigTrailing); // >= last quarter (a real climb)
+    // And the reward scales with the (bigger) target — chasing it is worth it, not the capped pittance.
+    expect(scaled.reward.cash).toBeGreaterThan(floorOnly.reward.cash);
+    // A trailing quarter BELOW the floor leaves the floor untouched (early companies keep the ramp).
+    const smallTrailing = generateBoardMandate(seed, q, 100, 1000, 1_000_000);
+    expect(smallTrailing.target).toBe(floorOnly.target);
+  });
+
   it("the bar plateaus past the escalation cap (stays reachable, never runs away)", async () => {
     const { BALANCE } = await import("./balance.ts");
     const cap = BALANCE.legacyEra.mandate.escalationCapQuarters;

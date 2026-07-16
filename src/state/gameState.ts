@@ -2574,7 +2574,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       mandate = null;
     }
     if (!mandate) {
-      mandate = generateBoardMandate(state.seed, mandateQuarter, week, base.fans);
+      // The revenue earned during the quarter that just ended (0 for the very first mandate, whose
+      // window hasn't started) — the board scales a revenue directive off the company's own trailing
+      // quarter so it never becomes a rubber-stamp for a giant company.
+      const trailingRevenue = toDollars(sub(base.cumulativeRevenue, mandateStartRevenue));
+      mandate = generateBoardMandate(state.seed, mandateQuarter, week, base.fans, trailingRevenue);
       mandateStartRevenue = base.cumulativeRevenue;
       mandateQuarter += 1;
       base.feed.push(feedItem(week, `The board sets a new mandate — ${mandate.title}. Reward: ${mandateRewardSummary(mandate)}.`, "accent"));

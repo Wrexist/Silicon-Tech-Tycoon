@@ -1175,12 +1175,18 @@ export const BALANCE = {
     mandate: {
       windowWeeks: 13,            // a fiscal quarter to hit the board's directive
       escalationPerQuarter: 0.35, // the bar (and reward) rises each quarter…
-      escalationCapQuarters: 12,  // …but plateaus here (~3 years post-IPO) so it stays reachable
+      escalationCapQuarters: 12,  // …but plateaus here (~3 years post-IPO) for the BASE floor target
       maxHits: 4,                 // the "land N hits this quarter" bar never exceeds this
-      baseRevenue: 40_000_000,    // dollars — quarter-1 revenue target
+      baseRevenue: 40_000_000,    // dollars — quarter-1 revenue target (the floor before scaling)
+      // A revenue mandate scales off the company's OWN trailing quarter so it never becomes a
+      // rubber-stamp: the target is the greater of the escalating floor and last quarter's revenue
+      // grown by this much. A giant late-game company gets a giant (but fair) bar; an early one still
+      // gets the gentle escalating floor. Zero trailing (the very first mandate) → just the floor.
+      revenueStretch: 0.15,       // target = max(floor, trailingQuarterRevenue × 1.15)
+      rewardRevenueFrac: 0.10,    // a scaled revenue mandate pays ≥10% of its target in cash
       fansGrowthTarget: 0.15,     // "grow fans by ~15%" mandate
       fansFloor: 5_000,
-      baseReward: 20_000_000,     // dollars — quarter-1 cash reward
+      baseReward: 20_000_000,     // dollars — quarter-1 cash reward (the floor before scaling)
       repReward: 2,
     },
   },
