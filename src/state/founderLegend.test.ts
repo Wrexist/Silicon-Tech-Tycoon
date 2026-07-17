@@ -85,6 +85,9 @@ describe("legend ladder", () => {
     const b = legendScore({ prestiges: 2, ipos: 3, bestHitsInRun: 8, peakValuationDollars: 1_000_000_000, bestRank: 1, bestAscension: 0 });
     expect(b).toBeGreaterThan(a);
     expect(a).toBeGreaterThan(0);
+    // Clearing a higher Heat (bestAscension) is itself worth score — the only field that differs here.
+    const base = { prestiges: 1, ipos: 1, bestHitsInRun: 3, peakValuationDollars: 1_000_000, bestRank: 3 };
+    expect(legendScore({ ...base, bestAscension: 3 })).toBeGreaterThan(legendScore({ ...base, bestAscension: 0 }));
   });
 
   it("tiers are strictly ascending and start at Garage Founder", () => {

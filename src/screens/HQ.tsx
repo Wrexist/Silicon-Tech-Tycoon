@@ -1091,7 +1091,11 @@ function TeamFocusStrip({ state }: { state: GameState }) {
   const hasResearch = !!state.activeResearch;
   const hasBuild = state.building.length > 0;
   if (!hasTeam || (!hasResearch && !hasBuild)) return null;
-  const focus = state.teamFocus ?? null;
+  // Derive the LIVE focus from a live target — the same gate the engine crunches on (research needs an
+  // active project, build needs an in-flight job). A stored "research" focus whose project just finished
+  // isn't crunching anything, so the strip must not keep claiming it is.
+  const stored = state.teamFocus ?? null;
+  const focus = (stored === "research" && hasResearch) || (stored === "build" && hasBuild) ? stored : null;
   const overtime = state.staff.length * tf.overtimeCostPerHead;
   const pick = (f: "research" | "build" | null) => { setTeamFocus(focus === f ? null : f); haptic.light(); };
   const opts: { key: "research" | "build"; label: string; live: boolean }[] = [
@@ -1179,7 +1183,7 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
   // (post-IPO): a permanent long-horizon track that never dead-ends.
   const frontierTier = state.frontierTier ?? 0;
   const frontierNextCost = frontierCost(frontierTier);
-  const frontierCur = frontierBonuses(frontierTier);
+  const frontierCur = frontierBonuses(frontierTier, state.frontierLanes); // reflect lane specialization
   const canAdvanceFrontier = legacyPoints >= frontierNextCost;
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const frontierSummary = frontierTier > 0

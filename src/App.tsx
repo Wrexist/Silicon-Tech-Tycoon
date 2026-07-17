@@ -39,7 +39,7 @@ import { enableDailyReminders, notificationsAvailable } from "./state/notificati
 import { getSettings, setSettings } from "./state/settings.ts";
 import { challengeTeaser, dailyChallenge, dateKeyOf } from "./engine/challenges.ts";
 import { Button, Card } from "./design/primitives.tsx";
-import { format, toDollars } from "./engine/money.ts";
+import { format, toDollars, scale } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
 import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState } from "./state/gameState.ts";
@@ -422,7 +422,16 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const bestHeat = getFounderRecord().bestAscension;
   const maxHeat = Math.min(BALANCE.ascension.maxLevel, bestHeat + 1);
   const [ascend, setAscend] = useState(() => Math.min(maxHeat, clampAscension(state.ascensionLevel)));
-  const nextBonus = legacyBonus(state.legacy + 1);
+  const fullBonus = legacyBonus(state.legacy + 1);
+  // Heat cuts the legacy head-start (newGame scales it by ascensionHeadStartFactor). Preview the
+  // ACTUAL bonus the next founding will deliver at the selected Heat, so the card/celebration match.
+  const hs = ascensionHeadStartFactor(ascend);
+  const nextBonus = {
+    cash: scale(fullBonus.cash, hs),
+    reputation: Math.round(fullBonus.reputation * hs),
+    fans: Math.round(fullBonus.fans * hs),
+    rp: Math.round(fullBonus.rp * hs),
+  };
   const nextFounderPerk = nextPerk(state.legacy);
   // Going public advances your lifetime career rank (recorded in goPublic). Surface the new standing.
   const legendTitle = legendStanding(

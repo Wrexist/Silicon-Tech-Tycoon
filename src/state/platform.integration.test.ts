@@ -61,7 +61,7 @@ describe("founding the Platform division (earned cash milestone)", () => {
     expect(foundPlatform(nobody)).toBe(nobody); // no-op — the gate isn't met
 
     // Established brand, but can't afford it → still blocked.
-    const broke = eligible(-1); // one cent short of the cost
+    const broke = eligible(-0.01); // one cent short of the cost
     expect(canFoundPlatform(broke)).toBe(false);
 
     // Meets every requirement → can found, pays exactly the cost.

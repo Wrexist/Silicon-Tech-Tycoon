@@ -6,7 +6,7 @@ import { toDollars } from "../engine/money.ts";
 // vitest runs in the `node` env here (no DOM), so stub localStorage for the founder-record store.
 class MemStorage {
   private map = new Map<string, string>();
-  getItem(k: string): string | null { return this.map.has(k) ? this.map.get(k)! : null; }
+  getItem(k: string): string | null { return this.map.get(k) ?? null; }
   setItem(k: string, v: string): void { this.map.set(k, String(v)); }
   removeItem(k: string): void { this.map.delete(k); }
   clear(): void { this.map.clear(); }

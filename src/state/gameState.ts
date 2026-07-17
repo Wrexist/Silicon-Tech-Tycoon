@@ -1988,8 +1988,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (!contestedCats.has(lp.product.category) || lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
     const haircut = 1 - BALANCE.market.competition.rivalEntrySalesHaircut;
     const weeklyUnits = lp.weeklyUnits.map((u, i) => (i >= lp.weeksElapsed ? Math.round(u * haircut) : u));
+    const oldRemaining = lp.weeklyUnits.slice(lp.weeksElapsed).reduce((a, b) => a + b, 0);
     const remaining = weeklyUnits.slice(lp.weeksElapsed).reduce((a, b) => a + b, 0);
-    return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
+    const next: LaunchedProduct = { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
+    // A rival stealing remaining demand must NOT quietly become reorder headroom for a standing ops
+    // policy (headroom = demandTotal − supply − in-transit; dropping totalUnits would inflate it). Cut
+    // the policy's demand ceiling by the same units the haircut removed, so the loss stays a loss.
+    if (next.ops) {
+      const lost = Math.max(0, oldRemaining - remaining);
+      next.ops = { ...next.ops, demandTotal: Math.max(next.totalUnits, next.ops.demandTotal - lost) };
+    }
+    return next;
   });
 
   // Arch-rival clash signals harvested this tick (strike / overtake / awards duel) → fed to the nemesis
@@ -2124,16 +2133,28 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Manufacturing: advance build jobs; completed ones move to the "ready" shelf
   const building: BuildJob[] = [];
   const ready = [...state.ready];
-  for (const job of state.building) {
-    // Crunch (feature #4) shaves weeks off manufacturing: extra progress per focused week.
-    const weeksElapsed = job.weeksElapsed + rate + (crunchingBuild ? tf.buildSurgePerTick * rate : 0);
+  // Crunch (feature #4) concentrates the team to RUSH one timer — so the surge lands on a single build
+  // job, not every in-flight one at once. Pick the job nearest completion (the one the team is pushing
+  // over the line); ties resolve to the first queued, keeping it deterministic.
+  let surgeIdx = -1;
+  if (crunchingBuild) {
+    let bestRemaining = Infinity;
+    state.building.forEach((job, i) => {
+      const remaining = job.totalWeeks - job.weeksElapsed;
+      if (remaining < bestRemaining) { bestRemaining = remaining; surgeIdx = i; }
+    });
+  }
+  state.building.forEach((job, i) => {
+    // Crunch (feature #4) shaves weeks off manufacturing: extra progress on the one rushed job.
+    const surge = i === surgeIdx ? tf.buildSurgePerTick * rate : 0;
+    const weeksElapsed = job.weeksElapsed + rate + surge;
     if (weeksElapsed >= job.totalWeeks) {
       ready.push(job.product);
       feed.push(feedItem(week, `“${job.product.name}” finished manufacturing, ready to launch.`, "accent"));
     } else {
       building.push({ ...job, weeksElapsed });
     }
-  }
+  });
 
   // Staff XP / leveling + mood drift + churn
   const cashDropping = cash < state.cash;

@@ -43,8 +43,11 @@ describe("Live Product Ops — the no-op path is byte-identical", () => {
     const base: GameState = { ...newGame(2), cash: dollars(10_000_000), launched: [launched()] };
     const a = advanceOneWeek(base);
     const b = advanceOneWeek(base);
-    // Deterministic + the sales booking is unchanged: same units sold, same revenue, no ops field added.
-    expect(a.launched[0].unitsSold).toBe(b.launched[0].unitsSold);
+    // Sales booking is unchanged: the first curve week (500 units) sells exactly, no ops field added.
+    // Pinning the concrete value (not just a === b self-comparison) catches a regression that shifts
+    // the whole curve identically in both runs.
+    expect(a.launched[0].unitsSold).toBe(500); // weeklyUnits[0] of the fixture curve
+    expect(a.launched[0].unitsSold).toBe(b.launched[0].unitsSold); // …and still deterministic
     expect(a.launched[0].ops).toBeUndefined();
     expect(a.cash).toBe(b.cash);
   });

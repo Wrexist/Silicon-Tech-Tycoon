@@ -81,6 +81,9 @@ describe("frontier lanes & band unlocks (feature #6)", () => {
     const mixed = frontierBonuses(6, { research: 1 });
     const flat5 = frontierBonuses(5); // the pre-lane portion
     expect(mixed.rpMult).toBeGreaterThan(flat5.rpMult); // strictly more than just the legacy tiers
+    // …but the tier-5 band unlock (which the 5 legacy tiers already "crossed") is NOT re-awarded
+    // retroactively when the first lane tier flips this save into the lane system.
+    expect(mixed.designCeiling).toBe(0);
   });
 
   it("band boundaries are crossed every 5 tiers and grant a one-time unlock", () => {

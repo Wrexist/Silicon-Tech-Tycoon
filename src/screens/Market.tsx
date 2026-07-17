@@ -1493,13 +1493,16 @@ function ProductDetailSheet({
         // for this product's size (fall back to the last set rate's ceiling when demand is snapshotted).
         const appetite = restockQ ? restockQ.maxUnits : Math.max(0, (ops?.demandTotal ?? lp.totalUnits) - lp.totalUnits);
         const min = BALANCE.build.minRun;
-        const steady = Math.max(min, Math.round(appetite / 8));
-        const aggressive = Math.max(min, Math.round(appetite / 4));
+        const cap = BALANCE.restock.maxRatePerWeek; // the engine clamps to this — the preset must match what it applies
+        const steady = Math.min(cap, Math.max(min, Math.round(appetite / 8)));
+        const aggressive = Math.min(cap, Math.max(min, Math.round(appetite / 4)));
         const rate = ops?.reorderRate ?? 0;
         const presets: { label: string; value: number }[] = [
           { label: "Off", value: 0 },
           { label: `Steady · ${formatCount(steady)}/wk`, value: steady },
-          { label: `Aggressive · ${formatCount(aggressive)}/wk`, value: aggressive },
+          // When the appetite is tiny (or both hit the cap), Steady and Aggressive collapse to the same
+          // rate — drop the redundant button rather than show two identical choices.
+          ...(aggressive > steady ? [{ label: `Aggressive · ${formatCount(aggressive)}/wk`, value: aggressive }] : []),
         ];
         return (
           <div className="pd__reorder">

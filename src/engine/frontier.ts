@@ -127,11 +127,15 @@ export function frontierBandsCrossed(tier: number | undefined): number {
   return Math.floor(Math.max(0, Math.floor(tier ?? 0)) / BAND_EVERY);
 }
 
-/** The cumulative one-time bonus from every band boundary crossed so far. */
-function bandUnlockBonus(tier: number): PerkBonus {
-  const bands = frontierBandsCrossed(tier);
+/** The cumulative one-time bonus from every band boundary crossed ABOVE `sinceTier`. Bands whose
+ *  boundary falls at or below `sinceTier` are excluded, so a legacy (pre-lanes) save doesn't retroactively
+ *  collect every historical band bonus the instant it buys its first lane tier — only new frontier
+ *  progress earns them. `sinceTier` defaults to 0 (a fully-laned run gets every band it crossed). */
+function bandUnlockBonus(tier: number, sinceTier = 0): PerkBonus {
+  const first = frontierBandsCrossed(sinceTier) + 1;
+  const last = frontierBandsCrossed(tier);
   const parts: PerkBonus[] = [];
-  for (let k = 1; k <= bands; k++) parts.push(frontierBandUnlockAt(k).bonus);
+  for (let k = first; k <= last; k++) parts.push(frontierBandUnlockAt(k).bonus);
   return parts.length ? sumBonuses(...parts) : ZERO_BONUS;
 }
 
@@ -150,7 +154,9 @@ export function frontierBonuses(tier: number | undefined, lanes?: FrontierLanes)
   const laneN = laneTotal(lanes);
   if (laneN === 0) return flatBonus(t); // legacy path — untouched
   const legacyTiers = Math.max(0, t - laneN); // pre-lane tiers keep the flat bonus
-  return sumBonuses(flatBonus(legacyTiers), laneBonus(lanes!), bandUnlockBonus(t));
+  // Band unlocks only for boundaries ABOVE the legacy tiers — a pre-lanes save that starts routing
+  // shouldn't bank every historical breakthrough at once.
+  return sumBonuses(flatBonus(legacyTiers), laneBonus(lanes!), bandUnlockBonus(t, legacyTiers));
 }
 
 // Flavor: the frontier gets a grander name every 5 tiers. Purely cosmetic (drives the label only).
@@ -160,6 +166,8 @@ export const FRONTIER_BANDS = ["Frontier", "Deep Frontier", "Quantum Frontier", 
 export function frontierBandName(tier: number | undefined): string {
   const t = Math.max(0, Math.floor(tier ?? 0));
   if (t <= 0) return FRONTIER_BANDS[0];
-  const band = Math.min(FRONTIER_BANDS.length - 1, Math.floor((t - 1) / 5));
+  // Switch the label at each 5-tier boundary so it matches the band UNLOCK earned there (tier 5 =
+  // "Deep Frontier breakthrough" → the band reads "Deep Frontier").
+  const band = Math.min(FRONTIER_BANDS.length - 1, Math.floor(t / BAND_EVERY));
   return FRONTIER_BANDS[band];
 }

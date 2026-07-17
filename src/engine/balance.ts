@@ -78,7 +78,7 @@ export const BALANCE = {
     // On-board storage (GB) — a customizable spec gated by the software/OS tier (a basic OS can't
     // manage a terabyte). More storage lifts ecosystem + quality appeal and adds per-unit cost.
     storage: {
-      options: [128, 256, 512, 1024] as number[],
+      options: [128, 256, 512, 1024, 2048] as number[],
       maxBySoftwareTier: [256, 512, 512, 1024, 1024, 2048] as number[], // index = software tier − 1 (6 tiers; era-5 Sentient OS)
       appeal: { ecosystem: 3, quality: 1 },
       unitCost: dollars(8), // per-unit cost per step above the 128GB baseline

@@ -99,6 +99,8 @@ describe("team focus / crunch (feature #4)", () => {
     const offline = advanceOneWeek(base, 1, true);
     // Offline ignores the crunch: it spends less cash (no overtime) and keeps more morale than online.
     expect(toDollars(offline.cash)).toBeGreaterThan(toDollars(online.cash));
+    const avgMood = (s: GameState) => s.staff.reduce((a, m) => a + m.mood, 0) / s.staff.length;
+    expect(avgMood(offline)).toBeGreaterThan(avgMood(online)); // no crunch morale drain offline
   });
 
   it("the field is never written on a never-crunched run (byte-identical no-op)", () => {
