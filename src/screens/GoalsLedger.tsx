@@ -2,7 +2,7 @@
 // contracts, and the post-IPO board mandate, all in one consistent row grammar (source · goal ·
 // progress · reward · deadline). Folds three previously-scattered "what do I chase next" surfaces into
 // a single discoverable place. A completed contract can be claimed right here.
-import { Target, ScrollText, Landmark, Check, Clock } from "lucide-react";
+import { Target, ScrollText, Landmark, Package, Award, Check, Clock } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button, EmptyState } from "../design/primitives.tsx";
 import { useGame } from "../state/useGame.tsx";
@@ -15,6 +15,8 @@ const SOURCE_ICON: Record<GoalSource, LucideIcon> = {
   objective: Target,
   contract: ScrollText,
   mandate: Landmark,
+  sideOrder: Package,
+  award: Award,
 };
 
 export function GoalsLedgerSheet({ onClose }: { onClose: () => void }) {

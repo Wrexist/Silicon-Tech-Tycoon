@@ -5,7 +5,7 @@
 // handler). The sub-sheet's close returns to the hub; the hub's close (or Escape) exits Progress.
 // Gated (in App) on the first ship, so an empty garage isn't buried under systems.
 import { useState } from "react";
-import { Award, Boxes, CalendarDays, Crown, Target, Trophy, X } from "lucide-react";
+import { Award, Boxes, CalendarDays, Crown, Target, Trophy, X, BookOpen } from "lucide-react";
 import { ListChecks } from "lucide-react";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { ScenariosSheet } from "./Scenarios.tsx";
@@ -13,6 +13,7 @@ import { ChallengesSheet } from "./Challenges.tsx";
 import { MuseumSheet } from "./Museum.tsx";
 import { FounderLegendSheet } from "./FounderLegend.tsx";
 import { GoalsLedgerSheet } from "./GoalsLedger.tsx";
+import { HelpSheet } from "./Help.tsx";
 import { collectGoals } from "../state/goals.ts";
 import { getMuseum } from "../state/museum.ts";
 import { getFounderRecord, legendStanding, liveLegendScore } from "../state/founderLegend.ts";
@@ -25,7 +26,7 @@ import { SCENARIOS } from "../engine/scenarios.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./progress.css";
 
-type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum" | "legend" | "goals";
+type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum" | "legend" | "goals" | "help";
 
 export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () => void; initialView?: View }) {
   const { state } = useGame();
@@ -62,6 +63,7 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
   if (view === "museum") return <MuseumSheet onClose={toHub} />;
   if (view === "legend") return <FounderLegendSheet state={state} onClose={toHub} />;
   if (view === "goals") return <GoalsLedgerSheet onClose={toHub} />;
+  if (view === "help") return <HelpSheet onClose={toHub} />;
 
   return (
     <div className="prog">
@@ -127,6 +129,14 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
           <span className="prog__row-sub">Every device you've ever shipped</span>
         </span>
         {museumCount > 0 && <span className="prog__row-count tnum">{museumCount}</span>}
+      </button>
+
+      <button className="prog__row" onClick={() => setView("help")}>
+        <span className="prog__row-glyph" aria-hidden><BookOpen size={20} /></span>
+        <span className="prog__row-info">
+          <span className="prog__row-title">Help &amp; Guide</span>
+          <span className="prog__row-sub">What every number and term means, in plain language</span>
+        </span>
       </button>
     </div>
   );

@@ -87,4 +87,38 @@ describe("unified goals ledger", () => {
     collectGoals(s);
     expect(JSON.stringify(s)).toBe(snapshot);
   });
+
+  it("folds a running side order in as a row with progress, payout and a deadline", () => {
+    const s = {
+      ...newGame(1), week: 20,
+      activeSideOrder: {
+        id: "so1", clientName: "Zenith Labs", blurb: "sensor boards", units: 1000,
+        feePerUnit: dollars(50), weeksNeeded: 4, requiredKinds: [], week: 18, startedWeek: 18,
+      },
+    } as GameState;
+    const row = collectGoals(s).find((r) => r.source === "sideOrder")!;
+    expect(row).toBeTruthy();
+    expect(row.sourceLabel).toBe("Side order");
+    expect(row.title).toContain("Zenith Labs");
+    expect(row.frac).toBeCloseTo(0.5, 5); // 2 of 4 weeks elapsed
+    expect(row.weeksLeft).toBe(2); // 18 + 4 - 20
+    expect(row.reward).toContain("on delivery");
+    expect(row.done).toBe(false);
+  });
+
+  it("shows the annual awards as a standing seasonal row once something has shipped", () => {
+    // A launch this awards-year (week 60 → year window opened at week 52).
+    const s = {
+      ...newGame(1), week: 60,
+      launched: [{ launchedWeek: 55 } as GameState["launched"][number]],
+    } as GameState;
+    const row = collectGoals(s).find((r) => r.source === "award")!;
+    expect(row).toBeTruthy();
+    expect(row.sourceLabel).toBe("Silicon Awards");
+    expect(row.weeksLeft).toBe(44); // next ceremony week 104 - 60
+    expect(row.detail).toContain("1 of your launches");
+    expect(row.done).toBe(false);
+    // A garage with nothing shipped has no awards row.
+    expect(collectGoals(newGame(1)).some((r) => r.source === "award")).toBe(false);
+  });
 });

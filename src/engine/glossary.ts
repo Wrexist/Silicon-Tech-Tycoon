@@ -42,6 +42,15 @@ export function segmentWantsById(id: string): string {
   return seg ? segmentWants(seg) : "";
 }
 
+/** The three headline SCORES a player stares at in the Design Lab — defined nowhere until now. Copy is
+ *  causal (what each number is built FROM and what moves it), not a restatement of the label. Single
+ *  source so the lab's inline explainers and the Help hub can't drift. */
+export const SCORE_INFO: { term: string; def: string }[] = [
+  { term: "Fit", def: "How well this design matches what buyers want right now (0–100). It weighs your five stats against the current market taste and your price. Higher Fit means more of the market wants exactly this — it's the single biggest lever on how a launch sells." },
+  { term: "Build", def: "How coherent the component mix is. A balanced, high-end build earns a flagship bonus; one glaring weak link (a cheap part among strong ones) drags the whole product down. Raise the weakest slot to lift the score, don't just max one part." },
+  { term: "Projected verdict", def: "Your likely launch result — Fit and your build, adjusted by your reputation and track record, then measured against what rivals are shipping. It can slip from Hit to Solid without you changing anything when a rival raises the bar, so ship while you're ahead." },
+];
+
 /** Plain-language definitions for the headline economic terms a new player meets outside the
  *  Design Lab (the Bank, the HUD). Same "nothing is confusing" goal as STAT_INFO, kept here as the
  *  single source so the copy can't drift. Ordered as they read on the Bank screen. */
