@@ -2,7 +2,7 @@ import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, type LucideIcon,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -56,7 +56,7 @@ import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, type FeedItem, type GameState } from "../state/gameState.ts";
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
-import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary } from "../engine/endgame.ts";
+import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary, boardTier, nextBoardTier, mandatePayoutMult, mandateStreakBonus } from "../engine/endgame.ts";
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
 import { frontierCost, frontierBonuses, frontierBandName } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -1076,6 +1076,36 @@ function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: str
   );
 }
 
+/** Board confidence (feature #5) — the memory on the mandate loop. Meeting mandates raises the board's
+ *  confidence (and your met-streak); a lapse drops it. The tier multiplies every mandate payout, so the
+ *  strip shows where you stand, the live payout multiplier, and the next tier to climb toward. */
+function BoardConfidenceStrip({ state }: { state: GameState }) {
+  const bc = BALANCE.legacyEra.boardConfidence;
+  const confidence = state.boardConfidence ?? bc.start;
+  const streak = state.mandateStreak ?? 0;
+  const tier = boardTier(confidence);
+  const next = nextBoardTier(confidence);
+  const mult = mandatePayoutMult(confidence, streak);
+  const streakBonus = mandateStreakBonus(streak);
+  const pct = Math.round((confidence / bc.max) * 100);
+  return (
+    <div className="hq__board">
+      <div className="hq__board-head">
+        <span className="hq__board-tier"><Landmark size={13} aria-hidden /> {tier.name}</span>
+        <span className="hq__board-mult tnum">×{mult.toFixed(2)} payout</span>
+      </div>
+      <div className="hq__board-bar" aria-hidden>
+        <div className="hq__board-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="hq__board-note">
+        {tier.note}
+        {streak > 0 && ` · ${streak}-quarter streak (+${Math.round(streakBonus * 100)}%)`}
+        {next && ` · reach ${next.minConfidence} confidence for ${next.name} (×${next.rewardMult.toFixed(2)})`}
+      </span>
+    </div>
+  );
+}
+
 /** Legacy Era (item 4.1) — the post-IPO endgame: the board's current mandate (with a live progress
  *  meter) and the moonshot megaproject slate the player funds for permanent prestige payoffs. */
 function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state: GameState; onFund: (id: string) => void; onBuyPerk: (id: string) => void; onAdvanceFrontier: () => void }) {
@@ -1109,6 +1139,7 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
           </span>
         </div>
       </div>
+      <BoardConfidenceStrip state={state} />
       {mandate && (
         <div className={`hq__contract${mandateComplete(mandate, facts) ? " hq__contract--done" : ""}`}>
           <div className="hq__contract-top">

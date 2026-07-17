@@ -18,7 +18,7 @@ import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type Eu
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
 import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
-import { generateBoardMandate, mandateComplete, mandateRewardSummary, megaprojectById, canFundMegaproject, availableMegaprojects, type MandateFacts } from "../engine/endgame.ts";
+import { generateBoardMandate, mandateComplete, mandateRewardSummary, effectiveMandateReward, boardTier, megaprojectById, canFundMegaproject, availableMegaprojects, type MandateFacts } from "../engine/endgame.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
@@ -478,6 +478,12 @@ export interface GameState {
   mandateStartRevenue?: Money;
   /** 0-based count of mandates issued since going public — drives the escalating bar. */
   mandateQuarter?: number;
+  /** Board confidence 0..100 (feature #5). Rises when a mandate is met, falls on a lapse; its TIER
+   *  multiplies mandate payouts. Optional — backfilled to the neutral start (×1.0 tier), so an old
+   *  post-IPO save keeps today's payout until it moves. */
+  boardConfidence?: number;
+  /** Consecutive board mandates met (resets to 0 on a lapse) — compounds a payout bonus. Optional. */
+  mandateStreak?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -2574,6 +2580,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     let mandate = base.boardMandate ?? null;
     let mandateQuarter = base.mandateQuarter ?? 0;
     let mandateStartRevenue = base.mandateStartRevenue ?? base.cumulativeRevenue;
+    // Board confidence (feature #5) — backfilled to the neutral start (×1.0 tier) so an existing
+    // post-IPO save keeps today's payout until confidence actually moves.
+    const bc = BALANCE.legacyEra.boardConfidence;
+    let confidence = base.boardConfidence ?? bc.start;
+    let streak = base.mandateStreak ?? 0;
     if (mandate && week >= mandate.dueWeek) {
       const facts: MandateFacts = {
         quarterRevenue: toDollars(sub(base.cumulativeRevenue, mandateStartRevenue)),
@@ -2582,11 +2593,19 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         rank: industryRank(base),
       };
       if (mandateComplete(mandate, facts)) {
-        base.cash = add(base.cash, mandate.reward.cash);
-        base.reputation = Math.min(BALANCE.reputation.max, base.reputation + mandate.reward.rep);
-        base.feed.push(feedItem(week, `Board mandate met — “${mandate.title}”. ${mandateRewardSummary(mandate)} awarded.`, "positive"));
+        // Pay out at the confidence/streak you'd BUILT (before this met bumps them), so the reward
+        // reflects the board you earned. A confident board pays a premium; a long streak compounds it.
+        const eff = effectiveMandateReward(mandate.reward, confidence, streak);
+        base.cash = add(base.cash, eff.cash);
+        base.reputation = Math.min(BALANCE.reputation.max, base.reputation + eff.rep);
+        streak += 1;
+        confidence = Math.min(bc.max, confidence + bc.gainOnMet);
+        const bonusNote = eff.mult > 1.005 ? ` (×${eff.mult.toFixed(2)} board bonus)` : "";
+        base.feed.push(feedItem(week, `Board mandate met — “${mandate.title}”. $${Math.round(toDollars(eff.cash) / 1e6)}M + ${eff.rep} reputation awarded${bonusNote}. Board confidence: ${boardTier(confidence).name}.`, "positive"));
       } else {
-        base.feed.push(feedItem(week, `Board mandate lapsed — “${mandate.title}” went unmet this quarter.`, "neutral"));
+        streak = 0;
+        confidence = Math.max(bc.min, confidence - bc.lossOnLapse);
+        base.feed.push(feedItem(week, `Board mandate lapsed — “${mandate.title}” went unmet. Board confidence slips to ${boardTier(confidence).name}.`, "neutral"));
       }
       mandate = null;
     }
@@ -2603,6 +2622,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     base.boardMandate = mandate;
     base.mandateQuarter = mandateQuarter;
     base.mandateStartRevenue = mandateStartRevenue;
+    base.boardConfidence = confidence;
+    base.mandateStreak = streak;
   }
 
   // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank

@@ -1214,6 +1214,21 @@ export const BALANCE = {
       baseReward: 20_000_000,     // dollars — quarter-1 cash reward (the floor before scaling)
       repReward: 2,
     },
+    // Board confidence (feature #5) — a memory on the mandate loop. Meeting a mandate raises the
+    // board's confidence and your met-streak; a lapse drops confidence and resets the streak. The
+    // confidence TIER multiplies mandate payouts (a doubtful board underpays; a visionary one pays
+    // double) and the streak compounds a bonus on top. Neutral start (50) sits in the ×1.0 tier, so
+    // an existing post-IPO save keeps today's payout until confidence actually moves. Gated on
+    // wentPublic (the pinned solo sim never IPOs → byte-identical); no RNG.
+    boardConfidence: {
+      start: 50,                 // neutral — lands in the ×1.0 "Steady Board" tier
+      max: 100,
+      min: 0,
+      gainOnMet: 12,             // confidence gained when a mandate is met
+      lossOnLapse: 14,           // confidence lost when a mandate lapses (a touch gentler than a win-streak climb)
+      streakBonusPerLevel: 0.12, // +12% payout per consecutive mandate met…
+      maxStreakBonus: 0.6,       // …capped at +60%
+    },
   },
 
   // --- Side-order pipeline (item 3.5): floor-quality + client-loyalty bonuses on client commissions ---

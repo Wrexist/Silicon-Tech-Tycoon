@@ -218,3 +218,67 @@ export function mandateComplete(m: BoardMandate, f: MandateFacts): boolean {
 export function mandateRewardSummary(m: BoardMandate): string {
   return `$${Math.round(toDollars(m.reward.cash) / 1e6)}M + ${m.reward.rep} reputation`;
 }
+
+// ---- Board confidence & directive tiers (feature #5) ---------------------------------------------
+// A memory on the mandate loop: met mandates raise the board's confidence + your streak, lapses drop
+// it. The confidence TIER multiplies mandate payouts; the streak compounds a bonus on top. All pure,
+// gated on wentPublic (the pinned solo sim never IPOs), no RNG.
+
+export interface BoardTier {
+  index: number;
+  name: string;
+  minConfidence: number;   // the tier applies for confidence ≥ this
+  rewardMult: number;      // multiplier on the mandate payout at this tier
+  note: string;            // one-line flavour for the card
+}
+
+/** The escalating board-confidence ladder. Neutral start (50) lands in "Steady Board" (×1.0), so an
+ *  existing save keeps today's payout until confidence moves. Below is a penalty, above is a bonus. */
+export const BOARD_TIERS: readonly BoardTier[] = [
+  { index: 0, name: "Doubtful Board", minConfidence: 0, rewardMult: 0.8, note: "The board is uneasy — payouts run lean until you rebuild trust." },
+  { index: 1, name: "Watchful Board", minConfidence: 20, rewardMult: 0.9, note: "The board is watching closely. Deliver and they'll loosen up." },
+  { index: 2, name: "Steady Board", minConfidence: 45, rewardMult: 1.0, note: "A steady, business-as-usual board. Standard mandate payouts." },
+  { index: 3, name: "Confident Board", minConfidence: 65, rewardMult: 1.25, note: "The board believes in you — mandates pay 25% more." },
+  { index: 4, name: "Emboldened Board", minConfidence: 85, rewardMult: 1.5, note: "An emboldened board backs bigger swings — 50% richer payouts." },
+  { index: 5, name: "Visionary Board", minConfidence: 100, rewardMult: 2.0, note: "A visionary board writes blank checks — mandate payouts doubled." },
+] as const;
+
+function clampConfidence(confidence: number): number {
+  const n = BALANCE.legacyEra.boardConfidence;
+  return Math.max(n.min, Math.min(n.max, confidence));
+}
+
+/** The board tier for a confidence value (0..100). */
+export function boardTier(confidence: number): BoardTier {
+  const c = clampConfidence(confidence);
+  let t = BOARD_TIERS[0];
+  for (const tier of BOARD_TIERS) if (c >= tier.minConfidence) t = tier;
+  return t;
+}
+
+/** The next tier up (for the "reach X to unlock" line), or null at the top. */
+export function nextBoardTier(confidence: number): BoardTier | null {
+  const cur = boardTier(confidence);
+  return BOARD_TIERS[cur.index + 1] ?? null;
+}
+
+/** The compounding streak bonus for N consecutive met mandates (0 at streak 0, capped). */
+export function mandateStreakBonus(streak: number): number {
+  const n = BALANCE.legacyEra.boardConfidence;
+  return Math.min(n.maxStreakBonus, Math.max(0, streak) * n.streakBonusPerLevel);
+}
+
+/** The payout multiplier actually applied to a met mandate: tier × (1 + streak bonus). */
+export function mandatePayoutMult(confidence: number, streak: number): number {
+  return boardTier(confidence).rewardMult * (1 + mandateStreakBonus(streak));
+}
+
+/** The reward actually paid for meeting a mandate at a given confidence + streak. */
+export function effectiveMandateReward(
+  base: { cash: Money; rep: number },
+  confidence: number,
+  streak: number,
+): { cash: Money; rep: number; mult: number } {
+  const mult = mandatePayoutMult(confidence, streak);
+  return { cash: scale(base.cash, mult) as Money, rep: Math.round(base.rep * mult), mult };
+}

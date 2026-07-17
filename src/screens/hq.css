@@ -1571,6 +1571,59 @@
   .hq__contract-fill { transition: none; }
 }
 
+/* Board confidence strip (feature #5) — the memory meter above the mandate. A quiet gold band so the
+   tier/payout reads at a glance without competing with the mandate's own progress bar. */
+.hq__board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-12);
+  margin-bottom: var(--sp-8);
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.hq__board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.hq__board-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.hq__board-mult {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+}
+.hq__board-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.hq__board-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width var(--spring-smooth, 0.4s ease);
+}
+.hq__board-note {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  font-weight: 600;
+  line-height: 1.35;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hq__board-fill { transition: none; }
+}
+
 /* Office shop: per-item price + unaffordable state */
 .hqb__item-price {
   font-size: var(--fs-nano);
