@@ -484,6 +484,12 @@ export interface GameState {
   boardConfidence?: number;
   /** Consecutive board mandates met (resets to 0 on a lapse) — compounds a payout bonus. Optional. */
   mandateStreak?: number;
+  /** Team Focus / Crunch (feature #4): the team is concentrated to RUSH this timer, shaving weeks at a
+   *  morale + overtime cost. undefined/null = normal pace (today's behavior). */
+  teamFocus?: "research" | "build" | null;
+  /** Accumulated extra research progress-weeks bought by crunching the lab (feature #4). Optional; resets
+   *  when the active research completes. Backfilled to 0, so a never-crunched save is byte-identical. */
+  researchSurgeWeeks?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -1736,6 +1742,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const rng = rngFrom(state);
   const week = state.week + 1;
 
+  // Team Focus / Crunch (feature #4): the team is concentrated to RUSH one timer. OFF (null/undefined)
+  // is today's behavior. Offline catch-up never crunches (an irreversible morale hit the player couldn't
+  // react to), and it needs a real roster — so a solo founder (and the pinned sim) is byte-identical.
+  const tf = BALANCE.teamFocus;
+  const focus = state.teamFocus ?? null;
+  const canCrunch = !offline && focus !== null && state.staff.length >= tf.minTeam;
+  const crunchingResearch = canCrunch && focus === "research" && !!state.activeResearch;
+  const crunchingBuild = canCrunch && focus === "build" && state.building.length > 0;
+  const crunching = crunchingResearch || crunchingBuild;
+
   // Trends
   let trends = state.trends;
   let trendRetargetWeek = state.trendRetargetWeek;
@@ -1852,6 +1868,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Burn
   cash = sub(cash, scale(burn(state), rate));
+
+  // Crunch overtime (feature #4): rushing a timer runs the team on paid overtime — a weekly cost per
+  // head while crunching. Zero when not crunching (and offline), so a normal run is byte-identical.
+  if (crunching) cash = sub(cash, scale(dollars(state.staff.length * tf.overtimeCostPerHead), rate));
 
   // Item C3 — late-era operating drag: a frontier-scale company costs more to run the bigger it gets,
   // so the endgame stops being a free ratchet. ZERO before the drag era → early game & the pinned
@@ -2072,7 +2092,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const building: BuildJob[] = [];
   const ready = [...state.ready];
   for (const job of state.building) {
-    const weeksElapsed = job.weeksElapsed + rate;
+    // Crunch (feature #4) shaves weeks off manufacturing: extra progress per focused week.
+    const weeksElapsed = job.weeksElapsed + rate + (crunchingBuild ? tf.buildSurgePerTick * rate : 0);
     if (weeksElapsed >= job.totalWeeks) {
       ready.push(job.product);
       feed.push(feedItem(week, `“${job.product.name}” finished manufacturing, ready to launch.`, "accent"));
@@ -2107,6 +2128,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (s.trait === "hustler") target -= 12;
     if (cashDropping) target -= 12;
     else target += 6;
+    // Crunch (feature #4): concentrating the team to rush a timer wears on morale — a sustained crunch
+    // pulls the whole team toward burnout (and eventual churn), the cost that keeps it a real choice.
+    if (crunching) target -= tf.crunchMoodDrain;
     const lift = teamPlayers * 1.5 + (hasPeopleLead ? hrCfg.weeklyMoodLift : 0);
     // Underpaid penalty: salary lagging behind skill level pulls mood target down. A People Lead
     // mediates, absorbing part of the sting (they can't fix the player's wallet, only the morale).
@@ -2379,7 +2403,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // the SAME effect as the instant path, just delayed — then pull the next queued research up to
   // develop. The RP was paid at start. Gated on an active research, which the pinned solo sim never
   // starts → activeResearch stays null (+ empty queue) → byte-identical.
-  if (base.activeResearch && week - base.activeResearch.startWeek >= base.activeResearch.totalWeeks) {
+  //
+  // Crunch (feature #4) buys extra progress-weeks (researchSurgeWeeks) toward the active research, so a
+  // focused lab finishes early. The accumulator only grows while crunching (undefined by default), so a
+  // never-crunched save never writes the field and stays byte-identical.
+  let researchSurge = base.researchSurgeWeeks ?? 0;
+  if (crunchingResearch && base.activeResearch) researchSurge += tf.researchSurgePerTick * rate;
+  if (base.activeResearch && (week - base.activeResearch.startWeek) + researchSurge >= base.activeResearch.totalWeeks) {
     const a = base.activeResearch;
     if (a.kind === "tier" && a.tierLevel != null) {
       base.researched = { ...base.researched, [a.ref as ComponentKind]: a.tierLevel };
@@ -2387,6 +2417,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       base.completedProjects = [...base.completedProjects, a.ref as ProjectId];
     }
     base.feed.push(feedItem(week, `Research complete: ${a.name} is ready.`, "positive"));
+    researchSurge = 0; // the next research starts its own crunch clock fresh
     // Advance the queue: the next lined-up research starts developing this same week.
     const queue = base.researchQueue ?? [];
     if (queue.length > 0) {
@@ -2398,6 +2429,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       base.activeResearch = null;
     }
   }
+  // Persist the crunch accumulator only when it's in play (or already present), so a never-crunched
+  // run never gains the field — the golden snapshot stays byte-identical.
+  if (crunchingResearch || base.researchSurgeWeeks != null) base.researchSurgeWeeks = researchSurge;
 
   // Rival poaching (Track C): a rival on the rise occasionally tries to hire away one of your best —
   // surfaced as a counter-offer DECISION, not a silent stat drop. A DERIVED rng keeps the main sim
@@ -4142,11 +4176,18 @@ export function projectResearchStatus(s: GameState, id: ProjectId): ResearchSlot
   return researchQueueList(s).some((q) => q.kind === "project" && q.ref === id) ? "queued" : null;
 }
 
-/** Whole weeks remaining on the active research (0 when idle or finishing this week). */
+/** Whole weeks remaining on the active research (0 when idle or finishing this week). Counts crunch
+ *  progress (feature #4) so the countdown reflects a focused lab. */
 export function researchWeeksLeft(s: GameState): number {
   const a = s.activeResearch;
   if (!a) return 0;
-  return Math.max(0, a.totalWeeks - (s.week - a.startWeek));
+  return Math.max(0, Math.ceil(a.totalWeeks - (s.week - a.startWeek) - (s.researchSurgeWeeks ?? 0)));
+}
+
+/** Set (or clear) the team's crunch focus (feature #4). null = normal pace. Pure. */
+export function setTeamFocus(state: GameState, focus: "research" | "build" | null): GameState {
+  if ((state.teamFocus ?? null) === focus) return state;
+  return { ...state, teamFocus: focus };
 }
 
 /** Place a paid research spec: start it if the lab is idle, else append it to the queue. Returns the

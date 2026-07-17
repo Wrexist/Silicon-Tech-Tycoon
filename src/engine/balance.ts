@@ -1231,6 +1231,18 @@ export const BALANCE = {
     },
   },
 
+  // --- Team Focus / Crunch (feature #4): concentrate the team to RUSH the active research or the
+  // current build, shaving weeks off the timer at the cost of morale + overtime cash. One opt-in
+  // toggle (teamFocus); OFF (undefined) is today's behavior, so the pinned solo sim is byte-identical.
+  // Offline catch-up ignores crunch entirely (an irreversible morale hit the player couldn't react to).
+  teamFocus: {
+    minTeam: 2,                 // a solo founder can't "concentrate the team" — need a real roster
+    researchSurgePerTick: 0.5,  // extra research progress-weeks per focused week (≈ finishes 6wk in ~4)
+    buildSurgePerTick: 0.4,     // extra build progress-weeks per focused week
+    crunchMoodDrain: 6,         // pulls each teammate's weekly mood TARGET down while crunching (burnout risk)
+    overtimeCostPerHead: 6_000, // dollars — weekly overtime burn per teammate while crunching
+  },
+
   // --- Side-order pipeline (item 3.5): floor-quality + client-loyalty bonuses on client commissions ---
   // All applied at COMPLETION of an accepted order (opt-in), so the pinned sim never triggers them.
   sideOrders: {

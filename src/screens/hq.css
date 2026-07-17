@@ -1624,6 +1624,65 @@
   .hq__board-fill { transition: none; }
 }
 
+/* Team Focus / Crunch (feature #4) — a slim segmented control to rush a timer. */
+.hq__focus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.hq__focus-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.hq__focus-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.hq__focus-cost {
+  font-size: var(--fs-nano);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.hq__focus-seg {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-2);
+  border-radius: var(--r-button);
+  background: var(--surface-sunken, var(--hairline));
+}
+.hq__focus-btn {
+  flex: 1;
+  padding: var(--sp-8) var(--sp-4);
+  border: none;
+  border-radius: calc(var(--r-button) - 2px);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.15s) ease, color var(--dur-fast, 0.15s) ease;
+}
+.hq__focus-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.hq__focus-btn--on {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+.hq__focus-note {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 /* Office shop: per-item price + unaffordable state */
 .hqb__item-price {
   font-size: var(--fs-nano);

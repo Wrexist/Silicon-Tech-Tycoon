@@ -328,6 +328,10 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           shipped, when the community has an opinion to have. */}
       {state.launched.length >= 1 && <CommunityCard state={state} />}
 
+      {/* Team Focus / Crunch (feature #4) — an opt-in lever to rush the active research or the current
+          build, at a morale + overtime cost. Only shown when there's a real team and something to rush. */}
+      <TeamFocusStrip state={state} />
+
       {/* In production */}
       {state.building.length > 0 && (
         <Card>
@@ -1072,6 +1076,63 @@ function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: str
           );
         })}
       </ul>
+    </Card>
+  );
+}
+
+/** Team Focus / Crunch (feature #4) — concentrate the team to RUSH the active research or the current
+ *  build. A slim segmented control (Normal · Rush research · Rush build); the option with no live target
+ *  is disabled. Crunching shaves weeks off the timer but drains morale and runs paid overtime, so it's a
+ *  deliberate "I need this now" choice, not a free speed-up. Only shown with a real team + a live timer. */
+function TeamFocusStrip({ state }: { state: GameState }) {
+  const { setTeamFocus } = useGame();
+  const tf = BALANCE.teamFocus;
+  const hasTeam = state.staff.length >= tf.minTeam;
+  const hasResearch = !!state.activeResearch;
+  const hasBuild = state.building.length > 0;
+  if (!hasTeam || (!hasResearch && !hasBuild)) return null;
+  const focus = state.teamFocus ?? null;
+  const overtime = state.staff.length * tf.overtimeCostPerHead;
+  const pick = (f: "research" | "build" | null) => { setTeamFocus(focus === f ? null : f); haptic.light(); };
+  const opts: { key: "research" | "build"; label: string; live: boolean }[] = [
+    { key: "research", label: "Rush research", live: hasResearch },
+    { key: "build", label: "Rush build", live: hasBuild },
+  ];
+  return (
+    <Card className="hq__focus">
+      <div className="hq__focus-head">
+        <span className="hq__focus-title"><Zap size={14} aria-hidden /> Team focus</span>
+        {focus ? (
+          <span className="hq__focus-cost tnum">−{format(dollars(overtime))}/wk overtime · morale drain</span>
+        ) : (
+          <span className="hq__focus-cost">Normal pace</span>
+        )}
+      </div>
+      <div className="hq__focus-seg" role="group" aria-label="Team focus">
+        <button
+          className={`hq__focus-btn${focus === null ? " hq__focus-btn--on" : ""}`}
+          aria-pressed={focus === null}
+          onClick={() => pick(null)}
+        >
+          Normal
+        </button>
+        {opts.map((o) => (
+          <button
+            key={o.key}
+            className={`hq__focus-btn${focus === o.key ? " hq__focus-btn--on" : ""}`}
+            aria-pressed={focus === o.key}
+            disabled={!o.live}
+            onClick={() => pick(o.key)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {focus && (
+        <p className="hq__focus-note">
+          The team is crunching — {focus === "research" ? "the lab finishes sooner" : "manufacturing finishes sooner"}, but morale slips each week. Ease off once it's shipped.
+        </p>
+      )}
     </Card>
   );
 }
