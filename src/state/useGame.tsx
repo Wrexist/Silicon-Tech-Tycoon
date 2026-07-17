@@ -690,11 +690,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const { state: out, unlocked } = evaluateAndUnlock(next, readMasteryInput());
         const { state: out2, completed } = evaluateObjectives(out);
         if (firstThisWeek) {
-          withRevToasts(s, next);
-          withFanToasts(s, next);
-          withStaffLevelToasts(s, next);
-          withProductFinishToasts(s, next);
-          withResearchCompleteFx(s, next);
+          // Calm Mode also quiets the non-actionable TOAST fire-hose (all of these also land in the
+          // feed, so dropping the toast removes duplication, not information). Relaxed silences the
+          // pure milestone spam (revenue / fans / staff level-ups); Calm additionally silences the
+          // run/research summaries. Reward unlocks (achievements / objectives) always show.
+          const pace = next.interruptPace;
+          const quietMilestones = pace === "relaxed" || pace === "calm";
+          const quietSummaries = pace === "calm";
+          if (!quietMilestones) {
+            withRevToasts(s, next);
+            withFanToasts(s, next);
+            withStaffLevelToasts(s, next);
+          }
+          if (!quietSummaries) {
+            withProductFinishToasts(s, next);
+            withResearchCompleteFx(s, next);
+          }
           announceAchievements(unlocked);
           mergeProfileAchievements(unlocked);
           announceObjectives(completed);

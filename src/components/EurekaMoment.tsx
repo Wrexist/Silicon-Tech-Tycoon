@@ -9,6 +9,7 @@ import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { higherPriorityPending } from "../design/interruptPriority.ts";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import type { EurekaResult } from "../state/gameState.ts";
 import { haptic } from "../design/haptics.ts";
@@ -26,9 +27,12 @@ export function EurekaMoment() {
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
   const higherUp = revealUp || higherPriorityPending(state, "eureka");
+  // Low-stakes (a bank-or-gamble that can wait): the pending decision opens from the Decision Inbox
+  // banner on the player's schedule; the post-resolution outcome reveal always shows.
+  const decisionOpen = useDecisionOpen();
   // Keep the stage while resolving: `moment` clears the instant we bank/chase, but the outcome reveal
   // must survive that, so `outcome` holds the card up until Continue.
-  const showing = (moment !== null || outcome !== null) && !higherUp;
+  const showing = ((moment !== null && decisionOpen) || outcome !== null) && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);

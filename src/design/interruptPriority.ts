@@ -83,6 +83,11 @@ export const INBOX_INTERRUPTS: readonly InterruptKey[] = [
   "staffMoment",
   "staffEvent",
   "postLaunch",
+  // Re-triaged out of the full-screen tier: a rivalry-declared beat is a pure announcement, and a
+  // eureka is a small bank-or-gamble that can wait. Both reuse the Decision Inbox verbatim, leaving
+  // the takeover tier for genuine branching stakes (strike, licenseOffer) + the awards ceremony.
+  "rivalry",
+  "eureka",
 ];
 
 export function isInboxInterrupt(key: InterruptKey): boolean {
@@ -104,4 +109,6 @@ export const INBOX_LABEL: Record<string, { eyebrow: string; title: string }> = {
   staffMoment: { eyebrow: "Team", title: "A teammate is ready to grow" },
   staffEvent: { eyebrow: "Team", title: "A teammate hit a turning point" },
   postLaunch: { eyebrow: "On shelves", title: "A product on shelves needs a decision" },
+  rivalry: { eyebrow: "Rivals", title: "A rival has become your nemesis" },
+  eureka: { eyebrow: "R&D", title: "Your lab struck a breakthrough" },
 };
