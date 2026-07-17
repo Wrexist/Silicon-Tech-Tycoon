@@ -10,8 +10,10 @@ import {
   playerTopCategory,
   nemesisRival,
   isNemesis,
+  resolveStrike,
   advanceOneWeek,
   type GameState,
+  type RivalStrike,
 } from "./gameState.ts";
 import { dollars } from "../engine/money.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -30,6 +32,48 @@ describe("nemesis selectors", () => {
     expect(isNemesis(g, "nobody")).toBe(false);
     expect(nemesisRival(g)?.id).toBe(rid);
     expect(nemesisRival(base)).toBeNull(); // no nemesis → null
+  });
+});
+
+describe("feud strikes (feature #7 — a strike is a beat of the nemesis rivalry)", () => {
+  function strike(rivalId: string, over: Partial<RivalStrike> = {}): RivalStrike {
+    return {
+      week: 10, rivalId, rivalName: "Rival Co", rivalProductName: "Their Phone", rivalOverall: 50,
+      category: "phone", productId: "p-mine", productName: "My Phone", playerOverall: 60,
+      fromNemesis: true, heat: 60, ...over,
+    };
+  }
+
+  it("standing your ground and out-classing the nemesis banks a win and raises heat", () => {
+    const base = newGame(1);
+    const rid = base.competitors[0].id;
+    const g = { ...base, week: 12, nemesis: nem(rid), pendingStrike: strike(rid) } as GameState;
+    const res = resolveStrike(g, "hold"); // playerOverall 60 >= rivalOverall 50 → repelled
+    expect(res.ok).toBe(true);
+    expect(res.state.pendingStrike).toBeNull();
+    expect(res.state.nemesis!.playerWins).toBe(g.nemesis!.playerWins + 1);
+    expect(res.state.nemesis!.rivalWins).toBe(g.nemesis!.rivalWins);
+    expect(res.state.nemesis!.heat).toBeGreaterThan(g.nemesis!.heat);
+    expect(res.state.nemesis!.lastClashWeek).toBe(12);
+  });
+
+  it("getting caught out by the nemesis banks a win for THEM", () => {
+    const base = newGame(1);
+    const rid = base.competitors[0].id;
+    const g = { ...base, week: 12, nemesis: nem(rid), pendingStrike: strike(rid, { playerOverall: 40, rivalOverall: 55 }) } as GameState;
+    const res = resolveStrike(g, "hold"); // outclassed → they land it
+    expect(res.state.nemesis!.rivalWins).toBe(g.nemesis!.rivalWins + 1);
+    expect(res.state.nemesis!.playerWins).toBe(g.nemesis!.playerWins);
+  });
+
+  it("an ordinary (non-nemesis) strike never touches the rivalry", () => {
+    const base = newGame(1);
+    const rid = base.competitors[0].id;
+    const other = base.competitors[1].id;
+    // A strike from a DIFFERENT rival, not flagged as the nemesis — the feud is untouched.
+    const g = { ...base, week: 12, nemesis: nem(rid), pendingStrike: strike(other, { fromNemesis: false, heat: undefined }) } as GameState;
+    const res = resolveStrike(g, "hold");
+    expect(res.state.nemesis).toEqual(g.nemesis);
   });
 });
 

@@ -215,6 +215,12 @@ export interface RivalStrike {
   productId: string;
   productName: string;
   playerOverall: number;
+  /** Feature #7 — set when the striker is your standing NEMESIS: the strike is a beat OF the feud, not
+   *  a context-free popup. The overlay frames it as a nemesis attack and the resolution feeds heat back
+   *  into the rivalry. Optional/absent → an ordinary strike (byte-identical for old saves + the sim). */
+  fromNemesis?: boolean;
+  /** The nemesis's rivalry heat at strike time (0..100), for the overlay's heat-tier framing. */
+  heat?: number;
 }
 
 /** A research waiting in the queue (paid up front, develops once it reaches the front). Same shape as
@@ -2001,13 +2007,20 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     contestedCats.size > 0 &&
     week - (state.lastStrikeWeek ?? -999) >= BALANCE.market.competition.strike.cooldownWeeks
   ) {
-    const release = rivalReleases.find((r) => r.week === week && contestedCats.has(r.category));
+    // Feature #7 — the feud concentrates on ONE villain: if your standing nemesis released into a
+    // contested category this week, it strikes (a beat of the rivalry). Otherwise any contesting rival
+    // does, and that strike may FORM a nemesis (the "struck" clash below). Gated on a nemesis, which the
+    // pinned sim never forms, so the fallback `.find` path is byte-identical.
+    const nemId = state.nemesis?.rivalId;
+    const contesting = rivalReleases.filter((r) => r.week === week && contestedCats.has(r.category));
+    const release = (nemId && contesting.find((r) => r.rivalId === nemId)) || contesting[0] || undefined;
     const target = release
       ? launchedFinal
           .filter((lp) => lp.product.category === release.category && lp.weeksElapsed < lp.weeklyUnits.length)
           .reduce<(typeof launchedFinal)[number] | null>((a, b) => (!a || b.launchedWeek > a.launchedWeek ? b : a), null)
       : null;
     if (release && target) {
+      const byNemesis = !!nemId && release.rivalId === nemId;
       pendingStrike = {
         week,
         rivalId: release.rivalId,
@@ -2018,9 +2031,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         productId: target.product.id,
         productName: target.product.name,
         playerOverall: overallScore(target.stats, target.product.category),
+        ...(byNemesis ? { fromNemesis: true, heat: state.nemesis!.heat } : {}),
       };
       lastInterruptWeek = week; // consume the interrupt budget so nothing else piles on this week
-      // The aggressor picks a fight → a nemesis-forming clash (they landed the blow).
+      // The aggressor picks a fight → a nemesis-forming clash (they landed the blow), or stokes the
+      // standing feud if this striker already IS the nemesis.
       clashSignals.push({ kind: "struck", rivalId: release.rivalId });
     }
   }
@@ -3791,7 +3806,36 @@ export function resolveStrike(state: GameState, choice: StrikeResponse): ActionR
   const strike = state.pendingStrike;
   if (!strike) return { state, ok: false, reason: "No rival strike to answer." };
   const cfg = BALANCE.market.competition.strike;
-  const cleared: GameState = { ...state, pendingStrike: null, lastStrikeWeek: state.week };
+  // Feature #7 — how you answer your NEMESIS feeds the feud's heat + head-to-head record, so a strike
+  // is a real beat of the rivalry, not a throwaway popup. Standing your ground and out-classing them is
+  // a win you BANK; getting caught out is one they bank; either way the heat climbs a notch. Only when
+  // the striker is the nemesis (fromNemesis) and it's still your nemesis this week — otherwise a no-op,
+  // so ordinary strikes and old saves are byte-identical.
+  const feudNemesis = strike.fromNemesis && state.nemesis && state.nemesis.rivalId === strike.rivalId
+    ? state.nemesis
+    : null;
+  const escalateFeud = (n: NonNullable<GameState["nemesis"]>): NonNullable<GameState["nemesis"]> => {
+    const h = BALANCE.competitors.nemesis.heat;
+    // hold + you outclass them → you repelled the attack (player win); a losing hold → they land it
+    // (rival win); paying to answer (price/campaign) → you fought back (player win).
+    const playerBested = choice === "hold" ? strike.playerOverall >= strike.rivalOverall : true;
+    const heatAdd = playerBested ? h.overtake : h.struck;
+    const heat = Math.max(0, Math.min(100, n.heat + heatAdd));
+    return {
+      ...n,
+      heat,
+      peakHeat: Math.max(n.peakHeat, heat),
+      playerWins: n.playerWins + (playerBested ? 1 : 0),
+      rivalWins: n.rivalWins + (playerBested ? 0 : 1),
+      lastClashWeek: state.week,
+    };
+  };
+  const cleared: GameState = {
+    ...state,
+    pendingStrike: null,
+    lastStrikeWeek: state.week,
+    ...(feudNemesis ? { nemesis: escalateFeud(feudNemesis) } : {}),
+  };
   const feedLine = (g: GameState, text: string, tone: FeedTone): GameState => {
     const feed = [...g.feed];
     feed.push(feedItem(state.week, text, tone));
