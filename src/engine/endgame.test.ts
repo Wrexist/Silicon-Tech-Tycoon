@@ -48,6 +48,21 @@ describe("megaprojects — engine", () => {
     expect(megaprojectById("moonshot-0")).toBeUndefined();
     expect(megaprojectById("nope")).toBeUndefined();
   });
+
+  it("repeatable moonshots have distinct authored names (feature #10 — no 'Program 7')", async () => {
+    const { repeatableMegaproject } = await import("./endgame.ts");
+    const base = MEGAPROJECTS.length;
+    const names = Array.from({ length: 10 }, (_, i) => repeatableMegaproject(base + i).name);
+    // The first lap through the pool is all distinct and NOT the old "Moonshot Program N" scheme.
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.every((n) => !/Moonshot Program/.test(n))).toBe(true);
+    // A second lap re-uses the pool with a roman-numeral suffix (deterministic). The pool holds 10
+    // names, so index (base + 10) wraps back to the first name on its second cycle.
+    const lap2 = repeatableMegaproject(base + names.length).name; // names.length == pool size (10)
+    expect(lap2).toBe(`${names[0]} II`);
+    // Names are deterministic — the same index always yields the same name.
+    expect(repeatableMegaproject(base + 3).name).toBe(repeatableMegaproject(base + 3).name);
+  });
 });
 
 describe("board mandates — engine", () => {

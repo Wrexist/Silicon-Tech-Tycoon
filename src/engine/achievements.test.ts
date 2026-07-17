@@ -94,7 +94,7 @@ function launched(verdict: "hit" | "flop" | "steady", opts: Partial<LaunchedProd
 describe("achievements catalog", () => {
   it("has a healthy number of milestones with unique ids", () => {
     expect(ACHIEVEMENT_COUNT).toBeGreaterThanOrEqual(12);
-    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(60);
+    expect(ACHIEVEMENT_COUNT).toBeLessThanOrEqual(80);
     const ids = ACHIEVEMENTS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -121,7 +121,13 @@ describe("each predicate fires only when its real condition is met", () => {
     { id: "hat-trick", facts: { hitStreak: 3 } },
     { id: "ship-5", facts: { productsShipped: 5 } },
     { id: "ship-25", facts: { productsShipped: 25 } },
+    { id: "ship-50", facts: { productsShipped: 50 } },
     { id: "ship-100", facts: { productsShipped: 100 } },
+    { id: "ship-250", facts: { productsShipped: 250 } },
+    { id: "hits-10", facts: { hits: 10 } },
+    { id: "hits-25", facts: { hits: 25 } },
+    { id: "hits-50", facts: { hits: 50 } },
+    { id: "rev-10b", facts: { cumulativeRevenue: 10_000_000_000 } },
     { id: "rev-1m", facts: { cumulativeRevenue: 1_000_000 } },
     { id: "rev-10m", facts: { cumulativeRevenue: 10_000_000 } },
     { id: "rev-100m", facts: { cumulativeRevenue: 100_000_000 } },

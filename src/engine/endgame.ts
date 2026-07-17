@@ -70,6 +70,28 @@ export const MEGAPROJECTS: readonly Megaproject[] = [
 // never fully empties and the endgame always has a next big-ticket goal. IP-clean, deterministic.
 const MEGAPROJECT_REPEAT = { growthPerTier: 1.6, cashMult: 1.4, rpMult: 1.35, legacyPointsBase: 6 } as const;
 
+// Authored moonshot names/blurbs (feature #10) so a repeatable Moonshot stops reading "Program 7,
+// Program 8". Cycled deterministically by tier; a second lap appends a roman numeral (Project Helios II).
+// IP-clean, fictional frontiers. Purely cosmetic — the id/cost/reward are unchanged, so it's sim-safe.
+const MOONSHOT_NAMES: readonly { name: string; blurb: string }[] = [
+  { name: "Project Helios", blurb: "A grid-scale fusion prototype — power an entire industry." },
+  { name: "Project Odyssey", blurb: "An orbital research station for zero-gravity fabrication." },
+  { name: "Project Prometheus", blurb: "Chase a room-temperature superconductor, at last." },
+  { name: "Project Lumen", blurb: "A photonic computing substrate that leaves silicon behind." },
+  { name: "Project Gaia", blurb: "A planet-scale climate-modelling supercomputer." },
+  { name: "Project Atlas", blurb: "A continent-spanning autonomous logistics mesh." },
+  { name: "Project Nova", blurb: "A direct, safe brain-to-device neural interface." },
+  { name: "Project Aegis", blurb: "Self-healing materials that outlast every rival." },
+  { name: "Project Chronos", blurb: "Atomic-clock timing for a faster, truer internet." },
+  { name: "Project Elysium", blurb: "A fully synthetic-biology fabrication platform." },
+];
+
+const ROMAN = ["", "", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+/** A small roman numeral for cycle labels beyond the first lap of the moonshot pool. */
+function romanCycle(cycle: number): string {
+  return ROMAN[cycle + 1] ?? String(cycle + 1);
+}
+
 /** The procedurally-scaling repeatable megaproject at `index` (index ≥ MEGAPROJECTS.length). Cost climbs
  *  each tier off the last authored moonshot; the reward is a rising Legacy-Point + reputation payout. */
 export function repeatableMegaproject(index: number): Megaproject {
@@ -78,10 +100,16 @@ export function repeatableMegaproject(index: number): Megaproject {
   const scaleUp = MEGAPROJECT_REPEAT.cashMult * Math.pow(MEGAPROJECT_REPEAT.growthPerTier, tier - 1);
   const rpScaleUp = MEGAPROJECT_REPEAT.rpMult * Math.pow(MEGAPROJECT_REPEAT.growthPerTier, tier - 1);
   const legacyPoints = MEGAPROJECT_REPEAT.legacyPointsBase + tier;
+  // Cycle the authored name pool so each repeatable moonshot has a distinct identity; a second lap
+  // through the pool appends a roman numeral rather than resetting to the same names.
+  const slot = (tier - 1) % MOONSHOT_NAMES.length;
+  const cycle = Math.floor((tier - 1) / MOONSHOT_NAMES.length);
+  const picked = MOONSHOT_NAMES[slot];
+  const name = cycle === 0 ? picked.name : `${picked.name} ${romanCycle(cycle)}`;
   return {
     id: `moonshot-${index}`,
-    name: `Moonshot Program ${tier}`,
-    blurb: "An open-ended research frontier — pour resources in, push the whole industry forward.",
+    name,
+    blurb: picked.blurb,
     cashCost: scale(last.cashCost, scaleUp),
     rpCost: Math.round(last.rpCost * rpScaleUp),
     reward: { reputation: 3, legacyPoints, blurb: `+3 reputation · +${legacyPoints} Legacy Points` },
