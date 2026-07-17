@@ -47,6 +47,7 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
       hitsInRun: legendHits,
       valuationDollars: toDollars(ipoValuation(state)),
       rank: industryRank(state),
+      ascension: state.ascensionLevel,
     }),
   ).title;
 

@@ -190,6 +190,7 @@ function recordFounderFrom(state: GameState, opts: { prestige?: boolean; ipo?: b
     hitsInRun: hits,
     valuationDollars: toDollars(ipoValuation(state)),
     rank: industryRank(state),
+    ascension: state.ascensionLevel, // best Heat cleared (recorded at IPO / prestige)
   });
 }
 
@@ -492,7 +493,8 @@ interface GameActionsValue {
   upgradeHQ: () => void;
   advanceEra: () => void;
   goPublic: () => void;
-  prestige: () => void;
+  /** Found the next company (New Game+). Optional Ascension / Heat level makes that run harder. */
+  prestige: (ascension?: number) => void;
   restart: () => void;
   /** Begin a scenario run (overwrites the current save with the scenario's authored start). */
   startScenario: (id: string, name?: string) => void;
@@ -1172,8 +1174,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (after.wentPublic) recordFounderFrom(after, { ipo: true });
     }
   }, []);
-  const prestige = useCallback(() => {
-    // Bank the finished empire into the lifetime Founder Legend before the reset wipes the run.
+  const prestige = useCallback((ascension = 0) => {
+    // Bank the finished empire into the lifetime Founder Legend before the reset wipes the run —
+    // recording the Heat level cleared this run (recordFounderFrom reads state.ascensionLevel).
     recordFounderFrom(stateRef.current, { prestige: true });
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // milestones earned this run persist into NG+
     const next = getLegacy() + 1;
@@ -1181,7 +1184,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     clearSave();
     // New Game+ players already know the ropes — skip onboarding + the first-build coach. The
     // lifetime "seen dilemmas" set carries across so the new run surfaces fresh decisions first.
-    setState(withInterruptPace({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices }));
+    // Ascension / Heat: the chosen level makes the NEXT run harder (newGame's 3rd arg).
+    setState(withInterruptPace({ ...newGame(undefined, next, ascension), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices }));
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
     setSkipping(false);

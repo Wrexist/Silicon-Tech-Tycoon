@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
@@ -44,6 +44,8 @@ import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
 import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState } from "./state/gameState.ts";
 import { getFounderRecord, legendStanding, liveLegendScore } from "./state/founderLegend.ts";
+import { ascensionName, clampAscension, ascensionBarFactor, ascensionHeadStartFactor } from "./engine/ascension.ts";
+import { BALANCE } from "./engine/balance.ts";
 import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
@@ -415,6 +417,11 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const [forging, setForging] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const rank = industryRank(state);
+  // Ascension / Heat: you can dial the next run up to one rung past your best CLEARED level (unlock the
+  // next by clearing this one). Default to the current run's Heat (carry it forward).
+  const bestHeat = getFounderRecord().bestAscension;
+  const maxHeat = Math.min(BALANCE.ascension.maxLevel, bestHeat + 1);
+  const [ascend, setAscend] = useState(() => Math.min(maxHeat, clampAscension(state.ascensionLevel)));
   const nextBonus = legacyBonus(state.legacy + 1);
   const nextFounderPerk = nextPerk(state.legacy);
   // Going public advances your lifetime career rank (recorded in goPublic). Surface the new standing.
@@ -423,6 +430,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
       hitsInRun: state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length,
       valuationDollars: toDollars(ipoValuation(state)),
       rank,
+      ascension: state.ascensionLevel,
     }),
   ).title;
   useDialogFocus(ref, true);
@@ -490,6 +498,22 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
         <p className="ipo__legend-line">
           <Crown size={14} aria-hidden /> Founder Legend, <b>{legendTitle}</b>
         </p>
+        {/* Ascension / Heat picker — opt into a harder next run for a bigger Founder Legend. */}
+        <Card variant="inset" className="ipo__heat">
+          <div className="ipo__heat-head">
+            <span className="ipo__heat-eyebrow"><Flame size={13} aria-hidden /> Ascension</span>
+            <div className="ipo__heat-step">
+              <button className="ipo__heat-btn" aria-label="Lower Heat" disabled={ascend <= 0} onClick={() => setAscend((h) => Math.max(0, h - 1))}>−</button>
+              <span className="ipo__heat-level tnum">{ascensionName(ascend)}</span>
+              <button className="ipo__heat-btn" aria-label="Raise Heat" disabled={ascend >= maxHeat} onClick={() => setAscend((h) => Math.min(maxHeat, h + 1))}>+</button>
+            </div>
+          </div>
+          <span className="ipo__heat-sub">
+            {ascend === 0
+              ? "No Heat — a normal New Game+ (your legacy head-start applies in full)."
+              : `Harder next run: verdict bars +${Math.round((ascensionBarFactor(ascend) - 1) * 100)}% (products flop more), legacy head-start ${ascensionHeadStartFactor(ascend) <= 0 ? "gone" : `−${Math.round((1 - ascensionHeadStartFactor(ascend)) * 100)}%`}. Clearing it climbs your Founder Legend and unlocks the next rung.`}
+          </span>
+        </Card>
         <p className="ipo__sub">
           Each empire you build leaves a bigger legacy. Found your next one stronger, or keep
           building this one.
@@ -525,8 +549,8 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             { icon: <Users size={14} />, value: `+${nextBonus.fans.toLocaleString()}`, label: "fans" },
             { icon: <FlaskConical size={14} />, value: `+${nextBonus.rp}`, label: "research" },
           ]}
-          confirmLabel="Found the next empire"
-          onConfirm={prestige}
+          confirmLabel={ascend > 0 ? `Found at ${ascensionName(ascend)}` : "Found the next empire"}
+          onConfirm={() => prestige(ascend)}
           secondaryLabel="Not yet"
           onSecondary={() => setForging(false)}
         />

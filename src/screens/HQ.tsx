@@ -17,6 +17,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
+import { ascensionName } from "../engine/ascension.ts";
 import { REGIONS } from "../engine/regions.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
@@ -591,6 +592,11 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
           </>
         )}
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
+        {!build && (state.ascensionLevel ?? 0) > 0 && (
+          <div className="hq__scene-heat" title={ascensionName(state.ascensionLevel)}>
+            <Flame size={12} aria-hidden /> {ascensionName(state.ascensionLevel)}
+          </div>
+        )}
         {/* WASD is keyboard-only — never show it on a touch device (the iOS target), where it's
             both useless and confusing. Gate on a fine pointer (mouse/trackpad). */}
         {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}

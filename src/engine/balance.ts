@@ -10,6 +10,19 @@ export const BALANCE = {
   startingCash: dollars(100_000) as Money,
   startingReputation: 8, // 0..100
 
+  // --- Ascension / Heat (opt-in New Game+ difficulty ladder) ---
+  // Every prestige normally makes the next run EASIER (the legacy head-start). Ascension is the
+  // opt-in inverse: choose a Heat level at prestige and the next run gets harder — the verdict bars
+  // rise (products flop more, hits are rarer) and the legacy head-start is cut. It's the roguelite
+  // spine that turns "one more run" into a real chase. All modifiers key off an optional
+  // ascensionLevel state field defaulting to 0, so a normal run + the pinned sim are byte-identical.
+  ascension: {
+    maxLevel: 10,               // rungs 0..10
+    barsPerLevel: 0.06,         // verdict bars (hit/solid/flop) × (1 + level·0.06): harder to succeed
+    headStartCutPerLevel: 0.2,  // legacy head-start × (1 − level·0.2), floored at 0: less free power
+    legendPerLevel: 60,         // Founder Legend score per best-Heat-cleared level (the reward)
+  },
+
   // --- Time ---
   // The sim advances one week per tick. Base pace is deliberately slow so each decision
   // (design → production run → launch) has weight; the Fast button divides the interval.

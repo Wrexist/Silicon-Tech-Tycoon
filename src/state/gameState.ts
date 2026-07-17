@@ -151,6 +151,7 @@ import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolve
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
 import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
 import { frontierBonuses, frontierCost } from "../engine/frontier.ts";
+import { ascensionBarFactor, ascensionHeadStartFactor, clampAscension } from "../engine/ascension.ts";
 import type {
   Assignment,
   BuildJob,
@@ -467,6 +468,10 @@ export interface GameState {
    *  Optional → undefined/0 on old saves and the pinned solo sim, which aggregates to the neutral
    *  bonus, so a run that never advances the frontier is byte-identical. */
   frontierTier?: number;
+  /** Ascension / Heat level chosen for THIS run at prestige (engine/ascension.ts) — raises the verdict
+   *  bars and cut the legacy head-start. Optional → 0 on a normal run and the pinned sim (which never
+   *  ascends), where every ascension modifier is the identity, so behaviour is byte-identical. */
+  ascensionLevel?: number;
   /** The board's current quarterly mandate (auto-resolves at its dueWeek). Optional/null on old saves. */
   boardMandate?: import("../engine/endgame.ts").BoardMandate | null;
   /** cumulativeRevenue when the current mandate was issued (to measure the quarter's revenue). */
@@ -685,8 +690,18 @@ export function legacyBonus(level: number): LegacyBonus {
   };
 }
 
-export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): GameState {
-  const lb = legacyBonus(legacy);
+export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, ascension = 0): GameState {
+  // Ascension / Heat cuts the legacy head-start (factor 1 at Heat 0, so a normal founding + the pinned
+  // sim's newGame(seed) are byte-identical). scale(x, 1) is the identity, so this is a no-op at Heat 0.
+  const heat = clampAscension(ascension);
+  const hs = ascensionHeadStartFactor(heat);
+  const lbRaw = legacyBonus(legacy);
+  const lb = {
+    cash: scale(lbRaw.cash, hs) as Money,
+    reputation: Math.round(lbRaw.reputation * hs),
+    fans: Math.round(lbRaw.fans * hs),
+    rp: Math.round(lbRaw.rp * hs),
+  };
   const rng = makeRng(seed);
   const trends = initialTrends(rng);
   const competitors = initCompetitors(rng);
@@ -763,6 +778,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     tutorialDone: false,
     wentPublic: false,
     legacy,
+    // Optional — omitted entirely at Heat 0 so a normal founding is byte-identical (no new field).
+    ...(heat > 0 ? { ascensionLevel: heat } : {}),
     listed: false,
     ownership: 1,
     valuationMomentum: 0,
@@ -5459,10 +5476,13 @@ export function launchBars(state: GameState): { hit: number; solid: number; flop
   const exp = Math.max(0, state.launchExpectation ?? 0);
   const hitRaw = Math.max(base.hit, exp * x.hitMargin);
   const hit = hasProject(state.completedProjects, "hitFactory") ? hitRaw * 0.88 : hitRaw;
+  // Ascension / Heat raises every verdict bar (harder to hit, easier to flop). Factor is 1 at Heat 0
+  // (and undefined), so a normal run + the pinned sim are unchanged.
+  const heat = ascensionBarFactor(state.ascensionLevel);
   return {
-    hit: Math.round(hit),
-    solid: Math.round(Math.max(base.solid, exp * x.solidMargin)),
-    flop: Math.round(Math.max(base.flop, exp * x.flopMargin)),
+    hit: Math.round(hit * heat),
+    solid: Math.round(Math.max(base.solid, exp * x.solidMargin) * heat),
+    flop: Math.round(Math.max(base.flop, exp * x.flopMargin) * heat),
   };
 }
 
