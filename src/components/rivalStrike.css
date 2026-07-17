@@ -46,6 +46,15 @@
   from { opacity: 0; transform: translateY(12px) scale(0.96); }
   to { opacity: 1; transform: none; }
 }
+/* Feature #7 — a nemesis strike runs hotter: a deeper red charge + a stronger glow mark it as a beat
+   of the personal feud, not an ordinary rival move. */
+.rst__card--feud {
+  background:
+    radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--negative) 20%, transparent), transparent 62%),
+    var(--glass-modal);
+  border-color: color-mix(in srgb, var(--negative) 40%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 60px -14px color-mix(in srgb, var(--negative) 55%, transparent);
+}
 .rst__eyebrow {
   display: inline-flex;
   align-items: center;

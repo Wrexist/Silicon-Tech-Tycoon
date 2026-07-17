@@ -830,6 +830,29 @@
   line-height: 1.5;
   margin: var(--sp-4) 0;
 }
+/* Ascension / Heat picker on the prestige overlay. */
+.ipo__heat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  text-align: left;
+}
+.ipo__heat-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+.ipo__heat-eyebrow {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  font-size: var(--fs-micro); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+  color: var(--negative-text);
+}
+.ipo__heat-step { display: inline-flex; align-items: center; gap: var(--sp-8); }
+.ipo__heat-btn {
+  width: 30px; height: 30px; border-radius: var(--r-pill); flex-shrink: 0;
+  border: 1px solid var(--hairline); background: var(--surface-2); color: var(--ink);
+  font-size: var(--fs-headline); font-weight: 700; line-height: 1; cursor: pointer;
+}
+.ipo__heat-btn:disabled { opacity: 0.4; cursor: default; }
+.ipo__heat-level { font-weight: 700; font-size: var(--fs-caption); min-width: 8ch; text-align: center; }
+.ipo__heat-sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
+
 /* Founder Legend standing — the lifetime career rank this IPO just advanced. */
 .ipo__legend-line {
   display: inline-flex;

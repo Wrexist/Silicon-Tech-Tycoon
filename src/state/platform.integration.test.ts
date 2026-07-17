@@ -42,15 +42,32 @@ import { add, ZERO, dollars, toDollars } from "../engine/money.ts";
 import type { Product, LaunchedProduct } from "../engine/types.ts";
 
 describe("founding the Platform division (earned cash milestone)", () => {
-  it("is a one-time purchase that requires saving up the founding cost", () => {
-    const cost = platformFoundingCost();
-    const poor = { ...newGame(1), cash: dollars(1_000) } as GameState;
-    expect(canFoundPlatform(poor)).toBe(false);
-    expect(foundPlatform(poor)).toBe(poor); // no-op when unaffordable
+  // A state that meets the earned-milestone gate (reputation + shipped track record) with `extra` cash
+  // beyond the founding cost. Reputation and shipped count are pushed above the requirement.
+  const eligible = (extraCash: number): GameState => ({
+    ...newGame(1),
+    cash: add(platformFoundingCost(), dollars(extraCash)),
+    reputation: BALANCE.platform.foundingMinReputation + 5,
+    launched: Array.from({ length: BALANCE.platform.foundingMinShipped }, (_, i) => ({ id: `p${i}` })),
+  } as unknown as GameState);
 
-    const rich = { ...newGame(1), cash: add(cost, dollars(5_000)) } as GameState;
-    expect(canFoundPlatform(rich)).toBe(true);
-    const founded = foundPlatform(rich);
+  it("is a one-time purchase gated on cost + earned reputation + a shipped track record", () => {
+    const cost = platformFoundingCost();
+
+    // Can afford, but a fresh nobody (low rep, nothing shipped) can't found it.
+    const nobody = { ...newGame(1), cash: add(cost, dollars(5_000)) } as GameState;
+    expect(nobody.reputation).toBeLessThan(BALANCE.platform.foundingMinReputation);
+    expect(canFoundPlatform(nobody)).toBe(false);
+    expect(foundPlatform(nobody)).toBe(nobody); // no-op — the gate isn't met
+
+    // Established brand, but can't afford it → still blocked.
+    const broke = eligible(-0.01); // one cent short of the cost
+    expect(canFoundPlatform(broke)).toBe(false);
+
+    // Meets every requirement → can found, pays exactly the cost.
+    const ready = eligible(5_000);
+    expect(canFoundPlatform(ready)).toBe(true);
+    const founded = foundPlatform(ready);
     expect(founded.platformUnlocked).toBe(true);
     expect(founded.cash).toBe(dollars(5_000)); // paid exactly the founding cost
     expect(canFoundPlatform(founded)).toBe(false); // already founded

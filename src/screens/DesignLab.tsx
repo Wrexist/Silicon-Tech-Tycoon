@@ -71,8 +71,8 @@ import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, tuningSegmentBias, SEGMENTS, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityHypeBonus, brandEquityLabel, playerFranchises } from "../engine/franchise.ts";
-import { segmentWantsById } from "../engine/glossary.ts";
-import { StatGlossary } from "../components/StatGlossary.tsx";
+import { segmentWantsById, SCORE_INFO } from "../engine/glossary.ts";
+import { StatGlossary, Glossary } from "../components/StatGlossary.tsx";
 import "./designLab.css";
 
 /** Epic A — "Who it's for": the per-segment positioning readout in the build wizard. Each bar is how
@@ -720,6 +720,9 @@ export function DesignLab({
               : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now, they'll split this market.`}
           </p>
         )}
+        {/* Item #8 — one-tap explainers for the three hero scores (Fit / Build / Projected verdict),
+            single-sourced from engine/glossary so the copy can't drift from the Help hub. */}
+        <Glossary entries={SCORE_INFO} label="What these scores mean" hideLabel="Hide score guide" />
       </Card>
 
       {/* Category — always visible above the tab strip */}

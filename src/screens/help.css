@@ -1,0 +1,111 @@
+/* Help & Guide sheet — the consolidated glossary. Tokens + 8pt grid only. */
+.help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-20);
+}
+.help__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+}
+.help__head-glyph {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.help__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  margin: 0;
+}
+.help__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: var(--sp-2) 0 0;
+}
+
+.help__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.help__section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+}
+.help__section-glyph {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.help__section-titles { display: flex; flex-direction: column; gap: var(--sp-2); }
+.help__section-title {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  margin: 0;
+}
+.help__section-blurb {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  margin: 0;
+}
+.help__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin: 0;
+}
+.help__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--glass-well, var(--surface-sunken, var(--hairline)));
+  border: 1px solid var(--glass-well-edge, transparent);
+}
+.help__term {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.help__def {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.help__coach {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  padding: var(--sp-16);
+  border-radius: var(--r-card);
+  background: var(--accent-soft);
+}
+.help__coach-info { display: flex; flex-direction: column; gap: var(--sp-2); }
+.help__coach-title {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.help__coach-sub {
+  font-size: var(--fs-nano);
+  color: var(--ink-2);
+}

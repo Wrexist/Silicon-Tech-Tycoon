@@ -16,6 +16,8 @@ const ASPECT: Partial<Record<CategoryId, number>> = {
   console: 100 / 58,
   wearable: 100 / 116,
   experimental: 100 / 60,
+  neuralband: 100 / 76,
+  robot: 100 / 150,
 };
 
 type Face = "front" | "back";
@@ -631,6 +633,67 @@ function Shape({ category, uid, g, visual, shimmer }: { category: CategoryId; ui
           {lens(lx1)}
           {lens(lx2)}
           <circle cx={lx2 + lensW * 0.8} cy={ly + lensH * 0.2} r={1.6} fill={acc} opacity={0.8} />
+        </g>
+      );
+    }
+    case "neuralband": {
+      // A non-invasive neural interface band — a thin curved arc worn across the temples with a
+      // glowing sensor node at each end and a signal node at the brow.
+      const cy = y + H * 0.5;
+      const arcTop = y + H * 0.24;
+      const bandTh = H * 0.2;
+      return (
+        <g filter={shadow}>
+          {/* the band as a thick curved stroke */}
+          <path
+            d={`M ${x + W * 0.06} ${cy + H * 0.14} Q ${x + W * 0.5} ${arcTop - bandTh * 0.4} ${x + W * 0.94} ${cy + H * 0.14}`}
+            fill="none" stroke={body} strokeWidth={bandTh} strokeLinecap="round"
+          />
+          <path
+            d={`M ${x + W * 0.06} ${cy + H * 0.14} Q ${x + W * 0.5} ${arcTop - bandTh * 0.4} ${x + W * 0.94} ${cy + H * 0.14}`}
+            fill="none" stroke={rim} strokeWidth={1} strokeLinecap="round" opacity={0.6}
+          />
+          {/* temple sensor pods */}
+          <circle cx={x + W * 0.1} cy={cy + H * 0.14} r={bandTh * 0.62} fill={body} stroke={rim} strokeWidth={0.8} />
+          <circle cx={x + W * 0.9} cy={cy + H * 0.14} r={bandTh * 0.62} fill={body} stroke={rim} strokeWidth={0.8} />
+          <circle cx={x + W * 0.1} cy={cy + H * 0.14} r={bandTh * 0.3} fill={acc} opacity={visual.screenGlow + 0.35} />
+          <circle cx={x + W * 0.9} cy={cy + H * 0.14} r={bandTh * 0.3} fill={acc} opacity={visual.screenGlow + 0.35} />
+          {/* brow signal node (the glowing "screen") */}
+          <g>
+            <circle cx={x + W * 0.5} cy={arcTop + bandTh * 0.1} r={bandTh * 0.5} fill="#06080c" />
+            <circle cx={x + W * 0.5} cy={arcTop + bandTh * 0.1} r={bandTh * 0.5} fill={glow} className={shimmer ? "device-screen-shimmer" : undefined} />
+            <circle cx={x + W * 0.5} cy={arcTop + bandTh * 0.1} r={bandTh * 0.5} fill={sheen} />
+          </g>
+        </g>
+      );
+    }
+    case "robot": {
+      // A friendly home robot — a rounded body on a mobility base with a domed head and a glowing
+      // face strip (the "screen"), plus a sensor eye.
+      const headH = H * 0.3;
+      const headW = W * 0.66;
+      const hx = x + (W - headW) / 2;
+      const bodyY = y + headH * 0.9;
+      const bodyH = H - headH * 0.9 - H * 0.06;
+      const bez = headW * 0.12;
+      return (
+        <g filter={shadow}>
+          {/* mobility base */}
+          <rect x={x + W * 0.18} y={y + H - H * 0.07} width={W * 0.64} height={H * 0.06} rx={H * 0.03} fill={dark} />
+          {/* body */}
+          <path d={squircle(x + W * 0.1, bodyY, W * 0.8, bodyH, W * 0.24, sm)} fill={body} />
+          <path d={squircle(x + W * 0.1, bodyY, W * 0.8, bodyH, W * 0.24, sm)} fill="none" stroke={rim} strokeWidth={0.9} />
+          {/* chest status light */}
+          <circle cx={x + W * 0.5} cy={bodyY + bodyH * 0.42} r={W * 0.06} fill={acc} opacity={visual.screenGlow + 0.3} />
+          {/* neck */}
+          <rect x={x + W * 0.44} y={y + headH * 0.72} width={W * 0.12} height={headH * 0.35} fill={dark} />
+          {/* domed head */}
+          <path d={squircle(hx, y, headW, headH, headH * 0.5, sm)} fill={body} />
+          <path d={squircle(hx, y, headW, headH, headH * 0.5, sm)} fill="none" stroke={rim} strokeWidth={0.9} />
+          {/* face visor (the glowing screen) */}
+          {screen(hx + bez, y + headH * 0.26, headW - bez * 2, headH * 0.48, headH * 0.24, shimmer)}
+          {/* sensor eye dot */}
+          <circle cx={hx + headW * 0.5} cy={y + headH * 0.5} r={headH * 0.12} fill={acc} opacity={0.9} />
         </g>
       );
     }

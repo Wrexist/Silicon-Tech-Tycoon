@@ -11,9 +11,14 @@
 import { currentObjective } from "../engine/objectives.ts";
 import { contractProgress, rewardSummary as contractRewardSummary } from "../engine/contracts.ts";
 import { mandateProgress, mandateComplete, mandateRewardSummary } from "../engine/endgame.ts";
+import { sideOrderPayout } from "../engine/sideOrders.ts";
+import { format } from "../engine/money.ts";
 import { contractFacts, mandateFacts, type GameState } from "./gameState.ts";
 
-export type GoalSource = "objective" | "contract" | "mandate";
+export type GoalSource = "objective" | "contract" | "mandate" | "sideOrder" | "award";
+
+/** The awards ceremony runs every this-many weeks (mirrors the tick's `week % 52` gate). */
+const AWARDS_CYCLE_WEEKS = 52;
 
 export interface GoalRow {
   /** Stable key for React lists. */
@@ -94,6 +99,48 @@ export function collectGoals(state: GameState): GoalRow[] {
       reward: mandateRewardSummary(m),
       weeksLeft: Math.max(0, m.dueWeek - week),
       done: mandateComplete(m, mf),
+    });
+  }
+
+  // 4) A running side order (a client commission on the line). A real progress bar — weeks on the line
+  //    vs the fixed run — paying out on delivery. (The pending OFFER stays its own accept/decline
+  //    decision; only an accepted, in-production order is something you're actively "chasing".)
+  const so = state.activeSideOrder ?? null;
+  if (so) {
+    const elapsed = week - so.startedWeek;
+    const dueWeek = so.startedWeek + so.weeksNeeded;
+    rows.push({
+      key: `sideOrder:${so.id}`,
+      source: "sideOrder",
+      sourceLabel: "Side order",
+      title: `${so.clientName} · ${so.units.toLocaleString()} units`,
+      detail: so.blurb,
+      frac: so.weeksNeeded > 0 ? Math.max(0, Math.min(1, elapsed / so.weeksNeeded)) : 1,
+      reward: `${format(sideOrderPayout(so))} on delivery`,
+      weeksLeft: Math.max(0, dueWeek - week),
+      done: elapsed >= so.weeksNeeded,
+    });
+  }
+
+  // 5) The annual Silicon Awards — a standing seasonal chase, once you've shipped something to be judged.
+  //    Ceremonies land every 52 weeks; the "progress" is how far through the current awards year you are,
+  //    and the detail is how many of your launches are eligible so far (recurring, so never "done").
+  if (state.launched.length >= 1) {
+    const lastCeremony = Math.floor(week / AWARDS_CYCLE_WEEKS) * AWARDS_CYCLE_WEEKS;
+    const nextCeremony = lastCeremony + AWARDS_CYCLE_WEEKS;
+    const eligible = state.launched.filter((lp) => lp.launchedWeek > lastCeremony).length;
+    rows.push({
+      key: `award:y${nextCeremony}`,
+      source: "award",
+      sourceLabel: "Silicon Awards",
+      title: "The annual Silicon Awards",
+      detail: eligible > 0
+        ? `${eligible} of your launches this year are in the running.`
+        : "Ship a device this year to enter the running.",
+      frac: Math.max(0, Math.min(1, (week - lastCeremony) / AWARDS_CYCLE_WEEKS)),
+      reward: "Reputation & fans",
+      weeksLeft: Math.max(0, nextCeremony - week),
+      done: false,
     });
   }
 

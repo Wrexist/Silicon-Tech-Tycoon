@@ -65,6 +65,7 @@ import {
   marketingPush,
   investBrandAwareness,
   restockProduct,
+  setReorderRate,
   rushBuild,
   buyFloorMachine,
   buyFloorBelt,
@@ -110,6 +111,7 @@ import {
   hireSpecialist,
   setCompanyName,
   setSandbox,
+  setTeamFocus,
   setFloorStyle,
   setFactoryDecor,
   setLayout,
@@ -154,6 +156,7 @@ import type { ProjectId } from "../engine/research.ts";
 import type { StrikeResponse } from "./gameState.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
+import type { FrontierLaneId } from "../engine/frontier.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
 import { clearSave, exportSaveString, importSaveString, importProfileFromString, loadResult, save, stashHomeSave, readHomeSave, hasHomeSave, clearHomeSave } from "./persistence.ts";
 import { getSettings, setSettings } from "./settings.ts";
@@ -190,6 +193,7 @@ function recordFounderFrom(state: GameState, opts: { prestige?: boolean; ipo?: b
     hitsInRun: hits,
     valuationDollars: toDollars(ipoValuation(state)),
     rank: industryRank(state),
+    ascension: state.ascensionLevel, // best Heat cleared (recorded at IPO / prestige)
   });
 }
 
@@ -472,7 +476,7 @@ interface GameActionsValue {
   fundMegaproject: (id: string) => void;
   buyLegacyPerk: (id: string) => void;
   /** Advance Frontier Tech one tier — the endless post-IPO Legacy-Point sink. */
-  buyFrontierTier: () => void;
+  buyFrontierTier: (lane?: FrontierLaneId) => void;
   declineSideOrder: () => void;
   cancelSideOrder: () => void;
   buyUpgrade: (id: UpgradeId) => void;
@@ -492,7 +496,8 @@ interface GameActionsValue {
   upgradeHQ: () => void;
   advanceEra: () => void;
   goPublic: () => void;
-  prestige: () => void;
+  /** Found the next company (New Game+). Optional Ascension / Heat level makes that run harder. */
+  prestige: (ascension?: number) => void;
   restart: () => void;
   /** Begin a scenario run (overwrites the current save with the scenario's authored start). */
   startScenario: (id: string, name?: string) => void;
@@ -504,6 +509,7 @@ interface GameActionsValue {
   returnHome: () => boolean;
   markOnboarded: () => void;
   dismissTutorial: () => void;
+  replayCoach: () => void;
   markUnlocksSeen: () => void;
   // save export / import (offline backup)
   exportSave: () => string;
@@ -548,6 +554,7 @@ interface GameActionsValue {
   marketingPush: (productId: string) => { ok: boolean; reason?: string };
   investBrandAwareness: (points: number) => { ok: boolean; reason?: string };
   restockProduct: (productId: string, units: number) => { ok: boolean; reason?: string };
+  setReorderRate: (productId: string, rate: number) => { ok: boolean; reason?: string };
   rushBuild: (productId: string) => { ok: boolean; reason?: string };
   buyFloorMachine: (kind: import("../engine/factoryFloor.ts").MachineKind, c: number, r: number) => { ok: boolean; reason?: string };
   buyFloorBelt: (c: number, r: number, dir: import("../engine/factoryFloor.ts").BeltDir) => { ok: boolean; reason?: string };
@@ -568,6 +575,7 @@ interface GameActionsValue {
   takeLoan: (principalCents: number) => void;
   repayLoan: (id: string) => void;
   boostMorale: (kind: MoraleKind) => void;
+  setTeamFocus: (focus: "research" | "build" | null) => void;
 }
 
 /** Full context shape — data + actions. `useGame()` returns this (back-compat). */
@@ -690,11 +698,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const { state: out, unlocked } = evaluateAndUnlock(next, readMasteryInput());
         const { state: out2, completed } = evaluateObjectives(out);
         if (firstThisWeek) {
-          withRevToasts(s, next);
-          withFanToasts(s, next);
-          withStaffLevelToasts(s, next);
-          withProductFinishToasts(s, next);
-          withResearchCompleteFx(s, next);
+          // Calm Mode also quiets the non-actionable TOAST fire-hose (all of these also land in the
+          // feed, so dropping the toast removes duplication, not information). Relaxed silences the
+          // pure milestone spam (revenue / fans / staff level-ups); Calm additionally silences the
+          // run/research summaries. Reward unlocks (achievements / objectives) always show.
+          const pace = next.interruptPace;
+          const quietMilestones = pace === "relaxed" || pace === "calm";
+          const quietSummaries = pace === "calm";
+          if (!quietMilestones) {
+            withRevToasts(s, next);
+            withFanToasts(s, next);
+            withStaffLevelToasts(s, next);
+          }
+          if (!quietSummaries) {
+            withProductFinishToasts(s, next);
+            withResearchCompleteFx(s, next);
+          }
           announceAchievements(unlocked);
           mergeProfileAchievements(unlocked);
           announceObjectives(completed);
@@ -904,9 +923,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     sfx("confirm");
     setState(res.state);
   }, []);
-  const buyFrontierTierCb = useCallback(() => {
+  const buyFrontierTierCb = useCallback((lane: FrontierLaneId = "research") => {
     const prev = stateRef.current;
-    const res = buyFrontierTier(prev);
+    const res = buyFrontierTier(prev, lane);
     if (!res.ok) { haptic.error(); showToast(res.reason ?? "Can't advance the frontier yet", { tone: "negative" }); return; }
     haptic.success();
     sfx("confirm");
@@ -1161,8 +1180,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (after.wentPublic) recordFounderFrom(after, { ipo: true });
     }
   }, []);
-  const prestige = useCallback(() => {
-    // Bank the finished empire into the lifetime Founder Legend before the reset wipes the run.
+  const prestige = useCallback((ascension = 0) => {
+    // Bank the finished empire into the lifetime Founder Legend before the reset wipes the run —
+    // recording the Heat level cleared this run (recordFounderFrom reads state.ascensionLevel).
     recordFounderFrom(stateRef.current, { prestige: true });
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // milestones earned this run persist into NG+
     const next = getLegacy() + 1;
@@ -1170,7 +1190,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     clearSave();
     // New Game+ players already know the ropes — skip onboarding + the first-build coach. The
     // lifetime "seen dilemmas" set carries across so the new run surfaces fresh decisions first.
-    setState(withInterruptPace({ ...newGame(undefined, next), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices }));
+    // Ascension / Heat: the chosen level makes the NEXT run harder (newGame's 3rd arg).
+    setState(withInterruptPace({ ...newGame(undefined, next, ascension), onboarded: true, tutorialDone: true, platformUnlocked: stateRef.current.platformUnlocked, seenChoices: stateRef.current.seenChoices }));
     setPaused(false);
     setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
     setSkipping(false);
@@ -1217,6 +1238,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const markOnboarded = useCallback(() => setState((s) => ({ ...s, onboarded: true })), []);
   const dismissTutorial = useCallback(() => setState((s) => ({ ...s, tutorialDone: true })), []);
+  // Replay the first-build Coach from the Help hub — it re-reads progress to pick the right step for
+  // where the player is now (a veteran just sees the "you're set" beat and can dismiss again).
+  const replayCoach = useCallback(() => setState((s) => ({ ...s, tutorialDone: false })), []);
   const markUnlocksSeen = useCallback(() => setState((s) => ({ ...s, seenFirstShipUnlocks: true })), []);
   const setCompanyNameCb = useCallback((name: string) => setState((s) => setCompanyName(s, name)), []);
   // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
@@ -1306,6 +1330,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const setLayoutCb = useCallback((layout: PlacedItem[]) => setState((s) => setLayout(s, layout)), []);
   const applyLayoutSnapshotCb = useCallback((snap: { layout: PlacedItem[]; cash: Money }) => setState((s) => applyLayoutSnapshot(s, snap)), []);
   const setFloorStyleCb = useCallback((i: number) => setState((s) => setFloorStyle(s, i)), []);
+  const setTeamFocusCb = useCallback((focus: "research" | "build" | null) => setState((s) => setTeamFocus(s, focus)), []);
   const setWallStyleCb = useCallback((i: number) => setState((s) => setWallStyle(s, i)), []);
   const setFactoryDecorCb = useCallback((patch: Partial<{ wall: number; floor: number }>) => setState((s) => setFactoryDecor(s, patch)), []);
   const buySharesCb = useCallback((id: string, qty: number) => {
@@ -1362,6 +1387,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (spent > 0) emitSpend(spent);
       setState(result.state);
     }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const setReorderRateCb = useCallback((productId: string, rate: number) => {
+    const result = setReorderRate(stateRef.current, productId, rate);
+    if (result.ok) setState(result.state);
     return { ok: result.ok, reason: result.reason };
   }, []);
   const buyFloorMachineCb = useCallback((kind: import("../engine/factoryFloor.ts").MachineKind, c: number, r: number) => {
@@ -1637,6 +1667,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       returnHome,
       markOnboarded,
       dismissTutorial,
+      replayCoach,
       markUnlocksSeen,
       exportSave,
       importSave,
@@ -1676,6 +1707,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       marketingPush: marketingPushCb,
       investBrandAwareness: investBrandAwarenessCb,
       restockProduct: restockProductCb,
+      setReorderRate: setReorderRateCb,
       rushBuild: rushBuildCb,
       buyFloorMachine: buyFloorMachineCb,
       buyFloorBelt: buyFloorBeltCb,
@@ -1695,10 +1727,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       takeLoan: takeLoanCb,
       repayLoan: repayLoanCb,
       boostMorale: boostMoraleCb,
+      setTeamFocus: setTeamFocusCb,
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

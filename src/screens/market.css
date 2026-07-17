@@ -1316,6 +1316,65 @@
   border-radius: var(--r-card);
   overflow: hidden;
 }
+/* Live Product Ops (feature #2) — the standing auto-reorder policy control. */
+.pd__reorder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-16);
+  border-radius: var(--r-card);
+  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.pd__reorder-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.pd__reorder-head svg { color: var(--accent); flex-shrink: 0; }
+.pd__reorder-tag {
+  margin-left: auto;
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+.pd__reorder-hint {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+}
+.pd__reorder-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+}
+.pd__reorder-opt {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-8) var(--sp-4);
+  border-radius: var(--r-button);
+  border: 1px solid var(--hairline);
+  background: var(--surface-sunken, transparent);
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast, 0.15s) ease, color var(--dur-fast, 0.15s) ease, border-color var(--dur-fast, 0.15s) ease;
+}
+.pd__reorder-opt--on {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  border-color: var(--accent);
+}
 .pd__pricecut-trigger {
   width: 100%;
   display: flex;

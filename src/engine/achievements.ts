@@ -9,7 +9,7 @@ import type { GameState } from "../state/gameState.ts";
 import { netWorth, scenarioResultFor } from "../state/gameState.ts";
 import { toDollars } from "./money.ts";
 import { completableProjectCount } from "./research.ts";
-import { maxEra } from "./eras.ts";
+import { BALANCE } from "./balance.ts";
 import { OS_FEATURES, installedBase } from "./platform.ts";
 import { MAX_EXPANSION } from "./factoryFloor.ts";
 
@@ -169,7 +169,9 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
     era: state.era,
     era2reached: state.era >= 2,
     era3reached: state.era >= 3,
-    atFinalEra: state.era >= maxEra(),
+    // "Reach the final era" tracks the IPO/pinnacle era (AI Era), not maxEra() — the post-IPO Autonomy
+    // Era raised maxEra to 5, and this achievement has always been earnable at the pre-IPO pinnacle.
+    atFinalEra: state.era >= BALANCE.ipo.minEra,
     listed: state.listed,
     wentPublic: state.wentPublic,
     rivalsInvested,
@@ -236,6 +238,30 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     predicate: (f) => f.hitStreak >= 3,
   },
   {
+    id: "hits-10",
+    title: "Hitmaker",
+    description: "Ten hits in a single run — a real winning streak of releases.",
+    icon: "Flame",
+    hint: "Land ten hits in one run.",
+    predicate: (f) => f.hits >= 10,
+  },
+  {
+    id: "hits-25",
+    title: "Hitmaker II",
+    description: "Twenty-five hits. The market trusts your name now.",
+    icon: "Flame",
+    hint: "Twenty-five hits in one run.",
+    predicate: (f) => f.hits >= 25,
+  },
+  {
+    id: "hits-50",
+    title: "Hitmaker III",
+    description: "Fifty hits in one run — a near-flawless catalogue.",
+    icon: "Trophy",
+    hint: "Fifty hits in a single run.",
+    predicate: (f) => f.hits >= 50,
+  },
+  {
     id: "ship-5",
     title: "Product Line",
     description: "Five products shipped and counting.",
@@ -252,12 +278,28 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     predicate: (f) => f.productsShipped >= 25,
   },
   {
+    id: "ship-50",
+    title: "Prolific II",
+    description: "Fifty products shipped — a studio that never stops.",
+    icon: "Factory",
+    hint: "Keep the launches coming.",
+    predicate: (f) => f.productsShipped >= 50,
+  },
+  {
     id: "ship-100",
     title: "Industrial",
     description: "One hundred products. A true manufacturer.",
     icon: "Layers",
     hint: "The mark of a relentless studio.",
     predicate: (f) => f.productsShipped >= 100,
+  },
+  {
+    id: "ship-250",
+    title: "Prolific III",
+    description: "Two hundred and fifty devices. A dynasty of hardware.",
+    icon: "Layers",
+    hint: "For the truly relentless.",
+    predicate: (f) => f.productsShipped >= 250,
   },
   {
     id: "rev-1m",
@@ -467,6 +509,14 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "Crown",
     hint: "Scale to a billion dollars in lifetime sales.",
     predicate: (f) => f.cumulativeRevenue >= 1_000_000_000,
+  },
+  {
+    id: "rev-10b",
+    title: "Ten-Figure Empire",
+    description: "Ten billion in lifetime revenue — an empire without equal.",
+    icon: "Gem",
+    hint: "Ten billion dollars in lifetime sales.",
+    predicate: (f) => f.cumulativeRevenue >= 10_000_000_000,
   },
   {
     id: "team-10",

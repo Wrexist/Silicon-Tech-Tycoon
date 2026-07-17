@@ -8,6 +8,8 @@ import {
   Gamepad2,
   Watch,
   Glasses,
+  BrainCircuit,
+  Bot,
   Wrench,
   PencilRuler,
   Megaphone,
@@ -30,6 +32,8 @@ const CATEGORY_ICON: Record<CategoryId, LucideIcon> = {
   console: Gamepad2,
   wearable: Watch,
   experimental: Glasses,
+  neuralband: BrainCircuit,
+  robot: Bot,
 };
 
 const ROLE_ICON: Record<StaffRole, LucideIcon> = {

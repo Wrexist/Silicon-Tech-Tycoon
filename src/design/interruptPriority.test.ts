@@ -78,7 +78,7 @@ describe("canonical interrupt priority", () => {
 
 describe("decision inbox tier", () => {
   it("inbox tier is the low-stakes subset; the weighty moments stay full-screen", () => {
-    const takeover: InterruptKey[] = ["strike", "awards", "rivalry", "eureka", "earnings", "licenseOffer"];
+    const takeover: InterruptKey[] = ["strike", "awards", "earnings", "licenseOffer"];
     for (const k of INBOX_INTERRUPTS) expect(isInboxInterrupt(k)).toBe(true);
     for (const k of takeover) expect(isInboxInterrupt(k)).toBe(false);
     // every inbox key is a real interrupt key, and has banner copy

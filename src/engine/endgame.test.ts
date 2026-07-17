@@ -4,8 +4,9 @@ import { describe, it, expect } from "vitest";
 import {
   MEGAPROJECTS, megaprojectById, availableMegaprojects, canFundMegaproject,
   generateBoardMandate, mandateComplete, mandateProgress, type MandateFacts,
+  BOARD_TIERS, boardTier, nextBoardTier, mandateStreakBonus, mandatePayoutMult, effectiveMandateReward,
 } from "./endgame.ts";
-import { dollars } from "./money.ts";
+import { dollars, toDollars } from "./money.ts";
 
 describe("megaprojects — engine", () => {
   it("are ordered by escalating cost, each with a payoff", () => {
@@ -46,6 +47,21 @@ describe("megaprojects — engine", () => {
     // A stray/invalid id doesn't resolve.
     expect(megaprojectById("moonshot-0")).toBeUndefined();
     expect(megaprojectById("nope")).toBeUndefined();
+  });
+
+  it("repeatable moonshots have distinct authored names (feature #10 — no 'Program 7')", async () => {
+    const { repeatableMegaproject } = await import("./endgame.ts");
+    const base = MEGAPROJECTS.length;
+    const names = Array.from({ length: 10 }, (_, i) => repeatableMegaproject(base + i).name);
+    // The first lap through the pool is all distinct and NOT the old "Moonshot Program N" scheme.
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.every((n) => !/Moonshot Program/.test(n))).toBe(true);
+    // A second lap re-uses the pool with a roman-numeral suffix (deterministic). The pool holds 10
+    // names, so index (base + 10) wraps back to the first name on its second cycle.
+    const lap2 = repeatableMegaproject(base + names.length).name; // names.length == pool size (10)
+    expect(lap2).toBe(`${names[0]} II`);
+    // Names are deterministic — the same index always yields the same name.
+    expect(repeatableMegaproject(base + 3).name).toBe(repeatableMegaproject(base + 3).name);
   });
 });
 
@@ -157,5 +173,97 @@ describe("Legacy Era — reducers", () => {
     for (let i = 0; i < 20 && cur.week < due; i++) cur = advanceOneWeek(cur);
     expect(cur.boardMandate).not.toBeNull();
     expect(cur.mandateQuarter).toBeGreaterThanOrEqual(2); // at least the 2nd mandate issued
+  });
+});
+
+describe("board confidence & directive tiers (feature #5)", () => {
+  it("tiers are strictly ascending in both confidence and payout multiplier", () => {
+    for (let i = 1; i < BOARD_TIERS.length; i++) {
+      expect(BOARD_TIERS[i].minConfidence).toBeGreaterThan(BOARD_TIERS[i - 1].minConfidence);
+      expect(BOARD_TIERS[i].rewardMult).toBeGreaterThan(BOARD_TIERS[i - 1].rewardMult);
+    }
+  });
+
+  it("the neutral start (50) sits in the ×1.0 tier — so an existing save keeps today's payout", async () => {
+    const { BALANCE } = await import("./balance.ts");
+    expect(boardTier(BALANCE.legacyEra.boardConfidence.start).rewardMult).toBe(1);
+  });
+
+  it("resolves confidence to the right tier, clamped at both ends", () => {
+    expect(boardTier(-50).name).toBe("Doubtful Board");
+    expect(boardTier(0).rewardMult).toBe(0.8);
+    expect(boardTier(100).rewardMult).toBe(2.0);
+    expect(boardTier(9999).name).toBe("Visionary Board");
+    expect(nextBoardTier(100)).toBeNull(); // no rung above the top
+    expect(nextBoardTier(0)!.minConfidence).toBe(20);
+  });
+
+  it("streak bonus compounds and caps", async () => {
+    const { BALANCE } = await import("./balance.ts");
+    const n = BALANCE.legacyEra.boardConfidence;
+    expect(mandateStreakBonus(0)).toBe(0);
+    expect(mandateStreakBonus(2)).toBeCloseTo(2 * n.streakBonusPerLevel, 5);
+    expect(mandateStreakBonus(9999)).toBe(n.maxStreakBonus); // capped
+    // payout mult folds tier × (1 + streak)
+    expect(mandatePayoutMult(50, 0)).toBe(1);
+    expect(mandatePayoutMult(100, 1)).toBeCloseTo(2 * (1 + n.streakBonusPerLevel), 5);
+  });
+
+  it("effective reward scales cash + rep by the payout multiplier", () => {
+    const base = { cash: dollars(10_000_000), rep: 4 };
+    const eff = effectiveMandateReward(base, 100, 0); // Visionary ×2.0
+    expect(toDollars(eff.cash)).toBe(20_000_000);
+    expect(eff.rep).toBe(8);
+    expect(eff.mult).toBe(2);
+  });
+});
+
+describe("board confidence — reducer", () => {
+  const fansMandate = (week: number, target: number) => ({
+    id: "mandate-q0", quarter: 0, metric: "fans" as const, target,
+    title: `Grow the fanbase to ${target}`, reward: { cash: dollars(1_000_000), rep: 2 },
+    issuedWeek: week, dueWeek: week + 1,
+  });
+
+  it("meeting a mandate raises confidence + streak; the reward is paid at the confidence you'd built", async () => {
+    const { newGame, advanceOneWeek } = await import("../state/gameState.ts");
+    const g0 = { ...newGame(4), wentPublic: true, fans: 50_000 };
+    const met = {
+      ...g0, boardMandate: fansMandate(g0.week, 100), mandateStartRevenue: g0.cumulativeRevenue,
+      mandateQuarter: 1, boardConfidence: 50, mandateStreak: 0,
+    };
+    const t1 = advanceOneWeek(met);
+    expect(t1.boardConfidence).toBe(62); // 50 + gainOnMet(12)
+    expect(t1.mandateStreak).toBe(1);
+    expect(t1.boardMandate).not.toBeNull(); // a fresh mandate is reissued
+
+    // A higher confidence pays strictly more cash for the SAME met mandate.
+    const cashDelta = (confidence: number) => {
+      const s = { ...met, boardConfidence: confidence };
+      return toDollars(advanceOneWeek(s).cash) - toDollars(s.cash);
+    };
+    expect(cashDelta(100)).toBeGreaterThan(cashDelta(0)); // Visionary ×2.0 > Doubtful ×0.8
+  });
+
+  it("a lapsed mandate drops confidence and resets the streak", async () => {
+    const { newGame, advanceOneWeek } = await import("../state/gameState.ts");
+    const g0 = { ...newGame(4), wentPublic: true, fans: 1_000 };
+    const lapsing = {
+      ...g0, boardMandate: fansMandate(g0.week, 1_000_000_000), mandateStartRevenue: g0.cumulativeRevenue,
+      mandateQuarter: 1, boardConfidence: 50, mandateStreak: 3,
+    };
+    const t1 = advanceOneWeek(lapsing);
+    expect(t1.boardConfidence).toBe(36); // 50 - lossOnLapse(14)
+    expect(t1.mandateStreak).toBe(0);
+  });
+
+  it("the field is backfilled — a post-IPO save with no confidence set behaves as the neutral start", async () => {
+    const { newGame, advanceOneWeek } = await import("../state/gameState.ts");
+    const { BALANCE } = await import("./balance.ts");
+    const g0 = { ...newGame(4), wentPublic: true, fans: 50_000 };
+    // No boardConfidence / mandateStreak on the incoming state (old save).
+    const met = { ...g0, boardMandate: fansMandate(g0.week, 100), mandateStartRevenue: g0.cumulativeRevenue, mandateQuarter: 1 };
+    const t1 = advanceOneWeek(met);
+    expect(t1.boardConfidence).toBe(BALANCE.legacyEra.boardConfidence.start + BALANCE.legacyEra.boardConfidence.gainOnMet);
   });
 });

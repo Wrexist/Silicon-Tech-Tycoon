@@ -10,6 +10,19 @@ export const BALANCE = {
   startingCash: dollars(100_000) as Money,
   startingReputation: 8, // 0..100
 
+  // --- Ascension / Heat (opt-in New Game+ difficulty ladder) ---
+  // Every prestige normally makes the next run EASIER (the legacy head-start). Ascension is the
+  // opt-in inverse: choose a Heat level at prestige and the next run gets harder — the verdict bars
+  // rise (products flop more, hits are rarer) and the legacy head-start is cut. It's the roguelite
+  // spine that turns "one more run" into a real chase. All modifiers key off an optional
+  // ascensionLevel state field defaulting to 0, so a normal run + the pinned sim are byte-identical.
+  ascension: {
+    maxLevel: 10,               // rungs 0..10
+    barsPerLevel: 0.06,         // verdict bars (hit/solid/flop) × (1 + level·0.06): harder to succeed
+    headStartCutPerLevel: 0.2,  // legacy head-start × (1 − level·0.2), floored at 0: less free power
+    legendPerLevel: 60,         // Founder Legend score per best-Heat-cleared level (the reward)
+  },
+
   // --- Time ---
   // The sim advances one week per tick. Base pace is deliberately slow so each decision
   // (design → production run → launch) has weight; the Fast button divides the interval.
@@ -58,15 +71,15 @@ export const BALANCE = {
     // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).
     refreshRate: {
       options: [60, 90, 120, 144] as number[],
-      maxByDisplayTier: [60, 90, 120, 120, 144, 144] as number[], // index = displayTier − 1 (6 tiers)
+      maxByDisplayTier: [60, 90, 120, 120, 144, 144, 144] as number[], // index = displayTier − 1 (7 tiers; era-5 Holo panel)
       appealPerStep: 3,     // stat appeal per step above 60 (full to performance, half to design)
       unitCost: dollars(5), // extra per-unit cost per step above 60
     },
     // On-board storage (GB) — a customizable spec gated by the software/OS tier (a basic OS can't
     // manage a terabyte). More storage lifts ecosystem + quality appeal and adds per-unit cost.
     storage: {
-      options: [128, 256, 512, 1024] as number[],
-      maxBySoftwareTier: [256, 512, 512, 1024, 1024] as number[], // index = software tier − 1 (5 tiers)
+      options: [128, 256, 512, 1024, 2048] as number[],
+      maxBySoftwareTier: [256, 512, 512, 1024, 1024, 2048] as number[], // index = software tier − 1 (6 tiers; era-5 Sentient OS)
       appeal: { ecosystem: 3, quality: 1 },
       unitCost: dollars(8), // per-unit cost per step above the 128GB baseline
     },
@@ -79,7 +92,7 @@ export const BALANCE = {
     // Era-scaled market volume: the Garage era is a tiny market you slowly grow into; each later
     // era opens it up. Multiplies demand (→ recommended run size → revenue) by era, so the early
     // game is deliberately slow + hand-built while the end-game still scales. Index = era - 1.
-    eraVolumeScale: [0.40, 0.66, 0.92, 1.15],
+    eraVolumeScale: [0.40, 0.66, 0.92, 1.15, 1.42], // era 5 (Autonomy) — the biggest market yet
     // B9 — launch demand variance. The wizard's forecast is a deterministic point estimate; real
     // demand at launch is a BET, so the actual realized volume is jittered by up to ±this fraction
     // (seeded, NOT Math.random — reproducible per save). Turns run-sizing/pricing from solved
@@ -154,7 +167,7 @@ export const BALANCE = {
       // Growth Era, then OVER-full in the Platform/AI eras: late-game rivals press harder, so a
       // contested launch only lands "solid" while an uncontested, maxed product still triumphs —
       // keeping the endgame a contest rather than a guaranteed-hit victory lap. Index = era - 1.
-      eraPressure: [0.25, 1.0, 1.2, 1.45] as const,
+      eraPressure: [0.25, 1.0, 1.2, 1.45, 1.68] as const, // era 5 — rivals press hardest at the frontier
     },
     trendDrift: {
       easing: 0.06, // how fast current weights ease toward target each week
@@ -328,7 +341,10 @@ export const BALANCE = {
   // captures unmet demand rather than printing money, and each reorder shrinks the remaining headroom.
   // No new tooling (the line is already set up) — you pay pure per-unit production. Bounded per product.
   restock: {
-    maxPerProduct: 3,
+    maxPerProduct: 3,          // cap on MANUAL one-tap restocks per product
+    // Live Product Ops (feature #2) — a standing auto-reorder policy.
+    leadWeeks: 2,              // base weeks before an auto-reorder arrives (+ the era's build lead)
+    maxRatePerWeek: 20_000,    // ceiling on the units/week a policy can request (a sane UI bound)
   },
 
   // --- Fans / loyal customer base ---
@@ -423,9 +439,14 @@ export const BALANCE = {
     // (the same single-verdict failure v52 fixed, mirror-imaged). These bars sit back INSIDE the new
     // per-era range (harness-measured) so a great late launch hits, a middling one steadies, and the
     // verdict layer stays a real contest. Eras 1–2 are untouched.
-    hitThresholdByEra: [70, 80, 156, 192],
-    solidThresholdByEra: [45, 56, 135, 175],
-    flopThresholdByEra: [10, 21, 27, 35],
+    hitThresholdByEra: [70, 80, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
+    solidThresholdByEra: [45, 56, 135, 175, 202], // era 5
+    // FLOP FLOOR raised from era 2 on so a phoned-in launch actually FLOPS instead of coasting to a
+    // safe "steady". Era 1 stays low (10) to protect the maiden launch — a brand-new company's hype is
+    // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From
+    // the Growth era on, a mediocre or heavily-contested device lands in the red, so success is earned.
+    // Kept below solidThresholdByEra at every index (flop < solid) and non-decreasing across eras.
+    flopThresholdByEra: [10, 34, 52, 68, 82], // era 5 (kept < solid, non-decreasing)
     // Dynamic "expectations" (Track D — the anti-"every device is a hit" system). The static bars
     // above anchor a young company (and the very first launch), but as you rack up strong launches a
     // ROLLING baseline of your recent competition-adjusted scores raises the bar: a HIT must beat your
@@ -437,7 +458,9 @@ export const BALANCE = {
       alpha: 0.5,        // how fast the rolling baseline tracks each new launch (EMA weight)
       hitMargin: 1.14,   // a hit must beat the rolling baseline by this (top your recent best)
       solidMargin: 0.6,  // at/above this fraction of the baseline is a solid, competent release
-      flopMargin: 0.4,   // below this (relative to what you'd been shipping) it disappoints → flop
+      flopMargin: 0.55,  // below this (relative to what you'd been shipping) it disappoints → flop.
+                         // Raised 0.4 → 0.55: re-shipping something meaningfully weaker than your recent
+                         // average now flops, so a proven studio can't coast on mediocre follow-ups.
     },
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
@@ -473,7 +496,7 @@ export const BALANCE = {
     rpPerEngineerSkill: 0.5, // weekly RP per point of engineer skill (assigned to R&D)
     rpPerAssignedResearcher: 0.5, // bonus weekly RP per skill point of any staff assigned to R&D
     rpFounderBase: 1.2, // the founder always trickles a little RP
-    eraMultiplier: [1, 1.4, 1.9, 2.6], // RP scales up by era (index = era-1)
+    eraMultiplier: [1, 1.4, 1.9, 2.6, 3.4], // RP scales up by era (index = era-1); era 5 = Autonomy
     // tech unlocks now cost RP (a fraction of the old cash R&D cost, converted)
     rdCashToRp: 1 / 1400, // dollars of old rdCost -> RP cost
     minTechRp: 4,
@@ -660,7 +683,11 @@ export const BALANCE = {
     { era: 1, name: "Garage Era", repToAdvance: 35, revToAdvance: dollars(500_000) },
     { era: 2, name: "Growth Era", repToAdvance: 60, revToAdvance: dollars(8_000_000) },
     { era: 3, name: "Platform Era", repToAdvance: 80, revToAdvance: dollars(80_000_000) },
+    // The AI Era stays the commercial pinnacle you IPO at (repToAdvance Infinity → the normal rep/rev
+    // path can never leave it). The ONLY way onward is the post-IPO Autonomy Era, gated separately on
+    // going public + Frontier Tech (see canAdvance + BALANCE.autonomyEra) — never the rep/rev bars.
     { era: 4, name: "AI Era", repToAdvance: Infinity, revToAdvance: Infinity },
+    { era: 5, name: "Autonomy Era", repToAdvance: Infinity, revToAdvance: Infinity },
   ],
 
   // --- Era-distinct mechanics (Epic D) ---
@@ -683,6 +710,7 @@ export const BALANCE = {
     { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0, toolingMult: 1.0, leadWeeks: 0 },  // 2 Growth — baseline
     { marketingHype: 1.2, ecosystemRate: 1.5, demandVariance: 1.0, toolingMult: 1.7, leadWeeks: 2 },  // 3 Platform — ecosystem lock-in; bigger bets
     { marketingHype: 1.35, ecosystemRate: 1.7, demandVariance: 1.4, toolingMult: 2.6, leadWeeks: 3 }, // 4 AI — hype-driven + volatile; flagship-scale bets
+    { marketingHype: 1.5, ecosystemRate: 2.0, demandVariance: 1.5, toolingMult: 3.2, leadWeeks: 4 },  // 5 Autonomy — the frontier: biggest bets, richest ecosystems, most volatile
   ],
 
   // --- Competitors ---
@@ -702,7 +730,7 @@ export const BALANCE = {
     // your category ENTRENCHES instead of evaporating in a week — sustained, not blip, pressure. The
     // category a rival contests is seeded-random, so runs where rivals crowd your flagship category
     // diverge from runs where they spread out — the between-run variance a perfect player can't smooth.
-    strengthDecayByEra: [0.88, 0.88, 0.90, 0.93] as const,
+    strengthDecayByEra: [0.88, 0.88, 0.90, 0.93, 0.95] as const,
     baseStrength: 28,
     // Specialization: a launch in a rival's PREFERRED category is this much likelier to be chosen,
     // and lands with this flat strength bonus (its home turf is genuinely tougher to contest).
@@ -719,13 +747,13 @@ export const BALANCE = {
     // game preserved); the late ceilings rise so a strong rival can genuinely contest — even beat — a
     // top player in a category, making demand a contested resource again. Still a hard cap, so it
     // presses without snowballing into an unbeatable wall (the era-pressure term governs the bite).
-    reactMaxStrengthByEra: [95, 95, 105, 118] as const,
+    reactMaxStrengthByEra: [95, 95, 105, 118, 130] as const,
     // Era-scaled strength bump (Living Late Game P3). The launch-strength FORMULA naturally tops out
     // ~92 (base + rep×0.4 + bonuses), BELOW the old flat-95 cap — which is why raising the cap alone
     // was inert and late competition stayed cosmetic. This additive bump lifts late-era rivals into
     // genuine contesting range (and lets a few BEAT a maxed player), so demand becomes a contested
     // resource in Eras 3–4. Eras 1–2 add 0 (early game byte-identical). Bounded by reactMaxStrengthByEra.
-    lateStrengthByEra: [0, 0, 8, 18] as const,
+    lateStrengthByEra: [0, 0, 8, 18, 26] as const,
     reactCadenceCut: 3, // weeks shaved off the reacting rival's next launch (faster counter-punch)
     // B2 — rival DOCTRINES (per-rival behavioural posture; see competitors.ts RivalDoctrine). Tuned
     // to add VARIETY + presence, NOT raw difficulty: only the `defender` raises launch strength (the
@@ -841,9 +869,21 @@ export const BALANCE = {
     },
   },
 
+  // --- Autonomy Era (era 5, post-IPO) — the frontier era the Frontier-Tech grind unlocks ---
+  autonomyEra: {
+    era: 5,
+    // AI Era → Autonomy Era requires going PUBLIC and pushing Frontier Tech to at least this tier.
+    // (Frontier Tech is post-IPO only, so this is inherently a post-IPO gate.)
+    tierToAdvance: 3,
+  },
+
   // --- IPO / prestige ---
   ipo: {
-    minReputation: 85, // plus reaching the final era — the "win" / New Game+ trigger
+    minReputation: 85, // plus reaching the IPO era — the "win" / New Game+ trigger
+    // The era at which the company may go public — the AI Era, the commercial pinnacle. This is a FIXED
+    // gate (not maxEra()), because the post-IPO Autonomy Era raised maxEra to 5: tying IPO to maxEra
+    // would deadlock (you couldn't reach era 5 without going public, nor go public without era 5).
+    minEra: 4,
     // Valuation = baseValuation + cumulativeRevenue × valuationPerRevenueDollar + a CUBIC reputation
     // term (repValuationMax × (rep/100)³). The cubic is deliberate: a garage brand (rep ~8) adds
     // almost nothing (~$4K), so early net worth ≈ your cash and the company genuinely "grows from
@@ -933,10 +973,15 @@ export const BALANCE = {
   // a bounded rep/fan bump, never a recurring rate change, so the tuned economy is undisturbed.
   platform: {
     // Founding the division is a MAJOR late-game reinvestment you save up for over many quarters — an
-    // empire milestone, not a quick mid-game unlock. 30× the starting bankroll: shipping enough product
+    // empire milestone, not a quick mid-game unlock. 90× the starting bankroll: shipping enough product
     // to bank this is the whole point, and once founded the OS is a grind you WORK (land contracts), not
     // a passive faucet. Creative/Sandbox mode keeps cash topped up, so free experimentation is unaffected.
-    foundingCost: dollars(3_000_000),
+    foundingCost: dollars(9_000_000),
+    // …AND an earned reputation: a respected, proven hardware company launches a platform, not a nobody.
+    // (Gates canFoundPlatform alongside the cash cost — see gameState. Kept < the era-3/win reputation so
+    // it's reachable mid-game, but a real "you've made a name" bar, not free the moment you can afford it.)
+    foundingMinReputation: 20, // 0..100 — an established brand
+    foundingMinShipped: 4,     // a proven hardware track record before you build the platform under it
     releaseRepBonus: 3,          // one-time reputation lift per OS version release (leaner)
     releaseFanBaseBonus: 1_000,  // base fans gained on release
     releaseFanPerKInstalled: 2,  // + fans per 1,000 devices in the installed base
@@ -1189,6 +1234,33 @@ export const BALANCE = {
       baseReward: 20_000_000,     // dollars — quarter-1 cash reward (the floor before scaling)
       repReward: 2,
     },
+    // Board confidence (feature #5) — a memory on the mandate loop. Meeting a mandate raises the
+    // board's confidence and your met-streak; a lapse drops confidence and resets the streak. The
+    // confidence TIER multiplies mandate payouts (a doubtful board underpays; a visionary one pays
+    // double) and the streak compounds a bonus on top. Neutral start (50) sits in the ×1.0 tier, so
+    // an existing post-IPO save keeps today's payout until confidence actually moves. Gated on
+    // wentPublic (the pinned solo sim never IPOs → byte-identical); no RNG.
+    boardConfidence: {
+      start: 50,                 // neutral — lands in the ×1.0 "Steady Board" tier
+      max: 100,
+      min: 0,
+      gainOnMet: 12,             // confidence gained when a mandate is met
+      lossOnLapse: 14,           // confidence lost when a mandate lapses (a touch gentler than a win-streak climb)
+      streakBonusPerLevel: 0.12, // +12% payout per consecutive mandate met…
+      maxStreakBonus: 0.6,       // …capped at +60%
+    },
+  },
+
+  // --- Team Focus / Crunch (feature #4): concentrate the team to RUSH the active research or the
+  // current build, shaving weeks off the timer at the cost of morale + overtime cash. One opt-in
+  // toggle (teamFocus); OFF (undefined) is today's behavior, so the pinned solo sim is byte-identical.
+  // Offline catch-up ignores crunch entirely (an irreversible morale hit the player couldn't react to).
+  teamFocus: {
+    minTeam: 2,                 // a solo founder can't "concentrate the team" — need a real roster
+    researchSurgePerTick: 0.5,  // extra research progress-weeks per focused week (≈ finishes 6wk in ~4)
+    buildSurgePerTick: 0.4,     // extra build progress-weeks per focused week
+    crunchMoodDrain: 6,         // pulls each teammate's weekly mood TARGET down while crunching (burnout risk)
+    overtimeCostPerHead: 6_000, // dollars — weekly overtime burn per teammate while crunching
   },
 
   // --- Side-order pipeline (item 3.5): floor-quality + client-loyalty bonuses on client commissions ---

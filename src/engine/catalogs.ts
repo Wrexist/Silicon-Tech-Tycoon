@@ -43,6 +43,8 @@ export const COMPONENT_LINES: Record<ComponentKind, ComponentLine> = {
     { name: "FusionCore F2", rd: 220_000, unit: 70, era: 2, contributes: { performance: 66 } },
     { name: "QuantumCore Q1", rd: 1_400_000, unit: 110, era: 3, contributes: { performance: 84 } },
     { name: "QuantumCore Q2", rd: 9_000_000, unit: 165, era: 4, contributes: { performance: 100 } },
+    // Autonomy Era (era 5): a neural co-processor — maxes performance AND lifts on-device ecosystem AI.
+    { name: "NeuralCore N1", rd: 42_000_000, unit: 240, era: 5, contributes: { performance: 100, ecosystem: 16 } },
   ]),
   display: line("display", "Display", false, [
     { name: "FlatPanel LCD", rd: 0, unit: 14, era: 1, contributes: { quality: 14, design: 6 } },
@@ -51,6 +53,8 @@ export const COMPONENT_LINES: Record<ComponentKind, ComponentLine> = {
     { name: "LumaOLED Pro", rd: 190_000, unit: 58, era: 2, contributes: { quality: 60, design: 34 } },
     { name: "MicroLED Edge", rd: 1_200_000, unit: 92, era: 3, contributes: { quality: 80, design: 46 } },
     { name: "MicroLED Infinity", rd: 7_500_000, unit: 140, era: 4, contributes: { quality: 96, design: 58 } },
+    // Autonomy Era: a holographic light-field panel — reference quality with a striking design lift.
+    { name: "Holo Light-Field", rd: 34_000_000, unit: 215, era: 5, contributes: { quality: 100, design: 76 } },
   ]),
   battery: line("battery", "Battery", false, [
     { name: "CellPack 2K", rd: 0, unit: 6, era: 1, contributes: { battery: 18 } },
@@ -59,6 +63,8 @@ export const COMPONENT_LINES: Record<ComponentKind, ComponentLine> = {
     { name: "DenseCell+", rd: 160_000, unit: 24, era: 2, contributes: { battery: 70 } },
     { name: "SolidState SS1", rd: 1_000_000, unit: 40, era: 3, contributes: { battery: 88 } },
     { name: "SolidState SS2", rd: 6_000_000, unit: 60, era: 4, contributes: { battery: 100 } },
+    // Autonomy Era: a compact fusion cell — endless endurance with a build-quality halo.
+    { name: "MicroFusion Cell", rd: 26_000_000, unit: 96, era: 5, contributes: { battery: 100, quality: 12 } },
   ]),
   materials: line("materials", "Materials", false, [
     { name: "Polycarbonate", rd: 0, unit: 8, era: 1, contributes: { quality: 8, design: 10 } },
@@ -66,6 +72,8 @@ export const COMPONENT_LINES: Record<ComponentKind, ComponentLine> = {
     { name: "Aerospace Alu", rd: 70_000, unit: 30, era: 2, contributes: { quality: 36, design: 42 } },
     { name: "Titanium Frame", rd: 400_000, unit: 52, era: 3, contributes: { quality: 52, design: 60 } },
     { name: "Forged Titanium", rd: 3_000_000, unit: 85, era: 4, contributes: { quality: 66, design: 78 } },
+    // Autonomy Era: a self-healing graphene lattice — near-perfect fit and finish.
+    { name: "Graphene Lattice", rd: 15_000_000, unit: 135, era: 5, contributes: { quality: 84, design: 96 } },
   ]),
   software: line("software", "Software / OS", true, [
     { name: "BasicOS", rd: 0, unit: 0, era: 1, contributes: { ecosystem: 14 } },
@@ -73,12 +81,18 @@ export const COMPONENT_LINES: Record<ComponentKind, ComponentLine> = {
     { name: "Ecosystem OS", rd: 120_000, unit: 0, era: 2, contributes: { ecosystem: 50 } },
     { name: "Ecosystem OS+", rd: 700_000, unit: 0, era: 3, contributes: { ecosystem: 72 } },
     { name: "Unified OS", rd: 5_000_000, unit: 0, era: 4, contributes: { ecosystem: 100 } },
+    // Autonomy Era: an agentic OS that anticipates the user — peak ecosystem with a polish halo.
+    { name: "Sentient OS", rd: 24_000_000, unit: 0, era: 5, contributes: { ecosystem: 100, quality: 12 } },
   ]),
   camera: line("camera", "Camera", false, [
     { name: "Single 12MP", rd: 0, unit: 9, era: 1, contributes: { quality: 8, design: 6 } },
     { name: "Dual 48MP", rd: 24_000, unit: 18, era: 2, contributes: { quality: 20, design: 16 } },
     { name: "Triple Pro", rd: 180_000, unit: 34, era: 2, contributes: { quality: 34, design: 26 } },
     { name: "Quad Cinematic", rd: 1_100_000, unit: 56, era: 3, contributes: { quality: 48, design: 36 } },
+    // Era 4: a computational-photography array (fills the camera line's era-4 gap).
+    { name: "Periscope Array", rd: 6_500_000, unit: 84, era: 4, contributes: { quality: 62, design: 48 } },
+    // Autonomy Era: a neural imaging sensor — reference-grade capture with a striking design lift.
+    { name: "Neural ISP", rd: 22_000_000, unit: 120, era: 5, contributes: { quality: 78, design: 60 } },
   ]),
 };
 
@@ -162,6 +176,28 @@ export const CATEGORIES: Record<CategoryId, CategoryDef> = {
     unlockEra: 4,
     starter: false,
     marketSize: 0.5,
+  },
+  // --- Autonomy Era (era 5, post-IPO) — the frontier categories the Frontier-Tech grind unlocks ---
+  neuralband: {
+    id: "neuralband",
+    displayName: "Neural Band",
+    glyph: "BrainCircuit",
+    // A non-invasive brain-computer interface band: no display of its own; it lives on chip + platform.
+    slots: ["chip", "battery", "materials", "software", "camera"],
+    statEmphasis: { performance: 1.2, ecosystem: 1.35, design: 1.05 },
+    unlockEra: 5,
+    starter: false,
+    marketSize: 0.45,
+  },
+  robot: {
+    id: "robot",
+    displayName: "Home Robot",
+    glyph: "Bot",
+    slots: ["chip", "battery", "materials", "software", "camera"],
+    statEmphasis: { performance: 1.3, ecosystem: 1.1, quality: 1.15 },
+    unlockEra: 5,
+    starter: false,
+    marketSize: 0.55,
   },
 };
 

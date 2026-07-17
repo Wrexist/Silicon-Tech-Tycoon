@@ -28,7 +28,7 @@ beforeEach(() => {
 describe("founder record store", () => {
   it("starts empty and at the bottom of the ladder", () => {
     const rec = getFounderRecord();
-    expect(rec).toEqual({ prestiges: 0, ipos: 0, bestHitsInRun: 0, peakValuationDollars: 0, bestRank: 9999 });
+    expect(rec).toEqual({ prestiges: 0, ipos: 0, bestHitsInRun: 0, peakValuationDollars: 0, bestRank: 9999, bestAscension: 0 });
     expect(legendScore(rec)).toBe(0);
     expect(legendStanding(legendScore(rec)).title).toBe("Garage Founder");
   });
@@ -81,10 +81,13 @@ describe("founder record store", () => {
 
 describe("legend ladder", () => {
   it("score rises monotonically with achievement", () => {
-    const a = legendScore({ prestiges: 0, ipos: 1, bestHitsInRun: 2, peakValuationDollars: 1_000_000, bestRank: 5 });
-    const b = legendScore({ prestiges: 2, ipos: 3, bestHitsInRun: 8, peakValuationDollars: 1_000_000_000, bestRank: 1 });
+    const a = legendScore({ prestiges: 0, ipos: 1, bestHitsInRun: 2, peakValuationDollars: 1_000_000, bestRank: 5, bestAscension: 0 });
+    const b = legendScore({ prestiges: 2, ipos: 3, bestHitsInRun: 8, peakValuationDollars: 1_000_000_000, bestRank: 1, bestAscension: 0 });
     expect(b).toBeGreaterThan(a);
     expect(a).toBeGreaterThan(0);
+    // Clearing a higher Heat (bestAscension) is itself worth score — the only field that differs here.
+    const base = { prestiges: 1, ipos: 1, bestHitsInRun: 3, peakValuationDollars: 1_000_000, bestRank: 3 };
+    expect(legendScore({ ...base, bestAscension: 3 })).toBeGreaterThan(legendScore({ ...base, bestAscension: 0 }));
   });
 
   it("tiers are strictly ascending and start at Garage Founder", () => {
@@ -121,7 +124,7 @@ describe("legend ladder", () => {
     const warm = liveLegendScore(rec, { hitsInRun: 5, valuationDollars: 500_000_000, rank: 2 });
     expect(warm).toBeGreaterThan(cold);
     // Folding never LOWERS a stored peak.
-    const strong: FounderRecord = { prestiges: 1, ipos: 1, bestHitsInRun: 9, peakValuationDollars: 9_000_000_000, bestRank: 1 };
+    const strong: FounderRecord = { prestiges: 1, ipos: 1, bestHitsInRun: 9, peakValuationDollars: 9_000_000_000, bestRank: 1, bestAscension: 0 };
     expect(liveLegendScore(strong, { hitsInRun: 0, valuationDollars: 0, rank: 8 })).toBe(legendScore(strong));
   });
 });

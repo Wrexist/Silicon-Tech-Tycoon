@@ -2,7 +2,7 @@ import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, type LucideIcon,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -17,6 +17,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
+import { ascensionName } from "../engine/ascension.ts";
 import { REGIONS } from "../engine/regions.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
@@ -55,9 +56,9 @@ import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
 import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, type FeedItem, type GameState } from "../state/gameState.ts";
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
-import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary } from "../engine/endgame.ts";
+import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary, boardTier, nextBoardTier, mandatePayoutMult, mandateStreakBonus } from "../engine/endgame.ts";
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
-import { frontierCost, frontierBonuses, frontierBandName } from "../engine/frontier.ts";
+import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFrontierBandUnlock, type FrontierLaneId } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -321,11 +322,15 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
 
       {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
-      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}
+      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}{/* onAdvanceFrontier takes a lane (feature #6) */}
 
       {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
           shipped, when the community has an opinion to have. */}
       {state.launched.length >= 1 && <CommunityCard state={state} />}
+
+      {/* Team Focus / Crunch (feature #4) — an opt-in lever to rush the active research or the current
+          build, at a morale + overtime cost. Only shown when there's a real team and something to rush. */}
+      <TeamFocusStrip state={state} />
 
       {/* In production */}
       {state.building.length > 0 && (
@@ -591,6 +596,11 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
           </>
         )}
         {!build && <div className="hq__scene-tag">{eraName(state.era)}</div>}
+        {!build && (state.ascensionLevel ?? 0) > 0 && (
+          <div className="hq__scene-heat" title={ascensionName(state.ascensionLevel)}>
+            <Flame size={12} aria-hidden /> {ascensionName(state.ascensionLevel)}
+          </div>
+        )}
         {/* WASD is keyboard-only — never show it on a touch device (the iOS target), where it's
             both useless and confusing. Gate on a fine pointer (mouse/trackpad). */}
         {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
@@ -1070,9 +1080,100 @@ function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: str
   );
 }
 
+/** Team Focus / Crunch (feature #4) — concentrate the team to RUSH the active research or the current
+ *  build. A slim segmented control (Normal · Rush research · Rush build); the option with no live target
+ *  is disabled. Crunching shaves weeks off the timer but drains morale and runs paid overtime, so it's a
+ *  deliberate "I need this now" choice, not a free speed-up. Only shown with a real team + a live timer. */
+function TeamFocusStrip({ state }: { state: GameState }) {
+  const { setTeamFocus } = useGame();
+  const tf = BALANCE.teamFocus;
+  const hasTeam = state.staff.length >= tf.minTeam;
+  const hasResearch = !!state.activeResearch;
+  const hasBuild = state.building.length > 0;
+  if (!hasTeam || (!hasResearch && !hasBuild)) return null;
+  // Derive the LIVE focus from a live target — the same gate the engine crunches on (research needs an
+  // active project, build needs an in-flight job). A stored "research" focus whose project just finished
+  // isn't crunching anything, so the strip must not keep claiming it is.
+  const stored = state.teamFocus ?? null;
+  const focus = (stored === "research" && hasResearch) || (stored === "build" && hasBuild) ? stored : null;
+  const overtime = state.staff.length * tf.overtimeCostPerHead;
+  const pick = (f: "research" | "build" | null) => { setTeamFocus(focus === f ? null : f); haptic.light(); };
+  const opts: { key: "research" | "build"; label: string; live: boolean }[] = [
+    { key: "research", label: "Rush research", live: hasResearch },
+    { key: "build", label: "Rush build", live: hasBuild },
+  ];
+  return (
+    <Card className="hq__focus">
+      <div className="hq__focus-head">
+        <span className="hq__focus-title"><Zap size={14} aria-hidden /> Team focus</span>
+        {focus ? (
+          <span className="hq__focus-cost tnum">−{format(dollars(overtime))}/wk overtime · morale drain</span>
+        ) : (
+          <span className="hq__focus-cost">Normal pace</span>
+        )}
+      </div>
+      <div className="hq__focus-seg" role="group" aria-label="Team focus">
+        <button
+          className={`hq__focus-btn${focus === null ? " hq__focus-btn--on" : ""}`}
+          aria-pressed={focus === null}
+          onClick={() => pick(null)}
+        >
+          Normal
+        </button>
+        {opts.map((o) => (
+          <button
+            key={o.key}
+            className={`hq__focus-btn${focus === o.key ? " hq__focus-btn--on" : ""}`}
+            aria-pressed={focus === o.key}
+            disabled={!o.live}
+            onClick={() => pick(o.key)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {focus && (
+        <p className="hq__focus-note">
+          The team is crunching — {focus === "research" ? "the lab finishes sooner" : "manufacturing finishes sooner"}, but morale slips each week. Ease off once it's shipped.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+/** Board confidence (feature #5) — the memory on the mandate loop. Meeting mandates raises the board's
+ *  confidence (and your met-streak); a lapse drops it. The tier multiplies every mandate payout, so the
+ *  strip shows where you stand, the live payout multiplier, and the next tier to climb toward. */
+function BoardConfidenceStrip({ state }: { state: GameState }) {
+  const bc = BALANCE.legacyEra.boardConfidence;
+  const confidence = state.boardConfidence ?? bc.start;
+  const streak = state.mandateStreak ?? 0;
+  const tier = boardTier(confidence);
+  const next = nextBoardTier(confidence);
+  const mult = mandatePayoutMult(confidence, streak);
+  const streakBonus = mandateStreakBonus(streak);
+  const pct = Math.round((confidence / bc.max) * 100);
+  return (
+    <div className="hq__board">
+      <div className="hq__board-head">
+        <span className="hq__board-tier"><Landmark size={13} aria-hidden /> {tier.name}</span>
+        <span className="hq__board-mult tnum">×{mult.toFixed(2)} payout</span>
+      </div>
+      <div className="hq__board-bar" aria-hidden>
+        <div className="hq__board-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="hq__board-note">
+        {tier.note}
+        {streak > 0 && ` · ${streak}-quarter streak (+${Math.round(streakBonus * 100)}%)`}
+        {next && ` · reach ${next.minConfidence} confidence for ${next.name} (×${next.rewardMult.toFixed(2)})`}
+      </span>
+    </div>
+  );
+}
+
 /** Legacy Era (item 4.1) — the post-IPO endgame: the board's current mandate (with a live progress
  *  meter) and the moonshot megaproject slate the player funds for permanent prestige payoffs. */
-function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state: GameState; onFund: (id: string) => void; onBuyPerk: (id: string) => void; onAdvanceFrontier: () => void }) {
+function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state: GameState; onFund: (id: string) => void; onBuyPerk: (id: string) => void; onAdvanceFrontier: (lane: FrontierLaneId) => void }) {
   const mandate = state.boardMandate ?? null;
   const facts = mandateFacts(state);
   const slate = availableMegaprojects(state.megaprojectsFunded ?? []);
@@ -1082,7 +1183,7 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
   // (post-IPO): a permanent long-horizon track that never dead-ends.
   const frontierTier = state.frontierTier ?? 0;
   const frontierNextCost = frontierCost(frontierTier);
-  const frontierCur = frontierBonuses(frontierTier);
+  const frontierCur = frontierBonuses(frontierTier, state.frontierLanes); // reflect lane specialization
   const canAdvanceFrontier = legacyPoints >= frontierNextCost;
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const frontierSummary = frontierTier > 0
@@ -1103,6 +1204,7 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
           </span>
         </div>
       </div>
+      <BoardConfidenceStrip state={state} />
       {mandate && (
         <div className={`hq__contract${mandateComplete(mandate, facts) ? " hq__contract--done" : ""}`}>
           <div className="hq__contract-top">
@@ -1160,7 +1262,9 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
         </ul>
       )}
 
-      {/* Frontier Tech — the endless Legacy-Point sink past the finite tree (engine/frontier.ts). */}
+      {/* Frontier Tech — the endless Legacy-Point sink past the finite tree (engine/frontier.ts). Feature
+          #6: pick a LANE for the next tier (each pushes its own axis), and every 5-tier band grants a
+          one-time breakthrough unlock. */}
       <ul className="hq__contracts-list">
         <li className="hq__contract hq__frontier">
           <div className="hq__contract-top">
@@ -1170,14 +1274,56 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
             <span className="hq__contract-reward tnum">{frontierNextCost} LP</span>
           </div>
           <span className="hq__contract-remaining">{frontierSummary}</span>
-          <Button size="sm" block disabled={!canAdvanceFrontier} onClick={onAdvanceFrontier}>
-            <Cpu size={14} /> Advance the frontier
-          </Button>
+          {(() => {
+            const nextUnlock = nextFrontierBandUnlock(frontierTier);
+            return (
+              <span className="hq__frontier-band">
+                <Sparkles size={11} aria-hidden /> Next breakthrough at tier {nextUnlock.tier}: <strong>{nextUnlock.blurb}</strong>
+              </span>
+            );
+          })()}
+          <div className="hq__frontier-lanes">
+            {FRONTIER_LANES.map((lane) => {
+              const Icon = FRONTIER_LANE_ICONS[lane.id];
+              const owned = state.frontierLanes?.[lane.id] ?? 0;
+              return (
+                <button
+                  key={lane.id}
+                  className="hq__frontier-lane"
+                  disabled={!canAdvanceFrontier}
+                  onClick={() => onAdvanceFrontier(lane.id)}
+                  title={lane.blurb}
+                >
+                  <span className="hq__frontier-lane-head">
+                    <Icon size={13} aria-hidden /> {lane.name}
+                    {owned > 0 && <span className="hq__frontier-lane-count tnum">{owned}</span>}
+                  </span>
+                  <span className="hq__frontier-lane-eff">{lane.perTierLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="hq__frontier-cost">Each tier costs <b className="tnum">{frontierNextCost} LP</b>{canAdvanceFrontier ? "" : " — earn more from megaprojects"}</span>
+          {/* Autonomy Era gate (feature #3): the frontier grind is what unlocks the 5th era + its new
+              categories. Show the target while you're still in the AI Era below the threshold. */}
+          {state.era === BALANCE.autonomyEra.era - 1 && frontierTier < BALANCE.autonomyEra.tierToAdvance && (
+            <span className="hq__frontier-band">
+              <Sparkles size={11} aria-hidden /> Reach Frontier Tech tier {BALANCE.autonomyEra.tierToAdvance} to unlock the <strong>Autonomy Era</strong> — new frontier categories to build.
+            </span>
+          )}
         </li>
       </ul>
     </Card>
   );
 }
+
+/** Lane id → the lucide icon shown on its Frontier route button (feature #6). */
+const FRONTIER_LANE_ICONS: Record<FrontierLaneId, LucideIcon> = {
+  research: FlaskConical,
+  market: Megaphone,
+  operations: Factory,
+  design: PencilRuler,
+};
 
 /** The living fan community — mood thermometer + superfans + a rotating community-moment line. */
 function CommunityCard({ state }: { state: GameState }) {

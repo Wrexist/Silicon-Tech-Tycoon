@@ -8,6 +8,7 @@ import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { higherPriorityPending } from "../design/interruptPriority.ts";
+import { useDecisionOpen } from "../design/decisionInbox.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { DOCTRINE_LABEL } from "../engine/competitors.ts";
 import { haptic } from "../design/haptics.ts";
@@ -32,7 +33,9 @@ export function RivalryDeclared() {
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
   const higherUp = revealUp || higherPriorityPending(state, "rivalry");
-  const showing = rivalry !== null && !higherUp;
+  // Low-stakes announcement: it waits in the Decision Inbox banner and opens on the player's schedule.
+  const decisionOpen = useDecisionOpen();
+  const showing = rivalry !== null && decisionOpen && !higherUp;
 
   useHoldSim(showing);
   const cued = useRef(false);

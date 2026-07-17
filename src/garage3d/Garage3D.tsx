@@ -735,7 +735,9 @@ const SIT_LIFT = 0.4;
 
 // A worn head accessory (item 1.2) so the robot at the desk matches the employee on the roster card —
 // driven by Staff.appearance.accessory. Sits inside the head group (head sphere r≈0.33, eyes at z≈0.3).
-function HeadAccessory({ accessory, metal }: { accessory: Accessory; metal: string }) {
+// `hat` is a solid, saturated cap/beanie colour (the robot's dark shade) — NOT the near-white metal
+// used for the neck ring/antenna, which made a cap read as a white "balloon" swallowing the head.
+function HeadAccessory({ accessory, hat }: { accessory: Accessory; hat: string }) {
   if (accessory === "glasses")
     return (
       <group position={[0, 0.05, 0.31]}>
@@ -760,13 +762,13 @@ function HeadAccessory({ accessory, metal }: { accessory: Accessory; metal: stri
   if (accessory === "cap")
     return (
       <group position={[0, 0.24, 0]}>
-        <mesh><sphereGeometry args={[0.3, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={metal} roughness={0.6} /></mesh>
-        <mesh position={[0, -0.01, 0.26]} rotation-x={-0.2}><boxGeometry args={[0.34, 0.03, 0.22]} /><meshStandardMaterial color={metal} roughness={0.6} /></mesh>
+        <mesh><sphereGeometry args={[0.3, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={hat} roughness={0.6} /></mesh>
+        <mesh position={[0, -0.01, 0.26]} rotation-x={-0.2}><boxGeometry args={[0.34, 0.03, 0.22]} /><meshStandardMaterial color={hat} roughness={0.6} /></mesh>
       </group>
     );
   if (accessory === "beanie")
     return (
-      <mesh position={[0, 0.26, 0]}><sphereGeometry args={[0.32, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.62]} /><meshStandardMaterial color={metal} roughness={0.85} /></mesh>
+      <mesh position={[0, 0.26, 0]}><sphereGeometry args={[0.32, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.62]} /><meshStandardMaterial color={hat} roughness={0.85} /></mesh>
     );
   if (accessory === "earrings")
     return (
@@ -887,7 +889,7 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
           <mesh position={[0, 0.24, 0]}><sphereGeometry args={[0.05, 12, 12]} /><meshStandardMaterial color={moodColor ?? "#ff5a5a"} emissive={moodColor ?? "#ff5a5a"} emissiveIntensity={1.4} toneMapped={false} /></mesh>
         </group>
         {/* the employee's worn accessory (item 1.2) */}
-        <HeadAccessory accessory={accessory} metal={metal} />
+        <HeadAccessory accessory={accessory} hat={dark} />
       </group>
 
       {/* blob shadow — grounds a standing robot; skipped when seated (it would float at seat

@@ -18,7 +18,7 @@ import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type Eu
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
 import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
-import { generateBoardMandate, mandateComplete, mandateRewardSummary, megaprojectById, canFundMegaproject, availableMegaprojects, type MandateFacts } from "../engine/endgame.ts";
+import { generateBoardMandate, mandateComplete, mandateRewardSummary, effectiveMandateReward, boardTier, megaprojectById, canFundMegaproject, availableMegaprojects, type MandateFacts } from "../engine/endgame.ts";
 import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
@@ -150,7 +150,8 @@ import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecu
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
 import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
-import { frontierBonuses, frontierCost } from "../engine/frontier.ts";
+import { frontierBonuses, frontierCost, frontierBandsCrossed, frontierBandUnlockAt, type FrontierLaneId } from "../engine/frontier.ts";
+import { ascensionBarFactor, ascensionHeadStartFactor, clampAscension } from "../engine/ascension.ts";
 import type {
   Assignment,
   BuildJob,
@@ -214,6 +215,12 @@ export interface RivalStrike {
   productId: string;
   productName: string;
   playerOverall: number;
+  /** Feature #7 — set when the striker is your standing NEMESIS: the strike is a beat OF the feud, not
+   *  a context-free popup. The overlay frames it as a nemesis attack and the resolution feeds heat back
+   *  into the rivalry. Optional/absent → an ordinary strike (byte-identical for old saves + the sim). */
+  fromNemesis?: boolean;
+  /** The nemesis's rivalry heat at strike time (0..100), for the overlay's heat-tier framing. */
+  heat?: number;
 }
 
 /** A research waiting in the queue (paid up front, develops once it reaches the front). Same shape as
@@ -467,12 +474,31 @@ export interface GameState {
    *  Optional → undefined/0 on old saves and the pinned solo sim, which aggregates to the neutral
    *  bonus, so a run that never advances the frontier is byte-identical. */
   frontierTier?: number;
+  /** Frontier Lanes (feature #6) — how many of the owned frontier tiers were routed to each lane. Optional;
+   *  absent on pre-lanes saves (whose tiers keep the flat bonus) and the pinned sim → byte-identical. */
+  frontierLanes?: import("../engine/frontier.ts").FrontierLanes;
+  /** Ascension / Heat level chosen for THIS run at prestige (engine/ascension.ts) — raises the verdict
+   *  bars and cut the legacy head-start. Optional → 0 on a normal run and the pinned sim (which never
+   *  ascends), where every ascension modifier is the identity, so behaviour is byte-identical. */
+  ascensionLevel?: number;
   /** The board's current quarterly mandate (auto-resolves at its dueWeek). Optional/null on old saves. */
   boardMandate?: import("../engine/endgame.ts").BoardMandate | null;
   /** cumulativeRevenue when the current mandate was issued (to measure the quarter's revenue). */
   mandateStartRevenue?: Money;
   /** 0-based count of mandates issued since going public — drives the escalating bar. */
   mandateQuarter?: number;
+  /** Board confidence 0..100 (feature #5). Rises when a mandate is met, falls on a lapse; its TIER
+   *  multiplies mandate payouts. Optional — backfilled to the neutral start (×1.0 tier), so an old
+   *  post-IPO save keeps today's payout until it moves. */
+  boardConfidence?: number;
+  /** Consecutive board mandates met (resets to 0 on a lapse) — compounds a payout bonus. Optional. */
+  mandateStreak?: number;
+  /** Team Focus / Crunch (feature #4): the team is concentrated to RUSH this timer, shaving weeks at a
+   *  morale + overtime cost. undefined/null = normal pace (today's behavior). */
+  teamFocus?: "research" | "build" | null;
+  /** Accumulated extra research progress-weeks bought by crunching the lab (feature #4). Optional; resets
+   *  when the active research completes. Backfilled to 0, so a never-crunched save is byte-identical. */
+  researchSurgeWeeks?: number;
   /** The Silicon Awards ceremony waiting to be shown (week 52, 104, …). Set by the tick as a pure
    *  derivation (no RNG, no economy change); rep/fan rewards land only via the player-opt-in
    *  collectAwards. Optional/null → golden-invariant safe. */
@@ -685,8 +711,18 @@ export function legacyBonus(level: number): LegacyBonus {
   };
 }
 
-export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): GameState {
-  const lb = legacyBonus(legacy);
+export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, ascension = 0): GameState {
+  // Ascension / Heat cuts the legacy head-start (factor 1 at Heat 0, so a normal founding + the pinned
+  // sim's newGame(seed) are byte-identical). scale(x, 1) is the identity, so this is a no-op at Heat 0.
+  const heat = clampAscension(ascension);
+  const hs = ascensionHeadStartFactor(heat);
+  const lbRaw = legacyBonus(legacy);
+  const lb = {
+    cash: scale(lbRaw.cash, hs) as Money,
+    reputation: Math.round(lbRaw.reputation * hs),
+    fans: Math.round(lbRaw.fans * hs),
+    rp: Math.round(lbRaw.rp * hs),
+  };
   const rng = makeRng(seed);
   const trends = initialTrends(rng);
   const competitors = initCompetitors(rng);
@@ -763,6 +799,8 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0): Gam
     tutorialDone: false,
     wentPublic: false,
     legacy,
+    // Optional — omitted entirely at Heat 0 so a normal founding is byte-identical (no new field).
+    ...(heat > 0 ? { ascensionLevel: heat } : {}),
     listed: false,
     ownership: 1,
     valuationMomentum: 0,
@@ -996,7 +1034,7 @@ export const prestigeBonuses = (s: GameState): PerkBonus => {
   // Frontier Tech — the endless Legacy-Point sink past the finite tree, folded through the SAME
   // aggregation so it applies everywhere at once. frontierTier 0/undefined → all-zero, so the pinned
   // solo sim (never IPOs → never buys a tier) and every existing save stay byte-identical.
-  const front = frontierBonuses(s.frontierTier);
+  const front = frontierBonuses(s.frontierTier, s.frontierLanes);
   return {
     designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling,
     hype: base.hype + tree.hype + front.hype,
@@ -1048,6 +1086,7 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "gtmHype") ? 0.30 : 0) + // Go-to-Market doctrine: Hype House
   (hasProject(s.completedProjects, "growthEngine") ? 0.20 : 0) +   // Era-2 capstone (item 4.2)
   (hasProject(s.completedProjects, "singularityLab") ? 0.20 : 0) + // Era-4 capstone (item 4.2)
+  (hasProject(s.completedProjects, "autonomyLab") ? 0.25 : 0) +    // Era-5 (Autonomy) capstone
   visionaryHype(s.staff) + marketingHype(s.upgrades) + prestigeBonuses(s).hype + brandAwarenessHype(s);
 
 /** Launch-hype bonus after any challenge RULE (item 5.4): a Marketing Blackout collapses it to a
@@ -1082,6 +1121,8 @@ export function productStats(s: GameState, product: Product): Stats {
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
   if (hasProject(s.completedProjects, "aiCopilot")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 4;
   if (hasProject(s.completedProjects, "singularityLab")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 3; // Era-4 capstone (item 4.2)
+  if (hasProject(s.completedProjects, "frontierLabs")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 6; // Era-5 (Autonomy)
+  if (hasProject(s.completedProjects, "autonomyLab")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 5;  // Era-5 (Autonomy) capstone
   // Engineering Doctrine fork (Track D): the chosen house stamps a permanent stat identity on every
   // product. Mutually exclusive, so at most one of these ever applies.
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
@@ -1272,6 +1313,7 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   const assembly = (lineMult < 1 ? Math.max(1, Math.floor(contract * lineMult)) : contract)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0)
     - (hasProject(s.completedProjects, "lightsOut") ? 1 : 0)
+    - (hasProject(s.completedProjects, "autonomousOps") ? 1 : 0) // Era-5 (Autonomy)
     - (hasProject(s.completedProjects, "opsSpeed") ? 1 : 0); // Operations doctrine: Speed House
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
   // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
@@ -1713,6 +1755,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const rng = rngFrom(state);
   const week = state.week + 1;
 
+  // Team Focus / Crunch (feature #4): the team is concentrated to RUSH one timer. OFF (null/undefined)
+  // is today's behavior. Offline catch-up never crunches (an irreversible morale hit the player couldn't
+  // react to), and it needs a real roster — so a solo founder (and the pinned sim) is byte-identical.
+  const tf = BALANCE.teamFocus;
+  const focus = state.teamFocus ?? null;
+  const canCrunch = !offline && focus !== null && state.staff.length >= tf.minTeam;
+  const crunchingResearch = canCrunch && focus === "research" && !!state.activeResearch;
+  const crunchingBuild = canCrunch && focus === "build" && state.building.length > 0;
+  const crunching = crunchingResearch || crunchingBuild;
+
   // Trends
   let trends = state.trends;
   let trendRetargetWeek = state.trendRetargetWeek;
@@ -1761,7 +1813,18 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let cash = state.cash;
   let cumulativeRevenue = state.cumulativeRevenue;
   const productsFeed: FeedItem[] = [];
-  const launched = state.launched.map((lp) => {
+  // Live Product Ops (feature #2): deliver arrived reorders + place this week's standing orders BEFORE
+  // sales, so freshly-landed stock can sell immediately. Online only (an auto-order is a deliberate
+  // spend the player couldn't veto during offline catch-up), and gated on a per-product `ops` policy —
+  // so a run that never sets one (and the pinned solo sim) is byte-identical.
+  let opsBase: readonly LaunchedProduct[] = state.launched;
+  if (!offline) {
+    const opsRes = applyProductOps(state, state.launched, week, cash);
+    opsBase = opsRes.launched;
+    cash = opsRes.cash;
+    for (const f of opsRes.feed) productsFeed.push(f);
+  }
+  const launched = opsBase.map((lp) => {
     if (lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
     const units = lp.weeklyUnits[lp.weeksElapsed];
     // Sales — and the revenue booked for them — are hard-capped to the production run. A price cut
@@ -1829,6 +1892,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
 
   // Burn
   cash = sub(cash, scale(burn(state), rate));
+
+  // Crunch overtime (feature #4): rushing a timer runs the team on paid overtime — a weekly cost per
+  // head while crunching. Zero when not crunching (and offline), so a normal run is byte-identical.
+  if (crunching) cash = sub(cash, scale(dollars(state.staff.length * tf.overtimeCostPerHead), rate));
 
   // Item C3 — late-era operating drag: a frontier-scale company costs more to run the bigger it gets,
   // so the endgame stops being a free ratchet. ZERO before the drag era → early game & the pinned
@@ -1921,8 +1988,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (!contestedCats.has(lp.product.category) || lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
     const haircut = 1 - BALANCE.market.competition.rivalEntrySalesHaircut;
     const weeklyUnits = lp.weeklyUnits.map((u, i) => (i >= lp.weeksElapsed ? Math.round(u * haircut) : u));
+    const oldRemaining = lp.weeklyUnits.slice(lp.weeksElapsed).reduce((a, b) => a + b, 0);
     const remaining = weeklyUnits.slice(lp.weeksElapsed).reduce((a, b) => a + b, 0);
-    return { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
+    const next: LaunchedProduct = { ...lp, weeklyUnits, totalUnits: lp.unitsSold + remaining };
+    // A rival stealing remaining demand must NOT quietly become reorder headroom for a standing ops
+    // policy (headroom = demandTotal − supply − in-transit; dropping totalUnits would inflate it). Cut
+    // the policy's demand ceiling by the same units the haircut removed, so the loss stays a loss.
+    if (next.ops) {
+      const lost = Math.max(0, oldRemaining - remaining);
+      next.ops = { ...next.ops, demandTotal: Math.max(next.totalUnits, next.ops.demandTotal - lost) };
+    }
+    return next;
   });
 
   // Arch-rival clash signals harvested this tick (strike / overtake / awards duel) → fed to the nemesis
@@ -1955,13 +2031,20 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     contestedCats.size > 0 &&
     week - (state.lastStrikeWeek ?? -999) >= BALANCE.market.competition.strike.cooldownWeeks
   ) {
-    const release = rivalReleases.find((r) => r.week === week && contestedCats.has(r.category));
+    // Feature #7 — the feud concentrates on ONE villain: if your standing nemesis released into a
+    // contested category this week, it strikes (a beat of the rivalry). Otherwise any contesting rival
+    // does, and that strike may FORM a nemesis (the "struck" clash below). Gated on a nemesis, which the
+    // pinned sim never forms, so the fallback `.find` path is byte-identical.
+    const nemId = state.nemesis?.rivalId;
+    const contesting = rivalReleases.filter((r) => r.week === week && contestedCats.has(r.category));
+    const release = (nemId && contesting.find((r) => r.rivalId === nemId)) || contesting[0] || undefined;
     const target = release
       ? launchedFinal
           .filter((lp) => lp.product.category === release.category && lp.weeksElapsed < lp.weeklyUnits.length)
           .reduce<(typeof launchedFinal)[number] | null>((a, b) => (!a || b.launchedWeek > a.launchedWeek ? b : a), null)
       : null;
     if (release && target) {
+      const byNemesis = !!nemId && release.rivalId === nemId;
       pendingStrike = {
         week,
         rivalId: release.rivalId,
@@ -1972,9 +2055,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         productId: target.product.id,
         productName: target.product.name,
         playerOverall: overallScore(target.stats, target.product.category),
+        ...(byNemesis ? { fromNemesis: true, heat: state.nemesis!.heat } : {}),
       };
       lastInterruptWeek = week; // consume the interrupt budget so nothing else piles on this week
-      // The aggressor picks a fight → a nemesis-forming clash (they landed the blow).
+      // The aggressor picks a fight → a nemesis-forming clash (they landed the blow), or stokes the
+      // standing feud if this striker already IS the nemesis.
       clashSignals.push({ kind: "struck", rivalId: release.rivalId });
     }
   }
@@ -2048,15 +2133,28 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Manufacturing: advance build jobs; completed ones move to the "ready" shelf
   const building: BuildJob[] = [];
   const ready = [...state.ready];
-  for (const job of state.building) {
-    const weeksElapsed = job.weeksElapsed + rate;
+  // Crunch (feature #4) concentrates the team to RUSH one timer — so the surge lands on a single build
+  // job, not every in-flight one at once. Pick the job nearest completion (the one the team is pushing
+  // over the line); ties resolve to the first queued, keeping it deterministic.
+  let surgeIdx = -1;
+  if (crunchingBuild) {
+    let bestRemaining = Infinity;
+    state.building.forEach((job, i) => {
+      const remaining = job.totalWeeks - job.weeksElapsed;
+      if (remaining < bestRemaining) { bestRemaining = remaining; surgeIdx = i; }
+    });
+  }
+  state.building.forEach((job, i) => {
+    // Crunch (feature #4) shaves weeks off manufacturing: extra progress on the one rushed job.
+    const surge = i === surgeIdx ? tf.buildSurgePerTick * rate : 0;
+    const weeksElapsed = job.weeksElapsed + rate + surge;
     if (weeksElapsed >= job.totalWeeks) {
       ready.push(job.product);
       feed.push(feedItem(week, `“${job.product.name}” finished manufacturing, ready to launch.`, "accent"));
     } else {
       building.push({ ...job, weeksElapsed });
     }
-  }
+  });
 
   // Staff XP / leveling + mood drift + churn
   const cashDropping = cash < state.cash;
@@ -2084,6 +2182,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (s.trait === "hustler") target -= 12;
     if (cashDropping) target -= 12;
     else target += 6;
+    // Crunch (feature #4): concentrating the team to rush a timer wears on morale — a sustained crunch
+    // pulls the whole team toward burnout (and eventual churn), the cost that keeps it a real choice.
+    if (crunching) target -= tf.crunchMoodDrain;
     const lift = teamPlayers * 1.5 + (hasPeopleLead ? hrCfg.weeklyMoodLift : 0);
     // Underpaid penalty: salary lagging behind skill level pulls mood target down. A People Lead
     // mediates, absorbing part of the sting (they can't fix the player's wallet, only the morale).
@@ -2356,7 +2457,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // the SAME effect as the instant path, just delayed — then pull the next queued research up to
   // develop. The RP was paid at start. Gated on an active research, which the pinned solo sim never
   // starts → activeResearch stays null (+ empty queue) → byte-identical.
-  if (base.activeResearch && week - base.activeResearch.startWeek >= base.activeResearch.totalWeeks) {
+  //
+  // Crunch (feature #4) buys extra progress-weeks (researchSurgeWeeks) toward the active research, so a
+  // focused lab finishes early. The accumulator only grows while crunching (undefined by default), so a
+  // never-crunched save never writes the field and stays byte-identical.
+  let researchSurge = base.researchSurgeWeeks ?? 0;
+  if (crunchingResearch && base.activeResearch) researchSurge += tf.researchSurgePerTick * rate;
+  if (base.activeResearch && (week - base.activeResearch.startWeek) + researchSurge >= base.activeResearch.totalWeeks) {
     const a = base.activeResearch;
     if (a.kind === "tier" && a.tierLevel != null) {
       base.researched = { ...base.researched, [a.ref as ComponentKind]: a.tierLevel };
@@ -2364,6 +2471,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       base.completedProjects = [...base.completedProjects, a.ref as ProjectId];
     }
     base.feed.push(feedItem(week, `Research complete: ${a.name} is ready.`, "positive"));
+    researchSurge = 0; // the next research starts its own crunch clock fresh
     // Advance the queue: the next lined-up research starts developing this same week.
     const queue = base.researchQueue ?? [];
     if (queue.length > 0) {
@@ -2375,6 +2483,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       base.activeResearch = null;
     }
   }
+  // Persist the crunch accumulator only when it's in play (or already present), so a never-crunched
+  // run never gains the field — the golden snapshot stays byte-identical.
+  if (crunchingResearch || base.researchSurgeWeeks != null) base.researchSurgeWeeks = researchSurge;
 
   // Rival poaching (Track C): a rival on the rise occasionally tries to hire away one of your best —
   // surfaced as a counter-offer DECISION, not a silent stat drop. A DERIVED rng keeps the main sim
@@ -2557,6 +2668,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     let mandate = base.boardMandate ?? null;
     let mandateQuarter = base.mandateQuarter ?? 0;
     let mandateStartRevenue = base.mandateStartRevenue ?? base.cumulativeRevenue;
+    // Board confidence (feature #5) — backfilled to the neutral start (×1.0 tier) so an existing
+    // post-IPO save keeps today's payout until confidence actually moves.
+    const bc = BALANCE.legacyEra.boardConfidence;
+    let confidence = base.boardConfidence ?? bc.start;
+    let streak = base.mandateStreak ?? 0;
     if (mandate && week >= mandate.dueWeek) {
       const facts: MandateFacts = {
         quarterRevenue: toDollars(sub(base.cumulativeRevenue, mandateStartRevenue)),
@@ -2565,11 +2681,19 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         rank: industryRank(base),
       };
       if (mandateComplete(mandate, facts)) {
-        base.cash = add(base.cash, mandate.reward.cash);
-        base.reputation = Math.min(BALANCE.reputation.max, base.reputation + mandate.reward.rep);
-        base.feed.push(feedItem(week, `Board mandate met — “${mandate.title}”. ${mandateRewardSummary(mandate)} awarded.`, "positive"));
+        // Pay out at the confidence/streak you'd BUILT (before this met bumps them), so the reward
+        // reflects the board you earned. A confident board pays a premium; a long streak compounds it.
+        const eff = effectiveMandateReward(mandate.reward, confidence, streak);
+        base.cash = add(base.cash, eff.cash);
+        base.reputation = Math.min(BALANCE.reputation.max, base.reputation + eff.rep);
+        streak += 1;
+        confidence = Math.min(bc.max, confidence + bc.gainOnMet);
+        const bonusNote = eff.mult > 1.005 ? ` (×${eff.mult.toFixed(2)} board bonus)` : "";
+        base.feed.push(feedItem(week, `Board mandate met — “${mandate.title}”. $${Math.round(toDollars(eff.cash) / 1e6)}M + ${eff.rep} reputation awarded${bonusNote}. Board confidence: ${boardTier(confidence).name}.`, "positive"));
       } else {
-        base.feed.push(feedItem(week, `Board mandate lapsed — “${mandate.title}” went unmet this quarter.`, "neutral"));
+        streak = 0;
+        confidence = Math.max(bc.min, confidence - bc.lossOnLapse);
+        base.feed.push(feedItem(week, `Board mandate lapsed — “${mandate.title}” went unmet. Board confidence slips to ${boardTier(confidence).name}.`, "neutral"));
       }
       mandate = null;
     }
@@ -2586,6 +2710,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     base.boardMandate = mandate;
     base.mandateQuarter = mandateQuarter;
     base.mandateStartRevenue = mandateStartRevenue;
+    base.boardConfidence = confidence;
+    base.mandateStreak = streak;
   }
 
   // Industry leaderboard: this tick's sales grew cumulativeRevenue → companyValuation, so re-rank
@@ -3701,6 +3827,108 @@ export function restockProduct(state: GameState, productId: string, units: numbe
   return { state: { ...state, cash: sub(state.cash, cost), launched, feed }, ok: true };
 }
 
+// ---- Live Product Ops (feature #2): a standing auto-reorder policy with lead time --------------------
+// Instead of the one-tap restock, the player can set a per-product reorder RATE. Each week the tick tops
+// supply up toward the product's realized demand, and every order arrives after a lead time — so a
+// sell-out becomes a timed "reorder now and hope the wave hasn't passed" bet. Bounded by a demand
+// snapshot (never mints sales past the market's appetite) and entirely opt-in: a product with no `ops`
+// runs the exact legacy curve, so the pinned solo sim (which ships nothing) is byte-identical.
+
+/** Weeks before an auto-reorder is delivered: a base lead plus the era's build lead (bigger, slower). */
+export function reorderLeadWeeks(s: GameState): number {
+  return BALANCE.restock.leadWeeks + eraModifier(s.era).leadWeeks;
+}
+
+/** Set (or clear) a launched product's standing auto-reorder rate. Snapshots the product's realized
+ *  demand the first time a policy is set — the hard ceiling on total reorders. Pure. */
+export function setReorderRate(state: GameState, productId: string, rate: number): ActionResult {
+  const idx = state.launched.findIndex((l) => l.product.id === productId);
+  if (idx < 0) return { state, ok: false, reason: "Product not found." };
+  const lp = state.launched[idx];
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "This product's run has ended." };
+  const clamped = Math.max(0, Math.min(BALANCE.restock.maxRatePerWeek, Math.round(rate)));
+  // demandTotal is snapshotted once (kept across rate changes so re-tuning never re-inflates the ceiling).
+  const existing = lp.ops;
+  let demandTotal = existing?.demandTotal;
+  if (demandTotal == null) {
+    const quote = restockQuote(state, lp);
+    demandTotal = lp.totalUnits + (quote?.maxUnits ?? 0);
+  }
+  // Turning the policy fully off with nothing in transit clears ops entirely (back to the plain curve).
+  const pending = existing?.pending ?? [];
+  if (clamped === 0 && pending.length === 0) {
+    if (!existing) return { state, ok: true }; // already off — no-op
+    const launched = [...state.launched];
+    const { ops: _drop, ...rest } = lp;
+    launched[idx] = rest;
+    return { state: { ...state, launched }, ok: true };
+  }
+  const launched = [...state.launched];
+  launched[idx] = { ...lp, ops: { reorderRate: clamped, demandTotal, pending } };
+  return { state: { ...state, launched }, ok: true };
+}
+
+/** The tick's Live-Product-Ops pass: deliver arrived reorders and place this week's standing order,
+ *  for every product carrying an `ops` policy. Returns the updated products, the cash spent on new
+ *  orders, and any delivery feed lines. Products without `ops` pass through untouched (same reference),
+ *  so a run that never sets a policy is byte-identical. PURE. */
+export function applyProductOps(
+  s: GameState,
+  launched: readonly LaunchedProduct[],
+  week: number,
+  cash: Money,
+): { launched: LaunchedProduct[]; cash: Money; feed: FeedItem[] } {
+  const lead = reorderLeadWeeks(s);
+  const feed: FeedItem[] = [];
+  let cashLeft = cash;
+  const out = launched.map((lp) => {
+    const ops = lp.ops;
+    if (!ops) return lp; // no policy → untouched (byte-identical path)
+    const selling = lp.weeksElapsed < lp.weeklyUnits.length;
+    const pending = ops.pending ?? [];
+    const arrived = pending.filter((p) => p.arriveWeek <= week);
+    const stillPending = pending.filter((p) => p.arriveWeek > week);
+
+    let weeklyUnits = lp.weeklyUnits;
+    let totalUnits = lp.totalUnits;
+    // Deliver arrived orders onto the curve from the current week (renewed availability), the same
+    // overlay the manual restock uses. An order that lands after the run has ended is lost stock — the
+    // markdown risk of ordering too late (the wave passed).
+    const landedUnits = arrived.reduce((a, p) => a + p.units, 0);
+    if (landedUnits > 0 && selling) {
+      const next = [...weeklyUnits];
+      for (const order of arrived) {
+        const wave = distributeOverCurve(order.units);
+        for (let i = 0; i < wave.length; i++) next[lp.weeksElapsed + i] = (next[lp.weeksElapsed + i] ?? 0) + wave[i];
+      }
+      weeklyUnits = next;
+      totalUnits += landedUnits;
+      feed.push(feedItem(week, `Reorder landed for “${lp.product.name}” — ${landedUnits.toLocaleString()} units back on the shelf.`, "accent"));
+    }
+
+    // Place this week's standing order, bounded by remaining demand headroom (demandTotal − supply −
+    // in-transit) and by what the company can afford right now.
+    let newPending = stillPending;
+    if (ops.reorderRate > 0 && selling) {
+      const inTransit = stillPending.reduce((a, p) => a + p.units, 0);
+      const headroom = Math.max(0, ops.demandTotal - totalUnits - inTransit);
+      let want = Math.min(ops.reorderRate, headroom);
+      if (want >= 1) {
+        const unitCost = effectiveUnitCost(s, lp.product);
+        const affordable = Math.floor(toDollars(cashLeft) / Math.max(1, toDollars(unitCost)));
+        want = Math.min(want, affordable);
+        if (want >= 1) {
+          cashLeft = sub(cashLeft, scale(unitCost, want));
+          newPending = [...stillPending, { arriveWeek: week + lead, units: want }];
+        }
+      }
+    }
+
+    return { ...lp, weeklyUnits, totalUnits, ops: { ...ops, pending: newPending } };
+  });
+  return { launched: out, cash: cashLeft, feed };
+}
+
 /** How the player answers a Rival Strike. All three are OPT-IN (the pinned sim never calls this),
  *  so the strike system adds pressure the player can feel without moving the tuned baseline. */
 export type StrikeResponse = "price" | "campaign" | "hold";
@@ -3716,7 +3944,36 @@ export function resolveStrike(state: GameState, choice: StrikeResponse): ActionR
   const strike = state.pendingStrike;
   if (!strike) return { state, ok: false, reason: "No rival strike to answer." };
   const cfg = BALANCE.market.competition.strike;
-  const cleared: GameState = { ...state, pendingStrike: null, lastStrikeWeek: state.week };
+  // Feature #7 — how you answer your NEMESIS feeds the feud's heat + head-to-head record, so a strike
+  // is a real beat of the rivalry, not a throwaway popup. Standing your ground and out-classing them is
+  // a win you BANK; getting caught out is one they bank; either way the heat climbs a notch. Only when
+  // the striker is the nemesis (fromNemesis) and it's still your nemesis this week — otherwise a no-op,
+  // so ordinary strikes and old saves are byte-identical.
+  const feudNemesis = strike.fromNemesis && state.nemesis && state.nemesis.rivalId === strike.rivalId
+    ? state.nemesis
+    : null;
+  const escalateFeud = (n: NonNullable<GameState["nemesis"]>): NonNullable<GameState["nemesis"]> => {
+    const h = BALANCE.competitors.nemesis.heat;
+    // hold + you outclass them → you repelled the attack (player win); a losing hold → they land it
+    // (rival win); paying to answer (price/campaign) → you fought back (player win).
+    const playerBested = choice === "hold" ? strike.playerOverall >= strike.rivalOverall : true;
+    const heatAdd = playerBested ? h.overtake : h.struck;
+    const heat = Math.max(0, Math.min(100, n.heat + heatAdd));
+    return {
+      ...n,
+      heat,
+      peakHeat: Math.max(n.peakHeat, heat),
+      playerWins: n.playerWins + (playerBested ? 1 : 0),
+      rivalWins: n.rivalWins + (playerBested ? 0 : 1),
+      lastClashWeek: state.week,
+    };
+  };
+  const cleared: GameState = {
+    ...state,
+    pendingStrike: null,
+    lastStrikeWeek: state.week,
+    ...(feudNemesis ? { nemesis: escalateFeud(feudNemesis) } : {}),
+  };
   const feedLine = (g: GameState, text: string, tone: FeedTone): GameState => {
     const feed = [...g.feed];
     feed.push(feedItem(state.week, text, tone));
@@ -4104,11 +4361,18 @@ export function projectResearchStatus(s: GameState, id: ProjectId): ResearchSlot
   return researchQueueList(s).some((q) => q.kind === "project" && q.ref === id) ? "queued" : null;
 }
 
-/** Whole weeks remaining on the active research (0 when idle or finishing this week). */
+/** Whole weeks remaining on the active research (0 when idle or finishing this week). Counts crunch
+ *  progress (feature #4) so the countdown reflects a focused lab. */
 export function researchWeeksLeft(s: GameState): number {
   const a = s.activeResearch;
   if (!a) return 0;
-  return Math.max(0, a.totalWeeks - (s.week - a.startWeek));
+  return Math.max(0, Math.ceil(a.totalWeeks - (s.week - a.startWeek) - (s.researchSurgeWeeks ?? 0)));
+}
+
+/** Set (or clear) the team's crunch focus (feature #4). null = normal pace. Pure. */
+export function setTeamFocus(state: GameState, focus: "research" | "build" | null): GameState {
+  if ((state.teamFocus ?? null) === focus) return state;
+  return { ...state, teamFocus: focus };
 }
 
 /** Place a paid research spec: start it if the lab is idle, else append it to the queue. Returns the
@@ -4299,9 +4563,15 @@ export function unlockPlatform(state: GameState, on: boolean): GameState {
 
 /** The one-time cash cost to found the Platform division — a major reinvestment milestone. */
 export const platformFoundingCost = (): Money => BALANCE.platform.foundingCost;
-/** Can the player found the division right now (not yet founded, and can afford it)? */
+/** Can the player found the division right now? Not yet founded, can afford the (heftier) cost, AND
+ *  has earned it — a respected brand (reputation) with a proven hardware track record (shipped count).
+ *  So a platform is a milestone you build up to, not a thing a nobody unlocks the instant they've saved
+ *  the cash. Sim-safe: never called in the tick; the pinned auto-player never founds the division. */
 export const canFoundPlatform = (s: GameState): boolean =>
-  !s.platformUnlocked && s.cash >= BALANCE.platform.foundingCost;
+  !s.platformUnlocked &&
+  s.cash >= BALANCE.platform.foundingCost &&
+  s.reputation >= BALANCE.platform.foundingMinReputation &&
+  s.launched.length >= BALANCE.platform.foundingMinShipped;
 
 export interface NavAttention { hq: boolean; design: boolean; research: boolean; market: boolean; company: boolean }
 
@@ -4340,9 +4610,10 @@ export function navAttention(s: GameState): NavAttention {
 /** Found the Platform division: pay the founding cost and bring your OS up as a first-class business.
  *  No-op if already founded or unaffordable. The earned, in-game path to the OS (vs. a free toggle). */
 export function foundPlatform(state: GameState): GameState {
-  if (state.platformUnlocked) return state;
+  // Enforce the full gate (cost + earned reputation + shipped track record), not just cash, so the
+  // reducer can't be driven past the requirement the UI shows.
+  if (!canFoundPlatform(state)) return state;
   const cost = BALANCE.platform.foundingCost;
-  if (state.cash < cost) return state;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Founded the Platform division, ${osDisplayName(state)} is now a business in its own right.`, "positive"));
   return { ...state, cash: sub(state.cash, cost) as Money, platformUnlocked: true, feed: trimFeed(feed) };
@@ -4960,15 +5231,20 @@ export function researchReady(state: GameState): boolean {
 }
 
 export function canAdvance(state: GameState): boolean {
-  return (
-    state.era < maxEra() &&
-    canAdvanceEra(state.era, state.reputation, state.cumulativeRevenue)
-  );
+  if (state.era >= maxEra()) return false;
+  // AI Era → Autonomy Era (era 5): the ONLY step gated on going PUBLIC + pushing Frontier Tech to a
+  // threshold, NOT the usual rep/rev bars (the AI Era's are Infinity). The pinned solo sim never IPOs,
+  // so it never reaches this branch → byte-identical.
+  if (state.era + 1 === BALANCE.autonomyEra.era) {
+    return state.wentPublic && (state.frontierTier ?? 0) >= BALANCE.autonomyEra.tierToAdvance;
+  }
+  return canAdvanceEra(state.era, state.reputation, state.cumulativeRevenue);
 }
 
-/** The company can go public once it's reached the final era with strong reputation. */
+/** The company can go public once it's reached the IPO era (the AI Era — a FIXED gate, not maxEra(),
+ *  so the post-IPO Autonomy Era can't deadlock it) with strong reputation. */
 export function canIPO(state: GameState): boolean {
-  return !state.wentPublic && state.era >= maxEra() && state.reputation >= BALANCE.ipo.minReputation;
+  return !state.wentPublic && state.era >= BALANCE.ipo.minEra && state.reputation >= BALANCE.ipo.minReputation;
 }
 
 /** A headline valuation for the IPO celebration: lifetime revenue × a multiple, plus a CUBIC
@@ -5053,20 +5329,32 @@ export function buyLegacyPerk(state: GameState, id: string): ActionResult {
   };
 }
 
-/** Advance Frontier Tech one tier — the endless Legacy-Point sink past the finite tree. Spends the
- *  escalating cost, bumps `frontierTier`, and the new boon folds through `prestigeBonuses` next tick.
- *  Gated on wentPublic + affordability. Opt-in — the pinned sim never IPOs, so it never buys → identical. */
-export function buyFrontierTier(state: GameState): ActionResult {
+/** Advance Frontier Tech one tier, routed to a chosen LANE (feature #6) — the endless Legacy-Point sink
+ *  past the finite tree. Spends the escalating cost, bumps `frontierTier` + the lane's count, and the new
+ *  boon folds through `prestigeBonuses` next tick. Crossing a 5-tier band boundary announces its one-time
+ *  unlock. Gated on wentPublic + affordability. Opt-in — the pinned sim never IPOs, so it never buys.
+ *  `lane` defaults to "research" so any legacy caller keeps advancing (research is the old research-forward
+ *  default), but the UI always passes an explicit route. */
+export function buyFrontierTier(state: GameState, lane: FrontierLaneId = "research"): ActionResult {
   if (!state.wentPublic) return { state, ok: false, reason: "Available after going public." };
   const tier = state.frontierTier ?? 0;
   const cost = frontierCost(tier);
   if ((state.legacyPoints ?? 0) < cost) return { state, ok: false, reason: `Needs ${cost} Legacy Points.` };
-  const feed = [...state.feed, feedItem(state.week, `Frontier Tech advanced to tier ${tier + 1} — your labs push past the industry's ceiling.`, "positive")];
+  const nextTier = tier + 1;
+  const lanes = state.frontierLanes ?? {};
+  const nextLanes = { ...lanes, [lane]: (lanes[lane] ?? 0) + 1 };
+  const feed = [...state.feed, feedItem(state.week, `Frontier Tech advanced to tier ${nextTier} — your labs push past the industry's ceiling.`, "positive")];
+  // A crossed band boundary is the discrete "you earned something" beat — announce its unlock.
+  if (frontierBandsCrossed(nextTier) > frontierBandsCrossed(tier)) {
+    const unlock = frontierBandUnlockAt(frontierBandsCrossed(nextTier));
+    feed.push(feedItem(state.week, `Frontier breakthrough — ${unlock.name}: ${unlock.blurb}.`, "positive"));
+  }
   return {
     state: {
       ...state,
       legacyPoints: (state.legacyPoints ?? 0) - cost,
-      frontierTier: tier + 1,
+      frontierTier: nextTier,
+      frontierLanes: nextLanes,
       feed: trimFeed(feed),
     },
     ok: true,
@@ -5452,10 +5740,13 @@ export function launchBars(state: GameState): { hit: number; solid: number; flop
   const exp = Math.max(0, state.launchExpectation ?? 0);
   const hitRaw = Math.max(base.hit, exp * x.hitMargin);
   const hit = hasProject(state.completedProjects, "hitFactory") ? hitRaw * 0.88 : hitRaw;
+  // Ascension / Heat raises every verdict bar (harder to hit, easier to flop). Factor is 1 at Heat 0
+  // (and undefined), so a normal run + the pinned sim are unchanged.
+  const heat = ascensionBarFactor(state.ascensionLevel);
   return {
-    hit: Math.round(hit),
-    solid: Math.round(Math.max(base.solid, exp * x.solidMargin)),
-    flop: Math.round(Math.max(base.flop, exp * x.flopMargin)),
+    hit: Math.round(hit * heat),
+    solid: Math.round(Math.max(base.solid, exp * x.solidMargin) * heat),
+    flop: Math.round(Math.max(base.flop, exp * x.flopMargin) * heat),
   };
 }
 

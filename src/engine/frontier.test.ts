@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_BASE_COST } from "./frontier.ts";
+import {
+  frontierCost, frontierBonuses, frontierBandName, FRONTIER_BASE_COST,
+  FRONTIER_LANES, laneTotal, frontierBandsCrossed, frontierBandUnlockAt, nextFrontierBandUnlock,
+} from "./frontier.ts";
 
 describe("frontier tech ladder", () => {
   it("undefined / zero tier is a pure no-op (byte-identical to no frontier at all)", () => {
@@ -43,5 +46,68 @@ describe("frontier tech ladder", () => {
     expect(frontierBandName(6)).toBe("Deep Frontier");
     expect(frontierBandName(11)).toBe("Quantum Frontier");
     expect(frontierBandName(9999)).toBe("Singularity Frontier"); // clamps to the last band
+  });
+});
+
+describe("frontier lanes & band unlocks (feature #6)", () => {
+  it("no lanes → EXACTLY the legacy flat bonus (existing saves are byte-identical)", () => {
+    for (const t of [0, 1, 5, 10, 25]) {
+      expect(frontierBonuses(t)).toEqual(frontierBonuses(t, undefined));
+      expect(frontierBonuses(t, {})).toEqual(frontierBonuses(t)); // empty lanes = no lanes
+    }
+    // still research-forward on the legacy path
+    expect(frontierBonuses(5).rpMult).toBeCloseTo(0.25, 5);
+  });
+
+  it("each lane pushes its own axis harder than the generalist tier did", () => {
+    // 4 research tiers vs 4 market tiers vs 4 ops tiers — each dominates its own axis.
+    const research = frontierBonuses(4, { research: 4 });
+    const market = frontierBonuses(4, { market: 4 });
+    const ops = frontierBonuses(4, { operations: 4 });
+    expect(research.rpMult).toBeGreaterThan(market.rpMult);
+    expect(market.hype).toBeGreaterThan(research.hype);
+    expect(ops.buildCostMult).toBeGreaterThan(research.buildCostMult);
+    // a specialist beats the old flat tier on its own axis
+    expect(research.rpMult).toBeGreaterThan(frontierBonuses(4).rpMult);
+  });
+
+  it("the design lane raises the ceiling every 4 tiers", () => {
+    expect(frontierBonuses(3, { design: 3 }).designCeiling).toBe(0);
+    expect(frontierBonuses(4, { design: 4 }).designCeiling).toBeGreaterThanOrEqual(1);
+  });
+
+  it("legacy tiers keep the flat bonus; new lane tiers stack on top", () => {
+    // A save with 5 pre-lane tiers that then buys a 6th into research: the 5 keep flat, the 6th adds lane.
+    const mixed = frontierBonuses(6, { research: 1 });
+    const flat5 = frontierBonuses(5); // the pre-lane portion
+    expect(mixed.rpMult).toBeGreaterThan(flat5.rpMult); // strictly more than just the legacy tiers
+    // …but the tier-5 band unlock (which the 5 legacy tiers already "crossed") is NOT re-awarded
+    // retroactively when the first lane tier flips this save into the lane system.
+    expect(mixed.designCeiling).toBe(0);
+  });
+
+  it("band boundaries are crossed every 5 tiers and grant a one-time unlock", () => {
+    expect(frontierBandsCrossed(4)).toBe(0);
+    expect(frontierBandsCrossed(5)).toBe(1);
+    expect(frontierBandsCrossed(12)).toBe(2);
+    // crossing tier 5 adds the first band's bonus ON TOP of lane bonuses
+    const below = frontierBonuses(4, { research: 4 });
+    const at = frontierBonuses(5, { research: 5 });
+    // band-1 unlock is +1 design ceiling — appears exactly at tier 5
+    expect(below.designCeiling).toBe(0);
+    expect(at.designCeiling).toBe(1);
+    // the unlock table cycles endlessly (never throws, always names a next one)
+    expect(frontierBandUnlockAt(9).name.length).toBeGreaterThan(0);
+    expect(nextFrontierBandUnlock(7).tier).toBe(10);
+  });
+
+  it("laneTotal sums allocations and every lane has display copy", () => {
+    expect(laneTotal(undefined)).toBe(0);
+    expect(laneTotal({ research: 2, market: 3 })).toBe(5);
+    expect(FRONTIER_LANES).toHaveLength(4);
+    for (const l of FRONTIER_LANES) {
+      expect(l.name.length).toBeGreaterThan(0);
+      expect(l.perTierLabel.length).toBeGreaterThan(0);
+    }
   });
 });

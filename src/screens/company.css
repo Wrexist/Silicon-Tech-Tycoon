@@ -389,6 +389,9 @@
 .co__found-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 .co__found-title { font-weight: 700; font-size: var(--fs-headline); letter-spacing: -0.01em; }
 .co__found-sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
+.co__found-reqs { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.co__found-req { font-size: var(--fs-micro); font-weight: 600; padding: 3px var(--sp-8); border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--hairline); font-variant-numeric: tabular-nums; }
+.co__found-req--met { color: var(--positive-text); background: var(--positive-soft); border-color: color-mix(in srgb, var(--positive) 35%, var(--hairline)); }
 .co__ach-count {
   flex-shrink: 0;
   font-size: var(--fs-headline);

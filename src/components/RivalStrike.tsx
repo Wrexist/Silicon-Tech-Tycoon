@@ -14,6 +14,7 @@ import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/laun
 import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { format, sub, cents, type Money } from "../engine/money.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
+import { heatTier, HEAT_TIER_LABEL } from "../engine/nemesis.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import "./rivalStrike.css";
@@ -75,14 +76,22 @@ export function RivalStrike() {
     resolveStrike(choice);
   };
 
+  // Feature #7 — when the striker is your NEMESIS, the card frames it as a beat of the feud (heat tier +
+  // "it's personal"), not a context-free rival popup.
+  const feud = strike.fromNemesis === true;
+  const tierLabel = feud && strike.heat != null ? HEAT_TIER_LABEL[heatTier(strike.heat)] : null;
+
   return (
     <div className="rst">
       <button className="rst__scrim" aria-label="Hold the line" onClick={() => answer("hold")} />
-      <div ref={dialogRef} tabIndex={-1} className="rst__card" role="dialog" aria-modal="true" aria-label={`${strike.rivalName} is attacking ${strike.productName}`}>
-        <div className="rst__eyebrow"><Swords size={13} aria-hidden /> Rival strike</div>
+      <div ref={dialogRef} tabIndex={-1} className={`rst__card${feud ? " rst__card--feud" : ""}`} role="dialog" aria-modal="true" aria-label={`${strike.rivalName} is attacking ${strike.productName}`}>
+        <div className="rst__eyebrow">
+          <Swords size={13} aria-hidden /> {feud ? `Your nemesis strikes${tierLabel ? ` · ${tierLabel}` : ""}` : "Rival strike"}
+        </div>
         <h2 className="rst__title">{strike.rivalName} moves on {CATEGORIES[strike.category].displayName.toLowerCase()}s</h2>
         <p className="rst__sub">
-          Their new {strike.rivalProductName} just landed in {strike.productName}'s market — your remaining sales take a {Math.round(BALANCE.market.competition.rivalEntrySalesHaircut * 100)}% hit unless the launch fades.
+          {feud && "It's personal — "}Their new {strike.rivalProductName} just landed in {strike.productName}'s market — your remaining sales take a {Math.round(BALANCE.market.competition.rivalEntrySalesHaircut * 100)}% hit unless the launch fades.
+          {feud && " Answer them and you bank a win in the feud."}
         </p>
 
         <div className="rst__duel">

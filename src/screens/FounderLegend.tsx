@@ -12,6 +12,7 @@ import {
   liveLegendScore,
   LEGEND_TIERS,
 } from "../state/founderLegend.ts";
+import { ascensionName } from "../engine/ascension.ts";
 import "./founderLegend.css";
 
 function runHits(state: GameState): number {
@@ -25,6 +26,7 @@ export function FounderLegendSheet({ state, onClose }: { state: GameState; onClo
     hitsInRun: runHits(state),
     valuationDollars: toDollars(ipoValuation(state)),
     rank: industryRank(state),
+    ascension: state.ascensionLevel,
   });
   const st = legendStanding(liveScore);
   const pct = Math.round(st.progress * 100);
@@ -39,6 +41,7 @@ export function FounderLegendSheet({ state, onClose }: { state: GameState; onClo
     { label: "Best hits in one run", value: String(record.bestHitsInRun) },
     { label: "Peak valuation", value: peak },
     { label: "Best industry rank", value: record.bestRank <= 100 ? `#${record.bestRank}` : "—" },
+    { label: "Highest Heat cleared", value: record.bestAscension > 0 ? ascensionName(record.bestAscension) : "—" },
   ];
 
   return (

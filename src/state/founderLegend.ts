@@ -7,6 +7,7 @@
 // Determinism: this lives entirely OUTSIDE the pure sim (a localStorage profile store read only by the
 // UI + recorded from useGame side-effects), so it never touches the reproducibility pin.
 import { mirrorToNative } from "./nativeStore.ts";
+import { ascensionLegendBonus } from "../engine/ascension.ts";
 
 const KEY = "silicon.founder.v1";
 
@@ -23,6 +24,8 @@ export interface FounderRecord {
   peakValuationDollars: number;
   /** Best (lowest) industry rank ever reached; 1 = #1. Large sentinel until you've ranked. */
   bestRank: number;
+  /** Highest Ascension / Heat level ever cleared (reached IPO/prestige at). Drives a big legend bonus. */
+  bestAscension: number;
 }
 
 const EMPTY: FounderRecord = {
@@ -31,6 +34,7 @@ const EMPTY: FounderRecord = {
   bestHitsInRun: 0,
   peakValuationDollars: 0,
   bestRank: 9999,
+  bestAscension: 0,
 };
 
 function sanitize(raw: unknown): FounderRecord {
@@ -44,6 +48,7 @@ function sanitize(raw: unknown): FounderRecord {
     bestHitsInRun: Math.floor(num(r.bestHitsInRun, 0, 0)),
     peakValuationDollars: Math.floor(num(r.peakValuationDollars, 0, 0)),
     bestRank: Math.floor(num(r.bestRank, 1, EMPTY.bestRank)),
+    bestAscension: Math.floor(num(r.bestAscension, 0, 0)),
   };
 }
 
@@ -77,6 +82,8 @@ export interface FounderContribution {
   hitsInRun?: number;
   valuationDollars?: number;
   rank?: number;
+  /** The run's Ascension / Heat level — recorded as a max (best cleared) at IPO / prestige. */
+  ascension?: number;
 }
 
 /** Fold a run's contribution into the lifetime record (idempotent for maxima). Returns the new record. */
@@ -88,6 +95,7 @@ export function recordFounder(c: FounderContribution): FounderRecord {
     bestHitsInRun: Math.max(rec.bestHitsInRun, Math.max(0, Math.floor(c.hitsInRun ?? 0))),
     peakValuationDollars: Math.max(rec.peakValuationDollars, Math.max(0, Math.floor(c.valuationDollars ?? 0))),
     bestRank: c.rank && c.rank > 0 ? Math.min(rec.bestRank, Math.floor(c.rank)) : rec.bestRank,
+    bestAscension: Math.max(rec.bestAscension, Math.max(0, Math.floor(c.ascension ?? 0))),
   };
   write(next);
   return next;
@@ -104,6 +112,7 @@ export function mergeFounderRecord(incoming: unknown): void {
     bestHitsInRun: Math.max(cur.bestHitsInRun, inc.bestHitsInRun),
     peakValuationDollars: Math.max(cur.peakValuationDollars, inc.peakValuationDollars),
     bestRank: Math.min(cur.bestRank, inc.bestRank),
+    bestAscension: Math.max(cur.bestAscension, inc.bestAscension),
   });
 }
 
@@ -131,7 +140,8 @@ export function legendScore(rec: FounderRecord): number {
     rec.ipos * 55 +
     rec.bestHitsInRun * 6 +
     valuationScore(rec.peakValuationDollars) +
-    rankScore(rec.bestRank),
+    rankScore(rec.bestRank) +
+    ascensionLegendBonus(rec.bestAscension),
   );
 }
 
@@ -140,13 +150,14 @@ export function legendScore(rec: FounderRecord): number {
  *  Maxima only; the IPO count is already persisted the moment you go public. */
 export function liveLegendScore(
   rec: FounderRecord,
-  live: { hitsInRun?: number; valuationDollars?: number; rank?: number },
+  live: { hitsInRun?: number; valuationDollars?: number; rank?: number; ascension?: number },
 ): number {
   return legendScore({
     ...rec,
     bestHitsInRun: Math.max(rec.bestHitsInRun, Math.max(0, Math.floor(live.hitsInRun ?? 0))),
     peakValuationDollars: Math.max(rec.peakValuationDollars, Math.max(0, Math.floor(live.valuationDollars ?? 0))),
     bestRank: live.rank && live.rank > 0 ? Math.min(rec.bestRank, Math.floor(live.rank)) : rec.bestRank,
+    bestAscension: Math.max(rec.bestAscension, Math.max(0, Math.floor(live.ascension ?? 0))),
   });
 }
 

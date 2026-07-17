@@ -22,6 +22,23 @@
   font-weight: 700;
   color: var(--ink-2);
 }
+/* Heat badge — only shown on an ascended (New Game+) run, under the era tag. A quiet ember
+   pill so the player always sees which difficulty they chose without it shouting. */
+.hq__scene-heat {
+  position: absolute;
+  top: calc(var(--sp-12) + var(--sp-20));
+  left: var(--sp-16);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--negative) 28%, transparent);
+}
 .hq__camhint {
   /* WASD/drag-look is desktop-only; hide on touch (no hover, coarse pointer) so iOS users
      never see a keyboard hint for an input they don't have. */
@@ -1511,6 +1528,66 @@
   background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
 }
 .hq__frontier .hq__contract-title svg { color: var(--accent); vertical-align: -1px; }
+/* Frontier Lanes (feature #6) — a 2×2 grid of route buttons + the next band-unlock line. */
+.hq__frontier-band {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-nano);
+  font-weight: 600;
+  color: var(--accent);
+}
+.hq__frontier-band svg { flex-shrink: 0; }
+.hq__frontier-lanes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+}
+.hq__frontier-lane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  border: 1px solid var(--glass-well-edge, var(--hairline));
+  background: var(--glass-well, var(--surface-sunken, var(--hairline)));
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-fast, 0.15s) ease, background var(--dur-fast, 0.15s) ease;
+}
+.hq__frontier-lane:not(:disabled):hover { border-color: var(--accent); }
+.hq__frontier-lane:disabled { opacity: 0.5; cursor: not-allowed; }
+.hq__frontier-lane-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.hq__frontier-lane-head svg { color: var(--accent); flex-shrink: 0; }
+.hq__frontier-lane-count {
+  margin-left: auto;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+}
+.hq__frontier-lane-eff {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.hq__frontier-cost {
+  display: block;
+  margin-top: var(--sp-8);
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  font-weight: 600;
+}
 .hq__contract-top {
   display: flex;
   align-items: baseline;
@@ -1552,6 +1629,118 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .hq__contract-fill { transition: none; }
+}
+
+/* Board confidence strip (feature #5) — the memory meter above the mandate. A quiet gold band so the
+   tier/payout reads at a glance without competing with the mandate's own progress bar. */
+.hq__board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-12);
+  margin-bottom: var(--sp-8);
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.hq__board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.hq__board-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.hq__board-mult {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+}
+.hq__board-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.hq__board-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width var(--spring-smooth, 0.4s ease);
+}
+.hq__board-note {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  font-weight: 600;
+  line-height: 1.35;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hq__board-fill { transition: none; }
+}
+
+/* Team Focus / Crunch (feature #4) — a slim segmented control to rush a timer. */
+.hq__focus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.hq__focus-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.hq__focus-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.hq__focus-cost {
+  font-size: var(--fs-nano);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.hq__focus-seg {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-2);
+  border-radius: var(--r-button);
+  background: var(--surface-sunken, var(--hairline));
+}
+.hq__focus-btn {
+  flex: 1;
+  padding: var(--sp-8) var(--sp-4);
+  border: none;
+  border-radius: calc(var(--r-button) - 2px);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.15s) ease, color var(--dur-fast, 0.15s) ease;
+}
+.hq__focus-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.hq__focus-btn--on {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+.hq__focus-note {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 /* Office shop: per-item price + unaffordable state */
