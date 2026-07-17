@@ -35,6 +35,7 @@ import {
   nextRankRival,
   marketingPushQuote,
   restockQuote,
+  reorderLeadWeeks,
   netWorth,
   nextWeekRevenue,
   osDisplayName,
@@ -1149,7 +1150,7 @@ function ProductDetailSheet({
   onClose: () => void;
   onDesignSuccessor?: (p: Product) => void;
 }) {
-  const { state, cutProductPrice, marketingPush, restockProduct } = useGame();
+  const { state, cutProductPrice, marketingPush, restockProduct, setReorderRate } = useGame();
   const [priceCutOpen, setPriceCutOpen] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
   const [restockOpen, setRestockOpen] = useState(false);
@@ -1480,6 +1481,57 @@ function ProductDetailSheet({
           )}
         </div>
       )}
+
+      {/* Live Product Ops (feature #2) — a standing auto-reorder policy: top supply up toward demand
+          each week, every order arriving after a lead time. Shown while the product is still selling and
+          the market wants more (or a policy is already running). */}
+      {live && (lp.ops || (restockQ && restockUnits >= BALANCE.build.minRun)) && (() => {
+        const ops = lp.ops ?? null;
+        const inTransit = (ops?.pending ?? []).reduce((a, p) => a + p.units, 0);
+        const lead = reorderLeadWeeks(state);
+        // Presets scaled off the unmet-demand appetite, so the "steady/aggressive" rates are sensible
+        // for this product's size (fall back to the last set rate's ceiling when demand is snapshotted).
+        const appetite = restockQ ? restockQ.maxUnits : Math.max(0, (ops?.demandTotal ?? lp.totalUnits) - lp.totalUnits);
+        const min = BALANCE.build.minRun;
+        const steady = Math.max(min, Math.round(appetite / 8));
+        const aggressive = Math.max(min, Math.round(appetite / 4));
+        const rate = ops?.reorderRate ?? 0;
+        const presets: { label: string; value: number }[] = [
+          { label: "Off", value: 0 },
+          { label: `Steady · ${formatCount(steady)}/wk`, value: steady },
+          { label: `Aggressive · ${formatCount(aggressive)}/wk`, value: aggressive },
+        ];
+        return (
+          <div className="pd__reorder">
+            <div className="pd__reorder-head">
+              <RotateCw size={14} aria-hidden />
+              <span>Auto-reorder</span>
+              {rate > 0 && <span className="pd__reorder-tag tnum">{formatCount(rate)}/wk</span>}
+            </div>
+            <p className="pd__reorder-hint">
+              {rate > 0
+                ? <>Topping supply up toward demand — new orders arrive in <strong className="tnum">{lead}</strong> {lead === 1 ? "week" : "weeks"}.{inTransit > 0 ? <> <span className="tnum">{formatCount(inTransit)}</span> units in transit.</> : ""}</>
+                : <>Set a weekly reorder rate to keep this seller stocked automatically. Orders take <strong className="tnum">{lead}</strong> {lead === 1 ? "week" : "weeks"} to arrive.</>}
+            </p>
+            <div className="pd__reorder-opts">
+              {presets.map((p) => (
+                <button
+                  key={p.label}
+                  className={`pd__reorder-opt${rate === p.value ? " pd__reorder-opt--on" : ""}`}
+                  aria-pressed={rate === p.value}
+                  onClick={() => {
+                    const res = setReorderRate(lp.product.id, p.value);
+                    if (res.ok) { haptic.light(); if (p.value > 0) showToast(`Auto-reorder set — ${formatCount(p.value)}/wk`, { tone: "positive" }); }
+                    else { haptic.medium(); showToast(res.reason ?? "Can't set a reorder policy", { tone: "negative" }); }
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Why it performed */}
       <div className="pd__why">

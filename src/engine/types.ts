@@ -208,6 +208,21 @@ export interface LaunchedProduct {
   marketingPushes?: number;
   /** Number of mid-lifecycle restocks (reorders) funded on this product. Old saves: undefined → 0. */
   restocks?: number;
+  /** Live Product Ops (feature #2) — a standing auto-reorder policy. Absent (the default) → the product
+   *  behaves exactly as before (byte-identical); present → the tick tops up supply toward `demandTotal`
+   *  at `reorderRate` units/week, each order arriving after a lead time. */
+  ops?: ProductOps;
+}
+
+/** A launched product's standing reorder policy (Live Product Ops, feature #2). Opt-in per product. */
+export interface ProductOps {
+  /** Units/week to auto-reorder while unmet demand remains. 0 = policy paused (in-transit orders still land). */
+  reorderRate: number;
+  /** The product's realized total demand, snapshotted when the policy was set — the hard ceiling on how
+   *  much can ever be reordered (so a standing policy can never mint sales beyond the market's appetite). */
+  demandTotal: number;
+  /** In-transit orders: already paid for, awaiting delivery after their lead time. */
+  pending?: { arriveWeek: number; units: number }[];
 }
 
 // engineer/designer/marketer build products; hr (People Lead) + researcher (Lead Researcher) are

@@ -341,7 +341,10 @@ export const BALANCE = {
   // captures unmet demand rather than printing money, and each reorder shrinks the remaining headroom.
   // No new tooling (the line is already set up) — you pay pure per-unit production. Bounded per product.
   restock: {
-    maxPerProduct: 3,
+    maxPerProduct: 3,          // cap on MANUAL one-tap restocks per product
+    // Live Product Ops (feature #2) — a standing auto-reorder policy.
+    leadWeeks: 2,              // base weeks before an auto-reorder arrives (+ the era's build lead)
+    maxRatePerWeek: 20_000,    // ceiling on the units/week a policy can request (a sane UI bound)
   },
 
   // --- Fans / loyal customer base ---

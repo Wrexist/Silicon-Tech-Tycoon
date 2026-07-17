@@ -1809,7 +1809,18 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let cash = state.cash;
   let cumulativeRevenue = state.cumulativeRevenue;
   const productsFeed: FeedItem[] = [];
-  const launched = state.launched.map((lp) => {
+  // Live Product Ops (feature #2): deliver arrived reorders + place this week's standing orders BEFORE
+  // sales, so freshly-landed stock can sell immediately. Online only (an auto-order is a deliberate
+  // spend the player couldn't veto during offline catch-up), and gated on a per-product `ops` policy —
+  // so a run that never sets one (and the pinned solo sim) is byte-identical.
+  let opsBase: readonly LaunchedProduct[] = state.launched;
+  if (!offline) {
+    const opsRes = applyProductOps(state, state.launched, week, cash);
+    opsBase = opsRes.launched;
+    cash = opsRes.cash;
+    for (const f of opsRes.feed) productsFeed.push(f);
+  }
+  const launched = opsBase.map((lp) => {
     if (lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
     const units = lp.weeklyUnits[lp.weeksElapsed];
     // Sales — and the revenue booked for them — are hard-capped to the production run. A price cut
@@ -3789,6 +3800,108 @@ export function restockProduct(state: GameState, productId: string, units: numbe
   };
   const feed = trimFeed([...state.feed, feedItem(state.week, `Restocked “${lp.product.name}” — ${want.toLocaleString()} more units on the line to meet demand.`, "accent")]);
   return { state: { ...state, cash: sub(state.cash, cost), launched, feed }, ok: true };
+}
+
+// ---- Live Product Ops (feature #2): a standing auto-reorder policy with lead time --------------------
+// Instead of the one-tap restock, the player can set a per-product reorder RATE. Each week the tick tops
+// supply up toward the product's realized demand, and every order arrives after a lead time — so a
+// sell-out becomes a timed "reorder now and hope the wave hasn't passed" bet. Bounded by a demand
+// snapshot (never mints sales past the market's appetite) and entirely opt-in: a product with no `ops`
+// runs the exact legacy curve, so the pinned solo sim (which ships nothing) is byte-identical.
+
+/** Weeks before an auto-reorder is delivered: a base lead plus the era's build lead (bigger, slower). */
+export function reorderLeadWeeks(s: GameState): number {
+  return BALANCE.restock.leadWeeks + eraModifier(s.era).leadWeeks;
+}
+
+/** Set (or clear) a launched product's standing auto-reorder rate. Snapshots the product's realized
+ *  demand the first time a policy is set — the hard ceiling on total reorders. Pure. */
+export function setReorderRate(state: GameState, productId: string, rate: number): ActionResult {
+  const idx = state.launched.findIndex((l) => l.product.id === productId);
+  if (idx < 0) return { state, ok: false, reason: "Product not found." };
+  const lp = state.launched[idx];
+  if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "This product's run has ended." };
+  const clamped = Math.max(0, Math.min(BALANCE.restock.maxRatePerWeek, Math.round(rate)));
+  // demandTotal is snapshotted once (kept across rate changes so re-tuning never re-inflates the ceiling).
+  const existing = lp.ops;
+  let demandTotal = existing?.demandTotal;
+  if (demandTotal == null) {
+    const quote = restockQuote(state, lp);
+    demandTotal = lp.totalUnits + (quote?.maxUnits ?? 0);
+  }
+  // Turning the policy fully off with nothing in transit clears ops entirely (back to the plain curve).
+  const pending = existing?.pending ?? [];
+  if (clamped === 0 && pending.length === 0) {
+    if (!existing) return { state, ok: true }; // already off — no-op
+    const launched = [...state.launched];
+    const { ops: _drop, ...rest } = lp;
+    launched[idx] = rest;
+    return { state: { ...state, launched }, ok: true };
+  }
+  const launched = [...state.launched];
+  launched[idx] = { ...lp, ops: { reorderRate: clamped, demandTotal, pending } };
+  return { state: { ...state, launched }, ok: true };
+}
+
+/** The tick's Live-Product-Ops pass: deliver arrived reorders and place this week's standing order,
+ *  for every product carrying an `ops` policy. Returns the updated products, the cash spent on new
+ *  orders, and any delivery feed lines. Products without `ops` pass through untouched (same reference),
+ *  so a run that never sets a policy is byte-identical. PURE. */
+export function applyProductOps(
+  s: GameState,
+  launched: readonly LaunchedProduct[],
+  week: number,
+  cash: Money,
+): { launched: LaunchedProduct[]; cash: Money; feed: FeedItem[] } {
+  const lead = reorderLeadWeeks(s);
+  const feed: FeedItem[] = [];
+  let cashLeft = cash;
+  const out = launched.map((lp) => {
+    const ops = lp.ops;
+    if (!ops) return lp; // no policy → untouched (byte-identical path)
+    const selling = lp.weeksElapsed < lp.weeklyUnits.length;
+    const pending = ops.pending ?? [];
+    const arrived = pending.filter((p) => p.arriveWeek <= week);
+    const stillPending = pending.filter((p) => p.arriveWeek > week);
+
+    let weeklyUnits = lp.weeklyUnits;
+    let totalUnits = lp.totalUnits;
+    // Deliver arrived orders onto the curve from the current week (renewed availability), the same
+    // overlay the manual restock uses. An order that lands after the run has ended is lost stock — the
+    // markdown risk of ordering too late (the wave passed).
+    const landedUnits = arrived.reduce((a, p) => a + p.units, 0);
+    if (landedUnits > 0 && selling) {
+      const next = [...weeklyUnits];
+      for (const order of arrived) {
+        const wave = distributeOverCurve(order.units);
+        for (let i = 0; i < wave.length; i++) next[lp.weeksElapsed + i] = (next[lp.weeksElapsed + i] ?? 0) + wave[i];
+      }
+      weeklyUnits = next;
+      totalUnits += landedUnits;
+      feed.push(feedItem(week, `Reorder landed for “${lp.product.name}” — ${landedUnits.toLocaleString()} units back on the shelf.`, "accent"));
+    }
+
+    // Place this week's standing order, bounded by remaining demand headroom (demandTotal − supply −
+    // in-transit) and by what the company can afford right now.
+    let newPending = stillPending;
+    if (ops.reorderRate > 0 && selling) {
+      const inTransit = stillPending.reduce((a, p) => a + p.units, 0);
+      const headroom = Math.max(0, ops.demandTotal - totalUnits - inTransit);
+      let want = Math.min(ops.reorderRate, headroom);
+      if (want >= 1) {
+        const unitCost = effectiveUnitCost(s, lp.product);
+        const affordable = Math.floor(toDollars(cashLeft) / Math.max(1, toDollars(unitCost)));
+        want = Math.min(want, affordable);
+        if (want >= 1) {
+          cashLeft = sub(cashLeft, scale(unitCost, want));
+          newPending = [...stillPending, { arriveWeek: week + lead, units: want }];
+        }
+      }
+    }
+
+    return { ...lp, weeklyUnits, totalUnits, ops: { ...ops, pending: newPending } };
+  });
+  return { launched: out, cash: cashLeft, feed };
 }
 
 /** How the player answers a Rival Strike. All three are OPT-IN (the pinned sim never calls this),
