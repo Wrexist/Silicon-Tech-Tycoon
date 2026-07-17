@@ -9,7 +9,7 @@ import type { GameState } from "../state/gameState.ts";
 import { netWorth, scenarioResultFor } from "../state/gameState.ts";
 import { toDollars } from "./money.ts";
 import { completableProjectCount } from "./research.ts";
-import { maxEra } from "./eras.ts";
+import { BALANCE } from "./balance.ts";
 import { OS_FEATURES, installedBase } from "./platform.ts";
 import { MAX_EXPANSION } from "./factoryFloor.ts";
 
@@ -169,7 +169,9 @@ export function deriveFacts(state: GameState, mastery?: MasteryInput): Achieveme
     era: state.era,
     era2reached: state.era >= 2,
     era3reached: state.era >= 3,
-    atFinalEra: state.era >= maxEra(),
+    // "Reach the final era" tracks the IPO/pinnacle era (AI Era), not maxEra() — the post-IPO Autonomy
+    // Era raised maxEra to 5, and this achievement has always been earnable at the pre-IPO pinnacle.
+    atFinalEra: state.era >= BALANCE.ipo.minEra,
     listed: state.listed,
     wentPublic: state.wentPublic,
     rivalsInvested,

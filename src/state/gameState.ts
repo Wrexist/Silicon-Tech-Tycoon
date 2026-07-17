@@ -1086,6 +1086,7 @@ export const hypeBonus = (s: GameState) =>
   (hasProject(s.completedProjects, "gtmHype") ? 0.30 : 0) + // Go-to-Market doctrine: Hype House
   (hasProject(s.completedProjects, "growthEngine") ? 0.20 : 0) +   // Era-2 capstone (item 4.2)
   (hasProject(s.completedProjects, "singularityLab") ? 0.20 : 0) + // Era-4 capstone (item 4.2)
+  (hasProject(s.completedProjects, "autonomyLab") ? 0.25 : 0) +    // Era-5 (Autonomy) capstone
   visionaryHype(s.staff) + marketingHype(s.upgrades) + prestigeBonuses(s).hype + brandAwarenessHype(s);
 
 /** Launch-hype bonus after any challenge RULE (item 5.4): a Marketing Blackout collapses it to a
@@ -1120,6 +1121,8 @@ export function productStats(s: GameState, product: Product): Stats {
   if (hasProject(s.completedProjects, "brandManual")) bonus.design = (bonus.design ?? 0) + 4;
   if (hasProject(s.completedProjects, "aiCopilot")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 4;
   if (hasProject(s.completedProjects, "singularityLab")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 3; // Era-4 capstone (item 4.2)
+  if (hasProject(s.completedProjects, "frontierLabs")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 6; // Era-5 (Autonomy)
+  if (hasProject(s.completedProjects, "autonomyLab")) bonus.ecosystem = (bonus.ecosystem ?? 0) + 5;  // Era-5 (Autonomy) capstone
   // Engineering Doctrine fork (Track D): the chosen house stamps a permanent stat identity on every
   // product. Mutually exclusive, so at most one of these ever applies.
   if (hasProject(s.completedProjects, "perfHouse")) bonus.performance = (bonus.performance ?? 0) + 5;
@@ -1310,6 +1313,7 @@ export const buildWeeksFor = (s: GameState, product?: Product) => {
   const assembly = (lineMult < 1 ? Math.max(1, Math.floor(contract * lineMult)) : contract)
     - (hasProject(s.completedProjects, "quickPrototype") ? 1 : 0)
     - (hasProject(s.completedProjects, "lightsOut") ? 1 : 0)
+    - (hasProject(s.completedProjects, "autonomousOps") ? 1 : 0) // Era-5 (Autonomy)
     - (hasProject(s.completedProjects, "opsSpeed") ? 1 : 0); // Operations doctrine: Speed House
   // Living Late Game: late eras add manufacturing lead time (eraModifier.leadWeeks; 0 in eras 1–2),
   // so the endgame ships fewer, weightier products instead of a near-continuous relaunch conveyor.
@@ -5206,15 +5210,20 @@ export function researchReady(state: GameState): boolean {
 }
 
 export function canAdvance(state: GameState): boolean {
-  return (
-    state.era < maxEra() &&
-    canAdvanceEra(state.era, state.reputation, state.cumulativeRevenue)
-  );
+  if (state.era >= maxEra()) return false;
+  // AI Era → Autonomy Era (era 5): the ONLY step gated on going PUBLIC + pushing Frontier Tech to a
+  // threshold, NOT the usual rep/rev bars (the AI Era's are Infinity). The pinned solo sim never IPOs,
+  // so it never reaches this branch → byte-identical.
+  if (state.era + 1 === BALANCE.autonomyEra.era) {
+    return state.wentPublic && (state.frontierTier ?? 0) >= BALANCE.autonomyEra.tierToAdvance;
+  }
+  return canAdvanceEra(state.era, state.reputation, state.cumulativeRevenue);
 }
 
-/** The company can go public once it's reached the final era with strong reputation. */
+/** The company can go public once it's reached the IPO era (the AI Era — a FIXED gate, not maxEra(),
+ *  so the post-IPO Autonomy Era can't deadlock it) with strong reputation. */
 export function canIPO(state: GameState): boolean {
-  return !state.wentPublic && state.era >= maxEra() && state.reputation >= BALANCE.ipo.minReputation;
+  return !state.wentPublic && state.era >= BALANCE.ipo.minEra && state.reputation >= BALANCE.ipo.minReputation;
 }
 
 /** A headline valuation for the IPO celebration: lifetime revenue × a multiple, plus a CUBIC

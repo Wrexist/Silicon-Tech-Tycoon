@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dollars, toDollars } from "../engine/money.ts";
 import { rivalMarketCap } from "../engine/competitors.ts";
+import { maxEra } from "../engine/eras.ts";
 import {
   newGame,
   advanceOneWeek,
@@ -81,7 +82,7 @@ describe("era-scaled verdict bars (Phase-2 scaling challenge)", () => {
 
   it("clamps out-of-range eras to the nearest defined band", () => {
     expect(verdictBands(0)).toEqual(verdictBands(1));
-    expect(verdictBands(99)).toEqual(verdictBands(4));
+    expect(verdictBands(99)).toEqual(verdictBands(maxEra()));
   });
 });
 

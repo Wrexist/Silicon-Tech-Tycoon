@@ -137,7 +137,7 @@ export const OBJECTIVES: readonly Objective[] = [
   {
     id: "reach-era4",
     label: "Reach the AI Era",
-    detail: "The frontier — the last era, where the biggest launches and the IPO await.",
+    detail: "The AI Era — the commercial pinnacle, where the biggest launches and the IPO await (a post-IPO Autonomy Era lies beyond).",
     tab: "research",
     cta: "View the roadmap",
     icon: "Cpu",

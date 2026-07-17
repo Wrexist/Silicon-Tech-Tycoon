@@ -153,7 +153,7 @@ describe("market simulation", () => {
   it("component synergy: a bottleneck scores below a balanced build; a coherent flagship earns a bonus", () => {
     const balanced = componentSynergy(phone({ tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 2 } }));
     const bottleneck = componentSynergy(phone({ tiers: { chip: 6, display: 1, battery: 4, materials: 4, software: 4, camera: 3 } }));
-    const flagship = componentSynergy(phone({ tiers: { chip: 6, display: 6, battery: 6, materials: 5, software: 5, camera: 4 } }));
+    const flagship = componentSynergy(phone({ tiers: { chip: 7, display: 7, battery: 7, materials: 6, software: 6, camera: 6 } }));
     // a glaring weak link drags the build down and is named; a coherent build flags none
     expect(bottleneck.factor).toBeLessThan(balanced.factor);
     expect(bottleneck.weakest).toBe("display");
@@ -170,8 +170,8 @@ describe("market simulation", () => {
 
   it("component synergy clamps out-of-range tiers (corrupt/forward-compat save can't skew it)", () => {
     // a wildly out-of-range tier must read no better than a maxed one, never push level > 1
-    const maxed = componentSynergy(phone({ tiers: { chip: 6, display: 6, battery: 6, materials: 5, software: 5, camera: 4 } }));
-    const corrupt = componentSynergy(phone({ tiers: { chip: 99, display: 6, battery: 6, materials: 5, software: 5, camera: 4 } }));
+    const maxed = componentSynergy(phone({ tiers: { chip: 7, display: 7, battery: 7, materials: 6, software: 6, camera: 6 } }));
+    const corrupt = componentSynergy(phone({ tiers: { chip: 99, display: 7, battery: 7, materials: 6, software: 6, camera: 6 } }));
     expect(Number.isFinite(corrupt.factor)).toBe(true);
     const s = BALANCE.market.synergy;
     expect(corrupt.factor).toBeLessThanOrEqual(s.maxFactor);
@@ -332,6 +332,6 @@ describe("misc", () => {
     expect(overallScore(s, "phone")).toBeGreaterThan(0);
   });
   it("maxTier reports line length", () => {
-    expect(maxTier("chip")).toBe(6);
+    expect(maxTier("chip")).toBe(7);
   });
 });

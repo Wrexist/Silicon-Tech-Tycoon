@@ -45,7 +45,11 @@ export type ProjectId =
   // Doctrine tier-2 projects (item 4.4) — each requires the matching engineering House.
   | "overclockLab"
   | "enduranceCells"
-  | "zeroDefectLine";
+  | "zeroDefectLine"
+  // Autonomy Era (era 5, post-IPO) — the frontier tree.
+  | "frontierLabs"
+  | "autonomousOps"
+  | "autonomyLab";
 
 export interface ResearchProject {
   id: ProjectId;
@@ -130,6 +134,11 @@ export const RESEARCH_PROJECTS: ResearchProject[] = [
   { id: "growthEngine",      name: "Growth Engine",       blurb: "Capstone: +0.20 hype and 25% slower fan decay stack on your growth machine.", rpCost: 220, era: 2, capstone: true, requires: ["brandStudio", "loyaltyProgram"] },
   { id: "platformDominance", name: "Platform Dominance",  blurb: "Capstone: reach 15% more customers and a further 10% off unit cost.",           rpCost: 340, era: 3, capstone: true, requires: ["globalDistribution", "verticalIntegration"] },
   { id: "singularityLab",    name: "Singularity Lab",     blurb: "Capstone: +3 Ecosystem on every product and +0.20 hype on every launch.",       rpCost: 420, era: 4, capstone: true, requires: ["aiCopilot", "neuralMarketing"] },
+  // Era 5 — Autonomy Era (post-IPO). The frontier tree: the endgame's deepest RP sinks, only reachable
+  // once you've gone public and pushed into era 5.
+  { id: "frontierLabs",   name: "Frontier Labs",         blurb: "+6 Ecosystem on every product you ship.",          rpCost: 320, era: 5 },
+  { id: "autonomousOps",  name: "Autonomous Operations", blurb: "Production runs complete 1 week faster.",          rpCost: 340, era: 5 },
+  { id: "autonomyLab",    name: "Autonomy Lab",          blurb: "Capstone: +5 Ecosystem on every product and +0.25 hype on every launch.", rpCost: 560, era: 5, capstone: true, requires: ["frontierLabs", "autonomousOps"] },
 ];
 
 /** The completed project that LOCKS a forked project `id` (a sibling in the same fork already chosen),

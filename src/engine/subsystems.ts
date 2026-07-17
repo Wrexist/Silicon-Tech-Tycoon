@@ -63,6 +63,24 @@ export const SUBSYSTEMS: readonly Subsystem[] = [
     perStep: { design: 5, performance: 5 },
     unitCost: dollars(8),
   },
+  {
+    // A neural band lives on its signal fidelity — a cleaner brain-computer link opens up more of the
+    // platform (ecosystem) and reads intent faster (performance).
+    categories: ["neuralband"],
+    name: "Neural Link",
+    optionLabels: ["Consumer link", "High-bandwidth", "Direct cortical"],
+    perStep: { ecosystem: 8, performance: 4 },
+    unitCost: dollars(9),
+  },
+  {
+    // A home robot lives on its autonomy — better on-board navigation & manipulation lift how capable
+    // it feels (performance) and how much of the smart-home platform it can run (ecosystem).
+    categories: ["robot"],
+    name: "Autonomy",
+    optionLabels: ["Assisted", "Semi-autonomous", "Fully autonomous"],
+    perStep: { performance: 7, ecosystem: 3 },
+    unitCost: dollars(10),
+  },
 ];
 
 /** The subsystem available to a category, or null if it has none. */

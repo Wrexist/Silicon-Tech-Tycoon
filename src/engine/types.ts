@@ -28,7 +28,10 @@ export type CategoryId =
   | "monitor"
   | "console"
   | "wearable"
-  | "experimental";
+  | "experimental"
+  // Autonomy Era (era 5, post-IPO) frontier categories.
+  | "neuralband"
+  | "robot";
 
 export type FinishId = "plastic" | "aluminium" | "titanium" | "gold";
 

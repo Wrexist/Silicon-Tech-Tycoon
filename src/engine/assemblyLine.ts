@@ -40,6 +40,9 @@ export const FAMILY_OF: Record<CategoryId, LineFamily> = {
   monitor: "display",
   wearable: "wearable",
   experimental: "slab",
+  // Autonomy Era: a neural band assembles like a wearable; a home robot like a tower chassis.
+  neuralband: "wearable",
+  robot: "tower",
 };
 
 // Each recipe: stages sorted by `from` ascending, first at 0, `machineStage` within 0..4.

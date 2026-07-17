@@ -71,7 +71,7 @@ export const BALANCE = {
     // it ties into component balance. The effective value is capped on read (effectiveRefreshRate).
     refreshRate: {
       options: [60, 90, 120, 144] as number[],
-      maxByDisplayTier: [60, 90, 120, 120, 144, 144] as number[], // index = displayTier − 1 (6 tiers)
+      maxByDisplayTier: [60, 90, 120, 120, 144, 144, 144] as number[], // index = displayTier − 1 (7 tiers; era-5 Holo panel)
       appealPerStep: 3,     // stat appeal per step above 60 (full to performance, half to design)
       unitCost: dollars(5), // extra per-unit cost per step above 60
     },
@@ -79,7 +79,7 @@ export const BALANCE = {
     // manage a terabyte). More storage lifts ecosystem + quality appeal and adds per-unit cost.
     storage: {
       options: [128, 256, 512, 1024] as number[],
-      maxBySoftwareTier: [256, 512, 512, 1024, 1024] as number[], // index = software tier − 1 (5 tiers)
+      maxBySoftwareTier: [256, 512, 512, 1024, 1024, 2048] as number[], // index = software tier − 1 (6 tiers; era-5 Sentient OS)
       appeal: { ecosystem: 3, quality: 1 },
       unitCost: dollars(8), // per-unit cost per step above the 128GB baseline
     },
@@ -92,7 +92,7 @@ export const BALANCE = {
     // Era-scaled market volume: the Garage era is a tiny market you slowly grow into; each later
     // era opens it up. Multiplies demand (→ recommended run size → revenue) by era, so the early
     // game is deliberately slow + hand-built while the end-game still scales. Index = era - 1.
-    eraVolumeScale: [0.40, 0.66, 0.92, 1.15],
+    eraVolumeScale: [0.40, 0.66, 0.92, 1.15, 1.42], // era 5 (Autonomy) — the biggest market yet
     // B9 — launch demand variance. The wizard's forecast is a deterministic point estimate; real
     // demand at launch is a BET, so the actual realized volume is jittered by up to ±this fraction
     // (seeded, NOT Math.random — reproducible per save). Turns run-sizing/pricing from solved
@@ -167,7 +167,7 @@ export const BALANCE = {
       // Growth Era, then OVER-full in the Platform/AI eras: late-game rivals press harder, so a
       // contested launch only lands "solid" while an uncontested, maxed product still triumphs —
       // keeping the endgame a contest rather than a guaranteed-hit victory lap. Index = era - 1.
-      eraPressure: [0.25, 1.0, 1.2, 1.45] as const,
+      eraPressure: [0.25, 1.0, 1.2, 1.45, 1.68] as const, // era 5 — rivals press hardest at the frontier
     },
     trendDrift: {
       easing: 0.06, // how fast current weights ease toward target each week
@@ -439,14 +439,14 @@ export const BALANCE = {
     // (the same single-verdict failure v52 fixed, mirror-imaged). These bars sit back INSIDE the new
     // per-era range (harness-measured) so a great late launch hits, a middling one steadies, and the
     // verdict layer stays a real contest. Eras 1–2 are untouched.
-    hitThresholdByEra: [70, 80, 156, 192],
-    solidThresholdByEra: [45, 56, 135, 175],
+    hitThresholdByEra: [70, 80, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
+    solidThresholdByEra: [45, 56, 135, 175, 202], // era 5
     // FLOP FLOOR raised from era 2 on so a phoned-in launch actually FLOPS instead of coasting to a
     // safe "steady". Era 1 stays low (10) to protect the maiden launch — a brand-new company's hype is
     // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From
     // the Growth era on, a mediocre or heavily-contested device lands in the red, so success is earned.
     // Kept below solidThresholdByEra at every index (flop < solid) and non-decreasing across eras.
-    flopThresholdByEra: [10, 34, 52, 68],
+    flopThresholdByEra: [10, 34, 52, 68, 82], // era 5 (kept < solid, non-decreasing)
     // Dynamic "expectations" (Track D — the anti-"every device is a hit" system). The static bars
     // above anchor a young company (and the very first launch), but as you rack up strong launches a
     // ROLLING baseline of your recent competition-adjusted scores raises the bar: a HIT must beat your
@@ -496,7 +496,7 @@ export const BALANCE = {
     rpPerEngineerSkill: 0.5, // weekly RP per point of engineer skill (assigned to R&D)
     rpPerAssignedResearcher: 0.5, // bonus weekly RP per skill point of any staff assigned to R&D
     rpFounderBase: 1.2, // the founder always trickles a little RP
-    eraMultiplier: [1, 1.4, 1.9, 2.6], // RP scales up by era (index = era-1)
+    eraMultiplier: [1, 1.4, 1.9, 2.6, 3.4], // RP scales up by era (index = era-1); era 5 = Autonomy
     // tech unlocks now cost RP (a fraction of the old cash R&D cost, converted)
     rdCashToRp: 1 / 1400, // dollars of old rdCost -> RP cost
     minTechRp: 4,
@@ -683,7 +683,11 @@ export const BALANCE = {
     { era: 1, name: "Garage Era", repToAdvance: 35, revToAdvance: dollars(500_000) },
     { era: 2, name: "Growth Era", repToAdvance: 60, revToAdvance: dollars(8_000_000) },
     { era: 3, name: "Platform Era", repToAdvance: 80, revToAdvance: dollars(80_000_000) },
+    // The AI Era stays the commercial pinnacle you IPO at (repToAdvance Infinity → the normal rep/rev
+    // path can never leave it). The ONLY way onward is the post-IPO Autonomy Era, gated separately on
+    // going public + Frontier Tech (see canAdvance + BALANCE.autonomyEra) — never the rep/rev bars.
     { era: 4, name: "AI Era", repToAdvance: Infinity, revToAdvance: Infinity },
+    { era: 5, name: "Autonomy Era", repToAdvance: Infinity, revToAdvance: Infinity },
   ],
 
   // --- Era-distinct mechanics (Epic D) ---
@@ -706,6 +710,7 @@ export const BALANCE = {
     { marketingHype: 1.0, ecosystemRate: 1.0, demandVariance: 1.0, toolingMult: 1.0, leadWeeks: 0 },  // 2 Growth — baseline
     { marketingHype: 1.2, ecosystemRate: 1.5, demandVariance: 1.0, toolingMult: 1.7, leadWeeks: 2 },  // 3 Platform — ecosystem lock-in; bigger bets
     { marketingHype: 1.35, ecosystemRate: 1.7, demandVariance: 1.4, toolingMult: 2.6, leadWeeks: 3 }, // 4 AI — hype-driven + volatile; flagship-scale bets
+    { marketingHype: 1.5, ecosystemRate: 2.0, demandVariance: 1.5, toolingMult: 3.2, leadWeeks: 4 },  // 5 Autonomy — the frontier: biggest bets, richest ecosystems, most volatile
   ],
 
   // --- Competitors ---
@@ -725,7 +730,7 @@ export const BALANCE = {
     // your category ENTRENCHES instead of evaporating in a week — sustained, not blip, pressure. The
     // category a rival contests is seeded-random, so runs where rivals crowd your flagship category
     // diverge from runs where they spread out — the between-run variance a perfect player can't smooth.
-    strengthDecayByEra: [0.88, 0.88, 0.90, 0.93] as const,
+    strengthDecayByEra: [0.88, 0.88, 0.90, 0.93, 0.95] as const,
     baseStrength: 28,
     // Specialization: a launch in a rival's PREFERRED category is this much likelier to be chosen,
     // and lands with this flat strength bonus (its home turf is genuinely tougher to contest).
@@ -742,13 +747,13 @@ export const BALANCE = {
     // game preserved); the late ceilings rise so a strong rival can genuinely contest — even beat — a
     // top player in a category, making demand a contested resource again. Still a hard cap, so it
     // presses without snowballing into an unbeatable wall (the era-pressure term governs the bite).
-    reactMaxStrengthByEra: [95, 95, 105, 118] as const,
+    reactMaxStrengthByEra: [95, 95, 105, 118, 130] as const,
     // Era-scaled strength bump (Living Late Game P3). The launch-strength FORMULA naturally tops out
     // ~92 (base + rep×0.4 + bonuses), BELOW the old flat-95 cap — which is why raising the cap alone
     // was inert and late competition stayed cosmetic. This additive bump lifts late-era rivals into
     // genuine contesting range (and lets a few BEAT a maxed player), so demand becomes a contested
     // resource in Eras 3–4. Eras 1–2 add 0 (early game byte-identical). Bounded by reactMaxStrengthByEra.
-    lateStrengthByEra: [0, 0, 8, 18] as const,
+    lateStrengthByEra: [0, 0, 8, 18, 26] as const,
     reactCadenceCut: 3, // weeks shaved off the reacting rival's next launch (faster counter-punch)
     // B2 — rival DOCTRINES (per-rival behavioural posture; see competitors.ts RivalDoctrine). Tuned
     // to add VARIETY + presence, NOT raw difficulty: only the `defender` raises launch strength (the
@@ -864,9 +869,21 @@ export const BALANCE = {
     },
   },
 
+  // --- Autonomy Era (era 5, post-IPO) — the frontier era the Frontier-Tech grind unlocks ---
+  autonomyEra: {
+    era: 5,
+    // AI Era → Autonomy Era requires going PUBLIC and pushing Frontier Tech to at least this tier.
+    // (Frontier Tech is post-IPO only, so this is inherently a post-IPO gate.)
+    tierToAdvance: 3,
+  },
+
   // --- IPO / prestige ---
   ipo: {
-    minReputation: 85, // plus reaching the final era — the "win" / New Game+ trigger
+    minReputation: 85, // plus reaching the IPO era — the "win" / New Game+ trigger
+    // The era at which the company may go public — the AI Era, the commercial pinnacle. This is a FIXED
+    // gate (not maxEra()), because the post-IPO Autonomy Era raised maxEra to 5: tying IPO to maxEra
+    // would deadlock (you couldn't reach era 5 without going public, nor go public without era 5).
+    minEra: 4,
     // Valuation = baseValuation + cumulativeRevenue × valuationPerRevenueDollar + a CUBIC reputation
     // term (repValuationMax × (rep/100)³). The cubic is deliberate: a garage brand (rep ~8) adds
     // almost nothing (~$4K), so early net worth ≈ your cash and the company genuinely "grows from

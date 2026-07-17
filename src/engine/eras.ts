@@ -40,6 +40,10 @@ const ERA_CONTEXT: Record<number, EraContext> = {
     tagline: "The frontier rewrites the rules.",
     story: "On-device intelligence resets the board. Hype moves faster and cuts deeper, demand swings hard, and yesterday's winning playbook ages overnight. Bet boldly, defend what you have built, or be left behind.",
   },
+  5: {
+    tagline: "Machines that think, and move.",
+    story: "You went public, and your labs pushed past the industry's ceiling — now the products think for themselves. Neural bands read intent; home robots do the chores. The market is enormous and the bets are bigger than anything before, but a true frontier launch has to leap, not iterate. This is the last era, and it never ends.",
+  },
 };
 
 /** Authored narrative context for an era (clamped). Index by era number, not era-1. */

@@ -1300,6 +1300,13 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
             })}
           </div>
           <span className="hq__frontier-cost">Each tier costs <b className="tnum">{frontierNextCost} LP</b>{canAdvanceFrontier ? "" : " — earn more from megaprojects"}</span>
+          {/* Autonomy Era gate (feature #3): the frontier grind is what unlocks the 5th era + its new
+              categories. Show the target while you're still in the AI Era below the threshold. */}
+          {state.era === BALANCE.autonomyEra.era - 1 && frontierTier < BALANCE.autonomyEra.tierToAdvance && (
+            <span className="hq__frontier-band">
+              <Sparkles size={11} aria-hidden /> Reach Frontier Tech tier {BALANCE.autonomyEra.tierToAdvance} to unlock the <strong>Autonomy Era</strong> — new frontier categories to build.
+            </span>
+          )}
         </li>
       </ul>
     </Card>
