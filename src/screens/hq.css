@@ -1528,6 +1528,66 @@
   background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
 }
 .hq__frontier .hq__contract-title svg { color: var(--accent); vertical-align: -1px; }
+/* Frontier Lanes (feature #6) — a 2×2 grid of route buttons + the next band-unlock line. */
+.hq__frontier-band {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-nano);
+  font-weight: 600;
+  color: var(--accent);
+}
+.hq__frontier-band svg { flex-shrink: 0; }
+.hq__frontier-lanes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+}
+.hq__frontier-lane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  border: 1px solid var(--glass-well-edge, var(--hairline));
+  background: var(--glass-well, var(--surface-sunken, var(--hairline)));
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-fast, 0.15s) ease, background var(--dur-fast, 0.15s) ease;
+}
+.hq__frontier-lane:not(:disabled):hover { border-color: var(--accent); }
+.hq__frontier-lane:disabled { opacity: 0.5; cursor: not-allowed; }
+.hq__frontier-lane-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.hq__frontier-lane-head svg { color: var(--accent); flex-shrink: 0; }
+.hq__frontier-lane-count {
+  margin-left: auto;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+}
+.hq__frontier-lane-eff {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.hq__frontier-cost {
+  display: block;
+  margin-top: var(--sp-8);
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  font-weight: 600;
+}
 .hq__contract-top {
   display: flex;
   align-items: baseline;

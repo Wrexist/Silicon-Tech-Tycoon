@@ -155,6 +155,7 @@ import type { ProjectId } from "../engine/research.ts";
 import type { StrikeResponse } from "./gameState.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import type { ChannelId } from "../engine/marketing.ts";
+import type { FrontierLaneId } from "../engine/frontier.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
 import { clearSave, exportSaveString, importSaveString, importProfileFromString, loadResult, save, stashHomeSave, readHomeSave, hasHomeSave, clearHomeSave } from "./persistence.ts";
 import { getSettings, setSettings } from "./settings.ts";
@@ -474,7 +475,7 @@ interface GameActionsValue {
   fundMegaproject: (id: string) => void;
   buyLegacyPerk: (id: string) => void;
   /** Advance Frontier Tech one tier — the endless post-IPO Legacy-Point sink. */
-  buyFrontierTier: () => void;
+  buyFrontierTier: (lane?: FrontierLaneId) => void;
   declineSideOrder: () => void;
   cancelSideOrder: () => void;
   buyUpgrade: (id: UpgradeId) => void;
@@ -920,9 +921,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     sfx("confirm");
     setState(res.state);
   }, []);
-  const buyFrontierTierCb = useCallback(() => {
+  const buyFrontierTierCb = useCallback((lane: FrontierLaneId = "research") => {
     const prev = stateRef.current;
-    const res = buyFrontierTier(prev);
+    const res = buyFrontierTier(prev, lane);
     if (!res.ok) { haptic.error(); showToast(res.reason ?? "Can't advance the frontier yet", { tone: "negative" }); return; }
     haptic.success();
     sfx("confirm");

@@ -36,11 +36,27 @@ describe("frontier tech — reducer", () => {
     expect(frontierCost(1)).toBeGreaterThan(c0);
   });
 
-  it("a bought tier raises the aggregated prestige bonus", () => {
+  it("a bought tier raises the aggregated prestige bonus along the chosen lane", () => {
     const before = prestigeBonuses(publicCo(100));
-    const after = prestigeBonuses(buyFrontierTier(publicCo(100)).state);
-    expect(after.rpMult).toBeGreaterThan(before.rpMult);
-    expect(after.hype).toBeGreaterThan(before.hype);
+    // Research lane pushes rpMult; market lane pushes hype — each raises its OWN axis (feature #6).
+    const afterResearch = prestigeBonuses(buyFrontierTier(publicCo(100), "research").state);
+    expect(afterResearch.rpMult).toBeGreaterThan(before.rpMult);
+    const afterMarket = prestigeBonuses(buyFrontierTier(publicCo(100), "market").state);
+    expect(afterMarket.hype).toBeGreaterThan(before.hype);
+  });
+
+  it("records the chosen lane and a band-unlock fires at the 5-tier boundary", () => {
+    let s = publicCo(9999);
+    for (let i = 0; i < 5; i++) s = buyFrontierTier(s, "research").state;
+    expect(s.frontierTier).toBe(5);
+    expect(s.frontierLanes?.research).toBe(5);
+    // Crossing tier 5 announced a breakthrough in the feed.
+    expect(s.feed.some((f) => /breakthrough/i.test(f.text))).toBe(true);
+    // A pure research build has more rpMult than an equal-tier pure market build.
+    let mk = publicCo(9999);
+    for (let i = 0; i < 5; i++) mk = buyFrontierTier(mk, "market").state;
+    expect(prestigeBonuses(s).rpMult).toBeGreaterThan(prestigeBonuses(mk).rpMult);
+    expect(prestigeBonuses(mk).hype).toBeGreaterThan(prestigeBonuses(s).hype);
   });
 
   it("determinism: an un-advanced frontier is the neutral no-op", () => {

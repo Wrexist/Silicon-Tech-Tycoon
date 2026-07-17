@@ -58,7 +58,7 @@ import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue,
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary, boardTier, nextBoardTier, mandatePayoutMult, mandateStreakBonus } from "../engine/endgame.ts";
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
-import { frontierCost, frontierBonuses, frontierBandName } from "../engine/frontier.ts";
+import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFrontierBandUnlock, type FrontierLaneId } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -322,7 +322,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
 
       {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
-      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}
+      {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}{/* onAdvanceFrontier takes a lane (feature #6) */}
 
       {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
           shipped, when the community has an opinion to have. */}
@@ -1169,7 +1169,7 @@ function BoardConfidenceStrip({ state }: { state: GameState }) {
 
 /** Legacy Era (item 4.1) — the post-IPO endgame: the board's current mandate (with a live progress
  *  meter) and the moonshot megaproject slate the player funds for permanent prestige payoffs. */
-function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state: GameState; onFund: (id: string) => void; onBuyPerk: (id: string) => void; onAdvanceFrontier: () => void }) {
+function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state: GameState; onFund: (id: string) => void; onBuyPerk: (id: string) => void; onAdvanceFrontier: (lane: FrontierLaneId) => void }) {
   const mandate = state.boardMandate ?? null;
   const facts = mandateFacts(state);
   const slate = availableMegaprojects(state.megaprojectsFunded ?? []);
@@ -1258,7 +1258,9 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
         </ul>
       )}
 
-      {/* Frontier Tech — the endless Legacy-Point sink past the finite tree (engine/frontier.ts). */}
+      {/* Frontier Tech — the endless Legacy-Point sink past the finite tree (engine/frontier.ts). Feature
+          #6: pick a LANE for the next tier (each pushes its own axis), and every 5-tier band grants a
+          one-time breakthrough unlock. */}
       <ul className="hq__contracts-list">
         <li className="hq__contract hq__frontier">
           <div className="hq__contract-top">
@@ -1268,14 +1270,49 @@ function LegacyEraCard({ state, onFund, onBuyPerk, onAdvanceFrontier }: { state:
             <span className="hq__contract-reward tnum">{frontierNextCost} LP</span>
           </div>
           <span className="hq__contract-remaining">{frontierSummary}</span>
-          <Button size="sm" block disabled={!canAdvanceFrontier} onClick={onAdvanceFrontier}>
-            <Cpu size={14} /> Advance the frontier
-          </Button>
+          {(() => {
+            const nextUnlock = nextFrontierBandUnlock(frontierTier);
+            return (
+              <span className="hq__frontier-band">
+                <Sparkles size={11} aria-hidden /> Next breakthrough at tier {nextUnlock.tier}: <strong>{nextUnlock.blurb}</strong>
+              </span>
+            );
+          })()}
+          <div className="hq__frontier-lanes">
+            {FRONTIER_LANES.map((lane) => {
+              const Icon = FRONTIER_LANE_ICONS[lane.id];
+              const owned = state.frontierLanes?.[lane.id] ?? 0;
+              return (
+                <button
+                  key={lane.id}
+                  className="hq__frontier-lane"
+                  disabled={!canAdvanceFrontier}
+                  onClick={() => onAdvanceFrontier(lane.id)}
+                  title={lane.blurb}
+                >
+                  <span className="hq__frontier-lane-head">
+                    <Icon size={13} aria-hidden /> {lane.name}
+                    {owned > 0 && <span className="hq__frontier-lane-count tnum">{owned}</span>}
+                  </span>
+                  <span className="hq__frontier-lane-eff">{lane.perTierLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="hq__frontier-cost">Each tier costs <b className="tnum">{frontierNextCost} LP</b>{canAdvanceFrontier ? "" : " — earn more from megaprojects"}</span>
         </li>
       </ul>
     </Card>
   );
 }
+
+/** Lane id → the lucide icon shown on its Frontier route button (feature #6). */
+const FRONTIER_LANE_ICONS: Record<FrontierLaneId, LucideIcon> = {
+  research: FlaskConical,
+  market: Megaphone,
+  operations: Factory,
+  design: PencilRuler,
+};
 
 /** The living fan community — mood thermometer + superfans + a rotating community-moment line. */
 function CommunityCard({ state }: { state: GameState }) {

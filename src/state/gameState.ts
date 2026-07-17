@@ -150,7 +150,7 @@ import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecu
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
 import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
-import { frontierBonuses, frontierCost } from "../engine/frontier.ts";
+import { frontierBonuses, frontierCost, frontierBandsCrossed, frontierBandUnlockAt, type FrontierLaneId } from "../engine/frontier.ts";
 import { ascensionBarFactor, ascensionHeadStartFactor, clampAscension } from "../engine/ascension.ts";
 import type {
   Assignment,
@@ -468,6 +468,9 @@ export interface GameState {
    *  Optional → undefined/0 on old saves and the pinned solo sim, which aggregates to the neutral
    *  bonus, so a run that never advances the frontier is byte-identical. */
   frontierTier?: number;
+  /** Frontier Lanes (feature #6) — how many of the owned frontier tiers were routed to each lane. Optional;
+   *  absent on pre-lanes saves (whose tiers keep the flat bonus) and the pinned sim → byte-identical. */
+  frontierLanes?: import("../engine/frontier.ts").FrontierLanes;
   /** Ascension / Heat level chosen for THIS run at prestige (engine/ascension.ts) — raises the verdict
    *  bars and cut the legacy head-start. Optional → 0 on a normal run and the pinned sim (which never
    *  ascends), where every ascension modifier is the identity, so behaviour is byte-identical. */
@@ -1025,7 +1028,7 @@ export const prestigeBonuses = (s: GameState): PerkBonus => {
   // Frontier Tech — the endless Legacy-Point sink past the finite tree, folded through the SAME
   // aggregation so it applies everywhere at once. frontierTier 0/undefined → all-zero, so the pinned
   // solo sim (never IPOs → never buys a tier) and every existing save stay byte-identical.
-  const front = frontierBonuses(s.frontierTier);
+  const front = frontierBonuses(s.frontierTier, s.frontierLanes);
   return {
     designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling,
     hype: base.hype + tree.hype + front.hype,
@@ -5139,20 +5142,32 @@ export function buyLegacyPerk(state: GameState, id: string): ActionResult {
   };
 }
 
-/** Advance Frontier Tech one tier — the endless Legacy-Point sink past the finite tree. Spends the
- *  escalating cost, bumps `frontierTier`, and the new boon folds through `prestigeBonuses` next tick.
- *  Gated on wentPublic + affordability. Opt-in — the pinned sim never IPOs, so it never buys → identical. */
-export function buyFrontierTier(state: GameState): ActionResult {
+/** Advance Frontier Tech one tier, routed to a chosen LANE (feature #6) — the endless Legacy-Point sink
+ *  past the finite tree. Spends the escalating cost, bumps `frontierTier` + the lane's count, and the new
+ *  boon folds through `prestigeBonuses` next tick. Crossing a 5-tier band boundary announces its one-time
+ *  unlock. Gated on wentPublic + affordability. Opt-in — the pinned sim never IPOs, so it never buys.
+ *  `lane` defaults to "research" so any legacy caller keeps advancing (research is the old research-forward
+ *  default), but the UI always passes an explicit route. */
+export function buyFrontierTier(state: GameState, lane: FrontierLaneId = "research"): ActionResult {
   if (!state.wentPublic) return { state, ok: false, reason: "Available after going public." };
   const tier = state.frontierTier ?? 0;
   const cost = frontierCost(tier);
   if ((state.legacyPoints ?? 0) < cost) return { state, ok: false, reason: `Needs ${cost} Legacy Points.` };
-  const feed = [...state.feed, feedItem(state.week, `Frontier Tech advanced to tier ${tier + 1} — your labs push past the industry's ceiling.`, "positive")];
+  const nextTier = tier + 1;
+  const lanes = state.frontierLanes ?? {};
+  const nextLanes = { ...lanes, [lane]: (lanes[lane] ?? 0) + 1 };
+  const feed = [...state.feed, feedItem(state.week, `Frontier Tech advanced to tier ${nextTier} — your labs push past the industry's ceiling.`, "positive")];
+  // A crossed band boundary is the discrete "you earned something" beat — announce its unlock.
+  if (frontierBandsCrossed(nextTier) > frontierBandsCrossed(tier)) {
+    const unlock = frontierBandUnlockAt(frontierBandsCrossed(nextTier));
+    feed.push(feedItem(state.week, `Frontier breakthrough — ${unlock.name}: ${unlock.blurb}.`, "positive"));
+  }
   return {
     state: {
       ...state,
       legacyPoints: (state.legacyPoints ?? 0) - cost,
-      frontierTier: tier + 1,
+      frontierTier: nextTier,
+      frontierLanes: nextLanes,
       feed: trimFeed(feed),
     },
     ok: true,

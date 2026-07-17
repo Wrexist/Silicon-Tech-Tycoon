@@ -20,24 +20,137 @@ export function frontierCost(tier: number | undefined): number {
   return FRONTIER_BASE_COST + t * FRONTIER_COST_STEP;
 }
 
-// Per-tier increments — deliberately small, so the escalating cost (not a cap) governs the pace. The
-// bonus is research-forward ("better tech, faster"): the biggest slice is weekly research, with a
-// lighter hand on hype and build-cost, plus a slow design-ceiling bump every 10 tiers for a long spike.
+// Per-tier increments for the LEGACY flat buy (pre-lanes) — deliberately small, so the escalating cost
+// (not a cap) governs the pace. Research-forward: the biggest slice is weekly research, a lighter hand
+// on hype and build-cost, plus a slow design-ceiling bump every 10 tiers. Tiers a player bought BEFORE
+// Frontier Lanes shipped keep exactly this bonus, so every existing save is byte-identical.
 const PER_TIER_RP = 0.05;
 const PER_TIER_HYPE = 0.02;
 const PER_TIER_BUILD = 0.01;
 const DESIGN_EVERY = 10;
 
-/** The cumulative PerkBonus from owning `tier` frontier levels. undefined/0 → the neutral all-zero
- *  bonus, so this is a pure no-op until the first tier is bought. Pure. */
-export function frontierBonuses(tier: number | undefined): PerkBonus {
-  const t = Math.max(0, Math.floor(tier ?? 0));
+const ZERO_BONUS: PerkBonus = { designCeiling: 0, hype: 0, rpMult: 0, buildCostMult: 0 };
+
+function sumBonuses(...bs: PerkBonus[]): PerkBonus {
+  const acc = { designCeiling: 0, hype: 0, rpMult: 0, buildCostMult: 0 };
+  for (const b of bs) {
+    acc.designCeiling += b.designCeiling;
+    acc.hype += b.hype;
+    acc.rpMult += b.rpMult;
+    acc.buildCostMult += b.buildCostMult;
+  }
+  return {
+    designCeiling: acc.designCeiling,
+    hype: +acc.hype.toFixed(4),
+    rpMult: +acc.rpMult.toFixed(4),
+    buildCostMult: +acc.buildCostMult.toFixed(4),
+  };
+}
+
+/** The legacy flat bonus for `n` un-laned tiers (the original pre-lanes formula). */
+function flatBonus(n: number): PerkBonus {
+  const t = Math.max(0, Math.floor(n));
   return {
     designCeiling: Math.floor(t / DESIGN_EVERY),
     hype: +(t * PER_TIER_HYPE).toFixed(4),
     rpMult: +(t * PER_TIER_RP).toFixed(4),
     buildCostMult: +(t * PER_TIER_BUILD).toFixed(4),
   };
+}
+
+// ---- Frontier Lanes (feature #6) — pick-a-route specialization instead of a flat "buy next tier" ----
+// Each tier you advance is assigned to ONE lane; a lane pushes its own axis harder than the old generalist
+// tier did, so the frontier becomes a build-defining choice. Mirrors the Legacy Tree's route grammar.
+export type FrontierLaneId = "research" | "market" | "operations" | "design";
+export type FrontierLanes = Partial<Record<FrontierLaneId, number>>;
+
+export interface FrontierLane {
+  id: FrontierLaneId;
+  name: string;
+  blurb: string;
+  icon: string; // lucide icon name, resolved in the UI
+  /** One-line of what each tier in this lane grants (for the card). */
+  perTierLabel: string;
+}
+
+export const FRONTIER_LANES: readonly FrontierLane[] = [
+  { id: "research", name: "Deep R&D", blurb: "Compounding weekly research — the fastest labs in the industry.", icon: "FlaskConical", perTierLabel: "+8% research / tier" },
+  { id: "market", name: "Market Reach", blurb: "Every launch lands louder — a standing hype multiplier.", icon: "Megaphone", perTierLabel: "+5% hype / tier" },
+  { id: "operations", name: "Frontier Ops", blurb: "Cheaper to build at scale — a standing build-cost cut.", icon: "Factory", perTierLabel: "−3% build cost / tier" },
+  { id: "design", name: "Frontier Design", blurb: "Raise the design ceiling faster, with a little hype on the side.", icon: "PencilRuler", perTierLabel: "+1 ceiling / 4 tiers · +1.5% hype" },
+] as const;
+
+const DESIGN_LANE_EVERY = 4; // the design lane grants +1 design ceiling every this-many tiers in it
+
+/** Total tiers routed through lanes (0 for a legacy/pre-lanes save). */
+export function laneTotal(lanes: FrontierLanes | undefined): number {
+  if (!lanes) return 0;
+  return (lanes.research ?? 0) + (lanes.market ?? 0) + (lanes.operations ?? 0) + (lanes.design ?? 0);
+}
+
+/** The cumulative bonus from all lane allocations. */
+function laneBonus(lanes: FrontierLanes): PerkBonus {
+  const r = lanes.research ?? 0, m = lanes.market ?? 0, o = lanes.operations ?? 0, d = lanes.design ?? 0;
+  return sumBonuses(
+    { designCeiling: 0, hype: 0, rpMult: r * 0.08, buildCostMult: 0 },
+    { designCeiling: 0, hype: m * 0.05, rpMult: 0, buildCostMult: 0 },
+    { designCeiling: 0, hype: 0, rpMult: 0, buildCostMult: o * 0.03 },
+    { designCeiling: Math.floor(d / DESIGN_LANE_EVERY), hype: d * 0.015, rpMult: 0, buildCostMult: 0 },
+  );
+}
+
+// ---- Band unlocks (feature #6) — a one-time "you earned something" spike at each 5-tier boundary ----
+// Discrete milestones that punctuate the otherwise-linear grind. Cycles endlessly past the table.
+export interface FrontierBandUnlock {
+  tier: number;   // the total-tier boundary that grants it
+  name: string;
+  blurb: string;
+  bonus: PerkBonus;
+}
+const BAND_EVERY = 5;
+const BAND_UNLOCK_BONUSES: readonly { name: string; blurb: string; bonus: PerkBonus }[] = [
+  { name: "Deep Frontier breakthrough", blurb: "+1 design ceiling", bonus: { designCeiling: 1, hype: 0, rpMult: 0, buildCostMult: 0 } },
+  { name: "Quantum Frontier breakthrough", blurb: "+10% research", bonus: { designCeiling: 0, hype: 0, rpMult: 0.10, buildCostMult: 0 } },
+  { name: "Cosmic Frontier breakthrough", blurb: "+5% hype", bonus: { designCeiling: 0, hype: 0.05, rpMult: 0, buildCostMult: 0 } },
+  { name: "Singularity Frontier breakthrough", blurb: "+1 design ceiling & −3% build cost", bonus: { designCeiling: 1, hype: 0, rpMult: 0, buildCostMult: 0.03 } },
+];
+
+/** The band unlock granted at a given band index (1-based) — cycles the table endlessly. */
+export function frontierBandUnlockAt(band: number): FrontierBandUnlock {
+  const b = Math.max(1, Math.floor(band));
+  const spec = BAND_UNLOCK_BONUSES[(b - 1) % BAND_UNLOCK_BONUSES.length];
+  return { tier: b * BAND_EVERY, name: spec.name, blurb: spec.blurb, bonus: spec.bonus };
+}
+
+/** The number of band boundaries crossed at `tier` total tiers. */
+export function frontierBandsCrossed(tier: number | undefined): number {
+  return Math.floor(Math.max(0, Math.floor(tier ?? 0)) / BAND_EVERY);
+}
+
+/** The cumulative one-time bonus from every band boundary crossed so far. */
+function bandUnlockBonus(tier: number): PerkBonus {
+  const bands = frontierBandsCrossed(tier);
+  const parts: PerkBonus[] = [];
+  for (let k = 1; k <= bands; k++) parts.push(frontierBandUnlockAt(k).bonus);
+  return parts.length ? sumBonuses(...parts) : ZERO_BONUS;
+}
+
+/** The NEXT band unlock a player is working toward (for the "reach tier X" line). */
+export function nextFrontierBandUnlock(tier: number | undefined): FrontierBandUnlock {
+  return frontierBandUnlockAt(frontierBandsCrossed(tier) + 1);
+}
+
+/** The cumulative PerkBonus from owning `tier` frontier levels. Backward compatible:
+ *  - No `lanes` (legacy/pre-lanes save, or the neutral no-op): EXACTLY the old flat formula, so every
+ *    existing save and the pinned solo sim (never IPOs) stay byte-identical.
+ *  - With `lanes`: the tiers that predate lanes keep the flat bonus, lane tiers add their route's boon,
+ *    and every 5-tier band boundary crossed adds its one-time unlock spike. Pure. */
+export function frontierBonuses(tier: number | undefined, lanes?: FrontierLanes): PerkBonus {
+  const t = Math.max(0, Math.floor(tier ?? 0));
+  const laneN = laneTotal(lanes);
+  if (laneN === 0) return flatBonus(t); // legacy path — untouched
+  const legacyTiers = Math.max(0, t - laneN); // pre-lane tiers keep the flat bonus
+  return sumBonuses(flatBonus(legacyTiers), laneBonus(lanes!), bandUnlockBonus(t));
 }
 
 // Flavor: the frontier gets a grander name every 5 tiers. Purely cosmetic (drives the label only).
