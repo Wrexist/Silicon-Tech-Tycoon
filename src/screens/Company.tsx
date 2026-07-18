@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Compass, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost, navAttention } from "../state/gameState.ts";
@@ -10,6 +10,7 @@ import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS, projectById, hasProject } from "../engine/research.ts";
+import { mandateById } from "../engine/mandates.ts";
 import { acquirableFactories, factoryFor, totalFactoryUpkeep } from "../engine/factories.ts";
 import type { FactoryId } from "../engine/types.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
@@ -284,6 +285,10 @@ export function Company() {
         )}
         <p className="co__hint">Lifetime revenue {format(state.cumulativeRevenue)}.</p>
       </Card>
+
+      {/* Era Mandates (feature #6) — the run-long identities drafted at era advances, each with its
+          trade-off. Only shown once at least one is held. */}
+      {(state.eraMandates?.length ?? 0) > 0 && <MandatesCard ids={state.eraMandates!} />}
 
       {/* Financing — borrow to extend runway or fund a bet; pay it back weekly (Track C). Deferred
           until the company has scale (advanced), but an existing borrower always keeps it. */}
@@ -714,6 +719,33 @@ function DelegationCard({
           );
         })}
       </div>
+    </Card>
+  );
+}
+
+/** Held Era Mandates (feature #6) — the run-long identities drafted at era advances, each shown with its
+ *  name, one-line description and the small upside/downside trade-off it carries. */
+function MandatesCard({ ids }: { ids: string[] }) {
+  const mandates = ids.map((id) => mandateById(id)).filter((m): m is NonNullable<typeof m> => !!m);
+  if (mandates.length === 0) return null;
+  return (
+    <Card>
+      <SectionHeader title="Company mandates" accessory={`${mandates.length}`} />
+      <ul className="co__mandates">
+        {mandates.map((m) => (
+          <li key={m.id} className="co__mandate">
+            <div className="co__mandate-top">
+              <Compass size={15} aria-hidden className="co__mandate-glyph" />
+              <span className="co__mandate-name">{m.name}</span>
+            </div>
+            <p className="co__mandate-desc">{m.description}</p>
+            <div className="co__mandate-trade">
+              <span className="co__mandate-up">{m.upside}</span>
+              <span className="co__mandate-down">{m.downside}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }

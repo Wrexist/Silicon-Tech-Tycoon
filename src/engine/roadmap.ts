@@ -37,6 +37,7 @@ function money(m: Money): string {
 // Major systems/divisions per era — these are the headline mechanics each era opens, named (not
 // spoiled). Authored here because they're cross-cutting systems, not single catalog rows.
 const MAJOR_SYSTEMS: Record<number, string[]> = {
+  2: ["Company mandate draft"],
   3: ["Platform / OS division"],
   4: ["AI research projects", "IPO — take the company public"],
   5: ["Frontier Tech lanes & bands"],

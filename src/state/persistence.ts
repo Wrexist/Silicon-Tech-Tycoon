@@ -347,6 +347,11 @@ function migrate(state: GameState): GameState | null {
   // Design Budget (feature #1) — OFF for existing saves so their builds stay unconstrained (no product
   // that was buildable before becomes un-buildable mid-run). Fresh runs (newGame) set it true.
   if (s.designBudgetEnabled == null) s.designBudgetEnabled = false;
+  // Era Mandates (feature #6) — empty held list + no pending offer. Old saves only ever see mandate
+  // offers on FUTURE era advances (an empty list = the all-zero bonus = byte-identical in-run behaviour),
+  // so no per-save flag is needed here.
+  if (!Array.isArray(s.eraMandates)) s.eraMandates = [];
+  if (s.pendingMandateOffer === undefined) s.pendingMandateOffer = null;
   // Equity / stock market (added later) — backfill so old saves can trade + keep ownership.
   if (s.listed == null) s.listed = false;
   if (!Number.isFinite(s.ownership)) s.ownership = 1;

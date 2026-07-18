@@ -158,6 +158,7 @@ import {
   type MasteryBonus,
 } from "../engine/mastery.ts";
 import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
+import { aggregateMandates, mandateById, offerMandates, type MandateBonus } from "../engine/mandates.ts";
 import { frontierBonuses, frontierCost, frontierBandsCrossed, frontierBandUnlockAt, type FrontierLaneId } from "../engine/frontier.ts";
 import { ascensionBarFactor, ascensionHeadStartFactor, clampAscension } from "../engine/ascension.ts";
 import type {
@@ -644,6 +645,16 @@ export interface GameState {
    *  budget is never checked, so OLD SAVES build exactly as before and the do-nothing reproducibility
    *  pin (which never builds) is untouched. The rival generator never reads it (rivals are unaffected). */
   designBudgetEnabled?: boolean;
+  /** Era Mandates (feature #6) — the run-long identity modifiers adopted at era advances. Each era-up
+   *  offers 3 to draft (or decline); the ids kept here aggregate into a small bonus (mandateBonuses).
+   *  Absent/empty → the all-zero bonus, so OLD SAVES (which only see offers on FUTURE advances) and the
+   *  do-nothing reproducibility pin (never advances era) are byte-identical. */
+  eraMandates?: string[];
+  /** A mandate draft awaiting the player's pick — 3 offered ids for the era just entered. Generated in
+   *  advanceEraAction (deterministic from seed+week+salt 281), surfaced in the era-advance ceremony, and
+   *  cleared by chooseMandate (adopt one, or decline). Data only — a pending offer never touches the sim
+   *  until a mandate is adopted. Optional/null → golden-invariant safe. */
+  pendingMandateOffer?: { eraTo: number; options: string[] } | null;
 }
 
 /** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery.
@@ -918,6 +929,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     // build time. Old saves lack this field (→ off) and build unconstrained; the do-nothing pin never
     // builds, so it's byte-identical either way.
     designBudgetEnabled: true,
+    // Era Mandates (feature #6) — none held at founding; the first draft is offered at the 1→2 advance.
+    // Empty → the all-zero mandate bonus, so a run that never drafts is byte-identical to before.
+    eraMandates: [],
+    pendingMandateOffer: null,
   };
 }
 
@@ -1073,13 +1088,21 @@ export const prestigeBonuses = (s: GameState): PerkBonus => {
   // aggregation so it applies everywhere at once. frontierTier 0/undefined → all-zero, so the pinned
   // solo sim (never IPOs → never buys a tier) and every existing save stay byte-identical.
   const front = frontierBonuses(s.frontierTier, s.frontierLanes);
+  // Era Mandates (feature #6) — the three prestige-style axes (design ceiling / hype / RP) fold in here
+  // so every consumer picks them up at once; the mandate's signed build-cost lives at its own seams
+  // (it can INCREASE cost, which this reduction-only clamp would swallow). Empty held → all-zero.
+  const man = aggregateMandates(s.eraMandates);
   return {
-    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling,
-    hype: base.hype + tree.hype + front.hype,
-    rpMult: base.rpMult + tree.rpMult + front.rpMult,
+    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling + man.designCeiling,
+    hype: base.hype + tree.hype + front.hype + man.hype,
+    rpMult: base.rpMult + tree.rpMult + front.rpMult + man.rpMult,
     buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult)),
   };
 };
+/** Era-Mandate bonus aggregated from the held mandate ids (feature #6). Empty/absent → the all-zero
+ *  bonus. The design-ceiling / hype / RP axes already fold through prestigeBonuses; this selector is
+ *  the seam for the mandate's build-cost, fan-gain and demand effects, which apply at their own sites. */
+export const mandateBonuses = (s: GameState): MandateBonus => aggregateMandates(s.eraMandates);
 export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + prestigeBonuses(s).designCeiling;
 
@@ -1411,7 +1434,10 @@ export function toolingCost(s: GameState, product: Product): Money {
   const mastery = 1 - masteryBonusFor(s, product.category).buildCostMult;
   // Living Late Game: late eras tool up bigger (eraModifier.toolingMult; 1.0 in eras 1–2 → no-op).
   const eraTooling = eraModifier(s.era).toolingMult;
-  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * mastery * factoryToolingMult(product) * eraTooling);
+  // Era Mandate (feature #6): a signed build-cost shift (Lean/Vertical cut it; Skunkworks/Prestige/
+  // Design House raise it). 1.0 with no mandate held → byte-identical.
+  const mandate = 1 - mandateBonuses(s).buildCostReduction;
+  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * mastery * mandate * factoryToolingMult(product) * eraTooling);
   return base > BALANCE.build.minTooling ? base : BALANCE.build.minTooling;
 }
 
@@ -1429,6 +1455,9 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   // disabled/unstarted, so the pinned sim + old saves are byte-identical.
   const masteryCost = masteryBonusFor(s, product.category).buildCostMult;
   if (masteryCost > 0) unitCost = scale(unitCost, 1 - masteryCost);
+  // Era Mandate (feature #6): the same signed per-unit build-cost shift as tooling. 1.0 with no mandate.
+  const mandateCost = mandateBonuses(s).buildCostReduction;
+  if (mandateCost !== 0) unitCost = scale(unitCost, 1 - mandateCost);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   // Player-built line automation (item 3.1): a complete floor trims per-unit cost, clamped ≤1 so an
   // unwired/bare floor is exactly ×1 (baseline + pinned sim byte-identical). Pure upside.
@@ -1508,6 +1537,9 @@ export function planProduction(
   marketSize *= regionReach(s.unlockedRegions, product.regions, stats, s.week, s.regionLoyalty);
   // Item 5.4 — a challenge recession contracts the whole market (1.0 outside a challenge → no-op).
   marketSize *= challengeRules(s).demandMult;
+  // Era Mandate (feature #6): Mass Market / Open Platform widen the addressable market; Grassroots /
+  // Boutique narrow it. 1.0 with no mandate held → byte-identical.
+  marketSize *= 1 + mandateBonuses(s).demandMult;
 
   // Epic A — segmented demand. The market is split into buyer segments (engine/segments.ts), each
   // weighting the five stats AND price differently; the product wins a share of each, summed. This
@@ -3413,6 +3445,13 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   else if (isSolid) fans += fb.gainOnSolidFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK * 0.5;
   else if (isFlop) fans = Math.max(0, fans - fb.lossPerFlop);
   else fans += fb.gainOnSteadyFlat; // a steady seller still wins a few new fans (beats the decay)
+  // Era Mandate (feature #6): Cult/Grassroots grow the base faster, Mass Market/Moonshot slower. Scales
+  // only the NEW fans this launch earned (never the standing base or a flop's loss). 0 → no-op.
+  const fanMandate = mandateBonuses(state).fanGainMult;
+  if (fanMandate !== 0) {
+    const gained = fans - state.fans;
+    if (gained > 0) fans = state.fans + gained * (1 + fanMandate);
+  }
   // B4 — the sellout buzz is only earned if the run actually met a reasonable share of demand.
   // A deliberately tiny run that sells out while ignoring most of the market no longer farms fans;
   // instead chronic severe undersupply costs you fans ("couldn't meet demand"). This kills the
@@ -6175,7 +6214,31 @@ export function advanceEraAction(state: GameState): GameState {
   // Epic D — announce the era's rule shift so the change in texture is legible (pillar #5).
   const rule = eraRuleSummary(era);
   if (rule) feed.push(feedItem(state.week, `${eraName(era)} shift, ${rule}.`, "accent"));
-  return { ...state, era, feed: trimFeed(feed) };
+  // Era Mandate draft (feature #6): offer 3 run-long mandates to adopt (or decline) as part of the era
+  // ceremony. Deterministic from (seed, week, salt 281). Skipped for the post-IPO era-5 advance — that
+  // step runs through the IPO/Autonomy flow, whose overlay hides the era modal, so the offer would
+  // never surface; the do-nothing pin never advances era at all → no offer, byte-identical.
+  const options = state.wentPublic ? [] : offerMandates(state.seed, state.week, era, state.eraMandates ?? []);
+  const pendingMandateOffer = options.length > 0 ? { eraTo: era, options } : (state.pendingMandateOffer ?? null);
+  return { ...state, era, feed: trimFeed(feed), pendingMandateOffer };
+}
+
+/** Resolve the era-advance mandate draft: adopt one offered mandate for the rest of the run, or DECLINE
+ *  (id null — always safe, never any effect). Clears the pending offer either way. Only an id from the
+ *  live offer is accepted, so a stale/forged id can't inject an arbitrary mandate. Idempotent-safe:
+ *  no offer, or an already-held pick, just clears the offer. */
+export function chooseMandate(state: GameState, id: string | null): GameState {
+  const offer = state.pendingMandateOffer;
+  if (!offer) return state;
+  if (id == null) return { ...state, pendingMandateOffer: null }; // declined — safe, nothing adopted
+  if (!offer.options.includes(id)) return state; // not one of the offered three — ignore
+  const held = state.eraMandates ?? [];
+  if (held.includes(id)) return { ...state, pendingMandateOffer: null };
+  const m = mandateById(id);
+  const feed = m
+    ? [...state.feed, feedItem(state.week, `Company mandate adopted — ${m.name}. ${m.description}`, "accent")]
+    : state.feed;
+  return { ...state, eraMandates: [...held, id], pendingMandateOffer: null, feed: trimFeed(feed) };
 }
 
 // Offline catch-up was removed: the sim advances ONLY while the app is open and running (the weekly
