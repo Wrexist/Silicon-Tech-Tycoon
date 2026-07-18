@@ -82,17 +82,13 @@ export function useLaunchProduct() {
           emitCelebrate();
           sfx("levelup");
           haptic.success();
-          if (afterLvl >= MASTERY_MAX_LEVEL) {
-            showToast(`${name} Mastery maxed — ${CATEGORY_SIGNATURES[cat].edition} signature unlocked!`, {
-              tone: "positive",
-              glyph: createElement(Star, { size: 15 }),
-            });
-          } else {
-            showToast(`${name} Mastery reached level ${afterLvl}`, {
-              tone: "positive",
-              glyph: createElement(Star, { size: 15 }),
-            });
-          }
+          const message = afterLvl >= MASTERY_MAX_LEVEL
+            ? `${name} Mastery maxed — ${CATEGORY_SIGNATURES[cat]?.edition ?? "Special"} signature unlocked!`
+            : `${name} Mastery reached level ${afterLvl}`;
+          showToast(message, {
+            tone: "positive",
+            glyph: createElement(Star, { size: 15 }),
+          });
         }
       }
       return true;

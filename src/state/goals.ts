@@ -131,11 +131,13 @@ export function collectGoals(state: GameState): GoalRow[] {
       source: "duel",
       sourceLabel: "Nemesis duel",
       title: `Out-value ${duel.rivalName}`,
+      // Lead the detail with the ladder standing (tier + trophies won): the row also carries a reward
+      // string, and the ledger suppresses progressText whenever a reward is present, so this is the only
+      // place that info would actually render.
       detail: duel.ahead
-        ? `You're ahead — hold the lead to the deadline for trophy #${duel.trophies + 1}.`
-        : `Climb past ${duel.rivalName}'s valuation before the window closes.`,
+        ? `Tier ${duel.tier + 1} · ${duel.trophies} won. You're ahead — hold the lead to the deadline for trophy #${duel.trophies + 1}.`
+        : `Tier ${duel.tier + 1} · ${duel.trophies} won. Climb past ${duel.rivalName}'s valuation before the window closes.`,
       frac: duel.frac,
-      progressText: `Tier ${duel.tier + 1} · ${duel.trophies} won`,
       reward: "Trophy · rep & fans",
       weeksLeft: duel.weeksLeft,
       // Never "done" — the duel auto-resolves at the deadline; the full bar + "you're ahead" copy

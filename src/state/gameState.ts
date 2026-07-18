@@ -2997,9 +2997,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
             base.feed.push(feedItem(week, `The duel is on: out-value ${nemComp.name} within ${armed.endWeek - armed.startWeek} weeks to claim the trophy.`, "accent"));
           }
         } else if (week >= duel.endWeek) {
-          // The window closed — judge it (live valuations, no RNG).
-          const playerVal = toDollars(companyValuation(base));
-          const rivalVal = toDollars(rivalMarketCap(nemComp));
+          // The window closed — judge it (live valuations in integer cents, no RNG).
+          const playerVal = companyValuation(base);
+          const rivalVal = rivalMarketCap(nemComp);
           if (duelMet(playerVal, rivalVal, duel.targetMargin)) {
             const won = duel.tier;
             const nextTier = nextLadderTier(won);
@@ -3520,13 +3520,6 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   else if (isSolid) fans += fb.gainOnSolidFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK * 0.5;
   else if (isFlop) fans = Math.max(0, fans - fb.lossPerFlop);
   else fans += fb.gainOnSteadyFlat; // a steady seller still wins a few new fans (beats the decay)
-  // Era Mandate (feature #6): Cult/Grassroots grow the base faster, Mass Market/Moonshot slower. Scales
-  // only the NEW fans this launch earned (never the standing base or a flop's loss). 0 → no-op.
-  const fanMandate = mandateBonuses(state).fanGainMult;
-  if (fanMandate !== 0) {
-    const gained = fans - state.fans;
-    if (gained > 0) fans = state.fans + gained * (1 + fanMandate);
-  }
   // B4 — the sellout buzz is only earned if the run actually met a reasonable share of demand.
   // A deliberately tiny run that sells out while ignoring most of the market no longer farms fans;
   // instead chronic severe undersupply costs you fans ("couldn't meet demand"). This kills the
@@ -3558,6 +3551,16 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     } else {
       briefBeat = feedItem(state.week, `Design brief missed — “${product.name}” didn't win over ${seg?.name ?? "the target"} (fit ${Math.round(fit)}, needed ${bc.fitThreshold}).`, "neutral");
     }
+  }
+
+  // Era Mandate (feature #6): Cult/Grassroots grow the base faster, Mass Market/Moonshot slower. Applied
+  // AFTER every launch fan addition (hit reward + sellout buzz + design-brief bonus) so it scales the
+  // full positive net gain this launch earned — never just the base hit reward, never the standing base
+  // or a flop's loss. 0 → no-op (byte-identical do-nothing run).
+  const fanMandate = mandateBonuses(state).fanGainMult;
+  if (fanMandate !== 0) {
+    const gained = fans - state.fans;
+    if (gained > 0) fans = Math.round(state.fans + gained * (1 + fanMandate));
   }
 
   // Fan milestones — surface crossing big numbers as celebratory feed items + rep bonus.
@@ -5784,14 +5787,12 @@ export function nemesisDuelSnapshot(state: GameState): NemesisDuelSnapshot | nul
   if (!nemComp) return null;
   const playerValue = companyValuation(state);
   const rivalValue = rivalMarketCap(nemComp);
-  const pv = toDollars(playerValue);
-  const rv = toDollars(rivalValue);
   return {
     rivalName: nemComp.name,
     playerValue,
     rivalValue,
-    frac: duelProgress(pv, rv, duel.targetMargin),
-    ahead: duelMet(pv, rv, duel.targetMargin),
+    frac: duelProgress(playerValue, rivalValue, duel.targetMargin),
+    ahead: duelMet(playerValue, rivalValue, duel.targetMargin),
     weeksLeft: Math.max(0, duel.endWeek - state.week),
     tier: duel.tier,
     trophies: state.nemesisTrophies ?? 0,

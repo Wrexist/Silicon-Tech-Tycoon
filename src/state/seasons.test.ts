@@ -49,6 +49,18 @@ describe("season id derivation", () => {
     expect(seasonIdOf("26-7-1")).toBe("");
   });
 
+  it("rejects out-of-range months and impossible calendar days (no phantom seasons)", () => {
+    expect(seasonIdOf("2026-00")).toBe("");     // month 0
+    expect(seasonIdOf("2026-13")).toBe("");     // month 13
+    expect(seasonIdOf("2026-13-99")).toBe("");  // month + day both invalid
+    expect(seasonIdOf("2026-02-30")).toBe("");  // Feb never has 30 days
+    expect(seasonIdOf("2025-02-29")).toBe("");  // 2025 is not a leap year
+    expect(seasonIdOf("2026-07-00")).toBe("");  // day 0
+    // ...but real dates (incl. a leap day) still resolve.
+    expect(seasonIdOf("2024-02-29")).toBe("2024-02"); // 2024 is a leap year
+    expect(seasonIdOf("2026-12-31")).toBe("2026-12");
+  });
+
   it("labels a season id in plain language", () => {
     expect(seasonLabel("2026-07")).toBe("July 2026");
     expect(seasonLabel("2026-01")).toBe("January 2026");
@@ -137,6 +149,9 @@ describe("completion counting", () => {
   it("ignores malformed challenge keys", () => {
     expect(recordSeasonCompletion("nope").count).toBe(0);
     expect(recordSeasonCompletion("daily:garbage").seasonId).toBe("");
+    // An unknown kind prefix can't seed a track (only daily / weekly are real).
+    expect(recordSeasonCompletion("foo:2026-07-01").seasonId).toBe("");
+    expect(recordSeasonCompletion("weekly:2026-13-01").seasonId).toBe(""); // invalid month
     expect(getSeasons()).toEqual({ completions: {} });
   });
 });
@@ -172,6 +187,50 @@ describe("derived unlocked cosmetics", () => {
     const badges = earnedBadges();
     expect(badges).toHaveLength(1);
     expect(badges[0].seasonId).toBe(season);
+  });
+});
+
+describe("persisted earned cosmetics", () => {
+  it("stores the earned cosmetic ids when a rung is crossed", () => {
+    for (let i = 1; i <= SEASON_RUNGS[0]; i++) {
+      recordSeasonCompletion(`daily:2026-07-${String(i).padStart(2, "0")}`);
+    }
+    const store = getSeasons();
+    const rewards = seasonRewards("2026-07");
+    expect(store.earned?.["2026-07"]).toContain(rewards[0].cosmeticId);
+  });
+
+  it("prefers the STORED earned ids over derivation (a pool reorder can't rewrite history)", () => {
+    // Count clears the first rung, but the stored earned id is one the current pool would NOT derive.
+    localStorage.setItem("silicon.seasons.v1", JSON.stringify({
+      completions: { "2026-07": ["daily:2026-07-01", "daily:2026-07-02", "daily:2026-07-03"] },
+      earned: { "2026-07": ["col:legacy-swatch"] },
+    }));
+    const unlocked = unlockedCosmetics();
+    expect(unlocked.has("col:legacy-swatch")).toBe(true);
+    // The derived rung-0 cosmetic is NOT re-added — stored ids are authoritative for the season.
+    expect(unlocked.has(seasonRewards("2026-07")[0].cosmeticId)).toBe(false);
+  });
+
+  it("falls back to derivation for legacy seasons with no stored earned ids", () => {
+    localStorage.setItem("silicon.seasons.v1", JSON.stringify({
+      completions: { "2026-07": ["daily:2026-07-01", "daily:2026-07-02", "daily:2026-07-03"] },
+    }));
+    expect(unlockedCosmetics().has(seasonRewards("2026-07")[0].cosmeticId)).toBe(true);
+  });
+
+  it("merge unions earned cosmetic ids per season (never a downgrade)", () => {
+    localStorage.setItem("silicon.seasons.v1", JSON.stringify({
+      completions: { "2026-07": ["daily:2026-07-01"] },
+      earned: { "2026-07": ["col:a"] },
+    }));
+    mergeSeasons({
+      completions: { "2026-07": ["daily:2026-07-02"] },
+      earned: { "2026-07": ["flr:b"], "2026-08": ["wal:c"] },
+    });
+    const store = getSeasons();
+    expect(new Set(store.earned?.["2026-07"])).toEqual(new Set(["col:a", "flr:b"]));
+    expect(store.earned?.["2026-08"]).toEqual(["wal:c"]);
   });
 });
 

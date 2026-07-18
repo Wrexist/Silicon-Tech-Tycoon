@@ -449,7 +449,7 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
           emitCelebrate();
           showToast(`Season reward unlocked, ${reward.name} · ${seasonLabel(seasonId)}`, {
             tone: "positive",
-            glyph: createElement(achievementIcon("Sparkles"), { size: 15 }),
+            glyph: <Sparkles size={15} />,
           });
         } catch {
           /* toast host not mounted (e.g. tests) */

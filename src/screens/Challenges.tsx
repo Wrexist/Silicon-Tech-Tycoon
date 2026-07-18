@@ -123,10 +123,14 @@ function SeasonTrack() {
           const unlocked = count >= r.rung;
           const Icon = REWARD_ICON[r.type];
           return (
-            <li key={r.cosmeticId} className={`season__rung${unlocked ? " season__rung--on" : ""}`}>
+            <li
+              key={r.cosmeticId}
+              className={`season__rung${unlocked ? " season__rung--on" : ""}`}
+              aria-label={`${r.name}, ${REWARD_KIND[r.type]}, ${r.rung} completions — ${unlocked ? "earned" : "locked"}`}
+            >
               <span className="season__rung-req tnum" aria-hidden>{r.rung}</span>
               <span className="season__rung-icon" aria-hidden><Icon size={15} /></span>
-              <span className="season__rung-info">
+              <span className="season__rung-info" aria-hidden>
                 <span className="season__rung-name">{r.name}</span>
                 <span className="season__rung-kind">{REWARD_KIND[r.type]}</span>
               </span>

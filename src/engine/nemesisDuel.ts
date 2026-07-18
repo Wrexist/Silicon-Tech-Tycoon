@@ -11,6 +11,7 @@
 // side-channel randomness (a victory flavour line) is a DERIVED hash of (seed, week, 277) — never the
 // sim RNG, cosmetic-only.
 import { BALANCE } from "./balance.ts";
+import type { Money } from "./money.ts";
 
 export interface NemesisDuel {
   /** The rival being dueled — always mirrors the standing nemesis's rivalId. */
@@ -50,15 +51,15 @@ export function startDuel(rivalId: string, week: number, tier: number, ascension
 }
 
 /** Live "you vs them" progress toward the win line, 0..1 (playerValue ÷ the margin-scaled target).
- *  Both values are plain dollars. A vanished rival (0 value) reads as already-won. Pure. */
-export function duelProgress(playerValue: number, rivalValue: number, margin: number): number {
+ *  Both values are Money (integer cents). A vanished rival (0 value) reads as already-won. Pure. */
+export function duelProgress(playerValue: Money, rivalValue: Money, margin: number): number {
   const need = rivalValue * margin;
   if (need <= 0) return 1;
   return Math.max(0, Math.min(1, playerValue / need));
 }
 
 /** Has the player met the win line? (out-valued the nemesis by the required margin). Pure. */
-export function duelMet(playerValue: number, rivalValue: number, margin: number): boolean {
+export function duelMet(playerValue: Money, rivalValue: Money, margin: number): boolean {
   return playerValue >= rivalValue * margin;
 }
 

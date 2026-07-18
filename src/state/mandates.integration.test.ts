@@ -93,7 +93,8 @@ describe("era mandate — the draft flow", () => {
 
 describe("era mandate — determinism", () => {
   it("(a) a no-mandate run with launches replays byte-identical (empty held = no-op)", () => {
-    const start: GameState = { ...newGame(555), cash: dollars(20_000_000), eraMandates: [] };
+    const start: GameState = { ...newGame(555), cash: dollars(20_000_000) };
+    delete (start as { eraMandates?: string[] }).eraMandates; // simulate a pre-feature save (no held list)
     const clone = structuredClone(start);
     const script = (s0: GameState) => {
       let s = s0;
@@ -106,7 +107,12 @@ describe("era mandate — determinism", () => {
     const a = script(start);
     const b = script(clone);
     expect(norm(a)).toEqual(norm(b));
-    expect(a.eraMandates).toEqual([]);
+    expect(a.eraMandates ?? []).toEqual([]);
+    // An absent held-list must behave EXACTLY like an explicit eraMandates: [] — otherwise the feature
+    // would be leaking into old saves. Compare the whole state minus the held-list field itself.
+    const empty = script({ ...structuredClone(start), eraMandates: [] });
+    const stripHeld = (s: GameState) => { const n = norm(s) as Record<string, unknown>; delete n.eraMandates; return n; };
+    expect(stripHeld(a)).toEqual(stripHeld(empty));
   });
 
   it("(b) a run that advances an era + drafts a mandate replays byte-identical twice", () => {

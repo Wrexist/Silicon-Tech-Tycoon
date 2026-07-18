@@ -9,6 +9,7 @@ import {
   duelVictoryLine,
 } from "./nemesisDuel.ts";
 import { BALANCE } from "./balance.ts";
+import { cents } from "./money.ts";
 
 const D = BALANCE.competitors.nemesis.duel;
 
@@ -46,21 +47,21 @@ describe("startDuel", () => {
 
 describe("duelProgress + duelMet", () => {
   it("progress is playerValue over the margin-scaled target, clamped to [0,1]", () => {
-    // margin 1.0 → target === rivalValue
-    expect(duelProgress(50, 100, 1)).toBeCloseTo(0.5, 6);
-    expect(duelProgress(100, 100, 1)).toBe(1);
-    expect(duelProgress(250, 100, 1)).toBe(1); // clamped
+    // margin 1.0 → target === rivalValue (values are Money / integer cents)
+    expect(duelProgress(cents(50), cents(100), 1)).toBeCloseTo(0.5, 6);
+    expect(duelProgress(cents(100), cents(100), 1)).toBe(1);
+    expect(duelProgress(cents(250), cents(100), 1)).toBe(1); // clamped
     // a wider margin needs more to fill the bar
-    expect(duelProgress(100, 100, 1.25)).toBeCloseTo(0.8, 6);
+    expect(duelProgress(cents(100), cents(100), 1.25)).toBeCloseTo(0.8, 6);
   });
   it("a vanished rival (0 value) reads as already met", () => {
-    expect(duelProgress(0, 0, 1.2)).toBe(1);
-    expect(duelMet(0, 0, 1.2)).toBe(true);
+    expect(duelProgress(cents(0), cents(0), 1.2)).toBe(1);
+    expect(duelMet(cents(0), cents(0), 1.2)).toBe(true);
   });
   it("duelMet is true exactly when the player clears the margin", () => {
-    expect(duelMet(105, 100, 1.05)).toBe(true);
-    expect(duelMet(104, 100, 1.05)).toBe(false);
-    expect(duelMet(100, 100, 1)).toBe(true);
+    expect(duelMet(cents(105), cents(100), 1.05)).toBe(true);
+    expect(duelMet(cents(104), cents(100), 1.05)).toBe(false);
+    expect(duelMet(cents(100), cents(100), 1)).toBe(true);
   });
 });
 

@@ -352,6 +352,9 @@ function migrate(state: GameState): GameState | null {
   // so no per-save flag is needed here.
   if (!Array.isArray(s.eraMandates)) s.eraMandates = [];
   if (s.pendingMandateOffer === undefined) s.pendingMandateOffer = null;
+  // A pending draft only belongs to the era it was rolled for; a stale offer for another era (e.g. a
+  // hand-edited or partially-migrated save) can never be resolved by the EraModal, so drop it.
+  if (s.pendingMandateOffer != null && s.pendingMandateOffer.eraTo !== s.era) s.pendingMandateOffer = null;
   // Pre-launch Keynote gamble (feature #4) — no active promises / announce ledger on old saves. Empty
   // arrays = no keynote in play = byte-identical in-run behaviour, so no per-save flag is needed.
   if (!Array.isArray(s.pendingKeynote)) s.pendingKeynote = [];
@@ -444,7 +447,8 @@ function migrate(state: GameState): GameState | null {
   // trophies default to 0.
   if (s.nemesisDuel != null && (typeof s.nemesisDuel !== "object"
     || typeof s.nemesisDuel.rivalId !== "string"
-    || !Number.isFinite(s.nemesisDuel.endWeek) || !Number.isFinite(s.nemesisDuel.targetMargin))) {
+    || !Number.isFinite(s.nemesisDuel.startWeek) || !Number.isFinite(s.nemesisDuel.endWeek)
+    || !Number.isFinite(s.nemesisDuel.tier) || !Number.isFinite(s.nemesisDuel.targetMargin))) {
     s.nemesisDuel = null;
   }
   if (!Number.isFinite(s.nemesisLadderTier) || s.nemesisLadderTier < 0) s.nemesisLadderTier = 0;

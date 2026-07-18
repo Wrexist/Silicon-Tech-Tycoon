@@ -96,6 +96,11 @@ describe("mastery integration — determinism", () => {
     expect(norm(a)).toEqual(norm(b));
     expect(a.launched.length).toBe(2);
     expect(a.masteryEnabled).toBeUndefined(); // stayed off
+    // An absent flag must behave EXACTLY like an explicit masteryEnabled: false — otherwise the feature
+    // would be leaking into old saves. Compare the whole state minus the flag field itself.
+    const off = script({ ...structuredClone(start), masteryEnabled: false });
+    const stripFlag = (s: GameState) => { const n = norm(s) as Record<string, unknown>; delete n.masteryEnabled; return n; };
+    expect(stripFlag(a)).toEqual(stripFlag(off));
   });
 
   it("(c) a fresh run (masteryEnabled) with launches replays deterministically twice", () => {

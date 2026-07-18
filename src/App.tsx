@@ -278,7 +278,7 @@ function AppShell() {
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
         <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
       </Sheet>
-      {(state.era > seenEraModal || state.pendingMandateOffer != null) && !state.wentPublic && !state.bankrupt && (
+      {(state.era > seenEraModal || (state.pendingMandateOffer != null && state.pendingMandateOffer.eraTo === state.era)) && !state.wentPublic && !state.bankrupt && (
         <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
       )}
       {state.wentPublic && !ipoSeen && <IpoOverlay onDismiss={() => setIpoSeen(true)} />}

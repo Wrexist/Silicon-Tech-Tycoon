@@ -45,12 +45,33 @@ export const SEASON_BADGES: readonly { id: string; name: string }[] = [
 // ---------- Pure season derivation ------------------------------------------------------------
 
 /** The season id for a challenge date key ("YYYY-MM-DD" → "YYYY-MM"). A season is a calendar month,
- *  derived from the challenge DATE (never the wall clock), so it's stable + offline. Returns "" for a
- *  malformed key. */
+ *  derived from the challenge DATE (never the wall clock), so it's stable + offline. STRICT: the month
+ *  must be 01-12 and — when a day is present — a real calendar day (leap-year aware), so corrupt/imported
+ *  keys like "2026-00" or "2026-13-99" can't mint a phantom season. Returns "" for a malformed key. */
 export function seasonIdOf(dateKey: string): string {
   if (typeof dateKey !== "string") return "";
-  const m = /^(\d{4})-(\d{2})(?:-\d{2})?$/.exec(dateKey.trim());
-  return m ? `${m[1]}-${m[2]}` : "";
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(dateKey.trim());
+  if (!m) return "";
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) return "";
+  if (m[3] !== undefined) {
+    const day = Number(m[3]);
+    const dt = new Date(Date.UTC(year, month - 1, day));
+    if (day < 1 || dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) return "";
+  }
+  return `${m[1]}-${m[2]}`;
+}
+
+/** Split a challenge key ("daily|weekly:YYYY-MM-DD") into its season id, or "" if the kind isn't one of
+ *  the two real challenge kinds or the date is malformed — so a bad prefix ("foo:…") can't seed a track. */
+function seasonIdOfKey(challengeKey: string): string {
+  if (typeof challengeKey !== "string") return "";
+  const sep = challengeKey.indexOf(":");
+  if (sep < 0) return "";
+  const kind = challengeKey.slice(0, sep);
+  if (kind !== "daily" && kind !== "weekly") return "";
+  return seasonIdOf(challengeKey.slice(sep + 1));
 }
 
 const MONTHS = [
@@ -105,6 +126,10 @@ export function seasonRewards(seasonId: string): SeasonReward[] {
  *  counts against each season's reward set (self-healing; nothing to keep in sync). */
 export interface SeasonsStore {
   completions: Record<string, string[]>;
+  /** Per-season cosmetic ids actually earned when a rung was crossed. Authoritative over the derived
+   *  set, so a future reward-pool reorder can't rewrite history. Optional — legacy stores lack it and
+   *  fall back to derivation. */
+  earned?: Record<string, string[]>;
 }
 
 function sanitize(raw: unknown): SeasonsStore {
@@ -114,18 +139,30 @@ function sanitize(raw: unknown): SeasonsStore {
   const out: Record<string, string[]> = {};
   for (const [sid, list] of Object.entries(comp as Record<string, unknown>)) {
     if (!/^\d{4}-\d{2}$/.test(sid) || !Array.isArray(list)) continue;
-    // De-dupe + keep only well-formed "kind:dateKey" strings whose date sits IN this season.
+    // De-dupe + keep only well-formed "daily|weekly:dateKey" strings whose date sits IN this season.
     const seen = new Set<string>();
     for (const k of list) {
       if (typeof k !== "string" || seen.has(k)) continue;
-      const sep = k.indexOf(":");
-      if (sep < 0) continue;
-      if (seasonIdOf(k.slice(sep + 1)) !== sid) continue;
+      if (seasonIdOfKey(k) !== sid) continue;
       seen.add(k);
     }
     if (seen.size > 0) out[sid] = [...seen];
   }
-  return { completions: out };
+  // Earned cosmetic ids (optional) — tolerate corrupt data: keep only non-empty string-id lists under
+  // well-formed season ids.
+  const rawEarned = (raw as { earned?: unknown }).earned;
+  const earned: Record<string, string[]> = {};
+  if (rawEarned && typeof rawEarned === "object" && !Array.isArray(rawEarned)) {
+    for (const [sid, ids] of Object.entries(rawEarned as Record<string, unknown>)) {
+      if (!/^\d{4}-\d{2}$/.test(sid) || !Array.isArray(ids)) continue;
+      const seen = new Set<string>();
+      for (const id of ids) if (typeof id === "string" && id.length > 0) seen.add(id);
+      if (seen.size > 0) earned[sid] = [...seen];
+    }
+  }
+  const store: SeasonsStore = { completions: out };
+  if (Object.keys(earned).length > 0) store.earned = earned;
+  return store;
 }
 
 export function getSeasons(): SeasonsStore {
@@ -166,10 +203,7 @@ export interface SeasonCompletionResult {
  *  so the caller can celebrate them once. */
 export function recordSeasonCompletion(challengeKey: string): SeasonCompletionResult {
   const noop = (seasonId: string, count: number): SeasonCompletionResult => ({ seasonId, prevCount: count, count, crossed: [] });
-  if (typeof challengeKey !== "string") return noop("", 0);
-  const sep = challengeKey.indexOf(":");
-  if (sep < 0) return noop("", 0);
-  const seasonId = seasonIdOf(challengeKey.slice(sep + 1));
+  const seasonId = seasonIdOfKey(challengeKey);
   if (!seasonId) return noop("", 0);
 
   const store = getSeasons();
@@ -179,33 +213,58 @@ export function recordSeasonCompletion(challengeKey: string): SeasonCompletionRe
   const prevCount = list.length;
   const count = prevCount + 1;
   store.completions = { ...store.completions, [seasonId]: [...list, challengeKey] };
-  write(store);
   const crossed = seasonRewards(seasonId).filter((r) => prevCount < r.rung && count >= r.rung);
+  // Persist the earned cosmetic ids (not just the count) so this season's rewards survive a future
+  // reward-pool reorder unchanged. Union with any already stored for the season.
+  if (crossed.length > 0) {
+    const prevEarned = store.earned?.[seasonId] ?? [];
+    const set = new Set([...prevEarned, ...crossed.map((r) => r.cosmeticId)]);
+    store.earned = { ...(store.earned ?? {}), [seasonId]: [...set] };
+  }
+  write(store);
   return { seasonId, prevCount, count, crossed };
 }
 
-/** Bulk-restore from a backup — UNION of completed keys per season (never a downgrade). */
+/** Bulk-restore from a backup — UNION of completed keys AND earned cosmetic ids per season (never a
+ *  downgrade). */
 export function mergeSeasons(incoming: unknown): void {
   const inc = sanitize(incoming);
-  if (Object.keys(inc.completions).length === 0) return;
+  const hasEarned = inc.earned && Object.keys(inc.earned).length > 0;
+  if (Object.keys(inc.completions).length === 0 && !hasEarned) return;
   const cur = getSeasons();
   const merged: Record<string, string[]> = { ...cur.completions };
   for (const [sid, list] of Object.entries(inc.completions)) {
-    const set = new Set([...(merged[sid] ?? []), ...list]);
-    merged[sid] = [...set];
+    merged[sid] = [...new Set([...(merged[sid] ?? []), ...list])];
   }
-  write({ completions: merged });
+  const mergedEarned: Record<string, string[]> = { ...(cur.earned ?? {}) };
+  if (inc.earned) {
+    for (const [sid, ids] of Object.entries(inc.earned)) {
+      mergedEarned[sid] = [...new Set([...(mergedEarned[sid] ?? []), ...ids])];
+    }
+  }
+  const store: SeasonsStore = { completions: merged };
+  if (Object.keys(mergedEarned).length > 0) store.earned = mergedEarned;
+  write(store);
 }
 
 // ---------- Derived: all-time unlocked cosmetics ----------------------------------------------
 
-/** Every cosmetic id unlocked across every season (count ≥ its rung). Pure over the store, so it's
- *  always consistent with the completion record. */
+/** The cosmetic ids unlocked for ONE season — the STORED earned ids when present (authoritative, so a
+ *  future reward-pool reorder can't rewrite history), else derived from the completion count for legacy
+ *  data that predates the stored set. */
+function seasonUnlockedIds(sid: string, store: SeasonsStore): string[] {
+  const stored = store.earned?.[sid];
+  if (stored && stored.length > 0) return stored;
+  const count = store.completions[sid]?.length ?? 0;
+  return seasonRewards(sid).filter((r) => count >= r.rung).map((r) => r.cosmeticId);
+}
+
+/** Every cosmetic id unlocked across every season — stored earned ids when present, else derived from
+ *  the count. Pure over the store, so it's always consistent with the record. */
 export function unlockedCosmetics(store: SeasonsStore = getSeasons()): Set<string> {
   const out = new Set<string>();
-  for (const [sid, list] of Object.entries(store.completions)) {
-    const count = list.length;
-    for (const r of seasonRewards(sid)) if (count >= r.rung) out.add(r.cosmeticId);
+  for (const sid of Object.keys(store.completions)) {
+    for (const id of seasonUnlockedIds(sid, store)) out.add(id);
   }
   return out;
 }
@@ -233,13 +292,17 @@ export function unlockedWallIds(store: SeasonsStore = getSeasons()): Set<string>
 
 export interface EarnedBadge { id: string; name: string; seasonId: string }
 
-/** Every badge earned (top rung reached), newest season first — for the profile/Seasons UI. */
+/** Every badge earned (top rung reached), newest season first — for the profile/Seasons UI. Resolved
+ *  from the unlocked ids (stored earned ids when present, else derived), with the badge NAME looked up
+ *  from the fixed pool by id so it stays stable regardless of pool order. */
 export function earnedBadges(store: SeasonsStore = getSeasons()): EarnedBadge[] {
   const out: EarnedBadge[] = [];
-  for (const [sid, list] of Object.entries(store.completions)) {
-    const count = list.length;
-    for (const r of seasonRewards(sid)) {
-      if (r.type === "badge" && count >= r.rung) out.push({ id: r.cosmeticId.slice(4), name: r.name, seasonId: sid });
+  for (const sid of Object.keys(store.completions)) {
+    for (const cosmeticId of seasonUnlockedIds(sid, store)) {
+      if (!cosmeticId.startsWith("bdg:")) continue;
+      const badgeId = cosmeticId.slice(4);
+      const name = SEASON_BADGES.find((b) => b.id === badgeId)?.name ?? badgeId;
+      out.push({ id: badgeId, name, seasonId: sid });
     }
   }
   out.sort((a, b) => (a.seasonId < b.seasonId ? 1 : a.seasonId > b.seasonId ? -1 : 0));
