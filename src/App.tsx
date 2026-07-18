@@ -151,6 +151,25 @@ function AppShell() {
   // their first product — same first-ship gate the meta-layer always used, just hoisted to the HUD.
   const hasShipped = hasShippedNow;
 
+  // Progressive tab reveal (onboarding clarity): the bottom nav starts as Office + Design only,
+  // then reveals Research + Market after the first launch (or once the tutorial's done) and Company
+  // once the team grows or the era turns. Every gate is on state the engine already tracks, so any
+  // existing save with launches/staff clears them instantly and sees all tabs at once. Hidden tabs
+  // don't render (BottomNav), so their attention dots can't show either — the badge gate is mirrored
+  // for free. The active tab is always kept visible there, so a deep-link can never strand the nav.
+  const revealMore = state.launched.length >= 1 || state.tutorialDone;
+  const tabVisible: Partial<Record<Tab, boolean>> = {
+    hq: true,
+    design: true,
+    research: revealMore,
+    market: revealMore,
+    company: state.staff.length >= 2 || state.era >= 2,
+  };
+  // The Office/Factory world toggle only matters once there's a manufacturing floor to visit —
+  // defer it until the player owns a factory or reaches era 2. Kept visible whenever the factory
+  // world is already open (e.g. entered via HQ's "Build your factory line") so there's always a way back.
+  const showWorldTabs = state.era >= 2 || (state.ownedFactories?.length ?? 0) > 0 || hqWorld === "factory";
+
   return (
     <div className="app">
       <Hud
@@ -168,22 +187,24 @@ function AppShell() {
               and the manufacturing floor (FACTORY_WORLD_PLAN.md P1). */}
           <div className="app__titlerow">
             <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
-            <div className="worldtabs" role="group" aria-label="Headquarters world">
-              <button
-                className={`worldtabs__tab${hqWorld === "office" ? " worldtabs__tab--on" : ""}`}
-                aria-pressed={hqWorld === "office"}
-                onClick={() => { haptic.light(); setHqWorld("office"); }}
-              >
-                <Home size={14} aria-hidden /> Office
-              </button>
-              <button
-                className={`worldtabs__tab${hqWorld === "factory" ? " worldtabs__tab--on" : ""}`}
-                aria-pressed={hqWorld === "factory"}
-                onClick={() => { haptic.light(); setHqWorld("factory"); }}
-              >
-                <Factory size={14} aria-hidden /> Factory
-              </button>
-            </div>
+            {showWorldTabs && (
+              <div className="worldtabs" role="group" aria-label="Headquarters world">
+                <button
+                  className={`worldtabs__tab${hqWorld === "office" ? " worldtabs__tab--on" : ""}`}
+                  aria-pressed={hqWorld === "office"}
+                  onClick={() => { haptic.light(); setHqWorld("office"); }}
+                >
+                  <Home size={14} aria-hidden /> Office
+                </button>
+                <button
+                  className={`worldtabs__tab${hqWorld === "factory" ? " worldtabs__tab--on" : ""}`}
+                  aria-pressed={hqWorld === "factory"}
+                  onClick={() => { haptic.light(); setHqWorld("factory"); }}
+                >
+                  <Factory size={14} aria-hidden /> Factory
+                </button>
+              </div>
+            )}
           </div>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
             <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => openProgress("challenges")} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq"} world={hqWorld} />
@@ -222,6 +243,7 @@ function AppShell() {
         active={tab}
         onChange={setTab}
         badge={navAttention(state)}
+        visible={tabVisible}
       />
 
       <GainFX />

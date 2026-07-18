@@ -978,8 +978,9 @@ function UnlockCard({ onOpenBank, onOpenProgress }: { onOpenBank: () => void; on
       </div>
       <ul className="hq__unlock-list">
         <li><Trophy size={13} aria-hidden /> <strong>Progress hub</strong> — achievements, scenarios, daily challenges &amp; your device museum (trophy icon, top bar).</li>
-        <li><Building2 size={13} aria-hidden /> <strong>Stock market &amp; financing</strong> — trade rival shares and take loans from the Bank.</li>
-        <li><Users size={13} aria-hidden /> <strong>Team morale</strong> — your staff now have moods and moments to manage.</li>
+        <li><FlaskConical size={13} aria-hidden /> <strong>Research tab</strong> — climb the tech tiers and unlock new eras.</li>
+        <li><TrendingUp size={13} aria-hidden /> <strong>Market tab</strong> — read buyers &amp; rivals, and trade rival stocks.</li>
+        <li><Users size={13} aria-hidden /> <strong>Company tab</strong> — your team, their morale &amp; financing (opens as you hire).</li>
       </ul>
       <div className="hq__unlock-actions">
         {onOpenProgress && <Button size="sm" variant="secondary" onClick={() => { onOpenProgress(); haptic.light(); }}><Trophy size={14} /> Progress</Button>}

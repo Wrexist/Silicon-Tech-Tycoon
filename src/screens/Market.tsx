@@ -613,8 +613,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         )}
       </Card>
 
-      {/* Your franchises, product lines grouped by brand equity (the IP lens over your catalog) */}
-      <FranchisesCard launched={state.launched} />
+      {/* Your franchises, product lines grouped by brand equity (the IP lens over your catalog).
+          Only meaningful once you've shipped, so it's deferred until the first launch. */}
+      {state.launched.length > 0 && <FranchisesCard launched={state.launched} />}
 
       {/* Portfolio revenue breakdown by category */}
       {(() => {

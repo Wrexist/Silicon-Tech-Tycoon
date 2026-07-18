@@ -16,14 +16,19 @@ export function BottomNav({
   active,
   onChange,
   badge,
+  visible,
 }: {
   active: Tab;
   onChange: (t: Tab) => void;
   badge?: Partial<Record<Tab, boolean>>;
+  // Which tabs are currently revealed (progressive onboarding). Omitted → all tabs show. Hidden
+  // tabs never render, so their attention dots can't show either. TABS order is preserved.
+  visible?: Partial<Record<Tab, boolean>>;
 }) {
+  const shown = TABS.filter((t) => visible == null || visible[t.id] || t.id === active);
   return (
     <nav className="bnav" aria-label="Primary">
-      {TABS.map((t) => (
+      {shown.map((t) => (
         <button
           key={t.id}
           className={`bnav__item${active === t.id ? " bnav__item--active" : ""}`}

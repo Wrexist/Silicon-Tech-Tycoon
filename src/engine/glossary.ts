@@ -46,7 +46,7 @@ export function segmentWantsById(id: string): string {
  *  causal (what each number is built FROM and what moves it), not a restatement of the label. Single
  *  source so the lab's inline explainers and the Help hub can't drift. */
 export const SCORE_INFO: { term: string; def: string }[] = [
-  { term: "Fit", def: "How well this design matches what buyers want right now (0–100). It weighs your five stats against the current market taste and your price. Higher Fit means more of the market wants exactly this — it's the single biggest lever on how a launch sells." },
+  { term: "Fit", def: "How well this design matches what buyers want right now (0–100). It weighs your five stats against the current market taste and your price. Higher Fit means more of the market wants exactly this — it's the single biggest lever on how a launch sells. (This is the whole-market score; per-buyer-segment fit is tracked separately as Segment fit.)" },
   { term: "Build", def: "How coherent the component mix is. A balanced, high-end build earns a flagship bonus; one glaring weak link (a cheap part among strong ones) drags the whole product down. Raise the weakest slot to lift the score, don't just max one part." },
   { term: "Projected verdict", def: "Your likely launch result — Fit and your build, adjusted by your reputation and track record, then measured against what rivals are shipping. It can slip from Hit to Solid without you changing anything when a rival raises the bar, so ship while you're ahead." },
 ];
@@ -63,8 +63,8 @@ export const TERM_INFO: { term: string; def: string }[] = [
   { term: "Reputation", def: "How much the market trusts your brand (0–100). Rises with hits, falls with flops; gates new eras and the IPO." },
   { term: "Fans", def: "Loyal customers who pre-order your next product. Hits grow your fanbase; flops shrink it." },
   // --- Advanced systems: the vocabulary that gates the game's depth, defined in one place ---
-  { term: "Segment fit", def: "How well a design matches ONE buyer segment's wants (0–100). The market sells through five segments (Budget, Mainstream, Pro, Style, Enterprise), each weighting the stats and price differently, so \"who is this for?\" is the core question." },
-  { term: "Design brief", def: "Optionally commit a product to a target segment. Nail that segment's fit at launch for bonus reputation and fans; miss it and you simply forgo the bonus (never a penalty)." },
+  { term: "Segment fit", def: "How well a design matches ONE buyer segment's wants (0–100). The market sells through five segments (Budget, Mainstream, Pro, Style, Enterprise), each weighting the stats and price differently, so \"who is this for?\" is the core question. Distinct from the headline Fit score, which measures your design against the whole market at once." },
+  { term: "Design brief", def: "Optionally commit a product to a target segment. Nail that segment's fit at launch for bonus reputation and fans; miss it and you simply forgo the bonus (never a penalty). (\"Brief fit\" is scored only against that committed target — a third, opt-in lens on top of the headline Fit and per-segment fit.)" },
   { term: "Doctrine", def: "A mutually-exclusive research fork (Engineering / Go-to-Market / Operations Houses). You can only ever pick ONE per fork — it stamps a permanent identity on every product, so it's a lasting playstyle choice, not a checklist buy." },
   { term: "Capstone", def: "The deep, end-of-tree research project for an era. It sits behind prerequisites (you must complete the required projects first) and pays a strong compound bonus." },
   { term: "Supplier loyalty", def: "Repeat business with a component supplier earns a standing per-unit discount that grows the more you order from them. A fixed-price contract locks in a further cut." },
@@ -73,4 +73,16 @@ export const TERM_INFO: { term: string; def: string }[] = [
   { term: "Board mandate", def: "A quarterly directive the board sets once you've gone public (post-IPO). Hit its target — revenue, hits, fans or rank — by the deadline for a cash + reputation reward; then it reissues a tougher bar." },
   { term: "Megaproject", def: "A post-IPO moonshot: sink a huge amount of cash and research into it for a permanent payoff (reputation, a kept fan boost) and Legacy Points. The slate never fully empties." },
   { term: "Legacy Points", def: "The prestige currency your megaprojects bank. Spend them in the Legacy tree on permanent, build-defining boons (hype, research, design ceiling, or margin), choosing a route as you climb its tiers." },
+  // --- The "living world" vocabulary: flavor + the soft demand levers a player meets in play ---
+  { term: "Buzz", def: "The industry news wire's running headlines about you and your rivals, shown on the Office as a rotating ticker. It's editorial flavor that reflects your results, not a stat you spend or raise." },
+  { term: "Brand awareness", def: "How widely the market knows your company, grown by launches and marketing. It feeds each release's launch hype (a demand head-start on day one) and eases off if you go quiet." },
+  { term: "Novelty & fatigue", def: "\"We just bought that.\" Ship a device too similar to a recent one in the same category and the broad market's demand dampens (your fans still pre-order). Real spec bumps or enough elapsed time refresh it." },
+  { term: "Market climate", def: "A slow seasonal swell and ebb in each buyer segment's size across the year. Launch into a segment while its climate is rising for a timing tailwind — it shifts demand between segments, not the total." },
+  { term: "Aesthetics", def: "The otherwise-cosmetic form choices — screen cutout, camera module shape, lens count, flash — are a real, bounded demand lever on top of the Design stat. A coherent, striking look lifts every segment, the Style buyer most." },
+  { term: "Tuning", def: "A per-product dial along a value↔premium axis (e.g. trading performance for battery). Pushing it costs more per unit to build, so it pays off only when it leans the device toward what the market wants right now." },
+  { term: "Capacity strategy", def: "How hard you push a production run. Overtime or stretching a line lifts output to meet demand, but the added strain raises the defect rate — you weigh speed against the units you scrap." },
+  { term: "Dual-source", def: "Contract a second supplier for a component so one supplier's shortage or price crunch can't stall the build. It costs a small per-unit premium for the redundancy, and halves that product's crunch exposure." },
+  { term: "Valuation momentum", def: "A bounded swing in your company's value around its fundamentals, driven by recent results. Hits pop it up (a richer valuation and share price), flops drag it down, and it drifts back to neutral over time." },
+  { term: "Board confidence", def: "How much your board backs you once public (0–100). Meeting mandates raises it and lifts a tier that multiplies mandate payouts; missing them lowers it. It never touches cash or reputation directly." },
+  { term: "Verdict", def: "The launch result band a product lands in — Hit, Solid, Steady or Flop — set by its Fit and build measured against rivals and your reputation. Hits grow fans and reputation; flops cost you both." },
 ];
