@@ -9,6 +9,7 @@ import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
+import { categoryLevelOf, MASTERY_MAX_LEVEL } from "../engine/mastery.ts";
 import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier, supplierLoyaltyProgress, supplierEthicsLabel, CONTRACT_TERMS, contractDiscount } from "../engine/suppliers.ts";
 import { availableFactories, factoryFor, DEFAULT_FACTORY_ID, type CapacityStrategy } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
@@ -734,6 +735,10 @@ export function DesignLab({
             const unlocked = isCategoryUnlocked(c.id, state.era);
             const on = draft.category === c.id;
             const genCount = state.launched.filter((lp) => lp.product.category === c.id).length;
+            // Category Mastery (feature #3) — compact level pips per category (fresh runs only). Maxed
+            // categories light up all five + a gold accent from the signature unlock.
+            const masteryLevel = state.masteryEnabled ? categoryLevelOf(state.launched, c.id) : 0;
+            const maxed = masteryLevel >= MASTERY_MAX_LEVEL;
             const activeSelling = state.launched.some(
               (lp) => lp.product.category === c.id && lp.weeksElapsed < lp.weeklyUnits.length,
             );
@@ -754,7 +759,7 @@ export function DesignLab({
             return (
               <button
                 key={c.id}
-                className={`lab__cat${on ? " lab__cat--on" : ""}`}
+                className={`lab__cat${on ? " lab__cat--on" : ""}${maxed ? " lab__cat--maxed" : ""}`}
                 aria-pressed={on}
                 onClick={() => {
                   haptic.light();
@@ -772,6 +777,16 @@ export function DesignLab({
                       <span className={`lab__cat-gen${activeSelling ? " lab__cat-gen--live" : ""}`}>G{genCount + 1}</span>
                     )}
                   </span>
+                  {state.masteryEnabled && (
+                    <span
+                      className={`lab__cat-mastery${maxed ? " lab__cat-mastery--maxed" : ""}`}
+                      aria-label={`Mastery level ${masteryLevel} of ${MASTERY_MAX_LEVEL}`}
+                    >
+                      {Array.from({ length: MASTERY_MAX_LEVEL }, (_, i) => (
+                        <span key={i} className={`lab__cat-pip${i < masteryLevel ? " lab__cat-pip--on" : ""}`} aria-hidden />
+                      ))}
+                    </span>
+                  )}
                 </span>
               </button>
             );

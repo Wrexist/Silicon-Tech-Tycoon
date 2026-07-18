@@ -5,9 +5,12 @@
 // handler). The sub-sheet's close returns to the hub; the hub's close (or Escape) exits Progress.
 // Gated (in App) on the first ship, so an empty garage isn't buried under systems.
 import { useState } from "react";
-import { Award, Boxes, CalendarDays, Crown, Target, Trophy, X, BookOpen, Map as MapIcon } from "lucide-react";
+import { Award, Boxes, CalendarDays, Crown, Target, Trophy, X, BookOpen, Map as MapIcon, Layers } from "lucide-react";
 import { ListChecks } from "lucide-react";
 import { AchievementsSheet } from "./Achievements.tsx";
+import { MasterySheet } from "./Mastery.tsx";
+import { categoryMastery } from "../engine/mastery.ts";
+import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { ScenariosSheet } from "./Scenarios.tsx";
 import { ChallengesSheet } from "./Challenges.tsx";
 import { MuseumSheet } from "./Museum.tsx";
@@ -27,7 +30,7 @@ import { SCENARIOS } from "../engine/scenarios.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./progress.css";
 
-type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum" | "legend" | "goals" | "roadmap" | "help";
+type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum" | "legend" | "goals" | "roadmap" | "help" | "mastery";
 
 export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () => void; initialView?: View }) {
   const { state } = useGame();
@@ -57,6 +60,10 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
   const goals = collectGoals(state);
   const claimableGoals = goals.filter((g) => g.claimable).length;
 
+  // Category Mastery — how many of the ten categories are fully mastered (level 5), for the hub badge.
+  const masteryTable = categoryMastery(state.launched);
+  const masteredCount = CATEGORY_LIST.filter((c) => masteryTable[c.id].level >= 5).length;
+
   // Sub-views render their content directly inside App's single Sheet (back-arrow returns to the hub).
   if (view === "achievements") return <AchievementsSheet unlocked={earnedAchievements} onClose={toHub} />;
   if (view === "scenarios") return <ScenariosSheet onClose={toHub} />;
@@ -66,6 +73,7 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
   if (view === "goals") return <GoalsLedgerSheet onClose={toHub} />;
   if (view === "roadmap") return <RoadmapSheet onClose={toHub} />;
   if (view === "help") return <HelpSheet onClose={toHub} />;
+  if (view === "mastery") return <MasterySheet onClose={toHub} />;
 
   return (
     <div className="prog">
@@ -95,6 +103,15 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
           <span className="prog__row-title">Company Roadmap</span>
           <span className="prog__row-sub">The eras ahead and everything they unlock</span>
         </span>
+      </button>
+
+      <button className="prog__row" onClick={() => setView("mastery")}>
+        <span className="prog__row-glyph" aria-hidden><Layers size={20} /></span>
+        <span className="prog__row-info">
+          <span className="prog__row-title">Category Mastery</span>
+          <span className="prog__row-sub">Master all ten device categories</span>
+        </span>
+        <span className="prog__row-count tnum">{masteredCount}<span className="prog__row-count-total">/{CATEGORY_LIST.length}</span></span>
       </button>
 
       <button className="prog__row" onClick={() => setView("legend")}>

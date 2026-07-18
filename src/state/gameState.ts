@@ -150,6 +150,12 @@ import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } f
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
 import { generateLicenseOffer, licenseOfferDue, negotiateLicenseOffer as resolveNegotiation, type LicenseOffer, type LicenseSuitor, type NegotiationOutcome } from "../engine/licenseOffers.ts";
 import { perkBonuses, type PerkBonus } from "../engine/perks.ts";
+import {
+  categoryLevelOf,
+  masteryBonusForLevel,
+  ZERO_MASTERY_BONUS,
+  type MasteryBonus,
+} from "../engine/mastery.ts";
 import { legacyTreeBonuses, legacyPerkById, legacyPerkAvailable, LEGACY_TREE } from "../engine/legacyTree.ts";
 import { frontierBonuses, frontierCost, frontierBandsCrossed, frontierBandUnlockAt, type FrontierLaneId } from "../engine/frontier.ts";
 import { ascensionBarFactor, ascensionHeadStartFactor, clampAscension } from "../engine/ascension.ts";
@@ -627,6 +633,11 @@ export interface GameState {
    *  The `*Free` flags grandfather saves that already had an automation ON before the gating shipped,
    *  so they keep working without the new prerequisites. Persisted per save. */
   automation: { autoAssign: boolean; autoResearch: boolean; autoAssignFree?: boolean; autoResearchFree?: boolean };
+  /** Category Mastery (feature #3) opt-in. Set true ONLY by newGame for fresh runs, so the small
+   *  category-scoped mastery bonuses (cheaper build / +design / +hype, derived from launched[]) apply.
+   *  Absent/false → every mastery seam is a byte-exact no-op, so OLD SAVES never shift mid-run and the
+   *  do-nothing reproducibility pin (no launches → no mastery either way) is untouched. */
+  masteryEnabled?: boolean;
 }
 
 /** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery.
@@ -894,6 +905,9 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     acquiredRivals: [],
     absorbedBase: 0,
     automation: { autoAssign: false, autoResearch: false, autoAssignFree: false, autoResearchFree: false },
+    // Category Mastery (feature #3) — ON for fresh runs only. Old saves lack this field (→ off) so
+    // they keep byte-stable behaviour; a no-launch run derives no mastery either way (pin untouched).
+    masteryEnabled: true,
   };
 }
 
@@ -1058,6 +1072,15 @@ export const prestigeBonuses = (s: GameState): PerkBonus => {
 };
 export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + prestigeBonuses(s).designCeiling;
+
+/** Category Mastery (feature #3) — the small, CATEGORY-SCOPED bonus a product earns from how many
+ *  times you've shipped in its category (derived from launched[]). Gated on the masteryEnabled opt-in:
+ *  absent/false → the zero bonus, so old saves + the do-nothing pin are byte-identical. Read by the
+ *  build-cost, design-appeal and launch-hype seams, each scoped to the product's own category. */
+export const masteryBonusFor = (s: GameState, category: CategoryId): MasteryBonus => {
+  if (!s.masteryEnabled) return ZERO_MASTERY_BONUS;
+  return masteryBonusForLevel(categoryLevelOf(s.launched, category));
+};
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
 /** Mood-target bonus from the room's comfort furniture (capped). Added to the weekly mood target. */
 // Item 5.5 — office attributes PLUS the placement zone bonus (desks beside amenities). Zero for the
@@ -1176,6 +1199,11 @@ export function productStats(s: GameState, product: Product): Stats {
     const phil = philosophyStatBonus(s.osPhilosophy);
     for (const k of Object.keys(phil) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (phil[k] ?? 0);
   }
+  // Category Mastery (feature #3): a mastered category lends a small design-appeal bonus to its
+  // products (+2 at L5). Gated on the opt-in, so it's exactly 0 for disabled saves / the pinned sim.
+  const masteryDesign = masteryBonusFor(s, product.category).design;
+  if (masteryDesign > 0) bonus.design = (bonus.design ?? 0) + masteryDesign;
+
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
     // Clamp BOTH ends (tuning can subtract): never below 0, never above statMax.
@@ -1363,9 +1391,12 @@ export function capacityPlan(s: GameState, product: Product, plannedUnits: numbe
 export function toolingCost(s: GameState, product: Product): Money {
   const margin = tuningCostMultiplier(product.tuning);
   const perk = 1 - prestigeBonuses(s).buildCostMult; // NG+ Supply Chain / Industrialist perks
+  // Category Mastery (feature #3): a mastered category tools up a touch cheaper (≤5% at L5). 0 when
+  // disabled/unstarted → identical to before.
+  const mastery = 1 - masteryBonusFor(s, product.category).buildCostMult;
   // Living Late Game: late eras tool up bigger (eraModifier.toolingMult; 1.0 in eras 1–2 → no-op).
   const eraTooling = eraModifier(s.era).toolingMult;
-  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * factoryToolingMult(product) * eraTooling);
+  const base = scale(buildCost(product), BALANCE.build.toolingUnits * buildCostMult(s.upgrades) * margin * perk * mastery * factoryToolingMult(product) * eraTooling);
   return base > BALANCE.build.minTooling ? base : BALANCE.build.minTooling;
 }
 
@@ -1379,6 +1410,10 @@ export function effectiveUnitCost(s: GameState, product: Product): Money {
   if (hasProject(s.completedProjects, "opsCost")) unitCost = scale(unitCost, 0.82); // Operations doctrine: Cost House
   if (hasProject(s.completedProjects, "platformDominance")) unitCost = scale(unitCost, 0.90); // Era-3 capstone (item 4.2)
   unitCost = scale(unitCost, 1 - prestigeBonuses(s).buildCostMult);
+  // Category Mastery (feature #3) — category-scoped per-unit discount (≤5% at L5). Zero when
+  // disabled/unstarted, so the pinned sim + old saves are byte-identical.
+  const masteryCost = masteryBonusFor(s, product.category).buildCostMult;
+  if (masteryCost > 0) unitCost = scale(unitCost, 1 - masteryCost);
   unitCost = scale(unitCost, factoryUnitMult(product)); // factory assembly cost (standard = ×1)
   // Player-built line automation (item 3.1): a complete floor trims per-unit cost, clamped ≤1 so an
   // unwired/bare floor is exactly ×1 (baseline + pinned sim byte-identical). Pure upside.
@@ -1492,7 +1527,9 @@ export function planProduction(
     // SEPARATELY (campaignHype) so it lands on TOP of this clamp — a bigger campaign always lifts the
     // launch instead of being absorbed once the company's passive hype maxes out (the "every tier
     // shows the same units" bug in a mature company).
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, effectiveHypeBonus(s) * mktMult + equityHypeBonus(brand.equity))),
+    // + Category Mastery (feature #3): a mastered category's launches land a little louder (+5% at
+    // L5), scoped to this product's category. 0 when disabled/unstarted → identical to before.
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, effectiveHypeBonus(s) * mktMult + equityHypeBonus(brand.equity) + masteryBonusFor(s, product.category).hype)),
     // Item 5.4 — a Marketing Blackout also mutes the launch CAMPAIGN (win on the product alone).
     campaignHype: Math.max(0, channel.hype) * mktMult * (challengeRules(s).noMarketing ? 0.1 : 1),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build

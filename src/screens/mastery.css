@@ -1,0 +1,182 @@
+/* Category Mastery view — ten grind bars in the Progress hub. Reuses the hub's card language. */
+.mst {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding-bottom: var(--sp-8);
+}
+.mst__back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  padding: var(--sp-4) 0;
+}
+
+.mst__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-12);
+}
+.mst__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.mst__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+.mst__count {
+  flex-shrink: 0;
+  font-size: var(--fs-headline);
+  font-weight: 800;
+  color: var(--gold);
+}
+.mst__count-total {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.mst__legend {
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.mst__legend-title {
+  display: block;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: var(--sp-8);
+}
+.mst__legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink);
+}
+.mst__legend-cap {
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.mst__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  list-style: none;
+}
+.mst__row {
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-subtle);
+}
+.mst__row--maxed {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--hairline));
+  background: color-mix(in srgb, var(--gold) 6%, var(--surface));
+}
+.mst__row-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.mst__row-icon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.mst__row-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+.mst__row-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+.mst__pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.mst__pip {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink-3) 28%, transparent);
+}
+.mst__pip--on { background: var(--accent); }
+.mst__pips--maxed .mst__pip--on {
+  background: var(--gold);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--gold) 50%, transparent);
+}
+
+.mst__bar {
+  margin-top: var(--sp-8);
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink-3) 16%, transparent);
+  overflow: hidden;
+}
+.mst__fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-snappy);
+}
+.mst__fill--maxed { background: var(--gold); }
+
+.mst__row-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+}
+.mst__row-progress {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.mst__row-sig {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.mst__row-sig--on { color: var(--gold); }
+
+.mst__note {
+  font-size: var(--fs-nano);
+  color: var(--ink-3);
+  line-height: 1.4;
+}

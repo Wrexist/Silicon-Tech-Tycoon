@@ -341,6 +341,9 @@ function migrate(state: GameState): GameState | null {
   if (s.lastEvent === undefined) s.lastEvent = null;
   if (s.wentPublic == null) s.wentPublic = false;
   if (s.legacy == null) s.legacy = 0;
+  // Category Mastery (feature #3) — OFF for existing saves so their in-run behaviour never shifts when
+  // the feature ships. Fresh runs (newGame) set it true; a re-saved old game keeps false here.
+  if (s.masteryEnabled == null) s.masteryEnabled = false;
   // Equity / stock market (added later) — backfill so old saves can trade + keep ownership.
   if (s.listed == null) s.listed = false;
   if (!Number.isFinite(s.ownership)) s.ownership = 1;

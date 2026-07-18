@@ -475,6 +475,31 @@
 @media (prefers-reduced-motion: reduce) {
   .lab__cat-gen--live { animation: none; }
 }
+/* Category Mastery pips — a compact 5-dot progress chip under the market label. Filled dots = levels
+   earned; a maxed category glows in the accent (its signature is unlocked). */
+.lab__cat-mastery {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+}
+.lab__cat-pip {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink-3) 30%, transparent);
+}
+.lab__cat-pip--on { background: var(--accent); }
+.lab__cat-mastery--maxed .lab__cat-pip--on {
+  background: var(--gold);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--gold) 55%, transparent);
+}
+.lab__cat--on .lab__cat-pip { background: color-mix(in srgb, var(--accent-ink) 30%, transparent); }
+.lab__cat--on .lab__cat-pip--on { background: var(--accent-ink); }
+/* Maxed category — a subtle gold hairline so a fully-mastered line reads at a glance. */
+.lab__cat--maxed:not(.lab__cat--on) {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--hairline));
+}
 .lab__components {
   display: flex;
   flex-direction: column;
