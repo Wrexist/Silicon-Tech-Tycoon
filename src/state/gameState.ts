@@ -393,6 +393,10 @@ export interface GameState {
    *  null/undefined when no chain is running. Optional on old saves. */
   eventChain?: { id: string; step: number; nextWeek: number } | null;
   holdings: Holdings; // shares owned in rival companies, by id
+  /** Strategic Stakes — the week each rival's board-seat "delay their launch" nudge was last used, by
+   *  rival id. Enforces the once-per-nudgeCooldownWeeks cooldown. Optional/backfilled: absent on old
+   *  saves, and a run that never holds a board seat never writes it, so the do-nothing pin is untouched. */
+  boardNudges?: Record<string, number>;
   /** Best (lowest) industry-leaderboard rank ever reached (1 = biggest company in the industry).
    *  Starts at RIVALS.length + 1 (a fresh garage is dead last behind every public rival); each time
    *  the player climbs to a new best, the tick celebrates overtaking the rival(s) they passed.
@@ -886,6 +890,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     valuationHistory: [],
     eventChain: null,
     holdings: {},
+    boardNudges: {},
     bestIndustryRank: RIVALS.length + 1, // a fresh garage is dead last behind the public rivals
     unlockedAchievements: [],
     completedObjectives: [],
@@ -6311,12 +6316,17 @@ export function buyShares(state: GameState, id: string, qty: number): GameState 
   const t = BALANCE.mergers.takeover;
   const before = ownershipFractionOf(state, id);
   const after = ownershipFractionOf(next, id);
+  // Report only the highest strategic-stake threshold newly crossed (a feed line, not an interrupt).
   if (before < t.controlFrac && after >= t.controlFrac) {
     const feed = [...state.feed, feedItem(state.week, `You now hold a controlling stake in ${comp.name} — a hostile buyout is on the table at a reduced premium.`, "positive")];
     return { ...next, feed: trimFeed(feed) };
   }
   if (before < t.boardSeatFrac && after >= t.boardSeatFrac) {
-    const feed = [...state.feed, feedItem(state.week, `Your stake in ${comp.name} earned you a board seat — you can now read their momentum from the inside.`, "accent")];
+    const feed = [...state.feed, feedItem(state.week, `Your stake in ${comp.name} earned you a board seat — you can now nudge their roadmap once a year.`, "positive")];
+    return { ...next, feed: trimFeed(feed) };
+  }
+  if (before < t.insiderFrac && after >= t.insiderFrac) {
+    const feed = [...state.feed, feedItem(state.week, `You crossed ${Math.round(t.insiderFrac * 100)}% of ${comp.name} — insider intel unlocked: read their momentum and pipeline from the inside.`, "accent")];
     return { ...next, feed: trimFeed(feed) };
   }
   return next;
@@ -6340,7 +6350,14 @@ export function ownershipFractionOf(state: GameState, id: string): number {
   return Math.max(0, Math.min(1, (state.holdings[id] ?? 0) / total));
 }
 
-/** A board seat — insider intel access — earned by holding boardSeatFrac of a rival's float. */
+/** Insider access — read a rival's hidden internals — earned by holding insiderFrac of its float.
+ *  The first Strategic-Stakes tier: a pure knowledge reward, no sim impact. */
+export function isInsider(state: GameState, id: string): boolean {
+  return ownershipFractionOf(state, id) >= BALANCE.mergers.takeover.insiderFrac;
+}
+
+/** A board seat — the "delay their launch" nudge — earned by holding boardSeatFrac of a rival's float.
+ *  The second Strategic-Stakes tier (above insider): unlocks a rare, cooldown-gated influence verb. */
 export function hasBoardSeat(state: GameState, id: string): boolean {
   return ownershipFractionOf(state, id) >= BALANCE.mergers.takeover.boardSeatFrac;
 }
@@ -6350,13 +6367,57 @@ export function hasControllingStake(state: GameState, id: string): boolean {
   return ownershipFractionOf(state, id) >= BALANCE.mergers.takeover.controlFrac;
 }
 
-/** Board-seat intel on a rival: its otherwise-hidden arc phase (momentum) + next-launch week. Null
- *  until you hold a board seat — the payoff for accumulating a real stake. Pure read (UI-only). */
-export function rivalBoardIntel(state: GameState, id: string): { arcPhase: RivalArcPhase; nextLaunchWeek: number } | null {
-  if (!hasBoardSeat(state, id)) return null;
+/** Insider intel on a rival, revealed once you hold insiderFrac of its float. Its otherwise-hidden
+ *  arc phase (momentum), the number of weeks until its next launch, and its most-likely next category
+ *  (its top preferred category unlocked this era — genuinely hidden intent). Null below insider.
+ *  Pure read (UI-only) — no engine state, no determinism surface. */
+export function rivalBoardIntel(
+  state: GameState,
+  id: string,
+): { arcPhase: RivalArcPhase; nextLaunchWeek: number; weeksToLaunch: number; nextCategory: CategoryId | null } | null {
+  if (!isInsider(state, id)) return null;
   const c = state.competitors.find((x) => x.id === id);
   if (!c) return null;
-  return { arcPhase: c.arcPhase ?? "stable", nextLaunchWeek: c.nextLaunchWeek };
+  const preferred = rivalDef(id)?.preferredCategories ?? [];
+  const nextCategory = preferred.find((cat) => isCategoryUnlocked(cat, state.era)) ?? preferred[0] ?? null;
+  return {
+    arcPhase: c.arcPhase ?? "stable",
+    nextLaunchWeek: c.nextLaunchWeek,
+    weeksToLaunch: Math.max(0, c.nextLaunchWeek - state.week),
+    nextCategory,
+  };
+}
+
+/** Weeks remaining before this rival's board-seat nudge is available again (0 = ready now). Reads the
+ *  per-rival cooldown clock; a rival never nudged (or an old save) reports ready. Pure. */
+export function boardNudgeCooldownWeeks(state: GameState, id: string): number {
+  const last = state.boardNudges?.[id];
+  if (last == null) return 0;
+  return Math.max(0, last + BALANCE.mergers.takeover.nudgeCooldownWeeks - state.week);
+}
+
+/** Whether the player may fire this rival's board-seat "delay their launch" nudge right now: holds a
+ *  board seat, the rival is still in the field, the game is live, and the per-rival cooldown has elapsed. */
+export function canBoardNudge(state: GameState, id: string): boolean {
+  if (state.bankrupt) return false;
+  if (!hasBoardSeat(state, id)) return false;
+  if (!state.competitors.some((c) => c.id === id)) return false;
+  return boardNudgeCooldownWeeks(state, id) <= 0;
+}
+
+/** Fire the board-seat nudge: push the rival's next launch back nudgeDelayWeeks and start its cooldown.
+ *  Player-initiated, DETERMINISTIC (no RNG), and small (one launch, a few weeks, once per year per rival)
+ *  so it stays inside the fair-competition balance guards. A no-op if not currently allowed. */
+export function boardNudge(state: GameState, id: string): GameState {
+  if (!canBoardNudge(state, id)) return state;
+  const t = BALANCE.mergers.takeover;
+  const comp = state.competitors.find((c) => c.id === id)!;
+  // Delay from whichever is later — now or their scheduled week — so the push always buys real time.
+  const nextLaunchWeek = Math.max(comp.nextLaunchWeek, state.week) + t.nudgeDelayWeeks;
+  const competitors = state.competitors.map((c) => (c.id === id ? { ...c, nextLaunchWeek } : c));
+  const boardNudges = { ...(state.boardNudges ?? {}), [id]: state.week };
+  const feed = [...state.feed, feedItem(state.week, `From ${comp.name}'s board, you slow-walked their next launch by ${t.nudgeDelayWeeks} weeks. They won't know it was you.`, "positive")];
+  return { ...state, competitors, boardNudges, feed: trimFeed(feed) };
 }
 
 /** B3 — the all-cash cost to acquire a rival outright: its market cap × the control premium, LESS

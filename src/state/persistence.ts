@@ -373,6 +373,9 @@ function migrate(state: GameState): GameState | null {
     if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) delete (s.holdings as Record<string, unknown>)[k];
     else (s.holdings as Record<string, number>)[k] = Math.floor(v);
   }
+  // Strategic Stakes (added later) — the per-rival board-seat nudge cooldown clock. Backfill to empty:
+  // an old save has never used a nudge, and the field is absent = no cooldown pending.
+  if (!s.boardNudges || typeof s.boardNudges !== "object") s.boardNudges = {};
   // Achievements (added later): default to an empty set. Already-earned milestones are then
   // backfilled SILENTLY at the end of migrate (after all fields are valid) so a returning player
   // isn't dumped a dozen toasts on first load — they're marked unlocked without a celebration.

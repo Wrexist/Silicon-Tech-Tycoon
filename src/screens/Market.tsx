@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { ArrowRight, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Landmark, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -26,9 +26,12 @@ import {
   canAcquire,
   acquisitionCost,
   ownershipFractionOf,
+  isInsider,
   hasBoardSeat,
   hasControllingStake,
   rivalBoardIntel,
+  canBoardNudge,
+  boardNudgeCooldownWeeks,
   companyValuation,
   founderStakeValue,
   industryLeaderboard,
@@ -70,7 +73,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 // A distinct hue per region so each market emblem reads at a glance (CSS owns the tint formula).
 const REGION_HUE: Record<string, number> = { home: 210, north_america: 222, europe: 265, asia: 32, emerging: 150 };
 
-// Board-seat intel: a rival's hidden arc phase → a plain-language momentum read + a tone.
+// Insider intel: a rival's hidden arc phase → a plain-language momentum read + a tone.
 const MOMENTUM: Record<string, { label: string; hint: string; tone: "positive" | "negative" | "neutral" }> = {
   ascending: { label: "Rising", hint: "its shares should keep firming up", tone: "positive" },
   peaking: { label: "Peaking", hint: "the momentum is starting to fade", tone: "neutral" },
@@ -1723,6 +1726,7 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
   const held = state.holdings[comp.id] ?? 0;
   const totalShares = rivalDef(comp.id)?.shares ?? 0;
   const ownPct = totalShares > 0 ? (held / totalShares) * 100 : 0;
+  const insider = isInsider(state, comp.id);
   const board = hasBoardSeat(state, comp.id);
   const controlling = hasControllingStake(state, comp.id);
   const intel = rivalBoardIntel(state, comp.id);
@@ -1789,15 +1793,24 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
           {controlling ? (
             <span className="rprof__badge rprof__badge--control"><Crown size={11} aria-hidden /> Controlling stake</span>
           ) : board ? (
-            <span className="rprof__badge rprof__badge--board"><Eye size={11} aria-hidden /> Board seat</span>
+            <span className="rprof__badge rprof__badge--board"><Landmark size={11} aria-hidden /> Board seat</span>
+          ) : insider ? (
+            <span className="rprof__badge rprof__badge--board"><Eye size={11} aria-hidden /> Insider</span>
           ) : null}
         </div>
       )}
 
       {intel && (
-        <p className={`rprof__intel rprof__intel--${MOMENTUM[intel.arcPhase].tone}`}>
-          <Eye size={13} aria-hidden /> <strong>Board intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.
-        </p>
+        <div className={`rprof__intel rprof__intel--${MOMENTUM[intel.arcPhase].tone}`}>
+          <p>
+            <Eye size={13} aria-hidden /> <strong>Insider intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.
+          </p>
+          {intel.nextCategory && (
+            <p>
+              <Rocket size={13} aria-hidden /> Preparing a {(CATEGORY_LABEL[intel.nextCategory] ?? intel.nextCategory).toLowerCase()} — {intel.weeksToLaunch <= 0 ? "shipping imminently" : `~${intel.weeksToLaunch} week${intel.weeksToLaunch !== 1 ? "s" : ""} out`}.
+            </p>
+          )}
+        </div>
       )}
 
       {lines.length > 0 && (
@@ -1873,7 +1886,7 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
 }
 
 function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => void }) {
-  const { state, buyShares, sellShares, acquireRival } = useGame();
+  const { state, buyShares, sellShares, acquireRival, boardNudge } = useGame();
   const [qty, setQty] = useState(1);
   const [armAcquire, setArmAcquire] = useState(false);
   const owned = state.holdings[comp.id] ?? 0;
@@ -1954,14 +1967,17 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         </span>
       </div>
 
-      {/* Takeover runway — accumulate shares toward a board seat (intel) then a controlling stake. */}
+      {/* Strategic Stakes — accumulate shares toward Insider intel, a Board-seat nudge, then control. */}
       {(() => {
         const t = BALANCE.mergers.takeover;
         const frac = ownershipFractionOf(state, comp.id);
         const pct = frac * 100;
+        const insider = isInsider(state, comp.id);
         const board = hasBoardSeat(state, comp.id);
         const control = hasControllingStake(state, comp.id);
         const intel = rivalBoardIntel(state, comp.id);
+        const nudgeReady = canBoardNudge(state, comp.id);
+        const cooldown = boardNudgeCooldownWeeks(state, comp.id);
         return (
           <div className="trade__stake">
             <div className="trade__stake-head">
@@ -1970,21 +1986,43 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
             </div>
             <div className="trade__stake-track" role="presentation">
               <div className="trade__stake-fill" style={{ width: `${Math.min(100, (frac / t.controlFrac) * 100)}%` }} />
+              <span className="trade__stake-mark" style={{ left: `${(t.insiderFrac / t.controlFrac) * 100}%` }} aria-hidden />
               <span className="trade__stake-mark" style={{ left: `${(t.boardSeatFrac / t.controlFrac) * 100}%` }} aria-hidden />
             </div>
             <div className="trade__stake-tiers">
+              <span className={`trade__stake-tier${insider ? " is-on" : ""}`}>
+                <Eye size={11} aria-hidden /> Insider{insider ? "" : ` · ${Math.round(t.insiderFrac * 100)}%`}
+              </span>
               <span className={`trade__stake-tier${board ? " is-on" : ""}`}>
-                <Eye size={11} aria-hidden /> Board seat{board ? "" : ` · ${Math.round(t.boardSeatFrac * 100)}%`}
+                <Landmark size={11} aria-hidden /> Board seat{board ? "" : ` · ${Math.round(t.boardSeatFrac * 100)}%`}
               </span>
               <span className={`trade__stake-tier${control ? " is-on" : ""}`}>
                 <Crown size={11} aria-hidden /> Control{control ? "" : ` · ${Math.round(t.controlFrac * 100)}%`}
               </span>
             </div>
-            {intel && (
+            {intel ? (
               <div className={`trade__stake-intel trade__stake-intel--${MOMENTUM[intel.arcPhase].tone}`}>
-                <Eye size={12} aria-hidden />
-                <span><strong>Board intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.</span>
+                <p><Eye size={12} aria-hidden /> <strong>Insider intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.</p>
+                {intel.nextCategory && (
+                  <p><Rocket size={12} aria-hidden /> Preparing a {(CATEGORY_LABEL[intel.nextCategory] ?? intel.nextCategory).toLowerCase()} — {intel.weeksToLaunch <= 0 ? "shipping imminently" : `~${intel.weeksToLaunch} week${intel.weeksToLaunch !== 1 ? "s" : ""} out`}.</p>
+                )}
+                <p className="trade__stake-doctrine"><Building2 size={12} aria-hidden /> Strategy: {DOCTRINE_LABEL[rivalDoctrine(comp.id)]}.</p>
               </div>
+            ) : (
+              <p className="trade__stake-hint"><Lock size={11} aria-hidden /> Own {Math.round(t.insiderFrac * 100)}% for insider intel — read their pipeline and momentum.</p>
+            )}
+            {board && (
+              <Button
+                block
+                variant={nudgeReady ? "secondary" : "tertiary"}
+                disabled={!nudgeReady}
+                onClick={() => { boardNudge(comp.id); }}
+              >
+                <Landmark size={14} />
+                {nudgeReady
+                  ? `Delay their launch · −${t.nudgeDelayWeeks} wks`
+                  : `Nudge on cooldown · ${cooldown} wk${cooldown !== 1 ? "s" : ""}`}
+              </Button>
             )}
           </div>
         );

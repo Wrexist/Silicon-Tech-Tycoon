@@ -898,20 +898,29 @@ export const BALANCE = {
     rpPerRepPoint: 2,          // one-time RP absorbed per point of the acquired rival's reputation
     installedBasePerRep: 800,  // "installed base" (customers) absorbed per rival reputation point
     absorbedServiceRate: 1.0,  // cents/week each absorbed customer pays in services (recurring annuity)
-    // Controlling-stake TAKEOVERS — a slower, cheaper alternative to a straight cash buyout. Accumulate
-    // a rival's shares on the open market and two things unlock, turning the stock game into a takeover
-    // runway rather than a side annuity:
-    //  • boardSeatFrac of the float → a BOARD SEAT: insider intel on that rival (its hidden arc phase /
-    //    momentum), so you can trade it — and time a takeover — with information nobody else has;
+    // Strategic STAKES — a share position in a rival is a strategic verb, not portfolio decoration.
+    // Accumulate a rival's float on the open market and three tiers unlock, turning the stock game
+    // into intel + influence rather than a side annuity:
+    //  • insiderFrac of the float → INSIDER: read that rival's otherwise-hidden internals (its arc
+    //    phase / momentum, its next likely category + timing), so you trade — and time a takeover —
+    //    with information nobody else has. Pure knowledge reward, zero sim impact.
+    //  • boardSeatFrac of the float → a BOARD SEAT: a rare, cooldown-gated NUDGE — "Delay their launch"
+    //    pushes that rival's next launch back nudgeDelayWeeks. Small and once-per-nudgeCooldownWeeks per
+    //    rival, so it can't undermine the fair-competition balance guards.
     //  • controlFrac of the float → a CONTROLLING STAKE: you already hold effective control, so a buyout
     //    pays only hostilePremium instead of the full acquisitionPremium (the ~35% control premium
     //    collapses to ~8%). Since shares are bought near fair value, the accumulate-then-pounce path
     //    costs ~20% less than a cold buyout — the reward for patience, capital lockup, and price risk.
-    // All three are player-driven (buy shares / acquire); the pinned sim never trades, so it's untouched.
+    // All tiers are player-driven (buy shares / nudge / acquire); the pinned sim never trades, so it's
+    // untouched. The 10%/25% marks are reachable-but-expensive at late-game cash (10% of a giant ≈ $240M+,
+    // of the scrappiest challenger ≈ $12M), a real strategic sink cheapest-rival-first.
     takeover: {
-      boardSeatFrac: 0.10,  // own this fraction of a rival's shares → board-seat intel
+      insiderFrac: 0.10,    // own this fraction of a rival's shares → insider intel (read-only)
+      boardSeatFrac: 0.25,  // own this → a board seat: the cooldown-gated "delay their launch" nudge
       controlFrac: 0.5,     // own this → a controlling stake (hostile buyout at the reduced premium)
       hostilePremium: 1.08, // control premium on a controlled (hostile) takeover, vs acquisitionPremium
+      nudgeDelayWeeks: 3,   // a board-seat nudge pushes the rival's next launch back this many weeks
+      nudgeCooldownWeeks: 52, // …and can only be used once per this many weeks, per rival (rare)
     },
   },
 

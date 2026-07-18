@@ -3,11 +3,11 @@
 // device categories, component tiers, IPO, the Legacy Tree, Frontier Tech, or Ascension even exist.
 // This surfaces all of it as pure UI over the existing engine catalogs (engine/roadmap.ts) — zero
 // engine state, zero determinism risk. Rendered inside Progress's single Sheet (back-arrow → hub).
-import { Check, Lock, Map as MapIcon, Landmark, Sparkles, FlaskConical, Flame, Crown, ChevronRight, Boxes, FlaskRound, Layers } from "lucide-react";
+import { Check, Lock, Map as MapIcon, Landmark, Sparkles, FlaskConical, Flame, Crown, ChevronRight, Boxes, FlaskRound, Layers, Eye } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
 import { useGame } from "../state/useGame.tsx";
-import type { GameState } from "../state/gameState.ts";
+import { isInsider, type GameState } from "../state/gameState.ts";
 import { eraRoadmap, type EraRoadmapEntry } from "../engine/roadmap.ts";
 import "./roadmap.css";
 
@@ -54,6 +54,14 @@ const LATE_GAME: readonly LateItem[] = [
     detail: "Endless research lanes and breakthrough bands that push your labs past the industry ceiling — and open the Autonomy Era.",
     gate: "Post-IPO — spend Legacy Points",
     unlocked: (s) => s.wentPublic,
+  },
+  {
+    key: "stakes",
+    icon: Eye,
+    title: "Strategic stakes in rivals",
+    detail: "Buy into a rival's stock: 10% grants insider intel on their pipeline, 25% a board seat with a once-a-year nudge to delay their launch, 50% a controlling stake for a cheap buyout.",
+    gate: "Late-game cash — accumulate a rival's shares",
+    unlocked: (s) => s.competitors.some((c) => isInsider(s, c.id)),
   },
   {
     key: "ascension",
