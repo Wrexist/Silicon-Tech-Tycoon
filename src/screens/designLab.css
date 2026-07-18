@@ -652,6 +652,65 @@
   font-weight: 700;
   color: var(--ink-3);
 }
+/* Design Budget (feature #1) — per-slot engineering-points cost chip in each picker row. */
+.lab__comp-ep {
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  color: var(--fn-design);
+  letter-spacing: 0.02em;
+}
+
+/* Design Budget (feature #1) — the engineering-points meter above the component list. Sits native
+   next to Fit/Build: a tinted well, a labelled used/total readout, a fill bar, and a one-line note.
+   Turns negative-tinted when the draft is over budget. */
+.lab__ep {
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  border-radius: var(--r-card);
+  padding: var(--sp-8) var(--sp-12);
+  margin-bottom: var(--sp-12);
+}
+.lab__ep--over {
+  border-color: color-mix(in srgb, var(--negative) 55%, transparent);
+  background: color-mix(in srgb, var(--negative) 8%, var(--surface-2));
+}
+.lab__ep-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.lab__ep-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.lab__ep-title svg { color: var(--fn-design); }
+.lab__ep-val { font-size: var(--fs-body); font-weight: 800; color: var(--ink); }
+.lab__ep--over .lab__ep-val { color: var(--negative-text); }
+.lab__ep-track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+  margin-top: var(--sp-8);
+}
+.lab__ep-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--fn-design);
+  transition: width var(--spring-standard);
+}
+.lab__ep--over .lab__ep-fill { background: var(--negative); }
+.lab__ep-note {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  margin-top: var(--sp-4);
+}
+.lab__ep--over .lab__ep-note { color: var(--negative-text); font-weight: 700; }
 .lab__stepper {
   display: inline-flex;
   align-items: center;

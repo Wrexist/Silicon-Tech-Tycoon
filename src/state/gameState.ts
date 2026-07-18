@@ -115,6 +115,7 @@ import {
   type Money,
 } from "../engine/money.ts";
 import { archetypeBonus, buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
+import { epBudget, productEp } from "../engine/designBudget.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
@@ -638,6 +639,11 @@ export interface GameState {
    *  Absent/false → every mastery seam is a byte-exact no-op, so OLD SAVES never shift mid-run and the
    *  do-nothing reproducibility pin (no launches → no mastery either way) is untouched. */
   masteryEnabled?: boolean;
+  /** Design Budget (feature #1) opt-in. Set true ONLY by newGame for fresh runs, so a per-project
+   *  engineering-points (EP) cap is enforced when committing a build (startBuild). Absent/false → the
+   *  budget is never checked, so OLD SAVES build exactly as before and the do-nothing reproducibility
+   *  pin (which never builds) is untouched. The rival generator never reads it (rivals are unaffected). */
+  designBudgetEnabled?: boolean;
 }
 
 /** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery.
@@ -908,6 +914,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     // Category Mastery (feature #3) — ON for fresh runs only. Old saves lack this field (→ off) so
     // they keep byte-stable behaviour; a no-launch run derives no mastery either way (pin untouched).
     masteryEnabled: true,
+    // Design Budget (feature #1) — ON for fresh runs only, so the per-project EP cap is enforced at
+    // build time. Old saves lack this field (→ off) and build unconstrained; the do-nothing pin never
+    // builds, so it's byte-identical either way.
+    designBudgetEnabled: true,
   };
 }
 
@@ -1072,6 +1082,11 @@ export const prestigeBonuses = (s: GameState): PerkBonus => {
 };
 export const designTierCeiling = (s: GameState) =>
   designCeiling(designerSkill(s)) + perfectionistCeilingBonus(s.staff) + designCeilingBonus(s.upgrades) + prestigeBonuses(s).designCeiling;
+
+/** Design Budget (feature #1) — the per-project engineering-points (EP) budget for THIS company:
+ *  era-scaled base + permanent raises from completed engineering projects. Meaningful only when
+ *  designBudgetEnabled (the Lab meter + startBuild gate both check the flag before using it). */
+export const designBudget = (s: GameState): number => epBudget(s.era, s.completedProjects);
 
 /** Category Mastery (feature #3) — the small, CATEGORY-SCOPED bonus a product earns from how many
  *  times you've shipped in its category (derived from launched[]). Gated on the masteryEnabled opt-in:
@@ -3233,6 +3248,15 @@ export function startBuild(
   if (!isCategoryUnlocked(product.category, state.era))
     return { state, ok: false, reason: "Category not unlocked yet." };
   if (product.price <= 0) return { state, ok: false, reason: "Set a price." };
+  // Design Budget (feature #1) — the ONE enforcement point: a fresh run's build can't exceed its
+  // engineering-points budget. Gated on the opt-in flag, so old saves + the rival generator (which
+  // never calls startBuild) + engine tests constructing arbitrary products are all unaffected.
+  if (state.designBudgetEnabled) {
+    const used = productEp(product);
+    const budget = epBudget(state.era, state.completedProjects);
+    if (used > budget)
+      return { state, ok: false, reason: `Over design budget: ${used} / ${budget} EP. Lower a component tier.` };
+  }
 
   const units = Math.min(
     BALANCE.build.maxRun,

@@ -22,7 +22,7 @@ import {
   contractTerm,
   contractDiscount,
 } from "./suppliers.ts";
-import { newGame, startBuild, effectiveUnitCost, recommendedRun, negotiateContract, contractSignFee, applyEventEffect, advanceOneWeek, launchReady } from "../state/gameState.ts";
+import { newGame, startBuild, effectiveUnitCost, recommendedRun, negotiateContract, contractSignFee, applyEventEffect, advanceOneWeek, launchReady, type GameState } from "../state/gameState.ts";
 import type { Product, SupplierId } from "./types.ts";
 
 function product(supplierId?: SupplierId): Product {
@@ -138,7 +138,9 @@ describe("supplier relationships (loyalty)", () => {
   });
 
   it("starting a build deepens the supplier relationship, and the discount cuts the next run's cost", () => {
-    const s0 = { ...newGame(8), cash: dollars(50_000_000) };
+    // This exercises SUPPLIER loyalty on a deliberately high-tier build, not the design budget, so opt
+    // out of the per-project EP cap (feature #1) — same as an old save would build unconstrained.
+    const s0: GameState = { ...newGame(8), cash: dollars(50_000_000), designBudgetEnabled: false };
     const phone: Product = {
       id: "p", name: "Aurora", category: "phone",
       tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 2 },

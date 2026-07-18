@@ -15,7 +15,7 @@ import { demoFloor } from "../src/engine/factoryFloor.ts";
 import { priceGuidance } from "../src/engine/market.ts";
 import { dollars, toDollars } from "../src/engine/money.ts";
 
-let s = newGame(7);
+let s = { ...newGame(7), designBudgetEnabled: false }; // screenshot harness: raw builds, not the design-budget cap (feature #1)
 // Found the company + deep war chest so every staging action clears its cash gate. Strong
 // reputation BEFORE the launches so they carry real hype (→ hits, not flops); Growth Era keeps
 // the verdict bar reachable for a clean, aspirational performance record.

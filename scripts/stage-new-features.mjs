@@ -15,7 +15,7 @@ import { demoFloor } from "../src/engine/factoryFloor.ts";
 import { priceGuidance } from "../src/engine/market.ts";
 import { dollars, toDollars } from "../src/engine/money.ts";
 
-let s = newGame(7);
+let s = { ...newGame(7), designBudgetEnabled: false }; // screenshot harness: raw builds, not the design-budget cap (feature #1)
 s = { ...s, onboarded: true, tutorialDone: true, factoryFloor: demoFloor(), companyName: "Silicon", cash: dollars(80_000_000), era: 2,
   reputation: 78, researched: { chip: 5, display: 5, battery: 4, materials: 4, software: 4, camera: 4 } };
 for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; }

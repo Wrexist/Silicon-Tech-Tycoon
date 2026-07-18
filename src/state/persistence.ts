@@ -344,6 +344,9 @@ function migrate(state: GameState): GameState | null {
   // Category Mastery (feature #3) — OFF for existing saves so their in-run behaviour never shifts when
   // the feature ships. Fresh runs (newGame) set it true; a re-saved old game keeps false here.
   if (s.masteryEnabled == null) s.masteryEnabled = false;
+  // Design Budget (feature #1) — OFF for existing saves so their builds stay unconstrained (no product
+  // that was buildable before becomes un-buildable mid-run). Fresh runs (newGame) set it true.
+  if (s.designBudgetEnabled == null) s.designBudgetEnabled = false;
   // Equity / stock market (added later) — backfill so old saves can trade + keep ownership.
   if (s.listed == null) s.listed = false;
   if (!Number.isFinite(s.ownership)) s.ownership = 1;

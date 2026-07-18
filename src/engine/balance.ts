@@ -85,6 +85,21 @@ export const BALANCE = {
     },
   },
 
+  // --- Design Budget (feature #1, engine/designBudget.ts) — a per-project ENGINEERING-POINTS (EP)
+  // cap on component complexity. Each applicable component slot's chosen tier costs its tier number in
+  // EP (T1 = 1 … T7 = 7); the sum can't exceed the budget below, so "max every slot" is impossible
+  // early and earned late. The budget = this era-scaled base + permanent raises from a few engineering
+  // research projects (+12 EP fully invested; see EP_BUDGET_RAISES). Enforcement is gated on the
+  // optional designBudgetEnabled flag (fresh runs only), so old saves + the do-nothing pin are
+  // byte-identical. Tuned against the per-era max-possible EP for a 6-slot phone [11,21,27,33,39]:
+  //   • E1 base 8 vs max 11 → forces ~3 sacrifices fresh; a heavy early-RP rush (+4) can fully max.
+  //   • E5 base 28 + full raises 12 = 40 ≥ 39 → a fully-invested late player can nearly/fully max.
+  // Fewer-slot categories (desktop/monitor/console) spend less EP by construction, so they bind less —
+  // which is by design: a simpler device has fewer trade-offs to make. Index = era − 1.
+  designBudget: {
+    baseByEra: [8, 14, 20, 24, 28] as number[],
+  },
+
   // --- Market ---
   market: {
     // demandScore is Σ weight*stat (0..100). Converted to base units via this scale.

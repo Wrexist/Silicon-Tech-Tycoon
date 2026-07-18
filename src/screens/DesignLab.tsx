@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, Cpu, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -19,6 +19,7 @@ import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { channelsForEra, type ChannelId } from "../engine/marketing.ts";
 import { activeArchetypes, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
+import { productEp, slotEp } from "../engine/designBudget.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
@@ -45,6 +46,7 @@ import { unlockedColorwayNames } from "../state/seasons.ts";
 import {
   buildWeeksFor,
   burn,
+  designBudget,
   designTierCeiling,
   hypeBonus,
   lensUnlockCost,
@@ -374,6 +376,14 @@ export function DesignLab({
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
   const ceiling = designTierCeiling(state);
+  // Design Budget (feature #1) — the per-project engineering-points cap (fresh runs only). The meter is
+  // read-only guidance; the hard gate lives in startBuild, but openWizard mirrors it so an over-budget
+  // draft is caught before the wizard, matching how missing components / unaffordable builds behave.
+  const budgetOn = !!state.designBudgetEnabled;
+  const epTotal = budgetOn ? designBudget(state) : 0;
+  const epUsed = budgetOn ? productEp(draft) : 0;
+  const epOver = budgetOn && epUsed > epTotal;
+  const epPct = epTotal > 0 ? Math.min(100, Math.round((epUsed / epTotal) * 100)) : 0;
   // The ceiling can drift below a draft that was seeded at an earlier, higher ceiling (staff mood /
   // roster changes move it). Clamp during render — the documented "adjust state while rendering"
   // pattern — so the tier never reads above its cap (e.g. "Tier 24 / 23") or over-delivers on build.
@@ -441,11 +451,12 @@ export function DesignLab({
   function openWizard() {
     // Gate the same things confirmBuild does, but up front — so an empty name (or missing part)
     // is caught before the player steps through the whole wizard, not after.
-    if (missing.length > 0 || state.bankrupt || !draft.name.trim()) {
+    if (missing.length > 0 || state.bankrupt || !draft.name.trim() || epOver) {
       haptic.error();
       showToast(
         missing.length > 0 ? "Pick every component first."
           : state.bankrupt ? "Company is bankrupt."
+          : epOver ? `Over design budget (${epUsed} / ${epTotal} EP) — lower a component tier.`
           : "Give your device a name before you build it",
         { tone: "negative", glyph: <AlertTriangle size={15} /> },
       );
@@ -856,6 +867,24 @@ export function DesignLab({
           <>
           <Card>
             <SectionHeader title="Components" accessory="tier gated by R&D" />
+            {/* Design Budget (feature #1) — the engineering-points meter, so the complexity trade-off is
+                legible: every launch spends from a capped pool, not "max everything". Fresh runs only. */}
+            {budgetOn && (
+              <div className={`lab__ep${epOver ? " lab__ep--over" : ""}`}>
+                <div className="lab__ep-head">
+                  <span className="lab__ep-title"><Cpu size={13} aria-hidden /> Design budget</span>
+                  <span className="lab__ep-val tnum">{epUsed} <span className="lab__den">/ {epTotal} EP</span></span>
+                </div>
+                <div className="lab__ep-track" aria-hidden>
+                  <div className="lab__ep-fill" style={{ width: `${epPct}%` }} />
+                </div>
+                <p className="lab__ep-note">
+                  {epOver
+                    ? `Over budget by ${epUsed - epTotal} EP — lower a component tier to build.`
+                    : "Each component tier costs engineering points. Research raises the cap."}
+                </p>
+              </div>
+            )}
             <div className="lab__components">
               {cat.slots.map((kind) => {
                 const tier = draft.tiers[kind] ?? 1;
@@ -880,6 +909,9 @@ export function DesignLab({
                       </span>
                       <span className="lab__comp-name">{def?.name ?? "—"}</span>
                       <span className="lab__comp-meta">
+                      {budgetOn && (
+                        <span className="lab__comp-ep" title="Engineering points this tier spends from your design budget">{slotEp(tier)} EP</span>
+                      )}
                       {def && toDollars(def.unitCost) > 0 && (
                         <span className="lab__comp-cost">{format(def.unitCost)}</span>
                       )}

@@ -168,13 +168,14 @@ import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
 import { objectiveById } from "../engine/objectives.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
-import { CircleCheck, FlaskConical, Sparkles } from "lucide-react";
+import { CircleCheck, Cpu, FlaskConical, Sparkles } from "lucide-react";
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { sfx } from "../design/sound.ts";
 import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
+import { EP_BUDGET_RAISES } from "../engine/designBudget.ts";
 import { createElement } from "react";
 
 /** Seed the player's persisted Calm Mode preference into a game state that doesn't carry one yet
@@ -268,6 +269,20 @@ function withResearchCompleteFx(prev: GameState, next: GameState): void {
       sfx("rp");
       showToast(`Research complete: ${prev.activeResearch.name}`, { tone: "positive", glyph: <FlaskConical size={15} /> });
     } catch { /* fx host not mounted */ }
+  }
+  // Design Budget (feature #1) — a completed EP-raise project lifts the per-project budget. A subtle,
+  // secondary toast so the reward reads. Diff completedProjects so it only fires the tick it lands, and
+  // only for a fresh run (the flag is what makes the budget bind at all).
+  if (next.designBudgetEnabled && next.completedProjects.length > prev.completedProjects.length) {
+    const prevSet = new Set(prev.completedProjects);
+    let raise = 0;
+    for (const id of next.completedProjects) {
+      if (prevSet.has(id)) continue;
+      raise += EP_BUDGET_RAISES.find((r) => r.project === id)?.ep ?? 0;
+    }
+    if (raise > 0) {
+      try { showToast(`Design budget +${raise} EP`, { tone: "neutral", glyph: <Cpu size={15} /> }); } catch { /* toast host not mounted */ }
+    }
   }
 }
 
