@@ -423,6 +423,20 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingRivalry != null && (typeof s.pendingRivalry !== "object" || typeof s.pendingRivalry.rivalId !== "string")) {
     s.pendingRivalry = null;
   }
+  // Nemesis Boss ladder (feature #7, added later): default dormant. The duel only ever arms while a
+  // nemesis exists, so an old save with no nemesis loads with none. Drop a malformed duel from an
+  // untrusted import (a NaN endWeek/margin would break the countdown + win math); ladder tier +
+  // trophies default to 0.
+  if (s.nemesisDuel != null && (typeof s.nemesisDuel !== "object"
+    || typeof s.nemesisDuel.rivalId !== "string"
+    || !Number.isFinite(s.nemesisDuel.endWeek) || !Number.isFinite(s.nemesisDuel.targetMargin))) {
+    s.nemesisDuel = null;
+  }
+  if (!Number.isFinite(s.nemesisLadderTier) || s.nemesisLadderTier < 0) s.nemesisLadderTier = 0;
+  if (!Number.isFinite(s.nemesisTrophies) || s.nemesisTrophies < 0) s.nemesisTrophies = 0;
+  if (s.pendingNemesisTrophy != null && (typeof s.pendingNemesisTrophy !== "object" || typeof s.pendingNemesisTrophy.rivalName !== "string")) {
+    s.pendingNemesisTrophy = null;
+  }
   // Eureka breakthroughs (added later): default none. Drop a malformed pending moment from an import.
   if (s.pendingEureka != null && (typeof s.pendingEureka !== "object" || !Number.isFinite(s.pendingEureka.bankRp))) {
     s.pendingEureka = null;

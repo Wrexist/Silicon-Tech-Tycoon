@@ -30,6 +30,7 @@ import {
   resolveStrike,
   collectAwards,
   dismissRivalry,
+  dismissNemesisTrophy,
   resolveEureka,
   type EurekaResult,
   resolveCommunityAsk,
@@ -463,6 +464,7 @@ interface GameActionsValue {
   resolveStrike: (choice: StrikeResponse) => void;
   collectAwards: () => void;
   dismissRivalry: () => void;
+  dismissNemesisTrophy: () => void;
   resolveEureka: (choice: "bank" | "chase") => EurekaResult;
   resolveCommunityAsk: (accept: boolean) => CommunityAskResult;
   resolveStaffMoment: (optionIndex: number) => StaffMomentResult;
@@ -956,6 +958,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
   const dismissRivalryCb = useCallback(() => setState((s) => dismissRivalry(s)), []);
+  const dismissNemesisTrophyCb = useCallback(() => setState((s) => dismissNemesisTrophy(s)), []);
   // Resolve a eureka breakthrough — bank the sure RP or chase the prototype gamble. Returns the outcome
   // so the overlay can stage the reveal; RP-gain FX + sound scale with whether the prototype landed.
   const resolveEurekaCb = useCallback((choice: "bank" | "chase"): EurekaResult => {
@@ -1629,6 +1632,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       resolveStrike: resolveStrikeCb,
       collectAwards: collectAwardsCb,
       dismissRivalry: dismissRivalryCb,
+      dismissNemesisTrophy: dismissNemesisTrophyCb,
       resolveEureka: resolveEurekaCb,
       resolveCommunityAsk: resolveCommunityAskCb,
       resolveStaffMoment: resolveStaffMomentCb,
@@ -1731,7 +1735,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

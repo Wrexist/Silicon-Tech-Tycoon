@@ -3,7 +3,7 @@
 // progress · reward · deadline). Folds three previously-scattered "what do I chase next" surfaces into
 // a single discoverable place. A completed contract can be claimed right here.
 import {
-  Target, ScrollText, Landmark, Package, Award, Check, Clock,
+  Target, ScrollText, Landmark, Package, Award, Check, Clock, Swords,
   Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy, Crown, Cpu,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -22,6 +22,7 @@ const SOURCE_ICON: Record<GoalSource, LucideIcon> = {
   mandate: Landmark,
   sideOrder: Package,
   award: Award,
+  duel: Swords,
 };
 
 // Resolve an objective's Lucide icon NAME (the engine stays DOM-free) to its component.

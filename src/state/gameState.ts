@@ -14,6 +14,7 @@ import {
   type RivalArcPhase,
 } from "../engine/competitors.ts";
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
+import { startDuel, duelMet, duelProgress, duelReward, nextLadderTier, duelVictoryLine, type NemesisDuel } from "../engine/nemesisDuel.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
@@ -404,6 +405,19 @@ export interface GameState {
   /** A just-declared rivalry waiting for its reveal moment (set the week a nemesis forms, cleared by
    *  the player via dismissRivalry). Optional/null → golden-invariant safe. */
   pendingRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
+  /** Nemesis Boss ladder (feature #7) — the live duel against the standing arch-rival: out-value them
+   *  by a margin before the window closes (engine/nemesisDuel.ts). Armed only while a nemesis exists,
+   *  which the pinned auto-player never forms → optional/null keeps it byte-identical. */
+  nemesisDuel?: NemesisDuel | null;
+  /** The ladder tier the next duel arms at — escalates on every win (wider target margin), persists
+   *  across nemeses so a fresh arch-rival inherits a tougher rung. Optional → 0. */
+  nemesisLadderTier?: number;
+  /** Lifetime count of duels won (trophies on the shelf). Optional → 0. */
+  nemesisTrophies?: number;
+  /** A just-won duel awaiting its trophy CELEBRATION (a pure earned ceremony — the reward is already
+   *  applied in the tick; the overlay only acknowledges it, dismissed via dismissNemesisTrophy). Does
+   *  NOT consume the interrupt budget. Optional/null → golden-invariant safe. */
+  pendingNemesisTrophy?: { rivalName: string; tier: number; trophies: number; rep: number; fans: number; legacyPoints: number } | null;
   /** An R&D "eureka" breakthrough on the table — bank a guaranteed RP windfall or chase a prototype
    *  gamble (resolveEureka). Fires only for an active, funded lab; the pinned solo sim never has one. */
   pendingEureka?: EurekaMoment | null;
@@ -2800,6 +2814,63 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
         const rival = base.competitors.find((c) => c.id === res.nemesis!.rivalId);
         base.feed.push(feedItem(week, ms.text.replace(/\{rival\}/g, rival?.name ?? "Your rival"), ms.tone as FeedTone));
       }
+    }
+
+    // Nemesis Boss ladder (feature #7) — a visible multi-week DUEL against the standing arch-rival.
+    // Pure weekly derivation: out-value them (companyValuation vs their market cap) by a tier- and
+    // ascension-scaled margin before the window closes. Reuses the SAME nemesis (no new interrupt
+    // stream) and never consumes the interrupt budget. Gated on a nemesis existing, which the pinned
+    // sim never forms → nemesisDuel stays absent → byte-identical. The victory celebration is an
+    // earned ceremony (pendingNemesisTrophy), not an opportunistic interrupt.
+    const nem = res.nemesis;
+    if (nem) {
+      const nemComp = base.competitors.find((c) => c.id === nem.rivalId);
+      if (nemComp) {
+        const tier = base.nemesisLadderTier ?? 0;
+        const ascend = base.ascensionLevel ?? 0;
+        const duel = base.nemesisDuel ?? null;
+        if (!duel || duel.rivalId !== nem.rivalId) {
+          // No duel running (a nemesis just formed) or it points at a stale rival → arm one now, at the
+          // current ladder tier (so a fresh arch-rival inherits the rungs already climbed).
+          const armed = startDuel(nem.rivalId, week, tier, ascend);
+          base.nemesisDuel = armed;
+          if (!offline) {
+            base.feed.push(feedItem(week, `The duel is on: out-value ${nemComp.name} within ${armed.endWeek - armed.startWeek} weeks to claim the trophy.`, "accent"));
+          }
+        } else if (week >= duel.endWeek) {
+          // The window closed — judge it (live valuations, no RNG).
+          const playerVal = toDollars(companyValuation(base));
+          const rivalVal = toDollars(rivalMarketCap(nemComp));
+          if (duelMet(playerVal, rivalVal, duel.targetMargin)) {
+            const won = duel.tier;
+            const nextTier = nextLadderTier(won);
+            base.nemesisLadderTier = nextTier;
+            base.nemesisTrophies = (base.nemesisTrophies ?? 0) + 1;
+            // Modest, economy-safe one-time reward (already applied here; the celebration only acknowledges it).
+            const reward = duelReward(won, !!base.wentPublic);
+            base.reputation = Math.min(BALANCE.reputation.max, base.reputation + reward.rep);
+            base.fans += reward.fans;
+            if (reward.legacyPoints) base.legacyPoints = (base.legacyPoints ?? 0) + reward.legacyPoints;
+            if (!offline) {
+              base.pendingNemesisTrophy = { rivalName: nemComp.name, tier: won, trophies: base.nemesisTrophies, rep: reward.rep, fans: reward.fans, legacyPoints: reward.legacyPoints };
+              base.feed.push(feedItem(week, duelVictoryLine(base.seed, week).replace(/\{rival\}/g, nemComp.name), "positive"));
+            }
+            // Re-arm at the higher rung — the ladder never ends.
+            base.nemesisDuel = startDuel(nem.rivalId, week, nextTier, ascend);
+          } else {
+            // No punishment beyond a taunt — the duel re-arms at the SAME tier.
+            if (!offline) {
+              const doctrine = rivalDef(nem.rivalId)?.doctrine ?? "generalist";
+              const turf = CATEGORIES[playerTopCategory(base)]?.displayName?.toLowerCase();
+              base.feed.push(feedItem(week, `${nemComp.name}: “${nemesisTaunt(doctrine, base.seed, week, { tier: heatTier(nem.heat), turf })}”`, "accent"));
+            }
+            base.nemesisDuel = startDuel(nem.rivalId, week, duel.tier, ascend);
+          }
+        }
+      }
+    } else if (base.nemesisDuel) {
+      // The nemesis dissolved (rival left the field) → the duel dissolves with it.
+      base.nemesisDuel = null;
     }
   }
 
@@ -5448,6 +5519,49 @@ export function dismissRivalry(state: GameState): GameState {
   return { ...state, pendingRivalry: null };
 }
 
+/** Dismiss the nemesis-duel trophy celebration (the reward was already applied in the tick — this only
+ *  clears the acknowledged ceremony). No choice involved, so it's pure celebration UI. */
+export function dismissNemesisTrophy(state: GameState): GameState {
+  if (!state.pendingNemesisTrophy) return state;
+  return { ...state, pendingNemesisTrophy: null };
+}
+
+/** A read-only snapshot of the live nemesis duel for the HQ card + Goals Ledger: the two contenders'
+ *  values, progress toward the win line, weeks left, tier + trophy count. null when no duel is running.
+ *  Pure — mirrors the tick's win math so the card and the resolution never disagree. */
+export interface NemesisDuelSnapshot {
+  rivalName: string;
+  playerValue: Money;
+  rivalValue: Money;
+  /** playerValue ÷ the margin-scaled target, 0..1. */
+  frac: number;
+  /** Currently out-valuing them by the required margin? (would win if the window closed now). */
+  ahead: boolean;
+  weeksLeft: number;
+  tier: number;
+  trophies: number;
+}
+export function nemesisDuelSnapshot(state: GameState): NemesisDuelSnapshot | null {
+  const duel = state.nemesisDuel ?? null;
+  if (!duel) return null;
+  const nemComp = state.competitors.find((c) => c.id === duel.rivalId);
+  if (!nemComp) return null;
+  const playerValue = companyValuation(state);
+  const rivalValue = rivalMarketCap(nemComp);
+  const pv = toDollars(playerValue);
+  const rv = toDollars(rivalValue);
+  return {
+    rivalName: nemComp.name,
+    playerValue,
+    rivalValue,
+    frac: duelProgress(pv, rv, duel.targetMargin),
+    ahead: duelMet(pv, rv, duel.targetMargin),
+    weeksLeft: Math.max(0, duel.endWeek - state.week),
+    tier: duel.tier,
+    trophies: state.nemesisTrophies ?? 0,
+  };
+}
+
 // ---- Living fan community ----
 export interface CommunitySnapshot { sentiment: number; superfans: number; tier: MoodTier; label: string; moment: string; }
 /** A read-only snapshot of the fan community's mood for the HQ panel (mood tier + superfans + a rotating
@@ -5948,6 +6062,9 @@ export function acquireRival(state: GameState, id: string): GameState {
     absorbedBase: (state.absorbedBase ?? 0) + baseGain,
     acquiredRivals: [...state.acquiredRivals, id],
     nemesis: wasNemesis ? null : state.nemesis,
+    // Buying out the arch-rival ends the running duel with them; the ladder tier + trophies persist so a
+    // future nemesis inherits the rungs already climbed.
+    nemesisDuel: wasNemesis ? null : state.nemesisDuel,
     feed: trimFeed(feed),
   };
 }

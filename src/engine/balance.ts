@@ -811,6 +811,22 @@ export const BALANCE = {
       } as Record<string, number>,
       turfCategoryWeight: 3,    // extra launch-category weight the nemesis piles onto your top category
       turfStrengthBonusAtMaxHeat: 8, // extra launch strength at heat 100 (scaled by heat/100; pre-cap)
+      // Nemesis Boss ladder (feature #7) — a visible multi-week DUEL against the standing arch-rival:
+      // out-value them by a tier/ascension-scaled margin before the window closes. Win → trophy +
+      // reward + the ladder rises; lose → a taunt and a re-arm at the same tier. Only ever runs when a
+      // nemesis exists (never in the pinned solo sim), so these are dormant there.
+      duel: {
+        windowWeeks: 26,          // countdown length of one duel
+        baseMargin: 1.05,         // tier 0: out-value the nemesis by 5%
+        marginPerTier: 0.12,      // each cleared rung widens the required lead
+        marginPerAscension: 0.05, // …and every Heat/ascension level widens it further (stays meaningful)
+        tierCap: 8,               // ladder stops escalating here so it never becomes background noise
+        reward: {                 // modest, economy-safe one-time victory payout (grows slightly per rung)
+          baseRep: 2, repPerTier: 1,
+          baseFans: 400, fansPerTier: 200,
+          legacyPointsPostIpo: 1, // a single Legacy-Era point, post-IPO only
+        },
+      },
     },
   },
 

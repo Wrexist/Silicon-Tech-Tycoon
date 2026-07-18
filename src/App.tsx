@@ -18,6 +18,7 @@ import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
 import { RivalStrike } from "./components/RivalStrike.tsx";
 import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
 import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
+import { NemesisTrophy } from "./components/NemesisTrophy.tsx";
 import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
@@ -252,6 +253,7 @@ function AppShell() {
       <RivalStrike />
       <AwardsCeremonyOverlay />
       <RivalryDeclared />
+      <NemesisTrophy />
       <EurekaMoment />
       <CommunityAsk />
       <StaffMoment />

@@ -54,7 +54,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 import { RESEARCH_PROJECTS, forkLockedBy, projectById, type ProjectId } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, nemesisDuelSnapshot, type FeedItem, type GameState } from "../state/gameState.ts";
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary, boardTier, nextBoardTier, mandatePayoutMult, mandateStreakBonus } from "../engine/endgame.ts";
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
@@ -305,6 +305,10 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           </p>
         );
       })()}
+      {/* Nemesis Boss ladder (feature #7) — the live duel against your arch-rival: a passive "you vs
+          them" card with a countdown. No modal; only present while a nemesis stands. */}
+      <NemesisDuelCard state={state} />
+
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
 
       {/* Item A1 — a one-time, persistent "what your first ship just unlocked" card (replaces the old
@@ -1327,6 +1331,42 @@ const FRONTIER_LANE_ICONS: Record<FrontierLaneId, LucideIcon> = {
 };
 
 /** The living fan community — mood thermometer + superfans + a rotating community-moment line. */
+/** Nemesis Boss ladder (feature #7) — the passive duel card: your company value vs the arch-rival's,
+ *  a progress bar toward the win line, the countdown, and the ladder tier + trophy count. Read-only
+ *  (the duel auto-resolves in the tick + celebrates on victory), so there's no action here. */
+function NemesisDuelCard({ state }: { state: GameState }) {
+  const duel = nemesisDuelSnapshot(state);
+  if (!duel) return null;
+  const pct = Math.round(duel.frac * 100);
+  return (
+    <Card className={`hq__duel${duel.ahead ? " hq__duel--ahead" : ""}`}>
+      <div className="hq__duel-head">
+        <span className="hq__duel-glyph" aria-hidden><Swords size={18} /></span>
+        <div className="hq__duel-titles">
+          <span className="hq__duel-eyebrow">Nemesis duel · tier {duel.tier + 1}</span>
+          <span className="hq__duel-label">Out-value {duel.rivalName}</span>
+        </div>
+        <span className="hq__duel-count" title="Weeks left in the duel window">
+          <Clock size={12} aria-hidden /> {duel.weeksLeft}w
+        </span>
+      </div>
+      <div className="hq__duel-vs">
+        <span className="hq__duel-side">You <strong>{formatShortDollars(toDollars(duel.playerValue))}</strong></span>
+        <span className="hq__duel-side hq__duel-side--rival">{duel.rivalName} <strong>{formatShortDollars(toDollars(duel.rivalValue))}</strong></span>
+      </div>
+      <div className="hq__duel-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Duel progress against ${duel.rivalName}`}>
+        <div className="hq__duel-bar-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="hq__duel-foot">
+        {duel.ahead
+          ? <><TrendingUp size={12} aria-hidden /> You're ahead — hold the lead to the deadline.</>
+          : <><Crosshair size={12} aria-hidden /> Climb past their valuation before the window closes.</>}
+        {duel.trophies > 0 && <span className="hq__duel-trophies"><Trophy size={12} aria-hidden /> {duel.trophies}</span>}
+      </p>
+    </Card>
+  );
+}
+
 function CommunityCard({ state }: { state: GameState }) {
   const c = communitySnapshot(state);
   const meterPct = Math.round(((c.sentiment + 1) / 2) * 100); // −1..+1 → 0..100 on the thermometer

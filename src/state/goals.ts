@@ -13,9 +13,9 @@ import { contractProgress, rewardSummary as contractRewardSummary } from "../eng
 import { mandateProgress, mandateComplete, mandateRewardSummary } from "../engine/endgame.ts";
 import { sideOrderPayout } from "../engine/sideOrders.ts";
 import { format } from "../engine/money.ts";
-import { contractFacts, mandateFacts, type GameState } from "./gameState.ts";
+import { contractFacts, mandateFacts, nemesisDuelSnapshot, type GameState } from "./gameState.ts";
 
-export type GoalSource = "objective" | "contract" | "mandate" | "sideOrder" | "award";
+export type GoalSource = "objective" | "contract" | "mandate" | "sideOrder" | "award" | "duel";
 
 /** The awards ceremony runs every this-many weeks (mirrors the tick's `week % 52` gate). */
 const AWARDS_CYCLE_WEEKS = 52;
@@ -119,6 +119,28 @@ export function collectGoals(state: GameState): GoalRow[] {
       reward: `${format(sideOrderPayout(so))} on delivery`,
       weeksLeft: Math.max(0, dueWeek - week),
       done: elapsed >= so.weeksNeeded,
+    });
+  }
+
+  // 4b) The Nemesis Boss duel (feature #7) — the live "you vs them" challenge against the standing
+  //     arch-rival: out-value them before the countdown ends. Only present while a nemesis stands.
+  const duel = nemesisDuelSnapshot(state);
+  if (duel) {
+    rows.push({
+      key: `duel:${duel.rivalName}:${week - duel.weeksLeft}`,
+      source: "duel",
+      sourceLabel: "Nemesis duel",
+      title: `Out-value ${duel.rivalName}`,
+      detail: duel.ahead
+        ? `You're ahead — hold the lead to the deadline for trophy #${duel.trophies + 1}.`
+        : `Climb past ${duel.rivalName}'s valuation before the window closes.`,
+      frac: duel.frac,
+      progressText: `Tier ${duel.tier + 1} · ${duel.trophies} won`,
+      reward: "Trophy · rep & fans",
+      weeksLeft: duel.weeksLeft,
+      // Never "done" — the duel auto-resolves at the deadline; the full bar + "you're ahead" copy
+      // signals the current standing without implying it's already claimed.
+      done: false,
     });
   }
 
