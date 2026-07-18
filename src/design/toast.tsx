@@ -21,6 +21,9 @@ function dismiss(id: number) {
 const MAX_VISIBLE = 3;
 
 export function showToast(text: string, opts: { glyph?: ReactNode; tone?: Tone } = {}) {
+  // Drop an exact duplicate of a toast that's already on screen — a repeated tap shouldn't stack the
+  // same line twice.
+  if (toasts.some((t) => t.text === text)) return;
   const id = nextId++;
   toasts = [...toasts, { id, text, glyph: opts.glyph, tone: opts.tone ?? "neutral" }].slice(-MAX_VISIBLE);
   emit();

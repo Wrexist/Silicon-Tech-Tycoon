@@ -28,6 +28,16 @@
   min-height: 48px;
   color: var(--ink-3);
   transition: color var(--spring-snappy), transform var(--spring-snappy);
+  /* Progressive reveal: each newly-shown tab fades/scales in on mount. Existing tabs keep their
+     React identity, so only the freshly-revealed one animates — the rest just reflow. */
+  animation: bnav-reveal 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes bnav-reveal {
+  from { opacity: 0; transform: translateY(4px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bnav__item { animation: none; }
 }
 .bnav__item--active {
   color: var(--accent);

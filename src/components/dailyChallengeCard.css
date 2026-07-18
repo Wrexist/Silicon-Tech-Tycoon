@@ -28,3 +28,16 @@
   font-size: var(--fs-micro); font-weight: 700;
 }
 .dailyc__caret { color: var(--ink-2); }
+
+/* Compact Challenge-Season hint strip along the bottom of the card. */
+.dailyc__season {
+  display: flex; align-items: center; gap: var(--sp-6);
+  padding: var(--sp-8) var(--sp-16);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--fs-micro); color: var(--ink-3);
+}
+.dailyc__season > svg { color: var(--accent); flex: none; }
+.dailyc__season-label { font-weight: 700; color: var(--ink-2); }
+.dailyc__season-next {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

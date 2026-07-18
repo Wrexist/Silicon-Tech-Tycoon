@@ -523,6 +523,63 @@
   color: var(--ink-2);
   line-height: 1.4;
 }
+/* Era Mandates (feature #6) — held run-long identities, name + one-line + trade-off chips. */
+.co__mandates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.co__mandate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--surface-2, var(--well, rgba(0, 0, 0, 0.03)));
+  border: 1px solid var(--hairline);
+}
+.co__mandate-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.co__mandate-glyph { color: var(--accent); flex: none; }
+.co__mandate-name {
+  font-size: var(--fs-body);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.co__mandate-desc {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+  margin: 0;
+}
+.co__mandate-trade {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin-top: 2px;
+}
+.co__mandate-up,
+.co__mandate-down {
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  padding: 3px var(--sp-8);
+  border-radius: var(--r-pill);
+}
+.co__mandate-up {
+  color: var(--positive);
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+}
+.co__mandate-down {
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 14%, transparent);
+}
 .co__burn-breakdown {
   font-size: var(--fs-caption);
   color: var(--ink-3);

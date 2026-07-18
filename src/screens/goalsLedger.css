@@ -122,3 +122,75 @@
 }
 .gl__reward--muted { color: var(--ink-3); font-weight: 500; }
 .gl__row-foot .ds-btn { width: auto; padding-inline: var(--sp-16); }
+
+/* --- "Coming up" — a compact preview of the guided ladder ahead (first active, rest greyed). --- */
+.gl__coming {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+.gl__coming-title {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+.gl__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.gl__step {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-10) var(--sp-14);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.gl__step--active {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--hairline));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+.gl__step--later {
+  background: var(--surface-2);
+  opacity: 0.7;
+}
+.gl__step-glyph {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+.gl__step--active .gl__step-glyph {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.gl__step-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.gl__step-title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.gl__step--later .gl__step-title { color: var(--ink-2); font-weight: 500; }
+.gl__step-meta {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: 600;
+}

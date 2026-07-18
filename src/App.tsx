@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, CircuitBoard, CircleX, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
@@ -15,9 +15,11 @@ import { onCelebrate } from "./design/celebrateFx.ts";
 import { emitHqReaction } from "./design/hqReaction.ts";
 import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
+import { KeynoteToasts } from "./components/KeynoteControl.tsx";
 import { RivalStrike } from "./components/RivalStrike.tsx";
 import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
 import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
+import { NemesisTrophy } from "./components/NemesisTrophy.tsx";
 import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
@@ -49,6 +51,7 @@ import { BALANCE } from "./engine/balance.ts";
 import { nextPerk } from "./engine/perks.ts";
 import { CATEGORY_LIST } from "./engine/catalogs.ts";
 import { eraName } from "./engine/eras.ts";
+import { mandateById } from "./engine/mandates.ts";
 import { RESEARCH_PROJECTS, doctrineSummary } from "./engine/research.ts";
 import { HQ } from "./screens/HQ.tsx";
 import { DesignLab } from "./screens/DesignLab.tsx";
@@ -151,6 +154,25 @@ function AppShell() {
   // their first product — same first-ship gate the meta-layer always used, just hoisted to the HUD.
   const hasShipped = hasShippedNow;
 
+  // Progressive tab reveal (onboarding clarity): the bottom nav starts as Office + Design only,
+  // then reveals Research + Market after the first launch (or once the tutorial's done) and Company
+  // once the team grows or the era turns. Every gate is on state the engine already tracks, so any
+  // existing save with launches/staff clears them instantly and sees all tabs at once. Hidden tabs
+  // don't render (BottomNav), so their attention dots can't show either — the badge gate is mirrored
+  // for free. The active tab is always kept visible there, so a deep-link can never strand the nav.
+  const revealMore = state.launched.length >= 1 || state.tutorialDone;
+  const tabVisible: Partial<Record<Tab, boolean>> = {
+    hq: true,
+    design: true,
+    research: revealMore,
+    market: revealMore,
+    company: state.staff.length >= 2 || state.era >= 2,
+  };
+  // The Office/Factory world toggle only matters once there's a manufacturing floor to visit —
+  // defer it until the player owns a factory or reaches era 2. Kept visible whenever the factory
+  // world is already open (e.g. entered via HQ's "Build your factory line") so there's always a way back.
+  const showWorldTabs = state.era >= 2 || (state.ownedFactories?.length ?? 0) > 0 || hqWorld === "factory";
+
   return (
     <div className="app">
       <Hud
@@ -168,22 +190,24 @@ function AppShell() {
               and the manufacturing floor (FACTORY_WORLD_PLAN.md P1). */}
           <div className="app__titlerow">
             <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
-            <div className="worldtabs" role="group" aria-label="Headquarters world">
-              <button
-                className={`worldtabs__tab${hqWorld === "office" ? " worldtabs__tab--on" : ""}`}
-                aria-pressed={hqWorld === "office"}
-                onClick={() => { haptic.light(); setHqWorld("office"); }}
-              >
-                <Home size={14} aria-hidden /> Office
-              </button>
-              <button
-                className={`worldtabs__tab${hqWorld === "factory" ? " worldtabs__tab--on" : ""}`}
-                aria-pressed={hqWorld === "factory"}
-                onClick={() => { haptic.light(); setHqWorld("factory"); }}
-              >
-                <Factory size={14} aria-hidden /> Factory
-              </button>
-            </div>
+            {showWorldTabs && (
+              <div className="worldtabs" role="group" aria-label="Headquarters world">
+                <button
+                  className={`worldtabs__tab${hqWorld === "office" ? " worldtabs__tab--on" : ""}`}
+                  aria-pressed={hqWorld === "office"}
+                  onClick={() => { haptic.light(); setHqWorld("office"); }}
+                >
+                  <Home size={14} aria-hidden /> Office
+                </button>
+                <button
+                  className={`worldtabs__tab${hqWorld === "factory" ? " worldtabs__tab--on" : ""}`}
+                  aria-pressed={hqWorld === "factory"}
+                  onClick={() => { haptic.light(); setHqWorld("factory"); }}
+                >
+                  <Factory size={14} aria-hidden /> Factory
+                </button>
+              </div>
+            )}
           </div>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
             <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => openProgress("challenges")} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq"} world={hqWorld} />
@@ -222,14 +246,17 @@ function AppShell() {
         active={tab}
         onChange={setTab}
         badge={navAttention(state)}
+        visible={tabVisible}
       />
 
       <GainFX />
       <Confetti />
       <ReadyToLaunch />
+      <KeynoteToasts />
       <RivalStrike />
       <AwardsCeremonyOverlay />
       <RivalryDeclared />
+      <NemesisTrophy />
       <EurekaMoment />
       <CommunityAsk />
       <StaffMoment />
@@ -251,7 +278,7 @@ function AppShell() {
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
         <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
       </Sheet>
-      {state.era > seenEraModal && !state.wentPublic && !state.bankrupt && (
+      {(state.era > seenEraModal || (state.pendingMandateOffer != null && state.pendingMandateOffer.eraTo === state.era)) && !state.wentPublic && !state.bankrupt && (
         <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
       )}
       {state.wentPublic && !ipoSeen && <IpoOverlay onDismiss={() => setIpoSeen(true)} />}
@@ -325,14 +352,26 @@ const ERA_ICONS: Partial<Record<number, ReturnType<typeof TrendingUp>>> = {
 };
 
 function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
+  const { state, chooseMandate } = useGame();
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
   useEffect(() => registerAppOverlay(), []); // lower layers (Factory mode) defer Escape to this modal
+  // A pending mandate draft for THIS era must be resolved before leaving — the player picks or declines.
+  const offer = state.pendingMandateOffer && state.pendingMandateOffer.eraTo === era ? state.pendingMandateOffer : null;
+  const [picked, setPicked] = useState<string | null>(null);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
+    // Escape declines the draft (always safe) if one is open, else just dismisses.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (offer) { chooseMandate(null); }
+      onDismiss();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onDismiss]);
+  }, [onDismiss, offer, chooseMandate]);
+
+  const adopt = () => { if (picked) { chooseMandate(picked); onDismiss(); } };
+  const decline = () => { chooseMandate(null); onDismiss(); };
 
   const newCats = CATEGORY_LIST.filter((c) => c.unlockEra === era);
   const newProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
@@ -403,7 +442,54 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
           </div>
         )}
 
-        <Button block onClick={onDismiss}>Let's go <ArrowRight size={16} aria-hidden /></Button>
+        {offer ? (
+          <>
+            <div className="era-modal__section era-modal__draft">
+              <p className="era-modal__section-label">
+                <Compass size={13} aria-hidden /> Company mandate — draft one, or decline
+              </p>
+              {era === 2 && (
+                <p className="era-modal__draft-explain">
+                  Mandates shape this run — a lasting edge with a matching trade-off. Pick one, or decline. Either is fine.
+                </p>
+              )}
+              <div className="era-modal__mandates">
+                {offer.options.map((id) => {
+                  const m = mandateById(id);
+                  if (!m) return null;
+                  const on = picked === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`era-modal__mandate${on ? " era-modal__mandate--on" : ""}`}
+                      aria-pressed={on}
+                      onClick={() => setPicked(on ? null : id)}
+                    >
+                      <span className="era-modal__mandate-head">
+                        <span className="era-modal__mandate-name">{m.name}</span>
+                        {on && <Check size={15} aria-hidden className="era-modal__mandate-check" />}
+                      </span>
+                      <span className="era-modal__mandate-desc">{m.description}</span>
+                      <span className="era-modal__mandate-trade">
+                        <span className="era-modal__mandate-up">{m.upside}</span>
+                        <span className="era-modal__mandate-down">{m.downside}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <Button block onClick={adopt} disabled={!picked}>
+              {picked ? <>Adopt mandate <ArrowRight size={16} aria-hidden /></> : "Select a mandate above"}
+            </Button>
+            <button type="button" className="era-modal__decline" onClick={decline}>
+              Decline — no mandate this run
+            </button>
+          </>
+        ) : (
+          <Button block onClick={onDismiss}>Let's go <ArrowRight size={16} aria-hidden /></Button>
+        )}
       </div>
     </div>
   );

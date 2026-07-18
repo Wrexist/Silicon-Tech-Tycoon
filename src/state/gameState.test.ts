@@ -229,7 +229,9 @@ describe("game state reducers", () => {
     let found = false;
     outer: for (let designTier = 1; designTier <= 3 && !found; designTier++) {
       for (const price of [140, 220, 320, 460, 640, 900]) {
-        let s = { ...newGame(42), cash: dollars(2_000_000) };
+        // The search needs a high-tier build to reach a 'solid' verdict; that's about the reputation
+        // reward, not the design budget, so opt out of the per-project EP cap (feature #1).
+        let s: GameState = { ...newGame(42), cash: dollars(2_000_000), designBudgetEnabled: false };
         const product: Product = {
           ...goodPhone(),
           tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 3 },

@@ -34,7 +34,7 @@ const ERA_CONTEXT: Record<number, EraContext> = {
   },
   3: {
     tagline: "Own the stack, not just the device.",
-    story: "Hardware is table stakes. The winners bind customers with ecosystems: services, accounts, lock-in. Your OS and installed base are starting to be worth more than any single product you ship.",
+    story: "Hardware is table stakes. The winners bind customers with ecosystems: services, accounts, lock-in. Your OS and installed base are starting to be worth more than any single product you ship. With research momentum to spare, the lab can now attempt moonshots — visible-odds gambles for one-of-a-kind rewards.",
   },
   4: {
     tagline: "The frontier rewrites the rules.",

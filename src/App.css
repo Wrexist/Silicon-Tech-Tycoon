@@ -755,6 +755,93 @@
   font-weight: 700;
 }
 
+/* Era Mandate draft (feature #6) — lives inside the era takeover's own gradient style (NOT liquid
+   glass): the same well tiles + accent language as the rest of the modal. */
+.era-modal__section-label > svg { vertical-align: -1px; margin-right: 4px; }
+.era-modal__draft-explain {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0;
+}
+.era-modal__mandates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.era-modal__mandate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  text-align: left;
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--glass-well, var(--surface-2, rgba(255, 255, 255, 0.5)));
+  border: 1px solid var(--glass-well-edge, var(--hairline));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: border-color var(--spring-standard), box-shadow var(--spring-standard), transform var(--spring-standard);
+}
+.era-modal__mandate:hover { transform: translateY(-1px); }
+.era-modal__mandate--on {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 0 0 1px var(--accent),
+    0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.era-modal__mandate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+.era-modal__mandate-name {
+  font-size: var(--fs-body);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.era-modal__mandate-check { color: var(--accent); flex: none; }
+.era-modal__mandate-desc {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.era-modal__mandate-trade {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin-top: 2px;
+}
+.era-modal__mandate-up,
+.era-modal__mandate-down {
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  padding: 3px var(--sp-8);
+  border-radius: var(--r-pill);
+}
+.era-modal__mandate-up {
+  color: var(--positive);
+  background: color-mix(in srgb, var(--positive) 14%, transparent);
+}
+.era-modal__mandate-down {
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 14%, transparent);
+}
+.era-modal__decline {
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  padding: var(--sp-4);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.era-modal__decline:hover { color: var(--ink-2); }
+
 @keyframes era-aurora {
   from { transform: translate3d(-3%, -2%, 0) scale(1.02); }
   to { transform: translate3d(3%, 3%, 0) scale(1.08); }

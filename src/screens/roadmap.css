@@ -1,0 +1,233 @@
+/* Company Roadmap codex — the era spine + the late-game strip. Design tokens only, 8pt spacing.
+   Renders inside Progress's single Sheet, so no scrim/glass plumbing lives here (the sheet owns it). */
+.rm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-20);
+}
+.rm__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+}
+.rm__head-glyph {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.rm__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  margin: 0;
+}
+.rm__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: var(--sp-2) 0 0;
+}
+
+/* --- Era spine --- */
+.rm__eras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+.rm__era {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-14) var(--sp-16);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.rm__era--done {
+  border-color: color-mix(in srgb, var(--positive) 35%, var(--hairline));
+  background: color-mix(in srgb, var(--positive) 5%, var(--surface));
+}
+.rm__era--current {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--hairline));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  box-shadow: var(--shadow-subtle);
+}
+/* Visible-but-locked — the whole point of the codex. Dimmed, but still fully legible. */
+.rm__era--locked {
+  background: var(--surface-2);
+  opacity: 0.72;
+}
+.rm__era-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.rm__era-mark {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+.rm__era--done .rm__era-mark { background: color-mix(in srgb, var(--positive) 16%, transparent); color: var(--positive-text); }
+.rm__era--current .rm__era-mark { background: var(--accent-soft); color: var(--accent); }
+.rm__era-name {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+.rm__era-num {
+  margin-left: auto;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.rm__era-tag {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: 0;
+  line-height: 1.4;
+}
+.rm__gate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin: 0;
+}
+.rm__gate--here {
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rm__groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.rm__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.rm__group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.rm__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+}
+.rm__chip {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 3px var(--sp-8);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.rm__era--current .rm__chip {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+
+/* --- Late game strip --- */
+.rm__late {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+.rm__section-title {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+.rm__late-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+.rm__late-item {
+  display: flex;
+  gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-14);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.rm__late-item--locked {
+  background: var(--surface-2);
+  opacity: 0.72;
+}
+.rm__late-glyph {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-button);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.rm__late-item--locked .rm__late-glyph {
+  background: var(--surface);
+  color: var(--ink-3);
+}
+.rm__late-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.rm__late-title {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+.rm__late-detail {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.rm__late-gate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-top: var(--sp-2);
+}

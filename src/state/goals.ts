@@ -13,9 +13,10 @@ import { contractProgress, rewardSummary as contractRewardSummary } from "../eng
 import { mandateProgress, mandateComplete, mandateRewardSummary } from "../engine/endgame.ts";
 import { sideOrderPayout } from "../engine/sideOrders.ts";
 import { format } from "../engine/money.ts";
-import { contractFacts, mandateFacts, type GameState } from "./gameState.ts";
+import { closestUnqualifiedLine, FRANCHISE_MASTERY_MIN_ENTRIES } from "../engine/franchiseMastery.ts";
+import { contractFacts, mandateFacts, nemesisDuelSnapshot, type GameState } from "./gameState.ts";
 
-export type GoalSource = "objective" | "contract" | "mandate" | "sideOrder" | "award";
+export type GoalSource = "objective" | "contract" | "mandate" | "sideOrder" | "award" | "duel" | "franchise";
 
 /** The awards ceremony runs every this-many weeks (mirrors the tick's `week % 52` gate). */
 const AWARDS_CYCLE_WEEKS = 52;
@@ -122,6 +123,30 @@ export function collectGoals(state: GameState): GoalRow[] {
     });
   }
 
+  // 4b) The Nemesis Boss duel (feature #7) — the live "you vs them" challenge against the standing
+  //     arch-rival: out-value them before the countdown ends. Only present while a nemesis stands.
+  const duel = nemesisDuelSnapshot(state);
+  if (duel) {
+    rows.push({
+      key: `duel:${duel.rivalName}:${week - duel.weeksLeft}`,
+      source: "duel",
+      sourceLabel: "Nemesis duel",
+      title: `Out-value ${duel.rivalName}`,
+      // Lead the detail with the ladder standing (tier + trophies won): the row also carries a reward
+      // string, and the ledger suppresses progressText whenever a reward is present, so this is the only
+      // place that info would actually render.
+      detail: duel.ahead
+        ? `Tier ${duel.tier + 1} · ${duel.trophies} won. You're ahead — hold the lead to the deadline for trophy #${duel.trophies + 1}.`
+        : `Tier ${duel.tier + 1} · ${duel.trophies} won. Climb past ${duel.rivalName}'s valuation before the window closes.`,
+      frac: duel.frac,
+      reward: "Trophy · rep & fans",
+      weeksLeft: duel.weeksLeft,
+      // Never "done" — the duel auto-resolves at the deadline; the full bar + "you're ahead" copy
+      // signals the current standing without implying it's already claimed.
+      done: false,
+    });
+  }
+
   // 5) The annual Silicon Awards — a standing seasonal chase, once you've shipped something to be judged.
   //    Ceremonies land every 52 weeks; the "progress" is how far through the current awards year you are,
   //    and the detail is how many of your launches are eligible so far (recurring, so never "done").
@@ -142,6 +167,34 @@ export function collectGoals(state: GameState): GoalRow[] {
       weeksLeft: Math.max(0, nextCeremony - week),
       done: false,
     });
+  }
+
+  // 6) Franchise Mastery (feature #8) — the ONE line closest to unlocking its permanent named boon.
+  //    Only the single nearest line (≥3 entries) is surfaced, so the ledger stays uncluttered; the full
+  //    per-line preview lives in the Market franchises card. Gated on the opt-in.
+  if (state.franchiseMasteryEnabled) {
+    const line = closestUnqualifiedLine(state.launched, 3);
+    if (line) {
+      const needEntries = line.remaining > 0;
+      const needIconic = !line.iconic;
+      const detail = needEntries && needIconic
+        ? `${line.remaining} more entr${line.remaining === 1 ? "y" : "ies"} and Iconic status to unlock.`
+        : needEntries
+          ? `${line.remaining} more entr${line.remaining === 1 ? "y" : "ies"} to unlock (Iconic already).`
+          : `Reach Iconic status to unlock (${line.entries} entries).`;
+      rows.push({
+        key: `franchise:${line.stem}`,
+        source: "franchise",
+        sourceLabel: "Franchise",
+        title: `${line.name} line — ${line.boon.name}`,
+        detail,
+        // Both the depth gate (entries) AND the quality gate (Iconic) are required to unlock, so cap
+        // progress at 0.9 until the line is Iconic — entries alone can't read as "done".
+        frac: Math.max(0, Math.min(line.iconic ? 1 : 0.9, line.entries / FRANCHISE_MASTERY_MIN_ENTRIES)),
+        reward: line.boon.name,
+        done: false,
+      });
+    }
   }
 
   return rows;

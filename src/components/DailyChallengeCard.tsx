@@ -3,11 +3,12 @@
 // ship (the same meta-layer gate as the Progress hub) and only when no challenge run is active (the
 // ChallengeTracker owns HQ during one). Play routes through the Challenges sheet, which owns the
 // confirm-before-overwrite flow — this card never starts a run directly.
-import { CalendarDays, ChevronRight, Trophy, Zap } from "lucide-react";
+import { CalendarDays, ChevronRight, Trophy, Zap, Sparkles } from "lucide-react";
 import { Card } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { dailyChallenge, dateKeyOf, scoreMetricLabel, formatScore } from "../engine/challenges.ts";
 import { bestScore, challengeKey } from "../state/challengeProgress.ts";
+import { currentSeasonId, seasonLabel, seasonRewards, seasonCount } from "../state/seasons.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./dailyChallengeCard.css";
 
@@ -18,6 +19,11 @@ export function DailyChallengeCard({ onOpen }: { onOpen: () => void }) {
 
   const today = dailyChallenge(dateKeyOf(new Date()));
   const best = bestScore(challengeKey(today.kind, today.dateKey));
+
+  // Compact Challenge-Season hint: this month's next cosmetic reward + progress toward it.
+  const seasonId = currentSeasonId();
+  const sCount = seasonCount(seasonId);
+  const nextReward = seasonRewards(seasonId).find((r) => sCount < r.rung);
 
   return (
     <Card className="dailyc">
@@ -41,6 +47,15 @@ export function DailyChallengeCard({ onOpen }: { onOpen: () => void }) {
           <ChevronRight size={16} className="dailyc__caret" aria-hidden />
         </span>
       </button>
+      <span className="dailyc__season">
+        <Sparkles size={11} aria-hidden />
+        <span className="dailyc__season-label">{seasonLabel(seasonId)}</span>
+        <span className="dailyc__season-next">
+          {nextReward
+            ? <>Next: {nextReward.name} <span className="tnum">· {sCount}/{nextReward.rung}</span></>
+            : "All season rewards earned"}
+        </span>
+      </span>
     </Card>
   );
 }

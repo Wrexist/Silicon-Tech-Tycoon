@@ -37,6 +37,18 @@ export const FINISH_SWATCHES: Record<FinishId, Swatch[]> = {
     { name: "Sky", body: "#a9c4e6", bodyLight: "#cadcf3", bodyDark: "#88a8d4", accent: "#3b82f6" },
     { name: "Rose", body: "#e6bcb5", bodyLight: "#f5d6d0", bodyDark: "#cf9f97", accent: "#cf5848" },
     { name: "Sage", body: "#b6c2ab", bodyLight: "#d3ddc9", bodyDark: "#98a78b", accent: "#3da888" },
+    // --- Challenge-Season colourways (indices ≥ ALUMINIUM_SEASON_START) ---------------------------
+    // Cosmetic-only, appended so `colorIndex` stays stable and every saved/rival device still renders
+    // by index (rivalAI draws a colour from the base six via a hardcoded rng.int(6), so these are never
+    // rival-picked and the reproducibility pin is untouched). They sit on the aluminium finish (design
+    // bonus 0), so unlocking one confers ZERO gameplay edge — pure flair earned on the Seasons track.
+    // NEVER reorder/prepend: a shipped device stores its swatch as this numeric index.
+    { name: "Aurora", body: "#4fb8a6", bodyLight: "#6fd6c3", bodyDark: "#3a9484", accent: "#ffffff" },
+    { name: "Ember", body: "#e07a4f", bodyLight: "#f5966b", bodyDark: "#c15f38", accent: "#23262d" },
+    { name: "Tidal", body: "#3f6ea6", bodyLight: "#5c8cc6", bodyDark: "#2f5585", accent: "#ffffff" },
+    { name: "Verdant", body: "#5a9e5a", bodyLight: "#78bd78", bodyDark: "#447f44", accent: "#ffffff" },
+    { name: "Dusk", body: "#8f74c4", bodyLight: "#ab92dd", bodyDark: "#715aa3", accent: "#ffffff" },
+    { name: "Marigold", body: "#e6b23d", bodyLight: "#ffca5c", bodyDark: "#c4922a", accent: "#23262d" },
   ],
   titanium: [
     { name: "Natural Ti", body: "#9b948c", bodyLight: "#c0b9b0", bodyDark: "#746e66", accent: "#d4af37" },
@@ -51,6 +63,15 @@ export const FINISH_SWATCHES: Record<FinishId, Swatch[]> = {
     { name: "Platinum", body: "#d8d6cf", bodyLight: "#efeee9", bodyDark: "#b9b6ad", accent: "#d4af37" },
   ],
 };
+
+/** Index in FINISH_SWATCHES.aluminium where the Challenge-Season colourways begin. The base six
+ *  (0..5) are the always-available set rivalAI picks from (rng.int(6)); indices at/after this are the
+ *  Seasons-track unlocks, gated for SELECTION in the Design Lab but always renderable by index. */
+export const ALUMINIUM_SEASON_START = 6;
+
+/** The Challenge-Season colourway names, in the order they were appended above (stable — used to map a
+ *  swatch back to its unlock id). */
+export const SEASON_SWATCH_NAMES: readonly string[] = ["Aurora", "Ember", "Tidal", "Verdant", "Dusk", "Marigold"];
 
 export interface DeviceVisual {
   finish: FinishId;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, Cpu, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -9,6 +9,7 @@ import { maybePromptFirstLaunchReview } from "../state/review.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
+import { categoryLevelOf, MASTERY_MAX_LEVEL } from "../engine/mastery.ts";
 import { unlockedSuppliers, supplierFor, DEFAULT_SUPPLIER_ID, supplierLoyaltyTier, buildsToNextTier, supplierLoyaltyProgress, supplierEthicsLabel, CONTRACT_TERMS, contractDiscount } from "../engine/suppliers.ts";
 import { availableFactories, factoryFor, DEFAULT_FACTORY_ID, type CapacityStrategy } from "../engine/factories.ts";
 import { eraModifier, isCategoryUnlocked } from "../engine/eras.ts";
@@ -18,6 +19,7 @@ import { format, dollars, sub, scale, toDollars } from "../engine/money.ts";
 import { effectiveWeights, priceGuidance, scoreLaunch } from "../engine/market.ts";
 import { channelsForEra, type ChannelId } from "../engine/marketing.ts";
 import { activeArchetypes, componentSynergy, computeStats, effectiveRefreshRate, effectiveStorage, maxRefreshRate, maxStorage, missingSlots, overallScore } from "../engine/product.ts";
+import { productEp, slotEp } from "../engine/designBudget.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { defaultCameraDesign } from "../engine/types.ts";
@@ -39,10 +41,12 @@ import { segmentTrend, regionInCrisis } from "../engine/climate.ts";
 import { subsystemFor, effectiveSubsystemStep } from "../engine/subsystems.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { CircuitMotif } from "../design/CircuitMotif.tsx";
-import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
+import { FINISH_SWATCHES, ALUMINIUM_SEASON_START } from "../render/deviceStyle.ts";
+import { unlockedColorwayNames } from "../state/seasons.ts";
 import {
   buildWeeksFor,
   burn,
+  designBudget,
   designTierCeiling,
   hypeBonus,
   lensUnlockCost,
@@ -372,6 +376,14 @@ export function DesignLab({
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
   const ceiling = designTierCeiling(state);
+  // Design Budget (feature #1) — the per-project engineering-points cap (fresh runs only). The meter is
+  // read-only guidance; the hard gate lives in startBuild, but openWizard mirrors it so an over-budget
+  // draft is caught before the wizard, matching how missing components / unaffordable builds behave.
+  const budgetOn = !!state.designBudgetEnabled;
+  const epTotal = budgetOn ? designBudget(state) : 0;
+  const epUsed = budgetOn ? productEp(draft) : 0;
+  const epOver = budgetOn && epUsed > epTotal;
+  const epPct = epTotal > 0 ? Math.min(100, Math.round((epUsed / epTotal) * 100)) : 0;
   // The ceiling can drift below a draft that was seeded at an earlier, higher ceiling (staff mood /
   // roster changes move it). Clamp during render — the documented "adjust state while rendering"
   // pattern — so the tier never reads above its cap (e.g. "Tier 24 / 23") or over-delivers on build.
@@ -439,11 +451,12 @@ export function DesignLab({
   function openWizard() {
     // Gate the same things confirmBuild does, but up front — so an empty name (or missing part)
     // is caught before the player steps through the whole wizard, not after.
-    if (missing.length > 0 || state.bankrupt || !draft.name.trim()) {
+    if (missing.length > 0 || state.bankrupt || !draft.name.trim() || epOver) {
       haptic.error();
       showToast(
         missing.length > 0 ? "Pick every component first."
           : state.bankrupt ? "Company is bankrupt."
+          : epOver ? `Over design budget (${epUsed} / ${epTotal} EP) — lower a component tier.`
           : "Give your device a name before you build it",
         { tone: "negative", glyph: <AlertTriangle size={15} /> },
       );
@@ -733,6 +746,10 @@ export function DesignLab({
             const unlocked = isCategoryUnlocked(c.id, state.era);
             const on = draft.category === c.id;
             const genCount = state.launched.filter((lp) => lp.product.category === c.id).length;
+            // Category Mastery (feature #3) — compact level pips per category (fresh runs only). Maxed
+            // categories light up all five + a gold accent from the signature unlock.
+            const masteryLevel = state.masteryEnabled ? categoryLevelOf(state.launched, c.id) : 0;
+            const maxed = masteryLevel >= MASTERY_MAX_LEVEL;
             const activeSelling = state.launched.some(
               (lp) => lp.product.category === c.id && lp.weeksElapsed < lp.weeklyUnits.length,
             );
@@ -753,7 +770,7 @@ export function DesignLab({
             return (
               <button
                 key={c.id}
-                className={`lab__cat${on ? " lab__cat--on" : ""}`}
+                className={`lab__cat${on ? " lab__cat--on" : ""}${maxed ? " lab__cat--maxed" : ""}`}
                 aria-pressed={on}
                 onClick={() => {
                   haptic.light();
@@ -771,6 +788,16 @@ export function DesignLab({
                       <span className={`lab__cat-gen${activeSelling ? " lab__cat-gen--live" : ""}`}>G{genCount + 1}</span>
                     )}
                   </span>
+                  {state.masteryEnabled && (
+                    <span
+                      className={`lab__cat-mastery${maxed ? " lab__cat-mastery--maxed" : ""}`}
+                      aria-label={`Mastery level ${masteryLevel} of ${MASTERY_MAX_LEVEL}`}
+                    >
+                      {Array.from({ length: MASTERY_MAX_LEVEL }, (_, i) => (
+                        <span key={i} className={`lab__cat-pip${i < masteryLevel ? " lab__cat-pip--on" : ""}`} aria-hidden />
+                      ))}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -840,6 +867,24 @@ export function DesignLab({
           <>
           <Card>
             <SectionHeader title="Components" accessory="tier gated by R&D" />
+            {/* Design Budget (feature #1) — the engineering-points meter, so the complexity trade-off is
+                legible: every launch spends from a capped pool, not "max everything". Fresh runs only. */}
+            {budgetOn && (
+              <div className={`lab__ep${epOver ? " lab__ep--over" : ""}`}>
+                <div className="lab__ep-head">
+                  <span className="lab__ep-title"><Cpu size={13} aria-hidden /> Design budget</span>
+                  <span className="lab__ep-val tnum">{epUsed} <span className="lab__den">/ {epTotal} EP</span></span>
+                </div>
+                <div className="lab__ep-track" aria-hidden>
+                  <div className="lab__ep-fill" style={{ width: `${epPct}%` }} />
+                </div>
+                <p className="lab__ep-note">
+                  {epOver
+                    ? `Over budget by ${epUsed - epTotal} EP — lower a component tier to build.`
+                    : "Each component tier costs engineering points. Research raises the cap."}
+                </p>
+              </div>
+            )}
             <div className="lab__components">
               {cat.slots.map((kind) => {
                 const tier = draft.tiers[kind] ?? 1;
@@ -864,6 +909,9 @@ export function DesignLab({
                       </span>
                       <span className="lab__comp-name">{def?.name ?? "—"}</span>
                       <span className="lab__comp-meta">
+                      {budgetOn && (
+                        <span className="lab__comp-ep" title="Engineering points this tier spends from your design budget">{slotEp(tier)} EP</span>
+                      )}
                       {def && toDollars(def.unitCost) > 0 && (
                         <span className="lab__comp-cost">{format(def.unitCost)}</span>
                       )}
@@ -1104,17 +1152,28 @@ export function DesignLab({
                 );
               })()}
               <div className="lab__swatches">
-                {FINISH_SWATCHES[draft.finish].map((sw, i) => (
-                  <button
-                    key={sw.name}
-                    className={`lab__swatch${draft.colorIndex === i ? " lab__swatch--on" : ""}`}
-                    style={{ background: `linear-gradient(135deg, ${sw.bodyLight}, ${sw.bodyDark})` }}
-                    title={sw.name}
-                    aria-label={sw.name}
-                    aria-pressed={draft.colorIndex === i}
-                    onClick={() => { haptic.light(); set({ colorIndex: i }); }}
-                  />
-                ))}
+                {(() => {
+                  // Challenge-Season colourways (aluminium, indices ≥ ALUMINIUM_SEASON_START) are
+                  // locked until earned on the Seasons track — masked with a lock, never selectable.
+                  const unlockedColors = unlockedColorwayNames();
+                  return FINISH_SWATCHES[draft.finish].map((sw, i) => {
+                    const seasonLocked = draft.finish === "aluminium" && i >= ALUMINIUM_SEASON_START && !unlockedColors.has(sw.name);
+                    return (
+                      <button
+                        key={sw.name}
+                        className={`lab__swatch${draft.colorIndex === i ? " lab__swatch--on" : ""}${seasonLocked ? " lab__swatch--locked" : ""}`}
+                        style={{ background: `linear-gradient(135deg, ${sw.bodyLight}, ${sw.bodyDark})` }}
+                        title={seasonLocked ? `${sw.name} · earn on the Challenge Seasons track` : sw.name}
+                        aria-label={seasonLocked ? `${sw.name} (locked, earn on the Challenge Seasons track)` : sw.name}
+                        aria-pressed={draft.colorIndex === i}
+                        disabled={seasonLocked}
+                        onClick={() => { haptic.light(); set({ colorIndex: i }); }}
+                      >
+                        {seasonLocked && <Lock size={11} aria-hidden />}
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </Card>
             <Card>

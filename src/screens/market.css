@@ -579,13 +579,22 @@
 .trade__stake-tier.is-on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .trade__stake-tier.is-on svg { opacity: 1; }
 .trade__stake-intel {
-  display: flex; align-items: flex-start; gap: 6px;
+  display: flex; flex-direction: column; gap: 5px;
   font-size: var(--fs-caption); line-height: 1.4; color: var(--ink-2);
   padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
   background: var(--surface-2); border: 1px solid var(--hairline);
 }
+.trade__stake-intel p { display: flex; align-items: flex-start; gap: 6px; margin: 0; }
 .trade__stake-intel svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
 .trade__stake-intel strong { color: var(--ink); font-weight: 700; }
+.trade__stake-doctrine { color: var(--ink-3); }
+.trade__stake-hint {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+  font-size: var(--fs-caption); line-height: 1.4; color: var(--ink-3);
+  padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
+  background: var(--surface-2); border: 1px dashed var(--hairline);
+}
+.trade__stake-hint svg { flex-shrink: 0; color: var(--ink-3); }
 .trade__stake-intel--positive {
   background: color-mix(in srgb, var(--positive) 8%, var(--surface-2));
   border-color: color-mix(in srgb, var(--positive) 24%, var(--hairline));
@@ -695,6 +704,25 @@
 .mkt__fr--tap:active { background: var(--bg-elevated); }
 .mkt__fr-chev { color: var(--ink-3); flex-shrink: 0; }
 
+/* Franchise Mastery (feature #8) — the boon / countdown status line under a franchise row */
+.mkt__fr-boon { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 2px; font-size: var(--fs-caption); color: var(--ink-2); }
+.mkt__fr-boon-glyph { color: var(--ink-3); flex-shrink: 0; }
+.mkt__fr-boon-prog { color: var(--ink-2); font-weight: 600; }
+.mkt__fr-boon-tier {
+  font-size: var(--fs-nano); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: var(--r-pill); color: var(--ink-3); background: var(--bg-elevated);
+}
+.mkt__fr-boon-tier--on { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--bg-elevated)); }
+.mkt__fr-boon-nudge { color: var(--accent); font-weight: 700; }
+/* Earned boon — the permanent named perk */
+.mkt__fr-boon--earned { color: var(--accent); }
+.mkt__fr-boon--earned .mkt__fr-boon-name {
+  font-weight: 800; letter-spacing: 0.01em;
+  padding: 1px 8px; border-radius: var(--r-pill);
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.mkt__fr-boon-blurb { flex-basis: 100%; color: var(--ink-2); font-weight: 400; }
+
 /* Franchise detail sheet — the line's chapters */
 .frd { display: flex; flex-direction: column; gap: var(--sp-16); }
 .frd__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12); }
@@ -748,11 +776,12 @@
 .rprof__badge--control { color: var(--positive); background: color-mix(in srgb, var(--positive) 16%, transparent); }
 .rprof__badge svg { vertical-align: -1px; margin-right: 3px; }
 .rprof__intel {
-  display: flex; align-items: flex-start; gap: 6px;
+  display: flex; flex-direction: column; gap: 5px;
   font-size: var(--fs-caption); line-height: 1.45; color: var(--ink-2);
   padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
   background: var(--surface-2); border: 1px solid var(--hairline);
 }
+.rprof__intel p { display: flex; align-items: flex-start; gap: 6px; margin: 0; }
 .rprof__intel svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
 .rprof__intel strong { color: var(--ink); font-weight: 700; }
 .rprof__intel--positive {
@@ -1903,3 +1932,16 @@
   color: var(--ink-2);
 }
 .pd__supply svg { color: var(--ink-3); flex-shrink: 0; }
+
+/* Live-product levers moved to the HQ "Live products" ops board (feature #2) — this sheet keeps just a
+   pointer while the product is still selling. */
+.pd__ops-note {
+  display: flex; align-items: center; gap: var(--sp-8);
+  margin-top: var(--sp-12); padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 7%, var(--glass-well));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--glass-well-edge));
+  font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4;
+}
+.pd__ops-note svg { color: var(--accent); flex-shrink: 0; }
+.pd__ops-note strong { color: var(--ink); font-weight: 800; }

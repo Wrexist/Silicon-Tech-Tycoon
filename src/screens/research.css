@@ -749,3 +749,109 @@
   background: var(--fn-eng-soft); color: var(--fn-eng);
   font-size: var(--fs-caption); font-weight: 700;
 }
+
+/* ---- Moonshot R&D gambles (feature #5): the era-3+ experimental track ---------------------------- */
+.rd__moonshots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin-top: var(--sp-16);
+}
+.rd__moonshot-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+}
+.rd__moonshot-intro {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0 0 var(--sp-4);
+}
+.rd__moonshot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  /* A faint accent tint marks the experimental track apart from the solvable projects above. */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.rd__moonshot--won {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--positive-text) 30%, transparent);
+}
+.rd__moonshot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rd__moonshot-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.rd__moonshot-odds {
+  margin-left: 2px;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro, 10px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--warning-text);
+  background: var(--warning-soft);
+}
+.rd__moonshot-flavor {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.rd__moonshot-reward {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--positive-text);
+  line-height: 1.4;
+}
+.rd__moonshot-terms {
+  font-size: var(--fs-micro, 10px);
+  color: var(--ink-3);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.rd__moonshot-cooldown {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.rd__moonshot-action { flex-shrink: 0; }
+.rd__moonshot-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.rd__moonshot-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-micro, 10px);
+  font-weight: 700;
+  color: var(--warning-text);
+  white-space: nowrap;
+}
+.rd__moonshot-confirm-row {
+  display: inline-flex;
+  gap: var(--sp-8);
+}

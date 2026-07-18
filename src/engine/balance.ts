@@ -85,6 +85,21 @@ export const BALANCE = {
     },
   },
 
+  // --- Design Budget (feature #1, engine/designBudget.ts) — a per-project ENGINEERING-POINTS (EP)
+  // cap on component complexity. Each applicable component slot's chosen tier costs its tier number in
+  // EP (T1 = 1 … T7 = 7); the sum can't exceed the budget below, so "max every slot" is impossible
+  // early and earned late. The budget = this era-scaled base + permanent raises from a few engineering
+  // research projects (+12 EP fully invested; see EP_BUDGET_RAISES). Enforcement is gated on the
+  // optional designBudgetEnabled flag (fresh runs only), so old saves + the do-nothing pin are
+  // byte-identical. Tuned against the per-era max-possible EP for a 6-slot phone [11,21,27,33,39]:
+  //   • E1 base 8 vs max 11 → forces ~3 sacrifices fresh; a heavy early-RP rush (+4) can fully max.
+  //   • E5 base 28 + full raises 12 = 40 ≥ 39 → a fully-invested late player can nearly/fully max.
+  // Fewer-slot categories (desktop/monitor/console) spend less EP by construction, so they bind less —
+  // which is by design: a simpler device has fewer trade-offs to make. Index = era − 1.
+  designBudget: {
+    baseByEra: [8, 14, 20, 24, 28] as number[],
+  },
+
   // --- Market ---
   market: {
     // demandScore is Σ weight*stat (0..100). Converted to base units via this scale.
@@ -324,8 +339,8 @@ export const BALANCE = {
   // lands as a moment instead of a nag. Scheduled ceremonies (the year-52 awards) are EXEMPT from the
   // gate — they must fire on their week — but still stamp, so nothing piles on right after them.
   interrupts: {
-    minGapWeeks: 3,     // quiet weeks between opportunistic interrupts in the early eras (1–2)
-    minGapWeeksLate: 2, // …tightened in eras 3–4 so the longer, weightier late builds have more to do
+    minGapWeeks: 4,     // quiet weeks between opportunistic interrupts in the early eras (1–2)
+    minGapWeeksLate: 3, // …tightened in eras 3–4 so the longer, weightier late builds have more to do
     lateEra: 3,         // the first era that uses the tighter gap
   },
   // Mid-lifecycle price cuts, now repeatable (a fading product can be marked down more than once).
@@ -345,6 +360,15 @@ export const BALANCE = {
     // Live Product Ops (feature #2) — a standing auto-reorder policy.
     leadWeeks: 2,              // base weeks before an auto-reorder arrives (+ the era's build lead)
     maxRatePerWeek: 20_000,    // ceiling on the units/week a policy can request (a sane UI bound)
+  },
+  // --- Sell-Window Ops · Harvest (feature #2) ---
+  // The player can wind a live product's sell window down early, converting the forgone tail into an
+  // instant cash + fans settlement. Priced at a SLIGHT convenience discount to the tail it replaces, so
+  // it's a pacing choice (close the book, free your attention) and never free money: EV must stay just
+  // under "let the tail run". Opt-in per product → the pinned sim (which never harvests) is byte-identical.
+  liveOps: {
+    harvestSettlementFrac: 0.87, // instant cash = 87% of the forgone tail's gross (13% convenience discount)
+    harvestFansPer1k: 30,        // goodwill fans per 1,000 units settled in the sunset sale
   },
 
   // --- Fans / loyal customer base ---
@@ -646,6 +670,21 @@ export const BALANCE = {
     rushCostPct: 0.08,
   },
 
+  // Pre-launch Keynote gamble (feature #4) — announce a product still in the build queue for a hype
+  // bonus if the ship-by promise is KEPT, a sting if it SLIPS. Magnitudes are kept ≤ the mastery /
+  // mandate hype seams so stacking stays sane. See engine/keynote.ts.
+  keynote: {
+    graceWeeks: 2,          // promise window = remaining build weeks + this grace (a fair buffer)
+    baseHype: 0.03,         // kept-promise bonus floor at announce…
+    perLeadWeek: 0.03,      // …+ this per remaining build week (earlier announce = bigger max, more risk)
+    maxHype: 0.15,          // ceiling on the kept bonus — never out-stacks mastery/mandates (each ≤0.15)
+    slipPenaltyHype: 0.08,  // hype penalty applied to the eventual launch if the window slips
+    slipRepPenalty: 2,      // one-time reputation sting applied ONCE at expiry (no permanent scarring)
+    announceFanFrac: 0.03,  // small fan gain at announce = this × current fans…
+    announceFanFlat: 40,    // …+ this flat, so a tiny fanbase still feels the bump
+    maxPerYear: 2,          // anti-spam: keynotes you may announce per 52-week year
+  },
+
   // --- Facilities ---
   facilities: [
     // Garage rent lowered 200 → 120/wk: a pre-revenue garage carrying $200/wk of fixed burn turned
@@ -811,6 +850,22 @@ export const BALANCE = {
       } as Record<string, number>,
       turfCategoryWeight: 3,    // extra launch-category weight the nemesis piles onto your top category
       turfStrengthBonusAtMaxHeat: 8, // extra launch strength at heat 100 (scaled by heat/100; pre-cap)
+      // Nemesis Boss ladder (feature #7) — a visible multi-week DUEL against the standing arch-rival:
+      // out-value them by a tier/ascension-scaled margin before the window closes. Win → trophy +
+      // reward + the ladder rises; lose → a taunt and a re-arm at the same tier. Only ever runs when a
+      // nemesis exists (never in the pinned solo sim), so these are dormant there.
+      duel: {
+        windowWeeks: 26,          // countdown length of one duel
+        baseMargin: 1.05,         // tier 0: out-value the nemesis by 5%
+        marginPerTier: 0.12,      // each cleared rung widens the required lead
+        marginPerAscension: 0.05, // …and every Heat/ascension level widens it further (stays meaningful)
+        tierCap: 8,               // ladder stops escalating here so it never becomes background noise
+        reward: {                 // modest, economy-safe one-time victory payout (grows slightly per rung)
+          baseRep: 2, repPerTier: 1,
+          baseFans: 400, fansPerTier: 200,
+          legacyPointsPostIpo: 1, // a single Legacy-Era point, post-IPO only
+        },
+      },
     },
   },
 
@@ -852,20 +907,29 @@ export const BALANCE = {
     rpPerRepPoint: 2,          // one-time RP absorbed per point of the acquired rival's reputation
     installedBasePerRep: 800,  // "installed base" (customers) absorbed per rival reputation point
     absorbedServiceRate: 1.0,  // cents/week each absorbed customer pays in services (recurring annuity)
-    // Controlling-stake TAKEOVERS — a slower, cheaper alternative to a straight cash buyout. Accumulate
-    // a rival's shares on the open market and two things unlock, turning the stock game into a takeover
-    // runway rather than a side annuity:
-    //  • boardSeatFrac of the float → a BOARD SEAT: insider intel on that rival (its hidden arc phase /
-    //    momentum), so you can trade it — and time a takeover — with information nobody else has;
+    // Strategic STAKES — a share position in a rival is a strategic verb, not portfolio decoration.
+    // Accumulate a rival's float on the open market and three tiers unlock, turning the stock game
+    // into intel + influence rather than a side annuity:
+    //  • insiderFrac of the float → INSIDER: read that rival's otherwise-hidden internals (its arc
+    //    phase / momentum, its next likely category + timing), so you trade — and time a takeover —
+    //    with information nobody else has. Pure knowledge reward, zero sim impact.
+    //  • boardSeatFrac of the float → a BOARD SEAT: a rare, cooldown-gated NUDGE — "Delay their launch"
+    //    pushes that rival's next launch back nudgeDelayWeeks. Small and once-per-nudgeCooldownWeeks per
+    //    rival, so it can't undermine the fair-competition balance guards.
     //  • controlFrac of the float → a CONTROLLING STAKE: you already hold effective control, so a buyout
     //    pays only hostilePremium instead of the full acquisitionPremium (the ~35% control premium
     //    collapses to ~8%). Since shares are bought near fair value, the accumulate-then-pounce path
     //    costs ~20% less than a cold buyout — the reward for patience, capital lockup, and price risk.
-    // All three are player-driven (buy shares / acquire); the pinned sim never trades, so it's untouched.
+    // All tiers are player-driven (buy shares / nudge / acquire); the pinned sim never trades, so it's
+    // untouched. The 10%/25% marks are reachable-but-expensive at late-game cash (10% of a giant ≈ $240M+,
+    // of the scrappiest challenger ≈ $12M), a real strategic sink cheapest-rival-first.
     takeover: {
-      boardSeatFrac: 0.10,  // own this fraction of a rival's shares → board-seat intel
+      insiderFrac: 0.10,    // own this fraction of a rival's shares → insider intel (read-only)
+      boardSeatFrac: 0.25,  // own this → a board seat: the cooldown-gated "delay their launch" nudge
       controlFrac: 0.5,     // own this → a controlling stake (hostile buyout at the reduced premium)
       hostilePremium: 1.08, // control premium on a controlled (hostile) takeover, vs acquisitionPremium
+      nudgeDelayWeeks: 3,   // a board-seat nudge pushes the rival's next launch back this many weeks
+      nudgeCooldownWeeks: 52, // …and can only be used once per this many weeks, per rival (rare)
     },
   },
 

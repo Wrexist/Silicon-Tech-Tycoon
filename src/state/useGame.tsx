@@ -17,6 +17,7 @@ import type { ComponentKind, FactoryId, Product, RecruitTier, RegionId, StaffRol
 import type { ContractTerm } from "../engine/suppliers.ts";
 import {
   advanceEraAction,
+  chooseMandate as applyMandateChoice,
   advanceOneWeek,
   assignStaff,
   skipInterrupt,
@@ -27,9 +28,11 @@ import {
   cancelResearch,
   cancelQueuedResearch,
   hostKeynote,
+  announceKeynote,
   resolveStrike,
   collectAwards,
   dismissRivalry,
+  dismissNemesisTrophy,
   resolveEureka,
   type EurekaResult,
   resolveCommunityAsk,
@@ -48,6 +51,7 @@ import {
   type EarningsAckResult,
   acceptSideOrder,
   claimContract,
+  attemptMoonshot,
   fundMegaproject,
   buyLegacyPerk,
   buyFrontierTier,
@@ -56,6 +60,8 @@ import {
   REV_MILESTONES,
   buyShares,
   acquireRival,
+  boardNudge,
+  canBoardNudge,
   buyUpgrade,
   buyDesktop,
   unlockRegion,
@@ -66,6 +72,7 @@ import {
   investBrandAwareness,
   restockProduct,
   setReorderRate,
+  harvestProduct,
   rushBuild,
   buyFloorMachine,
   buyFloorBelt,
@@ -148,6 +155,7 @@ import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBes
 import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
 import { recordFounder, getFounderRecord, mergeFounderRecord } from "./founderLegend.ts";
 import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
+import { recordSeasonCompletion, getSeasons, mergeSeasons, seasonLabel } from "./seasons.ts";
 import { scenarioById, canEarnStars, scenarioUnlocked, scenarioUnlockStars, SCENARIOS } from "../engine/scenarios.ts";
 import type { MasteryInput } from "../engine/achievements.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
@@ -166,13 +174,15 @@ import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
 import { objectiveById } from "../engine/objectives.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
-import { CircleCheck, FlaskConical, Sparkles } from "lucide-react";
+import { CircleCheck, Cpu, FlaskConical, Landmark, Rocket, Sparkles } from "lucide-react";
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { sfx } from "../design/sound.ts";
 import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
+import { moonshotById } from "../engine/moonshots.ts";
+import { EP_BUDGET_RAISES } from "../engine/designBudget.ts";
 import { createElement } from "react";
 
 /** Seed the player's persisted Calm Mode preference into a game state that doesn't carry one yet
@@ -266,6 +276,20 @@ function withResearchCompleteFx(prev: GameState, next: GameState): void {
       sfx("rp");
       showToast(`Research complete: ${prev.activeResearch.name}`, { tone: "positive", glyph: <FlaskConical size={15} /> });
     } catch { /* fx host not mounted */ }
+  }
+  // Design Budget (feature #1) — a completed EP-raise project lifts the per-project budget. A subtle,
+  // secondary toast so the reward reads. Diff completedProjects so it only fires the tick it lands, and
+  // only for a fresh run (the flag is what makes the budget bind at all).
+  if (next.designBudgetEnabled && next.completedProjects.length > prev.completedProjects.length) {
+    const prevSet = new Set(prev.completedProjects);
+    let raise = 0;
+    for (const id of next.completedProjects) {
+      if (prevSet.has(id)) continue;
+      raise += EP_BUDGET_RAISES.find((r) => r.project === id)?.ep ?? 0;
+    }
+    if (raise > 0) {
+      try { showToast(`Design budget +${raise} EP`, { tone: "neutral", glyph: <Cpu size={15} /> }); } catch { /* toast host not mounted */ }
+    }
   }
 }
 
@@ -402,7 +426,8 @@ function announceScenarioStars(state: GameState): void {
 function syncChallengeBest(prev: GameState, next: GameState, announce: boolean): void {
   const ch = next.activeChallenge;
   if (!ch || next.challengeScore == null) return;
-  const { improved, best } = recordChallengeBest(challengeKey(ch.kind, ch.dateKey), next.challengeScore);
+  const key = challengeKey(ch.kind, ch.dateKey);
+  const { improved, best } = recordChallengeBest(key, next.challengeScore);
   if (!announce || prev.challengeScore != null) return; // only on the locking transition
   sfx("mastery");
   const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
@@ -418,6 +443,27 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
       /* toast host not mounted (e.g. tests) */
     }
   }, 800);
+  // Challenge Seasons — count this completion toward the month's cosmetic track (idempotent per
+  // challenge key). Any rung crossed unlocks a cosmetic; celebrate it with a toast + confetti (no new
+  // interrupt). Entirely a profile-store write — no GameState / determinism surface.
+  try {
+    const { seasonId, crossed } = recordSeasonCompletion(key);
+    crossed.forEach((reward, i) => {
+      setTimeout(() => {
+        try {
+          emitCelebrate();
+          showToast(`Season reward unlocked, ${reward.name} · ${seasonLabel(seasonId)}`, {
+            tone: "positive",
+            glyph: <Sparkles size={15} />,
+          });
+        } catch {
+          /* toast host not mounted (e.g. tests) */
+        }
+      }, 1400 + i * 900);
+    });
+  } catch {
+    /* seasons is best-effort flair — never let it disrupt the challenge flow */
+  }
 }
 
 /** The per-tick DATA slice of the context — changes whenever the sim advances. */
@@ -460,9 +506,15 @@ interface GameActionsValue {
   unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
   hostKeynote: () => void;
+  /** Moonshot R&D gambles (feature #5): attempt a visible-odds moonshot. Resolves instantly (toast +
+   *  celebrate on success, sober toast on failure). Returns whether it landed (or null if blocked). */
+  attemptMoonshot: (id: string) => "success" | "failure" | null;
+  /** Pre-launch Keynote gamble (feature #4): announce an in-production build for a hype gamble. */
+  announceKeynote: (productId: string) => void;
   resolveStrike: (choice: StrikeResponse) => void;
   collectAwards: () => void;
   dismissRivalry: () => void;
+  dismissNemesisTrophy: () => void;
   resolveEureka: (choice: "bank" | "chase") => EurekaResult;
   resolveCommunityAsk: (accept: boolean) => CommunityAskResult;
   resolveStaffMoment: (optionIndex: number) => StaffMomentResult;
@@ -495,6 +547,8 @@ interface GameActionsValue {
   fire: (id: string) => void;
   upgradeHQ: () => void;
   advanceEra: () => void;
+  /** Resolve the era-advance mandate draft: adopt an offered mandate id, or decline with null. */
+  chooseMandate: (id: string | null) => void;
   goPublic: () => void;
   /** Found the next company (New Game+). Optional Ascension / Heat level makes that run harder. */
   prestige: (ascension?: number) => void;
@@ -548,6 +602,7 @@ interface GameActionsValue {
   buyShares: (id: string, qty: number) => void;
   sellShares: (id: string, qty: number) => void;
   acquireRival: (id: string) => boolean;
+  boardNudge: (id: string) => void;
   listCompany: (stake: number) => void;
   sellOwnStake: (pct: number) => void;
   cutProductPrice: (productId: string, newPrice: Money) => { ok: boolean; reason?: string };
@@ -555,6 +610,7 @@ interface GameActionsValue {
   investBrandAwareness: (points: number) => { ok: boolean; reason?: string };
   restockProduct: (productId: string, units: number) => { ok: boolean; reason?: string };
   setReorderRate: (productId: string, rate: number) => { ok: boolean; reason?: string };
+  harvestProduct: (productId: string) => { ok: boolean; reason?: string };
   rushBuild: (productId: string) => { ok: boolean; reason?: string };
   buyFloorMachine: (kind: import("../engine/factoryFloor.ts").MachineKind, c: number, r: number) => { ok: boolean; reason?: string };
   buyFloorBelt: (c: number, r: number, dir: import("../engine/factoryFloor.ts").BeltDir) => { ok: boolean; reason?: string };
@@ -956,6 +1012,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
   const dismissRivalryCb = useCallback(() => setState((s) => dismissRivalry(s)), []);
+  const dismissNemesisTrophyCb = useCallback(() => setState((s) => dismissNemesisTrophy(s)), []);
   // Resolve a eureka breakthrough — bank the sure RP or chase the prototype gamble. Returns the outcome
   // so the overlay can stage the reveal; RP-gain FX + sound scale with whether the prototype landed.
   const resolveEurekaCb = useCallback((choice: "bank" | "chase"): EurekaResult => {
@@ -1077,6 +1134,37 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     setState(next);
   }, []);
+  // Moonshot R&D gambles (feature #5) — attempt a visible-odds gamble; the outcome is revealed instantly.
+  const attemptMoonshotCb = useCallback((id: string): "success" | "failure" | null => {
+    const prev = stateRef.current;
+    const res = attemptMoonshot(prev, id);
+    if (!res.ok) { haptic.error(); showToast(res.reason ?? "Can't attempt that moonshot", { tone: "negative" }); return null; }
+    const rpSpent = prev.researchPoints - res.state.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    const m = moonshotById(id);
+    if (res.moonshotOutcome === "success") {
+      emitCelebrate();
+      sfx("mastery");
+      haptic.success();
+      showToast(`Moonshot landed — ${m?.reward.label ?? "reward banked"}`, { tone: "positive", glyph: <Rocket size={15} /> });
+    } else {
+      sfx("confirm");
+      haptic.warning();
+      showToast(`${m?.name ?? "Moonshot"} missed — most of the RP burned, some salvaged`, { tone: "negative", glyph: <Rocket size={15} /> });
+    }
+    setState(res.state);
+    return res.moonshotOutcome ?? null;
+  }, []);
+  const announceKeynoteCb = useCallback((productId: string) => {
+    const prev = stateRef.current;
+    const next = announceKeynote(prev, productId);
+    if (next === prev) { haptic.error(); return; } // no-op: not building / already announced / cap spent
+    emitCelebrate();
+    sfx("confirm");
+    haptic.success();
+    showToast(`Keynote announced — the promise is public. +${(next.fans - prev.fans).toLocaleString()} fans`, { tone: "positive" });
+    setState(next);
+  }, []);
   const buyDesktopCb = useCallback(() => {
     const prev = stateRef.current;
     const next = buyDesktop(prev);
@@ -1170,6 +1258,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // These actions can immediately satisfy a milestone (reach the final era, IPO, the pinnacle), so
   // fold + celebrate achievements here rather than waiting for the next tick.
   const advanceEra = useCallback(() => setState((s) => withLiveAchievements(advanceEraAction(s))), []);
+  const chooseMandate = useCallback((id: string | null) => setState((s) => applyMandateChoice(s, id)), []);
   const goPublicCb = useCallback(() => {
     const before = stateRef.current;
     setState((s) => withLiveAchievements(goPublic(s)));
@@ -1206,6 +1295,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       museum: getMuseum(),
       achievements: getProfileAchievements(),
       founder: getFounderRecord(),
+      seasons: getSeasons(),
     }),
     [],
   );
@@ -1225,6 +1315,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       mergeMuseum(profile.museum);
       mergeProfileAchievements(Array.isArray(profile.achievements) ? profile.achievements : undefined);
       mergeFounderRecord(profile.founder);
+      mergeSeasons(profile.seasons);
     }
     const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids
@@ -1341,6 +1432,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
   const sellSharesCb = useCallback((id: string, qty: number) => setState((s) => sellShares(s, id, qty)), []);
+  const boardNudgeCb = useCallback((id: string) => {
+    const prev = stateRef.current;
+    if (!canBoardNudge(prev, id)) { haptic.error(); return; }
+    const comp = prev.competitors.find((c) => c.id === id);
+    setState(boardNudge(prev, id));
+    haptic.success(); sfx("confirm");
+    showToast(`Launch delayed — ${comp?.name ?? "rival"} slips their next ship`, { tone: "positive", glyph: <Landmark size={15} /> });
+  }, []);
   const acquireRivalCb = useCallback((id: string): boolean => {
     const prev = stateRef.current;
     const base = acquireRival(prev, id);
@@ -1391,6 +1490,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const setReorderRateCb = useCallback((productId: string, rate: number) => {
     const result = setReorderRate(stateRef.current, productId, rate);
+    if (result.ok) setState(result.state);
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const harvestProductCb = useCallback((productId: string) => {
+    const result = harvestProduct(stateRef.current, productId);
     if (result.ok) setState(result.state);
     return { ok: result.ok, reason: result.reason };
   }, []);
@@ -1626,9 +1730,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
       hostKeynote: hostKeynoteCb,
+      attemptMoonshot: attemptMoonshotCb,
+      announceKeynote: announceKeynoteCb,
       resolveStrike: resolveStrikeCb,
       collectAwards: collectAwardsCb,
       dismissRivalry: dismissRivalryCb,
+      dismissNemesisTrophy: dismissNemesisTrophyCb,
       resolveEureka: resolveEurekaCb,
       resolveCommunityAsk: resolveCommunityAskCb,
       resolveStaffMoment: resolveStaffMomentCb,
@@ -1659,6 +1766,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       fire,
       upgradeHQ,
       advanceEra,
+      chooseMandate,
       goPublic: goPublicCb,
       prestige,
       restart,
@@ -1701,6 +1809,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       buyShares: buySharesCb,
       sellShares: sellSharesCb,
       acquireRival: acquireRivalCb,
+      boardNudge: boardNudgeCb,
       listCompany: listCompanyCb,
       sellOwnStake: sellOwnStakeCb,
       cutProductPrice: cutProductPriceCb,
@@ -1708,6 +1817,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       investBrandAwareness: investBrandAwarenessCb,
       restockProduct: restockProductCb,
       setReorderRate: setReorderRateCb,
+      harvestProduct: harvestProductCb,
       rushBuild: rushBuildCb,
       buyFloorMachine: buyFloorMachineCb,
       buyFloorBelt: buyFloorBeltCb,
@@ -1731,7 +1841,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, attemptMoonshotCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, boardNudgeCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, harvestProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

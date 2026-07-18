@@ -1,5 +1,5 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Activity, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Landmark, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -8,6 +8,7 @@ import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { rivalDef, rivalDoctrine, rivalMarketCap, DOCTRINE_LABEL, DOCTRINE_EXPLAINER } from "../engine/competitors.ts";
 import { playerFranchises, rivalLines, franchiseStem, type FranchiseSummary } from "../engine/franchise.ts";
+import { franchiseMastery, FRANCHISE_MASTERY_MIN_ENTRIES, type FranchiseMasteryLine } from "../engine/franchiseMastery.ts";
 import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
@@ -15,7 +16,6 @@ import { overallScore } from "../engine/product.ts";
 import { dollars, format, formatCount, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { priceFit } from "../engine/market.ts";
 import { postMortem, type FactorKey } from "../engine/postmortem.ts";
 import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
@@ -25,17 +25,17 @@ import {
   canAcquire,
   acquisitionCost,
   ownershipFractionOf,
+  isInsider,
   hasBoardSeat,
   hasControllingStake,
   rivalBoardIntel,
+  canBoardNudge,
+  boardNudgeCooldownWeeks,
   companyValuation,
   founderStakeValue,
   industryLeaderboard,
   industryRank,
   nextRankRival,
-  marketingPushQuote,
-  restockQuote,
-  reorderLeadWeeks,
   netWorth,
   nextWeekRevenue,
   osDisplayName,
@@ -69,7 +69,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 // A distinct hue per region so each market emblem reads at a glance (CSS owns the tint formula).
 const REGION_HUE: Record<string, number> = { home: 210, north_america: 222, europe: 265, asia: 32, emerging: 150 };
 
-// Board-seat intel: a rival's hidden arc phase → a plain-language momentum read + a tone.
+// Insider intel: a rival's hidden arc phase → a plain-language momentum read + a tone.
 const MOMENTUM: Record<string, { label: string; hint: string; tone: "positive" | "negative" | "neutral" }> = {
   ascending: { label: "Rising", hint: "its shares should keep firming up", tone: "positive" },
   peaking: { label: "Peaking", hint: "the momentum is starting to fade", tone: "neutral" },
@@ -613,8 +613,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         )}
       </Card>
 
-      {/* Your franchises, product lines grouped by brand equity (the IP lens over your catalog) */}
-      <FranchisesCard launched={state.launched} />
+      {/* Your franchises, product lines grouped by brand equity (the IP lens over your catalog).
+          Only meaningful once you've shipped, so it's deferred until the first launch. */}
+      {state.launched.length > 0 && <FranchisesCard launched={state.launched} masteryEnabled={!!state.franchiseMasteryEnabled} />}
 
       {/* Portfolio revenue breakdown by category */}
       {(() => {
@@ -1150,10 +1151,6 @@ function ProductDetailSheet({
   onClose: () => void;
   onDesignSuccessor?: (p: Product) => void;
 }) {
-  const { state, cutProductPrice, marketingPush, restockProduct, setReorderRate } = useGame();
-  const [priceCutOpen, setPriceCutOpen] = useState(false);
-  const [pushOpen, setPushOpen] = useState(false);
-  const [restockOpen, setRestockOpen] = useState(false);
   // Only phones & tablets are flat slabs with a real back face (camera module); for those, let the
   // player flip the hardware to inspect the rear.
   const canFlip = lp.product.category === "phone" || lp.product.category === "tablet";
@@ -1182,17 +1179,6 @@ function ProductDetailSheet({
     ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
     : null;
   const live = lp.weeksElapsed < lp.weeklyUnits.length;
-  // Suggest cutting to ~85% of current price (or to unit cost if higher)
-  const suggestedCut = dollars(Math.max(toDollars(lp.unitCost) + 1, Math.round(toDollars(lp.product.price) * 0.85 / 10) * 10));
-  // Marketing push quote — only offered when there's genuine surplus inventory left to clear.
-  const pushQuote = marketingPushQuote(lp);
-  const pushed = (lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct;
-  // Restock ("living product" lever): reorder to meet demand you under-supplied. The engine caps the
-  // amount to the market's unmet appetite; here we also cap the offer at what the player can afford now.
-  const restockQ = live ? restockQuote(state, lp) : null;
-  const restockAfford = restockQ ? Math.floor(toDollars(state.cash) / Math.max(1, toDollars(restockQ.unitCost))) : 0;
-  const restockUnits = restockQ ? Math.min(restockQ.maxUnits, restockAfford) : 0;
-  const restockCost = restockQ ? cents(restockQ.unitCost * restockUnits) : dollars(0);
 
   return (
     <div className="pd">
@@ -1332,209 +1318,15 @@ function ProductDetailSheet({
         ))}
       </div>
 
-      {/* Mid-lifecycle price cut — only for live products */}
+      {/* Live-product levers (Boost / Price cut / Restock / Harvest) moved to the consolidated
+          "Live products" ops board on HQ (feature #2), so this sheet stays a clean performance read
+          and every live decision lives in one place. Point the player there while it's still selling. */}
       {live && (
-        <div className="pd__pricecut">
-          {(lp.priceCuts ?? 0) >= BALANCE.priceCut.maxPerProduct ? (
-            <div className="pd__pricecut-done">
-              <TrendingDown size={13} aria-hidden />
-              <span>Price cut to <strong className="tnum">{format(lp.product.price)}</strong> — as low as it goes</span>
-            </div>
-          ) : !priceCutOpen ? (
-            <button className="pd__pricecut-trigger" onClick={() => { setPriceCutOpen(true); haptic.light(); }}>
-              <TrendingDown size={13} aria-hidden />
-              <span>Reduce price · <span className="tnum">{format(lp.product.price)}</span> now</span>
-              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
-            </button>
-          ) : (
-            <div className="pd__pricecut-panel">
-              <div className="pd__pricecut-title">
-                <TrendingDown size={14} aria-hidden />
-                <span>Reduce price</span>
-              </div>
-              <div className="pd__pricecut-row">
-                <span className="pd__pricecut-from tnum">{format(lp.product.price)}</span>
-                <ArrowRight size={14} className="pd__pricecut-arrow" aria-hidden />
-                <span className="pd__pricecut-to tnum">{format(suggestedCut)}</span>
-              </div>
-              {(() => {
-                const oldFit = priceFit(lp.product.price, lp.stats, lp.product.category);
-                const newFit = priceFit(suggestedCut, lp.stats, lp.product.category);
-                const boostPct = oldFit > 0 ? Math.round(((newFit / oldFit) - 1) * 100) : 0;
-                return (
-                  <p className="pd__pricecut-hint">
-                    {boostPct > 0 ? `~+${boostPct}% estimated demand uplift · ` : ""}Repeatable, each cut smaller as the price nears cost.
-                  </p>
-                );
-              })()}
-              <div className="pd__pricecut-actions">
-                <Button
-                  block
-                  onClick={() => {
-                    const result = cutProductPrice(lp.product.id, suggestedCut);
-                    if (result.ok) {
-                      haptic.success();
-                      showToast("Price reduced", { tone: "positive" });
-                      setPriceCutOpen(false);
-                    } else {
-                      haptic.medium();
-                      showToast(result.reason ?? "Can't adjust price", { tone: "negative" });
-                    }
-                  }}
-                >
-                  Confirm · {format(suggestedCut)}
-                </Button>
-                <Button block variant="tertiary" onClick={() => { setPriceCutOpen(false); haptic.light(); }}>Cancel</Button>
-              </div>
-            </div>
-          )}
+        <div className="pd__ops-note">
+          <Activity size={14} aria-hidden />
+          <span>Still selling — tune Boost, price, restock &amp; harvest on the <strong>Live products</strong> board at HQ.</span>
         </div>
       )}
-
-      {/* Mid-lifecycle marketing push — the margin-preserving sibling of a price cut. Only shown
-          when there's surplus inventory to clear (pushQuote != null) or one has already run. */}
-      {live && (pushed || pushQuote) && (
-        <div className="pd__pricecut">
-          {pushed ? (
-            <div className="pd__pricecut-done">
-              <Megaphone size={13} aria-hidden />
-              <span>Marketing campaign running</span>
-            </div>
-          ) : !pushOpen ? (
-            <button className="pd__pricecut-trigger" onClick={() => { setPushOpen(true); haptic.light(); }}>
-              <Megaphone size={13} aria-hidden />
-              <span>Marketing push · keep your <span className="tnum">{format(lp.product.price)}</span> price</span>
-              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
-            </button>
-          ) : (
-            <div className="pd__pricecut-panel">
-              <div className="pd__pricecut-title">
-                <Megaphone size={14} aria-hidden />
-                <span>Marketing push</span>
-              </div>
-              <p className="pd__pricecut-hint">
-                Sell ~<strong className="tnum">{formatCount(pushQuote!.addedUnits)}</strong> more units at full price, no margin cut. Repeatable, each campaign smaller than the last.
-              </p>
-              <div className="pd__pricecut-actions">
-                <Button
-                  block
-                  onClick={() => {
-                    const result = marketingPush(lp.product.id);
-                    if (result.ok) {
-                      haptic.success();
-                      showToast("Campaign launched", { tone: "positive" });
-                      setPushOpen(false);
-                    } else {
-                      haptic.medium();
-                      showToast(result.reason ?? "Can't run campaign", { tone: "negative" });
-                    }
-                  }}
-                >
-                  Confirm · {format(pushQuote!.cost)}
-                </Button>
-                <Button block variant="tertiary" onClick={() => { setPushOpen(false); haptic.light(); }}>Cancel</Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Restock / reorder — the "living product" lever: make more of a sell-out to capture demand you
-          under-supplied. Shown only while the market still wants more AND you can afford a real run. */}
-      {live && restockQ && restockUnits >= BALANCE.build.minRun && (
-        <div className="pd__pricecut">
-          {!restockOpen ? (
-            <button className="pd__pricecut-trigger" onClick={() => { setRestockOpen(true); haptic.light(); }}>
-              <Package size={13} aria-hidden />
-              <span>Restock · <span className="tnum">{formatCount(restockQ.maxUnits)}</span> units of demand unmet</span>
-              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
-            </button>
-          ) : (
-            <div className="pd__pricecut-panel">
-              <div className="pd__pricecut-title">
-                <Package size={14} aria-hidden />
-                <span>Restock production</span>
-              </div>
-              <p className="pd__pricecut-hint">
-                Build ~<strong className="tnum">{formatCount(restockUnits)}</strong> more units to meet demand you under-supplied — no new tooling, you pay production only.
-              </p>
-              <div className="pd__pricecut-actions">
-                <Button
-                  block
-                  onClick={() => {
-                    const result = restockProduct(lp.product.id, restockUnits);
-                    if (result.ok) {
-                      haptic.success();
-                      showToast("Restocked — more units on the line", { tone: "positive" });
-                      setRestockOpen(false);
-                    } else {
-                      haptic.medium();
-                      showToast(result.reason ?? "Can't restock", { tone: "negative" });
-                    }
-                  }}
-                >
-                  Confirm · {format(restockCost)}
-                </Button>
-                <Button block variant="tertiary" onClick={() => { setRestockOpen(false); haptic.light(); }}>Cancel</Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Live Product Ops (feature #2) — a standing auto-reorder policy: top supply up toward demand
-          each week, every order arriving after a lead time. Shown while the product is still selling and
-          the market wants more (or a policy is already running). */}
-      {live && (lp.ops || (restockQ && restockUnits >= BALANCE.build.minRun)) && (() => {
-        const ops = lp.ops ?? null;
-        const inTransit = (ops?.pending ?? []).reduce((a, p) => a + p.units, 0);
-        const lead = reorderLeadWeeks(state);
-        // Presets scaled off the unmet-demand appetite, so the "steady/aggressive" rates are sensible
-        // for this product's size (fall back to the last set rate's ceiling when demand is snapshotted).
-        const appetite = restockQ ? restockQ.maxUnits : Math.max(0, (ops?.demandTotal ?? lp.totalUnits) - lp.totalUnits);
-        const min = BALANCE.build.minRun;
-        const cap = BALANCE.restock.maxRatePerWeek; // the engine clamps to this — the preset must match what it applies
-        const steady = Math.min(cap, Math.max(min, Math.round(appetite / 8)));
-        const aggressive = Math.min(cap, Math.max(min, Math.round(appetite / 4)));
-        const rate = ops?.reorderRate ?? 0;
-        const presets: { label: string; value: number }[] = [
-          { label: "Off", value: 0 },
-          { label: `Steady · ${formatCount(steady)}/wk`, value: steady },
-          // When the appetite is tiny (or both hit the cap), Steady and Aggressive collapse to the same
-          // rate — drop the redundant button rather than show two identical choices.
-          ...(aggressive > steady ? [{ label: `Aggressive · ${formatCount(aggressive)}/wk`, value: aggressive }] : []),
-        ];
-        return (
-          <div className="pd__reorder">
-            <div className="pd__reorder-head">
-              <RotateCw size={14} aria-hidden />
-              <span>Auto-reorder</span>
-              {rate > 0 && <span className="pd__reorder-tag tnum">{formatCount(rate)}/wk</span>}
-            </div>
-            <p className="pd__reorder-hint">
-              {rate > 0
-                ? <>Topping supply up toward demand — new orders arrive in <strong className="tnum">{lead}</strong> {lead === 1 ? "week" : "weeks"}.{inTransit > 0 ? <> <span className="tnum">{formatCount(inTransit)}</span> units in transit.</> : ""}</>
-                : <>Set a weekly reorder rate to keep this seller stocked automatically. Orders take <strong className="tnum">{lead}</strong> {lead === 1 ? "week" : "weeks"} to arrive.</>}
-            </p>
-            <div className="pd__reorder-opts">
-              {presets.map((p) => (
-                <button
-                  key={p.label}
-                  className={`pd__reorder-opt${rate === p.value ? " pd__reorder-opt--on" : ""}`}
-                  aria-pressed={rate === p.value}
-                  onClick={() => {
-                    const res = setReorderRate(lp.product.id, p.value);
-                    if (res.ok) { haptic.light(); if (p.value > 0) showToast(`Auto-reorder set — ${formatCount(p.value)}/wk`, { tone: "positive" }); }
-                    else { haptic.medium(); showToast(res.reason ?? "Can't set a reorder policy", { tone: "negative" }); }
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Why it performed */}
       <div className="pd__why">
@@ -1588,9 +1380,14 @@ function ProductDetailSheet({
 
 /** The player's product lines grouped by brand equity — the IP lens over the catalog. Each row opens
  *  a detail sheet: the line's "chapters" (every product, newest first) with its verdict + numbers. */
-function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
+function FranchisesCard({ launched, masteryEnabled }: { launched: LaunchedProduct[]; masteryEnabled: boolean }) {
   const lines = playerFranchises(launched);
   const [open, setOpen] = useState<FranchiseSummary | null>(null);
+  // Franchise Mastery (feature #8): per-line progress toward the permanent named boon, keyed by stem.
+  const mastery = useMemo(
+    () => new Map(masteryEnabled ? franchiseMastery(launched).map((m) => [m.stem, m]) : []),
+    [launched, masteryEnabled],
+  );
   if (lines.length === 0) return null;
   return (
     <Card>
@@ -1607,19 +1404,51 @@ function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
               {f.entries} product{f.entries > 1 ? "s" : ""} · {formatCount(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
             </div>
             <div className="mkt__fr-bar" aria-hidden><span className="mkt__fr-fill" style={{ width: `${Math.round(Math.max(0, f.equity) * 100)}%` }} /></div>
+            <FranchiseMasteryNote m={mastery.get(f.stem)} />
           </button>
         ))}
       </div>
       <Sheet open={!!open} onClose={() => setOpen(null)} label="Product detail">
-        {open && <FranchiseDetail summary={open} launched={launched} />}
+        {open && <FranchiseDetail summary={open} launched={launched} mastery={mastery.get(open.stem)} />}
       </Sheet>
     </Card>
   );
 }
 
+/** The Franchise-Mastery status line under a franchise row: the earned boon once qualified, otherwise
+ *  the entries-toward-Iconic countdown (with a nudge when one entry away). Nothing when disabled. */
+function FranchiseMasteryNote({ m, detailed }: { m?: FranchiseMasteryLine; detailed?: boolean }) {
+  if (!m) return null;
+  if (m.qualified) {
+    return (
+      <div className="mkt__fr-boon mkt__fr-boon--earned">
+        <Crown size={13} aria-hidden />
+        <span className="mkt__fr-boon-name">{m.boon.name}</span>
+        {detailed && <span className="mkt__fr-boon-blurb">{m.boon.blurb}</span>}
+      </div>
+    );
+  }
+  const iconic = m.iconic;
+  const oneAway = m.remaining === 1 && iconic;
+  return (
+    <div className="mkt__fr-boon">
+      <Award size={13} aria-hidden className="mkt__fr-boon-glyph" />
+      <span className="mkt__fr-boon-prog tnum">{Math.min(m.entries, FRANCHISE_MASTERY_MIN_ENTRIES)}/{FRANCHISE_MASTERY_MIN_ENTRIES} entries</span>
+      <span className={`mkt__fr-boon-tier${iconic ? " mkt__fr-boon-tier--on" : ""}`}>{iconic ? "Iconic" : m.label}</span>
+      {oneAway
+        ? <span className="mkt__fr-boon-nudge">1 more entry → {m.boon.name}</span>
+        : detailed
+          ? <span className="mkt__fr-boon-nudge">{m.remaining > 0
+              ? (iconic ? `${m.remaining} more → ${m.boon.name}` : `${m.remaining} more + Iconic → ${m.boon.name}`)
+              : `Reach Iconic → ${m.boon.name}`}</span>
+          : null}
+    </div>
+  );
+}
+
 /** A single franchise's story: every product in the line, newest first, with a device thumbnail,
  *  verdict, units and revenue — so the brand-equity loop's payoff is visible and tangible. */
-function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; launched: LaunchedProduct[] }) {
+function FranchiseDetail({ summary, launched, mastery }: { summary: FranchiseSummary; launched: LaunchedProduct[]; mastery?: FranchiseMasteryLine }) {
   const products = launched
     .filter((lp) => franchiseStem(lp.product.name) === summary.stem)
     .sort((a, b) => b.launchedWeek - a.launchedWeek);
@@ -1633,6 +1462,8 @@ function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; lau
         </div>
         <span className={`mkt__fr-tag mkt__fr-tag--${summary.label.toLowerCase().replace(/\s+/g, "")}`}>{summary.label}</span>
       </div>
+
+      {mastery && <FranchiseMasteryNote m={mastery} detailed />}
 
       <div className="frd__stats">
         <Stat label="Lifetime revenue" value={format(summary.revenue)} tone="positive" />
@@ -1684,6 +1515,7 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
   const held = state.holdings[comp.id] ?? 0;
   const totalShares = rivalDef(comp.id)?.shares ?? 0;
   const ownPct = totalShares > 0 ? (held / totalShares) * 100 : 0;
+  const insider = isInsider(state, comp.id);
   const board = hasBoardSeat(state, comp.id);
   const controlling = hasControllingStake(state, comp.id);
   const intel = rivalBoardIntel(state, comp.id);
@@ -1750,15 +1582,24 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
           {controlling ? (
             <span className="rprof__badge rprof__badge--control"><Crown size={11} aria-hidden /> Controlling stake</span>
           ) : board ? (
-            <span className="rprof__badge rprof__badge--board"><Eye size={11} aria-hidden /> Board seat</span>
+            <span className="rprof__badge rprof__badge--board"><Landmark size={11} aria-hidden /> Board seat</span>
+          ) : insider ? (
+            <span className="rprof__badge rprof__badge--board"><Eye size={11} aria-hidden /> Insider</span>
           ) : null}
         </div>
       )}
 
       {intel && (
-        <p className={`rprof__intel rprof__intel--${MOMENTUM[intel.arcPhase].tone}`}>
-          <Eye size={13} aria-hidden /> <strong>Board intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.
-        </p>
+        <div className={`rprof__intel rprof__intel--${MOMENTUM[intel.arcPhase].tone}`}>
+          <p>
+            <Eye size={13} aria-hidden /> <strong>Insider intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.
+          </p>
+          {intel.nextCategory && (
+            <p>
+              <Rocket size={13} aria-hidden /> Preparing a {(CATEGORY_LABEL[intel.nextCategory] ?? intel.nextCategory).toLowerCase()} — {intel.weeksToLaunch <= 0 ? "shipping imminently" : `~${intel.weeksToLaunch} week${intel.weeksToLaunch !== 1 ? "s" : ""} out`}.
+            </p>
+          )}
+        </div>
       )}
 
       {lines.length > 0 && (
@@ -1834,7 +1675,7 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
 }
 
 function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => void }) {
-  const { state, buyShares, sellShares, acquireRival } = useGame();
+  const { state, buyShares, sellShares, acquireRival, boardNudge } = useGame();
   const [qty, setQty] = useState(1);
   const [armAcquire, setArmAcquire] = useState(false);
   const owned = state.holdings[comp.id] ?? 0;
@@ -1915,14 +1756,17 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         </span>
       </div>
 
-      {/* Takeover runway — accumulate shares toward a board seat (intel) then a controlling stake. */}
+      {/* Strategic Stakes — accumulate shares toward Insider intel, a Board-seat nudge, then control. */}
       {(() => {
         const t = BALANCE.mergers.takeover;
         const frac = ownershipFractionOf(state, comp.id);
         const pct = frac * 100;
+        const insider = isInsider(state, comp.id);
         const board = hasBoardSeat(state, comp.id);
         const control = hasControllingStake(state, comp.id);
         const intel = rivalBoardIntel(state, comp.id);
+        const nudgeReady = canBoardNudge(state, comp.id);
+        const cooldown = boardNudgeCooldownWeeks(state, comp.id);
         return (
           <div className="trade__stake">
             <div className="trade__stake-head">
@@ -1931,21 +1775,43 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
             </div>
             <div className="trade__stake-track" role="presentation">
               <div className="trade__stake-fill" style={{ width: `${Math.min(100, (frac / t.controlFrac) * 100)}%` }} />
+              <span className="trade__stake-mark" style={{ left: `${(t.insiderFrac / t.controlFrac) * 100}%` }} aria-hidden />
               <span className="trade__stake-mark" style={{ left: `${(t.boardSeatFrac / t.controlFrac) * 100}%` }} aria-hidden />
             </div>
             <div className="trade__stake-tiers">
+              <span className={`trade__stake-tier${insider ? " is-on" : ""}`}>
+                <Eye size={11} aria-hidden /> Insider{insider ? "" : ` · ${Math.round(t.insiderFrac * 100)}%`}
+              </span>
               <span className={`trade__stake-tier${board ? " is-on" : ""}`}>
-                <Eye size={11} aria-hidden /> Board seat{board ? "" : ` · ${Math.round(t.boardSeatFrac * 100)}%`}
+                <Landmark size={11} aria-hidden /> Board seat{board ? "" : ` · ${Math.round(t.boardSeatFrac * 100)}%`}
               </span>
               <span className={`trade__stake-tier${control ? " is-on" : ""}`}>
                 <Crown size={11} aria-hidden /> Control{control ? "" : ` · ${Math.round(t.controlFrac * 100)}%`}
               </span>
             </div>
-            {intel && (
+            {intel ? (
               <div className={`trade__stake-intel trade__stake-intel--${MOMENTUM[intel.arcPhase].tone}`}>
-                <Eye size={12} aria-hidden />
-                <span><strong>Board intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.</span>
+                <p><Eye size={12} aria-hidden /> <strong>Insider intel:</strong> {comp.name} is {MOMENTUM[intel.arcPhase].label.toLowerCase()} — {MOMENTUM[intel.arcPhase].hint}.</p>
+                {intel.nextCategory && (
+                  <p><Rocket size={12} aria-hidden /> Preparing a {(CATEGORY_LABEL[intel.nextCategory] ?? intel.nextCategory).toLowerCase()} — {intel.weeksToLaunch <= 0 ? "shipping imminently" : `~${intel.weeksToLaunch} week${intel.weeksToLaunch !== 1 ? "s" : ""} out`}.</p>
+                )}
+                <p className="trade__stake-doctrine"><Building2 size={12} aria-hidden /> Strategy: {DOCTRINE_LABEL[rivalDoctrine(comp.id)]}.</p>
               </div>
+            ) : (
+              <p className="trade__stake-hint"><Lock size={11} aria-hidden /> Own {Math.round(t.insiderFrac * 100)}% for insider intel — read their pipeline and momentum.</p>
+            )}
+            {board && (
+              <Button
+                block
+                variant={nudgeReady ? "secondary" : "tertiary"}
+                disabled={!nudgeReady}
+                onClick={() => { boardNudge(comp.id); }}
+              >
+                <Landmark size={14} />
+                {nudgeReady
+                  ? `Delay their launch · −${t.nudgeDelayWeeks} wks`
+                  : `Nudge on cooldown · ${cooldown} wk${cooldown !== 1 ? "s" : ""}`}
+              </Button>
             )}
           </div>
         );
@@ -1970,7 +1836,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         <Button
           block
           disabled={!canBuy}
-          onClick={() => { buyShares(comp.id, qty); haptic.success(); sfx("confirm"); showToast(`Bought ${qty} ${comp.name}`, { tone: "positive" }); }}
+          onClick={() => { buyShares(comp.id, qty); haptic.success(); sfx("confirm"); }}
         >
           Buy · {format(cost)}
         </Button>
@@ -1978,7 +1844,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
           block
           variant="secondary"
           disabled={owned <= 0}
-          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); sfx("cash"); showToast(`Sold ${q} ${comp.name}`, { tone: "neutral" }); }}
+          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); sfx("cash"); }}
         >
           Sell · {format(proceeds)}
         </Button>

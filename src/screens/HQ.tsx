@@ -2,7 +2,8 @@ import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark, type LucideIcon,
+  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark,
+  Activity, Scissors, HandCoins, Package, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -21,7 +22,7 @@ import { ascensionName } from "../engine/ascension.ts";
 import { REGIONS } from "../engine/regions.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
-import { dollars, format, formatCount, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
+import { cents, dollars, format, formatCount, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
 import {
   canPlace,
   furnitureCost,
@@ -37,7 +38,8 @@ import {
   type PlacedItem,
   type Rot,
 } from "../engine/furniture.ts";
-import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
+import { FLOOR_FINISHES, WALL_STYLES, SEASON_FLOOR_IDS, SEASON_WALL_IDS } from "../engine/roomStyle.ts";
+import { unlockedFloorIds, unlockedWallIds } from "../state/seasons.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { emitHighlight } from "../design/hqHighlight.ts";
 
@@ -54,7 +56,11 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 import { RESEARCH_PROJECTS, forkLockedBy, projectById, type ProjectId } from "../engine/research.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
-import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, nemesisDuelSnapshot, marketingPushQuote, restockQuote, reorderLeadWeeks, type FeedItem, type GameState } from "../state/gameState.ts";
+import { CategoryIcon } from "../design/icons.tsx";
+import { priceFit } from "../engine/market.ts";
+import { productMomentum, harvestSettlement, type OpsPhase } from "../engine/liveOps.ts";
+import type { LaunchedProduct } from "../engine/types.ts";
 import { contractProgress, contractValue, rewardSummary, type Contract, type ContractFacts } from "../engine/contracts.ts";
 import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardSummary, boardTier, nextBoardTier, mandatePayoutMult, mandateStreakBonus } from "../engine/endgame.ts";
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
@@ -67,6 +73,7 @@ import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { BuildProgress } from "../components/BuildProgress.tsx";
+import { KeynoteControl } from "../components/KeynoteControl.tsx";
 import { FurnitureThumb } from "../components/FurnitureThumb.tsx";
 import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
@@ -305,6 +312,10 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           </p>
         );
       })()}
+      {/* Nemesis Boss ladder (feature #7) — the live duel against your arch-rival: a passive "you vs
+          them" card with a countdown. No modal; only present while a nemesis stands. */}
+      <NemesisDuelCard state={state} />
+
       {!advanceReady && !ipoReady && <EraGoalCard state={state} />}
 
       {/* Item A1 — a one-time, persistent "what your first ship just unlocked" card (replaces the old
@@ -324,6 +335,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
       {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}{/* onAdvanceFrontier takes a lane (feature #6) */}
 
+      {/* Sell-Window Ops (feature #2) — the live products board: a momentum meter + the bounded
+          Boost / Price-cut / Restock / Harvest decisions per product still in its sell window. A card you
+          visit (not a modal), gated to appear only while something is actually live. */}
+      <LiveOpsCard />
+
       {/* Living fan community — the mood of your audience (engine/community.ts). Appears once you've
           shipped, when the community has an opinion to have. */}
       {state.launched.length >= 1 && <CommunityCard state={state} />}
@@ -337,7 +353,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <Card>
           <SectionHeader title="In production" accessory="manufacturing" />
           {state.building.map((job) => (
-            <BuildProgress key={job.product.id} job={job} />
+            <div className="hq__buildrow" key={job.product.id}>
+              <BuildProgress job={job} />
+              {/* Pre-launch Keynote gamble (feature #4) — announce/track the ship-by promise per build. */}
+              <KeynoteControl job={job} />
+            </div>
           ))}
           {onViewFactory && world === "office" && (
             <button className="hq__viewline" onClick={onViewFactory}>
@@ -429,6 +449,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   const history = useRef<{ layout: PlacedItem[]; cash: Money }[]>([]);
   const [histLen, setHistLen] = useState(0); // mirror of history depth so Undo's disabled state stays live
   const dark = isDarkTheme();
+  // Challenge-Season room finishes unlocked so far (cosmetic-only; gates SELECTION in the decorate
+  // panel below). Recomputed each render so a just-earned finish appears without a remount.
+  const unlockedFloors = unlockedFloorIds();
+  const unlockedWalls = unlockedWallIds();
   // If the GPU drops the WebGL context mid-game, fall back to the 2D IsoScene instead of black.
   const [glLost, setGlLost] = useState(false);
   // Stable identity so the memoized Garage3D office scene isn't re-rendered every sim tick by a fresh
@@ -679,23 +703,30 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                   <div className="hqb__room-group">
                     <span className="hqb__room-label">Floor</span>
                     <div className="hqb__swatches">
-                      {FLOOR_FINISHES.map((f, i) => (
-                        <button key={f.id} className={`hqb__sw${state.roomStyle.floor === i ? " hqb__sw--on" : ""}`} aria-pressed={state.roomStyle.floor === i} aria-label={`${f.name} floor`} onClick={() => { setFloorStyle(i); haptic.light(); }}>
-                          <span className="hqb__sw-chip" style={{ background: dark ? f.dark : f.light }} />
-                          <span className="hqb__sw-name">{f.name}</span>
-                        </button>
-                      ))}
+                      {FLOOR_FINISHES.map((f, i) => {
+                        // Challenge-Season floors are locked until earned on the Seasons track.
+                        const locked = SEASON_FLOOR_IDS.includes(f.id) && !unlockedFloors.has(f.id);
+                        return (
+                          <button key={f.id} className={`hqb__sw${state.roomStyle.floor === i ? " hqb__sw--on" : ""}${locked ? " hqb__sw--locked" : ""}`} aria-pressed={state.roomStyle.floor === i} disabled={locked} aria-label={locked ? `${f.name} floor (locked, earn on the Challenge Seasons track)` : `${f.name} floor`} title={locked ? "Earn on the Challenge Seasons track" : undefined} onClick={() => { setFloorStyle(i); haptic.light(); }}>
+                            <span className="hqb__sw-chip" style={{ background: dark ? f.dark : f.light }}>{locked && <Lock size={11} aria-hidden />}</span>
+                            <span className="hqb__sw-name">{f.name}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="hqb__room-group">
                     <span className="hqb__room-label">Walls</span>
                     <div className="hqb__swatches">
-                      {WALL_STYLES.map((w, i) => (
-                        <button key={w.id} className={`hqb__sw${state.roomStyle.wall === i ? " hqb__sw--on" : ""}`} aria-pressed={state.roomStyle.wall === i} aria-label={`${w.name} walls`} onClick={() => { setWallStyle(i); haptic.light(); }}>
-                          <span className="hqb__sw-chip" style={{ background: dark ? w.dark : w.light }} />
-                          <span className="hqb__sw-name">{w.name}</span>
-                        </button>
-                      ))}
+                      {WALL_STYLES.map((w, i) => {
+                        const locked = SEASON_WALL_IDS.includes(w.id) && !unlockedWalls.has(w.id);
+                        return (
+                          <button key={w.id} className={`hqb__sw${state.roomStyle.wall === i ? " hqb__sw--on" : ""}${locked ? " hqb__sw--locked" : ""}`} aria-pressed={state.roomStyle.wall === i} disabled={locked} aria-label={locked ? `${w.name} walls (locked, earn on the Challenge Seasons track)` : `${w.name} walls`} title={locked ? "Earn on the Challenge Seasons track" : undefined} onClick={() => { setWallStyle(i); haptic.light(); }}>
+                            <span className="hqb__sw-chip" style={{ background: dark ? w.dark : w.light }}>{locked && <Lock size={11} aria-hidden />}</span>
+                            <span className="hqb__sw-name">{w.name}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -978,8 +1009,9 @@ function UnlockCard({ onOpenBank, onOpenProgress }: { onOpenBank: () => void; on
       </div>
       <ul className="hq__unlock-list">
         <li><Trophy size={13} aria-hidden /> <strong>Progress hub</strong> — achievements, scenarios, daily challenges &amp; your device museum (trophy icon, top bar).</li>
-        <li><Building2 size={13} aria-hidden /> <strong>Stock market &amp; financing</strong> — trade rival shares and take loans from the Bank.</li>
-        <li><Users size={13} aria-hidden /> <strong>Team morale</strong> — your staff now have moods and moments to manage.</li>
+        <li><FlaskConical size={13} aria-hidden /> <strong>Research tab</strong> — climb the tech tiers and unlock new eras.</li>
+        <li><TrendingUp size={13} aria-hidden /> <strong>Market tab</strong> — read buyers &amp; rivals, and trade rival stocks.</li>
+        <li><Users size={13} aria-hidden /> <strong>Company tab</strong> — your team, their morale &amp; financing (opens as you hire).</li>
       </ul>
       <div className="hq__unlock-actions">
         {onOpenProgress && <Button size="sm" variant="secondary" onClick={() => { onOpenProgress(); haptic.light(); }}><Trophy size={14} /> Progress</Button>}
@@ -1325,7 +1357,324 @@ const FRONTIER_LANE_ICONS: Record<FrontierLaneId, LucideIcon> = {
   design: PencilRuler,
 };
 
+// ---- Sell-Window Ops (feature #2) — the live products board -----------------------------------------
+// ONE consolidated home for every live-product lever (Boost / Price-cut / Restock / Harvest). The same
+// levers used to live scattered in the Market product sheet; they're gathered here into a card you VISIT
+// (never a modal that visits you), so the ~16-week post-launch window has bounded, chunky decisions
+// instead of dead time. Momentum is a pure read of the sales curve (liveOps.ts) — it visualizes the
+// decay, it does not re-model it. Each lever is once/thrice-per-product; the real decision is WHEN.
+
+const OPS_PHASE_LABEL: Record<OpsPhase, string> = {
+  rising: "Ramping up",
+  peak: "At its peak",
+  declining: "Winding down",
+  ended: "Window closed",
+};
+
+/** A compact momentum meter — the product's current spot on its own sales curve, 0..100. */
+function MomentumMeter({ pct, phase }: { pct: number; phase: OpsPhase }) {
+  return (
+    <div className={`hq__ops-meter hq__ops-meter--${phase}`}>
+      <div
+        className="hq__ops-meter-track"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Product momentum"
+      >
+        <div className="hq__ops-meter-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function LiveOpsCard() {
+  const { state } = useGame();
+  const live = useMemo(
+    () =>
+      state.launched
+        .filter((lp) => !lp.harvested && lp.weeksElapsed < lp.weeklyUnits.length)
+        .sort((a, b) => b.launchedWeek - a.launchedWeek), // newest first — the healthiest to lead with
+    [state.launched],
+  );
+  // null → default view (the newest product expanded, the rest collapsed). "" → all collapsed.
+  const [openId, setOpenId] = useState<string | null>(null);
+  if (live.length === 0) return null;
+  const defaultOpen = live[0].product.id;
+  const isOpen = (id: string) => (openId === null ? id === defaultOpen : openId === id);
+  const toggle = (id: string) =>
+    setOpenId((cur) => {
+      const current = cur === null ? defaultOpen : cur;
+      return current === id ? "" : id;
+    });
+  const attention = live.some((lp) => productMomentum(lp).crossedPeakBoostUnused);
+  return (
+    <Card className="hq__ops">
+      <div className="hq__ops-head">
+        <span className="hq__ops-glyph" aria-hidden><Activity size={18} /></span>
+        <div className="hq__ops-titles">
+          <span className="hq__ops-eyebrow">Live products</span>
+          <span className="hq__ops-label">{live.length} in the sell window</span>
+        </div>
+        {attention && (
+          <span className="hq__ops-attention" title="A product just crossed its peak — a Boost is best spent before then">
+            <Zap size={12} aria-hidden /> Act
+          </span>
+        )}
+      </div>
+      <div className="hq__ops-list">
+        {live.map((lp) => (
+          <LiveOpsRow key={lp.product.id} lp={lp} open={isOpen(lp.product.id)} onToggle={() => toggle(lp.product.id)} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function LiveOpsRow({ lp, open, onToggle }: { lp: LaunchedProduct; open: boolean; onToggle: () => void }) {
+  const { state, cutProductPrice, marketingPush, restockProduct, setReorderRate, harvestProduct } = useGame();
+  const [panel, setPanel] = useState<null | "boost" | "price" | "restock" | "harvest">(null);
+  const mom = productMomentum(lp);
+
+  // Boost (marketing push) — best spent before the peak. Quote is null when there's no surplus left.
+  const pushQuote = marketingPushQuote(lp);
+  const pushed = (lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct;
+
+  // Price cut — permanent markdown that extends the tail. Suggest ~15% off (never below unit cost).
+  const suggestedCut = dollars(Math.max(toDollars(lp.unitCost) + 1, Math.round((toDollars(lp.product.price) * 0.85) / 10) * 10));
+  const priceMaxed = (lp.priceCuts ?? 0) >= BALANCE.priceCut.maxPerProduct;
+  const oldFit = priceFit(lp.product.price, lp.stats, lp.product.category);
+  const newFit = priceFit(suggestedCut, lp.stats, lp.product.category);
+  const cutUpliftPct = oldFit > 0 ? Math.round(((newFit / oldFit) - 1) * 100) : 0;
+
+  // Restock — reorder unmet demand. Also the home of the standing auto-reorder policy.
+  const restockQ = restockQuote(state, lp);
+  const restockAfford = restockQ ? Math.floor(toDollars(state.cash) / Math.max(1, toDollars(restockQ.unitCost))) : 0;
+  const restockUnits = restockQ ? Math.min(restockQ.maxUnits, restockAfford) : 0;
+  const restockCost: Money = restockQ ? cents(restockQ.unitCost * restockUnits) : dollars(0);
+  const canRestock = !!restockQ && restockUnits >= BALANCE.build.minRun;
+  const ops = lp.ops ?? null;
+  const reorderRate = ops?.reorderRate ?? 0;
+  const lead = reorderLeadWeeks(state);
+  const inTransit = (ops?.pending ?? []).reduce((a, p) => a + p.units, 0);
+
+  // Harvest — wind the window down early for an instant settlement of the forgone tail.
+  const harvest = harvestSettlement(lp);
+
+  const togglePanel = (p: "boost" | "price" | "restock" | "harvest") => {
+    setPanel((cur) => (cur === p ? null : p));
+    haptic.light();
+  };
+
+  return (
+    <div className={`hq__ops-row${open ? " hq__ops-row--open" : ""}`}>
+      <button type="button" className="hq__ops-row-head hq__collapse-toggle" aria-expanded={open} onClick={onToggle}>
+        <span className="hq__ops-row-icon" aria-hidden><CategoryIcon id={lp.product.category} size={16} /></span>
+        <div className="hq__ops-row-titles">
+          <span className="hq__ops-row-name">{lp.product.name}</span>
+          <span className="hq__ops-row-sub">
+            {OPS_PHASE_LABEL[mom.phase]} · {mom.weeksLeft}w left
+            {mom.crossedPeakBoostUnused && <span className="hq__ops-row-flag"><Zap size={10} aria-hidden /> boost now</span>}
+          </span>
+        </div>
+        <span className="hq__ops-row-mom tnum" title="Momentum — where it sits on its sales curve">{mom.pct}</span>
+        <MomentumMeter pct={mom.pct} phase={mom.phase} />
+        <ChevronRight size={16} className="hq__collapse-chevron" aria-hidden />
+      </button>
+
+      {open && (
+        <div className="hq__ops-body">
+          <div className="hq__ops-acts">
+            <button
+              type="button"
+              className={`hq__ops-act${panel === "boost" ? " hq__ops-act--on" : ""}`}
+              disabled={pushed || !pushQuote}
+              onClick={() => togglePanel("boost")}
+            >
+              <Zap size={15} aria-hidden />
+              <span className="hq__ops-act-label">Boost</span>
+              <span className="hq__ops-act-state">{pushed ? "Running" : pushQuote ? "Ready" : "No surplus"}</span>
+            </button>
+            <button
+              type="button"
+              className={`hq__ops-act${panel === "price" ? " hq__ops-act--on" : ""}`}
+              disabled={priceMaxed}
+              onClick={() => togglePanel("price")}
+            >
+              <Scissors size={15} aria-hidden />
+              <span className="hq__ops-act-label">Price cut</span>
+              <span className="hq__ops-act-state">{priceMaxed ? "Floored" : format(lp.product.price)}</span>
+            </button>
+            <button
+              type="button"
+              className={`hq__ops-act${panel === "restock" ? " hq__ops-act--on" : ""}`}
+              disabled={!canRestock && reorderRate === 0}
+              onClick={() => togglePanel("restock")}
+            >
+              <Package size={15} aria-hidden />
+              <span className="hq__ops-act-label">Restock</span>
+              <span className="hq__ops-act-state">{reorderRate > 0 ? `${formatCount(reorderRate)}/wk` : canRestock ? `${formatCount(restockQ!.maxUnits)} unmet` : "Supplied"}</span>
+            </button>
+            <button
+              type="button"
+              className={`hq__ops-act hq__ops-act--harvest${panel === "harvest" ? " hq__ops-act--on" : ""}`}
+              disabled={!harvest}
+              onClick={() => togglePanel("harvest")}
+            >
+              <HandCoins size={15} aria-hidden />
+              <span className="hq__ops-act-label">Harvest</span>
+              <span className="hq__ops-act-state">{harvest ? format(harvest.cash) : "—"}</span>
+            </button>
+          </div>
+
+          {panel === "boost" && pushQuote && (
+            <div className="hq__ops-panel">
+              <p className="hq__ops-panel-hint">
+                Sell ~<strong className="tnum">{formatCount(pushQuote.addedUnits)}</strong> more units at full price — no margin cut.
+                {" "}Best spent <strong>before the peak</strong>{mom.phase === "declining" ? " (already past it)" : ""}.
+              </p>
+              <div className="hq__ops-panel-actions">
+                <Button block onClick={() => runLever(marketingPush(lp.product.id), () => setPanel(null), "Can't run campaign")}>Boost · {format(pushQuote.cost)}</Button>
+                <Button block variant="tertiary" onClick={() => { setPanel(null); haptic.light(); }}>Cancel</Button>
+              </div>
+            </div>
+          )}
+
+          {panel === "price" && !priceMaxed && (
+            <div className="hq__ops-panel">
+              <p className="hq__ops-panel-hint">
+                <span className="tnum">{format(lp.product.price)}</span> → <strong className="tnum">{format(suggestedCut)}</strong>
+                {cutUpliftPct > 0 ? <> · ~+{cutUpliftPct}% demand, longer tail</> : null}. Permanent, each cut smaller as price nears cost.
+              </p>
+              <div className="hq__ops-panel-actions">
+                <Button block onClick={() => runLever(cutProductPrice(lp.product.id, suggestedCut), () => setPanel(null), "Can't adjust price")}>Cut to {format(suggestedCut)}</Button>
+                <Button block variant="tertiary" onClick={() => { setPanel(null); haptic.light(); }}>Cancel</Button>
+              </div>
+            </div>
+          )}
+
+          {panel === "restock" && (
+            <div className="hq__ops-panel">
+              {canRestock && (
+                <>
+                  <p className="hq__ops-panel-hint">
+                    Build ~<strong className="tnum">{formatCount(restockUnits)}</strong> more units to meet demand you under-supplied — production only, no new tooling.
+                  </p>
+                  <Button block onClick={() => runLever(restockProduct(lp.product.id, restockUnits), () => setPanel(null), "Can't restock")}>Restock · {format(restockCost)}</Button>
+                </>
+              )}
+              {(canRestock || reorderRate > 0) && (() => {
+                const appetite = restockQ ? restockQ.maxUnits : Math.max(0, (ops?.demandTotal ?? lp.totalUnits) - lp.totalUnits);
+                const min = BALANCE.build.minRun;
+                const cap = BALANCE.restock.maxRatePerWeek;
+                const steady = Math.min(cap, Math.max(min, Math.round(appetite / 8)));
+                const aggressive = Math.min(cap, Math.max(min, Math.round(appetite / 4)));
+                const presets: { label: string; value: number }[] = [
+                  { label: "Off", value: 0 },
+                  { label: `Steady · ${formatCount(steady)}/wk`, value: steady },
+                  ...(aggressive > steady ? [{ label: `Fast · ${formatCount(aggressive)}/wk`, value: aggressive }] : []),
+                ];
+                return (
+                  <div className="hq__ops-reorder">
+                    <p className="hq__ops-reorder-cap">
+                      <RotateCw size={12} aria-hidden /> Auto-reorder — orders arrive in <strong className="tnum">{lead}</strong>{lead === 1 ? " wk" : " wks"}
+                      {inTransit > 0 ? <> · <span className="tnum">{formatCount(inTransit)}</span> in transit</> : null}
+                    </p>
+                    <div className="hq__ops-reorder-opts">
+                      {presets.map((p) => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          className={`hq__ops-reorder-opt${reorderRate === p.value ? " hq__ops-reorder-opt--on" : ""}`}
+                          aria-pressed={reorderRate === p.value}
+                          onClick={() => {
+                            const res = setReorderRate(lp.product.id, p.value);
+                            if (res.ok) { haptic.light(); if (p.value > 0) showToast(`Auto-reorder set — ${formatCount(p.value)}/wk`, { tone: "positive" }); }
+                            else { haptic.medium(); showToast(res.reason ?? "Can't set a reorder policy", { tone: "negative" }); }
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {panel === "harvest" && harvest && (
+            <div className="hq__ops-panel hq__ops-panel--harvest">
+              <p className="hq__ops-panel-hint">
+                Wind the window down now for <strong className="tnum">{format(harvest.cash)}</strong>
+                {harvest.fans > 0 ? <> + <strong className="tnum">{formatCount(harvest.fans)}</strong> fans</> : null}.
+                {" "}Forgoes the ~<span className="tnum">{format(harvest.grossTail)}</span> tail{mom.weeksLeft > 0 ? <> over {mom.weeksLeft} more {mom.weeksLeft === 1 ? "week" : "weeks"}</> : null}. Irreversible.
+              </p>
+              <div className="hq__ops-panel-actions">
+                <Button
+                  block
+                  onClick={() => {
+                    const res = harvestProduct(lp.product.id);
+                    if (res.ok) { haptic.success(); sfx("cash"); showToast(`Harvested — ${format(harvest.cash)} settled`, { tone: "positive" }); setPanel(null); }
+                    else { haptic.medium(); showToast(res.reason ?? "Can't harvest", { tone: "negative" }); }
+                  }}
+                >
+                  Confirm harvest
+                </Button>
+                <Button block variant="tertiary" onClick={() => { setPanel(null); haptic.light(); }}>Keep selling</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Small helper: run a lever reducer result, fire feedback, and close the panel on success. */
+function runLever(res: { ok: boolean; reason?: string }, onOk: () => void, failMsg: string) {
+  if (res.ok) { haptic.success(); onOk(); }
+  else { haptic.medium(); showToast(res.reason ?? failMsg, { tone: "negative" }); }
+}
+
 /** The living fan community — mood thermometer + superfans + a rotating community-moment line. */
+/** Nemesis Boss ladder (feature #7) — the passive duel card: your company value vs the arch-rival's,
+ *  a progress bar toward the win line, the countdown, and the ladder tier + trophy count. Read-only
+ *  (the duel auto-resolves in the tick + celebrates on victory), so there's no action here. */
+function NemesisDuelCard({ state }: { state: GameState }) {
+  const duel = nemesisDuelSnapshot(state);
+  if (!duel) return null;
+  const pct = Math.round(duel.frac * 100);
+  return (
+    <Card className={`hq__duel${duel.ahead ? " hq__duel--ahead" : ""}`}>
+      <div className="hq__duel-head">
+        <span className="hq__duel-glyph" aria-hidden><Swords size={18} /></span>
+        <div className="hq__duel-titles">
+          <span className="hq__duel-eyebrow">Nemesis duel · tier {duel.tier + 1}</span>
+          <span className="hq__duel-label">Out-value {duel.rivalName}</span>
+        </div>
+        <span className="hq__duel-count" title="Weeks left in the duel window">
+          <Clock size={12} aria-hidden /> {duel.weeksLeft}w
+        </span>
+      </div>
+      <div className="hq__duel-vs">
+        <span className="hq__duel-side">You <strong>{formatShortDollars(toDollars(duel.playerValue))}</strong></span>
+        <span className="hq__duel-side hq__duel-side--rival">{duel.rivalName} <strong>{formatShortDollars(toDollars(duel.rivalValue))}</strong></span>
+      </div>
+      <div className="hq__duel-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Duel progress against ${duel.rivalName}`}>
+        <div className="hq__duel-bar-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="hq__duel-foot">
+        {duel.ahead
+          ? <><TrendingUp size={12} aria-hidden /> You're ahead — hold the lead to the deadline.</>
+          : <><Crosshair size={12} aria-hidden /> Climb past their valuation before the window closes.</>}
+        {duel.trophies > 0 && <span className="hq__duel-trophies"><Trophy size={12} aria-hidden /> {duel.trophies}</span>}
+      </p>
+    </Card>
+  );
+}
+
 function CommunityCard({ state }: { state: GameState }) {
   const c = communitySnapshot(state);
   const meterPct = Math.round(((c.sentiment + 1) / 2) * 100); // −1..+1 → 0..100 on the thermometer

@@ -6,7 +6,7 @@ import { PROP_DEFS, type PlacedProp } from "../engine/factoryProps.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { canPlace, defaultLayout, deskItems, gridN } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
-import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
+import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Keynote, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
@@ -341,6 +341,39 @@ function migrate(state: GameState): GameState | null {
   if (s.lastEvent === undefined) s.lastEvent = null;
   if (s.wentPublic == null) s.wentPublic = false;
   if (s.legacy == null) s.legacy = 0;
+  // Category Mastery (feature #3) — OFF for existing saves so their in-run behaviour never shifts when
+  // the feature ships. Fresh runs (newGame) set it true; a re-saved old game keeps false here.
+  if (s.masteryEnabled == null) s.masteryEnabled = false;
+  // Franchise Mastery (feature #8) — OFF for existing saves so their franchise lines never suddenly gain
+  // a boon mid-run. Fresh runs (newGame) set it true; a re-saved old game keeps false here.
+  if (s.franchiseMasteryEnabled == null) s.franchiseMasteryEnabled = false;
+  // Design Budget (feature #1) — OFF for existing saves so their builds stay unconstrained (no product
+  // that was buildable before becomes un-buildable mid-run). Fresh runs (newGame) set it true.
+  if (s.designBudgetEnabled == null) s.designBudgetEnabled = false;
+  // Era Mandates (feature #6) — empty held list + no pending offer. Old saves only ever see mandate
+  // offers on FUTURE era advances (an empty list = the all-zero bonus = byte-identical in-run behaviour),
+  // so no per-save flag is needed here.
+  if (!Array.isArray(s.eraMandates)) s.eraMandates = [];
+  if (s.pendingMandateOffer === undefined) s.pendingMandateOffer = null;
+  // A pending draft only belongs to the era it was rolled for; a stale offer for another era (e.g. a
+  // hand-edited or partially-migrated save) can never be resolved by the EraModal, so drop it.
+  if (s.pendingMandateOffer != null && s.pendingMandateOffer.eraTo !== s.era) s.pendingMandateOffer = null;
+  // Pre-launch Keynote gamble (feature #4) — no active promises / announce ledger on old saves. Empty
+  // arrays = no keynote in play = byte-identical in-run behaviour, so no per-save flag is needed.
+  // Scrub the promise list: a hand-edited / partially-migrated save can carry null entries (which crash
+  // `pending.some(k => k.productId)`) or non-finite deadlines/bonuses (which poison the launch hype math).
+  // Keep only well-formed Keynote objects — required string ids + finite numerics — and finite announce
+  // weeks, so a corrupt import degrades to "no keynote in play" rather than throwing.
+  if (!Array.isArray(s.pendingKeynote)) s.pendingKeynote = [];
+  else s.pendingKeynote = (s.pendingKeynote as unknown[]).filter((k): k is Keynote => {
+    if (!k || typeof k !== "object") return false;
+    const kn = k as Record<string, unknown>;
+    return typeof kn.productId === "string" && typeof kn.productName === "string" &&
+      Number.isFinite(kn.announcedWeek) && Number.isFinite(kn.deadlineWeek) &&
+      Number.isFinite(kn.maxBonus) && Number.isFinite(kn.penalty);
+  });
+  if (!Array.isArray(s.keynoteAnnounceWeeks)) s.keynoteAnnounceWeeks = [];
+  else s.keynoteAnnounceWeeks = (s.keynoteAnnounceWeeks as unknown[]).filter((w) => Number.isFinite(w)) as number[];
   // Equity / stock market (added later) — backfill so old saves can trade + keep ownership.
   if (s.listed == null) s.listed = false;
   if (!Number.isFinite(s.ownership)) s.ownership = 1;
@@ -352,6 +385,9 @@ function migrate(state: GameState): GameState | null {
     if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) delete (s.holdings as Record<string, unknown>)[k];
     else (s.holdings as Record<string, number>)[k] = Math.floor(v);
   }
+  // Strategic Stakes (added later) — the per-rival board-seat nudge cooldown clock. Backfill to empty:
+  // an old save has never used a nudge, and the field is absent = no cooldown pending.
+  if (!s.boardNudges || typeof s.boardNudges !== "object") s.boardNudges = {};
   // Achievements (added later): default to an empty set. Already-earned milestones are then
   // backfilled SILENTLY at the end of migrate (after all fields are valid) so a returning player
   // isn't dumped a dozen toasts on first load — they're marked unlocked without a celebration.
@@ -423,6 +459,21 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingRivalry != null && (typeof s.pendingRivalry !== "object" || typeof s.pendingRivalry.rivalId !== "string")) {
     s.pendingRivalry = null;
   }
+  // Nemesis Boss ladder (feature #7, added later): default dormant. The duel only ever arms while a
+  // nemesis exists, so an old save with no nemesis loads with none. Drop a malformed duel from an
+  // untrusted import (a NaN endWeek/margin would break the countdown + win math); ladder tier +
+  // trophies default to 0.
+  if (s.nemesisDuel != null && (typeof s.nemesisDuel !== "object"
+    || typeof s.nemesisDuel.rivalId !== "string"
+    || !Number.isFinite(s.nemesisDuel.startWeek) || !Number.isFinite(s.nemesisDuel.endWeek)
+    || !Number.isFinite(s.nemesisDuel.tier) || !Number.isFinite(s.nemesisDuel.targetMargin))) {
+    s.nemesisDuel = null;
+  }
+  if (!Number.isFinite(s.nemesisLadderTier) || s.nemesisLadderTier < 0) s.nemesisLadderTier = 0;
+  if (!Number.isFinite(s.nemesisTrophies) || s.nemesisTrophies < 0) s.nemesisTrophies = 0;
+  if (s.pendingNemesisTrophy != null && (typeof s.pendingNemesisTrophy !== "object" || typeof s.pendingNemesisTrophy.rivalName !== "string")) {
+    s.pendingNemesisTrophy = null;
+  }
   // Eureka breakthroughs (added later): default none. Drop a malformed pending moment from an import.
   if (s.pendingEureka != null && (typeof s.pendingEureka !== "object" || !Number.isFinite(s.pendingEureka.bankRp))) {
     s.pendingEureka = null;
@@ -487,6 +538,10 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.seenFirstShipUnlocks !== "boolean") {
     s.seenFirstShipUnlocks = (Array.isArray(s.launched) && s.launched.length >= 1) || (s.legacy ?? 0) > 0;
   }
+  // Moonshot R&D gambles (feature #5) — no wins / no attempt ledger on old saves. Empty [] + {} = the
+  // neutral bonus + no cooldowns = byte-identical in-run behaviour, so no per-save flag is needed.
+  if (!Array.isArray(s.moonshotsWon)) s.moonshotsWon = [];
+  if (s.moonshotAttempts == null || typeof s.moonshotAttempts !== "object" || Array.isArray(s.moonshotAttempts)) s.moonshotAttempts = {};
   if (!Array.isArray(s.megaprojectsFunded)) s.megaprojectsFunded = [];
   if (!Number.isFinite(s.legacyPoints)) s.legacyPoints = 0;
   if (!Array.isArray(s.legacyPerks)) s.legacyPerks = [];

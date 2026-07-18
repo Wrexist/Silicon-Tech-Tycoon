@@ -356,3 +356,120 @@
   gap: var(--sp-8);
 }
 .scn-track__leave-row > * { flex: 1; }
+
+/* ── Challenge Seasons — cosmetic reward track (tokens + 8pt grid only) ─────────────────── */
+.season {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding: var(--sp-16);
+  margin-bottom: var(--sp-16);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--hairline));
+  box-shadow: var(--shadow-card);
+}
+.season__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+}
+.season__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.season__head-info { flex: 1; min-width: 0; }
+.season__title {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink-1);
+  margin: 0;
+}
+.season__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  margin: 2px 0 0;
+}
+.season__count {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.season__count-total {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.season__rungs {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin: 0;
+  padding: 0;
+}
+.season__rung {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  opacity: 0.66;
+}
+.season__rung--on {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--positive) 40%, var(--hairline));
+}
+.season__rung-req {
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--ink-2);
+  min-width: 20px;
+  text-align: center;
+}
+.season__rung-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.season__rung--on .season__rung-icon {
+  background: color-mix(in srgb, var(--positive) 16%, transparent);
+  color: var(--positive);
+}
+.season__rung-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.season__rung-name {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink-1);
+}
+.season__rung-kind {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+.season__rung-state {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+.season__rung--on .season__rung-state { color: var(--positive); }
+.season__foot {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin: 0;
+}

@@ -3,7 +3,7 @@
 // pinned solo sim — which never trades — is untouched.
 import { describe, it, expect } from "vitest";
 import {
-  newGame, buyShares, acquisitionCost, ownershipFractionOf, hasBoardSeat, hasControllingStake,
+  newGame, buyShares, acquisitionCost, ownershipFractionOf, isInsider, hasBoardSeat, hasControllingStake,
   rivalBoardIntel, advanceOneWeek, type GameState,
 } from "./gameState.ts";
 import { rivalDef, rivalMarketCap } from "../engine/competitors.ts";
@@ -24,22 +24,29 @@ describe("ownership thresholds", () => {
     expect(ownershipFractionOf(newGame(3), RIVAL)).toBe(0);
   });
 
-  it("a board seat unlocks at boardSeatFrac; a controlling stake at controlFrac", () => {
-    const belowBoard = withHoldings(T.boardSeatFrac - 0.02);
+  it("insider at insiderFrac, a board seat at boardSeatFrac, a controlling stake at controlFrac", () => {
+    const belowInsider = withHoldings(T.insiderFrac - 0.02);
+    const insider = withHoldings(T.insiderFrac);
     const board = withHoldings(T.boardSeatFrac);
     const control = withHoldings(T.controlFrac);
-    expect(hasBoardSeat(belowBoard, RIVAL)).toBe(false);
+    expect(isInsider(belowInsider, RIVAL)).toBe(false);
+    expect(isInsider(insider, RIVAL)).toBe(true);
+    // Insider alone is NOT a board seat (the tiers are distinct).
+    expect(hasBoardSeat(insider, RIVAL)).toBe(false);
+    expect(hasBoardSeat(withHoldings(T.boardSeatFrac - 0.02), RIVAL)).toBe(false);
     expect(hasBoardSeat(board, RIVAL)).toBe(true);
     expect(hasControllingStake(board, RIVAL)).toBe(false);
     expect(hasControllingStake(control, RIVAL)).toBe(true);
   });
 
-  it("board intel is hidden until you hold a board seat, then reveals arc phase + next launch", () => {
-    expect(rivalBoardIntel(withHoldings(T.boardSeatFrac - 0.02), RIVAL)).toBeNull();
-    const intel = rivalBoardIntel(withHoldings(T.boardSeatFrac), RIVAL);
+  it("insider intel is hidden below insiderFrac, then reveals arc phase + next launch + likely category", () => {
+    expect(rivalBoardIntel(withHoldings(T.insiderFrac - 0.02), RIVAL)).toBeNull();
+    const intel = rivalBoardIntel(withHoldings(T.insiderFrac), RIVAL);
     expect(intel).not.toBeNull();
     expect(typeof intel!.arcPhase).toBe("string");
     expect(typeof intel!.nextLaunchWeek).toBe("number");
+    expect(intel!.weeksToLaunch).toBeGreaterThanOrEqual(0);
+    expect(intel!.nextCategory).toBeTruthy();
   });
 });
 

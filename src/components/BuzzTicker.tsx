@@ -16,7 +16,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { toDollars } from "../engine/money.ts";
 import "./buzzTicker.css";
 
-const ROTATE_MS = 4600;
+const ROTATE_MS = 9000;
 
 export function BuzzTicker() {
   const { state } = useGame();
@@ -56,7 +56,8 @@ export function BuzzTicker() {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
     if (lines.length <= 1) return;
-    const t = window.setInterval(() => setIdx((i) => i + 1), ROTATE_MS);
+    // Pure flavour — don't rotate while the tab is backgrounded (no one's reading it).
+    const t = window.setInterval(() => { if (!document.hidden) setIdx((i) => i + 1); }, ROTATE_MS);
     return () => window.clearInterval(t);
   }, [lines.length]);
 
@@ -64,7 +65,7 @@ export function BuzzTicker() {
   const line = lines[idx % lines.length];
 
   return (
-    <div className="buzz" role="status" aria-live="polite" aria-label="Industry buzz">
+    <div className="buzz" role="status" aria-live="off" aria-label="The Wire">
       <span className="buzz__wire" aria-hidden><Radio size={12} /><span className="buzz__dot" /></span>
       {/* key re-mounts the span on change → replays the slide-in; tone tints the accent */}
       <span key={`${idx}-${line.id}`} className={`buzz__text buzz__text--${line.tone}`}>{line.text}</span>

@@ -494,6 +494,20 @@
 .hqb__sw--on .hqb__sw-name {
   color: var(--accent);
 }
+/* Challenge-Season finishes: locked until earned — dimmed, lock badge centered on the chip. */
+.hqb__sw--locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.hqb__sw--locked .hqb__sw-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-1);
+}
+.hqb__sw--locked:active {
+  transform: none;
+}
 .hqb__cats {
   display: flex;
   gap: var(--sp-6);
@@ -1940,6 +1954,10 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 }
 
 /* "Watch it on the line" — a quiet link from the In-production card into the Factory world. */
+/* Each in-production build + its Pre-launch Keynote affordance (feature #4) stacked as one row. */
+.hq__buildrow { display: flex; flex-direction: column; }
+.hq__buildrow + .hq__buildrow { margin-top: var(--sp-12); padding-top: var(--sp-12); border-top: 1px solid var(--hairline); }
+
 .hq__viewline {
   display: inline-flex; align-items: center; gap: var(--sp-4);
   margin-top: var(--sp-8); min-height: 44px; padding: 0 var(--sp-4);
@@ -1994,3 +2012,133 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__community-scale { display: flex; justify-content: space-between; margin-top: var(--sp-6); font-size: var(--fs-nano); color: var(--ink-3); font-weight: 600; }
 .hq__community-moment { display: flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; font-style: italic; }
 .hq__community-moment svg { color: var(--accent); flex-shrink: 0; }
+
+/* Nemesis Boss ladder (feature #7) — the passive "you vs them" duel card. */
+.hq__duel { border-color: color-mix(in srgb, var(--negative) 26%, var(--border)); }
+.hq__duel--ahead { border-color: color-mix(in srgb, var(--positive) 30%, var(--border)); }
+.hq__duel-head { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+.hq__duel-glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--r-button);
+  color: var(--negative); background: color-mix(in srgb, var(--negative) 14%, transparent);
+}
+.hq__duel--ahead .hq__duel-glyph { color: var(--positive); background: color-mix(in srgb, var(--positive) 14%, transparent); }
+.hq__duel-titles { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.hq__duel-eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.hq__duel-label { font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
+.hq__duel-count {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent); font-size: var(--fs-nano); font-weight: 800;
+}
+.hq__duel-count svg { flex: none; }
+.hq__duel-vs { display: flex; justify-content: space-between; gap: var(--sp-8); margin-bottom: var(--sp-6); }
+.hq__duel-side { font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
+.hq__duel-side strong { display: block; font-size: var(--fs-body); font-weight: 800; color: var(--positive); }
+.hq__duel-side--rival { text-align: right; }
+.hq__duel-side--rival strong { color: var(--negative); }
+.hq__duel-bar { height: 8px; border-radius: var(--r-pill); background: var(--track, color-mix(in srgb, var(--ink) 10%, transparent)); overflow: hidden; }
+.hq__duel-bar-fill { height: 100%; border-radius: var(--r-pill); background: var(--negative); transition: width var(--spring-gentle); }
+.hq__duel--ahead .hq__duel-bar-fill { background: var(--positive); }
+.hq__duel-foot {
+  display: flex; align-items: center; gap: var(--sp-6); margin-top: var(--sp-8);
+  font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4;
+}
+.hq__duel-foot svg { color: var(--accent); flex-shrink: 0; }
+.hq__duel-trophies {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0;
+  color: var(--warning-text, var(--warning)); font-weight: 800;
+}
+.hq__duel-trophies svg { color: var(--warning-text, var(--warning)); }
+
+/* Sell-Window Ops (feature #2) — the live products board: momentum meters + the bounded
+   Boost / Price-cut / Restock / Harvest decisions, gathered into one card you visit. */
+.hq__ops-head { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+.hq__ops-glyph {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--r-button);
+  color: var(--accent); background: var(--accent-soft);
+}
+.hq__ops-titles { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.hq__ops-eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.hq__ops-label { font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
+.hq__ops-attention {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent);
+  font-size: var(--fs-nano); font-weight: 800;
+}
+.hq__ops-attention svg { flex: none; }
+
+.hq__ops-list { display: flex; flex-direction: column; gap: var(--sp-8); }
+.hq__ops-row {
+  border-radius: var(--r-button);
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+}
+.hq__ops-row--open { background: color-mix(in srgb, var(--accent) 5%, var(--glass-well)); }
+.hq__ops-row-head {
+  display: flex; align-items: center; gap: var(--sp-8);
+  width: 100%; padding: var(--sp-10) var(--sp-12);
+  background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.hq__ops-row-icon {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: var(--r-button);
+  color: var(--ink-2); background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.hq__ops-row-titles { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.hq__ops-row-name { font-size: var(--fs-caption); font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hq__ops-row-sub { display: flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-nano); color: var(--ink-3); font-weight: 600; }
+.hq__ops-row-flag {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: var(--accent); font-weight: 800;
+}
+.hq__ops-row-flag svg { flex: none; }
+.hq__ops-row-mom { font-size: var(--fs-caption); font-weight: 800; color: var(--ink-2); flex-shrink: 0; min-width: 20px; text-align: right; }
+
+.hq__ops-meter { width: 46px; flex-shrink: 0; }
+.hq__ops-meter-track { height: 6px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; }
+.hq__ops-meter-fill { height: 100%; border-radius: var(--r-pill); background: var(--accent); transition: width var(--spring-gentle); }
+.hq__ops-meter--rising .hq__ops-meter-fill { background: var(--positive); }
+.hq__ops-meter--peak .hq__ops-meter-fill { background: var(--positive); }
+.hq__ops-meter--declining .hq__ops-meter-fill { background: var(--warning, var(--accent)); }
+.hq__ops-meter--ended .hq__ops-meter-fill { background: var(--ink-3); }
+
+.hq__ops-body { padding: 0 var(--sp-12) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-10); }
+.hq__ops-acts { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-8); }
+.hq__ops-act {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
+  background: var(--surface); border: 1px solid var(--border);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: left;
+}
+.hq__ops-act svg { color: var(--ink-2); }
+.hq__ops-act--on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.hq__ops-act--on svg { color: var(--accent); }
+.hq__ops-act--harvest.hq__ops-act--on { border-color: var(--positive); background: color-mix(in srgb, var(--positive) 8%, var(--surface)); }
+.hq__ops-act:disabled { opacity: 0.5; cursor: default; }
+.hq__ops-act-label { font-size: var(--fs-caption); font-weight: 700; color: var(--ink); }
+.hq__ops-act-state { font-size: var(--fs-nano); font-weight: 700; color: var(--ink-3); }
+
+.hq__ops-panel {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+}
+.hq__ops-panel--harvest { border-color: color-mix(in srgb, var(--positive) 30%, var(--glass-well-edge)); }
+.hq__ops-panel-hint { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; }
+.hq__ops-panel-actions { display: flex; gap: var(--sp-8); }
+.hq__ops-panel-actions > * { flex: 1; }
+
+.hq__ops-reorder { display: flex; flex-direction: column; gap: var(--sp-6); }
+.hq__ops-reorder-cap { display: flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-nano); color: var(--ink-3); font-weight: 600; }
+.hq__ops-reorder-cap svg { flex: none; color: var(--ink-2); }
+.hq__ops-reorder-opts { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.hq__ops-reorder-opt {
+  padding: 5px 10px; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: var(--fs-nano); font-weight: 700; color: var(--ink-2);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.hq__ops-reorder-opt--on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); }

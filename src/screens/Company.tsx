@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Compass, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { osDisplayName, canFoundPlatform, platformFoundingCost, navAttention } from "../state/gameState.ts";
@@ -10,6 +10,7 @@ import { CategoryIcon, RoleIcon } from "../design/icons.tsx";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { RESEARCH_PROJECTS, projectById, hasProject } from "../engine/research.ts";
+import { mandateById } from "../engine/mandates.ts";
 import { acquirableFactories, factoryFor, totalFactoryUpkeep } from "../engine/factories.ts";
 import type { FactoryId } from "../engine/types.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
@@ -127,6 +128,11 @@ export function Company() {
   // product — or is a returning prestige founder — so a day-one garage isn't buried under
   // systems before the core design→launch loop is learned.
   const hasShipped = state.launched.length >= 1 || state.legacy > 0;
+  // Progressive disclosure (onboarding clarity): the heavier ops layers — financing, delegation and
+  // owned manufacturing lines — only appear once the company has real scale (a grown team or era 2),
+  // so a day-one solo garage isn't buried under systems it can't use yet. Any save already at that
+  // scale clears the gate instantly; "already in use" escape hatches below keep nothing stranded.
+  const advanced = state.era >= 2 || state.staff.length >= 2;
   const wkBurn = burn(state); // operating burn only (payroll + rent + lines) — for the itemised view
   const wkOut = weeklyOutflow(state); // the TRUE weekly outflow: burn + loan debt service + late-era drag
   const wkDrag = lateEraDrag(state); // frontier-scale operating headwind (0 before the AI era)
@@ -280,8 +286,13 @@ export function Company() {
         <p className="co__hint">Lifetime revenue {format(state.cumulativeRevenue)}.</p>
       </Card>
 
-      {/* Financing — borrow to extend runway or fund a bet; pay it back weekly (Track C) */}
-      {(hasShipped || (state.loans?.length ?? 0) > 0 || (runway !== Infinity && runway <= 30)) && (
+      {/* Era Mandates (feature #6) — the run-long identities drafted at era advances, each with its
+          trade-off. Only shown once at least one is held. */}
+      {(state.eraMandates?.length ?? 0) > 0 && <MandatesCard ids={state.eraMandates!} />}
+
+      {/* Financing — borrow to extend runway or fund a bet; pay it back weekly (Track C). Deferred
+          until the company has scale (advanced), but an existing borrower always keeps it. */}
+      {(advanced || (state.loans?.length ?? 0) > 0) && (hasShipped || (state.loans?.length ?? 0) > 0 || (runway !== Infinity && runway <= 30)) && (
         <FinancingCard state={state} />
       )}
 
@@ -317,8 +328,9 @@ export function Company() {
         </Card>
       )}
 
-      {/* Operations — owned manufacturing lines (engine/factories.ts) */}
-      <OperationsSection state={state} onAcquire={acquireFactory} />
+      {/* Operations — owned manufacturing lines (engine/factories.ts). Manufacturing lines are an
+          era-2+ system, so this is deferred alongside the other heavy ops layers. */}
+      {advanced && <OperationsSection state={state} onAcquire={acquireFactory} />}
 
       {/* All-time top products */}
       {state.launched.length >= 2 && <TopProductsCard launched={state.launched} />}
@@ -353,7 +365,7 @@ export function Company() {
 
       {/* Delegation — only surfaced once it's relevant: a growing team, an eligible lead, or already
           in use. Keeps it off a day-one garage where it would just be a dead, fully-locked card. */}
-      {(state.staff.length >= 2 || canAutoAssign(state) || canAutoResearch(state) || state.automation.autoAssign || state.automation.autoResearch
+      {(advanced || canAutoAssign(state) || canAutoResearch(state) || state.automation.autoAssign || state.automation.autoResearch
         || hasProject(state.completedProjects, DELEGATION_REQ.autoAssign.project) || hasProject(state.completedProjects, DELEGATION_REQ.autoResearch.project)) && (
         <DelegationCard state={state} onToggle={setAutomation} onHireSpecialist={hireSpecialist} />
       )}
@@ -707,6 +719,33 @@ function DelegationCard({
           );
         })}
       </div>
+    </Card>
+  );
+}
+
+/** Held Era Mandates (feature #6) — the run-long identities drafted at era advances, each shown with its
+ *  name, one-line description and the small upside/downside trade-off it carries. */
+function MandatesCard({ ids }: { ids: string[] }) {
+  const mandates = ids.map((id) => mandateById(id)).filter((m): m is NonNullable<typeof m> => !!m);
+  if (mandates.length === 0) return null;
+  return (
+    <Card>
+      <SectionHeader title="Company mandates" accessory={`${mandates.length}`} />
+      <ul className="co__mandates">
+        {mandates.map((m) => (
+          <li key={m.id} className="co__mandate">
+            <div className="co__mandate-top">
+              <Compass size={15} aria-hidden className="co__mandate-glyph" />
+              <span className="co__mandate-name">{m.name}</span>
+            </div>
+            <p className="co__mandate-desc">{m.description}</p>
+            <div className="co__mandate-trade">
+              <span className="co__mandate-up">{m.upside}</span>
+              <span className="co__mandate-down">{m.downside}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }

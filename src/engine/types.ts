@@ -215,6 +215,10 @@ export interface LaunchedProduct {
    *  behaves exactly as before (byte-identical); present → the tick tops up supply toward `demandTotal`
    *  at `reorderRate` units/week, each order arriving after a lead time. */
   ops?: ProductOps;
+  /** Sell-Window Ops (feature #2, Harvest) — the player wound this product's sell window down early,
+   *  taking a one-time settlement for the forgone tail. Absent/false (the default) → the product runs its
+   *  full curve exactly as before (byte-identical); true → the tick stops booking its remaining sales. */
+  harvested?: boolean;
 }
 
 /** A launched product's standing reorder policy (Live Product Ops, feature #2). Opt-in per product. */
@@ -332,6 +336,21 @@ export interface BuildJob {
   weeksElapsed: number;
   plannedUnits?: number; // production run size chosen in the build wizard
   channelId?: string; // marketing channel selected at launch
+}
+
+/** A Pre-launch Keynote gamble (feature #4) — a public "ship by X" promise made while a product is still
+ *  in the build queue. KEPT (launch on/before deadlineWeek, not slipped) → maxBonus hype on that launch;
+ *  SLIPPED (window passed without launch) → a one-time rep sting at expiry + a `penalty` hype dent on the
+ *  eventual launch. All keynote state is optional/opt-in: the pinned solo sim never builds → never
+ *  announces → no keynote is ever written → byte-identical. */
+export interface Keynote {
+  productId: string;     // the build/product this promise is bound to (matched across build→ready→launch)
+  productName: string;   // snapshot for feed/toast copy (the product may be renamed elsewhere — it can't)
+  announcedWeek: number; // the week the keynote was held
+  deadlineWeek: number;  // ship by this week (inclusive) to KEEP the promise
+  maxBonus: number;      // hype bonus locked at announce, applied to the launch if kept (e.g. 0.12)
+  penalty: number;       // hype penalty applied to the launch if the window slips (e.g. 0.08)
+  slipped?: boolean;     // set true at expiry when deadlineWeek passes without launch
 }
 
 export interface ConsumerTrends {

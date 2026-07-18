@@ -48,7 +48,9 @@ function pickChannel(s) {
 }
 
 function simulate(seed, maxWeeks = 520) {
-  let s = newGame(seed);
+  // This harness measures the RAW balance landscape (max-tier builds across eras), not the design
+  // budget (feature #1). Opt out of the per-project EP cap so it keeps building max products to probe.
+  let s = { ...newGame(seed), designBudgetEnabled: false };
   const runwayWeek0 = toDollars(s.cash) / Math.max(1, weeklyBurnApprox(s));
   const verdicts = { hit: 0, solid: 0, steady: 0, flop: 0 };
   const eraWeek = {};

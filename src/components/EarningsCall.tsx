@@ -15,6 +15,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { format, scale } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
+import { showToast } from "../design/toast.tsx";
 import { FirstTimeNote } from "./FirstTimeNote.tsx";
 import "./earningsCall.css";
 
@@ -26,7 +27,26 @@ export function EarningsCall() {
   const [revealUp, setRevealUp] = useState(isLaunchRevealActive());
   useEffect(() => onLaunchRevealActiveChange(() => setRevealUp(isLaunchRevealActive())), []);
   const higherUp = revealUp || higherPriorityPending(state, "earnings");
-  const showing = report !== null && !higherUp;
+  // A BEAT is a pure "great quarter" acknowledgement with no decision, so it never takes over the
+  // screen — it's demoted to a positive toast + auto-ack below. Only a MISS (a real buyback decision)
+  // still shows the full-screen call.
+  const isBeat = report?.beat ?? false;
+  const showing = report !== null && !higherUp && !isBeat;
+
+  // Demote the decision-free beat: acknowledge it with a positive toast and immediately resolve it
+  // (equivalent to tapping "Great quarter") instead of a full-screen takeover. Fire once, and only
+  // when it would actually be presented (nothing higher-priority in front of it); re-arm once cleared.
+  const beatAcked = useRef(false);
+  useEffect(() => {
+    if (!report) { beatAcked.current = false; return; }
+    if (!isBeat || higherUp || beatAcked.current) return;
+    beatAcked.current = true;
+    const move = Math.round(Math.abs(report.priceMovePct) * 100);
+    sfx("cash");
+    haptic.medium?.();
+    showToast(`Q${report.quarter}: you beat the street — shares +${move}%`, { tone: "positive", glyph: <TrendingUp size={15} /> });
+    resolveEarnings(false);
+  }, [report, isBeat, higherUp, resolveEarnings]);
 
   // Hold the sim while the call is up; cue once when it appears (re-armed when it hides).
   useHoldSim(showing);
