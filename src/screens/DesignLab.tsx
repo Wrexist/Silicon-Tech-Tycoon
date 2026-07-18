@@ -39,7 +39,8 @@ import { segmentTrend, regionInCrisis } from "../engine/climate.ts";
 import { subsystemFor, effectiveSubsystemStep } from "../engine/subsystems.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { CircuitMotif } from "../design/CircuitMotif.tsx";
-import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
+import { FINISH_SWATCHES, ALUMINIUM_SEASON_START } from "../render/deviceStyle.ts";
+import { unlockedColorwayNames } from "../state/seasons.ts";
 import {
   buildWeeksFor,
   burn,
@@ -1104,17 +1105,28 @@ export function DesignLab({
                 );
               })()}
               <div className="lab__swatches">
-                {FINISH_SWATCHES[draft.finish].map((sw, i) => (
-                  <button
-                    key={sw.name}
-                    className={`lab__swatch${draft.colorIndex === i ? " lab__swatch--on" : ""}`}
-                    style={{ background: `linear-gradient(135deg, ${sw.bodyLight}, ${sw.bodyDark})` }}
-                    title={sw.name}
-                    aria-label={sw.name}
-                    aria-pressed={draft.colorIndex === i}
-                    onClick={() => { haptic.light(); set({ colorIndex: i }); }}
-                  />
-                ))}
+                {(() => {
+                  // Challenge-Season colourways (aluminium, indices ≥ ALUMINIUM_SEASON_START) are
+                  // locked until earned on the Seasons track — masked with a lock, never selectable.
+                  const unlockedColors = unlockedColorwayNames();
+                  return FINISH_SWATCHES[draft.finish].map((sw, i) => {
+                    const seasonLocked = draft.finish === "aluminium" && i >= ALUMINIUM_SEASON_START && !unlockedColors.has(sw.name);
+                    return (
+                      <button
+                        key={sw.name}
+                        className={`lab__swatch${draft.colorIndex === i ? " lab__swatch--on" : ""}${seasonLocked ? " lab__swatch--locked" : ""}`}
+                        style={{ background: `linear-gradient(135deg, ${sw.bodyLight}, ${sw.bodyDark})` }}
+                        title={seasonLocked ? `${sw.name} · earn on the Challenge Seasons track` : sw.name}
+                        aria-label={seasonLocked ? `${sw.name} (locked, earn on the Challenge Seasons track)` : sw.name}
+                        aria-pressed={draft.colorIndex === i}
+                        disabled={seasonLocked}
+                        onClick={() => { haptic.light(); set({ colorIndex: i }); }}
+                      >
+                        {seasonLocked && <Lock size={11} aria-hidden />}
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </Card>
             <Card>

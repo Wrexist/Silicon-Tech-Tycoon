@@ -11,7 +11,7 @@ import { Capacitor } from "@capacitor/core";
 
 /** The keys worth a durable copy: the save, the parked freeform company held while a challenge/
  *  scenario runs (so "return to your company" survives eviction), the paid entitlement, and prestige. */
-const MIRROR_KEYS = ["silicon.save.v1", "silicon.save.v1.home", "silicon.iap.sandbox", "silicon.legacy", "silicon.scenarioStars.v1", "silicon.challengeBests.v1", "silicon.museum.v1", "silicon.achievements.v1"] as const;
+const MIRROR_KEYS = ["silicon.save.v1", "silicon.save.v1.home", "silicon.iap.sandbox", "silicon.legacy", "silicon.scenarioStars.v1", "silicon.challengeBests.v1", "silicon.museum.v1", "silicon.achievements.v1", "silicon.seasons.v1"] as const;
 
 function isNative(): boolean {
   try {

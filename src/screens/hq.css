@@ -494,6 +494,20 @@
 .hqb__sw--on .hqb__sw-name {
   color: var(--accent);
 }
+/* Challenge-Season finishes: locked until earned — dimmed, lock badge centered on the chip. */
+.hqb__sw--locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.hqb__sw--locked .hqb__sw-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-1);
+}
+.hqb__sw--locked:active {
+  transform: none;
+}
 .hqb__cats {
   display: flex;
   gap: var(--sp-6);

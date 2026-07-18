@@ -149,6 +149,7 @@ import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBes
 import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
 import { recordFounder, getFounderRecord, mergeFounderRecord } from "./founderLegend.ts";
 import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
+import { recordSeasonCompletion, getSeasons, mergeSeasons, seasonLabel } from "./seasons.ts";
 import { scenarioById, canEarnStars, scenarioUnlocked, scenarioUnlockStars, SCENARIOS } from "../engine/scenarios.ts";
 import type { MasteryInput } from "../engine/achievements.ts";
 import { dateKeyOf, formatScore, type ChallengeKind } from "../engine/challenges.ts";
@@ -403,7 +404,8 @@ function announceScenarioStars(state: GameState): void {
 function syncChallengeBest(prev: GameState, next: GameState, announce: boolean): void {
   const ch = next.activeChallenge;
   if (!ch || next.challengeScore == null) return;
-  const { improved, best } = recordChallengeBest(challengeKey(ch.kind, ch.dateKey), next.challengeScore);
+  const key = challengeKey(ch.kind, ch.dateKey);
+  const { improved, best } = recordChallengeBest(key, next.challengeScore);
   if (!announce || prev.challengeScore != null) return; // only on the locking transition
   sfx("mastery");
   const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
@@ -419,6 +421,27 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
       /* toast host not mounted (e.g. tests) */
     }
   }, 800);
+  // Challenge Seasons — count this completion toward the month's cosmetic track (idempotent per
+  // challenge key). Any rung crossed unlocks a cosmetic; celebrate it with a toast + confetti (no new
+  // interrupt). Entirely a profile-store write — no GameState / determinism surface.
+  try {
+    const { seasonId, crossed } = recordSeasonCompletion(key);
+    crossed.forEach((reward, i) => {
+      setTimeout(() => {
+        try {
+          emitCelebrate();
+          showToast(`Season reward unlocked, ${reward.name} · ${seasonLabel(seasonId)}`, {
+            tone: "positive",
+            glyph: createElement(achievementIcon("Sparkles"), { size: 15 }),
+          });
+        } catch {
+          /* toast host not mounted (e.g. tests) */
+        }
+      }, 1400 + i * 900);
+    });
+  } catch {
+    /* seasons is best-effort flair — never let it disrupt the challenge flow */
+  }
 }
 
 /** The per-tick DATA slice of the context — changes whenever the sim advances. */
@@ -1209,6 +1232,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       museum: getMuseum(),
       achievements: getProfileAchievements(),
       founder: getFounderRecord(),
+      seasons: getSeasons(),
     }),
     [],
   );
@@ -1228,6 +1252,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       mergeMuseum(profile.museum);
       mergeProfileAchievements(Array.isArray(profile.achievements) ? profile.achievements : undefined);
       mergeFounderRecord(profile.founder);
+      mergeSeasons(profile.seasons);
     }
     const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids

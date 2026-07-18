@@ -30,7 +30,19 @@ export const FLOOR_FINISHES: FloorFinish[] = [
   { id: "checker", name: "Checker", dark: "#232833", light: "#e4e7ec", lineDark: "#12151b", lineLight: "#b7bcc6", roughness: 0.30, metalness: 0.10, pattern: "tile" },
   { id: "neonGrid", name: "Neon Grid", dark: "#141a24", light: "#e9f4fb", lineDark: "#2bd4d0", lineLight: "#3aa0d8", roughness: 0.22, metalness: 0.28, pattern: "grid" },
   { id: "campusCarpet", name: "Campus Carpet", dark: "#2c343a", light: "#c2ccc9", lineDark: "#2c343a", lineLight: "#c2ccc9", roughness: 1.0, metalness: 0.0, pattern: "none" },
+  // --- Challenge-Season floors (SEASON_FLOOR_IDS) — cosmetic-only, gated for SELECTION in the HQ
+  //     decorate panel until earned on the Seasons track, but always renderable by index. ---
+  { id: "terrazzo", name: "Terrazzo", dark: "#2b2f36", light: "#dfe2e6", lineDark: "#3a6b5e", lineLight: "#b0a892", roughness: 0.4, metalness: 0.08, pattern: "tile" },
+  { id: "herringbone", name: "Herringbone", dark: "#4a3324", light: "#c39a6a", lineDark: "#2f2016", lineLight: "#9c7546", roughness: 0.66, metalness: 0.0, pattern: "plank" },
+  { id: "onyx", name: "Onyx", dark: "#131519", light: "#3a3f47", lineDark: "#0a0b0e", lineLight: "#2a2e35", roughness: 0.16, metalness: 0.3, pattern: "grid" },
+  { id: "bamboo", name: "Bamboo", dark: "#6a5a35", light: "#d8c48a", lineDark: "#4a3e24", lineLight: "#b6a066", roughness: 0.6, metalness: 0.0, pattern: "plank" },
+  { id: "basalt", name: "Basalt", dark: "#24272c", light: "#b9bdc4", lineDark: "#171a1e", lineLight: "#9a9ea6", roughness: 0.54, metalness: 0.12, pattern: "tile" },
+  { id: "resin", name: "Resin Pour", dark: "#1c2230", light: "#dfe6f2", lineDark: "#122b6b", lineLight: "#8fb0e0", roughness: 0.12, metalness: 0.3, pattern: "grid" },
 ];
+
+/** Floor finishes reserved as Challenge-Season unlocks (by id). Gated for selection in the HQ
+ *  decorate panel; always in the catalog so a save that picked one keeps rendering it. */
+export const SEASON_FLOOR_IDS: readonly string[] = ["terrazzo", "herringbone", "onyx", "bamboo", "basalt", "resin"];
 
 export type WallKind = "brick" | "paint" | "concrete" | "panel";
 
@@ -58,7 +70,18 @@ export const WALL_STYLES: WallStyle[] = [
   { id: "navy", name: "Navy", kind: "paint", dark: "#1b2438", light: "#c6d0e6" },
   { id: "terracotta", name: "Terracotta", kind: "paint", dark: "#3d2820", light: "#e4b79a" },
   { id: "felt", name: "Acoustic Felt", kind: "panel", dark: "#2a2e36", light: "#b9bec7" },
+  // --- Challenge-Season walls (SEASON_WALL_IDS) — cosmetic-only, gated for SELECTION until earned. ---
+  { id: "plaster", name: "Venetian Plaster", kind: "paint", dark: "#33302a", light: "#e8e0d2" },
+  { id: "emerald", name: "Emerald", kind: "paint", dark: "#12332a", light: "#bfe0d2" },
+  { id: "copper", name: "Copper", kind: "panel", dark: "#3d281c", light: "#d19064" },
+  { id: "linen", name: "Linen", kind: "paint", dark: "#302e28", light: "#e6e0d4" },
+  { id: "aubergine", name: "Aubergine", kind: "paint", dark: "#2c1f30", light: "#d8c6e0" },
+  { id: "teal", name: "Teal", kind: "paint", dark: "#173238", light: "#c2e0e4" },
 ];
+
+/** Wall styles reserved as Challenge-Season unlocks (by id). Gated for selection in the HQ decorate
+ *  panel; always in the catalog so a save that picked one keeps rendering it. */
+export const SEASON_WALL_IDS: readonly string[] = ["plaster", "emerald", "copper", "linen", "aubergine", "teal"];
 
 export function floorFinish(i: number): FloorFinish {
   return FLOOR_FINISHES[i] ?? FLOOR_FINISHES[0];

@@ -737,6 +737,18 @@
 .lab__swatch:active {
   transform: scale(0.92);
 }
+/* Challenge-Season colourways: locked until earned — dimmed with a centered lock. */
+.lab__swatch--locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--knob); /* white in both themes — reads on the coloured swatch */
+}
+.lab__swatch--locked:active {
+  transform: none;
+}
 .lab__hint {
   margin-top: var(--sp-12);
   font-size: var(--fs-caption);

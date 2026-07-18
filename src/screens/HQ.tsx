@@ -37,7 +37,8 @@ import {
   type PlacedItem,
   type Rot,
 } from "../engine/furniture.ts";
-import { FLOOR_FINISHES, WALL_STYLES } from "../engine/roomStyle.ts";
+import { FLOOR_FINISHES, WALL_STYLES, SEASON_FLOOR_IDS, SEASON_WALL_IDS } from "../engine/roomStyle.ts";
+import { unlockedFloorIds, unlockedWallIds } from "../state/seasons.ts";
 import { UPGRADE_LINES, type UpgradeId } from "../engine/upgrades.ts";
 import { emitHighlight } from "../design/hqHighlight.ts";
 
@@ -433,6 +434,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   const history = useRef<{ layout: PlacedItem[]; cash: Money }[]>([]);
   const [histLen, setHistLen] = useState(0); // mirror of history depth so Undo's disabled state stays live
   const dark = isDarkTheme();
+  // Challenge-Season room finishes unlocked so far (cosmetic-only; gates SELECTION in the decorate
+  // panel below). Recomputed each render so a just-earned finish appears without a remount.
+  const unlockedFloors = unlockedFloorIds();
+  const unlockedWalls = unlockedWallIds();
   // If the GPU drops the WebGL context mid-game, fall back to the 2D IsoScene instead of black.
   const [glLost, setGlLost] = useState(false);
   // Stable identity so the memoized Garage3D office scene isn't re-rendered every sim tick by a fresh
@@ -683,23 +688,30 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                   <div className="hqb__room-group">
                     <span className="hqb__room-label">Floor</span>
                     <div className="hqb__swatches">
-                      {FLOOR_FINISHES.map((f, i) => (
-                        <button key={f.id} className={`hqb__sw${state.roomStyle.floor === i ? " hqb__sw--on" : ""}`} aria-pressed={state.roomStyle.floor === i} aria-label={`${f.name} floor`} onClick={() => { setFloorStyle(i); haptic.light(); }}>
-                          <span className="hqb__sw-chip" style={{ background: dark ? f.dark : f.light }} />
-                          <span className="hqb__sw-name">{f.name}</span>
-                        </button>
-                      ))}
+                      {FLOOR_FINISHES.map((f, i) => {
+                        // Challenge-Season floors are locked until earned on the Seasons track.
+                        const locked = SEASON_FLOOR_IDS.includes(f.id) && !unlockedFloors.has(f.id);
+                        return (
+                          <button key={f.id} className={`hqb__sw${state.roomStyle.floor === i ? " hqb__sw--on" : ""}${locked ? " hqb__sw--locked" : ""}`} aria-pressed={state.roomStyle.floor === i} disabled={locked} aria-label={locked ? `${f.name} floor (locked, earn on the Challenge Seasons track)` : `${f.name} floor`} title={locked ? "Earn on the Challenge Seasons track" : undefined} onClick={() => { setFloorStyle(i); haptic.light(); }}>
+                            <span className="hqb__sw-chip" style={{ background: dark ? f.dark : f.light }}>{locked && <Lock size={11} aria-hidden />}</span>
+                            <span className="hqb__sw-name">{f.name}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="hqb__room-group">
                     <span className="hqb__room-label">Walls</span>
                     <div className="hqb__swatches">
-                      {WALL_STYLES.map((w, i) => (
-                        <button key={w.id} className={`hqb__sw${state.roomStyle.wall === i ? " hqb__sw--on" : ""}`} aria-pressed={state.roomStyle.wall === i} aria-label={`${w.name} walls`} onClick={() => { setWallStyle(i); haptic.light(); }}>
-                          <span className="hqb__sw-chip" style={{ background: dark ? w.dark : w.light }} />
-                          <span className="hqb__sw-name">{w.name}</span>
-                        </button>
-                      ))}
+                      {WALL_STYLES.map((w, i) => {
+                        const locked = SEASON_WALL_IDS.includes(w.id) && !unlockedWalls.has(w.id);
+                        return (
+                          <button key={w.id} className={`hqb__sw${state.roomStyle.wall === i ? " hqb__sw--on" : ""}${locked ? " hqb__sw--locked" : ""}`} aria-pressed={state.roomStyle.wall === i} disabled={locked} aria-label={locked ? `${w.name} walls (locked, earn on the Challenge Seasons track)` : `${w.name} walls`} title={locked ? "Earn on the Challenge Seasons track" : undefined} onClick={() => { setWallStyle(i); haptic.light(); }}>
+                            <span className="hqb__sw-chip" style={{ background: dark ? w.dark : w.light }}>{locked && <Lock size={11} aria-hidden />}</span>
+                            <span className="hqb__sw-name">{w.name}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

@@ -3,7 +3,7 @@
 // player's freeform company (stashed, restorable via the tracker's "return to your company"), so it
 // confirms first but never destroys the company.
 import { useRef, useState } from "react";
-import { CalendarDays, CalendarRange, Target, Trophy, Share2 } from "lucide-react";
+import { CalendarDays, CalendarRange, Target, Trophy, Share2, Sparkles, Lock, Check, Palette, Grid2x2, Square, Award } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { showToast } from "../design/toast.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -20,6 +20,15 @@ import {
   type ChallengeKind,
 } from "../engine/challenges.ts";
 import { bestScore, challengeKey, challengeHistory } from "../state/challengeProgress.ts";
+import {
+  currentSeasonId,
+  seasonLabel,
+  seasonRewards,
+  seasonCount,
+  getSeasons,
+  SEASON_RUNGS,
+  type SeasonRewardType,
+} from "../state/seasons.ts";
 import { netWorth } from "../state/gameState.ts";
 import { format } from "../engine/money.ts";
 import { useGame } from "../state/useGame.tsx";
@@ -77,6 +86,66 @@ function ChallengeCard({ challenge, onPlay }: { challenge: Challenge; onPlay: ()
   );
 }
 
+const REWARD_ICON: Record<SeasonRewardType, typeof Palette> = {
+  colorway: Palette,
+  floor: Grid2x2,
+  wall: Square,
+  badge: Award,
+};
+const REWARD_KIND: Record<SeasonRewardType, string> = {
+  colorway: "Device colourway",
+  floor: "HQ floor",
+  wall: "HQ walls",
+  badge: "Profile badge",
+};
+
+/** The seasonal cosmetic reward track — this calendar month's rungs, what each unlocks (previewed
+ *  even when locked), and how many completions you've banked. Pure read of the profile store. */
+function SeasonTrack() {
+  const seasonId = currentSeasonId();
+  const store = getSeasons();
+  const count = seasonCount(seasonId, store);
+  const rewards = seasonRewards(seasonId);
+  const top = SEASON_RUNGS[SEASON_RUNGS.length - 1];
+  const nextRung = SEASON_RUNGS.find((r) => count < r);
+  return (
+    <section className="season" aria-label="Challenge season reward track">
+      <div className="season__head">
+        <span className="season__glyph" aria-hidden><Sparkles size={16} /></span>
+        <div className="season__head-info">
+          <h3 className="season__title">Season: {seasonLabel(seasonId)}</h3>
+          <p className="season__sub">Complete daily &amp; weekly challenges to earn cosmetic rewards.</p>
+        </div>
+        <span className="season__count tnum">{count}<span className="season__count-total">/{top}</span></span>
+      </div>
+      <ul className="season__rungs">
+        {rewards.map((r) => {
+          const unlocked = count >= r.rung;
+          const Icon = REWARD_ICON[r.type];
+          return (
+            <li key={r.cosmeticId} className={`season__rung${unlocked ? " season__rung--on" : ""}`}>
+              <span className="season__rung-req tnum" aria-hidden>{r.rung}</span>
+              <span className="season__rung-icon" aria-hidden><Icon size={15} /></span>
+              <span className="season__rung-info">
+                <span className="season__rung-name">{r.name}</span>
+                <span className="season__rung-kind">{REWARD_KIND[r.type]}</span>
+              </span>
+              <span className="season__rung-state" aria-hidden>
+                {unlocked ? <Check size={15} /> : <Lock size={13} />}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="season__foot">
+        {nextRung != null
+          ? `${nextRung - count} more to the next reward.`
+          : "Every reward this season is yours. New rewards next month."}
+      </p>
+    </section>
+  );
+}
+
 export function ChallengesSheet({ onClose }: { onClose: () => void }) {
   const { state, startChallenge } = useGame();
   const [confirm, setConfirm] = useState<Target | null>(null);
@@ -114,6 +183,8 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
           <p className="scn__sub">A fresh, seeded challenge every day. One run, beat your own best, or share a code.</p>
         </div>
       </div>
+
+      <SeasonTrack />
 
       <ul className="scn__list">
         <ChallengeCard challenge={daily} onPlay={() => setConfirm({ kind: "daily", dateKey: today })} />
