@@ -232,6 +232,50 @@ describe("persisted earned cosmetics", () => {
     expect(new Set(store.earned?.["2026-07"])).toEqual(new Set(["col:a", "flr:b"]));
     expect(store.earned?.["2026-08"]).toEqual(["wal:c"]);
   });
+
+  it("surfaces rewards recorded in `earned` for a season with NO completions (union iteration)", () => {
+    // A partial restore can leave earned ids under a season whose completion keys never synced.
+    localStorage.setItem("silicon.seasons.v1", JSON.stringify({
+      completions: {},
+      earned: { "2026-07": ["bdg:champion", "col:foo"] },
+    }));
+    const unlocked = unlockedCosmetics();
+    expect(unlocked.has("bdg:champion")).toBe(true);
+    expect(unlocked.has("col:foo")).toBe(true);
+    expect(earnedBadges().map((b) => b.id)).toContain("champion");
+  });
+
+  it("first crossing on a legacy season keeps the already-derived lower rungs (backfill)", () => {
+    // Legacy season sitting AT the first rung (3 completions), no stored earned yet.
+    localStorage.setItem("silicon.seasons.v1", JSON.stringify({
+      completions: { "2026-07": ["daily:2026-07-01", "daily:2026-07-02", "daily:2026-07-03"] },
+    }));
+    const rewards = seasonRewards("2026-07");
+    // Completions 4..7 cross the SECOND rung (7); the crossing write must not wipe the rung-0 reward.
+    for (let i = 4; i <= SEASON_RUNGS[1]; i++) recordSeasonCompletion(`daily:2026-07-${String(i).padStart(2, "0")}`);
+    const unlocked = unlockedCosmetics();
+    expect(unlocked.has(rewards[0].cosmeticId)).toBe(true); // rung 0 — preserved via backfill, not dropped
+    expect(unlocked.has(rewards[1].cosmeticId)).toBe(true); // rung 1 — newly crossed
+  });
+
+  it("merge captures a rung neither device reached alone (evaluate newly crossed rungs)", () => {
+    const rewards = seasonRewards("2026-07");
+    // Device A: 6 completions (rung 0 crossed, earned stored → derivation suppressed).
+    localStorage.setItem("silicon.seasons.v1", JSON.stringify({
+      completions: { "2026-07": Array.from({ length: 6 }, (_, i) => `daily:2026-07-${String(i + 1).padStart(2, "0")}`) },
+      earned: { "2026-07": [rewards[0].cosmeticId] },
+    }));
+    // Device B: a disjoint 6 completions (also only rung 0), earned stored.
+    mergeSeasons({
+      completions: { "2026-07": Array.from({ length: 6 }, (_, i) => `daily:2026-07-${String(i + 7).padStart(2, "0")}`) },
+      earned: { "2026-07": [rewards[0].cosmeticId] },
+    });
+    // Union = 12 completions → crosses rung 1 (7) AND rung 2 (12), which neither device reached alone.
+    const unlocked = unlockedCosmetics();
+    expect(unlocked.has(rewards[1].cosmeticId)).toBe(true);  // rung 1 — captured by the merge
+    expect(unlocked.has(rewards[2].cosmeticId)).toBe(true);  // rung 2 — captured by the merge
+    expect(unlocked.has(rewards[3].cosmeticId)).toBe(false); // rung 3 (20) not reached
+  });
 });
 
 describe("store tolerance + merge", () => {

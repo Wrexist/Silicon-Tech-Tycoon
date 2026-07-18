@@ -6,7 +6,7 @@ import { PROP_DEFS, type PlacedProp } from "../engine/factoryProps.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { canPlace, defaultLayout, deskItems, gridN } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
-import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Product, type StaffRole } from "../engine/types.ts";
+import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Keynote, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
@@ -360,8 +360,20 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingMandateOffer != null && s.pendingMandateOffer.eraTo !== s.era) s.pendingMandateOffer = null;
   // Pre-launch Keynote gamble (feature #4) — no active promises / announce ledger on old saves. Empty
   // arrays = no keynote in play = byte-identical in-run behaviour, so no per-save flag is needed.
+  // Scrub the promise list: a hand-edited / partially-migrated save can carry null entries (which crash
+  // `pending.some(k => k.productId)`) or non-finite deadlines/bonuses (which poison the launch hype math).
+  // Keep only well-formed Keynote objects — required string ids + finite numerics — and finite announce
+  // weeks, so a corrupt import degrades to "no keynote in play" rather than throwing.
   if (!Array.isArray(s.pendingKeynote)) s.pendingKeynote = [];
+  else s.pendingKeynote = (s.pendingKeynote as unknown[]).filter((k): k is Keynote => {
+    if (!k || typeof k !== "object") return false;
+    const kn = k as Record<string, unknown>;
+    return typeof kn.productId === "string" && typeof kn.productName === "string" &&
+      Number.isFinite(kn.announcedWeek) && Number.isFinite(kn.deadlineWeek) &&
+      Number.isFinite(kn.maxBonus) && Number.isFinite(kn.penalty);
+  });
   if (!Array.isArray(s.keynoteAnnounceWeeks)) s.keynoteAnnounceWeeks = [];
+  else s.keynoteAnnounceWeeks = (s.keynoteAnnounceWeeks as unknown[]).filter((w) => Number.isFinite(w)) as number[];
   // Equity / stock market (added later) — backfill so old saves can trade + keep ownership.
   if (s.listed == null) s.listed = false;
   if (!Number.isFinite(s.ownership)) s.ownership = 1;

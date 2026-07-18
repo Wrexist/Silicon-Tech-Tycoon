@@ -188,7 +188,9 @@ export function collectGoals(state: GameState): GoalRow[] {
         sourceLabel: "Franchise",
         title: `${line.name} line — ${line.boon.name}`,
         detail,
-        frac: Math.max(0, Math.min(1, line.entries / FRANCHISE_MASTERY_MIN_ENTRIES)),
+        // Both the depth gate (entries) AND the quality gate (Iconic) are required to unlock, so cap
+        // progress at 0.9 until the line is Iconic — entries alone can't read as "done".
+        frac: Math.max(0, Math.min(line.iconic ? 1 : 0.9, line.entries / FRANCHISE_MASTERY_MIN_ENTRIES)),
         reward: line.boon.name,
         done: false,
       });

@@ -80,18 +80,21 @@ function displayName(stem: string): string {
   return stem.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** The dominant (most-shipped) category across a line's entries. Ties break by first appearance, which
- *  is deterministic for a fixed launch history. Empty line → null. */
+/** The dominant (most-shipped) category across the given entries. Counts are resolved FULLY first, THEN
+ *  ties break by first appearance (Map insertion order == first appearance), which is deterministic for a
+ *  fixed launch history — so "phone, tablet, tablet, phone" resolves to phone, not tablet. Empty /
+ *  category-less → null. */
 export function dominantCategory(line: readonly LaunchedProduct[]): CategoryId | null {
   const counts = new Map<CategoryId, number>();
-  let best: CategoryId | null = null;
-  let bestN = 0;
   for (const lp of line) {
     const c = lp?.product?.category as CategoryId | undefined;
     if (!c) continue;
-    const n = (counts.get(c) ?? 0) + 1;
-    counts.set(c, n);
-    if (n > bestN) { bestN = n; best = c; }
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  let best: CategoryId | null = null;
+  let bestN = 0;
+  for (const [c, n] of counts) {
+    if (n > bestN) { bestN = n; best = c; } // strict > + insertion order → first-appearance tie-break
   }
   return best;
 }
@@ -118,7 +121,12 @@ function lineMastery(stem: string, entries: readonly LaunchedProduct[]): Franchi
   const iconic = label === "Iconic";
   const count = entries.length;
   const remaining = Math.max(0, FRANCHISE_MASTERY_MIN_ENTRIES - count);
-  const dom = dominantCategory(entries);
+  // Key the boon off a STABLE qualification snapshot — the earliest MIN_ENTRIES entries (the set present
+  // when the line first qualifies) — so an earned boon can never be flipped by a later launch in another
+  // category. `entries` arrives newest-first (launched is prepended), so the earliest sit at the TAIL;
+  // reverse to chronological order so the dominant-category tie-break resolves by true first appearance.
+  const snapshot = entries.slice(-FRANCHISE_MASTERY_MIN_ENTRIES).reverse();
+  const dom = dominantCategory(snapshot);
   const boon = FRANCHISE_BOONS[boonIdForCategory(dom ?? "phone")];
   return {
     stem,

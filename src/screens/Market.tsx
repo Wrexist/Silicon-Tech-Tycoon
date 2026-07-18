@@ -1651,7 +1651,9 @@ function FranchiseMasteryNote({ m, detailed }: { m?: FranchiseMasteryLine; detai
       {oneAway
         ? <span className="mkt__fr-boon-nudge">1 more entry → {m.boon.name}</span>
         : detailed
-          ? <span className="mkt__fr-boon-nudge">{m.remaining > 0 ? `${m.remaining} more + Iconic → ${m.boon.name}` : `Reach Iconic → ${m.boon.name}`}</span>
+          ? <span className="mkt__fr-boon-nudge">{m.remaining > 0
+              ? (iconic ? `${m.remaining} more → ${m.boon.name}` : `${m.remaining} more + Iconic → ${m.boon.name}`)
+              : `Reach Iconic → ${m.boon.name}`}</span>
           : null}
     </div>
   );

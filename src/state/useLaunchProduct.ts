@@ -98,7 +98,10 @@ export function useLaunchProduct() {
       // plus this entry (name + verdict), so it can never disagree with the Market franchises card.
       if (product && state.franchiseMasteryEnabled) {
         const before = franchiseMasteryForName(launchedBefore, product.name);
-        const afterEntry = { product, verdict: res.verdict ?? "steady" } as unknown as LaunchedProduct;
+        // Project the freshly-shipped entry with EVERY field the brand-equity calc reads — including
+        // launchedWeek (the current week at launch) — so the projection can't leave launchedWeek undefined
+        // and NaN-poison the equity math, which could suppress or misfire the Iconic-unlock toast.
+        const afterEntry = { product, verdict: res.verdict ?? "steady", launchedWeek: state.week } as unknown as LaunchedProduct;
         const after = franchiseMasteryForName([afterEntry, ...launchedBefore], product.name);
         if (after?.qualified && !before?.qualified) {
           emitCelebrate();

@@ -95,6 +95,28 @@ describe("franchiseMastery — boon assignment is stable + category-keyed", () =
       expect(nonZero).toBe(1);
     }
   });
+
+  it("resolves the dominant category by first appearance on a tie (phone,tablet,tablet,phone → phone)", () => {
+    // Both phone and tablet appear twice; counts are resolved FULLY before the tie-break, then first
+    // appearance (phone) wins — the earlier strict-> bug picked tablet (it reached 2 first).
+    const seq = [launch("X 1", "phone"), launch("X 2", "tablet"), launch("X 3", "tablet"), launch("X 4", "phone")];
+    expect(dominantCategory(seq)).toBe("phone");
+  });
+
+  it("an EARNED boon is immutable — later launches of another category can't flip it", () => {
+    // The line qualifies on its earliest 5 phone entries → Heritage Halo. `launched` is newest-first, so
+    // later launches are PREPENDED. Six tablet entries (a tablet majority overall) must NOT flip the boon.
+    const qualifyingPhones = line("Nova", 5, "phone"); // the qualifying snapshot
+    const laterTablets = Array.from({ length: 6 }, (_, i) => launch(`Nova ${i + 6}`, "tablet", "hit"));
+    const launched = [...laterTablets, ...qualifyingPhones]; // newest-first: tablets on top
+    const l = franchiseMasteryForName(launched, "Nova 12");
+    expect(l!.entries).toBe(11);
+    expect(l!.qualified).toBe(true);
+    // The boon stays keyed to the qualifying phone snapshot, even though tablets now dominate the full line.
+    expect(l!.dominantCategory).toBe("phone");
+    expect(l!.boon.id).toBe("heritageHalo");
+    expect(franchiseBoonForName(launched, "Nova 12").id).toBe("heritageHalo");
+  });
 });
 
 describe("franchiseMastery — magnitude caps (modest, at/below mastery + mandate)", () => {

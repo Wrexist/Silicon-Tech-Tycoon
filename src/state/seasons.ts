@@ -217,7 +217,11 @@ export function recordSeasonCompletion(challengeKey: string): SeasonCompletionRe
   // Persist the earned cosmetic ids (not just the count) so this season's rewards survive a future
   // reward-pool reorder unchanged. Union with any already stored for the season.
   if (crossed.length > 0) {
-    const prevEarned = store.earned?.[seasonId] ?? [];
+    // On the FIRST crossing for a legacy season (no stored earned yet), derive the prior earned set from
+    // the previous completion count — otherwise defaulting to [] would drop lower rungs already unlocked
+    // by derivation, since writing `earned` suppresses derivation from here on.
+    const prevEarned = store.earned?.[seasonId]
+      ?? seasonRewards(seasonId).filter((r) => prevCount >= r.rung).map((r) => r.cosmeticId);
     const set = new Set([...prevEarned, ...crossed.map((r) => r.cosmeticId)]);
     store.earned = { ...(store.earned ?? {}), [seasonId]: [...set] };
   }
@@ -236,11 +240,24 @@ export function mergeSeasons(incoming: unknown): void {
   for (const [sid, list] of Object.entries(inc.completions)) {
     merged[sid] = [...new Set([...(merged[sid] ?? []), ...list])];
   }
-  const mergedEarned: Record<string, string[]> = { ...(cur.earned ?? {}) };
-  if (inc.earned) {
-    for (const [sid, ids] of Object.entries(inc.earned)) {
-      mergedEarned[sid] = [...new Set([...(mergedEarned[sid] ?? []), ...ids])];
-    }
+  // Recompute earned per season as the UNION of each device's resolved earned (stored-or-derived) PLUS any
+  // rungs the MERGED completion count newly crosses. Unioning two devices' completions can push a season
+  // past a rung neither reached alone; because writing `earned` suppresses derivation, that reward would
+  // otherwise be lost — so derive the gap (priorMax < rung ≤ mergedCount) from the current pool.
+  const mergedEarned: Record<string, string[]> = {};
+  const ids = new Set<string>([
+    ...Object.keys(merged), ...Object.keys(cur.earned ?? {}), ...Object.keys(inc.earned ?? {}),
+  ]);
+  for (const sid of ids) {
+    const priorMax = Math.max(cur.completions[sid]?.length ?? 0, inc.completions[sid]?.length ?? 0);
+    const mergedCount = merged[sid]?.length ?? 0;
+    const newly = seasonRewards(sid)
+      .filter((r) => priorMax < r.rung && mergedCount >= r.rung)
+      .map((r) => r.cosmeticId);
+    const set = new Set<string>([
+      ...seasonUnlockedIds(sid, cur), ...seasonUnlockedIds(sid, inc), ...newly,
+    ]);
+    if (set.size > 0) mergedEarned[sid] = [...set];
   }
   const store: SeasonsStore = { completions: merged };
   if (Object.keys(mergedEarned).length > 0) store.earned = mergedEarned;
@@ -259,11 +276,18 @@ function seasonUnlockedIds(sid: string, store: SeasonsStore): string[] {
   return seasonRewards(sid).filter((r) => count >= r.rung).map((r) => r.cosmeticId);
 }
 
+/** Every season id touched by the store — the UNION of completion keys AND stored earned keys, so a
+ *  reward recorded in `earned` for a season whose completions are absent (e.g. a partial restore) is
+ *  never dropped from the derived unlock sets. */
+function seasonIds(store: SeasonsStore): string[] {
+  return [...new Set([...Object.keys(store.completions), ...Object.keys(store.earned ?? {})])];
+}
+
 /** Every cosmetic id unlocked across every season — stored earned ids when present, else derived from
  *  the count. Pure over the store, so it's always consistent with the record. */
 export function unlockedCosmetics(store: SeasonsStore = getSeasons()): Set<string> {
   const out = new Set<string>();
-  for (const sid of Object.keys(store.completions)) {
+  for (const sid of seasonIds(store)) {
     for (const id of seasonUnlockedIds(sid, store)) out.add(id);
   }
   return out;
@@ -297,7 +321,7 @@ export interface EarnedBadge { id: string; name: string; seasonId: string }
  *  from the fixed pool by id so it stays stable regardless of pool order. */
 export function earnedBadges(store: SeasonsStore = getSeasons()): EarnedBadge[] {
   const out: EarnedBadge[] = [];
-  for (const sid of Object.keys(store.completions)) {
+  for (const sid of seasonIds(store)) {
     for (const cosmeticId of seasonUnlockedIds(sid, store)) {
       if (!cosmeticId.startsWith("bdg:")) continue;
       const badgeId = cosmeticId.slice(4);
