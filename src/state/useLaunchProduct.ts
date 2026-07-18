@@ -3,7 +3,7 @@
 // hit-streak escalation, the first-launch review prompt) is identical wherever you release from.
 import { useCallback } from "react";
 import { createElement } from "react";
-import { Star } from "lucide-react";
+import { Star, Crown } from "lucide-react";
 import { useGame } from "./useGame.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { insightFromPlan, planProduction, productStats } from "./gameState.ts";
@@ -21,8 +21,10 @@ import {
   MASTERY_MAX_LEVEL,
   CATEGORY_SIGNATURES,
 } from "../engine/mastery.ts";
+import { franchiseMasteryForName } from "../engine/franchiseMastery.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import type { ChannelId } from "../engine/marketing.ts";
+import type { LaunchedProduct } from "../engine/types.ts";
 
 /** Returns `launch(productId)` — ships a product from the `ready` shelf and fires the full launch
  *  celebration. Returns whether the launch went through (false if the id wasn't launchable). */
@@ -88,6 +90,23 @@ export function useLaunchProduct() {
           showToast(message, {
             tone: "positive",
             glyph: createElement(Star, { size: 15 }),
+          });
+        }
+      }
+      // Franchise Mastery (feature #8) unlock moment — a line crosses into ≥5 entries + Iconic with THIS
+      // launch: a toast + confetti, NO modal / new interrupt stream. Derived purely from the prior line
+      // plus this entry (name + verdict), so it can never disagree with the Market franchises card.
+      if (product && state.franchiseMasteryEnabled) {
+        const before = franchiseMasteryForName(launchedBefore, product.name);
+        const afterEntry = { product, verdict: res.verdict ?? "steady" } as unknown as LaunchedProduct;
+        const after = franchiseMasteryForName([afterEntry, ...launchedBefore], product.name);
+        if (after?.qualified && !before?.qualified) {
+          emitCelebrate();
+          sfx("levelup");
+          haptic.success();
+          showToast(`${after.name} line is now Iconic — ${after.boon.name} unlocked!`, {
+            tone: "positive",
+            glyph: createElement(Crown, { size: 15 }),
           });
         }
       }

@@ -1,5 +1,5 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { ArrowRight, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { ArrowRight, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -8,6 +8,7 @@ import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { rivalDef, rivalDoctrine, rivalMarketCap, DOCTRINE_LABEL, DOCTRINE_EXPLAINER } from "../engine/competitors.ts";
 import { playerFranchises, rivalLines, franchiseStem, type FranchiseSummary } from "../engine/franchise.ts";
+import { franchiseMastery, FRANCHISE_MASTERY_MIN_ENTRIES, type FranchiseMasteryLine } from "../engine/franchiseMastery.ts";
 import { rivalLicenseFee } from "../engine/platform.ts";
 import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
@@ -615,7 +616,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
 
       {/* Your franchises, product lines grouped by brand equity (the IP lens over your catalog).
           Only meaningful once you've shipped, so it's deferred until the first launch. */}
-      {state.launched.length > 0 && <FranchisesCard launched={state.launched} />}
+      {state.launched.length > 0 && <FranchisesCard launched={state.launched} masteryEnabled={!!state.franchiseMasteryEnabled} />}
 
       {/* Portfolio revenue breakdown by category */}
       {(() => {
@@ -1589,9 +1590,14 @@ function ProductDetailSheet({
 
 /** The player's product lines grouped by brand equity — the IP lens over the catalog. Each row opens
  *  a detail sheet: the line's "chapters" (every product, newest first) with its verdict + numbers. */
-function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
+function FranchisesCard({ launched, masteryEnabled }: { launched: LaunchedProduct[]; masteryEnabled: boolean }) {
   const lines = playerFranchises(launched);
   const [open, setOpen] = useState<FranchiseSummary | null>(null);
+  // Franchise Mastery (feature #8): per-line progress toward the permanent named boon, keyed by stem.
+  const mastery = useMemo(
+    () => new Map(masteryEnabled ? franchiseMastery(launched).map((m) => [m.stem, m]) : []),
+    [launched, masteryEnabled],
+  );
   if (lines.length === 0) return null;
   return (
     <Card>
@@ -1608,19 +1614,49 @@ function FranchisesCard({ launched }: { launched: LaunchedProduct[] }) {
               {f.entries} product{f.entries > 1 ? "s" : ""} · {formatCount(f.unitsSold)} sold · {format(f.revenue)} · latest {f.latestName}
             </div>
             <div className="mkt__fr-bar" aria-hidden><span className="mkt__fr-fill" style={{ width: `${Math.round(Math.max(0, f.equity) * 100)}%` }} /></div>
+            <FranchiseMasteryNote m={mastery.get(f.stem)} />
           </button>
         ))}
       </div>
       <Sheet open={!!open} onClose={() => setOpen(null)} label="Product detail">
-        {open && <FranchiseDetail summary={open} launched={launched} />}
+        {open && <FranchiseDetail summary={open} launched={launched} mastery={mastery.get(open.stem)} />}
       </Sheet>
     </Card>
   );
 }
 
+/** The Franchise-Mastery status line under a franchise row: the earned boon once qualified, otherwise
+ *  the entries-toward-Iconic countdown (with a nudge when one entry away). Nothing when disabled. */
+function FranchiseMasteryNote({ m, detailed }: { m?: FranchiseMasteryLine; detailed?: boolean }) {
+  if (!m) return null;
+  if (m.qualified) {
+    return (
+      <div className="mkt__fr-boon mkt__fr-boon--earned">
+        <Crown size={13} aria-hidden />
+        <span className="mkt__fr-boon-name">{m.boon.name}</span>
+        {detailed && <span className="mkt__fr-boon-blurb">{m.boon.blurb}</span>}
+      </div>
+    );
+  }
+  const iconic = m.iconic;
+  const oneAway = m.remaining === 1 && iconic;
+  return (
+    <div className="mkt__fr-boon">
+      <Award size={13} aria-hidden className="mkt__fr-boon-glyph" />
+      <span className="mkt__fr-boon-prog tnum">{Math.min(m.entries, FRANCHISE_MASTERY_MIN_ENTRIES)}/{FRANCHISE_MASTERY_MIN_ENTRIES} entries</span>
+      <span className={`mkt__fr-boon-tier${iconic ? " mkt__fr-boon-tier--on" : ""}`}>{iconic ? "Iconic" : m.label}</span>
+      {oneAway
+        ? <span className="mkt__fr-boon-nudge">1 more entry → {m.boon.name}</span>
+        : detailed
+          ? <span className="mkt__fr-boon-nudge">{m.remaining > 0 ? `${m.remaining} more + Iconic → ${m.boon.name}` : `Reach Iconic → ${m.boon.name}`}</span>
+          : null}
+    </div>
+  );
+}
+
 /** A single franchise's story: every product in the line, newest first, with a device thumbnail,
  *  verdict, units and revenue — so the brand-equity loop's payoff is visible and tangible. */
-function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; launched: LaunchedProduct[] }) {
+function FranchiseDetail({ summary, launched, mastery }: { summary: FranchiseSummary; launched: LaunchedProduct[]; mastery?: FranchiseMasteryLine }) {
   const products = launched
     .filter((lp) => franchiseStem(lp.product.name) === summary.stem)
     .sort((a, b) => b.launchedWeek - a.launchedWeek);
@@ -1634,6 +1670,8 @@ function FranchiseDetail({ summary, launched }: { summary: FranchiseSummary; lau
         </div>
         <span className={`mkt__fr-tag mkt__fr-tag--${summary.label.toLowerCase().replace(/\s+/g, "")}`}>{summary.label}</span>
       </div>
+
+      {mastery && <FranchiseMasteryNote m={mastery} detailed />}
 
       <div className="frd__stats">
         <Stat label="Lifetime revenue" value={format(summary.revenue)} tone="positive" />

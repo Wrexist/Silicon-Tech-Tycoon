@@ -151,6 +151,7 @@ import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
 import { noveltyFor } from "../engine/novelty.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
+import { franchiseBoonForName, ZERO_FRANCHISE_BOON, type FranchiseBoon } from "../engine/franchiseMastery.ts";
 import { distributeOverCurve, forecast, verdictCurveShape } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
@@ -658,6 +659,12 @@ export interface GameState {
    *  Absent/false → every mastery seam is a byte-exact no-op, so OLD SAVES never shift mid-run and the
    *  do-nothing reproducibility pin (no launches → no mastery either way) is untouched. */
   masteryEnabled?: boolean;
+  /** Franchise Mastery (feature #8) opt-in. Set true ONLY by newGame for fresh runs, so a line that
+   *  reaches ≥5 entries AND Iconic status earns its permanent, line-scoped named boon (+hype / +preorder
+   *  / +design, chosen by the line's dominant category, derived from launched[]). Absent/false → every
+   *  franchise-boon seam is a byte-exact no-op, so OLD SAVES never shift mid-run and the do-nothing pin
+   *  (no launches → no qualified line either way) is untouched. */
+  franchiseMasteryEnabled?: boolean;
   /** Design Budget (feature #1) opt-in. Set true ONLY by newGame for fresh runs, so a per-project
    *  engineering-points (EP) cap is enforced when committing a build (startBuild). Absent/false → the
    *  budget is never checked, so OLD SAVES build exactly as before and the do-nothing reproducibility
@@ -953,6 +960,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     // Category Mastery (feature #3) — ON for fresh runs only. Old saves lack this field (→ off) so
     // they keep byte-stable behaviour; a no-launch run derives no mastery either way (pin untouched).
     masteryEnabled: true,
+    // Franchise Mastery (feature #8) — ON for fresh runs only, so a line that reaches ≥5 entries + Iconic
+    // earns its line-scoped named boon. Old saves lack this field (→ off) so they stay byte-stable; a
+    // no-launch run derives no qualified line either way (pin untouched).
+    franchiseMasteryEnabled: true,
     // Design Budget (feature #1) — ON for fresh runs only, so the per-project EP cap is enforced at
     // build time. Old saves lack this field (→ off) and build unconstrained; the do-nothing pin never
     // builds, so it's byte-identical either way.
@@ -1161,6 +1172,17 @@ export const masteryBonusFor = (s: GameState, category: CategoryId): MasteryBonu
   return masteryBonusForLevel(categoryLevelOf(s.launched, category));
 };
 
+/** Franchise Mastery (feature #8) — the permanent, line-scoped boon a product carries because its LINE
+ *  reached ≥5 entries + Iconic status (derived from launched[], keyed by the product's franchise stem).
+ *  Gated on the franchiseMasteryEnabled opt-in: absent/false → the all-zero boon, so old saves + the
+ *  do-nothing pin are byte-identical. Read by the launch-hype, pre-order and design-appeal seams. The
+ *  line qualifies from its PRIOR entries (launched[] doesn't yet hold the product being launched), so
+ *  the boon applies to this new entry — never to the first-in-line launch. */
+export const franchiseBoonFor = (s: GameState, product: Product): FranchiseBoon => {
+  if (!s.franchiseMasteryEnabled) return ZERO_FRANCHISE_BOON;
+  return franchiseBoonForName(s.launched, product.name);
+};
+
 /** Pre-launch Keynote gamble (feature #4) — the hype delta this product carries into launch from its
  *  keynote: +maxBonus if the promise is KEPT (launching at/before the deadline, not slipped), −penalty
  *  if it SLIPPED, 0 with no keynote. Read by planProduction and applied as a direct multiplier on the
@@ -1313,6 +1335,12 @@ export function productStats(s: GameState, product: Product): Stats {
   // products (+2 at L5). Gated on the opt-in, so it's exactly 0 for disabled saves / the pinned sim.
   const masteryDesign = masteryBonusFor(s, product.category).design;
   if (masteryDesign > 0) bonus.design = (bonus.design ?? 0) + masteryDesign;
+
+  // Franchise Mastery (feature #8): an Iconic, deep line whose boon is "Signature Craft" ships each new
+  // entry with a touch more polish (+1 design). Line-scoped (keyed off the name's franchise stem) and 0
+  // for every other boon / disabled saves / the pinned sim.
+  const franchiseDesign = franchiseBoonFor(s, product).design;
+  if (franchiseDesign > 0) bonus.design = (bonus.design ?? 0) + franchiseDesign;
 
   // Moonshot R&D gambles (feature #5): a won "signature" moonshot stamps a unique named stat flourish on
   // every product you ship. Empty (no such win) → no-op, so old saves + the pinned sim are unchanged.
@@ -1634,6 +1662,9 @@ export function planProduction(
   // Brand equity — a proven product LINE launches with loyal pre-orders + anticipation (0 for a new
   // line, so this never changes a first-in-line launch).
   const brand = brandEquity(s.launched, franchiseStem(product.name));
+  // Franchise Mastery (feature #8): the permanent, line-scoped boon this entry launches with because its
+  // LINE reached ≥5 entries + Iconic. All-zero for an unqualified line / disabled saves / the pinned sim.
+  const franchiseBoon = franchiseBoonFor(s, product);
 
   // Score WITHOUT the strength-based competition term — competition is modelled below as a
   // count of rivals that match/beat you, which is clearer and is what the player sees.
@@ -1653,7 +1684,8 @@ export function planProduction(
     // shows the same units" bug in a mature company).
     // + Category Mastery (feature #3): a mastered category's launches land a little louder (+5% at
     // L5), scoped to this product's category. 0 when disabled/unstarted → identical to before.
-    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, effectiveHypeBonus(s) * mktMult + equityHypeBonus(brand.equity) + masteryBonusFor(s, product.category).hype)),
+    // + Franchise Mastery (feature #8): a "Heritage Halo" line launches a little louder (+6%). 0 otherwise.
+    hypeBonus: Math.max(0, Math.min(HYPE_BONUS_MAX, effectiveHypeBonus(s) * mktMult + equityHypeBonus(brand.equity) + masteryBonusFor(s, product.category).hype + franchiseBoon.hype)),
     // Item 5.4 — a Marketing Blackout also mutes the launch CAMPAIGN (win on the product alone).
     campaignHype: Math.max(0, channel.hype) * mktMult * (challengeRules(s).noMarketing ? 0.1 : 1),
     // Component-combination synergy: a glaring weak link drags the launch down; a coherent build
@@ -1706,7 +1738,8 @@ export function planProduction(
   // base, so a game with no superfans (and the pinned sim) is byte-identical.
   const superfans = s.superfans ?? 0;
   const fanBase = s.fans + superfans * (BALANCE.fans.community.superfanPreorderMult - 1);
-  const rawPreOrders = Math.round(fanBase * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
+  // + Franchise Mastery (feature #8): a "Trusted Name" line's loyal followers pre-order stronger (+4%).
+  const rawPreOrders = Math.round(fanBase * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity) + franchiseBoon.preorder));
   const organic = forecast(keynoteLaunchScore, marketSize, breakdown.priceFit).totalUnits;
   const competedOrganic = Math.round(organic * competitionFactor); // before market fatigue
   // Market fatigue: a product too similar to a recent same-category launch loses ORGANIC demand

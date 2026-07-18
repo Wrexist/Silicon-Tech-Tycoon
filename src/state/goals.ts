@@ -13,9 +13,10 @@ import { contractProgress, rewardSummary as contractRewardSummary } from "../eng
 import { mandateProgress, mandateComplete, mandateRewardSummary } from "../engine/endgame.ts";
 import { sideOrderPayout } from "../engine/sideOrders.ts";
 import { format } from "../engine/money.ts";
+import { closestUnqualifiedLine, FRANCHISE_MASTERY_MIN_ENTRIES } from "../engine/franchiseMastery.ts";
 import { contractFacts, mandateFacts, nemesisDuelSnapshot, type GameState } from "./gameState.ts";
 
-export type GoalSource = "objective" | "contract" | "mandate" | "sideOrder" | "award" | "duel";
+export type GoalSource = "objective" | "contract" | "mandate" | "sideOrder" | "award" | "duel" | "franchise";
 
 /** The awards ceremony runs every this-many weeks (mirrors the tick's `week % 52` gate). */
 const AWARDS_CYCLE_WEEKS = 52;
@@ -166,6 +167,32 @@ export function collectGoals(state: GameState): GoalRow[] {
       weeksLeft: Math.max(0, nextCeremony - week),
       done: false,
     });
+  }
+
+  // 6) Franchise Mastery (feature #8) — the ONE line closest to unlocking its permanent named boon.
+  //    Only the single nearest line (≥3 entries) is surfaced, so the ledger stays uncluttered; the full
+  //    per-line preview lives in the Market franchises card. Gated on the opt-in.
+  if (state.franchiseMasteryEnabled) {
+    const line = closestUnqualifiedLine(state.launched, 3);
+    if (line) {
+      const needEntries = line.remaining > 0;
+      const needIconic = !line.iconic;
+      const detail = needEntries && needIconic
+        ? `${line.remaining} more entr${line.remaining === 1 ? "y" : "ies"} and Iconic status to unlock.`
+        : needEntries
+          ? `${line.remaining} more entr${line.remaining === 1 ? "y" : "ies"} to unlock (Iconic already).`
+          : `Reach Iconic status to unlock (${line.entries} entries).`;
+      rows.push({
+        key: `franchise:${line.stem}`,
+        source: "franchise",
+        sourceLabel: "Franchise",
+        title: `${line.name} line — ${line.boon.name}`,
+        detail,
+        frac: Math.max(0, Math.min(1, line.entries / FRANCHISE_MASTERY_MIN_ENTRIES)),
+        reward: line.boon.name,
+        done: false,
+      });
+    }
   }
 
   return rows;

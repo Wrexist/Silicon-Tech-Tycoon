@@ -695,6 +695,25 @@
 .mkt__fr--tap:active { background: var(--bg-elevated); }
 .mkt__fr-chev { color: var(--ink-3); flex-shrink: 0; }
 
+/* Franchise Mastery (feature #8) — the boon / countdown status line under a franchise row */
+.mkt__fr-boon { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 2px; font-size: var(--fs-caption); color: var(--ink-2); }
+.mkt__fr-boon-glyph { color: var(--ink-3); flex-shrink: 0; }
+.mkt__fr-boon-prog { color: var(--ink-2); font-weight: 600; }
+.mkt__fr-boon-tier {
+  font-size: var(--fs-nano); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: var(--r-pill); color: var(--ink-3); background: var(--bg-elevated);
+}
+.mkt__fr-boon-tier--on { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--bg-elevated)); }
+.mkt__fr-boon-nudge { color: var(--accent); font-weight: 700; }
+/* Earned boon — the permanent named perk */
+.mkt__fr-boon--earned { color: var(--accent); }
+.mkt__fr-boon--earned .mkt__fr-boon-name {
+  font-weight: 800; letter-spacing: 0.01em;
+  padding: 1px 8px; border-radius: var(--r-pill);
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.mkt__fr-boon-blurb { flex-basis: 100%; color: var(--ink-2); font-weight: 400; }
+
 /* Franchise detail sheet — the line's chapters */
 .frd { display: flex; flex-direction: column; gap: var(--sp-16); }
 .frd__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12); }

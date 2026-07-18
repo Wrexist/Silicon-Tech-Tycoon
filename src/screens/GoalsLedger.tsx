@@ -23,6 +23,7 @@ const SOURCE_ICON: Record<GoalSource, LucideIcon> = {
   sideOrder: Package,
   award: Award,
   duel: Swords,
+  franchise: Crown,
 };
 
 // Resolve an objective's Lucide icon NAME (the engine stays DOM-free) to its component.
