@@ -1,0 +1,36 @@
+/* Pre-launch Keynote gamble (feature #4) — the compact affordance beneath an in-production build card.
+   Tokens only, 8pt scale, Lucide glyphs; no hardcoded colors. */
+.kctl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-height: 36px;
+  margin-top: var(--sp-8);
+  padding: var(--sp-4) var(--sp-12);
+  border-radius: var(--r-button);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* CTA — an accent glass chip inviting the announce. */
+.kctl--cta {
+  border: 1px solid var(--glass-well-edge);
+  background: var(--glass-well);
+  color: var(--accent);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.kctl--cta:hover:not(:disabled) { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.kctl--cta:disabled { opacity: 0.5; cursor: not-allowed; color: var(--ink-3); }
+.kctl__hint { margin-left: var(--sp-4); font-size: var(--fs-micro); font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* Live promise — a calm accent status line. */
+.kctl--live { color: var(--ink-2); background: var(--accent-soft); border: 1px solid transparent; }
+.kctl--live b { color: var(--accent); }
+
+/* Slipped — a muted negative status line (no permanent scarring, so it stays low-key). */
+.kctl--slipped { color: var(--negative); background: color-mix(in srgb, var(--negative) 12%, transparent); border: 1px solid transparent; }
+
+@media (prefers-reduced-motion: reduce) { .kctl--cta { transition: none; } }

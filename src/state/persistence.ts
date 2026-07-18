@@ -352,6 +352,10 @@ function migrate(state: GameState): GameState | null {
   // so no per-save flag is needed here.
   if (!Array.isArray(s.eraMandates)) s.eraMandates = [];
   if (s.pendingMandateOffer === undefined) s.pendingMandateOffer = null;
+  // Pre-launch Keynote gamble (feature #4) — no active promises / announce ledger on old saves. Empty
+  // arrays = no keynote in play = byte-identical in-run behaviour, so no per-save flag is needed.
+  if (!Array.isArray(s.pendingKeynote)) s.pendingKeynote = [];
+  if (!Array.isArray(s.keynoteAnnounceWeeks)) s.keynoteAnnounceWeeks = [];
   // Equity / stock market (added later) — backfill so old saves can trade + keep ownership.
   if (s.listed == null) s.listed = false;
   if (!Number.isFinite(s.ownership)) s.ownership = 1;

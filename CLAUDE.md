@@ -52,13 +52,15 @@ celebration style — leave them as-is.
   established pattern: pure engine gated on optional fields → derived-hash interrupt (`pendingX`) →
   opt-in reducer → staged overlay mounted in `App.tsx` (see nemesis / eureka / community / earnings /
   staff moments / regional events). **Pick a fresh salt** for any new derived-hash stream — in use:
-  11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211, 223, 227, 229, 233, 239, 257, 263, 269, 271, 277, 281.
+  11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211, 223, 227, 229, 233, 239, 257, 263, 269, 271, 277, 281, 293.
   (91/101/113/127 = inbound licensing offers; 163 = contract negotiation outcome; 233 = staff life events
   — with 2331/2332/2333 as its target-pick/branch sub-salts;
   239 = rival-vs-rival clash — with 2391/2392/2393 as its clash-fire/pick-a/pick-b-or-priceWar sub-salts;
   257 = post-launch reactive events; 263 = Legacy-Era board mandates;
   269 = regional-event surging rival; 271 = nemesis taunt pick; 277 = nemesis-duel victory flavour line;
   281 = era-advance mandate draft (the 3-of-N offer, per-candidate key = catalog index folded into week);
+  293 = pre-launch Keynote announce press-flavour line (cosmetic feed text only — announce/launch are
+  deterministic player actions, so this hash never touches balance);
   229 = side-order duration, kept distinct from 71, which eureka's fire-gate draws.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing

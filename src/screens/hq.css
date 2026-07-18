@@ -1954,6 +1954,10 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 }
 
 /* "Watch it on the line" — a quiet link from the In-production card into the Factory world. */
+/* Each in-production build + its Pre-launch Keynote affordance (feature #4) stacked as one row. */
+.hq__buildrow { display: flex; flex-direction: column; }
+.hq__buildrow + .hq__buildrow { margin-top: var(--sp-12); padding-top: var(--sp-12); border-top: 1px solid var(--hairline); }
+
 .hq__viewline {
   display: inline-flex; align-items: center; gap: var(--sp-4);
   margin-top: var(--sp-8); min-height: 44px; padding: 0 var(--sp-4);

@@ -68,6 +68,7 @@ import { useSettings, getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { BuildProgress } from "../components/BuildProgress.tsx";
+import { KeynoteControl } from "../components/KeynoteControl.tsx";
 import { FurnitureThumb } from "../components/FurnitureThumb.tsx";
 import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
@@ -342,7 +343,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <Card>
           <SectionHeader title="In production" accessory="manufacturing" />
           {state.building.map((job) => (
-            <BuildProgress key={job.product.id} job={job} />
+            <div className="hq__buildrow" key={job.product.id}>
+              <BuildProgress job={job} />
+              {/* Pre-launch Keynote gamble (feature #4) — announce/track the ship-by promise per build. */}
+              <KeynoteControl job={job} />
+            </div>
           ))}
           {onViewFactory && world === "office" && (
             <button className="hq__viewline" onClick={onViewFactory}>

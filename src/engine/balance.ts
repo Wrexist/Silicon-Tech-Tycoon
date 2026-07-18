@@ -661,6 +661,21 @@ export const BALANCE = {
     rushCostPct: 0.08,
   },
 
+  // Pre-launch Keynote gamble (feature #4) — announce a product still in the build queue for a hype
+  // bonus if the ship-by promise is KEPT, a sting if it SLIPS. Magnitudes are kept ≤ the mastery /
+  // mandate hype seams so stacking stays sane. See engine/keynote.ts.
+  keynote: {
+    graceWeeks: 2,          // promise window = remaining build weeks + this grace (a fair buffer)
+    baseHype: 0.03,         // kept-promise bonus floor at announce…
+    perLeadWeek: 0.03,      // …+ this per remaining build week (earlier announce = bigger max, more risk)
+    maxHype: 0.15,          // ceiling on the kept bonus — never out-stacks mastery/mandates (each ≤0.15)
+    slipPenaltyHype: 0.08,  // hype penalty applied to the eventual launch if the window slips
+    slipRepPenalty: 2,      // one-time reputation sting applied ONCE at expiry (no permanent scarring)
+    announceFanFrac: 0.03,  // small fan gain at announce = this × current fans…
+    announceFanFlat: 40,    // …+ this flat, so a tiny fanbase still feels the bump
+    maxPerYear: 2,          // anti-spam: keynotes you may announce per 52-week year
+  },
+
   // --- Facilities ---
   facilities: [
     // Garage rent lowered 200 → 120/wk: a pre-revenue garage carrying $200/wk of fixed burn turned

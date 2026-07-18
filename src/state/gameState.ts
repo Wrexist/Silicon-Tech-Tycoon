@@ -16,6 +16,7 @@ import {
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { startDuel, duelMet, duelProgress, duelReward, nextLadderTier, duelVictoryLine, type NemesisDuel } from "../engine/nemesisDuel.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
+import { keynoteWindowWeeks, keynoteMaxBonus, keynotePressFlavour } from "../engine/keynote.ts";
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
 import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
 import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
@@ -165,6 +166,7 @@ import type {
   Assignment,
   BuildJob,
   Candidate,
+  Keynote,
   CategoryId,
   ComponentKind,
   ConsumerTrends,
@@ -655,6 +657,16 @@ export interface GameState {
    *  cleared by chooseMandate (adopt one, or decline). Data only — a pending offer never touches the sim
    *  until a mandate is adopted. Optional/null → golden-invariant safe. */
   pendingMandateOffer?: { eraTo: number; options: string[] } | null;
+  /** Pre-launch Keynote gamble (feature #4) — the ACTIVE ship-by promises, one per announced product,
+   *  bound by product id and carried across build→ready→launch. A kept promise amplifies its launch's
+   *  hype; a slipped one (window passed) dents it. Removed when the product launches. Absent/[] → no
+   *  keynote is in play, so OLD SAVES + the pinned solo sim (which never builds → never announces) are
+   *  byte-identical. */
+  pendingKeynote?: Keynote[];
+  /** Announce weeks in the current 52-week year — the anti-spam ledger the per-year cap reads (pruned to
+   *  the current year on each announce, so it stays tiny). Separate from `pendingKeynote` because that
+   *  array is emptied at launch, which would otherwise undercount the cap. Absent/[] → no announces yet. */
+  keynoteAnnounceWeeks?: number[];
 }
 
 /** Cap on the rolling Rival Releases list (newest first). Bounds save size + the UI gallery.
@@ -933,6 +945,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     // Empty → the all-zero mandate bonus, so a run that never drafts is byte-identical to before.
     eraMandates: [],
     pendingMandateOffer: null,
+    // Pre-launch Keynote gamble (feature #4) — no promises held at founding. Populated only when the
+    // player announces a build; a run that never announces stays byte-identical to before the feature.
+    pendingKeynote: [],
+    keynoteAnnounceWeeks: [],
   };
 }
 
@@ -1119,6 +1135,37 @@ export const masteryBonusFor = (s: GameState, category: CategoryId): MasteryBonu
   if (!s.masteryEnabled) return ZERO_MASTERY_BONUS;
   return masteryBonusForLevel(categoryLevelOf(s.launched, category));
 };
+
+/** Pre-launch Keynote gamble (feature #4) — the hype delta this product carries into launch from its
+ *  keynote: +maxBonus if the promise is KEPT (launching at/before the deadline, not slipped), −penalty
+ *  if it SLIPPED, 0 with no keynote. Read by planProduction and applied as a direct multiplier on the
+ *  launch score (so it moves BOTH sales and the hit/flop verdict). Absent/[] → 0 → byte-identical. */
+export const keynoteHypeFor = (s: GameState, productId: string): number => {
+  const list = s.pendingKeynote;
+  if (!list || list.length === 0) return 0;
+  const kn = list.find((k) => k.productId === productId);
+  if (!kn) return 0;
+  if (!kn.slipped && s.week <= kn.deadlineWeek) return kn.maxBonus;
+  return -kn.penalty;
+};
+
+/** The active keynote bound to a product id, or undefined. UI helper (the in-production card reads it to
+ *  show the live promise / disable a second announce). */
+export const keynoteFor = (s: GameState, productId: string): Keynote | undefined =>
+  (s.pendingKeynote ?? []).find((k) => k.productId === productId);
+
+/** Keynotes already announced in the CURRENT 52-week year — the anti-spam cap counts against this. */
+export const keynotesThisYear = (s: GameState): number => {
+  const yearStart = Math.floor(s.week / 52) * 52;
+  return (s.keynoteAnnounceWeeks ?? []).filter((w) => w >= yearStart).length;
+};
+
+/** Can the player hold a keynote for this in-production build right now? (build queued, no keynote yet on
+ *  it, and the per-year cap not spent). Pure — drives the card affordance's enabled state. */
+export const canAnnounceKeynote = (s: GameState, productId: string): boolean =>
+  s.building.some((j) => j.product.id === productId) &&
+  !keynoteFor(s, productId) &&
+  keynotesThisYear(s) < BALANCE.keynote.maxPerYear;
 // ---------- Office shop: furniture buffs (capped, additive with the HQ upgrades) ----------
 /** Mood-target bonus from the room's comfort furniture (capped). Added to the weekly mood target. */
 // Item 5.5 — office attributes PLUS the placement zone bonus (desks beside amenities). Zero for the
@@ -1588,6 +1635,12 @@ export function planProduction(
     priceFitOverride: segments.effectivePriceFit,
   });
 
+  // Pre-launch Keynote gamble (feature #4): a KEPT promise amplifies this launch, a SLIPPED one dents it.
+  // Applied as a direct multiplier on the launch score (reading the pending keynote for THIS product by
+  // id) so it flows to BOTH projected sales and the hit/flop verdict. 0 when none → ×1 → byte-identical.
+  const keynoteHype = keynoteHypeFor(s, product.id);
+  const keynoteLaunchScore = Math.max(0, breakdown.launchScore * (1 + keynoteHype));
+
   const overall = overallScore(stats, product.category);
   // Licensees of your OS compete harder in shared categories (the Phase-C trade-off for their fee).
   const rivals = rivalStrengthsFor(s.competitors, product.category, { licenseeIds: s.osLicensees, uplift: licenseeStrengthUplift() });
@@ -1624,7 +1677,7 @@ export function planProduction(
   const superfans = s.superfans ?? 0;
   const fanBase = s.fans + superfans * (BALANCE.fans.community.superfanPreorderMult - 1);
   const rawPreOrders = Math.round(fanBase * BALANCE.fans.preOrderConversion * (demandFit / 100) * (1 + equityPreorderBonus(brand.equity)));
-  const organic = forecast(breakdown.launchScore, marketSize, breakdown.priceFit).totalUnits;
+  const organic = forecast(keynoteLaunchScore, marketSize, breakdown.priceFit).totalUnits;
   const competedOrganic = Math.round(organic * competitionFactor); // before market fatigue
   // Market fatigue: a product too similar to a recent same-category launch loses ORGANIC demand
   // (the broad market won't re-buy a rehash). Fans (pre-orders) are NOT fatigued — they still want
@@ -1676,10 +1729,12 @@ export function planProduction(
     assemblyWeeks: buildWeeksFor(s, product),
     buildWeeks: capOutcome.buildWeeks,
     capacityStrategy: product.capacityStrategy ?? "overtime",
-    launchScore: breakdown.launchScore,
+    launchScore: keynoteLaunchScore,
     demandFit,
     priceFit: breakdown.priceFit,
-    hype: breakdown.hype,
+    // Reflect the keynote's kept-bonus / slipped-penalty in the displayed hype so the reveal + insight
+    // read consistently with the boosted/dented launch. ×1 (no keynote) → exactly breakdown.hype.
+    hype: breakdown.hype * (1 + keynoteHype),
     overall,
     matchingRivals,
     betterRivals,
@@ -2550,6 +2605,26 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     bankrupt,
     // lastActive is stamped by the persistence layer on save, not per tick (keeps the reducer pure).
   };
+
+  // Pre-launch Keynote gamble (feature #4) — a promise whose ship-by week has passed WITHOUT the product
+  // launching SLIPS: a one-time reputation sting + a feed line, and the promise flips to a hype PENALTY on
+  // the product's eventual launch (keynoteHypeFor). This is a deterministic consequence, NOT an
+  // opportunistic interrupt — it never touches the interrupt budget (feed line + a UI toast only), so it
+  // runs unconditionally each week. Gated on the optional field existing, so old saves + the pinned solo
+  // sim (which never announces) never enter this block → byte-identical.
+  if (base.pendingKeynote && base.pendingKeynote.length) {
+    let slippedAny = false;
+    const next = base.pendingKeynote.map((k) => {
+      if (!k.slipped && week > k.deadlineWeek) {
+        slippedAny = true;
+        base.reputation = Math.max(BALANCE.reputation.min, base.reputation - BALANCE.keynote.slipRepPenalty);
+        base.feed.push(feedItem(week, `The keynote promise slipped — “${k.productName}” missed its week-${k.deadlineWeek} ship window. −${BALANCE.keynote.slipRepPenalty} reputation, and the launch buzz will sting.`, "negative"));
+        return { ...k, slipped: true };
+      }
+      return k;
+    });
+    if (slippedAny) { base.pendingKeynote = next; base.feed = trimFeed(base.feed); }
+  }
 
   // Timed research (the active slot + queue): when the development window elapses, apply the unlock —
   // the SAME effect as the instant path, just delayed — then pull the next queued research up to
@@ -3549,9 +3624,23 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const outletThreads = foldOutletThreads(state.reviewThreads, launchReviews, product.name);
   if (outletThreads.beat) feed.push(feedItem(state.week, outletThreads.beat.text, outletThreads.beat.tone));
 
+  // Pre-launch Keynote gamble (feature #4): consume this product's promise. A KEPT promise (still within
+  // window, not slipped) already amplified the launch through planProduction — acknowledge it; a SLIPPED
+  // one already took its rep sting at expiry and its hype penalty flowed through the plan. Either way the
+  // promise is now resolved and drops off the active list. Only touched when a keynote exists, so old
+  // saves / the pinned sim (no keynote) keep `pendingKeynote` byte-identical (untouched key).
+  const keynote = state.pendingKeynote?.find((k) => k.productId === productId);
+  if (keynote && !keynote.slipped && state.week <= keynote.deadlineWeek) {
+    feed.push(feedItem(state.week, `Keynote promise kept — “${product.name}” shipped on schedule. The pre-announced hype paid off.`, "positive"));
+  }
+  const pendingKeynote = keynote
+    ? (state.pendingKeynote ?? []).filter((k) => k.productId !== productId)
+    : state.pendingKeynote;
+
   return {
     state: {
       ...state,
+      ...(keynote ? { pendingKeynote } : {}),
       ready: state.ready.filter((p) => p.id !== productId),
       launched: [lp, ...state.launched],
       reviewThreads: outletThreads.threads,
@@ -3571,6 +3660,53 @@ export function launchReady(state: GameState, productId: string): ActionResult {
     ok: true,
     launchScore: plan.launchScore,
     verdict: lp.verdict,
+  };
+}
+
+/** Pre-launch Keynote gamble (feature #4) — hold a public keynote for a product still in the build
+ *  queue: commit to a ship-by window (remaining build weeks + grace) for a hype bonus that pays off if
+ *  the promise is KEPT and stings if it SLIPS. One keynote per product; capped per 52-week year. A small
+ *  fan bump lands at announce. PURE + deterministic (the only randomness is the cosmetic press-flavour
+ *  line, drawn from derived-hash salt 293). Returns the SAME state on any no-op (not building / already
+ *  announced / cap spent) so the UI can detect the rejection. */
+export function announceKeynote(state: GameState, productId: string): GameState {
+  const job = state.building.find((j) => j.product.id === productId);
+  if (!job) return state; // only while the product is still in the build queue
+  const pending = state.pendingKeynote ?? [];
+  if (pending.some((k) => k.productId === productId)) return state; // one keynote per product
+  const yearStart = Math.floor(state.week / 52) * 52;
+  const thisYear = (state.keynoteAnnounceWeeks ?? []).filter((w) => w >= yearStart);
+  if (thisYear.length >= BALANCE.keynote.maxPerYear) return state; // anti-spam per-year cap
+
+  const remaining = Math.max(1, Math.ceil(job.totalWeeks - job.weeksElapsed));
+  const deadlineWeek = state.week + keynoteWindowWeeks(remaining);
+  const maxBonus = keynoteMaxBonus(remaining);
+  const keynote: Keynote = {
+    productId,
+    productName: job.product.name,
+    announcedWeek: state.week,
+    deadlineWeek,
+    maxBonus,
+    penalty: BALANCE.keynote.slipPenaltyHype,
+  };
+  const kc = BALANCE.keynote;
+  const fanGain = Math.round(state.fans * kc.announceFanFrac) + kc.announceFanFlat;
+  const flavour = keynotePressFlavour(state.seed, state.week);
+  const feed = trimFeed([
+    ...state.feed,
+    feedItem(
+      state.week,
+      `Keynote: announced “${job.product.name}” — ${flavour}. Promise: ship by week ${deadlineWeek} for +${Math.round(maxBonus * 100)}% launch hype. +${fanGain.toLocaleString()} fans.`,
+      "accent",
+    ),
+  ]);
+  return {
+    ...state,
+    fans: state.fans + fanGain,
+    pendingKeynote: [...pending, keynote],
+    // Prune the ledger to the current year as we append — keeps it tiny and self-resetting each year.
+    keynoteAnnounceWeeks: [...thisYear, state.week],
+    feed,
   };
 }
 

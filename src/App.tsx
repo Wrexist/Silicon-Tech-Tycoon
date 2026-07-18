@@ -15,6 +15,7 @@ import { onCelebrate } from "./design/celebrateFx.ts";
 import { emitHqReaction } from "./design/hqReaction.ts";
 import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
+import { KeynoteToasts } from "./components/KeynoteControl.tsx";
 import { RivalStrike } from "./components/RivalStrike.tsx";
 import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
 import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
@@ -251,6 +252,7 @@ function AppShell() {
       <GainFX />
       <Confetti />
       <ReadyToLaunch />
+      <KeynoteToasts />
       <RivalStrike />
       <AwardsCeremonyOverlay />
       <RivalryDeclared />
