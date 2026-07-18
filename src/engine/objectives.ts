@@ -232,6 +232,27 @@ export function currentObjective(s: GameState, completed: readonly string[] = s.
   return null;
 }
 
+/**
+ * The next `n` objectives the player has yet to finish, in ladder order, starting with the current
+ * next-move. Same skip rule as `currentObjective` (latched-complete OR live-satisfied are skipped), so
+ * the list is exactly the road ahead — the first entry is the active goal, the rest are the horizon.
+ * Returns fewer than `n` (or []) near the end of the ladder. Pure; reads only tracked state/latches.
+ */
+export function upcomingObjectives(
+  s: GameState,
+  n: number,
+  completed: readonly string[] = s.completedObjectives ?? [],
+): ObjectiveProgress[] {
+  const done = new Set(completed);
+  const out: ObjectiveProgress[] = [];
+  for (let i = 0; i < OBJECTIVES.length && out.length < n; i++) {
+    const o = OBJECTIVES[i];
+    if (done.has(o.id) || o.done(s)) continue;
+    out.push({ objective: o, step: i + 1, total: OBJECTIVES.length });
+  }
+  return out;
+}
+
 /** All objective ids currently satisfied by the state. Pure. */
 export function satisfiedObjectiveIds(s: GameState): string[] {
   return OBJECTIVES.filter((o) => o.done(s)).map((o) => o.id);

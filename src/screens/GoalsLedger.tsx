@@ -2,11 +2,16 @@
 // contracts, and the post-IPO board mandate, all in one consistent row grammar (source · goal ·
 // progress · reward · deadline). Folds three previously-scattered "what do I chase next" surfaces into
 // a single discoverable place. A completed contract can be claimed right here.
-import { Target, ScrollText, Landmark, Package, Award, Check, Clock } from "lucide-react";
+import {
+  Target, ScrollText, Landmark, Package, Award, Check, Clock,
+  Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy, Crown, Cpu,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button, EmptyState } from "../design/primitives.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { collectGoals, type GoalSource } from "../state/goals.ts";
+import { upcomingObjectives } from "../engine/objectives.ts";
+import type { ObjectiveIconName } from "../engine/objectives.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import "./goalsLedger.css";
@@ -19,9 +24,17 @@ const SOURCE_ICON: Record<GoalSource, LucideIcon> = {
   award: Award,
 };
 
+// Resolve an objective's Lucide icon NAME (the engine stays DOM-free) to its component.
+const OBJECTIVE_ICON: Record<ObjectiveIconName, LucideIcon> = {
+  Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy, Crown, Cpu,
+};
+
 export function GoalsLedgerSheet({ onClose }: { onClose: () => void }) {
   const { state, claimContract } = useGame();
   const rows = collectGoals(state);
+  // The guided ladder ahead — the current next-move plus the couple that follow, so the player sees
+  // where the spine is taking them, not just the single immediate step.
+  const upcoming = upcomingObjectives(state, 3);
 
   return (
     <div className="gl">
@@ -72,6 +85,26 @@ export function GoalsLedgerSheet({ onClose }: { onClose: () => void }) {
             );
           })}
         </ul>
+      )}
+
+      {upcoming.length > 1 && (
+        <div className="gl__coming">
+          <h3 className="gl__coming-title">Coming up</h3>
+          <ol className="gl__steps">
+            {upcoming.map((o, i) => {
+              const Icon = OBJECTIVE_ICON[o.objective.icon];
+              return (
+                <li key={o.objective.id} className={`gl__step${i === 0 ? " gl__step--active" : " gl__step--later"}`}>
+                  <span className="gl__step-glyph" aria-hidden><Icon size={15} /></span>
+                  <span className="gl__step-info">
+                    <span className="gl__step-title">{o.objective.label}</span>
+                    <span className="gl__step-meta tnum">Step {o.step} of {o.total}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       )}
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>

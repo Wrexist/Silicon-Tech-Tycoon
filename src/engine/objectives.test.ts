@@ -4,6 +4,7 @@ import {
   OBJECTIVE_COUNT,
   objectiveById,
   currentObjective,
+  upcomingObjectives,
   satisfiedObjectiveIds,
   newlyCompletedObjectives,
 } from "./objectives.ts";
@@ -74,6 +75,37 @@ describe("currentObjective", () => {
     // the still-unfinished hire, not the already-satisfied second-launch.
     const s = game({ launched: [{ verdict: "solid" }, { verdict: "flop" }] as never });
     expect(currentObjective(s)?.objective.id).toBe("hire-first");
+  });
+});
+
+describe("upcomingObjectives", () => {
+  it("starts with the current next-move and previews the ladder in order", () => {
+    const up = upcomingObjectives(game(), 3);
+    expect(up.map((o) => o.objective.id)).toEqual(["first-launch", "hire-first", "second-launch"]);
+    // The first entry matches currentObjective exactly (same skip rule).
+    expect(up[0].objective.id).toBe(currentObjective(game())!.objective.id);
+    expect(up[0].step).toBe(1);
+    expect(up[2].step).toBe(3);
+    expect(up[0].total).toBe(OBJECTIVE_COUNT);
+  });
+
+  it("respects n and never exceeds the ladder length", () => {
+    expect(upcomingObjectives(game(), 1)).toHaveLength(1);
+    expect(upcomingObjectives(game(), 0)).toHaveLength(0);
+    expect(upcomingObjectives(game(), 999).length).toBe(OBJECTIVE_COUNT);
+  });
+
+  it("skips latched-complete and live-satisfied rungs, keeping ladder order", () => {
+    // Shipped once (first-launch live-done); hire-first latched. Preview starts at second-launch.
+    const s = game({ launched: [{ verdict: "solid" }] as never });
+    const up = upcomingObjectives(s, 2, ["first-launch", "hire-first"]);
+    expect(up.map((o) => o.objective.id)).toEqual(["second-launch", "first-research"]);
+    // Steps stay the 1-based ladder position, not a re-indexed count.
+    expect(up[0].step).toBe(OBJECTIVES.findIndex((o) => o.id === "second-launch") + 1);
+  });
+
+  it("returns [] when the whole ladder is complete", () => {
+    expect(upcomingObjectives(game(), 3, OBJECTIVES.map((o) => o.id))).toEqual([]);
   });
 });
 
