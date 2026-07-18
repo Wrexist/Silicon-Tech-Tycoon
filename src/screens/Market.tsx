@@ -1374,7 +1374,7 @@ function ProductDetailSheet({
                     const result = cutProductPrice(lp.product.id, suggestedCut);
                     if (result.ok) {
                       haptic.success();
-                      showToast("Price reduced", { tone: "positive" });
+                      // No confirmation toast — the new price is shown immediately in the panel.
                       setPriceCutOpen(false);
                     } else {
                       haptic.medium();
@@ -1422,7 +1422,7 @@ function ProductDetailSheet({
                     const result = marketingPush(lp.product.id);
                     if (result.ok) {
                       haptic.success();
-                      showToast("Campaign launched", { tone: "positive" });
+                      // No confirmation toast — the panel flips to "campaign running" immediately.
                       setPushOpen(false);
                     } else {
                       haptic.medium();
@@ -1465,7 +1465,7 @@ function ProductDetailSheet({
                     const result = restockProduct(lp.product.id, restockUnits);
                     if (result.ok) {
                       haptic.success();
-                      showToast("Restocked — more units on the line", { tone: "positive" });
+                      // No confirmation toast — the new run shows in the product's supply state.
                       setRestockOpen(false);
                     } else {
                       haptic.medium();
@@ -1970,7 +1970,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
         <Button
           block
           disabled={!canBuy}
-          onClick={() => { buyShares(comp.id, qty); haptic.success(); sfx("confirm"); showToast(`Bought ${qty} ${comp.name}`, { tone: "positive" }); }}
+          onClick={() => { buyShares(comp.id, qty); haptic.success(); sfx("confirm"); }}
         >
           Buy · {format(cost)}
         </Button>
@@ -1978,7 +1978,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
           block
           variant="secondary"
           disabled={owned <= 0}
-          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); sfx("cash"); showToast(`Sold ${q} ${comp.name}`, { tone: "neutral" }); }}
+          onClick={() => { const q = Math.min(qty, owned); sellShares(comp.id, q); haptic.light(); sfx("cash"); }}
         >
           Sell · {format(proceeds)}
         </Button>

@@ -324,8 +324,8 @@ export const BALANCE = {
   // lands as a moment instead of a nag. Scheduled ceremonies (the year-52 awards) are EXEMPT from the
   // gate — they must fire on their week — but still stamp, so nothing piles on right after them.
   interrupts: {
-    minGapWeeks: 3,     // quiet weeks between opportunistic interrupts in the early eras (1–2)
-    minGapWeeksLate: 2, // …tightened in eras 3–4 so the longer, weightier late builds have more to do
+    minGapWeeks: 4,     // quiet weeks between opportunistic interrupts in the early eras (1–2)
+    minGapWeeksLate: 3, // …tightened in eras 3–4 so the longer, weightier late builds have more to do
     lateEra: 3,         // the first era that uses the tighter gap
   },
   // Mid-lifecycle price cuts, now repeatable (a fading product can be marked down more than once).
