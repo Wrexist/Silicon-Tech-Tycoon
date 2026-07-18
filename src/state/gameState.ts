@@ -15,6 +15,7 @@ import {
 } from "../engine/competitors.ts";
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { startDuel, duelMet, duelProgress, duelReward, nextLadderTier, duelVictoryLine, type NemesisDuel } from "../engine/nemesisDuel.ts";
+import { harvestSettlement } from "../engine/liveOps.ts";
 import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { keynoteWindowWeeks, keynoteMaxBonus, keynotePressFlavour } from "../engine/keynote.ts";
 import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
@@ -2046,7 +2047,10 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     for (const f of opsRes.feed) productsFeed.push(f);
   }
   const launched = opsBase.map((lp) => {
-    if (lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
+    // A harvested product's sell window was wound down early (feature #2) — it books no more sales.
+    // `harvested` is absent on every product that never used the ops board, so this is a no-op for the
+    // pinned sim (byte-identical).
+    if (lp.harvested || lp.weeksElapsed >= lp.weeklyUnits.length) return lp;
     const units = lp.weeklyUnits[lp.weeksElapsed];
     // Sales — and the revenue booked for them — are hard-capped to the production run. A price cut
     // or marketing push inflates the REMAINING weeklyUnits but caps only totalUnits, so the boosted
@@ -2147,7 +2151,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // Rival launches: flag when a rival enters a category where the player has an active product.
   const activePlayerCats = new Set<CategoryId>(
     state.launched
-      .filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length)
+      .filter((lp) => !lp.harvested && lp.weeksElapsed < lp.weeklyUnits.length)
       .map((lp) => lp.product.category),
   );
 
@@ -4250,6 +4254,31 @@ export function setReorderRate(state: GameState, productId: string, rate: number
   return { state: { ...state, launched }, ok: true };
 }
 
+/** Harvest — wind a live product's sell window down early (Sell-Window Ops, feature #2). Converts the
+ *  forgone tail into an instant cash + fans settlement (harvestSettlement, at a slight convenience
+ *  discount so it's a pacing choice, not free money) and stamps `harvested` so the tick stops booking
+ *  its remaining sales. Once per product, irreversible. Pure — no RNG. */
+export function harvestProduct(state: GameState, productId: string): ActionResult {
+  const idx = state.launched.findIndex((l) => l.product.id === productId);
+  if (idx < 0) return { state, ok: false, reason: "Product not found." };
+  const lp = state.launched[idx];
+  if (lp.harvested) return { state, ok: false, reason: "This product's window is already wound down." };
+  const settle = harvestSettlement(lp);
+  if (!settle) return { state, ok: false, reason: "There's no sell window left to harvest." };
+  const launched = [...state.launched];
+  launched[idx] = { ...lp, harvested: true };
+  const fans = state.fans + settle.fans;
+  const feed = trimFeed([
+    ...state.feed,
+    feedItem(
+      state.week,
+      `Wound down “${lp.product.name}” early — ${format(settle.cash)} sunset settlement${settle.fans > 0 ? ` and ${settle.fans.toLocaleString()} grateful fans` : ""}.`,
+      "positive",
+    ),
+  ]);
+  return { state: { ...state, cash: add(state.cash, settle.cash), fans, launched, feed }, ok: true };
+}
+
 /** The tick's Live-Product-Ops pass: deliver arrived reorders and place this week's standing order,
  *  for every product carrying an `ops` policy. Returns the updated products, the cash spent on new
  *  orders, and any delivery feed lines. Products without `ops` pass through untouched (same reference),
@@ -4264,6 +4293,7 @@ export function applyProductOps(
   const feed: FeedItem[] = [];
   let cashLeft = cash;
   const out = launched.map((lp) => {
+    if (lp.harvested) return lp; // window wound down early → no more auto-reorders (byte-identical when absent)
     const ops = lp.ops;
     if (!ops) return lp; // no policy → untouched (byte-identical path)
     const selling = lp.weeksElapsed < lp.weeklyUnits.length;

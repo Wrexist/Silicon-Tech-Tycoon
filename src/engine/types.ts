@@ -215,6 +215,10 @@ export interface LaunchedProduct {
    *  behaves exactly as before (byte-identical); present → the tick tops up supply toward `demandTotal`
    *  at `reorderRate` units/week, each order arriving after a lead time. */
   ops?: ProductOps;
+  /** Sell-Window Ops (feature #2, Harvest) — the player wound this product's sell window down early,
+   *  taking a one-time settlement for the forgone tail. Absent/false (the default) → the product runs its
+   *  full curve exactly as before (byte-identical); true → the tick stops booking its remaining sales. */
+  harvested?: boolean;
 }
 
 /** A launched product's standing reorder policy (Live Product Ops, feature #2). Opt-in per product. */

@@ -361,6 +361,15 @@ export const BALANCE = {
     leadWeeks: 2,              // base weeks before an auto-reorder arrives (+ the era's build lead)
     maxRatePerWeek: 20_000,    // ceiling on the units/week a policy can request (a sane UI bound)
   },
+  // --- Sell-Window Ops · Harvest (feature #2) ---
+  // The player can wind a live product's sell window down early, converting the forgone tail into an
+  // instant cash + fans settlement. Priced at a SLIGHT convenience discount to the tail it replaces, so
+  // it's a pacing choice (close the book, free your attention) and never free money: EV must stay just
+  // under "let the tail run". Opt-in per product → the pinned sim (which never harvests) is byte-identical.
+  liveOps: {
+    harvestSettlementFrac: 0.87, // instant cash = 87% of the forgone tail's gross (13% convenience discount)
+    harvestFansPer1k: 30,        // goodwill fans per 1,000 units settled in the sunset sale
+  },
 
   // --- Fans / loyal customer base ---
   // Fans are guaranteed buyers: they pre-order in proportion to how well your product fits

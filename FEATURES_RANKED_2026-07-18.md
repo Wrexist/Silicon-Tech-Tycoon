@@ -1,5 +1,10 @@
 # Top 10 Features — ranked, with pros & cons (2026-07-18)
 
+> **Status update (same day):** all ten features below were subsequently implemented on this branch
+> in the suggested build order (7 → 10 → 3 → 1 → 6 → 4 → 5 → 8 → 9 → 2), each gated on optional
+> state fields with replay-twice integration tests. This document is preserved as the design
+> rationale and ranking record.
+
 Synthesized from the four audits in `AUDIT_2026-07-18.md`. Ranking weighs: how much it improves
 moment-to-moment feel, how strong a long-term "grind toward it" pull it creates, how well it fits
 existing systems, and architectural cost/risk under the determinism rules. Effort: S / M / L.

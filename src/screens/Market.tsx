@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { ArrowRight, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Landmark, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
+import { Activity, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Landmark, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -16,7 +16,6 @@ import { overallScore } from "../engine/product.ts";
 import { dollars, format, formatCount, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { priceFit } from "../engine/market.ts";
 import { postMortem, type FactorKey } from "../engine/postmortem.ts";
 import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
@@ -37,9 +36,6 @@ import {
   industryLeaderboard,
   industryRank,
   nextRankRival,
-  marketingPushQuote,
-  restockQuote,
-  reorderLeadWeeks,
   netWorth,
   nextWeekRevenue,
   osDisplayName,
@@ -1155,10 +1151,6 @@ function ProductDetailSheet({
   onClose: () => void;
   onDesignSuccessor?: (p: Product) => void;
 }) {
-  const { state, cutProductPrice, marketingPush, restockProduct, setReorderRate } = useGame();
-  const [priceCutOpen, setPriceCutOpen] = useState(false);
-  const [pushOpen, setPushOpen] = useState(false);
-  const [restockOpen, setRestockOpen] = useState(false);
   // Only phones & tablets are flat slabs with a real back face (camera module); for those, let the
   // player flip the hardware to inspect the rear.
   const canFlip = lp.product.category === "phone" || lp.product.category === "tablet";
@@ -1187,17 +1179,6 @@ function ProductDetailSheet({
     ? Math.min(100, Math.round((lp.unitsSold / lp.plannedUnits) * 100))
     : null;
   const live = lp.weeksElapsed < lp.weeklyUnits.length;
-  // Suggest cutting to ~85% of current price (or to unit cost if higher)
-  const suggestedCut = dollars(Math.max(toDollars(lp.unitCost) + 1, Math.round(toDollars(lp.product.price) * 0.85 / 10) * 10));
-  // Marketing push quote — only offered when there's genuine surplus inventory left to clear.
-  const pushQuote = marketingPushQuote(lp);
-  const pushed = (lp.marketingPushes ?? 0) >= BALANCE.marketingPush.maxPerProduct;
-  // Restock ("living product" lever): reorder to meet demand you under-supplied. The engine caps the
-  // amount to the market's unmet appetite; here we also cap the offer at what the player can afford now.
-  const restockQ = live ? restockQuote(state, lp) : null;
-  const restockAfford = restockQ ? Math.floor(toDollars(state.cash) / Math.max(1, toDollars(restockQ.unitCost))) : 0;
-  const restockUnits = restockQ ? Math.min(restockQ.maxUnits, restockAfford) : 0;
-  const restockCost = restockQ ? cents(restockQ.unitCost * restockUnits) : dollars(0);
 
   return (
     <div className="pd">
@@ -1337,209 +1318,15 @@ function ProductDetailSheet({
         ))}
       </div>
 
-      {/* Mid-lifecycle price cut — only for live products */}
+      {/* Live-product levers (Boost / Price cut / Restock / Harvest) moved to the consolidated
+          "Live products" ops board on HQ (feature #2), so this sheet stays a clean performance read
+          and every live decision lives in one place. Point the player there while it's still selling. */}
       {live && (
-        <div className="pd__pricecut">
-          {(lp.priceCuts ?? 0) >= BALANCE.priceCut.maxPerProduct ? (
-            <div className="pd__pricecut-done">
-              <TrendingDown size={13} aria-hidden />
-              <span>Price cut to <strong className="tnum">{format(lp.product.price)}</strong> — as low as it goes</span>
-            </div>
-          ) : !priceCutOpen ? (
-            <button className="pd__pricecut-trigger" onClick={() => { setPriceCutOpen(true); haptic.light(); }}>
-              <TrendingDown size={13} aria-hidden />
-              <span>Reduce price · <span className="tnum">{format(lp.product.price)}</span> now</span>
-              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
-            </button>
-          ) : (
-            <div className="pd__pricecut-panel">
-              <div className="pd__pricecut-title">
-                <TrendingDown size={14} aria-hidden />
-                <span>Reduce price</span>
-              </div>
-              <div className="pd__pricecut-row">
-                <span className="pd__pricecut-from tnum">{format(lp.product.price)}</span>
-                <ArrowRight size={14} className="pd__pricecut-arrow" aria-hidden />
-                <span className="pd__pricecut-to tnum">{format(suggestedCut)}</span>
-              </div>
-              {(() => {
-                const oldFit = priceFit(lp.product.price, lp.stats, lp.product.category);
-                const newFit = priceFit(suggestedCut, lp.stats, lp.product.category);
-                const boostPct = oldFit > 0 ? Math.round(((newFit / oldFit) - 1) * 100) : 0;
-                return (
-                  <p className="pd__pricecut-hint">
-                    {boostPct > 0 ? `~+${boostPct}% estimated demand uplift · ` : ""}Repeatable, each cut smaller as the price nears cost.
-                  </p>
-                );
-              })()}
-              <div className="pd__pricecut-actions">
-                <Button
-                  block
-                  onClick={() => {
-                    const result = cutProductPrice(lp.product.id, suggestedCut);
-                    if (result.ok) {
-                      haptic.success();
-                      // No confirmation toast — the new price is shown immediately in the panel.
-                      setPriceCutOpen(false);
-                    } else {
-                      haptic.medium();
-                      showToast(result.reason ?? "Can't adjust price", { tone: "negative" });
-                    }
-                  }}
-                >
-                  Confirm · {format(suggestedCut)}
-                </Button>
-                <Button block variant="tertiary" onClick={() => { setPriceCutOpen(false); haptic.light(); }}>Cancel</Button>
-              </div>
-            </div>
-          )}
+        <div className="pd__ops-note">
+          <Activity size={14} aria-hidden />
+          <span>Still selling — tune Boost, price, restock &amp; harvest on the <strong>Live products</strong> board at HQ.</span>
         </div>
       )}
-
-      {/* Mid-lifecycle marketing push — the margin-preserving sibling of a price cut. Only shown
-          when there's surplus inventory to clear (pushQuote != null) or one has already run. */}
-      {live && (pushed || pushQuote) && (
-        <div className="pd__pricecut">
-          {pushed ? (
-            <div className="pd__pricecut-done">
-              <Megaphone size={13} aria-hidden />
-              <span>Marketing campaign running</span>
-            </div>
-          ) : !pushOpen ? (
-            <button className="pd__pricecut-trigger" onClick={() => { setPushOpen(true); haptic.light(); }}>
-              <Megaphone size={13} aria-hidden />
-              <span>Marketing push · keep your <span className="tnum">{format(lp.product.price)}</span> price</span>
-              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
-            </button>
-          ) : (
-            <div className="pd__pricecut-panel">
-              <div className="pd__pricecut-title">
-                <Megaphone size={14} aria-hidden />
-                <span>Marketing push</span>
-              </div>
-              <p className="pd__pricecut-hint">
-                Sell ~<strong className="tnum">{formatCount(pushQuote!.addedUnits)}</strong> more units at full price, no margin cut. Repeatable, each campaign smaller than the last.
-              </p>
-              <div className="pd__pricecut-actions">
-                <Button
-                  block
-                  onClick={() => {
-                    const result = marketingPush(lp.product.id);
-                    if (result.ok) {
-                      haptic.success();
-                      // No confirmation toast — the panel flips to "campaign running" immediately.
-                      setPushOpen(false);
-                    } else {
-                      haptic.medium();
-                      showToast(result.reason ?? "Can't run campaign", { tone: "negative" });
-                    }
-                  }}
-                >
-                  Confirm · {format(pushQuote!.cost)}
-                </Button>
-                <Button block variant="tertiary" onClick={() => { setPushOpen(false); haptic.light(); }}>Cancel</Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Restock / reorder — the "living product" lever: make more of a sell-out to capture demand you
-          under-supplied. Shown only while the market still wants more AND you can afford a real run. */}
-      {live && restockQ && restockUnits >= BALANCE.build.minRun && (
-        <div className="pd__pricecut">
-          {!restockOpen ? (
-            <button className="pd__pricecut-trigger" onClick={() => { setRestockOpen(true); haptic.light(); }}>
-              <Package size={13} aria-hidden />
-              <span>Restock · <span className="tnum">{formatCount(restockQ.maxUnits)}</span> units of demand unmet</span>
-              <ChevronRight size={14} className="pd__pricecut-caret" aria-hidden />
-            </button>
-          ) : (
-            <div className="pd__pricecut-panel">
-              <div className="pd__pricecut-title">
-                <Package size={14} aria-hidden />
-                <span>Restock production</span>
-              </div>
-              <p className="pd__pricecut-hint">
-                Build ~<strong className="tnum">{formatCount(restockUnits)}</strong> more units to meet demand you under-supplied — no new tooling, you pay production only.
-              </p>
-              <div className="pd__pricecut-actions">
-                <Button
-                  block
-                  onClick={() => {
-                    const result = restockProduct(lp.product.id, restockUnits);
-                    if (result.ok) {
-                      haptic.success();
-                      // No confirmation toast — the new run shows in the product's supply state.
-                      setRestockOpen(false);
-                    } else {
-                      haptic.medium();
-                      showToast(result.reason ?? "Can't restock", { tone: "negative" });
-                    }
-                  }}
-                >
-                  Confirm · {format(restockCost)}
-                </Button>
-                <Button block variant="tertiary" onClick={() => { setRestockOpen(false); haptic.light(); }}>Cancel</Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Live Product Ops (feature #2) — a standing auto-reorder policy: top supply up toward demand
-          each week, every order arriving after a lead time. Shown while the product is still selling and
-          the market wants more (or a policy is already running). */}
-      {live && (lp.ops || (restockQ && restockUnits >= BALANCE.build.minRun)) && (() => {
-        const ops = lp.ops ?? null;
-        const inTransit = (ops?.pending ?? []).reduce((a, p) => a + p.units, 0);
-        const lead = reorderLeadWeeks(state);
-        // Presets scaled off the unmet-demand appetite, so the "steady/aggressive" rates are sensible
-        // for this product's size (fall back to the last set rate's ceiling when demand is snapshotted).
-        const appetite = restockQ ? restockQ.maxUnits : Math.max(0, (ops?.demandTotal ?? lp.totalUnits) - lp.totalUnits);
-        const min = BALANCE.build.minRun;
-        const cap = BALANCE.restock.maxRatePerWeek; // the engine clamps to this — the preset must match what it applies
-        const steady = Math.min(cap, Math.max(min, Math.round(appetite / 8)));
-        const aggressive = Math.min(cap, Math.max(min, Math.round(appetite / 4)));
-        const rate = ops?.reorderRate ?? 0;
-        const presets: { label: string; value: number }[] = [
-          { label: "Off", value: 0 },
-          { label: `Steady · ${formatCount(steady)}/wk`, value: steady },
-          // When the appetite is tiny (or both hit the cap), Steady and Aggressive collapse to the same
-          // rate — drop the redundant button rather than show two identical choices.
-          ...(aggressive > steady ? [{ label: `Aggressive · ${formatCount(aggressive)}/wk`, value: aggressive }] : []),
-        ];
-        return (
-          <div className="pd__reorder">
-            <div className="pd__reorder-head">
-              <RotateCw size={14} aria-hidden />
-              <span>Auto-reorder</span>
-              {rate > 0 && <span className="pd__reorder-tag tnum">{formatCount(rate)}/wk</span>}
-            </div>
-            <p className="pd__reorder-hint">
-              {rate > 0
-                ? <>Topping supply up toward demand — new orders arrive in <strong className="tnum">{lead}</strong> {lead === 1 ? "week" : "weeks"}.{inTransit > 0 ? <> <span className="tnum">{formatCount(inTransit)}</span> units in transit.</> : ""}</>
-                : <>Set a weekly reorder rate to keep this seller stocked automatically. Orders take <strong className="tnum">{lead}</strong> {lead === 1 ? "week" : "weeks"} to arrive.</>}
-            </p>
-            <div className="pd__reorder-opts">
-              {presets.map((p) => (
-                <button
-                  key={p.label}
-                  className={`pd__reorder-opt${rate === p.value ? " pd__reorder-opt--on" : ""}`}
-                  aria-pressed={rate === p.value}
-                  onClick={() => {
-                    const res = setReorderRate(lp.product.id, p.value);
-                    if (res.ok) { haptic.light(); if (p.value > 0) showToast(`Auto-reorder set — ${formatCount(p.value)}/wk`, { tone: "positive" }); }
-                    else { haptic.medium(); showToast(res.reason ?? "Can't set a reorder policy", { tone: "negative" }); }
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Why it performed */}
       <div className="pd__why">

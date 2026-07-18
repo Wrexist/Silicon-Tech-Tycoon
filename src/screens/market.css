@@ -1932,3 +1932,16 @@
   color: var(--ink-2);
 }
 .pd__supply svg { color: var(--ink-3); flex-shrink: 0; }
+
+/* Live-product levers moved to the HQ "Live products" ops board (feature #2) — this sheet keeps just a
+   pointer while the product is still selling. */
+.pd__ops-note {
+  display: flex; align-items: center; gap: var(--sp-8);
+  margin-top: var(--sp-12); padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--accent) 7%, var(--glass-well));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--glass-well-edge));
+  font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4;
+}
+.pd__ops-note svg { color: var(--accent); flex-shrink: 0; }
+.pd__ops-note strong { color: var(--ink); font-weight: 800; }
