@@ -51,6 +51,7 @@ import {
   type EarningsAckResult,
   acceptSideOrder,
   claimContract,
+  attemptMoonshot,
   fundMegaproject,
   buyLegacyPerk,
   buyFrontierTier,
@@ -170,13 +171,14 @@ import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
 import { objectiveById } from "../engine/objectives.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
-import { CircleCheck, Cpu, FlaskConical, Sparkles } from "lucide-react";
+import { CircleCheck, Cpu, FlaskConical, Rocket, Sparkles } from "lucide-react";
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { sfx } from "../design/sound.ts";
 import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
+import { moonshotById } from "../engine/moonshots.ts";
 import { EP_BUDGET_RAISES } from "../engine/designBudget.ts";
 import { createElement } from "react";
 
@@ -501,6 +503,9 @@ interface GameActionsValue {
   unlockFinish: () => void;
   buyProject: (id: ProjectId) => void;
   hostKeynote: () => void;
+  /** Moonshot R&D gambles (feature #5): attempt a visible-odds moonshot. Resolves instantly (toast +
+   *  celebrate on success, sober toast on failure). Returns whether it landed (or null if blocked). */
+  attemptMoonshot: (id: string) => "success" | "failure" | null;
   /** Pre-launch Keynote gamble (feature #4): announce an in-production build for a hype gamble. */
   announceKeynote: (productId: string) => void;
   resolveStrike: (choice: StrikeResponse) => void;
@@ -1124,6 +1129,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     setState(next);
   }, []);
+  // Moonshot R&D gambles (feature #5) — attempt a visible-odds gamble; the outcome is revealed instantly.
+  const attemptMoonshotCb = useCallback((id: string): "success" | "failure" | null => {
+    const prev = stateRef.current;
+    const res = attemptMoonshot(prev, id);
+    if (!res.ok) { haptic.error(); showToast(res.reason ?? "Can't attempt that moonshot", { tone: "negative" }); return null; }
+    const rpSpent = prev.researchPoints - res.state.researchPoints;
+    if (rpSpent > 0) emitRpSpend(rpSpent);
+    const m = moonshotById(id);
+    if (res.moonshotOutcome === "success") {
+      emitCelebrate();
+      sfx("mastery");
+      haptic.success();
+      showToast(`Moonshot landed — ${m?.reward.label ?? "reward banked"}`, { tone: "positive", glyph: <Rocket size={15} /> });
+    } else {
+      sfx("confirm");
+      haptic.warning();
+      showToast(`${m?.name ?? "Moonshot"} missed — most of the RP burned, some salvaged`, { tone: "negative", glyph: <Rocket size={15} /> });
+    }
+    setState(res.state);
+    return res.moonshotOutcome ?? null;
+  }, []);
   const announceKeynoteCb = useCallback((productId: string) => {
     const prev = stateRef.current;
     const next = announceKeynote(prev, productId);
@@ -1686,6 +1712,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       unlockFinish: unlockFinishCb,
       buyProject: buyProjectCb,
       hostKeynote: hostKeynoteCb,
+      attemptMoonshot: attemptMoonshotCb,
       announceKeynote: announceKeynoteCb,
       resolveStrike: resolveStrikeCb,
       collectAwards: collectAwardsCb,
@@ -1794,7 +1821,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, attemptMoonshotCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

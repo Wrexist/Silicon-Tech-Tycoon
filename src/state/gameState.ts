@@ -117,6 +117,13 @@ import {
 } from "../engine/money.ts";
 import { archetypeBonus, buildCost, componentSynergy, computeStats, missingSlots, overallScore, tuningCostMultiplier } from "../engine/product.ts";
 import { epBudget, productEp } from "../engine/designBudget.ts";
+import {
+  moonshotBonuses,
+  moonshotById,
+  moonshotCooldownLeft,
+  moonshotRefund,
+  resolveMoonshot,
+} from "../engine/moonshots.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
@@ -486,6 +493,15 @@ export interface GameState {
   lastEarningsWeek?: number;
   /** 1-based count of earnings calls delivered since listing. */
   earningsQuarter?: number;
+  // --- Moonshot R&D gambles (feature #5): an opt-in, high-cost experimental track (era 3+) with a
+  //     VISIBLE success chance (engine/moonshots.ts). Both optional → backfilled to []/{} on old saves;
+  //     absent = never attempted = byte-identical (the do-nothing pin never attempts). ---
+  /** Moonshot ids the player has successfully landed (once-per-run each). Rewards fold through
+   *  moonshotBonuses() into prestige / design-budget / product-stat seams. Optional → [] on old saves. */
+  moonshotsWon?: string[];
+  /** Moonshot id → the week of its last FAILED attempt, for the per-moonshot retry cooldown. Optional →
+   *  {} on old saves. A landed moonshot leaves the ledger (success is once-per-run, no more attempts). */
+  moonshotAttempts?: Record<string, number>;
   // --- Legacy Era (item 4.1): the post-IPO endgame — only live once wentPublic → golden-invariant safe ---
   /** Megaproject ids the player has funded (moonshots with prestige payoffs). Optional → [] on old saves. */
   megaprojectsFunded?: string[];
@@ -949,6 +965,10 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     // player announces a build; a run that never announces stays byte-identical to before the feature.
     pendingKeynote: [],
     keynoteAnnounceWeeks: [],
+    // Moonshot R&D gambles (feature #5) — nothing landed or attempted at founding. Both empty = the
+    // neutral bonus + no cooldowns; a run that never attempts one stays byte-identical to before.
+    moonshotsWon: [],
+    moonshotAttempts: {},
   };
 }
 
@@ -1108,11 +1128,15 @@ export const prestigeBonuses = (s: GameState): PerkBonus => {
   // so every consumer picks them up at once; the mandate's signed build-cost lives at its own seams
   // (it can INCREASE cost, which this reduction-only clamp would swallow). Empty held → all-zero.
   const man = aggregateMandates(s.eraMandates);
+  // Moonshot R&D gambles (feature #5) — a WON moonshot's persistent reward folds through the SAME
+  // aggregation, so its design-ceiling / hype / RP / build-cost payoff reaches every consumer at once.
+  // No wins → the all-zero bonus, so old saves + the pinned sim stay byte-identical.
+  const moon = moonshotBonuses(s.moonshotsWon);
   return {
-    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling + man.designCeiling,
-    hype: base.hype + tree.hype + front.hype + man.hype,
-    rpMult: base.rpMult + tree.rpMult + front.rpMult + man.rpMult,
-    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult)),
+    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling + man.designCeiling + moon.designCeiling,
+    hype: base.hype + tree.hype + front.hype + man.hype + moon.hype,
+    rpMult: base.rpMult + tree.rpMult + front.rpMult + man.rpMult + moon.rpMult,
+    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult + moon.buildCostMult)),
   };
 };
 /** Era-Mandate bonus aggregated from the held mandate ids (feature #6). Empty/absent → the all-zero
@@ -1125,7 +1149,8 @@ export const designTierCeiling = (s: GameState) =>
 /** Design Budget (feature #1) — the per-project engineering-points (EP) budget for THIS company:
  *  era-scaled base + permanent raises from completed engineering projects. Meaningful only when
  *  designBudgetEnabled (the Lab meter + startBuild gate both check the flag before using it). */
-export const designBudget = (s: GameState): number => epBudget(s.era, s.completedProjects);
+export const designBudget = (s: GameState): number =>
+  epBudget(s.era, s.completedProjects) + moonshotBonuses(s.moonshotsWon).epBudget;
 
 /** Category Mastery (feature #3) — the small, CATEGORY-SCOPED bonus a product earns from how many
  *  times you've shipped in its category (derived from launched[]). Gated on the masteryEnabled opt-in:
@@ -1288,6 +1313,11 @@ export function productStats(s: GameState, product: Product): Stats {
   // products (+2 at L5). Gated on the opt-in, so it's exactly 0 for disabled saves / the pinned sim.
   const masteryDesign = masteryBonusFor(s, product.category).design;
   if (masteryDesign > 0) bonus.design = (bonus.design ?? 0) + masteryDesign;
+
+  // Moonshot R&D gambles (feature #5): a won "signature" moonshot stamps a unique named stat flourish on
+  // every product you ship. Empty (no such win) → no-op, so old saves + the pinned sim are unchanged.
+  const sig = moonshotBonuses(s.moonshotsWon).stat;
+  for (const k of Object.keys(sig) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (sig[k] ?? 0);
 
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
@@ -3338,6 +3368,10 @@ export interface ActionResult {
   negotiationOutcome?: NegotiationOutcome;
   /** Extra signing-bonus won on an `improved` negotiation (0 otherwise). */
   negotiationBonusDelta?: Money;
+  /** How a moonshot attempt resolved (set only by attemptMoonshot) — drives the reveal copy + FX:
+   *  "success" celebrates + banks the reward, "failure" is a sober toast + a pity refund. `undefined`
+   *  means the attempt was BLOCKED (ok:false — era/cooldown/affordability), not that it was rolled. */
+  moonshotOutcome?: "success" | "failure";
 }
 
 /** Queue a designed product for manufacturing with a production plan (run size + marketing).
@@ -3360,7 +3394,7 @@ export function startBuild(
   // never calls startBuild) + engine tests constructing arbitrary products are all unaffected.
   if (state.designBudgetEnabled) {
     const used = productEp(product);
-    const budget = epBudget(state.era, state.completedProjects);
+    const budget = designBudget(state); // era base + EP-raise projects + any won moonshot EP reward
     if (used > budget)
       return { state, ok: false, reason: `Over design budget: ${used} / ${budget} EP. Lower a component tier.` };
   }
@@ -4775,6 +4809,76 @@ export function hostKeynote(state: GameState): GameState {
     fans: state.fans + KEYNOTE_FANS,
     reputation: Math.min(100, state.reputation + KEYNOTE_REP),
     feed,
+  };
+}
+
+// ---------- Moonshot R&D gambles (feature #5) ----------
+// A steep-RP, visible-odds experimental gamble (engine/moonshots.ts). The outcome resolves IMMEDIATELY
+// from a DERIVED hash of (seed, week, moonshot) — never the sim RNG — so it's reproducible and there's
+// no interrupt/modal: the player sees the odds, taps attempt (with a confirm in the UI), and the reveal
+// is instant. Success banks a unique reward (once-per-run) + celebrates; failure burns most of the RP
+// with a small pity refund and starts a per-moonshot retry cooldown. Opt-in — the pinned sim never
+// attempts one, so moonshotsWon/moonshotAttempts stay empty and the run is byte-identical.
+
+/** Is a moonshot attemptable right now (era reached, not already won, off cooldown, affordable)? Pure
+ *  UI predicate — mirrors the reducer's guards so the button can disable with the right reason. */
+export function moonshotAttemptable(state: GameState, id: string): boolean {
+  const m = moonshotById(id);
+  if (!m || state.era < m.era) return false;
+  if ((state.moonshotsWon ?? []).includes(id)) return false;
+  if (moonshotCooldownLeft(state.week, (state.moonshotAttempts ?? {})[id]) > 0) return false;
+  return state.researchPoints >= m.rpCost;
+}
+
+/** Attempt a moonshot: pay its RP, roll the derived hash, resolve on the spot. On success bank the
+ *  reward (folded through moonshotBonuses for the persistent kinds; a windfall is applied here); on
+ *  failure refund the pity RP and stamp the cooldown. Returns ok:false (unrolled) if blocked. */
+export function attemptMoonshot(state: GameState, id: string): ActionResult {
+  const m = moonshotById(id);
+  if (!m) return { state, ok: false, reason: "No such moonshot." };
+  if (state.era < m.era) return { state, ok: false, reason: `Unlocks in era ${m.era}.` };
+  const won = state.moonshotsWon ?? [];
+  if (won.includes(id)) return { state, ok: false, reason: "Already achieved." };
+  const attempts = state.moonshotAttempts ?? {};
+  const cd = moonshotCooldownLeft(state.week, attempts[id]);
+  if (cd > 0) return { state, ok: false, reason: `On cooldown for ${cd} more week${cd === 1 ? "" : "s"}.` };
+  if (state.researchPoints < m.rpCost) return { state, ok: false, reason: `Needs ${m.rpCost} RP.` };
+
+  const success = resolveMoonshot(state.seed, state.week, id);
+  if (success) {
+    const r = m.reward;
+    const feed = [...state.feed, feedItem(state.week, `Breakthrough — the ${m.name} moonshot paid off! ${r.label}.`, "positive")];
+    return {
+      state: {
+        ...state,
+        researchPoints: state.researchPoints - m.rpCost,
+        moonshotsWon: [...won, id],
+        // A one-time windfall is applied at the moment of success (persistent kinds fold through
+        // moonshotBonuses instead). Reputation is capped like every other rep gain.
+        fans: state.fans + (r.kind === "windfall" ? (r.fans ?? 0) : 0),
+        reputation: r.kind === "windfall"
+          ? Math.min(BALANCE.reputation.max, state.reputation + (r.reputation ?? 0))
+          : state.reputation,
+        feed: trimFeed(feed),
+      },
+      ok: true,
+      moonshotOutcome: "success",
+    };
+  }
+
+  const refund = moonshotRefund(m.rpCost);
+  const burned = m.rpCost - refund;
+  const feed = [...state.feed, feedItem(state.week,
+    `The ${m.name} moonshot didn't pan out — ${burned} RP spent, ${refund} RP salvaged. It can be attempted again later.`, "negative")];
+  return {
+    state: {
+      ...state,
+      researchPoints: state.researchPoints - burned,
+      moonshotAttempts: { ...attempts, [id]: state.week },
+      feed: trimFeed(feed),
+    },
+    ok: true,
+    moonshotOutcome: "failure",
   };
 }
 

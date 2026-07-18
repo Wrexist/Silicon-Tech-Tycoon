@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronRight, Clock, FlaskConical, Lightbulb, Lock, MapPin, Users } from "lucide-react";
+import { Check, ChevronRight, Clock, FlaskConical, Lightbulb, Lock, MapPin, Rocket, TriangleAlert, Users } from "lucide-react";
 import { Button, Card, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -12,9 +12,10 @@ import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/cata
 import { eraContext, eraName, maxEra } from "../engine/eras.ts";
 import { formatShortDollars, toDollars, type Money } from "../engine/money.ts";
 import { RESEARCH_PROJECTS, forkLockedBy, prereqsMissing, projectById } from "../engine/research.ts";
+import { MOONSHOTS, moonshotCooldownLeft, moonshotRefund, type Moonshot } from "../engine/moonshots.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight, researchQueueFull, tierResearchStatus, projectResearchStatus, type ResearchSlotStatus } from "../state/gameState.ts";
+import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, moonshotAttemptable, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight, researchQueueFull, tierResearchStatus, projectResearchStatus, type ResearchSlotStatus } from "../state/gameState.ts";
 import { ResearchProgress } from "../components/ResearchProgress.tsx";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
@@ -150,8 +151,92 @@ function ResearchAction({ status, cost, affordable, queueFull, weeksAway, onStar
   );
 }
 
+/** Moonshot R&D gambles (feature #5) — the opt-in, high-cost experimental track (era 3+). Each card
+ *  shows the plain-language odds, the steep RP cost, the unique reward, and a two-tap arm/confirm attempt
+ *  button (it's a gamble — never a single mis-tap). Won moonshots read as completed; a failed attempt
+ *  shows its retry cooldown. Only rendered from era 3, so early-game players never see it. */
+function MoonshotsSection({ state, rp, onAttempt }: {
+  state: ReturnType<typeof useGame>["state"];
+  rp: number;
+  onAttempt: (id: string) => void;
+}) {
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const won = state.moonshotsWon ?? [];
+  const attempts = state.moonshotAttempts ?? {};
+  return (
+    <div className="rd__moonshots">
+      <SectionHeader
+        title="Moonshots"
+        accessory={<span className="rd__moonshot-count"><Rocket size={12} aria-hidden /> {won.length}/{MOONSHOTS.length}</span>}
+      />
+      <p className="rd__moonshot-intro">
+        High-cost experimental gambles with <strong>visible odds</strong>. Success banks a unique, permanent
+        reward; a miss burns most of the RP (a quarter is salvaged) and can be retried later.
+      </p>
+      {MOONSHOTS.map((m: Moonshot) => {
+        const isWon = won.includes(m.id);
+        const locked = m.era > state.era;
+        const cd = moonshotCooldownLeft(state.week, attempts[m.id]);
+        const refund = moonshotRefund(m.rpCost);
+        const affordable = rp >= m.rpCost;
+        const canAttempt = moonshotAttemptable(state, m.id);
+        const armed = armedId === m.id;
+        const pct = Math.round(m.successChance * 100);
+        return (
+          <Card key={m.id} className={`rd__moonshot${isWon ? " rd__moonshot--won" : ""}`}>
+            <div className="rd__moonshot-info">
+              <span className="rd__moonshot-name">
+                <Rocket size={14} aria-hidden /> {m.name}
+                {!isWon && !locked && <span className="rd__moonshot-odds">{pct}% chance</span>}
+              </span>
+              <span className="rd__moonshot-flavor">{m.flavor}</span>
+              <span className="rd__moonshot-reward">
+                <Check size={11} strokeWidth={2.5} aria-hidden /> Reward: {m.reward.label}
+              </span>
+              {!isWon && !locked && (
+                <span className="rd__moonshot-terms">
+                  {m.rpCost} RP · {pct}% success · miss refunds {refund} RP
+                </span>
+              )}
+            </div>
+            {isWon ? (
+              <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> Achieved</span>
+            ) : locked ? (
+              <span className="rd__locked"><Lock size={12} /> Era {m.era}</span>
+            ) : cd > 0 ? (
+              <span className="rd__moonshot-cooldown"><Clock size={12} aria-hidden /> Retry in {cd}wk</span>
+            ) : armed ? (
+              <div className="rd__moonshot-confirm">
+                <span className="rd__moonshot-warn"><TriangleAlert size={11} aria-hidden /> Gamble {m.rpCost} RP?</span>
+                <div className="rd__moonshot-confirm-row">
+                  <Button size="sm" variant="tertiary" haptics="light" onClick={() => setArmedId(null)}>Cancel</Button>
+                  <Button size="sm" variant="primary" haptics="none" onClick={() => { setArmedId(null); onAttempt(m.id); }}>
+                    Attempt
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="rd__moonshot-action">
+                <Button
+                  size="sm"
+                  variant={affordable ? "primary" : "tertiary"}
+                  disabled={!canAttempt}
+                  haptics="light"
+                  onClick={() => setArmedId(m.id)}
+                >
+                  {affordable ? `Attempt · ${m.rpCost} RP` : `${m.rpCost} RP`}
+                </Button>
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {}) {
-  const { state, research, buyProject, hostKeynote, unlockLens, unlockFinish } = useGame();
+  const { state, research, buyProject, hostKeynote, attemptMoonshot, unlockLens, unlockFinish } = useGame();
   // Once many projects are complete, the full-blurb list grows into a long scroll. Default to a
   // compact chip cloud; the player can expand to the detailed effects on demand.
   const [boostsExpanded, setBoostsExpanded] = useState(false);
@@ -534,6 +619,10 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           <Lock size={11} aria-hidden /> More research projects unlock as you advance eras.
         </p>
       )}
+
+      {/* Moonshot R&D gambles (feature #5) — the era-3+ experimental track: visible-odds RP gambles for
+          unique rewards. Hidden before era 3 so the early tree stays a clean, solvable checklist. */}
+      {state.era >= 3 && <MoonshotsSection state={state} rp={rp} onAttempt={attemptMoonshot} />}
 
       </>)}
 

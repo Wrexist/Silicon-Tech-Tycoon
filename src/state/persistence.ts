@@ -520,6 +520,10 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.seenFirstShipUnlocks !== "boolean") {
     s.seenFirstShipUnlocks = (Array.isArray(s.launched) && s.launched.length >= 1) || (s.legacy ?? 0) > 0;
   }
+  // Moonshot R&D gambles (feature #5) — no wins / no attempt ledger on old saves. Empty [] + {} = the
+  // neutral bonus + no cooldowns = byte-identical in-run behaviour, so no per-save flag is needed.
+  if (!Array.isArray(s.moonshotsWon)) s.moonshotsWon = [];
+  if (s.moonshotAttempts == null || typeof s.moonshotAttempts !== "object" || Array.isArray(s.moonshotAttempts)) s.moonshotAttempts = {};
   if (!Array.isArray(s.megaprojectsFunded)) s.megaprojectsFunded = [];
   if (!Number.isFinite(s.legacyPoints)) s.legacyPoints = 0;
   if (!Array.isArray(s.legacyPerks)) s.legacyPerks = [];
