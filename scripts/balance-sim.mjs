@@ -10,7 +10,8 @@ import {
   productStats, researchedTier, researchNext, canAdvance, advanceEraAction, netWorth, trainStaff,
   startRecruitment, hireCandidate, placeFurniture, upgradeFacility, deskCapacity,
   canList, listCompany, canIPO, goPublic, resolveChoice, resolvePoach,
-  unlockRegion, unlockPlatform, canFoundPlatform, platformFoundingCost,
+  unlockRegion, unlockPlatform, canFoundPlatform, platformFoundingCost, vaultCards, investigateSecret,
+  signLicenseOffer, claimContract, buyShares, startResearchProject,
 } from "../src/state/gameState.ts";
 import { priceGuidance } from "../src/engine/market.ts";
 import { CATEGORIES } from "../src/engine/catalogs.ts";
@@ -18,6 +19,8 @@ import { toDollars } from "../src/engine/money.ts";
 import { BALANCE } from "../src/engine/balance.ts";
 import { canPlace, gridN } from "../src/engine/furniture.ts";
 import { regionById } from "../src/engine/regions.ts";
+import { SECRETS } from "../src/engine/secrets.ts";
+import { RESEARCH_PROJECTS } from "../src/engine/research.ts";
 import { INTERRUPT_ORDER } from "../src/design/interruptPriority.ts";
 
 const SLOTS = CATEGORIES.phone.slots;
@@ -64,25 +67,25 @@ const ARCHETYPES = {
   optimizer: {
     label: "optimizer", blurb: "acts every week, best tier, fair price, richest campaign",
     tierDrop: 0, priceSkew: 0, channelBudget: 0.12, idleChance: 0, skipCampaign: 0,
-    hireRunway: 40, maxStaff: 10, expandShare: 0.2, runSkew: 0,
+    hireRunway: 40, maxStaff: 10, expandShare: 0.2, runSkew: 0, vaultShare: 0.05,
   },
   // Protects the balance sheet. Ships a notch below the frontier, buys cheap ads, hires late.
   cautious: {
     label: "cautious", blurb: "hoards cash, ships a tier below the frontier, cheap ads",
     tierDrop: 1, priceSkew: -0.08, channelBudget: 0.04, idleChance: 0.1, skipCampaign: 0.15,
-    hireRunway: 90, maxStaff: 6, expandShare: 0.08, runSkew: -0.2,
+    hireRunway: 90, maxStaff: 6, expandShare: 0.08, runSkew: -0.2, vaultShare: 0.02,
   },
   // Spends into growth. Over-produces, buys the biggest campaign it can, hires flat out.
   aggressive: {
     label: "aggressive", blurb: "spends into growth, over-produces, hires flat out",
     tierDrop: 0, priceSkew: 0.12, channelBudget: 0.3, idleChance: 0.05, skipCampaign: 0,
-    hireRunway: 12, maxStaff: 16, expandShare: 0.45, runSkew: 0.35,
+    hireRunway: 12, maxStaff: 16, expandShare: 0.45, runSkew: 0.35, vaultShare: 0.1,
   },
   // Plays in bursts, forgets things, guesses at prices. The most human of the four.
   casual: {
     label: "casual", blurb: "plays in bursts, forgets campaigns, guesses at prices",
     tierDrop: 1, priceSkew: 0, channelBudget: 0.08, idleChance: 0.35, skipCampaign: 0.4,
-    hireRunway: 60, maxStaff: 8, expandShare: 0.15, runSkew: 0,
+    hireRunway: 60, maxStaff: 8, expandShare: 0.15, runSkew: 0, vaultShare: 0.03,
   },
 };
 
@@ -124,6 +127,21 @@ function pickChannel(s, a, week) {
  *  never-miss-a-week cadence is itself an unrealistic advantage. */
 function idle(s, a, week) {
   return a.idleChance > 0 && h01(s.seed, week, 9013) < a.idleChance;
+}
+
+/** Spend on the Vault. Dossiers rise to `rumored` on their own as the company hits milestones, but
+ *  getting one OPEN costs money the player chooses to spend — so a bot that never investigates reads
+ *  the Vault as capped when it is only un-funded. Buys the cheapest available step, out of a slice of
+ *  cash the player would not miss, one per week. */
+function workTheVault(s, a) {
+  if (!s.vaultEnabled || s.launched.length === 0) return s;
+  const affordable = toDollars(s.cash) * (a.vaultShare ?? 0.05);
+  const buyable = vaultCards(s)
+    .filter((c) => c.intelCost != null && toDollars(c.intelCost) <= affordable)
+    .sort((x, y) => x.intelCost - y.intelCost);
+  if (buyable.length === 0) return s;
+  const res = investigateSecret(s, buyable[0].id);
+  return res.ok ? res.state : s;
 }
 
 // ---- growing the company ------------------------------------------------------------------------
@@ -194,6 +212,12 @@ function growTeam(s, a) {
  *  fires" here while being perfectly reachable in the real game, where the player cannot advance
  *  without answering. An idle week is a week the player didn't ACT, not one they slept through. */
 function settleWeek(s, interrupts, verdicts, verdictsByEra, countedLaunches) {
+  // ACCEPT, don't just dismiss. The census below nulls every pending card so the budget frees up,
+  // but nulling a licence offer is DECLINING it — and a bot that declines everything can never reach
+  // the content those acceptances gate (three concurrent OS licensees, six delivered contracts…).
+  // Same class of blind spot as the unanswered choice card: the difference between "the player saw
+  // this" and "the player said yes" is invisible in a pending-field count.
+  if (s.pendingLicenseOffer) { const r = signLicenseOffer(s); if (r.ok) s = r.state; }
   if (s.pendingChoice) {
     const opts = s.pendingChoice.event.options ?? [];
     if (opts.length) s = resolveChoice(s, opts[0].id);
@@ -303,6 +327,26 @@ function simulate(seed, archetype = "optimizer", maxWeeks = 520) {
       s = unlockPlatform(s, true);
     }
 
+    s = workTheVault(s, a);
+
+    // Deliver board contracts, hold rival stock, and run real research PROJECTS (not just component
+    // tiers). Each is a system the bot ignored, and each gates Vault dossiers that consequently read
+    // as 0% after ten hours of play.
+    // claimContract refuses anything not yet complete, so offering it every board slot each week is
+    // both correct and cheap — the refusals are free.
+    for (const c of s.contracts ?? []) { const r = claimContract(s, c.id); if (r.ok) s = r.state; }
+    if (toDollars(s.cash) > 5_000_000 && (s.holdings ? Object.keys(s.holdings).length : 0) < 6) {
+      for (const c of s.competitors) {
+        if (s.holdings?.[c.id]) continue;
+        const next = buyShares(s, c.id, 10);
+        if (next !== s) { s = next; break; }
+      }
+    }
+    for (const proj of RESEARCH_PROJECTS) {
+      const next = startResearchProject(s, proj.id);
+      if (next !== s) { s = next; break; }
+    }
+
     // launch anything ready (recompute the plan to capture the effectiveScore that drives the verdict)
     if (s.ready.length > 0) {
       const ready = s.ready[0];
@@ -361,6 +405,8 @@ function simulate(seed, archetype = "optimizer", maxWeeks = 520) {
     simWeeks,
     peakStaff,
     wentPublic: s.wentPublic,
+    vaultFound: (s.secretsFound ?? []).length,
+    vaultStages: vaultCards(s).map((c) => ({ id: c.id, stage: c.stage, frac: c.progress?.frac ?? 0 })),
   };
 }
 
@@ -431,6 +477,7 @@ if (winWeeks.length) {
   console.log(`  → real time to win: base ${(w * 8 / 60).toFixed(0)} min of ticks · Fast ${(w * 1 / 60).toFixed(1)} min of ticks (plus design/management time)`);
 }
 console.log(`Reached IPO/listed:  ${runs.filter((r) => r.listed).length}/${runs.length}  (went public ${runs.filter((r) => r.wentPublic).length}/${runs.length})`);
+console.log(`Vault dossiers open: median ${median(agg((r) => r.vaultFound))}/${SECRETS.length}  p90 ${pct(agg((r) => r.vaultFound), 0.9)}  (needs the player to SPEND on investigation, so a bot that doesn't reads it as capped)`);
 console.log(`Peak headcount:      median ${median(agg((r) => r.peakStaff))}  max ${Math.max(...agg((r) => r.peakStaff))}`);
 console.log(`Final reputation:    median ${median(agg((r) => r.reputation)).toFixed(0)}`);
 
@@ -558,3 +605,24 @@ cliff("  no ad spend at all", { channelBudget: 0 });
 cliff("  ignores the game half the time", { idleChance: 0.5 });
 cliff("  builds 30% under recommended", { runSkew: -0.3 });
 console.log("");
+
+// --- THE VAULT: where 18 dossiers actually END UP -------------------------------------------------
+// The count alone ("9 of 18") says nothing about WHY the rest are short. A dossier left at
+// `decrypted` is one the player can see, whose requirement and reward are on screen, and which they
+// never complete — which is a good tease at 30% of the set and a wall at 60%. The progress column
+// separates "nearly there" from "this playstyle never touches that system at all": a dossier
+// sitting at 0% after ten hours is content pointed somewhere the player never goes.
+{
+  const NAMES = ["sealed", "rumored", "decrypted", "UNEARTHED"];
+  const byId = {};
+  for (const r of runs) for (const c of r.vaultStages) (byId[c.id] ??= []).push(c);
+  const short = Object.entries(byId).filter(([, cs]) => median(cs.map((c) => c.stage)) < 3);
+  console.log(`--- the Vault: ${18 - short.length}/18 open after a full run; the ${short.length} still short ---`);
+  for (const [id, cs] of short) {
+    const frac = median(cs.map((c) => c.frac));
+    const bar = "#".repeat(Math.round(frac * 16)).padEnd(16, ".");
+    const note = frac === 0 ? "  <- 0%: points at a system this run never touches" : "";
+    console.log(`  ${id.padEnd(18)} ${NAMES[median(cs.map((c) => c.stage))].padEnd(10)} ${bar} ${(100 * frac).toFixed(0)}%${note}`);
+  }
+  console.log("");
+}
