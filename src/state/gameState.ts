@@ -16,13 +16,13 @@ import {
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { startDuel, duelMet, duelProgress, duelReward, nextLadderTier, duelVictoryLine, type NemesisDuel } from "../engine/nemesisDuel.ts";
 import { harvestSettlement } from "../engine/liveOps.ts";
-import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
+import { resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { keynoteWindowWeeks, keynoteMaxBonus, keynotePressFlavour } from "../engine/keynote.ts";
-import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
-import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
+import { mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
+import { type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
 import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
 import { generateBoardMandate, mandateComplete, mandateRewardSummary, effectiveMandateReward, boardTier, megaprojectById, canFundMegaproject, availableMegaprojects, type MandateFacts } from "../engine/endgame.ts";
-import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
+import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
   assignedSkill,
@@ -60,7 +60,6 @@ import {
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
 import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
-import { pickPoachTarget } from "../engine/poaching.ts";
 import { mentorshipXpMult } from "../engine/org.ts";
 import { accrueLoans, creditLimit, loanRate, makeLoan, weeklyDebtService, type Loan } from "../engine/financing.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
@@ -178,6 +177,7 @@ import { franchiseBoonForName, ZERO_FRANCHISE_BOON, type FranchiseBoon } from ".
 import { distributeOverCurve, forecast, verdictCurveShape } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
+import { runInterruptStreams } from "./tick/interruptStreams.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
@@ -2806,110 +2806,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // run never gains the field — the golden snapshot stays byte-identical.
   if (crunchingResearch || base.researchSurgeWeeks != null) base.researchSurgeWeeks = researchSurge;
 
-  // Rival poaching (Track C): a rival on the rise occasionally tries to hire away one of your best —
-  // surfaced as a counter-offer DECISION, not a silent stat drop. A DERIVED rng keeps the main sim
-  // stream byte-identical, so the harness + determinism pin are unaffected. One decision at a time:
-  // only when nothing else is pending, online, solvent, and the team can spare the attention.
-  if (!offline && !bankrupt && !base.pendingPoach && !base.pendingChoice && base.staff.length >= BALANCE.poaching.minTeam) {
-    const prng = makeRng(((state.rngState ?? state.seed) >>> 0) ^ Math.imul(week + 1, 0x2545f491));
-    if (prng.next() < BALANCE.poaching.chancePerWeek) {
-      const target = pickPoachTarget(base.staff, base.competitors, week, prng);
-      if (target) {
-        const retainCost = scale(salaryFor(target.staff.role, target.staff.skill), BALANCE.poaching.retainWeeksSalary);
-        base.pendingPoach = { staffId: target.staff.id, staffName: target.staff.name, rivalId: target.rival.id, rivalName: target.rival.name, retainCost, week };
-        base.feed.push(feedItem(week, `${target.rival.name} is trying to poach ${target.staff.name}, one of your best. Match their offer or let them walk.`, "negative"));
-      }
-    }
-  }
-
-  // Eureka breakthroughs (engine/eureka.ts) — an active, funded lab occasionally has a flash of insight
-  // (a bank-or-chase bet). Derived-hash cadence (never the sim rng) + a player-CLAIMED payoff, gated on
-  // real researchers + era + cooldown, and it yields to any other pending interrupt. The solo pinned
-  // sim assigns no researchers, so it never fires or resolves one → byte-identical.
-  {
-    const eu = BALANCE.research.eureka;
-    if (
-      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
-      base.era >= eu.minEra &&
-      base.staff.filter((s) => s.assignment === "rnd").length >= eu.minRnDStaff &&
-      week - (state.lastEurekaWeek ?? -999) >= eu.cooldownWeeks &&
-      eurekaDue(state.seed, week)
-    ) {
-      const moment = generateEureka(state.seed, week, base.era);
-      base.pendingEureka = moment;
-      base.lastEurekaWeek = week;
-      base.lastInterruptWeek = week;
-      base.feed.push(feedItem(week, `Your lab had a breakthrough in the ${moment.componentKind} line. Bank it, or chase the prototype?`, "accent"));
-    }
-  }
-
-  // Community ASK: once you have a fanbase (launched ≥ 1), the community periodically asks for
-  // something — answer it (resolveCommunityAsk) to grow + delight the base, or pass. Derived-hash
-  // cadence + cooldown + a fresh-launch cooloff; yields to any other pending interrupt. The pinned
-  // solo sim never launches, so it never raises one → byte-identical.
-  {
-    const ca = BALANCE.fans.community.asks;
-    const lastLaunchWeek = state.launched.reduce((m, lp) => Math.max(m, lp.launchedWeek), -Infinity);
-    if (
-      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
-      state.launched.length >= 1 &&
-      week - (state.lastCommunityAskWeek ?? -999) >= ca.cooldownWeeks &&
-      week - lastLaunchWeek >= ca.minWeeksSinceLaunch &&
-      communityAskDue(state.seed, week)
-    ) {
-      const ask = generateCommunityAsk(state.seed, week, base.fans);
-      base.pendingCommunityAsk = ask;
-      base.lastCommunityAskWeek = week;
-      base.lastInterruptWeek = week;
-      base.feed.push(feedItem(week, `The community is asking: ${ASK_INFO[ask.kind].title.toLowerCase()}. Answer the call, or let it pass?`, "accent"));
-    }
-  }
-
-  // Staff GROWTH moment: a senior, tenured staffer occasionally earns a permanent character upgrade
-  // the player picks (resolveStaffMoment). Derived-hash cadence + cooldown; yields to any other pending
-  // interrupt and respects the global budget. Gated on era + a real team with an eligible non-founder,
-  // so the pinned solo sim (founder only) never raises one → byte-identical.
-  {
-    const g = BALANCE.staff.growth;
-    if (
-      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
-      base.era >= g.minEra && base.staff.length >= 2 &&
-      week - (state.lastStaffMomentWeek ?? -999) >= g.cooldownWeeks &&
-      staffMomentDue(state.seed, week)
-    ) {
-      const target = pickGrowthTarget(base.staff, week);
-      if (target) {
-        const moment = generateStaffMoment(target, state.seed, week);
-        if (moment.options.length > 0) {
-          base.pendingStaffMoment = moment;
-          base.lastStaffMomentWeek = week;
-          base.lastInterruptWeek = week;
-          base.feed.push(feedItem(week, `${target.name} has grown into a real force on the team — there's a way to develop them further.`, "accent"));
-        }
-      }
-    }
-  }
-
-  // Staff LIFE event (item 2.2): a named teammate hits a personal turning point (burnout, an outside
-  // offer, a milestone) and the player answers (resolveStaffEvent). Same guardrails as the growth
-  // moment — derived-hash cadence + cooldown, yields to every other interrupt, gated on an established
-  // team past the garage era, so the founder-only pinned sim never raises one → byte-identical.
-  {
-    const le = BALANCE.staff.lifeEvents;
-    if (
-      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
-      base.era >= le.minEra && base.staff.length >= 2 &&
-      week - (state.lastStaffEventWeek ?? -999) >= le.cooldownWeeks &&
-      staffEventDue(state.seed, week)
-    ) {
-      const target = pickLifeEventTarget(base.staff, week);
-      if (target) {
-        base.pendingStaffEvent = generateStaffEvent(target, state.seed, week);
-        base.lastStaffEventWeek = week;
-        base.lastInterruptWeek = week;
-      }
-    }
-  }
+  // The opportunistic interrupt streams (poaching, eureka, community ask, staff growth, staff life
+  // event) — five near-identical anonymous blocks that used to sit inline here. They now live in
+  // `tick/interruptStreams.ts` as a named, ordered list with one signature, so adding a sixth is
+  // appending an entry rather than copying a neighbour's shape into the middle of this function.
+  // Order is preserved exactly: they share one weekly budget, so who asks first is behaviour.
+  runInterruptStreams(base, {
+    prev: state, week, offline, bankrupt, interruptQuiet,
+    screenFree: noPendingInterrupt,
+    feed: feedItem,
+  });
 
   // Regional loyalty + EVENTS — only once you've expanded past Home (so the solo sim, home-only, is
   // untouched → byte-identical). Loyalty eases back toward neutral each week; then, budget-paced, a
