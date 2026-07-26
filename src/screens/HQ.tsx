@@ -27,6 +27,7 @@ import {
   canPlace,
   furnitureCost,
   deskZones,
+  planSeats,
   tidyLayout,
   tidyMoveCount,
   ZONE_RULE,
@@ -392,7 +393,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
 
 /** Live office buffs + seat count, shown atop the shop so the player SEES the office working for
  *  the team. Each bar fills toward the BALANCE.shop cap (faint track = diminishing returns). */
-function OfficeOverview({ state, zones }: { state: GameState; zones: ReturnType<typeof deskZones> }) {
+function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: ReturnType<typeof deskZones>; crowded: number }) {
   const comfort = officeComfortMoodBonus(state);
   const focus = officeFocusMult(state) - 1; // 0..focusCap
   const inspo = officeInspoBonus(state);
@@ -423,6 +424,19 @@ function OfficeOverview({ state, zones }: { state: GameState; zones: ReturnType<
       {/* Zones: WHERE a piece sits has always mattered (officeZoneBonus), and the room never said so.
           The count is the hook; the rule underneath is the teach. Green here matches the pads the
           scene draws under the desks that are actually paying. */}
+      {crowded > 0 && (
+        <div className="hqb__zones hqb__zones--warn">
+          <span className="hqb__zones-head">
+            <Users size={12} aria-hidden /> Too tight
+            <b className="tnum">{crowded}</b>
+            <span className="hqb__zones-unit">desk{crowded === 1 ? "" : "s"}</span>
+          </span>
+          <span className="hqb__zones-rule">
+            {crowded === 1 ? "A desk has" : "Some desks have"} no room to pull a chair out — the chairs
+            end up on top of each other. Tap the wand to tidy up and the room will space them properly.
+          </span>
+        </div>
+      )}
       {zones.desks > 0 && (
         <div className={`hqb__zones${zones.zoned.length > 0 ? " hqb__zones--on" : ""}`}>
           <span className="hqb__zones-head">
@@ -551,6 +565,10 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   // engine already PAID for this adjacency; until now nothing on screen said so, so the rule was
   // undiscoverable. Feeds the green pads in the scene and the readout under the palette.
   const zones = useMemo(() => deskZones(state.layout), [state.layout]);
+  // Desks with nowhere to pull a chair out. New placements can't create this (canPlace reserves the
+  // seat), but a room saved before that rule — or one packed tight by hand — can still be over-full,
+  // and the honest fix is one tap of Tidy rather than silently shuffling the player's furniture.
+  const crowded = useMemo(() => planSeats(state.layout, state.facilityTier).unseated.length, [state.layout, state.facilityTier]);
   const zonedIids = useMemo(() => new Set([...zones.zoned, ...zones.pairing]), [zones]);
 
   const builder: BuildProps = useMemo(() => ({
@@ -737,7 +755,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
             </div>
           ) : (
             <>
-              <OfficeOverview state={state} zones={zones} />
+              <OfficeOverview state={state} zones={zones} crowded={crowded} />
               <div className="hqb__search">
                 <Search size={15} className="hqb__search-icon" />
                 <input

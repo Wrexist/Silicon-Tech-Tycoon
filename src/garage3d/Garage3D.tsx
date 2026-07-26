@@ -18,6 +18,7 @@ import {
   gridN,
   gridOrigin,
   isDeskType,
+  planSeats,
   worldOf,
   type FurnitureId,
   type PlacedItem,
@@ -1048,24 +1049,14 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none" }
 // into the wall (and an empty chair poke through it). When the seat spot lands inside the walls,
 // flip the seat to the desk's FRONT instead: the figure works facing the wall, exactly like a
 // wall-facing desk in a real office. Checked in world space so every rotation is covered.
-const SEAT_BACK = 0.86; // chair (0.78) + seated-robot pullback (0.08) behind the desk origin
-const SEAT_LIMIT = 3.8; // beyond this the chair/robot visibly enters the walls (scaled by facility)
-// Employees sit on the desk's BACK edge facing +z — toward the camera — so the office reads as a row
-// of faces and glowing screens (the standard iso-diorama look). Only when that seat would clip a wall
-// (a desk pushed right against the wall it BACKS ONTO) do we flip them to the front, facing the room.
-function seatFlipped(item: PlacedItem, facilityTier = 1): boolean {
-  const w = worldOf(item, facilityTier);
-  const limit = SEAT_LIMIT * roomScaleFor(facilityTier); // walls scale out with the facility
-  // The chair sits SEAT_BACK behind the desk ALONG ITS FACING AXIS, and a flip moves it to the front
-  // along that SAME axis. So only the wall the seat actually backs onto can be escaped by flipping —
-  // the cross-axis position is fixed by the desk and no flip can change it. The old check tested BOTH
-  // axes (|cx| OR |cz|), so a desk merely sitting near a SIDE wall got needlessly flipped, parking its
-  // chair on the wrong side of the table. Test only the along-axis coordinate, in the seat's direction.
-  const backX = w.x - Math.sin(w.rotY) * SEAT_BACK;
-  const backZ = w.z - Math.cos(w.rotY) * SEAT_BACK;
-  return Math.abs(Math.cos(w.rotY)) > 0.5
-    ? (Math.cos(w.rotY) > 0 ? backZ < -limit : backZ > limit) // desk faces ±z → seat moves along z
-    : (Math.sin(w.rotY) > 0 ? backX < -limit : backX > limit); // desk faces ±x → seat moves along x
+// Which side each desk's occupant sits on now comes from the ENGINE (`planSeats`), not from a
+// world-space wall test done per desk in isolation. That isolation was the bug: two desks each
+// picked a side independently and both landed their chair in the same aisle cell. The engine plan
+// resolves every desk together — and it's the same function `canPlace` validates against, so the
+// room can never draw a seating arrangement the grid considers illegal. It also repairs rooms saved
+// BEFORE the rule: a desk whose preferred side is already taken is moved to its far side here.
+function seatSides(layout: PlacedItem[], facilityTier: number): Record<string, boolean> {
+  return planSeats(layout, facilityTier).flipped;
 }
 
 // A workstation = the player's placed desk model (which carries its own monitor) + the employee's
@@ -1789,6 +1780,13 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
   // event system), so a blocked drop snaps home instead of committing.
   live.current = { iid: dragIid, cell: dragCell, ok: dragOk, move: b.onMoveItem };
 
+  // Seat sides for the whole room at once, from the DRAG-ADJUSTED layout so a desk being dragged
+  // toward a wall previews the side its chair will actually end up on.
+  const seatPlan = seatSides(
+    dragIid && dragCell ? b.layout.map((it) => (it.iid === dragIid ? { ...it, c: dragCell.c, r: dragCell.r } : it)) : b.layout,
+    facilityTier,
+  );
+
   return (
     <group>
       {/* placed furniture (the dragged one follows the cursor, lifted slightly) */}
@@ -1799,9 +1797,9 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
         const { x, z, rotY } = worldOf({ ...it, c: cell.c, r: cell.r }, facilityTier);
         const def = furnitureDef(it.type);
         const selected = b.build && b.selectedIid === it.iid;
-        // Which side this desk's occupant sits on. Read from the live (drag-adjusted) cell so both the
-        // chair AND the desk's facing preview correctly while it's being dragged toward a wall.
-        const deskFlip = isDeskType(it.type) && seatFlipped({ ...it, c: cell.c, r: cell.r }, facilityTier);
+        // Which side this desk's occupant sits on, from the whole-room plan (drag-adjusted, so both
+        // the chair AND the desk's facing preview correctly while it's dragged toward a wall).
+        const deskFlip = isDeskType(it.type) && (seatPlan[it.iid] ?? false);
         return (
           <group
             key={it.iid}
@@ -1935,6 +1933,9 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   useEffect(() => () => window.clearTimeout(reactTimer.current), []);
   const seats = deskItems(builder?.layout ?? []);
   const seated = staff.slice(0, seats.length);
+  // The same whole-room seat plan the editable pieces use, so a desk doesn't change which side its
+  // chair is on the moment someone is hired into it.
+  const occupiedSeatSides = seatSides(builder?.layout ?? [], facilityTier);
   const overflow = staff.slice(seats.length);
   const podCount = Math.max(0, Math.min(4, desktops));
   const podWorlds = desktopWorlds(podCount);
@@ -2035,9 +2036,10 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           instead); employees beyond the desk count roam the floor. */}
       {!inBuild && seated.map((s, i) => {
         const w = worldOf(seats[i], facilityTier);
+        const flip = occupiedSeatSides[seats[i].iid] ?? false;
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFlipped(seats[i], facilityTier)} hasProduction={hasProduction} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={flip} hasProduction={hasProduction} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (

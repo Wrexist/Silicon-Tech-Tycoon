@@ -16,6 +16,7 @@ import {
   moveItem,
   officeAttrs,
   officeZoneBonus,
+  planSeats,
   removeItem,
   rotateItem,
   tidyLayout,
@@ -367,6 +368,95 @@ describe("tidyLayout — auto-arrange that buys and sells nothing", () => {
       expect(it.r).toBeGreaterThanOrEqual(0);
       expect(it.c + fp.w).toBeLessThanOrEqual(n);
       expect(it.r + fp.d).toBeLessThanOrEqual(n);
+    }
+  });
+});
+
+describe("seats — two chairs can never occupy the same cell", () => {
+  it("refuses the exact layout that produced the reported collision", () => {
+    // Two desks two rows apart, the back one against the wall. The back desk must flip its chair
+    // forward (row −1 is off-grid) into row 1, which is the row the second desk seats backward into.
+    // That is the collision that shipped; the second desk is now not a legal placement.
+    const back: PlacedItem[] = [{ iid: "f1", type: "desk", c: 0, r: 0, rot: 0 }];
+    expect(planSeats(back).flipped.f1).toBe(true);                       // forced forward by the wall
+    expect(planSeats(back).cells.f1).toEqual([{ c: 0, r: 1 }, { c: 1, r: 1 }]);
+    expect(canPlace(back, "desk", 0, 2, 0)).toBe(false);                 // its chair wants row 1 too
+    // One row further down there is room for both chairs.
+    expect(canPlace(back, "desk", 0, 3, 0)).toBe(true);
+  });
+
+  it("gives every desk in a legal room its own chair cells", () => {
+    const room: PlacedItem[] = [
+      { iid: "f1", type: "desk", c: 0, r: 1, rot: 0 },
+      { iid: "f2", type: "desk", c: 3, r: 1, rot: 0 },
+      { iid: "f3", type: "desk", c: 0, r: 4, rot: 0 },
+      { iid: "f4", type: "desk", c: 3, r: 4, rot: 0 },
+    ];
+    const plan = planSeats(room);
+    expect(plan.unseated).toEqual([]);
+    const seen = new Set<string>();
+    for (const band of Object.values(plan.cells)) {
+      for (const s of band) {
+        const k = `${s.c},${s.r}`;
+        expect(seen.has(k), `two chairs in cell ${k}`).toBe(false);
+        seen.add(k);
+      }
+    }
+  });
+
+  it("resolves a room saved BEFORE the rule so its chairs still don't overlap", () => {
+    // Exactly the shipped layout: rows 0 and 2. The plan moves the second desk's chair to its far
+    // side rather than letting the two render inside each other.
+    const legacy: PlacedItem[] = [
+      { iid: "f1", type: "desk", c: 0, r: 0, rot: 0 },
+      { iid: "f2", type: "desk", c: 0, r: 2, rot: 0 },
+    ];
+    const plan = planSeats(legacy);
+    const a = plan.cells.f1.map((s) => `${s.c},${s.r}`);
+    const b = plan.cells.f2.map((s) => `${s.c},${s.r}`);
+    expect(a.some((k) => b.includes(k))).toBe(false);
+    expect(plan.flipped.f2).toBe(true); // pushed to its far side to get clear of f1's chair
+  });
+
+  it("won't let anything else be parked on a chair", () => {
+    const room: PlacedItem[] = [{ iid: "f1", type: "desk", c: 3, r: 3, rot: 0 }];
+    const seat = planSeats(room).cells.f1[0];
+    expect(canPlace(room, "plantPot", seat.c, seat.r, 0)).toBe(false);
+    expect(canPlace(room, "cabinet", seat.c, seat.r, 0)).toBe(false);
+    // …but a rug still slides underneath, like every other flat piece.
+    expect(canPlace(room, "rug", seat.c, seat.r, 0)).toBe(true);
+  });
+
+  it("lets a desk take its far side when the near one is blocked, and refuses when neither works", () => {
+    // A cabinet directly behind the desk pushes its chair to the front.
+    const blocked: PlacedItem[] = [{ iid: "f1", type: "cabinet", c: 3, r: 2, rot: 0 }];
+    expect(canPlace(blocked, "desk", 3, 3, 0)).toBe(true);
+    const plan = planSeats([...blocked, { iid: "f2", type: "desk", c: 3, r: 3, rot: 0 }]);
+    expect(plan.flipped.f2).toBe(true);
+    // Boxed in on both sides: no legal placement at all.
+    const boxed: PlacedItem[] = [
+      { iid: "f1", type: "cabinet", c: 3, r: 2, rot: 0 },
+      { iid: "f2", type: "cabinet", c: 3, r: 4, rot: 0 },
+    ];
+    expect(canPlace(boxed, "desk", 3, 3, 0)).toBe(false);
+  });
+
+  it("tidy up produces a room whose chairs never collide", () => {
+    const messy: PlacedItem[] = [
+      { iid: "f1", type: "desk", c: 0, r: 0, rot: 0 },
+      { iid: "f2", type: "desk", c: 0, r: 2, rot: 0 },
+      { iid: "f3", type: "desk", c: 3, r: 0, rot: 0 },
+      { iid: "f4", type: "desk", c: 3, r: 2, rot: 0 },
+      { iid: "f5", type: "plantPot", c: 8, r: 8, rot: 0 },
+    ];
+    const plan = planSeats(tidyLayout(messy));
+    expect(plan.unseated).toEqual([]);
+    const seen = new Set<string>();
+    for (const band of Object.values(plan.cells)) {
+      for (const s of band) {
+        expect(seen.has(`${s.c},${s.r}`)).toBe(false);
+        seen.add(`${s.c},${s.r}`);
+      }
     }
   });
 });

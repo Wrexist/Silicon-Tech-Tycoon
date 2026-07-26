@@ -338,6 +338,102 @@ function cellsOf(item: PlacedItem): string[] {
   return out;
 }
 
+// ---- Seats -------------------------------------------------------------------------------------
+// A desk's chair stands in the cell BESIDE the desk, outside its footprint — so for a long time the
+// grid knew nothing about it, and `canPlace` happily allowed two desks whose chairs occupy the same
+// cell. In a room laid out in rows that happens constantly: a desk against the back wall flips its
+// seat forward to keep the chair out of the wall, straight into the aisle the next row seats
+// backward into, and the two chairs render inside each other.
+//
+// The seat is now part of placement. A desk reserves the band of cells its chair stands in, nothing
+// may be placed on top of it, and a desk that cannot get a band anywhere is not a legal placement.
+// `planSeats` is the single source of truth: the 3D scene reads the same plan it validates against,
+// so what the grid reserves and what the room draws can never disagree.
+
+/** Grid step from a desk toward the side its occupant sits on, per rotation. The scene seats them off
+ *  the desk's local −z edge; rotation maps that onto the grid. */
+const SEAT_STEP: Record<Rot, [number, number]> = { 0: [0, -1], 1: [-1, 0], 2: [0, 1], 3: [1, 0] };
+
+/** The full-width band of cells immediately beside an item on one side, or null if it leaves the
+ *  grid. Full width because the chair is centred on the desk and a 2-cell desk's chair straddles
+ *  both — reserving the whole edge is the only version that can't half-overlap. */
+function bandBeside(item: PlacedItem, step: readonly [number, number], facilityTier: number): { c: number; r: number }[] | null {
+  const { w, d } = footprint(furnitureDef(item.type), item.rot);
+  const [dc, dr] = step;
+  const cells: { c: number; r: number }[] = [];
+  if (dr !== 0) {
+    const r = dr < 0 ? item.r - 1 : item.r + d;
+    for (let i = 0; i < w; i++) cells.push({ c: item.c + i, r });
+  } else {
+    const c = dc < 0 ? item.c - 1 : item.c + w;
+    for (let i = 0; i < d; i++) cells.push({ c, r: item.r + i });
+  }
+  const n = gridN(facilityTier);
+  return cells.every((s) => s.c >= 0 && s.r >= 0 && s.c < n && s.r < n) ? cells : null;
+}
+
+/** The cells this desk's chair would stand in on the given side (null = that side is off-grid). */
+export function seatBand(item: PlacedItem, flipped: boolean, facilityTier = 1): { c: number; r: number }[] | null {
+  const [dc, dr] = SEAT_STEP[item.rot];
+  return bandBeside(item, flipped ? [-dc, -dr] : [dc, dr], facilityTier);
+}
+
+export interface SeatPlan {
+  /** desk iid → is its chair on the FLIPPED (front) side rather than behind it. */
+  flipped: Record<string, boolean>;
+  /** desk iid → the cells its chair occupies. */
+  cells: Record<string, { c: number; r: number }[]>;
+  /** Desks that could not be given a clear band — an illegal layout (or one saved before this rule). */
+  unseated: string[];
+}
+
+/** Numeric part of an iid ("f12" → 12) so desks resolve in stable placement order. */
+function iidSeq(iid: string): number {
+  const n = parseInt(iid.replace(/^\D+/, ""), 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Assign every desk the cells its chair stands in. Desks are served in placement order; each takes
+ *  the side behind it when that band is clear, otherwise the front. A band is clear when it is on the
+ *  grid, holds no solid furniture, and no earlier desk has claimed it — which is precisely what stops
+ *  two chairs sharing a cell. Pure and deterministic. */
+export function planSeats(layout: readonly PlacedItem[], facilityTier = 1): SeatPlan {
+  const solid = new Set<string>();
+  for (const it of layout) {
+    if (furnitureDef(it.type).flat) continue;
+    for (const k of cellsOf(it)) solid.add(k);
+  }
+  const flipped: Record<string, boolean> = {};
+  const cells: Record<string, { c: number; r: number }[]> = {};
+  const unseated: string[] = [];
+  const claimed = new Set<string>();
+
+  const desks = layout.filter((it) => isDeskType(it.type)).slice().sort((a, b) => iidSeq(a.iid) - iidSeq(b.iid));
+  for (const dk of desks) {
+    const clear = (band: { c: number; r: number }[] | null) =>
+      band != null && band.every((s) => !claimed.has(`${s.c},${s.r}`) && !solid.has(`${s.c},${s.r}`));
+    const back = seatBand(dk, false, facilityTier);
+    const front = seatBand(dk, true, facilityTier);
+    let chosen: { c: number; r: number }[] | null;
+    let isFlipped: boolean;
+    if (clear(back)) { chosen = back; isFlipped = false; }
+    else if (clear(front)) { chosen = front; isFlipped = true; }
+    else {
+      // Nothing free. Still pick a side so the scene draws something sane, and report it so
+      // `canPlace` can refuse the placement that would have created this.
+      chosen = back ?? front;
+      isFlipped = back == null;
+      unseated.push(dk.iid);
+    }
+    flipped[dk.iid] = isFlipped;
+    if (chosen) {
+      cells[dk.iid] = chosen;
+      for (const s of chosen) claimed.add(`${s.c},${s.r}`);
+    }
+  }
+  return { flipped, cells, unseated };
+}
+
 /** Can `type` be placed at (c,r,rot) without leaving the grid or hitting a solid item?
  *  Flat items (rugs) don't block and can't be blocked. `ignore` skips an item being moved. */
 export function canPlace(
@@ -355,10 +451,22 @@ export function canPlace(
   if (def.flat) return true; // rugs go anywhere
   const want = new Set<string>();
   for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) want.add(`${c + dc},${r + dr}`);
-  for (const it of layout) {
-    if (it.iid === ignore) continue;
+  const others = layout.filter((it) => it.iid !== ignore);
+  for (const it of others) {
     if (furnitureDef(it.type).flat) continue;
     for (const cell of cellsOf(it)) if (want.has(cell)) return false;
+  }
+
+  // Seats. A desk needs somewhere for its chair to stand, and nothing may be put where a chair
+  // already is — the two halves of "two chairs can never end up in the same cell".
+  const candidate: PlacedItem = { iid: ignore ?? "__candidate", type, c, r, rot };
+  if (isDeskType(type)) {
+    // The candidate joins the room: legal only if EVERY desk, it included, still gets a band.
+    if (planSeats([...others, candidate], facilityTier).unseated.length > 0) return false;
+  } else {
+    for (const band of Object.values(planSeats(others, facilityTier).cells)) {
+      for (const s of band) if (want.has(`${s.c},${s.r}`)) return false;
+    }
   }
   return true;
 }
