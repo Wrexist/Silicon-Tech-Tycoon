@@ -72,7 +72,9 @@ await shot("office-zones-before");
   const cv = await p.$("canvas");
   const box = cv && await cv.boundingBox();
   if (box) await p.screenshot({ path: resolve(outDir, `office-closeup-${theme}.png`), clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 330) } });
-  console.log("shot office-closeup");
+  // Tight crop on the desk row itself — at deviceScaleFactor 2 this is a true 2x zoom.
+  if (box) await p.screenshot({ path: resolve(outDir, `office-desks-${theme}.png`), clip: { x: box.x + box.width * 0.22, y: box.y + 60, width: box.width * 0.55, height: 150 } });
+  console.log("shot office-closeup + office-desks");
 }
 // Tidy up (the wand) — free rearrange that pairs desks with amenities.
 const tidyBtn = await p.$('.hqb__icon[aria-label^="Tidy up"]');

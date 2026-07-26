@@ -4,6 +4,7 @@
 import { Component, Suspense, lazy, memo, useRef, type ReactNode } from "react";
 import { RoundedBox } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import { DoubleSide } from "three";
 import type { Group } from "three";
 import type { FurnitureId } from "../engine/furniture.ts";
 import { GRID, FURNITURE } from "../engine/furniture.ts";
@@ -18,20 +19,94 @@ const FABRIC_2 = "#6f7a89";
 const WOOD = "#9c6b43";
 const BOOKS = ["#3b82f6", "#1eb877", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-/** Backlight bleed on a monitor's REAR shell — a thin lit strip along the bottom edge, in the screen
- *  colour.
- *
- *  Every desk model is authored with its screen facing the occupant, and the occupant sits on the far
- *  side of the desk facing the camera, so the iso view sees the BACK of every monitor. Without this a
- *  correctly-oriented desk reads as a bare table with a dark slab on it. One thin emissive strip is
- *  enough to say "this computer is on" from behind, without pretending the screen is double-sided.
- *  `w` matches the panel's width; `y` its centre height; `z` the shell's rear face. */
-function ScreenBleed({ w, y, z }: { w: number; y: number; z: number }) {
+/** What sits ON a desk: the monitor, a keyboard and a mug. The Kenney desk models are bare boards —
+ *  they ship with no computer at all, which is why the most common desk in the office read as an
+ *  empty table. Rendered as `children` of the GLB so it lands on the model's MEASURED top surface
+ *  rather than a guessed height, and authored on the +z (user) side like every parametric desk, so
+ *  the desk-facing rotation aims it at the chair. */
+function DeskTopKit({ p, w }: { p: RoomPalette; w: number }) {
+  const half = (w * C) / 2;
   return (
-    <mesh position={[0, y, z]} rotation-y={Math.PI}>
-      <planeGeometry args={[w, 0.02]} />
-      <meshStandardMaterial color="#7fb2ff" emissive="#7fb2ff" emissiveIntensity={0.85} toneMapped={false} />
-    </mesh>
+    <group>
+      <group position={[Math.min(0.12, half - 0.42), 0, -0.16]}>
+        <Monitor p={p} w={0.6} h={0.36} y={0.32} />
+      </group>
+      <mesh position={[-0.12, 0.012, 0.13]} rotation-x={-0.04}>
+        <boxGeometry args={[0.42, 0.016, 0.15]} />
+        <meshStandardMaterial color="#2a2f37" roughness={0.6} />
+      </mesh>
+      <mesh position={[Math.min(0.5, half - 0.14), 0.045, 0.02]}>
+        <cylinderGeometry args={[0.045, 0.04, 0.1, 12]} />
+        <meshStandardMaterial color="#c9743a" roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
+/** A monitor, modelled the way a real one reads at this camera.
+ *
+ *  The occupant sits on the far side of the desk facing the camera, so a screen that correctly faces
+ *  THEM is pointed away from us — there is no swivel that fixes that (break-even is 48° off-axis, by
+ *  which point the panel no longer faces the person at all). Which is fine, because that isn't how
+ *  you tell a monitor is on when you're standing behind someone: you see the LIGHT IT THROWS. So this
+ *  models the light rather than cheating the panel:
+ *
+ *    • `bleed`  — the halo escaping around the panel's edges, the classic backlight glow you see from
+ *                 behind any lit screen. Slightly larger than the panel, sitting just behind it.
+ *    • `pool`   — the patch of screen-light thrown forward onto the desktop, on the user's side.
+ *    • `spill`  — a soft upward wash in front of the panel, which catches the seated robot's face.
+ *
+ *  The panel itself is a thin bezelled slab tilted back ~8°, on a slim neck and a weighted base —
+ *  the silhouette of a real monitor rather than a slab on a stick. */
+function Monitor({
+  p, w = 0.66, h = 0.38, y = 0.4, tilt = 0.14, pool = true,
+}: { p: RoomPalette; w?: number; h?: number; y?: number; tilt?: number; pool?: boolean }) {
+  const bezel = 0.028;
+  return (
+    <group>
+      {/* neck + weighted base */}
+      <mesh position={[0, y - h / 2 - 0.07, 0.01]}>
+        <boxGeometry args={[0.05, 0.16, 0.035]} />
+        <meshStandardMaterial color={p.metalDark} metalness={0.55} roughness={0.35} />
+      </mesh>
+      <mesh position={[0, y - h / 2 - 0.15, 0.045]}>
+        <boxGeometry args={[0.2, 0.016, 0.13]} />
+        <meshStandardMaterial color={p.metalDark} metalness={0.55} roughness={0.35} />
+      </mesh>
+
+      <group position={[0, y, 0]} rotation-x={-tilt}>
+        {/* thin bezelled panel */}
+        <RoundedBox args={[w, h, 0.016]} radius={0.006} smoothness={2}>
+          <meshStandardMaterial color={p.metalDark} metalness={0.35} roughness={0.45} />
+        </RoundedBox>
+        {/* the lit face — toward the person */}
+        <mesh position={[0, 0, 0.0095]}>
+          <planeGeometry args={[w - bezel * 2, h - bezel * 2]} />
+          <meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.4} toneMapped={false} />
+        </mesh>
+        {/* Backlight bleed — the fringe of light escaping around a lit panel, which is what you
+            actually see of a monitor from behind. These sit on the USER's side (+z) and are wider
+            than the panel, so the opaque slab masks their middle and only the halo around the
+            silhouette reaches the camera. Putting them on the camera side instead just paints the
+            whole monitor pale blue — it stops reading as a monitor at all. DoubleSide because the
+            face pointing at the camera is their back. */}
+        <mesh position={[0, 0, 0.013]}>
+          <planeGeometry args={[w + 0.11, h + 0.11]} />
+          <meshBasicMaterial color={p.screen} transparent opacity={0.62} depthWrite={false} side={DoubleSide} />
+        </mesh>
+      </group>
+
+      {/* the light the screen throws forward: a pool on the desktop and a soft wash that catches
+          whoever is sitting in it */}
+      {pool && (
+        <>
+          <mesh rotation-x={-Math.PI / 2} position={[0, y - h / 2 - 0.153, 0.22]}>
+            <planeGeometry args={[w + 0.18, 0.36]} />
+            <meshBasicMaterial color={p.screen} transparent opacity={0.3} depthWrite={false} side={DoubleSide} />
+          </mesh>
+        </>
+      )}
+    </group>
   );
 }
 
@@ -51,13 +126,7 @@ function Desk({ p }: { p: RoomPalette }) {
       {/* A real workstation: a large monitor on a stand, keyboard + mouse, and a mug — so even the
           starter desk clearly reads as "a computer", not a bare table. */}
       <group position={[0.12, 0.78, -0.18]}>
-        {/* stand: neck + foot */}
-        <mesh position={[0, 0.12, 0]}><boxGeometry args={[0.07, 0.24, 0.05]} /><meshStandardMaterial color={p.metalDark} metalness={0.4} /></mesh>
-        <mesh position={[0, 0.02, 0.04]}><boxGeometry args={[0.24, 0.02, 0.14]} /><meshStandardMaterial color={p.metalDark} metalness={0.4} /></mesh>
-        {/* screen — larger + brighter than before */}
-        <mesh position={[0, 0.38, 0]}><boxGeometry args={[0.7, 0.42, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
-        <mesh position={[0, 0.38, 0.023]}><planeGeometry args={[0.64, 0.36]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.35} toneMapped={false} /></mesh>
-        <ScreenBleed w={0.6} y={0.2} z={-0.022} />
+        <Monitor p={p} w={0.66} h={0.4} y={0.36} />
       </group>
       {/* keyboard + mouse on the desktop */}
       <mesh position={[-0.14, 0.785, 0.12]}><boxGeometry args={[0.46, 0.03, 0.17]} /><meshStandardMaterial color="#2a2f37" roughness={0.6} /></mesh>
@@ -82,10 +151,7 @@ function DeskL({ p }: { p: RoomPalette }) {
         <mesh key={i} position={[l[0], 0.37, l[1]]}><boxGeometry args={[0.08, 0.74, 0.08]} /><meshStandardMaterial color={p.deskDark} /></mesh>
       ))}
       <group position={[0.25, 0.78, -C / 2 - 0.18]}>
-        <mesh position={[0, 0.4, 0]}><boxGeometry args={[0.6, 0.36, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
-        <mesh position={[0, 0.4, 0.022]}><planeGeometry args={[0.54, 0.3]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.1} toneMapped={false} /></mesh>
-        <ScreenBleed w={0.5} y={0.24} z={-0.021} />
-        <mesh position={[0, 0.18, 0]}><boxGeometry args={[0.05, 0.3, 0.05]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+        <Monitor p={p} w={0.6} h={0.36} y={0.4} />
       </group>
     </group>
   );
@@ -361,10 +427,7 @@ function StandingDesk({ p }: { p: RoomPalette }) {
         </group>
       ))}
       <group position={[0.1, 1.06, -0.18]}>
-        <mesh position={[0, 0.34, 0]}><boxGeometry args={[0.6, 0.36, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
-        <mesh position={[0, 0.34, 0.022]}><planeGeometry args={[0.54, 0.3]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.1} toneMapped={false} /></mesh>
-        <ScreenBleed w={0.5} y={0.18} z={-0.021} />
-        <mesh position={[0, 0.12, 0]}><boxGeometry args={[0.04, 0.22, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+        <Monitor p={p} w={0.6} h={0.36} y={0.34} />
       </group>
     </group>
   );
@@ -378,13 +441,10 @@ function DualDesk({ p }: { p: RoomPalette }) {
       {([[-w / 2 + 0.18, -C / 2 + 0.16], [w / 2 - 0.18, -C / 2 + 0.16], [-w / 2 + 0.18, C / 2 - 0.16], [w / 2 - 0.18, C / 2 - 0.16]] as const).map((l, i) => (
         <mesh key={i} position={[l[0], 0.37, l[1]]}><boxGeometry args={[0.07, 0.74, 0.07]} /><meshStandardMaterial color={p.deskDark} /></mesh>
       ))}
+      {/* a paired setup, each panel toed in toward the seat like a real two-monitor rig */}
       {[-0.34, 0.34].map((x, i) => (
-        <group key={i} position={[x, 0.78, -0.2]} rotation-y={i ? -0.12 : 0.12}>
-          <mesh position={[0, 0.32, 0]}><boxGeometry args={[0.56, 0.34, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
-          {/* single-sided screen — it faces the worker (a real monitor: lit front, solid back). */}
-          <mesh position={[0, 0.32, 0.022]}><planeGeometry args={[0.5, 0.28]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.2} toneMapped={false} /></mesh>
-          <ScreenBleed w={0.46} y={0.17} z={-0.021} />
-          <mesh position={[0, 0.1, 0]}><boxGeometry args={[0.04, 0.2, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+        <group key={i} position={[x, 0.78, -0.2]} rotation-y={i ? -0.16 : 0.16}>
+          <Monitor p={p} w={0.54} h={0.32} y={0.3} pool={i === 0} />
         </group>
       ))}
       <mesh position={[0, 0.79, 0.16]}><boxGeometry args={[0.5, 0.02, 0.16]} /><meshStandardMaterial color="#15181d" /></mesh>
@@ -789,10 +849,7 @@ function ExecutiveDesk({ p }: { p: RoomPalette }) {
       ))}
       <mesh position={[0, 0.805, -0.25]}><boxGeometry args={[0.62, 0.02, 0.4]} /><meshStandardMaterial color="#15181d" /></mesh>
       <group position={[0.55, 0.81, -0.35]}>
-        <mesh position={[0, 0.34, 0]}><boxGeometry args={[0.62, 0.36, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
-        <mesh position={[0, 0.34, 0.022]}><planeGeometry args={[0.56, 0.3]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.1} toneMapped={false} /></mesh>
-        <ScreenBleed w={0.52} y={0.18} z={-0.021} />
-        <mesh position={[0, 0.12, 0]}><boxGeometry args={[0.05, 0.22, 0.05]} /><meshStandardMaterial color={p.metalDark} /></mesh>
+        <Monitor p={p} w={0.62} h={0.36} y={0.34} />
       </group>
     </group>
   );
@@ -1445,6 +1502,7 @@ export const FurniturePiece = memo(function FurniturePiece({ type, p }: { type: 
   const model = modelFor(type);
   if (!model) return parametric;
   const def = FURNITURE.find((f) => f.id === type);
+  const desk = def?.category === "desks";
   return (
     <ModelBoundary fallback={parametric}>
       <Suspense fallback={parametric}>
@@ -1452,7 +1510,10 @@ export const FurniturePiece = memo(function FurniturePiece({ type, p }: { type: 
           asset={model}
           footprintW={(def?.w ?? 1) * C}
           footprintD={(def?.d ?? 1) * C}
-        />
+        >
+          {/* the modelled desks ship bare — give them the computer they're supposed to have */}
+          {desk && <DeskTopKit p={p} w={def?.w ?? 2} />}
+        </LazyGltf>
       </Suspense>
     </ModelBoundary>
   );
