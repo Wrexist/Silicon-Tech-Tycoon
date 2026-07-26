@@ -2683,7 +2683,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (!offline && !bankrupt && state.platformUnlocked) {
       const sc = BALANCE.platform.security;
       if (netExposure(osThreat, osSecurity) > sc.exposureRepThreshold) {
-        reputation = Math.max(0, reputation - sc.exposureRepDragPerWeek * rate);
+        reputation = Math.max(reputationFloor(state.era), reputation - sc.exposureRepDragPerWeek * rate);
         if (!feed.some((f) => f.week === week && f.text.includes("exposed")))
           feed.push(feedItem(week, `${osDisplayName(state)} is exposed, unpatched vulnerabilities are eroding trust. Ship a security patch.`, "negative"));
       }
@@ -2763,7 +2763,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const next = base.pendingKeynote.map((k) => {
       if (!k.slipped && week > k.deadlineWeek) {
         slippedAny = true;
-        base.reputation = Math.max(BALANCE.reputation.min, base.reputation - BALANCE.keynote.slipRepPenalty);
+        base.reputation = Math.max(reputationFloor(base.era), base.reputation - BALANCE.keynote.slipRepPenalty);
         base.feed.push(feedItem(week, `The keynote promise slipped — “${k.productName}” missed its week-${k.deadlineWeek} ship window. −${BALANCE.keynote.slipRepPenalty} reputation, and the launch buzz will sting.`, "negative"));
         return { ...k, slipped: true };
       }
@@ -3636,23 +3636,29 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const isFlop = outcome === "flop";
   const isSolid = outcome === "solid";
   const hasCrisisComms = hasProject(state.completedProjects, "crisisComms");
+  // How far a flop can push this company down depends on how established it is — see
+  // `reputationFloor`. Without it, two early flops took a brand-new company to 0, and 0 has no
+  // demand, so every subsequent launch flopped too: a first-month mistake with no way back.
+  const repFloor = reputationFloor(state.era);
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
   else if (isSolid) reputation = Math.min(rep.max, reputation + rep.gainPerSolid);
-  else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
+  else if (isFlop) reputation = Math.max(repFloor, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
   if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);
   if (hasProject(state.completedProjects, "gtmPrestige")) reputation = Math.min(rep.max, reputation + 2); // GTM doctrine: Prestige House
   // Ethics of the supply chain: responsible sourcing slowly builds the brand; cheap/exploitative
   // sourcing erodes it (0 for standard sourcing → no change for older saves / default builds).
   const ethicsRep = supplierEthicsRepDelta(product);
-  if (ethicsRep !== 0) reputation = Math.max(rep.min, Math.min(rep.max, reputation + ethicsRep));
+  if (ethicsRep !== 0) reputation = Math.max(repFloor, Math.min(rep.max, reputation + ethicsRep));
 
   // Fanbase response — hits win fans (more for bigger sellers), flops lose them, sellouts add buzz.
   const fb = BALANCE.fans;
   let fans = state.fans;
   if (isHit) fans += fb.gainOnHitFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK;
   else if (isSolid) fans += fb.gainOnSolidFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK * 0.5;
-  else if (isFlop) fans = Math.max(0, fans - fb.lossPerFlop);
+  // A flop costs the SMALLER of the flat loss and a share of the audience you have, so it stays a
+  // rounding error to a household name and a survivable dent to a garage — see `lossShareOnFlop`.
+  else if (isFlop) fans = Math.max(0, fans - Math.min(fb.lossPerFlop, fans * (fb.lossShareOnFlop ?? 1)));
   else fans += fb.gainOnSteadyFlat; // a steady seller still wins a few new fans (beats the decay)
   // B4 — the sellout buzz is only earned if the run actually met a reasonable share of demand.
   // A deliberately tiny run that sells out while ignoring most of the market no longer farms fans;
@@ -6470,6 +6476,19 @@ export function shareholderPulse(state: GameState): ShareholderPulse | null {
  *  `hit` is a hit, at/below `flop` is a flop, ≥ `solid` (but under hit) is a solid performer, else a
  *  steady seller. The bars rise with the era so late-game hits must be earned (Phase-2 scaling). The
  *  Design Lab preview and the launch use this SAME helper, so the projected verdict always matches. */
+/** How low this company's reputation can be driven, given how established it is. A garage has little
+ *  standing to lose; a household name has everything to lose. Above zero in the early eras this is
+ *  what keeps a bad start a SETBACK rather than an absorbing state — at reputation 0 there is no
+ *  demand, so every later launch flops too and nothing the player does can matter again.
+ *  Falls back to `reputation.min` for any era outside the table. */
+export function reputationFloor(era: number): number {
+  const r = BALANCE.reputation;
+  const table: readonly number[] = r.minByEra;
+  if (table.length === 0) return r.min;
+  const i = Math.max(0, Math.min(Math.floor(era) - 1, table.length - 1));
+  return table[i] ?? r.min;
+}
+
 export function verdictBands(era: number): { hit: number; flop: number; solid: number } {
   const r = BALANCE.reputation;
   const i = Math.max(0, Math.min(era - 1, r.hitThresholdByEra.length - 1));

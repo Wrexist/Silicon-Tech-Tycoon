@@ -387,6 +387,14 @@ export const BALANCE = {
     gainOnSolidFlat: 70, // flat fan bump for a "solid" launch (+ half the hit's per-unit growth)
     gainOnSteadyFlat: 55, // flat fan bump for a "steady" launch — beats decay so reach slowly grows
     lossPerFlop: 140, // fans lost on a flop
+    // …but never more than this SHARE of the fanbase you actually have. 140 is a rounding error to
+    // an established brand and a death sentence to a new one: starting fans are 250, so three early
+    // flops took the audience to exactly 0 — and 0 fans means 0 demand, which means every later
+    // launch flops too. Traced on the harness: a player one component tier off the frontier lost
+    // every fan by week 20 and went bankrupt in 12 of 12 seeds. Taking the SMALLER of the flat loss
+    // and this share leaves the late game untouched (140 << 25% of 200,000) while making the early
+    // loss proportional — painful, survivable, and mathematically unable to reach zero.
+    lossShareOnFlop: 0.25,
     decayPerWeek: 0.992, // gentle weekly erosion of attention
     selloutFanBonus: 0.04, // extra fan growth when a run sells out (demand > supply)
     // B4 — tame the "deliberately under-produce → guaranteed sellout → free fan farming" exploit
@@ -483,7 +491,16 @@ export const BALANCE = {
     // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From
     // the Growth era on, a mediocre or heavily-contested device lands in the red, so success is earned.
     // Kept below solidThresholdByEra at every index (flop < solid) and non-decreasing across eras.
-    flopThresholdByEra: [10, 34, 52, 68, 82], // era 5 (kept < solid, non-decreasing)
+    // ERA-1 FLOOR lowered 10 -> 6. A garage product one component tier below the frontier scores
+    // right about 10, so the floor sat exactly where a slightly-weaker first product lands: 88% of
+    // those launches flopped, and the run died in 12 of 12 seeds — the game had precisely one legal
+    // opening move. The sweep is unusually clean: at every floor from 10 down to 2 the OPTIMIZER is
+    // completely unchanged (0/10 bankrupt, $5,969M, identical era-1 verdict mix), because a maxed
+    // product is nowhere near this line. Lowering it costs a good player nothing and only stops a
+    // weaker one being executed for it — at 6, shipping a tier below goes from 10/10 bankrupt to
+    // 3/10 and ends at $3.4B: a real strategy that is worse than playing well, which is the point.
+    // 4 and 2 buy almost nothing more (2/10), so 6 is the knee and keeps some failure pressure.
+    flopThresholdByEra: [6, 34, 52, 68, 82], // era 5 (kept < solid, non-decreasing)
     // Dynamic "expectations" (Track D — the anti-"every device is a hit" system). The static bars
     // above anchor a young company (and the very first launch), but as you rack up strong launches a
     // ROLLING baseline of your recent competition-adjusted scores raises the bar: a HIT must beat your
@@ -533,6 +550,17 @@ export const BALANCE = {
     overpricePenalty: 2,
     max: 100,
     min: 0,
+    // REPUTATION FLOOR, by era. A new company starts at 8 and a flop costs 5, so two early flops
+    // took it to 0 — and 0 is an absorbing state, not a setback: no reputation means no demand,
+    // which means the next launch flops too, which means there is no way back. Traced on the
+    // harness, a player shipping one component tier below the frontier lost all reputation and every
+    // fan inside twenty weeks and went bankrupt in 12 of 12 seeds, always in the garage era.
+    //
+    // The floor eases as the company grows, which is also the honest fiction: nobody has heard of a
+    // garage, so it has little to lose, while an established brand has everything to lose. Era 4+
+    // keeps a floor of 0 — by then the player has a cushion, alternatives, and the late-game
+    // maintenance decay (decayFloor) is the mechanic that should bite instead.
+    minByEra: [5, 4, 2, 0, 0],
   },
 
   // --- Research Points (RP): the tech currency ---
