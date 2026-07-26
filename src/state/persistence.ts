@@ -4,7 +4,7 @@ import { makeRng } from "../engine/rng.ts";
 import { starterFloor, MACHINE_DEFS, MACHINE_MAX_LEVEL, MAX_EXPANSION, type FactoryFloor } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, type PlacedProp } from "../engine/factoryProps.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { canPlace, defaultLayout, deskItems, gridN } from "../engine/furniture.ts";
+import { canPlace, defaultLayout, deskItems, gridN, repairSeats } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Keynote, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
@@ -800,6 +800,11 @@ function migrate(state: GameState): GameState | null {
       if (!placed) break; // no free cell — overflow staff roam instead
     }
   }
+  // Chairs stand in the cell BESIDE a desk, and placement only started reserving that cell recently —
+  // so a room saved before then can hold two desks whose chairs are inside each other. Slide the
+  // stranded ones to the nearest spot that has room for a chair; a room that was already fine is
+  // returned untouched, and anything genuinely walled in still surfaces the "too tight" nudge.
+  s.layout = repairSeats(s.layout, s.facilityTier);
   s.ready = s.ready.map((p: Product) => fixProduct(p));
   if (Array.isArray(s.staff)) {
     s.staff = s.staff.map((m: any) => {

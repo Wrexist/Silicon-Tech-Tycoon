@@ -434,6 +434,73 @@ export function planSeats(layout: readonly PlacedItem[], facilityTier = 1): Seat
   return { flipped, cells, unseated };
 }
 
+/** Placement stops a chair collision from ever being CREATED, but rooms saved before the rule existed
+ *  are already in one. Rather than make the player go and find it, slide each stranded desk to the
+ *  nearest spot where its chair fits — nearest so the room the player arranged stays recognisably
+ *  theirs, and only stranded desks move, so a legal layout comes back untouched (same array, so
+ *  callers can compare by reference). Rotation is a last resort: a turned desk costs one step of
+ *  distance, which keeps a desk facing the way it was unless turning is what saves it.
+ *
+ *  Pure and deterministic — a fixed scan order, and ties go to the first hit. If a desk is walled in
+ *  so completely that nowhere works, it is left where it is and stays in `planSeats().unseated`, which
+ *  is what raises the "too tight" nudge toward Tidy. */
+export function repairSeats(layout: readonly PlacedItem[], facilityTier = 1): PlacedItem[] {
+  let stuck = planSeats(layout, facilityTier).unseated;
+  if (stuck.length === 0) return layout as PlacedItem[];
+
+  const work = layout.map((it) => ({ ...it }));
+  const n = gridN(facilityTier);
+  const hopeless = new Set<string>(); // desks already proven immovable — never re-scanned
+  // Each pass seats one desk or writes one off, so the loop can only run once per desk.
+  for (let guard = 0; guard < layout.length; guard++) {
+    const target = stuck.find((iid) => !hopeless.has(iid));
+    if (target == null) break;
+    const idx = work.findIndex((it) => it.iid === target);
+    if (idx < 0) break;
+    const desk = work[idx];
+    const others = work.filter((it) => it.iid !== desk.iid);
+    let best: { c: number; r: number; rot: Rot; score: number } | null = null;
+
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        for (const rot of [0, 1, 2, 3] as const) {
+          if (c === desk.c && r === desk.r && rot === desk.rot) continue;
+          const { w, d } = footprint(furnitureDef(desk.type), rot);
+          if (!inBounds(c, r, w, d, facilityTier)) continue;
+          const want = new Set<string>();
+          for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) want.add(`${c + dc},${r + dr}`);
+          if (!fitsFootprint(others, want)) continue;
+          // Judge the whole room, not just this desk: a move that seats it by stealing the band of a
+          // desk that was fine is no improvement, and this comparison sees that.
+          const moved = [...others, { ...desk, c, r, rot }];
+          const after = planSeats(moved, facilityTier).unseated;
+          if (after.length >= stuck.length || after.includes(desk.iid)) continue;
+          const score = Math.abs(c - desk.c) + Math.abs(r - desk.r) + (rot === desk.rot ? 0 : 1);
+          if (best == null || score < best.score) best = { c, r, rot, score };
+        }
+      }
+    }
+
+    if (best == null) {
+      hopeless.add(desk.iid); // nowhere to go — leave it for the "too tight" warning
+      continue;
+    }
+    work[idx] = { ...desk, c: best.c, r: best.r, rot: best.rot };
+    stuck = planSeats(work, facilityTier).unseated;
+  }
+  return work;
+}
+
+/** Do the wanted cells clear every solid item in `others`? (The plain footprint half of `canPlace`,
+ *  split out so the seat repair below can ask about geometry without also asking about seats.) */
+function fitsFootprint(others: readonly PlacedItem[], want: ReadonlySet<string>): boolean {
+  for (const it of others) {
+    if (furnitureDef(it.type).flat) continue;
+    for (const cell of cellsOf(it)) if (want.has(cell)) return false;
+  }
+  return true;
+}
+
 /** Can `type` be placed at (c,r,rot) without leaving the grid or hitting a solid item?
  *  Flat items (rugs) don't block and can't be blocked. `ignore` skips an item being moved. */
 export function canPlace(
@@ -452,10 +519,7 @@ export function canPlace(
   const want = new Set<string>();
   for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) want.add(`${c + dc},${r + dr}`);
   const others = layout.filter((it) => it.iid !== ignore);
-  for (const it of others) {
-    if (furnitureDef(it.type).flat) continue;
-    for (const cell of cellsOf(it)) if (want.has(cell)) return false;
-  }
+  if (!fitsFootprint(others, want)) return false;
 
   // Seats. A desk needs somewhere for its chair to stand, and nothing may be put where a chair
   // already is — the two halves of "two chairs can never end up in the same cell".

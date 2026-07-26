@@ -17,6 +17,7 @@ import {
   officeAttrs,
   officeZoneBonus,
   planSeats,
+  repairSeats,
   removeItem,
   rotateItem,
   tidyLayout,
@@ -439,6 +440,67 @@ describe("seats — two chairs can never occupy the same cell", () => {
       { iid: "f2", type: "cabinet", c: 3, r: 4, rot: 0 },
     ];
     expect(canPlace(boxed, "desk", 3, 3, 0)).toBe(false);
+  });
+
+  it("repairs a room saved before the rule, moving ONLY the desks that are stranded", () => {
+    // f1 is against the wall so its chair is forced forward into row 1 — the row f2 seats backward
+    // into — and cabinets block f2's only other side. f2 is stranded exactly the way the shipped
+    // save was. Repair frees it and leaves the rest of the room alone.
+    const legacy: PlacedItem[] = [
+      { iid: "f1", type: "desk", c: 0, r: 0, rot: 0 },
+      { iid: "f2", type: "desk", c: 0, r: 2, rot: 0 },
+      { iid: "f3", type: "cabinet", c: 0, r: 3, rot: 0 },
+      { iid: "f4", type: "cabinet", c: 1, r: 3, rot: 0 },
+      { iid: "f5", type: "plantPot", c: 7, r: 7, rot: 0 },
+    ];
+    const stranded = planSeats(legacy).unseated;
+    expect(stranded.length).toBeGreaterThan(0);
+
+    const fixed = repairSeats(legacy);
+    expect(planSeats(fixed).unseated).toEqual([]);
+    // No two chairs share a cell any more.
+    const seen = new Set<string>();
+    for (const band of Object.values(planSeats(fixed).cells)) {
+      for (const s of band) {
+        expect(seen.has(`${s.c},${s.r}`), `two chairs in cell ${s.c},${s.r}`).toBe(false);
+        seen.add(`${s.c},${s.r}`);
+      }
+    }
+    // Only stranded desks moved — the plant and the desks that were fine are exactly where they were.
+    const before = new Map(legacy.map((it) => [it.iid, it]));
+    for (const it of fixed) {
+      if (stranded.includes(it.iid)) continue;
+      expect(it).toEqual(before.get(it.iid));
+    }
+    expect(fixed).toHaveLength(legacy.length); // nothing bought, nothing thrown away
+  });
+
+  it("returns a legal room untouched, and is idempotent", () => {
+    const fine: PlacedItem[] = [
+      { iid: "f1", type: "desk", c: 0, r: 1, rot: 0 },
+      { iid: "f2", type: "desk", c: 3, r: 1, rot: 0 },
+      { iid: "f3", type: "rug", c: 5, r: 5, rot: 0 },
+    ];
+    expect(repairSeats(fine)).toBe(fine); // same array — callers can skip work by reference
+    const once = repairSeats([
+      { iid: "f1", type: "desk", c: 0, r: 0, rot: 0 },
+      { iid: "f2", type: "desk", c: 0, r: 2, rot: 0 },
+      { iid: "f3", type: "cabinet", c: 0, r: 3, rot: 0 },
+      { iid: "f4", type: "cabinet", c: 1, r: 3, rot: 0 },
+    ]);
+    expect(repairSeats(once)).toBe(once);
+  });
+
+  it("leaves a genuinely walled-in desk in place rather than teleporting it", () => {
+    // A 1×1 room's worth of space: the desk has cabinets on both sides and no free cell anywhere,
+    // so repair has nothing to offer — it must not invent a spot or drop the desk.
+    const walled: PlacedItem[] = [];
+    for (let c = 0; c < 8; c++) for (let r = 0; r < 8; r++) walled.push({ iid: `c${c}${r}`, type: "cabinet", c, r, rot: 0 });
+    const boxed = walled.filter((it) => it.c !== 3 || it.r !== 3);
+    boxed.push({ iid: "f99", type: "desk", c: 3, r: 3, rot: 0 });
+    const fixed = repairSeats(boxed);
+    expect(fixed.find((it) => it.iid === "f99")).toMatchObject({ c: 3, r: 3 });
+    expect(planSeats(fixed).unseated).toContain("f99"); // still flagged, so HQ still nudges to Tidy
   });
 
   it("tidy up produces a room whose chairs never collide", () => {
