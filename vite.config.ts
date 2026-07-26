@@ -56,10 +56,16 @@ export default defineConfig({
   build: {
     // Split the heavy three.js core into its own cacheable chunk (the lazy 3D office chunk
     // pulls in ~900KB; isolating three lets the app shell + r3f glue cache independently).
+    // React and the icon set get the same treatment for a different reason: they change only when a
+    // dependency is bumped, whereas the app chunk changes every release. Kept separate, a normal
+    // update re-downloads the app chunk alone instead of re-shipping the framework with it — which
+    // for an installed PWA on a phone is the difference that shows up on every version bump.
     rollupOptions: {
       output: {
         manualChunks: {
           three: ["three"],
+          react: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
+          icons: ["lucide-react"],
         },
       },
     },

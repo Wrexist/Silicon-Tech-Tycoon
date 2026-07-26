@@ -328,6 +328,30 @@
 }
 
 /* Screen-level error boundary card */
+/* Placeholder while a lazily-loaded screen's chunk arrives. Three bars at roughly the height the
+   real screens' first cards open at, so the tab switch holds its shape instead of collapsing to
+   nothing and snapping back. The shimmer is the only motion; neutralized by the global
+   prefers-reduced-motion catch-all in index.css. */
+.app__screen-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  padding: var(--sp-8) 0;
+}
+.app__screen-loading-bar {
+  height: 96px;
+  border-radius: var(--r-card);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  animation: app-screen-loading 1.4s ease-in-out infinite;
+}
+.app__screen-loading-bar:nth-child(2) { animation-delay: 0.12s; height: 128px; }
+.app__screen-loading-bar:nth-child(3) { animation-delay: 0.24s; }
+@keyframes app-screen-loading {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.75; }
+}
+
 .app__screen-error {
   display: flex;
   flex-direction: column;
