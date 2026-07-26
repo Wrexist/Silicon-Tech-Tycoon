@@ -298,6 +298,32 @@ describe("tidyLayout — auto-arrange that buys and sells nothing", () => {
     expect(officeZoneBonus(after).comfort).toBeGreaterThan(0);
   });
 
+  it("only puts amenities where they actually EARN — every pairable amenity pays", () => {
+    // The room has 3 desks and 2 amenities, so a correct tidy pairs BOTH of them. This is the
+    // regression guard for measuring adjacency off the footprint instead of the anchor cell: a plant
+    // tucked past a 2-wide desk's far end looks beside it and pays nothing.
+    const after = tidyLayout(messyRoom());
+    const zones = deskZones(after);
+    expect(zones.pairs).toBe(2);          // both amenities are earning
+    expect(zones.pairing).toHaveLength(2);
+    // …and BREADTH-FIRST: two amenities pair two different desks, not one desk twice.
+    expect(zones.zoned).toHaveLength(2);
+  });
+
+  it("spreads scarce amenities one per desk before doubling any up", () => {
+    const layout: PlacedItem[] = [
+      { iid: "d1", type: "desk", c: 0, r: 0, rot: 0 },
+      { iid: "d2", type: "desk", c: 4, r: 0, rot: 0 },
+      { iid: "d3", type: "desk", c: 0, r: 5, rot: 0 },
+      { iid: "a1", type: "plantPot", c: 8, r: 8, rot: 0 },
+      { iid: "a2", type: "plantPot", c: 7, r: 8, rot: 0 },
+      { iid: "a3", type: "plantPot", c: 6, r: 8, rot: 0 },
+    ];
+    const z = deskZones(tidyLayout(layout));
+    expect(z.zoned).toHaveLength(3); // three desks each with one — not one desk with two
+    expect(z.pairs).toBe(3);
+  });
+
   it("is idempotent and deterministic — tidying a tidy room changes nothing", () => {
     const once = tidyLayout(messyRoom());
     const twice = tidyLayout(once);
@@ -305,6 +331,22 @@ describe("tidyLayout — auto-arrange that buys and sells nothing", () => {
     expect(tidyMoveCount(once)).toBe(0);
     // Same input → same output, every time (no RNG anywhere).
     expect(tidyLayout(messyRoom())).toEqual(once);
+  });
+
+  it("never stacks rugs — flat items always 'fit', so they need their own spacing", () => {
+    // Three rugs and a desk: a naive first-fit would drop every rug on the same cell (canPlace always
+    // says yes to a flat item), leaving two of them invisible under the third.
+    const layout: PlacedItem[] = [
+      { iid: "d1", type: "desk", c: 3, r: 3, rot: 0 },
+      { iid: "r1", type: "rug", c: 0, r: 0, rot: 0 },
+      { iid: "r2", type: "rug", c: 0, r: 0, rot: 0 },
+      { iid: "r3", type: "rug", c: 1, r: 1, rot: 0 },
+    ];
+    const after = tidyLayout(layout);
+    const rugs = after.filter((it) => it.iid.startsWith("r"));
+    const cells = new Set(rugs.map((it) => `${it.c},${it.r}`));
+    expect(rugs).toHaveLength(3);
+    expect(cells.size).toBe(3); // three distinct spots, none hidden under another
   });
 
   it("reports how many pieces it would move, and no-ops on an empty room", () => {

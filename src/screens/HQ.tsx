@@ -431,11 +431,16 @@ function OfficeOverview({ state, zones }: { state: GameState; zones: ReturnType<
             <span className="hqb__zones-unit">desks</span>
           </span>
           <span className="hqb__zones-rule">
-            {zones.zoned.length === 0
-              ? ZONE_RULE
-              : zones.headroom > 0
-                ? `${ZONE_RULE} Room for ${zones.headroom} more pairing${zones.headroom === 1 ? "" : "s"}.`
-                : "Every desk is fully paired — the room is working as hard as it can."}
+            {(() => {
+              // The copy escalates from "here's the rule you didn't know" → "here's what's still
+              // missing" → "you're done". Naming the count of BARE desks is the actionable version:
+              // "room for 13 more pairings" is true but tells you nothing about what to buy.
+              const bare = zones.desks - zones.zoned.length;
+              if (zones.zoned.length === 0) return ZONE_RULE;
+              if (bare > 0) return `${bare} desk${bare === 1 ? " has" : "s have"} nothing beside ${bare === 1 ? "it" : "them"} yet. ${ZONE_RULE}`;
+              if (zones.headroom > 0) return `Every desk has something beside it. Room for ${zones.headroom} more pairing${zones.headroom === 1 ? "" : "s"} if you double up.`;
+              return "Every desk is fully paired — the room is working as hard as it can.";
+            })()}
           </span>
         </div>
       )}

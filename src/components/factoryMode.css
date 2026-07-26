@@ -367,10 +367,26 @@
   padding: var(--sp-8) var(--sp-12);
 }
 .fmode__build-head {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
   margin-bottom: var(--sp-6);
+  /* The rule wraps onto its own line (order 2 + full basis below) — squeezed between the segmented
+     control and the buttons it had ~60px on a phone and truncated to "Drag t…", which is worse than
+     no hint at all. */
+  flex-wrap: wrap;
 }
-.fmode__build-rule { flex: 1; font-size: var(--fs-nano); font-weight: 600; color: rgba(255,255,255,0.6); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fmode__build-rule {
+  order: 2; flex: 1 0 100%;
+  font-size: var(--fs-nano); font-weight: 600; color: rgba(255,255,255,0.6);
+  line-height: 1.35;
+}
+/* Wide enough for one row? Put it back inline, where it fits without truncating. */
+@media (min-width: 620px) {
+  .fmode__build-head { flex-wrap: nowrap; }
+  .fmode__build-rule {
+    order: 0; flex: 1 1 auto; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+}
 .fmode__build-seg {
   flex: none; display: inline-flex; gap: 2px; padding: 3px;
   border-radius: var(--r-pill); background: rgba(255,255,255,0.08); border: 1px solid var(--fmode-btn-line);

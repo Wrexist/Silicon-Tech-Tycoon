@@ -104,14 +104,14 @@ const STEPS: TStep[] = [
     icon: Hand,
     accent: "var(--fn-eng)",
     title: "Build the floor",
-    text: "Tap Build, pick a machine or a belt, then tap or drag on the floor to lay it down. In a hurry? The Auto button quotes a price and routes the whole line for you. Hold any placed machine to pick it up and move it — green cells show where it belongs.",
+    text: "Tap Build, pick a machine or a belt, then tap or drag on the floor to lay it down. In a hurry? The Auto button quotes a price and routes the whole line for you. Hold any placed machine to pick it up and move it — green cells show where it belongs. Mis-tapped? Undo takes the last build back, money and all.",
     visual: <GestureVisual />,
   },
   {
     icon: Zap,
     accent: "var(--fn-team)",
     title: "A wired line ships faster",
-    text: "An unbroken belt from Intake to Packer earns a build-speed bonus from your very first run. Every machine your product's recipe calls for grows it, and assembly arms and upgrades deepen it further.",
+    text: "An unbroken belt from Intake to Packer earns a build-speed bonus from your very first run. Every machine your product's recipe calls for grows it, and assembly arms and upgrades deepen it further. How TIDILY you lay it counts too — Stats breaks that down into straight lanes and recipe order.",
     visual: <LineVisual />,
   },
   {

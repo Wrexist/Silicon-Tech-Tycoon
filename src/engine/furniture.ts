@@ -433,22 +433,17 @@ function tidyAnchors(n: number): [number, number][] {
   return out;
 }
 
-/** The ring of cells touching a placed item (orthogonal first, then diagonal) — where an amenity has
- *  to sit to earn that desk its zone bonus. */
-function ringAround(item: PlacedItem): [number, number][] {
-  const { w, d } = footprint(furnitureDef(item.type), item.rot);
-  const orth: [number, number][] = [];
-  const diag: [number, number][] = [];
-  for (let c = item.c - 1; c <= item.c + w; c++) {
-    for (let r = item.r - 1; r <= item.r + d; r++) {
-      const inside = c >= item.c && c < item.c + w && r >= item.r && r < item.r + d;
-      if (inside) continue;
-      const offC = c < item.c || c >= item.c + w;
-      const offR = r < item.r || r >= item.r + d;
-      (offC && offR ? diag : orth).push([c, r]);
-    }
-  }
-  return [...orth, ...diag];
+/** Cells where an amenity actually EARNS this desk its zone bonus.
+ *
+ *  Critically, this mirrors `officeZoneBonus` exactly: that fold measures Chebyshev distance between
+ *  the two items' ANCHOR cells, not their footprints. So for a 2-wide desk, a plant tucked past its
+ *  far end is visually "beside the desk" and pays nothing — placing amenities there would have made
+ *  the tidy look like it worked while the buff bars didn't move. Orthogonal neighbours first (they
+ *  read as deliberate), then diagonals; `canPlace` filters out the ones the desk itself occupies. */
+function zoneCells(desk: PlacedItem): [number, number][] {
+  const orth: [number, number][] = [[desk.c - 1, desk.r], [desk.c + 1, desk.r], [desk.c, desk.r - 1], [desk.c, desk.r + 1]];
+  const diag: [number, number][] = [[desk.c - 1, desk.r - 1], [desk.c + 1, desk.r - 1], [desk.c - 1, desk.r + 1], [desk.c + 1, desk.r + 1]];
+  return [...orth, ...diag].filter(([c, r]) => c >= 0 && r >= 0);
 }
 
 /** Re-arrange a room the player already owns into desk rows with amenities beside them. Returns a NEW
@@ -503,24 +498,50 @@ export function tidyLayout(layout: readonly PlacedItem[], facilityTier = 1): Pla
   }
 
   // 2. Amenities beside a desk that still has room to earn — the zone bonus, laid out for you.
+  //    BREADTH-FIRST: give every desk one amenity before topping any desk up to its cap. The total
+  //    bonus is the same either way (it counts pairings, not desks), but spreading means the room's
+  //    "good spots" count reflects real coverage — three plants pair three desks, not one and a half.
   const placedDesks = out.filter((it) => isDeskType(it.type));
   const earned = new Map<string, number>(placedDesks.map((dk) => [dk.iid, 0]));
-  for (const am of amenities) {
-    let done = false;
+  const queue = [...amenities];
+  for (let round = 0; round < ZONE_MAX_PER_DESK && queue.length > 0; round++) {
     for (const dk of placedDesks) {
-      if ((earned.get(dk.iid) ?? 0) >= ZONE_MAX_PER_DESK) continue;
-      if (fit(am, ringAround(dk))) {
+      if (queue.length === 0) break;
+      if ((earned.get(dk.iid) ?? 0) > round) continue; // already served this round
+      const idx = queue.findIndex((am) => fit(am, zoneCells(dk)));
+      if (idx >= 0) {
+        queue.splice(idx, 1);
         earned.set(dk.iid, (earned.get(dk.iid) ?? 0) + 1);
-        done = true;
-        break;
       }
     }
-    // Every desk is already fully paired (or nothing fit beside one) → park it wherever it fits.
-    if (!done && !fit(am, anyAnchors)) keep(am);
   }
+  // Whatever is left over (more amenities than pairings available, or nothing fit beside a desk)
+  // just goes somewhere sensible — it still contributes its flat comfort/focus, only not a pairing.
+  for (const am of queue) if (!fit(am, anyAnchors)) keep(am);
 
-  // 3. Everything else fills in from the back of the room forward; flats (rugs) never collide.
-  for (const it of rest) if (!fit(it, [...anyAnchors].reverse(), it.rot)) keep(it);
+  // 3. Everything else fills in from the front of the room backwards, so the desk rows stay clear.
+  //    Flats (rugs) are a special case: `canPlace` always says yes to them, so a naive first-fit
+  //    would stack every rug the player owns on the SAME cell. Track the flats' own cells and give
+  //    each one its own spot.
+  const flatCells = new Set<string>();
+  const frontFirst = [...anyAnchors].reverse();
+  for (const it of rest) {
+    const def = furnitureDef(it.type);
+    if (def.flat) {
+      const { w, d } = footprint(def, it.rot);
+      const spot = frontFirst.find(([c, r]) => {
+        if (c + w > n || r + d > n) return false;
+        for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) if (flatCells.has(`${c + dc},${r + dr}`)) return false;
+        return true;
+      });
+      if (spot) {
+        for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) flatCells.add(`${spot[0] + dc},${spot[1] + dr}`);
+        out.push({ ...it, c: spot[0], r: spot[1] });
+      } else keep(it);
+      continue;
+    }
+    if (!fit(it, frontFirst, it.rot)) keep(it);
+  }
 
   // Return in the ORIGINAL order so anything keyed on layout order (desk assignment via deskItems is
   // iid-sorted, but the 3D scene maps the array) stays stable.

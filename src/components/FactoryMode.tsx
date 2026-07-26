@@ -4,7 +4,7 @@
 // Packer); the player wires it by hand (tap / drag-paint / hold-to-move) or pays the Auto
 // router, then deepens the earned build-speed bonus with recipe machines, arms and upgrades.
 // Parametric SVG only (zero image assets); every animation sim-gated + reduced-motion safe.
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
@@ -35,7 +35,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineEfficiency, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
@@ -121,30 +121,44 @@ function useFactoryData() {
   // Product-aware: the current order's recipe decides which machines grow the bonus, so a phone
   // floor wants a screen bonder, a laptop floor a mill (no order → the neutral view).
   const leadCategory = lead?.product?.category;
-  const reqKinds = leadCategory ? requiredKindsFor(leadCategory) : undefined;
-  const lineSpeed = lineSpeedMult(state.factoryFloor, reqKinds); // <1 = earned bonus, 1 = neutral (never >1)
-  const linePct = Math.round((1 - lineSpeed) * 100);   // % faster the wired line builds
-  const missing = reqKinds ? missingMachineKinds(state.factoryFloor, reqKinds) : [];
-  // Item 3.1 — the wired line also widens throughput and trims per-unit cost (both pure upside).
-  const lineCapPct = Math.round((lineCapacityMult(state.factoryFloor) - 1) * 100); // % extra capacity
-  const lineUnitPct = Math.round((1 - lineUnitMult(state.factoryFloor)) * 100);     // % cheaper per unit
-  // Item 3.2 — how tidily the line is laid (recipe order + straight lanes), 0–100%. Scales the bonuses.
-  const layoutPct = Math.round(lineEfficiency(state.factoryFloor) * 100);
-  // Layout quality is derived from exactly two things the player can act on — how straight the belt
-  // run is, and whether the machines sit in recipe order along it. Naming the actual defect turns a
-  // dead percentage into a to-do. Order first: it's worth more of the score (0.55 vs 0.45) and it's
-  // the mistake players don't spot on their own.
-  const layout = lineLayoutBreakdown(state.factoryFloor);
-  const layoutHint = !lineComplete(state.factoryFloor)
-    ? null
-    : layout.swapped
-      ? `${MACHINE_DEFS[layout.swapped[1]].name} sits before ${MACHINE_DEFS[layout.swapped[0]].name} along the belt — the item reaches them out of recipe order.`
-      : layout.corners > 0 && layout.straightness < 0.85
-        ? `${layout.corners} corner${layout.corners === 1 ? "" : "s"} in a ${layout.steps}-step run — longer straight lanes score higher.`
-        : "Straight lanes, machines in recipe order. This line is as tidy as it gets.";
-  // Item 5.8 — a well-EQUIPPED floor (distinct utility props) shaves a little build time.
-  const decorPct = Math.round((1 - factoryDecorSpeedMult(state.factoryProps ?? [])) * 100);
-  const decorKinds = utilityDecorKinds(state.factoryProps ?? []);
+  // Every readout below walks the belt chain, and several walk it more than once (lineSpeedMult,
+  // lineCapacityMult and lineUnitMult each re-derive lineEfficiency to scale themselves). Both the HQ
+  // card and the fullscreen view render this hook on EVERY sim tick, so derive the whole block once
+  // and keep it until the floor, the props or the current order's recipe actually change.
+  const {
+    lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct, layout, layoutHint, decorPct, decorKinds,
+  } = useMemo(() => {
+    const kinds = leadCategory ? requiredKindsFor(leadCategory) : undefined;
+    const speed = lineSpeedMult(state.factoryFloor, kinds); // <1 = earned bonus, 1 = neutral (never >1)
+    // Item 3.2 — how tidily the line is laid (recipe order + straight lanes), 0–100%. Scales the bonuses.
+    // The breakdown carries the same score, so read it from there rather than deriving it twice.
+    const brk = lineLayoutBreakdown(state.factoryFloor);
+    // Layout quality comes from exactly two things the player can act on — how straight the belt run
+    // is, and whether the machines sit in recipe order along it. Naming the actual defect turns a dead
+    // percentage into a to-do. Order first: it's worth more of the score (0.55 vs 0.45) and it's the
+    // mistake players don't spot on their own.
+    const hint = !lineComplete(state.factoryFloor)
+      ? null
+      : brk.swapped
+        ? `${MACHINE_DEFS[brk.swapped[1]].name} sits before ${MACHINE_DEFS[brk.swapped[0]].name} along the belt — the item reaches them out of recipe order.`
+        : brk.corners > 0 && brk.straightness < 0.85
+          ? `${brk.corners} corner${brk.corners === 1 ? "" : "s"} in a ${brk.steps}-step run — longer straight lanes score higher.`
+          : "Straight lanes, machines in recipe order. This line is as tidy as it gets.";
+    return {
+      lineSpeed: speed,
+      linePct: Math.round((1 - speed) * 100), // % faster the wired line builds
+      missing: kinds ? missingMachineKinds(state.factoryFloor, kinds) : [],
+      // Item 3.1 — the wired line also widens throughput and trims per-unit cost (both pure upside).
+      lineCapPct: Math.round((lineCapacityMult(state.factoryFloor) - 1) * 100), // % extra capacity
+      lineUnitPct: Math.round((1 - lineUnitMult(state.factoryFloor)) * 100),    // % cheaper per unit
+      layoutPct: Math.round(brk.score * 100),
+      layout: brk,
+      layoutHint: hint,
+      // Item 5.8 — a well-EQUIPPED floor (distinct utility props) shaves a little build time.
+      decorPct: Math.round((1 - factoryDecorSpeedMult(state.factoryProps ?? [])) * 100),
+      decorKinds: utilityDecorKinds(state.factoryProps ?? []),
+    };
+  }, [state.factoryFloor, state.factoryProps, leadCategory]);
 
   return {
     game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
@@ -291,10 +305,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // — undo is for the edit you just made, not for last week.
   const history = useRef<{ floor: GameFloor; props: typeof state.factoryProps; cash: typeof state.cash }[]>([]);
   const [histLen, setHistLen] = useState(0);
-  const liveRef = useRef({ floor: state.factoryFloor, props: state.factoryProps, cash: state.cash });
-  liveRef.current = { floor: state.factoryFloor, props: state.factoryProps, cash: state.cash };
+  // Live refs, the same shape the office builder uses: the reducers land asynchronously, so a
+  // snapshot has to read the values as of THIS render, not as of the closure that armed the tool.
+  const floorRef = useRef(state.factoryFloor);
+  floorRef.current = state.factoryFloor;
+  const propsRef = useRef(state.factoryProps);
+  propsRef.current = state.factoryProps;
+  const cashRef = useRef(state.cash);
+  cashRef.current = state.cash;
   const snapshot = () => {
-    history.current.push(liveRef.current);
+    history.current.push({ floor: floorRef.current, props: propsRef.current, cash: cashRef.current });
     if (history.current.length > 40) history.current.shift();
     setHistLen(history.current.length);
   };
