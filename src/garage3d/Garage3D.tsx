@@ -697,30 +697,70 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
   );
 }
 
+/** A proper task chair, in the Herman Miller idiom: a slim raked back inside a polished frame, a
+ *  contoured seat floating on a thin plate, cantilevered armpads, a gas lift and a five-star base.
+ *
+ *  The old chair was a pair of thick slabs with no base at all — it hovered, and the deep winged
+ *  backrest existed only to hide the seated robot's shell from behind. Two hard constraints kept
+ *  from that version, because the robot is positioned against them:
+ *    • the seat surface stays at y≈0.58 (SIT_LIFT is measured from it),
+ *    • the back's REAR face stays behind the robot's torso (~z −0.43) so nothing pokes through it.
+ *  The frame is deep enough to swallow the torso while looking half the thickness it used to.
+ *
+ *  The five-star base is one 5-sided cylinder rather than five modelled spokes — at this camera the
+ *  pentagon's corners read as the spokes, for a fifth of the draw calls. `hue` (the occupant's
+ *  colour) moves to the armpads, so a row of chairs still reads as individual people's seats. */
 function Chair({ p, hue }: { p: RoomPalette; hue: string }) {
-  // The seated robot's torso (a ~0.35r capsule pulled back toward the backrest) used to bulge
-  // BEHIND the old thin backrest (depth 0.12 @ z=-0.28), so from behind you could "see through the
-  // chair" to the robot's back. The backrest is now deeper and pushed back so its rear face sits
-  // behind the robot's back, fully hiding it, and taller so it frames the shoulders. Wings on the
-  // sides close off the last sliver of colour that peeked around the edges.
+  const frame = p.metal;      // polished aluminium — frame, lift and base
+  const fabric = p.metalDark; // graphite mesh/fabric — seat pad and back panel
   return (
     <group>
-      <RoundedBox args={[0.72, 0.12, 0.62]} radius={0.05} smoothness={2} position={[0, 0.52, -0.02]}>
-        <meshStandardMaterial color={p.metal} roughness={0.7} />
-      </RoundedBox>
-      <RoundedBox args={[0.74, 0.84, 0.18]} radius={0.07} smoothness={3} position={[0, 0.96, -0.37]}>
-        <meshStandardMaterial color={p.metalDark} roughness={0.7} />
-      </RoundedBox>
-      {/* slim side wings that wrap forward, so the robot's coloured shell can't peek past the edges */}
-      {[-0.35, 0.35].map((x, i) => (
-        <RoundedBox key={i} args={[0.09, 0.7, 0.34]} radius={0.04} smoothness={2} position={[x, 0.92, -0.26]}>
-          <meshStandardMaterial color={p.metalDark} roughness={0.7} />
-        </RoundedBox>
-      ))}
-      <mesh position={[0, 0.96, -0.275]}>
-        <planeGeometry args={[0.6, 0.4]} />
-        <meshStandardMaterial color={hue} roughness={0.6} />
+      {/* five-star base + gas lift */}
+      <mesh position={[0, 0.045, 0]}>
+        <cylinderGeometry args={[0.13, 0.4, 0.05, 5]} />
+        <meshStandardMaterial color={frame} metalness={0.62} roughness={0.32} />
       </mesh>
+      <mesh position={[0, 0.26, 0]}>
+        <cylinderGeometry args={[0.048, 0.06, 0.4, 12]} />
+        <meshStandardMaterial color={frame} metalness={0.68} roughness={0.26} />
+      </mesh>
+
+      {/* seat: one contoured pad, top surface held at 0.58 (SIT_LIFT is measured from it) */}
+      <RoundedBox args={[0.62, 0.115, 0.58]} radius={0.05} smoothness={4} position={[0, 0.5225, -0.02]}>
+        <meshStandardMaterial color={fabric} roughness={0.88} metalness={0.04} />
+      </RoundedBox>
+
+      {/* The spine: the back is carried on a stalk rising behind the seat, leaving daylight between
+          seat and back. That gap is the single most recognisable cue of a modern task chair — an
+          office chair whose back grows straight out of the seat cushion reads as a dining chair. */}
+      <RoundedBox args={[0.16, 0.3, 0.07]} radius={0.034} smoothness={3} position={[0, 0.63, -0.4]} rotation-x={-0.1}>
+        <meshStandardMaterial color={frame} metalness={0.6} roughness={0.3} />
+      </RoundedBox>
+
+      {/* back: raked ~6°, a slim polished frame with the panel set into it, floating above the seat */}
+      {/* Taller than it is wide — a square back reads as a dining chair; a task chair rises past the
+          shoulders. 0.72 is the floor on width: the seated robot's shell spans ±0.35 and the back has
+          to cover it. */}
+      <group position={[0, 1.07, -0.43]} rotation-x={-0.1}>
+        <RoundedBox args={[0.72, 0.88, 0.075]} radius={0.1} smoothness={4}>
+          <meshStandardMaterial color={frame} metalness={0.58} roughness={0.3} />
+        </RoundedBox>
+        <RoundedBox args={[0.58, 0.73, 0.085]} radius={0.075} smoothness={4} position={[0, 0.015, 0.006]}>
+          <meshStandardMaterial color={fabric} roughness={0.9} metalness={0.03} />
+        </RoundedBox>
+      </group>
+
+      {/* cantilevered arms, pads in the occupant's colour */}
+      {[-0.365, 0.365].map((x, i) => (
+        <group key={i} position={[x, 0, 0]}>
+          <RoundedBox args={[0.045, 0.22, 0.055]} radius={0.02} smoothness={2} position={[0, 0.63, -0.2]}>
+            <meshStandardMaterial color={frame} metalness={0.6} roughness={0.3} />
+          </RoundedBox>
+          <RoundedBox args={[0.075, 0.042, 0.3]} radius={0.021} smoothness={3} position={[0, 0.75, -0.08]}>
+            <meshStandardMaterial color={hue} roughness={0.75} metalness={0.05} />
+          </RoundedBox>
+        </group>
+      ))}
     </group>
   );
 }

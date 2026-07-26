@@ -74,8 +74,25 @@ await shot("office-zones-before");
   if (box) await p.screenshot({ path: resolve(outDir, `office-closeup-${theme}.png`), clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 330) } });
   // Tight crop on the desk row itself — at deviceScaleFactor 2 this is a true 2x zoom.
   if (box) await p.screenshot({ path: resolve(outDir, `office-desks-${theme}.png`), clip: { x: box.x + box.width * 0.22, y: box.y + 60, width: box.width * 0.55, height: 150 } });
-  console.log("shot office-closeup + office-desks");
+  // Very tight crop on a single workstation — chair-scale detail needs a true 4x look.
+  if (box) await p.screenshot({ path: resolve(outDir, `office-chair-${theme}.png`), clip: { x: box.x + box.width * 0.30, y: box.y + 62, width: box.width * 0.30, height: 105 } });
+  console.log("shot office-closeup + office-desks + office-chair");
 }
+// Drive the in-game camera in with WASD so chair-scale detail is judged at real size, not a crop.
+{
+  const cv = await p.$("canvas");
+  if (cv) {
+    await cv.click({ position: { x: 200, y: 120 } }).catch(() => {});
+    await p.keyboard.down("w");
+    await p.waitForTimeout(1700);
+    await p.keyboard.up("w");
+    await p.waitForTimeout(700);
+    const box = await cv.boundingBox();
+    if (box) await p.screenshot({ path: resolve(outDir, `office-zoom-${theme}.png`), clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 360) } });
+    console.log("shot office-zoom");
+  }
+}
+
 // Tidy up (the wand) — free rearrange that pairs desks with amenities.
 const tidyBtn = await p.$('.hqb__icon[aria-label^="Tidy up"]');
 if (tidyBtn) { await tidyBtn.click().catch(() => {}); await p.waitForTimeout(1500); }
