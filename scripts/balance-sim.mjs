@@ -132,11 +132,18 @@ function simulate(seed, maxWeeks = 520) {
   let s = { ...newGame(seed), designBudgetEnabled: false };
   const runwayWeek0 = toDollars(s.cash) / Math.max(1, weeklyBurnApprox(s));
   const verdicts = { hit: 0, solid: 0, steady: 0, flop: 0 };
+  const verdictsByEra = {};
   const eraWeek = {};
   let minCashEarly = Infinity; // closest brush with bankruptcy in the first 60 weeks
   let countedLaunches = new Set();
   let trough = Infinity;
-  let repMinLate = Infinity; // lowest reputation observed once past the protected Garage era (adversity?)
+  // Reputation DRAWDOWN — the deepest fall from a running peak, once past the protected Garage era.
+  // The old metric was the minimum reputation seen at or after era 2, which is dominated by the
+  // still-climbing first weeks of era 2 and reported "0" for a run whose reputation only ever went
+  // up. Drawdown answers the question actually being asked: does a established company ever lose
+  // ground it had already won?
+  let repPeak = -Infinity;
+  let repDrawdown = 0;
   let winWeek = null; // first week the IPO "win" is available (era 4 + reputation >= 85)
   const effScoresByEra = { 1: [], 2: [], 3: [], 4: [] }; // effectiveScore = launchScore × compFactor
   const interrupts = {}; // key → how many cards this run raised
@@ -147,7 +154,10 @@ function simulate(seed, maxWeeks = 520) {
   for (let w = 0; w < maxWeeks; w++) {
     if (s.bankrupt) break;
     if (!eraWeek[s.era]) eraWeek[s.era] = s.week;
-    if (s.era >= 2) repMinLate = Math.min(repMinLate, s.reputation);
+    if (s.era >= 2) {
+      repPeak = Math.max(repPeak, s.reputation);
+      repDrawdown = Math.max(repDrawdown, repPeak - s.reputation);
+    }
     if (winWeek === null && s.era >= 4 && s.reputation >= 85) winWeek = s.week;
 
     // advance era as soon as eligible
@@ -236,6 +246,10 @@ function simulate(seed, maxWeeks = 520) {
       if (!countedLaunches.has(lp.product.id) && lp.verdict) {
         countedLaunches.add(lp.product.id);
         verdicts[lp.verdict] = (verdicts[lp.verdict] ?? 0) + 1;
+        // …and again PER ERA. The aggregate mix is an average of four different games and hides a
+        // flat one inside a varied one: every era-1 launch in the cohort returned the same verdict
+        // while the headline number looked reasonable.
+        (verdictsByEra[s.era] ??= {})[lp.verdict] = ((verdictsByEra[s.era] ?? {})[lp.verdict] ?? 0) + 1;
       }
     }
     const cash = toDollars(s.cash);
@@ -254,11 +268,12 @@ function simulate(seed, maxWeeks = 520) {
     finalEra: s.era,
     launches: countedLaunches.size,
     verdicts,
+    verdictsByEra,
     finalNetWorth: toDollars(netWorth(s)),
     listed: s.listed,
     reputation: s.reputation,
     winWeek,
-    repMinLate: repMinLate === Infinity ? s.reputation : repMinLate,
+    repDrawdown,
     hitRate: countedLaunches.size ? verdicts.hit / countedLaunches.size : 0,
     effScoresByEra,
     interrupts,
@@ -308,6 +323,15 @@ for (const k of ["hit", "solid", "steady", "flop"]) {
   const p = totalLaunches ? (100 * totalV[k] / totalLaunches).toFixed(1) : "0";
   console.log(`  ${k.padEnd(7)} ${String(totalV[k]).padStart(4)}  ${p}%`);
 }
+console.log(`Verdict mix PER ERA (a flat era is invisible in the aggregate above):`);
+for (const era of [1, 2, 3, 4, 5]) {
+  const tot = { hit: 0, solid: 0, steady: 0, flop: 0 };
+  for (const r of runs) for (const k of Object.keys(tot)) tot[k] += r.verdictsByEra[era]?.[k] ?? 0;
+  const n = tot.hit + tot.solid + tot.steady + tot.flop;
+  if (!n) continue;
+  const p = (k) => `${((100 * tot[k]) / n).toFixed(0)}%`.padStart(4);
+  console.log(`  era ${era}  n=${String(n).padStart(4)}   hit ${p("hit")}  solid ${p("solid")}  steady ${p("steady")}  flop ${p("flop")}`);
+}
 console.log(`\nFinal net worth:     median ${money(median(agg((r) => r.finalNetWorth)))}  p10 ${money(pct(agg((r) => r.finalNetWorth), 0.1))}  p90 ${money(pct(agg((r) => r.finalNetWorth), 0.9))}`);
 const winWeeks = runs.map((r) => r.winWeek).filter((w) => w != null);
 console.log(`\nIPO "win" available: median wk ${winWeeks.length ? median(winWeeks) : "—"} (${winWeeks.length}/${runs.length} reached era4+rep85)`);
@@ -345,7 +369,8 @@ console.log(`\n--- outcome variance (is the late game "solved"?) ---`);
 console.log(`Net-worth CV:        ${(nwCV * 100).toFixed(1)}%  (low = every run ends the same)`);
 console.log(`Net-worth spread:    p90/p10 = ${(pct(nw, 0.9) / pct(nw, 0.1)).toFixed(2)}×`);
 console.log(`Per-run hit-rate:    p10 ${(pct(hitRates, 0.1) * 100).toFixed(0)}%  p50 ${(median(hitRates) * 100).toFixed(0)}%  p90 ${(pct(hitRates, 0.9) * 100).toFixed(0)}%`);
-console.log(`Reputation low (≥E2):median ${median(agg((r) => r.repMinLate)).toFixed(0)}  min ${Math.min(...agg((r) => r.repMinLate)).toFixed(0)}  (never dips = no adversity)`);
+const dd = agg((r) => r.repDrawdown);
+console.log(`Reputation drawdown: median ${median(dd).toFixed(0)} pts  p90 ${pct(dd, 0.9).toFixed(0)}  (deepest fall from a peak past era 2; ~0 = nothing is ever lost)`);
 
 // effectiveScore landscape vs the verdict bands, per era — the precise retune diagnostic.
 // Derived from the live engine tuning so the diagnostic can never drift from balance.ts.

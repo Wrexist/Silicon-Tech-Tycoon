@@ -463,8 +463,14 @@ export const BALANCE = {
     // (the same single-verdict failure v52 fixed, mirror-imaged). These bars sit back INSIDE the new
     // per-era range (harness-measured) so a great late launch hits, a middling one steadies, and the
     // verdict layer stays a real contest. Eras 1–2 are untouched.
-    hitThresholdByEra: [70, 80, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
-    solidThresholdByEra: [45, 56, 135, 175, 202], // era 5
+    // ERA 1 re-based against the measured landscape. A garage company's launches score 13–29
+    // (harness: p5 13, p50 18, p95 29), but the solid/hit bars sat at 45/70 — above the ceiling. All
+    // 568 era-1 launches across the cohort returned the SAME verdict, "steady": the whole first era
+    // gave the player no signal that anything they did mattered. The bars now sit inside the range
+    // they're judging, so an early launch can actually land well. The flop floor stays at 10 (below
+    // p5) so the maiden launch is still protected — era 1 gains an upside, not a downside.
+    hitThresholdByEra: [23, 80, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
+    solidThresholdByEra: [18, 56, 135, 175, 202], // era 5
     // FLOP FLOOR raised from era 2 on so a phoned-in launch actually FLOPS instead of coasting to a
     // safe "steady". Era 1 stays low (10) to protect the maiden launch — a brand-new company's hype is
     // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From
@@ -481,10 +487,17 @@ export const BALANCE = {
     expectation: {
       alpha: 0.5,        // how fast the rolling baseline tracks each new launch (EMA weight)
       hitMargin: 1.14,   // a hit must beat the rolling baseline by this (top your recent best)
-      solidMargin: 0.6,  // at/above this fraction of the baseline is a solid, competent release
-      flopMargin: 0.55,  // below this (relative to what you'd been shipping) it disappoints → flop.
-                         // Raised 0.4 → 0.55: re-shipping something meaningfully weaker than your recent
-                         // average now flops, so a proven studio can't coast on mediocre follow-ups.
+      // solidMargin and flopMargin were BOTH set below the static bars they compete with, so
+      // `max(static, exp * margin)` always chose static and the two bars never adapted. Measured over
+      // 40 seeded runs: the expectation raised the hit bar on 95% of era-4 launches but the SOLID bar
+      // on 0% of them, in every era. That froze the solid floor at 175 while scores climbed past 238,
+      // leaving an 84-point band that swallowed 62% of every launch in the game — one verdict, no
+      // texture, exactly the failure v52 fixed for "hit" and left in place for "solid".
+      // Both margins now sit close enough to 1 that the baseline actually binds: a release matched to
+      // your recent track record is solid, one meaningfully below it disappoints. "You're only as good
+      // as your last launch" was always the intent; only the hit bar was enforcing it.
+      solidMargin: 1.0,  // at/above your recent track record is a solid, competent release
+      flopMargin: 0.78,  // meaningfully below what you'd been shipping → it disappoints
     },
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
