@@ -14,10 +14,10 @@
 // The policy is deliberately dumb and fixed. It is not meant to play well — it is meant to touch
 // every phase in a way that never changes, so the numbers below mean something.
 //
-// KNOWN THIN SPOT: of its 41 launches, 3 land in era 1, 20 in era 2 and 18 in era 3. Perturbing an
-// era-2 band moves the fingerprint immediately; perturbing an ERA-1 band may not, because those
-// three launches clear it either way. Era-1 tuning is covered by `engine/balanceGuards.test.ts` and
-// by `npm run sim`, not here — don't read a pass as "era 1 is unchanged".
+// KNOWN THIN SPOT: only a handful of its 39 launches land in era 1. Perturbing an era-2 band moves
+// the fingerprint immediately; perturbing an ERA-1 band may not, because those few launches clear it
+// either way. Era-1 tuning is covered by `engine/balanceGuards.test.ts` and by `npm run sim`, not
+// here — don't read a pass as "era 1 is unchanged".
 import { describe, expect, it } from "vitest";
 import { dollars, toDollars } from "../engine/money.ts";
 import {
@@ -144,21 +144,23 @@ describe("active-run determinism — the paths a do-nothing run never touches", 
   });
 
   it("matches its frozen golden fingerprint", () => {
-    // GOLDEN MASTER. Every value is an integer, so it is stable across platforms. If you changed the
-    // sim on purpose, re-derive these from the run and update them in the SAME commit — that is the
-    // point of the pin. If you did NOT mean to change the sim, this failing is the bug report.
+    // GOLDEN MASTER. If you changed the sim on purpose, re-derive these from the run and update them
+    // in the SAME commit — that is the point of the pin. If you did NOT mean to change the sim, this
+    // failing is the bug report.
     const s = run({ ...newGame(4242), cash: dollars(5_000_000), designBudgetEnabled: false });
     expect(s.week).toBe(WEEKS);
-    expect(s.rngState).toBe(2_953_707_786);
-    expect(s.cash).toBe(2_676_326_001); // integer CENTS — no float representation risk
-    expect(s.cumulativeRevenue).toBe(5_363_395_500);
-    expect(s.launched.length).toBe(41);
-    expect(s.reputation).toBe(100);
-    expect(s.era).toBe(3);
-    expect(s.fans).toBe(9_218);
-    expect(s.researchPoints).toBe(991);
+    expect(s.rngState).toBe(618_188_697);
+    expect(s.cash).toBe(4_485_058_577); // integer CENTS — no float representation risk
+    expect(s.cumulativeRevenue).toBe(8_216_302_700);
+    expect(s.launched.length).toBe(39);
+    // Reputation is the one non-integer here (it accumulates fractional gains), so it is compared
+    // with a tolerance rather than exactly — everything else is an integer by construction.
+    expect(s.reputation).toBeCloseTo(98.2, 5);
+    expect(s.era).toBe(4);
+    expect(s.fans).toBe(18_230);
+    expect(s.researchPoints).toBe(170);
     expect(s.staff.length).toBe(4);
     expect(s.feed.length).toBe(60);
-    expect(s.lastInterruptWeek).toBe(104);
+    expect(s.lastInterruptWeek).toBe(117);
   });
 });

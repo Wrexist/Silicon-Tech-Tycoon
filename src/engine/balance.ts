@@ -478,14 +478,22 @@ export const BALANCE = {
     // they're judging, so an early launch can actually land well. The flop floor stays at 10 (below
     // p5) so the maiden launch is still protected — era 1 gains an upside, not a downside.
     //
+    // ERA 2 re-based the same way, for the same reason and by the same method. Fixing era 1 sped up
+    // early progress, so the Growth Era now begins at week 34 rather than 43 — a LESS developed
+    // company than its bands were set for. Measured there: scores run p10 13, p50 36, p90 57 against
+    // bands of 34/56/80, which meant nothing could reach a hit (0% across 1,559 launches) while half
+    // of everything sat under the flop line (48%). An era where the best you can do is "not fail" is
+    // the era-1 problem again, mirror-imaged. Re-based to 16/38/54 — roughly p12/p50/p85 of what the
+    // era actually scores. Bands stay ordered and non-decreasing across eras (see balanceGuards).
+    //
     // Set at the CAUTIOUS end of the reachable range (22/27, not 18/23), because era-1 verdicts feed
     // straight into early scale: better verdicts → more reputation → more demand → a bigger
     // recommended production run, all financed out of a $100k opening balance with no cushion. At
     // 18/23 a player who over-builds by 25% went under in 8 of 12 seeded runs; at 22/27 that is 4/12,
     // against a 3/12 baseline — so era 1 becomes legible (23% of launches beat "steady", up from 0%)
     // without the first era turning into a knife-edge. Harness-measured; see `npm run sim`.
-    hitThresholdByEra: [27, 80, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
-    solidThresholdByEra: [22, 56, 135, 175, 202], // era 5
+    hitThresholdByEra: [27, 54, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
+    solidThresholdByEra: [22, 38, 135, 175, 202], // era 5
     // FLOP FLOOR raised from era 2 on so a phoned-in launch actually FLOPS instead of coasting to a
     // safe "steady". Era 1 stays low (10) to protect the maiden launch — a brand-new company's hype is
     // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From
@@ -500,7 +508,7 @@ export const BALANCE = {
     // weaker one being executed for it — at 6, shipping a tier below goes from 10/10 bankrupt to
     // 3/10 and ends at $3.4B: a real strategy that is worse than playing well, which is the point.
     // 4 and 2 buy almost nothing more (2/10), so 6 is the knee and keeps some failure pressure.
-    flopThresholdByEra: [6, 34, 52, 68, 82], // era 5 (kept < solid, non-decreasing)
+    flopThresholdByEra: [6, 16, 52, 68, 82], // era 5 (kept < solid, non-decreasing)
     // Dynamic "expectations" (Track D — the anti-"every device is a hit" system). The static bars
     // above anchor a young company (and the very first launch), but as you rack up strong launches a
     // ROLLING baseline of your recent competition-adjusted scores raises the bar: a HIT must beat your
@@ -520,8 +528,15 @@ export const BALANCE = {
       // Both margins now sit close enough to 1 that the baseline actually binds: a release matched to
       // your recent track record is solid, one meaningfully below it disappoints. "You're only as good
       // as your last launch" was always the intent; only the hit bar was enforcing it.
-      solidMargin: 1.0,  // at/above your recent track record is a solid, competent release
-      flopMargin: 0.78,  // meaningfully below what you'd been shipping → it disappoints
+      //
+      // RE-SWEPT against a player who engages the whole game (licensing, contracts, research projects,
+      // rival stock) rather than only shipping phones — that player scores far higher and far more
+      // variably. At solidMargin 1.0 the solid band was just 14% wide, [exp, 1.14 x exp], so a spread
+      // distribution fell either side of it and "solid" collapsed to 1% of era-4 launches: the same
+      // one-verdict flatness this system exists to prevent, arrived at from the other direction.
+      // Widening the band restores solid to ~18-24% and costs no bankruptcies.
+      solidMargin: 0.85, // at/above this share of your recent track record is a solid release
+      flopMargin: 0.7,   // meaningfully below what you'd been shipping → it disappoints
     },
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
@@ -986,7 +1001,22 @@ export const BALANCE = {
     era: 5,
     // AI Era → Autonomy Era requires going PUBLIC and pushing Frontier Tech to at least this tier.
     // (Frontier Tech is post-IPO only, so this is inherently a post-IPO gate.)
-    tierToAdvance: 3,
+    //
+    // Lowered 3 → 1, because at 3 the era was effectively unreachable and the stretch before it was
+    // empty. Frontier tiers cost 6, 8, 10… Legacy Points, so tier 3 is 24 points cumulative, and a
+    // 520-week run earns about 13 — era 5 arrived around week 1040, in 0 of 40 runs inside a normal
+    // horizon. Meanwhile the harness's progression trace shows EVERY other ladder exhausted by about
+    // week 240: era, reputation, research projects, the Vault and the achievement list all stop
+    // moving, and for the next 280 weeks the only thing that changes is the net-worth number going
+    // up. That is the emptiest part of the game and also its longest.
+    //
+    // At tier 1 the Autonomy Era lands at week 327 (6/6 seeds) — right where the other ladders run
+    // out — and brings a whole component tier with it (neural co-processor, light-field display,
+    // fusion cell, graphene chassis, agentic OS, neural imaging) that no run was ever seeing. The
+    // gate is still sequential and earned: reach the AI Era, take the company public, then bank
+    // enough Legacy Points for a first Frontier breakthrough. Tier 2 was measured too (week 479,
+    // and only 3 of 6 runs got there at all), which barely dents the dead stretch.
+    tierToAdvance: 1,
   },
 
   // --- IPO / prestige ---

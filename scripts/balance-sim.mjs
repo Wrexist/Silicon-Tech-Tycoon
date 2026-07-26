@@ -11,7 +11,7 @@ import {
   startRecruitment, hireCandidate, placeFurniture, upgradeFacility, deskCapacity,
   canList, listCompany, canIPO, goPublic, resolveChoice, resolvePoach,
   unlockRegion, unlockPlatform, canFoundPlatform, platformFoundingCost, vaultCards, investigateSecret,
-  signLicenseOffer, claimContract, buyShares, startResearchProject,
+  signLicenseOffer, claimContract, buyShares, startResearchProject, buyFrontierTier,
 } from "../src/state/gameState.ts";
 import { priceGuidance } from "../src/engine/market.ts";
 import { CATEGORIES } from "../src/engine/catalogs.ts";
@@ -347,6 +347,11 @@ function simulate(seed, archetype = "optimizer", maxWeeks = 520) {
       if (next !== s) { s = next; break; }
     }
 
+    // Frontier Tech — the post-IPO Legacy-Point sink, and the ONLY gate on the Autonomy Era
+    // (era 5 needs wentPublic + frontierTier >= 3). A bot that banks its Legacy Points instead of
+    // spending them never reaches era 5, so a whole era reads as content that does not exist.
+    { const r = buyFrontierTier(s); if (r.ok) s = r.state; }
+
     // launch anything ready (recompute the plan to capture the effectiveScore that drives the verdict)
     if (s.ready.length > 0) {
       const ready = s.ready[0];
@@ -462,6 +467,7 @@ console.log(`\nEra arrival (median week):`);
 console.log(`  Era 2 (Growth):    ${eraArrival(2)}`);
 console.log(`  Era 3 (Platform):  ${eraArrival(3)}`);
 console.log(`  Era 4 (AI):        ${eraArrival(4)}`);
+console.log(`  Era 5 (Autonomy):  ${eraArrival(5)}`);
 console.log(`\nLaunches/run:        median ${median(agg((r) => r.launches))}`);
 console.log(`Verdict mix (all launches, n=${totalLaunches}):`);
 for (const k of ["hit", "solid", "steady", "flop"]) {
