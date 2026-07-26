@@ -406,6 +406,14 @@ function simulate(seed, archetype = "optimizer", maxWeeks = 520) {
     peakStaff,
     wentPublic: s.wentPublic,
     vaultFound: (s.secretsFound ?? []).length,
+    chase: {
+      launches: s.launched.length,
+      hits: s.launched.filter((l) => l.verdict === "hit").length,
+      streak: (() => { let b = 0, c = 0; for (const l of [...s.launched].reverse()) { if (l.verdict === "hit") { c++; b = Math.max(b, c); } else c = 0; } return b; })(),
+      fans: s.fans,
+      revenue: toDollars(s.cumulativeRevenue),
+      projects: (s.completedProjects ?? []).length,
+    },
     vaultStages: vaultCards(s).map((c) => ({ id: c.id, stage: c.stage, frac: c.progress?.frac ?? 0 })),
   };
 }
@@ -623,6 +631,40 @@ console.log("");
     const bar = "#".repeat(Math.round(frac * 16)).padEnd(16, ".");
     const note = frac === 0 ? "  <- 0%: points at a system this run never touches" : "";
     console.log(`  ${id.padEnd(18)} ${NAMES[median(cs.map((c) => c.stage))].padEnd(10)} ${bar} ${(100 * frac).toFixed(0)}%${note}`);
+  }
+  console.log("");
+}
+
+// --- CHASE REACHABILITY -------------------------------------------------------------------------
+// Whether a trophy is "out of reach" is meaningless without saying reach BY WHEN. Read off a
+// 520-week cohort alone, ship-250 and rev-10B both look impossible; they are simply marathon
+// targets, cleared at roughly week 1040 and 1565. Reporting one horizon invites exactly that
+// mistake — this one was made here, confidently, and acted on. So both columns, always.
+{
+  const CHASE = [
+    { label: "Hitmaker II", target: 25, get: (c) => c.hits },
+    { label: "Hitmaker III", target: 50, get: (c) => c.hits },
+    { label: "Prolific III", target: 250, get: (c) => c.launches },
+    { label: "On Fire", target: 5, get: (c) => c.streak },
+    { label: "Movement", target: 1_000_000, get: (c) => c.fans },
+    { label: "Billion Club", target: 1_000_000_000, get: (c) => c.revenue },
+    { label: "Ten-Figure", target: 10_000_000_000, get: (c) => c.revenue },
+    { label: "The Long Game", target: 12, get: (c) => c.projects },
+  ];
+  const LONG_WK = 1560;
+  const LONG_SEEDS = SEEDS.slice(0, 4); // a marathon cohort is expensive; a few seeds settle the question
+  const longRuns = LONG_SEEDS.map((seed) => simulate(seed, "optimizer", LONG_WK)).filter((r) => !r.bankrupt).map((r) => r.chase);
+  const shortRuns = runs.filter((r) => !r.bankrupt).map((r) => r.chase);
+  const best = (rs, f) => (rs.length ? Math.max(...rs.map(f)) : 0);
+  const num = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(Math.round(n)));
+  console.log(`--- chase reachability: best surviving run, at 520 wk and at ${LONG_WK} wk ---`);
+  for (const c of CHASE) {
+    const a = best(shortRuns, c.get);
+    const b = best(longRuns, c.get);
+    const verdict = a >= c.target ? "reachable in a normal run"
+      : b >= c.target ? `marathon target — needs well past 520 wk`
+      : "OUT OF REACH AT ANY HORIZON";
+    console.log(`  ${c.label.padEnd(14)} needs ${num(c.target).padStart(7)}   520wk ${num(a).padStart(7)}   ${LONG_WK}wk ${num(b).padStart(7)}   ${verdict}`);
   }
   console.log("");
 }
