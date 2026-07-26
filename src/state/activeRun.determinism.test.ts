@@ -13,6 +13,11 @@
 //
 // The policy is deliberately dumb and fixed. It is not meant to play well — it is meant to touch
 // every phase in a way that never changes, so the numbers below mean something.
+//
+// KNOWN THIN SPOT: of its 41 launches, 3 land in era 1, 20 in era 2 and 18 in era 3. Perturbing an
+// era-2 band moves the fingerprint immediately; perturbing an ERA-1 band may not, because those
+// three launches clear it either way. Era-1 tuning is covered by `engine/balanceGuards.test.ts` and
+// by `npm run sim`, not here — don't read a pass as "era 1 is unchanged".
 import { describe, expect, it } from "vitest";
 import { dollars, toDollars } from "../engine/money.ts";
 import {

@@ -38,11 +38,59 @@ const PENDING_FIELD = {
   postLaunch: "pendingPostLaunch", secretReveal: "pendingSecretReveal",
 };
 
+// ---- a realistic player ---------------------------------------------------------------------
+// The harness used to drive ONE policy: best researched tier every time, fair price every time,
+// costliest affordable campaign every time, acting every single week without fail. That player does
+// not exist, and its consistency is an artefact — it made every run land in the same place and made
+// "the late game is solved" impossible to distinguish from "the bot is a metronome".
+//
+// So the player is now a set of ARCHETYPES, each a plausible way a human actually plays, plus the
+// imperfection every human has: weeks where they don't look at the game, launches they mis-price,
+// campaigns they forget to book. That turns the cohort into a real question — do these players end
+// up in different places? — which is the question "is the late game solved?" was always asking.
+//
+// Every imperfection is drawn from a hash of (seed, week, salt), never the sim RNG and never
+// Math.random, so a given (seed, archetype) run is byte-reproducible like everything else here.
+function h01(seed, week, salt) {
+  let x = (Math.imul(seed >>> 0, 0x9e3779b1) ^ Math.imul(week + 1, salt) ^ Math.imul(salt, 0x85ebca6b)) >>> 0;
+  x ^= x >>> 16; x = Math.imul(x, 0x7feb352d) >>> 0;
+  x ^= x >>> 15; x = Math.imul(x, 0x846ca68b) >>> 0;
+  x ^= x >>> 16;
+  return (x >>> 0) / 4294967296;
+}
+
+const ARCHETYPES = {
+  // The original policy, kept as the baseline so every number in this report stays comparable.
+  optimizer: {
+    label: "optimizer", blurb: "acts every week, best tier, fair price, richest campaign",
+    tierDrop: 0, priceSkew: 0, channelBudget: 0.12, idleChance: 0, skipCampaign: 0,
+    hireRunway: 40, maxStaff: 10, expandShare: 0.2, runSkew: 0,
+  },
+  // Protects the balance sheet. Ships a notch below the frontier, buys cheap ads, hires late.
+  cautious: {
+    label: "cautious", blurb: "hoards cash, ships a tier below the frontier, cheap ads",
+    tierDrop: 1, priceSkew: -0.08, channelBudget: 0.04, idleChance: 0.1, skipCampaign: 0.15,
+    hireRunway: 90, maxStaff: 6, expandShare: 0.08, runSkew: -0.2,
+  },
+  // Spends into growth. Over-produces, buys the biggest campaign it can, hires flat out.
+  aggressive: {
+    label: "aggressive", blurb: "spends into growth, over-produces, hires flat out",
+    tierDrop: 0, priceSkew: 0.12, channelBudget: 0.3, idleChance: 0.05, skipCampaign: 0,
+    hireRunway: 12, maxStaff: 16, expandShare: 0.45, runSkew: 0.35,
+  },
+  // Plays in bursts, forgets things, guesses at prices. The most human of the four.
+  casual: {
+    label: "casual", blurb: "plays in bursts, forgets campaigns, guesses at prices",
+    tierDrop: 1, priceSkew: 0, channelBudget: 0.08, idleChance: 0.35, skipCampaign: 0.4,
+    hireRunway: 60, maxStaff: 8, expandShare: 0.15, runSkew: 0,
+  },
+};
+
 let nameSeq = 0;
-/** Best product the player can currently build: best researched tier per slot, fair price. */
-function designProduct(s) {
+/** The product this player builds: their tier discipline, and their aim at the guidance price. */
+function designProduct(s, a, week) {
   const tiers = {};
-  for (const slot of SLOTS) tiers[slot] = Math.max(1, researchedTier(s, slot));
+  for (const slot of SLOTS) tiers[slot] = Math.max(1, researchedTier(s, slot) - a.tierDrop);
   const product = {
     id: `p${nameSeq}`,
     name: `Aurora ${++nameSeq}`,
@@ -51,20 +99,31 @@ function designProduct(s) {
     finish: "aluminium",
     colorIndex: 0,
     price: 0,
-    designTier: s.era, // design effort grows with the company (1..4)
+    designTier: Math.max(1, s.era - a.tierDrop), // design effort grows with the company (1..4)
     camera: { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
     notch: "punch",
   };
-  product.price = priceGuidance(productStats(s, product), "phone").fair;
+  const fair = priceGuidance(productStats(s, product), "phone").fair;
+  // Nobody prices to the penny. A steady bias (this player runs cheap, or believes in their brand)
+  // plus a wobble per launch — so pricing is a skill the run can be good or bad at, not a constant.
+  const wobble = (h01(s.seed, week, 9001) - 0.5) * 0.2;
+  product.price = Math.max(1, Math.round(fair * (1 + a.priceSkew + wobble)));
   return product;
 }
 
-/** Pick the costliest marketing channel we can comfortably afford (≤ ~12% of cash). */
-function pickChannel(s) {
-  const budget = toDollars(s.cash) * 0.12;
+/** The campaign this player books — sometimes none at all, because they forgot. */
+function pickChannel(s, a, week) {
+  if (a.skipCampaign > 0 && h01(s.seed, week, 9007) < a.skipCampaign) return "none";
+  const budget = toDollars(s.cash) * a.channelBudget;
   let best = "none";
   for (const c of CHANNELS) if (CHANNEL_COST[c] <= budget) best = c;
   return best;
+}
+
+/** Is the player even looking at the game this week? A human plays in bursts; the optimizer's
+ *  never-miss-a-week cadence is itself an unrealistic advantage. */
+function idle(s, a, week) {
+  return a.idleChance > 0 && h01(s.seed, week, 9013) < a.idleChance;
 }
 
 // ---- growing the company ------------------------------------------------------------------------
@@ -94,20 +153,20 @@ function buyDesk(s) {
   return s;
 }
 
-/** Grow the team when there's comfortable runway: seat first, then search, then sign the best
- *  applicant. Deliberately unhurried — a bot that hires flat out would measure a payroll stress
- *  test rather than an ordinary game. */
-function growTeam(s) {
+/** Grow the team at this player's appetite for risk: how much runway they insist on keeping, and
+ *  how big a team they want at all. A cautious player banks the money; an aggressive one hires into
+ *  a thinner cushion and finds out whether the game punishes that. */
+function growTeam(s, a) {
   const cash = toDollars(s.cash);
-  const payroll = toDollars(s.staff.reduce((a, m) => a + m.salary, 0));
+  const payroll = toDollars(s.staff.reduce((acc, m) => acc + m.salary, 0));
   const runwayWeeks = cash / Math.max(1, payroll + 120);
-  if (runwayWeeks < 40) return s; // not comfortable — bank the money instead
+  if (runwayWeeks < a.hireRunway) return s; // not comfortable enough for THIS player
 
   // Sign whoever is on the shortlist (best headline skill), if there's a seat.
   if (s.candidates.length > 0) {
     if (s.staff.length >= deskCapacity(s)) s = buyDesk(s);
     if (s.staff.length < deskCapacity(s)) {
-      const best = [...s.candidates].sort((a, b) => b.skill - a.skill)[0];
+      const best = [...s.candidates].sort((x, y) => y.skill - x.skill)[0];
       const next = hireCandidate(s, best.id);
       if (next !== s) return next;
     }
@@ -115,7 +174,7 @@ function growTeam(s) {
   }
 
   // Otherwise open a search we can comfortably afford, biggest tier first.
-  if (!s.recruitment && s.staff.length < 10) {
+  if (!s.recruitment && s.staff.length < a.maxStaff) {
     for (const tier of ["headhunter", "board"]) {
       const t = BALANCE.recruitment.tiers[tier];
       if (!t || toDollars(t.cost) > cash * 0.15) continue;
@@ -126,7 +185,44 @@ function growTeam(s) {
   return s;
 }
 
-function simulate(seed, maxWeeks = 520) {
+/** Everything that happens AFTER a tick, whether or not the player acted this week: answer the cards
+ *  the week raised, and record what it produced.
+ *
+ *  Answering is not bookkeeping. `noPendingInterrupt` — which every opportunistic stream consults —
+ *  also covers pendingChoice and pendingPoach, so leaving ONE choice card unanswered silently blocks
+ *  every other stream for the rest of the run. That is what once made five systems read "never
+ *  fires" here while being perfectly reachable in the real game, where the player cannot advance
+ *  without answering. An idle week is a week the player didn't ACT, not one they slept through. */
+function settleWeek(s, interrupts, verdicts, verdictsByEra, countedLaunches) {
+  if (s.pendingChoice) {
+    const opts = s.pendingChoice.event.options ?? [];
+    if (opts.length) s = resolveChoice(s, opts[0].id);
+    else s = { ...s, pendingChoice: null };
+  }
+  if (s.pendingPoach) s = resolvePoach(s, true); // match the offer and keep the person
+  const cleared = {};
+  for (const key of INTERRUPT_ORDER) {
+    const field = PENDING_FIELD[key];
+    if (s[field] != null) { interrupts[key]++; cleared[field] = null; }
+  }
+  if (Object.keys(cleared).length) s = { ...s, ...cleared };
+
+  // record newly-resolved launch verdicts
+  for (const lp of s.launched) {
+    if (!countedLaunches.has(lp.product.id) && lp.verdict) {
+      countedLaunches.add(lp.product.id);
+      verdicts[lp.verdict] = (verdicts[lp.verdict] ?? 0) + 1;
+      // …and again PER ERA. The aggregate mix is an average of four different games and hides a
+      // flat one inside a varied one: every era-1 launch in the cohort returned the same verdict
+      // while the headline number looked reasonable.
+      (verdictsByEra[s.era] ??= {})[lp.verdict] = ((verdictsByEra[s.era] ?? {})[lp.verdict] ?? 0) + 1;
+    }
+  }
+  return s;
+}
+
+function simulate(seed, archetype = "optimizer", maxWeeks = 520) {
+  const a = ARCHETYPES[archetype];
   // This harness measures the RAW balance landscape (max-tier builds across eras), not the design
   // budget (feature #1). Opt out of the per-project EP cap so it keeps building max products to probe.
   let s = { ...newGame(seed), designBudgetEnabled: false };
@@ -160,6 +256,17 @@ function simulate(seed, maxWeeks = 520) {
     }
     if (winWeek === null && s.era >= 4 && s.reputation >= 85) winWeek = s.week;
 
+    // A week this player simply didn't open the game. The tick still runs; they just don't act.
+    if (idle(s, a, w)) {
+      s = advanceOneWeek(s);
+      simWeeks++;
+      s = settleWeek(s, interrupts, verdicts, verdictsByEra, countedLaunches);
+      const c0 = toDollars(s.cash);
+      if (w < 60) minCashEarly = Math.min(minCashEarly, c0);
+      trough = Math.min(trough, c0);
+      continue;
+    }
+
     // advance era as soon as eligible
     if (canAdvance(s)) s = advanceEraAction(s);
 
@@ -174,7 +281,7 @@ function simulate(seed, maxWeeks = 520) {
 
     // grow the company: a bigger office when the current one is full, then the team itself
     if (s.staff.length >= facilityStaffCap(s) - 1) s = upgradeFacility(s);
-    s = growTeam(s);
+    s = growTeam(s, a);
 
     // take the company public when it qualifies — the gateway to the whole post-IPO layer
     // (shareholders, buybacks, quarterly earnings calls), which the founder-only bot never saw.
@@ -188,7 +295,7 @@ function simulate(seed, maxWeeks = 520) {
     // cash is there, so an eager bot will happily buy four markets and bankrupt itself.
     for (const id of REGION_ORDER) {
       if (s.unlockedRegions.includes(id)) continue;
-      if (toDollars(regionUnlockCost(id)) > toDollars(s.cash) * 0.2) break; // cheapest first: if this
+      if (toDollars(regionUnlockCost(id)) > toDollars(s.cash) * a.expandShare) break; // cheapest first: if this
       const next = unlockRegion(s, id);                                     // one is too dear, so is
       if (next !== s) { s = next; break; }                                  // every later one
     }
@@ -208,9 +315,11 @@ function simulate(seed, maxWeeks = 520) {
 
     // start a build if the line is idle
     if (s.building.length === 0 && s.ready.length === 0) {
-      const product = designProduct(s);
-      const channel = pickChannel(s);
-      const run = recommendedRun(s, product, channel);
+      const product = designProduct(s, a, w);
+      const channel = pickChannel(s, a, w);
+      // Production sizing is a judgement call, not a readout. This player systematically over- or
+      // under-builds against the recommendation, which is where inventory risk actually comes from.
+      const run = Math.max(1, Math.round(recommendedRun(s, product, channel) * (1 + a.runSkew)));
       if (run > 0) {
         const res = startBuild(s, product, run, channel);
         if (res.ok) s = res.state;
@@ -221,37 +330,8 @@ function simulate(seed, maxWeeks = 520) {
     simWeeks++;
     peakStaff = Math.max(peakStaff, s.staff.length);
 
-    // Answer everything the tick raised. This is not bookkeeping — `noPendingInterrupt` (which every
-    // opportunistic stream consults) also covers pendingChoice and pendingPoach, so a bot that lets
-    // ONE choice card sit unanswered silently blocks every other stream for the remaining ~500 weeks
-    // of the run. That is exactly what made five systems read "never fires" here while being perfectly
-    // reachable in the real game, where the player cannot advance without answering.
-    if (s.pendingChoice) {
-      const opts = s.pendingChoice.event.options ?? [];
-      if (opts.length) s = resolveChoice(s, opts[0].id);
-      else s = { ...s, pendingChoice: null };
-    }
-    if (s.pendingPoach) s = resolvePoach(s, true); // match the offer and keep the person
-    {
-      const cleared = {};
-      for (const key of INTERRUPT_ORDER) {
-        const field = PENDING_FIELD[key];
-        if (s[field] != null) { interrupts[key]++; cleared[field] = null; }
-      }
-      if (Object.keys(cleared).length) s = { ...s, ...cleared };
-    }
+    s = settleWeek(s, interrupts, verdicts, verdictsByEra, countedLaunches);
 
-    // record newly-resolved launch verdicts
-    for (const lp of s.launched) {
-      if (!countedLaunches.has(lp.product.id) && lp.verdict) {
-        countedLaunches.add(lp.product.id);
-        verdicts[lp.verdict] = (verdicts[lp.verdict] ?? 0) + 1;
-        // …and again PER ERA. The aggregate mix is an average of four different games and hides a
-        // flat one inside a varied one: every era-1 launch in the cohort returned the same verdict
-        // while the headline number looked reasonable.
-        (verdictsByEra[s.era] ??= {})[lp.verdict] = ((verdictsByEra[s.era] ?? {})[lp.verdict] ?? 0) + 1;
-      }
-    }
     const cash = toDollars(s.cash);
     if (w < 60) minCashEarly = Math.min(minCashEarly, cash);
     trough = Math.min(trough, cash);
@@ -259,6 +339,7 @@ function simulate(seed, maxWeeks = 520) {
 
   return {
     seed,
+    archetype,
     bankrupt: s.bankrupt,
     finalWeek: s.week,
     runwayWeek0,
@@ -290,7 +371,17 @@ function weeklyBurnApprox(s) {
 
 // ---- run the cohort ----
 const SEEDS = Array.from({ length: 40 }, (_, i) => i * 101 + 7);
-const runs = SEEDS.map((seed) => simulate(seed));
+// The headline report stays on the optimizer, so every number in it remains comparable with the
+// previous tuning passes. The archetype panel at the bottom runs the other three on a smaller
+// cohort — it is answering a different question (does HOW you play change WHERE you end up?) and
+// does not need the same resolution.
+const runs = SEEDS.map((seed) => simulate(seed, "optimizer"));
+const PANEL_SEEDS = SEEDS.slice(0, 20);
+const panel = Object.keys(ARCHETYPES).map((key) => ({
+  key,
+  a: ARCHETYPES[key],
+  runs: key === "optimizer" ? runs.slice(0, PANEL_SEEDS.length) : PANEL_SEEDS.map((seed) => simulate(seed, key)),
+}));
 
 const agg = (f) => runs.map(f);
 const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -388,4 +479,82 @@ for (const era of [1, 2, 3, 4]) {
     `  ${era}   ${String(xs.length).padStart(4)}  ${pct(xs, 0.1).toFixed(0).padStart(5)}  ${median(xs).toFixed(0).padStart(5)}  ${pct(xs, 0.9).toFixed(0).padStart(5)}    | ${b.flop} / ${b.solid} / ${b.hit}`,
   );
 }
+console.log("");
+
+// --- DOES HOW YOU PLAY CHANGE WHERE YOU END UP? ---------------------------------------------------
+// The single-policy harness could not ask this. It drove one metronomic player — best tier, fair
+// price, richest campaign, acting every single week — so every run landed in the same place, and
+// "the late game is solved" was indistinguishable from "the bot is a metronome". These are four
+// plausible humans on the SAME seeds. If the game rewards playing well, they should not converge.
+console.log(`\n--- player archetypes (${panel[0].runs.length} shared seeds each) ---`);
+console.log(`  ${"who".padEnd(11)} ${"net worth".padStart(11)} ${"era4".padStart(6)} ${"launches".padStart(9)} ${"hit%".padStart(5)} ${"flop%".padStart(6)} ${"bankrupt".padStart(9)}   how they play`);
+for (const p of panel) {
+  const nw = p.runs.map((r) => r.finalNetWorth);
+  const e4 = p.runs.map((r) => r.eraWeek[4]).filter((x) => x != null);
+  const v = p.runs.reduce((acc, r) => {
+    for (const k of ["hit", "solid", "steady", "flop"]) acc[k] += r.verdicts[k];
+    return acc;
+  }, { hit: 0, solid: 0, steady: 0, flop: 0 });
+  const n = v.hit + v.solid + v.steady + v.flop;
+  const share = (k) => (n ? `${((100 * v[k]) / n).toFixed(0)}%` : "—");
+  console.log(
+    `  ${p.key.padEnd(11)} ${money(median(nw)).padStart(11)} ${(e4.length ? `wk${median(e4)}` : "never").padStart(6)}` +
+    ` ${String(median(p.runs.map((r) => r.launches))).padStart(9)} ${share("hit").padStart(5)} ${share("flop").padStart(6)}` +
+    ` ${`${p.runs.filter((r) => r.bankrupt).length}/${p.runs.length}`.padStart(9)}   ${p.a.blurb}`,
+  );
+}
+{
+  const meds = panel.map((p) => median(p.runs.map((r) => r.finalNetWorth)));
+  const spread = Math.max(...meds) / Math.max(1, Math.min(...meds));
+  const totalRuns = panel.reduce((n, p) => n + p.runs.length, 0);
+  const died = panel.reduce((n, p) => n + p.runs.filter((r) => r.bankrupt).length, 0);
+  const deadRate = died / totalRuns;
+  console.log(`\n  best archetype ends ${spread.toFixed(1)}x the worst; ${died}/${totalRuns} runs went under.`);
+  // Read the two numbers TOGETHER. A huge spread produced by everyone-but-one going bankrupt is not
+  // "strategy matters", it is a game with one viable line — the opposite diagnosis, from the same
+  // headline figure. Bankruptcy rate has to be checked first or the spread reads backwards.
+  if (deadRate > 0.4) {
+    console.log(`  → ${(100 * deadRate).toFixed(0)}% of these players go bankrupt. The spread is survivorship, not strategy:`);
+    console.log(`    the game has one viable line and everything else is a loss. Check the cliff probes below.`);
+  } else if (spread < 1.5) {
+    console.log(`  → under 1.5x with most runs surviving: how you play barely matters.`);
+    console.log(`    The outcome is the schedule, not the decisions.`);
+  } else {
+    console.log(`  → most players survive and still land in materially different places.`);
+    console.log(`    That is what makes the decisions worth making.`);
+  }
+}
+console.log("");
+
+// --- CLIFF PROBES -------------------------------------------------------------------------------
+// Vary ONE dial at a time from the optimizer baseline. Archetypes answer "do different players end
+// up in different places"; this answers the sharper question underneath — WHICH single mistake is
+// fatal. Both cliffs below were invisible until it was run: most dials are slack (a player can skip
+// half their weeks, or spend nothing on ads, and still finish rich), and then two of them fall off
+// a table. A dial that goes from 0/N to most-of-N inside one step is a trap, not a difficulty
+// curve: the player gets no gradient to learn from.
+const CLIFF_SEEDS = SEEDS.slice(0, 12);
+function cliff(label, over) {
+  const rs = CLIFF_SEEDS.map((seed) => {
+    ARCHETYPES.__probe = { ...ARCHETYPES.optimizer, label: "__probe", blurb: "", ...over };
+    return simulate(seed, "__probe");
+  });
+  const dead = rs.filter((r) => r.bankrupt).length;
+  const mark = dead > CLIFF_SEEDS.length / 2 ? "  <-- CLIFF" : "";
+  console.log(
+    `  ${label.padEnd(30)} bankrupt ${String(dead).padStart(2)}/${CLIFF_SEEDS.length}` +
+    `  net ${money(median(rs.map((r) => r.finalNetWorth))).padStart(7)}` +
+    `  launches ${String(median(rs.map((r) => r.launches))).padStart(3)}${mark}`,
+  );
+}
+console.log(`--- cliff probes: one dial at a time, ${CLIFF_SEEDS.length} seeds ---`);
+cliff("baseline (optimizer)", {});
+console.log("  ship below the best researched tier:");
+for (const d of [1, 2]) cliff(`  components -${d}`, { tierDrop: d });
+console.log("  build more than recommended:");
+for (const r of [0.1, 0.2, 0.25, 0.35]) cliff(`  +${(r * 100).toFixed(0)}% units`, { runSkew: r });
+console.log("  …and the dials that turn out NOT to matter much:");
+cliff("  no ad spend at all", { channelBudget: 0 });
+cliff("  ignores the game half the time", { idleChance: 0.5 });
+cliff("  builds 30% under recommended", { runSkew: -0.3 });
 console.log("");

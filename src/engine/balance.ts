@@ -469,8 +469,15 @@ export const BALANCE = {
     // gave the player no signal that anything they did mattered. The bars now sit inside the range
     // they're judging, so an early launch can actually land well. The flop floor stays at 10 (below
     // p5) so the maiden launch is still protected — era 1 gains an upside, not a downside.
-    hitThresholdByEra: [23, 80, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
-    solidThresholdByEra: [18, 56, 135, 175, 202], // era 5
+    //
+    // Set at the CAUTIOUS end of the reachable range (22/27, not 18/23), because era-1 verdicts feed
+    // straight into early scale: better verdicts → more reputation → more demand → a bigger
+    // recommended production run, all financed out of a $100k opening balance with no cushion. At
+    // 18/23 a player who over-builds by 25% went under in 8 of 12 seeded runs; at 22/27 that is 4/12,
+    // against a 3/12 baseline — so era 1 becomes legible (23% of launches beat "steady", up from 0%)
+    // without the first era turning into a knife-edge. Harness-measured; see `npm run sim`.
+    hitThresholdByEra: [27, 80, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
+    solidThresholdByEra: [22, 56, 135, 175, 202], // era 5
     // FLOP FLOOR raised from era 2 on so a phoned-in launch actually FLOPS instead of coasting to a
     // safe "steady". Era 1 stays low (10) to protect the maiden launch — a brand-new company's hype is
     // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From

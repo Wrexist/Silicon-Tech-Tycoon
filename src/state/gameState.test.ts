@@ -226,15 +226,20 @@ describe("game state reducers", () => {
     // Search designTier × price for the first launch that lands a 'solid' verdict, then assert it
     // moved reputation by exactly gainPerSolid. Fresh game → 0 fans (no milestone rep bonus) and a
     // 'none' campaign (channel reputation 0), so the solid branch is the only rep contribution.
+    // The component tier is part of the search, not fixed at 3. The era-1 bands sit inside the range
+    // a garage company can actually score (22/27, harness-measured), so a maxed tier-3 build clears
+    // the hit bar outright and never produces the 'solid' this test is about — the verdict has to be
+    // reached from below as well as above.
     let found = false;
-    outer: for (let designTier = 1; designTier <= 3 && !found; designTier++) {
-      for (const price of [140, 220, 320, 460, 640, 900]) {
+    outer: for (let compTier = 1; compTier <= 3 && !found; compTier++) {
+      for (const designTier of [1, 2, 3]) {
+        for (const price of [140, 220, 320, 460, 640, 900]) {
         // The search needs a high-tier build to reach a 'solid' verdict; that's about the reputation
         // reward, not the design budget, so opt out of the per-project EP cap (feature #1).
         let s: GameState = { ...newGame(42), cash: dollars(2_000_000), designBudgetEnabled: false };
         const product: Product = {
           ...goodPhone(),
-          tiers: { chip: 3, display: 3, battery: 3, materials: 3, software: 3, camera: 3 },
+          tiers: { chip: compTier, display: compTier, battery: compTier, materials: compTier, software: compTier, camera: compTier },
           designTier,
           price: dollars(price),
         };
@@ -249,6 +254,7 @@ describe("game state reducers", () => {
           expect(s.reputation - repBefore).toBeCloseTo(BALANCE.reputation.gainPerSolid, 5);
           found = true;
           break outer;
+        }
         }
       }
     }
