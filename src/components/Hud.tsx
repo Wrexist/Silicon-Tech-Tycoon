@@ -13,7 +13,7 @@ function weekLabel(week: number): string {
   return `Y${year} Q${quarter}`;
 }
 
-export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: () => void; onOpenBank: () => void; onOpenProgress?: () => void }) {
+export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention }: { onSettings: () => void; onOpenBank: () => void; onOpenProgress?: () => void; progressAttention?: boolean }) {
   const { state, paused, setPaused, fast, setFast } = useGame();
   // Critical-runway signal: the HQ/Company runway pills live below the fold, so when cash will
   // run out within a month the always-visible headline number itself turns negative. Same math
@@ -98,7 +98,11 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress }: { onSettings: ()
             </>
           )}
           {onOpenProgress && (
-            <button className="hud__pause" onClick={onOpenProgress} aria-label="Progress, achievements and challenges">
+            <button
+              className={`hud__pause${progressAttention ? " hud__pause--attn" : ""}`}
+              onClick={onOpenProgress}
+              aria-label={progressAttention ? "Progress — something new to see" : "Progress, achievements and challenges"}
+            >
               <Trophy size={15} />
             </button>
           )}

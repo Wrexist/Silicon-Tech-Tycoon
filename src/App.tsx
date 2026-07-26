@@ -20,6 +20,7 @@ import { RivalStrike } from "./components/RivalStrike.tsx";
 import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
 import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
 import { NemesisTrophy } from "./components/NemesisTrophy.tsx";
+import { SecretRevealed } from "./components/SecretRevealed.tsx";
 import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
@@ -44,7 +45,7 @@ import { Button, Card } from "./design/primitives.tsx";
 import { format, toDollars, scale } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
-import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState } from "./state/gameState.ts";
+import { ipoValuation, legacyBonus, industryRank, navAttention, vaultSummary, type GameState } from "./state/gameState.ts";
 import { getFounderRecord, legendStanding, liveLegendScore } from "./state/founderLegend.ts";
 import { ascensionName, clampAscension, ascensionBarFactor, ascensionHeadStartFactor } from "./engine/ascension.ts";
 import { BALANCE } from "./engine/balance.ts";
@@ -179,6 +180,7 @@ function AppShell() {
         onSettings={() => setSettingsOpen(true)}
         onOpenBank={openBank}
         onOpenProgress={hasShipped ? () => openProgress() : undefined}
+        progressAttention={vaultSummary(state).newLeads > 0}
       />
       <main className="app__main">
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
@@ -257,6 +259,7 @@ function AppShell() {
       <AwardsCeremonyOverlay />
       <RivalryDeclared />
       <NemesisTrophy />
+      <SecretRevealed />
       <EurekaMoment />
       <CommunityAsk />
       <StaffMoment />

@@ -350,6 +350,19 @@ function migrate(state: GameState): GameState | null {
   // Design Budget (feature #1) — OFF for existing saves so their builds stay unconstrained (no product
   // that was buildable before becomes un-buildable mid-run). Fresh runs (newGame) set it true.
   if (s.designBudgetEnabled == null) s.designBudgetEnabled = false;
+  // The Vault (engine/secrets.ts) — OFF for existing saves so an in-flight company never picks up a
+  // pile of dossier boons at once mid-run (a long save could satisfy a dozen conditions the moment it
+  // loads). Fresh runs (newGame) set it true; the codex of what a founder has ever opened lives in the
+  // profile store, so nothing already learned is lost either way.
+  if (s.vaultEnabled == null) s.vaultEnabled = false;
+  if (!Array.isArray(s.secretsFound)) s.secretsFound = [];
+  if (s.secretStages == null || typeof s.secretStages !== "object" || Array.isArray(s.secretStages)) s.secretStages = {};
+  if (s.secretsSeen == null || typeof s.secretsSeen !== "object" || Array.isArray(s.secretsSeen)) s.secretsSeen = {};
+  // Keep a well-formed reveal ceremony (the player quit before acknowledging it); drop a malformed one.
+  if (s.pendingSecretReveal != null
+    && (typeof s.pendingSecretReveal !== "object" || !Array.isArray(s.pendingSecretReveal.ids) || s.pendingSecretReveal.ids.length === 0)) {
+    s.pendingSecretReveal = null;
+  }
   // Era Mandates (feature #6) — empty held list + no pending offer. Old saves only ever see mandate
   // offers on FUTURE era advances (an empty list = the all-zero bonus = byte-identical in-run behaviour),
   // so no per-save flag is needed here.

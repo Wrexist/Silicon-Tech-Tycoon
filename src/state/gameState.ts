@@ -125,6 +125,28 @@ import {
   moonshotRefund,
   resolveMoonshot,
 } from "../engine/moonshots.ts";
+import {
+  canInvestigate,
+  deriveSecretFacts,
+  investigationCost,
+  newlyUnearthed,
+  secretBonuses,
+  secretById,
+  secretProgress,
+  secretStage,
+  secretTitle,
+  vaultWhisperLine,
+  SECRETS,
+  SECRET_COUNT,
+  STAGE_DECRYPTED,
+  STAGE_RUMORED,
+  STAGE_SEALED,
+  STAGE_UNEARTHED,
+  type Secret,
+  type SecretFacts,
+  type SecretProgress,
+  type SecretStage,
+} from "../engine/secrets.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
@@ -508,6 +530,27 @@ export interface GameState {
   /** Moonshot id → the week of its last FAILED attempt, for the per-moonshot retry cooldown. Optional →
    *  {} on old saves. A landed moonshot leaves the ledger (success is once-per-run, no more attempts). */
   moonshotAttempts?: Record<string, number>;
+  // --- The Vault (engine/secrets.ts): classified dossiers with a staged reveal — hidden conditions
+  //     the player uncovers by playing off-meta, each worth a small permanent boon. Every field is
+  //     optional and the whole system only evaluates once `launched.length > 0`, so the pinned
+  //     do-nothing run never opens a file, never writes here, and stays byte-identical. ---
+  /** Master switch, set true by newGame. OFF (absent) for saves written before the Vault shipped, so
+   *  an in-flight company's balance never shifts mid-run — the same guard mastery/design-budget use. */
+  vaultEnabled?: boolean;
+  /** Dossier ids opened THIS run (monotonic — a file can never re-seal). Their rewards fold through
+   *  secretBonuses() into the prestige / design-budget / product-stat seams. Optional → []. */
+  secretsFound?: string[];
+  /** id → the highest reveal stage the run has LATCHED (1 rumored, 2 decrypted), whether it was
+   *  earned by progress or bought with `investigateSecret`. Latching means a file never re-seals when
+   *  a trace regresses (shares sold, a licensee lost). Optional → {}. */
+  secretStages?: Record<string, number>;
+  /** id → the stage the PLAYER has actually looked at in the Vault (stamped by markVaultSeen). Drives
+   *  the "new leads" badge: any file whose latched stage is ahead of this. Optional → {}. */
+  secretsSeen?: Record<string, number>;
+  /** Files opened this week, awaiting their reveal ceremony (dismissed via dismissSecretReveal). An
+   *  EARNED ceremony like the nemesis trophy — the reward is already banked; the overlay only shows
+   *  it. Optional/null → golden-invariant safe. */
+  pendingSecretReveal?: { ids: string[]; week: number } | null;
   // --- Legacy Era (item 4.1): the post-IPO endgame — only live once wentPublic → golden-invariant safe ---
   /** Megaproject ids the player has funded (moonshots with prestige payoffs). Optional → [] on old saves. */
   megaprojectsFunded?: string[];
@@ -974,6 +1017,14 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     // build time. Old saves lack this field (→ off) and build unconstrained; the do-nothing pin never
     // builds, so it's byte-identical either way.
     designBudgetEnabled: true,
+    // The Vault (engine/secrets.ts) — ON for fresh runs only. Every dossier starts sealed and the
+    // archive stays completely dormant until the first product ships, so the do-nothing pin never
+    // touches any of this. Old saves lack the flag (→ off) and keep their exact in-run balance.
+    vaultEnabled: true,
+    secretsFound: [],
+    secretStages: {},
+    secretsSeen: {},
+    pendingSecretReveal: null,
     // Era Mandates (feature #6) — none held at founding; the first draft is offered at the 1→2 advance.
     // Empty → the all-zero mandate bonus, so a run that never drafts is byte-identical to before.
     eraMandates: [],
@@ -1129,7 +1180,15 @@ export const weeklyOutflow = (s: GameState): Money =>
 export const noPendingInterrupt = (b: GameState): boolean =>
   !b.pendingStrike && !b.pendingEureka && !b.pendingCommunityAsk && !b.pendingRivalry &&
   !b.pendingStaffMoment && !b.pendingStaffEvent && !b.pendingRegionalEvent && !b.pendingPostLaunch &&
-  !b.pendingEarnings && !b.pendingLicenseOffer && !b.pendingAwards && !b.pendingChoice && !b.pendingPoach;
+  !b.pendingEarnings && !b.pendingLicenseOffer && !b.pendingAwards && !b.pendingChoice && !b.pendingPoach &&
+  // A Vault reveal is a ceremony rather than a decision, but it still owns the screen until it's
+  // acknowledged — nothing opportunistic should land on top of it. Never set in the pinned sim.
+  !b.pendingSecretReveal;
+/** The aggregate boon from every Vault dossier opened this run (engine/secrets.ts). Gated on the
+ *  `vaultEnabled` opt-in so an existing save's balance never shifts mid-run; nothing opened → the
+ *  all-zero bonus, which is what the pinned do-nothing sim (and every old save) folds to. */
+export const vaultBonuses = (s: GameState) => secretBonuses(s.vaultEnabled ? s.secretsFound : undefined);
+
 /** Combined prestige bonuses: the founder-perk drip (from prestige `legacy` level) PLUS the in-run
  *  Legacy Points spend-tree (item 4.3). legacy 0 + no legacy perks → all-zero, so the pinned sim is
  *  byte-identical. The build-cost reduction is clamped so cost never dips below 60% however it's
@@ -1149,11 +1208,15 @@ export const prestigeBonuses = (s: GameState): PerkBonus => {
   // aggregation, so its design-ceiling / hype / RP / build-cost payoff reaches every consumer at once.
   // No wins → the all-zero bonus, so old saves + the pinned sim stay byte-identical.
   const moon = moonshotBonuses(s.moonshotsWon);
+  // The Vault (engine/secrets.ts) — an opened dossier's small permanent boon folds through the SAME
+  // aggregation, so it reaches every consumer at once. Gated on the opt-in: no flag / nothing opened →
+  // the all-zero bonus, so old saves + the pinned sim stay byte-identical.
+  const vault = vaultBonuses(s);
   return {
-    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling + man.designCeiling + moon.designCeiling,
-    hype: base.hype + tree.hype + front.hype + man.hype + moon.hype,
-    rpMult: base.rpMult + tree.rpMult + front.rpMult + man.rpMult + moon.rpMult,
-    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult + moon.buildCostMult)),
+    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling + man.designCeiling + moon.designCeiling + vault.designCeiling,
+    hype: base.hype + tree.hype + front.hype + man.hype + moon.hype + vault.hype,
+    rpMult: base.rpMult + tree.rpMult + front.rpMult + man.rpMult + moon.rpMult + vault.rpMult,
+    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult + moon.buildCostMult + vault.buildCostMult)),
   };
 };
 /** Era-Mandate bonus aggregated from the held mandate ids (feature #6). Empty/absent → the all-zero
@@ -1167,7 +1230,7 @@ export const designTierCeiling = (s: GameState) =>
  *  era-scaled base + permanent raises from completed engineering projects. Meaningful only when
  *  designBudgetEnabled (the Lab meter + startBuild gate both check the flag before using it). */
 export const designBudget = (s: GameState): number =>
-  epBudget(s.era, s.completedProjects) + moonshotBonuses(s.moonshotsWon).epBudget;
+  epBudget(s.era, s.completedProjects) + moonshotBonuses(s.moonshotsWon).epBudget + vaultBonuses(s).epBudget;
 
 /** Category Mastery (feature #3) — the small, CATEGORY-SCOPED bonus a product earns from how many
  *  times you've shipped in its category (derived from launched[]). Gated on the masteryEnabled opt-in:
@@ -1352,6 +1415,11 @@ export function productStats(s: GameState, product: Product): Stats {
   // every product you ship. Empty (no such win) → no-op, so old saves + the pinned sim are unchanged.
   const sig = moonshotBonuses(s.moonshotsWon).stat;
   for (const k of Object.keys(sig) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (sig[k] ?? 0);
+
+  // The Vault: a "signature" dossier (House Style) leaves a recognisable hand on every device you
+  // ship. Empty until that file is opened → no-op for old saves + the pinned sim.
+  const vaultStat = vaultBonuses(s).stat;
+  for (const k of Object.keys(vaultStat) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (vaultStat[k] ?? 0);
 
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
@@ -3186,6 +3254,70 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     base.contractCounter = contractCounter;
   }
 
+  // The Vault (engine/secrets.ts) — the weekly sweep of the classified dossiers. Three things happen
+  // here, in order, and all of them are pure folds over facts the tick already produced:
+  //   1. Any file whose hidden condition is now MET is latched into secretsFound (monotonic) and its
+  //      one-time Legacy Points banked. That's the payoff; the overlay only acknowledges it.
+  //   2. Every file's reveal stage is latched upward, so a file that has shown you a whisper or its
+  //      terms never re-seals when the underlying trace dips again.
+  //   3. A file rising to `rumored` on a quiet week gets ONE atmospheric feed line — the drip that
+  //      tells you there is more here than you've been shown.
+  // Gated on the opt-in AND on having shipped at least one product, so the pinned do-nothing run
+  // never enters this block: no file opens, no stage latches, no feed line → byte-identical.
+  if (base.vaultEnabled && base.launched.length > 0) {
+    const facts = deriveSecretFacts(base);
+    const found = base.secretsFound ?? [];
+    const fresh = newlyUnearthed(facts, found);
+    const foundAfter = fresh.length > 0 ? [...found, ...fresh] : found;
+
+    if (fresh.length > 0) {
+      base.secretsFound = foundAfter;
+      let legacyGain = 0;
+      for (const id of fresh) legacyGain += secretById(id)?.reward.legacyPoints ?? 0;
+      if (legacyGain > 0) base.legacyPoints = (base.legacyPoints ?? 0) + legacyGain;
+      if (!offline) {
+        for (const id of fresh) {
+          const s = secretById(id);
+          if (s) base.feed.push(feedItem(week, `The vault gave one up: “${s.codename}” — ${s.reward.label}.`, "positive"));
+        }
+        // An EARNED ceremony (the reward is already banked), so it isn't gated on the interrupt
+        // budget — but it still stamps it, so no other modal piles on top of the moment.
+        base.pendingSecretReveal = { ids: fresh, week };
+        base.lastInterruptWeek = week;
+      }
+    }
+
+    // Latch each file's stage upward. `secretStage` already folds in whatever is latched, so this is
+    // simply "remember the best we've ever seen" — and it's where bought intel keeps living too.
+    const stages: Record<string, number> = { ...(base.secretStages ?? {}) };
+    const firstEverStir = Object.keys(stages).length === 0;
+    let firstRumor: Secret | undefined;
+    for (const s of SECRETS) {
+      const stage = secretStage(s, facts, foundAfter, stages);
+      const held = stages[s.id] ?? 0;
+      if (stage > held && stage < STAGE_UNEARTHED) {
+        stages[s.id] = stage;
+        // The drip fires when a file SURFACES from sealed — whether it stopped at a whisper or went
+        // straight to its terms. A later rumored→decrypted step is visible in the Vault itself and
+        // doesn't need a second announcement.
+        if (held === STAGE_SEALED && !firstRumor) firstRumor = s;
+      }
+    }
+    base.secretStages = stages;
+    // One whisper per week at most, and never on a week the vault already spoke — the drip has to
+    // stay rare to stay exciting. Cosmetic feed text (derived-hash flavour line, salt 311). The very
+    // FIRST stir also says where to look, once: a mystery nobody can find isn't a mystery, it's a bug.
+    if (!offline && firstRumor && fresh.length === 0) {
+      base.feed.push(feedItem(
+        week,
+        firstEverStir
+          ? "Someone left a sealed archive in your files — the Vault, under Progress. One of its folders just got a name."
+          : vaultWhisperLine(base.seed, week),
+        "accent",
+      ));
+    }
+  }
+
   // Resolve an in-progress event chain (Track B) on its OWN schedule, independent of the normal
   // event cadence: each due beat applies its consequence, or hands off the terminal choice.
   if (!offline && !bankrupt && !state.pendingChoice && !base.pendingPoach && base.eventChain && week >= base.eventChain.nextWeek) {
@@ -4950,6 +5082,157 @@ export function attemptMoonshot(state: GameState, id: string): ActionResult {
   };
 }
 
+// ---------- The Vault: classified dossiers (engine/secrets.ts) ----------
+// Discovery is the reward here, so the state layer's job is small and strictly honest: read the
+// dossiers' stages, sell one stage of intel at a time, and never let cash buy the deed itself. Every
+// entry point below is player-driven — the sim never calls any of them.
+
+/** One dossier as the Vault screen shows it. Everything the card needs, already resolved. */
+export interface VaultCard {
+  id: string;
+  tier: 1 | 2 | 3 | 4;
+  stage: SecretStage;
+  /** Redacted until `rumored` — the UI renders a block of ▚ instead. */
+  codename: string | null;
+  /** The atmospheric tease, from `rumored` on. */
+  whisper: string | null;
+  /** The exact terms, from `decrypted` on. */
+  requirement: string | null;
+  /** The named reward, from `decrypted` on (the whole point of paying to decrypt early). */
+  rewardLabel: string | null;
+  /** Live progress toward the condition — shown from `decrypted` on. */
+  progress: SecretProgress;
+  /** Cash to buy this file's NEXT stage, or null when there's nothing left to buy. */
+  intelCost: Money | null;
+  /** Whether that purchase is affordable right now. */
+  intelAffordable: boolean;
+  /** The player hasn't looked at this file since it last moved — drives the "new" pip. */
+  isNew: boolean;
+  /** Opened in a PREVIOUS company: the codex remembers the terms even though the boon must be
+   *  re-earned this run. Supplied by the UI layer (the engine can't read the profile store). */
+  knownFromCodex?: boolean;
+}
+
+/** How the Vault reads right now, in one object: the counts the hub badge and the header need. */
+export interface VaultSummary {
+  enabled: boolean;
+  /** The archive stays shut until the first product ships. */
+  open: boolean;
+  found: number;
+  total: number;
+  /** Files that have moved since the player last looked (the badge count). */
+  newLeads: number;
+  /** The cosmetic founder title the Vault has granted, if any. */
+  title: string | null;
+}
+
+/** Every dossier, resolved for display. Order is the catalog's (tier-ascending, authored). */
+export function vaultCards(state: GameState): VaultCard[] {
+  const facts: SecretFacts = deriveSecretFacts(state);
+  const found = state.secretsFound ?? [];
+  const latched = state.secretStages ?? {};
+  const seen = state.secretsSeen ?? {};
+  return SECRETS.map((s: Secret) => {
+    const stage = secretStage(s, facts, found, latched);
+    const revealed = stage >= STAGE_RUMORED;
+    const decrypted = stage >= STAGE_DECRYPTED;
+    const cost = canInvestigate(s, stage) ? investigationCost(s.tier, (stage + 1) as SecretStage) : null;
+    return {
+      id: s.id,
+      tier: s.tier,
+      stage,
+      codename: revealed ? s.codename : null,
+      whisper: revealed ? s.whisper : null,
+      requirement: decrypted ? s.requirement : null,
+      rewardLabel: decrypted ? s.reward.label : null,
+      progress: secretProgress(s, facts),
+      intelCost: cost,
+      intelAffordable: cost != null && state.cash >= cost,
+      isNew: stage > (seen[s.id] ?? 0),
+    };
+  });
+}
+
+/** The Vault's headline counts. Cheap enough for the Progress hub row to call every render. */
+export function vaultSummary(state: GameState): VaultSummary {
+  const enabled = !!state.vaultEnabled;
+  const open = enabled && state.launched.length > 0;
+  const found = (state.secretsFound ?? []).length;
+  if (!open) {
+    return { enabled, open, found, total: SECRET_COUNT, newLeads: 0, title: null };
+  }
+  const seen = state.secretsSeen ?? {};
+  const latched = state.secretStages ?? {};
+  let newLeads = 0;
+  for (const s of SECRETS) {
+    const stage = (state.secretsFound ?? []).includes(s.id)
+      ? STAGE_UNEARTHED
+      : Math.max(0, Math.min(STAGE_DECRYPTED, Math.floor(latched[s.id] ?? 0)));
+    if (stage > (seen[s.id] ?? 0)) newLeads++;
+  }
+  return { enabled, open, found, total: SECRET_COUNT, newLeads, title: secretTitle(state.secretsFound) };
+}
+
+/** Buy ONE stage of intel on a dossier: sealed → rumored (a whisper), or rumored → decrypted (the
+ *  exact terms + the named reward). Cash only, priced by tier. The Omega file is never for sale, and
+ *  no amount of money can push a file to `unearthed` — that's the condition's job alone. */
+export function investigateSecret(state: GameState, id: string): ActionResult {
+  if (!state.vaultEnabled) return { state, ok: false, reason: "The vault isn't open yet." };
+  if (state.launched.length === 0) return { state, ok: false, reason: "Ship a product first." };
+  const secret = secretById(id);
+  if (!secret) return { state, ok: false, reason: "No such file." };
+  const facts = deriveSecretFacts(state);
+  const found = state.secretsFound ?? [];
+  const latched = state.secretStages ?? {};
+  const stage = secretStage(secret, facts, found, latched);
+  if (stage >= STAGE_UNEARTHED) return { state, ok: false, reason: "That file is already open." };
+  if (!canInvestigate(secret, stage)) {
+    return { state, ok: false, reason: secret.tier === 4 ? "This one can't be bought." : "Nothing left to learn here." };
+  }
+  const next = (stage + 1) as SecretStage;
+  const cost = investigationCost(secret.tier, next);
+  if (state.cash < cost) return { state, ok: false, reason: `Needs ${format(cost)}.` };
+
+  const line = next >= STAGE_DECRYPTED
+    ? `Your people got the file open: “${secret.codename}” — ${secret.requirement}`
+    : `An inquiry turned something up. There's a file called “${secret.codename}”.`;
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, cost),
+      secretStages: { ...latched, [id]: next },
+      feed: trimFeed([...state.feed, feedItem(state.week, line, "accent")]),
+    },
+    ok: true,
+  };
+}
+
+/** Mark every dossier's current stage as SEEN (called when the Vault screen closes) — clears the
+ *  "new leads" badge without touching anything the sim reads. */
+export function markVaultSeen(state: GameState): GameState {
+  if (!state.vaultEnabled) return state;
+  const found = state.secretsFound ?? [];
+  const latched = state.secretStages ?? {};
+  const seen: Record<string, number> = { ...(state.secretsSeen ?? {}) };
+  let changed = false;
+  for (const s of SECRETS) {
+    const stage = found.includes(s.id)
+      ? STAGE_UNEARTHED
+      : Math.max(0, Math.min(STAGE_DECRYPTED, Math.floor(latched[s.id] ?? 0)));
+    if (stage !== (seen[s.id] ?? 0)) {
+      seen[s.id] = stage;
+      changed = true;
+    }
+  }
+  return changed ? { ...state, secretsSeen: seen } : state;
+}
+
+/** Dismiss the reveal ceremony for the files that opened this week. */
+export function dismissSecretReveal(state: GameState): GameState {
+  if (!state.pendingSecretReveal) return state;
+  return { ...state, pendingSecretReveal: null };
+}
+
 // ---------- Office builder (furniture layout) ----------
 export function placeFurniture(state: GameState, type: FurnitureId, c: number, r: number, rot: Rot): GameState {
   const cost = dollars(furnitureCost(type));
@@ -5688,6 +5971,7 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   if (!prev.pendingStrike && next.pendingStrike) return "A rival is attacking your product";
   if (!prev.pendingSideOrder && next.pendingSideOrder) return "A client wants your factory line";
   if (!prev.pendingAwards && next.pendingAwards) return "The Silicon Awards ceremony";
+  if (!prev.pendingSecretReveal && next.pendingSecretReveal) return "A vault file just opened";
   // A paid-for recruiter shortlist EXPIRES — skipping past its arrival would waste the fee.
   if (next.candidates.length > 0 && prev.candidates.length === 0) return "Your recruiter's shortlist arrived";
   if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";
