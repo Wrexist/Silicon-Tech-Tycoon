@@ -659,6 +659,12 @@ export interface GameState {
   osVersion: number;
   /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
   osLicensees: string[];
+  /** Every rival that has EVER licensed the OS, whether or not they still do. Licensees churn out
+   *  when the player's reputation dominates theirs (engine/platform.ts), so the live list is a
+   *  snapshot of who is on board right now; this is the historical record. Optional/backfilled →
+   *  absent on old saves and never written until a licence is signed, which the pinned sim never
+   *  does, so the golden run is byte-identical. */
+  osLicenseesEver?: string[];
   /** Per-licensee satisfaction (id → 0..100). Decays when you dominate them; low satisfaction can
    *  make a licensee drop the license (churn). Defaults to startHealth for any licensee not present. */
   osLicenseeHealth: Record<string, number>;
@@ -5422,6 +5428,7 @@ export function signLicenseOffer(state: GameState): ActionResult {
       ...state,
       cash: add(state.cash, offer.signingBonus),
       osLicensees: [...state.osLicensees, offer.rivalId],
+      osLicenseesEver: [...new Set([...(state.osLicenseesEver ?? []), offer.rivalId])],
       osLicenseeHealth: { ...state.osLicenseeHealth, [offer.rivalId]: BALANCE.platform.licenseeChurn.startHealth },
       osExclusive: offer.exclusive ? { ...(state.osExclusive ?? {}), [offer.rivalId]: offer.category } : (state.osExclusive ?? {}),
       pendingLicenseOffer: null,
@@ -5475,6 +5482,7 @@ export function licenseOsToRival(state: GameState, rivalId: string): GameState {
   return {
     ...state,
     osLicensees: [...state.osLicensees, rivalId],
+    osLicenseesEver: [...new Set([...(state.osLicenseesEver ?? []), rivalId])],
     // A new partner starts content.
     osLicenseeHealth: { ...state.osLicenseeHealth, [rivalId]: BALANCE.platform.licenseeChurn.startHealth },
     feed: trimFeed(feed),

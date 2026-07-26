@@ -114,6 +114,9 @@ export interface SecretFacts {
   /** Deepest franchise line by entries, whatever its standing — the progress read for House Style. */
   deepestLineDepth: number;
   osLicensees: number;
+  /** Rivals that have EVER licensed the OS. Distinct from the live count above because licensees
+   *  churn out under the player's own dominance — see `borrowedFire`. */
+  osLicenseesEver: number;
   nemesisTrophies: number;
   /** Most awards taken in any single ceremony. */
   bestCeremonySweep: number;
@@ -292,10 +295,17 @@ export const SECRETS: readonly Secret[] = [
     codename: "Borrowed Fire",
     tier: 2,
     whisper: "Three competitors shipped hardware running someone else's soul, and paid for the privilege.",
-    requirement: "Have three rivals licensing your OS at the same time.",
-    rumorAt: (f) => f.osLicensees >= 1,
-    met: (f) => f.osLicensees >= 3,
-    trace: (f) => Math.min(3, f.osLicensees),
+    requirement: "License your OS to three different rivals.",
+    // Counts rivals that have EVER licensed, not those holding a licence right now. Concurrency was
+    // unreachable and quietly at war with the churn design: licensee satisfaction decays 0.7/wk for
+    // every reputation point beyond a 12-point lead, so by the time the player HAS a platform worth
+    // licensing they out-rank everyone and each licensee lasts ~33 weeks — against offers arriving
+    // about once every 128. Measured expected concurrency 0.26, and the peak across every archetype
+    // and every seed was 1. The dossier now records the OS spreading, which is what "Borrowed Fire"
+    // always meant, and stops asking for the one state the rest of the system prevents.
+    rumorAt: (f) => f.osLicenseesEver >= 1,
+    met: (f) => f.osLicenseesEver >= 3,
+    trace: (f) => Math.min(3, f.osLicenseesEver),
     traceNeed: 3,
     traceUnit: "licensees",
     reward: { kind: "rpMult", label: "Platform gravity: +5% weekly research", rpMult: 0.05 },
@@ -520,6 +530,7 @@ export function deriveSecretFacts(state: GameState): SecretFacts {
     iconicLineDepth,
     deepestLineDepth,
     osLicensees: (state.osLicensees ?? []).length,
+    osLicenseesEver: (state.osLicenseesEver ?? state.osLicensees ?? []).length,
     nemesisTrophies: state.nemesisTrophies ?? 0,
     bestCeremonySweep,
     rivalsHeld,

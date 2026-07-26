@@ -635,7 +635,7 @@ console.log("");
   for (const [id, cs] of short) {
     const frac = median(cs.map((c) => c.frac));
     const bar = "#".repeat(Math.round(frac * 16)).padEnd(16, ".");
-    const note = frac === 0 ? "  <- 0%: points at a system this run never touches" : "";
+    const note = frac === 0 ? "  <- 0%: needs a strategy this policy never uses (verify before calling it unreachable)" : "";
     console.log(`  ${id.padEnd(18)} ${NAMES[median(cs.map((c) => c.stage))].padEnd(10)} ${bar} ${(100 * frac).toFixed(0)}%${note}`);
   }
   console.log("");

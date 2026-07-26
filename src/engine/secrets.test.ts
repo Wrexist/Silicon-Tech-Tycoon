@@ -49,6 +49,7 @@ function zeroFacts(over: Partial<SecretFacts> = {}): SecretFacts {
     iconicLineDepth: 0,
     deepestLineDepth: 0,
     osLicensees: 0,
+    osLicenseesEver: 0,
     nemesisTrophies: 0,
     bestCeremonySweep: 0,
     rivalsHeld: 0,

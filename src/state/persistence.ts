@@ -433,6 +433,10 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.osName !== "string") s.osName = "";
   if (!Number.isFinite(s.osVersion) || s.osVersion < 1) s.osVersion = 1;
   if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
+  // The historical licensee record. Backfilled from the LIVE list on a save that predates it — the
+  // best available lower bound, and never worse than starting from nothing.
+  if (!Array.isArray(s.osLicenseesEver)) s.osLicenseesEver = [...s.osLicensees];
+  else s.osLicenseesEver = [...new Set([...s.osLicenseesEver.filter((x: unknown) => typeof x === "string"), ...s.osLicensees])];
   // Per-licensee satisfaction (added later): default empty — existing licensees fall back to startHealth.
   // Sanitize values from an untrusted import: drop non-finite, clamp to 0..100.
   if (!s.osLicenseeHealth || typeof s.osLicenseeHealth !== "object" || Array.isArray(s.osLicenseeHealth)) {
