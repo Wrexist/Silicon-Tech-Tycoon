@@ -472,6 +472,10 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingRivalry != null && (typeof s.pendingRivalry !== "object" || typeof s.pendingRivalry.rivalId !== "string")) {
     s.pendingRivalry = null;
   }
+  // Same scrub for the deferred copy — a malformed one would raise a reveal card naming nobody.
+  if (s.queuedRivalry != null && (typeof s.queuedRivalry !== "object" || typeof s.queuedRivalry.rivalId !== "string")) {
+    s.queuedRivalry = null;
+  }
   // Nemesis Boss ladder (feature #7, added later): default dormant. The duel only ever arms while a
   // nemesis exists, so an old save with no nemesis loads with none. Drop a malformed duel from an
   // untrusted import (a NaN endWeek/margin would break the countdown + win math); ladder tier +

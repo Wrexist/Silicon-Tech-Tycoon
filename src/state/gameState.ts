@@ -450,6 +450,12 @@ export interface GameState {
   /** A just-declared rivalry waiting for its reveal moment (set the week a nemesis forms, cleared by
    *  the player via dismissRivalry). Optional/null → golden-invariant safe. */
   pendingRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
+  /** The reveal above, deferred. A nemesis forms FROM a rival strike, so the week it's declared the
+   *  strike's own card is already up and the reveal loses the interrupt budget — measured at 40/40
+   *  declared vs 0 shown. Parked here instead of dropped, and raised on the first quiet week after.
+   *  Optional/null → only ever set once a nemesis exists, which the pinned auto-player never forms,
+   *  so the golden run is byte-identical. */
+  queuedRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
   /** Nemesis Boss ladder (feature #7) — the live duel against the standing arch-rival: out-value them
    *  by a margin before the window closes (engine/nemesisDuel.ts). Armed only while a nemesis exists,
    *  which the pinned auto-player never forms → optional/null keeps it byte-identical. */
@@ -3089,13 +3095,27 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       const rival = base.competitors.find((c) => c.id === res.declared!.rivalId);
       const doctrine = rivalDef(res.declared.rivalId)?.doctrine ?? "generalist";
       base.feed.push(feedItem(week, `${rival?.name ?? "A rival"} has become your arch-rival. It's personal now.`, "negative"));
-      // The reveal CARD respects the interrupt budget AND never doubles up with another pending modal
-      // (a nemesis usually forms from the very strike already on screen). If suppressed the nemesis
-      // still forms and the feed still announces it — only the extra full-screen card is skipped.
+      // The reveal CARD respects the interrupt budget AND never doubles up with another pending modal.
+      // But a nemesis forms FROM a rival strike, and that strike's own card went up earlier in this
+      // same tick — so this check was almost never true. Measured over 40 seeded runs: 40 nemeses
+      // declared, 0 reveal cards shown, 38 of them suppressed by the strike card. A once-per-run
+      // ceremony nobody ever saw. So a suppressed reveal is now QUEUED rather than dropped, and
+      // raised on the next quiet week. Optional field, unset until a nemesis actually forms, so the
+      // pinned do-nothing run (which never declares one) stays byte-identical.
+      const card = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
       if (interruptQuiet && noPendingInterrupt(base)) {
-        base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
+        base.pendingRivalry = card;
         base.lastInterruptWeek = week;
+      } else {
+        base.queuedRivalry = card;
       }
+    } else if (base.queuedRivalry && interruptQuiet && noPendingInterrupt(base)) {
+      // The reveal that was crowded out when the rivalry was declared, delivered on the first quiet
+      // week after. It's the same earned ceremony, just not stacked on top of the strike that caused
+      // it. Cleared as it's raised, so it can only ever be shown once.
+      base.pendingRivalry = base.queuedRivalry;
+      base.queuedRivalry = null;
+      base.lastInterruptWeek = week;
     } else if (res.nemesis && clashSignals.some((s) => s.rivalId === res.nemesis!.rivalId)) {
       // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency). The
       // taunt is now turf- and heat-aware (item 2.3): it names the category you're fighting over and

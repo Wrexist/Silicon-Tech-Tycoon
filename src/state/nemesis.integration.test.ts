@@ -86,6 +86,44 @@ describe("dismissRivalry", () => {
   });
 });
 
+describe("the arch-rival reveal is deferred, not dropped", () => {
+  // A nemesis forms FROM a rival strike, so on the week it's declared that strike's own card is
+  // already up and the reveal loses the shared interrupt budget. Measured across 40 seeded runs of
+  // the balance harness: 40 nemeses declared, 0 reveal cards shown — a once-per-run ceremony nobody
+  // ever saw. The reveal is now parked and raised on the first quiet week instead.
+  const card = { rivalId: "r1", rivalName: "Rival One", doctrine: "generalist" };
+
+  it("raises a queued reveal on the next quiet week and clears the queue", () => {
+    const base = newGame(3);
+    const g = { ...base, queuedRivalry: card, lastInterruptWeek: -999 } as GameState;
+    const next = advanceOneWeek(g);
+    expect(next.pendingRivalry).toEqual(card);
+    expect(next.queuedRivalry).toBeNull();
+    // …and only once: with the queue drained, the following week raises nothing new.
+    const after = advanceOneWeek({ ...next, pendingRivalry: null } as GameState);
+    expect(after.pendingRivalry ?? null).toBeNull();
+  });
+
+  it("keeps it queued while another card still owns the screen", () => {
+    const base = newGame(3);
+    const busy = {
+      ...base,
+      queuedRivalry: card,
+      lastInterruptWeek: -999,
+      pendingEureka: { id: "e", title: "t", body: "b", options: [] },
+    } as unknown as GameState;
+    const next = advanceOneWeek(busy);
+    expect(next.pendingRivalry ?? null).toBeNull();
+    expect(next.queuedRivalry).toEqual(card); // still owed, not lost
+  });
+
+  it("stays absent for a game that never formed a rivalry (determinism-safe default)", () => {
+    const next = advanceOneWeek(newGame(11));
+    expect(next.queuedRivalry ?? null).toBeNull();
+    expect(next.pendingRivalry ?? null).toBeNull();
+  });
+});
+
 describe("playerTopCategory", () => {
   it("returns the category the player has sold the most units in (defaults phone)", () => {
     expect(playerTopCategory(newGame(1))).toBe("phone"); // no launches → default
