@@ -18,6 +18,23 @@ const FABRIC_2 = "#6f7a89";
 const WOOD = "#9c6b43";
 const BOOKS = ["#3b82f6", "#1eb877", "#f59e0b", "#ef4444", "#8b5cf6"];
 
+/** Backlight bleed on a monitor's REAR shell — a thin lit strip along the bottom edge, in the screen
+ *  colour.
+ *
+ *  Every desk model is authored with its screen facing the occupant, and the occupant sits on the far
+ *  side of the desk facing the camera, so the iso view sees the BACK of every monitor. Without this a
+ *  correctly-oriented desk reads as a bare table with a dark slab on it. One thin emissive strip is
+ *  enough to say "this computer is on" from behind, without pretending the screen is double-sided.
+ *  `w` matches the panel's width; `y` its centre height; `z` the shell's rear face. */
+function ScreenBleed({ w, y, z }: { w: number; y: number; z: number }) {
+  return (
+    <mesh position={[0, y, z]} rotation-y={Math.PI}>
+      <planeGeometry args={[w, 0.02]} />
+      <meshStandardMaterial color="#7fb2ff" emissive="#7fb2ff" emissiveIntensity={0.85} toneMapped={false} />
+    </mesh>
+  );
+}
+
 function Desk({ p }: { p: RoomPalette }) {
   const w = 2 * C;
   return (
@@ -40,6 +57,7 @@ function Desk({ p }: { p: RoomPalette }) {
         {/* screen — larger + brighter than before */}
         <mesh position={[0, 0.38, 0]}><boxGeometry args={[0.7, 0.42, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
         <mesh position={[0, 0.38, 0.023]}><planeGeometry args={[0.64, 0.36]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.35} toneMapped={false} /></mesh>
+        <ScreenBleed w={0.6} y={0.2} z={-0.022} />
       </group>
       {/* keyboard + mouse on the desktop */}
       <mesh position={[-0.14, 0.785, 0.12]}><boxGeometry args={[0.46, 0.03, 0.17]} /><meshStandardMaterial color="#2a2f37" roughness={0.6} /></mesh>
@@ -66,6 +84,7 @@ function DeskL({ p }: { p: RoomPalette }) {
       <group position={[0.25, 0.78, -C / 2 - 0.18]}>
         <mesh position={[0, 0.4, 0]}><boxGeometry args={[0.6, 0.36, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
         <mesh position={[0, 0.4, 0.022]}><planeGeometry args={[0.54, 0.3]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.1} toneMapped={false} /></mesh>
+        <ScreenBleed w={0.5} y={0.24} z={-0.021} />
         <mesh position={[0, 0.18, 0]}><boxGeometry args={[0.05, 0.3, 0.05]} /><meshStandardMaterial color={p.metalDark} /></mesh>
       </group>
     </group>
@@ -344,6 +363,7 @@ function StandingDesk({ p }: { p: RoomPalette }) {
       <group position={[0.1, 1.06, -0.18]}>
         <mesh position={[0, 0.34, 0]}><boxGeometry args={[0.6, 0.36, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
         <mesh position={[0, 0.34, 0.022]}><planeGeometry args={[0.54, 0.3]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.1} toneMapped={false} /></mesh>
+        <ScreenBleed w={0.5} y={0.18} z={-0.021} />
         <mesh position={[0, 0.12, 0]}><boxGeometry args={[0.04, 0.22, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
       </group>
     </group>
@@ -363,6 +383,7 @@ function DualDesk({ p }: { p: RoomPalette }) {
           <mesh position={[0, 0.32, 0]}><boxGeometry args={[0.56, 0.34, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
           {/* single-sided screen — it faces the worker (a real monitor: lit front, solid back). */}
           <mesh position={[0, 0.32, 0.022]}><planeGeometry args={[0.5, 0.28]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.2} toneMapped={false} /></mesh>
+          <ScreenBleed w={0.46} y={0.17} z={-0.021} />
           <mesh position={[0, 0.1, 0]}><boxGeometry args={[0.04, 0.2, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
         </group>
       ))}
@@ -770,6 +791,7 @@ function ExecutiveDesk({ p }: { p: RoomPalette }) {
       <group position={[0.55, 0.81, -0.35]}>
         <mesh position={[0, 0.34, 0]}><boxGeometry args={[0.62, 0.36, 0.04]} /><meshStandardMaterial color={p.metalDark} /></mesh>
         <mesh position={[0, 0.34, 0.022]}><planeGeometry args={[0.56, 0.3]} /><meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={1.1} toneMapped={false} /></mesh>
+        <ScreenBleed w={0.52} y={0.18} z={-0.021} />
         <mesh position={[0, 0.12, 0]}><boxGeometry args={[0.05, 0.22, 0.05]} /><meshStandardMaterial color={p.metalDark} /></mesh>
       </group>
     </group>

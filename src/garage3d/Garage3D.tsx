@@ -1130,12 +1130,13 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
   useFrame((st) => {
     if (staff && seatRef.current) seatRef.current.rotation.y = seatBase + Math.sin(st.clock.elapsedTime * 0.4 + seed) * 0.06;
   });
-  // An OCCUPIED desk turns 180° so its monitor faces the seated robot (who faces the camera) — from
-  // the front we see the robot with the screen glow behind it. An EMPTY, ready desk has no robot to
-  // hide the monitor's dark back, so it faces the OPPOSITE way: the glowing screen points at the
-  // camera, reading as a set-up "ready" workstation instead of a floating black slab (the empty-desk
-  // bug). The chair stays put; the robot slots in when the desk is filled.
-  const deskRotY = staff ? (flip ? 0 : Math.PI) : (flip ? Math.PI : 0);
+  // Every desk model is authored with its user on the +z side (monitor at the back edge with its lit
+  // face pointing +z, keyboard at the front), so the desk turns to put that side against the chair —
+  // ALWAYS, whether or not anyone is sitting there yet. An empty desk used to do the opposite so its
+  // glowing screen pointed at the camera, which meant the monitor faced away from its own chair and
+  // then spun 180° the moment a hire sat down. A screen that doesn't face the seat reads as broken
+  // furniture; consistency wins over the glow.
+  const deskRotY = flip ? 0 : Math.PI;
   return (
     <group>
       {/* The player's ACTUAL placed desk model (each desk model carries its own monitor). The desk
@@ -1758,6 +1759,9 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
         const { x, z, rotY } = worldOf({ ...it, c: cell.c, r: cell.r }, facilityTier);
         const def = furnitureDef(it.type);
         const selected = b.build && b.selectedIid === it.iid;
+        // Which side this desk's occupant sits on. Read from the live (drag-adjusted) cell so both the
+        // chair AND the desk's facing preview correctly while it's being dragged toward a wall.
+        const deskFlip = isDeskType(it.type) && seatFlipped({ ...it, c: cell.c, r: cell.r }, facilityTier);
         return (
           <group
             key={it.iid}
@@ -1777,20 +1781,25 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
                 : undefined
             }
           >
-            <FurniturePiece type={it.type} p={p} />
-            {/* A desk always reads as a workstation: render its chair at the same offset the seated
-                Workstation uses, so an EMPTY desk shows a chair too (occupied desks are swapped for
-                the live Workstation, which provides its own chair + robot, so no double-up). */}
-            {isDeskType(it.type) && (() => {
-              // Use the live (drag-adjusted) cell so the chair previews on the correct side while
-              // the desk is being dragged toward a wall, not only after it drops.
-              const flip = seatFlipped({ ...it, c: cell.c, r: cell.r }, facilityTier);
-              return (
-                <group position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
+            {/* A desk always reads as a workstation: its chair at the same offset the seated
+                Workstation uses, and the desk turned so the MONITOR FACES THAT CHAIR (occupied desks
+                are swapped for the live Workstation, which provides its own chair + robot, so no
+                double-up). This path used to render the desk model unrotated, so on every seat side
+                but one the screen pointed away from its own chair — and the desk then snapped round
+                when someone finally sat at it. The 180° is footprint-safe: a half-turn about the
+                footprint's centre always maps w×d back onto itself. */}
+            {isDeskType(it.type) ? (
+              <>
+                <group rotation-y={deskFlip ? 0 : Math.PI}>
+                  <FurniturePiece type={it.type} p={p} />
+                </group>
+                <group position={[0, 0, deskFlip ? 0.78 : -0.78]} rotation-y={deskFlip ? Math.PI : 0}>
                   <Chair p={p} hue={p.metalDark} />
                 </group>
-              );
-            })()}
+              </>
+            ) : (
+              <FurniturePiece type={it.type} p={p} />
+            )}
             {selected && (
               <mesh rotation-x={-Math.PI / 2} position={[0, 0.035, 0]}>
                 <planeGeometry args={[def.w * GRID.cell, def.d * GRID.cell]} />

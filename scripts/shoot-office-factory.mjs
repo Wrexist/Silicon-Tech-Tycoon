@@ -55,10 +55,25 @@ await p.waitForTimeout(400);
 
 const shot = async (n) => { await p.waitForTimeout(450); await p.screenshot({ path: resolve(outDir, `${n}-${theme}.png`) }); console.log("shot", n); };
 
+// --- OFFICE: the plain view first, with the team actually seated at their desks ---
+{
+  const cv = await p.$("canvas");
+  const box = cv && await cv.boundingBox();
+  if (box) await p.screenshot({ path: resolve(outDir, `office-staffed-${theme}.png`), clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 330) } });
+  console.log("shot office-staffed");
+}
+
 // --- OFFICE: Decorate, showing the zones readout + Tidy button ---
 const shopBtn = await p.$(".hq__decorate");
 if (shopBtn) { await shopBtn.click(); await p.waitForTimeout(1600); }
 await shot("office-zones-before");
+// CLOSEUP: just the 3D scene region, at native pixels — the only way to judge desk-scale detail.
+{
+  const cv = await p.$("canvas");
+  const box = cv && await cv.boundingBox();
+  if (box) await p.screenshot({ path: resolve(outDir, `office-closeup-${theme}.png`), clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 330) } });
+  console.log("shot office-closeup");
+}
 // Tidy up (the wand) — free rearrange that pairs desks with amenities.
 const tidyBtn = await p.$('.hqb__icon[aria-label^="Tidy up"]');
 if (tidyBtn) { await tidyBtn.click().catch(() => {}); await p.waitForTimeout(1500); }
