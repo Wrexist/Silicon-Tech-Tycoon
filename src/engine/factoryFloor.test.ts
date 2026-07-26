@@ -408,3 +408,69 @@ describe("F3 — line completeness + demolition refund", () => {
     expect(routed === null || lineComplete(routed)).toBe(true);
   });
 });
+
+describe("layout breakdown — the two drivers behind Layout quality", () => {
+  it("is all-zero for an unwired floor (nothing to explain yet)", async () => {
+    const { lineLayoutBreakdown, starterFloor } = await import("./factoryFloor.ts");
+    const b = lineLayoutBreakdown(starterFloor());
+    expect(b).toMatchObject({ score: 0, straightness: 0, corners: 0, steps: 0, order: 0, swapped: null });
+    expect(b.stages).toEqual([]);
+  });
+
+  it("reports the reference horseshoe as tidy: mostly straight, machines in recipe order", async () => {
+    const { lineLayoutBreakdown, lineEfficiency, demoFloor } = await import("./factoryFloor.ts");
+    const f = demoFloor();
+    const b = lineLayoutBreakdown(f);
+    expect(b.score).toBe(lineEfficiency(f)); // the headline number is the same one, not a second opinion
+    expect(b.straightness).toBeGreaterThan(0.8);
+    expect(b.order).toBe(1);
+    expect(b.swapped).toBeNull();
+    expect(b.stages).toEqual(["mill", "press", "screen", "arm", "qa"]);
+    // corners + straight steps account for every step in the chain.
+    expect(b.corners).toBeLessThan(b.steps);
+    expect(b.straightness).toBeCloseTo((b.steps - b.corners) / b.steps, 10);
+  });
+
+  it("names the out-of-order pair when a machine sits at the wrong point on the belt", async () => {
+    const { lineLayoutBreakdown, lineComplete, placeMachine, placeBelt } = await import("./factoryFloor.ts");
+    // One dead-straight lane, with the stages deliberately reversed along it: the Test Station sits
+    // at the START of the run and the Mill at the END, so the item is tested before it's cut.
+    let f = placeMachine({ machines: [], belts: [] }, "intake", 0, 2, "i")!;
+    f = placeMachine(f, "packer", 14, 2, "p")!;
+    f = placeMachine(f, "qa", 3, 1, "q")!;   // early on the lane
+    f = placeMachine(f, "mill", 11, 1, "m")!; // late on the lane
+    for (let c = 2; c <= 13; c++) f = placeBelt(f, c, 3, "e")!;
+    expect(lineComplete(f)).toBe(true);
+
+    const b = lineLayoutBreakdown(f);
+    expect(b.straightness).toBe(1);       // the lane itself is perfect…
+    expect(b.order).toBeLessThan(1);      // …but the order is not
+    expect(b.stages).toEqual(["mill", "qa"]);
+    // The pair names the stage that SHOULD come first, then the one the belt reaches early.
+    expect(b.swapped).toEqual(["mill", "qa"]);
+    // Fixing the order (swapping the two machines) scores strictly better on the same lane.
+    let fixed = placeMachine({ machines: [], belts: [] }, "intake", 0, 2, "i")!;
+    fixed = placeMachine(fixed, "packer", 14, 2, "p")!;
+    fixed = placeMachine(fixed, "mill", 3, 1, "m")!;
+    fixed = placeMachine(fixed, "qa", 11, 1, "q")!;
+    for (let c = 2; c <= 13; c++) fixed = placeBelt(fixed, c, 3, "e")!;
+    const good = lineLayoutBreakdown(fixed);
+    expect(good.swapped).toBeNull();
+    expect(good.order).toBe(1);
+    expect(good.score).toBeGreaterThan(b.score);
+  });
+
+  it("counts the corners a zig-zag run pays for", async () => {
+    const { lineLayoutBreakdown, placeMachine, placeBelt } = await import("./factoryFloor.ts");
+    // A staircase from the intake to the packer: every other step turns.
+    let f = placeMachine({ machines: [], belts: [] }, "intake", 0, 0, "i")!;
+    f = placeMachine(f, "packer", 6, 6, "p")!;
+    const steps: [number, number, "e" | "s"][] = [
+      [2, 0, "s"], [2, 1, "e"], [3, 1, "s"], [3, 2, "e"], [4, 2, "s"], [4, 3, "e"], [5, 3, "s"], [5, 4, "s"], [5, 5, "e"], [6, 5, "s"],
+    ];
+    for (const [c, r, dir] of steps) f = placeBelt(f, c, r, dir)!;
+    const b = lineLayoutBreakdown(f);
+    expect(b.corners).toBeGreaterThan(3);
+    expect(b.straightness).toBeLessThan(0.5);
+  });
+});

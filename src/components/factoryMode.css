@@ -156,6 +156,12 @@
 /* Stat rows live INSIDE the light glass sheet (not the dark HUD), so labels use the ink token —
    the old white-alpha was invisible on the sheet surface. */
 .fmode__stat > span:first-child { color: var(--ink-2); }
+/* Sub-rows that break a headline stat into the parts the player can act on (the two drivers behind
+   Layout quality). Indented + dimmed so they read as detail, not as more top-level numbers. */
+.fmode__stat--sub {
+  padding: 1px 0 1px var(--sp-8);
+}
+.fmode__stat--sub > span { color: var(--ink-3); font-weight: 600; }
 .fmode__pos { color: var(--positive); }
 .fmode__neg { color: var(--negative); }
 
@@ -380,6 +386,15 @@
   background: var(--accent); color: var(--accent-ink); cursor: pointer;
   font-size: var(--fs-caption); font-weight: 800;
 }
+/* Undo sits beside Done in the build strip — secondary weight, so it reads as a safety net rather
+   than a primary action. Only rendered when there's something to reverse. */
+.fmode__build-undo {
+  flex: none; width: 44px; height: 44px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--fmode-btn-line); border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.1); color: #fff; cursor: pointer;
+}
+.fmode__build-undo:active { transform: scale(0.94); }
 .fmode__palette {
   display: flex; gap: var(--sp-6); overflow-x: auto; padding-bottom: 2px;
   scrollbar-width: none;

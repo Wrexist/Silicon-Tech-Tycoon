@@ -101,6 +101,12 @@ export interface Factory3DProps {
   /** Non-interactive PREVIEW mode (the HQ card): live scene, but no camera controls and no
    *  hold-to-move — taps fall through to the card, drags scroll the page. */
   preview?: boolean;
+  /** Stop the render loop entirely. The scene stays MOUNTED (the WebGL context survives, so
+   *  returning to it is instant) but draws nothing — the same rule the office scene follows. Set
+   *  whenever the canvas can't be seen: another bottom tab, the fullscreen build view open over the
+   *  HQ card, or the document hidden. Measured: an unpaused factory card kept issuing ~874 draw
+   *  calls per frame from behind a fullscreen overlay and on every other tab. */
+  paused?: boolean;
   /** Last tap's cell + validity — flashed green/red on the pad for placement feedback. */
   flash?: { c: number; r: number; ok: boolean; n: number } | null;
   onContextLost?: () => void;
@@ -254,7 +260,9 @@ function FlowArrow({ live, z = 0, groupRef }: { live: boolean; z?: number; group
 function Roller({ z = 0, len = RUBBER_W + 0.03, meshRef }: { z?: number; len?: number; meshRef?: (m: THREE.Mesh | null) => void }) {
   return (
     <group position={[0, SURF_Y + 0.004, z]} rotation={[0, 0, Math.PI / 2]}>
-      <mesh ref={meshRef} castShadow>
+      {/* No castShadow: a 4cm roller lying ON the belt bed has nowhere to cast, and there are two
+          per tile — the single biggest block of casters in the shadow pass for no visible gain. */}
+      <mesh ref={meshRef}>
         <cylinderGeometry args={[0.042, 0.042, len, 16]} />
         <meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} />
       </mesh>
@@ -265,8 +273,13 @@ function Roller({ z = 0, len = RUBBER_W + 0.03, meshRef }: { z?: number; len?: n
 /** Belt tiles rendered from the layout with SMART CORNERS. Every tile shares one bed footprint so
  *  the line joins flush and symmetric; straight tiles are authored flow-forward (+Z) then rotated,
  *  a framed rubber belt with seam rollers and subtle painted chevrons. Corners keep the same bed +
- *  frame and curve the flow arrows around the turn. */
-function BeltTiles({ floor, lineOk, active, overtime }: { floor: FactoryFloor; lineOk: boolean; active: boolean; overtime: boolean }) {
+ *  frame and curve the flow arrows around the turn.
+ *
+ *  `detail: "low"` keeps the bed and the rubber pad — the shapes that read the line — and drops the
+ *  seam rollers and painted chevrons, which are 6 of every tile's 8 meshes and land under a pixel
+ *  each on the HQ card. It also skips their per-frame animation, since there's nothing left to spin. */
+function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor: FactoryFloor; lineOk: boolean; active: boolean; overtime: boolean; detail?: "full" | "low" }) {
+  const fine = detail === "full";
   const at = useMemo(() => new Map(floor.belts.map((b) => [`${b.c},${b.r}`, b])), [floor.belts]);
   /** The direction of the neighbour that flows INTO this tile (null if it's a head). */
   const inflowDir = (b: FactoryFloor["belts"][number]): BeltDir | null => {
@@ -287,7 +300,7 @@ function BeltTiles({ floor, lineOk, active, overtime }: { floor: FactoryFloor; l
   arrows.current = [];
   const wasRunning = useRef(false);
   useFrame(({ clock }) => {
-    const running = lineOk && active;
+    const running = fine && lineOk && active;
     if (!running) {
       // Settle the chevrons back to their static glow ONCE, then idle (no writes while stopped).
       if (wasRunning.current) {
@@ -356,9 +369,11 @@ function BeltTiles({ floor, lineOk, active, overtime }: { floor: FactoryFloor; l
                   );
                 })}
               {/* curved flow: entry arrow → corner roller → exit arrow */}
-              <group position={[-ix * 0.3, 0, -iz * 0.3]} rotation={[0, DIR_YAW[inDir], 0]}><FlowArrow live={live} groupRef={regArrow(bi)} /></group>
-              <mesh ref={regRoller} position={[0, SURF_Y + 0.01, 0]}><cylinderGeometry args={[0.06, 0.06, 0.1, 16]} /><meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} /></mesh>
-              <group position={[ox * 0.3, 0, oz * 0.3]} rotation={[0, DIR_YAW[b.dir], 0]}><FlowArrow live={live} groupRef={regArrow(bi)} /></group>
+              {fine && <>
+                <group position={[-ix * 0.3, 0, -iz * 0.3]} rotation={[0, DIR_YAW[inDir], 0]}><FlowArrow live={live} groupRef={regArrow(bi)} /></group>
+                <mesh ref={regRoller} position={[0, SURF_Y + 0.01, 0]}><cylinderGeometry args={[0.06, 0.06, 0.1, 16]} /><meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} /></mesh>
+                <group position={[ox * 0.3, 0, oz * 0.3]} rotation={[0, DIR_YAW[b.dir], 0]}><FlowArrow live={live} groupRef={regArrow(bi)} /></group>
+              </>}
             </group>
           );
         }
@@ -376,12 +391,14 @@ function BeltTiles({ floor, lineOk, active, overtime }: { floor: FactoryFloor; l
               <boxGeometry args={[RUBBER_W, 0.05, BED]} />
               <meshStandardMaterial color={C.beltRubber} roughness={0.9} metalness={0.05} />
             </mesh>
-            {/* polished seam rollers — pair up at each tile join */}
-            <Roller z={-0.45} meshRef={regRoller} />
-            <Roller z={0.45} meshRef={regRoller} />
-            {/* subtle painted chevrons */}
-            <FlowArrow live={live} z={-0.18} groupRef={regArrow(bi)} />
-            <FlowArrow live={live} z={0.18} groupRef={regArrow(bi)} />
+            {fine && <>
+              {/* polished seam rollers — pair up at each tile join */}
+              <Roller z={-0.45} meshRef={regRoller} />
+              <Roller z={0.45} meshRef={regRoller} />
+              {/* subtle painted chevrons */}
+              <FlowArrow live={live} z={-0.18} groupRef={regArrow(bi)} />
+              <FlowArrow live={live} z={0.18} groupRef={regArrow(bi)} />
+            </>}
           </group>
         );
       })}
@@ -1398,6 +1415,21 @@ function frameCamera(cam: THREE.PerspectiveCamera, portrait: boolean, cx = 0, zo
   cam.updateProjectionMatrix();
 }
 
+/** Stop rendering while the document is hidden (backgrounded tab, locked phone) — matching the
+ *  office scene. It also re-asserts the caller's `paused` flag: because `frameloop` is a Canvas prop
+ *  that only re-applies when it CHANGES, an imperative resume here would otherwise un-pause a canvas
+ *  that is paused for being off-screen the moment the tab regains focus. */
+function VisibilityPause({ paused = false }: { paused?: boolean }) {
+  const setFrameloop = useThree((s) => s.setFrameloop);
+  useEffect(() => {
+    const apply = () => setFrameloop(paused || document.hidden ? "never" : "always");
+    apply();
+    document.addEventListener("visibilitychange", apply);
+    return () => document.removeEventListener("visibilitychange", apply);
+  }, [setFrameloop, paused]);
+  return null;
+}
+
 /** Re-frames the camera to its default when the HUD's recenter button bumps `signal`. */
 function CameraReset({ signal, cx }: { signal: number; cx: number }) {
   const camera = useThree((s) => s.camera);
@@ -1894,7 +1926,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         );
       })()}
 
-      <BeltTiles floor={p.floor} lineOk={p.lineOk} active={p.active} overtime={p.overtime} />
+      <BeltTiles floor={p.floor} lineOk={p.lineOk} active={p.active} overtime={p.overtime} detail={p.preview ? "low" : "full"} />
       {p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} look={look} />)}
       {p.flash && <TapFlash flash={p.flash} />}
 
@@ -1967,9 +1999,12 @@ export default function Factory3D(p: Factory3DProps) {
     <Canvas
       role="img"
       aria-label="Factory floor, 3D view"
-      frameloop="always"
+      frameloop={p.paused ? "never" : "always"}
       dpr={p.preview ? [1, 1.4] : [1, 1.75]}
-      shadows
+      // The HQ card is ~490×300 — a quarter of the fullscreen pixels — but the shadow pass costs the
+      // same either way, and at that size a contact shadow under a roller is invisible. Dropping the
+      // whole pass is the single biggest saving on the view the player leaves open the longest.
+      shadows={!p.preview}
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       camera={{ position: [10, 12.5, 11], fov: 28 }}
       onCreated={({ gl, camera, size }) => {
@@ -1981,6 +2016,7 @@ export default function Factory3D(p: Factory3DProps) {
         );
       }}
     >
+      <VisibilityPause paused={p.paused} />
       <Scene {...p} onCarryActive={(b) => { setCarrying(b); p.onCarryChange?.(b); }} />
       <CameraReset signal={p.resetView ?? 0} cx={cx} />
       {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor. While the belt tool

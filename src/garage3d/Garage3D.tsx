@@ -71,6 +71,10 @@ export interface BuildProps {
   placingType: FurnitureId | null;
   placeRot: Rot;
   selectedIid: string | null;
+  /** iids of the desks + amenities currently EARNING the office zone bonus (engine `deskZones`), so
+   *  the builder can show the pairing instead of leaving it to be inferred from a moving buff bar.
+   *  Absent/empty = no highlight (and the bonus is 0 anyway). */
+  zonedIids?: ReadonlySet<string>;
   onPlaceCell: (c: number, r: number) => void;
   onMoveItem: (iid: string, c: number, r: number) => void;
   onSelectItem: (iid: string | null) => void;
@@ -1360,14 +1364,18 @@ function PendantLamp({ p }: { p: RoomPalette }) {
   );
 }
 
-// Pause the render loop when the tab/page is hidden to save battery.
-function VisibilityPause() {
+// Pause the render loop when the tab/page is hidden to save battery. It also re-asserts the
+// caller's `paused` flag: `frameloop` is a Canvas prop that only re-applies when it CHANGES, so an
+// imperative resume here would otherwise un-pause a scene that is paused for being off-screen (the
+// Factory world showing over it, another bottom tab) the instant the browser tab regains focus.
+function VisibilityPause({ paused = false }: { paused?: boolean }) {
   const setFrameloop = useThree((s) => s.setFrameloop);
   useEffect(() => {
-    const onVis = () => setFrameloop(document.hidden ? "never" : "always");
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [setFrameloop]);
+    const apply = () => setFrameloop(paused || document.hidden ? "never" : "always");
+    apply();
+    document.addEventListener("visibilitychange", apply);
+    return () => document.removeEventListener("visibilitychange", apply);
+  }, [setFrameloop, paused]);
   return null;
 }
 
@@ -1789,6 +1797,15 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
                 <meshBasicMaterial color="#3b82f6" transparent opacity={0.4} depthWrite={false} />
               </mesh>
             )}
+            {/* Zone pad: this piece is part of a desk↔amenity pairing that's paying comfort/focus/
+                inspiration right now. Green, and a touch fainter than the blue selection, so the two
+                never read as the same thing. */}
+            {b.build && !selected && b.zonedIids?.has(it.iid) && (
+              <mesh rotation-x={-Math.PI / 2} position={[0, 0.03, 0]}>
+                <planeGeometry args={[def.w * GRID.cell, def.d * GRID.cell]} />
+                <meshBasicMaterial color="#1eb877" transparent opacity={0.26} depthWrite={false} />
+              </mesh>
+            )}
           </group>
         );
       })}
@@ -1845,7 +1862,7 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
@@ -1898,7 +1915,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   ), []);
   return (
     <>
-      <VisibilityPause />
+      <VisibilityPause paused={paused} />
       {!dark && <EnableShadows />}
       <CameraRig build={!!builder?.build} facilityTier={facilityTier} />
       <PinchZoom />
@@ -2132,7 +2149,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} onTapStaff={onTapStaff} onTapBank={onTapBank} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );

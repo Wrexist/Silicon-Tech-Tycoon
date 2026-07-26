@@ -5,6 +5,7 @@ import {
   cellAt,
   defaultLayout,
   deskItems,
+  deskZones,
   footprint,
   furnitureCost,
   furnitureDef,
@@ -17,6 +18,8 @@ import {
   officeZoneBonus,
   removeItem,
   rotateItem,
+  tidyLayout,
+  tidyMoveCount,
   worldOf,
   type PlacedItem,
 } from "./furniture.ts";
@@ -209,5 +212,119 @@ describe("office grid grows with the facility tier", () => {
     // a centre-ish cell on Campus lands near world origin (the grid is centred on the room)
     const mid = worldOf({ iid: "f2", type: "desk", c: 6, r: 6, rot: 0 }, 3);
     expect(Math.abs(mid.x)).toBeLessThan(GRID.cell); // within one cell of centre
+  });
+});
+
+describe("deskZones — the same fold as the bonus, reported per desk", () => {
+  it("reports nothing for the default office (its desk and plant sit apart)", () => {
+    const z = deskZones(defaultLayout());
+    expect(z.zoned).toEqual([]);
+    expect(z.pairing).toEqual([]);
+    expect(z.pairs).toBe(0);
+    // …which is exactly why officeZoneBonus is 0 there.
+    expect(officeZoneBonus(defaultLayout())).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
+  });
+
+  it("names the desk AND the amenity that are pairing", () => {
+    const layout: PlacedItem[] = [
+      { iid: "d1", type: "desk", c: 2, r: 2, rot: 0 },
+      { iid: "p1", type: "plantPot", c: 3, r: 2, rot: 0 },
+      { iid: "d2", type: "desk", c: 7, r: 7, rot: 0 }, // alone in the far corner
+    ];
+    const z = deskZones(layout);
+    expect(z.zoned).toEqual(["d1"]);
+    expect(z.pairing).toEqual(["p1"]);
+    expect(z.desks).toBe(2);
+    expect(z.pairs).toBe(1);
+    // A highlighted set is never empty when the bonus is non-zero — the pads and the payout agree.
+    expect(officeZoneBonus(layout).comfort).toBeGreaterThan(0);
+  });
+
+  it("caps what one desk can earn, and reports the headroom left", () => {
+    const crowded: PlacedItem[] = [
+      { iid: "d1", type: "desk", c: 2, r: 2, rot: 0 },
+      { iid: "a1", type: "plantPot", c: 3, r: 2, rot: 0 },
+      { iid: "a2", type: "plantPot", c: 1, r: 2, rot: 0 },
+      { iid: "a3", type: "plantPot", c: 2, r: 3, rot: 0 },
+    ];
+    const z = deskZones(crowded);
+    expect(z.pairs).toBe(2);           // capped per desk
+    expect(z.pairing).toHaveLength(2); // only the amenities actually paying get highlighted
+    expect(z.headroom).toBe(0);        // this desk is full
+    // One bare desk has both slots open.
+    expect(deskZones([{ iid: "d9", type: "desk", c: 5, r: 5, rot: 0 }]).headroom).toBe(2);
+  });
+});
+
+describe("tidyLayout — auto-arrange that buys and sells nothing", () => {
+  /** A messy but legal room: desks scattered, amenities nowhere near them. */
+  function messyRoom(): PlacedItem[] {
+    return [
+      { iid: "f1", type: "desk", c: 0, r: 0, rot: 0 },
+      { iid: "f2", type: "desk", c: 7, r: 8, rot: 1 },
+      { iid: "f3", type: "desk", c: 0, r: 6, rot: 0 },
+      { iid: "f4", type: "plantPot", c: 8, r: 0, rot: 0 },
+      { iid: "f5", type: "plantTall", c: 8, r: 4, rot: 0 },
+      { iid: "f6", type: "bookshelf", c: 4, r: 4, rot: 0 },
+    ];
+  }
+
+  it("keeps every piece the player owns — same ids, same types, nothing bought or sold", () => {
+    const before = messyRoom();
+    const after = tidyLayout(before);
+    expect(after).toHaveLength(before.length);
+    expect(after.map((it) => it.iid).sort()).toEqual(before.map((it) => it.iid).sort());
+    for (const it of before) {
+      expect(after.find((x) => x.iid === it.iid)!.type).toBe(it.type);
+    }
+  });
+
+  it("produces a LEGAL room — nothing overlapping, nothing off the grid", () => {
+    const after = tidyLayout(messyRoom());
+    // Re-validate by replaying every placement against the others.
+    for (const it of after) {
+      const others = after.filter((x) => x.iid !== it.iid);
+      expect(canPlace(others, it.type, it.c, it.r, it.rot, it.iid)).toBe(true);
+    }
+  });
+
+  it("pairs desks with amenities — the zone bonus the room was silently paying for", () => {
+    const before = messyRoom();
+    expect(deskZones(before).zoned).toEqual([]);            // nothing paired to start
+    expect(officeZoneBonus(before).comfort).toBe(0);
+    const after = tidyLayout(before);
+    const zones = deskZones(after);
+    expect(zones.zoned.length).toBeGreaterThan(0);
+    expect(officeZoneBonus(after).comfort).toBeGreaterThan(0);
+  });
+
+  it("is idempotent and deterministic — tidying a tidy room changes nothing", () => {
+    const once = tidyLayout(messyRoom());
+    const twice = tidyLayout(once);
+    expect(twice).toEqual(once);
+    expect(tidyMoveCount(once)).toBe(0);
+    // Same input → same output, every time (no RNG anywhere).
+    expect(tidyLayout(messyRoom())).toEqual(once);
+  });
+
+  it("reports how many pieces it would move, and no-ops on an empty room", () => {
+    expect(tidyMoveCount(messyRoom())).toBeGreaterThan(0);
+    expect(tidyLayout([])).toEqual([]);
+    expect(tidyMoveCount([])).toBe(0);
+  });
+
+  it("respects a bigger facility's grid (a Campus room stays inside its own bounds)", () => {
+    const layout: PlacedItem[] = Array.from({ length: 8 }, (_, i) => ({
+      iid: `f${i}`, type: "desk" as const, c: 0, r: 0, rot: 0 as const,
+    })).map((it, i) => ({ ...it, c: i % 4 * 2, r: Math.floor(i / 4) * 2 }));
+    const after = tidyLayout(layout, 3);
+    const n = gridN(3);
+    for (const it of after) {
+      const fp = footprint(furnitureDef(it.type), it.rot);
+      expect(it.c).toBeGreaterThanOrEqual(0);
+      expect(it.r).toBeGreaterThanOrEqual(0);
+      expect(it.c + fp.w).toBeLessThanOrEqual(n);
+      expect(it.r + fp.d).toBeLessThanOrEqual(n);
+    }
   });
 });

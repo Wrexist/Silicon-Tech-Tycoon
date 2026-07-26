@@ -5270,6 +5270,20 @@ export function setLayout(state: GameState, layout: PlacedItem[]): GameState {
 export function applyLayoutSnapshot(state: GameState, snap: { layout: PlacedItem[]; cash: Money }): GameState {
   return { ...state, layout: snap.layout, cash: snap.cash };
 }
+/** Restore a Factory-floor undo snapshot — the machine/belt layout, the decor props AND the cash, so
+ *  undoing a misplaced $18K arm is a true reversal. The exact counterpart of applyLayoutSnapshot for
+ *  the office: the floor builder had no undo at all, while the office refunded in full.
+ *
+ *  Deliberately does NOT touch `factoryExpansion`: buying a bay is a separate armed-confirm purchase
+ *  that widens the grid, and rolling it back under a layout could leave machines outside the bounds
+ *  the snapshot was taken in. */
+export function applyFactorySnapshot(
+  state: GameState,
+  snap: { floor: FloorPlan; props: PlacedProp[]; cash: Money },
+): GameState {
+  return { ...state, factoryFloor: snap.floor, factoryProps: snap.props, cash: snap.cash };
+}
+
 /** Buy another copy of a placed item, dropped into the nearest free cell (charges its cost). */
 export function duplicateFurniture(state: GameState, iid: string): GameState {
   const it = state.layout.find((x) => x.iid === iid);
