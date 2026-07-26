@@ -6504,7 +6504,10 @@ export function launchBars(state: GameState): { hit: number; solid: number; flop
   const base = verdictBands(state.era);
   const x = BALANCE.reputation.expectation;
   const exp = Math.max(0, state.launchExpectation ?? 0);
-  const hitRaw = Math.max(base.hit, exp * x.hitMargin);
+  // How far a hit must beat your own recent form by, scaled to how established you are — a garage
+  // tops its last product easily, a giant has to make a real step up. See `hitMarginByEra`.
+  const hitMargin = x.hitMarginByEra?.[Math.max(0, Math.min(Math.floor(state.era) - 1, x.hitMarginByEra.length - 1))] ?? x.hitMargin;
+  const hitRaw = Math.max(base.hit, exp * hitMargin);
   const hit = hasProject(state.completedProjects, "hitFactory") ? hitRaw * 0.88 : hitRaw;
   // Ascension / Heat raises every verdict bar (harder to hit, easier to flop). Factor is 1 at Heat 0
   // (and undefined), so a normal run + the pinned sim are unchanged.

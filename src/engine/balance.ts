@@ -486,14 +486,16 @@ export const BALANCE = {
     // the era-1 problem again, mirror-imaged. Re-based to 16/38/54 — roughly p12/p50/p85 of what the
     // era actually scores. Bands stay ordered and non-decreasing across eras (see balanceGuards).
     //
-    // Set at the CAUTIOUS end of the reachable range (22/27, not 18/23), because era-1 verdicts feed
-    // straight into early scale: better verdicts → more reputation → more demand → a bigger
-    // recommended production run, all financed out of a $100k opening balance with no cushion. At
-    // 18/23 a player who over-builds by 25% went under in 8 of 12 seeded runs; at 22/27 that is 4/12,
-    // against a 3/12 baseline — so era 1 becomes legible (23% of launches beat "steady", up from 0%)
-    // without the first era turning into a knife-edge. Harness-measured; see `npm run sim`.
-    hitThresholdByEra: [27, 54, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
-    solidThresholdByEra: [22, 38, 135, 175, 202], // era 5
+    // Originally set at the cautious end (22/27) because era-1 verdicts feed straight into early
+    // scale — better verdicts mean more reputation, more demand and a bigger recommended run, all
+    // financed out of a $100k opening balance. Moved to 18/23 once the reputation and fan floors
+    // existed, which is what made that affordable: over-building by 25% used to cost 8/12 runs
+    // against a 3/12 baseline (2.7x), and now costs 7/12 against 5/12 (1.4x). For that, era 1 goes
+    // from 14% of launches beating "steady" to 42% — the first thirty-odd weeks now respond to how
+    // well the player is doing instead of returning one verdict. Over-production remains the main
+    // early risk, by design. Harness-measured; see `npm run sim`.
+    hitThresholdByEra: [23, 54, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
+    solidThresholdByEra: [18, 38, 135, 175, 202], // era 5
     // FLOP FLOOR raised from era 2 on so a phoned-in launch actually FLOPS instead of coasting to a
     // safe "steady". Era 1 stays low (10) to protect the maiden launch — a brand-new company's hype is
     // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From
@@ -519,6 +521,12 @@ export const BALANCE = {
     expectation: {
       alpha: 0.5,        // how fast the rolling baseline tracks each new launch (EMA weight)
       hitMargin: 1.14,   // a hit must beat the rolling baseline by this (top your recent best)
+      // …and by MORE once you are the establishment. A flat 1.14 is easy to clear late, when a big
+      // company's launch-to-launch spread is wide: eras 4 and 5 were handing out a hit on two
+      // launches in three, which is a victory lap, and they are the majority of playtime. Raising
+      // the flat margin instead would have fixed them by wiping out era 2's hits (5% -> 1%), because
+      // one number cannot serve a garage and a giant. Index = era-1; falls back to `hitMargin`.
+      hitMarginByEra: [1.14, 1.14, 1.2, 1.3, 1.32],
       // solidMargin and flopMargin were BOTH set below the static bars they compete with, so
       // `max(static, exp * margin)` always chose static and the two bars never adapted. Measured over
       // 40 seeded runs: the expectation raised the hit bar on 95% of era-4 launches but the SOLID bar
@@ -535,8 +543,14 @@ export const BALANCE = {
       // distribution fell either side of it and "solid" collapsed to 1% of era-4 launches: the same
       // one-verdict flatness this system exists to prevent, arrived at from the other direction.
       // Widening the band restores solid to ~18-24% and costs no bankruptcies.
-      solidMargin: 0.85, // at/above this share of your recent track record is a solid release
-      flopMargin: 0.7,   // meaningfully below what you'd been shipping → it disappoints
+      // Re-swept once the hit bar became era-scaled. With hits pulled back from two-in-three, the
+      // bulge simply moved into "solid" (64% of era-4 launches) — the same one-verdict flatness in a
+      // different band. These values give all four verdicts a live share in every era, none above
+      // about half, and put genuine flop risk (9-15%) back into eras 4-5, which previously had
+      // essentially none. Bankruptcies stay at 0/10 and net worth is unmoved, so the texture is
+      // bought out of the verdict spread rather than out of the economy.
+      solidMargin: 0.98, // at/above this share of your recent track record is a solid release
+      flopMargin: 0.8,   // meaningfully below what you'd been shipping → it disappoints
     },
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued

@@ -149,18 +149,18 @@ describe("active-run determinism — the paths a do-nothing run never touches", 
     // failing is the bug report.
     const s = run({ ...newGame(4242), cash: dollars(5_000_000), designBudgetEnabled: false });
     expect(s.week).toBe(WEEKS);
-    expect(s.rngState).toBe(618_188_697);
-    expect(s.cash).toBe(4_485_058_577); // integer CENTS — no float representation risk
-    expect(s.cumulativeRevenue).toBe(8_216_302_700);
+    expect(s.rngState).toBe(1_250_024_367);
+    expect(s.cash).toBe(4_237_590_104); // integer CENTS — no float representation risk
+    expect(s.cumulativeRevenue).toBe(8_185_732_100);
     expect(s.launched.length).toBe(39);
     // Reputation is the one non-integer here (it accumulates fractional gains), so it is compared
     // with a tolerance rather than exactly — everything else is an integer by construction.
-    expect(s.reputation).toBeCloseTo(98.2, 5);
+    expect(s.reputation).toBeCloseTo(99.1, 5);
     expect(s.era).toBe(4);
-    expect(s.fans).toBe(18_230);
-    expect(s.researchPoints).toBe(170);
+    expect(s.fans).toBe(13_222);
+    expect(s.researchPoints).toBe(95);
     expect(s.staff.length).toBe(4);
     expect(s.feed.length).toBe(60);
-    expect(s.lastInterruptWeek).toBe(117);
+    expect(s.lastInterruptWeek).toBe(104);
   });
 });
