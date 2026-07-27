@@ -223,3 +223,39 @@
   background: var(--dtut-accent);
   box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--dtut-accent) 80%, transparent);
 }
+
+/* Zone rule visual: a paired desk vs a bare one, so the adjacency rule is shown, not just stated.
+   Green matches the pads the 3D room draws under desks that are actually earning. */
+.dtut__zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.dtut__zone-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+}
+.dtut__zone-pair b { font-weight: 700; color: var(--ink-2); }
+.dtut__zone-pair--on b { color: var(--fn-design-text); }
+.dtut__zone-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--ink-2);
+}
+.dtut__zone-pair--on .dtut__zone-cell {
+  background: color-mix(in srgb, var(--fn-design) 12%, transparent);
+  border-color: color-mix(in srgb, var(--fn-design) 34%, transparent);
+  color: var(--fn-design-text);
+}
+.dtut__zone-cell--empty {
+  border-style: dashed;
+}

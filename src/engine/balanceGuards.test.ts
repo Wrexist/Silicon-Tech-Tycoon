@@ -204,4 +204,48 @@ describe("GUARD D — verdict bands are well-formed across eras", () => {
       expect(flopThresholdByEra[i]).toBeGreaterThanOrEqual(flopThresholdByEra[i - 1]);
     }
   });
+
+  it("era 1's bars sit inside what a garage company can actually score", () => {
+    // A brand-new company's launches score ~13–29 (harness-measured across 40 seeds). The era-1
+    // solid/hit bars once sat at 45/70 — above the ceiling — so all 568 era-1 launches in the cohort
+    // returned the SAME verdict and the whole first era gave the player no signal. The bars must stay
+    // inside the range they're judging. The flop floor stays below the bottom of it, so the maiden
+    // launch is protected: era 1 has an upside to reach for, not a downside to fall into.
+    const EARLY_FLOOR = 13; // p5 of measured era-1 effectiveScore
+    const EARLY_CEILING = 29; // p95
+    expect(flopThresholdByEra[0]).toBeLessThan(EARLY_FLOOR);
+    expect(solidThresholdByEra[0]).toBeGreaterThan(EARLY_FLOOR);
+    expect(hitThresholdByEra[0]).toBeLessThanOrEqual(EARLY_CEILING);
+  });
+});
+
+// GUARD D2 — the rolling-expectations baseline must move ALL THREE bars, not just the hit bar.
+// `launchBars` takes max(static, expectation × margin) per bar. When a margin is small enough that
+// the static bar always wins, that bar silently stops adapting: measured over 40 runs, the
+// expectation raised the hit bar on 95% of era-4 launches and the solid bar on 0% of them, in every
+// era — which froze the solid floor while scores climbed past it and collapsed 62% of all launches
+// in the game onto one verdict. Ordering alone is what prevents that recurring.
+describe("GUARD D2 — expectation margins keep every verdict bar adaptive", () => {
+  const x = BALANCE.reputation.expectation;
+
+  it("margins are ordered flop < solid < hit, so the three bars can't cross", () => {
+    expect(x.flopMargin).toBeLessThan(x.solidMargin);
+    expect(x.solidMargin).toBeLessThan(x.hitMargin);
+  });
+
+  it("solid and flop sit close enough to the baseline to actually bind", () => {
+    // A margin far below 1 means "a launch worth a fraction of your track record still counts" —
+    // which in practice means the static bar wins forever and the bar is dead. Both must stay in the
+    // band where a company's own recent form is the thing being judged.
+    //
+    // The lower bound was 0.9, which was a proxy for the real invariant and turned out to be too
+    // tight: what actually matters is that `expectation × margin` clears the static bar, and by era 4
+    // the baseline is ~340 against a static solid bar of 175, so 0.85 clears it nearly twofold.
+    // Measured, 0.85 is also the value that fixes the band — solid goes from 1% of era-4 launches to
+    // 17% — so holding the bound at 0.9 would have forbidden the correct setting. Widened to the
+    // point where the proxy stops making claims the measurement contradicts.
+    expect(x.solidMargin).toBeGreaterThanOrEqual(0.75);
+    expect(x.flopMargin).toBeGreaterThanOrEqual(0.6);
+    expect(x.flopMargin).toBeLessThan(1); // …but a launch matching your form must never flop
+  });
 });

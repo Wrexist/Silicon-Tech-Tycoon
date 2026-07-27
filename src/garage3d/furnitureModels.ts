@@ -21,6 +21,10 @@ export interface ModelAsset {
   url: string; // relative to the app public root, e.g. "furniture/sofa.glb"
   scale?: number; // uniform scale to fit the grid cell (default 1)
   yaw?: number; // extra Y rotation in radians to orient it (default 0)
+  /** The piece's REAL height in metres. When set, the model is scaled to stand this tall instead of
+   *  to fill its tile — the difference between furniture in human proportion and furniture inflated
+   *  to whatever footprint it happens to occupy. The footprint fit still caps it. */
+  realHeight?: number;
   offset?: [number, number, number]; // re-centre on the tile (default [0,0,0])
 }
 
@@ -28,29 +32,29 @@ const u = (id: string): string => `furniture/${id}.glb`;
 
 // Registered to match what `scripts/fetch-furniture.mjs` places. Kenney-only for a cohesive look.
 export const MODEL_ASSETS: Partial<Record<FurnitureId, ModelAsset>> = {
-  desk: { url: u("desk"), scale: 1 },
-  deskL: { url: u("deskL"), scale: 1 },
-  chair: { url: u("chair"), scale: 1 },
-  armchair: { url: u("armchair"), scale: 1 },
-  loungeChair: { url: u("loungeChair"), scale: 1 },
-  sofa: { url: u("sofa"), scale: 1 },
-  sofaL: { url: u("sofaL"), scale: 1 },
-  stool: { url: u("stool"), scale: 1 },
-  coffeeTable: { url: u("coffeeTable"), scale: 1 },
-  meetingTable: { url: u("meetingTable"), scale: 1 },
-  sideTable: { url: u("sideTable"), scale: 1 },
-  bookshelf: { url: u("bookshelf"), scale: 1 },
-  cabinet: { url: u("cabinet"), scale: 1 },
-  shelfUnit: { url: u("shelfUnit"), scale: 1 },
-  crates: { url: u("crates"), scale: 1 },
-  plantTall: { url: u("plantTall"), scale: 1 },
-  plantPot: { url: u("plantPot"), scale: 1 },
+  desk: { url: u("desk"), scale: 1, realHeight: 0.74 },
+  deskL: { url: u("deskL"), scale: 1, realHeight: 0.74 },
+  chair: { url: u("chair"), scale: 1, realHeight: 0.95 },
+  armchair: { url: u("armchair"), scale: 1, realHeight: 0.78 },
+  loungeChair: { url: u("loungeChair"), scale: 1, realHeight: 0.8 },
+  sofa: { url: u("sofa"), scale: 1, realHeight: 0.82 },
+  sofaL: { url: u("sofaL"), scale: 1, realHeight: 0.82 },
+  stool: { url: u("stool"), scale: 1, realHeight: 0.55 },
+  coffeeTable: { url: u("coffeeTable"), scale: 1, realHeight: 0.42 },
+  meetingTable: { url: u("meetingTable"), scale: 1, realHeight: 0.74 },
+  sideTable: { url: u("sideTable"), scale: 1, realHeight: 0.55 },
+  bookshelf: { url: u("bookshelf"), scale: 1, realHeight: 1.8 },
+  cabinet: { url: u("cabinet"), scale: 1, realHeight: 0.9 },
+  shelfUnit: { url: u("shelfUnit"), scale: 1, realHeight: 1.8 },
+  crates: { url: u("crates"), scale: 1, realHeight: 0.6 },
+  plantTall: { url: u("plantTall"), scale: 1, realHeight: 1.45 },
+  plantPot: { url: u("plantPot"), scale: 1, realHeight: 0.5 },
   rug: { url: u("rug"), scale: 1 },
   rugRound: { url: u("rugRound"), scale: 1 },
-  tvStand: { url: u("tvStand"), scale: 1 },
-  floorLamp: { url: u("floorLamp"), scale: 1 },
-  arcLamp: { url: u("arcLamp"), scale: 1 },
-  lantern: { url: u("lantern"), scale: 1 },
+  tvStand: { url: u("tvStand"), scale: 1, realHeight: 0.5 },
+  floorLamp: { url: u("floorLamp"), scale: 1, realHeight: 1.6 },
+  arcLamp: { url: u("arcLamp"), scale: 1, realHeight: 1.9 },
+  lantern: { url: u("lantern"), scale: 1, realHeight: 0.4 },
 };
 
 export function modelFor(id: FurnitureId): ModelAsset | undefined {

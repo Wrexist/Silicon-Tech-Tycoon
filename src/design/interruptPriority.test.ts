@@ -26,6 +26,7 @@ const FIELD: Record<InterruptKey, keyof GameState> = {
   licenseOffer: "pendingLicenseOffer",
   staffEvent: "pendingStaffEvent",
   postLaunch: "pendingPostLaunch",
+  secretReveal: "pendingSecretReveal",
 };
 
 /** A minimal state with no launch in flight and only the named interrupt cards pending. */
@@ -38,7 +39,7 @@ function mk(...pending: InterruptKey[]): GameState {
 describe("canonical interrupt priority", () => {
   it("lists every overlay exactly once, highest first", () => {
     expect(INTERRUPT_ORDER[0]).toBe("strike");
-    expect(INTERRUPT_ORDER[INTERRUPT_ORDER.length - 1]).toBe("postLaunch");
+    expect(INTERRUPT_ORDER[INTERRUPT_ORDER.length - 1]).toBe("secretReveal");
     expect(new Set(INTERRUPT_ORDER).size).toBe(INTERRUPT_ORDER.length); // no dupes
     expect(Object.keys(FIELD).sort()).toEqual([...INTERRUPT_ORDER].sort()); // predicate for each
   });

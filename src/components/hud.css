@@ -116,6 +116,22 @@
 .hud__pause:active {
   transform: scale(0.94);
 }
+/* A quiet dot for "there's something new behind this button" — used by the Vault's fresh leads.
+   Deliberately a dot, not a count: the point of the Vault is that you don't know what's in there. */
+.hud__pause--attn {
+  position: relative;
+}
+.hud__pause--attn::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  border: 2px solid var(--surface);
+}
 .hud__pause--on {
   background: var(--accent);
   border-color: var(--accent);

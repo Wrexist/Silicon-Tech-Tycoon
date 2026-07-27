@@ -218,6 +218,47 @@ export function officeZoneBonus(layout: readonly PlacedItem[]): Required<Furnitu
   return { comfort, focus: comfort * 0.5, inspiration: comfort * 0.5 };
 }
 
+/** Which desks are actually EARNING the zone bonus, so the builder can show it. `officeZoneBonus`
+ *  pays for desks that sit beside an amenity, and nothing in the UI ever said so — the buff bars just
+ *  moved. This is the same fold, reported per desk instead of summed, plus the amenity ids doing the
+ *  work (they get highlighted too, so the pairing is obvious rather than asserted). Pure. */
+export interface DeskZones {
+  /** iids of desks with at least one amenity beside them. */
+  zoned: string[];
+  /** iids of the amenities that are pairing with at least one desk. */
+  pairing: string[];
+  /** Total desks placed (the denominator in "4 of 6 desks"). */
+  desks: number;
+  /** Desk↔amenity pairings counted toward the bonus (capped per desk, same as the bonus itself). */
+  pairs: number;
+  /** How many more amenities the best-placed desks could still earn from (0 when every desk is full). */
+  headroom: number;
+}
+
+export function deskZones(layout: readonly PlacedItem[]): DeskZones {
+  const desks = layout.filter((it) => isDeskType(it.type));
+  const amenities = layout.filter((it) => AMENITY_CATEGORIES.has(furnitureDef(it.type).category));
+  const zoned: string[] = [];
+  const pairing = new Set<string>();
+  let pairs = 0;
+  let headroom = 0;
+  for (const d of desks) {
+    const near = amenities.filter((a) => Math.max(Math.abs(d.c - a.c), Math.abs(d.r - a.r)) <= ZONE_PROX_RADIUS);
+    const counted = Math.min(near.length, ZONE_MAX_PER_DESK);
+    if (counted > 0) {
+      zoned.push(d.iid);
+      // Only the amenities that are actually paying get highlighted (the cap can leave extras out).
+      for (const a of near.slice(0, counted)) pairing.add(a.iid);
+    }
+    pairs += counted;
+    headroom += ZONE_MAX_PER_DESK - counted;
+  }
+  return { zoned, pairing: [...pairing], desks: desks.length, pairs, headroom };
+}
+
+/** The adjacency rule, in one line, for the builder to state outright. */
+export const ZONE_RULE = `Put a plant, lamp or bit of decor next to a desk (up to ${ZONE_MAX_PER_DESK}) and that desk earns extra comfort, focus and inspiration.`;
+
 export const CATEGORY_ORDER: FurnitureCategory[] = [
   "desks",
   "seating",
@@ -297,6 +338,169 @@ function cellsOf(item: PlacedItem): string[] {
   return out;
 }
 
+// ---- Seats -------------------------------------------------------------------------------------
+// A desk's chair stands in the cell BESIDE the desk, outside its footprint — so for a long time the
+// grid knew nothing about it, and `canPlace` happily allowed two desks whose chairs occupy the same
+// cell. In a room laid out in rows that happens constantly: a desk against the back wall flips its
+// seat forward to keep the chair out of the wall, straight into the aisle the next row seats
+// backward into, and the two chairs render inside each other.
+//
+// The seat is now part of placement. A desk reserves the band of cells its chair stands in, nothing
+// may be placed on top of it, and a desk that cannot get a band anywhere is not a legal placement.
+// `planSeats` is the single source of truth: the 3D scene reads the same plan it validates against,
+// so what the grid reserves and what the room draws can never disagree.
+
+/** Grid step from a desk toward the side its occupant sits on, per rotation. The scene seats them off
+ *  the desk's local −z edge; rotation maps that onto the grid. */
+const SEAT_STEP: Record<Rot, [number, number]> = { 0: [0, -1], 1: [-1, 0], 2: [0, 1], 3: [1, 0] };
+
+/** The full-width band of cells immediately beside an item on one side, or null if it leaves the
+ *  grid. Full width because the chair is centred on the desk and a 2-cell desk's chair straddles
+ *  both — reserving the whole edge is the only version that can't half-overlap. */
+function bandBeside(item: PlacedItem, step: readonly [number, number], facilityTier: number): { c: number; r: number }[] | null {
+  const { w, d } = footprint(furnitureDef(item.type), item.rot);
+  const [dc, dr] = step;
+  const cells: { c: number; r: number }[] = [];
+  if (dr !== 0) {
+    const r = dr < 0 ? item.r - 1 : item.r + d;
+    for (let i = 0; i < w; i++) cells.push({ c: item.c + i, r });
+  } else {
+    const c = dc < 0 ? item.c - 1 : item.c + w;
+    for (let i = 0; i < d; i++) cells.push({ c, r: item.r + i });
+  }
+  const n = gridN(facilityTier);
+  return cells.every((s) => s.c >= 0 && s.r >= 0 && s.c < n && s.r < n) ? cells : null;
+}
+
+/** The cells this desk's chair would stand in on the given side (null = that side is off-grid). */
+export function seatBand(item: PlacedItem, flipped: boolean, facilityTier = 1): { c: number; r: number }[] | null {
+  const [dc, dr] = SEAT_STEP[item.rot];
+  return bandBeside(item, flipped ? [-dc, -dr] : [dc, dr], facilityTier);
+}
+
+export interface SeatPlan {
+  /** desk iid → is its chair on the FLIPPED (front) side rather than behind it. */
+  flipped: Record<string, boolean>;
+  /** desk iid → the cells its chair occupies. */
+  cells: Record<string, { c: number; r: number }[]>;
+  /** Desks that could not be given a clear band — an illegal layout (or one saved before this rule). */
+  unseated: string[];
+}
+
+/** Numeric part of an iid ("f12" → 12) so desks resolve in stable placement order. */
+function iidSeq(iid: string): number {
+  const n = parseInt(iid.replace(/^\D+/, ""), 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Assign every desk the cells its chair stands in. Desks are served in placement order; each takes
+ *  the side behind it when that band is clear, otherwise the front. A band is clear when it is on the
+ *  grid, holds no solid furniture, and no earlier desk has claimed it — which is precisely what stops
+ *  two chairs sharing a cell. Pure and deterministic. */
+export function planSeats(layout: readonly PlacedItem[], facilityTier = 1): SeatPlan {
+  const solid = new Set<string>();
+  for (const it of layout) {
+    if (furnitureDef(it.type).flat) continue;
+    for (const k of cellsOf(it)) solid.add(k);
+  }
+  const flipped: Record<string, boolean> = {};
+  const cells: Record<string, { c: number; r: number }[]> = {};
+  const unseated: string[] = [];
+  const claimed = new Set<string>();
+
+  const desks = layout.filter((it) => isDeskType(it.type)).slice().sort((a, b) => iidSeq(a.iid) - iidSeq(b.iid));
+  for (const dk of desks) {
+    const clear = (band: { c: number; r: number }[] | null) =>
+      band != null && band.every((s) => !claimed.has(`${s.c},${s.r}`) && !solid.has(`${s.c},${s.r}`));
+    const back = seatBand(dk, false, facilityTier);
+    const front = seatBand(dk, true, facilityTier);
+    let chosen: { c: number; r: number }[] | null;
+    let isFlipped: boolean;
+    if (clear(back)) { chosen = back; isFlipped = false; }
+    else if (clear(front)) { chosen = front; isFlipped = true; }
+    else {
+      // Nothing free. Still pick a side so the scene draws something sane, and report it so
+      // `canPlace` can refuse the placement that would have created this.
+      chosen = back ?? front;
+      isFlipped = back == null;
+      unseated.push(dk.iid);
+    }
+    flipped[dk.iid] = isFlipped;
+    if (chosen) {
+      cells[dk.iid] = chosen;
+      for (const s of chosen) claimed.add(`${s.c},${s.r}`);
+    }
+  }
+  return { flipped, cells, unseated };
+}
+
+/** Placement stops a chair collision from ever being CREATED, but rooms saved before the rule existed
+ *  are already in one. Rather than make the player go and find it, slide each stranded desk to the
+ *  nearest spot where its chair fits — nearest so the room the player arranged stays recognisably
+ *  theirs, and only stranded desks move, so a legal layout comes back untouched (same array, so
+ *  callers can compare by reference). Rotation is a last resort: a turned desk costs one step of
+ *  distance, which keeps a desk facing the way it was unless turning is what saves it.
+ *
+ *  Pure and deterministic — a fixed scan order, and ties go to the first hit. If a desk is walled in
+ *  so completely that nowhere works, it is left where it is and stays in `planSeats().unseated`, which
+ *  is what raises the "too tight" nudge toward Tidy. */
+export function repairSeats(layout: readonly PlacedItem[], facilityTier = 1): PlacedItem[] {
+  let stuck = planSeats(layout, facilityTier).unseated;
+  if (stuck.length === 0) return layout as PlacedItem[];
+
+  const work = layout.map((it) => ({ ...it }));
+  const n = gridN(facilityTier);
+  const hopeless = new Set<string>(); // desks already proven immovable — never re-scanned
+  // Each pass seats one desk or writes one off, so the loop can only run once per desk.
+  for (let guard = 0; guard < layout.length; guard++) {
+    const target = stuck.find((iid) => !hopeless.has(iid));
+    if (target == null) break;
+    const idx = work.findIndex((it) => it.iid === target);
+    if (idx < 0) break;
+    const desk = work[idx];
+    const others = work.filter((it) => it.iid !== desk.iid);
+    let best: { c: number; r: number; rot: Rot; score: number } | null = null;
+
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        for (const rot of [0, 1, 2, 3] as const) {
+          if (c === desk.c && r === desk.r && rot === desk.rot) continue;
+          const { w, d } = footprint(furnitureDef(desk.type), rot);
+          if (!inBounds(c, r, w, d, facilityTier)) continue;
+          const want = new Set<string>();
+          for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) want.add(`${c + dc},${r + dr}`);
+          if (!fitsFootprint(others, want)) continue;
+          // Judge the whole room, not just this desk: a move that seats it by stealing the band of a
+          // desk that was fine is no improvement, and this comparison sees that.
+          const moved = [...others, { ...desk, c, r, rot }];
+          const after = planSeats(moved, facilityTier).unseated;
+          if (after.length >= stuck.length || after.includes(desk.iid)) continue;
+          const score = Math.abs(c - desk.c) + Math.abs(r - desk.r) + (rot === desk.rot ? 0 : 1);
+          if (best == null || score < best.score) best = { c, r, rot, score };
+        }
+      }
+    }
+
+    if (best == null) {
+      hopeless.add(desk.iid); // nowhere to go — leave it for the "too tight" warning
+      continue;
+    }
+    work[idx] = { ...desk, c: best.c, r: best.r, rot: best.rot };
+    stuck = planSeats(work, facilityTier).unseated;
+  }
+  return work;
+}
+
+/** Do the wanted cells clear every solid item in `others`? (The plain footprint half of `canPlace`,
+ *  split out so the seat repair below can ask about geometry without also asking about seats.) */
+function fitsFootprint(others: readonly PlacedItem[], want: ReadonlySet<string>): boolean {
+  for (const it of others) {
+    if (furnitureDef(it.type).flat) continue;
+    for (const cell of cellsOf(it)) if (want.has(cell)) return false;
+  }
+  return true;
+}
+
 /** Can `type` be placed at (c,r,rot) without leaving the grid or hitting a solid item?
  *  Flat items (rugs) don't block and can't be blocked. `ignore` skips an item being moved. */
 export function canPlace(
@@ -314,10 +518,19 @@ export function canPlace(
   if (def.flat) return true; // rugs go anywhere
   const want = new Set<string>();
   for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) want.add(`${c + dc},${r + dr}`);
-  for (const it of layout) {
-    if (it.iid === ignore) continue;
-    if (furnitureDef(it.type).flat) continue;
-    for (const cell of cellsOf(it)) if (want.has(cell)) return false;
+  const others = layout.filter((it) => it.iid !== ignore);
+  if (!fitsFootprint(others, want)) return false;
+
+  // Seats. A desk needs somewhere for its chair to stand, and nothing may be put where a chair
+  // already is — the two halves of "two chairs can never end up in the same cell".
+  const candidate: PlacedItem = { iid: ignore ?? "__candidate", type, c, r, rot };
+  if (isDeskType(type)) {
+    // The candidate joins the room: legal only if EVERY desk, it included, still gets a band.
+    if (planSeats([...others, candidate], facilityTier).unseated.length > 0) return false;
+  } else {
+    for (const band of Object.values(planSeats(others, facilityTier).cells)) {
+      for (const s of band) if (want.has(`${s.c},${s.r}`)) return false;
+    }
   }
   return true;
 }
@@ -344,6 +557,180 @@ export function worldOf(item: PlacedItem, facilityTier = 1): { x: number; z: num
     z: origin + (item.r + d / 2) * GRID.cell,
     rotY: item.rot * (Math.PI / 2),
   };
+}
+
+// ---- Tidy up (auto-arrange) ------------------------------------------------------------------
+// The factory floor has had a one-tap auto-router for a while; the office had nothing, so a room
+// that grew piece by piece stayed however it grew. `tidyLayout` is the office's equivalent, with one
+// deliberate difference: it BUYS NOTHING and SELLS NOTHING. Every iid, type and rotation-eligible
+// piece the player owns comes back — only `c`/`r`/`rot` change — so it can never cost a cent and
+// Undo restores the old room exactly.
+//
+// It arranges desks into open rows with a walkway between them, then tucks each desk's amenities
+// (plants / lamps / decor / fun) into the cells right beside it — which is exactly what the zone
+// bonus pays for. So the tidy is also the teach: run it once and the "good spots" counter jumps,
+// which explains the rule better than any tooltip.
+//
+// PURE + deterministic (fixed scan order, no RNG). Never loses a piece: anything that somehow can't
+// be placed keeps its original cell.
+
+/** Rows reserved for desks — every third row, so each desk row has a clear row for its chair, its
+ *  amenities and a walkway. */
+const TIDY_ROW_STEP = 3;
+
+/** The rows desks are allowed to occupy, top-down. */
+function tidyDeskRows(n: number): number[] {
+  const rows: number[] = [];
+  for (let r = 1; r < n - 1; r += TIDY_ROW_STEP) rows.push(r);
+  return rows;
+}
+
+/** Columns of one row, ordered from the row's CENTRE outwards, so a half-full row sits in the middle
+ *  of the office instead of jammed against the left wall. */
+function centredColumns(n: number): number[] {
+  const mid = Math.floor(n / 2);
+  const out: number[] = [mid];
+  for (let d = 1; d <= n; d++) {
+    if (mid - d >= 0) out.push(mid - d);
+    if (mid + d < n) out.push(mid + d);
+  }
+  return out;
+}
+
+/** Every cell, back rows first, centred within each row — where the non-desk furniture goes. */
+function tidyAnchors(n: number): [number, number][] {
+  const cols = centredColumns(n);
+  const out: [number, number][] = [];
+  for (let r = 0; r < n; r++) for (const c of cols) out.push([c, r]);
+  return out;
+}
+
+/** Cells where an amenity actually EARNS this desk its zone bonus.
+ *
+ *  Critically, this mirrors `officeZoneBonus` exactly: that fold measures Chebyshev distance between
+ *  the two items' ANCHOR cells, not their footprints. So for a 2-wide desk, a plant tucked past its
+ *  far end is visually "beside the desk" and pays nothing — placing amenities there would have made
+ *  the tidy look like it worked while the buff bars didn't move. Orthogonal neighbours first (they
+ *  read as deliberate), then diagonals; `canPlace` filters out the ones the desk itself occupies. */
+function zoneCells(desk: PlacedItem): [number, number][] {
+  const orth: [number, number][] = [[desk.c - 1, desk.r], [desk.c + 1, desk.r], [desk.c, desk.r - 1], [desk.c, desk.r + 1]];
+  const diag: [number, number][] = [[desk.c - 1, desk.r - 1], [desk.c + 1, desk.r - 1], [desk.c - 1, desk.r + 1], [desk.c + 1, desk.r + 1]];
+  return [...orth, ...diag].filter(([c, r]) => c >= 0 && r >= 0);
+}
+
+/** Re-arrange a room the player already owns into desk rows with amenities beside them. Returns a NEW
+ *  layout with the same items (same iids/types), or the SAME array reference when there is nothing to
+ *  arrange (no items), so callers can skip a no-op write. */
+export function tidyLayout(layout: readonly PlacedItem[], facilityTier = 1): PlacedItem[] {
+  if (layout.length === 0) return layout as PlacedItem[];
+  const n = gridN(facilityTier);
+  const bySize = (a: PlacedItem, b: PlacedItem) => {
+    const fa = furnitureDef(a.type), fb = furnitureDef(b.type);
+    // Biggest first (first-fit-decreasing packs far better), then by iid so the result is stable.
+    return (fb.w * fb.d) - (fa.w * fa.d) || a.iid.localeCompare(b.iid);
+  };
+  const desks = layout.filter((it) => isDeskType(it.type)).sort(bySize);
+  const amenities = layout
+    .filter((it) => !isDeskType(it.type) && AMENITY_CATEGORIES.has(furnitureDef(it.type).category) && !furnitureDef(it.type).flat)
+    .sort(bySize);
+  const rest = layout
+    .filter((it) => !isDeskType(it.type) && !(AMENITY_CATEGORIES.has(furnitureDef(it.type).category) && !furnitureDef(it.type).flat))
+    .sort(bySize);
+
+  const out: PlacedItem[] = [];
+  /** First-fit an item over `anchors`, un-rotated (rot 0) — desks and amenities read best square-on. */
+  const fit = (it: PlacedItem, anchors: [number, number][], rot: Rot = 0): boolean => {
+    for (const [c, r] of anchors) {
+      if (canPlace(out, it.type, c, r, rot, it.iid, facilityTier)) {
+        out.push({ ...it, c, r, rot });
+        return true;
+      }
+    }
+    return false;
+  };
+  const keep = (it: PlacedItem) => { out.push({ ...it }); };
+
+  // 1. Desks spread EVENLY across the reserved rows, each row filled from its centre outwards — so a
+  //    six-desk office reads as two open rows of three, not one row crammed against the back wall.
+  const anyAnchors = tidyAnchors(n);
+  const rows = tidyDeskRows(n);
+  const cols = centredColumns(n);
+  const perRow = Math.max(1, Math.ceil(desks.length / Math.max(1, rows.length)));
+  let placed = 0;
+  let rowIdx = 0;
+  for (const dk of desks) {
+    // Move to the next row once this one has taken its share (the last row absorbs any remainder).
+    if (placed >= perRow && rowIdx < rows.length - 1) { rowIdx++; placed = 0; }
+    const rowAnchors: [number, number][] = cols.map((c) => [c, rows[rowIdx]] as [number, number]);
+    if (fit(dk, rowAnchors)) { placed++; continue; }
+    // This row is full (wide desks, or a rug in the way) — try the remaining rows, then anywhere.
+    const laterRows: [number, number][] = rows.slice(rowIdx + 1).flatMap((r) => cols.map((c) => [c, r] as [number, number]));
+    if (fit(dk, laterRows)) { placed = perRow; continue; }
+    if (!fit(dk, anyAnchors)) keep(dk);
+  }
+
+  // 2. Amenities beside a desk that still has room to earn — the zone bonus, laid out for you.
+  //    BREADTH-FIRST: give every desk one amenity before topping any desk up to its cap. The total
+  //    bonus is the same either way (it counts pairings, not desks), but spreading means the room's
+  //    "good spots" count reflects real coverage — three plants pair three desks, not one and a half.
+  const placedDesks = out.filter((it) => isDeskType(it.type));
+  const earned = new Map<string, number>(placedDesks.map((dk) => [dk.iid, 0]));
+  const queue = [...amenities];
+  for (let round = 0; round < ZONE_MAX_PER_DESK && queue.length > 0; round++) {
+    for (const dk of placedDesks) {
+      if (queue.length === 0) break;
+      if ((earned.get(dk.iid) ?? 0) > round) continue; // already served this round
+      const idx = queue.findIndex((am) => fit(am, zoneCells(dk)));
+      if (idx >= 0) {
+        queue.splice(idx, 1);
+        earned.set(dk.iid, (earned.get(dk.iid) ?? 0) + 1);
+      }
+    }
+  }
+  // Whatever is left over (more amenities than pairings available, or nothing fit beside a desk)
+  // just goes somewhere sensible — it still contributes its flat comfort/focus, only not a pairing.
+  for (const am of queue) if (!fit(am, anyAnchors)) keep(am);
+
+  // 3. Everything else fills in from the front of the room backwards, so the desk rows stay clear.
+  //    Flats (rugs) are a special case: `canPlace` always says yes to them, so a naive first-fit
+  //    would stack every rug the player owns on the SAME cell. Track the flats' own cells and give
+  //    each one its own spot.
+  const flatCells = new Set<string>();
+  const frontFirst = [...anyAnchors].reverse();
+  for (const it of rest) {
+    const def = furnitureDef(it.type);
+    if (def.flat) {
+      const { w, d } = footprint(def, it.rot);
+      const spot = frontFirst.find(([c, r]) => {
+        if (c + w > n || r + d > n) return false;
+        for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) if (flatCells.has(`${c + dc},${r + dr}`)) return false;
+        return true;
+      });
+      if (spot) {
+        for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) flatCells.add(`${spot[0] + dc},${spot[1] + dr}`);
+        out.push({ ...it, c: spot[0], r: spot[1] });
+      } else keep(it);
+      continue;
+    }
+    if (!fit(it, frontFirst, it.rot)) keep(it);
+  }
+
+  // Return in the ORIGINAL order so anything keyed on layout order (desk assignment via deskItems is
+  // iid-sorted, but the 3D scene maps the array) stays stable.
+  const byIid = new Map(out.map((it) => [it.iid, it]));
+  return layout.map((it) => byIid.get(it.iid) ?? it);
+}
+
+/** How many pieces `tidyLayout` would actually move — so the button can say what it will do (and stay
+ *  disabled when the room is already tidy). Pure. */
+export function tidyMoveCount(layout: readonly PlacedItem[], facilityTier = 1): number {
+  const tidied = tidyLayout(layout, facilityTier);
+  let moved = 0;
+  for (let i = 0; i < layout.length; i++) {
+    const a = layout[i], b = tidied[i];
+    if (!b || a.c !== b.c || a.r !== b.r || a.rot !== b.rot) moved++;
+  }
+  return moved;
 }
 
 /** Convert a world (x,z) hit point to the anchor cell that centres a w×d footprint there. */

@@ -4,13 +4,13 @@
 // Packer); the player wires it by hand (tap / drag-paint / hold-to-move) or pays the Auto
 // router, then deepens the earned build-speed bonus with recipe machines, arms and upgrades.
 // Parametric SVG only (zero image assets); every animation sim-gated + reduced-motion safe.
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
   FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
   Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
-  TrafficCone, Trash2, TriangleAlert, Truck, Waypoints, Wrench, X, Zap, type LucideIcon,
+  TrafficCone, Trash2, TriangleAlert, Truck, Undo2, Waypoints, Wrench, X, Zap, type LucideIcon,
   // FACTORY-WORLD decor additions
   Construction, FireExtinguisher, Fence, Fan, Lamp, Box, Gauge, PocketKnife, SearchCheck, Forklift,
 } from "lucide-react";
@@ -35,7 +35,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
-import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineEfficiency, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
@@ -121,23 +121,49 @@ function useFactoryData() {
   // Product-aware: the current order's recipe decides which machines grow the bonus, so a phone
   // floor wants a screen bonder, a laptop floor a mill (no order → the neutral view).
   const leadCategory = lead?.product?.category;
-  const reqKinds = leadCategory ? requiredKindsFor(leadCategory) : undefined;
-  const lineSpeed = lineSpeedMult(state.factoryFloor, reqKinds); // <1 = earned bonus, 1 = neutral (never >1)
-  const linePct = Math.round((1 - lineSpeed) * 100);   // % faster the wired line builds
-  const missing = reqKinds ? missingMachineKinds(state.factoryFloor, reqKinds) : [];
-  // Item 3.1 — the wired line also widens throughput and trims per-unit cost (both pure upside).
-  const lineCapPct = Math.round((lineCapacityMult(state.factoryFloor) - 1) * 100); // % extra capacity
-  const lineUnitPct = Math.round((1 - lineUnitMult(state.factoryFloor)) * 100);     // % cheaper per unit
-  // Item 3.2 — how tidily the line is laid (recipe order + straight lanes), 0–100%. Scales the bonuses.
-  const layoutPct = Math.round(lineEfficiency(state.factoryFloor) * 100);
-  // Item 5.8 — a well-EQUIPPED floor (distinct utility props) shaves a little build time.
-  const decorPct = Math.round((1 - factoryDecorSpeedMult(state.factoryProps ?? [])) * 100);
-  const decorKinds = utilityDecorKinds(state.factoryProps ?? []);
+  // Every readout below walks the belt chain, and several walk it more than once (lineSpeedMult,
+  // lineCapacityMult and lineUnitMult each re-derive lineEfficiency to scale themselves). Both the HQ
+  // card and the fullscreen view render this hook on EVERY sim tick, so derive the whole block once
+  // and keep it until the floor, the props or the current order's recipe actually change.
+  const {
+    lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct, layout, layoutHint, decorPct, decorKinds,
+  } = useMemo(() => {
+    const kinds = leadCategory ? requiredKindsFor(leadCategory) : undefined;
+    const speed = lineSpeedMult(state.factoryFloor, kinds); // <1 = earned bonus, 1 = neutral (never >1)
+    // Item 3.2 — how tidily the line is laid (recipe order + straight lanes), 0–100%. Scales the bonuses.
+    // The breakdown carries the same score, so read it from there rather than deriving it twice.
+    const brk = lineLayoutBreakdown(state.factoryFloor);
+    // Layout quality comes from exactly two things the player can act on — how straight the belt run
+    // is, and whether the machines sit in recipe order along it. Naming the actual defect turns a dead
+    // percentage into a to-do. Order first: it's worth more of the score (0.55 vs 0.45) and it's the
+    // mistake players don't spot on their own.
+    const hint = !lineComplete(state.factoryFloor)
+      ? null
+      : brk.swapped
+        ? `${MACHINE_DEFS[brk.swapped[1]].name} sits before ${MACHINE_DEFS[brk.swapped[0]].name} along the belt — the item reaches them out of recipe order.`
+        : brk.corners > 0 && brk.straightness < 0.85
+          ? `${brk.corners} corner${brk.corners === 1 ? "" : "s"} in a ${brk.steps}-step run — longer straight lanes score higher.`
+          : "Straight lanes, machines in recipe order. This line is as tidy as it gets.";
+    return {
+      lineSpeed: speed,
+      linePct: Math.round((1 - speed) * 100), // % faster the wired line builds
+      missing: kinds ? missingMachineKinds(state.factoryFloor, kinds) : [],
+      // Item 3.1 — the wired line also widens throughput and trims per-unit cost (both pure upside).
+      lineCapPct: Math.round((lineCapacityMult(state.factoryFloor) - 1) * 100), // % extra capacity
+      lineUnitPct: Math.round((1 - lineUnitMult(state.factoryFloor)) * 100),    // % cheaper per unit
+      layoutPct: Math.round(brk.score * 100),
+      layout: brk,
+      layoutHint: hint,
+      // Item 5.8 — a well-EQUIPPED floor (distinct utility props) shaves a little build time.
+      decorPct: Math.round((1 - factoryDecorSpeedMult(state.factoryProps ?? [])) * 100),
+      decorKinds: utilityDecorKinds(state.factoryProps ?? []),
+    };
+  }, [state.factoryFloor, state.factoryProps, leadCategory]);
 
   return {
     game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
-    floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct, decorPct, decorKinds,
+    floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct, layout, layoutHint, decorPct, decorKinds,
   };
 }
 
@@ -273,6 +299,41 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const { buyFloorMachine, buyFloorBelt, buyFactoryProp, clearFloorCell, upgradeFloorMachine } = d.game;
   const lineOk = lineComplete(d.floor);
 
+  // UNDO — the office builder has always had this (a layout+cash snapshot that refunds a purchase in
+  // full); the floor had nothing, so a mis-tapped $18K arm was unrecoverable. Same shape, same depth:
+  // a UI-level ring of {floor, props, cash} snapshots taken before each mutating action. Not persisted
+  // — undo is for the edit you just made, not for last week.
+  const history = useRef<{ floor: GameFloor; props: typeof state.factoryProps; cash: typeof state.cash }[]>([]);
+  const [histLen, setHistLen] = useState(0);
+  // Live refs, the same shape the office builder uses: the reducers land asynchronously, so a
+  // snapshot has to read the values as of THIS render, not as of the closure that armed the tool.
+  const floorRef = useRef(state.factoryFloor);
+  floorRef.current = state.factoryFloor;
+  const propsRef = useRef(state.factoryProps);
+  propsRef.current = state.factoryProps;
+  const cashRef = useRef(state.cash);
+  cashRef.current = state.cash;
+  const snapshot = () => {
+    history.current.push({ floor: floorRef.current, props: propsRef.current, cash: cashRef.current });
+    if (history.current.length > 40) history.current.shift();
+    setHistLen(history.current.length);
+  };
+  /** Drop the snapshot just taken — the action it was guarding was REFUSED (can't afford, doesn't
+   *  fit), so there is nothing to undo and a dead entry would make Undo look broken. */
+  const dropSnapshot = () => {
+    history.current.pop();
+    setHistLen(history.current.length);
+  };
+  const undoBuild = () => {
+    const prev = history.current.pop();
+    setHistLen(history.current.length);
+    if (!prev) return;
+    d.game.applyFactorySnapshot(prev);
+    setPendingCell(null);
+    haptic.medium();
+    showToast("Undone", { tone: "neutral" });
+  };
+
   // Machine placement is a MOVABLE GHOST, not a blind tap: arming a machine tool drops a translucent
   // machine on the floor; tapping cells nudges it, and Place (buy) / Cancel commits from the strip.
   // No more "Doesn't fit there" the instant you tap — you SEE where it lands before paying.
@@ -307,25 +368,28 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     if (!buildTool) return;
     if (pendingKind) { setPendingCell({ c, r }); haptic.light(); return; } // machine: tap moves the ghost, Place commits
     if (buildTool === "erase") {
+      snapshot();
       clearFloorCell(c, r);
       haptic.light();
       setFlash((f) => ({ c, r, ok: true, n: (f?.n ?? 0) + 1 }));
       return;
     }
     if (buildTool === "upgrade") {
+      snapshot();
       const res = upgradeFloorMachine(c, r);
       setFlash((f) => ({ c, r, ok: res.ok, n: (f?.n ?? 0) + 1 }));
       if (res.ok) { haptic.success(); sfx("build"); showToast("Machine tuned up — the line builds faster", { tone: "positive" }); }
-      else { haptic.warning(); showToast(res.reason ?? "Nothing to upgrade here", { tone: "negative" }); }
+      else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Nothing to upgrade here", { tone: "negative" }); }
       return;
     }
     const isProp = buildTool in PROP_DEFS;
+    snapshot();
     const res = isProp
       ? buyFactoryProp(buildTool as PropKind, c, r)
       : buildTool === "belt" ? buyFloorBelt(c, r, beltDir) : buyFloorMachine(buildTool as MachineKind, c, r);
     setFlash((f) => ({ c, r, ok: res.ok, n: (f?.n ?? 0) + 1 }));
     if (res.ok) { haptic.light(); if (buildTool !== "belt") { sfx("build"); haptic.success(); } }
-    else { haptic.warning(); showToast(res.reason ?? "Can't build there", { tone: "negative" }); }
+    else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Can't build there", { tone: "negative" }); }
   };
 
   const ref = useRef<HTMLDivElement>(null);
@@ -406,15 +470,17 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               onTapCell={onTapCell}
               paintBelts={buildTool === "belt"}
               onPaintBelts={(cells) => {
+                snapshot(); // one painted RUN undoes as one action, not tile by tile
                 const res = d.game.paintBeltRun(cells, beltDir);
                 if (res.ok) { haptic.light(); sfx("build"); }
-                else { haptic.warning(); showToast(res.reason ?? "Can't lay a belt there", { tone: "negative" }); }
+                else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Can't lay a belt there", { tone: "negative" }); }
               }}
               onCarryChange={(carrying) => { if (carrying) haptic.light(); }}
               onMovePiece={(piece, c, r) => {
+                snapshot();
                 const res = piece.type === "machine" ? d.game.moveFloorMachine(piece.id, c, r) : d.game.moveFactoryProp(piece.id, c, r);
                 if (res.ok) { haptic.success(); sfx("build"); }
-                else { haptic.warning(); showToast(res.reason ?? "Doesn't fit there", { tone: "negative" }); }
+                else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Doesn't fit there", { tone: "negative" }); }
                 return res;
               }}
               flash={flash}
@@ -602,6 +668,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                       className="fmode__buy fmode__autoquote-go"
                       disabled={!pendingValid || broke}
                       onClick={() => {
+                        snapshot();
                         const res = d.game.buyFloorMachine(pendingKind, pendingCell.c, pendingCell.r);
                         if (res.ok) {
                           haptic.success(); sfx("build");
@@ -612,7 +679,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                           const merged = { ...state.factoryFloor, machines: [...state.factoryFloor.machines, { id: "pending", kind: pendingKind, c: pendingCell.c, r: pendingCell.r }] };
                           setPendingCell(findPlacementCell(pendingKind, merged));
                         }
-                        else { haptic.warning(); showToast(res.reason ?? "Can't place there", { tone: "negative" }); }
+                        else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Can't place there", { tone: "negative" }); }
                       }}
                     >
                       {broke ? "Can't afford" : `Place · ${format(cost)}`}
@@ -636,9 +703,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                       className="fmode__buy fmode__autoquote-go"
                       disabled={tooPricey}
                       onClick={() => {
+                        snapshot(); // the whole auto-route undoes in one tap, like any other build action
                         const res = d.game.autoConnectLine();
                         if (res.ok) { haptic.success(); sfx("build"); showToast("Track laid — a long line routed; drop machines along it", { tone: "positive" }); }
-                        else { haptic.warning(); showToast(res.reason ?? "Couldn't lay the track", { tone: "negative" }); }
+                        else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Couldn't lay the track", { tone: "negative" }); }
                         setAutoArmed(false);
                       }}
                     >
@@ -655,6 +723,15 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                     <button role="tab" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
                   </div>
                   <span className="fmode__build-rule">{buildTool === "belt" ? "Drag to paint a belt run · tap for one · Auto routes it all." : buildCat === "machine" ? "Tap to place · hold any piece to move it. Erase refunds half." : "Tap to place · hold a prop to move it. Erase refunds half."}</span>
+                  {/* Undo: a true reversal of the last build action, cash included — the same deal the
+                      office builder has always offered. Hidden until there IS something to undo. */}
+                  {histLen > 0 && (
+                    // Icon-only: the strip already carries a segmented control, the rule text and Done,
+                    // and a labelled button squeezed the rule down to a single character on a phone.
+                    <button className="fmode__build-undo" aria-label="Undo the last build action" title="Undo the last build action" onClick={undoBuild}>
+                      <Undo2 size={16} aria-hidden />
+                    </button>
+                  )}
                   <button className="fmode__build-done" onClick={() => { haptic.light(); setBuildTool(null); }}>Done</button>
                 </>
               );
@@ -827,6 +904,20 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               {d.layoutPct > 0 ? `${d.layoutPct}%` : "—"}
             </span>
           </div>
+          {/* The two drivers behind that percentage, so it reads as a to-do instead of a verdict. */}
+          {d.layoutHint && (
+            <>
+              <div className="fmode__stat fmode__stat--sub">
+                <span>· straight lanes</span>
+                <span className="tnum">{Math.round(d.layout.straightness * 100)}%</span>
+              </div>
+              <div className="fmode__stat fmode__stat--sub">
+                <span>· recipe order</span>
+                <span className="tnum">{d.layout.stages.length >= 2 ? `${Math.round(d.layout.order * 100)}%` : "—"}</span>
+              </div>
+              <p className="fmode__sheet-note">{d.layoutHint}</p>
+            </>
+          )}
           <div className="fmode__stat" title="Equip the floor with distinct utility props (benches, racks, tool walls, QC stations…) for a small build-speed edge.">
             <span>Floor equipment</span>
             <span className={`tnum ${d.decorPct > 0 ? "fmode__pos" : ""}`}>
@@ -1037,7 +1128,7 @@ function BoostButton() {
 /* ------------------------------- compact card ------------------------------ */
 
 /** The Office tab's Factory world: a live minimap that opens the fullscreen mode. */
-export function FactoryCard({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
+export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Tab) => void; active?: boolean }) {
   const d = useFactoryData();
   const { state } = d;
   const [open, setOpen] = useState(false);
@@ -1058,6 +1149,11 @@ export function FactoryCard({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
             <Suspense fallback={mini}>
               <Factory3D
                 preview
+                // The card keeps its WebGL context (returning to HQ is instant) but stops DRAWING
+                // whenever it can't be seen: another bottom tab, or the fullscreen build view open
+                // over it. Without this the card kept issuing ~874 draw calls a frame from behind
+                // the overlay and on every other tab — for a picture nobody was looking at.
+                paused={!active || open}
                 active={d.active}
                 activeKind={d.activeKind}
                 robotTier={d.robotTier}

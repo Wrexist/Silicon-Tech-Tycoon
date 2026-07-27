@@ -27,6 +27,11 @@ export const INTERRUPT_ORDER = [
   "licenseOffer",
   "staffEvent",
   "postLaunch",
+  // The Vault's reveal ceremony ranks LAST on purpose: it's a celebration of something already
+  // banked, so it waits behind every card that actually needs an answer. It can coexist with them —
+  // the tick can open a dossier in the same week another stream raised a card — so it needs a rank
+  // here rather than a bespoke guard.
+  "secretReveal",
 ] as const;
 
 export type InterruptKey = (typeof INTERRUPT_ORDER)[number];
@@ -44,6 +49,7 @@ const IS_PENDING: Record<InterruptKey, (s: GameState) => boolean> = {
   licenseOffer: (s) => s.pendingLicenseOffer != null,
   staffEvent: (s) => s.pendingStaffEvent != null,
   postLaunch: (s) => s.pendingPostLaunch != null,
+  secretReveal: (s) => s.pendingSecretReveal != null,
 };
 
 /** The player's own launch payoff — the reveal animation running, or a finished build waiting to be

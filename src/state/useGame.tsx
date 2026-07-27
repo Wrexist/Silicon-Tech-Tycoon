@@ -52,6 +52,9 @@ import {
   acceptSideOrder,
   claimContract,
   attemptMoonshot,
+  investigateSecret,
+  markVaultSeen,
+  dismissSecretReveal,
   fundMegaproject,
   buyLegacyPerk,
   buyFrontierTier,
@@ -104,6 +107,7 @@ import {
   launchReady,
   listCompany,
   applyLayoutSnapshot,
+  applyFactorySnapshot,
   moveFurniture,
   newGame,
   placeFurniture,
@@ -174,7 +178,7 @@ import { createTabGuard } from "./tabGuard.ts";
 import { achievementById } from "../engine/achievements.ts";
 import { objectiveById } from "../engine/objectives.ts";
 import { achievementIcon } from "../design/achievementIcons.tsx";
-import { CircleCheck, Cpu, FlaskConical, Landmark, Rocket, Sparkles } from "lucide-react";
+import { CircleCheck, Cpu, FileSearch, FlaskConical, Landmark, Rocket, Sparkles } from "lucide-react";
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -182,6 +186,8 @@ import { sfx } from "../design/sound.ts";
 import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
 import { moonshotById } from "../engine/moonshots.ts";
+import { secretById, STAGE_DECRYPTED } from "../engine/secrets.ts";
+import { mergeCodex } from "./secretsProfile.ts";
 import { EP_BUDGET_RAISES } from "../engine/designBudget.ts";
 import { createElement } from "react";
 
@@ -515,6 +521,12 @@ interface GameActionsValue {
   collectAwards: () => void;
   dismissRivalry: () => void;
   dismissNemesisTrophy: () => void;
+  /** The Vault (engine/secrets.ts) — buy one stage of intel on a classified dossier. */
+  investigateSecret: (id: string) => void;
+  /** Stamp every dossier's current stage as seen (clears the "new leads" badge). */
+  markVaultSeen: () => void;
+  /** Acknowledge the reveal ceremony for files that opened this week. */
+  dismissSecretReveal: () => void;
   resolveEureka: (choice: "bank" | "chase") => EurekaResult;
   resolveCommunityAsk: (accept: boolean) => CommunityAskResult;
   resolveStaffMoment: (optionIndex: number) => StaffMomentResult;
@@ -595,6 +607,9 @@ interface GameActionsValue {
   resetFurniture: () => void;
   setLayout: (layout: PlacedItem[]) => void;
   applyLayoutSnapshot: (snap: { layout: PlacedItem[]; cash: Money }) => void;
+  /** Restore a Factory-floor undo snapshot (layout + props + cash) — the office builder's undo,
+   *  finally available on the floor too. */
+  applyFactorySnapshot: (snap: { floor: import("../engine/factoryFloor.ts").FactoryFloor; props: import("../engine/factoryProps.ts").PlacedProp[]; cash: Money }) => void;
   setFloorStyle: (i: number) => void;
   setWallStyle: (i: number) => void;
   setFactoryDecor: (patch: Partial<{ wall: number; floor: number }>) => void;
@@ -772,6 +787,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
           }
           announceAchievements(unlocked);
           mergeProfileAchievements(unlocked);
+          // A dossier that opened this week joins the lifetime codex: the boon resets with the next
+          // company, but what this founder LEARNED is theirs for good. Idempotent (a union merge), so
+          // a StrictMode double-invoke can't double-write. The reveal ceremony does the celebrating.
+          if ((next.secretsFound?.length ?? 0) > (s.secretsFound?.length ?? 0)) {
+            mergeCodex(next.secretsFound);
+          }
           announceObjectives(completed);
           announceScenarioStars(next);
           // A commission finishing is a payday — celebrate it from any tab.
@@ -1155,6 +1176,26 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(res.state);
     return res.moonshotOutcome ?? null;
   }, []);
+  // The Vault (engine/secrets.ts) — buy one stage of a dossier's reveal. Cash out, knowledge in; the
+  // reducer refuses anything that would sell the achievement itself.
+  const investigateSecretCb = useCallback((id: string) => {
+    const prev = stateRef.current;
+    const res = investigateSecret(prev, id);
+    if (!res.ok) { haptic.error(); showToast(res.reason ?? "That lead went nowhere", { tone: "negative" }); return; }
+    const spent = (prev.cash - res.state.cash) as Money;
+    if (spent > 0) emitSpend(spent);
+    sfx("confirm");
+    haptic.light();
+    const card = secretById(id);
+    const decrypted = (res.state.secretStages?.[id] ?? 0) >= STAGE_DECRYPTED;
+    showToast(
+      decrypted ? `File open: ${card?.codename ?? "the dossier"}` : `A name surfaced: ${card?.codename ?? "something"}`,
+      { tone: "positive", glyph: <FileSearch size={15} /> },
+    );
+    setState(res.state);
+  }, []);
+  const markVaultSeenCb = useCallback(() => setState((s) => markVaultSeen(s)), []);
+  const dismissSecretRevealCb = useCallback(() => setState((s) => dismissSecretReveal(s)), []);
   const announceKeynoteCb = useCallback((productId: string) => {
     const prev = stateRef.current;
     const next = announceKeynote(prev, productId);
@@ -1420,6 +1461,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const resetFurnitureCb = useCallback(() => setState((s) => resetFurniture(s)), []);
   const setLayoutCb = useCallback((layout: PlacedItem[]) => setState((s) => setLayout(s, layout)), []);
   const applyLayoutSnapshotCb = useCallback((snap: { layout: PlacedItem[]; cash: Money }) => setState((s) => applyLayoutSnapshot(s, snap)), []);
+  const applyFactorySnapshotCb = useCallback((snap: { floor: import("../engine/factoryFloor.ts").FactoryFloor; props: import("../engine/factoryProps.ts").PlacedProp[]; cash: Money }) => setState((s) => applyFactorySnapshot(s, snap)), []);
   const setFloorStyleCb = useCallback((i: number) => setState((s) => setFloorStyle(s, i)), []);
   const setTeamFocusCb = useCallback((focus: "research" | "build" | null) => setState((s) => setTeamFocus(s, focus)), []);
   const setWallStyleCb = useCallback((i: number) => setState((s) => setWallStyle(s, i)), []);
@@ -1736,6 +1778,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       collectAwards: collectAwardsCb,
       dismissRivalry: dismissRivalryCb,
       dismissNemesisTrophy: dismissNemesisTrophyCb,
+      investigateSecret: investigateSecretCb,
+      markVaultSeen: markVaultSeenCb,
+      dismissSecretReveal: dismissSecretRevealCb,
       resolveEureka: resolveEurekaCb,
       resolveCommunityAsk: resolveCommunityAskCb,
       resolveStaffMoment: resolveStaffMomentCb,
@@ -1803,6 +1848,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       resetFurniture: resetFurnitureCb,
       setLayout: setLayoutCb,
       applyLayoutSnapshot: applyLayoutSnapshotCb,
+      applyFactorySnapshot: applyFactorySnapshotCb,
       setFloorStyle: setFloorStyleCb,
       setWallStyle: setWallStyleCb,
       setFactoryDecor: setFactoryDecorCb,
@@ -1841,7 +1887,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, attemptMoonshotCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, boardNudgeCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, harvestProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, attemptMoonshotCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, investigateSecretCb, markVaultSeenCb, dismissSecretRevealCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, buyDesktopCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, applyFactorySnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, boardNudgeCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, harvestProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
   );
 
   // Hot path: only the per-tick data slice + the stable actions object. The action list is no longer

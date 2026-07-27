@@ -1835,6 +1835,39 @@
 .hqb__office-seats b { color: var(--ink); }
 .hqb__office-seats-hint { color: var(--ink-3); font-size: var(--fs-nano); }
 
+/* Zones — the "where it sits matters" readout. Neutral while nothing is paired (it reads as a tip),
+   green once desks are earning, matching the pads the 3D scene draws under them. */
+.hqb__zones {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-6) var(--sp-8);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.hqb__zones--on {
+  background: color-mix(in srgb, var(--fn-design) 9%, transparent);
+  border-color: color-mix(in srgb, var(--fn-design) 30%, transparent);
+}
+.hqb__zones-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.hqb__zones--on .hqb__zones-head { color: var(--fn-design-text); }
+.hqb__zones-head b { color: var(--ink); }
+.hqb__zones--on .hqb__zones-head b { color: var(--fn-design-text); }
+.hqb__zones-unit { color: var(--ink-3); font-size: var(--fs-nano); font-weight: 600; }
+.hqb__zones-rule {
+  font-size: var(--fs-nano);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
 /* Item attribute chips */
 .hqb__item-attrs {
   display: flex;
@@ -2142,3 +2175,12 @@ body.hq-deco-open .hq > *:not(.hq__world) {
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .hq__ops-reorder-opt--on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); }
+
+/* Over-packed room: desks with nowhere to pull a chair out. Warning-toned rather than green — this
+   one is a problem to fix (one tap of Tidy), not a bonus to chase. */
+.hqb__zones--warn {
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 34%, transparent);
+}
+.hqb__zones--warn .hqb__zones-head,
+.hqb__zones--warn .hqb__zones-head b { color: var(--warning-text); }

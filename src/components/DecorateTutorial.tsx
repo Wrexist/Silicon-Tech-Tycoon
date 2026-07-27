@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeft, ArrowRight, Check, Crosshair, Hand, LayoutGrid, RotateCw, Smile, Sparkles, Trash2, Users, X,
+  ArrowLeft, ArrowRight, Check, Crosshair, Hand, LayoutGrid, RotateCw, Smile, Sparkles, Sprout, Trash2, Users, Wand2, X,
   type LucideIcon,
 } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
@@ -36,6 +36,25 @@ function PerkVisual() {
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** The zone rule, drawn: a desk with something beside it earns more than the same desk alone. The
+ *  green matches the pads the 3D room draws under desks that are actually pairing. */
+function ZoneVisual() {
+  return (
+    <div className="dtut__zone">
+      <span className="dtut__zone-pair dtut__zone-pair--on">
+        <span className="dtut__zone-cell"><LayoutGrid size={15} aria-hidden /></span>
+        <span className="dtut__zone-cell"><Sprout size={15} aria-hidden /></span>
+        <b>earns extra</b>
+      </span>
+      <span className="dtut__zone-pair">
+        <span className="dtut__zone-cell"><LayoutGrid size={15} aria-hidden /></span>
+        <span className="dtut__zone-cell dtut__zone-cell--empty" />
+        <b>just the basics</b>
+      </span>
     </div>
   );
 }
@@ -80,6 +99,13 @@ const STEPS: TStep[] = [
     title: "Furniture has perks",
     text: "Pieces aren't just for looks. Each one buffs your company, and the perks stack across the whole room:",
     visual: <PerkVisual />,
+  },
+  {
+    icon: Wand2,
+    accent: "var(--fn-design)",
+    title: "Where it sits matters",
+    text: "Put a plant, lamp or bit of decor right next to a desk and that desk earns extra on top. The room marks the pairings that are working — or tap the wand to tidy up and let it arrange them for you, free.",
+    visual: <ZoneVisual />,
   },
   {
     icon: Users,

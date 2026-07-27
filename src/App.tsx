@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
@@ -20,6 +20,7 @@ import { RivalStrike } from "./components/RivalStrike.tsx";
 import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
 import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
 import { NemesisTrophy } from "./components/NemesisTrophy.tsx";
+import { SecretRevealed } from "./components/SecretRevealed.tsx";
 import { EurekaMoment } from "./components/EurekaMoment.tsx";
 import { CommunityAsk } from "./components/CommunityAsk.tsx";
 import { StaffMoment } from "./components/StaffMoment.tsx";
@@ -34,9 +35,12 @@ import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { registerAppOverlay } from "./design/overlayGuard.ts";
-import { Settings } from "./screens/Settings.tsx";
-import { ProgressSheet } from "./screens/Progress.tsx";
-import { ScenariosSheet } from "./screens/Scenarios.tsx";
+// Sheet-hosted screens. `Sheet` returns null while closed, so React never renders these and their
+// chunks are not fetched until the player actually opens the sheet — which for Settings, Progress and
+// Scenarios is rarely, and for many runs never.
+const Settings = lazy(() => import("./screens/Settings.tsx").then((m) => ({ default: m.Settings })));
+const ProgressSheet = lazy(() => import("./screens/Progress.tsx").then((m) => ({ default: m.ProgressSheet })));
+const ScenariosSheet = lazy(() => import("./screens/Scenarios.tsx").then((m) => ({ default: m.ScenariosSheet })));
 import { enableDailyReminders, notificationsAvailable } from "./state/notifications.ts";
 import { getSettings, setSettings } from "./state/settings.ts";
 import { challengeTeaser, dailyChallenge, dateKeyOf } from "./engine/challenges.ts";
@@ -44,7 +48,7 @@ import { Button, Card } from "./design/primitives.tsx";
 import { format, toDollars, scale } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import type { Product } from "./engine/types.ts";
-import { ipoValuation, legacyBonus, industryRank, navAttention, type GameState } from "./state/gameState.ts";
+import { ipoValuation, legacyBonus, industryRank, navAttention, vaultSummary, type GameState } from "./state/gameState.ts";
 import { getFounderRecord, legendStanding, liveLegendScore } from "./state/founderLegend.ts";
 import { ascensionName, clampAscension, ascensionBarFactor, ascensionHeadStartFactor } from "./engine/ascension.ts";
 import { BALANCE } from "./engine/balance.ts";
@@ -54,10 +58,14 @@ import { eraName } from "./engine/eras.ts";
 import { mandateById } from "./engine/mandates.ts";
 import { RESEARCH_PROJECTS, doctrineSummary } from "./engine/research.ts";
 import { HQ } from "./screens/HQ.tsx";
-import { DesignLab } from "./screens/DesignLab.tsx";
-import { Research } from "./screens/Research.tsx";
-import { Market } from "./screens/Market.tsx";
-import { Company } from "./screens/Company.tsx";
+// The other four screens are ~6,700 lines that a player on HQ has not asked for yet, and every one of
+// them was landing in the initial bundle. They already render conditionally on `tab`, so splitting
+// them costs nothing but a Suspense boundary — and the chunk only downloads when the tab is opened.
+// HQ itself stays eager: it IS the first paint, so deferring it would just add a round trip.
+const DesignLab = lazy(() => import("./screens/DesignLab.tsx").then((m) => ({ default: m.DesignLab })));
+const Research = lazy(() => import("./screens/Research.tsx").then((m) => ({ default: m.Research })));
+const Market = lazy(() => import("./screens/Market.tsx").then((m) => ({ default: m.Market })));
+const Company = lazy(() => import("./screens/Company.tsx").then((m) => ({ default: m.Company })));
 import "./App.css";
 
 const TAB_TITLE: Record<Tab, string> = {
@@ -179,6 +187,7 @@ function AppShell() {
         onSettings={() => setSettingsOpen(true)}
         onOpenBank={openBank}
         onOpenProgress={hasShipped ? () => openProgress() : undefined}
+        progressAttention={vaultSummary(state).newLeads > 0}
       />
       <main className="app__main">
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
@@ -219,17 +228,19 @@ function AppShell() {
           <div className="app__screen" key={tab}>
             <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
             <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-              {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
-              {tab === "research" && <Research onNavigate={setTab} />}
-              {tab === "market" && (
-                <Market
-                  onDesignSuccessor={designSuccessor}
-                  onOpenDesignLab={() => setTab("design")}
-                  focusProductId={marketFocusId}
-                  onFocusConsumed={() => setMarketFocusId(null)}
-                />
-              )}
-              {tab === "company" && <Company />}
+              <Suspense fallback={<ScreenLoading />}>
+                {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
+                {tab === "research" && <Research onNavigate={setTab} />}
+                {tab === "market" && (
+                  <Market
+                    onDesignSuccessor={designSuccessor}
+                    onOpenDesignLab={() => setTab("design")}
+                    focusProductId={marketFocusId}
+                    onFocusConsumed={() => setMarketFocusId(null)}
+                  />
+                )}
+                {tab === "company" && <Company />}
+              </Suspense>
             </ErrorBoundary>
           </div>
         )}
@@ -257,6 +268,7 @@ function AppShell() {
       <AwardsCeremonyOverlay />
       <RivalryDeclared />
       <NemesisTrophy />
+      <SecretRevealed />
       <EurekaMoment />
       <CommunityAsk />
       <StaffMoment />
@@ -273,10 +285,14 @@ function AppShell() {
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} label="Settings">
-        <Settings onClose={() => setSettingsOpen(false)} />
+        <Suspense fallback={<ScreenLoading />}>
+          <Settings onClose={() => setSettingsOpen(false)} />
+        </Suspense>
       </Sheet>
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
-        <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
+        <Suspense fallback={<ScreenLoading />}>
+          <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
+        </Suspense>
       </Sheet>
       {(state.era > seenEraModal || (state.pendingMandateOffer != null && state.pendingMandateOffer.eraTo === state.era)) && !state.wentPublic && !state.bankrupt && (
         <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
@@ -320,6 +336,20 @@ function TabBlockedOverlay({ onTakeOver }: { onTakeOver: () => void }) {
 
 // Inline fallback for the screen-level boundary. Premium, never blank: a Card with a glyph, short
 // copy, and two recoveries — reload the whole app, or jump back to a known-good screen (HQ).
+/** Held while a lazily-loaded screen's chunk arrives. Three cards at the shape the real screens open
+ *  with, so the tab switch reads as "loading" rather than "broken" — and, because it occupies the
+ *  same box, nothing jumps when the real content lands. Purely presentational; no text to read and
+ *  discard in the ~1 frame this is usually up for on a warm cache. */
+function ScreenLoading() {
+  return (
+    <div className="app__screen-loading" role="status" aria-label="Loading">
+      <div className="app__screen-loading-bar" />
+      <div className="app__screen-loading-bar" />
+      <div className="app__screen-loading-bar" />
+    </div>
+  );
+}
+
 function ScreenError({ onHome }: { onHome: () => void }) {
   return (
     <Card variant="inset" className="app__screen-error">
@@ -712,7 +742,9 @@ function Onboarding({ onStart }: { onStart: () => void }) {
         </div>
       </div>
       <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)} label="Scenarios">
-        <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
+        <Suspense fallback={<ScreenLoading />}>
+          <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
+        </Suspense>
       </Sheet>
     </div>
   );

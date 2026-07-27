@@ -18,6 +18,7 @@ import {
   gridN,
   gridOrigin,
   isDeskType,
+  planSeats,
   worldOf,
   type FurnitureId,
   type PlacedItem,
@@ -71,6 +72,10 @@ export interface BuildProps {
   placingType: FurnitureId | null;
   placeRot: Rot;
   selectedIid: string | null;
+  /** iids of the desks + amenities currently EARNING the office zone bonus (engine `deskZones`), so
+   *  the builder can show the pairing instead of leaving it to be inferred from a moving buff bar.
+   *  Absent/empty = no highlight (and the bonus is 0 anyway). */
+  zonedIids?: ReadonlySet<string>;
   onPlaceCell: (c: number, r: number) => void;
   onMoveItem: (iid: string, c: number, r: number) => void;
   onSelectItem: (iid: string | null) => void;
@@ -693,30 +698,70 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
   );
 }
 
+/** A proper task chair, in the Herman Miller idiom: a slim raked back inside a polished frame, a
+ *  contoured seat floating on a thin plate, cantilevered armpads, a gas lift and a five-star base.
+ *
+ *  The old chair was a pair of thick slabs with no base at all — it hovered, and the deep winged
+ *  backrest existed only to hide the seated robot's shell from behind. Two hard constraints kept
+ *  from that version, because the robot is positioned against them:
+ *    • the seat surface stays at y≈0.58 (SIT_LIFT is measured from it),
+ *    • the back's REAR face stays behind the robot's torso (~z −0.43) so nothing pokes through it.
+ *  The frame is deep enough to swallow the torso while looking half the thickness it used to.
+ *
+ *  The five-star base is one 5-sided cylinder rather than five modelled spokes — at this camera the
+ *  pentagon's corners read as the spokes, for a fifth of the draw calls. `hue` (the occupant's
+ *  colour) moves to the armpads, so a row of chairs still reads as individual people's seats. */
 function Chair({ p, hue }: { p: RoomPalette; hue: string }) {
-  // The seated robot's torso (a ~0.35r capsule pulled back toward the backrest) used to bulge
-  // BEHIND the old thin backrest (depth 0.12 @ z=-0.28), so from behind you could "see through the
-  // chair" to the robot's back. The backrest is now deeper and pushed back so its rear face sits
-  // behind the robot's back, fully hiding it, and taller so it frames the shoulders. Wings on the
-  // sides close off the last sliver of colour that peeked around the edges.
+  const frame = p.metal;      // polished aluminium — frame, lift and base
+  const fabric = p.metalDark; // graphite mesh/fabric — seat pad and back panel
   return (
     <group>
-      <RoundedBox args={[0.72, 0.12, 0.62]} radius={0.05} smoothness={2} position={[0, 0.52, -0.02]}>
-        <meshStandardMaterial color={p.metal} roughness={0.7} />
-      </RoundedBox>
-      <RoundedBox args={[0.74, 0.84, 0.18]} radius={0.07} smoothness={3} position={[0, 0.96, -0.37]}>
-        <meshStandardMaterial color={p.metalDark} roughness={0.7} />
-      </RoundedBox>
-      {/* slim side wings that wrap forward, so the robot's coloured shell can't peek past the edges */}
-      {[-0.35, 0.35].map((x, i) => (
-        <RoundedBox key={i} args={[0.09, 0.7, 0.34]} radius={0.04} smoothness={2} position={[x, 0.92, -0.26]}>
-          <meshStandardMaterial color={p.metalDark} roughness={0.7} />
-        </RoundedBox>
-      ))}
-      <mesh position={[0, 0.96, -0.275]}>
-        <planeGeometry args={[0.6, 0.4]} />
-        <meshStandardMaterial color={hue} roughness={0.6} />
+      {/* five-star base + gas lift */}
+      <mesh position={[0, 0.045, 0]}>
+        <cylinderGeometry args={[0.13, 0.4, 0.05, 5]} />
+        <meshStandardMaterial color={frame} metalness={0.62} roughness={0.32} />
       </mesh>
+      <mesh position={[0, 0.26, 0]}>
+        <cylinderGeometry args={[0.048, 0.06, 0.4, 12]} />
+        <meshStandardMaterial color={frame} metalness={0.68} roughness={0.26} />
+      </mesh>
+
+      {/* seat: one contoured pad, top surface held at 0.58 (SIT_LIFT is measured from it) */}
+      <RoundedBox args={[0.62, 0.115, 0.58]} radius={0.05} smoothness={4} position={[0, 0.5225, -0.02]}>
+        <meshStandardMaterial color={fabric} roughness={0.88} metalness={0.04} />
+      </RoundedBox>
+
+      {/* The spine: the back is carried on a stalk rising behind the seat, leaving daylight between
+          seat and back. That gap is the single most recognisable cue of a modern task chair — an
+          office chair whose back grows straight out of the seat cushion reads as a dining chair. */}
+      <RoundedBox args={[0.16, 0.3, 0.07]} radius={0.034} smoothness={3} position={[0, 0.63, -0.4]} rotation-x={-0.1}>
+        <meshStandardMaterial color={frame} metalness={0.6} roughness={0.3} />
+      </RoundedBox>
+
+      {/* back: raked ~6°, a slim polished frame with the panel set into it, floating above the seat */}
+      {/* Taller than it is wide — a square back reads as a dining chair; a task chair rises past the
+          shoulders. 0.72 is the floor on width: the seated robot's shell spans ±0.35 and the back has
+          to cover it. */}
+      <group position={[0, 1.07, -0.43]} rotation-x={-0.1}>
+        <RoundedBox args={[0.72, 0.88, 0.075]} radius={0.1} smoothness={4}>
+          <meshStandardMaterial color={frame} metalness={0.58} roughness={0.3} />
+        </RoundedBox>
+        <RoundedBox args={[0.58, 0.73, 0.085]} radius={0.075} smoothness={4} position={[0, 0.015, 0.006]}>
+          <meshStandardMaterial color={fabric} roughness={0.9} metalness={0.03} />
+        </RoundedBox>
+      </group>
+
+      {/* cantilevered arms, pads in the occupant's colour */}
+      {[-0.365, 0.365].map((x, i) => (
+        <group key={i} position={[x, 0, 0]}>
+          <RoundedBox args={[0.045, 0.22, 0.055]} radius={0.02} smoothness={2} position={[0, 0.63, -0.2]}>
+            <meshStandardMaterial color={frame} metalness={0.6} roughness={0.3} />
+          </RoundedBox>
+          <RoundedBox args={[0.075, 0.042, 0.3]} radius={0.021} smoothness={3} position={[0, 0.75, -0.08]}>
+            <meshStandardMaterial color={hue} roughness={0.75} metalness={0.05} />
+          </RoundedBox>
+        </group>
+      ))}
     </group>
   );
 }
@@ -1004,24 +1049,14 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none" }
 // into the wall (and an empty chair poke through it). When the seat spot lands inside the walls,
 // flip the seat to the desk's FRONT instead: the figure works facing the wall, exactly like a
 // wall-facing desk in a real office. Checked in world space so every rotation is covered.
-const SEAT_BACK = 0.86; // chair (0.78) + seated-robot pullback (0.08) behind the desk origin
-const SEAT_LIMIT = 3.8; // beyond this the chair/robot visibly enters the walls (scaled by facility)
-// Employees sit on the desk's BACK edge facing +z — toward the camera — so the office reads as a row
-// of faces and glowing screens (the standard iso-diorama look). Only when that seat would clip a wall
-// (a desk pushed right against the wall it BACKS ONTO) do we flip them to the front, facing the room.
-function seatFlipped(item: PlacedItem, facilityTier = 1): boolean {
-  const w = worldOf(item, facilityTier);
-  const limit = SEAT_LIMIT * roomScaleFor(facilityTier); // walls scale out with the facility
-  // The chair sits SEAT_BACK behind the desk ALONG ITS FACING AXIS, and a flip moves it to the front
-  // along that SAME axis. So only the wall the seat actually backs onto can be escaped by flipping —
-  // the cross-axis position is fixed by the desk and no flip can change it. The old check tested BOTH
-  // axes (|cx| OR |cz|), so a desk merely sitting near a SIDE wall got needlessly flipped, parking its
-  // chair on the wrong side of the table. Test only the along-axis coordinate, in the seat's direction.
-  const backX = w.x - Math.sin(w.rotY) * SEAT_BACK;
-  const backZ = w.z - Math.cos(w.rotY) * SEAT_BACK;
-  return Math.abs(Math.cos(w.rotY)) > 0.5
-    ? (Math.cos(w.rotY) > 0 ? backZ < -limit : backZ > limit) // desk faces ±z → seat moves along z
-    : (Math.sin(w.rotY) > 0 ? backX < -limit : backX > limit); // desk faces ±x → seat moves along x
+// Which side each desk's occupant sits on now comes from the ENGINE (`planSeats`), not from a
+// world-space wall test done per desk in isolation. That isolation was the bug: two desks each
+// picked a side independently and both landed their chair in the same aisle cell. The engine plan
+// resolves every desk together — and it's the same function `canPlace` validates against, so the
+// room can never draw a seating arrangement the grid considers illegal. It also repairs rooms saved
+// BEFORE the rule: a desk whose preferred side is already taken is moved to its far side here.
+function seatSides(layout: PlacedItem[], facilityTier: number): Record<string, boolean> {
+  return planSeats(layout, facilityTier).flipped;
 }
 
 // A workstation = the player's placed desk model (which carries its own monitor) + the employee's
@@ -1126,12 +1161,13 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
   useFrame((st) => {
     if (staff && seatRef.current) seatRef.current.rotation.y = seatBase + Math.sin(st.clock.elapsedTime * 0.4 + seed) * 0.06;
   });
-  // An OCCUPIED desk turns 180° so its monitor faces the seated robot (who faces the camera) — from
-  // the front we see the robot with the screen glow behind it. An EMPTY, ready desk has no robot to
-  // hide the monitor's dark back, so it faces the OPPOSITE way: the glowing screen points at the
-  // camera, reading as a set-up "ready" workstation instead of a floating black slab (the empty-desk
-  // bug). The chair stays put; the robot slots in when the desk is filled.
-  const deskRotY = staff ? (flip ? 0 : Math.PI) : (flip ? Math.PI : 0);
+  // Every desk model is authored with its user on the +z side (monitor at the back edge with its lit
+  // face pointing +z, keyboard at the front), so the desk turns to put that side against the chair —
+  // ALWAYS, whether or not anyone is sitting there yet. An empty desk used to do the opposite so its
+  // glowing screen pointed at the camera, which meant the monitor faced away from its own chair and
+  // then spun 180° the moment a hire sat down. A screen that doesn't face the seat reads as broken
+  // furniture; consistency wins over the glow.
+  const deskRotY = flip ? 0 : Math.PI;
   return (
     <group>
       {/* The player's ACTUAL placed desk model (each desk model carries its own monitor). The desk
@@ -1360,14 +1396,18 @@ function PendantLamp({ p }: { p: RoomPalette }) {
   );
 }
 
-// Pause the render loop when the tab/page is hidden to save battery.
-function VisibilityPause() {
+// Pause the render loop when the tab/page is hidden to save battery. It also re-asserts the
+// caller's `paused` flag: `frameloop` is a Canvas prop that only re-applies when it CHANGES, so an
+// imperative resume here would otherwise un-pause a scene that is paused for being off-screen (the
+// Factory world showing over it, another bottom tab) the instant the browser tab regains focus.
+function VisibilityPause({ paused = false }: { paused?: boolean }) {
   const setFrameloop = useThree((s) => s.setFrameloop);
   useEffect(() => {
-    const onVis = () => setFrameloop(document.hidden ? "never" : "always");
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [setFrameloop]);
+    const apply = () => setFrameloop(paused || document.hidden ? "never" : "always");
+    apply();
+    document.addEventListener("visibilitychange", apply);
+    return () => document.removeEventListener("visibilitychange", apply);
+  }, [setFrameloop, paused]);
   return null;
 }
 
@@ -1740,6 +1780,13 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
   // event system), so a blocked drop snaps home instead of committing.
   live.current = { iid: dragIid, cell: dragCell, ok: dragOk, move: b.onMoveItem };
 
+  // Seat sides for the whole room at once, from the DRAG-ADJUSTED layout so a desk being dragged
+  // toward a wall previews the side its chair will actually end up on.
+  const seatPlan = seatSides(
+    dragIid && dragCell ? b.layout.map((it) => (it.iid === dragIid ? { ...it, c: dragCell.c, r: dragCell.r } : it)) : b.layout,
+    facilityTier,
+  );
+
   return (
     <group>
       {/* placed furniture (the dragged one follows the cursor, lifted slightly) */}
@@ -1750,6 +1797,9 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
         const { x, z, rotY } = worldOf({ ...it, c: cell.c, r: cell.r }, facilityTier);
         const def = furnitureDef(it.type);
         const selected = b.build && b.selectedIid === it.iid;
+        // Which side this desk's occupant sits on, from the whole-room plan (drag-adjusted, so both
+        // the chair AND the desk's facing preview correctly while it's dragged toward a wall).
+        const deskFlip = isDeskType(it.type) && (seatPlan[it.iid] ?? false);
         return (
           <group
             key={it.iid}
@@ -1769,24 +1819,38 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
                 : undefined
             }
           >
-            <FurniturePiece type={it.type} p={p} />
-            {/* A desk always reads as a workstation: render its chair at the same offset the seated
-                Workstation uses, so an EMPTY desk shows a chair too (occupied desks are swapped for
-                the live Workstation, which provides its own chair + robot, so no double-up). */}
-            {isDeskType(it.type) && (() => {
-              // Use the live (drag-adjusted) cell so the chair previews on the correct side while
-              // the desk is being dragged toward a wall, not only after it drops.
-              const flip = seatFlipped({ ...it, c: cell.c, r: cell.r }, facilityTier);
-              return (
-                <group position={[0, 0, flip ? 0.78 : -0.78]} rotation-y={flip ? Math.PI : 0}>
+            {/* A desk always reads as a workstation: its chair at the same offset the seated
+                Workstation uses, and the desk turned so the MONITOR FACES THAT CHAIR (occupied desks
+                are swapped for the live Workstation, which provides its own chair + robot, so no
+                double-up). This path used to render the desk model unrotated, so on every seat side
+                but one the screen pointed away from its own chair — and the desk then snapped round
+                when someone finally sat at it. The 180° is footprint-safe: a half-turn about the
+                footprint's centre always maps w×d back onto itself. */}
+            {isDeskType(it.type) ? (
+              <>
+                <group rotation-y={deskFlip ? 0 : Math.PI}>
+                  <FurniturePiece type={it.type} p={p} />
+                </group>
+                <group position={[0, 0, deskFlip ? 0.78 : -0.78]} rotation-y={deskFlip ? Math.PI : 0}>
                   <Chair p={p} hue={p.metalDark} />
                 </group>
-              );
-            })()}
+              </>
+            ) : (
+              <FurniturePiece type={it.type} p={p} />
+            )}
             {selected && (
               <mesh rotation-x={-Math.PI / 2} position={[0, 0.035, 0]}>
                 <planeGeometry args={[def.w * GRID.cell, def.d * GRID.cell]} />
                 <meshBasicMaterial color="#3b82f6" transparent opacity={0.4} depthWrite={false} />
+              </mesh>
+            )}
+            {/* Zone pad: this piece is part of a desk↔amenity pairing that's paying comfort/focus/
+                inspiration right now. Green, and a touch fainter than the blue selection, so the two
+                never read as the same thing. */}
+            {b.build && !selected && b.zonedIids?.has(it.iid) && (
+              <mesh rotation-x={-Math.PI / 2} position={[0, 0.03, 0]}>
+                <planeGeometry args={[def.w * GRID.cell, def.d * GRID.cell]} />
+                <meshBasicMaterial color="#1eb877" transparent opacity={0.26} depthWrite={false} />
               </mesh>
             )}
           </group>
@@ -1845,7 +1909,7 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
@@ -1869,6 +1933,9 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   useEffect(() => () => window.clearTimeout(reactTimer.current), []);
   const seats = deskItems(builder?.layout ?? []);
   const seated = staff.slice(0, seats.length);
+  // The same whole-room seat plan the editable pieces use, so a desk doesn't change which side its
+  // chair is on the moment someone is hired into it.
+  const occupiedSeatSides = seatSides(builder?.layout ?? [], facilityTier);
   const overflow = staff.slice(seats.length);
   const podCount = Math.max(0, Math.min(4, desktops));
   const podWorlds = desktopWorlds(podCount);
@@ -1898,7 +1965,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   ), []);
   return (
     <>
-      <VisibilityPause />
+      <VisibilityPause paused={paused} />
       {!dark && <EnableShadows />}
       <CameraRig build={!!builder?.build} facilityTier={facilityTier} />
       <PinchZoom />
@@ -1969,9 +2036,10 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           instead); employees beyond the desk count roam the floor. */}
       {!inBuild && seated.map((s, i) => {
         const w = worldOf(seats[i], facilityTier);
+        const flip = occupiedSeatSides[seats[i].iid] ?? false;
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={seatFlipped(seats[i], facilityTier)} hasProduction={hasProduction} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={flip} hasProduction={hasProduction} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
@@ -2132,7 +2200,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} onTapStaff={onTapStaff} onTapBank={onTapBank} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );

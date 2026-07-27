@@ -1,0 +1,285 @@
+/* The Vault — classified dossiers in the Progress hub. Reuses the hub's card language, with a
+   deliberately colder, more archival treatment: sealed rows are dimmed and monospaced-feeling,
+   and a file gains colour only as it gives itself up. */
+.vlt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding-bottom: var(--sp-8);
+}
+.vlt__back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  padding: var(--sp-4) 0;
+}
+
+.vlt__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-12);
+}
+.vlt__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.vlt__sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+.vlt__count {
+  flex-shrink: 0;
+  font-size: var(--fs-headline);
+  font-weight: 800;
+  color: var(--gold);
+}
+.vlt__count-total {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.vlt__honorific {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  align-self: flex-start;
+  padding: var(--sp-4) var(--sp-10);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--gold) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 34%, transparent);
+  color: var(--gold);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* --- The shut state, before the first ship --- */
+.vlt__shut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-32) var(--sp-24);
+  border-radius: var(--r-card);
+  background: var(--surface-2);
+  border: 1px dashed var(--hairline);
+  text-align: center;
+}
+.vlt__shut-glyph {
+  color: var(--ink-3);
+}
+.vlt__shut-copy {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  max-width: 32ch;
+}
+
+/* --- The dossier list --- */
+.vlt__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  list-style: none;
+}
+.vlt__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding: var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-subtle);
+}
+.vlt__row--sealed {
+  background: var(--surface-2);
+  border-style: dashed;
+  box-shadow: none;
+}
+.vlt__row--decrypted {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--hairline));
+}
+.vlt__row--open {
+  border-color: color-mix(in srgb, var(--gold) 40%, var(--hairline));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 7%, var(--surface)), var(--surface));
+}
+
+.vlt__row-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  /* Codenames are long and the pills are many — let the badges drop to their own line rather than
+     squeezing a two-word title into three. */
+  flex-wrap: wrap;
+}
+.vlt__row-glyph {
+  display: inline-flex;
+  color: var(--ink-3);
+}
+.vlt__row--open .vlt__row-glyph {
+  color: var(--gold);
+}
+.vlt__row--decrypted .vlt__row-glyph {
+  color: var(--accent);
+}
+.vlt__row-name {
+  flex: 1 1 auto;
+  min-width: 55%;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.vlt__redacted {
+  display: inline-block;
+  color: var(--ink-3);
+  opacity: 0.45;
+  letter-spacing: -0.12em;
+  font-weight: 700;
+  user-select: none;
+}
+.vlt__new {
+  flex-shrink: 0;
+  padding: 1px var(--sp-6);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--fs-nano);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.vlt__open-pill {
+  flex-shrink: 0;
+  padding: 1px var(--sp-6);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--gold);
+  font-size: var(--fs-nano);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.vlt__tier {
+  flex-shrink: 0;
+  padding: 1px var(--sp-6);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-nano);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--hairline);
+  color: var(--ink-3);
+}
+.vlt__tier--t2 {
+  color: var(--fn-mkt-text);
+  border-color: color-mix(in srgb, var(--fn-mkt) 34%, transparent);
+}
+.vlt__tier--t3 {
+  color: var(--fn-team-text);
+  border-color: color-mix(in srgb, var(--fn-team) 34%, transparent);
+}
+.vlt__tier--t4 {
+  color: var(--gold);
+  border-color: color-mix(in srgb, var(--gold) 40%, transparent);
+}
+
+.vlt__row-sealed-copy {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+}
+.vlt__row-whisper {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  font-style: italic;
+  line-height: 1.4;
+}
+.vlt__row-codex {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.vlt__row-codex-tag {
+  font-size: var(--fs-nano);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  margin-right: var(--sp-4);
+}
+.vlt__row-req {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.vlt__row-reward,
+.vlt__row-granted {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--accent);
+}
+.vlt__row-granted {
+  color: var(--gold);
+}
+.vlt__row-nobuy {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+.vlt__bar {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.vlt__fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width var(--spring-standard);
+}
+.vlt__row-progress {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.vlt__buy {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-2);
+  padding: var(--sp-6) var(--sp-10);
+  border-radius: var(--r-button);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+.vlt__buy:disabled {
+  opacity: 0.45;
+}
+.vlt__buy-cost {
+  color: var(--ink-3);
+  font-weight: 700;
+}
+
+.vlt__note {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  line-height: 1.45;
+}

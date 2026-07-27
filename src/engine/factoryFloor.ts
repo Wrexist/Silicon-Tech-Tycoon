@@ -596,6 +596,66 @@ export function lineEfficiency(floor: FactoryFloor): number {
   return Math.max(0, Math.min(1, 0.45 * straightness + 0.55 * orderScore));
 }
 
+/** The two things `lineEfficiency` actually measures, broken out so the UI can show a player what to
+ *  FIX instead of a bare percentage. Everything here is a re-read of the same geometry — no new
+ *  state, no RNG — and it never feeds the sim; it exists purely so "Layout quality 62%" becomes
+ *  "3 corners could be straightened" and "your Test Station sits before Assembly on the belt". */
+export interface LineLayoutBreakdown {
+  /** Overall 0..1 — exactly `lineEfficiency(floor)`. */
+  score: number;
+  /** 0..1 — fraction of belt steps that hold their heading. */
+  straightness: number;
+  /** How many belt steps turn a corner (the count behind `straightness`). */
+  corners: number;
+  /** Total belt steps in the chain (corners + straight runs). */
+  steps: number;
+  /** 0..1 — fraction of adjacent recipe stages the belt threads in the right order. */
+  order: number;
+  /** The first pair of machines the belt reaches out of recipe sequence, or null when the order is
+   *  clean. `[earlier, later]` = the stage that SHOULD come first, and the one the belt hits first. */
+  swapped: [MachineKind, MachineKind] | null;
+  /** Which processing stages are on the floor at all, in recipe order (for the "order" readout). */
+  stages: MachineKind[];
+}
+
+const ZERO_LAYOUT_BREAKDOWN: LineLayoutBreakdown = {
+  score: 0, straightness: 0, corners: 0, steps: 0, order: 0, swapped: null, stages: [],
+};
+
+export function lineLayoutBreakdown(floor: FactoryFloor): LineLayoutBreakdown {
+  if (!lineComplete(floor)) return ZERO_LAYOUT_BREAKDOWN;
+  const chain = beltChain(floor.belts);
+  if (chain.length < 2) return ZERO_LAYOUT_BREAKDOWN;
+
+  let corners = 0;
+  for (let i = 1; i < chain.length; i++) if (chain[i].dir !== chain[i - 1].dir) corners++;
+  const steps = chain.length - 1;
+  const straightness = (steps - corners) / steps;
+
+  const path = beltPath(floor.belts);
+  const nearestFrac = (kind: MachineKind): number => {
+    const m = floor.machines.find((mm) => mm.kind === kind);
+    if (!m || path.length < 2) return -1;
+    const [mx, mz] = machineCenter(m);
+    let bestI = 0, bestD = Infinity;
+    path.forEach(([x, z], i) => { const d = (x - mx) ** 2 + (z - mz) ** 2; if (d < bestD) { bestD = d; bestI = i; } });
+    return bestI / (path.length - 1);
+  };
+  const stages = ROUTE_STAGE_ORDER.filter((k) => floor.machines.some((m) => m.kind === k));
+  let order = 1;
+  let swapped: [MachineKind, MachineKind] | null = null;
+  if (stages.length >= 2) {
+    const fracs = stages.map(nearestFrac);
+    let good = 0;
+    for (let i = 1; i < stages.length; i++) {
+      if (fracs[i] >= fracs[i - 1]) good++;
+      else if (!swapped) swapped = [stages[i - 1], stages[i]];
+    }
+    order = good / (stages.length - 1);
+  }
+  return { score: lineEfficiency(floor), straightness, corners, steps, order, swapped, stages };
+}
+
 // A COMPLETE line always keeps at least LAYOUT_FLOOR of its earned bonus (so wiring up is never a
 // trap); tidy layout (item 3.2) scales the remainder up to the full bonus. layoutBonusScale ∈
 // [LAYOUT_FLOOR, 1]. Pure — an unwired floor never reaches here (the mults early-return ×1).

@@ -387,6 +387,14 @@ export const BALANCE = {
     gainOnSolidFlat: 70, // flat fan bump for a "solid" launch (+ half the hit's per-unit growth)
     gainOnSteadyFlat: 55, // flat fan bump for a "steady" launch — beats decay so reach slowly grows
     lossPerFlop: 140, // fans lost on a flop
+    // …but never more than this SHARE of the fanbase you actually have. 140 is a rounding error to
+    // an established brand and a death sentence to a new one: starting fans are 250, so three early
+    // flops took the audience to exactly 0 — and 0 fans means 0 demand, which means every later
+    // launch flops too. Traced on the harness: a player one component tier off the frontier lost
+    // every fan by week 20 and went bankrupt in 12 of 12 seeds. Taking the SMALLER of the flat loss
+    // and this share leaves the late game untouched (140 << 25% of 200,000) while making the early
+    // loss proportional — painful, survivable, and mathematically unable to reach zero.
+    lossShareOnFlop: 0.25,
     decayPerWeek: 0.992, // gentle weekly erosion of attention
     selloutFanBonus: 0.04, // extra fan growth when a run sells out (demand > supply)
     // B4 — tame the "deliberately under-produce → guaranteed sellout → free fan farming" exploit
@@ -463,14 +471,46 @@ export const BALANCE = {
     // (the same single-verdict failure v52 fixed, mirror-imaged). These bars sit back INSIDE the new
     // per-era range (harness-measured) so a great late launch hits, a middling one steadies, and the
     // verdict layer stays a real contest. Eras 1–2 are untouched.
-    hitThresholdByEra: [70, 80, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
-    solidThresholdByEra: [45, 56, 135, 175, 202], // era 5
+    // ERA 1 re-based against the measured landscape. A garage company's launches score 13–29
+    // (harness: p5 13, p50 18, p95 29), but the solid/hit bars sat at 45/70 — above the ceiling. All
+    // 568 era-1 launches across the cohort returned the SAME verdict, "steady": the whole first era
+    // gave the player no signal that anything they did mattered. The bars now sit inside the range
+    // they're judging, so an early launch can actually land well. The flop floor stays at 10 (below
+    // p5) so the maiden launch is still protected — era 1 gains an upside, not a downside.
+    //
+    // ERA 2 re-based the same way, for the same reason and by the same method. Fixing era 1 sped up
+    // early progress, so the Growth Era now begins at week 34 rather than 43 — a LESS developed
+    // company than its bands were set for. Measured there: scores run p10 13, p50 36, p90 57 against
+    // bands of 34/56/80, which meant nothing could reach a hit (0% across 1,559 launches) while half
+    // of everything sat under the flop line (48%). An era where the best you can do is "not fail" is
+    // the era-1 problem again, mirror-imaged. Re-based to 16/38/54 — roughly p12/p50/p85 of what the
+    // era actually scores. Bands stay ordered and non-decreasing across eras (see balanceGuards).
+    //
+    // Originally set at the cautious end (22/27) because era-1 verdicts feed straight into early
+    // scale — better verdicts mean more reputation, more demand and a bigger recommended run, all
+    // financed out of a $100k opening balance. Moved to 18/23 once the reputation and fan floors
+    // existed, which is what made that affordable: over-building by 25% used to cost 8/12 runs
+    // against a 3/12 baseline (2.7x), and now costs 7/12 against 5/12 (1.4x). For that, era 1 goes
+    // from 14% of launches beating "steady" to 42% — the first thirty-odd weeks now respond to how
+    // well the player is doing instead of returning one verdict. Over-production remains the main
+    // early risk, by design. Harness-measured; see `npm run sim`.
+    hitThresholdByEra: [23, 54, 156, 192, 222], // era 5 (Autonomy) — a frontier hit demands a real step up
+    solidThresholdByEra: [18, 38, 135, 175, 202], // era 5
     // FLOP FLOOR raised from era 2 on so a phoned-in launch actually FLOPS instead of coasting to a
     // safe "steady". Era 1 stays low (10) to protect the maiden launch — a brand-new company's hype is
     // tiny, so an early product only scores ~13–17 and a higher floor would flunk the first ship. From
     // the Growth era on, a mediocre or heavily-contested device lands in the red, so success is earned.
     // Kept below solidThresholdByEra at every index (flop < solid) and non-decreasing across eras.
-    flopThresholdByEra: [10, 34, 52, 68, 82], // era 5 (kept < solid, non-decreasing)
+    // ERA-1 FLOOR lowered 10 -> 6. A garage product one component tier below the frontier scores
+    // right about 10, so the floor sat exactly where a slightly-weaker first product lands: 88% of
+    // those launches flopped, and the run died in 12 of 12 seeds — the game had precisely one legal
+    // opening move. The sweep is unusually clean: at every floor from 10 down to 2 the OPTIMIZER is
+    // completely unchanged (0/10 bankrupt, $5,969M, identical era-1 verdict mix), because a maxed
+    // product is nowhere near this line. Lowering it costs a good player nothing and only stops a
+    // weaker one being executed for it — at 6, shipping a tier below goes from 10/10 bankrupt to
+    // 3/10 and ends at $3.4B: a real strategy that is worse than playing well, which is the point.
+    // 4 and 2 buy almost nothing more (2/10), so 6 is the knee and keeps some failure pressure.
+    flopThresholdByEra: [6, 16, 52, 68, 82], // era 5 (kept < solid, non-decreasing)
     // Dynamic "expectations" (Track D — the anti-"every device is a hit" system). The static bars
     // above anchor a young company (and the very first launch), but as you rack up strong launches a
     // ROLLING baseline of your recent competition-adjusted scores raises the bar: a HIT must beat your
@@ -481,10 +521,36 @@ export const BALANCE = {
     expectation: {
       alpha: 0.5,        // how fast the rolling baseline tracks each new launch (EMA weight)
       hitMargin: 1.14,   // a hit must beat the rolling baseline by this (top your recent best)
-      solidMargin: 0.6,  // at/above this fraction of the baseline is a solid, competent release
-      flopMargin: 0.55,  // below this (relative to what you'd been shipping) it disappoints → flop.
-                         // Raised 0.4 → 0.55: re-shipping something meaningfully weaker than your recent
-                         // average now flops, so a proven studio can't coast on mediocre follow-ups.
+      // …and by MORE once you are the establishment. A flat 1.14 is easy to clear late, when a big
+      // company's launch-to-launch spread is wide: eras 4 and 5 were handing out a hit on two
+      // launches in three, which is a victory lap, and they are the majority of playtime. Raising
+      // the flat margin instead would have fixed them by wiping out era 2's hits (5% -> 1%), because
+      // one number cannot serve a garage and a giant. Index = era-1; falls back to `hitMargin`.
+      hitMarginByEra: [1.14, 1.14, 1.2, 1.3, 1.32],
+      // solidMargin and flopMargin were BOTH set below the static bars they compete with, so
+      // `max(static, exp * margin)` always chose static and the two bars never adapted. Measured over
+      // 40 seeded runs: the expectation raised the hit bar on 95% of era-4 launches but the SOLID bar
+      // on 0% of them, in every era. That froze the solid floor at 175 while scores climbed past 238,
+      // leaving an 84-point band that swallowed 62% of every launch in the game — one verdict, no
+      // texture, exactly the failure v52 fixed for "hit" and left in place for "solid".
+      // Both margins now sit close enough to 1 that the baseline actually binds: a release matched to
+      // your recent track record is solid, one meaningfully below it disappoints. "You're only as good
+      // as your last launch" was always the intent; only the hit bar was enforcing it.
+      //
+      // RE-SWEPT against a player who engages the whole game (licensing, contracts, research projects,
+      // rival stock) rather than only shipping phones — that player scores far higher and far more
+      // variably. At solidMargin 1.0 the solid band was just 14% wide, [exp, 1.14 x exp], so a spread
+      // distribution fell either side of it and "solid" collapsed to 1% of era-4 launches: the same
+      // one-verdict flatness this system exists to prevent, arrived at from the other direction.
+      // Widening the band restores solid to ~18-24% and costs no bankruptcies.
+      // Re-swept once the hit bar became era-scaled. With hits pulled back from two-in-three, the
+      // bulge simply moved into "solid" (64% of era-4 launches) — the same one-verdict flatness in a
+      // different band. These values give all four verdicts a live share in every era, none above
+      // about half, and put genuine flop risk (9-15%) back into eras 4-5, which previously had
+      // essentially none. Bankruptcies stay at 0/10 and net worth is unmoved, so the texture is
+      // bought out of the verdict spread rather than out of the economy.
+      solidMargin: 0.98, // at/above this share of your recent track record is a solid release
+      flopMargin: 0.8,   // meaningfully below what you'd been shipping → it disappoints
     },
     // Late-game reputation MAINTENANCE ("defend your empire"). In the final era, reputation above a
     // maintenance floor erodes a little each week, so a top brand must be SUSTAINED by continued
@@ -513,6 +579,17 @@ export const BALANCE = {
     overpricePenalty: 2,
     max: 100,
     min: 0,
+    // REPUTATION FLOOR, by era. A new company starts at 8 and a flop costs 5, so two early flops
+    // took it to 0 — and 0 is an absorbing state, not a setback: no reputation means no demand,
+    // which means the next launch flops too, which means there is no way back. Traced on the
+    // harness, a player shipping one component tier below the frontier lost all reputation and every
+    // fan inside twenty weeks and went bankrupt in 12 of 12 seeds, always in the garage era.
+    //
+    // The floor eases as the company grows, which is also the honest fiction: nobody has heard of a
+    // garage, so it has little to lose, while an established brand has everything to lose. Era 4+
+    // keeps a floor of 0 — by then the player has a cushion, alternatives, and the late-game
+    // maintenance decay (decayFloor) is the mechanic that should bite instead.
+    minByEra: [5, 4, 2, 0, 0],
   },
 
   // --- Research Points (RP): the tech currency ---
@@ -938,7 +1015,22 @@ export const BALANCE = {
     era: 5,
     // AI Era → Autonomy Era requires going PUBLIC and pushing Frontier Tech to at least this tier.
     // (Frontier Tech is post-IPO only, so this is inherently a post-IPO gate.)
-    tierToAdvance: 3,
+    //
+    // Lowered 3 → 1, because at 3 the era was effectively unreachable and the stretch before it was
+    // empty. Frontier tiers cost 6, 8, 10… Legacy Points, so tier 3 is 24 points cumulative, and a
+    // 520-week run earns about 13 — era 5 arrived around week 1040, in 0 of 40 runs inside a normal
+    // horizon. Meanwhile the harness's progression trace shows EVERY other ladder exhausted by about
+    // week 240: era, reputation, research projects, the Vault and the achievement list all stop
+    // moving, and for the next 280 weeks the only thing that changes is the net-worth number going
+    // up. That is the emptiest part of the game and also its longest.
+    //
+    // At tier 1 the Autonomy Era lands at week 327 (6/6 seeds) — right where the other ladders run
+    // out — and brings a whole component tier with it (neural co-processor, light-field display,
+    // fusion cell, graphene chassis, agentic OS, neural imaging) that no run was ever seeing. The
+    // gate is still sequential and earned: reach the AI Era, take the company public, then bank
+    // enough Legacy Points for a first Frontier breakthrough. Tier 2 was measured too (week 479,
+    // and only 3 of 6 runs got there at all), which barely dents the dead stretch.
+    tierToAdvance: 1,
   },
 
   // --- IPO / prestige ---

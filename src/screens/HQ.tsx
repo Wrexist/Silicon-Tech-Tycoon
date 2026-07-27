@@ -2,7 +2,7 @@ import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
-  Undo2, UserPlus, Users, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark,
+  Undo2, UserPlus, Users, Wand2, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark,
   Activity, Scissors, HandCoins, Package, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
@@ -26,6 +26,11 @@ import { cents, dollars, format, formatCount, formatShortDollars, sub, toDollars
 import {
   canPlace,
   furnitureCost,
+  deskZones,
+  planSeats,
+  tidyLayout,
+  tidyMoveCount,
+  ZONE_RULE,
   CATEGORY_LABEL,
   CATEGORY_ORDER,
   footprint,
@@ -138,7 +143,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       <div className="hq__world" hidden={world === "factory"}>
         <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
-      {world === "factory" && <FactoryCard onNavigate={onNavigate} />}
+      {world === "factory" && <FactoryCard onNavigate={onNavigate} active={active} />}
 
       {/* Item B1 — the "needs you now" priority zone: a finished product waiting to ship is the clearest
           "act now", so it's pinned at the very top instead of buried below the informational cards. */}
@@ -388,7 +393,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
 
 /** Live office buffs + seat count, shown atop the shop so the player SEES the office working for
  *  the team. Each bar fills toward the BALANCE.shop cap (faint track = diminishing returns). */
-function OfficeOverview({ state }: { state: GameState }) {
+function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: ReturnType<typeof deskZones>; crowded: number }) {
   const comfort = officeComfortMoodBonus(state);
   const focus = officeFocusMult(state) - 1; // 0..focusCap
   const inspo = officeInspoBonus(state);
@@ -416,13 +421,50 @@ function OfficeOverview({ state }: { state: GameState }) {
         <Users size={12} aria-hidden /> Seats <b className="tnum">{state.staff.length}/{deskCapacity(state)}</b>
         <span className="hqb__office-seats-hint">· buy a desk to add one</span>
       </div>
+      {/* Zones: WHERE a piece sits has always mattered (officeZoneBonus), and the room never said so.
+          The count is the hook; the rule underneath is the teach. Green here matches the pads the
+          scene draws under the desks that are actually paying. */}
+      {crowded > 0 && (
+        <div className="hqb__zones hqb__zones--warn">
+          <span className="hqb__zones-head">
+            <Users size={12} aria-hidden /> Too tight
+            <b className="tnum">{crowded}</b>
+            <span className="hqb__zones-unit">desk{crowded === 1 ? "" : "s"}</span>
+          </span>
+          <span className="hqb__zones-rule">
+            {crowded === 1 ? "A desk has" : "Some desks have"} no room to pull a chair out — the chairs
+            end up on top of each other. Tap the wand to tidy up and the room will space them properly.
+          </span>
+        </div>
+      )}
+      {zones.desks > 0 && (
+        <div className={`hqb__zones${zones.zoned.length > 0 ? " hqb__zones--on" : ""}`}>
+          <span className="hqb__zones-head">
+            <Sparkles size={12} aria-hidden /> Good spots
+            <b className="tnum">{zones.zoned.length}/{zones.desks}</b>
+            <span className="hqb__zones-unit">desks</span>
+          </span>
+          <span className="hqb__zones-rule">
+            {(() => {
+              // The copy escalates from "here's the rule you didn't know" → "here's what's still
+              // missing" → "you're done". Naming the count of BARE desks is the actionable version:
+              // "room for 13 more pairings" is true but tells you nothing about what to buy.
+              const bare = zones.desks - zones.zoned.length;
+              if (zones.zoned.length === 0) return ZONE_RULE;
+              if (bare > 0) return `${bare} desk${bare === 1 ? " has" : "s have"} nothing beside ${bare === 1 ? "it" : "them"} yet. ${ZONE_RULE}`;
+              if (zones.headroom > 0) return `Every desk has something beside it. Room for ${zones.headroom} more pairing${zones.headroom === 1 ? "" : "s"} if you double up.`;
+              return "Every desk is fully paired — the room is working as hard as it can.";
+            })()}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
-  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setFloorStyle, setWallStyle } = useGame();
+  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
   // The office no longer labels each teammate, so teach touch players ONCE that the team is tappable
   // (→ Company). Desktop already shows the WASD hint instead; both auto-fade.
@@ -482,6 +524,29 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
     if (history.current.length > 40) history.current.shift();
     setHistLen(history.current.length);
   }, []);
+  // Tidy up — the office's answer to the factory's Auto route. Rearranges ONLY what the player already
+  // owns (no purchase, no sale), so it's free, and it lands amenities beside desks — which is the zone
+  // bonus, demonstrated. Snapshotted like every other edit, so Undo puts the old room back exactly.
+  const tidyMoves = useMemo(() => tidyMoveCount(state.layout, state.facilityTier), [state.layout, state.facilityTier]);
+  const tidy = () => {
+    if (tidyMoves === 0) { showToast("This room is already tidy", { tone: "neutral" }); haptic.light(); return; }
+    snapshot();
+    const before = deskZones(state.layout).zoned.length;
+    const next = tidyLayout(state.layout, state.facilityTier);
+    setLayout(next);
+    setSelectedIid(null);
+    setPlacingType(null);
+    haptic.success();
+    sfx("build");
+    const after = deskZones(next).zoned.length;
+    showToast(
+      after > before
+        ? `Tidied ${tidyMoves} piece${tidyMoves === 1 ? "" : "s"} — ${after} desk${after === 1 ? "" : "s"} now in a good spot`
+        : `Tidied ${tidyMoves} piece${tidyMoves === 1 ? "" : "s"}`,
+      { tone: "positive" },
+    );
+  };
+
   const undo = () => {
     const prev = history.current.pop();
     setHistLen(history.current.length);
@@ -496,12 +561,23 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
   // Memoized: the 1s/8s sim tick re-renders this component, and a fresh builder object every
   // render defeats React.memo on the 1,700-line R3F scene (the v9-flagged perf gap). Deps only
   // change when the player actually interacts with Decorate mode.
+  // Which desks are earning the office zone bonus right now (a desk beside a plant/lamp/decor). The
+  // engine already PAID for this adjacency; until now nothing on screen said so, so the rule was
+  // undiscoverable. Feeds the green pads in the scene and the readout under the palette.
+  const zones = useMemo(() => deskZones(state.layout), [state.layout]);
+  // Desks with nowhere to pull a chair out. New placements can't create this (canPlace reserves the
+  // seat), but a room saved before that rule — or one packed tight by hand — can still be over-full,
+  // and the honest fix is one tap of Tidy rather than silently shuffling the player's furniture.
+  const crowded = useMemo(() => planSeats(state.layout, state.facilityTier).unseated.length, [state.layout, state.facilityTier]);
+  const zonedIids = useMemo(() => new Set([...zones.zoned, ...zones.pairing]), [zones]);
+
   const builder: BuildProps = useMemo(() => ({
     build,
     layout: state.layout,
     placingType,
     placeRot,
     selectedIid,
+    zonedIids,
     onPlaceCell: (c, r) => {
       if (!placingType) return;
       if (cashRef.current < dollars(furnitureCost(placingType))) {
@@ -523,7 +599,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
       setSelectedIid(iid);
       if (iid) setPlacingType(null);
     },
-  }), [build, state.layout, placingType, placeRot, selectedIid, snapshot, placeFurniture, moveFurniture]);
+  }), [build, state.layout, placingType, placeRot, selectedIid, zonedIids, snapshot, placeFurniture, moveFurniture]);
 
   // Narrowed staff snapshot for the 3D scene: per-tick mood drift/XP gives every staff object a
   // NEW identity each week, which would re-reconcile the whole scene. The scene only shows
@@ -644,6 +720,15 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
               <button className="hqb__icon" aria-label="How the Shop works" onClick={() => { setTutorial(true); haptic.light(); }}>
                 <HelpCircle size={15} />
               </button>
+              <button
+                className="hqb__icon"
+                aria-label={tidyMoves > 0 ? `Tidy up — rearranges ${tidyMoves} pieces you already own, free` : "Tidy up (the room is already tidy)"}
+                title="Tidy up — free: rearranges what you own into desk rows with amenities beside them"
+                disabled={tidyMoves === 0}
+                onClick={tidy}
+              >
+                <Wand2 size={15} />
+              </button>
               <button className="hqb__icon" aria-label="Undo" disabled={histLen === 0} onClick={undo}>
                 <Undo2 size={15} />
               </button>
@@ -670,7 +755,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
             </div>
           ) : (
             <>
-              <OfficeOverview state={state} />
+              <OfficeOverview state={state} zones={zones} crowded={crowded} />
               <div className="hqb__search">
                 <Search size={15} className="hqb__search-icon" />
                 <input

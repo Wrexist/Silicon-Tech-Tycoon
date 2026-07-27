@@ -16,13 +16,13 @@ import {
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { startDuel, duelMet, duelProgress, duelReward, nextLadderTier, duelVictoryLine, type NemesisDuel } from "../engine/nemesisDuel.ts";
 import { harvestSettlement } from "../engine/liveOps.ts";
-import { eurekaDue, generateEureka, resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
+import { resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { keynoteWindowWeeks, keynoteMaxBonus, keynotePressFlavour } from "../engine/keynote.ts";
-import { staffMomentDue, pickGrowthTarget, generateStaffMoment, mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
-import { staffEventDue, pickLifeEventTarget, generateStaffEvent, type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
+import { mentorTeamXpMult, type StaffMoment } from "../engine/staffMoment.ts";
+import { type StaffLifeEvent, type StaffEventEffect } from "../engine/staffEvent.ts";
 import { postLaunchDue, pickPostLaunchTarget, generatePostLaunchEvent, type PostLaunchEvent, type PostLaunchTarget, type PostLaunchEffect } from "../engine/postLaunchEvent.ts";
 import { generateBoardMandate, mandateComplete, mandateRewardSummary, effectiveMandateReward, boardTier, megaprojectById, canFundMegaproject, availableMegaprojects, type MandateFacts } from "../engine/endgame.ts";
-import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, communityAskDue, generateCommunityAsk, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
+import { evolveSentiment, superfansFrom, sentimentDecayFactor, moodTier, MOOD_LABEL, communityMoment, ASK_INFO, type CommunityFacts, type MoodTier, type CommunityAsk } from "../engine/community.ts";
 import { nextExpectation, judgeQuarter, buybackOwnershipGain, buybackMomentumBump, type EarningsReport } from "../engine/shareholders.ts";
 import {
   assignedSkill,
@@ -60,7 +60,6 @@ import {
 } from "../engine/staff.ts";
 import { pickChoiceEvent, pickEvent, type ChoiceEvent, type ChoiceOption, type MarketEvent } from "../engine/events.ts";
 import { chainById, pickChain, type EventChain } from "../engine/eventChains.ts";
-import { pickPoachTarget } from "../engine/poaching.ts";
 import { mentorshipXpMult } from "../engine/org.ts";
 import { accrueLoans, creditLimit, loanRate, makeLoan, weeklyDebtService, type Loan } from "../engine/financing.ts";
 import { channelById, type ChannelId } from "../engine/marketing.ts";
@@ -125,6 +124,28 @@ import {
   moonshotRefund,
   resolveMoonshot,
 } from "../engine/moonshots.ts";
+import {
+  canInvestigate,
+  deriveSecretFacts,
+  investigationCost,
+  newlyUnearthed,
+  secretBonuses,
+  secretById,
+  secretProgress,
+  secretStage,
+  secretTitle,
+  vaultWhisperLine,
+  SECRETS,
+  SECRET_COUNT,
+  STAGE_DECRYPTED,
+  STAGE_RUMORED,
+  STAGE_SEALED,
+  STAGE_UNEARTHED,
+  type Secret,
+  type SecretFacts,
+  type SecretProgress,
+  type SecretStage,
+} from "../engine/secrets.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
@@ -156,6 +177,7 @@ import { franchiseBoonForName, ZERO_FRANCHISE_BOON, type FranchiseBoon } from ".
 import { distributeOverCurve, forecast, verdictCurveShape } from "../engine/salesCurve.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends, type Holdings } from "../engine/stocks.ts";
 import { makeRng, type Rng } from "../engine/rng.ts";
+import { runInterruptStreams } from "./tick/interruptStreams.ts";
 import { canEarnStars, deriveScenarioFacts, evaluateScenario, metricValue, scenarioById, type ScenarioResult, type ScenarioMetric } from "../engine/scenarios.ts";
 import { dailyChallenge, weeklyChallenge, type Challenge, type ChallengeKind } from "../engine/challenges.ts";
 import { appsPublishedPerWeek, canInstallOsFeature, canReleaseVersion, clampSecurity, installedBase, licenseeMood, licenseeStrengthUplift, netExposure, osEcosystemBonus, osFeatureById, osFeatureRows, osReleaseReward, osServicesMultiplier, osTier, patchCooldownLeft, philosophyServicesMult, philosophyStatBonus, rivalLicenseFee, storeCommission, threatRisePerWeek, updateLicenseeRelations, type OsFeatureRow, type OsTierInfo } from "../engine/platform.ts";
@@ -428,6 +450,12 @@ export interface GameState {
   /** A just-declared rivalry waiting for its reveal moment (set the week a nemesis forms, cleared by
    *  the player via dismissRivalry). Optional/null → golden-invariant safe. */
   pendingRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
+  /** The reveal above, deferred. A nemesis forms FROM a rival strike, so the week it's declared the
+   *  strike's own card is already up and the reveal loses the interrupt budget — measured at 40/40
+   *  declared vs 0 shown. Parked here instead of dropped, and raised on the first quiet week after.
+   *  Optional/null → only ever set once a nemesis exists, which the pinned auto-player never forms,
+   *  so the golden run is byte-identical. */
+  queuedRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
   /** Nemesis Boss ladder (feature #7) — the live duel against the standing arch-rival: out-value them
    *  by a margin before the window closes (engine/nemesisDuel.ts). Armed only while a nemesis exists,
    *  which the pinned auto-player never forms → optional/null keeps it byte-identical. */
@@ -508,6 +536,27 @@ export interface GameState {
   /** Moonshot id → the week of its last FAILED attempt, for the per-moonshot retry cooldown. Optional →
    *  {} on old saves. A landed moonshot leaves the ledger (success is once-per-run, no more attempts). */
   moonshotAttempts?: Record<string, number>;
+  // --- The Vault (engine/secrets.ts): classified dossiers with a staged reveal — hidden conditions
+  //     the player uncovers by playing off-meta, each worth a small permanent boon. Every field is
+  //     optional and the whole system only evaluates once `launched.length > 0`, so the pinned
+  //     do-nothing run never opens a file, never writes here, and stays byte-identical. ---
+  /** Master switch, set true by newGame. OFF (absent) for saves written before the Vault shipped, so
+   *  an in-flight company's balance never shifts mid-run — the same guard mastery/design-budget use. */
+  vaultEnabled?: boolean;
+  /** Dossier ids opened THIS run (monotonic — a file can never re-seal). Their rewards fold through
+   *  secretBonuses() into the prestige / design-budget / product-stat seams. Optional → []. */
+  secretsFound?: string[];
+  /** id → the highest reveal stage the run has LATCHED (1 rumored, 2 decrypted), whether it was
+   *  earned by progress or bought with `investigateSecret`. Latching means a file never re-seals when
+   *  a trace regresses (shares sold, a licensee lost). Optional → {}. */
+  secretStages?: Record<string, number>;
+  /** id → the stage the PLAYER has actually looked at in the Vault (stamped by markVaultSeen). Drives
+   *  the "new leads" badge: any file whose latched stage is ahead of this. Optional → {}. */
+  secretsSeen?: Record<string, number>;
+  /** Files opened this week, awaiting their reveal ceremony (dismissed via dismissSecretReveal). An
+   *  EARNED ceremony like the nemesis trophy — the reward is already banked; the overlay only shows
+   *  it. Optional/null → golden-invariant safe. */
+  pendingSecretReveal?: { ids: string[]; week: number } | null;
   // --- Legacy Era (item 4.1): the post-IPO endgame — only live once wentPublic → golden-invariant safe ---
   /** Megaproject ids the player has funded (moonshots with prestige payoffs). Optional → [] on old saves. */
   megaprojectsFunded?: string[];
@@ -610,6 +659,12 @@ export interface GameState {
   osVersion: number;
   /** Rival ids currently licensing your OS — each pays a weekly fee but gains a competitiveness uplift. */
   osLicensees: string[];
+  /** Every rival that has EVER licensed the OS, whether or not they still do. Licensees churn out
+   *  when the player's reputation dominates theirs (engine/platform.ts), so the live list is a
+   *  snapshot of who is on board right now; this is the historical record. Optional/backfilled →
+   *  absent on old saves and never written until a licence is signed, which the pinned sim never
+   *  does, so the golden run is byte-identical. */
+  osLicenseesEver?: string[];
   /** Per-licensee satisfaction (id → 0..100). Decays when you dominate them; low satisfaction can
    *  make a licensee drop the license (churn). Defaults to startHealth for any licensee not present. */
   osLicenseeHealth: Record<string, number>;
@@ -974,6 +1029,14 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     // build time. Old saves lack this field (→ off) and build unconstrained; the do-nothing pin never
     // builds, so it's byte-identical either way.
     designBudgetEnabled: true,
+    // The Vault (engine/secrets.ts) — ON for fresh runs only. Every dossier starts sealed and the
+    // archive stays completely dormant until the first product ships, so the do-nothing pin never
+    // touches any of this. Old saves lack the flag (→ off) and keep their exact in-run balance.
+    vaultEnabled: true,
+    secretsFound: [],
+    secretStages: {},
+    secretsSeen: {},
+    pendingSecretReveal: null,
     // Era Mandates (feature #6) — none held at founding; the first draft is offered at the 1→2 advance.
     // Empty → the all-zero mandate bonus, so a run that never drafts is byte-identical to before.
     eraMandates: [],
@@ -1129,7 +1192,15 @@ export const weeklyOutflow = (s: GameState): Money =>
 export const noPendingInterrupt = (b: GameState): boolean =>
   !b.pendingStrike && !b.pendingEureka && !b.pendingCommunityAsk && !b.pendingRivalry &&
   !b.pendingStaffMoment && !b.pendingStaffEvent && !b.pendingRegionalEvent && !b.pendingPostLaunch &&
-  !b.pendingEarnings && !b.pendingLicenseOffer && !b.pendingAwards && !b.pendingChoice && !b.pendingPoach;
+  !b.pendingEarnings && !b.pendingLicenseOffer && !b.pendingAwards && !b.pendingChoice && !b.pendingPoach &&
+  // A Vault reveal is a ceremony rather than a decision, but it still owns the screen until it's
+  // acknowledged — nothing opportunistic should land on top of it. Never set in the pinned sim.
+  !b.pendingSecretReveal;
+/** The aggregate boon from every Vault dossier opened this run (engine/secrets.ts). Gated on the
+ *  `vaultEnabled` opt-in so an existing save's balance never shifts mid-run; nothing opened → the
+ *  all-zero bonus, which is what the pinned do-nothing sim (and every old save) folds to. */
+export const vaultBonuses = (s: GameState) => secretBonuses(s.vaultEnabled ? s.secretsFound : undefined);
+
 /** Combined prestige bonuses: the founder-perk drip (from prestige `legacy` level) PLUS the in-run
  *  Legacy Points spend-tree (item 4.3). legacy 0 + no legacy perks → all-zero, so the pinned sim is
  *  byte-identical. The build-cost reduction is clamped so cost never dips below 60% however it's
@@ -1149,11 +1220,15 @@ export const prestigeBonuses = (s: GameState): PerkBonus => {
   // aggregation, so its design-ceiling / hype / RP / build-cost payoff reaches every consumer at once.
   // No wins → the all-zero bonus, so old saves + the pinned sim stay byte-identical.
   const moon = moonshotBonuses(s.moonshotsWon);
+  // The Vault (engine/secrets.ts) — an opened dossier's small permanent boon folds through the SAME
+  // aggregation, so it reaches every consumer at once. Gated on the opt-in: no flag / nothing opened →
+  // the all-zero bonus, so old saves + the pinned sim stay byte-identical.
+  const vault = vaultBonuses(s);
   return {
-    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling + man.designCeiling + moon.designCeiling,
-    hype: base.hype + tree.hype + front.hype + man.hype + moon.hype,
-    rpMult: base.rpMult + tree.rpMult + front.rpMult + man.rpMult + moon.rpMult,
-    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult + moon.buildCostMult)),
+    designCeiling: base.designCeiling + tree.designCeiling + front.designCeiling + man.designCeiling + moon.designCeiling + vault.designCeiling,
+    hype: base.hype + tree.hype + front.hype + man.hype + moon.hype + vault.hype,
+    rpMult: base.rpMult + tree.rpMult + front.rpMult + man.rpMult + moon.rpMult + vault.rpMult,
+    buildCostMult: Math.max(0, Math.min(0.4, base.buildCostMult + tree.buildCostMult + front.buildCostMult + moon.buildCostMult + vault.buildCostMult)),
   };
 };
 /** Era-Mandate bonus aggregated from the held mandate ids (feature #6). Empty/absent → the all-zero
@@ -1167,7 +1242,7 @@ export const designTierCeiling = (s: GameState) =>
  *  era-scaled base + permanent raises from completed engineering projects. Meaningful only when
  *  designBudgetEnabled (the Lab meter + startBuild gate both check the flag before using it). */
 export const designBudget = (s: GameState): number =>
-  epBudget(s.era, s.completedProjects) + moonshotBonuses(s.moonshotsWon).epBudget;
+  epBudget(s.era, s.completedProjects) + moonshotBonuses(s.moonshotsWon).epBudget + vaultBonuses(s).epBudget;
 
 /** Category Mastery (feature #3) — the small, CATEGORY-SCOPED bonus a product earns from how many
  *  times you've shipped in its category (derived from launched[]). Gated on the masteryEnabled opt-in:
@@ -1352,6 +1427,11 @@ export function productStats(s: GameState, product: Product): Stats {
   // every product you ship. Empty (no such win) → no-op, so old saves + the pinned sim are unchanged.
   const sig = moonshotBonuses(s.moonshotsWon).stat;
   for (const k of Object.keys(sig) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (sig[k] ?? 0);
+
+  // The Vault: a "signature" dossier (House Style) leaves a recognisable hand on every device you
+  // ship. Empty until that file is opened → no-op for old saves + the pinned sim.
+  const vaultStat = vaultBonuses(s).stat;
+  for (const k of Object.keys(vaultStat) as (keyof Stats)[]) bonus[k] = (bonus[k] ?? 0) + (vaultStat[k] ?? 0);
 
   const out = { ...base };
   for (const k of Object.keys(bonus) as (keyof Stats)[]) {
@@ -2609,7 +2689,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     if (!offline && !bankrupt && state.platformUnlocked) {
       const sc = BALANCE.platform.security;
       if (netExposure(osThreat, osSecurity) > sc.exposureRepThreshold) {
-        reputation = Math.max(0, reputation - sc.exposureRepDragPerWeek * rate);
+        reputation = Math.max(reputationFloor(state.era), reputation - sc.exposureRepDragPerWeek * rate);
         if (!feed.some((f) => f.week === week && f.text.includes("exposed")))
           feed.push(feedItem(week, `${osDisplayName(state)} is exposed, unpatched vulnerabilities are eroding trust. Ship a security patch.`, "negative"));
       }
@@ -2689,7 +2769,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     const next = base.pendingKeynote.map((k) => {
       if (!k.slipped && week > k.deadlineWeek) {
         slippedAny = true;
-        base.reputation = Math.max(BALANCE.reputation.min, base.reputation - BALANCE.keynote.slipRepPenalty);
+        base.reputation = Math.max(reputationFloor(base.era), base.reputation - BALANCE.keynote.slipRepPenalty);
         base.feed.push(feedItem(week, `The keynote promise slipped — “${k.productName}” missed its week-${k.deadlineWeek} ship window. −${BALANCE.keynote.slipRepPenalty} reputation, and the launch buzz will sting.`, "negative"));
         return { ...k, slipped: true };
       }
@@ -2732,110 +2812,16 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // run never gains the field — the golden snapshot stays byte-identical.
   if (crunchingResearch || base.researchSurgeWeeks != null) base.researchSurgeWeeks = researchSurge;
 
-  // Rival poaching (Track C): a rival on the rise occasionally tries to hire away one of your best —
-  // surfaced as a counter-offer DECISION, not a silent stat drop. A DERIVED rng keeps the main sim
-  // stream byte-identical, so the harness + determinism pin are unaffected. One decision at a time:
-  // only when nothing else is pending, online, solvent, and the team can spare the attention.
-  if (!offline && !bankrupt && !base.pendingPoach && !base.pendingChoice && base.staff.length >= BALANCE.poaching.minTeam) {
-    const prng = makeRng(((state.rngState ?? state.seed) >>> 0) ^ Math.imul(week + 1, 0x2545f491));
-    if (prng.next() < BALANCE.poaching.chancePerWeek) {
-      const target = pickPoachTarget(base.staff, base.competitors, week, prng);
-      if (target) {
-        const retainCost = scale(salaryFor(target.staff.role, target.staff.skill), BALANCE.poaching.retainWeeksSalary);
-        base.pendingPoach = { staffId: target.staff.id, staffName: target.staff.name, rivalId: target.rival.id, rivalName: target.rival.name, retainCost, week };
-        base.feed.push(feedItem(week, `${target.rival.name} is trying to poach ${target.staff.name}, one of your best. Match their offer or let them walk.`, "negative"));
-      }
-    }
-  }
-
-  // Eureka breakthroughs (engine/eureka.ts) — an active, funded lab occasionally has a flash of insight
-  // (a bank-or-chase bet). Derived-hash cadence (never the sim rng) + a player-CLAIMED payoff, gated on
-  // real researchers + era + cooldown, and it yields to any other pending interrupt. The solo pinned
-  // sim assigns no researchers, so it never fires or resolves one → byte-identical.
-  {
-    const eu = BALANCE.research.eureka;
-    if (
-      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
-      base.era >= eu.minEra &&
-      base.staff.filter((s) => s.assignment === "rnd").length >= eu.minRnDStaff &&
-      week - (state.lastEurekaWeek ?? -999) >= eu.cooldownWeeks &&
-      eurekaDue(state.seed, week)
-    ) {
-      const moment = generateEureka(state.seed, week, base.era);
-      base.pendingEureka = moment;
-      base.lastEurekaWeek = week;
-      base.lastInterruptWeek = week;
-      base.feed.push(feedItem(week, `Your lab had a breakthrough in the ${moment.componentKind} line. Bank it, or chase the prototype?`, "accent"));
-    }
-  }
-
-  // Community ASK: once you have a fanbase (launched ≥ 1), the community periodically asks for
-  // something — answer it (resolveCommunityAsk) to grow + delight the base, or pass. Derived-hash
-  // cadence + cooldown + a fresh-launch cooloff; yields to any other pending interrupt. The pinned
-  // solo sim never launches, so it never raises one → byte-identical.
-  {
-    const ca = BALANCE.fans.community.asks;
-    const lastLaunchWeek = state.launched.reduce((m, lp) => Math.max(m, lp.launchedWeek), -Infinity);
-    if (
-      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
-      state.launched.length >= 1 &&
-      week - (state.lastCommunityAskWeek ?? -999) >= ca.cooldownWeeks &&
-      week - lastLaunchWeek >= ca.minWeeksSinceLaunch &&
-      communityAskDue(state.seed, week)
-    ) {
-      const ask = generateCommunityAsk(state.seed, week, base.fans);
-      base.pendingCommunityAsk = ask;
-      base.lastCommunityAskWeek = week;
-      base.lastInterruptWeek = week;
-      base.feed.push(feedItem(week, `The community is asking: ${ASK_INFO[ask.kind].title.toLowerCase()}. Answer the call, or let it pass?`, "accent"));
-    }
-  }
-
-  // Staff GROWTH moment: a senior, tenured staffer occasionally earns a permanent character upgrade
-  // the player picks (resolveStaffMoment). Derived-hash cadence + cooldown; yields to any other pending
-  // interrupt and respects the global budget. Gated on era + a real team with an eligible non-founder,
-  // so the pinned solo sim (founder only) never raises one → byte-identical.
-  {
-    const g = BALANCE.staff.growth;
-    if (
-      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
-      base.era >= g.minEra && base.staff.length >= 2 &&
-      week - (state.lastStaffMomentWeek ?? -999) >= g.cooldownWeeks &&
-      staffMomentDue(state.seed, week)
-    ) {
-      const target = pickGrowthTarget(base.staff, week);
-      if (target) {
-        const moment = generateStaffMoment(target, state.seed, week);
-        if (moment.options.length > 0) {
-          base.pendingStaffMoment = moment;
-          base.lastStaffMomentWeek = week;
-          base.lastInterruptWeek = week;
-          base.feed.push(feedItem(week, `${target.name} has grown into a real force on the team — there's a way to develop them further.`, "accent"));
-        }
-      }
-    }
-  }
-
-  // Staff LIFE event (item 2.2): a named teammate hits a personal turning point (burnout, an outside
-  // offer, a milestone) and the player answers (resolveStaffEvent). Same guardrails as the growth
-  // moment — derived-hash cadence + cooldown, yields to every other interrupt, gated on an established
-  // team past the garage era, so the founder-only pinned sim never raises one → byte-identical.
-  {
-    const le = BALANCE.staff.lifeEvents;
-    if (
-      !offline && !bankrupt && interruptQuiet && noPendingInterrupt(base) &&
-      base.era >= le.minEra && base.staff.length >= 2 &&
-      week - (state.lastStaffEventWeek ?? -999) >= le.cooldownWeeks &&
-      staffEventDue(state.seed, week)
-    ) {
-      const target = pickLifeEventTarget(base.staff, week);
-      if (target) {
-        base.pendingStaffEvent = generateStaffEvent(target, state.seed, week);
-        base.lastStaffEventWeek = week;
-        base.lastInterruptWeek = week;
-      }
-    }
-  }
+  // The opportunistic interrupt streams (poaching, eureka, community ask, staff growth, staff life
+  // event) — five near-identical anonymous blocks that used to sit inline here. They now live in
+  // `tick/interruptStreams.ts` as a named, ordered list with one signature, so adding a sixth is
+  // appending an entry rather than copying a neighbour's shape into the middle of this function.
+  // Order is preserved exactly: they share one weekly budget, so who asks first is behaviour.
+  runInterruptStreams(base, {
+    prev: state, week, offline, bankrupt, interruptQuiet,
+    screenFree: noPendingInterrupt,
+    feed: feedItem,
+  });
 
   // Regional loyalty + EVENTS — only once you've expanded past Home (so the solo sim, home-only, is
   // untouched → byte-identical). Loyalty eases back toward neutral each week; then, budget-paced, a
@@ -3021,13 +3007,27 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
       const rival = base.competitors.find((c) => c.id === res.declared!.rivalId);
       const doctrine = rivalDef(res.declared.rivalId)?.doctrine ?? "generalist";
       base.feed.push(feedItem(week, `${rival?.name ?? "A rival"} has become your arch-rival. It's personal now.`, "negative"));
-      // The reveal CARD respects the interrupt budget AND never doubles up with another pending modal
-      // (a nemesis usually forms from the very strike already on screen). If suppressed the nemesis
-      // still forms and the feed still announces it — only the extra full-screen card is skipped.
+      // The reveal CARD respects the interrupt budget AND never doubles up with another pending modal.
+      // But a nemesis forms FROM a rival strike, and that strike's own card went up earlier in this
+      // same tick — so this check was almost never true. Measured over 40 seeded runs: 40 nemeses
+      // declared, 0 reveal cards shown, 38 of them suppressed by the strike card. A once-per-run
+      // ceremony nobody ever saw. So a suppressed reveal is now QUEUED rather than dropped, and
+      // raised on the next quiet week. Optional field, unset until a nemesis actually forms, so the
+      // pinned do-nothing run (which never declares one) stays byte-identical.
+      const card = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
       if (interruptQuiet && noPendingInterrupt(base)) {
-        base.pendingRivalry = { rivalId: res.declared.rivalId, rivalName: rival?.name ?? "A rival", doctrine };
+        base.pendingRivalry = card;
         base.lastInterruptWeek = week;
+      } else {
+        base.queuedRivalry = card;
       }
+    } else if (base.queuedRivalry && interruptQuiet && noPendingInterrupt(base)) {
+      // The reveal that was crowded out when the rivalry was declared, delivered on the first quiet
+      // week after. It's the same earned ceremony, just not stacked on top of the strike that caused
+      // it. Cleared as it's raised, so it can only ever be shown once.
+      base.pendingRivalry = base.queuedRivalry;
+      base.queuedRivalry = null;
+      base.lastInterruptWeek = week;
     } else if (res.nemesis && clashSignals.some((s) => s.rivalId === res.nemesis!.rivalId)) {
       // A clash with the standing nemesis this week → a taunt (rate-limited by clash frequency). The
       // taunt is now turf- and heat-aware (item 2.3): it names the category you're fighting over and
@@ -3184,6 +3184,70 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     }
     base.contracts = contracts;
     base.contractCounter = contractCounter;
+  }
+
+  // The Vault (engine/secrets.ts) — the weekly sweep of the classified dossiers. Three things happen
+  // here, in order, and all of them are pure folds over facts the tick already produced:
+  //   1. Any file whose hidden condition is now MET is latched into secretsFound (monotonic) and its
+  //      one-time Legacy Points banked. That's the payoff; the overlay only acknowledges it.
+  //   2. Every file's reveal stage is latched upward, so a file that has shown you a whisper or its
+  //      terms never re-seals when the underlying trace dips again.
+  //   3. A file rising to `rumored` on a quiet week gets ONE atmospheric feed line — the drip that
+  //      tells you there is more here than you've been shown.
+  // Gated on the opt-in AND on having shipped at least one product, so the pinned do-nothing run
+  // never enters this block: no file opens, no stage latches, no feed line → byte-identical.
+  if (base.vaultEnabled && base.launched.length > 0) {
+    const facts = deriveSecretFacts(base);
+    const found = base.secretsFound ?? [];
+    const fresh = newlyUnearthed(facts, found);
+    const foundAfter = fresh.length > 0 ? [...found, ...fresh] : found;
+
+    if (fresh.length > 0) {
+      base.secretsFound = foundAfter;
+      let legacyGain = 0;
+      for (const id of fresh) legacyGain += secretById(id)?.reward.legacyPoints ?? 0;
+      if (legacyGain > 0) base.legacyPoints = (base.legacyPoints ?? 0) + legacyGain;
+      if (!offline) {
+        for (const id of fresh) {
+          const s = secretById(id);
+          if (s) base.feed.push(feedItem(week, `The vault gave one up: “${s.codename}” — ${s.reward.label}.`, "positive"));
+        }
+        // An EARNED ceremony (the reward is already banked), so it isn't gated on the interrupt
+        // budget — but it still stamps it, so no other modal piles on top of the moment.
+        base.pendingSecretReveal = { ids: fresh, week };
+        base.lastInterruptWeek = week;
+      }
+    }
+
+    // Latch each file's stage upward. `secretStage` already folds in whatever is latched, so this is
+    // simply "remember the best we've ever seen" — and it's where bought intel keeps living too.
+    const stages: Record<string, number> = { ...(base.secretStages ?? {}) };
+    const firstEverStir = Object.keys(stages).length === 0;
+    let firstRumor: Secret | undefined;
+    for (const s of SECRETS) {
+      const stage = secretStage(s, facts, foundAfter, stages);
+      const held = stages[s.id] ?? 0;
+      if (stage > held && stage < STAGE_UNEARTHED) {
+        stages[s.id] = stage;
+        // The drip fires when a file SURFACES from sealed — whether it stopped at a whisper or went
+        // straight to its terms. A later rumored→decrypted step is visible in the Vault itself and
+        // doesn't need a second announcement.
+        if (held === STAGE_SEALED && !firstRumor) firstRumor = s;
+      }
+    }
+    base.secretStages = stages;
+    // One whisper per week at most, and never on a week the vault already spoke — the drip has to
+    // stay rare to stay exciting. Cosmetic feed text (derived-hash flavour line, salt 311). The very
+    // FIRST stir also says where to look, once: a mystery nobody can find isn't a mystery, it's a bug.
+    if (!offline && firstRumor && fresh.length === 0) {
+      base.feed.push(feedItem(
+        week,
+        firstEverStir
+          ? "Someone left a sealed archive in your files — the Vault, under Progress. One of its folders just got a name."
+          : vaultWhisperLine(base.seed, week),
+        "accent",
+      ));
+    }
   }
 
   // Resolve an in-progress event chain (Track B) on its OWN schedule, independent of the normal
@@ -3578,23 +3642,29 @@ export function launchReady(state: GameState, productId: string): ActionResult {
   const isFlop = outcome === "flop";
   const isSolid = outcome === "solid";
   const hasCrisisComms = hasProject(state.completedProjects, "crisisComms");
+  // How far a flop can push this company down depends on how established it is — see
+  // `reputationFloor`. Without it, two early flops took a brand-new company to 0, and 0 has no
+  // demand, so every subsequent launch flopped too: a first-month mistake with no way back.
+  const repFloor = reputationFloor(state.era);
   if (isHit) reputation = Math.min(rep.max, reputation + rep.gainPerHit * (qa ? 1.5 : 1));
   else if (isSolid) reputation = Math.min(rep.max, reputation + rep.gainPerSolid);
-  else if (isFlop) reputation = Math.max(rep.min, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
+  else if (isFlop) reputation = Math.max(repFloor, reputation - rep.lossPerFlop * (qa ? 0.6 : 1) * (hasCrisisComms ? 0.5 : 1));
   reputation = Math.min(rep.max, reputation + channel.reputation);
   if (hasProject(state.completedProjects, "pressKit")) reputation = Math.min(rep.max, reputation + 1);
   if (hasProject(state.completedProjects, "gtmPrestige")) reputation = Math.min(rep.max, reputation + 2); // GTM doctrine: Prestige House
   // Ethics of the supply chain: responsible sourcing slowly builds the brand; cheap/exploitative
   // sourcing erodes it (0 for standard sourcing → no change for older saves / default builds).
   const ethicsRep = supplierEthicsRepDelta(product);
-  if (ethicsRep !== 0) reputation = Math.max(rep.min, Math.min(rep.max, reputation + ethicsRep));
+  if (ethicsRep !== 0) reputation = Math.max(repFloor, Math.min(rep.max, reputation + ethicsRep));
 
   // Fanbase response — hits win fans (more for bigger sellers), flops lose them, sellouts add buzz.
   const fb = BALANCE.fans;
   let fans = state.fans;
   if (isHit) fans += fb.gainOnHitFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK;
   else if (isSolid) fans += fb.gainOnSolidFlat + (totalUnits / 1000) * fb.gainPerHitUnitsK * 0.5;
-  else if (isFlop) fans = Math.max(0, fans - fb.lossPerFlop);
+  // A flop costs the SMALLER of the flat loss and a share of the audience you have, so it stays a
+  // rounding error to a household name and a survivable dent to a garage — see `lossShareOnFlop`.
+  else if (isFlop) fans = Math.max(0, fans - Math.min(fb.lossPerFlop, fans * (fb.lossShareOnFlop ?? 1)));
   else fans += fb.gainOnSteadyFlat; // a steady seller still wins a few new fans (beats the decay)
   // B4 — the sellout buzz is only earned if the run actually met a reasonable share of demand.
   // A deliberately tiny run that sells out while ignoring most of the market no longer farms fans;
@@ -4950,6 +5020,157 @@ export function attemptMoonshot(state: GameState, id: string): ActionResult {
   };
 }
 
+// ---------- The Vault: classified dossiers (engine/secrets.ts) ----------
+// Discovery is the reward here, so the state layer's job is small and strictly honest: read the
+// dossiers' stages, sell one stage of intel at a time, and never let cash buy the deed itself. Every
+// entry point below is player-driven — the sim never calls any of them.
+
+/** One dossier as the Vault screen shows it. Everything the card needs, already resolved. */
+export interface VaultCard {
+  id: string;
+  tier: 1 | 2 | 3 | 4;
+  stage: SecretStage;
+  /** Redacted until `rumored` — the UI renders a block of ▚ instead. */
+  codename: string | null;
+  /** The atmospheric tease, from `rumored` on. */
+  whisper: string | null;
+  /** The exact terms, from `decrypted` on. */
+  requirement: string | null;
+  /** The named reward, from `decrypted` on (the whole point of paying to decrypt early). */
+  rewardLabel: string | null;
+  /** Live progress toward the condition — shown from `decrypted` on. */
+  progress: SecretProgress;
+  /** Cash to buy this file's NEXT stage, or null when there's nothing left to buy. */
+  intelCost: Money | null;
+  /** Whether that purchase is affordable right now. */
+  intelAffordable: boolean;
+  /** The player hasn't looked at this file since it last moved — drives the "new" pip. */
+  isNew: boolean;
+  /** Opened in a PREVIOUS company: the codex remembers the terms even though the boon must be
+   *  re-earned this run. Supplied by the UI layer (the engine can't read the profile store). */
+  knownFromCodex?: boolean;
+}
+
+/** How the Vault reads right now, in one object: the counts the hub badge and the header need. */
+export interface VaultSummary {
+  enabled: boolean;
+  /** The archive stays shut until the first product ships. */
+  open: boolean;
+  found: number;
+  total: number;
+  /** Files that have moved since the player last looked (the badge count). */
+  newLeads: number;
+  /** The cosmetic founder title the Vault has granted, if any. */
+  title: string | null;
+}
+
+/** Every dossier, resolved for display. Order is the catalog's (tier-ascending, authored). */
+export function vaultCards(state: GameState): VaultCard[] {
+  const facts: SecretFacts = deriveSecretFacts(state);
+  const found = state.secretsFound ?? [];
+  const latched = state.secretStages ?? {};
+  const seen = state.secretsSeen ?? {};
+  return SECRETS.map((s: Secret) => {
+    const stage = secretStage(s, facts, found, latched);
+    const revealed = stage >= STAGE_RUMORED;
+    const decrypted = stage >= STAGE_DECRYPTED;
+    const cost = canInvestigate(s, stage) ? investigationCost(s.tier, (stage + 1) as SecretStage) : null;
+    return {
+      id: s.id,
+      tier: s.tier,
+      stage,
+      codename: revealed ? s.codename : null,
+      whisper: revealed ? s.whisper : null,
+      requirement: decrypted ? s.requirement : null,
+      rewardLabel: decrypted ? s.reward.label : null,
+      progress: secretProgress(s, facts),
+      intelCost: cost,
+      intelAffordable: cost != null && state.cash >= cost,
+      isNew: stage > (seen[s.id] ?? 0),
+    };
+  });
+}
+
+/** The Vault's headline counts. Cheap enough for the Progress hub row to call every render. */
+export function vaultSummary(state: GameState): VaultSummary {
+  const enabled = !!state.vaultEnabled;
+  const open = enabled && state.launched.length > 0;
+  const found = (state.secretsFound ?? []).length;
+  if (!open) {
+    return { enabled, open, found, total: SECRET_COUNT, newLeads: 0, title: null };
+  }
+  const seen = state.secretsSeen ?? {};
+  const latched = state.secretStages ?? {};
+  let newLeads = 0;
+  for (const s of SECRETS) {
+    const stage = (state.secretsFound ?? []).includes(s.id)
+      ? STAGE_UNEARTHED
+      : Math.max(0, Math.min(STAGE_DECRYPTED, Math.floor(latched[s.id] ?? 0)));
+    if (stage > (seen[s.id] ?? 0)) newLeads++;
+  }
+  return { enabled, open, found, total: SECRET_COUNT, newLeads, title: secretTitle(state.secretsFound) };
+}
+
+/** Buy ONE stage of intel on a dossier: sealed → rumored (a whisper), or rumored → decrypted (the
+ *  exact terms + the named reward). Cash only, priced by tier. The Omega file is never for sale, and
+ *  no amount of money can push a file to `unearthed` — that's the condition's job alone. */
+export function investigateSecret(state: GameState, id: string): ActionResult {
+  if (!state.vaultEnabled) return { state, ok: false, reason: "The vault isn't open yet." };
+  if (state.launched.length === 0) return { state, ok: false, reason: "Ship a product first." };
+  const secret = secretById(id);
+  if (!secret) return { state, ok: false, reason: "No such file." };
+  const facts = deriveSecretFacts(state);
+  const found = state.secretsFound ?? [];
+  const latched = state.secretStages ?? {};
+  const stage = secretStage(secret, facts, found, latched);
+  if (stage >= STAGE_UNEARTHED) return { state, ok: false, reason: "That file is already open." };
+  if (!canInvestigate(secret, stage)) {
+    return { state, ok: false, reason: secret.tier === 4 ? "This one can't be bought." : "Nothing left to learn here." };
+  }
+  const next = (stage + 1) as SecretStage;
+  const cost = investigationCost(secret.tier, next);
+  if (state.cash < cost) return { state, ok: false, reason: `Needs ${format(cost)}.` };
+
+  const line = next >= STAGE_DECRYPTED
+    ? `Your people got the file open: “${secret.codename}” — ${secret.requirement}`
+    : `An inquiry turned something up. There's a file called “${secret.codename}”.`;
+  return {
+    state: {
+      ...state,
+      cash: sub(state.cash, cost),
+      secretStages: { ...latched, [id]: next },
+      feed: trimFeed([...state.feed, feedItem(state.week, line, "accent")]),
+    },
+    ok: true,
+  };
+}
+
+/** Mark every dossier's current stage as SEEN (called when the Vault screen closes) — clears the
+ *  "new leads" badge without touching anything the sim reads. */
+export function markVaultSeen(state: GameState): GameState {
+  if (!state.vaultEnabled) return state;
+  const found = state.secretsFound ?? [];
+  const latched = state.secretStages ?? {};
+  const seen: Record<string, number> = { ...(state.secretsSeen ?? {}) };
+  let changed = false;
+  for (const s of SECRETS) {
+    const stage = found.includes(s.id)
+      ? STAGE_UNEARTHED
+      : Math.max(0, Math.min(STAGE_DECRYPTED, Math.floor(latched[s.id] ?? 0)));
+    if (stage !== (seen[s.id] ?? 0)) {
+      seen[s.id] = stage;
+      changed = true;
+    }
+  }
+  return changed ? { ...state, secretsSeen: seen } : state;
+}
+
+/** Dismiss the reveal ceremony for the files that opened this week. */
+export function dismissSecretReveal(state: GameState): GameState {
+  if (!state.pendingSecretReveal) return state;
+  return { ...state, pendingSecretReveal: null };
+}
+
 // ---------- Office builder (furniture layout) ----------
 export function placeFurniture(state: GameState, type: FurnitureId, c: number, r: number, rot: Rot): GameState {
   const cost = dollars(furnitureCost(type));
@@ -4987,6 +5208,20 @@ export function setLayout(state: GameState, layout: PlacedItem[]): GameState {
 export function applyLayoutSnapshot(state: GameState, snap: { layout: PlacedItem[]; cash: Money }): GameState {
   return { ...state, layout: snap.layout, cash: snap.cash };
 }
+/** Restore a Factory-floor undo snapshot — the machine/belt layout, the decor props AND the cash, so
+ *  undoing a misplaced $18K arm is a true reversal. The exact counterpart of applyLayoutSnapshot for
+ *  the office: the floor builder had no undo at all, while the office refunded in full.
+ *
+ *  Deliberately does NOT touch `factoryExpansion`: buying a bay is a separate armed-confirm purchase
+ *  that widens the grid, and rolling it back under a layout could leave machines outside the bounds
+ *  the snapshot was taken in. */
+export function applyFactorySnapshot(
+  state: GameState,
+  snap: { floor: FloorPlan; props: PlacedProp[]; cash: Money },
+): GameState {
+  return { ...state, factoryFloor: snap.floor, factoryProps: snap.props, cash: snap.cash };
+}
+
 /** Buy another copy of a placed item, dropped into the nearest free cell (charges its cost). */
 export function duplicateFurniture(state: GameState, iid: string): GameState {
   const it = state.layout.find((x) => x.iid === iid);
@@ -5193,6 +5428,7 @@ export function signLicenseOffer(state: GameState): ActionResult {
       ...state,
       cash: add(state.cash, offer.signingBonus),
       osLicensees: [...state.osLicensees, offer.rivalId],
+      osLicenseesEver: [...new Set([...(state.osLicenseesEver ?? []), offer.rivalId])],
       osLicenseeHealth: { ...state.osLicenseeHealth, [offer.rivalId]: BALANCE.platform.licenseeChurn.startHealth },
       osExclusive: offer.exclusive ? { ...(state.osExclusive ?? {}), [offer.rivalId]: offer.category } : (state.osExclusive ?? {}),
       pendingLicenseOffer: null,
@@ -5246,6 +5482,7 @@ export function licenseOsToRival(state: GameState, rivalId: string): GameState {
   return {
     ...state,
     osLicensees: [...state.osLicensees, rivalId],
+    osLicenseesEver: [...new Set([...(state.osLicenseesEver ?? []), rivalId])],
     // A new partner starts content.
     osLicenseeHealth: { ...state.osLicenseeHealth, [rivalId]: BALANCE.platform.licenseeChurn.startHealth },
     feed: trimFeed(feed),
@@ -5688,6 +5925,7 @@ export function skipInterrupt(prev: GameState, next: GameState): string | null {
   if (!prev.pendingStrike && next.pendingStrike) return "A rival is attacking your product";
   if (!prev.pendingSideOrder && next.pendingSideOrder) return "A client wants your factory line";
   if (!prev.pendingAwards && next.pendingAwards) return "The Silicon Awards ceremony";
+  if (!prev.pendingSecretReveal && next.pendingSecretReveal) return "A vault file just opened";
   // A paid-for recruiter shortlist EXPIRES — skipping past its arrival would waste the fee.
   if (next.candidates.length > 0 && prev.candidates.length === 0) return "Your recruiter's shortlist arrived";
   if (!canAdvance(prev) && canAdvance(next)) return "Era goal reached";
@@ -6246,6 +6484,19 @@ export function shareholderPulse(state: GameState): ShareholderPulse | null {
  *  `hit` is a hit, at/below `flop` is a flop, ≥ `solid` (but under hit) is a solid performer, else a
  *  steady seller. The bars rise with the era so late-game hits must be earned (Phase-2 scaling). The
  *  Design Lab preview and the launch use this SAME helper, so the projected verdict always matches. */
+/** How low this company's reputation can be driven, given how established it is. A garage has little
+ *  standing to lose; a household name has everything to lose. Above zero in the early eras this is
+ *  what keeps a bad start a SETBACK rather than an absorbing state — at reputation 0 there is no
+ *  demand, so every later launch flops too and nothing the player does can matter again.
+ *  Falls back to `reputation.min` for any era outside the table. */
+export function reputationFloor(era: number): number {
+  const r = BALANCE.reputation;
+  const table: readonly number[] = r.minByEra;
+  if (table.length === 0) return r.min;
+  const i = Math.max(0, Math.min(Math.floor(era) - 1, table.length - 1));
+  return table[i] ?? r.min;
+}
+
 export function verdictBands(era: number): { hit: number; flop: number; solid: number } {
   const r = BALANCE.reputation;
   const i = Math.max(0, Math.min(era - 1, r.hitThresholdByEra.length - 1));
@@ -6261,7 +6512,10 @@ export function launchBars(state: GameState): { hit: number; solid: number; flop
   const base = verdictBands(state.era);
   const x = BALANCE.reputation.expectation;
   const exp = Math.max(0, state.launchExpectation ?? 0);
-  const hitRaw = Math.max(base.hit, exp * x.hitMargin);
+  // How far a hit must beat your own recent form by, scaled to how established you are — a garage
+  // tops its last product easily, a giant has to make a real step up. See `hitMarginByEra`.
+  const hitMargin = x.hitMarginByEra?.[Math.max(0, Math.min(Math.floor(state.era) - 1, x.hitMarginByEra.length - 1))] ?? x.hitMargin;
+  const hitRaw = Math.max(base.hit, exp * hitMargin);
   const hit = hasProject(state.completedProjects, "hitFactory") ? hitRaw * 0.88 : hitRaw;
   // Ascension / Heat raises every verdict bar (harder to hit, easier to flop). Factor is 1 at Heat 0
   // (and undefined), so a normal run + the pinned sim are unchanged.

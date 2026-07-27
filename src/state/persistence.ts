@@ -4,7 +4,7 @@ import { makeRng } from "../engine/rng.ts";
 import { starterFloor, MACHINE_DEFS, MACHINE_MAX_LEVEL, MAX_EXPANSION, type FactoryFloor } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, type PlacedProp } from "../engine/factoryProps.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { canPlace, defaultLayout, deskItems, gridN } from "../engine/furniture.ts";
+import { canPlace, defaultLayout, deskItems, gridN, repairSeats } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Keynote, type Product, type StaffRole } from "../engine/types.ts";
 import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
@@ -350,6 +350,19 @@ function migrate(state: GameState): GameState | null {
   // Design Budget (feature #1) — OFF for existing saves so their builds stay unconstrained (no product
   // that was buildable before becomes un-buildable mid-run). Fresh runs (newGame) set it true.
   if (s.designBudgetEnabled == null) s.designBudgetEnabled = false;
+  // The Vault (engine/secrets.ts) — OFF for existing saves so an in-flight company never picks up a
+  // pile of dossier boons at once mid-run (a long save could satisfy a dozen conditions the moment it
+  // loads). Fresh runs (newGame) set it true; the codex of what a founder has ever opened lives in the
+  // profile store, so nothing already learned is lost either way.
+  if (s.vaultEnabled == null) s.vaultEnabled = false;
+  if (!Array.isArray(s.secretsFound)) s.secretsFound = [];
+  if (s.secretStages == null || typeof s.secretStages !== "object" || Array.isArray(s.secretStages)) s.secretStages = {};
+  if (s.secretsSeen == null || typeof s.secretsSeen !== "object" || Array.isArray(s.secretsSeen)) s.secretsSeen = {};
+  // Keep a well-formed reveal ceremony (the player quit before acknowledging it); drop a malformed one.
+  if (s.pendingSecretReveal != null
+    && (typeof s.pendingSecretReveal !== "object" || !Array.isArray(s.pendingSecretReveal.ids) || s.pendingSecretReveal.ids.length === 0)) {
+    s.pendingSecretReveal = null;
+  }
   // Era Mandates (feature #6) — empty held list + no pending offer. Old saves only ever see mandate
   // offers on FUTURE era advances (an empty list = the all-zero bonus = byte-identical in-run behaviour),
   // so no per-save flag is needed here.
@@ -420,6 +433,10 @@ function migrate(state: GameState): GameState | null {
   if (typeof s.osName !== "string") s.osName = "";
   if (!Number.isFinite(s.osVersion) || s.osVersion < 1) s.osVersion = 1;
   if (!Array.isArray(s.osLicensees)) s.osLicensees = [];
+  // The historical licensee record. Backfilled from the LIVE list on a save that predates it — the
+  // best available lower bound, and never worse than starting from nothing.
+  if (!Array.isArray(s.osLicenseesEver)) s.osLicenseesEver = [...s.osLicensees];
+  else s.osLicenseesEver = [...new Set([...s.osLicenseesEver.filter((x: unknown) => typeof x === "string"), ...s.osLicensees])];
   // Per-licensee satisfaction (added later): default empty — existing licensees fall back to startHealth.
   // Sanitize values from an untrusted import: drop non-finite, clamp to 0..100.
   if (!s.osLicenseeHealth || typeof s.osLicenseeHealth !== "object" || Array.isArray(s.osLicenseeHealth)) {
@@ -458,6 +475,10 @@ function migrate(state: GameState): GameState | null {
   }
   if (s.pendingRivalry != null && (typeof s.pendingRivalry !== "object" || typeof s.pendingRivalry.rivalId !== "string")) {
     s.pendingRivalry = null;
+  }
+  // Same scrub for the deferred copy — a malformed one would raise a reveal card naming nobody.
+  if (s.queuedRivalry != null && (typeof s.queuedRivalry !== "object" || typeof s.queuedRivalry.rivalId !== "string")) {
+    s.queuedRivalry = null;
   }
   // Nemesis Boss ladder (feature #7, added later): default dormant. The duel only ever arms while a
   // nemesis exists, so an old save with no nemesis loads with none. Drop a malformed duel from an
@@ -787,6 +808,11 @@ function migrate(state: GameState): GameState | null {
       if (!placed) break; // no free cell — overflow staff roam instead
     }
   }
+  // Chairs stand in the cell BESIDE a desk, and placement only started reserving that cell recently —
+  // so a room saved before then can hold two desks whose chairs are inside each other. Slide the
+  // stranded ones to the nearest spot that has room for a chair; a room that was already fine is
+  // returned untouched, and anything genuinely walled in still surfaces the "too tight" nudge.
+  s.layout = repairSeats(s.layout, s.facilityTier);
   s.ready = s.ready.map((p: Product) => fixProduct(p));
   if (Array.isArray(s.staff)) {
     s.staff = s.staff.map((m: any) => {

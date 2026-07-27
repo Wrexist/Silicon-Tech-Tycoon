@@ -2,7 +2,7 @@
 // vitest runs in the `node` env here (no jsdom), so we stub localStorage on globalThis.
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { dollars } from "../engine/money.ts";
-import { addItem, deskItems } from "../engine/furniture.ts";
+import { addItem, deskItems, planSeats } from "../engine/furniture.ts";
 import {
   newGame,
   advanceOneWeek,
@@ -372,6 +372,59 @@ describe("v17 — desks are seats: migrate grants missing desks to old teams", (
       acc = addItem(acc, it.iid, it.type, it.c, it.r, it.rot);
     }
     expect(acc.length).toBe(back!.layout.length);
+  });
+});
+
+describe("seats — migrate un-collides chairs saved before placement reserved them", () => {
+  it("a room whose two back-row chairs render inside each other loads already fixed", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const base = newGame(21);
+    // f1 is against the back wall, so its chair is forced FORWARD into row 1 — the row f2 seats
+    // backward into — and the cabinets block f2's only other side. This is the reported collision.
+    const legacy: GameState = {
+      ...base,
+      staff: [base.staff[0]],
+      layout: [
+        { iid: "f1", type: "desk", c: 0, r: 0, rot: 0 },
+        { iid: "f2", type: "desk", c: 0, r: 2, rot: 0 },
+        { iid: "f3", type: "cabinet", c: 0, r: 3, rot: 0 },
+        { iid: "f4", type: "cabinet", c: 1, r: 3, rot: 0 },
+      ],
+      furnitureCounter: 5,
+    };
+    expect(planSeats(legacy.layout, legacy.facilityTier).unseated).toContain("f2");
+
+    const back = importSaveString(exportSaveString(legacy));
+    expect(back).not.toBeNull();
+    const plan = planSeats(back!.layout, back!.facilityTier);
+    expect(plan.unseated).toEqual([]);
+    const seen = new Set<string>();
+    for (const band of Object.values(plan.cells)) {
+      for (const s of band) {
+        expect(seen.has(`${s.c},${s.r}`), `two chairs in cell ${s.c},${s.r}`).toBe(false);
+        seen.add(`${s.c},${s.r}`);
+      }
+    }
+    // The repair rearranges; it never buys or bins furniture.
+    expect(back!.layout.filter((it) => it.type === "desk")).toHaveLength(2);
+    expect(back!.layout.filter((it) => it.type === "cabinet")).toHaveLength(2);
+  });
+
+  it("a room that was already fine comes back byte-identical", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    const base = newGame(22);
+    const tidy: GameState = {
+      ...base,
+      staff: [base.staff[0]],
+      layout: [
+        { iid: "f1", type: "desk", c: 0, r: 1, rot: 0 },
+        { iid: "f2", type: "desk", c: 3, r: 1, rot: 0 },
+        { iid: "f3", type: "plantPot", c: 8, r: 8, rot: 0 },
+      ],
+      furnitureCounter: 4,
+    };
+    const back = importSaveString(exportSaveString(tidy));
+    expect(back!.layout).toEqual(tidy.layout);
   });
 });
 

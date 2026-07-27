@@ -6,7 +6,7 @@
 // floats/sinks. We measure the clone's bounding box, fit its larger horizontal extent to ~92%
 // of the item's grid footprint, drop it so it rests on the floor (box.min.y -> y=0), and centre
 // it on the tile in x/z. Per-id scale/yaw/offset overrides apply as multipliers on top.
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { ModelAsset } from "./furnitureModels.ts";
@@ -26,11 +26,15 @@ export default function GltfFurniture({
   asset,
   footprintW,
   footprintD,
+  children,
 }: {
   asset: ModelAsset;
   // grid footprint of the item in metres (w*GRID.cell, d*GRID.cell)
   footprintW: number;
   footprintD: number;
+  /** Rendered at the model's fitted TOP surface — for desk-top kit (monitor, keyboard) that has to
+   *  sit on a model whose real height is only known once it's measured and scaled. */
+  children?: ReactNode;
 }) {
   const { scene } = useGLTF(resolveUrl(asset.url));
 
@@ -53,7 +57,13 @@ export default function GltfFurniture({
     const footprint = Math.max(footprintW, footprintD);
     const horizScale = horiz > 1e-4 ? (footprint * FIT_FRACTION) / horiz : 1;
     const heightScale = size.y > 1e-4 ? MAX_HEIGHT / size.y : horizScale;
-    const baseScale = Math.min(horizScale, heightScale);
+    // `realHeight` is the piece's true height in metres. Fitting purely by footprint inflates a
+    // model in ALL THREE axes whenever it's narrower than its tile — a desk model ~1.1m wide dropped
+    // on a 2-cell (1.72m) footprint came out ~1.4x oversized, standing 1.05m tall and reading as a
+    // cabinet rather than a desk. Scaling to the known height instead keeps furniture in human
+    // proportion; the footprint fit still caps it so nothing can overflow its tile.
+    const trueScale = asset.realHeight && size.y > 1e-4 ? asset.realHeight / size.y : null;
+    const baseScale = trueScale != null ? Math.min(trueScale, horizScale) : Math.min(horizScale, heightScale);
 
     // Wrap the clone so we can transform it without mutating shared geometry/material refs.
     const wrapper = new THREE.Group();
@@ -68,10 +78,17 @@ export default function GltfFurniture({
     return wrapper;
   }, [scene, footprintW, footprintD]);
 
+  // Fitted height of the piece, so callers can put things ON it (the desk-top kit).
+  const topY = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(object);
+    return box.max.y;
+  }, [object]);
+
   const [ox, oy, oz] = asset.offset ?? [0, 0, 0];
   return (
     <group position={[ox, oy, oz]} rotation-y={asset.yaw ?? 0} scale={asset.scale ?? 1}>
       <primitive object={object} />
+      {children != null && <group position={[0, topY, 0]}>{children}</group>}
     </group>
   );
 }
