@@ -77,6 +77,50 @@ Character count: ~1,650 (well within 4,000)
 
 ---
 
+## What's New (v1.2.0)
+
+```
+A fifth era, a hidden layer, and a company that finally answers back.
+
+• The Vault: eighteen classified dossiers whose conditions are secret. Each opens on
+  something you did without being asked, and reveals itself a step at a time — a
+  redaction block, then a whisper, then the exact terms, then the reward. Buy the intel
+  if you're impatient; the deed is never for sale. What you learn carries into your next
+  company.
+• The Autonomy Era: a genuine fifth era past the IPO, with two new categories — Neural
+  Band and Home Robot — and a new component tier on every line.
+• Nemesis Duels: your arch-rival calls you out. Multi-week duels with escalating tiers,
+  and a trophy when you take one.
+• Mastery & Seasons: per-category grind bars with signature cosmetics, plus a monthly
+  Challenge Season track of device colorways, HQ finishes and profile badges.
+• Run the company, not just the product: crunch the team to rush a build, set standing
+  reorder policies, work the sell window after launch, gamble on moonshot R&D with
+  visible odds, promise a ship date at a keynote, draft an era mandate, and spend an
+  engineering budget that makes every project a real choice.
+• A world that lives: employees with names and lives of their own, rivals that fight
+  each other and not just you, review outlets that remember your last device, regional
+  events that name the rival surging there, and an industry ladder of named bosses to
+  climb.
+• See what you're climbing: a Company Roadmap of every era, category and endgame system
+  ahead of you, one Goals ledger, a Help hub that explains every score, and a glossary.
+• As calm as you like: Calm Mode sets how often the game interrupts you, and low-stakes
+  moments now wait quietly in a Decision Inbox.
+• A better HQ: a living 3D office with typing, chair swivels and glowing screens, 20 new
+  furniture pieces and 8 room styles, a factory floor that actually runs, proper task
+  chairs that always face their own monitor — plus Tidy Up for the office and Undo for
+  the factory.
+• Rebalanced throughout: every era now rewards a great launch and punishes a lazy one, a
+  rough start is something you can recover from instead of a dead end, and more than one
+  way to play survives to the end.
+
+Faster loading, 39 languages, and a long list of fixes.
+```
+
+The shipped copy lives in `appstore/localizations/en-US/release_notes.txt` (2,292 chars
+against Apple's 4,000 limit). The other 38 locales still carry the 1.1.0 text.
+
+---
+
 ## What's New (v1.1.0)
 
 ```
