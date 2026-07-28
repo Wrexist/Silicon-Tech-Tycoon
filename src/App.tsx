@@ -32,7 +32,10 @@ import { ContractOffer } from "./components/ContractOffer.tsx";
 import { DecisionInbox } from "./components/DecisionInbox.tsx";
 import { ReviewPrompt } from "./components/ReviewPrompt.tsx";
 import { Paywall, ProChip } from "./components/Paywall.tsx";
+import { ProNudge } from "./components/ProNudge.tsx";
+import { FoundingBrief } from "./components/FoundingBrief.tsx";
 import { openPaywall, shouldShowOnboardingPaywall } from "./state/paywall.ts";
+import { founderIntentAsked } from "./state/founderIntent.ts";
 import { useIsPro } from "./state/usePro.ts";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
@@ -285,6 +288,8 @@ function AppShell() {
       <ReviewPrompt />
       {/* The single purchase surface. Mounted once, raised from anywhere via openPaywall(). */}
       <Paywall />
+      {/* Housekeeping strips for people who already pay: trial ending, or a failing card. */}
+      <ProNudge />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />
@@ -714,7 +719,7 @@ function Onboarding({ onStart }: { onStart: () => void }) {
   const { markOnboarded, setCompanyName } = useGame();
   const [name, setName] = useState("");
   const [scenariosOpen, setScenariosOpen] = useState(false);
-  const [phase, setPhase] = useState<"intro" | "pro" | "notify">("intro");
+  const [phase, setPhase] = useState<"intro" | "brief" | "pro" | "notify">("intro");
   // Enter the game (flips onboarded → the game screen replaces this one). Kept until the LAST step so
   // the founding beats (the Pro offer, the notification opt-in) can render while Onboarding is still
   // mounted.
@@ -727,16 +732,25 @@ function Onboarding({ onStart }: { onStart: () => void }) {
       enterGame();
     }
   };
-  const found = () => {
-    if (name.trim()) setCompanyName(name);
-    // The founding offer. Placed HERE — after the player has named their company, before they see
-    // the game — because it is the highest-intent moment the app will ever have that still leaves a
-    // subscriber their full value from week one. Shown once per device, and always skippable: a free
-    // app whose game you cannot reach fails Apple's minimum-functionality bar, and a player who
-    // hasn't seen the game can't want it either.
+  // The founding offer. Placed after the player has named their company and stated an ambition,
+  // before they see the game — the highest-intent moment the app will ever have that still leaves a
+  // subscriber their full value from week one. Shown once per device, and always skippable: a free
+  // app whose game you cannot reach fails Apple's minimum-functionality bar, and a player who hasn't
+  // seen the game can't want it either.
+  const toOffer = () => {
     if (shouldShowOnboardingPaywall()) setPhase("pro");
     else afterPro();
   };
+  const found = () => {
+    if (name.trim()) setCompanyName(name);
+    // One question first, so the offer can lead with what this founder actually came for. Skipped
+    // entirely for anyone who has answered it before, or who won't be shown an offer anyway.
+    if (shouldShowOnboardingPaywall() && !founderIntentAsked()) setPhase("brief");
+    else toOffer();
+  };
+  if (phase === "brief") {
+    return <FoundingBrief companyName={name.trim() || "Silicon"} onDone={toOffer} />;
+  }
   if (phase === "pro") {
     return <ProFoundingOffer onDone={afterPro} />;
   }

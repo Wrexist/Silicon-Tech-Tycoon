@@ -37,7 +37,8 @@ export type ProFeature =
   | "museum"
   | "mastery"
   | "founderLegend"
-  | "challengeArchive";
+  | "challengeArchive"
+  | "timeMachine";
 
 /**
  * The free allowance. Tune here and nowhere else — the paywall copy, the lock chips, the gates and
@@ -83,6 +84,7 @@ export function isLocked(feature: ProFeature, pro: boolean = isPro()): boolean {
     case "mastery":
     case "founderLegend":
     case "challengeArchive":
+    case "timeMachine":
       return true;
   }
 }
@@ -172,6 +174,11 @@ const COPY: Record<PaywallReason, PaywallCopy> = {
     title: "Every challenge, forever",
     body: "Today's challenge is always free. Pro keeps the full archive — past dailies, the weekly, and your personal best on each one.",
   },
+  timeMachine: {
+    eyebrow: "The Time Machine",
+    title: "Never lose a company again",
+    body: "Pro quietly snapshots your company every quarter and keeps the last five. One catastrophic launch, one over-hired year, one factory bought at the wrong moment — rewind and take the other road. Campaign only: scenarios and challenges stay scored on their own terms.",
+  },
 };
 
 export function paywallCopy(reason: PaywallReason): PaywallCopy {
@@ -184,8 +191,19 @@ export const PRO_BENEFITS: { title: string; body: string }[] = [
   { title: "The full campaign", body: "Platform, AI and Autonomy eras — the arc to IPO." },
   { title: "New Game+", body: "Retire an empire, inherit its legacy, raise the heat." },
   { title: "Every scenario", body: "Six hand-built runs with their own star targets." },
+  { title: "The Time Machine", body: "Rewind your company to any of the last 5 quarters." },
   { title: "Platform Division", body: "Found an OS, licence it, own the ecosystem." },
   { title: "Creative Mode", body: "Unlimited funds and research. No limits." },
   { title: "The archives", body: "Vault dossiers, Museum, Mastery, Founder Legend." },
   { title: "No ads, ever", body: "No timers, no currency, no nags. As always." },
 ];
+
+/** Headline shown to someone who has subscribed on this device before. Returning subscribers are
+ *  the cheapest revenue an app has, and the surest way to lose them is to hand them the
+ *  first-time-visitor sales pitch. No discount is claimed here — any real win-back pricing comes
+ *  from the App Store itself, and our UI never states a price the store didn't give us. */
+export const RETURNING_COPY: PaywallCopy = {
+  eyebrow: "Welcome back",
+  title: "Your company is where you left it",
+  body: "Your saves, your Museum, your Founder Legend and every star you've earned are all still here. Restart Pro and the locks come straight off — nothing to rebuild.",
+};

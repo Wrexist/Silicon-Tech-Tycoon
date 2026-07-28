@@ -166,10 +166,35 @@ function normalizeRecord(raw: unknown): ProRecord | null {
   };
 }
 
+/** One-way breadcrumb: set the first time this device ever held Pro, and never cleared.
+ *
+ *  It exists so a lapsed subscriber can be greeted as someone returning rather than pitched as a
+ *  stranger — returning subscribers are, by a wide margin, the cheapest revenue an app has, and the
+ *  fastest way to lose them is to show them the new-user sales pitch again. It records a single
+ *  bit: "this device has subscribed before". No dates, no history, nothing that leaves the device. */
+const EVER_KEY = "silicon.pro.ever";
+
+export function hasEverSubscribed(): boolean {
+  try {
+    return localStorage.getItem(EVER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markEverSubscribed(): void {
+  try {
+    localStorage.setItem(EVER_KEY, "1");
+  } catch {
+    /* ignore — the worst case is a returning player sees the standard pitch */
+  }
+}
+
 /** Persist a record (write-through to the durable native mirror — losing a purchase the player paid
  *  for is unacceptable, and WKWebView localStorage is OS-evictable). */
 export function setProRecord(rec: ProRecord): void {
   const json = JSON.stringify(rec);
+  markEverSubscribed();
   try {
     localStorage.setItem(PRO_KEY, json);
   } catch {

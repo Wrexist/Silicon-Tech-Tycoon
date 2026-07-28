@@ -1,0 +1,62 @@
+/* Subscription housekeeping strips (trial ending · billing failing). Same non-blocking language as
+   the Decision Inbox — a nudge above the bottom nav, never a modal. Sits one layer BELOW the
+   inbox's z-index so an actual game decision always wins the spot. Tokens + 8pt grid only. */
+.pnudge {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  z-index: 28; /* under the Decision Inbox (29) and the bottom nav (30) */
+  padding: 0 var(--sp-12);
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  animation: pnudge-rise var(--spring-snappy) ease-out;
+}
+@keyframes pnudge-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .pnudge { animation: none; } }
+
+.pnudge__card {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-card);
+  background: var(--glass-modal);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid var(--glass-modal-edge);
+  box-shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 var(--glass-modal-rim);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--spring-snappy);
+  -webkit-tap-highlight-color: transparent;
+}
+.pnudge__card:active { transform: scale(0.99); }
+
+.pnudge__glyph {
+  flex: 0 0 auto;
+  width: 30px; height: 30px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.pnudge--neutral .pnudge__card { border-color: color-mix(in srgb, var(--gold) 30%, var(--glass-modal-edge)); }
+.pnudge--neutral .pnudge__glyph { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--warning-text); }
+/* A failing payment is the one that costs the player access, so it carries the warning colour. */
+.pnudge--warn .pnudge__card { border-color: color-mix(in srgb, var(--warning) 40%, var(--glass-modal-edge)); }
+.pnudge--warn .pnudge__glyph { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning-text); }
+
+.pnudge__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.pnudge__title { font-size: var(--fs-micro); font-weight: 700; line-height: 1.25; }
+.pnudge__sub { font-size: var(--fs-nano); color: var(--ink-3); line-height: 1.35; }
+
+.pnudge__cta {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 1px;
+  font-size: var(--fs-micro); font-weight: 700; color: var(--accent);
+}

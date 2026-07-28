@@ -171,6 +171,7 @@ import type { ChannelId } from "../engine/marketing.ts";
 import type { FrontierLaneId } from "../engine/frontier.ts";
 import type { FurnitureId, PlacedItem, Rot } from "../engine/furniture.ts";
 import { clearSave, exportSaveString, importSaveString, importProfileFromString, loadResult, save, stashHomeSave, readHomeSave, hasHomeSave, clearHomeSave } from "./persistence.ts";
+import { captureIfDue, clearSnapshots, restoreSnapshot } from "./timeMachine.ts";
 import { getSettings, setSettings } from "./settings.ts";
 import type { InterruptPace } from "./gameState.ts";
 import { withValidatedSandbox } from "./entitlements.ts";
@@ -580,6 +581,9 @@ interface GameActionsValue {
   // save export / import (offline backup)
   exportSave: () => string;
   importSave: (str: string) => boolean;
+  /** Time Machine (Pro): rewind the running company to a stored quarterly snapshot. Returns false
+   *  when the snapshot is missing, unreadable, or Pro has lapsed. */
+  rewindTo: (snapshotId: string) => boolean;
   setCompanyName: (name: string) => void;
   setSandboxActive: (on: boolean) => void;
   /** Calm Mode — set how often the game may raise opportunistic full-screen interrupts. */
@@ -755,6 +759,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
           // Record this week's challenge best BEFORE mastery is read, so a challenge that locks
           // this tick is counted now (no one-cycle lag for challenges-10). Idempotent.
           syncChallengeBest(s, next, true);
+          // Time Machine (Pro): quietly snapshot the freeform campaign each quarter. A pure
+          // side-effect — it reads state and writes to its own storage key, never to the game, so
+          // the simulation is byte-identical whether or not the player has Pro. Self-gating on
+          // entitlement, run type and cadence; a no-op on all three counts most weeks.
+          captureIfDue(next);
           // Skip-to-next-decision: the week produced something that needs input → stop time and
           // say why. Gated to once per simulated week like every other tick side-effect.
           if (skipping) {
@@ -1318,6 +1327,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const next = getLegacy() + 1;
     setLegacy(next);
     clearSave();
+    // The retired empire's rewind points die with it — the Time Machine must never offer to rewind
+    // into a company the player deliberately left behind.
+    clearSnapshots();
     // New Game+ players already know the ropes — skip onboarding + the first-build coach. The
     // lifetime "seen dilemmas" set carries across so the new run surfaces fresh decisions first.
     // Ascension / Heat: the chosen level makes the NEXT run harder (newGame's 3rd arg).
@@ -1360,6 +1372,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     const next: GameState = { ...withValidatedSandbox(migrated), lastActive: Date.now() };
     seedFeedSeq(next); // keep feed-id counter above the imported ids
+    clearSnapshots(); // the incoming company has no shared history with the snapshots on this device
     save(next);
     setState(next);
     setPaused(false);
@@ -1669,9 +1682,26 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return true; // nothing freeform to protect (fresh start, or already in a side run)
   }, []);
 
+  /** Rewind to a Time Machine snapshot. Deliberately routed through the same path as a save import:
+   *  the snapshot is validated by the loader's own migrate, then written and adopted as the live
+   *  company. Fails closed — a missing or unreadable snapshot leaves the running game untouched. */
+  const rewindTo = useCallback((snapshotId: string) => {
+    const restored = restoreSnapshot(snapshotId);
+    if (!restored) return false;
+    const next: GameState = { ...withValidatedSandbox(restored), lastActive: Date.now() };
+    seedFeedSeq(next); // keep the feed-id counter above the restored ids
+    save(next);
+    setState(next);
+    setPaused(true); // land the player paused on the rewound week rather than mid-tick
+    setFast(false);
+    setSkipping(false);
+    return true;
+  }, []);
+
   const restart = useCallback(() => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good
     clearSave();
+    clearSnapshots(); // same reason as prestige: no rewinding into an abandoned company
     // A deliberate fresh start abandons any held side-trip context too, so a new company never shows a
     // stale "return to your company" pointing at a company the player chose to leave behind.
     clearHomeSave();
@@ -1824,6 +1854,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       markUnlocksSeen,
       exportSave,
       importSave,
+      rewindTo,
       setCompanyName: setCompanyNameCb,
       setSandboxActive,
       setInterruptPace: setInterruptPaceCb,

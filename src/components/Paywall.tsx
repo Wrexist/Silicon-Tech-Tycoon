@@ -33,8 +33,12 @@ import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { onPaywall, markOnboardingPaywallSeen, type PaywallRequest } from "../state/paywall.ts";
-import { paywallCopy, PRO_BENEFITS } from "../state/proGates.ts";
-import { FREE_TRIAL_DAYS, PRO_PRODUCTS, isPro, onProChanged } from "../state/pro.ts";
+import { paywallCopy, PRO_BENEFITS, RETURNING_COPY } from "../state/proGates.ts";
+import { getFounderIntent, INTENT_HEADLINE, orderBenefits } from "../state/founderIntent.ts";
+import { FREE_TRIAL_DAYS, PRO_PRODUCTS, hasEverSubscribed, isPro, onProChanged } from "../state/pro.ts";
+import { BALANCE } from "../engine/balance.ts";
+import { CATEGORY_LIST, COMPONENT_LINES } from "../engine/catalogs.ts";
+import { SCENARIOS } from "../engine/scenarios.ts";
 import { getProCatalog, purchasePro, restorePro, type ProCatalog, type ProOffer } from "../state/proStore.ts";
 import "./paywall.css";
 
@@ -46,6 +50,21 @@ const PRIVACY_URL = "https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/";
 /** Default selection: Yearly. It is the best value for the player AND the row whose billed amount
  *  Apple wants displayed most prominently, so the honest default and the profitable one agree. */
 const DEFAULT_PLAN = "com.wrexist.silicon.pro.yearly";
+
+/**
+ * "How much game is there?" — counted from the real content tables at module load, never typed in.
+ *
+ * This is the honest substitute for the social proof that normally sits here. Invented download
+ * counts and five-star testimonials are both a dark pattern and an App Review liability; a sim
+ * player's actual first question is how much there is to do, and these numbers answer it in a way
+ * that cannot rot. Add a scenario and the strip updates itself.
+ */
+const PROOF: { value: string; label: string }[] = [
+  { value: `${BALANCE.eras.length}`, label: "eras" },
+  { value: `${CATEGORY_LIST.length}`, label: "devices" },
+  { value: `${Object.values(COMPONENT_LINES).reduce((n, line) => n + line.tiers.length, 0)}`, label: "parts" },
+  { value: `${SCENARIOS.length}`, label: "scenarios" },
+];
 
 export function Paywall() {
   const [req, setReq] = useState<PaywallRequest | null>(null);
@@ -73,7 +92,23 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
   useDialogFocus(ref, true);
   useEffect(() => registerAppOverlay(), []); // lower layers defer Escape to this overlay
 
-  const copy = paywallCopy(req.reason);
+  // Which argument to lead with. Precedence matters:
+  //  1. A SPECIFIC gate always wins — the player just asked a question and the offer should answer
+  //     it, not change the subject.
+  //  2. A returning subscriber gets welcomed back rather than pitched from scratch.
+  //  3. Otherwise, lead with whatever they said they came here to build.
+  const intent = getFounderIntent();
+  const copy = useMemo(() => {
+    if (req.reason !== "onboarding") return paywallCopy(req.reason);
+    if (hasEverSubscribed()) return RETURNING_COPY;
+    if (intent) return { eyebrow: "Silicon Pro", ...INTENT_HEADLINE[intent] };
+    return paywallCopy("onboarding");
+  }, [req.reason, intent]);
+
+  // Same eight promises either way — the stated ambition changes the ORDER of the argument, never
+  // its content.
+  const benefits = useMemo(() => orderBenefits(PRO_BENEFITS, intent), [intent]);
+
   const [selected, setSelected] = useState<string>(DEFAULT_PLAN);
   const [catalog, setCatalog] = useState<ProCatalog | null>(null);
   const [busy, setBusy] = useState<"buy" | "restore" | null>(null);
@@ -210,8 +245,20 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
           <h2 className="pwl__title" id="pwl-title">{copy.title}</h2>
           <p className="pwl__body">{copy.body}</p>
 
+          {/* Proof, counted from the real content tables rather than typed in. A sim player's first
+              question is "how much game is there?", and this answers it with numbers that cannot
+              drift out of date or quietly become a lie — add a scenario and the strip updates. */}
+          <div className="pwl__proof" aria-label="What's in the full game">
+            {PROOF.map((p) => (
+              <div key={p.label} className="pwl__proof-item">
+                <span className="pwl__proof-num tnum">{p.value}</span>
+                <span className="pwl__proof-label">{p.label}</span>
+              </div>
+            ))}
+          </div>
+
           <ul className="pwl__benefits">
-            {PRO_BENEFITS.map((b) => (
+            {benefits.map((b) => (
               <li key={b.title} className="pwl__benefit">
                 <span className="pwl__tick" aria-hidden><Check size={10} strokeWidth={3.4} /></span>
                 <span className="pwl__benefit-text">

@@ -7,6 +7,7 @@ import {
   eraAdvanceLocked,
   isLocked,
   paywallCopy,
+  RETURNING_COPY,
   scenarioLocked,
   type ProFeature,
 } from "./proGates.ts";
@@ -25,6 +26,7 @@ const ALL_FEATURES: ProFeature[] = [
   "mastery",
   "founderLegend",
   "challengeArchive",
+  "timeMachine",
 ];
 
 describe("Pro unlocks everything", () => {
@@ -115,6 +117,15 @@ describe("paywall copy", () => {
       const c = paywallCopy(f);
       expect(`${c.eyebrow} ${c.title} ${c.body}`).not.toMatch(banned);
     }
+    expect(`${RETURNING_COPY.eyebrow} ${RETURNING_COPY.title} ${RETURNING_COPY.body}`).not.toMatch(banned);
+  });
+
+  it("welcomes a returning subscriber without inventing a discount", () => {
+    // Our UI must never state a price the store didn't give us. Real win-back pricing is configured
+    // in App Store Connect and shown by StoreKit's own sheet — never claimed here.
+    const all = `${RETURNING_COPY.title} ${RETURNING_COPY.body}`;
+    expect(all).not.toMatch(/\d+% off|\$\d|half price|discount|special price/i);
+    expect(all.length).toBeGreaterThan(0);
   });
 
   it("lists benefits that are all real, non-empty promises", () => {

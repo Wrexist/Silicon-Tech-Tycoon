@@ -80,9 +80,28 @@ Defined once in `src/state/proGates.ts` (`FREE_TIER` + `isLocked`), and pinned b
 - **The Platform Era and the AI Era** — the second half of the campaign
 - **New Game+ and Ascension** — the prestige loop and the Heat ladder
 - **Every scenario** (six hand-built runs)
+- **The Time Machine** — rolling quarterly snapshots of your company, rewind to any of the last five
 - **The Platform Division** — found an OS, licence it, own the ecosystem
 - **Creative Mode** — the old $2.99 IAP, now included
 - **The Vault, the Device Museum, Category Mastery, Founder Legend** — the cross-company archives
+
+### Why the Time Machine exists
+
+The loudest objection to subscriptions in games — stated plainly across itch.io and Reddit threads
+on exactly this question — is *"games lose my interest in a few weeks, so why would I pay every
+month?"* Unlocked content does not answer that. It is a one-time purchase wearing a subscription's
+clothes, and a player who finishes the campaign in month two is right to cancel.
+
+An ongoing **service** does answer it: for as long as you subscribe, your company is protected.
+`state/timeMachine.ts` snapshots the freeform campaign every four weeks and keeps the last five, so
+one catastrophic launch or one over-hired year no longer ends a twenty-hour run. That is a reason to
+still be paying in month six, and it is the only feature in Pro that gets *more* valuable the longer
+you play.
+
+It is fenced to keep it fair: **snapshots are taken only in the freeform campaign** — never in a
+scenario, never in a daily or weekly challenge. Those are the scored, seeded, star-rated modes where
+rewinding would be cheating and where a free player and a Pro player must be measured identically.
+A test pins that fence. In your own campaign there is nothing to cheat.
 
 ### Why the wall is at era 3
 
@@ -112,7 +131,8 @@ Pro sells **content and modes**, never an advantage inside a run.
 
 | # | Surface | Reason id | When |
 |---|---|---|---|
-| 1 | **Founding offer** | `onboarding` | Once per device, right after the player names their company |
+| 0 | **Founding brief** (one question) | — | Once per device, right after naming the company; shapes what #1 leads with |
+| 1 | **Founding offer** | `onboarding` | Once per device, immediately after the brief |
 | 2 | **The era wall** | `eraAdvance` | On tapping *Advance* into era 3 — the primary conversion moment |
 | 3 | New Game+ | `newGamePlus` | On the IPO overlay, after winning |
 | 4 | Ascension / Heat | `ascension` | Raising Heat on the IPO overlay |
@@ -120,7 +140,8 @@ Pro sells **content and modes**, never an advantage inside a run.
 | 6 | Platform Division | `platformDivision` | Company → Platform tab |
 | 7 | Creative Mode | `creativeMode` | Settings |
 | 8 | Vault / Museum / Mastery / Legend | matching id | Progress hub rows |
-| 9 | Settings status row | `onboarding` | "See what's in Pro" |
+| 9 | Time Machine | `timeMachine` | Settings — shown locked, with the pitch, before it's needed |
+| 10 | Settings status row | `onboarding` | "See what's in Pro" |
 
 Every one of them routes through **one** overlay (`components/Paywall.tsx`) via
 `openPaywall({ reason, onUnlocked })`, which:
@@ -130,6 +151,25 @@ Every one of them routes through **one** overlay (`components/Paywall.tsx`) via
   entitlement branching.
 - **resumes the interrupted action** on success. A player who hit the era wall, subscribed, and
   came back lands *in the era-advance ceremony*, not on the screen they started from.
+
+### The conversion mechanics, and the evidence behind each
+
+Six deliberate mechanics, each drawn from what the subscription-app industry has actually measured —
+and each implemented in the version that keeps the "no dark patterns" promise rather than the
+version that squeezes the number hardest.
+
+| # | Mechanic | Why | Where |
+|---|---|---|---|
+| 1 | **The founding brief** — one question before the offer | The screen *before* the paywall moves conversion more than the paywall. Apps that ask what the user wants first convert several times better (Noom's quiz-to-paid is ~10% vs a ~2.7% median); stating an ambition is a small commitment that makes the next screen read as an answer. **Our version is one honest question, not a ten-step quiz that changes nothing** — and it only reorders the argument, never its content. A test asserts that every player sees the same set of promises. | `state/founderIntent.ts` · `components/FoundingBrief.tsx` |
+| 2 | **Proof, counted from the catalogs** | A sim player's first question is "how much game is there?". The industry answer here is invented download counts and testimonials — a dark pattern *and* an App Review liability. Ours reads the real content tables at module load, so it cannot rot and cannot become a lie: add a scenario and the strip updates. | `PROOF` in `components/Paywall.tsx` |
+| 3 | **Trial-ending strip (2 days out)** | Counter-intuitive but correct: a subscriber surprised by a charge refunds it, leaves a one-star review, and never returns — and Apple counts the refund either way. Warning costs a few cancellations from people who were never staying, and buys goodwill from everyone who does. It is also the clearest possible signal to App Review that this isn't a trial trap. | `components/ProNudge.tsx` |
+| 4 | **Billing-failure rescue** | ~⅓ of subscription churn is involuntary — an expired card, a declined charge — not a decision. Apple retries for up to 60 days and keeps the subscriber entitled through the grace period; the only missing piece is the user *knowing*. Reported recovery from doing this properly runs 15–20% of otherwise-lost revenue. | `components/ProNudge.tsx` |
+| 5 | **Returning-subscriber welcome** | Lapsed subscribers are the cheapest revenue an app has, and the surest way to lose them is to show them the first-time sales pitch again. A one-bit, never-cleared breadcrumb (`hasEverSubscribed`) swaps the headline for a welcome. **No discount is claimed** — real win-back pricing is configured in App Store Connect and shown by StoreKit's own sheet; our UI never states a price the store didn't give us. | `RETURNING_COPY` in `state/proGates.ts` |
+| 6 | **Monthly → Yearly crossgrade** | Yearly subscribers have materially higher LTV and lower churn. Offered only to someone already on Monthly, framed as what it is: the same Pro for less per month. Both SKUs share one subscription group, so StoreKit prorates it — no double charge, no cancel-first. | `ProGroup` in `screens/Settings.tsx` |
+
+**Deliberately not implemented:** fabricated social proof, countdown timers, "limited time" pricing,
+a trial toggle, or a paywall you can't dismiss. The first four are lies, and the fifth is a
+Guideline 3.1.2 rejection as of January 2026.
 
 ### Rules the funnel follows
 

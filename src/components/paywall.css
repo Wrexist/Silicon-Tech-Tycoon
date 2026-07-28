@@ -95,6 +95,23 @@
   font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.5;
 }
 
+/* ---------- proof strip ----------
+   Content counts, read from the real catalogs. Answers "how much game is there?" without inventing
+   a single number. */
+.pwl__proof {
+  width: 100%; margin-bottom: var(--sp-12);
+  display: flex; justify-content: space-between; gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-6);
+  border-radius: var(--r-card);
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+}
+.pwl__proof-item { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; flex: 1; }
+.pwl__proof-num { font-size: var(--fs-caption); font-weight: 800; letter-spacing: -0.02em; color: var(--gold); }
+.pwl__proof-label {
+  font-size: 9px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.03em;
+  white-space: nowrap; /* a wrapped label collides with its neighbours and reads as broken */
+}
+
 /* ---------- benefits ----------
    Two dense columns: the list has to earn its space against the plan rows, which are what the
    player actually has to read. */

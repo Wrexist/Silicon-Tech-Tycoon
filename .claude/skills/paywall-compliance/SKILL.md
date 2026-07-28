@@ -21,8 +21,11 @@ Read `MONETIZATION.md` for the model and `appstore/SUBSCRIPTION_GUIDE.md` for th
 | Shared native plugin proxy | `src/state/storeKitBridge.ts` |
 | Presentation bus + first-run timing | `src/state/paywall.ts` |
 | **The one and only purchase surface** | `src/components/Paywall.tsx` |
+| The one question asked before the offer | `src/state/founderIntent.ts` · `components/FoundingBrief.tsx` |
+| Trial-ending + billing-failure strips | `src/components/ProNudge.tsx` |
+| The Time Machine (the Pro feature that justifies recurring billing) | `src/state/timeMachine.ts` |
 | Native StoreKit 2 | `ios/App/App/SiliconStoreKit.swift` |
-| Tests | `pro.test.ts` · `proGates.test.ts` · `proStore.test.ts` · `paywall.test.ts` |
+| Tests | `pro.test.ts` · `proGates.test.ts` · `proStore.test.ts` · `paywall.test.ts` · `founderIntent.test.ts` · `timeMachine.test.ts` |
 
 ## Five rules that must never be broken
 
@@ -40,6 +43,27 @@ Read `MONETIZATION.md` for the model and `appstore/SUBSCRIPTION_GUIDE.md` for th
    not evidence of a lapse — revoking on it logs paying customers out.
 5. **Never lower `FIRST_FREE_BUILD`.** It is the boundary that grandfathers everyone who bought the
    app at $8.99. Lowering it silently strips Pro from paying customers.
+6. **A Pro convenience must never reach a scored mode.** The Time Machine snapshots the freeform
+   campaign only — never a scenario, never a daily or weekly challenge. Those have stars and seeded
+   leaderboards, so a free player and a Pro player must run identical rules. Any future "helper"
+   feature inherits this fence.
+
+## The honest-selling line
+
+The conversion mechanics here each have a squeeze-harder version that this project does not ship.
+Keep it that way — they are lies, and three of the five are also rejections:
+
+| Shipped | NOT shipped |
+|---|---|
+| One honest question before the offer | A ten-step "personalization quiz" that changes nothing |
+| Proof counted from the real content tables | Invented download counts and testimonials |
+| "Your trial ends in 2 days" | Silence, then a surprise charge |
+| A welcome for returning subscribers | A fabricated "just for you" discount |
+| Prices from StoreKit, always | A price typed into the UI |
+| — | Countdowns, "limited time", a trial toggle, an undismissable paywall |
+
+`proGates.test.ts` enforces the no-urgency rule against the copy, and `founderIntent.test.ts`
+enforces that personalization only ever REORDERS the promises — never adds, drops or edits one.
 
 ## Adding a new locked feature
 

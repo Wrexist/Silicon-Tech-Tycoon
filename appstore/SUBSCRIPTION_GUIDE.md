@@ -206,6 +206,33 @@ also how you test the lapse path: let one expire and confirm gates re-lock.
 
 ---
 
+## Step 9 — Win-back offers (after launch, no code required)
+
+Once you have your first churned subscribers, configure **Win-Back Offers** on each recurring SKU
+(App Store Connect → the subscription → Win-Back Offers → Create). Apple decides eligibility and
+surfaces the offer on your product page, on the user's Subscriptions page, and in the App Store —
+**with no app changes at all**. Reported recovery from properly-handled lapsed subscribers runs
+15–20% of otherwise-lost revenue, which makes this the highest return-per-hour item on this page.
+
+The app already does its half: someone who has subscribed on this device before gets a *Welcome
+back* paywall instead of the first-time sales pitch (`RETURNING_COPY`). It deliberately claims **no
+discount** — if you configure a win-back price, StoreKit's own sheet shows it, and our UI never
+states a price the store didn't give us.
+
+*(Optional, later: iOS 18's `Product.PurchaseOption.winBackOffer` can present the offer inside the
+app's own purchase flow too. Not wired — the store-side version needs no code and carries no risk of
+showing an ineligible user a price they can't have.)*
+
+## Grace period — turn it on
+
+App Store Connect → **App Information → Billing Grace Period → On** (choose the longest available).
+
+Roughly a third of subscription churn is involuntary: an expired card, a declined charge. With a
+grace period Apple keeps the subscriber entitled while it retries for up to 60 days, and the app
+already detects it (`inGracePeriod`) and shows a quiet "there's a problem with your payment" strip
+that opens the manage-subscription sheet. Without the grace period turned on, those subscribers just
+silently lose access and churn.
+
 ## After launch
 
 - **Don't delete the legacy Creative Mode IAP.** Removing it can break restores for people who own
