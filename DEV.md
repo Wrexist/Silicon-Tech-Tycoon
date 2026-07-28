@@ -66,10 +66,27 @@ migrations in `state/useGame.ts`, `render/DeviceRenderer.tsx` + category shapes.
   the `## Backlog` in TASK.md.
 - Never leave the build broken between sessions. Commit per logical turn.
 
-## Monetization (LOCKED) — $8.99 premium, complete & winnable
-The base game is whole with zero purchases. v1 IAP = **Sandbox/Creative mode unlock only**.
-DLC expansions + cosmetics are scaffolded but ship post-launch. No progression gates,
-currency sales, speed-ups, loot boxes, or ads. Ever.
+## Monetization — free download + **Silicon Pro** (full detail in `MONETIZATION.md`)
+The app is **free to download and free to play**. Revenue comes from **Silicon Pro**:
+monthly / yearly (7-day trial) or a one-time **Lifetime** purchase.
+
+**Pillar #6 is unchanged.** No ads, no timers, no energy, no premium currency, no loot
+boxes, no pay-to-win, no nagging — ever. The free tier is a real game (full design →
+launch → market loop, the Garage and Growth eras, a daily challenge every day); Pro
+unlocks **depth**: the Platform and AI eras, all scenarios, New Game+, Ascension, the
+Platform Division, Creative Mode, the Vault and the Museum.
+
+Three rules when touching any of this:
+1. **No gate may reach `engine/`.** Every lock sits on a player action or a UI surface, so
+   free and Pro runs are byte-identical and the determinism pin can't see monetization.
+2. **Pro sells content and modes, never an advantage inside a run.** That's what keeps
+   Guideline 3.1.1 off the table and the "no dark patterns" wedge true.
+3. **Everyone who bought the $8.99 version keeps everything, forever** (`founding` tier,
+   detected from the original download's build number). Never lower `FIRST_FREE_BUILD`.
+
+Code seams: `state/pro.ts` (entitlement) · `state/proGates.ts` (the free/Pro line, one
+table) · `state/proStore.ts` (StoreKit) · `components/Paywall.tsx` (the ONE purchase
+surface). App Store Connect setup: `appstore/SUBSCRIPTION_GUIDE.md`.
 
 ## IP discipline
 No real brand/company/product names anywhere (no "iPhone", no real chip names). Fictional

@@ -10,6 +10,7 @@ app's no-tracking ethos). GitHub Pages serves this `docs/` folder as-is.
 |------|-----------|-----|
 | `index.html` | `/` | Landing / marketing page → **App Store "Marketing URL"** |
 | `privacy/index.html` | `/privacy/` | Privacy policy → **App Store "Privacy Policy URL"** (required) |
+| `terms/index.html` | `/terms/` | Terms of Use / EULA incl. subscription terms → **App Store "License Agreement URL"**, and linked from the in-app paywall (required by Guideline 3.1.2 — a dead link here is a rejection) |
 | `support/index.html` | `/support/` | Support + FAQ → **App Store "Support URL"** (required) |
 | `assets/` | `/assets/…` | Shared `styles.css`, `site.js`, icons |
 | `.nojekyll` | — | Serve files verbatim (skip Jekyll processing) |

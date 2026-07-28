@@ -35,8 +35,8 @@ new one, or touch an existing one, make it match:
    is their reflection — that's enough.
 
 Popups already on this style: celebration, awards, rival strike, rivalry, eureka, community ask,
-earnings call, ready-to-launch, launch reveal, decorate tutorial, `.ds-sheet` bottom sheets, and the
-scenarios confirm. **Exception:** the full-screen milestone takeovers (`.bankrupt`, `.era-modal`,
+earnings call, ready-to-launch, launch reveal, decorate tutorial, the Silicon Pro paywall,
+`.ds-sheet` bottom sheets, and the scenarios confirm. **Exception:** the full-screen milestone takeovers (`.bankrupt`, `.era-modal`,
 `.ipo` win in `App.css`) are a deliberately different "fill the screen with a themed gradient"
 celebration style — leave them as-is.
 
@@ -76,4 +76,13 @@ celebration style — leave them as-is.
   ceremonies (nemesis trophy, the Vault's dossier reveal) are likewise exempt — the reward is already
   banked — but the Vault reveal stamps too, and ranks LAST in `design/interruptPriority.ts` so it
   waits behind anything that actually needs an answer.
+- **Monetization never touches the engine.** The app is free-to-download with a **Silicon Pro**
+  subscription (`state/pro.ts` · `state/proGates.ts` · `state/proStore.ts` ·
+  `components/Paywall.tsx`). Every gate sits on a PLAYER ACTION or a UI surface — nothing in
+  `engine/` may read an entitlement, so free and Pro runs are byte-identical and the determinism pin
+  can never see monetization. Pro sells **content and modes**, never an in-run advantage. There is
+  exactly ONE purchase surface: raise it with `openPaywall({ reason, onUnlocked })`, never build a
+  second paywall. Adding a gate means adding its `ProFeature`, its `COPY` entry and its test in
+  `proGates.test.ts` together. Full model + tuning levers: `MONETIZATION.md`. Store setup:
+  `appstore/SUBSCRIPTION_GUIDE.md`.
 - Run `npm test` (Vitest) before committing; keep the determinism pin green.

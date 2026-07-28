@@ -193,25 +193,34 @@ Premium, offline, no ads.
 
 | Field | Value |
 |-------|-------|
-| Base price | **$8.99** (Tier 9) |
+| Base price | **Free** |
 | Availability | All countries/regions (worldwide) |
 | Educational discount | No |
 | Volume discount | No |
 | Apple Small Business Program | **Enroll** — reduces cut to 15% (first-year / <$1M) |
 
-### In-App Purchase
+### In-App Purchases — Silicon Pro
+
+Full setup instructions: **`appstore/SUBSCRIPTION_GUIDE.md`**. Model and rationale:
+**`MONETIZATION.md`**.
+
+| Field | Value |
+|-------|-------|
+| Subscription group | `silicon_pro` — *Silicon Pro* (must match `PRO_SUBSCRIPTION_GROUP` in `state/pro.ts`) |
+| `com.wrexist.silicon.pro.yearly` | Auto-renewable · **$19.99/year** · 7-day free trial · display name `Silicon Pro Yearly` |
+| `com.wrexist.silicon.pro.monthly` | Auto-renewable · **$3.99/month** · 7-day free trial · display name `Silicon Pro Monthly` |
+| `com.wrexist.silicon.pro.lifetime` | **Non-Consumable** · **$29.99** one-time · Family Sharing **On** · display name `Silicon Pro Lifetime` |
+| Subscription description | Unlock the Platform and AI eras, every scenario, New Game+, Ascension, the Platform Division, Creative Mode, the Vault and the Device Museum. |
+| Review screenshot | Required per product: the in-app paywall (Settings → Silicon Pro → See what's in Pro) |
+| License Agreement URL | `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/` — **required**, and linked in the paywall |
+
+### Legacy in-app purchase (keep live, no longer offered)
 
 | Field | Value |
 |-------|-------|
 | Product ID | `com.wrexist.silicon.sandbox` |
-| Type | **Non-Consumable** |
-| Reference name | `Creative Mode` |
-| Display name | `Creative Mode` |
-| Price | **$2.99** (Tier 3) |
-| Description (short, ≤45 chars) | `Unlock unlimited Sandbox / Creative Mode` |
-| Description (long) | Unlocks Creative Mode — a Sandbox experience with unlimited funds where you can design and launch any product without financial pressure. The base game is complete without this purchase. This unlock is permanent and restores across devices. |
-| Review screenshot | Required: show the Settings screen with the locked Creative Mode row |
-| Family Sharing | **Yes** (non-consumable — share with family) |
+| Type | **Non-Consumable** · $2.99 · `Creative Mode` |
+| Status | **Do not remove.** Sold during the paid era; removing it can break restores for owners. The app no longer offers it — Creative Mode now travels with Silicon Pro, and prior buyers keep theirs. |
 
 ---
 
@@ -294,7 +303,7 @@ then skip the coach tips to reach the main game loop.
 TESTING THE IN-APP PURCHASE (Creative Mode)
 1. Go to Settings (gear icon, bottom-right of any screen).
 2. Scroll to "Creative Mode — Sandbox unlock".
-3. Tap "Unlock for $2.99" to initiate the purchase.
+3. Tap a Silicon Pro plan to initiate the purchase (or "Unlock with Pro" on the Creative Mode row).
 4. Use a Sandbox Apple ID to complete the transaction.
 5. The toggle will appear immediately after a successful purchase.
 6. "Restore purchase" re-grants the entitlement on a new device.
@@ -303,8 +312,11 @@ The purchase is a Non-Consumable. The base game is fully playable
 and completeable without purchasing Creative Mode.
 
 PRICING
-Base app: $8.99 (paid up front, complete game).
-IAP: $2.99 Creative Mode (Sandbox / unlimited funds — cosmetic,
+Base app: Free. Silicon Pro subscription ($3.99/mo, $19.99/yr, 7-day trial)
+or $29.99 one-time Lifetime unlocks additional content (Platform + AI eras,
+all scenarios, New Game+, Creative Mode, Vault, Museum). Nothing purchasable
+changes the simulation in the player's favour.
+Legacy IAP: $2.99 Creative Mode (Sandbox / unlimited funds — cosmetic,
 no progression gate).
 
 CONTACT
@@ -416,8 +428,10 @@ Recommended pre-submission checklist:
 - [ ] Age rating questionnaire completed → 4+
 - [ ] All 5 screenshots uploaded in the correct order
 - [ ] Review notes filled in (see above)
-- [ ] App pricing set to $8.99
-- [ ] IAP pricing set to $2.99
+- [ ] App pricing set to **Free** (with this submission, not before)
+- [ ] Silicon Pro group + 3 products created, priced, and trials attached
+- [ ] `FIRST_FREE_BUILD` in `state/pro.ts` matches the build number being shipped
+- [ ] License Agreement URL (`/terms/`) and Privacy Policy URL both live and loading
 - [ ] Small Business Program enrollment confirmed
 - [ ] "Data Not Collected" declared in App Privacy
 - [ ] Build archived and uploaded via Xcode → Product → Archive

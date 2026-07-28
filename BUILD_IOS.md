@@ -4,8 +4,11 @@ The web app (`dist/`) is wrapped as a native iOS app with **Capacitor**. Everyth
 native build is done and committed; the steps below run on a **Mac with Xcode** (Capacitor cannot
 generate or build the iOS project on Linux/CI without macOS).
 
-Monetization is **LOCKED**: a single paid **$8.99 premium** download + one optional non-consumable
-IAP — **Creative Mode** (the Sandbox unlock). No other purchases, ads, or gates. Ever.
+Monetization: the app is a **free download** with the **Silicon Pro** subscription (monthly /
+yearly, 7-day trial) and a one-time **Pro Lifetime** purchase. No ads, timers, currencies or
+loot boxes — ever. Full model in `MONETIZATION.md`; App Store Connect setup in
+`appstore/SUBSCRIPTION_GUIDE.md`. The legacy **Creative Mode** IAP stays live for the people who
+bought it during the paid era, but is no longer offered.
 
 ---
 
@@ -73,48 +76,34 @@ Run on a simulator or a real device with the ▶ button to smoke-test.
 
 ---
 
-## 4. Wire StoreKit for the Creative Mode IAP
+## 4. In-app purchases (StoreKit 2 — already wired)
 
-The purchase UI and entitlement flow are built; the native StoreKit calls are stubbed in
-`src/state/iap.ts` (search for `NATIVE INTEGRATION POINT`). **While unwired, the app hides the
-Creative Mode purchase UI on iOS** (`iapAvailable()` returns false), so you have two valid paths:
+`ios/App/App/SiliconStoreKit.swift` is a StoreKit 2 plugin covering products, purchase, restore,
+subscription status, intro-offer eligibility, Apple's Manage Subscriptions sheet, and the original
+download's build number (how paid-era buyers are recognised). **Deliberately not a third-party
+purchase SDK** — that's what keeps the App Privacy "Data Not Collected / no third-party SDKs"
+declaration literally true, and the SPM-only iOS target free of CocoaPods deps.
 
-- **Ship v1 without the IAP** — do NOT create or attach the IAP in App Store Connect; submit the
-  base game; wire StoreKit in a 1.x update. Nothing else to do in this section.
-- **Ship v1 with the IAP** — complete ALL steps below **before submitting**. If the IAP is
-  attached to the review version, App Review will test the purchase; a dead or hidden buy button
-  with an attached IAP is a Guideline 2.1 rejection.
+JS side: `src/state/proStore.ts` (Pro) and `src/state/iap.ts` (legacy Creative Mode), both through
+the one shared bridge in `src/state/storeKitBridge.ts`.
 
-1. **App Store Connect** → your app → **In-App Purchases** → create a **Non-Consumable**:
-   - Product ID: **`com.wrexist.silicon.sandbox`** (must match `SANDBOX_PRODUCT_ID`).
-   - Reference name: "Creative Mode", price tier ≈ **$2.99**, with a localized display name +
-     description and a review screenshot.
+**One-time Xcode setup:**
 
-2. **Install a purchases plugin:**
-   ```bash
-   npm i cordova-plugin-purchase   # v13+, works with Capacitor
-   npx cap sync ios
-   ```
-   > ⚠️ Older versions of this doc referenced `@capacitor-community/in-app-purchases` — that
-   > package **does not exist on npm**. Alternative: `@revenuecat/purchases-capacitor` (requires a
-   > free RevenueCat account + API-key configure step; check its compatibility table for the major
-   > that supports this project's Capacitor version before installing).
+1. **Signing & Capabilities → + Capability → In-App Purchase.**
+2. Optional but recommended for simulator work: add a **StoreKit Configuration File**
+   (Product → Scheme → Edit Scheme → Run → Options → StoreKit Configuration) containing
+   `com.wrexist.silicon.pro.monthly`, `.yearly`, `.lifetime` and `com.wrexist.silicon.sandbox`, so
+   buy/restore can be exercised without App Store Connect.
+3. Set `FIRST_FREE_BUILD` in `src/state/pro.ts` to the build number you ship free (**≥ 5** — paid
+   builds were 1–4), then `npm run build && npx cap sync ios`.
 
-3. **Complete `src/state/iap.ts`** — implement the three `NATIVE INTEGRATION POINT` stubs
-   (`getSandboxProduct`, `purchaseSandbox`, `restoreSandbox`) against the installed plugin's real
-   API, calling `grantSandboxEntitlement()` on a verified transaction. The commented sketches in
-   each stub follow cordova-plugin-purchase v13 — verify them against the plugin docs. Then flip
-   **`NATIVE_IAP_WIRED` to `true`** (top of iap.ts) so the purchase UI shows on device, and
-   `npm run build && npx cap sync ios`.
+**Everything else — creating the subscription group and SKUs, the trials, the legal URLs, the
+sandbox test matrix, and the App Review notes — is in
+[`appstore/SUBSCRIPTION_GUIDE.md`](appstore/SUBSCRIPTION_GUIDE.md).** Follow it rather than this
+file; a product attached to the review build that can't complete is a Guideline 2.1 rejection.
 
-4. **Local testing:** add a **StoreKit Configuration File** in Xcode (Product → Scheme → Edit
-   Scheme → Run → Options → StoreKit Configuration) with the same product id, so you can test
-   buy/restore in the simulator without App Store Connect. Verify both **Unlock** and
-   **Restore purchase** complete on a device before submitting.
-
-The entitlement persists on-device (`silicon.iap.sandbox`), survives new games/restarts, and
-**Restore purchase** re-grants it after reinstall once StoreKit is wired. Settings shows the
-price + Unlock when unowned, and a free on/off toggle once owned.
+To ship a build with the purchase path dark, set `NATIVE_PRO_WIRED = false` in `proStore.ts` (the
+purchase UI hides itself) and don't attach the products.
 
 ---
 
@@ -123,7 +112,8 @@ price + Unlock when unowned, and a free on/off toggle once owned.
 1. Set the **Marketing Version** and **Build** number (Xcode → General).
 2. **Product → Archive**, then **Distribute App → App Store Connect → Upload**.
 3. In **App Store Connect**:
-   - **Pricing:** app **$8.99** (paid up front); IAP **$2.99**.
+   - **Pricing:** app **Free**; Silicon Pro **$3.99/mo**, **$19.99/yr**, **$29.99 lifetime**
+     (see `appstore/SUBSCRIPTION_GUIDE.md` — set the price to Free *with* this submission, not before).
    - **App Privacy:** the app collects **no data** and has **no backend** — it's fully offline
      (`localStorage` only). Declare "Data Not Collected".
    - **Metadata + screenshots:** use `STORE_LISTING.md` (name, subtitle, keywords, description).

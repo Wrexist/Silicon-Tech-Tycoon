@@ -198,20 +198,21 @@ PLUS
 
 | Field | Value |
 |---|---|
-| Base price | **$8.99** (Tier 9) |
+| Base price | **Free** |
 | Availability | All countries / regions |
 | Pre-orders | Optional |
 | Educational discount | No |
 | **Apple Small Business Program** | **Enroll** (15% cut while under $1M/yr) |
 
-**In-App Purchase** (see IAP_GUIDE.md — only if shipping Option B):
+**In-App Purchases — Silicon Pro** (full setup: `SUBSCRIPTION_GUIDE.md`):
 
 | Field | Value |
 |---|---|
-| Product ID | `com.wrexist.silicon.sandbox` |
-| Type | Non-Consumable · **$2.99** (Tier 3) |
-| Display name | `Creative Mode` |
-| Family Sharing | On |
+| Subscription group | `silicon_pro` — *Silicon Pro* |
+| `com.wrexist.silicon.pro.yearly` | Auto-renewable · **$19.99/yr** · 7-day free trial |
+| `com.wrexist.silicon.pro.monthly` | Auto-renewable · **$3.99/mo** · 7-day free trial |
+| `com.wrexist.silicon.pro.lifetime` | Non-Consumable · **$29.99** · Family Sharing On |
+| `com.wrexist.silicon.sandbox` | Legacy Non-Consumable · $2.99 · **keep live, no longer offered** |
 
 ---
 
@@ -254,10 +255,10 @@ to start a company; the coach tips can be skipped to reach the main loop.
 The game is complete and winnable without any purchase.
 
 [Include the next block ONLY if the Creative Mode IAP is attached:]
-IN-APP PURCHASE (Creative Mode, Non-Consumable, $2.99)
+IN-APP PURCHASES (Silicon Pro subscription + Lifetime)
 1. Open Settings (gear, top-right).
 2. Scroll to "Creative Mode".
-3. Tap "Unlock - $2.99" and complete with a Sandbox Apple ID.
+3. Tap a Silicon Pro plan and complete with a Sandbox Apple ID.
 4. The Sandbox toggle appears immediately on success.
 5. "Restore purchase" re-grants it on a fresh install.
 Creative Mode is a no-limits sandbox (unlimited cash floor). It is NOT a
@@ -370,7 +371,8 @@ Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + 
       `appstore/localizations/`** (not from this file) — `node appstore/localizations/validate.mjs --all`
       prints ✓ for all 39 first
 - [ ] Categories: Simulation (primary), Strategy (secondary)
-- [ ] Price $8.99, all countries, Small Business Program enrolled
+- [ ] Price **Free**, all countries, Small Business Program enrolled
+- [ ] Silicon Pro group + 3 products attached to the version and sandbox-tested
 - [ ] Age rating completed → 4+
 - [ ] App Privacy = "Data Not Collected"; `PrivacyInfo.xcprivacy` added
 - [ ] Privacy + Support URLs live and pasted
