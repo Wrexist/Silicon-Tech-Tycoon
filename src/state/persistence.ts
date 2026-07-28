@@ -7,7 +7,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { canPlace, defaultLayout, deskItems, gridN, repairSeats } from "../engine/furniture.ts";
 import { makeIdentity, makeSkills } from "../engine/staff.ts";
 import { defaultCameraDesign, FINISH_ORDER, type FinishId, type Keynote, type Product, type StaffRole } from "../engine/types.ts";
-import { SAVE_VERSION, industryRank, type GameState } from "./gameState.ts";
+import { SAVE_VERSION, industryRank, reputationFloor, type GameState } from "./gameState.ts";
 import { toDollars } from "../engine/money.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { satisfiedObjectiveIds } from "../engine/objectives.ts";
@@ -296,6 +296,14 @@ function migrate(state: GameState): GameState | null {
   if (!Number.isFinite(s.week)) s.week = 0;
   if (!Number.isFinite(s.cash)) s.cash = 0;
   if (!Number.isFinite(s.reputation)) s.reputation = 8;
+  // v1.2.0 guarantees a young company can never be driven to zero reputation, because zero means
+  // zero demand — every later launch flops and there is no way back. The floor is applied wherever
+  // reputation is REDUCED, which does nothing for a save that already sits at the bottom: a returning
+  // player whose 1.1.0 company bottomed out would load into exactly the dead end this release fixes.
+  // Lift them to the floor for their era. Only ever raises, only up to a single-digit floor, and is a
+  // no-op for every save already above it (which is most of them) and for eras 4-5 where the floor is
+  // 0 by design.
+  if (Number.isFinite(s.era)) s.reputation = Math.max(s.reputation, reputationFloor(s.era));
   if (!Number.isFinite(s.fans)) s.fans = 250;
   if (!Number.isFinite(s.cumulativeRevenue)) s.cumulativeRevenue = 0;
   // Same unsigned formula as newGame's default — the old Date.now()*2**31 overflowed Number
