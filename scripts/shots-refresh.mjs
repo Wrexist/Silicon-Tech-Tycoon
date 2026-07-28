@@ -1,8 +1,10 @@
-// Refreshed App Store screenshot set (v1.1.0) — self-contained: serves ./dist in-process (no vite
-// preview needed), stages the LAVISH showcase save, captures the hero factory + office and the key
-// features, and composes each into the premium tilted-titanium marketing frame (dark gradient,
-// two-tone headline, iPhone frame, wordmark). Output: .newfeat-shots/store/NN-*.png at 1284×2778.
-//   npm run build && npm run shots:stage:showcase && node scripts/shots-refresh.mjs
+// THE shipping App Store screenshot set (`npm run shots:store`) — self-contained: serves ./dist
+// in-process (no vite preview needed), stages the LAVISH showcase save, captures the Vault board,
+// the factory and the key features, and composes each into the premium tilted-titanium marketing
+// frame (dark gradient, two-tone headline, iPhone frame, wordmark). Frame ORDER here is the upload
+// order; it tracks APP_STORE_FEATURING.md and appstore/APP_STORE_METADATA.md §11.
+// Output: .newfeat-shots/store/NN-*.png at 1284×2778.
+//   npm run build && npm run shots:stage:showcase && npm run shots:store
 import { createServer } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -38,7 +40,10 @@ const URL = `http://localhost:${PORT}`;
 const baseSave = JSON.parse((await readFile("/tmp/silicon-showcase.json")).toString());
 const overlays = JSON.parse((await readFile("/tmp/silicon-showcase-overlays.json")).toString());
 const withMut = (mut) => { const s = structuredClone(baseSave); s.lastActive = Date.now(); mut?.(s); return JSON.stringify(s); };
-const PENDINGS = ["pendingAwards", "pendingChoice", "pendingCommunityAsk", "pendingEarnings", "pendingEureka", "pendingLicenseOffer", "pendingPoach", "pendingRegionalEvent", "pendingRivalry", "pendingSideOrder", "pendingStaffMoment", "pendingStrike"];
+// Every interrupt the staged save can be holding. `pendingSecretReveal` is the Vault's dossier
+// ceremony: the showcase save opens two files on load, so without it here the celebration takes the
+// screen on EVERY frame, not just the Vault one.
+const PENDINGS = ["pendingAwards", "pendingChoice", "pendingCommunityAsk", "pendingEarnings", "pendingEureka", "pendingLicenseOffer", "pendingPoach", "pendingRegionalEvent", "pendingRivalry", "pendingSecretReveal", "pendingSideOrder", "pendingStaffMoment", "pendingStrike"];
 // Quiet a save for a clean SCREEN shot. The base keeps "Aurora Air" mid-build (an animated line) and
 // the sim ticks a week or two during the load window before it's paused — so on a plain screen the
 // build finishes and the "Ready to launch" popup pops, OR a fresh opportunistic card (rival strike,
@@ -48,10 +53,19 @@ const PENDINGS = ["pendingAwards", "pendingChoice", "pendingCommunityAsk", "pend
 // re-set it AFTER calling calm().
 const calm = (s) => { s.building = []; s.ready = []; s.lastInterruptWeek = (s.week ?? 0) + 500; for (const k of PENDINGS) if (k in s) s[k] = null; };
 // Factory mode is a full-screen takeover, so it keeps its live build (the order card + rolling belts)
-// but still suppresses stray interrupts that would otherwise queue behind it.
-const quiet = (s) => { s.lastInterruptWeek = (s.week ?? 0) + 500; for (const k of PENDINGS) if (k in s) s[k] = null; };
+// but still suppresses stray interrupts that would otherwise queue behind it. The showcase build is
+// a ONE-week run, so the ticks during the load window finish it and Ready-to-launch takes the screen
+// with an empty line behind it — stretch it to a multi-week run so the order card stays live and the
+// popup can't fire before the shot.
+const quiet = (s) => {
+  s.lastInterruptWeek = (s.week ?? 0) + 500;
+  for (const k of PENDINGS) if (k in s) s[k] = null;
+  for (const b of s.building ?? []) { b.totalWeeks = Math.max(6, b.totalWeeks ?? 1); b.weeksElapsed = 2; }
+};
 // Dismiss the Ready-to-launch popup if one is showing (belt-and-suspenders; the sim is paused by now).
-const dismissLaunch = async (p) => { for (const sel of [".rtl__later", ".rtl__scrim", ".rtl__close"]) { await p.click(sel, { timeout: 700 }).catch(() => {}); } await p.waitForTimeout(150); };
+// DOM clicks, not Playwright ones: the popup sits over the HUD, so its own controls are the only
+// things hit-testable while it's up — and once it's gone the selectors simply match nothing.
+const dismissLaunch = async (p) => { await p.evaluate(() => { for (const sel of [".rtl__later", ".rtl__scrim", ".rtl__close"]) document.querySelector(sel)?.click(); }); await p.waitForTimeout(400); };
 
 const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] });
 
@@ -67,7 +81,10 @@ async function page(saveJson) {
   await p.addStyleTag({ content: ".hq__camhint{display:none!important}" }).catch(() => {});
   await p.click('.ds-sheet button:has-text("Continue")', { timeout: 2000 }).catch(() => {});
   for (let i = 0; i < 8; i++) { const sk = await p.$(".coach__skip"); if (!sk) break; await sk.click().catch(() => {}); await p.waitForTimeout(200); }
+  // Pause via the DOM too: on screens that open over the HUD, the overlay's top edge blocks
+  // Playwright's hit-test and the sim keeps ticking through the whole capture.
   await p.click('button[aria-label="Pause"]', { timeout: 4000 }).catch(() => {});
+  await p.evaluate(() => document.querySelector('button[aria-label="Pause"]')?.click());
   return { ctx, p };
 }
 const tab = async (p, label) => {
@@ -77,24 +94,49 @@ const tab = async (p, label) => {
 };
 const subtab = async (p, n) => { await p.click(`button[role="tab"]:has-text("${n}")`, { timeout: 5000 }).catch(() => {}); await p.waitForTimeout(700); };
 const openFactory = async (p) => {
+  // `quiet` deliberately leaves a build on the line so the conveyor animates — which means the load
+  // window can finish it and raise Ready-to-launch over everything. Clear it before navigating.
+  await dismissLaunch(p);
   await tab(p, "Office");
   await p.evaluate(() => { [...document.querySelectorAll(".worldtabs__tab")].find((b) => /Factory/.test(b.textContent || ""))?.click(); });
   await p.waitForTimeout(900);
-  await p.click('button[aria-label="Open factory mode"]', { timeout: 6000 }).catch(() => {});
+  await p.evaluate(() => document.querySelector('button[aria-label="Open factory mode"]')?.click());
   await p.waitForTimeout(900);
   for (let i = 0; i < 5; i++) { const b = await p.$(".dtut__btn--primary"); if (!b) break; await b.click().catch(() => {}); await p.waitForTimeout(300); }
+  await p.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
   await p.waitForTimeout(3600); // let the 3D line spin up + items travel
+};
+// HUD trophy → Progress hub → The Vault. Two things this path needs that the tab frames don't:
+// DOM clicks (the open sheet's rounded top edge overlaps the HUD buttons, so Playwright's hit-test
+// refuses them), and waitForSelector rather than a fixed sleep — both screens are lazy chunks, so
+// the markup lands well after the click. The board is reached by row TITLE, not index, so it
+// survives new rows being added to the hub above it.
+const openVault = async (p) => {
+  await p.evaluate(() => document.querySelector('button[aria-label*="Progress"]')?.click());
+  await p.waitForSelector(".prog__row", { timeout: 15000 });
+  await p.waitForTimeout(400);
+  for (const r of await p.$$(".prog__row")) {
+    const t = await r.$eval(".prog__row-title", (n) => n.textContent).catch(() => "");
+    if (t?.includes("Vault")) { await r.evaluate((n) => n.click()); break; }
+  }
+  await p.waitForSelector(".vlt__list", { timeout: 15000 });
+  // A DOM click leaves the focus ring on whatever it hit; drop it so the card reads clean.
+  await p.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
+  await p.waitForTimeout(900);
 };
 
 const FRAMES = [
+  // The lead frame. A board of redaction blocks is the one image in the app that reads as a promise
+  // rather than a status readout — the showcase save leaves it mid-hunt (3 open, several rumoured,
+  // the rest sealed) so the thumbnail shows all four card states at once.
+  { raw: "vault", head: 'Eighteen files you were <span class="ac">never told about</span>', hue: 264,
+    sub: "Each one opens on something you did without being asked. A redaction, then a whisper, then the terms.",
+    mut: calm,
+    shoot: async (p) => { await openVault(p); await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(500); } },
   { raw: "factory", head: 'Build the <span class="ac">line</span>', hue: 28,
     sub: "Lay conveyor, place and upgrade machines, and watch a real 3D production floor run your builds.",
     mut: quiet,
     shoot: async (p) => { await openFactory(p); await p.evaluate(() => window.scrollTo(0, 0)); } },
-  { raw: "office", head: 'Garage to <span class="ac">global empire</span>', hue: 200,
-    sub: "Grow your studio in real-time 3D and deck it out with premium desks, a lounge and greenery.",
-    mut: calm,
-    shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(2600); await p.evaluate(() => window.scrollTo(0, 0)); } },
   { raw: "design", head: 'Design every <span class="ac">detail</span>', hue: 212,
     sub: "Pick the chip, display, camera, finish and colour — rendered live in 3D as you build.",
     mut: calm,
@@ -103,10 +145,10 @@ const FRAMES = [
     sub: "A dozen rival companies with real strategies. Climb the live leaderboard past every one.",
     mut: calm,
     shoot: async (p) => { await tab(p, "Market"); await dismissLaunch(p); await p.evaluate(() => document.querySelector(".mkt__board")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
-  { raw: "research", head: 'Research on your <span class="ac">terms</span>', hue: 190,
-    sub: "Breakthroughs develop over time on a live ring — queue your next projects and let it run.",
+  { raw: "office", head: 'Garage to <span class="ac">global empire</span>', hue: 200,
+    sub: "Grow your studio in real-time 3D and deck it out with premium desks, a lounge and greenery.",
     mut: calm,
-    shoot: async (p) => { await tab(p, "Research"); await p.evaluate(() => document.querySelector(".rd__active")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(500); } },
+    shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(2600); await p.evaluate(() => window.scrollTo(0, 0)); } },
   { raw: "awards", head: 'Win the <span class="ac">industry</span>', hue: 44,
     sub: "Every year the Silicon Awards judge every launch. Sweep Device, Design and Value.",
     mut: (s) => { calm(s); s.pendingAwards = overlays.awards; },
@@ -115,6 +157,10 @@ const FRAMES = [
     sub: "When a rival attacks your category, duel their device and choose your counter.",
     mut: (s) => { calm(s); s.pendingStrike = overlays.strike; s.rivalReleases = [...(s.rivalReleases || []), overlays.rivalRelease]; },
     shoot: async (p) => { await p.waitForTimeout(1600); } },
+  { raw: "research", head: 'Research on your <span class="ac">terms</span>', hue: 190,
+    sub: "Breakthroughs develop over time on a live ring — queue your next projects and let it run.",
+    mut: calm,
+    shoot: async (p) => { await tab(p, "Research"); await p.evaluate(() => document.querySelector(".rd__active")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(500); } },
   { raw: "global", head: 'Take it <span class="ac">global</span>', hue: 168,
     sub: "License new regions, each with its own taste — then hold your standing through regional events.",
     mut: calm,
@@ -125,7 +171,11 @@ const FRAMES = [
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(2400); await p.evaluate(() => window.scrollTo(0, 0)); } },
 ];
 
+// SHOTS_ONLY="vault,factory" re-captures just those while iterating on a frame; the rest keep the
+// raws already in .newfeat-shots/store-raw/, and numbering is driven by FRAMES either way.
+const ONLY = (process.env.SHOTS_ONLY || "").split(",").map((s) => s.trim()).filter(Boolean);
 for (const fr of FRAMES) {
+  if (ONLY.length && !ONLY.includes(fr.raw)) continue;
   const { ctx, p } = await page(withMut(fr.mut));
   try {
     await fr.shoot(p);
@@ -184,7 +234,15 @@ const c = await browser.newContext({ viewport: { width: SIZE.w, height: SIZE.h }
 const fp = await c.newPage();
 let i = 1;
 for (const fr of FRAMES) {
-  const b64 = (await readFile(resolve(rawDir, `${fr.raw}.png`))).toString("base64");
+  const raw = await readFile(resolve(rawDir, `${fr.raw}.png`)).catch(() => null);
+  if (!raw) {
+    // Selective mode is the ONLY reason a raw may be absent: you are iterating on one frame and the
+    // rest are deliberately left on their existing captures. Outside it, a missing raw means the set
+    // being written is short a frame, and quietly shipping nine of ten is worse than stopping.
+    if (ONLY.length) { console.log("skip", fr.raw, "— not in SHOTS_ONLY, keeping the existing frame"); i++; continue; }
+    throw new Error(`no raw capture for "${fr.raw}" — the composed set would be missing that frame`);
+  }
+  const b64 = raw.toString("base64");
   await fp.setContent(frameHtml(b64, fr.head, fr.sub, fr.hue), { waitUntil: "networkidle" });
   await fp.waitForTimeout(200);
   const out = resolve(outDir, `${String(i).padStart(2, "0")}-${fr.raw}.png`);

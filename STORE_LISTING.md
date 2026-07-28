@@ -22,7 +22,7 @@
 
 **Exactly 100 characters, comma-separated, no spaces after commas:**
 
-```
+```text
 business,simulation,management,idle,startup,manager,phone,gadget,empire,strategy,money,builder
 ```
 Character count: 94 ✓ (Apple counts punctuation; stay under 100)
@@ -77,9 +77,57 @@ Character count: ~1,650 (well within 4,000)
 
 ---
 
+## What's New (v1.2.0)
+
+```text
+A fifth era, a hidden layer, and a company that finally answers back.
+
+• The Vault: eighteen classified dossiers whose conditions are secret. Each opens on
+  something you did without being asked, and reveals itself a step at a time — a
+  redaction block, then a whisper, then the exact terms, then the reward. Buy the intel
+  if you're impatient; the deed is never for sale. What you learn carries into your next
+  company.
+• The Autonomy Era: a genuine fifth era past the IPO, with two new categories — Neural
+  Band and Home Robot — and a new component tier on every line.
+• Nemesis Duels: your arch-rival calls you out. Multi-week duels with escalating tiers,
+  and a trophy when you take one.
+• Mastery & Seasons: per-category grind bars with signature cosmetics, plus a monthly
+  Challenge Season track of device colorways, HQ finishes and profile badges.
+• Run the company, not just the product: crunch the team to rush a build, set standing
+  reorder policies, work the sell window after launch, gamble on moonshot R&D with
+  visible odds, promise a ship date at a keynote, draft an era mandate, and spend an
+  engineering budget that makes every project a real choice.
+• A world that lives: employees with names and lives of their own, rivals that fight
+  each other and not just you, review outlets that remember your last device, regional
+  events that name the rival surging there, and an industry ladder of named bosses to
+  climb.
+• See what you're climbing: a Company Roadmap of every era, category and endgame system
+  ahead of you, one Goals ledger, a Help hub that explains every score, and a glossary.
+• As calm as you like: Calm Mode sets how often the game interrupts you, and low-stakes
+  moments now wait quietly in a Decision Inbox.
+• A better HQ: a living 3D office with typing, chair swivels and glowing screens, 20 new
+  furniture pieces and 8 room styles, a factory floor that actually runs, proper task
+  chairs that always face their own monitor — plus Tidy Up for the office and Undo for
+  the factory.
+• Rebalanced throughout: every era now rewards a great launch and punishes a lazy one, a
+  rough start is something you can recover from instead of a dead end, and more than one
+  way to play survives to the end.
+
+Faster loading and a long list of fixes.
+```
+
+The shipped copy lives in `appstore/localizations/en-US/release_notes.txt` (2,266 chars
+against Apple's 4,000 limit), and all 39 App Store locales carry a translated version —
+`node appstore/localizations/validate.mjs --all` must print ✓ for every one before submitting.
+
+> These are **store-listing** localizations. The app UI itself is English-only — there is no
+> in-app i18n layer — so never claim "39 languages" as a product feature in the What's New.
+
+---
+
 ## What's New (v1.1.0)
 
-```
+```text
 Your factory floor is now yours to build — and the industry just got fiercer.
 
 • Factory Mode: lay conveyor belts, place and upgrade machines, and watch a real
@@ -110,7 +158,7 @@ Your factory floor is now yours to build — and the industry just got fiercer.
 
 ## What's New (v1.0.2)
 
-```
+```text
 Silicon just got a lot more alive.
 
 • Rivals now have backstories — read their doctrine, and watch their fortunes rise,
@@ -133,7 +181,7 @@ Silicon just got a lot more alive.
 
 ## What's New (v1.0 — first release)
 
-```
+```text
 Silicon launches on the App Store. Design devices, launch them into a living market,
 build your team, research the next era, and race rivals to the #1 spot.
 Premium, offline, no ads.
@@ -235,7 +283,7 @@ No other required-reason APIs are accessed. No third-party SDKs included.
 
 ### Review notes (paste into App Store Connect → App Review → Notes)
 
-```
+```text
 Thank you for reviewing Silicon: Tech Tycoon.
 
 TESTING THE APP
@@ -283,7 +331,7 @@ No.
 
 ### Minimum privacy policy content (paste at the privacy policy URL)
 
-```
+```text
 Silicon: Tech Tycoon Privacy Policy
 
 Silicon does not collect, transmit, or share any personal data.

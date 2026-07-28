@@ -1,8 +1,14 @@
-Gelmiş geçmiş en büyük Silicon güncellemesi.
+Beşinci bir çağ, gizli bir katman ve sonunda karşılık veren bir şirket.
 
-• Fabrika Modu: gerçek bir 3D üretim hattı kur — bantları döşe, makineleri yerleştirip geliştir ve hattı daha hızlı üretecek şekilde bağla. Her cihaz doğru makineleri ister. Fabrikanı süsle ve genişlet.
-• Ezeli Rakipler ve Rakip Baskınları: bir rakip ezeli düşmanına dönüşür ve çekişmeli her lansman bir düelloya döner — fiyat kır, karşı kampanya başlat ya da geri adım atma.
-• Silicon Ödülleri: her lansmanı yargılayan yıllık bir tören. Ya silip süpür ya da kin biriktir.
-• Borsaya gir: düşmanca devralma için çoğunluk hissesi topla, rakipleri satın alıp markalarını bünyene kat ya da kendi şirketini halka arz et.
-• Dünyaya açıl: bölge lisansları al; talep patlamalarını fırsata çevir, gümrük tarifelerini ve rakip ataklarını göğüsle.
-• Kuyruğa alınabilen zamanlı araştırma, araştırma doktrinleri, Evreka buluşları, yaşayan bir ekip ve hayran kitlesi, yan siparişler, kendi işletim sistemi platformun — artı daha rahat bir başlangıç, premium bir yeniden tasarım, kapsamlı erişilebilirlik iyileştirmeleri ve onlarca düzeltme.
+• Kasa: koşulları gizli tutulan on sekiz sınıflandırılmış dosya. Her biri, kimse istemediği hâlde yaptığın bir şeyle açılır ve kendini adım adım gösterir: önce karartılmış bir blok, sonra bir fısıltı, sonra tam koşullar, sonra ödül. Bilgi satın alınabilir; başarının kendisi asla. Öğrendiklerin bir sonraki şirketine geçer.
+• Otonomi Çağı: halka arzdan sonra gelen gerçek bir beşinci çağ; iki yeni kategori — Neural Band ve ev robotu — ve her hatta yeni bir bileşen kademesi.
+• Ezeli rakip düelloları: baş rakibin seni karşısına alır. Haftalar süren, kademesi yükselen düellolar ve kazandığında bir kupa.
+• Ustalık ve sezonlar: kategori başına ilerleme çubukları ve onlara özel kozmetikler; ayrıca cihaz renkleri, genel merkez kaplamaları ve profil rozetleri veren aylık meydan okuma sezonu.
+• Ürünü değil, şirketi yönet: bir üretimi öne çekmek için ekibi sıkıştır, kalıcı yeniden sipariş kuralları belirle, lansman sonrası satış penceresini işlet, olasılıkları açıkça görünen riskli Ar-Ge'ye oyna, bir tanıtımda tarih sözü ver, çağ görevini seç ve her projeyi gerçek bir tercihe dönüştüren mühendislik bütçesini dağıt.
+• Yaşayan bir dünya: adı ve kendi hayatı olan çalışanlar, yalnızca seninle değil birbirleriyle de kapışan rakipler, önceki cihazını hatırlayan inceleme yayınları, orada yükselen rakibi adıyla anan bölgesel olaylar ve adı olan patronlardan kurulu bir sektör merdiveni.
+• Neye tırmandığını gör: önündeki tüm çağları, kategorileri ve son oyun sistemlerini gösteren bir şirket yol haritası, tek bir hedef defteri, her puanı açıklayan bir yardım merkezi ve bir sözlük.
+• İstediğin kadar sakin: Sakin mod oyunun seni ne sıklıkta böldüğünü belirler, küçük anlar artık bir karar kutusunda sessizce bekler.
+• Daha iyi bir merkez: tuş sesleri, dönen koltuklar ve yanan ekranlarla yaşayan bir 3D ofis; 20 yeni mobilya ve 8 oda stili; gerçekten çalışan bir fabrika zemini; monitörü her zaman yerine dönük düzgün çalışma koltukları — ayrıca ofis için Topla ve fabrika için Geri Al.
+• Baştan sona yeniden dengelendi: artık her çağ özenli bir lansmanı ödüllendiriyor, savsak olanı cezalandırıyor; kötü bir başlangıç çıkmaz sokak değil, telafi edilebilir; ve sona ulaşan tek bir oynayış biçimi yok.
+
+Daha hızlı yükleme ve uzun bir düzeltme listesi.

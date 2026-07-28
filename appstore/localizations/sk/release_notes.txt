@@ -1,8 +1,14 @@
-Najväčšia aktualizácia Siliconu v histórii.
+Piata éra, skrytá vrstva — a firma, ktorá konečne odpovedá.
 
-• Režim fabriky: postav skutočnú 3D výrobnú linku — ukladaj pásy, rozmiestňuj a vylepšuj stroje a zapoj halu tak, aby vyrábala rýchlejšie. Každé zariadenie si pýta tie správne stroje. Vyzdob ju a rozširuj.
-• Úhlavní sokovia a útoky rivalov: jeden z rivalov sa stane tvojou nemesis a sporná premiéra je súboj — podsekni cenu, spusti protikampaň, alebo neustúp ani o krok.
-• Silicon Awards: každoročný ceremoniál, ktorý hodnotí všetky premiéry. Vymeť ho, alebo si pestuj krivdu.
-• Hraj sa s burzou: ovládni kontrolný balík a dokonči nepriateľské prevzatie, kupuj rivalov aj s ich značkou, alebo uveď na burzu vlastnú firmu.
-• Expanduj do sveta: licencuj regióny a ustoj konjunktúry, clá aj nápory rivalov.
-• Výskum rozložený v čase s poradovníkom projektov, výskumné doktríny, záblesky Heuréky, živý tím a fanúšikovská základňa, vedľajšie zákazky, vlastný operačný systém — a k tomu ľahší rozbeh, prémiový nový šat, veľký balík vylepšení prístupnosti a desiatky opráv.
+• Trezor: osemnásť utajovaných spisov s neznámymi podmienkami. Každý sa otvorí vďaka niečomu, čo si urobil, hoci ťa o to nikto nežiadal, a odhaľuje sa krok za krokom: najprv začiernený blok, potom šepot, potom presné znenie, potom odmena. Informáciu si kúpiš; čin nikdy. To, čo sa dozvieš, prejde do tvojej ďalšej firmy.
+• Éra autonómie: skutočná piata éra po vstupe na burzu, s dvoma novými kategóriami — Neural Band a domáci robot — a novým stupňom komponentov na každej linke.
+• Súboje s nemesis: úhlavný rival ti hodí rukavicu. Niekoľkotýždňové súboje so stúpajúcimi stupňami a trofej, keď jeden vyhráš.
+• Majstrovstvo a sezóny: ukazovatele postupu podľa kategórií s vlastnou kozmetikou, plus mesačná sezóna výziev s farbami zariadení, povrchmi centrály a odznakmi profilu.
+• Veď firmu, nie len produkt: nasaď tím do šprintu a zrýchli výrobu, nastav trvalé pravidlá doobjednávok, využi predajné okno po uvedení, stav na riskantný výskum s viditeľnými šancami, sľúb dátum na keynote, vyber mandát éry a rozdeľ inžiniersky rozpočet, ktorý robí z každého projektu skutočnú voľbu.
+• Svet, ktorý žije: zamestnanci s menami a vlastnými osudmi, rivali bojujúci aj medzi sebou, redakcie, ktoré si pamätajú tvoje minulé zariadenie, regionálne udalosti menujúce rivala, ktorý tam rastie, a odvetvový rebríček bossov s menami.
+• Uvidíš, kam stúpaš: plán firmy so všetkými budúcimi érami, kategóriami a systémami konca hry, jediný register cieľov, pomocník vysvetľujúci každé skóre a slovníček.
+• Tak pokojne, ako chceš: režim Pokoj určuje, ako často ťa hra vyruší, a maličkosti teraz čakajú v schránke rozhodnutí.
+• Lepšia centrála: živá 3D kancelária — písanie na klávesnici, otáčajúce sa stoličky, svietiace monitory; 20 nových kusov nábytku a 8 štýlov miestností; výrobná hala, ktorá naozaj beží; poriadne pracovné stoličky s monitorom vždy otočeným k miestu — plus Upratať pre kanceláriu a Späť pre továreň.
+• Prebalansované naskrz: každá éra teraz odmení vydarené uvedenie a potrestá odbité, zlý štart sa dá dobehnúť namiesto slepej uličky, a do konca dôjde viac než jeden štýl hry.
+
+Rýchlejšie načítanie a dlhý zoznam opráv.

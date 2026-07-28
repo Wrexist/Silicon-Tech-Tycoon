@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { dollars } from "../engine/money.ts";
 import { addItem, deskItems, planSeats } from "../engine/furniture.ts";
+import { reputationFloor } from "./gameState.ts";
 import {
   newGame,
   advanceOneWeek,
@@ -372,6 +373,49 @@ describe("v17 — desks are seats: migrate grants missing desks to old teams", (
       acc = addItem(acc, it.iid, it.type, it.c, it.r, it.rot);
     }
     expect(acc.length).toBe(back!.layout.length);
+  });
+});
+
+describe("v1.2.0 — a returning player is lifted out of the dead end the release fixes", () => {
+  // 1.2.0 guarantees a young company can never be driven to zero reputation, because zero means
+  // zero demand: every later launch flops and there is no way back. That floor is applied wherever
+  // reputation is REDUCED, which does nothing for a save that already sits at the bottom — so a
+  // 1.1.0 company that bottomed out would load straight back into the dead end this release exists
+  // to remove. Verified against a real 150-week 1.1.0 save, which loaded at reputation 0.
+  it("raises a bottomed-out early-era save to its era floor", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    for (const era of [1, 2, 3]) {
+      const stuck: GameState = { ...newGame(77), era, reputation: 0 };
+      const back = importSaveString(exportSaveString(stuck));
+      expect(back!.reputation, `era ${era}`).toBe(reputationFloor(era));
+      expect(back!.reputation, `era ${era} must not still be a dead end`).toBeGreaterThan(0);
+    }
+  });
+
+  it("still applies the floor when the save has no usable era", async () => {
+    // The floor is keyed on era, so era has to be normalized FIRST. A save with a missing or NaN era
+    // used to skip the clamp entirely and only get defaulted to era 1 afterwards — landing at exactly
+    // the reputation 0 this whole block exists to prevent. (NaN is the sharp edge: `era < 1` is false
+    // for NaN, so the old `era == null || era < 1` guard never caught it either.)
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    for (const era of [undefined, null, NaN, 0, -3]) {
+      const broken = { ...newGame(79), era, reputation: 0 } as unknown as GameState;
+      const back = importSaveString(exportSaveString(broken));
+      expect(back!.era, `era ${String(era)}`).toBe(1);
+      expect(back!.reputation, `era ${String(era)}`).toBe(reputationFloor(1));
+      expect(back!.reputation, `era ${String(era)} must not be a dead end`).toBeGreaterThan(0);
+    }
+  });
+
+  it("never LOWERS a reputation the player earned, and leaves the late eras alone", async () => {
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    // A healthy company keeps exactly what it had…
+    const healthy: GameState = { ...newGame(78), era: 2, reputation: 64 };
+    expect(importSaveString(exportSaveString(healthy))!.reputation).toBe(64);
+    // …and eras 4-5 have a floor of 0 by design (a giant is supposed to have everything to lose),
+    // so a late-game save at the bottom is left exactly where it is.
+    const late: GameState = { ...newGame(79), era: 4, reputation: 0 };
+    expect(importSaveString(exportSaveString(late))!.reputation).toBe(0);
   });
 });
 

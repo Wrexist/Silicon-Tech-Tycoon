@@ -24,6 +24,18 @@ const outDir = "/tmp/silicon-promo-vid";
 await mkdir(outDir, { recursive: true });
 
 const save = JSON.parse((await readFile("/tmp/silicon-promo.json")).toString());
+// The take is one continuous shot, so ANY interrupt that fires owns the screen for the rest of it —
+// it covers the HUD, so every later nav() silently misses, and the beats after it record the same
+// card. The staged save had picked up an unanswered "Lock In Supply?" choice and (in 1.2.0) a queued
+// dossier reveal, which is exactly how that goes wrong. Drop every pending card and push
+// lastInterruptWeek far ahead, so the budget gate (week − lastInterruptWeek ≥ minGap) also suppresses
+// anything the ticks during the load window would otherwise raise. Same treatment the screenshot
+// shooter applies in scripts/shots-refresh.mjs; keep the two in step.
+const PENDINGS = ["pendingAwards", "pendingChoice", "pendingCommunityAsk", "pendingEarnings", "pendingEureka",
+  "pendingLicenseOffer", "pendingPoach", "pendingRegionalEvent", "pendingRivalry", "pendingSecretReveal",
+  "pendingSideOrder", "pendingStaffMoment", "pendingStrike"];
+for (const k of PENDINGS) if (k in save) save[k] = null;
+save.lastInterruptWeek = (save.week ?? 0) + 500;
 const saveJson = JSON.stringify({ ...save, lastActive: Date.now() });
 
 const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] });
@@ -108,11 +120,17 @@ const clearCaption = () => p.evaluate(() => {
   if (o) { o.classList.add("out"); setTimeout(() => (o.style.display = "none"), 420); }
 });
 
+// Every non-initial screen is a lazy chunk (see the code-split in src/App.tsx), so a fixed sleep
+// after nav() races the import — and in a ONE-TAKE recording, losing that race means the beat is
+// recorded against a blank screen with no chance to retry. Wait for the screen's own markup.
+const SCREEN_MARKUP = { design: ".lab", research: "[class^='rd__']", market: "[class^='mkt__']", office: ".worldtabs" };
 async function nav(label) {
   await p.evaluate((lbl) => {
     const b = [...document.querySelectorAll("nav button")].find((x) => (x.textContent || "").toLowerCase().includes(lbl));
     b?.click();
   }, label.toLowerCase());
+  const sel = SCREEN_MARKUP[label.toLowerCase()];
+  if (sel) await p.waitForSelector(sel, { timeout: 8000 }).catch(() => console.warn(`nav("${label}"): ${sel} never appeared — that beat may record blank`));
   await wait(120);
 }
 async function clickText(text, { exact = false, sel = "button" } = {}) {
@@ -125,6 +143,29 @@ async function clickText(text, { exact = false, sel = "button" } = {}) {
     if (b) { b.click(); return true; } return false;
   }, { text, exact, sel });
 }
+// HUD trophy → Progress hub → The Vault. Both screens are lazy chunks and both open OVER the HUD
+// (their rounded top edge lands across the HUD buttons, so a real click would be refused), which is
+// why this goes through the DOM and waits for markup rather than sleeping a fixed time.
+async function openVault() {
+  // These waits are NOT optional. This is a single continuous take: if the board never arrives the
+  // beat records the office instead, the caption lands over the wrong screen, and the only way to
+  // find out is to watch the finished file. Fail here, where it costs one re-run.
+  await p.evaluate(() => document.querySelector('button[aria-label*="Progress"]')?.click());
+  await p.waitForSelector(".prog__row", { timeout: 8000 });
+  await p.evaluate(() => {
+    [...document.querySelectorAll(".prog__row")]
+      .find((r) => /Vault/.test(r.querySelector(".prog__row-title")?.textContent || ""))
+      ?.click();
+  });
+  await p.waitForSelector(".vlt__list", { timeout: 8000 });
+  // A DOM click leaves the focus ring on whatever it hit; drop it so the board reads clean.
+  await p.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
+}
+const closeVault = () => p.evaluate(() => {
+  document.querySelector(".vlt__back")?.click();
+  setTimeout(() => document.querySelector(".prog__close")?.click(), 260);
+});
+
 async function pauseSim() {
   for (let i = 0; i < 3; i++) {
     const label = await p.evaluate(() => {
@@ -159,16 +200,34 @@ await wait(550);
 
 // ================= SCENE 2 — living office =================
 await caption("A world that reacts", "Run a studio that's alive");
-await wait(2000);
+await wait(1600);
 await clearCaption();
 await wait(200);
+
+// ================= SCENE 2b — the hidden layer =================
+// The 1.2.0 headline feature, and deliberately early: a board of redaction blocks is the one thing
+// in the app that reads as a PROMISE rather than a status readout, so it earns the seconds where
+// viewers are still deciding whether to keep watching. The staged save leaves it mid-hunt, so the
+// board shows an opened file, a rumoured one and a sealed one at the same time.
+await openVault();
+await caption("A hidden layer", "Eighteen files nobody told you about");
+await wait(1500);
+await p.mouse.wheel(0, 420); await wait(1400);
+await clearCaption();
+await p.mouse.wheel(0, -420); await wait(200);
+await closeVault();
+await wait(500);
 
 // ================= SCENE 3 — design =================
 await nav("design");
 await wait(600);
+// Scroll to the device card BEFORE the caption. The top of the lab is the projected-verdict chip,
+// which reads the CURRENT draft — an early-stage concept that honestly projects "Likely flop", and
+// a red chip is not what this beat is selling. The card below it is: the live 3D render, the fit
+// score and the design language.
+await p.mouse.wheel(0, 560); await wait(700);
 await caption("Design", "Craft iconic devices");
-await wait(1100);
-await p.mouse.wheel(0, 560); await wait(1500);
+await wait(1900);
 await clearCaption();
 await p.mouse.wheel(0, -560); await wait(220);
 
@@ -178,7 +237,7 @@ await wait(350);
 await clickText("Factory");                                  // Office/Factory segmented toggle → live minimap
 await wait(1300);                                            // let the 3D preview settle (belts roll, truck)
 await caption("Manufacture", "Build it on your own line");
-await wait(2400);
+await wait(1900);
 await clearCaption();
 await wait(220);
 await clickText("Office");                                   // back to the office world for the launch
@@ -186,19 +245,19 @@ await wait(900);
 
 // ================= SCENE 5 — the perfect launch =================
 await caption("Launch", "Ship the perfect device");
-await wait(1300);
+await wait(1050);
 await clearCaption();
 await wait(220);
 await clickText("Launch", { exact: true });                 // Rocket · Launch on the Office ready card
 // The keynote reveal owns the screen — score counts in, then the verdict + confetti. Let it play
 // and breathe; the card literally reads "It's a hit!", so no competing caption over it.
-await wait(5200);
+await wait(4400);
 
 // ================= SCENE 6 — the team celebrates =================
 await clickText("Continue", { sel: ".lreveal__card button" });   // close reveal → office cheer fires
 await wait(450);
 await caption("Every win lands", "Your whole team celebrates");
-await wait(2300);                                          // HQ_REACTION_MS window — emotes + hops
+await wait(2000);                                          // HQ_REACTION_MS window — emotes + hops
 await clearCaption();
 await wait(200);
 
@@ -206,7 +265,7 @@ await wait(200);
 await nav("market");
 await wait(700);
 await caption("Rise to #1", "Build a billion-dollar empire");
-await wait(1900);
+await wait(1700);
 await clearCaption();
 await wait(200);
 await endCard("Coming to iPhone & iPad.");

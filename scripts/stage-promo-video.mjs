@@ -6,7 +6,7 @@ import { writeFileSync } from "node:fs";
 import {
   newGame, placeFurniture, hireStaff, assignStaff, startBuild, launchReady,
   advanceOneWeek, buildWeeksFor, upgradeFacility, recommendedRun, productStats,
-  foundPlatform,
+  foundPlatform, planProduction, launchBars, verdictFor,
 } from "../src/state/gameState.ts";
 import { demoFloor } from "../src/engine/factoryFloor.ts";
 import { canPlaceProp } from "../src/engine/factoryProps.ts";
@@ -39,19 +39,23 @@ if (a[3]) s = assignStaff(s, a[3].id, "marketing");
 if (a[4]) s = assignStaff(s, a[4].id, "rnd");
 if (a[5]) s = assignStaff(s, a[5].id, "design");
 
-const mkPhone = (name, id, colorIndex, designTier) => ({
+const mkPhone = (name, id, colorIndex, designTier, tier = 5) => ({
   id, name, category: "phone",
-  tiers: { chip: 5, display: 5, battery: 5, materials: 5, software: 5, camera: 5 },
+  tiers: { chip: tier, display: tier, battery: tier, materials: tier, software: tier, camera: tier },
   finish: "titanium", colorIndex, price: dollars(999), designTier,
   camera: { count: 3, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
   notch: "island",
 });
 
 // Build a few devices to establish a hit streak + revenue history, then LAUNCH them.
+// These sit a COMPONENT tier below the hero on purpose. Since 1.2.0 the hit bar rises with the
+// company's own record, so a hero matching its predecessors reads "Solid performer" — the back
+// catalogue has to leave room above it for the promo's climax to be a hit. The HERO CHECK at the
+// bottom of this file fails loudly if that stops being true.
 const priorCatalog = [
-  mkPhone("Aurora Pro", "prod-aurora-pro", 3, 3),
-  mkPhone("Aurora Ultra", "prod-aurora-ultra", 1, 3),
-  mkPhone("Nova S", "prod-nova-s", 4, 3),
+  mkPhone("Aurora Pro", "prod-aurora-pro", 3, 3, 4),
+  mkPhone("Aurora Ultra", "prod-aurora-ultra", 1, 3, 4),
+  mkPhone("Nova S", "prod-nova-s", 4, 3, 4),
 ];
 for (const base of priorCatalog) {
   const fair = Math.round(toDollars(priceGuidance(productStats(s, base), "phone").fair) / 10) * 10;
@@ -118,6 +122,34 @@ s = {
   pendingStrike: null, pendingAwards: null, pendingSideOrder: null,
   lastActive: Date.now(),
 };
+
+// The promo's climax is the hero device's launch reveal, and the whole beat is written around it
+// reading "It's a hit!". That is NOT a property of the device alone: since 1.2.0 the hit bar rises
+// with the company's own track record (launchBars), so a hero identical to the three launches that
+// set the record can only ever be "Solid performer". Assert it here rather than discovering it in a
+// recorded take — the stage is the only place that can still fix it.
+{
+  const hero = s.ready.find((r) => r.name === "Aurora Halo") ?? s.ready[s.ready.length - 1];
+  if (!hero) console.error("HERO CHECK: nothing on the ready shelf — the launch beat has nothing to click.");
+  else {
+    const product = hero.product ?? hero;
+    const plan = planProduction(s, product, hero.plannedUnits ?? product.plannedUnits ?? 1000, product.channelId ?? "influencer");
+    const eff = plan.launchScore * plan.competitionFactor;
+    const bars = launchBars(s);
+    const verdict = verdictFor(s, eff);
+    console.error(`prior launches: ${s.launched.map((l) => Math.round(l.launchScore ?? 0)).join(", ")}  (newest first)`);
+    console.error(`hero "${product.name}": effectiveScore ${Math.round(eff)} vs bars hit ${bars.hit} / solid ${bars.solid} → ${verdict}`);
+    if (verdict !== "hit") {
+      console.error(`HERO CHECK FAILED: the launch beat will read "${verdict}", not "It's a hit!".`);
+      console.error(`  The hero has to BEAT this company's own record by the era's hit margin. Widen the gap:`);
+      console.error(`  weaken the three prior launches (mkPhone designTier / component tiers) so the record sits`);
+      console.error(`  lower, or make the hero a genuine step up. launchExpectation is ${Math.round(s.launchExpectation ?? 0)}.`);
+      // Non-zero, so `npm run promo:video` stops here instead of recording a promo whose climax is a
+      // shrug. A check that only prints is a check that gets scrolled past.
+      process.exitCode = 1;
+    }
+  }
+}
 
 const readyNames = s.ready.map((p) => p.name);
 writeFileSync("/tmp/silicon-promo.json", JSON.stringify(s));

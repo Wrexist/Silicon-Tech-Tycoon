@@ -1,8 +1,14 @@
-Cea mai mare actualizare Silicon de până acum.
+O a cincea eră, un strat ascuns — și o companie care în sfârșit îți răspunde.
 
-• Modul Fabrică: construiește o linie de producție 3D adevărată — trasează benzi transportoare, așază și îmbunătățește utilaje și organizează hala ca să producă mai repede. Fiecare dispozitiv cere mașinile potrivite. Decorează fabrica și extinde-o.
-• Dușmani de moarte și atacuri rivale: un rival îți devine nemesis, iar o lansare contestată e un duel — taie prețul, lansează o contracampanie sau ține linia.
-• Premiile Silicon: o ceremonie anuală care judecă fiecare lansare. Ia tot sau clocește o ranchiună.
-• Joacă la bursă: ia un pachet de control pentru o preluare ostilă, achiziționează rivali ca să le absorbi brandul sau listează-ți propria companie.
-• Extinde-te global: licențiază regiuni și înfruntă boom-uri, taxe vamale și ofensive rivale.
-• Cercetare cronometrată cu coadă de proiecte, doctrine de cercetare, sclipiri Evrika, o echipă și o comunitate de fani vii, comenzi externe, propria ta platformă OS — plus un start mai lin, un redesign premium, un mare pas pentru accesibilitate și zeci de remedieri.
+• Seiful: optsprezece dosare clasificate cu condiții secrete. Fiecare se deschide printr-un lucru pe care l-ai făcut fără să ți-l ceară nimeni și se dezvăluie pas cu pas: întâi un bloc înnegrit, apoi o șoaptă, apoi termenii exacți, apoi recompensa. Informația se poate cumpăra; fapta niciodată. Ce afli trece în următoarea ta companie.
+• Era autonomiei: o a cincea eră adevărată după listarea la bursă, cu două categorii noi — Neural Band și robot casnic — și un nou nivel de componente pe fiecare linie.
+• Dueluri cu nemesis: rivalul tău de-o viață te provoacă. Dueluri de mai multe săptămâni cu trepte tot mai mari și un trofeu când câștigi unul.
+• Măiestrie și sezoane: bare de progres pe categorii cu cosmetice proprii, plus un sezon lunar de provocări care oferă culori de dispozitiv, finisaje pentru sediu și insigne de profil.
+• Condu compania, nu doar produsul: pune echipa pe sprint ca să grăbești o producție, setează politici permanente de reaprovizionare, exploatează fereastra de vânzare după lansare, pariază pe cercetare riscantă cu șansele la vedere, promite o dată la o prezentare, alege un mandat de eră și împarte un buget de inginerie care face din fiecare proiect o alegere reală.
+• O lume care trăiește: angajați cu nume și viață proprie, rivali care se bat între ei, nu doar cu tine, publicații care îți țin minte dispozitivul anterior, evenimente regionale care numesc rivalul în ascensiune acolo, și o scară a industriei făcută din șefi cu nume.
+• Vezi ce urci: o hartă a companiei cu toate erele, categoriile și sistemele de final care te așteaptă, un singur registru de obiective, un centru de ajutor care explică fiecare scor și un glosar.
+• Atât de liniștit cât vrei: modul Calm stabilește cât de des te întrerupe jocul, iar mărunțișurile așteaptă acum într-o cutie de decizii.
+• Un sediu mai bun: un birou 3D viu — tastat, scaune care se rotesc, ecrane aprinse; 20 de piese noi de mobilier și 8 stiluri de cameră; o hală care chiar merge; scaune de birou ca lumea, cu monitorul mereu întors spre loc — plus Fă ordine pentru birou și Anulează pentru fabrică.
+• Reechilibrat peste tot: fiecare eră răsplătește acum o lansare îngrijită și pedepsește una de mântuială, un start prost se poate recupera în loc să fie fundătură, și ajunge la final mai mult de un stil de joc.
+
+Încărcare mai rapidă și o listă lungă de remedieri.

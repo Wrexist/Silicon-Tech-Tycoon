@@ -2,8 +2,20 @@
 // the company's own rolling track record, so a mature studio can't farm hits by re-shipping the same
 // maxed spec. The static era bars still anchor a young company (and the pinned sim's opener).
 import { describe, expect, it } from "vitest";
-import { newGame, launchBars, verdictFor, nextLaunchExpectation, verdictBands } from "./gameState.ts";
+import {
+  newGame,
+  launchBars,
+  verdictFor,
+  nextLaunchExpectation,
+  verdictBands,
+  previewChannelFor,
+  planProduction,
+  type GameState,
+} from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
+import { dollars } from "../engine/money.ts";
+import type { ChannelId } from "../engine/marketing.ts";
+import type { Product } from "../engine/types.ts";
 
 const x = BALANCE.reputation.expectation;
 
@@ -57,5 +69,50 @@ describe("launch expectations — the rising bar", () => {
     const bars = launchBars(proven);
     expect(verdictFor(proven, bars.flop - 1)).toBe("flop"); // well below your standard → a flop
     expect(bars.flop).toBeGreaterThan(verdictBands(era).flop); // the flop bar rose with expectations
+  });
+});
+
+// The Design Lab's "Projected hit / Likely flop" chip compares a PROJECTION against the rising bar.
+// The bar is an EMA of scores that already include each launch's campaign hype, so the projection has
+// to assume a campaign too — otherwise a company that advertises is permanently told its products are
+// worse than they are.
+describe("the projected verdict is judged on the same footing as the record it's compared to", () => {
+  it("a company that has never shipped projects with no campaign (nothing to match yet)", () => {
+    expect(previewChannelFor(newGame(1))).toBe("none");
+  });
+
+  it("once it has shipped, the projection assumes the campaign it last ran", () => {
+    const shipped = (channelId: ChannelId) =>
+      ({ product: { channelId } }) as unknown as GameState["launched"][number];
+    // launched is newest-first, so [0] is the most recent campaign.
+    const proven: GameState = { ...newGame(2), launched: [shipped("influencer"), shipped("social")] };
+    expect(previewChannelFor(proven)).toBe("influencer");
+  });
+
+  it("dropping the campaign from the projection costs whole verdict bands", () => {
+    // The bug this pins: the SAME product projected with no campaign scores materially lower than the
+    // campaigned score the expectation baseline is built from, so the chip read one to two bands low
+    // for any company that advertises. Assert both halves — the gap is real, AND it is big enough to
+    // move the verdict once the bar has risen to the campaigned level.
+    const s = { ...newGame(9), era: 2 };
+    const draft: Product = {
+      id: "p", name: "Aurora One", category: "phone",
+      tiers: { chip: 4, display: 4, battery: 4, materials: 4, software: 4, camera: 3 },
+      finish: "aluminium", colorIndex: 0, price: dollars(499), designTier: 1,
+      camera: { count: 2, layout: "vertical", position: "topLeft", module: "squircle", flash: true },
+      notch: "punch",
+    };
+    const eff = (channel: ChannelId) => {
+      const plan = planProduction(s, draft, BALANCE.build.minRun, channel);
+      return plan.launchScore * plan.competitionFactor;
+    };
+    const bare = eff("none");
+    const campaigned = eff("social");
+    expect(campaigned).toBeGreaterThan(bare);
+
+    // A company whose record was set BY campaigned launches: judge the uncampaigned projection
+    // against that bar and it lands a band lower than the campaigned one it should be compared to.
+    const proven = { ...s, launchExpectation: Math.round(campaigned) };
+    expect(verdictFor(proven, bare)).not.toBe(verdictFor(proven, campaigned));
   });
 });

@@ -1,7 +1,7 @@
 {
   "name": "silicon-tech-tycoon",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "Silicon: Tech Tycoon \u2014 design and sell tech products. Web build (Vite + React + TS), ships to iOS via Capacitor.",
   "scripts": {
@@ -16,9 +16,11 @@
     "shots:stage": "esbuild scripts/stage-save.mjs --bundle --platform=node --format=cjs --outfile=scripts/.stage.cjs --log-level=error && node scripts/.stage.cjs",
     "shots:stage:showcase": "esbuild scripts/stage-showcase.mjs --bundle --platform=node --format=cjs --outfile=scripts/.stage-showcase.cjs --log-level=error && node scripts/.stage-showcase.cjs",
     "shots:features": "node scripts/shots-features.mjs",
+    "audit:screens": "node scripts/audit-screens.mjs",
     "sim": "esbuild scripts/balance-sim.mjs --bundle --platform=node --format=cjs --outfile=scripts/.sim.cjs --log-level=error && node scripts/.sim.cjs",
     "shots:hero": "node scripts/shots-hero.mjs",
-    "shots:store": "node scripts/shots-store.mjs",
+    "shots:store": "node scripts/shots-refresh.mjs",
+    "shots:store:legacy": "node scripts/shots-store.mjs",
     "shots:ipad": "node scripts/shots-ipad.mjs",
     "promo:stage": "esbuild scripts/stage-promo-video.mjs --bundle --platform=node --format=cjs --outfile=scripts/.promo-stage.cjs --log-level=error && node scripts/.promo-stage.cjs",
     "promo:video": "npm run promo:stage && node scripts/promo-video.mjs"

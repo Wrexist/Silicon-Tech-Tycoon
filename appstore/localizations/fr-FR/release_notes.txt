@@ -1,8 +1,14 @@
-La plus grosse mise à jour de Silicon à ce jour.
+Une cinquième ère, une couche cachée, et une entreprise qui répond enfin.
 
-• Mode Usine : construis une vraie chaîne de production 3D — pose des tapis roulants, place et améliore tes machines, câble l'atelier pour produire plus vite. Chaque appareil exige les bonnes machines. Décore et agrandis ton usine.
-• Grands rivaux et offensives : un rival devient ton ennemi juré, et chaque lancement contesté se règle en duel — baisse tes prix, riposte avec une contre-campagne ou tiens bon.
-• Les Silicon Awards : une cérémonie annuelle qui juge tous les lancements. Rafle tout… ou nourris ta rancune.
-• Joue en bourse : prends une participation majoritaire pour une OPA hostile, rachète des rivaux pour absorber leur marque, ou introduis ta propre entreprise en bourse.
-• Conquiers le monde : ouvre des régions sous licence et affronte booms, droits de douane et offensives rivales.
-• Recherche en temps réel avec file d'attente, doctrines de recherche, percées Eurêka, une équipe et une communauté de fans bien vivantes, des commandes annexes, ta propre plateforme OS — plus un début de partie plus fluide, une refonte visuelle premium, un grand chantier accessibilité et des dizaines de corrections.
+• Le Coffre : dix-huit dossiers classifiés aux conditions secrètes. Chacun s'ouvre sur quelque chose que tu as fait sans qu'on te le demande, et se dévoile par étapes — un bloc caviardé, puis une rumeur, puis les termes exacts, puis la récompense. L'information s'achète ; l'exploit, jamais. Ce que tu apprends passe à ton entreprise suivante.
+• L'ère de l'Autonomie : une véritable cinquième ère après l'introduction en bourse, avec deux nouvelles catégories — Neural Band et robot domestique — et un nouveau palier de composants sur chaque ligne.
+• Duels de Némésis : ton rival juré te provoque. Des duels sur plusieurs semaines, à paliers croissants, et un trophée quand tu en remportes un.
+• Maîtrise & Saisons : des jauges de progression par catégorie avec des cosmétiques signature, plus une Saison de défis mensuelle offrant coloris d'appareils, finitions de QG et badges de profil.
+• Dirige l'entreprise, pas seulement le produit : mets l'équipe en sprint pour accélérer une fabrication, définis des politiques de réappro permanentes, exploite la fenêtre de vente après le lancement, parie sur une R&D moonshot aux probabilités affichées, promets une date en keynote, choisis un mandat d'ère, et répartis un budget d'ingénierie qui fait de chaque projet un vrai choix.
+• Un monde qui vit : des employés avec un nom et une vie, des rivaux qui s'affrontent entre eux et pas seulement contre toi, des rédactions qui se souviennent de ton dernier appareil, des événements régionaux qui nomment le rival qui y perce, et une échelle sectorielle de patrons à gravir.
+• Vois ce que tu grimpes : une feuille de route de toutes les ères, catégories et systèmes de fin de partie à venir, un registre d'objectifs unique, un centre d'aide qui explique chaque score, et un glossaire.
+• Aussi calme que tu veux : le mode Calme règle la fréquence des interruptions, et les moments mineurs patientent désormais dans une boîte de décisions.
+• Un meilleur QG : un bureau 3D vivant — frappe au clavier, fauteuils qui pivotent, écrans allumés —, 20 nouveaux meubles et 8 styles de pièce, une usine qui tourne vraiment, de vrais sièges de bureau dont l'écran fait toujours face à la place — plus Ranger pour le bureau et Annuler pour l'usine.
+• Rééquilibrage général : chaque ère récompense désormais un lancement soigné et sanctionne un lancement bâclé, un mauvais départ se rattrape au lieu d'être fatal, et plus d'une façon de jouer tient jusqu'au bout.
+
+Chargement plus rapide et une longue liste de correctifs.
