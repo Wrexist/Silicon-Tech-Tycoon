@@ -113,7 +113,7 @@ A fifth era, a hidden layer, and a company that finally answers back.
   rough start is something you can recover from instead of a dead end, and more than one
   way to play survives to the end.
 
-Faster loading, 39 languages, and a long list of fixes.
+Faster loading and a long list of fixes.
 ```
 
 The shipped copy lives in `appstore/localizations/en-US/release_notes.txt` (2,292 chars
