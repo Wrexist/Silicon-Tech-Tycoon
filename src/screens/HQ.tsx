@@ -14,6 +14,10 @@ import { FactoryCard } from "../components/FactoryMode.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
+import { ProChip } from "../components/Paywall.tsx";
+import { openPaywall } from "../state/paywall.ts";
+import { eraAdvanceLocked } from "../state/proGates.ts";
+import { useIsPro } from "../state/usePro.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
@@ -126,6 +130,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
   const launchProduct = useLaunchProduct();
   const onLaunch = (id: string) => { launchProduct(id); };
   const reducedMotion = useReducedMotionLive();
+  const pro = useIsPro();
   const use3d = settings.garage3d && webglSupported() && !reducedMotion;
   const ipoReady = canIPO(state);
   const hasProduction =
@@ -134,6 +139,18 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
   const nextEraUnlocks = advanceReady
     ? CATEGORY_LIST.filter((c) => c.unlockEra === state.era + 1).map((c) => c.displayName)
     : [];
+  // The free tier plays the Garage and Growth eras in full; the Platform Era and beyond are Pro.
+  // Gated HERE, at the player's own tap — never inside the engine — so the simulation is
+  // byte-identical for free and Pro players and the determinism pin can never see monetization.
+  const eraLocked = eraAdvanceLocked(state.era, pro);
+  const doAdvanceEra = () => {
+    advanceEra();
+    haptic.success();
+    sfx("era");
+    emitCelebrate();
+    // No toast here — the full-screen EraModal takes over this same instant and the toast would
+    // expire unseen behind it.
+  };
 
   return (
     <div className="hq">
@@ -259,25 +276,32 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {advanceReady && (
         <Card className="hq__era">
           <div className="hq__era-body">
-            <span className="hq__era-title">New era unlocked</span>
+            <span className="hq__era-title">
+              {eraLocked ? `${eraName(state.era + 1)} unlocked` : "New era unlocked"}
+            </span>
             <span className="hq__era-sub">
-              {nextEraUnlocks.length > 0
-                ? `Unlocks: ${nextEraUnlocks.join(", ")} + new component tiers`
-                : `New tech & components for the ${eraName(state.era + 1)}`}
+              {eraLocked
+                ? `You've earned it — ${eraName(state.era + 1)} and everything past it are part of Silicon Pro.`
+                : nextEraUnlocks.length > 0
+                  ? `Unlocks: ${nextEraUnlocks.join(", ")} + new component tiers`
+                  : `New tech & components for the ${eraName(state.era + 1)}`}
             </span>
           </div>
           <Button
             size="sm"
             onClick={() => {
-              advanceEra();
-              haptic.success();
-              sfx("era");
-              emitCelebrate();
-              // No toast here — the full-screen EraModal takes over this same instant and the
-              // toast would expire unseen behind it.
+              // The free tier ends at the top of the Growth Era. This is the app's primary
+              // conversion moment on purpose: the player has just cleared a multi-hour milestone
+              // the game is already celebrating, so the offer answers a question they just asked
+              // instead of interrupting one they didn't.
+              if (eraLocked) {
+                openPaywall({ reason: "eraAdvance", onUnlocked: doAdvanceEra });
+                return;
+              }
+              doAdvanceEra();
             }}
           >
-            Advance
+            {eraLocked ? <>Unlock <ProChip /></> : "Advance"}
           </Button>
         </Card>
       )}

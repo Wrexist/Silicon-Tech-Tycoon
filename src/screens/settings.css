@@ -178,6 +178,19 @@
   color: var(--accent);
 }
 .set__restore:active { opacity: 0.6; }
+.set__restore:disabled { opacity: 0.5; }
+
+/* "Active" pill on the Silicon Pro status row. */
+.set__pro-badge {
+  flex: 0 0 auto;
+  padding: 2px var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-nano);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--warning-text);
+}
 
 .set__pair {
   display: flex;

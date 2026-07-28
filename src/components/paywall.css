@@ -1,0 +1,207 @@
+/* Silicon Pro paywall. Follows the house popup standard in CLAUDE.md exactly:
+   the CARD is the glass (frosted, gold-tinted, specular rim); the scrim around it stays CLEAR so the
+   game shows through; the edge reflection comes from the shared `…__card::after` rule at the bottom
+   of primitives.css (`.pwl__card` is in that selector list). Tokens + 8pt grid only.
+
+   Gold rather than the app accent: this is the one prestige surface in the product, and the token
+   system already owns --gold for awards / contracts / rank-1. */
+.pwl {
+  position: fixed; inset: 0; z-index: 62; /* above every interrupt overlay — it is always the answer */
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--edge);
+  padding-top: calc(var(--edge) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+}
+.pwl__scrim {
+  position: absolute; inset: 0;
+  /* Minimal dim only — never blur the surround. The card's own backdrop-filter is the glass. */
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+}
+.pwl__card {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 440px; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center;
+  padding: var(--sp-32) var(--sp-28) var(--sp-20);
+  border-radius: var(--r-sheet);
+  background:
+    radial-gradient(130% 80% at 50% -8%, color-mix(in srgb, var(--gold) 13%, transparent), transparent 62%),
+    var(--glass-modal);
+  backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
+  border: 1px solid color-mix(in srgb, var(--gold) 26%, var(--glass-modal-edge));
+  box-shadow:
+    inset 0 1.5px 0 0 var(--glass-modal-rim),
+    0 24px 70px -24px rgba(0, 0, 0, 0.5),
+    0 0 46px -18px color-mix(in srgb, var(--gold) 44%, transparent);
+  text-align: center;
+  animation: pwl-in var(--spring-gentle) both;
+}
+@keyframes pwl-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pwl__card { animation: none; } }
+
+.pwl__close {
+  position: absolute; top: var(--sp-12); right: var(--sp-12);
+  width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); border: 1px solid var(--glass-well-edge);
+  background: var(--glass-well); color: var(--ink-2); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--spring-snappy), background var(--spring-snappy);
+}
+.pwl__close:hover { color: var(--ink); }
+.pwl__close:disabled { opacity: 0.4; cursor: default; }
+
+.pwl__glyph {
+  width: 54px; height: 54px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--gold);
+  animation: pwl-glyph var(--spring-gentle) both;
+}
+@keyframes pwl-glyph { from { transform: scale(0.6) rotate(-10deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pwl__glyph { animation: none; } }
+
+.pwl__eyebrow {
+  margin-top: var(--sp-10);
+  font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--gold);
+}
+.pwl__title { margin-top: var(--sp-2); font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
+.pwl__body {
+  margin: var(--sp-6) 0 var(--sp-16);
+  font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.55;
+}
+
+/* ---------- benefits ---------- */
+.pwl__benefits {
+  width: 100%; margin: 0 0 var(--sp-16);
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8) var(--sp-12);
+  list-style: none; padding: 0; text-align: left;
+}
+@media (max-width: 380px) { .pwl__benefits { grid-template-columns: 1fr; } }
+.pwl__benefit { display: flex; align-items: flex-start; gap: var(--sp-6); }
+.pwl__tick {
+  flex: 0 0 auto; margin-top: 2px;
+  width: 15px; height: 15px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--positive) 20%, transparent);
+  color: var(--positive-text);
+}
+.pwl__benefit-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.pwl__benefit-text strong { font-size: var(--fs-micro); font-weight: 700; }
+.pwl__benefit-text small { font-size: var(--fs-nano); color: var(--ink-3); line-height: 1.35; }
+
+/* ---------- loading / unavailable ---------- */
+.pwl__loading {
+  width: 100%; padding: var(--sp-20) 0;
+  font-size: var(--fs-caption); color: var(--ink-3);
+}
+.pwl__unavailable {
+  width: 100%; padding: var(--sp-16); margin-bottom: var(--sp-8);
+  border-radius: var(--r-card);
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+}
+.pwl__unavailable-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning-text);
+}
+.pwl__unavailable-title { margin-top: var(--sp-8); font-size: var(--fs-caption); font-weight: 700; }
+.pwl__unavailable-text { margin-top: var(--sp-4); font-size: var(--fs-micro); color: var(--ink-3); line-height: 1.45; }
+.pwl__unavailable-actions { margin-top: var(--sp-12); display: flex; gap: var(--sp-8); justify-content: center; }
+
+/* ---------- plans ---------- */
+.pwl__plans { width: 100%; display: flex; flex-direction: column; gap: var(--sp-8); }
+.pwl__plan {
+  display: flex; align-items: center; gap: var(--sp-10); width: 100%;
+  padding: var(--sp-12) var(--sp-14);
+  border-radius: var(--r-card); text-align: left; cursor: pointer;
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--spring-snappy), background var(--spring-snappy), transform var(--spring-snappy);
+}
+.pwl__plan:active { transform: scale(0.985); }
+.pwl__plan:disabled { opacity: 0.55; cursor: default; }
+.pwl__plan--on {
+  border-color: color-mix(in srgb, var(--gold) 55%, transparent);
+  background: color-mix(in srgb, var(--gold) 10%, var(--glass-well));
+}
+.pwl__radio {
+  flex: 0 0 auto; width: 20px; height: 20px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid color-mix(in srgb, var(--ink) 26%, transparent);
+  color: var(--gold-ink); transition: background var(--spring-snappy), border-color var(--spring-snappy);
+}
+.pwl__plan--on .pwl__radio { background: var(--gold); border-color: var(--gold); }
+.pwl__plan-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.pwl__plan-head { display: flex; align-items: center; gap: var(--sp-6); }
+.pwl__plan-title { font-size: var(--fs-caption); font-weight: 700; }
+.pwl__plan-badge {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
+  padding: 2px var(--sp-6); border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--warning-text);
+}
+.pwl__plan-badge--owned { background: color-mix(in srgb, var(--positive) 18%, transparent); color: var(--positive-text); }
+/* Length of subscription — required by Apple beside the price, so it is never de-emphasised
+   below legibility. */
+.pwl__plan-length { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.35; }
+.pwl__plan-note { font-size: var(--fs-nano); color: var(--ink-3); line-height: 1.35; }
+/* Trial copy is deliberately SUBORDINATE to the billed amount (smaller, lighter, lower) — 3.1.2(c). */
+.pwl__plan-trial { font-size: var(--fs-nano); color: var(--positive-text); font-weight: 600; }
+/* The BILLED AMOUNT: the largest, heaviest price element on the card. Nothing may out-shout it. */
+.pwl__plan-price {
+  flex: 0 0 auto; font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.02em;
+}
+
+.pwl__summary {
+  width: 100%; margin: var(--sp-12) 0;
+  font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.5;
+}
+
+.pwl__reassure {
+  margin-top: var(--sp-8);
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-micro); font-weight: 600; color: var(--ink-3);
+}
+.pwl__reassure svg { color: var(--positive-text); }
+
+.pwl__skip {
+  margin-top: var(--sp-12); padding: var(--sp-6) var(--sp-8);
+  background: none; border: 0; cursor: pointer;
+  font-size: var(--fs-caption); font-weight: 600; color: var(--ink-3);
+  -webkit-tap-highlight-color: transparent;
+}
+.pwl__skip:hover { color: var(--ink-2); }
+.pwl__skip:disabled { opacity: 0.4; cursor: default; }
+
+/* ---------- legal ---------- */
+.pwl__legal {
+  margin-top: var(--sp-8);
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--sp-8);
+  font-size: var(--fs-micro); color: var(--ink-3);
+}
+.pwl__legal-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--ink-3); text-decoration: none;
+}
+.pwl__legal-link:hover { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+.pwl__legal-link:disabled { opacity: 0.5; cursor: default; }
+.pwl__spin { animation: pwl-spin 900ms linear infinite; }
+@keyframes pwl-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pwl__spin { animation: none; } }
+
+.pwl__fineprint {
+  margin-top: var(--sp-8);
+  font-size: var(--fs-nano); color: var(--ink-3); line-height: 1.45;
+}
+
+/* ---------- the "Pro" chip used on locked rows elsewhere ---------- */
+.pwl-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px var(--sp-6); border-radius: var(--r-pill);
+  font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--warning-text);
+  white-space: nowrap;
+}

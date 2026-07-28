@@ -31,6 +31,9 @@ import { EarningsCall } from "./components/EarningsCall.tsx";
 import { ContractOffer } from "./components/ContractOffer.tsx";
 import { DecisionInbox } from "./components/DecisionInbox.tsx";
 import { ReviewPrompt } from "./components/ReviewPrompt.tsx";
+import { Paywall, ProChip } from "./components/Paywall.tsx";
+import { openPaywall, shouldShowOnboardingPaywall } from "./state/paywall.ts";
+import { useIsPro } from "./state/usePro.ts";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
@@ -280,6 +283,8 @@ function AppShell() {
       {/* Non-blocking banner for the low-stakes interrupt streams (they open on the player's schedule). */}
       <DecisionInbox />
       <ReviewPrompt />
+      {/* The single purchase surface. Mounted once, raised from anywhere via openPaywall(). */}
+      <Paywall />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
       <ToastHost />
@@ -527,6 +532,7 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
 
 function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
   const { state, prestige } = useGame();
+  const pro = useIsPro();
   const [confirmReset, setConfirmReset] = useState(false);
   // The reset is reframed as a triumphant ascension: confirming New Game+ first shows a celebratory
   // "legacy forged" moment (the inherited power), and only its confirm actually founds the next run.
@@ -630,7 +636,17 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             <div className="ipo__heat-step">
               <button className="ipo__heat-btn" aria-label="Lower Heat" disabled={ascend <= 0} onClick={() => setAscend((h) => Math.max(0, h - 1))}>−</button>
               <span className="ipo__heat-level tnum">{ascensionName(ascend)}</span>
-              <button className="ipo__heat-btn" aria-label="Raise Heat" disabled={ascend >= maxHeat} onClick={() => setAscend((h) => Math.min(maxHeat, h + 1))}>+</button>
+              {/* Heat is a Pro mode — the button stays pressable and explains itself rather than
+                  sitting dead behind a padlock. */}
+              <button
+                className="ipo__heat-btn"
+                aria-label="Raise Heat"
+                disabled={pro && ascend >= maxHeat}
+                onClick={() => {
+                  if (!pro) { openPaywall({ reason: "ascension" }); return; }
+                  setAscend((h) => Math.min(maxHeat, h + 1));
+                }}
+              >+</button>
             </div>
           </div>
           <span className="ipo__heat-sub">
@@ -651,7 +667,17 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           </div>
         ) : (
           <>
-            <Button block onClick={() => setConfirmReset(true)}>Start New Game+ (Legacy {state.legacy + 1})</Button>
+            {/* New Game+ is the prestige loop — a Pro mode. Free players reach this screen having
+                genuinely won, so the offer lands on a high, not on a wall. */}
+            <Button
+              block
+              onClick={() => {
+                if (!pro) { openPaywall({ reason: "newGamePlus", onUnlocked: () => setConfirmReset(true) }); return; }
+                setConfirmReset(true);
+              }}
+            >
+              Start New Game+ (Legacy {state.legacy + 1}){!pro && <ProChip />}
+            </Button>
             <Button block variant="tertiary" onClick={onDismiss}>Keep building</Button>
           </>
         )}
@@ -688,20 +714,32 @@ function Onboarding({ onStart }: { onStart: () => void }) {
   const { markOnboarded, setCompanyName } = useGame();
   const [name, setName] = useState("");
   const [scenariosOpen, setScenariosOpen] = useState(false);
-  const [phase, setPhase] = useState<"intro" | "notify">("intro");
+  const [phase, setPhase] = useState<"intro" | "pro" | "notify">("intro");
   // Enter the game (flips onboarded → the game screen replaces this one). Kept until the LAST step so
-  // the notification opt-in can render as a founding beat while Onboarding is still mounted.
+  // the founding beats (the Pro offer, the notification opt-in) can render while Onboarding is still
+  // mounted.
   const enterGame = () => { markOnboarded(); onStart(); };
-  const found = () => {
-    if (name.trim()) setCompanyName(name);
-    // Ask once about daily reminders (native only, if not already prompted/on) — a natural founding
-    // beat — otherwise drop straight into the game.
+  // The notification opt-in is native-only and asked once; skip straight into the game otherwise.
+  const afterPro = () => {
     if (notificationsAvailable() && !getSettings().notifPrompted && !getSettings().dailyReminder) {
       setPhase("notify");
     } else {
       enterGame();
     }
   };
+  const found = () => {
+    if (name.trim()) setCompanyName(name);
+    // The founding offer. Placed HERE — after the player has named their company, before they see
+    // the game — because it is the highest-intent moment the app will ever have that still leaves a
+    // subscriber their full value from week one. Shown once per device, and always skippable: a free
+    // app whose game you cannot reach fails Apple's minimum-functionality bar, and a player who
+    // hasn't seen the game can't want it either.
+    if (shouldShowOnboardingPaywall()) setPhase("pro");
+    else afterPro();
+  };
+  if (phase === "pro") {
+    return <ProFoundingOffer onDone={afterPro} />;
+  }
   if (phase === "notify") {
     return <NotifyOptIn companyName={name.trim() || "Silicon"} onDone={enterGame} />;
   }
@@ -746,6 +784,31 @@ function Onboarding({ onStart }: { onStart: () => void }) {
           <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
         </Suspense>
       </Sheet>
+      {/* Onboarding renders before AppShell's tree, so the app-level <Paywall /> isn't mounted yet —
+          without this, a Pro scenario tapped from the founding screen would raise an offer nobody
+          is listening for. */}
+      <Paywall />
+    </div>
+  );
+}
+
+/** The founding Pro offer. A thin host that mounts the paywall (Onboarding renders before AppShell's
+ *  tree, so the app-level <Paywall /> isn't up yet) and raises it once. Either outcome — subscribed
+ *  or skipped — continues onboarding, so this can never trap a new player. If the device already
+ *  holds Pro, `openPaywall` resolves immediately and this phase is invisible. */
+function ProFoundingOffer({ onDone }: { onDone: () => void }) {
+  const fired = useRef(false);
+  useEffect(() => {
+    if (fired.current) return;
+    fired.current = true;
+    openPaywall({ reason: "onboarding", onDismiss: onDone, onUnlocked: onDone });
+  }, [onDone]);
+  return (
+    <div className="onboard">
+      <div className="onboard__scroll">
+        <div className="onboard__inner" />
+      </div>
+      <Paywall />
     </div>
   );
 }

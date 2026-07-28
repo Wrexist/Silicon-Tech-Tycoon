@@ -29,16 +29,32 @@ import { getScenarioStars } from "../state/scenarioProgress.ts";
 import { ACHIEVEMENT_COUNT } from "../engine/achievements.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
 import { useGame } from "../state/useGame.tsx";
+import { ProChip } from "../components/Paywall.tsx";
+import { openPaywall } from "../state/paywall.ts";
+import { isLocked, type ProFeature } from "../state/proGates.ts";
+import { useIsPro } from "../state/usePro.ts";
 import "./progress.css";
 
 type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum" | "legend" | "goals" | "roadmap" | "help" | "mastery" | "vault";
 
 export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () => void; initialView?: View }) {
   const { state } = useGame();
+  const pro = useIsPro();
   // The sheet unmounts when closed, so the initial view is honoured fresh on every open — this is
   // how HQ's daily-challenge card deep-links straight to Challenges.
   const [view, setView] = useState<View>(initialView);
   const toHub = () => setView("hub");
+
+  /** Open a hub row, or the offer that unlocks it. The rows stay TAPPABLE when locked rather than
+   *  greying out — a lock you can't press teaches nothing about what's behind it, and a row that
+   *  answers "what is this?" converts far better than one that just refuses. */
+  const openView = (target: View, feature: ProFeature) => () => {
+    if (isLocked(feature, pro)) {
+      openPaywall({ reason: feature, onUnlocked: () => setView(target) });
+      return;
+    }
+    setView(target);
+  };
 
   const museumCount = getMuseum().length;
   // Lifetime (cross-company) earned set — the profile union with this run's unlocks.
@@ -110,19 +126,21 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
         </span>
       </button>
 
-      <button className="prog__row" onClick={() => setView("mastery")}>
+      <button className="prog__row" onClick={openView("mastery", "mastery")}>
         <span className="prog__row-glyph" aria-hidden><Layers size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Category Mastery</span>
           <span className="prog__row-sub">Master all ten device categories</span>
         </span>
-        <span className="prog__row-count tnum">{masteredCount}<span className="prog__row-count-total">/{CATEGORY_LIST.length}</span></span>
+        {isLocked("mastery", pro)
+          ? <ProChip />
+          : <span className="prog__row-count tnum">{masteredCount}<span className="prog__row-count-total">/{CATEGORY_LIST.length}</span></span>}
       </button>
 
       {/* The Vault — hidden dossiers. The row itself is the tease: it states how many files exist and
           how many are open, and never a word about what any of them are. */}
       {vault.enabled && (
-        <button className="prog__row" onClick={() => setView("vault")}>
+        <button className="prog__row" onClick={openView("vault", "vault")}>
           <span className="prog__row-glyph" aria-hidden><FileLock2 size={20} /></span>
           <span className="prog__row-info">
             <span className="prog__row-title">The Vault</span>
@@ -134,19 +152,25 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
                   : "Classified files nobody told you about"}
             </span>
           </span>
-          <span className={`prog__row-count${vault.newLeads > 0 ? " prog__row-count--ready" : ""} tnum`}>
-            {vault.found}<span className="prog__row-count-total">/{vault.total}</span>
-          </span>
+          {isLocked("vault", pro)
+            ? <ProChip />
+            : (
+              <span className={`prog__row-count${vault.newLeads > 0 ? " prog__row-count--ready" : ""} tnum`}>
+                {vault.found}<span className="prog__row-count-total">/{vault.total}</span>
+              </span>
+            )}
         </button>
       )}
 
-      <button className="prog__row" onClick={() => setView("legend")}>
+      <button className="prog__row" onClick={openView("legend", "founderLegend")}>
         <span className="prog__row-glyph" aria-hidden><Crown size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Founder Legend</span>
           <span className="prog__row-sub">Your career rank across every company</span>
         </span>
-        <span className="prog__row-count prog__row-count--title">{legendTitle}</span>
+        {isLocked("founderLegend", pro)
+          ? <ProChip />
+          : <span className="prog__row-count prog__row-count--title">{legendTitle}</span>}
       </button>
 
       <button className="prog__row" onClick={() => setView("achievements")}>
@@ -175,13 +199,15 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
         </span>
       </button>
 
-      <button className="prog__row" onClick={() => setView("museum")}>
+      <button className="prog__row" onClick={openView("museum", "museum")}>
         <span className="prog__row-glyph" aria-hidden><Boxes size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Device Museum</span>
           <span className="prog__row-sub">Every device you've ever shipped</span>
         </span>
-        {museumCount > 0 && <span className="prog__row-count tnum">{museumCount}</span>}
+        {isLocked("museum", pro)
+          ? <ProChip />
+          : museumCount > 0 && <span className="prog__row-count tnum">{museumCount}</span>}
       </button>
 
       <button className="prog__row" onClick={() => setView("help")}>

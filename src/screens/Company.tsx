@@ -2,6 +2,10 @@ import { useState } from "react";
 import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Compass, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
+import { ProChip } from "../components/Paywall.tsx";
+import { openPaywall } from "../state/paywall.ts";
+import { isLocked } from "../state/proGates.ts";
+import { useIsPro } from "../state/usePro.ts";
 import { osDisplayName, canFoundPlatform, platformFoundingCost, navAttention } from "../state/gameState.ts";
 import { ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
@@ -116,6 +120,9 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 
 export function Company() {
   const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, hireSpecialist, foundPlatform, acquireFactory } = useGame();
+  const pro = useIsPro();
+  // The OS division is the Platform Era's headline system, so it travels with the Pro tier.
+  const platformProLocked = isLocked("platformDivision", pro);
   const [foundedCelebrate, setFoundedCelebrate] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   // Company is three destinations, not one endless scroll: Overview (money + ops), Team (roster,
@@ -430,11 +437,25 @@ export function Company() {
               </div>
               <Button
                 block
-                variant={can ? "primary" : "tertiary"}
-                disabled={!can}
-                onClick={() => { haptic.success(); foundPlatform(); setFoundedCelebrate(true); }}
+                variant={can || platformProLocked ? "primary" : "tertiary"}
+                // The Pro lock stays PRESSABLE even before the in-game requirements are met, so a
+                // free player can always find out what the division is instead of staring at a
+                // greyed-out card. The earned requirements still gate the actual founding.
+                disabled={!can && !platformProLocked}
+                onClick={() => {
+                  if (platformProLocked) {
+                    openPaywall({
+                      reason: "platformDivision",
+                      onUnlocked: () => { if (canFoundPlatform(state)) { haptic.success(); foundPlatform(); setFoundedCelebrate(true); } },
+                    });
+                    return;
+                  }
+                  haptic.success();
+                  foundPlatform();
+                  setFoundedCelebrate(true);
+                }}
               >
-                {label}
+                {platformProLocked ? <>Found the division <ProChip /></> : label}
               </Button>
             </Card>
           );

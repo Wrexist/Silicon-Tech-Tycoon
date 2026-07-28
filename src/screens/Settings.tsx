@@ -15,6 +15,8 @@ import {
   Volume2,
   Smartphone,
   Sparkles,
+  Crown,
+  ExternalLink,
 } from "lucide-react";
 import { Button, Sheet } from "../design/primitives.tsx";
 import { showToast } from "../design/toast.tsx";
@@ -25,7 +27,10 @@ import { netWorth, type InterruptPace } from "../state/gameState.ts";
 import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
 import { disableDailyReminders, enableDailyReminders, notificationsAvailable } from "../state/notifications.ts";
 import { hasSandboxEntitlement } from "../state/entitlements.ts";
-import { getSandboxProduct, iapAvailable, purchaseSandbox, restoreSandbox, IAP_ENTITLEMENT_EVENT, type ProductInfo } from "../state/iap.ts";
+import { IAP_ENTITLEMENT_EVENT } from "../state/iap.ts";
+import { manageProSubscription, proPurchasesAvailable, restorePro } from "../state/proStore.ts";
+import { openPaywall } from "../state/paywall.ts";
+import { useIsPro, useProStatus } from "../state/usePro.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./settings.css";
 
@@ -156,6 +161,8 @@ export function Settings({ onClose }: { onClose: () => void }) {
         </div>
         <p className="set__group-note">{PACES.find((p) => p.id === (settings.interruptPace ?? "standard"))?.sub}</p>
       </div>
+
+      <ProGroup />
 
       <CreativeModeGroup />
 
@@ -350,73 +357,87 @@ function downloadText(text: string, filename: string): void {
   }
 }
 
-/** Creative mode, the single v1 IAP. Locked behind a one-time purchase (the device-level
- *  entitlement); once owned, a free toggle activates/deactivates it for the current game. */
-function CreativeModeGroup() {
-  const { state, setSandboxActive } = useGame();
-  const [owned, setOwned] = useState(() => hasSandboxEntitlement());
-  const [product, setProduct] = useState<ProductInfo | null>(null);
+/**
+ * Silicon Pro — subscription standing, management, and restore.
+ *
+ * Apple requires that a subscriber can always see WHAT they're subscribed to and reach a cancel
+ * path from inside the app. `manageProSubscription()` opens Apple's own sheet (falling back to the
+ * account URL), so cancelling is never more than two taps away. Restore lives here as well as on
+ * the paywall, because a returning user who reinstalls looks in Settings first.
+ */
+function ProGroup() {
+  const { pro, line } = useProStatus();
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    let live = true;
-    getSandboxProduct().then((p) => { if (live) setProduct(p); });
-    return () => { live = false; };
-  }, []);
+  async function restore() {
+    if (busy) return;
+    setBusy(true);
+    const { restored } = await restorePro();
+    setBusy(false);
+    if (restored) {
+      haptic.success();
+      sfx("confirm");
+      showToast("Purchases restored — Silicon Pro is active", { tone: "positive" });
+    } else {
+      showToast("No previous purchases found for this Apple ID.", { tone: "neutral" });
+    }
+  }
+
+  // A native build with the purchase path deliberately dark: don't render a CTA that dead-ends —
+  // App Review taps every visible purchase entry point.
+  if (!pro && !proPurchasesAvailable()) return null;
+
+  return (
+    <div className="set__group">
+      <span className="set__group-label">Silicon Pro</span>
+      <Row
+        icon={<Crown size={18} />}
+        label={pro ? "Subscription" : "Silicon Pro"}
+        sub={pro ? line : "The Platform & AI eras, every scenario, New Game+, Creative Mode, the Vault and the Museum."}
+      >
+        {pro ? <span className="set__pro-badge">Active</span> : null}
+      </Row>
+      {pro ? (
+        <Button block variant="secondary" onClick={() => { haptic.light(); void manageProSubscription(); }}>
+          <ExternalLink size={16} /> Manage subscription
+        </Button>
+      ) : (
+        <Button block onClick={() => { haptic.light(); openPaywall({ reason: "onboarding" }); }}>
+          <Sparkles size={16} /> See what's in Pro
+        </Button>
+      )}
+      <button className="set__restore" onClick={restore} disabled={busy}>
+        {busy ? "Restoring…" : "Restore purchases"}
+      </button>
+    </div>
+  );
+}
+
+/** Creative Mode. Included with Pro; also still owned outright by anyone who bought the standalone
+ *  unlock during the paid era — that purchase is honoured forever and is never re-sold to them. */
+function CreativeModeGroup() {
+  const { state, setSandboxActive } = useGame();
+  const pro = useIsPro();
+  const [ownedOutright, setOwnedOutright] = useState(() => hasSandboxEntitlement());
 
   // Out-of-band approvals (Ask-to-Buy / Family Sharing) grant the entitlement from a native
-  // callback; refresh the owned state live so the toggle appears without needing a remount.
+  // callback; refresh live so the toggle appears without needing a remount.
   useEffect(() => {
-    const refresh = () => setOwned(hasSandboxEntitlement());
+    const refresh = () => setOwnedOutright(hasSandboxEntitlement());
     window.addEventListener(IAP_ENTITLEMENT_EVENT, refresh);
     return () => window.removeEventListener(IAP_ENTITLEMENT_EVENT, refresh);
   }, []);
 
-  async function buy() {
-    if (busy) return;
-    setBusy(true);
-    const res = await purchaseSandbox();
-    setBusy(false);
-    if (res.status === "purchased") {
-      setOwned(true);
-      setSandboxActive(true);
-      haptic.success();
-      sfx("confirm");
-      showToast("Creative Mode unlocked", { tone: "positive" });
-    } else if (res.status === "pending") {
-      // Ask-to-Buy / SCA: the charge is awaiting approval. It'll unlock automatically once it
-      // clears (the native transaction listener grants the entitlement).
-      showToast(res.message ?? "Purchase pending approval.", { tone: "neutral" });
-    } else if (res.status !== "cancelled") {
-      haptic.error();
-      showToast(res.message ?? "Purchase unavailable right now.", { tone: "negative" });
-    }
-  }
-
-  async function restore() {
-    const res = await restoreSandbox();
-    if (res.restored) {
-      setOwned(true);
-      haptic.success();
-      showToast("Purchases restored, Creative Mode unlocked.", { tone: "positive" });
-    } else {
-      showToast("No previous purchases found.", { tone: "neutral" });
-    }
-  }
-
-  // Unwired native build: no working purchase path, so don't show a buy button that dead-ends
-  // (App Review tests every visible IAP entry point). Owners who already hold the entitlement
-  // (e.g. granted by a future wired build) still get their toggle.
-  if (!owned && !iapAvailable()) return null;
+  const available = pro || ownedOutright;
 
   return (
     <div className="set__group">
       <span className="set__group-label">Creative Mode</span>
-      {owned ? (
+      {available ? (
         <Row
           icon={<Sparkles size={18} />}
           label="Sandbox mode"
-          sub={state.sandboxUnlocked ? "Active, unlimited funds & research. Design freely." : "Owned. Toggle on to design without limits, unlimited money & research."}
+          sub={state.sandboxUnlocked ? "Active, unlimited funds & research. Design freely." : "Toggle on to design without limits, unlimited money & research."}
         >
           <Switch label="Sandbox mode" on={state.sandboxUnlocked} onChange={(v) => { setSandboxActive(v); haptic.light(); sfx("toggle"); }} />
         </Row>
@@ -428,13 +449,12 @@ function CreativeModeGroup() {
             <span className="set__row-icon"><Lock size={18} /></span>
             <div className="set__row-text">
               <span className="set__row-label">Creative Mode</span>
-              <span className="set__row-sub">Design freely with no financial limits: an unlimited cash floor so you can never go bankrupt.</span>
+              <span className="set__row-sub">Design freely with no financial limits: an unlimited cash floor so you can never go bankrupt. Included with Silicon Pro.</span>
             </div>
           </div>
-          <Button block onClick={buy} disabled={busy}>
-            {busy ? "…" : `Unlock · ${product?.price ?? "$2.99"}`}
+          <Button block onClick={() => { haptic.light(); openPaywall({ reason: "creativeMode", onUnlocked: () => setSandboxActive(true) }); }}>
+            <Crown size={16} /> Unlock with Pro
           </Button>
-          <button className="set__restore" onClick={restore}>Restore purchase</button>
         </>
       )}
     </div>

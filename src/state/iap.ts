@@ -13,8 +13,8 @@
 // SPM-only iOS target needs no CocoaPods. Remaining one-time Xcode setup is in appstore/IAP_GUIDE.md
 // (add the In-App Purchase capability + a .storekit config for the simulator). Nothing here ever
 // throws: the same bundle runs in the browser and inside the native shell.
-import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
+import { isNative, storeKit } from "./storeKitBridge.ts";
 import { grantSandboxEntitlement, hasSandboxEntitlement } from "./entitlements.ts";
 
 /** App Store product identifier for the non-consumable Sandbox / Creative-mode unlock. */
@@ -44,42 +44,8 @@ export interface PurchaseResult {
   message?: string;
 }
 
-// ── Native bridge (implemented in ios/App/App/SiliconStoreKit.swift) ─────────────────────────────
-interface NativeProduct {
-  available: boolean;
-  id?: string;
-  displayName?: string;
-  description?: string;
-  price?: string;
-  owned?: boolean;
-}
-interface SiliconStoreKitPlugin {
-  getProduct(options: { productId: string }): Promise<NativeProduct>;
-  purchase(options: { productId: string }): Promise<{ status: string; message?: string }>;
-  restore(options: { productId: string }): Promise<{ restored: boolean }>;
-  isOwned(options: { productId: string }): Promise<{ owned: boolean }>;
-  addListener(
-    eventName: "transactionUpdated",
-    listenerFunc: (data: { productId: string }) => void,
-  ): Promise<PluginListenerHandle>;
-}
-
-// Registered lazily (inside try/catch at each call site) so a missing bridge — web, tests, an old
-// build — can never throw at import time; it just falls back to the safe path.
-let pluginRef: SiliconStoreKitPlugin | null = null;
-function storeKit(): SiliconStoreKitPlugin {
-  if (!pluginRef) pluginRef = registerPlugin<SiliconStoreKitPlugin>("SiliconStoreKit");
-  return pluginRef;
-}
-
-/** True when running inside the native iOS shell (vs. the browser/PWA). */
-function isNative(): boolean {
-  try {
-    return Capacitor.isNativePlatform();
-  } catch {
-    return false;
-  }
-}
+// The native bridge (plugin proxy + platform check) lives in `storeKitBridge.ts` — ONE proxy shared
+// with `proStore.ts`, so the `transactionUpdated` listener is registered exactly once.
 
 /**
  * Can a purchase flow actually complete on this platform?

@@ -507,13 +507,13 @@
    own backdrop-filter still frosts what's directly behind it; the surrounding scrim is left CLEAR
    (its blur was removed) so the game stays sharp around the popup. */
 .ern__card, .cma__card, .eur__card, .awd__card, .rst__card,
-.rvd__card, .cele__card, .rtl__card, .lreveal__card {
+.rvd__card, .cele__card, .rtl__card, .lreveal__card, .pwl__card {
   position: relative;
 }
 .ern__card::after, .cma__card::after, .eur__card::after, .awd__card::after, .rst__card::after,
 .rvd__card::after, .cele__card::after, .rtl__card::after, .lreveal__card::after, .dtut::after,
 .rev__card::after, .scn__confirm-card::after, .cof__card::after,
-.stfm__card::after, .rge__card::after {
+.stfm__card::after, .rge__card::after, .pwl__card::after {
   content: "";
   position: absolute;
   inset: 0;
