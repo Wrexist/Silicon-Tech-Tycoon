@@ -57,10 +57,13 @@ Keep it that way — they are lies, and three of the five are also rejections:
 |---|---|
 | One honest question before the offer | A ten-step "personalization quiz" that changes nothing |
 | Proof counted from the real content tables | Invented download counts and testimonials |
-| "Your trial ends in 2 days" | Silence, then a surprise charge |
 | A welcome for returning subscribers | A fabricated "just for you" discount |
 | Prices from StoreKit, always | A price typed into the UI |
 | — | Countdowns, "limited time", a trial toggle, an undismissable paywall |
+
+**Owner decision, don't "fix" it:** trials convert **silently** — there is no in-app
+trial-ending reminder, by choice (`ProNudge.tsx` documents the trade). Do not add one back without
+being asked. The point-of-purchase disclosure is what compliance turns on, and it is intact.
 
 `proGates.test.ts` enforces the no-urgency rule against the copy, and `founderIntent.test.ts`
 enforces that personalization only ever REORDERS the promises — never adds, drops or edits one.

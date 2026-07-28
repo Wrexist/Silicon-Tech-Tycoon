@@ -162,7 +162,7 @@ version that squeezes the number hardest.
 |---|---|---|---|
 | 1 | **The founding brief** — one question before the offer | The screen *before* the paywall moves conversion more than the paywall. Apps that ask what the user wants first convert several times better (Noom's quiz-to-paid is ~10% vs a ~2.7% median); stating an ambition is a small commitment that makes the next screen read as an answer. **Our version is one honest question, not a ten-step quiz that changes nothing** — and it only reorders the argument, never its content. A test asserts that every player sees the same set of promises. | `state/founderIntent.ts` · `components/FoundingBrief.tsx` |
 | 2 | **Proof, counted from the catalogs** | A sim player's first question is "how much game is there?". The industry answer here is invented download counts and testimonials — a dark pattern *and* an App Review liability. Ours reads the real content tables at module load, so it cannot rot and cannot become a lie: add a scenario and the strip updates. | `PROOF` in `components/Paywall.tsx` |
-| 3 | **Trial-ending strip (2 days out)** | Counter-intuitive but correct: a subscriber surprised by a charge refunds it, leaves a one-star review, and never returns — and Apple counts the refund either way. Warning costs a few cancellations from people who were never staying, and buys goodwill from everyone who does. It is also the clearest possible signal to App Review that this isn't a trial trap. | `components/ProNudge.tsx` |
+| 3 | **Silent trial conversion** | The trial converts without an in-app reminder, as it does in the overwhelming majority of subscription apps. **This is a deliberate owner decision, not an oversight** — see the trade-off below. | `components/ProNudge.tsx` |
 | 4 | **Billing-failure rescue** | ~⅓ of subscription churn is involuntary — an expired card, a declined charge — not a decision. Apple retries for up to 60 days and keeps the subscriber entitled through the grace period; the only missing piece is the user *knowing*. Reported recovery from doing this properly runs 15–20% of otherwise-lost revenue. | `components/ProNudge.tsx` |
 | 5 | **Returning-subscriber welcome** | Lapsed subscribers are the cheapest revenue an app has, and the surest way to lose them is to show them the first-time sales pitch again. A one-bit, never-cleared breadcrumb (`hasEverSubscribed`) swaps the headline for a welcome. **No discount is claimed** — real win-back pricing is configured in App Store Connect and shown by StoreKit's own sheet; our UI never states a price the store didn't give us. | `RETURNING_COPY` in `state/proGates.ts` |
 | 6 | **Monthly → Yearly crossgrade** | Yearly subscribers have materially higher LTV and lower churn. Offered only to someone already on Monthly, framed as what it is: the same Pro for less per month. Both SKUs share one subscription group, so StoreKit prorates it — no double charge, no cancel-first. | `ProGroup` in `screens/Settings.tsx` |
@@ -170,6 +170,28 @@ version that squeezes the number hardest.
 **Deliberately not implemented:** fabricated social proof, countdown timers, "limited time" pricing,
 a trial toggle, or a paywall you can't dismiss. The first four are lies, and the fifth is a
 Guideline 3.1.2 rejection as of January 2026.
+
+#### The trial-reminder trade-off, written down
+
+There is no "your free trial ends in 2 days" strip. Silent conversion keeps the subscribers who
+would have cancelled on seeing the reminder; the cost is that some of them come back as refunds,
+chargebacks and one-star reviews from people who felt ambushed. That is the whole trade, and it is
+the owner's call to make.
+
+What is **not** affected, and must stay that way:
+
+- The paywall states the trial length, the price, the renewal cadence and the trial-forfeiture rule
+  in plain words **before anything is charged** — that is the disclosure Guideline 3.1.2(c) actually
+  requires, and removing an extra in-app courtesy doesn't touch it.
+- Settings → Silicon Pro shows live standing (`proStatusLine`, which still counts down an active
+  trial) with a two-tap path to Apple's cancel sheet.
+- Apple lists the subscription under Settings → Apple ID → Subscriptions and emails a receipt on
+  every charge.
+
+**If refund rate or churn-on-first-charge looks bad after launch, restoring the reminder is a small
+change** — a second branch in `ProNudge.tsx` keyed on `onTrial` + `trialDaysRemaining()`, both of
+which `usePro.ts` already exposes. Watch App Store Connect's refund and first-period-churn figures
+for the first few hundred trials before deciding.
 
 ### Rules the funnel follows
 

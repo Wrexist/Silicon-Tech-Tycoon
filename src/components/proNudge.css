@@ -1,6 +1,10 @@
-/* Subscription housekeeping strips (trial ending · billing failing). Same non-blocking language as
-   the Decision Inbox — a nudge above the bottom nav, never a modal. Sits one layer BELOW the
-   inbox's z-index so an actual game decision always wins the spot. Tokens + 8pt grid only. */
+/* Subscription housekeeping strip (a failing payment). Same non-blocking language as the Decision
+   Inbox — a nudge above the bottom nav, never a modal. Sits one layer BELOW the inbox's z-index so
+   an actual game decision always wins the spot. Tokens + 8pt grid only.
+
+   The `--neutral` tone below is unused today: it belonged to the trial-ending reminder, which is
+   deliberately not shipped (see ProNudge.tsx). Kept because restoring that strip is a live option
+   and re-deriving the palette would be busywork. */
 .pnudge {
   position: fixed;
   left: 0;
