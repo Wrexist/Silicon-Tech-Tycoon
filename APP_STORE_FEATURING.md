@@ -154,7 +154,7 @@ single thing standing between this and a Today-tab conversation.
 - [ ] **Live Activity / Dynamic Island** for an in-progress build, factory run, or launch-week countdown.
 - [ ] **Home-screen widget** — company net worth, next launch, industry rank.
 - [ ] **Game Center** leaderboards mapped to the existing industry-rank meta.
-- [ ] **iPad support** (currently iPhone-only, portrait-only) → opens the iPad featuring lane.
+- [ ] **iPad support** (currently iPhone-only, portrait-only) → opens the iPad feature lane.
 - [ ] **Localize the app itself** (not just the listing). The 39 listings put you in front of those
       storefronts; an English-only build is what you convert them with. This is the natural follow-on
       now that the metadata exists, and it is the honest version of the "39 languages" claim.
@@ -204,7 +204,7 @@ single thing standing between this and a Today-tab conversation.
 
 ### Block A — Nomination Description *(≤1,000 chars; this draft = 990)*
 
-```
+```text
 Silicon: Tech Tycoon's fifth era arrives, and with it a progression layer that refuses to explain itself. You still design every product down to the chip — processor, display, battery, materials, camera — and watch it render live in parametric vector, then build the 3D factory line that makes it, machine by machine. Every pixel is drawn from code; the app ships zero image assets.
 
 New in 1.2.0, The Vault: eighteen classified dossiers whose unlock conditions are hidden. Each opens on something you did without being asked, and reveals itself in stages — a redaction block, then a whisper, then the exact terms, then the reward. You can buy the intelligence. You can never buy the deed.
@@ -216,7 +216,7 @@ Still a premium single purchase — no ads, no timers — collecting no data, fu
 
 ### Block B — Helpful Details *(≤500 chars; this draft = 491)*
 
-```
+```text
 Our signature is parametric rendering: every device, the 3D factory line and the 3D office are generated from code as you play, so the app ships zero image assets. The Vault is the new hook — a progression system that hides its own rules and unredacts them in stages, demoable in 20 seconds. Store listings now cover all 39 App Store locales (the app UI remains English). One purchase, offline, no data collected, no dark patterns, full accessibility pass. Happy to share a TestFlight build.
 ```
 

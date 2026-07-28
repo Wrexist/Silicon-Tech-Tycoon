@@ -22,7 +22,7 @@
 
 **Exactly 100 characters, comma-separated, no spaces after commas:**
 
-```
+```text
 business,simulation,management,idle,startup,manager,phone,gadget,empire,strategy,money,builder
 ```
 Character count: 94 ✓ (Apple counts punctuation; stay under 100)
@@ -79,7 +79,7 @@ Character count: ~1,650 (well within 4,000)
 
 ## What's New (v1.2.0)
 
-```
+```text
 A fifth era, a hidden layer, and a company that finally answers back.
 
 • The Vault: eighteen classified dossiers whose conditions are secret. Each opens on
@@ -127,7 +127,7 @@ against Apple's 4,000 limit), and all 39 App Store locales carry a translated ve
 
 ## What's New (v1.1.0)
 
-```
+```text
 Your factory floor is now yours to build — and the industry just got fiercer.
 
 • Factory Mode: lay conveyor belts, place and upgrade machines, and watch a real
@@ -158,7 +158,7 @@ Your factory floor is now yours to build — and the industry just got fiercer.
 
 ## What's New (v1.0.2)
 
-```
+```text
 Silicon just got a lot more alive.
 
 • Rivals now have backstories — read their doctrine, and watch their fortunes rise,
@@ -181,7 +181,7 @@ Silicon just got a lot more alive.
 
 ## What's New (v1.0 — first release)
 
-```
+```text
 Silicon launches on the App Store. Design devices, launch them into a living market,
 build your team, research the next era, and race rivals to the #1 spot.
 Premium, offline, no ads.
@@ -283,7 +283,7 @@ No other required-reason APIs are accessed. No third-party SDKs included.
 
 ### Review notes (paste into App Store Connect → App Review → Notes)
 
-```
+```text
 Thank you for reviewing Silicon: Tech Tycoon.
 
 TESTING THE APP
@@ -331,7 +331,7 @@ No.
 
 ### Minimum privacy policy content (paste at the privacy policy URL)
 
-```
+```text
 Silicon: Tech Tycoon Privacy Policy
 
 Silicon does not collect, transmit, or share any personal data.

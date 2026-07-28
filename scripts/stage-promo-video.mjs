@@ -144,6 +144,9 @@ s = {
       console.error(`  The hero has to BEAT this company's own record by the era's hit margin. Widen the gap:`);
       console.error(`  weaken the three prior launches (mkPhone designTier / component tiers) so the record sits`);
       console.error(`  lower, or make the hero a genuine step up. launchExpectation is ${Math.round(s.launchExpectation ?? 0)}.`);
+      // Non-zero, so `npm run promo:video` stops here instead of recording a promo whose climax is a
+      // shrug. A check that only prints is a check that gets scrolled past.
+      process.exitCode = 1;
     }
   }
 }

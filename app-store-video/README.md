@@ -7,8 +7,9 @@ text overlays baked in.
 > ## ⚠ The `.mp4` here is the OLD 1.1.0 cut — do not upload it
 >
 > `Silicon-TechTycoon-promo.webm` is the current **1.2.0** cut (Vault beat, restored hit reveal).
-> `Silicon-TechTycoon-promo.mp4` is the **1.1.0** cut and has no Vault beat. Only the MP4 is a format
-> App Store Connect accepts, so uploading as-is would ship the previous release's video.
+> `Silicon-TechTycoon-promo.mp4` is the **1.1.0** cut and has no Vault beat. App Store Connect accepts
+> `.mov`, `.m4v` and `.mp4` — but not WebM — so the only file here it would take is the stale one,
+> and uploading as-is would ship the previous release's video.
 >
 > This environment's ffmpeg is a VP8/WebM-only build — no H.264 encoder, no MP4 muxer — so the
 > transcode cannot happen here. Run it once on any machine with a full ffmpeg:

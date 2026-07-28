@@ -296,6 +296,12 @@ function migrate(state: GameState): GameState | null {
   if (!Number.isFinite(s.week)) s.week = 0;
   if (!Number.isFinite(s.cash)) s.cash = 0;
   if (!Number.isFinite(s.reputation)) s.reputation = 8;
+  // Normalize `era` HERE rather than at its usual spot further down, because the reputation floor
+  // below is keyed on it. A save with a missing or NaN era would otherwise skip the floor entirely
+  // and only get defaulted to era 1 afterwards — landing in exactly the zero-reputation dead end the
+  // floor exists to prevent. (Note `s.era < 1` is false for NaN, so the later guard alone never
+  // caught it.)
+  if (!Number.isFinite(s.era) || s.era < 1) s.era = 1;
   // v1.2.0 guarantees a young company can never be driven to zero reputation, because zero means
   // zero demand — every later launch flops and there is no way back. The floor is applied wherever
   // reputation is REDUCED, which does nothing for a save that already sits at the bottom: a returning
@@ -303,7 +309,7 @@ function migrate(state: GameState): GameState | null {
   // Lift them to the floor for their era. Only ever raises, only up to a single-digit floor, and is a
   // no-op for every save already above it (which is most of them) and for eras 4-5 where the floor is
   // 0 by design.
-  if (Number.isFinite(s.era)) s.reputation = Math.max(s.reputation, reputationFloor(s.era));
+  s.reputation = Math.max(s.reputation, reputationFloor(s.era));
   if (!Number.isFinite(s.fans)) s.fans = 250;
   if (!Number.isFinite(s.cumulativeRevenue)) s.cumulativeRevenue = 0;
   // Same unsigned formula as newGame's default — the old Date.now()*2**31 overflowed Number
@@ -340,7 +346,8 @@ function migrate(state: GameState): GameState | null {
   if (s.tutorialDone == null) s.tutorialDone = true;
   if (s.trendRetargetWeek == null) s.trendRetargetWeek = (s.week ?? 0) + 14;
   if (s.researchPoints == null || !Number.isFinite(s.researchPoints)) s.researchPoints = 0;
-  if (s.era == null || s.era < 1) s.era = 1;
+  // era is already normalized above (the reputation floor needs it); this stays as a backstop.
+  if (!Number.isFinite(s.era) || s.era < 1) s.era = 1;
   if (!Array.isArray(s.completedProjects)) s.completedProjects = [];
   if (!Array.isArray(s.building)) s.building = [];
   if (!Array.isArray(s.ready)) s.ready = [];

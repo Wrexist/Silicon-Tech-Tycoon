@@ -32,8 +32,9 @@ const server = createServer(async (req, res) => {
   res.writeHead(200, { "content-type": MIME[extname(f)] || "text/html" });
   res.end(b);
 });
-await new Promise((r) => server.listen(5321, r));
-const URL = "http://localhost:5321";
+// Port 0 → the OS picks a free one, so a stray local service or a concurrent audit can't collide.
+await new Promise((r) => server.listen(0, r));
+const URL = `http://localhost:${server.address().port}`;
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] });
 const problems = [];
@@ -49,32 +50,117 @@ async function sweep(label, saveJson) {
   p.on("pageerror", (e) => note("pageerror", e.message));
   p.on("console", (m) => { if (m.type() === "error") note("console.error", m.text()); });
   p.on("requestfailed", (r) => note("requestfailed", `${r.url()} ${r.failure()?.errorText}`));
+  // requestfailed only covers TRANSPORT failures. A 404 or 500 is a perfectly successful request as
+  // far as Playwright is concerned, so it needs its own listener or the audit never sees one.
+  p.on("response", (r) => { if (r.status() >= 400) note("http", `${r.status()} ${r.url()}`); });
   await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });
   await p.waitForTimeout(3000);
   await p.evaluate(() => document.querySelector(".ds-sheet button")?.click());
   for (let i = 0; i < 10; i++) { const sk = await p.$(".coach__skip"); if (!sk) break; await sk.evaluate((n) => n.click()); await p.waitForTimeout(200); }
   await p.evaluate(() => document.querySelector('button[aria-label="Pause"]')?.click());
 
-  for (const label of ["Office", "Design", "Research", "Market", "Company"]) {
-    await p.evaluate((l) => [...document.querySelectorAll(".bnav__item")].find((e) => e.querySelector(".bnav__label")?.textContent?.trim() === l)?.click(), label);
-    await p.waitForTimeout(1400);
-    // every sub-tab on this screen
-    const tabs = await p.$$('button[role="tab"]');
-    for (const t of tabs) { await t.evaluate((n) => n.click()).catch(() => {}); await p.waitForTimeout(600); }
+  // A save that fails to load doesn't error — it drops you on the onboarding screen, which has no
+  // nav and no HUD, so a permissive traversal walks nothing and reports clean. This is exactly how
+  // the 1.1.0 upgrade pass silently measured nothing (the fixture carried onboarded: false, which a
+  // real player save never does). Fail loudly instead.
+  if (await p.$(".onboard")) {
+    if (saveJson) {
+      // A save that fails to load doesn't error — it drops you on onboarding, which has no nav and
+      // no HUD, so a permissive traversal walks nothing and reports clean.
+      note("save", "a save was seeded but the app rendered ONBOARDING — the save did not load");
+      await ctx.close();
+      return;
+    }
+    // No save: onboarding IS the first-run path. Complete it so the rest of the sweep has a game.
+    await p.evaluate(() => {
+      [...document.querySelectorAll("button")]
+        .find((b) => /found/i.test((b.textContent || "").trim()))?.click();
+    });
+    const started = await p.waitForSelector(".bnav__item", { timeout: 15000 }).then(() => true).catch(() => false);
+    if (!started) { note("nav", "onboarding never handed off to the game"); await ctx.close(); return; }
+    await p.waitForTimeout(1500);
+    for (let i = 0; i < 10; i++) { const sk = await p.$(".coach__skip"); if (!sk) break; await sk.evaluate((n) => n.click()); await p.waitForTimeout(200); }
+    await p.evaluate(() => document.querySelector('button[aria-label="Pause"]')?.click());
   }
+
+  // Every bottom-nav screen that is CURRENTLY REVEALED, and every sub-tab on it. App.tsx reveals the
+  // nav progressively (Office + Design first, the rest as the company grows), so the audit walks what
+  // the build actually renders rather than a fixed list — but every tab it finds must open, because
+  // silently skipping one is how an audit reports CLEAN on a build where a screen is broken.
+  const SCREEN_MARKUP = { Office: ".hq", Design: ".lab", Research: "[class^='rd__']", Market: "[class^='mkt__']", Company: "[class^='co__']" };
+  const navLabels = await p.$$eval(".bnav__item", (ns) =>
+    ns.map((n) => n.querySelector(".bnav__label")?.textContent?.trim() ?? "").filter(Boolean));
+  if (navLabels.length === 0) note("nav", "the bottom nav rendered no items at all");
+  for (const screen of navLabels) {
+    await p.evaluate((l) => {
+      [...document.querySelectorAll(".bnav__item")]
+        .find((e) => e.querySelector(".bnav__label")?.textContent?.trim() === l)?.click();
+    }, screen);
+    const marker = SCREEN_MARKUP[screen];
+    if (marker) {
+      await p.waitForSelector(marker, { timeout: 15000 })
+        .catch(() => note("nav", `"${screen}" never rendered ${marker}`));
+    } else {
+      note("nav", `unknown bottom-nav screen "${screen}" — add it to SCREEN_MARKUP so it gets checked`);
+      await p.waitForTimeout(1400);
+    }
+    // Sub-tabs by INDEX, re-queried each time: clicking one re-renders the panel, which detaches any
+    // handles captured up front.
+    const tabCount = await p.$$eval('button[role="tab"]', (ns) => ns.length);
+    for (let i = 0; i < tabCount; i++) {
+      await p.evaluate((idx) => document.querySelectorAll('button[role="tab"]')[idx]?.click(), i);
+      await p.waitForTimeout(600);
+    }
+  }
+
   // The Progress hub and every view under it — the lazy chunks most likely to fail in a prod build.
   // App.tsx gates the hub on hasShipped, so a brand-new company has no button to open: that is the
-  // intended first-run experience, not a failure. Only flag a button that's there but doesn't work.
-  const hubButton = await p.$('button[aria-label*="Progress"]');
-  if (!hubButton) { await ctx.close(); return; }
-  await hubButton.evaluate((n) => n.click());
-  await p.waitForSelector(".prog__row", { timeout: 15000 }).catch(() => problems.push(`[${label}] Progress hub never opened`));
-  const rows = await p.$$eval(".prog__row", (ns) => ns.map((n) => n.querySelector(".prog__row-title")?.textContent ?? ""));
-  for (const title of rows) {
-    await p.evaluate((t) => [...document.querySelectorAll(".prog__row")].find((r) => r.querySelector(".prog__row-title")?.textContent === t)?.click(), title);
+  // intended first run. For every OTHER pass the company has shipped, so a missing button is a bug.
+  const openHub = async () => {
+    const button = await p.$('button[aria-label*="Progress"]');
+    if (!button) return false;
+    await button.evaluate((n) => n.click());
+    return await p.waitForSelector(".prog__row", { timeout: 15000 }).then(() => true).catch(() => false);
+  };
+  if (!(await p.$('button[aria-label*="Progress"]'))) {
+    if (label !== "new game") note("nav", "Progress hub button missing on a company that has shipped");
+    await ctx.close();
+    return;
+  }
+  if (!(await openHub())) { note("nav", "Progress hub never opened"); await ctx.close(); return; }
+
+  // Rows by INDEX, not by title: two rows can share a title, and opening one re-renders the hub so
+  // any element handle taken beforehand is stale. Between rows the hub is REOPENED from the HUD
+  // rather than backed out of — the sub-views don't share one close affordance (some have a chevron,
+  // some a "Done" button), and what this audit is actually checking is that each view opens and
+  // renders, not how each one is dismissed.
+  const rowCount = await p.$$eval(".prog__row", (ns) => ns.length);
+  for (let i = 0; i < rowCount; i++) {
+    const title = await p.evaluate((idx) => {
+      const row = document.querySelectorAll(".prog__row")[idx];
+      row?.click();
+      return row?.querySelector(".prog__row-title")?.textContent?.trim() ?? `row ${idx}`;
+    }, i);
     await p.waitForTimeout(1200);
-    await p.evaluate(() => document.querySelector(".vlt__back, .prog__back, [class$='__back']")?.click());
-    await p.waitForTimeout(700);
+    const left = await p.evaluate(() => !document.querySelector(".prog__row"));
+    if (!left) note("nav", `the "${title}" row did not open a view`);
+    // Dismiss whatever is open, then reopen the hub from the HUD for the next row.
+    await p.evaluate(() => {
+      // A `*__back` chevron when the view has one (the Vault, Mastery, the Museum), otherwise the
+      // "Done" button these sheets close with. Searched LAST-first: the sheet's own close control is
+      // at the bottom of the document, and scanning forwards picks up the game's chrome behind it.
+      const chevron = document.querySelector("[class$='__back']");
+      if (chevron) return chevron.click();
+      const buttons = [...document.querySelectorAll("button")].reverse();
+      const done = buttons.find((b) => /^(done|back|close)$/i.test((b.textContent || "").trim()));
+      if (done) return done.click();
+      document.querySelector(".prog__close")?.click();
+    });
+    await p.waitForTimeout(600);
+    if (i + 1 < rowCount && !(await p.$(".prog__row")) && !(await openHub())) {
+      note("nav", `could not get back to the hub after "${title}" — remaining rows unchecked`);
+      break;
+    }
   }
   await ctx.close();
 }
@@ -91,13 +177,28 @@ if (oldSave) {
   const old = JSON.parse(oldSave.toString());
   old.lastActive = Date.now();
   await sweep("1.1.0 save", JSON.stringify(old));
+} else if (process.env.AUDIT_SKIP_UPGRADE === "1") {
+  console.log("note: AUDIT_SKIP_UPGRADE=1 — the previous-release upgrade pass was deliberately skipped.");
 } else {
-  console.log("note: /tmp/save-110.json absent — skipped the previous-release upgrade pass.");
+  // Not a note: the upgrade pass is the whole reason this audit exists at release time, and a
+  // silently-skipped check reads exactly like a passing one.
+  problems.push("[1.1.0 save] /tmp/save-110.json missing — the previous-release upgrade pass did NOT run. "
+    + "Regenerate it from a 1.1.0 build, or set AUDIT_SKIP_UPGRADE=1 to acknowledge the gap.");
 }
 
 await browser.close();
 server.close();
-const unique = [...new Set(problems)];
-if (missing.length) console.log("404s served index instead:", [...new Set(missing)].join(", "));
-if (unique.length === 0) console.log("CLEAN — no console errors, page errors or failed requests across every screen.");
-else { console.log(`${unique.length} problem(s):`); for (const u of unique) console.log(" •", u); }
+// The dev server answers a missing path with index.html and a 200 — that is what the real SPA
+// fallback does, but it means a genuinely absent asset never surfaces as an HTTP error. Fold those
+// into the failures rather than printing them beside a "CLEAN" verdict.
+const unique = [...new Set([
+  ...problems,
+  ...new Set(missing.map((p) => `missing asset (served index.html instead): ${p}`)),
+])];
+if (unique.length === 0) {
+  console.log("CLEAN — no console errors, page errors or failed requests across every screen.");
+} else {
+  console.log(`${unique.length} problem(s):`);
+  for (const u of unique) console.log(" •", u);
+  process.exitCode = 1;   // an audit that cannot fail is not an audit
+}

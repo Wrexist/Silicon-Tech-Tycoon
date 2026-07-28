@@ -235,7 +235,13 @@ const fp = await c.newPage();
 let i = 1;
 for (const fr of FRAMES) {
   const raw = await readFile(resolve(rawDir, `${fr.raw}.png`)).catch(() => null);
-  if (!raw) { console.log("skip", fr.raw, "— no raw capture yet"); i++; continue; }
+  if (!raw) {
+    // Selective mode is the ONLY reason a raw may be absent: you are iterating on one frame and the
+    // rest are deliberately left on their existing captures. Outside it, a missing raw means the set
+    // being written is short a frame, and quietly shipping nine of ten is worse than stopping.
+    if (ONLY.length) { console.log("skip", fr.raw, "— not in SHOTS_ONLY, keeping the existing frame"); i++; continue; }
+    throw new Error(`no raw capture for "${fr.raw}" — the composed set would be missing that frame`);
+  }
   const b64 = raw.toString("base64");
   await fp.setContent(frameHtml(b64, fr.head, fr.sub, fr.hue), { waitUntil: "networkidle" });
   await fp.waitForTimeout(200);

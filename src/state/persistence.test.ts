@@ -392,6 +392,21 @@ describe("v1.2.0 — a returning player is lifted out of the dead end the releas
     }
   });
 
+  it("still applies the floor when the save has no usable era", async () => {
+    // The floor is keyed on era, so era has to be normalized FIRST. A save with a missing or NaN era
+    // used to skip the clamp entirely and only get defaulted to era 1 afterwards — landing at exactly
+    // the reputation 0 this whole block exists to prevent. (NaN is the sharp edge: `era < 1` is false
+    // for NaN, so the old `era == null || era < 1` guard never caught it either.)
+    const { importSaveString, exportSaveString } = await freshPersistence();
+    for (const era of [undefined, null, NaN, 0, -3]) {
+      const broken = { ...newGame(79), era, reputation: 0 } as unknown as GameState;
+      const back = importSaveString(exportSaveString(broken));
+      expect(back!.era, `era ${String(era)}`).toBe(1);
+      expect(back!.reputation, `era ${String(era)}`).toBe(reputationFloor(1));
+      expect(back!.reputation, `era ${String(era)} must not be a dead end`).toBeGreaterThan(0);
+    }
+  });
+
   it("never LOWERS a reputation the player earned, and leaves the late eras alone", async () => {
     const { importSaveString, exportSaveString } = await freshPersistence();
     // A healthy company keeps exactly what it had…

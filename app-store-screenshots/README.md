@@ -46,9 +46,12 @@ screen is captured at its designed max width (a clean 3:4 capture) and shown ful
 | 09 | Team morale & roster              | **Grow a real team** |
 | 10 | Real-time 3D HQ                   | **Premium. Complete. Yours.** |
 
-**The iPad set is still the 1.1.0 line-up** — it predates the Vault, the Autonomy Era and Nemesis
-Duels. iPhone is the set that ships the 1.2.0 story; refresh `ipad/` (see below) before leaning on
-it for a nomination.
+**These are marketing renders, not submission assets.** `ios/App/App.xcodeproj/project.pbxproj`
+sets `TARGETED_DEVICE_FAMILY = "1"` — the app ships iPhone-only, so App Store Connect never asks for
+an iPad screenshot slot. They are useful for a press kit or a featuring pitch and nothing else.
+They also render the older ten-screen line-up (the same one `shots:store:legacy` produces), so they
+predate the Vault, the Autonomy Era and Nemesis Duels. If iPad support is ever enabled, refresh
+these before relying on them.
 
 ## `6.7/` — iPhone 6.7" (1284 × 2778), legacy hero set
 An earlier 5-frame hero set (`scripts/shots.mjs`). Kept for reference; `store/` supersedes it.
@@ -62,6 +65,7 @@ server to start and nothing to keep running alongside it.
 npm run build                       # dist/ must be current — the shooter serves it
 npm run shots:stage:showcase        # lavish Campus save + overlay payloads → /tmp/silicon-showcase*.json
 npm run shots:store                 # all 10 iPhone frames → .newfeat-shots/store/
+rm -f app-store-screenshots/store/*.png     # cp overwrites by name; it does NOT remove
 cp .newfeat-shots/store/*.png app-store-screenshots/store/
 ```
 
@@ -77,9 +81,10 @@ npm run shots:stage                 # rich late-game save → /tmp/silicon-stage
 npm run shots:ipad                  # iPad set → app-store-screenshots/ipad/
 ```
 
-`shots:store:legacy` (`scripts/shots-store.mjs`) is the superseded 1.0 iPhone line-up
+`shots:store:legacy` (`scripts/shots-store.mjs`) is the superseded iPhone line-up
 (design / market / leaderboard / hq / decorate / research / finance / people / team / premium) —
-it is what `shots:ipad` mirrors, and it is NOT what ships in `store/`. `shots:features` likewise
+the same ten screens `shots:ipad` renders, and NOT what ships in `store/`. That shared line-up is
+why the iPad set and the legacy iPhone set always match each other and never match `store/`. `shots:features` likewise
 predates the current set: the factory, awards and rival-strike frames it added are now frames 02,
 06 and 07 of the main shooter.
 

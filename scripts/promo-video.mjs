@@ -147,14 +147,17 @@ async function clickText(text, { exact = false, sel = "button" } = {}) {
 // (their rounded top edge lands across the HUD buttons, so a real click would be refused), which is
 // why this goes through the DOM and waits for markup rather than sleeping a fixed time.
 async function openVault() {
+  // These waits are NOT optional. This is a single continuous take: if the board never arrives the
+  // beat records the office instead, the caption lands over the wrong screen, and the only way to
+  // find out is to watch the finished file. Fail here, where it costs one re-run.
   await p.evaluate(() => document.querySelector('button[aria-label*="Progress"]')?.click());
-  await p.waitForSelector(".prog__row", { timeout: 8000 }).catch(() => {});
+  await p.waitForSelector(".prog__row", { timeout: 8000 });
   await p.evaluate(() => {
     [...document.querySelectorAll(".prog__row")]
       .find((r) => /Vault/.test(r.querySelector(".prog__row-title")?.textContent || ""))
       ?.click();
   });
-  await p.waitForSelector(".vlt__list", { timeout: 8000 }).catch(() => {});
+  await p.waitForSelector(".vlt__list", { timeout: 8000 });
   // A DOM click leaves the focus ring on whatever it hit; drop it so the board reads clean.
   await p.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
 }

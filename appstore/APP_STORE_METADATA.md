@@ -32,16 +32,16 @@ Optimization:
 
 ## 2. Promotional Text (≤170 chars — editable anytime without review)
 
-```
+```text
 The biggest update yet: build a 3D factory line, turn a rival into your nemesis, take your company public, and expand worldwide. Design devices down to the chip.
 ```
 (159 chars)
 
 **Alternates to A/B test (all ≤170):**
-```
+```text
 Design devices down to the chip, build a real 3D factory, crush a dozen rivals, and rule the industry — from a one-room garage to the world. Premium, offline, no ads.
 ```
-```
+```text
 Found a tech startup, design every device, build the factory, make an arch-rival, go public, and take over the industry. A premium tycoon sim. Offline. No ads, ever.
 ```
 
@@ -49,7 +49,7 @@ Found a tech startup, design every device, build the factory, make an arch-rival
 
 ## 3. Keywords (≤100 chars, comma-separated, NO spaces after commas)
 
-```
+```text
 business,simulation,management,idle,factory,empire,startup,strategy,mogul,magnate,builder,ceo,gadget
 ```
 (100 chars exactly.)
@@ -70,7 +70,7 @@ Apple ignores them). Validate the final string in an ASO tool (AppTweak / Sensor
 
 ## 4. Description (≤4000 chars — paste as plain text, no markdown)
 
-```
+```text
 Build a tech company from a one-room garage to a global empire — one device at a time.
 
 Silicon is a premium business simulation and tycoon game. You don't just watch numbers tick — you DESIGN the products, BUILD the factory that makes them, and RUN the company that sells them. Found a startup, ship something great, crush your rivals, take it public, and rule the industry.
@@ -114,7 +114,7 @@ Found your company. Ship something great. Run the industry.
 > all 39 ASC locales alongside it — **paste from there, not from here**, and run
 > `node appstore/localizations/validate.mjs --all` before uploading. Reproduced below for review.
 
-```
+```text
 A fifth era, a hidden layer, and a company that finally answers back.
 
 • The Vault: eighteen classified dossiers whose conditions are secret. Each opens on something you did without being asked, and reveals itself a step at a time — a redaction block, then a whisper, then the exact terms, then the reward. Buy the intel if you're impatient; the deed is never for sale. What you learn carries into your next company.
@@ -137,7 +137,7 @@ Faster loading and a long list of fixes.
 
 ## 5b. Previous release notes (v1.0.2)
 
-```
+```text
 Silicon just got a lot more alive.
 
 • Rivals now have backstories — read their doctrine, and watch their fortunes rise, peak, and fade as their story arc unfolds.
@@ -154,7 +154,7 @@ Silicon just got a lot more alive.
 
 ## 5c. Previous release notes (v1.0 — first release)
 
-```
+```text
 Welcome to Silicon. Design devices down to the chip, launch them into a living market, build your team and 3D HQ, research the next era, and race six rivals to #1. Premium, offline, no ads.
 ```
 
@@ -162,7 +162,7 @@ Welcome to Silicon. Design devices down to the chip, launch them into a living m
 
 ## 5d. Previous release notes (v1.1.0)
 
-```
+```text
 The biggest Silicon update yet. Build a real production line, turn your rivals into enemies, take your company public, and run the whole industry.
 
 BUILD YOUR FACTORY
@@ -245,7 +245,7 @@ No tracking, no other required-reason APIs, no third-party SDKs.
 
 ## 9. App Review notes (paste into App Review → Notes)
 
-```
+```text
 Thanks for reviewing Silicon: Tech Tycoon.
 
 TESTING
@@ -282,7 +282,7 @@ Ready-made pages live at `public/privacy.html` and `public/support.html` — hos
 GitHub Pages or Netlify Drop (see WHAT_YOU_NEED_TO_DO.md Step 1) and paste the real URLs.
 
 Minimum privacy policy text (already in `public/privacy.html`):
-```
+```text
 Silicon: Tech Tycoon does not collect, transmit, or share any personal data.
 All progress is stored locally on your device. No account, no server, no analytics.
 No data leaves your device. Questions: isacmolin@gmail.com
@@ -292,9 +292,15 @@ No data leaves your device. Questions: isacmolin@gmail.com
 
 ## 11. Screenshots
 
-Upload **6.7" iPhone (1284 × 2778)** — App Store Connect auto-scales these to the other required
-sizes. The finished, branded set is committed at `app-store-screenshots/store/` (10 frames, already
-in upload order); `app-store-screenshots/README.md` has the regeneration commands.
+Upload the committed set at `app-store-screenshots/store/` (10 frames, already in upload order);
+`app-store-screenshots/README.md` has the regeneration commands.
+
+**On the size.** The frames are **1284 × 2778**, which is Apple's **6.5"** display class — not 6.7",
+which is what this doc used to call it. That size is accepted and ASC scales it down to the smaller
+classes, so the set is submittable as-is. But 6.5" is the *fallback*: the primary requirement for an
+iPhone app is the **6.9" class** (1320 × 2868, 1290 × 2796, or 1260 × 2736), and providing it means
+every device scales from the largest source rather than up-rezzing a 6.5" one. Re-rendering at
+1290 × 2796 is a one-line change to `SIZE` in `scripts/shots-refresh.mjs`.
 
 Upload order — the first three are what most people ever see in search, so they lead with the
 newest and most visually distinctive:
@@ -316,8 +322,9 @@ and it is the 1.2.0 headline feature. `APP_STORE_FEATURING.md` assumes this exac
 Caption text is already burned ON the marketing frame (large, legible), not just alt text — the
 first two words of each caption matter most in the small search thumbnail.
 
-**iPad:** `app-store-screenshots/ipad/` is still the 1.1.0 line-up and predates the Vault, the
-Autonomy Era and Nemesis Duels. Refresh it before relying on it (`npm run shots:ipad`).
+**iPad:** none required — the app ships iPhone-only (`TARGETED_DEVICE_FAMILY = "1"`), so ASC never
+asks for an iPad slot. `app-store-screenshots/ipad/` exists as press-kit material only, and renders
+the older line-up that predates the Vault.
 
 ## 11b. ASO ranking levers (what actually moves the ranking, in priority order)
 
@@ -369,8 +376,9 @@ Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + 
 - [ ] Privacy + Support URLs live and pasted
 - [ ] 10 screenshots (6.7") uploaded in the §11 order — `01-vault.png` first
 - [ ] **App preview video transcoded and watched through.** `app-store-video/` ships the 1.2.0 cut as
-      WebM only — the committed `.mp4` is still the 1.1.0 cut, and MP4 is the only format ASC takes.
-      Transcode per `app-store-video/README.md`, then watch it before uploading.
+      WebM only, and the committed `.mp4` is still the 1.1.0 cut. ASC accepts `.mov`, `.m4v` and
+      `.mp4` — WebM is not among them, and the recording pipeline can only emit WebM, so a transcode
+      is required either way. Do it per `app-store-video/README.md`, then watch it before uploading.
 - [ ] Review notes pasted (with/without IAP block per your choice)
 - [ ] IAP decision made per IAP_GUIDE.md (Option A: none attached / Option B: created + wired + attached)
 - [ ] Build uploaded via Xcode/TestFlight and selected for the version
