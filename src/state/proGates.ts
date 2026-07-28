@@ -115,7 +115,7 @@ const COPY: Record<PaywallReason, PaywallCopy> = {
   onboarding: {
     eyebrow: "Silicon Pro",
     title: "Build the whole empire",
-    body: "Silicon is free to play — the garage, the design lab, the market, all of it. Pro opens the rest of the industry: the Platform and AI eras, every scenario, New Game+, and the archives that track your legacy across companies.",
+    body: "Silicon is free to play — the garage, the lab, the market, all of it. Pro opens the rest of the industry.",
   },
   eraAdvance: {
     eyebrow: "You've earned the Platform Era",
@@ -181,12 +181,11 @@ export function paywallCopy(reason: PaywallReason): PaywallCopy {
 /** What Pro includes, in the order that sells. Used verbatim by the paywall's benefit list, so the
  *  promise on the paywall and the gates in the code can never drift apart. */
 export const PRO_BENEFITS: { title: string; body: string }[] = [
-  { title: "The full campaign", body: "Platform, AI and Autonomy eras — the whole arc to IPO." },
-  { title: "New Game+ & Ascension", body: "Retire an empire, inherit its legacy, raise the heat." },
-  { title: "Every scenario", body: "Six hand-built runs with their own rules and star targets." },
+  { title: "The full campaign", body: "Platform, AI and Autonomy eras — the arc to IPO." },
+  { title: "New Game+", body: "Retire an empire, inherit its legacy, raise the heat." },
+  { title: "Every scenario", body: "Six hand-built runs with their own star targets." },
   { title: "Platform Division", body: "Found an OS, licence it, own the ecosystem." },
-  { title: "Creative Mode", body: "Unlimited funds and research. Design with no limits." },
-  { title: "Vault & Museum", body: "Hidden dossiers, plus every device you've ever shipped." },
-  { title: "Mastery & Legend", body: "Category mastery tracks and your lifetime founder record." },
-  { title: "No ads, ever", body: "Same as it's always been. No timers, no currency, no nags." },
+  { title: "Creative Mode", body: "Unlimited funds and research. No limits." },
+  { title: "The archives", body: "Vault dossiers, Museum, Mastery, Founder Legend." },
+  { title: "No ads, ever", body: "No timers, no currency, no nags. As always." },
 ];

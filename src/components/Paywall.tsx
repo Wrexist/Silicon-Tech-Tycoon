@@ -119,6 +119,8 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
 
   const current = rows.find((r) => r.product.id === selected);
   const trialOnSelected = current?.offer.trialEligible === true && current.product.hasTrial;
+  // The store's own localized period ("1 week", "7 days") when it gave us one, else our constant.
+  // Always rendered as "Free trial: X" so both phrasings read correctly.
   const trialLabel = current?.offer.trialPeriod || `${FREE_TRIAL_DAYS} days`;
 
   /** The plain sentence stating exactly what the player will be charged. Apple wants the billed
@@ -199,23 +201,29 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
           <X size={16} />
         </button>
 
-        <div className="pwl__glyph" aria-hidden><Crown size={26} strokeWidth={2} /></div>
-        <span className="pwl__eyebrow">{copy.eyebrow}</span>
-        <h2 className="pwl__title" id="pwl-title">{copy.title}</h2>
-        <p className="pwl__body">{copy.body}</p>
+        {/* Pitch scrolls; the purchase controls below are pinned, so the billed price, the CTA and
+            the Terms / Privacy / Restore links are on screen at every viewport height. A reviewer
+            who has to scroll to find them is a reviewer who reports them missing. */}
+        <div className="pwl__scroll">
+          <div className="pwl__glyph" aria-hidden><Crown size={24} strokeWidth={2} /></div>
+          <span className="pwl__eyebrow">{copy.eyebrow}</span>
+          <h2 className="pwl__title" id="pwl-title">{copy.title}</h2>
+          <p className="pwl__body">{copy.body}</p>
 
-        <ul className="pwl__benefits">
-          {PRO_BENEFITS.map((b) => (
-            <li key={b.title} className="pwl__benefit">
-              <span className="pwl__tick" aria-hidden><Check size={11} strokeWidth={3.2} /></span>
-              <span className="pwl__benefit-text">
-                <strong>{b.title}</strong>
-                <small>{b.body}</small>
-              </span>
-            </li>
-          ))}
-        </ul>
+          <ul className="pwl__benefits">
+            {PRO_BENEFITS.map((b) => (
+              <li key={b.title} className="pwl__benefit">
+                <span className="pwl__tick" aria-hidden><Check size={10} strokeWidth={3.4} /></span>
+                <span className="pwl__benefit-text">
+                  <strong>{b.title}</strong>
+                  <small>{b.body}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
+        <div className="pwl__foot">
         {loading && (
           <div className="pwl__loading" role="status">Contacting the App Store…</div>
         )}
@@ -241,8 +249,6 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
               {rows.map(({ product, offer }) => {
                 const on = selected === product.id;
                 const showsTrial = offer.trialEligible && product.hasTrial;
-                // The BILLED amount — what the card is actually charged — is the prominent element.
-                const billed = `${offer.price}${product.billingSuffix}`;
                 return (
                   <button
                     key={product.id}
@@ -262,12 +268,22 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
                       </span>
                       {/* Length of subscription — required next to the price. */}
                       <span className="pwl__plan-length">{product.lengthLabel}</span>
-                      {product.note && <span className="pwl__plan-note">{product.note}</span>}
                       {showsTrial && (
-                        <span className="pwl__plan-trial">Includes a {trialLabel} free trial</span>
+                        <span className="pwl__plan-trial">Free trial: {trialLabel}</span>
+                      )}
+                      {/* The value framing rides on the SELECTED row only — useful where the player
+                          is deciding, noise on the two rows they aren't looking at. */}
+                      {on && product.note && <span className="pwl__plan-note">{product.note}</span>}
+                    </span>
+                    {/* The BILLED amount — what the card is actually charged. Stacked so the
+                        numeral stays the largest, heaviest thing on the row (3.1.2(c)) without a
+                        long localized string ("kr 199,00/år") squeezing the labels beside it. */}
+                    <span className="pwl__plan-price">
+                      <span className="pwl__plan-amount tnum">{offer.price}</span>
+                      {product.billingSuffix && (
+                        <span className="pwl__plan-period">{product.billingSuffix}</span>
                       )}
                     </span>
-                    <span className="pwl__plan-price tnum">{billed}</span>
                   </button>
                 );
               })}
@@ -279,7 +295,7 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
               {busy === "buy" ? (
                 "Processing…"
               ) : trialOnSelected ? (
-                <><Sparkles size={16} aria-hidden /> Start my {trialLabel} free trial</>
+                <><Sparkles size={16} aria-hidden /> Start free trial</>
               ) : (
                 <><Sparkles size={16} aria-hidden /> Continue — {current ? `${current.offer.price}${current.product.billingSuffix}` : ""}</>
               )}
@@ -315,6 +331,7 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
           in Settings → Apple ID → Subscriptions. Any unused portion of a free trial is forfeited
           when a subscription is purchased.
         </p>
+        </div>
       </div>
     </div>
   );
