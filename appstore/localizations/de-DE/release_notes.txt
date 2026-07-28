@@ -1,8 +1,14 @@
-Das bisher größte Silicon-Update.
+Eine fünfte Ära, eine verborgene Ebene – und eine Firma, die endlich zurückredet.
 
-• Fabrikmodus: Bau eine echte 3D-Produktionsstraße – verlege Bänder, platziere Maschinen, rüste sie auf und verdrahte die Halle für mehr Tempo. Jedes Gerät braucht die passenden Maschinen. Dekoriere und erweitere die Halle.
-• Erzfeinde & Rivalen-Angriffe: Ein Rivale wird deine Nemesis, und ein umkämpfter Launch ist ein Duell – senk den Preis, konter mit einer Kampagne oder bleib standhaft.
-• Die Silicon Awards: eine jährliche Gala, die jeden Launch bewertet. Räum ab – oder pfleg deinen Groll.
-• Misch die Börse auf: Sichere dir die Mehrheit für eine feindliche Übernahme, schluck Rivalen samt Marke und Patenten oder bring deine eigene Firma an die Börse.
-• Erobere die Welt: Lizenziere Regionen und trotze Booms, Zöllen und Rivalen-Offensiven.
-• Forschung mit Laufzeit und Warteschlange, Forschungsdoktrinen, Heureka-Durchbrüche, ein lebendiges Team samt Fangemeinde, Nebenaufträge, dein eigenes Betriebssystem – dazu ein sanfterer Einstieg, ein edles neues Design, ein großer Schub für die Barrierefreiheit und Dutzende Fehlerbehebungen.
+• Der Tresor: achtzehn Verschlusssachen mit geheimen Bedingungen. Jede öffnet sich durch etwas, das du getan hast, ohne dass jemand danach gefragt hätte – und zeigt sich Schritt für Schritt: erst ein Schwärzungsbalken, dann ein Raunen, dann der genaue Wortlaut, dann die Belohnung. Die Information lässt sich kaufen, die Tat nie. Was du erfährst, nimmst du in deine nächste Firma mit.
+• Die Autonomie-Ära: eine echte fünfte Ära nach dem Börsengang, mit zwei neuen Kategorien – Neural Band und Haushaltsroboter – und einer neuen Bauteilstufe in jeder Reihe.
+• Nemesis-Duelle: Dein Erzrivale fordert dich heraus. Mehrwöchige Duelle mit steigenden Stufen und eine Trophäe, wenn du eines gewinnst.
+• Meisterschaft & Seasons: Fortschrittsleisten pro Kategorie mit eigenen Kosmetika, dazu eine monatliche Challenge-Season mit Gerätefarben, HQ-Oberflächen und Profil-Abzeichen.
+• Führe die Firma, nicht nur das Produkt: Treib das Team in den Crunch, um einen Build zu beschleunigen, richte feste Nachbestellungen ein, bewirtschafte das Verkaufsfenster nach dem Launch, wette bei Moonshot-Forschung mit sichtbaren Chancen, versprich auf einer Keynote einen Liefertermin, wähle ein Ära-Mandat und verteile ein Entwicklungsbudget, das jedes Projekt zur echten Entscheidung macht.
+• Eine Welt, die lebt: Angestellte mit Namen und eigenem Leben, Rivalen, die auch untereinander kämpfen, Testredaktionen, die sich an dein letztes Gerät erinnern, Regionalereignisse, die den dort aufsteigenden Rivalen beim Namen nennen, und eine Branchenleiter aus benannten Gegnern.
+• Sieh, worauf du zukletterst: eine Firmen-Roadmap aller kommenden Ären, Kategorien und Endgame-Systeme, ein einziges Ziele-Register, ein Hilfe-Hub, der jeden Wert erklärt, und ein Glossar.
+• So ruhig, wie du magst: Der Ruhe-Modus bestimmt, wie oft das Spiel dich unterbricht, und Nebensächliches wartet jetzt still im Entscheidungs-Postfach.
+• Ein besseres HQ: ein lebendiges 3D-Büro mit Tippen, drehenden Stühlen und leuchtenden Bildschirmen, 20 neue Möbel und 8 Raumstile, eine Fabrikhalle, die wirklich läuft, richtige Bürostühle, deren Monitor immer zum Platz zeigt – plus Aufräumen fürs Büro und Rückgängig für die Fabrik.
+• Rundum neu ausbalanciert: Jede Ära belohnt jetzt einen starken Launch und bestraft einen lieblosen, ein holpriger Start ist wieder aufholbar statt endgültig, und mehr als ein Spielstil überlebt bis zum Schluss.
+
+Schnellere Ladezeiten, 39 Sprachen und eine lange Liste an Fehlerbehebungen.

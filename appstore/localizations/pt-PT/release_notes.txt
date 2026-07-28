@@ -1,8 +1,14 @@
-A maior atualização do Silicon até hoje.
+Uma quinta era, uma camada escondida e uma empresa que finalmente responde.
 
-• Modo Fábrica: constrói uma verdadeira linha de produção 3D — instala tapetes rolantes, coloca e melhora máquinas e organiza o piso para produzir mais depressa. Cada aparelho exige as máquinas certas. Decora e amplia a fábrica.
-• Arquirrivais e ataques rivais: um rival torna-se a tua némesis, e um lançamento disputado é um duelo — baixa o preço, dispara uma contra-campanha ou aguenta firme.
-• Silicon Awards: uma cerimónia anual que julga todos os lançamentos. Arrasa nela ou alimenta o rancor.
-• Joga na bolsa: garante uma posição maioritária para uma aquisição hostil, compra rivais para absorver a marca deles ou leva a tua própria empresa à bolsa.
-• Conquista o mundo: licencia regiões e enfrenta booms, tarifas e ofensivas rivais.
-• Investigação temporizada com fila de projetos, doutrinas de investigação, descobertas Eureka, uma equipa e uma comunidade de fãs com vida própria, Encomendas Extra, o teu próprio sistema operativo — além de um arranque mais suave, um visual premium renovado, um grande reforço de acessibilidade e dezenas de correções.
+• O Cofre: dezoito dossiês confidenciais com condições secretas. Cada um abre-se por algo que fizeste sem ninguém pedir, e revela-se por etapas: primeiro uma tarja preta, depois um sussurro, depois os termos exactos, depois a recompensa. A informação compra-se; o feito, nunca. O que descobres segue contigo para a empresa seguinte.
+• A Era da Autonomia: uma quinta era a sério depois da entrada em bolsa, com duas categorias novas — Neural Band e robô doméstico — e um novo nível de componentes em cada linha.
+• Duelos de Némesis: o teu arqui-rival desafia-te. Duelos de várias semanas com níveis crescentes e um troféu quando ganhas um.
+• Mestria e Temporadas: barras de progresso por categoria com cosméticos exclusivos, mais uma Temporada de Desafios mensal com cores de dispositivo, acabamentos de sede e emblemas de perfil.
+• Dirige a empresa, não só o produto: mete a equipa em esforço para acelerar uma produção, define políticas fixas de reposição, aproveita a janela de vendas depois do lançamento, aposta em I&D arriscada com as probabilidades à vista, promete uma data numa keynote, escolhe um mandato de era e distribui um orçamento de engenharia que torna cada projecto numa escolha a sério.
+• Um mundo que vive: funcionários com nome e vida própria, rivais que lutam entre si e não só contigo, publicações que se lembram do teu último dispositivo, eventos regionais que nomeiam o rival em ascensão ali, e uma escala do sector com chefes com nome.
+• Vê o que estás a escalar: um roteiro da empresa com todas as eras, categorias e sistemas de fim de jogo à tua frente, um único registo de objectivos, um centro de ajuda que explica cada pontuação e um glossário.
+• Tão calmo quanto quiseres: o modo Calma define com que frequência o jogo te interrompe, e o que é menor espera agora numa caixa de decisões.
+• Uma sede melhor: um escritório 3D vivo — a teclar, cadeiras a rodar, ecrãs acesos —, 20 móveis novos e 8 estilos de sala, um chão de fábrica que funciona mesmo, cadeiras de trabalho a sério com o monitor sempre virado para o lugar — mais Arrumar para o escritório e Anular para a fábrica.
+• Reequilibrado de uma ponta à outra: cada era premeia agora um lançamento cuidado e castiga um preguiçoso, um mau arranque recupera-se em vez de ser um beco sem saída, e mais do que uma forma de jogar chega ao fim.
+
+Carregamento mais rápido, 39 idiomas e uma longa lista de correcções.

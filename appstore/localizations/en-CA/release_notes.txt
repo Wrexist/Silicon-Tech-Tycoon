@@ -1,8 +1,14 @@
-The biggest Silicon update yet.
+A fifth era, a hidden layer, and a company that finally answers back.
 
-• Factory Mode: build a real 3D production line — lay belts, place and upgrade machines, and wire the floor so it builds faster. Each device needs the right machines. Decorate and expand it.
-• Arch-Rivals & Rival Strikes: one rival becomes your nemesis, and a contested launch is a duel — cut price, counter-campaign, or hold the line.
-• The Silicon Awards: an annual ceremony that judges every launch. Sweep it, or build a grudge.
-• Play the market: take a controlling stake for a hostile takeover, acquire rivals to absorb their brand, or take your own company public.
-• Go global: license regions and weather booms, tariffs and rival surges.
-• Timed research with a queue, research doctrines, Eureka breakthroughs, a living team and fanbase, side orders, your own OS platform — plus a smoother start, a premium redesign, a big accessibility pass, and dozens of fixes.
+• The Vault: eighteen classified dossiers whose conditions are secret. Each opens on something you did without being asked, and reveals itself a step at a time — a redaction block, then a whisper, then the exact terms, then the reward. Buy the intel if you're impatient; the deed is never for sale. What you learn carries into your next company.
+• The Autonomy Era: a genuine fifth era past the IPO, with two new categories — Neural Band and Home Robot — and a new component tier on every line.
+• Nemesis Duels: your arch-rival calls you out. Multi-week duels with escalating tiers, and a trophy when you take one.
+• Mastery & Seasons: per-category progress bars with signature cosmetics, plus a monthly Challenge Season track of device colourways, HQ finishes and profile badges.
+• Run the company, not just the product: crunch the team to rush a build, set standing reorder policies, work the sell window after launch, gamble on moonshot R&D with visible odds, promise a ship date at a keynote, draft an era mandate, and spend an engineering budget that makes every project a real choice.
+• A world that lives: employees with names and lives of their own, rivals that fight each other and not just you, review outlets that remember your last device, regional events that name the rival surging there, and an industry ladder of named bosses to climb.
+• See what you're climbing: a Company Roadmap of every era, category and endgame system ahead of you, one Goals ledger, a Help hub that explains every score, and a glossary.
+• As calm as you like: Calm Mode sets how often the game interrupts you, and low-stakes moments now wait quietly in a Decision Inbox.
+• A better HQ: a living 3D office with typing, chair swivels and glowing screens, 20 new furniture pieces and 8 room styles, a factory floor that actually runs, proper task chairs that always face their own monitor — plus Tidy Up for the office and Undo for the factory.
+• Rebalanced throughout: every era now rewards a great launch and punishes a lazy one, a rough start is something you can recover from instead of a dead end, and more than one way to play survives to the end.
+
+Faster loading, 39 languages, and a long list of fixes.
