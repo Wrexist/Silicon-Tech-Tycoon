@@ -368,6 +368,9 @@ Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + 
 - [ ] App Privacy = "Data Not Collected"; `PrivacyInfo.xcprivacy` added
 - [ ] Privacy + Support URLs live and pasted
 - [ ] 10 screenshots (6.7") uploaded in the §11 order — `01-vault.png` first
+- [ ] **App preview video transcoded and watched through.** `app-store-video/` ships the 1.2.0 cut as
+      WebM only — the committed `.mp4` is still the 1.1.0 cut, and MP4 is the only format ASC takes.
+      Transcode per `app-store-video/README.md`, then watch it before uploading.
 - [ ] Review notes pasted (with/without IAP block per your choice)
 - [ ] IAP decision made per IAP_GUIDE.md (Option A: none attached / Option B: created + wired + attached)
 - [ ] Build uploaded via Xcode/TestFlight and selected for the version
