@@ -116,8 +116,12 @@ A fifth era, a hidden layer, and a company that finally answers back.
 Faster loading and a long list of fixes.
 ```
 
-The shipped copy lives in `appstore/localizations/en-US/release_notes.txt` (2,292 chars
-against Apple's 4,000 limit). The other 38 locales still carry the 1.1.0 text.
+The shipped copy lives in `appstore/localizations/en-US/release_notes.txt` (2,266 chars
+against Apple's 4,000 limit), and all 39 App Store locales carry a translated version —
+`node appstore/localizations/validate.mjs --all` must print ✓ for every one before submitting.
+
+> These are **store-listing** localizations. The app UI itself is English-only — there is no
+> in-app i18n layer — so never claim "39 languages" as a product feature in the What's New.
 
 ---
 
