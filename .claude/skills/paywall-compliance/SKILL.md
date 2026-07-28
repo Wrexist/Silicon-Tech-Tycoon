@@ -27,7 +27,7 @@ Read `MONETIZATION.md` for the model and `appstore/SUBSCRIPTION_GUIDE.md` for th
 | Native StoreKit 2 | `ios/App/App/SiliconStoreKit.swift` |
 | Tests | `pro.test.ts` · `proGates.test.ts` · `proStore.test.ts` · `paywall.test.ts` · `founderIntent.test.ts` · `timeMachine.test.ts` |
 
-## Five rules that must never be broken
+## Six rules that must never be broken
 
 1. **No gate may reach `engine/`.** Every lock sits on a *player action* or a UI surface, so a free
    run and a Pro run are byte-identical and the pinned 160-week determinism test can never see

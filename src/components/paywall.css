@@ -247,7 +247,6 @@
   font-size: var(--fs-nano); color: var(--ink-3); line-height: 1.45;
 }
 
-/* ---------- the "Pro" chip used on locked rows elsewhere ---------- */
 /* ---------- short screens (iPhone SE and friends) ----------
    The pinned controls are non-negotiable — price, CTA, Restore, Terms and Privacy must all stay on
    screen. So on a short viewport the PITCH gives up room instead, in order of what sells least:
@@ -266,6 +265,7 @@
   .pwl__fineprint { font-size: 9px; line-height: 1.4; }
 }
 
+/* ---------- the "Pro" chip used on locked rows elsewhere ---------- */
 .pwl-chip {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 2px var(--sp-6); border-radius: var(--r-pill);

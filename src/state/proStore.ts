@@ -86,7 +86,12 @@ function PRO_PRODUCTS_FALLBACK(): ProOffer[] {
  * paywall shows an honest retry state instead of a CTA.
  */
 export async function getProCatalog(): Promise<ProCatalog> {
-  if (!isNative() || !NATIVE_PRO_WIRED) return fallbackCatalog();
+  // Kill-switch flipped ON DEVICE: purchasePro() answers "unavailable", so the catalog must say so
+  // too. Returning the fallback plans here would render live-looking CTAs that can only ever fail —
+  // precisely the App Review 2.1.0 failure this probe exists to prevent.
+  if (isNative() && !NATIVE_PRO_WIRED) return { state: "unavailable", offers: [], fromStore: true };
+  // Off-device (web/dev preview) purchases are simulated, so every plan stays live and testable.
+  if (!isNative()) return fallbackCatalog();
 
   try {
     const res = await storeKit().getProducts({ productIds: PRO_PRODUCT_IDS });

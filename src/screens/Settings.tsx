@@ -382,14 +382,21 @@ function ProGroup() {
   async function restore() {
     if (busy) return;
     setBusy(true);
-    const { restored } = await restorePro();
-    setBusy(false);
-    if (restored) {
-      haptic.success();
-      sfx("confirm");
-      showToast("Purchases restored — Silicon Pro is active", { tone: "positive" });
-    } else {
-      showToast("No previous purchases found for this Apple ID.", { tone: "neutral" });
+    // `finally`, not a trailing reset: if restorePro() ever rejects, a trailing setBusy(false) is
+    // skipped and the button stays disabled for the life of the sheet.
+    try {
+      const { restored } = await restorePro();
+      if (restored) {
+        haptic.success();
+        sfx("confirm");
+        showToast("Purchases restored — Silicon Pro is active", { tone: "positive" });
+      } else {
+        showToast("No previous purchases found for this Apple ID.", { tone: "neutral" });
+      }
+    } catch {
+      showToast("Couldn't reach the App Store. Please try again.", { tone: "negative" });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -413,7 +420,12 @@ function ProGroup() {
           need to cancel first. Good for the player and good for retention, which is the only kind
           of upsell worth building. */}
       {pro && onMonthly && (
-        <Button block onClick={() => { haptic.light(); openPaywall({ reason: "onboarding" }); }}>
+        <Button
+          block
+          // `force` is required: openPaywall deliberately short-circuits for subscribers, and this
+          // is the one offer that legitimately targets one. Without it the button does nothing.
+          onClick={() => { haptic.light(); openPaywall({ reason: "upgradeYearly", force: true }); }}
+        >
           <TrendingUp size={16} /> Switch to Yearly and pay less
         </Button>
       )}

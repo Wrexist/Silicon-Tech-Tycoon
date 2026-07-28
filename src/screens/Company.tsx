@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Compass, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
@@ -124,6 +124,16 @@ export function Company() {
   // The OS division is the Platform Era's headline system, so it travels with the Pro tier.
   const platformProLocked = isLocked("platformDivision", pro);
   const [foundedCelebrate, setFoundedCelebrate] = useState(false);
+  // Set while a paywall-deferred founding is in flight. The celebration is driven off the REAL
+  // state transition rather than off the click-time closure, so the UI can never announce a
+  // division that `foundPlatform` declined to create (it re-validates requirements internally).
+  const awaitingFoundRef = useRef(false);
+  useEffect(() => {
+    if (!awaitingFoundRef.current || !state.platformUnlocked) return;
+    awaitingFoundRef.current = false;
+    haptic.success();
+    setFoundedCelebrate(true);
+  }, [state.platformUnlocked]);
   const [statsOpen, setStatsOpen] = useState(false);
   // Company is three destinations, not one endless scroll: Overview (money + ops), Team (roster,
   // morale, hiring) and Platform — the OS division promoted from a buried one-line card to a
@@ -444,9 +454,13 @@ export function Company() {
                 disabled={!can && !platformProLocked}
                 onClick={() => {
                   if (platformProLocked) {
+                    // A StoreKit purchase can take many seconds, so this callback must NOT re-read
+                    // the `state` it closed over at click time — it's stale by then. Just ask to
+                    // found; the celebration fires from the effect above when (and only when) the
+                    // real `platformUnlocked` flips.
                     openPaywall({
                       reason: "platformDivision",
-                      onUnlocked: () => { if (canFoundPlatform(state)) { haptic.success(); foundPlatform(); setFoundedCelebrate(true); } },
+                      onUnlocked: () => { awaitingFoundRef.current = true; foundPlatform(); },
                     });
                     return;
                   }

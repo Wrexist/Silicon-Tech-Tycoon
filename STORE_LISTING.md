@@ -300,16 +300,36 @@ No account or login is required. The app runs fully offline.
 On first launch, tap "Found Silicon" to start a new company,
 then skip the coach tips to reach the main game loop.
 
-TESTING THE IN-APP PURCHASE (Creative Mode)
-1. Go to Settings (gear icon, bottom-right of any screen).
-2. Scroll to "Creative Mode — Sandbox unlock".
-3. Tap a Silicon Pro plan to initiate the purchase (or "Unlock with Pro" on the Creative Mode row).
-4. Use a Sandbox Apple ID to complete the transaction.
-5. The toggle will appear immediately after a successful purchase.
-6. "Restore purchase" re-grants the entitlement on a new device.
+TESTING SILICON PRO
+The paywall appears once after onboarding (skippable) and at each locked
+feature. Reach it any time via Settings (gear icon) > Silicon Pro >
+"See what's in Pro".
 
-The purchase is a Non-Consumable. The base game is fully playable
-and completeable without purchasing Creative Mode.
+Auto-renewable subscriptions (Pro Monthly, Pro Yearly):
+1. Settings > Silicon Pro > "See what's in Pro".
+2. Select Pro Monthly or Pro Yearly. Each row shows its title, its length
+   and the amount that will be billed; a 7-day free trial is stated on the
+   row when the Apple ID is eligible.
+3. Complete with a Sandbox Apple ID.
+4. Locked content unlocks immediately — verify via Settings > Time Machine,
+   or the Progress hub (Vault / Museum / Mastery), or the "Advance" button
+   on the Office screen once the era requirements are met.
+5. Settings > Silicon Pro > "Manage subscription" opens Apple's own sheet
+   to cancel.
+
+One-time purchase (Pro Lifetime, Non-Consumable):
+1. Same paywall, select Pro Lifetime.
+2. Complete with a Sandbox Apple ID. The row then shows "OWNED" and cannot
+   be bought twice.
+
+Restore: "Restore Purchases" on the paywall, and "Restore purchases" in
+Settings > Silicon Pro, recover an active subscription or a Lifetime
+purchase on a fresh install.
+
+The app is free to download and free to play. The full design > launch >
+market loop, the Garage and Growth eras and a daily challenge require no
+purchase. Nothing purchasable changes the simulation in the player's
+favour — Silicon Pro unlocks content and modes only.
 
 PRICING
 Base app: Free. Silicon Pro subscription ($3.99/mo, $19.99/yr, 7-day trial)

@@ -648,7 +648,12 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
                 aria-label="Raise Heat"
                 disabled={pro && ascend >= maxHeat}
                 onClick={() => {
-                  if (!pro) { openPaywall({ reason: "ascension" }); return; }
+                  if (!pro) {
+                    // Same "gate the action, then do it" contract as every other call site: after
+                    // subscribing the Heat step lands on its own instead of needing a second tap.
+                    openPaywall({ reason: "ascension", onUnlocked: () => setAscend((h) => Math.min(maxHeat, h + 1)) });
+                    return;
+                  }
                   setAscend((h) => Math.min(maxHeat, h + 1));
                 }}
               >+</button>

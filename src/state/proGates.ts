@@ -65,6 +65,8 @@ export const FREE_TIER = {
  *  price itself. */
 export type PaywallReason =
   | "onboarding"
+  /** Offered ONLY to an existing monthly subscriber, so it needs `force` (see `openPaywall`). */
+  | "upgradeYearly"
   | ProFeature;
 
 /** True when `feature` is currently locked for this device. `pro` is injectable for tests. */
@@ -126,7 +128,7 @@ const COPY: Record<PaywallReason, PaywallCopy> = {
   },
   scenario: {
     eyebrow: "Scenarios",
-    title: "Six hand-built runs",
+    title: "Hand-built runs",
     body: "Curated starts with their own rules, constraints and three-star targets — a bankrupt turnaround, a bootstrap with no capital, a giant to dethrone. Two are free; Pro opens the rest.",
   },
   newGamePlus: {
@@ -174,6 +176,11 @@ const COPY: Record<PaywallReason, PaywallCopy> = {
     title: "Every challenge, forever",
     body: "Today's challenge is always free. Pro keeps the full archive — past dailies, the weekly, and your personal best on each one.",
   },
+  upgradeYearly: {
+    eyebrow: "Same Pro, less money",
+    title: "Switch to yearly",
+    body: "You're on the monthly plan. Yearly is the same Silicon Pro for a lower cost per month — the App Store credits what's left of your current period, so there's nothing to cancel first.",
+  },
   timeMachine: {
     eyebrow: "The Time Machine",
     title: "Never lose a company again",
@@ -190,7 +197,7 @@ export function paywallCopy(reason: PaywallReason): PaywallCopy {
 export const PRO_BENEFITS: { title: string; body: string }[] = [
   { title: "The full campaign", body: "Platform, AI and Autonomy eras — the arc to IPO." },
   { title: "New Game+", body: "Retire an empire, inherit its legacy, raise the heat." },
-  { title: "Every scenario", body: "Six hand-built runs with their own star targets." },
+  { title: "Every scenario", body: "Hand-built runs with their own rules and star targets." },
   { title: "The Time Machine", body: "Rewind your company to any of the last 5 quarters." },
   { title: "Platform Division", body: "Found an OS, licence it, own the ecosystem." },
   { title: "Creative Mode", body: "Unlimited funds and research. No limits." },

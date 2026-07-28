@@ -746,6 +746,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // React may invoke the setState updater more than once (StrictMode dev double-invoke, bail-out
   // re-runs), so the toast/announce side-effects inside it are gated to fire once per simulated
   // week — state changes (including achievement unlocks) still apply on every invocation.
+  // Time Machine (Pro): quietly snapshot the freeform campaign each quarter.
+  //
+  // Deliberately a post-COMMIT effect rather than a line inside the tick's setState updater. React
+  // may invoke an updater more than once, or abandon it entirely without ever committing — so a
+  // localStorage write in there can persist a week the player never actually reached. Keyed on the
+  // committed `state.week`, this runs exactly once per week that really happened.
+  //
+  // It never writes back to the game, so the simulation is byte-identical whether or not the player
+  // has Pro. Self-gating on entitlement, run type and cadence: a no-op on all three counts most weeks.
+  useEffect(() => {
+    captureIfDue(state);
+  }, [state]);
+
   const announcedWeekRef = useRef(-1);
   useEffect(() => {
     if (paused || suspended || hidden || state.bankrupt || tabBlocked || !state.onboarded) return;
@@ -759,11 +772,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
           // Record this week's challenge best BEFORE mastery is read, so a challenge that locks
           // this tick is counted now (no one-cycle lag for challenges-10). Idempotent.
           syncChallengeBest(s, next, true);
-          // Time Machine (Pro): quietly snapshot the freeform campaign each quarter. A pure
-          // side-effect — it reads state and writes to its own storage key, never to the game, so
-          // the simulation is byte-identical whether or not the player has Pro. Self-gating on
-          // entitlement, run type and cadence; a no-op on all three counts most weeks.
-          captureIfDue(next);
           // Skip-to-next-decision: the week produced something that needs input → stop time and
           // say why. Gated to once per simulated week like every other tick side-effect.
           if (skipping) {
@@ -1686,6 +1694,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
    *  the snapshot is validated by the loader's own migrate, then written and adopted as the live
    *  company. Fails closed — a missing or unreadable snapshot leaves the running game untouched. */
   const rewindTo = useCallback((snapshotId: string) => {
+    // Two refusals before anything is written. A scenario or challenge run occupies the MAIN save
+    // slot while the player's real company sits in the home stash — restoring a campaign snapshot
+    // over it would silently destroy the scored run and leave the stash orphaned. And a blocked tab
+    // must not write at all: the single-writer guard exists so two windows can't clobber each other,
+    // and this direct save() would drive straight through it.
+    const current = stateRef.current;
+    if (tabBlocked || current.activeScenario != null || current.activeChallenge != null) return false;
+
     const restored = restoreSnapshot(snapshotId);
     if (!restored) return false;
     const next: GameState = { ...withValidatedSandbox(restored), lastActive: Date.now() };
@@ -1696,7 +1712,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setFast(false);
     setSkipping(false);
     return true;
-  }, []);
+  }, [tabBlocked]);
 
   const restart = useCallback(() => {
     mergeProfileAchievements(stateRef.current.unlockedAchievements); // preserve this company's milestones for good

@@ -86,6 +86,18 @@ describe("openPaywall", () => {
     off();
   });
 
+  it("honours `force` so a subscriber can still be offered the yearly crossgrade", () => {
+    // Without this the Settings "switch to Yearly" button is a silent no-op: openPaywall
+    // short-circuits for anyone who already has Pro, which is exactly who that offer targets.
+    grantFounding();
+    const seen = vi.fn();
+    const off = onPaywall(seen);
+    openPaywall({ reason: "upgradeYearly", force: true });
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(seen.mock.calls[0][0].reason).toBe("upgradeYearly");
+    off();
+  });
+
   it("stops delivering once the listener unsubscribes", () => {
     const seen = vi.fn();
     onPaywall(seen)();

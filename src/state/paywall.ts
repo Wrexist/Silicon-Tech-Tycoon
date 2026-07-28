@@ -17,6 +17,15 @@ export interface PaywallRequest {
   onDismiss?: () => void;
   /** Ran once Pro is active — the action the player was reaching for when they hit the wall. */
   onUnlocked?: () => void;
+  /**
+   * Show the offer even to someone who already has Pro.
+   *
+   * The default short-circuit is what lets every gate read as "gate the action, then do it" — but
+   * it makes the paywall unreachable for the one case that legitimately targets a SUBSCRIBER: a
+   * monthly subscriber moving to yearly. Without this the crossgrade button is a silent no-op.
+   * Use it for nothing else; a subscriber must never be shown a wall for something they own.
+   */
+  force?: boolean;
 }
 
 type Listener = (req: PaywallRequest) => void;
@@ -35,7 +44,7 @@ export function onPaywall(fn: Listener): () => void {
  *     openPaywall({ reason: "scenario", onUnlocked: () => startScenario(id) })
  */
 export function openPaywall(req: PaywallRequest): void {
-  if (isPro()) {
+  if (isPro() && !req.force) {
     req.onUnlocked?.();
     return;
   }

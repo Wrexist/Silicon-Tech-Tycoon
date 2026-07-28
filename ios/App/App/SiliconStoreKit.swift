@@ -171,18 +171,21 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             return call.resolve(["status": "unavailable", "message": "In-app purchases require iOS 15 or later."])
         }
         Task {
+            // Ownership is checked FIRST, from the on-device entitlement set, because
+            // `Product.products(for:)` is a network call: an already-owned Lifetime tapped with no
+            // connection used to resolve "error" instead of the "purchased" it plainly is.
+            //
+            // Non-consumables only. Subscriptions are exempt — StoreKit handles upgrade/crossgrade
+            // within a group, and short-circuiting here would trap a monthly subscriber who wants
+            // to move to yearly.
+            if await self.isEntitled(productId), await self.isNonSubscription(productId) {
+                return call.resolve(["status": "purchased"])
+            }
+
             do {
                 let products = try await Product.products(for: [productId])
                 guard let product = products.first else {
                     return call.resolve(["status": "unavailable", "message": "This item isn't available right now."])
-                }
-
-                // Already entitled — never start a second payment for a non-consumable the device
-                // owns. (Subscriptions are exempt: StoreKit itself handles upgrade/crossgrade
-                // within a group, and blocking here would trap a monthly subscriber who wants to
-                // move to yearly.)
-                if product.subscription == nil, await self.isEntitled(productId) {
-                    return call.resolve(["status": "purchased"])
                 }
 
                 let result = try await product.purchase()
@@ -243,8 +246,14 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Subscription status
 
     /// Live standing for a subscription group. `active` covers every state that still entitles the
-    /// user — subscribed, inside an introductory period, and the billing-retry grace period (where
-    /// Apple is re-attempting payment and the user must keep access).
+    /// user: subscribed, inside an introductory period, and the billing GRACE period (where Apple
+    /// is re-attempting payment but access must continue).
+    ///
+    /// `.inBillingRetryPeriod` is a DIFFERENT RenewalState and is deliberately not entitling — it
+    /// means retries are running with no grace period configured, so access has lapsed. Turning the
+    /// grace period on in App Store Connect is what moves those users into the entitled case (see
+    /// `appstore/SUBSCRIPTION_GUIDE.md`), and it is worth doing: most of that churn is an expired
+    /// card rather than a decision.
     @objc func subscriptionStatus(_ call: CAPPluginCall) {
         guard let groupId = call.getString("groupId") else { return call.reject("Missing groupId") }
         guard #available(iOS 15.0, *) else { return call.resolve(["active": false]) }
@@ -372,6 +381,17 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     // MARK: - Helpers
+
+    /// True when the product is a one-time purchase rather than a subscription. Falls back to
+    /// `true` when the store can't be reached: the caller only asks after confirming the device is
+    /// already entitled, and an entitled-but-unreadable product is far more likely to be the
+    /// Lifetime/Creative-Mode non-consumable than an active subscription (whose status is read
+    /// through `subscriptionStatus`, not here).
+    @available(iOS 15.0, *)
+    private func isNonSubscription(_ productId: String) async -> Bool {
+        guard let product = try? await Product.products(for: [productId]).first else { return true }
+        return product.subscription == nil
+    }
 
     /// True if the device currently holds a verified, non-revoked entitlement for the product.
     @available(iOS 15.0, *)

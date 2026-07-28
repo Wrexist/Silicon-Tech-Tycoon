@@ -175,8 +175,16 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
     if (busy || !current) return;
     setBusy("buy");
     haptic.medium();
-    const res = await purchasePro(current.product.id);
-    setBusy(null);
+    let res: Awaited<ReturnType<typeof purchasePro>>;
+    // `finally`, not a trailing reset: a rejection here would latch `busy` truthy forever, which
+    // disables close, skip, scrim-tap AND Escape — an undismissable paywall is an App Review fail.
+    try {
+      res = await purchasePro(current.product.id);
+    } catch {
+      res = { status: "error", message: "The purchase couldn't be completed. Please try again." };
+    } finally {
+      setBusy(null);
+    }
 
     if (res.status === "purchased") {
       if (req.reason === "onboarding") markOnboardingPaywallSeen();
@@ -205,8 +213,15 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
     if (busy) return;
     setBusy("restore");
     haptic.light();
-    const { restored } = await restorePro();
-    setBusy(null);
+    let restored = false;
+    try {
+      ({ restored } = await restorePro());
+    } catch {
+      showToast("Couldn't reach the App Store. Please try again.", { tone: "negative" });
+      return;
+    } finally {
+      setBusy(null);
+    }
     if (restored) {
       haptic.success();
       showToast("Purchases restored — Silicon Pro is active", { glyph: <Check size={15} />, tone: "positive" });
@@ -315,8 +330,12 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
                       </span>
                       {/* Length of subscription — required next to the price. */}
                       <span className="pwl__plan-length">{product.lengthLabel}</span>
+                      {/* This row's OWN trial period. Deriving it from the selected plan made an
+                          unselected row state a trial length the store never offered for it. */}
                       {showsTrial && (
-                        <span className="pwl__plan-trial">Free trial: {trialLabel}</span>
+                        <span className="pwl__plan-trial">
+                          Free trial: {offer.trialPeriod || `${FREE_TRIAL_DAYS} days`}
+                        </span>
                       )}
                       {/* The value framing rides on the SELECTED row only — useful where the player
                           is deciding, noise on the two rows they aren't looking at. */}

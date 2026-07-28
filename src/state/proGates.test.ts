@@ -14,20 +14,23 @@ import {
 import { SCENARIOS } from "../engine/scenarios.ts";
 import { BALANCE } from "../engine/balance.ts";
 
-const ALL_FEATURES: ProFeature[] = [
-  "eraAdvance",
-  "scenario",
-  "newGamePlus",
-  "ascension",
-  "creativeMode",
-  "platformDivision",
-  "vault",
-  "museum",
-  "mastery",
-  "founderLegend",
-  "challengeArchive",
-  "timeMachine",
-];
+// A Record keyed by the union, NOT a plain array: adding a member to `ProFeature` and forgetting it
+// here is then a COMPILE error rather than a feature that silently escapes every test in this file.
+const FEATURE_SET: Record<ProFeature, true> = {
+  eraAdvance: true,
+  scenario: true,
+  newGamePlus: true,
+  ascension: true,
+  creativeMode: true,
+  platformDivision: true,
+  vault: true,
+  museum: true,
+  mastery: true,
+  founderLegend: true,
+  challengeArchive: true,
+  timeMachine: true,
+};
+const ALL_FEATURES = Object.keys(FEATURE_SET) as ProFeature[];
 
 describe("Pro unlocks everything", () => {
   it("locks nothing for a subscriber", () => {
@@ -100,7 +103,7 @@ describe("daily challenges stay free", () => {
 
 describe("paywall copy", () => {
   it("has a headline for every reason a gate can raise", () => {
-    for (const f of [...ALL_FEATURES, "onboarding" as const]) {
+    for (const f of [...ALL_FEATURES, "onboarding" as const, "upgradeYearly" as const]) {
       const c = paywallCopy(f);
       expect(c.title.trim().length).toBeGreaterThan(0);
       expect(c.body.trim().length).toBeGreaterThan(0);
@@ -113,11 +116,18 @@ describe("paywall copy", () => {
     // the same price, so any urgency framing would be a lie — and a dark pattern this project has
     // explicitly promised not to ship.
     const banned = /limited time|hurry|expires in|only today|last chance|\d+ hours left|act now/i;
-    for (const f of [...ALL_FEATURES, "onboarding" as const]) {
+    for (const f of [...ALL_FEATURES, "onboarding" as const, "upgradeYearly" as const]) {
       const c = paywallCopy(f);
       expect(`${c.eyebrow} ${c.title} ${c.body}`).not.toMatch(banned);
     }
     expect(`${RETURNING_COPY.eyebrow} ${RETURNING_COPY.title} ${RETURNING_COPY.body}`).not.toMatch(banned);
+  });
+
+  it("keeps the crossgrade offer honest — same product, stated as costing less", () => {
+    const c = paywallCopy("upgradeYearly");
+    expect(`${c.title} ${c.body}`.toLowerCase()).toContain("yearly");
+    // It must not imply the subscriber is getting something they don't already have.
+    expect(c.body).not.toMatch(/unlock|get access|upgrade to unlock/i);
   });
 
   it("welcomes a returning subscriber without inventing a discount", () => {

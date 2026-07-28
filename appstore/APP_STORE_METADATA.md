@@ -254,15 +254,21 @@ No account or login. Fully offline. On first launch, tap "Found Silicon"
 to start a company; the coach tips can be skipped to reach the main loop.
 The game is complete and winnable without any purchase.
 
-[Include the next block ONLY if the Creative Mode IAP is attached:]
-IN-APP PURCHASES (Silicon Pro subscription + Lifetime)
-1. Open Settings (gear, top-right).
-2. Scroll to "Creative Mode".
-3. Tap a Silicon Pro plan and complete with a Sandbox Apple ID.
-4. The Sandbox toggle appears immediately on success.
-5. "Restore purchase" re-grants it on a fresh install.
-Creative Mode is a no-limits sandbox (unlimited cash floor). It is NOT a
-progression gate and unlocks no content withheld from the base game.
+IN-APP PURCHASES (attached: Pro Monthly, Pro Yearly, Pro Lifetime)
+Reach the paywall any time via Settings (gear) > Silicon Pro > "See what's
+in Pro". It also appears once after onboarding, and is skippable.
+1. Subscriptions: select Pro Monthly or Pro Yearly (each row states its
+   title, its length and the billed amount; a 7-day free trial is shown
+   when the Apple ID is eligible), then complete with a Sandbox Apple ID.
+2. Lifetime: select Pro Lifetime — a Non-Consumable one-time purchase that
+   never renews. The row then reads "OWNED".
+3. Verify unlock: Settings > Time Machine, the Progress hub (Vault /
+   Museum / Mastery), or "Advance" on the Office screen at an era gate.
+4. Cancel: Settings > Silicon Pro > "Manage subscription" (Apple's sheet).
+5. Restore: "Restore Purchases" on the paywall, or in Settings.
+The app is free to play without any purchase. Silicon Pro unlocks content
+and modes only — nothing purchasable alters the simulation in the player's
+favour.
 
 CONTACT: isacmolin@gmail.com
 ```
