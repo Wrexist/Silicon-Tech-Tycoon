@@ -16,7 +16,13 @@ automated later with `fastlane deliver` by pointing it at this directory:
 | `keywords.txt` | Keywords (comma-separated, no spaces) | 100 |
 | `description.txt` | Description | 4000 |
 | `release_notes.txt` | What's New | 4000 |
-| `screenshot_captions.txt` | Not an ASC field — the 6 caption lines to bake into localized screenshot frames | — |
+| `screenshot_captions.txt` | Not an ASC field — the caption lines to bake into localized screenshot frames | — |
+
+**On `screenshot_captions.txt`:** the shipped marketing frames bake their headline into the image in
+English (`app-store-screenshots/store/`), so nothing reads these files today — they exist for a
+localized frame set that has not been built. `en-US` tracks the 10 shipped 1.2.0 headlines in upload
+order; the other 38 locales still hold the six-line 1.1.0 set. Retranslate them at the same time you
+build localized frames, not before — the validator only checks they are present and non-empty.
 
 ## Validate before every submit
 

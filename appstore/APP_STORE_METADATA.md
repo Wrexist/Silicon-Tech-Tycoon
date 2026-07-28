@@ -108,12 +108,59 @@ Found your company. Ship something great. Run the industry.
 
 ---
 
-## 5. What's New (release notes for v1.1.0)
+## 5. What's New (release notes for v1.2.0)
 
-> The biggest release since launch — it bundles the Factory Mode rebuild, the arch-rival / awards /
-> side-order systems, the living-industry audit (M&A, IPO loop, OS platform, global regions, fan
-> community), and the follow-up depth pass (brand meter, doctrines, hostile takeovers, staff growth,
-> regional events, timed research + queue). Notes are grouped so a long changelog still scans fast.
+> The canonical copy lives in `appstore/localizations/en-US/release_notes.txt` and is translated into
+> all 39 ASC locales alongside it — **paste from there, not from here**, and run
+> `node appstore/localizations/validate.mjs --all` before uploading. Reproduced below for review.
+
+```
+A fifth era, a hidden layer, and a company that finally answers back.
+
+• The Vault: eighteen classified dossiers whose conditions are secret. Each opens on something you did without being asked, and reveals itself a step at a time — a redaction block, then a whisper, then the exact terms, then the reward. Buy the intel if you're impatient; the deed is never for sale. What you learn carries into your next company.
+• The Autonomy Era: a genuine fifth era past the IPO, with two new categories — Neural Band and Home Robot — and a new component tier on every line.
+• Nemesis Duels: your arch-rival calls you out. Multi-week duels with escalating tiers, and a trophy when you take one.
+• Mastery & Seasons: per-category grind bars with signature cosmetics, plus a monthly Challenge Season track of device colorways, HQ finishes and profile badges.
+• Run the company, not just the product: crunch the team to rush a build, set standing reorder policies, work the sell window after launch, gamble on moonshot R&D with visible odds, promise a ship date at a keynote, draft an era mandate, and spend an engineering budget that makes every project a real choice.
+• A world that lives: employees with names and lives of their own, rivals that fight each other and not just you, review outlets that remember your last device, regional events that name the rival surging there, and an industry ladder of named bosses to climb.
+• See what you're climbing: a Company Roadmap of every era, category and endgame system ahead of you, one Goals ledger, a Help hub that explains every score, and a glossary.
+• As calm as you like: Calm Mode sets how often the game interrupts you, and low-stakes moments now wait quietly in a Decision Inbox.
+• A better HQ: a living 3D office with typing, chair swivels and glowing screens, 20 new furniture pieces and 8 room styles, a factory floor that actually runs, proper task chairs that always face their own monitor — plus Tidy Up for the office and Undo for the factory.
+• Rebalanced throughout: every era now rewards a great launch and punishes a lazy one, a rough start is something you can recover from instead of a dead end, and more than one way to play survives to the end.
+
+Faster loading and a long list of fixes.
+```
+
+**Previous release notes (v1.1.0)** — kept for reference; the v1.1.0 body has moved to §5d.
+
+---
+
+## 5b. Previous release notes (v1.0.2)
+
+```
+Silicon just got a lot more alive.
+
+• Rivals now have backstories — read their doctrine, and watch their fortunes rise, peak, and fade as their story arc unfolds.
+• Every launch earns an authored verdict explaining exactly why it won or flopped.
+• The Device Museum is reorganised into category shelves — click any device for its legacy note, front-and-back design, and full launch analytics.
+• A living market: multi-week event chains with real choices, seasonal demand cycles by buyer segment, and regional shocks.
+• New people decisions: mentor your team, fend off rival poaching offers, boost company morale, and take out loans to fund growth.
+• Design trade-offs run deeper — named synergy archetypes, category-specific buyer tastes, and an Engineering Doctrine research fork that gives your products identity.
+• Reach the #1 spot and your IPO win now closes with a "Five years later" epilogue.
+• A big polish pass across the Design Lab, Company screen, and 3D office, plus a more tactile production-run slider.
+```
+
+---
+
+## 5c. Previous release notes (v1.0 — first release)
+
+```
+Welcome to Silicon. Design devices down to the chip, launch them into a living market, build your team and 3D HQ, research the next era, and race six rivals to #1. Premium, offline, no ads.
+```
+
+---
+
+## 5d. Previous release notes (v1.1.0)
 
 ```
 The biggest Silicon update yet. Build a real production line, turn your rivals into enemies, take your company public, and run the whole industry.
@@ -143,44 +190,6 @@ DEEPEN YOUR COMPANY
 
 PLUS
 • A smoother start with more capital; deeper devices (tablets, monitors, AR glasses); a continuous design-to-launch flow with live in-production tracking and "start from" to iterate a franchise; living products you can restock and re-market; a premium liquid-glass redesign; a big accessibility pass; and dozens of fixes.
-```
-(~2,250 chars — under the 4,000 limit)
-
-**Shorter alternate** (if you prefer a tighter note — ~1,150 chars):
-```
-The biggest Silicon update yet.
-
-• Factory Mode: build a real 3D production line — lay belts, place and upgrade machines, and wire the floor so it builds faster. Each device needs the right machines. Decorate and expand it.
-• Arch-Rivals & Rival Strikes: one rival becomes your nemesis, and a contested launch is a duel — cut price, counter-campaign, or hold the line.
-• The Silicon Awards: an annual ceremony that judges every launch. Sweep it, or build a grudge.
-• Play the market: take a controlling stake for a hostile takeover, acquire rivals to absorb their brand, or take your own company public.
-• Go global: license regions and weather booms, tariffs and rival surges.
-• Timed research with a queue, research doctrines, Eureka breakthroughs, a living team and fanbase, side orders, your own OS platform — plus a smoother start, a premium redesign, a big accessibility pass, and dozens of fixes.
-```
-
----
-
-## 5b. Previous release notes (v1.0.2)
-
-```
-Silicon just got a lot more alive.
-
-• Rivals now have backstories — read their doctrine, and watch their fortunes rise, peak, and fade as their story arc unfolds.
-• Every launch earns an authored verdict explaining exactly why it won or flopped.
-• The Device Museum is reorganised into category shelves — click any device for its legacy note, front-and-back design, and full launch analytics.
-• A living market: multi-week event chains with real choices, seasonal demand cycles by buyer segment, and regional shocks.
-• New people decisions: mentor your team, fend off rival poaching offers, boost company morale, and take out loans to fund growth.
-• Design trade-offs run deeper — named synergy archetypes, category-specific buyer tastes, and an Engineering Doctrine research fork that gives your products identity.
-• Reach the #1 spot and your IPO win now closes with a "Five years later" epilogue.
-• A big polish pass across the Design Lab, Company screen, and 3D office, plus a more tactile production-run slider.
-```
-
----
-
-## 5c. Previous release notes (v1.0 — first release)
-
-```
-Welcome to Silicon. Design devices down to the chip, launch them into a living market, build your team and 3D HQ, research the next era, and race six rivals to #1. Premium, offline, no ads.
 ```
 
 ---
@@ -283,24 +292,32 @@ No data leaves your device. Questions: isacmolin@gmail.com
 
 ## 11. Screenshots
 
-Upload **6.7" iPhone (1290 × 2796)** — App Store Connect auto-scales these to the other
-required sizes. See `appstore/SCREENSHOT_PROMPT.md` for the recommended set, captions, and
-how to generate the finished marketing frames from the raw captures in
-`appstore/screenshots/raw/`.
+Upload **6.7" iPhone (1284 × 2778)** — App Store Connect auto-scales these to the other required
+sizes. The finished, branded set is committed at `app-store-screenshots/store/` (10 frames, already
+in upload order); `app-store-screenshots/README.md` has the regeneration commands.
 
-Recommended upload order (first 3 are what most users see in search — lead with the newest, most
-visually distinctive hero shots so the thumbnail sells the update):
-1. Factory Mode (3D line) — **"Build a real production line"**
-2. Design Lab — **"Design every device, down to the chip"**
-3. Market / leaderboard + arch-rival — **"Crush a dozen rivals to #1"**
-4. 3D HQ — **"From a garage to a global empire"**
-5. Rival Strike or Silicon Awards — **"Every launch is a fight"**
-6. Research (timed ring + queue) — **"Research the next era"** *(optional 6th)*
+Upload order — the first three are what most people ever see in search, so they lead with the
+newest and most visually distinctive:
 
-Caption text goes ON the marketing frame (large, legible), not just the alt text — the first two words
-of each caption matter most in the small search thumbnail. Localise captions for your top markets.
+1. `01-vault.png` — The Vault, the redacted dossier board — **"Eighteen files you were never told about"**
+2. `02-factory.png` — Factory Mode, the 3D line with a live order — **"Build the line"**
+3. `03-design.png` — Design Lab, live 3D device render — **"Design every detail"**
+4. `04-market.png` — Industry leaderboard — **"Race rivals to #1"**
+5. `05-office.png` — Real-time 3D HQ — **"Garage to global empire"**
+6. `06-awards.png` — The Silicon Awards ceremony — **"Win the industry"**
+7. `07-strike.png` — Rival Strike duel — **"Answer every rival"**
+8. `08-research.png` — Research ring + queue — **"Research on your terms"**
+9. `09-global.png` — Regional licensing + standings — **"Take it global"**
+10. `10-premium.png` — **"Premium. Complete. Yours."**
 
----
+Lead with the Vault: it is the only frame that reads as a *promise* rather than a status readout,
+and it is the 1.2.0 headline feature. `APP_STORE_FEATURING.md` assumes this exact order.
+
+Caption text is already burned ON the marketing frame (large, legible), not just alt text — the
+first two words of each caption matter most in the small search thumbnail.
+
+**iPad:** `app-store-screenshots/ipad/` is still the 1.1.0 line-up and predates the Vault, the
+Autonomy Era and Nemesis Duels. Refresh it before relying on it (`npm run shots:ipad`).
 
 ## 11b. ASO ranking levers (what actually moves the ranking, in priority order)
 

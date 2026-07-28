@@ -6503,6 +6503,18 @@ export function verdictBands(era: number): { hit: number; flop: number; solid: n
   return { hit: r.hitThresholdByEra[i], flop: r.flopThresholdByEra[i], solid: r.solidThresholdByEra[i] };
 }
 
+/** The marketing campaign a PROJECTION should assume, so a preview is judged on the same footing as
+ *  the record it's compared against.
+ *
+ *  A launch folds its campaign's hype into launchScore, and `launchExpectation` is an EMA of those
+ *  campaigned scores. Projecting at "no campaign" therefore measures an uncampaigned product against
+ *  a campaigned bar and reads one to two verdict bands low for anyone who advertises. Assuming the
+ *  campaign they last ran restores like-for-like. A company that has never shipped has no expectation
+ *  either — it gets "none" against the plain static bars, which is already like-for-like. */
+export function previewChannelFor(state: GameState): ChannelId {
+  return (state.launched[0]?.product.channelId as ChannelId | undefined) ?? "none";
+}
+
 /** The LIVE verdict bars a launch must clear right now — the static era bars, RAISED by the company's
  *  own rolling expectations baseline (recent track record). A hit must top what you've been shipping,
  *  so a mature studio can't guarantee a hit by re-maxing the same spec — it takes a genuine step up.

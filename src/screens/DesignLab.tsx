@@ -61,6 +61,7 @@ import {
   recommendedRun,
   researchedTier,
   launchBars,
+  previewChannelFor,
   osDisplayName,
   osEcoBonus,
   type GameState,
@@ -417,7 +418,12 @@ export function DesignLab({
   // planProduction supplies the count-based competitionFactor (rivals matching/beating you) that
   // launchReady uses, and launchBars(state) is the SAME helper launchReady applies, so "Projected
   // hit" here matches what happens at launch — including the rising bar from your own track record.
-  const preview = missing.length === 0 ? planProduction(state, draft, BALANCE.build.minRun, "none") : null;
+  //
+  // The campaign has to match on BOTH sides of that comparison — see previewChannelFor. Run size is
+  // not part of it: plannedUnits doesn't reach launchScore, only volume.
+  const preview = missing.length === 0
+    ? planProduction(state, draft, BALANCE.build.minRun, previewChannelFor(state))
+    : null;
   const effectiveScore = preview ? preview.launchScore * preview.competitionFactor : breakdown.launchScore;
   // Use the SAME live bars the launch applies: the static era bar raised by the company's rolling
   // expectations (recent track record), so the projection reflects the rising bar — a proven studio
