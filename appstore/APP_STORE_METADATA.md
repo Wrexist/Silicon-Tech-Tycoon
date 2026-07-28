@@ -353,13 +353,21 @@ Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + 
 
 ## 12. Final pre-submit checklist
 
-- [ ] Name, subtitle, promo text, keywords, description, what's-new pasted
+- [ ] **`MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` both bumped** in
+      `ios/App/App.xcodeproj/project.pbxproj`, and `version` in `package.json` matches
+      `MARKETING_VERSION`. The build number must be **strictly higher than the last build uploaded
+      on this train** — App Store Connect rejects a repeat, and a version-only bump is the easy
+      mistake (1.2.0 was briefly staged on 1.1.0's build 3). Shipped so far: 1.0.3 → build 2,
+      1.1.0 → build 3, 1.2.0 → build 4.
+- [ ] Name, subtitle, promo text, keywords, description, what's-new pasted **from
+      `appstore/localizations/`** (not from this file) — `node appstore/localizations/validate.mjs --all`
+      prints ✓ for all 39 first
 - [ ] Categories: Simulation (primary), Strategy (secondary)
 - [ ] Price $8.99, all countries, Small Business Program enrolled
 - [ ] Age rating completed → 4+
 - [ ] App Privacy = "Data Not Collected"; `PrivacyInfo.xcprivacy` added
 - [ ] Privacy + Support URLs live and pasted
-- [ ] 5 screenshots (6.7") uploaded in order
+- [ ] 10 screenshots (6.7") uploaded in the §11 order — `01-vault.png` first
 - [ ] Review notes pasted (with/without IAP block per your choice)
 - [ ] IAP decision made per IAP_GUIDE.md (Option A: none attached / Option B: created + wired + attached)
 - [ ] Build uploaded via Xcode/TestFlight and selected for the version
