@@ -74,6 +74,17 @@ describe("syncPro — granting", () => {
     expect(getProRecord()?.tier).toBe("founding");
   });
 
+  it("never grants founding from a version string alone", async () => {
+    // The sandbox shape. `AppTransaction.originalAppVersion` reports "1.0" for EVERY sandbox and
+    // TestFlight install regardless of what was really bought, so the native side deliberately
+    // withholds `originalBuild` outside production and sends only the diagnostic string. If this
+    // ever starts granting, every tester — and anyone who can fake the version — gets Pro free.
+    bridge.originalPurchase.mockResolvedValue({ originalVersion: "1.0" });
+    await syncPro();
+    expect(getProRecord()).toBeNull();
+    expect(isPro()).toBe(false);
+  });
+
   it("writes a lifetime record when the store says the device owns it", async () => {
     bridge.isOwned.mockResolvedValue({ owned: true });
     await syncPro();

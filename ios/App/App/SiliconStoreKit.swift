@@ -175,10 +175,11 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             // `Product.products(for:)` is a network call: an already-owned Lifetime tapped with no
             // connection used to resolve "error" instead of the "purchased" it plainly is.
             //
-            // Non-consumables only. Subscriptions are exempt — StoreKit handles upgrade/crossgrade
-            // within a group, and short-circuiting here would trap a monthly subscriber who wants
-            // to move to yearly.
-            if await self.isEntitled(productId), await self.isNonSubscription(productId) {
+            // Non-consumables only, and the type comes off the OWNED TRANSACTION — never off a
+            // store lookup that could fail open. Subscriptions are exempt: StoreKit handles
+            // upgrade/crossgrade within a group, and short-circuiting here would trap a monthly
+            // subscriber who wants to move to yearly.
+            if let owned = await self.ownedTransaction(productId), owned.productType != .autoRenewable {
                 return call.resolve(["status": "purchased"])
             }
 
@@ -217,8 +218,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Restore & ownership
 
     /// Pull the latest entitlements from the App Store (may prompt sign-in; a cancel is fine), then
-    /// report what the device holds. With no `productId` this reports EVERY owned non-consumable,
-    /// which is what the paywall's "Restore Purchases" needs.
+    /// report what the device holds. With no `productId` this reports EVERY current entitlement —
+    /// owned non-consumables AND any live subscription — which is what the paywall's "Restore
+    /// Purchases" needs, since a subscriber reinstalling has nothing else to recover from.
     @objc func restore(_ call: CAPPluginCall) {
         guard #available(iOS 15.0, *) else { return call.resolve(["restored": false, "owned": []]) }
         Task {
@@ -260,32 +262,41 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         Task {
             do {
                 let statuses = try await Product.SubscriptionInfo.status(for: groupId)
-                // A group can report several statuses (e.g. family sharing, or a lapsed SKU beside a
-                // live one). Any entitling state wins.
-                for status in statuses {
-                    let entitling: Bool
-                    switch status.state {
-                    case .subscribed, .inGracePeriod: entitling = true
-                    default: entitling = false
+                // A group can report SEVERAL entitling statuses at once — Family Sharing, or a
+                // monthly and a yearly overlapping across a crossgrade boundary. Taking whichever
+                // came first in the array would make the reported product, expiry and renewal
+                // state depend on Apple's ordering, so rank instead and pick a definite winner:
+                //   1. a live `.subscribed` beats a `.inGracePeriod` one (grace means payment is
+                //      failing, and the strip in `ProNudge` should only fire when that is the
+                //      user's actual standing),
+                //   2. then the one that runs LONGEST — that is the access the user really has.
+                let best = statuses
+                    .filter { $0.state == .subscribed || $0.state == .inGracePeriod }
+                    .compactMap { status -> (Product.SubscriptionInfo.Status, Transaction)? in
+                        guard case .verified(let transaction) = status.transaction else { return nil }
+                        return (status, transaction)
                     }
-                    guard entitling,
-                          case .verified(let transaction) = status.transaction else { continue }
+                    .max { a, b in
+                        let aLive = a.0.state == .subscribed, bLive = b.0.state == .subscribed
+                        if aLive != bLive { return bLive }
+                        return (a.1.expirationDate ?? .distantFuture) < (b.1.expirationDate ?? .distantFuture)
+                    }
 
-                    var payload: [String: Any] = [
-                        "active": true,
-                        "productId": transaction.productID,
-                        "inGracePeriod": status.state == .inGracePeriod,
-                    ]
-                    if let expires = transaction.expirationDate {
-                        payload["expiresAt"] = ISO8601DateFormatter().string(from: expires)
-                    }
-                    payload["isTrial"] = Self.isIntroductory(transaction)
-                    if case .verified(let renewal) = status.renewalInfo {
-                        payload["willRenew"] = renewal.willAutoRenew
-                    }
-                    return call.resolve(payload)
+                guard let (status, transaction) = best else { return call.resolve(["active": false]) }
+
+                var payload: [String: Any] = [
+                    "active": true,
+                    "productId": transaction.productID,
+                    "inGracePeriod": status.state == .inGracePeriod,
+                ]
+                if let expires = transaction.expirationDate {
+                    payload["expiresAt"] = ISO8601DateFormatter().string(from: expires)
                 }
-                call.resolve(["active": false])
+                payload["isTrial"] = Self.isIntroductory(transaction)
+                if case .verified(let renewal) = status.renewalInfo {
+                    payload["willRenew"] = renewal.willAutoRenew
+                }
+                call.resolve(payload)
             } catch {
                 call.reject("Could not read subscription status: \(error.localizedDescription)")
             }
@@ -339,17 +350,31 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     ///
     /// Requires iOS 16. On older systems this resolves empty and the user simply falls back to the
     /// normal Restore Purchases path.
+    ///
+    /// TWO things must be true before a build number is reported, because reporting one is what
+    /// grants a permanent free entitlement:
+    ///
+    /// 1. **The download was not refunded.** `revocationDate` non-nil means Apple took the money
+    ///    back, so there is no purchase left to honour — the same test `isEntitled` applies.
+    /// 2. **It is a real App Store purchase.** In SANDBOX and TestFlight, `originalAppVersion`
+    ///    reports `"1.0"` regardless of what was actually installed. Parsed, that is build 1, which
+    ///    is below `FIRST_FREE_BUILD` and therefore reads as a paid-era owner — so every sandbox
+    ///    tester and every TestFlight build would silently get Pro for free, and the paywall could
+    ///    never be tested on the very builds it has to be tested on. `originalVersion` is still
+    ///    reported for diagnostics; only the entitling number is withheld.
     @objc func originalPurchase(_ call: CAPPluginCall) {
         guard #available(iOS 16.0, *) else { return call.resolve([:]) }
         Task {
             do {
                 let result = try await AppTransaction.shared
-                guard case .verified(let appTransaction) = result else { return call.resolve([:]) }
+                guard case .verified(let appTransaction) = result,
+                      appTransaction.revocationDate == nil else { return call.resolve([:]) }
                 let raw = appTransaction.originalAppVersion
                 var payload: [String: Any] = ["originalVersion": raw]
                 // Take the leading integer: build numbers are "4", but a defensive parse also
-                // handles a "1.2.0"-style value from a TestFlight/sandbox context.
-                if let build = Int(raw.split(separator: ".").first.map(String.init) ?? raw) {
+                // handles a "1.2.0"-style value.
+                if appTransaction.environment == .production,
+                   let build = Int(raw.split(separator: ".").first.map(String.init) ?? raw) {
                     payload["originalBuild"] = build
                 }
                 call.resolve(payload)
@@ -382,27 +407,28 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - Helpers
 
-    /// True when the product is a one-time purchase rather than a subscription. Falls back to
-    /// `true` when the store can't be reached: the caller only asks after confirming the device is
-    /// already entitled, and an entitled-but-unreadable product is far more likely to be the
-    /// Lifetime/Creative-Mode non-consumable than an active subscription (whose status is read
-    /// through `subscriptionStatus`, not here).
+    /// The device's live, verified, non-revoked entitlement for a product, or nil.
+    ///
+    /// Returns the TRANSACTION rather than a Bool because the caller needs its `productType`, and
+    /// the transaction is the only place that type is known WITHOUT a network round-trip.
+    /// `Product.products(for:)` would answer the same question but is a store call that silently
+    /// omits anything it can't resolve — so offline it can't distinguish "not a subscription" from
+    /// "don't know", and guessing either way is wrong in a purchase path.
     @available(iOS 15.0, *)
-    private func isNonSubscription(_ productId: String) async -> Bool {
-        guard let product = try? await Product.products(for: [productId]).first else { return true }
-        return product.subscription == nil
+    private func ownedTransaction(_ productId: String) async -> Transaction? {
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let transaction) = result,
+               transaction.productID == productId,
+               transaction.revocationDate == nil {
+                return transaction
+            }
+        }
+        return nil
     }
 
     /// True if the device currently holds a verified, non-revoked entitlement for the product.
     @available(iOS 15.0, *)
     private func isEntitled(_ productId: String) async -> Bool {
-        for await result in Transaction.currentEntitlements {
-            if case .verified(let transaction) = result,
-               transaction.productID == productId,
-               transaction.revocationDate == nil {
-                return true
-            }
-        }
-        return false
+        return await ownedTransaction(productId) != nil
     }
 }

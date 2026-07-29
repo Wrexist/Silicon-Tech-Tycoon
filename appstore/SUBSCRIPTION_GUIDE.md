@@ -99,6 +99,14 @@ Marketing version is now **1.3.0**.
 
 **Rules from here on:** never lower `FIRST_FREE_BUILD`, and never ship a build number below it. Every
 future build just increments `CURRENT_PROJECT_VERSION` and leaves `FIRST_FREE_BUILD` at 5 forever.
+
+> **Grandfathering is production-only, by design.** `AppTransaction.originalAppVersion` reports
+> `"1.0"` on *every* sandbox and TestFlight install, which would parse to build 1 and read as a
+> paid-era owner — giving free Pro to every tester and making the paywall untestable on the builds
+> you most need to test it on. `originalPurchase()` therefore only reports a build number when the
+> receipt's environment is production. Consequence for you: **you cannot verify Founding Owner in
+> sandbox or TestFlight.** Verify it after release against a real paid-era Apple ID — it is a
+> week-one item in `LAUNCH_CHECKLIST.md` Phase 8.
 A test enforces the floor (≥ 5) but cannot know your actual Xcode build number — that's this step.
 
 ---

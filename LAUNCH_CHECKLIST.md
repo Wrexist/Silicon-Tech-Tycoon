@@ -156,6 +156,12 @@ General device smoke test while you're there:
 - [ ] No crash when backgrounded mid-tick
 - [ ] Save/load survives a force-quit
 
+> **Founding Owner cannot be tested here.** The receipt reports version `"1.0"` for every sandbox
+> and TestFlight install, so the native side only reports a build number in production — otherwise
+> every tester would be grandfathered into free Pro and the paywall would never appear. Expect the
+> paywall as a *normal free player* on these builds. Grandfathering is verified after release
+> (Phase 8).
+
 ---
 
 ## Phase 7 — Submit (10 min)
