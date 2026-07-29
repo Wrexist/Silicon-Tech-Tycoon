@@ -14,8 +14,9 @@ For *why* the model looks like this — the free/Pro line, pricing rationale, th
 
 ## The whole thing, in order
 
-Work top to bottom. Steps 1–3 are code/repo work; 4–8 are App Store Connect; 9 is the device test
-that gates submission. Nothing here is optional.
+Work top to bottom — the numbers below match the section headings exactly. Steps 0–3 are repo and
+Xcode work; 4–9 are App Store Connect; 10 is the device test that gates submission; 11 is submit.
+Nothing here is optional.
 
 | # | Step | Where | Done when |
 |---|---|---|---|
@@ -24,14 +25,17 @@ that gates submission. Nothing here is optional.
 | 2 | Update the App Store description + release notes | `appstore/localizations/` | Validator passes, no "single purchase" claim left |
 | 3 | Build and upload | Xcode | Build 5 (1.3.0) processed in TestFlight |
 | 4 | Set the app price to **Free** | ASC → Pricing | Price schedule shows Free |
-| 5 | Create the subscription group + 2 subscriptions | ASC → Monetization | Both SKUs "Ready to Submit" |
-| 6 | Add the 7-day free trials | ASC → each SKU | Introductory Offer on both |
-| 7 | Create Pro Lifetime (Non-Consumable) | ASC → In-App Purchases | Family Sharing ON |
-| 8 | Legal URLs + grace period | ASC → App Information | Both URLs load; grace period ON |
-| 9 | **Sandbox-test every row on a real device** | iPhone | Every row in the table passes |
-| 10 | Attach all three products, paste review notes, submit | ASC | Submitted |
+| 5 | Create the subscription **group** | ASC → Monetization → Subscriptions | Group id is exactly `silicon_pro` |
+| 6 | Create the two auto-renewable subscriptions | ASC → inside that group | Monthly + Yearly both "Ready to Submit" |
+| 7 | Add the 7-day free trials | ASC → each recurring SKU | Introductory Offer on both |
+| 8 | Create Pro Lifetime (Non-Consumable) | ASC → In-App Purchases | Family Sharing ON |
+| 9 | Legal URLs + billing grace period | ASC → App Information | Both URLs load; grace period ON |
+| 10 | **Sandbox-test every row on a real device** | iPhone | Every row in the Step 10 table passes |
+| 11 | Attach all three products, paste review notes, submit | ASC | Submitted |
 
-After launch: win-back offers (§ Win-back) — highest return per hour, and needs no code.
+Then read the **Go / no-go** checklist at the bottom before you actually hit Submit.
+
+After launch: win-back offers — highest return per hour, and needs no code.
 
 ---
 
