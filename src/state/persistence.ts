@@ -275,6 +275,20 @@ export function importSaveString(str: string): GameState | null {
   }
 }
 
+/**
+ * Parse raw save JSON through the SAME migrate/validation the loader uses. Exported so other
+ * persistence surfaces (the Time Machine's snapshots) can never accept a shape the loader would
+ * reject — a snapshot that crashes on restore is worse than no snapshot at all.
+ * Returns null on bad JSON or an un-migratable shape.
+ */
+export function parseSaveJson(json: string): GameState | null {
+  try {
+    return migrate(JSON.parse(json) as GameState);
+  } catch {
+    return null;
+  }
+}
+
 function fixProduct(p: Product): Product {
   return { ...p, camera: p.camera ?? defaultCameraDesign(), notch: p.notch ?? "punch", tuning: p.tuning ?? "balanced" };
 }

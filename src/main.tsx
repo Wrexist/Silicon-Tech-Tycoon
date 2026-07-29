@@ -8,6 +8,7 @@ import { initSettings, resolvedTheme } from "./state/settings.ts";
 import { initNative } from "./native.ts";
 import { hydrateFromNative } from "./state/nativeStore.ts";
 import { refreshDailyReminders } from "./state/notifications.ts";
+import { stampFirstLaunch } from "./state/paywall.ts";
 
 async function boot(): Promise<void> {
   // NATIVE ONLY: restore any save/entitlement/prestige keys that WKWebView storage eviction
@@ -21,6 +22,10 @@ async function boot(): Promise<void> {
   ]);
 
   initSettings();
+
+  // Stamp this device's first-ever launch (once). Used only for honest "new founder" framing —
+  // there is no countdown, no expiring discount, and no fake scarcity anywhere in the app.
+  stampFirstLaunch();
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>

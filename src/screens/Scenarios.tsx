@@ -14,6 +14,10 @@ import { useGame } from "../state/useGame.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
+import { ProChip } from "../components/Paywall.tsx";
+import { openPaywall } from "../state/paywall.ts";
+import { scenarioLocked } from "../state/proGates.ts";
+import { useIsPro } from "../state/usePro.ts";
 import "./scenarios.css";
 
 const DIFFICULTY_LABEL: Record<Scenario["difficulty"], string> = {
@@ -42,6 +46,8 @@ function Stars({ n, size = 16 }: { n: number; size?: number }) {
 
 export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; initialName?: string }) {
   const { state, startScenario } = useGame();
+  const pro = useIsPro();
+  const proLocked = (id: string) => scenarioLocked(id, pro);
   const best = getScenarioStars();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   // Trap Tab inside the confirm card and restore focus to the opener on close — the shared Sheet does
@@ -113,11 +119,22 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
                 size="sm"
                 variant={isActive ? "secondary" : "primary"}
                 disabled={!unlocked}
-                onClick={() => setConfirmId(s.id)}
+                onClick={() => {
+                  // Two independent locks, and they are NOT the same thing: the star chain is
+                  // earned progression, Pro is a purchase. Only ever surface one at a time — the
+                  // star lock already disables the button, so this branch is reached unlocked.
+                  if (proLocked(s.id)) {
+                    openPaywall({ reason: "scenario", onUnlocked: () => setConfirmId(s.id) });
+                    return;
+                  }
+                  setConfirmId(s.id);
+                }}
               >
-                {unlocked
-                  ? <><Target size={15} /> {isActive ? "Restart this scenario" : earned > 0 ? "Play again" : "Play scenario"}</>
-                  : <><Lock size={15} /> Earn {needStars}★ to unlock</>}
+                {!unlocked
+                  ? <><Lock size={15} /> Earn {needStars}★ to unlock</>
+                  : proLocked(s.id)
+                    ? <><Target size={15} /> Play scenario <ProChip /></>
+                    : <><Target size={15} /> {isActive ? "Restart this scenario" : earned > 0 ? "Play again" : "Play scenario"}</>}
               </Button>
             </li>
           );

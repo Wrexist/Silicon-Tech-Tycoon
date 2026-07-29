@@ -99,8 +99,11 @@ Develop a deep tech tree over time on a live progress ring — queue your next b
 BUILD A TEAM AND HQ
 Hire engineers, designers and marketers — each with a specialty, a trait and a mood that moves their output. Senior staff grow into mentors and masters. Watch your real-time 3D headquarters fill with life from garage to campus.
 
-PREMIUM. OFFLINE. YOURS.
-No ads. No timers. No energy. No currencies. No dark patterns. The base game is complete and winnable with a single purchase, and it works fully offline. One optional Creative Mode sandbox is the only in-app purchase, ever.
+FREE TO PLAY. NO DARK PATTERNS.
+No ads. No timers. No energy. No currencies. No loot boxes. Design devices, read the market and grow your company through the Garage and Growth eras for free, with a fresh seeded challenge every day, fully offline.
+
+SILICON PRO
+An optional subscription opens the rest of the industry: the Platform and AI eras, every scenario, New Game+ and Ascension, the Platform Division, Creative Mode, the Vault and the Device Museum, and the Time Machine that rewinds your company to any of the last five quarters. Monthly or yearly with a free trial, or buy it once with Pro Lifetime. Nothing you can buy changes the simulation in your favour.
 
 Found your company. Ship something great. Run the industry.
 ```
@@ -108,11 +111,25 @@ Found your company. Ship something great. Run the industry.
 
 ---
 
-## 5. What's New (release notes for v1.2.0)
+## 5. What's New (release notes for v1.3.0)
 
 > The canonical copy lives in `appstore/localizations/en-US/release_notes.txt` and is translated into
 > all 39 ASC locales alongside it — **paste from there, not from here**, and run
 > `node appstore/localizations/validate.mjs --all` before uploading. Reproduced below for review.
+
+```text
+Silicon is now free to play — and there's a Time Machine.
+
+• Free to download, free to play. The whole design → launch → read-the-market → reinvest loop, the Garage and Growth eras start to finish, two scenarios, and a fresh seeded challenge every single day. Still no ads, no timers, no energy, no currencies, no loot boxes. That part is never changing.
+• Silicon Pro, if you want the rest: the Platform and AI eras, every scenario, New Game+ and the Ascension ladder, the Platform Division, Creative Mode, the Vault, the Device Museum, Category Mastery and your Founder Legend. Monthly or yearly with a free trial, or Pro Lifetime if you would rather own it once and be done.
+• The Time Machine. Pro quietly snapshots your company every quarter and keeps the last five. One catastrophic launch, one over-hired year, one factory bought at the wrong moment — rewind and take the other road. Campaign only: scenarios and challenges stay scored on their own terms.
+• Already bought Silicon? It's yours forever. Everyone who paid for the app before it went free is recognised automatically and granted Founding Owner — all of Pro, permanently, at no further cost. The separate Creative Mode unlock stays yours too.
+• Nothing you can buy changes the simulation in your favour. Pro unlocks content and modes, never an advantage inside a run.
+
+A founding brief at the start now asks what you're here to build, and the game leads with that.
+```
+
+**Previous release notes (v1.2.0)**
 
 ```text
 A fifth era, a hidden layer, and a company that finally answers back.
@@ -198,20 +215,21 @@ PLUS
 
 | Field | Value |
 |---|---|
-| Base price | **$8.99** (Tier 9) |
+| Base price | **Free** |
 | Availability | All countries / regions |
 | Pre-orders | Optional |
 | Educational discount | No |
 | **Apple Small Business Program** | **Enroll** (15% cut while under $1M/yr) |
 
-**In-App Purchase** (see IAP_GUIDE.md — only if shipping Option B):
+**In-App Purchases — Silicon Pro** (full setup: `SUBSCRIPTION_GUIDE.md`):
 
 | Field | Value |
 |---|---|
-| Product ID | `com.wrexist.silicon.sandbox` |
-| Type | Non-Consumable · **$2.99** (Tier 3) |
-| Display name | `Creative Mode` |
-| Family Sharing | On |
+| Subscription group | `silicon_pro` — *Silicon Pro* |
+| `com.wrexist.silicon.pro.yearly` | Auto-renewable · **$19.99/yr** · 7-day free trial |
+| `com.wrexist.silicon.pro.monthly` | Auto-renewable · **$3.99/mo** · 7-day free trial |
+| `com.wrexist.silicon.pro.lifetime` | Non-Consumable · **$29.99** · Family Sharing On |
+| `com.wrexist.silicon.sandbox` | Legacy Non-Consumable · $2.99 · **keep live, no longer offered** |
 
 ---
 
@@ -253,15 +271,21 @@ No account or login. Fully offline. On first launch, tap "Found Silicon"
 to start a company; the coach tips can be skipped to reach the main loop.
 The game is complete and winnable without any purchase.
 
-[Include the next block ONLY if the Creative Mode IAP is attached:]
-IN-APP PURCHASE (Creative Mode, Non-Consumable, $2.99)
-1. Open Settings (gear, top-right).
-2. Scroll to "Creative Mode".
-3. Tap "Unlock - $2.99" and complete with a Sandbox Apple ID.
-4. The Sandbox toggle appears immediately on success.
-5. "Restore purchase" re-grants it on a fresh install.
-Creative Mode is a no-limits sandbox (unlimited cash floor). It is NOT a
-progression gate and unlocks no content withheld from the base game.
+IN-APP PURCHASES (attached: Pro Monthly, Pro Yearly, Pro Lifetime)
+Reach the paywall any time via Settings (gear) > Silicon Pro > "See what's
+in Pro". It also appears once after onboarding, and is skippable.
+1. Subscriptions: select Pro Monthly or Pro Yearly (each row states its
+   title, its length and the billed amount; a 7-day free trial is shown
+   when the Apple ID is eligible), then complete with a Sandbox Apple ID.
+2. Lifetime: select Pro Lifetime — a Non-Consumable one-time purchase that
+   never renews. The row then reads "OWNED".
+3. Verify unlock: Settings > Time Machine, the Progress hub (Vault /
+   Museum / Mastery), or "Advance" on the Office screen at an era gate.
+4. Cancel: Settings > Silicon Pro > "Manage subscription" (Apple's sheet).
+5. Restore: "Restore Purchases" on the paywall, or in Settings.
+The app is free to play without any purchase. Silicon Pro unlocks content
+and modes only — nothing purchasable alters the simulation in the player's
+favour.
 
 CONTACT: isacmolin@gmail.com
 ```
@@ -370,7 +394,8 @@ Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + 
       `appstore/localizations/`** (not from this file) — `node appstore/localizations/validate.mjs --all`
       prints ✓ for all 39 first
 - [ ] Categories: Simulation (primary), Strategy (secondary)
-- [ ] Price $8.99, all countries, Small Business Program enrolled
+- [ ] Price **Free**, all countries, Small Business Program enrolled
+- [ ] Silicon Pro group + 3 products attached to the version and sandbox-tested
 - [ ] Age rating completed → 4+
 - [ ] App Privacy = "Data Not Collected"; `PrivacyInfo.xcprivacy` added
 - [ ] Privacy + Support URLs live and pasted

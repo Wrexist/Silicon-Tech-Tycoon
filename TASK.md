@@ -225,6 +225,16 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 ## Backlog
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
+- **CSS token bug — `--spring-bounce` is undefined.** `eurekaMoment.css` (`.eur__glyph`) and
+  possibly others animate with `var(--spring-bounce)`, but no such token exists in `tokens.css` (or
+  anywhere else). An undefined var invalidates the whole `animation` shorthand, so those glyph
+  entrance animations silently never play. Fix: either define `--spring-bounce` in `tokens.css`
+  (an overshoot cubic-bezier, e.g. `420ms cubic-bezier(0.34, 1.56, 0.64, 1)`) or replace the usages
+  with `var(--spring-gentle)`. Found while building the paywall, which uses `--spring-gentle`.
+- **Free-tier ending is open-ended.** With the Pro wall at the era-3 advance, free players can never
+  reach the IPO, so they get no terminal beat — the run just continues. If free retention looks weak
+  post-launch, a *smaller* Growth-Era ending (a "you built something real" card at some revenue
+  milestone) is a better answer than moving `FREE_TIER.maxEra`. See `MONETIZATION.md` §9.
 - **TASK.md is stale again**: last dated entry is v56 (2026-06-28), but 52 commits since then shipped
   all of DEPTH_PLAN.md Tracks A–D (v57–v69: narrative/voice, cascading events, rival story arcs,
   mentorship/poaching/morale/loans, synergy archetypes/buyer mixes/research forks/subsystems) plus

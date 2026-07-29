@@ -10,8 +10,11 @@
 import { Capacitor } from "@capacitor/core";
 
 /** The keys worth a durable copy: the save, the parked freeform company held while a challenge/
- *  scenario runs (so "return to your company" survives eviction), the paid entitlement, and prestige. */
-const MIRROR_KEYS = ["silicon.save.v1", "silicon.save.v1.home", "silicon.iap.sandbox", "silicon.legacy", "silicon.scenarioStars.v1", "silicon.challengeBests.v1", "silicon.museum.v1", "silicon.achievements.v1", "silicon.seasons.v1"] as const;
+ *  scenario runs (so "return to your company" survives eviction), BOTH paid entitlements (the legacy
+ *  Creative Mode unlock and the Silicon Pro record), and prestige. Losing the Pro record to storage
+ *  eviction would lock a paying subscriber out of what they're paying for until the next successful
+ *  store sync — on a plane, that's the whole flight. */
+const MIRROR_KEYS = ["silicon.save.v1", "silicon.save.v1.home", "silicon.iap.sandbox", "silicon.pro.v1", "silicon.legacy", "silicon.scenarioStars.v1", "silicon.challengeBests.v1", "silicon.museum.v1", "silicon.achievements.v1", "silicon.seasons.v1"] as const;
 
 function isNative(): boolean {
   try {

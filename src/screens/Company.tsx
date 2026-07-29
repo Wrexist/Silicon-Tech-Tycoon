@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Compass, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
+import { ProChip } from "../components/Paywall.tsx";
+import { openPaywall } from "../state/paywall.ts";
+import { isLocked } from "../state/proGates.ts";
+import { useIsPro } from "../state/usePro.ts";
 import { osDisplayName, canFoundPlatform, platformFoundingCost, navAttention } from "../state/gameState.ts";
 import { ACHIEVEMENTS, deriveFacts } from "../engine/achievements.ts";
 import { AchievementIcon } from "../design/achievementIcons.tsx";
@@ -116,7 +120,20 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
 
 export function Company() {
   const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, hireSpecialist, foundPlatform, acquireFactory } = useGame();
+  const pro = useIsPro();
+  // The OS division is the Platform Era's headline system, so it travels with the Pro tier.
+  const platformProLocked = isLocked("platformDivision", pro);
   const [foundedCelebrate, setFoundedCelebrate] = useState(false);
+  // Set while a paywall-deferred founding is in flight. The celebration is driven off the REAL
+  // state transition rather than off the click-time closure, so the UI can never announce a
+  // division that `foundPlatform` declined to create (it re-validates requirements internally).
+  const awaitingFoundRef = useRef(false);
+  useEffect(() => {
+    if (!awaitingFoundRef.current || !state.platformUnlocked) return;
+    awaitingFoundRef.current = false;
+    haptic.success();
+    setFoundedCelebrate(true);
+  }, [state.platformUnlocked]);
   const [statsOpen, setStatsOpen] = useState(false);
   // Company is three destinations, not one endless scroll: Overview (money + ops), Team (roster,
   // morale, hiring) and Platform — the OS division promoted from a buried one-line card to a
@@ -430,11 +447,29 @@ export function Company() {
               </div>
               <Button
                 block
-                variant={can ? "primary" : "tertiary"}
-                disabled={!can}
-                onClick={() => { haptic.success(); foundPlatform(); setFoundedCelebrate(true); }}
+                variant={can || platformProLocked ? "primary" : "tertiary"}
+                // The Pro lock stays PRESSABLE even before the in-game requirements are met, so a
+                // free player can always find out what the division is instead of staring at a
+                // greyed-out card. The earned requirements still gate the actual founding.
+                disabled={!can && !platformProLocked}
+                onClick={() => {
+                  if (platformProLocked) {
+                    // A StoreKit purchase can take many seconds, so this callback must NOT re-read
+                    // the `state` it closed over at click time — it's stale by then. Just ask to
+                    // found; the celebration fires from the effect above when (and only when) the
+                    // real `platformUnlocked` flips.
+                    openPaywall({
+                      reason: "platformDivision",
+                      onUnlocked: () => { awaitingFoundRef.current = true; foundPlatform(); },
+                    });
+                    return;
+                  }
+                  haptic.success();
+                  foundPlatform();
+                  setFoundedCelebrate(true);
+                }}
               >
-                {label}
+                {platformProLocked ? <>Found the division <ProChip /></> : label}
               </Button>
             </Card>
           );

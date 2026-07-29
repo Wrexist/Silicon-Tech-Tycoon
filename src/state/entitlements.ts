@@ -1,7 +1,8 @@
 // Device-level IAP entitlements — what the player OWNS, persisted separately from the game save
-// (like legacy.ts) so it survives new games, restarts, and save imports. The one v1 IAP is the
-// Sandbox / Creative-mode unlock; the base game itself is a paid ($8.99 premium) download handled
-// by the App Store, so it needs no in-app entitlement. PURE-ish (localStorage only, mockable).
+// (like legacy.ts) so it survives new games, restarts, and save imports. This module covers ONLY the
+// legacy Creative Mode unlock, sold as a standalone IAP while the app was a paid download. That
+// purchase is honoured forever and is never re-sold; Creative Mode now also travels with Silicon
+// Pro, whose entitlement lives in `pro.ts`. PURE-ish (localStorage only, mockable).
 // On native the PAID entitlement is also mirrored to Preferences (nativeStore) — WKWebView
 // localStorage is OS-evictable, and losing a purchase the player paid for is unacceptable.
 import { mirrorToNative } from "./nativeStore.ts";

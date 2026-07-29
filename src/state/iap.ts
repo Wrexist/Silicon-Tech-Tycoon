@@ -1,5 +1,7 @@
-// In-app purchases — the single v1 IAP: the Sandbox / Creative-mode unlock. The base game is a
-// paid premium download (App Store handles that), so the only purchase code is this one unlock.
+// The LEGACY purchase path: the standalone Sandbox / Creative-mode unlock, sold while the app was a
+// paid download. It is kept wired so everyone who bought it keeps it and can still restore it — the
+// app no longer OFFERS it (Creative Mode now travels with Silicon Pro). New purchases go through
+// `proStore.ts`; do not add anything to this file.
 //
 // This module is the seam between the UI and the platform store. The WEB build (PWA / dev preview)
 // is not a sales channel, so it simulates a successful purchase for testing. The iOS build routes
@@ -13,8 +15,8 @@
 // SPM-only iOS target needs no CocoaPods. Remaining one-time Xcode setup is in appstore/IAP_GUIDE.md
 // (add the In-App Purchase capability + a .storekit config for the simulator). Nothing here ever
 // throws: the same bundle runs in the browser and inside the native shell.
-import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
+import { isNative, storeKit } from "./storeKitBridge.ts";
 import { grantSandboxEntitlement, hasSandboxEntitlement } from "./entitlements.ts";
 
 /** App Store product identifier for the non-consumable Sandbox / Creative-mode unlock. */
@@ -44,42 +46,8 @@ export interface PurchaseResult {
   message?: string;
 }
 
-// ── Native bridge (implemented in ios/App/App/SiliconStoreKit.swift) ─────────────────────────────
-interface NativeProduct {
-  available: boolean;
-  id?: string;
-  displayName?: string;
-  description?: string;
-  price?: string;
-  owned?: boolean;
-}
-interface SiliconStoreKitPlugin {
-  getProduct(options: { productId: string }): Promise<NativeProduct>;
-  purchase(options: { productId: string }): Promise<{ status: string; message?: string }>;
-  restore(options: { productId: string }): Promise<{ restored: boolean }>;
-  isOwned(options: { productId: string }): Promise<{ owned: boolean }>;
-  addListener(
-    eventName: "transactionUpdated",
-    listenerFunc: (data: { productId: string }) => void,
-  ): Promise<PluginListenerHandle>;
-}
-
-// Registered lazily (inside try/catch at each call site) so a missing bridge — web, tests, an old
-// build — can never throw at import time; it just falls back to the safe path.
-let pluginRef: SiliconStoreKitPlugin | null = null;
-function storeKit(): SiliconStoreKitPlugin {
-  if (!pluginRef) pluginRef = registerPlugin<SiliconStoreKitPlugin>("SiliconStoreKit");
-  return pluginRef;
-}
-
-/** True when running inside the native iOS shell (vs. the browser/PWA). */
-function isNative(): boolean {
-  try {
-    return Capacitor.isNativePlatform();
-  } catch {
-    return false;
-  }
-}
+// The native bridge (plugin proxy + platform check) lives in `storeKitBridge.ts` — ONE proxy shared
+// with `proStore.ts`, so the `transactionUpdated` listener is registered exactly once.
 
 /**
  * Can a purchase flow actually complete on this platform?

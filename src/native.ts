@@ -2,6 +2,7 @@
 // and must never throw — the same bundle runs in the browser and inside the iOS shell.
 import { Capacitor } from "@capacitor/core";
 import { initIapListeners } from "./state/iap.ts";
+import { initPro } from "./state/proStore.ts";
 
 /** Keep the iOS status bar glyphs readable on the CURRENT theme. Style.Dark = light glyphs
  *  (for the dark UI), Style.Light = dark glyphs (for the light UI — the default on most
@@ -35,6 +36,12 @@ export async function initNative(resolvedTheme: "light" | "dark"): Promise<void>
     // Start listening for StoreKit transactions approved out-of-band (Ask-to-Buy, Family Sharing,
     // re-downloads) so a deferred purchase grants Creative Mode the moment it clears. No-op on web.
     void initIapListeners();
+    // Reconcile Silicon Pro with the App Store: restores a lapsed-then-renewed subscription, picks
+    // up a purchase made on another device, and — critically — recognises the paid-era buyers who
+    // owned this game before it went free and grants them Pro permanently ("Founding Owner").
+    // Fire-and-forget: a slow store must never delay first paint, and gates simply resolve a moment
+    // later when it lands.
+    void initPro();
     const { SplashScreen } = await import("@capacitor/splash-screen");
     // Hide the splash now that the React tree has mounted.
     await SplashScreen.hide().catch(() => {});
