@@ -3,9 +3,18 @@
 // subscription group), so `registerPlugin` runs once and the `transactionUpdated` listener is
 // registered once. Two proxies would double-deliver every out-of-band transaction.
 //
-// Native side: `ios/App/App/SiliconStoreKit.swift` (StoreKit 2 direct — deliberately NOT a
-// third-party purchase SDK, so the App Privacy "Data Not Collected / no third-party SDKs"
-// declaration stays literally true and the SPM-only iOS target needs no CocoaPods).
+// Native side: `ios/App/App/SiliconStoreKit.swift`, which serves this interface from ONE of two
+// backends behind a single switch (`ios/App/App/RevenueCatConfig.swift`):
+//   • StoreKit 2 direct — Apple only, on-device, no third party, and
+//   • RevenueCat's native iOS SDK (`SiliconStoreKit+RevenueCat.swift`), for cross-platform
+//     entitlements, server-side receipt validation and subscription analytics.
+// Both satisfy the contracts below identically, so nothing in this file — or in any caller —
+// changes when the backend does.
+//
+// ⚠️ PRIVACY: with the RevenueCat backend live the app is NO LONGER "Data Not Collected". RevenueCat
+// processes purchase history and a device identifier on our behalf. `PrivacyInfo.xcprivacy`, the App
+// Store Connect App Privacy answers and `docs/privacy/` all reflect that; see `MONETIZATION.md`
+// §"Privacy" before writing any copy that claims otherwise.
 //
 // Nothing here throws: the same bundle runs in the browser, in Vitest, and inside the native shell.
 import { Capacitor, registerPlugin } from "@capacitor/core";

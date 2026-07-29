@@ -123,7 +123,10 @@ Full field-by-field values in `appstore/SUBSCRIPTION_GUIDE.md` Steps 4–9. Summ
 - [ ] Support URL live
 - [ ] Categories: **Simulation** (primary), **Strategy** (secondary)
 - [ ] Age rating → **4+**
-- [ ] App Privacy → **Data Not Collected** (still true — StoreKit 2 direct, no third-party SDKs)
+- [ ] App Privacy → declare **Purchase History + Device ID**, both *app functionality*, both **not
+      linked to the user** and **not used for tracking** (RevenueCat processes purchases). Must match
+      `ios/App/App/PrivacyInfo.xcprivacy` and `docs/privacy/` exactly — see
+      `appstore/REVENUECAT_SETUP.md`
 - [ ] Description / what's-new pasted **from `appstore/localizations/`**, not from the .md files
 
 ---

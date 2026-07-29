@@ -245,11 +245,19 @@ Gambling and Contests · Sexual Content · Graphic Sexual Content · **Simulated
 
 ---
 
-## 8. App Privacy ("Data Not Collected")
+## 8. App Privacy (Purchase History + Device ID, app functionality)
 
-App Store Connect → **App Privacy** → "Do you collect data from this app?" → **No**.
-The app has no backend, no analytics, no ad SDK, no login. All state lives in on-device
-`localStorage`. Confirm "Data Not Collected" for every category.
+App Store Connect → **App Privacy** → "Do you collect data from this app?" → **Yes**, then declare
+exactly two types, both **App Functionality**, both **not linked to the user** and **not used for
+tracking**:
+
+| Data type | Purpose |
+|---|---|
+| **Purchase History** | Entitlement validation and restore |
+| **Device ID** | The anonymous RevenueCat install identifier a purchase is restored against |
+
+The game has no backend, no analytics, no ad SDK, no login — saves, settings and statistics live in
+on-device `localStorage` and never leave the device. Everything else is **not collected**.
 
 **`PrivacyInfo.xcprivacy`** (add to the iOS target):
 
@@ -257,7 +265,9 @@ The app has no backend, no analytics, no ad SDK, no login. All state lives in on
 |---|---|
 | `NSPrivacyAccessedAPICategoryUserDefaults` | `CA92.1` — store user's app settings (game save) |
 
-No tracking, no other required-reason APIs, no third-party SDKs.
+No tracking (`NSPrivacyTracking` is false) and no other required-reason APIs. RevenueCat is the only
+third-party SDK, used solely to process purchases — see `REVENUECAT_SETUP.md` §8. These answers must
+match `ios/App/App/PrivacyInfo.xcprivacy` and `docs/privacy/` exactly.
 
 ---
 
@@ -267,7 +277,8 @@ No tracking, no other required-reason APIs, no third-party SDKs.
 Thanks for reviewing Silicon: Tech Tycoon.
 
 TESTING
-No account or login. Fully offline. On first launch, tap "Found Silicon"
+No account or login. The game itself runs fully offline; only purchases
+need a network connection. On first launch, tap "Found Silicon"
 to start a company; the coach tips can be skipped to reach the main loop.
 The game is complete and winnable without any purchase.
 
@@ -307,9 +318,11 @@ GitHub Pages or Netlify Drop (see WHAT_YOU_NEED_TO_DO.md Step 1) and paste the r
 
 Minimum privacy policy text (already in `public/privacy.html`):
 ```text
-Silicon: Tech Tycoon does not collect, transmit, or share any personal data.
-All progress is stored locally on your device. No account, no server, no analytics.
-No data leaves your device. Questions: isacmolin@gmail.com
+Silicon: Tech Tycoon does not track you and does not sell or share personal data.
+All progress is stored locally on your device — your saves never leave it. No account,
+no analytics. Purchases are processed by Apple and by RevenueCat, which records this
+install's purchase history against an anonymous identifier so purchases can be validated
+and restored. Questions: isacmolin@gmail.com
 ```
 
 ---
@@ -397,7 +410,8 @@ Metadata is only ~half of ASO — Apple ranks on relevance **and** conversion + 
 - [ ] Price **Free**, all countries, Small Business Program enrolled
 - [ ] Silicon Pro group + 3 products attached to the version and sandbox-tested
 - [ ] Age rating completed → 4+
-- [ ] App Privacy = "Data Not Collected"; `PrivacyInfo.xcprivacy` added
+- [ ] App Privacy = Purchase History + Device ID (app functionality, not linked, not used for
+      tracking), matching `PrivacyInfo.xcprivacy` and `docs/privacy/`; `PrivacyInfo.xcprivacy` added
 - [ ] Privacy + Support URLs live and pasted
 - [ ] 10 screenshots (6.7") uploaded in the §11 order — `01-vault.png` first
 - [ ] **App preview video transcoded and watched through.** `app-store-video/` ships the 1.2.0 cut as

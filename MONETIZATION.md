@@ -303,7 +303,12 @@ modes, each with a test:
   went public" ceremony and its epilogue are Pro-only. That is intentional (it is the payoff), but
   it means the free tier's ending is open-ended rather than climactic. If free retention proves
   weak, giving free players a *smaller* terminal beat is a better fix than moving the wall.
-- **No analytics.** The App Privacy declaration is "Data Not Collected" and there is no third-party
-  SDK — a real selling point, and the reason there is no `track()` call anywhere in this code. The
-  funnel therefore has to be tuned from App Store Connect's own subscription reports, which are
-  aggregate and delayed. That is a deliberate trade of measurement for the privacy claim.
+- **No analytics.** There is no analytics, advertising or attribution SDK, no tracking and no
+  accounts — a real selling point, and the reason there is no `track()` call anywhere in this code.
+  The one third-party SDK is RevenueCat, used only to process purchases, which is why App Privacy
+  declares Purchase History + an anonymous Device ID (both *app functionality*, not linked, not used
+  for tracking; `NSPrivacyTracking` stays false). The game's own data — saves, settings, statistics —
+  still never leaves the device. The funnel therefore has to be tuned from App Store Connect's and
+  RevenueCat's own subscription reports, which are aggregate and delayed. That is a deliberate trade
+  of measurement for the privacy claim. Setup and the exact privacy answers:
+  `appstore/REVENUECAT_SETUP.md`.

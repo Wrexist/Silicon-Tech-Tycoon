@@ -25,6 +25,8 @@ Read `MONETIZATION.md` for the model and `appstore/SUBSCRIPTION_GUIDE.md` for th
 | Trial-ending + billing-failure strips | `src/components/ProNudge.tsx` |
 | The Time Machine (the Pro feature that justifies recurring billing) | `src/state/timeMachine.ts` |
 | Native StoreKit 2 | `ios/App/App/SiliconStoreKit.swift` |
+| RevenueCat inside that plugin (SPM, not the CocoaPods-only Capacitor plugin) | `ios/App/App/SiliconStoreKit+RevenueCat.swift` · `RevenueCatConfig.swift` · `appstore/REVENUECAT_SETUP.md` |
+| App Privacy manifest — must stay in step with the purchase backend | `ios/App/App/PrivacyInfo.xcprivacy` · `docs/privacy/` |
 | Tests | `pro.test.ts` · `proGates.test.ts` · `proStore.test.ts` · `paywall.test.ts` · `founderIntent.test.ts` · `timeMachine.test.ts` |
 
 ## Six rules that must never be broken
@@ -127,6 +129,15 @@ Run this whenever the paywall changed. Each line is a real rejection someone has
 - [ ] Purchase completes ⇒ the interrupted action resumes (`onUnlocked`)
 - [ ] Restore on a fresh install recovers the subscription
 - [ ] Settings → Manage subscription opens Apple's native sheet
+
+**Privacy — re-check whenever the purchase backend changes:**
+- [ ] `PrivacyInfo.xcprivacy`, App Store Connect → App Privacy, and `docs/privacy/` all say the same
+      thing: **Purchase History + Device ID**, app functionality, not linked, not used for tracking,
+      `NSPrivacyTracking` false — because RevenueCat processes purchases
+- [ ] No doc still claims "Data Not Collected" or "no third-party SDKs"; the true line is *no
+      tracking, no analytics, no accounts, and the game's saves never leave the device*
+- [ ] If RevenueCat is ever switched off (`RevenueCatConfig.forceStoreKit2 = true`), all three revert
+      together — over-declaring is not "safe" either
 
 **Always:**
 - [ ] `npm test` green — including the determinism pin

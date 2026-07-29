@@ -218,8 +218,12 @@ Back in App Store Connect → **TestFlight**:
 In App Store Connect → your app → **App Privacy**:
 
 1. Click **Get Started**
-2. "Do you collect data from this app?" → **No**
-3. Save
+2. "Do you collect data from this app?" → **Yes** — purchases go through RevenueCat
+3. Declare exactly two types, both **App Functionality**, both **not linked to the user** and
+   **not used for tracking**: **Purchase History** and **Device ID**. Nothing else is collected —
+   no analytics, no tracking, no accounts, and the game's saves never leave the device.
+4. Save — the answers must match `ios/App/App/PrivacyInfo.xcprivacy` and your hosted privacy policy
+   (`docs/privacy/`). Full walkthrough: `appstore/REVENUECAT_SETUP.md`
 
 Back on the 1.0 submission page:
 - Attach the IAP to the version (**only if Step 7 was completed**): scroll to
@@ -244,7 +248,8 @@ Apple typically reviews in **1–3 days**.
       and ship it in a 1.x update; the app hides the purchase UI while unwired)
 - [ ] App archived and uploaded to App Store Connect
 - [ ] Tested on real iPhone via TestFlight
-- [ ] App Privacy declared ("Data Not Collected")
+- [ ] App Privacy declared (Purchase History + Device ID — app functionality, not linked, not used
+      for tracking; matches `PrivacyInfo.xcprivacy` and `docs/privacy/`)
 - [ ] IAP attached to submission (only with Step 7 done — never attach unwired)
 - [ ] Review notes filled in
 - [ ] Submitted for review

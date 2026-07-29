@@ -21,7 +21,7 @@ The base game is a complete, winnable **paid** download ($8.99). No other purcha
 | Family Sharing | **On** (it's non-consumable) |
 | Code seam | `src/state/iap.ts` |
 | Wiring flag | `NATIVE_IAP_WIRED` (top of `iap.ts`) — **`true`** (StoreKit wired) |
-| Native plugin | `ios/App/App/SiliconStoreKit.swift` — StoreKit 2, **no third-party SDK** |
+| Native plugin | `ios/App/App/SiliconStoreKit.swift` — StoreKit 2, wrapped by RevenueCat's native iOS SDK (see `REVENUECAT_SETUP.md`) |
 | Entitlement store | `src/state/entitlements.ts` (+ mirrored to `@capacitor/preferences`) |
 
 ### How the app behaves today (wired)
@@ -95,11 +95,13 @@ wired directly:
 - **Live transactions:** `initIapListeners()` (called from `src/native.ts`) listens for
   Ask-to-Buy / Family-Sharing approvals and grants the entitlement the moment they clear.
 
-> **Why a custom StoreKit 2 plugin and not `cordova-plugin-purchase` / RevenueCat?** The iOS
-> target is **SPM-only** (no CocoaPods, and `Package.swift` is Capacitor-managed), and the
-> app's privacy policy / App Privacy label declare **no third-party SDKs and no data
-> collected**. A first-party StoreKit 2 plugin keeps that true, needs no backend, and is tiny
-> for a single non-consumable.
+> **Why a custom plugin and not `cordova-plugin-purchase` / `@revenuecat/purchases-capacitor`?**
+> The iOS target is **SPM-only** (no CocoaPods, and `Package.swift` is Capacitor-managed), and the
+> Capacitor-6-compatible line of the official RevenueCat plugin ships CocoaPods only. So RevenueCat's
+> native iOS SDK is added via SPM and wrapped inside this same plugin
+> (`SiliconStoreKit+RevenueCat.swift` · `RevenueCatConfig.swift`) — which is why RevenueCat is the
+> app's one third-party SDK, and why App Privacy declares Purchase History + an anonymous Device ID.
+> See `REVENUECAT_SETUP.md`.
 
 ### The only remaining setup (one-time, in Xcode)
 1. Open `ios/App/App.xcodeproj`. Confirm `SiliconStoreKit.swift` is in the **App** target

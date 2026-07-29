@@ -2,15 +2,65 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Silicon: Tech Tycoon collects no data and does no tracking. The only required-reason
-	     API used is UserDefaults (via @capacitor/preferences), to persist this device's own
-	     game save / settings / paid entitlement — reason CA92.1 ("access info from the app itself"). -->
+	<!-- Silicon: Tech Tycoon does no tracking and runs no analytics, advertising or attribution SDK.
+	     The game itself — every save, setting and statistic — never leaves the device.
+
+	     What IS collected: purchases. Silicon Pro is processed through RevenueCat (see
+	     ios/App/App/RevenueCatConfig.swift), which validates receipts server-side and stores this
+	     install's purchase history against an ANONYMOUS, RevenueCat-generated identifier. The app has
+	     no accounts and never asks for a name, an email or a login, so nothing here is linked to a
+	     real-world identity, and none of it is used for tracking.
+
+	       • Purchase History — app functionality (entitlement validation and restore). Not linked to
+	         the user, not used for tracking.
+	       • Device ID — app functionality (the anonymous install identifier that lets a purchase be
+	         restored on this device). Not linked to the user, not used for tracking.
+
+	     ⚠️ These answers must match App Store Connect → App Privacy exactly, and both must match
+	     docs/privacy/. An App Privacy declaration that understates collection is a rejection AND a
+	     policy problem — see MONETIZATION.md §Privacy and appstore/REVENUECAT_SETUP.md §8.
+	     RevenueCat ships its own privacy manifest inside its SPM package (purchase history, app
+	     functionality, not linked, not tracking); this file declares what THIS app collects overall.
+
+	     ⚠️ If RevenueCat is ever switched back off (RevenueCatConfig.forceStoreKit2 = true, or the
+	     package removed), this file must revert to the empty NSPrivacyCollectedDataTypes array and
+	     the App Store Connect answers must revert with it. Over-declaring is not "safe" — it has to
+	     be accurate in both directions.
+
+	     Required-reason API: UserDefaults (via @capacitor/preferences, and RevenueCat's own cache),
+	     to persist this device's own game save / settings / entitlement — reason CA92.1
+	     ("access info from the app itself"). -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>
