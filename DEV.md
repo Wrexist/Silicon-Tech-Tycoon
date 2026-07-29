@@ -86,7 +86,8 @@ Three rules when touching any of this:
 
 Code seams: `state/pro.ts` (entitlement) · `state/proGates.ts` (the free/Pro line, one
 table) · `state/proStore.ts` (StoreKit) · `components/Paywall.tsx` (the ONE purchase
-surface). App Store Connect setup: `appstore/SUBSCRIPTION_GUIDE.md`.
+surface). App Store Connect setup: `appstore/SUBSCRIPTION_GUIDE.md`. Shipping the free
+release itself: `LAUNCH_CHECKLIST.md` (the ordered post-merge runbook).
 
 ## IP discipline
 No real brand/company/product names anywhere (no "iPhone", no real chip names). Fictional
