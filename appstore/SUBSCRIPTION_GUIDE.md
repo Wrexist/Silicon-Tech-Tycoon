@@ -12,6 +12,29 @@ For *why* the model looks like this — the free/Pro line, pricing rationale, th
 
 ---
 
+## The whole thing, in order
+
+Work top to bottom. Steps 1–3 are code/repo work; 4–8 are App Store Connect; 9 is the device test
+that gates submission. Nothing here is optional.
+
+| # | Step | Where | Done when |
+|---|---|---|---|
+| 0 | Merge the PR and let GitHub Pages rebuild | GitHub | `/terms/` loads in a browser |
+| 1 | Confirm the build number vs `FIRST_FREE_BUILD` | Xcode + `pro.ts` | Both read **5** |
+| 2 | Update the App Store description + release notes | `appstore/localizations/` | Validator passes, no "single purchase" claim left |
+| 3 | Build and upload | Xcode | Build 5 (1.3.0) processed in TestFlight |
+| 4 | Set the app price to **Free** | ASC → Pricing | Price schedule shows Free |
+| 5 | Create the subscription group + 2 subscriptions | ASC → Monetization | Both SKUs "Ready to Submit" |
+| 6 | Add the 7-day free trials | ASC → each SKU | Introductory Offer on both |
+| 7 | Create Pro Lifetime (Non-Consumable) | ASC → In-App Purchases | Family Sharing ON |
+| 8 | Legal URLs + grace period | ASC → App Information | Both URLs load; grace period ON |
+| 9 | **Sandbox-test every row on a real device** | iPhone | Every row in the table passes |
+| 10 | Attach all three products, paste review notes, submit | ASC | Submitted |
+
+After launch: win-back offers (§ Win-back) — highest return per hour, and needs no code.
+
+---
+
 ## Key facts
 
 | Thing | Value |
@@ -34,20 +57,85 @@ pricing change.
 
 ---
 
-## Step 0 — Set `FIRST_FREE_BUILD` before you build
+## Step 0 — Merge first, then wait for GitHub Pages
 
-1. In Xcode, note the build number you're about to ship (`CURRENT_PROJECT_VERSION`). The paid era
-   shipped builds **1–4**, so the first free build must be **5 or higher**.
-2. Set `FIRST_FREE_BUILD` in `src/state/pro.ts` to that number.
-3. Never lower it afterwards.
+**Do this before anything else.** The paywall links to
+`https://wrexist.github.io/Silicon-Tech-Tycoon/terms/`, and that page only exists on this branch.
+GitHub Pages serves from `main`, so **until the PR is merged the Terms link is a 404** — and a dead
+legal link in the purchase flow is the single most common Guideline 3.1.2 rejection.
 
-Getting this wrong is silent and expensive in both directions: too low strips Pro from customers who
-paid $8.99, too high hands Pro to every new free download. A test enforces the floor (≥ 5) but
-cannot know your actual build number.
+1. Merge the PR into `main`.
+2. Wait ~1 minute for Pages to rebuild.
+3. Open all three in a browser and confirm they load:
+   - `https://wrexist.github.io/Silicon-Tech-Tycoon/`
+   - `https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/`
+   - `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/`
+
+If Pages isn't enabled yet: repo **Settings → Pages → Deploy from a branch → `main` → `/docs`**
+(see `docs/README.md`).
 
 ---
 
-## Step 1 — Make the app free
+## Step 1 — Confirm the build number matches `FIRST_FREE_BUILD`
+
+**This is the most expensive thing on this page to get wrong.** `isFoundingBuild()` grants permanent
+free Pro to anyone whose ORIGINAL download was a build *below* `FIRST_FREE_BUILD`. If the free build
+ships with a number at or below that line, **every new free downloader is detected as a paid-era
+customer and gets Pro forever, for nothing.**
+
+Already done in this PR — just verify both still read **5**:
+
+| Where | Value | Check |
+|---|---|---|
+| `ios/App/App.xcodeproj` → `CURRENT_PROJECT_VERSION` | `5` | Xcode → target → General → Build |
+| `src/state/pro.ts` → `FIRST_FREE_BUILD` | `5` | `grep FIRST_FREE_BUILD src/state/pro.ts` |
+
+The paid era shipped builds **1–4** (1.0.3→2, 1.1.0→3, 1.2.0→4), so 5 is the first free build.
+Marketing version is now **1.3.0**.
+
+**Rules from here on:** never lower `FIRST_FREE_BUILD`, and never ship a build number below it. Every
+future build just increments `CURRENT_PROJECT_VERSION` and leaves `FIRST_FREE_BUILD` at 5 forever.
+A test enforces the floor (≥ 5) but cannot know your actual Xcode build number — that's this step.
+
+---
+
+## Step 2 — Fix the store copy (a rejection risk if you skip it)
+
+The old description told users the game was *"complete and winnable with a single purchase"* and that
+Creative Mode was *"the only in-app purchase, ever."* Both are now false. Shipping that alongside a
+free app with subscriptions is a **Guideline 2.3.1 (accurate metadata)** rejection.
+
+**English is already rewritten** in this PR:
+- `appstore/localizations/en-US/description.txt` — final section now describes the free tier and
+  Silicon Pro honestly.
+- `appstore/localizations/en-US/release_notes.txt` — new v1.3.0 notes.
+
+**⚠ Still to do: the other 38 locales.** Every `appstore/localizations/*/description.txt` still ends
+with a translated version of the old "single purchase / only in-app purchase, ever" claim, and every
+`release_notes.txt` still carries the v1.2.0 body. Translate the two English files into each locale
+(same tone, same structure), then:
+
+```bash
+node appstore/localizations/validate.mjs --all   # must print ✓ for all 39
+```
+
+If you would rather not translate 38 descriptions right now, the minimum safe move is to **ship
+en-US only for this release** and re-enable the other storefronts once their copy is updated — an
+inaccurate localized description is a rejection in that storefront, not just a typo.
+
+Also worth a pass: screenshot 10 is captioned *"Premium. Complete. Yours."* (`10-premium.png`), which
+now reads oddly next to a Free price. Recaption or replace it.
+
+---
+
+## Step 3 — Build and upload
+
+`npm run build && npx cap sync ios`, then Xcode → **Product → Archive → Distribute App**. Confirm
+TestFlight shows **1.3.0 (5)** before continuing.
+
+---
+
+## Step 4 — Make the app free
 
 App Store Connect → your app → **Pricing and Availability** → Price Schedule → **Free**.
 
@@ -56,7 +144,7 @@ window where you're giving the paid game away.
 
 ---
 
-## Step 2 — Create the subscription group
+## Step 5 — Create the subscription group
 
 **Monetization → Subscriptions → Create** a group:
 
@@ -71,7 +159,7 @@ which is exactly why the paywall asks the store for eligibility instead of assum
 
 ---
 
-## Step 3 — Create the two auto-renewable subscriptions
+## Step 6 — Create the two auto-renewable subscriptions
 
 For each, inside the `silicon_pro` group:
 
@@ -100,7 +188,7 @@ upgrade vs. a downgrade.
 
 ---
 
-## Step 4 — Add the free trials
+## Step 7 — Add the free trials
 
 For **each** recurring SKU → **Subscription Prices → Introductory Offers → Create**:
 
@@ -119,7 +207,7 @@ paywall drops all trial framing automatically; it never invents a trial the stor
 
 ---
 
-## Step 5 — Create the Lifetime purchase
+## Step 8 — Create the Lifetime purchase
 
 **Monetization → In-App Purchases → Create → Non-Consumable.** *Not* inside the subscription group —
 it is a one-time purchase, not a subscription tier.
@@ -135,7 +223,7 @@ it is a one-time purchase, not a subscription tier.
 
 ---
 
-## Step 6 — Legal URLs (required, and reviewers do tap them)
+## Step 9 — Legal URLs and the billing grace period
 
 **App Information:**
 - **License Agreement URL** → `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/`
@@ -148,9 +236,19 @@ here is a rejection, and it's the most common one.
 
 If you use a custom domain later, update the two constants in `Paywall.tsx` at the same time.
 
+### Turn the billing grace period ON — same screen, don't skip it
+
+App Store Connect → **App Information → Billing Grace Period → On** (pick the longest available).
+
+Roughly a third of subscription churn is involuntary: an expired card, a declined charge. With a
+grace period Apple keeps the subscriber entitled while it retries for up to 60 days, and the app
+already detects it (`inGracePeriod`) and shows a quiet "there's a problem with your payment" strip
+that opens the manage-subscription sheet. **Without it turned on, those subscribers silently lose
+access and churn** — and the strip the app ships has nothing to fire on.
+
 ---
 
-## Step 7 — Test in sandbox before you attach anything
+## Step 10 — Test in sandbox before you attach anything
 
 On a real device (the simulator can't do StoreKit sandbox properly):
 
@@ -176,7 +274,7 @@ also how you test the lapse path: let one expire and confirm gates re-lock.
 
 ---
 
-## Step 8 — Submit
+## Step 11 — Submit
 
 1. Attach **all three** products to the version.
 2. **App Review Information → Notes** — paste something like:
@@ -206,7 +304,7 @@ also how you test the lapse path: let one expire and confirm gates re-lock.
 
 ---
 
-## Step 9 — Win-back offers (after launch, no code required)
+## Win-back offers (after launch, no code required)
 
 Once you have your first churned subscribers, configure **Win-Back Offers** on each recurring SKU
 (App Store Connect → the subscription → Win-Back Offers → Create). Apple decides eligibility and
@@ -223,15 +321,34 @@ states a price the store didn't give us.
 app's own purchase flow too. Not wired — the store-side version needs no code and carries no risk of
 showing an ineligible user a price they can't have.)*
 
-## Grace period — turn it on
+## Go / no-go — the last read before you hit Submit
 
-App Store Connect → **App Information → Billing Grace Period → On** (choose the longest available).
+Every line here is a real rejection or a real revenue leak. None are theoretical.
 
-Roughly a third of subscription churn is involuntary: an expired card, a declined charge. With a
-grace period Apple keeps the subscriber entitled while it retries for up to 60 days, and the app
-already detects it (`inGracePeriod`) and shows a quiet "there's a problem with your payment" strip
-that opens the manage-subscription sheet. Without the grace period turned on, those subscribers just
-silently lose access and churn.
+**Will lose money if wrong**
+- [ ] Xcode build number is **5**, `FIRST_FREE_BUILD` is **5** (Step 1)
+- [ ] App price set to **Free** — and set *with* this submission, not before
+- [ ] Billing grace period **ON**
+- [ ] Legacy `com.wrexist.silicon.sandbox` still live in ASC (deleting it breaks restores)
+
+**Will get rejected if wrong**
+- [ ] `/terms/` and `/privacy/` both load in a browser *right now* (Step 0)
+- [ ] License Agreement URL + Privacy Policy URL filled in under App Information
+- [ ] Description no longer claims "single purchase" or "only in-app purchase, ever" (Step 2)
+- [ ] All three products attached to the version, and all three tested in sandbox (Step 10)
+- [ ] App Review notes pasted (Step 11)
+
+**Confirmed on a device, not assumed**
+- [ ] Prices shown are the store's localized strings, not `$19.99` from the fallback
+- [ ] Cancelling the StoreKit sheet shows **no** error
+- [ ] Airplane mode + active subscription ⇒ Pro still works
+- [ ] Restore recovers the subscription on a fresh install
+
+**Repo state**
+- [ ] `npm test` green (determinism pin included), `npm run typecheck` clean
+- [ ] `node appstore/localizations/validate.mjs --all` prints ✓ for every locale you are shipping
+
+---
 
 ## After launch
 

@@ -99,8 +99,11 @@ Develop a deep tech tree over time on a live progress ring — queue your next b
 BUILD A TEAM AND HQ
 Hire engineers, designers and marketers — each with a specialty, a trait and a mood that moves their output. Senior staff grow into mentors and masters. Watch your real-time 3D headquarters fill with life from garage to campus.
 
-PREMIUM. OFFLINE. YOURS.
-No ads. No timers. No energy. No currencies. No dark patterns. The base game is complete and winnable with a single purchase, and it works fully offline. One optional Creative Mode sandbox is the only in-app purchase, ever.
+FREE TO PLAY. NO DARK PATTERNS.
+No ads. No timers. No energy. No currencies. No loot boxes. Design devices, read the market and grow your company through the Garage and Growth eras for free, with a fresh seeded challenge every day, fully offline.
+
+SILICON PRO
+An optional subscription opens the rest of the industry: the Platform and AI eras, every scenario, New Game+ and Ascension, the Platform Division, Creative Mode, the Vault and the Device Museum, and the Time Machine that rewinds your company to any of the last five quarters. Monthly or yearly with a free trial, or buy it once with Pro Lifetime. Nothing you can buy changes the simulation in your favour.
 
 Found your company. Ship something great. Run the industry.
 ```
@@ -108,11 +111,25 @@ Found your company. Ship something great. Run the industry.
 
 ---
 
-## 5. What's New (release notes for v1.2.0)
+## 5. What's New (release notes for v1.3.0)
 
 > The canonical copy lives in `appstore/localizations/en-US/release_notes.txt` and is translated into
 > all 39 ASC locales alongside it — **paste from there, not from here**, and run
 > `node appstore/localizations/validate.mjs --all` before uploading. Reproduced below for review.
+
+```text
+Silicon is now free to play — and there's a Time Machine.
+
+• Free to download, free to play. The whole design → launch → read-the-market → reinvest loop, the Garage and Growth eras start to finish, two scenarios, and a fresh seeded challenge every single day. Still no ads, no timers, no energy, no currencies, no loot boxes. That part is never changing.
+• Silicon Pro, if you want the rest: the Platform and AI eras, every scenario, New Game+ and the Ascension ladder, the Platform Division, Creative Mode, the Vault, the Device Museum, Category Mastery and your Founder Legend. Monthly or yearly with a free trial, or Pro Lifetime if you would rather own it once and be done.
+• The Time Machine. Pro quietly snapshots your company every quarter and keeps the last five. One catastrophic launch, one over-hired year, one factory bought at the wrong moment — rewind and take the other road. Campaign only: scenarios and challenges stay scored on their own terms.
+• Already bought Silicon? It's yours forever. Everyone who paid for the app before it went free is recognised automatically and granted Founding Owner — all of Pro, permanently, at no further cost. The separate Creative Mode unlock stays yours too.
+• Nothing you can buy changes the simulation in your favour. Pro unlocks content and modes, never an advantage inside a run.
+
+A founding brief at the start now asks what you're here to build, and the game leads with that.
+```
+
+**Previous release notes (v1.2.0)**
 
 ```text
 A fifth era, a hidden layer, and a company that finally answers back.

@@ -1,5 +1,7 @@
-// In-app purchases — the single v1 IAP: the Sandbox / Creative-mode unlock. The base game is a
-// paid premium download (App Store handles that), so the only purchase code is this one unlock.
+// The LEGACY purchase path: the standalone Sandbox / Creative-mode unlock, sold while the app was a
+// paid download. It is kept wired so everyone who bought it keeps it and can still restore it — the
+// app no longer OFFERS it (Creative Mode now travels with Silicon Pro). New purchases go through
+// `proStore.ts`; do not add anything to this file.
 //
 // This module is the seam between the UI and the platform store. The WEB build (PWA / dev preview)
 // is not a sales channel, so it simulates a successful purchase for testing. The iOS build routes
