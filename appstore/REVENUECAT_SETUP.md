@@ -55,6 +55,61 @@ dashboard exists.
 
 ---
 
+## 0b. WHAT IS ALREADY DONE
+
+The dashboard was configured on **29 July 2026**. You do not need to redo §2–§5 — they are kept as a
+record of what was set and why. Verify against this table if anything ever looks wrong:
+
+| Thing | Value |
+|---|---|
+| RevenueCat project | `Silicon: Tech Tycoon` — id `78cb2b78` |
+| App configuration | `Silicon: Tech Tycoon (App Store)` — id `app706e1b1a3d` |
+| Bundle ID | `com.wrexist.silicon` |
+| In-App Purchase key | `75QF6982M6` — **reused** from Dynasty Manager iOS |
+| App Store Connect API key | `6G4R6WL94Y` — **reused** from Dynasty Manager iOS |
+| Issuer ID | `47a0adf3-7006-447c-8543-48214a1a243d` |
+| Products | all 4 **imported from App Store Connect**, not hand-typed |
+| Entitlement | `pro` ("Silicon Pro") → yearly + monthly + lifetime. **Creative Mode NOT attached** |
+| Offering | `default` ("Silicon Pro plans") → `$rc_annual`, `$rc_monthly`, `$rc_lifetime` |
+| Public SDK key | `appl_jsQcYdrdXfaErHQdTjnUbKvqOVT` — already in `RevenueCatConfig.swift` |
+
+**Why the keys were reused rather than generated.** Both existing keys carry the same Issuer ID, so
+they belong to the same Apple Developer account as this app — an App Store Connect key is
+account-wide, not per-app. Reusing one avoided generating and handling a fresh `.p8` secret, and it
+sidesteps the RevenueCat incident that was live that day ("Newly created apps error with *The key is
+not valid or is not compatible with the Bundle ID of your app*"), which affects freshly-uploaded
+keys. The App Store Connect key was proved working immediately: the product import below succeeded
+and returned all four real product identifiers.
+
+### Left deliberately unset
+
+| Field | Why |
+|---|---|
+| **App-specific shared secret** | Legacy. Superseded by the In-App Purchase key under StoreKit 2. Set it only if you later downgrade to StoreKit 1. |
+| **Vendor number** | Only affects RevenueCat's financial-report reconciliation. Find it top-left of App Store Connect → Payments and Financial Reports if you want charts to reconcile to the cent. |
+| **Apple Small Business Program start date** | Only affects net-revenue maths in Charts. Set it to your enrolment date if you are enrolled — otherwise RevenueCat assumes the 30% rate and understates your net. |
+| **Webhooks / integrations** | Nothing is required. See §9. |
+
+### ⚠️ One thing found that blocks selling — fix this in App Store Connect
+
+The product import reported the live App Store Connect state of each product:
+
+| Product | State |
+|---|---|
+| `com.wrexist.silicon.sandbox` | ✅ Approved |
+| `com.wrexist.silicon.pro.monthly` | ⚠️ **Missing Metadata** |
+| `com.wrexist.silicon.pro.yearly` | ⚠️ **Missing Metadata** |
+| `com.wrexist.silicon.pro.lifetime` | ⚠️ **Missing Metadata** |
+
+"Missing Metadata" means those three are **not submittable and not sellable**. Apple typically wants
+a localized display name and description, a price, and — for the first subscription submitted — a
+review screenshot and review notes. This is unrelated to RevenueCat and would have blocked the
+launch either way. Fix it in App Store Connect → your app → **Subscriptions** / **In-App Purchases**
+before device testing (§11), because a product in that state will not return a price and every row
+will render as unavailable.
+
+---
+
 ## 1. Before you start
 
 - [ ] App Store Connect already has all four products live or in "Ready to Submit"

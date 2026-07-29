@@ -48,9 +48,12 @@ enum RevenueCatConfig {
     /// The **public** SDK key (`appl_…`). Public keys are designed to be embedded in the client and
     /// are safe in source control; the **secret** key must NEVER enter this repo.
     ///
-    /// Preferred: set `RevenueCatPublicAPIKey` in `Info.plist` (or via an xcconfig) so the key is
-    /// configuration rather than code. The constant below is the fallback for a plain checkout.
-    private static let builtInPublicAPIKey = ""
+    /// Set `RevenueCatPublicAPIKey` in `Info.plist` (or via an xcconfig) to override it per build —
+    /// useful if a second RevenueCat project is ever added. The constant below is the default.
+    ///
+    /// Project: `Silicon: Tech Tycoon` (`78cb2b78`) · App: `Silicon: Tech Tycoon (App Store)`
+    /// (`app706e1b1a3d`), bundle id `com.wrexist.silicon`.
+    private static let builtInPublicAPIKey = "appl_jsQcYdrdXfaErHQdTjnUbKvqOVT"
 
     /// Resolved key: Info.plist wins, then the built-in constant. Empty means "not configured", and
     /// an unconfigured app deliberately stays on StoreKit 2 rather than half-initialising a store.
