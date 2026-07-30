@@ -100,18 +100,14 @@ jobs:
         # capacitor.config.json / config.xml the Xcode target expects.
         run: npx cap sync ios
 
-      - name: Select latest Xcode
-        # The runner's default Xcode isn't necessarily the newest one installed on the image, and
-        # `AppTransaction.jwsRepresentation` (used for refund verification in SiliconStoreKit.swift)
-        # needs a recent-enough SDK to exist at all — pin to whichever Xcode is actually newest
-        # rather than guessing a version number that will go stale as the runner image updates.
-        run: |
-          LATEST_XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
-          if [ -n "$LATEST_XCODE" ]; then
-            sudo xcode-select -s "$LATEST_XCODE/Contents/Developer"
-          fi
-
       - name: Show Xcode version
+        # Deliberately uses the runner image's DEFAULT Xcode. An earlier revision auto-selected the
+        # newest `/Applications/Xcode_*.app`, added on the theory that
+        # `AppTransaction.jwsRepresentation` needed a newer SDK. That theory was wrong:
+        # `jwsRepresentation` is declared on `VerificationResult`, not on `AppTransaction`, so it
+        # exists at no SDK version and the build failed identically on the newest Xcode. Selecting
+        # "whatever is newest" also makes the toolchain non-reproducible across runner-image
+        # updates, so it is not worth keeping as a no-op safety net.
         run: |
           xcodebuild -version
           xcode-select -p
