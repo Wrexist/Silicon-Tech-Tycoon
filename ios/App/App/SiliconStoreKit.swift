@@ -403,7 +403,8 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     /// `AppTransaction` (unlike `Transaction`) carries no `revocationDate` — it describes the
     /// original download, not entitlement/refund state, so on-device alone this cannot tell a
     /// refunded paid-era purchase from a legitimate one. `RefundVerifyConfig` closes that gap: the
-    /// app's signed `AppTransaction` (its `jwsRepresentation`) is sent to a small backend endpoint
+    /// app's signed `AppTransaction` (the `jwsRepresentation` off its enclosing
+    /// `VerificationResult`) is sent to a small backend endpoint
     /// that asks Apple's App Store Server API for the authoritative revocation status — the one
     /// place that actually has it. A network failure there fails OPEN (keeps today's behaviour,
     /// same as every other "can't tell right now" path in this file) — it is never a reason to
@@ -420,7 +421,10 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 // handles a "1.2.0"-style value.
                 if appTransaction.environment == .production,
                    let build = Int(raw.split(separator: ".").first.map(String.init) ?? raw) {
-                    let revoked = await RefundVerifyConfig.isRevoked(jws: appTransaction.jwsRepresentation)
+                    // NB: `jwsRepresentation` belongs to `VerificationResult`, NOT to the
+                    // `AppTransaction` it wraps — so it reads off `result`, not `appTransaction`.
+                    // (Getting this wrong is a compile error, not an SDK-version problem.)
+                    let revoked = await RefundVerifyConfig.isRevoked(jws: result.jwsRepresentation)
                     if !revoked {
                         payload["originalBuild"] = build
                     }
