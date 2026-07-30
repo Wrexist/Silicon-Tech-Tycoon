@@ -251,14 +251,17 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
           <X size={16} />
         </button>
 
-        {/* Pitch scrolls; the purchase controls below are pinned, so the billed price, the CTA and
-            the Terms / Privacy / Restore links are on screen at every viewport height. A reviewer
-            who has to scroll to find them is a reviewer who reports them missing. */}
+        {/* ONE continuous scroll: pitch, then proof, then what you unlock, then the plans. The
+            player meets the argument in reading order and the benefit list is never clipped.
+            Only the purchase bar below is pinned — the billed amount, the CTA and the way out are
+            on screen at every viewport height and at every scroll position. */}
         <div className="pwl__scroll">
-          <div className="pwl__glyph" aria-hidden><Crown size={24} strokeWidth={2} /></div>
-          <span className="pwl__eyebrow">{copy.eyebrow}</span>
-          <h2 className="pwl__title" id="pwl-title">{copy.title}</h2>
-          <p className="pwl__body">{copy.body}</p>
+          <div className="pwl__hero">
+            <div className="pwl__glyph" aria-hidden><Crown size={26} strokeWidth={2} /></div>
+            <span className="pwl__eyebrow">{copy.eyebrow}</span>
+            <h2 className="pwl__title" id="pwl-title">{copy.title}</h2>
+            <p className="pwl__body">{copy.body}</p>
+          </div>
 
           {/* Proof, counted from the real content tables rather than typed in. A sim player's first
               question is "how much game is there?", and this answers it with numbers that cannot
@@ -272,20 +275,24 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
             ))}
           </div>
 
-          <ul className="pwl__benefits">
-            {benefits.map((b) => (
-              <li key={b.title} className="pwl__benefit">
-                <span className="pwl__tick" aria-hidden><Check size={10} strokeWidth={3.4} /></span>
-                <span className="pwl__benefit-text">
-                  <strong>{b.title}</strong>
-                  <small>{b.body}</small>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+          {/* The actual value proposition, given room to be read. Framed as a panel so it reads as
+              "here is the thing you are buying" rather than as filler between the title and the
+              price. Same eight promises for everyone — intent reorders them, never edits them. */}
+          <div className="pwl__unlock">
+            <h3 className="pwl__unlock-head">Everything Pro unlocks</h3>
+            <ul className="pwl__benefits">
+              {benefits.map((b) => (
+                <li key={b.title} className="pwl__benefit">
+                  <span className="pwl__tick" aria-hidden><Check size={11} strokeWidth={3.4} /></span>
+                  <span className="pwl__benefit-text">
+                    <strong>{b.title}</strong>
+                    <small>{b.body}</small>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        <div className="pwl__foot">
         {loading && (
           <div className="pwl__loading" role="status">Contacting the App Store…</div>
         )}
@@ -355,48 +362,74 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
               })}
             </div>
 
-            <p className="pwl__summary">{billingSummary}</p>
-
-            <Button block onClick={buy} disabled={busy != null || !current}>
-              {busy === "buy" ? (
-                "Processing…"
-              ) : trialOnSelected ? (
-                <><Sparkles size={16} aria-hidden /> Start free trial</>
-              ) : (
-                <><Sparkles size={16} aria-hidden /> Continue — {current ? `${current.offer.price}${current.product.billingSuffix}` : ""}</>
-              )}
-            </Button>
-
-            {trialOnSelected && (
-              <p className="pwl__reassure">
-                <Check size={12} aria-hidden /> No payment due now · cancel any time
-              </p>
-            )}
           </>
         )}
 
-        <button className="pwl__skip" onClick={dismiss} disabled={busy != null}>
-          {req.reason === "onboarding" ? "Not now — start building for free" : "Maybe later"}
-        </button>
-
-        <div className="pwl__legal">
-          <button className="pwl__legal-link" onClick={restore} disabled={busy != null}>
-            <RefreshCw size={11} aria-hidden className={busy === "restore" ? "pwl__spin" : undefined} />
-            {busy === "restore" ? "Restoring…" : "Restore Purchases"}
-          </button>
-          <span aria-hidden>·</span>
-          <a className="pwl__legal-link" href={TERMS_URL} target="_blank" rel="noopener noreferrer">Terms of Use</a>
-          <span aria-hidden>·</span>
-          <a className="pwl__legal-link" href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+          <p className="pwl__fineprint">
+            Payment is charged to your Apple ID at confirmation of purchase. Subscriptions renew
+            automatically unless cancelled at least 24 hours before the end of the current period;
+            your account is charged for renewal within 24 hours of the period ending. Manage or
+            cancel in Settings → Apple ID → Subscriptions. Any unused portion of a free trial is
+            forfeited when a subscription is purchased.
+          </p>
         </div>
 
-        <p className="pwl__fineprint">
-          Payment is charged to your Apple ID at confirmation of purchase. Subscriptions renew
-          automatically unless cancelled at least 24 hours before the end of the current period;
-          your account is charged for renewal within 24 hours of the period ending. Manage or cancel
-          in Settings → Apple ID → Subscriptions. Any unused portion of a free trial is forfeited
-          when a subscription is purchased.
-        </p>
+        {/* Pinned purchase bar. Deliberately kept to the four things that must never scroll away:
+            what you'll be charged, the button that charges it, the way out, and Restore / Terms /
+            Privacy. Everything else — including the long disclosure — lives in the scroll above, so
+            this bar stays short enough to leave the pitch real room. */}
+        <div className="pwl__cta">
+          {!loading && !unavailable && (
+            <>
+              <p className="pwl__summary">{billingSummary}</p>
+
+              {/* Two lines: the hook, then the thing that actually blocks the tap. On the trial the
+                  objection is "am I about to be charged?", so the answer sits inside the button
+                  rather than a line below it that the thumb has already covered. On a paid plan the
+                  second line is the price itself, straight from the store — never a formatted
+                  string, so it stays correct in every currency. */}
+              <Button block onClick={buy} disabled={busy != null || !current}>
+                {busy === "buy" ? (
+                  <span className="pwl__cta-label">Processing…</span>
+                ) : trialOnSelected ? (
+                  <>
+                    <Sparkles size={16} aria-hidden />
+                    <span className="pwl__cta-label">
+                      <span>Start {trialLabel} free</span>
+                      <span className="pwl__cta-sub">Nothing to pay today · cancel any time</span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} aria-hidden />
+                    <span className="pwl__cta-label">
+                      <span>Unlock Silicon Pro</span>
+                      {current && (
+                        <span className="pwl__cta-sub">
+                          {current.offer.price}{current.product.billingSuffix}
+                        </span>
+                      )}
+                    </span>
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+
+          <button className="pwl__skip" onClick={dismiss} disabled={busy != null}>
+            {req.reason === "onboarding" ? "Not now — start building for free" : "Maybe later"}
+          </button>
+
+          <div className="pwl__legal">
+            <button className="pwl__legal-link" onClick={restore} disabled={busy != null}>
+              <RefreshCw size={11} aria-hidden className={busy === "restore" ? "pwl__spin" : undefined} />
+              {busy === "restore" ? "Restoring…" : "Restore Purchases"}
+            </button>
+            <span aria-hidden>·</span>
+            <a className="pwl__legal-link" href={TERMS_URL} target="_blank" rel="noopener noreferrer">Terms of Use</a>
+            <span aria-hidden>·</span>
+            <a className="pwl__legal-link" href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+          </div>
         </div>
       </div>
     </div>
