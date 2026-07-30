@@ -12,7 +12,12 @@
 	     real-world identity, and none of it is used for tracking.
 
 	       • Purchase History — app functionality (entitlement validation and restore). Not linked to
-	         the user, not used for tracking.
+	         the user, not used for tracking. Two collectors, same purpose: RevenueCat (above), and
+	         (for legacy paid-era "Founding Owner" grants only) this app's own tiny stateless backend
+	         at silicon-refund-verify.vercel.app, which relays the device's signed AppTransaction
+	         receipt to Apple's App Store Server API to confirm that original purchase was never
+	         refunded — see ios/App/App/RefundVerifyConfig.swift. No account, no stored profile: the
+	         backend does not persist anything, it forwards the receipt to Apple and returns yes/no.
 	       • Device ID — app functionality (the anonymous install identifier that lets a purchase be
 	         restored on this device). Not linked to the user, not used for tracking.
 

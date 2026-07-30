@@ -104,4 +104,17 @@ celebration style — leave them as-is.
   Privacy answers, and `docs/privacy/` + `public/privacy.html` must always agree — and must revert
   together if `RevenueCatConfig.forceStoreKit2` is ever flipped back. Still true and worth saying:
   no tracking, no analytics, no ads, no accounts, and the game's own data never leaves the device.
+- **One narrow exception to "no backend": refund verification for legacy paid-era owners.**
+  `AppTransaction` has no `revocationDate` (only `Transaction` does), and the app's own paid-era
+  purchase never appears in `Transaction.currentEntitlements`/`.all` — there is no on-device signal
+  for "was the app itself refunded." `ios/App/App/RefundVerifyConfig.swift` sends the signed
+  `AppTransaction` (its `jwsRepresentation`) to a small stateless Vercel function
+  (`silicon-refund-verify`, source in that project, not this repo) that holds an App Store Connect
+  API key and asks Apple's App Store Server API for the authoritative answer. The function stores
+  nothing and answers only `{ revoked: bool }`; a network failure fails OPEN (never revokes on an
+  ambiguous result, same as every other check in `SiliconStoreKit.swift`). This only fires for
+  production paid-era `originalPurchase()` calls — RevenueCat/subscription/lifetime paths are
+  unaffected and still fully on-device-to-RevenueCat. Any change to this flow must keep
+  `PrivacyInfo.xcprivacy` / `docs/privacy/` / `public/privacy.html` in sync, same rule as RevenueCat
+  above.
 - Run `npm test` (Vitest) before committing; keep the determinism pin green.

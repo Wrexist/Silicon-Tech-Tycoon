@@ -401,8 +401,13 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     /// reported for diagnostics; only the entitling number is withheld.
     ///
     /// `AppTransaction` (unlike `Transaction`) carries no `revocationDate` — it describes the
-    /// original download, not entitlement/refund state — so a refund check has no home here;
-    /// the existing `isEntitled` current-entitlement check is what actually excludes refunded users.
+    /// original download, not entitlement/refund state, so on-device alone this cannot tell a
+    /// refunded paid-era purchase from a legitimate one. `RefundVerifyConfig` closes that gap: the
+    /// app's signed `AppTransaction` (its `jwsRepresentation`) is sent to a small backend endpoint
+    /// that asks Apple's App Store Server API for the authoritative revocation status — the one
+    /// place that actually has it. A network failure there fails OPEN (keeps today's behaviour,
+    /// same as every other "can't tell right now" path in this file) — it is never a reason to
+    /// revoke a legitimate owner's access; only an explicit `revoked: true` withholds the grant.
     @objc func originalPurchase(_ call: CAPPluginCall) {
         guard #available(iOS 16.0, *) else { return call.resolve([:]) }
         Task {
@@ -415,7 +420,10 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 // handles a "1.2.0"-style value.
                 if appTransaction.environment == .production,
                    let build = Int(raw.split(separator: ".").first.map(String.init) ?? raw) {
-                    payload["originalBuild"] = build
+                    let revoked = await RefundVerifyConfig.isRevoked(jws: appTransaction.jwsRepresentation)
+                    if !revoked {
+                        payload["originalBuild"] = build
+                    }
                 }
                 call.resolve(payload)
             } catch {
