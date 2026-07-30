@@ -390,7 +390,7 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
                   string, so it stays correct in every currency. */}
               <Button block onClick={buy} disabled={busy != null || !current}>
                 {busy === "buy" ? (
-                  "Processing…"
+                  <span className="pwl__cta-label">Processing…</span>
                 ) : trialOnSelected ? (
                   <>
                     <Sparkles size={16} aria-hidden />

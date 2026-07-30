@@ -56,9 +56,7 @@
 
 /* The whole pitch scrolls as ONE document — pitch, proof, what-you-unlock, then the plans — so the
    benefit list is never sliced and the argument arrives in reading order. `min-height: 0` is what
-   allows it to shrink instead of pushing the pinned bar off the card.
-   No bottom mask here: the fade used to eat the last line of real copy, and the pinned bar's top
-   rule already reads as "the content continues under this". */
+   allows it to shrink instead of pushing the pinned bar off the card. */
 .pwl__scroll {
   width: 100%; min-height: 0; flex: 1 1 auto; overflow-y: auto;
   display: flex; flex-direction: column; align-items: center;
@@ -260,10 +258,16 @@
 .pwl__cta-label {
   display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
   line-height: 1.15;
+  /* Holds two lines' worth of height even when the label is one line (Processing…, or a paid plan
+     before the store has answered). Without it the button shrinks mid-purchase and the whole pinned
+     bar jumps under the player's thumb exactly as the StoreKit sheet appears. */
+  min-height: 34px; justify-content: center;
 }
+/* Quieter than the headline verb and than the plan row's billed amount — but on a paid plan this
+   line IS the charge, so it stays plainly legible rather than decorative. */
 .pwl__cta-sub {
   font-size: var(--fs-nano); font-weight: 600; letter-spacing: 0;
-  opacity: 0.82;
+  opacity: 0.92;
 }
 
 /* Always present, never shouty: the way out has to be findable (a free app you can't get past
@@ -278,13 +282,18 @@
 .pwl__skip:disabled { opacity: 0.4; cursor: default; }
 
 /* ---------- legal ---------- */
-/* One line, always. Wrapping "Privacy Policy" onto a second row cost the pitch ~22px of height and
-   made the two links look like different classes of thing. */
+/* One line wherever it fits — wrapping "Privacy Policy" onto a second row costs ~22px and makes the
+   two links look like different classes of thing. But the ROW may still break when it genuinely
+   cannot fit (a long localization, a large accessibility text size), because `.pwl__card` is
+   `overflow: hidden`: a hard `nowrap` here would silently CLIP Restore / Terms / Privacy, and those
+   three are App Review requirements. Losing 22px is always better than losing a required link. */
 .pwl__legal {
   margin-top: var(--sp-8);
-  display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: var(--sp-6);
-  font-size: var(--fs-micro); color: var(--ink-3); white-space: nowrap;
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px var(--sp-6);
+  font-size: var(--fs-micro); color: var(--ink-3);
 }
+/* Each item stays intact; only the row between them may break. */
+.pwl__legal > * { white-space: nowrap; }
 .pwl__legal-link {
   display: inline-flex; align-items: center; gap: 4px;
   background: none; border: 0; padding: 0; cursor: pointer;
@@ -308,12 +317,15 @@
    The pinned bar is non-negotiable — billed amount, CTA, the way out, Restore / Terms / Privacy.
    It is now short enough that the pitch keeps usable room even here, so a short viewport only
    tightens: the crown shrinks and the intro paragraph goes (the unlock list makes the same case in
-   less space). The floor on the scroll region stops it collapsing so far that the title is sliced
-   in half, which reads as broken rather than scrollable. */
-.pwl__scroll { min-height: 140px; }
-
+   less space).
+   The floor on the scroll region stops it collapsing so far that the title is sliced in half, which
+   reads as broken rather than scrollable. It is SCOPED, not top-level: as a top-level rule it beat
+   the `min-height: 0` above at every viewport, and once the card could not fit its content the
+   scroll refused to shrink and `.pwl__card`'s `overflow: hidden` ate the pinned bar instead —
+   landscape phones and iPad split view. The pitch is the part that gives way, never the CTA. */
 @media (max-height: 740px) {
   .pwl__card { padding: var(--sp-16) var(--sp-20) var(--sp-12); }
+  .pwl__scroll { min-height: 140px; }
   .pwl__glyph { width: 44px; height: 44px; }
   .pwl__body { display: none; }
   .pwl__proof { padding: var(--sp-8) var(--sp-4); }
@@ -324,6 +336,12 @@
   .pwl__summary { margin-bottom: var(--sp-8); }
   .pwl__skip { margin-top: var(--sp-4); }
   .pwl__fineprint { font-size: 9px; line-height: 1.4; }
+}
+
+/* Shorter than this (landscape phone, a floating iPad pane) the pitch gives up its floor entirely.
+   A sliced headline is a cosmetic problem; a clipped CTA or a missing Terms link is a rejection. */
+@media (max-height: 460px) {
+  .pwl__scroll { min-height: 0; }
 }
 
 /* ---------- the "Pro" chip used on locked rows elsewhere ---------- */
