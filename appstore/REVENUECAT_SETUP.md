@@ -91,23 +91,31 @@ and returned all four real product identifiers.
 | **Apple Small Business Program start date** | Only affects net-revenue maths in Charts. Set it to your enrolment date if you are enrolled — otherwise RevenueCat assumes the 30% rate and understates your net. |
 | **Webhooks / integrations** | Nothing is required. See §9. |
 
-### ⚠️ One thing found that blocks selling — fix this in App Store Connect
+### ✅ The "blocks selling" metadata gap — fixed, 30 July 2026
 
-The product import reported the live App Store Connect state of each product:
+The product import originally reported all three real products as **Missing Metadata**:
 
-| Product | State |
-|---|---|
-| `com.wrexist.silicon.sandbox` | ✅ Approved |
-| `com.wrexist.silicon.pro.monthly` | ⚠️ **Missing Metadata** |
-| `com.wrexist.silicon.pro.yearly` | ⚠️ **Missing Metadata** |
-| `com.wrexist.silicon.pro.lifetime` | ⚠️ **Missing Metadata** |
+| Product | State found | State now |
+|---|---|---|
+| `com.wrexist.silicon.sandbox` | ✅ Approved | ✅ Approved (unchanged) |
+| `com.wrexist.silicon.pro.monthly` | ⚠️ Missing Metadata | ✅ Metadata complete, "Add for Review" enabled |
+| `com.wrexist.silicon.pro.yearly` | ⚠️ Missing Metadata | ✅ Metadata complete, "Add for Review" enabled |
+| `com.wrexist.silicon.pro.lifetime` | ⚠️ Missing Metadata | ✅ Metadata complete, "Add for Review" enabled |
 
-"Missing Metadata" means those three are **not submittable and not sellable**. Apple typically wants
-a localized display name and description, a price, and — for the first subscription submitted — a
-review screenshot and review notes. This is unrelated to RevenueCat and would have blocked the
-launch either way. Fix it in App Store Connect → your app → **Subscriptions** / **In-App Purchases**
-before device testing (§11), because a product in that state will not return a price and every row
-will render as unavailable.
+Each product already had its localized display name, description, and pricing set (from the product
+import in §1) — what was actually missing was the **App Review screenshot**, required before Apple
+will accept a first submission. That was filled in directly in App Store Connect via browser
+automation, using **real screenshots of the live `Paywall.tsx` UI** — not mockups. A one-off script
+(`scripts/shoot-paywall-for-asc.mjs`) builds the app, boots a fresh install with no save, walks
+through onboarding to the founding paywall, and screenshots the actual `.pwl__card` with each plan
+selected in turn (Yearly / Monthly / Lifetime). Each product's review notes explain where the paywall
+is reached from and that purchases go through RevenueCat.
+
+**What this does NOT do:** submit anything for App Review. Apple requires each product's first
+submission to ride along with an app version + build (see the banner on the Subscriptions and
+In-App Purchases pages), and no build exists yet — that's §9/Ship, gated on the CI run in §6. Once
+that build is uploaded, "Add for Review" is one click per product (already enabled) plus including
+them in the version's own submission.
 
 ---
 

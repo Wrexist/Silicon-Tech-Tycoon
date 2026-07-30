@@ -459,8 +459,9 @@ rejection reason. Re-introducing one is a regression.
 | Phase | Status | Head commit | Notes / blockers |
 |---|---|---|---|
 | 0 · Feasibility spike | ✅ done | `revenuecat-migration` | **Option A is impossible at Capacitor 6.** The plugin's Cap-6 line (9.x, latest 9.2.2) ships a podspec and NO `Package.swift`; `Package.swift` first appears in 12.0.0, which needs Capacitor ≥ 8. **Option C chosen** — native SDK (`purchases-ios-spm`, 5.81.x, iOS 13+, SPM-native, no runtime deps) wrapped in the existing plugin. |
-| 1 · Dashboard config | ✅ **DONE** | `revenuecat-migration` | Configured live in the RevenueCat dashboard: project `78cb2b78`, app `app706e1b1a3d`, all 4 products imported from App Store Connect, entitlement `pro` → yearly+monthly+lifetime, offering `default`. Public key `appl_jsQcYdrdXfaErHQdTjnUbKvqOVT` is in `RevenueCatConfig.swift`. **Decision honoured:** the legacy sandbox unlock is NOT attached to `pro`. **⚠️ Found:** 3 of 4 products are in *Missing Metadata* in App Store Connect and cannot be sold until fixed — see `REVENUECAT_SETUP.md` §0b. |
+| 1 · Dashboard config | ✅ **DONE** | `revenuecat-migration` | Configured live in the RevenueCat dashboard: project `78cb2b78`, app `app706e1b1a3d`, all 4 products imported from App Store Connect, entitlement `pro` → yearly+monthly+lifetime, offering `default`. Public key `appl_jsQcYdrdXfaErHQdTjnUbKvqOVT` is in `RevenueCatConfig.swift`. **Decision honoured:** the legacy sandbox unlock is NOT attached to `pro`. |
 | 1b · Xcode package (no Mac) | ✅ **DONE** | `revenuecat-migration` | The `RevenueCat` SPM product (`purchases-ios-spm`, pinned `>= 5.81.3`) was added directly to `ios/App/App.xcodeproj/project.pbxproj` with the `xcodeproj` Ruby gem — the same file format Xcode's GUI writes, done without a Mac. See `REVENUECAT_SETUP.md` §6. |
+| 1c · ASC metadata gap | ✅ **DONE** | `revenuecat-migration` | The 3 "Missing Metadata" products (found in Phase 1) were each missing their App Review screenshot. Fixed live in App Store Connect via browser automation: real screenshots of the actual `Paywall.tsx` UI (yearly/monthly/lifetime each selected in turn — `scripts/shoot-paywall-for-asc.mjs`), plus review notes, uploaded and saved to all three products. All three now show "Add for Review" enabled. See `REVENUECAT_SETUP.md` §0b. |
 | 2 · Adapter | ✅ done | `revenuecat-migration` | `SiliconStoreKit+RevenueCat.swift` (new) + `RevenueCatConfig.swift` (new) + 7 one-line routes in `SiliconStoreKit.swift`. **`proStore.ts` unchanged — the adapter does not leak.** StoreKit 2 kept complete for a one-line revert. |
 | 3 · Grandfathering | ✅ done | `revenuecat-migration` | **Deliberately NOT migrated.** `originalPurchase()` stays on Apple's `AppTransaction` in both backends: RevenueCat's `originalApplicationVersion` is the same receipt field with no `revocationDate` and the identical `"1.0"` sandbox hazard — strictly weaker. Production-only guard and the pinned test both intact. |
 | 4 · Customer migration | ✅ done | `revenuecat-migration` | `appstore/REVENUECAT_SETUP.md` §7 — all six cohorts, anonymous app user IDs, no-paywall-frame guarantee, and the rollback (`RevenueCatConfig.forceStoreKit2 = true`). |
@@ -468,7 +469,7 @@ rejection reason. Re-introducing one is a regression.
 | 6 · Privacy + docs | ✅ done | `revenuecat-migration` | `PrivacyInfo.xcprivacy` now declares Purchase History + Device ID (app functionality, not linked, not tracking). Claims retired across 11 docs + `CLAUDE.md`. **`docs/privacy/index.html` and `public/privacy.html` rewritten** — they also still described only the retired $2.99 Creative Mode IAP and never mentioned Silicon Pro at all, which was a pre-existing 3.1.2 exposure. |
 | 7 · Tests | ✅ done | `revenuecat-migration` | **1654 passing** (was 1632; +22). New: `src/state/revenueCatContract.test.ts`. `proGates.test.ts` needed NO change — no gate leaked. Determinism pin green. |
 | 8 · Device verification | ✅ written · ⬜ user action | `revenuecat-migration` | 20-row sandbox matrix, `REVENUECAT_SETUP.md` §11. Rows 17 (founding must be untestable in sandbox) and 20 (legacy unlock ≠ Pro) are the money rows. Run it via TestFlight on a physical iPhone — no Mac needed, see §6. |
-| 9 · Ship | ⬜ blocked on: push branch, fix 3 ASC "Missing Metadata" products, run 1 CI build, pass §8 matrix | — | None of these need a Mac. Push is a user-credential blocker (§ below); the rest are App Store Connect + a GitHub Actions run + a TestFlight install on an iPhone. |
+| 9 · Ship | ⬜ blocked on: push branch, run 1 CI build, include products in the version submission, pass §8 matrix | — | None of these need a Mac. Push and triggering GitHub Actions both need credentials this session doesn't have (a different, unrelated blocker from the Xcode one); the CI run + TestFlight install are the rest. |
 
 ### What could NOT be verified in this environment
 
@@ -490,11 +491,13 @@ rejection reason. Re-introducing one is a regression.
 ### What's next, concretely, once the branch is on GitHub
 
 1. Push `revenuecat-migration` (from your machine — see the repo root README/chat for the two-line
-   fetch+push).
+   fetch+push). This session's GitHub token can clone but not push, and (separately checked) cannot
+   call the GitHub Actions API either — both need to happen from your machine/account.
 2. GitHub → Actions → **iOS TestFlight** → Run workflow → bump the version → submit to TestFlight.
    If it archives clean, the RevenueCat package resolved and compiled for the first time.
-3. Fix the 3 "Missing Metadata" products in App Store Connect (§0b) — otherwise the build installs
-   but nothing is purchasable.
+3. The 3 products' metadata is already fixed (Phase 1c) — when you submit the new version for
+   review, add all three from the "In-App Purchases and Subscriptions" section of that version so
+   they go through review together (Apple requires a first subscription/IAP to ride with a version).
 4. Install the TestFlight build on an iPhone, sign into a Sandbox tester in Settings → App Store →
    Sandbox Account, and run the §11 matrix.
 5. Flip Phase 9 to done and ship.
