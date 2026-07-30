@@ -393,31 +393,37 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     /// Requires iOS 16. On older systems this resolves empty and the user simply falls back to the
     /// normal Restore Purchases path.
     ///
-    /// TWO things must be true before a build number is reported, because reporting one is what
-    /// grants a permanent free entitlement:
+    /// **It is a real App Store purchase.** In SANDBOX and TestFlight, `originalAppVersion`
+    /// reports `"1.0"` regardless of what was actually installed. Parsed, that is build 1, which
+    /// is below `FIRST_FREE_BUILD` and therefore reads as a paid-era owner — so every sandbox
+    /// tester and every TestFlight build would silently get Pro for free, and the paywall could
+    /// never be tested on the very builds it has to be tested on. `originalVersion` is still
+    /// reported for diagnostics; only the entitling number is withheld.
     ///
-    /// 1. **The download was not refunded.** `revocationDate` non-nil means Apple took the money
-    ///    back, so there is no purchase left to honour — the same test `isEntitled` applies.
-    /// 2. **It is a real App Store purchase.** In SANDBOX and TestFlight, `originalAppVersion`
-    ///    reports `"1.0"` regardless of what was actually installed. Parsed, that is build 1, which
-    ///    is below `FIRST_FREE_BUILD` and therefore reads as a paid-era owner — so every sandbox
-    ///    tester and every TestFlight build would silently get Pro for free, and the paywall could
-    ///    never be tested on the very builds it has to be tested on. `originalVersion` is still
-    ///    reported for diagnostics; only the entitling number is withheld.
+    /// `AppTransaction` (unlike `Transaction`) carries no `revocationDate` — it describes the
+    /// original download, not entitlement/refund state, so on-device alone this cannot tell a
+    /// refunded paid-era purchase from a legitimate one. `RefundVerifyConfig` closes that gap: the
+    /// app's signed `AppTransaction` (its `jwsRepresentation`) is sent to a small backend endpoint
+    /// that asks Apple's App Store Server API for the authoritative revocation status — the one
+    /// place that actually has it. A network failure there fails OPEN (keeps today's behaviour,
+    /// same as every other "can't tell right now" path in this file) — it is never a reason to
+    /// revoke a legitimate owner's access; only an explicit `revoked: true` withholds the grant.
     @objc func originalPurchase(_ call: CAPPluginCall) {
         guard #available(iOS 16.0, *) else { return call.resolve([:]) }
         Task {
             do {
                 let result = try await AppTransaction.shared
-                guard case .verified(let appTransaction) = result,
-                      appTransaction.revocationDate == nil else { return call.resolve([:]) }
+                guard case .verified(let appTransaction) = result else { return call.resolve([:]) }
                 let raw = appTransaction.originalAppVersion
                 var payload: [String: Any] = ["originalVersion": raw]
                 // Take the leading integer: build numbers are "4", but a defensive parse also
                 // handles a "1.2.0"-style value.
                 if appTransaction.environment == .production,
                    let build = Int(raw.split(separator: ".").first.map(String.init) ?? raw) {
-                    payload["originalBuild"] = build
+                    let revoked = await RefundVerifyConfig.isRevoked(jws: appTransaction.jwsRepresentation)
+                    if !revoked {
+                        payload["originalBuild"] = build
+                    }
                 }
                 call.resolve(payload)
             } catch {

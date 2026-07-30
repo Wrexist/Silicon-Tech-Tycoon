@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		2E0ACAAAA08042064312E3EF /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = F2F8CF31FF1307B63568CA65 /* RevenueCat */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
+		40566202B5B6C297AF68EF66 /* RefundVerifyConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB1360D814A9B79161ACF66 /* RefundVerifyConfig.swift */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -19,10 +20,13 @@
 		5101CA0011AA22BB33CC0002 /* SiliconStoreKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5101CA0011AA22BB33CC0001 /* SiliconStoreKit.swift */; };
 		5101CA0011AA22BB33CC0004 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5101CA0011AA22BB33CC0003 /* MainViewController.swift */; };
 		5101CA0011AA22BB33CC0005 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5101CA0011AA22BB33CC0006 /* PrivacyInfo.xcprivacy */; };
+		97E81D2B39E0EBCDF1AC2041 /* RevenueCatConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8B210494F9E7DDB94F5C5F /* RevenueCatConfig.swift */; };
+		CAB4A876133C67690D6A15F0 /* SiliconStoreKit+RevenueCat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB2944F41958A11CE43A7694 /* SiliconStoreKit+RevenueCat.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+		4C8B210494F9E7DDB94F5C5F /* RevenueCatConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RevenueCatConfig.swift; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -35,6 +39,8 @@
 		5101CA0011AA22BB33CC0003 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		5101CA0011AA22BB33CC0006 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		BB2944F41958A11CE43A7694 /* SiliconStoreKit+RevenueCat.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SiliconStoreKit+RevenueCat.swift"; sourceTree = "<group>"; };
+		CBB1360D814A9B79161ACF66 /* RefundVerifyConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RefundVerifyConfig.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,6 +87,9 @@
 				5101CA0011AA22BB33CC0006 /* PrivacyInfo.xcprivacy */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				4C8B210494F9E7DDB94F5C5F /* RevenueCatConfig.swift */,
+				BB2944F41958A11CE43A7694 /* SiliconStoreKit+RevenueCat.swift */,
+				CBB1360D814A9B79161ACF66 /* RefundVerifyConfig.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -172,6 +181,9 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				5101CA0011AA22BB33CC0002 /* SiliconStoreKit.swift in Sources */,
 				5101CA0011AA22BB33CC0004 /* MainViewController.swift in Sources */,
+				97E81D2B39E0EBCDF1AC2041 /* RevenueCatConfig.swift in Sources */,
+				CAB4A876133C67690D6A15F0 /* SiliconStoreKit+RevenueCat.swift in Sources */,
+				40566202B5B6C297AF68EF66 /* RefundVerifyConfig.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

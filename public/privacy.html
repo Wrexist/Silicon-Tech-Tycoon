@@ -88,6 +88,11 @@
         — validates purchases and makes them restorable across reinstalls. It receives your purchase
         history and the anonymous installation identifier described above, and acts as our data
         processor. Nothing about how you play is sent to it.</li>
+        <li>Our own purchase-verification endpoint — used only for the small legacy population who
+        bought the app outright before it went free-to-download. It relays your device's signed
+        purchase receipt to Apple's App Store Server API to confirm that purchase was never
+        refunded, and returns a yes/no answer. It does not store anything, has no database, and
+        receives nothing else.</li>
       </ul>
     </div>
 
