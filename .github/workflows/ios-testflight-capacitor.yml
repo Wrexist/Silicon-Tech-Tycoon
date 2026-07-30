@@ -100,6 +100,17 @@ jobs:
         # capacitor.config.json / config.xml the Xcode target expects.
         run: npx cap sync ios
 
+      - name: Select latest Xcode
+        # The runner's default Xcode isn't necessarily the newest one installed on the image, and
+        # `AppTransaction.jwsRepresentation` (used for refund verification in SiliconStoreKit.swift)
+        # needs a recent-enough SDK to exist at all — pin to whichever Xcode is actually newest
+        # rather than guessing a version number that will go stale as the runner image updates.
+        run: |
+          LATEST_XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$LATEST_XCODE" ]; then
+            sudo xcode-select -s "$LATEST_XCODE/Contents/Developer"
+          fi
+
       - name: Show Xcode version
         run: |
           xcodebuild -version

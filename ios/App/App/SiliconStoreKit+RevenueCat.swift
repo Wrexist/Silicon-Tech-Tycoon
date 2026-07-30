@@ -232,7 +232,7 @@ extension SiliconStoreKitPlugin {
         }
     }
 
-    private static func rc_periodUnitLabel(_ unit: SubscriptionPeriod.Unit) -> String {
+    private static func rc_periodUnitLabel(_ unit: RevenueCat.SubscriptionPeriod.Unit) -> String {
         switch unit {
         case .day: return "day"
         case .week: return "week"
@@ -242,7 +242,7 @@ extension SiliconStoreKitPlugin {
         }
     }
 
-    private static func rc_periodDescription(_ period: SubscriptionPeriod) -> String {
+    private static func rc_periodDescription(_ period: RevenueCat.SubscriptionPeriod) -> String {
         let unit = rc_periodUnitLabel(period.unit)
         let count = period.value
         return count == 1 ? "1 \(unit)" : "\(count) \(unit)s"
@@ -440,7 +440,7 @@ extension SiliconStoreKitPlugin {
 
             let managementURL = Purchases.shared.cachedCustomerInfo?.managementURL
             if let url = managementURL ?? URL(string: "https://apps.apple.com/account/subscriptions") {
-                UIApplication.shared.open(url)
+                await UIApplication.shared.open(url)
             }
             call.resolve(["shown": false])
         }
