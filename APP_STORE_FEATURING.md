@@ -115,7 +115,7 @@ weight. On top of that, the things that quietly decide it:
 | **Uniqueness / innovation** | **Strong.** Design a device → it renders **live** in parametric vector; a real-time **3D HQ**; a **3D factory line you build machine-by-machine** — all drawn in code, **zero image assets**. New in 1.2.0, **The Vault**: a progression layer that hides its own rules and reveals them in stages. That last one is the first feature here that is a *story* rather than a system, which is what editorial copy needs. |
 | **Content depth / replayability** | **Strong, and now measured rather than asserted.** 1.2.0 adds a genuine **fifth era** past the IPO with two new device categories and a new component tier on every line. A full run is hundreds of launches and five eras deep, with the endgame ladder landing where the earlier ones run out instead of leaving a flat stretch. |
 | **Accessibility** | **Strong.** A dedicated pass this release — VoiceOver labels across menus/dialogs, focus that returns where you left it, a colour-blind-safe "in demand" indicator, reduced-motion catch-all, AA contrast both themes, 40px targets. Name it explicitly. |
-| **Privacy / values** | **Strong.** Collects **no data**, fully offline, no SDKs. "Data Not Collected." Directly on Apple's values. |
+| **Privacy / values** | **Strong.** No tracking, no analytics, no ads, no accounts; the game is fully offline and saves never leave the device. The one third-party SDK is RevenueCat, for purchases only — which is why App Privacy declares Purchase History + Device ID (app functionality, not linked, not tracking). Directly on Apple's values. |
 | **No dark patterns** | **Strong.** $8.99 complete & winnable, one optional cosmetic Sandbox IAP, no ads/timers/loot boxes/currencies. Editors reward this. |
 | **Product-page quality** | **Good — refresh for 1.2.0.** Lead the screenshots with **The Vault's redacted dossier board** (the most arresting single frame in the app), then Factory Mode, then the live device render. Paste the copy from `appstore/APP_STORE_METADATA.md`; add/refresh a preview video. |
 | **In-App Events** | **New lever.** The annual Silicon Awards maps directly to a nominable event — set one up. |
@@ -211,13 +211,13 @@ New in 1.2.0, The Vault: eighteen classified dossiers whose unlock conditions ar
 
 Past the IPO lies the Autonomy Era, a genuine fifth age with two new device categories. Your arch-rival calls you out in multi-week duels. Employees have names and lives; rivals fight each other, not just you.
 
-Still a premium single purchase — no ads, no timers — collecting no data, fully offline.
+Still a premium single purchase — no ads, no timers — offline play, no tracking, no accounts.
 ```
 
 ### Block B — Helpful Details *(≤500 chars; this draft = 491)*
 
 ```text
-Our signature is parametric rendering: every device, the 3D factory line and the 3D office are generated from code as you play, so the app ships zero image assets. The Vault is the new hook — a progression system that hides its own rules and unredacts them in stages, demoable in 20 seconds. Store listings now cover all 39 App Store locales (the app UI remains English). One purchase, offline, no data collected, no dark patterns, full accessibility pass. Happy to share a TestFlight build.
+Our signature is parametric rendering: every device, the 3D factory line and the 3D office are generated from code as you play, so the app ships zero image assets. The Vault is the new hook — a progression system that hides its own rules and unredacts them in stages, demoable in 20 seconds. Store listings now cover all 39 App Store locales (the app UI remains English). One purchase, offline, no tracking, no analytics, no dark patterns, full accessibility pass. Happy to share a TestFlight build.
 ```
 
 ### Supplemental Materials — provide up to 5 (each must be **live** before you submit)
@@ -226,7 +226,7 @@ Our signature is parametric rendering: every device, the 3D factory line and the
 2. `<app-preview-video-url>` — the 1.2.0 preview opening on The Vault *(produce; host on the page)*
 3. `<press-kit-or-screenshots-url>` — media folder *(reuse `app-store-screenshots/`, add the new shots)*
 4. `<testflight-public-link>` — public beta of the 1.2.0 build *(lets editors play the new content)*
-5. `https://wrexist.com/silicon/privacy` — privacy policy *(reinforces the no-data story)*
+5. `https://wrexist.com/silicon/privacy` — privacy policy *(reinforces the no-tracking story)*
 
 > All five are optional, but a **TestFlight link + a preview video** are the two that most help an
 > editor actually evaluate a game. Don't submit dead links — a broken URL reads as unfinished.

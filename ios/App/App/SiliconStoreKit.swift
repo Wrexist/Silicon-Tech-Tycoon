@@ -10,10 +10,21 @@ import UIKit
 ///   • `com.wrexist.silicon.sandbox`                 — the paid era's Creative Mode unlock (legacy,
 ///                                                     still honoured for everyone who bought it)
 ///
-/// Deliberately NOT a third-party purchase SDK. StoreKit 2 verifies on-device, needs no backend, and
-/// keeps the App Privacy "Data Not Collected / no third-party SDKs" declaration literally true —
-/// which is a selling point the store listing leans on, not just a technical preference. It also
-/// suits the SPM-only iOS target (no CocoaPods).
+/// ── TWO BACKENDS, ONE INTERFACE ─────────────────────────────────────────────────────────────────
+/// The purchase methods below route through `RevenueCatConfig.backend`:
+///
+///   • `.storeKit2`  — the bodies in THIS file. Apple's StoreKit 2, on-device, no third party.
+///   • `.revenueCat` — the bodies in `SiliconStoreKit+RevenueCat.swift`, which wrap RevenueCat's
+///                     native iOS SDK behind these exact same result contracts.
+///
+/// The StoreKit 2 code is kept complete and untouched rather than deleted, so reverting the
+/// migration is a one-line change to `RevenueCatConfig` and a patch release — not a rebuild. When
+/// the RevenueCat SPM package isn't linked, or no public API key is configured, the backend
+/// resolves to `.storeKit2` automatically and this file is the whole story.
+///
+/// `originalPurchase()` and `requestReview()` NEVER route away from Apple's APIs. The first is the
+/// Apple-signed paid-era grandfathering check (`AppTransaction`), which is strictly stronger than
+/// any SDK's copy of the same receipt field; the second isn't a purchase concern at all.
 ///
 /// Auto-registered by Capacitor via `CAPBridgedPlugin`. The JS side reaches it through
 /// `registerPlugin("SiliconStoreKit")` in `src/state/storeKitBridge.ts`.
@@ -52,6 +63,16 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     private var updatesTask: Task<Void, Never>?
 
     override public func load() {
+        #if canImport(RevenueCat)
+        // Configure the SDK before anything can call into it. No-ops unless a public key is set.
+        rc_configureIfNeeded()
+        #endif
+
+        // The RevenueCat backend listens through `PurchasesDelegate` instead. Running BOTH would
+        // double-deliver every out-of-band transaction, and finishing transactions here behind
+        // RevenueCat's back would race its own queue handling.
+        guard RevenueCatConfig.backend == .storeKit2 else { return }
+
         guard #available(iOS 15.0, *) else { return }
         updatesTask = Task.detached { [weak self] in
             for await update in Transaction.updates {
@@ -67,6 +88,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Products
 
     @objc func getProduct(_ call: CAPPluginCall) {
+        #if canImport(RevenueCat)
+        if RevenueCatConfig.backend == .revenueCat { return rc_getProduct(call) }
+        #endif
         guard let productId = call.getString("productId") else { return call.reject("Missing productId") }
         guard #available(iOS 15.0, *) else { return call.resolve(["available": false]) }
         Task {
@@ -86,6 +110,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     /// paywall renders only rows the store confirmed it can sell, so a buy button can never be
     /// presented for a product that would error on tap (App Review 2.1.0).
     @objc func getProducts(_ call: CAPPluginCall) {
+        #if canImport(RevenueCat)
+        if RevenueCatConfig.backend == .revenueCat { return rc_getProducts(call) }
+        #endif
         let ids = call.getArray("productIds", String.self) ?? []
         guard #available(iOS 15.0, *), !ids.isEmpty else { return call.resolve(["products": []]) }
         Task {
@@ -166,6 +193,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Purchase
 
     @objc func purchase(_ call: CAPPluginCall) {
+        #if canImport(RevenueCat)
+        if RevenueCatConfig.backend == .revenueCat { return rc_purchase(call) }
+        #endif
         guard let productId = call.getString("productId") else { return call.reject("Missing productId") }
         guard #available(iOS 15.0, *) else {
             return call.resolve(["status": "unavailable", "message": "In-app purchases require iOS 15 or later."])
@@ -222,6 +252,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     /// owned non-consumables AND any live subscription — which is what the paywall's "Restore
     /// Purchases" needs, since a subscriber reinstalling has nothing else to recover from.
     @objc func restore(_ call: CAPPluginCall) {
+        #if canImport(RevenueCat)
+        if RevenueCatConfig.backend == .revenueCat { return rc_restore(call) }
+        #endif
         guard #available(iOS 15.0, *) else { return call.resolve(["restored": false, "owned": []]) }
         Task {
             try? await AppStore.sync()
@@ -240,6 +273,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func isOwned(_ call: CAPPluginCall) {
+        #if canImport(RevenueCat)
+        if RevenueCatConfig.backend == .revenueCat { return rc_isOwned(call) }
+        #endif
         guard let productId = call.getString("productId") else { return call.reject("Missing productId") }
         guard #available(iOS 15.0, *) else { return call.resolve(["owned": false]) }
         Task { call.resolve(["owned": await self.isEntitled(productId)]) }
@@ -257,6 +293,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     /// `appstore/SUBSCRIPTION_GUIDE.md`), and it is worth doing: most of that churn is an expired
     /// card rather than a decision.
     @objc func subscriptionStatus(_ call: CAPPluginCall) {
+        #if canImport(RevenueCat)
+        if RevenueCatConfig.backend == .revenueCat { return rc_subscriptionStatus(call) }
+        #endif
         guard let groupId = call.getString("groupId") else { return call.reject("Missing groupId") }
         guard #available(iOS 15.0, *) else { return call.resolve(["active": false]) }
         Task {
@@ -317,6 +356,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     /// Falls back to the account subscriptions URL if no window scene is reachable, so there is
     /// ALWAYS a way for the user to cancel (an App Review requirement, and simple decency).
     @objc func manageSubscriptions(_ call: CAPPluginCall) {
+        #if canImport(RevenueCat)
+        if RevenueCatConfig.backend == .revenueCat { return rc_manageSubscriptions(call) }
+        #endif
         DispatchQueue.main.async {
             let scene = self.bridge?.viewController?.view.window?.windowScene
                 ?? UIApplication.shared.connectedScenes

@@ -76,13 +76,15 @@ Run on a simulator or a real device with the ▶ button to smoke-test.
 
 ---
 
-## 4. In-app purchases (StoreKit 2 — already wired)
+## 4. In-app purchases (StoreKit 2 + RevenueCat — already wired)
 
 `ios/App/App/SiliconStoreKit.swift` is a StoreKit 2 plugin covering products, purchase, restore,
 subscription status, intro-offer eligibility, Apple's Manage Subscriptions sheet, and the original
-download's build number (how paid-era buyers are recognised). **Deliberately not a third-party
-purchase SDK** — that's what keeps the App Privacy "Data Not Collected / no third-party SDKs"
-declaration literally true, and the SPM-only iOS target free of CocoaPods deps.
+download's build number (how paid-era buyers are recognised). `SiliconStoreKit+RevenueCat.swift` +
+`RevenueCatConfig.swift` route the same bridge through RevenueCat's native iOS SDK — added via SPM,
+**not** the CocoaPods-only `@revenuecat/purchases-capacitor` plugin, so the iOS target stays free of
+CocoaPods deps. RevenueCat is the app's one third-party SDK, and the reason App Privacy declares
+Purchase History + Device ID (see `appstore/REVENUECAT_SETUP.md`).
 
 JS side: `src/state/proStore.ts` (Pro) and `src/state/iap.ts` (legacy Creative Mode), both through
 the one shared bridge in `src/state/storeKitBridge.ts`.
@@ -114,8 +116,11 @@ purchase UI hides itself) and don't attach the products.
 3. In **App Store Connect**:
    - **Pricing:** app **Free**; Silicon Pro **$3.99/mo**, **$19.99/yr**, **$29.99 lifetime**
      (see `appstore/SUBSCRIPTION_GUIDE.md` — set the price to Free *with* this submission, not before).
-   - **App Privacy:** the app collects **no data** and has **no backend** — it's fully offline
-     (`localStorage` only). Declare "Data Not Collected".
+   - **App Privacy:** the game has **no backend** — saves, settings and statistics stay on device
+     (`localStorage` only) and there is no analytics, no tracking and no login. Purchases go through
+     RevenueCat, so declare **Purchase History + Device ID**, both *app functionality*, both not
+     linked and not used for tracking — matching `PrivacyInfo.xcprivacy` and `docs/privacy/`
+     (`appstore/REVENUECAT_SETUP.md`).
    - **Metadata + screenshots:** use `STORE_LISTING.md` (name, subtitle, keywords, description).
      Capture screenshots with the helper: `node scripts/shots.mjs` (see §6).
    - Attach the IAP to the version for review.

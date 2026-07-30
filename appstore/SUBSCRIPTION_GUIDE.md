@@ -6,6 +6,8 @@ Pro subscription. The code side is already done; this is the half only you can d
 For *why* the model looks like this — the free/Pro line, pricing rationale, the levers — read
 [`MONETIZATION.md`](../MONETIZATION.md). For the legacy Creative Mode IAP see
 [`IAP_GUIDE.md`](./IAP_GUIDE.md) (it stays live for the people who bought it; you no longer sell it).
+Purchases now run through RevenueCat — its dashboard config, the Xcode SPM steps, the sandbox matrix
+and the App Privacy answers are in [`REVENUECAT_SETUP.md`](./REVENUECAT_SETUP.md).
 
 > **The single rule that causes rejections here:** if a product is *attached to the review build*,
 > App Review will tap it, and it must complete. Never attach a SKU you haven't tested in sandbox.
@@ -51,7 +53,7 @@ After launch: win-back offers — highest return per hour, and needs no code.
 | Legacy SKU | `com.wrexist.silicon.sandbox` — keep live, **stop offering**; honoured forever |
 | Code seam | `src/state/pro.ts` (products) · `src/state/proStore.ts` (store) · `src/components/Paywall.tsx` (UI) |
 | Kill switch | `NATIVE_PRO_WIRED` at the top of `proStore.ts` — ships **`true`** |
-| Native plugin | `ios/App/App/SiliconStoreKit.swift` — StoreKit 2, **no third-party SDK** |
+| Native plugin | `ios/App/App/SiliconStoreKit.swift` — StoreKit 2, wrapped by RevenueCat's native iOS SDK (`SiliconStoreKit+RevenueCat.swift` · `RevenueCatConfig.swift`); setup in `REVENUECAT_SETUP.md` |
 | First free build | `FIRST_FREE_BUILD` in `pro.ts` — **must equal the CFBundleVersion you ship free** |
 
 ⚠ **The group id `silicon_pro` must match `PRO_SUBSCRIPTION_GROUP` in `pro.ts` exactly.** If it
@@ -305,7 +307,10 @@ also how you test the lapse path: let one expire and confirm gates re-lock.
    > offers Restore Purchases. Manage/cancel is reachable from Settings → Silicon Pro → Manage
    > subscription.
    >
-   > The app collects no data and contains no third-party SDKs. Purchases use StoreKit 2 directly.
+   > The app has no accounts, no login, no analytics and no tracking, and the game's saves stay on
+   > the device. Purchases use StoreKit 2 through RevenueCat, which is why App Privacy declares
+   > Purchase History and an anonymous Device ID — both app functionality, neither linked to the
+   > user nor used for tracking.
    >
    > This app was previously a paid download. Customers who purchased it are detected via
    > AppTransaction and granted permanent access at no cost ("Founding Owner").
@@ -349,6 +354,8 @@ Every line here is a real rejection or a real revenue leak. None are theoretical
 - [ ] Description no longer claims "single purchase" or "only in-app purchase, ever" (Step 2)
 - [ ] All three products attached to the version, and all three tested in sandbox (Step 10)
 - [ ] App Review notes pasted (Step 11)
+- [ ] App Privacy declares **Purchase History + Device ID** (app functionality, not linked, not used
+      for tracking) and matches `PrivacyInfo.xcprivacy` and `docs/privacy/` — see `REVENUECAT_SETUP.md`
 
 **Confirmed on a device, not assumed**
 - [ ] Prices shown are the store's localized strings, not `$19.99` from the fallback

@@ -253,13 +253,18 @@ Complete all content descriptor questions as follows:
 
 ## Privacy — App Privacy Nutrition Label
 
-The app collects **no data whatsoever**. All state is stored exclusively in `localStorage` on the user's device. There is no backend, no analytics SDK, no crash reporter, no ad network, no login.
+The **game** collects nothing — every save, setting and statistic is stored exclusively in `localStorage` on the user's device. There is no backend, no analytics SDK, no crash reporter, no ad network, no login. **Purchases** are processed by RevenueCat, which is why Purchase History and an anonymous Device ID are declared.
 
 ### App Store Connect — Data Collection
 
-Select: **"No, we do not collect data from this app."**
+Select: **"Yes, we collect data from this app."** — then declare exactly two types, both **not linked to the user** and **not used for tracking**:
 
-This covers:
+| Data type | Purpose |
+|-----------|---------|
+| **Purchase History** | App Functionality — entitlement validation and restore |
+| **Device ID** | App Functionality — the anonymous RevenueCat install identifier that lets a purchase be restored |
+
+Everything else is **not collected**:
 - No contact info
 - No health or fitness data
 - No financial info
@@ -269,22 +274,25 @@ This covers:
 - No user content
 - No browsing history
 - No search history
-- No identifiers
 - No usage data
 - No diagnostics
 - No other data
+
+These answers must match `ios/App/App/PrivacyInfo.xcprivacy` and the hosted privacy policy exactly — see `appstore/REVENUECAT_SETUP.md`.
 
 ### PrivacyInfo.xcprivacy (Xcode required-reason APIs)
 
 DONE — shipped in the repo at `ios/App/App/PrivacyInfo.xcprivacy` and wired into the App
 target's Copy Bundle Resources (project.pbxproj). No Xcode step needed; `cap sync` preserves it.
-It declares no tracking, no collected data, and only:
+It declares no tracking (`NSPrivacyTracking` is `false`), the two collected types above — Purchase
+History and Device ID, both app-functionality, not linked, not tracking — and only:
 
 | API | Reason code |
 |-----|-------------|
 | `NSPrivacyAccessedAPICategoryUserDefaults` | `CA92.1` — App stores user-specific application settings (game save) |
 
-No other required-reason APIs are accessed. No third-party SDKs included.
+No other required-reason APIs are accessed. The only third-party SDK is RevenueCat, used solely to
+process purchases; it ships its own privacy manifest inside its SPM package.
 
 ---
 
@@ -296,7 +304,9 @@ No other required-reason APIs are accessed. No third-party SDKs included.
 Thank you for reviewing Silicon: Tech Tycoon.
 
 TESTING THE APP
-No account or login is required. The app runs fully offline.
+No account or login is required. The game itself runs fully offline;
+only purchases need a network connection (they are processed by
+RevenueCat on top of StoreKit 2).
 On first launch, tap "Found Silicon" to start a new company,
 then skip the coach tips to reach the main game loop.
 
@@ -366,13 +376,19 @@ No.
 ```text
 Silicon: Tech Tycoon Privacy Policy
 
-Silicon does not collect, transmit, or share any personal data.
+Silicon does not track you and does not sell or share personal data.
 All game progress is stored locally on your device using browser
-localStorage. There is no account system, no server, and no
-analytics. No data leaves your device.
+localStorage — your saves, settings and statistics never leave your
+device. There is no account system and no analytics.
+
+Purchases are processed by Apple and by RevenueCat, our purchase
+provider, which records this install's purchase history against an
+anonymous identifier so your purchase can be validated and restored.
+That identifier is not linked to your identity and is never used for
+tracking.
 
 For questions: isacmolin@gmail.com
-Last updated: June 2026
+Last updated: July 2026
 ```
 
 ---
@@ -453,6 +469,7 @@ Recommended pre-submission checklist:
 - [ ] `FIRST_FREE_BUILD` in `state/pro.ts` matches the build number being shipped
 - [ ] License Agreement URL (`/terms/`) and Privacy Policy URL both live and loading
 - [ ] Small Business Program enrollment confirmed
-- [ ] "Data Not Collected" declared in App Privacy
+- [ ] App Privacy declares Purchase History + Device ID (app functionality, not linked, not used for
+      tracking) and matches `PrivacyInfo.xcprivacy` and the hosted privacy policy
 - [ ] Build archived and uploaded via Xcode → Product → Archive
 - [ ] At least one successful TestFlight internal build before submission

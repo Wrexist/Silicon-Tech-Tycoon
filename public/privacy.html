@@ -41,21 +41,29 @@
     </div>
 
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: June 2026</p>
+    <p class="updated">Last updated: July 2026</p>
 
     <div class="card">
       <h2>The short version</h2>
       <p>
-        <span class="highlight">Silicon collects no data whatsoever.</span> The app runs
-        entirely on your device. Nothing is sent to any server. There is no account, no login,
-        no analytics, no tracking, and no ads.
+        <span class="highlight">Your game never leaves your device.</span> There is no account,
+        no login, no analytics, no tracking, and no ads. The one exception is buying things: if you
+        subscribe to Silicon Pro or buy a one-time unlock, that purchase is validated by our
+        payments processor so you can restore it later. Nothing else is collected.
       </p>
     </div>
 
     <div class="card">
       <h2>What data do we collect?</h2>
-      <p>None. Zero. We do not collect any personal information, device identifiers, usage
-      data, crash reports, location data, or any other information from you.</p>
+      <p>Only what an in-app purchase requires: a record of <strong>what you bought</strong>
+      (purchase history) and an <strong>anonymous identifier</strong> that RevenueCat generates for
+      your installation so the purchase can be validated and restored.</p>
+      <p>We do <em>not</em> collect your name, email address, contacts, location, photos, browsing
+      activity, or any usage or gameplay data. We do not collect crash reports. The anonymous
+      identifier is created by the app; it is not your Apple ID, your advertising identifier, or
+      anything that identifies you as a person. None of it is used for tracking, none of it is sold,
+      and none of it is combined with data from other apps or companies.</p>
+      <p>If you never make a purchase, nothing at all is collected.</p>
     </div>
 
     <div class="card">
@@ -69,32 +77,48 @@
 
     <div class="card">
       <h2>Third-party SDKs and services</h2>
-      <p>None. The app contains no third-party analytics SDKs, advertising networks, crash
-      reporters, or social login libraries. The only third-party code is
-      <a href="https://capacitorjs.com" target="_blank" rel="noopener">Capacitor</a>
-      (for native iOS packaging) and
-      <a href="https://apple.com/ios/app-store" target="_blank" rel="noopener">Apple's StoreKit</a>
-      (for the optional in-app purchase). Neither transmits your personal data to us.</p>
+      <p>There are no analytics SDKs, no advertising networks, no crash reporters and no social
+      login libraries. The third-party code in the app is:</p>
+      <ul>
+        <li><a href="https://capacitorjs.com" target="_blank" rel="noopener">Capacitor</a> — native
+        iOS packaging. Sends nothing.</li>
+        <li><a href="https://apple.com/ios/app-store" target="_blank" rel="noopener">Apple's
+        StoreKit</a> — takes the payment. Apple holds the purchase record under Apple's own policy.</li>
+        <li><a href="https://www.revenuecat.com/privacy/" target="_blank" rel="noopener">RevenueCat</a>
+        — validates purchases and makes them restorable across reinstalls. It receives your purchase
+        history and the anonymous installation identifier described above, and acts as our data
+        processor. Nothing about how you play is sent to it.</li>
+      </ul>
     </div>
 
     <div class="card">
       <h2>In-app purchases</h2>
-      <p>The app offers one optional non-consumable in-app purchase: Creative Mode ($2.99).
-      This purchase is processed entirely by Apple through StoreKit. We do not receive
-      or store your payment information. Purchase records are held by Apple per their
+      <p>The app is free to download. Silicon Pro is available as an auto-renewing subscription
+      (monthly or yearly, with a free trial) or as a one-time lifetime purchase. A legacy one-time
+      Creative Mode unlock is still honoured for everyone who bought it.</p>
+      <p><strong>We never see your payment details.</strong> Payment is handled entirely by Apple
+      through StoreKit; card numbers and billing information never reach us or our processor. What we
+      do receive is the fact of the purchase — which product, and whether it is still active — so the
+      app knows what to unlock and can restore it if you reinstall or switch devices. Purchase
+      records are also held by Apple per their
       <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+      <p>Subscriptions renew automatically unless cancelled at least 24 hours before the period ends;
+      you can manage or cancel one at any time in your Apple ID subscription settings.</p>
     </div>
 
     <div class="card">
       <h2>Children's privacy</h2>
-      <p>Silicon does not collect any information from anyone, including children under 13.
-      The app is rated 4+ on the App Store.</p>
+      <p>Silicon is rated 4+ and is not directed at children specifically, but it is safe for them:
+      there is no tracking, no advertising, no profiling, and no way for anyone to contact anyone
+      else through the app. We do not knowingly collect personal information from children under 13,
+      and the purchase data described above contains none.</p>
     </div>
 
     <div class="card">
       <h2>Changes to this policy</h2>
-      <p>If we ever change this policy, we'll update the date at the top. Since we collect
-      no data, any changes would be purely clarificatory.</p>
+      <p>If we ever change this policy, we'll update the date at the top. This page was last
+      changed when Silicon Pro purchases moved to RevenueCat for validation — the section headed
+      <strong>What data do we collect?</strong> is the part that changed.</p>
     </div>
 
     <div class="card">

@@ -67,7 +67,9 @@ it in ASC and test buy+restore once on device via the StoreKit config.**
        `S3U8B8HH96`), archive → TestFlight.
 6. [ ] On device: full design→build→launch loop; **test IAP buy + restore** (StoreKit config or
        sandbox account); confirm Preferences mirror survives a cold kill; status-bar theme; haptics.
-7. [ ] App Privacy → "Data Not Collected". Submit.
+7. [ ] App Privacy → declare **Purchase History + Device ID** (app functionality, not linked, not
+       used for tracking — RevenueCat processes purchases); match `PrivacyInfo.xcprivacy` and
+       `docs/privacy/`, per `appstore/REVENUECAT_SETUP.md`. Submit.
 
 ---
 

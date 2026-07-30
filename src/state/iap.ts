@@ -5,16 +5,21 @@
 //
 // This module is the seam between the UI and the platform store. The WEB build (PWA / dev preview)
 // is not a sales channel, so it simulates a successful purchase for testing. The iOS build routes
-// to StoreKit 2 through a small custom Capacitor plugin (no third-party purchase SDK).
+// through the same custom Capacitor plugin every other purchase uses.
 //
 // ── NATIVE WIRING ───────────────────────────────────────────────────────────────────────────────
-// StoreKit IS wired (NATIVE_IAP_WIRED = true). The native side is `ios/App/App/SiliconStoreKit.swift`
-// — a minimal StoreKit 2 plugin (Product.products / purchase / Transaction.currentEntitlements /
-// AppStore.sync). We use StoreKit 2 directly rather than a third-party purchase SDK so the App
-// Privacy "no third-party SDKs / data not collected" declaration stays literally true, and so the
-// SPM-only iOS target needs no CocoaPods. Remaining one-time Xcode setup is in appstore/IAP_GUIDE.md
-// (add the In-App Purchase capability + a .storekit config for the simulator). Nothing here ever
-// throws: the same bundle runs in the browser and inside the native shell.
+// The store IS wired (NATIVE_IAP_WIRED = true). The native side is `ios/App/App/SiliconStoreKit.swift`,
+// which serves this legacy unlock from whichever backend is active — StoreKit 2 direct, or
+// RevenueCat's native SDK (`SiliconStoreKit+RevenueCat.swift`). Either way this file is unchanged:
+// the plugin interface is the seam, and it did not move.
+//
+// ⚠️ The legacy unlock is deliberately NOT attached to the RevenueCat `pro` entitlement. It grants
+// Creative Mode and nothing else, exactly as it always has — widening it to full Pro would be a
+// product decision, not a migration step. It is still registered in RevenueCat so it restores.
+//
+// Remaining one-time Xcode setup is in appstore/IAP_GUIDE.md (add the In-App Purchase capability +
+// a .storekit config for the simulator); RevenueCat's own setup is appstore/REVENUECAT_SETUP.md.
+// Nothing here ever throws: the same bundle runs in the browser and inside the native shell.
 import type { PluginListenerHandle } from "@capacitor/core";
 import { isNative, storeKit } from "./storeKitBridge.ts";
 import { grantSandboxEntitlement, hasSandboxEntitlement } from "./entitlements.ts";
