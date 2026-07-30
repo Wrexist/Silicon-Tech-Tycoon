@@ -54,6 +54,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Same reasoning as ios-build-check.yml: no step after the clone uses git, and this job
+          # additionally handles App Store Connect secrets — no reason to also persist the job token.
+          persist-credentials: false
 
       - name: Verify required secrets
         env:

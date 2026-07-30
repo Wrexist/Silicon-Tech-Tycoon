@@ -48,6 +48,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Nothing here talks to git after the clone (npm ci / cap sync / xcodebuild only), so
+          # don't leave the job token sitting in .git/config for them to inherit.
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
