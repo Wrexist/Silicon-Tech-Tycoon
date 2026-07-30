@@ -383,21 +383,36 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
             <>
               <p className="pwl__summary">{billingSummary}</p>
 
+              {/* Two lines: the hook, then the thing that actually blocks the tap. On the trial the
+                  objection is "am I about to be charged?", so the answer sits inside the button
+                  rather than a line below it that the thumb has already covered. On a paid plan the
+                  second line is the price itself, straight from the store — never a formatted
+                  string, so it stays correct in every currency. */}
               <Button block onClick={buy} disabled={busy != null || !current}>
                 {busy === "buy" ? (
                   "Processing…"
                 ) : trialOnSelected ? (
-                  <><Sparkles size={16} aria-hidden /> Start free trial</>
+                  <>
+                    <Sparkles size={16} aria-hidden />
+                    <span className="pwl__cta-label">
+                      <span>Start {trialLabel} free</span>
+                      <span className="pwl__cta-sub">Nothing to pay today · cancel any time</span>
+                    </span>
+                  </>
                 ) : (
-                  <><Sparkles size={16} aria-hidden /> Continue — {current ? `${current.offer.price}${current.product.billingSuffix}` : ""}</>
+                  <>
+                    <Sparkles size={16} aria-hidden />
+                    <span className="pwl__cta-label">
+                      <span>Unlock Silicon Pro</span>
+                      {current && (
+                        <span className="pwl__cta-sub">
+                          {current.offer.price}{current.product.billingSuffix}
+                        </span>
+                      )}
+                    </span>
+                  </>
                 )}
               </Button>
-
-              {trialOnSelected && (
-                <p className="pwl__reassure">
-                  <Check size={12} aria-hidden /> No payment due now · cancel any time
-                </p>
-              )}
             </>
           )}
 

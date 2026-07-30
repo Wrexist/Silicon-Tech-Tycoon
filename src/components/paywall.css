@@ -254,12 +254,17 @@
   font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.45;
 }
 
-.pwl__reassure {
-  margin-top: var(--sp-8);
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--fs-micro); font-weight: 600; color: var(--ink-3);
+/* Stacked CTA label. `.ds-btn` is a centred flex with `nowrap`, so each line is its own span and
+   neither can wrap raggedly. The sub-line is deliberately quieter than the headline verb AND
+   quieter than the billed amount on the plan row — nothing here may out-shout that (3.1.2(c)). */
+.pwl__cta-label {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
+  line-height: 1.15;
 }
-.pwl__reassure svg { color: var(--positive-text); }
+.pwl__cta-sub {
+  font-size: var(--fs-nano); font-weight: 600; letter-spacing: 0;
+  opacity: 0.82;
+}
 
 /* Always present, never shouty: the way out has to be findable (a free app you can't get past
    fails Apple's minimum-functionality bar) without competing with the CTA. */
