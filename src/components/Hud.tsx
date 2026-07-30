@@ -22,8 +22,10 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
   const critical = runway < 4;
   return (
     <header className="hud">
-      {/* Left column: brand badge over the cash readout (taps to the Bank). */}
-      <div className="hud__brand">
+      {/* Row 1: the headline number and the buttons share one line — they are the two things that
+          are always tapped, and stacking them was what made this bar tall enough to eat the top of
+          the board. Row 2 carries the read-only chips. */}
+      <div className="hud__top">
         <button
           type="button"
           className="hud__cash"
@@ -37,42 +39,6 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
             <AnimatedMoney value={state.cash} className={`hud__cash-value rounded${critical ? " hud__cash-value--danger" : ""}`} />
           </span>
         </button>
-      </div>
-      <div className="hud__meta">
-        {/* Chips and buttons wrap as GROUPS — on narrow phones the buttons drop to their own
-            right-aligned row instead of splitting at an arbitrary chip boundary. */}
-        <div className="hud__chips">
-          <div
-            className="hud__chip hud__chip--rp"
-            title="Research Points"
-            aria-label={`Research points: ${Math.floor(state.researchPoints)}`}
-          >
-            <FlaskConical size={13} strokeWidth={2.2} aria-hidden />
-            <span className="hud__chip-tag" aria-hidden>RP</span>
-            <span aria-hidden>
-              <AnimatedInt value={Math.floor(state.researchPoints)} />
-            </span>
-          </div>
-          <div
-            className="hud__chip"
-            title="Reputation"
-            aria-label={`Reputation ${Math.round(state.reputation)} of 100`}
-          >
-            <Star size={13} strokeWidth={2.4} fill="currentColor" style={{ color: "var(--warning)" }} aria-hidden />
-            <span className="hud__chip-tag" aria-hidden>Rep</span>
-            <span className="tnum" aria-hidden>{Math.round(state.reputation)}</span>
-          </div>
-          <div
-            className="hud__chip hud__chip--muted"
-            title={`${eraName(state.era)} · ${weekLabel(state.week)}`}
-            aria-label={`Week ${state.week}`}
-          >
-            <Calendar size={13} strokeWidth={2.2} aria-hidden />
-            <span className="tnum" aria-hidden>Wk {state.week}</span>
-            <span className="hud__chip-sep" aria-hidden>·</span>
-            <span className="tnum" aria-hidden>{weekLabel(state.week)}</span>
-          </div>
-        </div>
         <div className="hud__controls">
           {/* Time controls live up here only DURING the first-build tutorial (the Coach points at
               "the top bar", and the bottom band is free of the Design wizard footer). Once the
@@ -109,6 +75,41 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
           <button className="hud__pause" onClick={onSettings} aria-label="Settings">
             <SettingsIcon size={15} />
           </button>
+        </div>
+      </div>
+
+      {/* Row 2: read-only state. One line on every phone width — these used to wrap mid-group and
+          push the whole bar taller for the sake of three short pills. */}
+      <div className="hud__chips">
+        <div
+          className="hud__chip hud__chip--rp"
+          title="Research Points"
+          aria-label={`Research points: ${Math.floor(state.researchPoints)}`}
+        >
+          <FlaskConical size={13} strokeWidth={2.2} aria-hidden />
+          <span className="hud__chip-tag" aria-hidden>RP</span>
+          <span aria-hidden>
+            <AnimatedInt value={Math.floor(state.researchPoints)} />
+          </span>
+        </div>
+        <div
+          className="hud__chip"
+          title="Reputation"
+          aria-label={`Reputation ${Math.round(state.reputation)} of 100`}
+        >
+          <Star size={13} strokeWidth={2.4} fill="currentColor" style={{ color: "var(--warning)" }} aria-hidden />
+          <span className="hud__chip-tag" aria-hidden>Rep</span>
+          <span className="tnum" aria-hidden>{Math.round(state.reputation)}</span>
+        </div>
+        <div
+          className="hud__chip hud__chip--muted"
+          title={`${eraName(state.era)} · ${weekLabel(state.week)}`}
+          aria-label={`Week ${state.week}`}
+        >
+          <Calendar size={13} strokeWidth={2.2} aria-hidden />
+          <span className="tnum" aria-hidden>Wk {state.week}</span>
+          <span className="hud__chip-sep" aria-hidden>·</span>
+          <span className="tnum" aria-hidden>{weekLabel(state.week)}</span>
         </div>
       </div>
     </header>

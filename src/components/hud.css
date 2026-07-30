@@ -1,29 +1,32 @@
+/* Two tight rows: [cash | buttons] over [chips].
+   It used to be two side-by-side COLUMNS, which meant the bar's height was set by the taller one —
+   the right column stacked a wrapping chip group above the buttons, so three short pills were
+   costing a whole extra row and leaving a dead rectangle under the cash figure. */
 .hud {
   position: sticky;
   top: 0;
   z-index: 20;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sp-12);
-  padding: calc(var(--sp-12) + env(safe-area-inset-top)) var(--edge) var(--sp-12);
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: calc(var(--sp-10) + env(safe-area-inset-top)) var(--edge) var(--sp-10);
   background: var(--glass);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid var(--hairline);
 }
 
-/* Left column: brand badge above the cash readout. */
-.hud__brand {
+/* Row 1 — the headline number and the always-tapped buttons, on one line. */
+.hud__top {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-12);
   min-width: 0;
 }
 .hud__cash {
   display: flex;
   align-items: center;
-  gap: var(--sp-10);
   min-width: 0;
   /* it's a real button (opens the Bank) — strip native chrome, keep tap feedback */
   background: none;
@@ -50,11 +53,12 @@
   letter-spacing: 0.04em;
 }
 .hud__cash-value {
-  /* Scales with the viewport so the headline number never dominates a narrow window
-     yet stays 24px on real phones. Green = healthy money (mockup); danger overrides red. */
-  font-size: clamp(19px, 6.4vw, 24px);
+  /* Scales with the viewport so the headline number never dominates a narrow window.
+     Green = healthy money (mockup); danger overrides red. */
+  font-size: clamp(18px, 5.8vw, 22px);
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.15;
   white-space: nowrap;
   color: var(--positive-text, var(--positive));
 }
@@ -63,31 +67,38 @@
   color: var(--negative);
 }
 
-/* Right column: chips above the control buttons. */
-.hud__meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--sp-8);
-  min-width: 0;
-}
-.hud__chips,
 .hud__controls {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-shrink: 0;
   gap: var(--sp-6);
+}
+
+/* Row 2 — the read-only chips, on one line. `nowrap` is the whole point: a wrap here is what made
+   the bar tall. If a locale ever overflows, it scrolls sideways rather than growing the bar. */
+.hud__chips {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.hud__chips::-webkit-scrollbar {
+  height: 0;
 }
 .hud__chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 10px;
+  flex-shrink: 0;
+  padding: 5px 9px;
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 1px solid var(--hairline);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-micro);
   font-weight: 600;
 }
 .hud__chip--muted {
@@ -99,10 +110,12 @@
 .hud__chip--rp {
   color: var(--accent);
 }
-/* Circular control buttons (mockup). */
+/* Circular control buttons (mockup). Sized to stay a comfortable touch target while sharing a row
+   with the cash figure — the floating SpeedDial keeps the larger 48px targets for the controls that
+   get pressed constantly. */
 .hud__pause {
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 1px solid var(--hairline);
@@ -124,8 +137,8 @@
 .hud__pause--attn::after {
   content: "";
   position: absolute;
-  top: 9px;
-  right: 9px;
+  top: 7px;
+  right: 7px;
   width: 8px;
   height: 8px;
   border-radius: var(--r-pill);
