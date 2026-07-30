@@ -72,6 +72,7 @@ record of what was set and why. Verify against this table if anything ever looks
 | Entitlement | `pro` ("Silicon Pro") → yearly + monthly + lifetime. **Creative Mode NOT attached** |
 | Offering | `default` ("Silicon Pro plans") → `$rc_annual`, `$rc_monthly`, `$rc_lifetime` |
 | Public SDK key | `appl_jsQcYdrdXfaErHQdTjnUbKvqOVT` — already in `RevenueCatConfig.swift` |
+| Xcode SPM package | Added directly to `project.pbxproj` (script, not the Xcode GUI — see §6). `RevenueCat` product, pinned `>= 5.81.3`, up to next major |
 
 **Why the keys were reused rather than generated.** Both existing keys carry the same Issuer ID, so
 they belong to the same Apple Developer account as this app — an App Store Connect key is
@@ -206,31 +207,79 @@ changes and A/B tests later. See §10.
 
 ---
 
-## 6. Add the SDK to Xcode
+## 6. Add the SDK to Xcode — DONE, and done without a Mac
 
 > ⚠️ **Do NOT add RevenueCat to `ios/App/CapApp-SPM/Package.swift`.** That file says
 > `DO NOT MODIFY THIS FILE - managed by Capacitor CLI` and it means it: `npx cap sync ios`
 > regenerates it from installed npm plugins and will erase your edit. RevenueCat's native SDK is not
 > a Capacitor plugin, so it belongs to the **app target**, where `cap sync` never looks.
 
-1. Open `ios/App/App.xcworkspace` (or `App.xcodeproj`).
-2. Select the **App** project → **Package Dependencies** tab → **+**.
-3. URL: `https://github.com/RevenueCat/purchases-ios-spm.git`
-   *(RevenueCat's SPM mirror. Same code, same tags as `purchases-ios`, much smaller git history — it
-   resolves far faster.)*
-4. Dependency Rule: **Up to Next Major Version**, starting at **`5.0.0`**.
-5. Add to target **App**. When asked which products: tick **`RevenueCat`** only.
-   **Do not add `RevenueCatUI`** — it brings RevenueCat's hosted paywall UI, which this app does not
-   use and must not use. There is exactly one purchase surface in this app and it is
-   `src/components/Paywall.tsx`.
-6. Confirm the three new files are members of the App target:
-   `RevenueCatConfig.swift`, `SiliconStoreKit+RevenueCat.swift`, and the existing
-   `SiliconStoreKit.swift`.
-7. Build. With the key from §4 set, `RevenueCatConfig.backend` is now `.revenueCat`.
+This step is normally done by clicking through Xcode's "Package Dependencies" UI — which needs a
+Mac. There's no Mac in this project's toolchain, so it was done a different way: **the same package
+reference Xcode would write was added directly to `ios/App/App.xcodeproj/project.pbxproj`**, via a
+small script (`ruby` + the `xcodeproj` gem — the same library CocoaPods and Fastlane use to edit
+Xcode projects programmatically). This is not a workaround or an approximation; it edits the exact
+same project file, in the exact same format, that Xcode's GUI edits. Xcode cannot tell the
+difference on open.
 
-**Sanity check that costs 30 seconds:** run once with `Purchases.logLevel = .debug` (it already is in
-DEBUG builds) and look for `Purchases configured` plus a `CustomerInfo` fetch in the console. If the
-key is wrong you will see a 401 there rather than a silent failure at purchase time.
+What was added, matching every choice below:
+
+- **Remote package**: `https://github.com/RevenueCat/purchases-ios-spm.git`
+  *(RevenueCat's SPM mirror. Same code, same tags as `purchases-ios`, much smaller git history — it
+  resolves far faster.)*
+- **Dependency rule**: Up to Next Major Version, starting at **`5.81.3`** — the exact tag this
+  migration's adapter code (`SiliconStoreKit+RevenueCat.swift`) was verified against, so the API
+  surface used there is guaranteed to exist.
+- **Target**: `App`. **Product**: `RevenueCat` only — **not** `RevenueCatUI`, which brings
+  RevenueCat's hosted paywall UI. This app does not use it and must not: there is exactly one
+  purchase surface, `src/components/Paywall.tsx`.
+- Linked into the App target's Frameworks build phase, exactly like the existing `CapApp-SPM`
+  dependency already was.
+
+**There is nothing left to do in Xcode for this step.** The three RevenueCat source files
+(`RevenueCatConfig.swift`, `SiliconStoreKit+RevenueCat.swift`, and the edited
+`SiliconStoreKit.swift`) were already members of the App target from Phase 2 of this migration —
+only the package reference itself was missing, and it now isn't.
+
+### How this actually gets *built*, with no Mac
+
+Adding the package reference doesn't compile anything by itself — Xcode resolves and downloads the
+package source the first time something builds the project. That first build still needs a real
+Apple toolchain (`xcodebuild`, an iOS SDK). Two ways to get one without owning a Mac:
+
+1. **This repo's existing CI (recommended — already set up, already used for TestFlight builds).**
+   `.github/workflows/ios-testflight-capacitor.yml` runs on a GitHub-hosted `macos-26` runner: it
+   installs deps, `npx cap sync ios`, then `xcodebuild archive` and `-exportArchive`, signed with the
+   App Store Connect API key already in this repo's Actions secrets. `xcodebuild archive`
+   automatically resolves every Swift package declared in the project — including the one just
+   added — no Xcode GUI involved at any point. Trigger it from GitHub → **Actions** →
+   **iOS TestFlight** → **Run workflow**, enter a version number (e.g. bump `1.3.0` → `1.3.1`), leave
+   "Submit to TestFlight" on. If it archives clean, the package resolved and the RevenueCat code
+   compiled — that's the real, authoritative "does this build" answer, more reliable than a local
+   Xcode build would even be, since it runs on a clean machine every time.
+2. **A rented cloud Mac** (MacinCloud, MacStadium, Scaleway, etc.), if you ever want an interactive
+   Xcode session — not required for this migration, but useful if you want to poke around.
+
+### How the sandbox test matrix (§11) gets run, also with no Mac
+
+The 20-row matrix needs a **physical iPhone**, not a Mac — Xcode is only how people *usually* get a
+build onto a phone, not the only way:
+
+1. Run the CI workflow above with "Submit to TestFlight" on. It uploads straight to App Store
+   Connect.
+2. Accept the TestFlight invite on your iPhone (TestFlight is a free App Store app).
+3. On the iPhone, go to **Settings → App Store → Sandbox Account** and sign in with a Sandbox tester
+   you create in App Store Connect (Users and Access → Sandbox → Testers) — this is a device
+   Settings step, nothing to do with Xcode.
+4. Install the TestFlight build and run through §11's rows directly on the phone.
+
+No Mac touches any part of this path.
+
+**Sanity check that costs 30 seconds once a build exists:** RevenueCat's `Purchases.logLevel = .debug`
+is already on in DEBUG builds — look for `Purchases configured` plus a `CustomerInfo` fetch in the
+device console (Xcode's device console, or `idevicesyslog` from a Linux/Windows machine with
+`libimobiledevice`, again no Mac required). If the key is wrong you'll see a 401 there rather than a
+silent failure at purchase time.
 
 ---
 

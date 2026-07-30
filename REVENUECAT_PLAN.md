@@ -460,25 +460,44 @@ rejection reason. Re-introducing one is a regression.
 |---|---|---|---|
 | 0 · Feasibility spike | ✅ done | `revenuecat-migration` | **Option A is impossible at Capacitor 6.** The plugin's Cap-6 line (9.x, latest 9.2.2) ships a podspec and NO `Package.swift`; `Package.swift` first appears in 12.0.0, which needs Capacitor ≥ 8. **Option C chosen** — native SDK (`purchases-ios-spm`, 5.81.x, iOS 13+, SPM-native, no runtime deps) wrapped in the existing plugin. |
 | 1 · Dashboard config | ✅ **DONE** | `revenuecat-migration` | Configured live in the RevenueCat dashboard: project `78cb2b78`, app `app706e1b1a3d`, all 4 products imported from App Store Connect, entitlement `pro` → yearly+monthly+lifetime, offering `default`. Public key `appl_jsQcYdrdXfaErHQdTjnUbKvqOVT` is in `RevenueCatConfig.swift`. **Decision honoured:** the legacy sandbox unlock is NOT attached to `pro`. **⚠️ Found:** 3 of 4 products are in *Missing Metadata* in App Store Connect and cannot be sold until fixed — see `REVENUECAT_SETUP.md` §0b. |
+| 1b · Xcode package (no Mac) | ✅ **DONE** | `revenuecat-migration` | The `RevenueCat` SPM product (`purchases-ios-spm`, pinned `>= 5.81.3`) was added directly to `ios/App/App.xcodeproj/project.pbxproj` with the `xcodeproj` Ruby gem — the same file format Xcode's GUI writes, done without a Mac. See `REVENUECAT_SETUP.md` §6. |
 | 2 · Adapter | ✅ done | `revenuecat-migration` | `SiliconStoreKit+RevenueCat.swift` (new) + `RevenueCatConfig.swift` (new) + 7 one-line routes in `SiliconStoreKit.swift`. **`proStore.ts` unchanged — the adapter does not leak.** StoreKit 2 kept complete for a one-line revert. |
 | 3 · Grandfathering | ✅ done | `revenuecat-migration` | **Deliberately NOT migrated.** `originalPurchase()` stays on Apple's `AppTransaction` in both backends: RevenueCat's `originalApplicationVersion` is the same receipt field with no `revocationDate` and the identical `"1.0"` sandbox hazard — strictly weaker. Production-only guard and the pinned test both intact. |
 | 4 · Customer migration | ✅ done | `revenuecat-migration` | `appstore/REVENUECAT_SETUP.md` §7 — all six cohorts, anonymous app user IDs, no-paywall-frame guarantee, and the rollback (`RevenueCatConfig.forceStoreKit2 = true`). |
 | 5 · Offerings catalog | ⬜ deferred | — | Proposed in `REVENUECAT_SETUP.md` §10, deliberately not built. The `default` Offering is created anyway so it is available later. |
 | 6 · Privacy + docs | ✅ done | `revenuecat-migration` | `PrivacyInfo.xcprivacy` now declares Purchase History + Device ID (app functionality, not linked, not tracking). Claims retired across 11 docs + `CLAUDE.md`. **`docs/privacy/index.html` and `public/privacy.html` rewritten** — they also still described only the retired $2.99 Creative Mode IAP and never mentioned Silicon Pro at all, which was a pre-existing 3.1.2 exposure. |
 | 7 · Tests | ✅ done | `revenuecat-migration` | **1654 passing** (was 1632; +22). New: `src/state/revenueCatContract.test.ts`. `proGates.test.ts` needed NO change — no gate leaked. Determinism pin green. |
-| 8 · Device verification | ✅ written · ⬜ user action | `revenuecat-migration` | 20-row sandbox matrix, `REVENUECAT_SETUP.md` §11. Rows 17 (founding must be untestable in sandbox) and 20 (legacy unlock ≠ Pro) are the money rows. |
-| 9 · Ship | ⬜ blocked on 1 + 8 | — | Version bump and release notes wait until the dashboard is configured and the device matrix passes. |
+| 8 · Device verification | ✅ written · ⬜ user action | `revenuecat-migration` | 20-row sandbox matrix, `REVENUECAT_SETUP.md` §11. Rows 17 (founding must be untestable in sandbox) and 20 (legacy unlock ≠ Pro) are the money rows. Run it via TestFlight on a physical iPhone — no Mac needed, see §6. |
+| 9 · Ship | ⬜ blocked on: push branch, fix 3 ASC "Missing Metadata" products, run 1 CI build, pass §8 matrix | — | None of these need a Mac. Push is a user-credential blocker (§ below); the rest are App Store Connect + a GitHub Actions run + a TestFlight install on an iPhone. |
 
 ### What could NOT be verified in this environment
 
-- **No Swift was compiled and nothing ran on a device.** There is no Xcode here. Every Swift API used
-  was verified against the RevenueCat SDK's checked-in public interface at tag `5.81.3`
-  (`api/revenuecat-api-ios.swiftinterface`) rather than from memory, but "verified against the
-  declared interface" is not "it built".
-- The RevenueCat dashboard is not configured; nothing was tested against a live project.
+- **No Swift was compiled and nothing ran on a device, from *this* session.** There is no Xcode
+  here, and there never will be — this project has no Mac in its toolchain by design, not by
+  oversight. Every Swift API used was verified against the RevenueCat SDK's checked-in public
+  interface at tag `5.81.3` (`api/revenuecat-api-ios.swiftinterface`) rather than from memory. The
+  Xcode project file itself (`project.pbxproj`) WAS edited and re-validated by reopening it with the
+  `xcodeproj` gem (Phase 1b) — that's real, machine-checked structural correctness, just not a
+  compile. The actual "does it build" answer comes from `.github/workflows/ios-testflight-capacitor.yml`
+  on a GitHub-hosted macOS runner — that step has not been triggered yet and is the very next thing
+  to do (see "What's next" below).
+- The RevenueCat dashboard IS configured (Phase 1) and its API-driven state was read back and
+  verified live via browser automation — but no purchase has actually round-tripped through it yet.
 - The adapter's own mapping (`CustomerInfo` → `NativeSubscriptionStatus`) is exercised only through
   the contract fixtures in `revenueCatContract.test.ts`, which assert what the Swift *must* emit —
   not that it emits it.
+
+### What's next, concretely, once the branch is on GitHub
+
+1. Push `revenuecat-migration` (from your machine — see the repo root README/chat for the two-line
+   fetch+push).
+2. GitHub → Actions → **iOS TestFlight** → Run workflow → bump the version → submit to TestFlight.
+   If it archives clean, the RevenueCat package resolved and compiled for the first time.
+3. Fix the 3 "Missing Metadata" products in App Store Connect (§0b) — otherwise the build installs
+   but nothing is purchasable.
+4. Install the TestFlight build on an iPhone, sign into a Sandbox tester in Settings → App Store →
+   Sandbox Account, and run the §11 matrix.
+5. Flip Phase 9 to done and ship.
 
 Status values: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked (say what on).
 
