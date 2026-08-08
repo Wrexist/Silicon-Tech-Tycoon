@@ -165,8 +165,13 @@ const FRAMES = [
     sub: "License new regions, each with its own taste — then hold your standing through regional events.",
     mut: calm,
     shoot: async (p) => { await tab(p, "Market"); await subtab(p, "Demand"); await p.evaluate(() => document.querySelector(".mkt__region-list")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
-  { raw: "premium", head: 'Premium. <span class="ac">Complete.</span> Yours.', hue: 222,
-    sub: "$8.99 once. No ads, no loot boxes, no nags. A whole tech empire in your pocket — offline.",
+  // The one frame that makes a COMMERCIAL claim, so it is the one frame that can fail review on
+  // Guideline 2.3.7 (Accurate Metadata) — as it did, when it still advertised the paid era's
+  // "$8.99 once" after the app went free-to-download with a subscription. Keep it describing the
+  // model in MONETIZATION.md: free download, optional Silicon Pro, no advantage on sale. Never put a
+  // price in a screenshot — the store charges a localized price this render cannot know.
+  { raw: "premium", head: 'Free to play. <span class="ac">No dark patterns.</span>', hue: 222,
+    sub: "No ads, no timers, no loot boxes. Optional Silicon Pro adds content and modes — never an advantage.",
     mut: calm,
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(2400); await p.evaluate(() => window.scrollTo(0, 0)); } },
 ];

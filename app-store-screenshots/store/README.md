@@ -19,7 +19,12 @@ most people ever see in search.
 | 7 | `07-strike.png` | Answer every **rival** | A rival strike duel — cut price, counter-campaign, or hold the line |
 | 8 | `08-research.png` | Research on your **terms** | Timed research on the live progress ring + the "Up next" queue |
 | 9 | `09-global.png` | Take it **global** | Regional licensing — each region's taste + your live standing |
-| 10 | `10-premium.png` | Premium. **Complete.** Yours. | One-time price, no ads / no loot boxes, offline — over the lavish 3D office |
+| 10 | `10-premium.png` | Free to play. **No dark patterns.** | Free download, no ads / timers / loot boxes, Pro optional — over the lavish 3D office |
+
+**Frame 10 must never name a price.** It used to read "$8.99 once", which outlived the paid era and
+was rejected under **Guideline 2.3.7 (Accurate Metadata)** — the app is a free download with a
+Silicon Pro subscription. A screenshot also cannot know the localized price StoreKit will charge, so
+describe the model (see `MONETIZATION.md`) and let the store show the number.
 
 ## Regenerating
 

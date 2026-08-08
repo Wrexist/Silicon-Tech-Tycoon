@@ -124,21 +124,26 @@ free app with subscriptions is a **Guideline 2.3.1 (accurate metadata)** rejecti
   Silicon Pro honestly.
 - `appstore/localizations/en-US/release_notes.txt` — new v1.3.0 notes.
 
-**⚠ Still to do: the other 38 locales.** Every `appstore/localizations/*/description.txt` still ends
-with a translated version of the old "single purchase / only in-app purchase, ever" claim, and every
-`release_notes.txt` still carries the v1.2.0 body. Translate the two English files into each locale
-(same tone, same structure), then:
+**✅ Done: all 38 other locales.** Every `appstore/localizations/*/description.txt` used to end with a
+translated "single purchase / only in-app purchase, ever" claim. All 38 now end with the same two
+sections as en-US — a free-to-play section (each locale's own "no ads / no timers / no currencies"
+list, then the Garage + Growth eras free with a daily challenge, offline) and a **SILICON PRO**
+section (the Pro eras/modes, monthly or yearly with a trial, Pro Lifetime as the one-time option,
+and "nothing you can buy changes the simulation in your favour"). No description names a price.
 
 ```bash
-node appstore/localizations/validate.mjs --all   # must print ✓ for all 39
+node appstore/localizations/validate.mjs --all   # ✓ for all 39
 ```
 
-If you would rather not translate 38 descriptions right now, the minimum safe move is to **ship
-en-US only for this release** and re-enable the other storefronts once their copy is updated — an
-inaccurate localized description is a rejection in that storefront, not just a typo.
+**⚠ Still to do: `release_notes.txt` in the other 38 locales** still carries the v1.2.0 body. It makes
+no purchase claim, so it is stale rather than inaccurate — but "What's New" not mentioning that the
+app went free is a wasted slot in 38 storefronts. Translate `en-US/release_notes.txt` when you can.
 
-Also worth a pass: screenshot 10 is captioned *"Premium. Complete. Yours."* (`10-premium.png`), which
-now reads oddly next to a Free price. Recaption or replace it.
+**✅ Done: screenshot 10.** It advertised *"$8.99 once"*, which is what got 1.3.1 rejected under
+**Guideline 2.3.7 (Accurate Metadata)** — the app is a free download with a subscription. It now
+reads *"Free to play. No dark patterns."* over a line about Pro being optional. **Never put a price in
+a screenshot**: the render cannot know the localized amount StoreKit charges, and it becomes a false
+claim the moment the model moves. See `appstore/APP_STORE_METADATA.md` §11.
 
 ---
 
