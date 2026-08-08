@@ -21,7 +21,7 @@ the required 6.7" slot; App Store Connect scales it for smaller iPhones.
 | 07 | Rival Strike duel                      | **Answer every rival** |
 | 08 | Research — live ring + queue           | **Research on your terms** |
 | 09 | Regional licensing + standings         | **Take it global** |
-| 10 | Real-time 3D HQ                        | **Premium. Complete. Yours.** |
+| 10 | Real-time 3D HQ                        | **Free to play. No dark patterns.** |
 
 Lead with 01–03: the Vault board is the one frame that reads as a promise rather than a status
 readout, and search thumbnails only ever show the first three. See `store/README.md` for what each
@@ -44,7 +44,7 @@ screen is captured at its designed max width (a clean 3:4 capture) and shown ful
 | 07 | Financing / debt                  | **Master your finances** |
 | 08 | Talent poaching event             | **Keep your best people** |
 | 09 | Team morale & roster              | **Grow a real team** |
-| 10 | Real-time 3D HQ                   | **Premium. Complete. Yours.** |
+| 10 | Real-time 3D HQ                   | **Free to play. No dark patterns.** |
 
 **These are marketing renders, not submission assets.** `ios/App/App.xcodeproj/project.pbxproj`
 sets `TARGETED_DEVICE_FAMILY = "1"` — the app ships iPhone-only, so App Store Connect never asks for

@@ -351,7 +351,13 @@ newest and most visually distinctive:
 7. `07-strike.png` — Rival Strike duel — **"Answer every rival"**
 8. `08-research.png` — Research ring + queue — **"Research on your terms"**
 9. `09-global.png` — Regional licensing + standings — **"Take it global"**
-10. `10-premium.png` — **"Premium. Complete. Yours."**
+10. `10-premium.png` — **"Free to play. No dark patterns."**
+
+**No prices in screenshots — ever.** Frame 10 shipped the paid era's "$8.99 once" after the app went
+free-to-download with a subscription, and 1.3.1 was rejected under **Guideline 2.3.7 (Accurate
+Metadata)** for it. Screenshots also cannot know the localized price StoreKit charges. Describe the
+model (free download, optional Silicon Pro, nothing purchasable changes the sim — `MONETIZATION.md`)
+and let the store and the in-app paywall be the only places a number appears.
 
 Lead with the Vault: it is the only frame that reads as a *promise* rather than a status readout,
 and it is the 1.2.0 headline feature. `APP_STORE_FEATURING.md` assumes this exact order.

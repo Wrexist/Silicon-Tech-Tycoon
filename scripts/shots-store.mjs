@@ -37,6 +37,14 @@ const setPoach = (s) => {
   if (v) s.pendingPoach = { staffId: v.id, staffName: v.name, rivalId: "pomelo", rivalName: "Pomelo", retainCost: 3_600_000, week: s.week };
 };
 const pickDoctrine = (s) => { s.completedProjects = [...new Set([...(s.completedProjects || []), "perfHouse"])]; };
+// Quiet a save for a clean SCREEN shot — same helper as `shots-refresh.mjs`. The staged save arrives
+// holding `pendingSecretReveal`, so the Vault's dossier ceremony takes the screen the moment the app
+// loads; it is an EARNED ceremony, so the interrupt budget does not gate it and clearing the payload
+// is the only thing that stops it. Clearing the build shelf and pushing `lastInterruptWeek` out of
+// reach covers the rest — the sim ticks a week or two during the load window, which can finish a
+// build (Ready-to-launch pops) or raise a fresh opportunistic card.
+const PENDINGS = ["pendingAwards", "pendingChoice", "pendingCommunityAsk", "pendingEarnings", "pendingEureka", "pendingKeynote", "pendingLicenseOffer", "pendingMandateOffer", "pendingPostLaunch", "pendingPoach", "pendingRegionalEvent", "pendingRivalry", "pendingSecretReveal", "pendingSideOrder", "pendingStaffEvent", "pendingStaffMoment", "pendingStrike"];
+const calm = (s) => { s.building = []; s.ready = []; s.lastInterruptWeek = (s.week ?? 0) + 500; for (const k of PENDINGS) if (k in s) s[k] = null; };
 
 const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] });
 
@@ -88,7 +96,9 @@ const FRAMES = [
     shoot: async (p) => { await tab(p, "Office"); await p.evaluate(() => document.querySelector(".hq__choice")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
   { raw: "team", head: 'Grow a <span class="ac">real team</span>', sub: "Hire, mentor and lead. A senior anchor levels up the juniors beside them.", hue: 130,
     shoot: async (p) => { await tab(p, "Finance"); await p.evaluate(() => [...document.querySelectorAll(".ds-card")].find((c) => /Team morale/.test(c.textContent || ""))?.scrollIntoView({ block: "start" })).catch(() => {}); await p.waitForTimeout(400); } },
-  { raw: "premium", head: 'Premium. <span class="ac">Complete.</span> Yours.', sub: "$8.99 once. No ads, no loot boxes, no nags. A whole company in your pocket.", hue: 222,
+  // No price in a screenshot: the paid era's "$8.99 once" outlived the paid era here and cost a
+  // Guideline 2.3.7 rejection. Describe the model (free download + optional Pro), never the number.
+  { raw: "premium", head: 'Free to play. <span class="ac">No dark patterns.</span>', sub: "No ads, no timers, no loot boxes. Optional Silicon Pro adds content and modes — never an advantage.", hue: 222, mut: calm,
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(700); await top(p); } },
 ];
 

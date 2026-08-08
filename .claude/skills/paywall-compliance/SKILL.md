@@ -152,3 +152,10 @@ Run this whenever the paywall changed. Each line is a real rejection someone has
 | 2.1 "purchase did not complete" | A product attached to the build that isn't live/tested in sandbox, or a cancel treated as an error |
 | 3.1.1 | Something purchasable altered the simulation — find it and move the gate to the action |
 | 2.1 minimum functionality | The paywall isn't skippable, or free has nothing to do |
+| 2.3.7 "accurate metadata" | A price or business-model claim baked into a **marketing asset** instead of read from the store. 1.3.1 was rejected because screenshot 10 still advertised the paid era's "$8.99 once" after the app went free-to-download with a subscription. Fix the asset, not the app: `scripts/shots-refresh.mjs` frame 10, then re-render (`app-store-screenshots/README.md`) |
+
+"Prices from StoreKit, always" governs marketing as well as UI. **No screenshot, promo text or
+release note may name a price** — the render cannot know the localized amount StoreKit will charge,
+and the moment the model changes the asset becomes a false claim that ships. Describe the model
+(free download, optional Pro, nothing purchasable changes the sim); let the store page and the
+paywall be the only places a number appears.
