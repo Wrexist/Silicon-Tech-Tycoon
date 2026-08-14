@@ -40,12 +40,19 @@ You have to open them yourself.*
 detected as a paid-era customer and gets Pro forever, for nothing.
 
 - [ ] `grep FIRST_FREE_BUILD src/state/pro.ts` → **5**
-- [ ] Xcode → target → General → Build → **5**
 - [ ] Xcode → Version → **1.3.0**, and `package.json` version matches
 
-Both were set in this PR. You are only confirming nothing drifted.
+**The build number depends on how you ship, and it is not 5:**
 
-**Forever after:** increment the build number every release; leave `FIRST_FREE_BUILD` at 5 permanently.
+| Route | Build number | Check |
+|---|---|---|
+| `ios-testflight-capacitor.yml` (the normal path — no Mac needed) | the workflow's **run number**, ~69 at the time of writing | Nothing to set. The run now *refuses to build* if that number is below `FIRST_FREE_BUILD`, so a reset counter fails loudly instead of giving Pro away |
+| Archiving locally in Xcode | whatever `CURRENT_PROJECT_VERSION` says (**5** in `project.pbxproj`) | Must be **≥ 5** and higher than any build already uploaded under marketing version 1.3.0 |
+
+Either way the number must be **≥ 5** — anything below it is read as a paid-era download. Above the
+line, the exact value only has to be unique and increasing within a marketing version.
+
+**Forever after:** the build number increments every release; leave `FIRST_FREE_BUILD` at 5 permanently.
 
 ---
 
@@ -55,13 +62,21 @@ The old description claimed the game was *"complete and winnable with a single p
 Creative Mode was *"the only in-app purchase, ever."* Both are false now. Shipping them next to a
 free app with subscriptions is a **Guideline 2.3.1** rejection.
 
-- [ ] `appstore/localizations/en-US/description.txt` — ✅ already rewritten in this PR
-- [ ] `appstore/localizations/en-US/release_notes.txt` — ✅ already written for v1.3.0
-- [ ] **Decide on the other 38 locales** (they still carry the translated old claim):
-  - **Option A** — translate both files into each locale. Safest, ~30–60 min with a translator.
-  - **Option B** — ship **en-US only** this release, re-enable other storefronts once translated.
-    An inaccurate localized description is a rejection *in that storefront*.
+**Re-verified 2026-08-14 against the files on disk — this item was out of date, and the remaining
+work is much smaller than it says below.** Checked by keyword sweep across all 39 locale folders,
+not by reading every translation end to end:
+
+- [x] **`description.txt` — done in all 39 locales.** Every one of them now describes the free
+      download and Silicon Pro; none still carries the "complete and winnable with a single
+      purchase" claim. There is **no reason to ship en-US only**, and doing so would cost you 38
+      storefronts for a problem that is already fixed.
+- [ ] **`release_notes.txt` — done in en-US only. The other 38 are still the v1.2 notes** (the
+      Vault / fifth era). Not a rejection by itself, but "What's New" is the one place the store
+      tells an existing player the game just went free — in 38 storefronts it would instead
+      re-announce the last release. **This is the real remaining copy task**: translate
+      `en-US/release_notes.txt` into the other 38.
 - [ ] `node appstore/localizations/validate.mjs --all` → ✓ for every locale you're shipping
+      *(passing as of this audit — all 39 ✓)*
 
 Detail: `appstore/SUBSCRIPTION_GUIDE.md` § Step 2.
 
@@ -73,7 +88,12 @@ Not blocking, but they are now slightly wrong.
 
 - [ ] **Screenshot 10** is captioned *"Premium. Complete. Yours."* (`10-premium.png`) — reads oddly
       next to a **Free** price. Recaption or replace.
-- [ ] Consider one screenshot showing the paywall or the Time Machine — the headline new things.
+- [ ] Consider one screenshot showing the Time Machine — the headline new thing.
+      ⚠ **Not the paywall.** `scripts/shoot-paywall-design.mjs` renders it beautifully and it is
+      tempting, but the paywall displays **prices**, and a price baked into a marketing asset is
+      exactly the Guideline 2.3.7 rejection this app already took once (screenshot 10 still
+      advertising "$8.99 once"). Those renders are for App Store Connect's per-subscription *App
+      Review Screenshot* field, where a price is required — never for the store gallery.
 - [ ] **App preview video:** `app-store-video/` ships the 1.2.0 cut as **WebM only**, and the
       committed `.mp4` is still the **1.1.0** cut. App Store Connect accepts `.mov` / `.m4v` /
       `.mp4` — not WebM — so a transcode is required either way. See `app-store-video/README.md`,
@@ -87,9 +107,13 @@ Not blocking, but they are now slightly wrong.
 npm ci && npm test && npm run typecheck && npm run build && npx cap sync ios
 ```
 
-- [ ] All three green (1631 tests, determinism pin included)
+- [ ] All three green (1,693 tests, determinism pin included)
+- [ ] **The Swift compiles.** `npm test` never touches `ios/**`, and three past releases were burned
+      on trivial Swift errors. Open the PR (the `iOS build check` workflow runs automatically on any
+      PR touching `ios/**`) **or** dispatch `ios-build-check.yml` by hand, and wait for it to go
+      green *before* spending 40 minutes on the TestFlight run.
 - [ ] Xcode → **Product → Archive → Distribute App → App Store Connect → Upload**
-- [ ] TestFlight shows **1.3.0 (5)** and finishes processing
+- [ ] TestFlight shows **1.3.0** with the build number from Phase 1 (the CI run number, not 5) and finishes processing
 - [ ] Install that TestFlight build on a real iPhone before going further
 
 ---
@@ -170,7 +194,7 @@ General device smoke test while you're there:
 ## Phase 7 — Submit (10 min)
 
 - [ ] All **three** Pro products attached to the version
-- [ ] Build 1.3.0 (5) selected
+- [ ] The 1.3.0 build you just uploaded is selected (see Phase 1 — its number is the CI run number, not 5)
 - [ ] **App Review Information → Notes** — paste the block from
       `appstore/SUBSCRIPTION_GUIDE.md` § Step 11. It tells the reviewer what's free, what Pro adds,
       that nothing purchasable affects the simulation, where the paywall and cancel path are, and

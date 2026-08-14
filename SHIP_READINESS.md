@@ -1,5 +1,19 @@
 # Ship Readiness — v1.0 pre-flight (audited 2026-06-21)
 
+> ## ⚠️ SUPERSEDED — do not work from this file
+>
+> This is the pre-flight for **v1.0, when Silicon was an $8.99 paid download** with one $2.99 IAP.
+> The business model changed in v1.3.0: the app is a **free download monetized by Silicon Pro**
+> (monthly / yearly with a 7-day trial, plus a one-time Lifetime). Several steps below are now
+> actively wrong — "set $8.99" in App Store Connect would undo the entire free-to-play release, and
+> the version/build numbers cited are three releases old.
+>
+> **Work from [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md)** — that is the current, phase-by-phase
+> submission path. The model itself is in [`MONETIZATION.md`](MONETIZATION.md); the store setup is
+> in `appstore/SUBSCRIPTION_GUIDE.md`.
+>
+> Kept only as the record of what was verified at the 1.0 submission.
+
 A source-level audit of everything that blocks an App Store submission, so the owner hits **zero
 surprises** in Xcode / App Store Connect. This is the agent-verifiable half of Phase 0; the rest is
 owner-side (Apple account, Mac, on-device smoke). Detailed steps live in `WHAT_YOU_NEED_TO_DO.md` —

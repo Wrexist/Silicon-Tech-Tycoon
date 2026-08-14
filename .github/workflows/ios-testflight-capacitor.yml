@@ -30,6 +30,14 @@ on:
         description: "App version to ship (e.g. 2.5.3)"
         required: true
         type: string
+      # Normally left blank — the build number is this workflow's run number. Fill it in only when
+      # that counter has reset (a renamed or recreated workflow file), in which case the run refuses
+      # to build until a human names a number; see "Resolve and check build number" below for why
+      # getting this wrong gives Silicon Pro away.
+      build_number:
+        description: "Build number override (leave blank to use the run number)"
+        required: false
+        type: string
       submit_testflight:
         description: "Submit the build to TestFlight after building"
         required: false
@@ -85,7 +93,50 @@ jobs:
             echo "::error::Version to ship must look like 2.5 or 2.5.3 (digits and dots only). Got: '$MARKETING_VERSION'"
             exit 1
           fi
-          echo "Shipping marketing version $MARKETING_VERSION (build $GITHUB_RUN_NUMBER)."
+          echo "Shipping marketing version $MARKETING_VERSION."
+
+      # ─────────────────────────────────────────────────────────────────────────────────────────
+      # The build number is the one value in this pipeline that can silently give the product away.
+      #
+      # `FIRST_FREE_BUILD` in src/state/pro.ts treats any device whose ORIGINAL download was an
+      # earlier build as a paid-era customer and grants it Silicon Pro permanently, for free. The
+      # build number here is `GITHUB_RUN_NUMBER`, which counts runs of THIS WORKFLOW FILE and resets
+      # to 1 if the file is ever renamed or recreated — which has already happened once in this repo
+      # (the corrupt legacy workflow was deleted and rewritten). A reset counter would upload builds
+      # numbered 1-4, every new downloader would be classified as a paid-era owner, and Pro would be
+      # handed out free with nothing in the app to notice it.
+      #
+      # So the number is asserted, not assumed — against the constant read live out of the source,
+      # so the two can never drift. It FAILS rather than clamping: if the counter has reset, the
+      # right next build number depends on what App Store Connect already holds, and only a human
+      # knows that. Pass `build_number` to say so explicitly.
+      # ─────────────────────────────────────────────────────────────────────────────────────────
+      - name: Resolve and check build number
+        env:
+          BUILD_NUMBER_INPUT: ${{ inputs.build_number }}
+        run: |
+          BUILD_NUMBER="${BUILD_NUMBER_INPUT:-$GITHUB_RUN_NUMBER}"
+          if ! printf '%s' "$BUILD_NUMBER" | grep -Eq '^[0-9]+$'; then
+            echo "::error::Build number must be a whole number. Got: '$BUILD_NUMBER'"
+            exit 1
+          fi
+
+          # Read the entitlement boundary from the source of truth rather than repeating it here.
+          FIRST_FREE_BUILD=$(grep -oE 'FIRST_FREE_BUILD = [0-9]+' src/state/pro.ts | grep -oE '[0-9]+$')
+          if [ -z "$FIRST_FREE_BUILD" ]; then
+            echo "::error::Could not read FIRST_FREE_BUILD from src/state/pro.ts — refusing to guess."
+            exit 1
+          fi
+
+          if [ "$BUILD_NUMBER" -lt "$FIRST_FREE_BUILD" ]; then
+            echo "::error::Build number $BUILD_NUMBER is below FIRST_FREE_BUILD ($FIRST_FREE_BUILD)."
+            echo "::error::Shipping it would classify every new downloader as a paid-era owner and grant Silicon Pro free, permanently."
+            echo "::error::The run counter has probably reset. Re-run with an explicit build_number above anything already in App Store Connect."
+            exit 1
+          fi
+
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "Shipping build $BUILD_NUMBER (FIRST_FREE_BUILD is $FIRST_FREE_BUILD, so this ships as free-era)."
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -182,7 +233,7 @@ jobs:
             DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
             MARKETING_VERSION="$MARKETING_VERSION" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             archive
 
       - name: Export IPA
