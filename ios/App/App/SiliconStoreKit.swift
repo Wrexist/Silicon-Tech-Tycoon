@@ -166,6 +166,37 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         return payload
     }
 
+    /// Turn our own stable group LABEL into the group IDENTIFIER StoreKit actually indexes by.
+    ///
+    /// The JS side passes `PRO_SUBSCRIPTION_GROUP` ("silicon_pro") because a name is the only thing
+    /// the web layer can hold — but `Product.SubscriptionInfo.status(for:)` wants the identifier App
+    /// Store Connect assigned to the group, which is a numeric string and is not that name. Handed
+    /// a name no product carries, it finds nothing, every subscriber reads as "no subscription", and
+    /// they pay and get nothing. So ask the store which group its own Pro subscriptions are in.
+    ///
+    /// Falls back to the caller's value whenever the store can't be reached or reports no group, so
+    /// this is a no-op wherever the two already agree (a local `.storekit` file, or an ASC group
+    /// whose identifier really is this string).
+    ///
+    /// Costs nothing while RevenueCat is the active backend — `rc_subscriptionStatus` resolves
+    /// entitlements by its own identifier and never uses the group at all. It matters because the
+    /// StoreKit 2 path is kept complete precisely so that flipping `RevenueCatConfig.forceStoreKit2`
+    /// is a one-line revert, and a revert must not silently stop reading subscription status.
+    @available(iOS 15.0, *)
+    private static func resolveSubscriptionGroupID(fallback: String) async -> String {
+        let recurring = [
+            "com.wrexist.silicon.pro.yearly",
+            "com.wrexist.silicon.pro.monthly",
+        ]
+        guard let products = try? await Product.products(for: recurring) else { return fallback }
+        for product in products {
+            if let group = product.subscription?.subscriptionGroupID, !group.isEmpty {
+                return group
+            }
+        }
+        return fallback
+    }
+
     @available(iOS 15.0, *)
     private static func kindLabel(_ type: Product.ProductType) -> String {
         switch type {
@@ -305,7 +336,9 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         guard #available(iOS 15.0, *) else { return call.resolve(["active": false]) }
         Task {
             do {
-                let statuses = try await Product.SubscriptionInfo.status(for: groupId)
+                let statuses = try await Product.SubscriptionInfo.status(
+                    for: Self.resolveSubscriptionGroupID(fallback: groupId)
+                )
                 // A group can report SEVERAL entitling statuses at once — Family Sharing, or a
                 // monthly and a yearly overlapping across a crossgrade boundary. Taking whichever
                 // came first in the array would make the reported product, expiry and renewal

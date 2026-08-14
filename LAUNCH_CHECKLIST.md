@@ -70,11 +70,12 @@ not by reading every translation end to end:
       download and Silicon Pro; none still carries the "complete and winnable with a single
       purchase" claim. There is **no reason to ship en-US only**, and doing so would cost you 38
       storefronts for a problem that is already fixed.
-- [ ] **`release_notes.txt` — done in en-US only. The other 38 are still the v1.2 notes** (the
-      Vault / fifth era). Not a rejection by itself, but "What's New" is the one place the store
-      tells an existing player the game just went free — in 38 storefronts it would instead
-      re-announce the last release. **This is the real remaining copy task**: translate
-      `en-US/release_notes.txt` into the other 38.
+- [x] **`release_notes.txt` — now done in all 39 locales.** They were still the v1.2 notes (the
+      Vault / fifth era) in 38 storefronts, which would have re-announced the last release instead
+      of the one thing worth saying: the game is free now. Translated in this pass.
+      *Machine-translated, matching the terminology already used in each locale's description.
+      Worth a native speaker's skim on your top storefronts before you submit — but nothing here is
+      a compliance claim, so a clumsy phrase costs polish, not a rejection.*
 - [ ] `node appstore/localizations/validate.mjs --all` → ✓ for every locale you're shipping
       *(passing as of this audit — all 39 ✓)*
 
@@ -84,10 +85,11 @@ Detail: `appstore/SUBSCRIPTION_GUIDE.md` § Step 2.
 
 ## Phase 3 — Assets (1–2 h, only if you want them current)
 
-Not blocking, but they are now slightly wrong.
+Re-verified 2026-08-14 — most of this was already done. Only the video is genuinely outstanding.
 
-- [ ] **Screenshot 10** is captioned *"Premium. Complete. Yours."* (`10-premium.png`) — reads oddly
-      next to a **Free** price. Recaption or replace.
+- [x] **Screenshot 10 is already fixed** — verified in this pass. Both `store/10-premium.png` and
+      `ipad/10-premium.png` now read *"Free to play. No dark patterns."* with no price anywhere.
+      Nothing to do.
 - [ ] Consider one screenshot showing the Time Machine — the headline new thing.
       ⚠ **Not the paywall.** `scripts/shoot-paywall-design.mjs` renders it beautifully and it is
       tempting, but the paywall displays **prices**, and a price baked into a marketing asset is
@@ -125,8 +127,12 @@ Full field-by-field values in `appstore/SUBSCRIPTION_GUIDE.md` Steps 4–9. Summ
 ### 5a — Products
 - [ ] **Pricing and Availability → Free** (do this *with* this submission, not before — a free build
       with no paywall live is a window where you give the paid game away)
-- [ ] Subscription **group** created, identifier exactly **`silicon_pro`**
-      *(a mismatch here means subscribers pay and get nothing — verify the spelling)*
+- [ ] Subscription **group** created, reference name **`silicon_pro`**
+      *(this used to be load-bearing: the StoreKit 2 path looked the group up by that literal
+      string, but App Store Connect indexes groups by a numeric identifier it assigns, so a
+      mismatch would have read every subscriber as "no subscription". The plugin now asks the store
+      which group its own Pro products are in, so the name is a label again. RevenueCat — the
+      active backend — resolves by entitlement and never used it at all.)*
 - [ ] `com.wrexist.silicon.pro.yearly` — $19.99/yr, in the group, ranked above monthly
 - [ ] `com.wrexist.silicon.pro.monthly` — $3.99/mo, in the group
 - [ ] **7-day free trial** (Introductory Offer → Free → 1 week → all countries) on **both**

@@ -1,14 +1,9 @@
-Viides aikakausi, kätketty kerros – ja yhtiö, joka vihdoin vastaa takaisin.
+Silicon on nyt ilmainen – ja mukana on Aikakone.
 
-• Holvi: kahdeksantoista salaista kansiota, joiden ehtoja ei kerrota. Jokainen aukeaa jostain, minkä teit ilman että sitä pyydettiin, ja paljastuu vaihe kerrallaan: ensin sensuroitu palkki, sitten kuiskaus, sitten tarkat ehdot, sitten palkkio. Tiedon voi ostaa; teon ei koskaan. Se mitä opit, siirtyy seuraavaan yhtiöösi.
-• Autonomian aikakausi: aito viides aikakausi listautumisen jälkeen, kaksi uutta tuoteluokkaa — Neural Band ja kotirobotti — ja uusi komponenttitaso jokaisella linjalla.
-• Arkkivihollisen kaksintaistelut: arkkikilpailijasi haastaa sinut. Useiden viikkojen kaksintaisteluja nousevin tasoin, ja palkinto kun voitat yhden.
-• Mestaruus ja kaudet: tuoteluokkakohtaiset edistymispalkit omine koristeineen, sekä kuukausittainen haastekausi, joka jakaa laitevärejä, pääkonttorin pintoja ja profiilimerkkejä.
-• Johda yhtiötä, älä pelkkää tuotetta: laita tiimi puristukseen kiirehtimään valmistusta, aseta pysyvät täydennyssäännöt, hyödynnä myyntiaikaikkuna julkaisun jälkeen, lyö vetoa kuunlentotutkimuksesta todennäköisyydet näkyvissä, lupaa päivämäärä keynotessa, valitse aikakauden mandaatti ja jaa kehitysbudjetti, joka tekee jokaisesta projektista aidon valinnan.
-• Maailma, joka elää: työntekijöillä on nimet ja omat elämänsä, kilpailijat taistelevat keskenään eivätkä vain sinua vastaan, arvostelumediat muistavat edellisen laitteesi, alue-tapahtumat nimeävät siellä nousevan kilpailijan, ja toimialan tikkaat on tehty nimetyistä pomoista.
-• Näe mihin kiipeät: yhtiön tiekartta kaikista tulevista aikakausista, tuoteluokista ja loppupelin järjestelmistä, yksi tavoiterekisteri, ohjekeskus joka selittää jokaisen pistemäärän, ja sanasto.
-• Niin rauhallista kuin haluat: Rauhallinen tila päättää kuinka usein peli keskeyttää sinut, ja pienet hetket odottavat nyt hiljaa päätöslaatikossa.
-• Parempi pääkonttori: elävä 3D-toimisto näppäilyineen, pyörivine tuoleineen ja hehkuvine näyttöineen, 20 uutta huonekalua ja 8 huonetyyliä, tehdaslattia joka oikeasti käy, kunnon työtuolit joiden näyttö osoittaa aina paikalle — sekä Siisti toimistolle ja Kumoa tehtaalle.
-• Uudelleen tasapainotettu läpi koko pelin: jokainen aikakausi palkitsee nyt huolellisen julkaisun ja rankaisee laiskasta, huono alku on kurottavissa umpikujan sijaan, ja useampi kuin yksi pelitapa kestää loppuun asti.
+• Ilmainen ladata, ilmainen pelata. Koko kierros suunnittele → julkaise → lue markkinaa → sijoita uudelleen, Autotalli- ja Kasvukausi alusta loppuun, kaksi skenaariota ja uusi haaste joka päivä. Edelleen ei mainoksia, ei ajastimia, ei energiaa, ei valuuttoja, ei lootboxeja. Se ei muutu koskaan.
+• Silicon Pro, jos haluat loput: Alusta- ja tekoälykausi, kaikki skenaariot, New Game+ ja Ascension-tikkaat, Alustadivisioona, Luova tila, Holvi, Laitemuseo, Kategoriamestaruus ja oma Perustajalegendasi. Kuukausittain tai vuosittain ilmaisella kokeilulla, tai Pro Lifetime jos ostat mieluummin kerran ja siinä se.
+• Aikakone. Pro tallentaa yhtiösi tilan hiljaisesti joka neljännes ja säilyttää viisi viimeisintä. Yksi katastrofaalinen julkaisu, yksi liikaa rekrytoitu vuosi, yksi väärään aikaan ostettu tehdas – kelaa taakse ja valitse toinen tie. Vain kampanjassa: skenaariot ja haasteet pisteytetään edelleen omilla ehdoillaan.
+• Ostitko Siliconin jo? Se on sinun ikuisesti. Jokainen, joka maksoi sovelluksesta ennen kuin siitä tuli ilmainen, tunnistetaan automaattisesti ja saa Perustajaomistajan aseman – koko Pro, pysyvästi, ilman lisämaksua. Erikseen ostettu Luova tila säilyy myös sinulla.
+• Mikään ostettava ei muuta simulaatiota sinun edukseksi. Pro avaa sisältöä ja tiloja, ei koskaan etua pelin sisällä.
 
-Nopeampi lataus ja pitkä lista korjauksia.
+Alussa perustajabriiffi kysyy nyt, mitä olet tullut rakentamaan, ja peli lähtee siitä.
