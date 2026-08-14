@@ -122,6 +122,13 @@
 .set__switch--on {
   background: var(--positive);
 }
+/* A switch the DEVICE is overriding (Reduce Motion, or no WebGL2 for the 3D office). Without this it
+   would look identical to a live control and silently do nothing when tapped — worse than the dead
+   switch it replaces. Dimmed here, with the row's sub-line naming which override is in force. */
+.set__switch:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
 .set__switch-knob {
   display: block;
   width: 23px;

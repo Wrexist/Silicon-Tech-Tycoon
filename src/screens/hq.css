@@ -2161,3 +2161,29 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 }
 .hqb__zones--warn .hqb__zones-head,
 .hqb__zones--warn .hqb__zones-head b { color: var(--warning-text); }
+
+/* The "simplified view" note under the 2D office scene. Quiet by design — it is a reassurance, not
+   a warning: the player has lost nothing, the picture is just less detailed. */
+.hq__scene-note {
+  position: absolute;
+  left: var(--sp-16);
+  right: var(--sp-16);
+  bottom: var(--sp-12);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--sp-6);
+  /* Cap the measure and centre the whole row, so the glyph stays beside the first line instead of
+     drifting to the far edge once the sentence wraps. */
+  max-width: 42ch;
+  margin: 0 auto;
+  font-size: var(--fs-caption);
+  line-height: 1.35;
+  color: var(--ink-3);
+  text-align: left;
+  pointer-events: none;
+}
+.hq__scene-note svg {
+  flex: none;
+  margin-top: 2px;
+}

@@ -3,7 +3,7 @@ import {
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
   Undo2, UserPlus, Users, Wand2, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark,
-  Activity, Scissors, HandCoins, Package, type LucideIcon,
+  Activity, Scissors, HandCoins, Package, Info, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -82,7 +82,7 @@ import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { KeynoteControl } from "../components/KeynoteControl.tsx";
 import { FurnitureThumb } from "../components/FurnitureThumb.tsx";
-import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
+import { isDarkTheme, useReducedMotionLive, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
@@ -91,17 +91,6 @@ import "./hq.css";
 
 /** prefers-reduced-motion, kept LIVE: enabling it mid-session downgrades the always-animating 3D
  *  office to the static IsoScene without a reload (the one-shot read only covered mount time). */
-function useReducedMotionLive(): boolean {
-  const [reduced, setReduced] = useState(() => prefersReducedMotion());
-  useEffect(() => {
-    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (!mq?.addEventListener) return;
-    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return reduced;
-}
 
 const UPGRADE_ICONS: Record<string, LucideIcon> = { Cpu, PencilRuler, FlaskConical, Megaphone, Coffee, Factory };
 // Each upgrade line is colour-coded by the company function it powers.
@@ -156,7 +145,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           context survives the swap — the same rule that keeps it alive across bottom tabs.
           Its render loop pauses via active while hidden. */}
       <div className="hq__world" hidden={world === "factory"}>
-        <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
+        <OfficeScene use3d={use3d} reducedMotion={reducedMotion} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
       {world === "factory" && <FactoryCard onNavigate={onNavigate} active={active} />}
 
@@ -453,6 +442,31 @@ function HqGroup({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** The one-line explanation under the 2D office.
+ *
+ *  The simplified scene is an authored garage — it renders the team and the facility, and knows
+ *  nothing about placed furniture. Left unexplained that reads as "my purchases did nothing", which
+ *  is both wrong and the kind of doubt that stops people spending in the office shop at all. The
+ *  layout bonuses (comfort, focus, inspiration, desk zoning) are computed in the engine from
+ *  `state.layout` and never touch the renderer, so the fix is to say so.
+ *
+ *  Naming the CAUSE matters as much as the reassurance: a player who turned on iOS Reduce Motion
+ *  months ago has no way to connect that to their office looking generic, and would never think to
+ *  look in Settings. */
+function SimplifiedSceneNote({ reducedMotion, glLost }: { reducedMotion: boolean; glLost: boolean }) {
+  // Context loss already shows its own "Try 3D again" button right here — don't stack two
+  // explanations of the same missing picture.
+  if (glLost) return null;
+  return (
+    <p className="hq__scene-note">
+      <Info size={11} aria-hidden />
+      <span>
+        Simplified view{reducedMotion ? " (Reduce Motion)" : ""} — your office bonuses still apply.
+      </span>
+    </p>
+  );
+}
+
 /** Live office buffs + seat count, shown atop the shop so the player SEES the office working for
  *  the team. Each bar fills toward the BALANCE.shop cap (faint track = diminishing returns). */
 function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: ReturnType<typeof deskZones>; crowded: number }) {
@@ -525,7 +539,7 @@ function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: Re
 }
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
-function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
+function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; reducedMotion: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
   // The office no longer labels each teammate, so teach touch players ONCE that the team is tappable
@@ -748,6 +762,14 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         ) : (
           <>
             <IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />
+            {/* The 2D scene is an AUTHORED garage, not a render of the player's room — it knows the
+                team and the facility tier, but nothing about the 86-item furniture catalogue or where
+                anything was placed. So a player on this path buys a $12k Design Suite, arranges it,
+                and sees the picture not change. Worse, most people here never chose it: Reduce Motion
+                (a very common accessibility setting) silently routes them here, as does an old GPU.
+                Say so, and say the office still works — the bonuses are computed from the layout in
+                the engine and are entirely unaffected by which renderer drew the picture. */}
+            {!build && <SimplifiedSceneNote reducedMotion={reducedMotion} glLost={glLost} />}
             {/* Context loss is recoverable — let the player re-attempt the 3D view without
                 relaunching the app (a fresh Canvas mount usually gets a new GPU context). */}
             {glLost && (
