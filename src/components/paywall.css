@@ -270,6 +270,25 @@
   opacity: 0.92;
 }
 
+/* Risk reversal, directly under the button that charges. Three facts, not three adjectives.
+   Sized to be read and NOT to compete: nano text at --ink-3 is quieter than the plan row's billed
+   amount and quieter than the summary above it, which is what 3.1.2(c) requires of everything that
+   isn't the price. Wraps rather than clipping — `.pwl__card` is overflow:hidden. */
+.pwl__trust {
+  width: 100%; margin: var(--sp-8) 0 0; padding: 0; list-style: none;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 2px var(--sp-8);
+  font-size: var(--fs-nano); font-weight: 600; color: var(--ink-3);
+}
+.pwl__trust > li { display: inline-flex; align-items: center; white-space: nowrap; }
+/* Separators as generated content, so a screen reader reads three facts rather than punctuation.
+   Trailing (`::after` on all but the last) rather than leading: at a text size the user has scaled
+   up, this row wraps — and a leading middot puts a dangling "·" at the START of the second line,
+   which reads as a bullet that lost its list. A trailing one just ends the first line. */
+.pwl__trust > li:not(:last-child)::after {
+  content: "·"; margin-left: var(--sp-8); color: var(--ink-3); opacity: 0.6;
+}
+
 /* Always present, never shouty: the way out has to be findable (a free app you can't get past
    fails Apple's minimum-functionality bar) without competing with the CTA. */
 .pwl__skip {
@@ -313,6 +332,30 @@
   font-size: var(--fs-nano); color: var(--ink-3); line-height: 1.45;
 }
 
+/* ---------- phone heights: get the price ladder onto the screen ----------
+   Measured, not guessed. With the full two-line benefit treatment the ladder started ~600px down a
+   427px scroll window on an SE and ~685px down a 526px window on a 13 mini — so on those devices a
+   player never saw that there were three plans at all, including Pro Lifetime, which is the row
+   that answers the single loudest objection to a subscription. The CTA still worked, so this cost
+   the choice rather than the sale: no anchor, and no visible one-time option.
+
+   The fix is to spend the sub-copy rather than the ladder. Eight ticked TITLES the player can see,
+   above plans the player can reach, argues better than eight paragraphs they have to scroll to
+   find — the titles are what gets skimmed anyway. Above this height (Pro Max, iPad, desktop) there
+   is room for both, so both stay.
+
+   880px catches the 812–852pt band (13 mini, 14, 15, 16) that sits above the 740px rules below. */
+@media (max-height: 880px) {
+  .pwl__benefit-text small { display: none; }
+  /* Two columns even on a 375pt-wide phone. The single-column rule above exists because a TITLE
+     PLUS its sub-copy is unreadable in a 155pt column — with the sub-copy gone the titles are short
+     enough to pair up, and pairing them halves the list's height, which is the difference between
+     the price ladder peeking over the fold and sitting fully on screen. Later in the file than the
+     `max-width: 380px` rule on purpose: equal specificity, so this wins where both apply. */
+  .pwl__benefits { grid-template-columns: 1fr 1fr; gap: var(--sp-8) var(--sp-12); }
+  .pwl__unlock-head { margin-bottom: var(--sp-8); }
+}
+
 /* ---------- short screens (iPhone SE and friends) ----------
    The pinned bar is non-negotiable — billed amount, CTA, the way out, Restore / Terms / Privacy.
    It is now short enough that the pitch keeps usable room even here, so a short viewport only
@@ -330,10 +373,15 @@
   .pwl__body { display: none; }
   .pwl__proof { padding: var(--sp-8) var(--sp-4); }
   .pwl__unlock { margin-top: var(--sp-10); padding: var(--sp-10); }
-  .pwl__plans { margin-top: var(--sp-10); }
+  .pwl__benefits { gap: var(--sp-6) var(--sp-12); }
+  /* The panel's own label goes too at this height — eight ticked promises directly under a card
+     titled "Silicon Pro" do not need a heading to explain that they are what Pro includes. */
+  .pwl__unlock-head { display: none; }
+  .pwl__plans { margin-top: var(--sp-8); }
   .pwl__plan { padding: var(--sp-8) var(--sp-12); }
   .pwl__cta { padding-top: var(--sp-10); }
   .pwl__summary { margin-bottom: var(--sp-8); }
+  .pwl__trust { margin-top: var(--sp-6); }
   .pwl__skip { margin-top: var(--sp-4); }
   .pwl__fineprint { font-size: 9px; line-height: 1.4; }
 }

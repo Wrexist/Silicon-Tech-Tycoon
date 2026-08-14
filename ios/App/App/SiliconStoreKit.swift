@@ -31,9 +31,9 @@ import UIKit
 ///
 /// Result contracts (mirror the TypeScript types in `storeKitBridge.ts`):
 ///   getProduct           -> { available, id?, displayName?, description?, price?, owned? }
-///   getProducts          -> { products: [{ id, displayName, description, price, owned, kind,
-///                                          periodUnit?, periodCount?, introEligible?,
-///                                          introPeriod?, groupId? }] }
+///   getProducts          -> { products: [{ id, displayName, description, price, priceAmount,
+///                                          currencyCode, owned, kind, periodUnit?, periodCount?,
+///                                          introEligible?, introPeriod?, groupId? }] }
 ///   purchase             -> { status: "purchased" | "cancelled" | "pending" | "unavailable" | "error", message? }
 ///   restore              -> { restored: Bool, owned: [String] }
 ///   isOwned              -> { owned: Bool }
@@ -139,6 +139,11 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             "displayName": product.displayName,
             "description": product.description,
             "price": product.displayPrice,
+            // The raw amount + its currency, so the paywall can say how much cheaper yearly is than
+            // twelve months of monthly. `displayPrice` above stays the ONLY thing ever rendered —
+            // these two exist to be compared, not shown.
+            "priceAmount": NSDecimalNumber(decimal: product.price).doubleValue,
+            "currencyCode": product.priceFormatStyle.currencyCode,
             "kind": Self.kindLabel(product.type),
         ]
 

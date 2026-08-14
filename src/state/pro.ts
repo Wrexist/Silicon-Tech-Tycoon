@@ -37,15 +37,21 @@ export interface ProProduct {
   lengthLabel: string;
   /** USD fallback shown ONLY on web/dev and before StoreKit returns the localized price. */
   fallbackPrice: string;
+  /** The same fallback as a NUMBER, for value math (see `yearlySavingsPercent`). Web/dev only —
+   *  on device the store's own numeric amount wins, exactly as the display string does. */
+  fallbackAmount: number;
   /** Auto-renewing, or a one-time non-consumable. */
   recurring: boolean;
   /** Suffix appended to the billed amount, e.g. "/month". Empty for one-time products. */
   billingSuffix: string;
   /** Whether App Store Connect carries an introductory free-trial offer on this SKU. */
   hasTrial: boolean;
-  /** Optional badge, e.g. "BEST VALUE". */
+  /** Optional badge, e.g. "BEST VALUE". Superseded at render time by a COMPUTED savings badge when
+   *  the store gave us numbers to compute one from — a measured claim beats an adjective. */
   badge?: string;
-  /** Small "why this one" line under the title. Never a countdown, never fake scarcity. */
+  /** Small "why this one" line under the title. Never a countdown, never fake scarcity — and never
+   *  a PRICE: a price typed in here is wrong in every storefront that isn't USD. Value framing that
+   *  involves money is derived from the store's own amounts instead (`yearlySavingsPercent`). */
   note?: string;
 }
 
@@ -64,11 +70,11 @@ export const PRO_PRODUCTS: ProProduct[] = [
     title: "Pro Yearly",
     lengthLabel: "12 months · renews yearly",
     fallbackPrice: "$19.99",
+    fallbackAmount: 19.99,
     recurring: true,
     billingSuffix: "/year",
     hasTrial: true,
     badge: "BEST VALUE",
-    note: "About $1.67 a month.",
   },
   {
     id: "com.wrexist.silicon.pro.lifetime",
@@ -76,6 +82,7 @@ export const PRO_PRODUCTS: ProProduct[] = [
     title: "Pro Lifetime",
     lengthLabel: "One-time · never renews",
     fallbackPrice: "$29.99",
+    fallbackAmount: 29.99,
     recurring: false,
     billingSuffix: "",
     hasTrial: false,
@@ -87,6 +94,7 @@ export const PRO_PRODUCTS: ProProduct[] = [
     title: "Pro Monthly",
     lengthLabel: "1 month · renews monthly",
     fallbackPrice: "$3.99",
+    fallbackAmount: 3.99,
     recurring: true,
     billingSuffix: "/month",
     hasTrial: true,
@@ -94,6 +102,49 @@ export const PRO_PRODUCTS: ProProduct[] = [
 ];
 
 export const PRO_PRODUCT_IDS: string[] = PRO_PRODUCTS.map((p) => p.id);
+
+/* ─────────────────────────────  VALUE FRAMING (computed, never typed)  ─────────────────────────
+ *
+ * The yearly plan's whole argument is that it costs less than paying monthly. Stating that is the
+ * single best-evidenced thing a plan row can do — and stating it WRONG is a 3.1.2 problem, so it is
+ * arithmetic on the store's own amounts and nothing else.
+ *
+ * Deliberately a PERCENTAGE and not a per-month amount: a percentage needs no currency formatting,
+ * so it cannot be malformed in a storefront we've never seen (no decimal-comma, no ¥ without minor
+ * units, no symbol on the wrong side). This is the reason the yearly row no longer carries a typed
+ * "About $1.67 a month" — that string was simply false everywhere outside the US, and went stale the
+ * moment a price changed in App Store Connect.
+ */
+
+/** Never shout about a rounding error: below this, the row just says BEST VALUE like before. */
+const MIN_CLAIMABLE_SAVING_PCT = 5;
+
+function positiveFinite(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n) && n > 0;
+}
+
+/**
+ * How much cheaper a year of `yearly` is than twelve months of `monthly`, as a whole percent.
+ *
+ * Rounded DOWN so the claim is never larger than the truth, and null whenever it can't be made
+ * honestly: a missing amount, a mismatched currency (two storefronts can never be compared), or a
+ * yearly plan that isn't actually cheaper. Callers fall back to the static badge on null. Pure.
+ */
+export function yearlySavingsPercent(
+  yearly: { amount?: number; currency?: string } | undefined,
+  monthly: { amount?: number; currency?: string } | undefined,
+): number | null {
+  if (!yearly || !monthly) return null;
+  if (!positiveFinite(yearly.amount) || !positiveFinite(monthly.amount)) return null;
+  // Comparing amounts across currencies would be meaningless. Only a read that gave us both
+  // currencies AND disagrees is disqualifying — a store that reports neither is still comparable,
+  // because a single device only ever sees one storefront.
+  if (yearly.currency && monthly.currency && yearly.currency !== monthly.currency) return null;
+  const twelveMonths = monthly.amount * 12;
+  if (yearly.amount >= twelveMonths) return null; // nothing to claim
+  const pct = Math.floor(((twelveMonths - yearly.amount) / twelveMonths) * 100);
+  return pct >= MIN_CLAIMABLE_SAVING_PCT ? pct : null;
+}
 
 export function proProduct(id: string): ProProduct | undefined {
   return PRO_PRODUCTS.find((p) => p.id === id);

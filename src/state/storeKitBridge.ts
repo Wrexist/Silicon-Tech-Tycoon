@@ -27,6 +27,13 @@ export interface NativeProduct {
   description?: string;
   /** Localized display price, e.g. "$3.99", "kr 39,00", "€3,99". NEVER format this yourself. */
   price?: string;
+  /** The same price as a raw NUMBER, for comparing plans against each other (the yearly row's
+   *  "save N%"). It is never rendered — `price` is the only thing shown to a user, because only the
+   *  store knows how to write money in this storefront. */
+  priceAmount?: number;
+  /** ISO-4217 code for `priceAmount` ("USD", "SEK"). Used to refuse a comparison across
+   *  currencies, never to format anything. */
+  currencyCode?: string;
   /** True for a non-consumable the device already owns (Creative Mode, Pro Lifetime). */
   owned?: boolean;
   /** "auto-renewable" | "non-consumable" | "consumable" | "non-renewable". */

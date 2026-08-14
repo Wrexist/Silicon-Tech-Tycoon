@@ -205,6 +205,38 @@ export const PRO_BENEFITS: { title: string; body: string }[] = [
   { title: "No ads, ever", body: "No timers, no currency, no nags. As always." },
 ];
 
+/**
+ * Which promises LEAD when the paywall was raised by a specific gate.
+ *
+ * The headline already answers the wall the player just walked into — but until this table existed
+ * the list underneath it still opened with "The full campaign" no matter what, so a player who
+ * tapped a locked scenario read a scenario headline above an argument about something else. The
+ * first two items are the only ones many players read; they should be the answer to the question
+ * that was actually asked.
+ *
+ * Same rule as the founding brief: this REORDERS, it never adds, drops or edits a promise, and
+ * `proGates.test.ts` asserts that against every reason. Anything unlisted keeps its authored order
+ * behind the leaders, so a new benefit or a new gate degrades to today's behaviour rather than
+ * silently vanishing.
+ */
+export const REASON_BENEFIT_ORDER: Partial<Record<PaywallReason, readonly string[]>> = {
+  eraAdvance: ["The full campaign", "Platform Division", "New Game+"],
+  scenario: ["Every scenario", "The full campaign", "New Game+"],
+  newGamePlus: ["New Game+", "The archives", "The full campaign"],
+  ascension: ["New Game+", "The archives", "Every scenario"],
+  creativeMode: ["Creative Mode", "The archives", "The full campaign"],
+  platformDivision: ["Platform Division", "The full campaign", "New Game+"],
+  vault: ["The archives", "The full campaign", "Every scenario"],
+  museum: ["The archives", "Creative Mode", "The full campaign"],
+  mastery: ["The archives", "The full campaign", "New Game+"],
+  founderLegend: ["The archives", "New Game+", "The full campaign"],
+  challengeArchive: ["The archives", "Every scenario", "The full campaign"],
+  timeMachine: ["The Time Machine", "The full campaign", "The archives"],
+  // `onboarding` is absent on purpose: with no gate to answer, the founding brief's ambition
+  // ordering takes over there instead. `upgradeYearly` is absent because that player already owns
+  // every one of these — reordering their own benefits would be theatre.
+};
+
 /** Headline shown to someone who has subscribed on this device before. Returning subscribers are
  *  the cheapest revenue an app has, and the surest way to lose them is to hand them the
  *  first-time-visitor sales pitch. No discount is claimed here — any real win-back pricing comes

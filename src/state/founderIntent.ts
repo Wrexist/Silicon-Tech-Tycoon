@@ -119,18 +119,29 @@ export const INTENT_BENEFIT_ORDER: Record<FounderIntent, string[]> = {
   rivalry: ["Every scenario", "Platform Division", "New Game+"],
 };
 
-/** Reorder a benefit list so the ones matching the stated ambition lead. Stable for everything
- *  else, and a no-op when no ambition was given. Pure. */
-export function orderBenefits<T extends { title: string }>(benefits: T[], intent: FounderIntent | null): T[] {
-  if (!intent) return benefits;
-  const lead = INTENT_BENEFIT_ORDER[intent];
+/**
+ * Float the named titles to the front of a list, keeping everything else in its authored order.
+ *
+ * The ONE operation any personalization in this product is allowed to perform. It is a permutation
+ * by construction — same length, same members — which is what makes "everyone is shown the same
+ * promises" a property of the code rather than a claim in a comment. Pure; a no-op on an empty lead
+ * list or a title that doesn't exist.
+ */
+export function leadWith<T extends { title: string }>(items: T[], leadTitles: readonly string[]): T[] {
+  if (leadTitles.length === 0) return items;
   const rank = (b: T) => {
-    const i = lead.indexOf(b.title);
-    return i === -1 ? lead.length : i;
+    const i = leadTitles.indexOf(b.title);
+    return i === -1 ? leadTitles.length : i;
   };
   // Stable sort by rank — ties keep their authored order.
-  return benefits
+  return items
     .map((b, i) => ({ b, i, r: rank(b) }))
     .sort((x, y) => x.r - y.r || x.i - y.i)
     .map((x) => x.b);
+}
+
+/** Reorder a benefit list so the ones matching the stated ambition lead. Stable for everything
+ *  else, and a no-op when no ambition was given. Pure. */
+export function orderBenefits<T extends { title: string }>(benefits: T[], intent: FounderIntent | null): T[] {
+  return intent ? leadWith(benefits, INTENT_BENEFIT_ORDER[intent]) : benefits;
 }

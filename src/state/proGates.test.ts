@@ -7,10 +7,12 @@ import {
   eraAdvanceLocked,
   isLocked,
   paywallCopy,
+  REASON_BENEFIT_ORDER,
   RETURNING_COPY,
   scenarioLocked,
   type ProFeature,
 } from "./proGates.ts";
+import { leadWith } from "./founderIntent.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
 import { BALANCE } from "../engine/balance.ts";
 
@@ -149,5 +151,51 @@ describe("paywall copy", () => {
   it("still promises no ads — the brand's whole wedge survives the move to free", () => {
     const all = PRO_BENEFITS.map((b) => `${b.title} ${b.body}`).join(" ").toLowerCase();
     expect(all).toContain("no ads");
+  });
+});
+
+describe("which promise leads, per gate", () => {
+  // The headline answers the wall the player walked into; this table makes the LIST answer it too.
+  // Same contract as the founding brief: reorder only. These tests are what make "every player is
+  // shown the same promises" a property of the code rather than an intention.
+  const TITLES = new Set(PRO_BENEFITS.map((b) => b.title));
+
+  it("names only benefits that exist — a typo would silently rank nothing", () => {
+    for (const [reason, titles] of Object.entries(REASON_BENEFIT_ORDER)) {
+      for (const t of titles!) {
+        expect(TITLES.has(t), `${reason} leads with "${t}", which is not a benefit`).toBe(true);
+      }
+    }
+  });
+
+  it("only ever REORDERS the promises — never adds, drops or edits one", () => {
+    const authored = [...PRO_BENEFITS].sort((a, b) => a.title.localeCompare(b.title));
+    for (const titles of Object.values(REASON_BENEFIT_ORDER)) {
+      const led = leadWith(PRO_BENEFITS, titles!);
+      expect(led).toHaveLength(PRO_BENEFITS.length);
+      expect([...led].sort((a, b) => a.title.localeCompare(b.title))).toEqual(authored);
+    }
+  });
+
+  it("actually floats the gate's own answer to the front", () => {
+    // The one thing the table is for: a player who tapped a locked scenario reads about scenarios,
+    // not about the campaign.
+    expect(leadWith(PRO_BENEFITS, REASON_BENEFIT_ORDER.scenario!)[0].title).toBe("Every scenario");
+    expect(leadWith(PRO_BENEFITS, REASON_BENEFIT_ORDER.timeMachine!)[0].title).toBe("The Time Machine");
+    expect(leadWith(PRO_BENEFITS, REASON_BENEFIT_ORDER.creativeMode!)[0].title).toBe("Creative Mode");
+  });
+
+  it("covers every feature gate, so no wall is answered by a generic list", () => {
+    for (const f of ALL_FEATURES) {
+      expect(REASON_BENEFIT_ORDER[f], `no lead order for the "${f}" gate`).toBeDefined();
+      expect(REASON_BENEFIT_ORDER[f]!.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("leaves onboarding and the crossgrade to their own logic", () => {
+    // `onboarding` has no gate to answer — the founding brief's ambition ordering owns that one.
+    // `upgradeYearly` targets someone who already owns all of it.
+    expect(REASON_BENEFIT_ORDER.onboarding).toBeUndefined();
+    expect(REASON_BENEFIT_ORDER.upgradeYearly).toBeUndefined();
   });
 });

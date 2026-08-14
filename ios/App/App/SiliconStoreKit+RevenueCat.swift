@@ -185,6 +185,11 @@ extension SiliconStoreKitPlugin {
             // ALWAYS the store's localized string. Formatting a price in app code that the store
             // then charges differently is an Apple 3.1.2 rejection. See trap 5.
             "price": product.localizedPriceString,
+            // Raw amount + currency, matching `SiliconStoreKit.describe`. These are compared (how
+            // much cheaper is a year than twelve months?), never rendered — the localized string
+            // above stays the only price a user ever sees.
+            "priceAmount": NSDecimalNumber(decimal: product.price).doubleValue,
+            "currencyCode": product.currencyCode ?? "",
             "kind": Self.rc_kindLabel(product.productType),
         ]
 

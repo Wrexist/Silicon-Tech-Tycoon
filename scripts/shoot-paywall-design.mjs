@@ -32,6 +32,32 @@ await new Promise((r) => server.listen(PORT, r));
 const URL = `http://localhost:${PORT}`;
 
 const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] });
+
+/* The price ladder has to be REACHABLE on a small phone, not just on the 6.7" marketing device —
+   the benefit panel used to push it clean off the bottom of an SE. These three cover the bands the
+   CSS treats differently: full copy (>880pt), titles-only (740–880pt), and fully compact (<740pt). */
+const DEVICES = [
+  { name: "se", width: 375, height: 667 },
+  { name: "15", width: 393, height: 852 },
+  { name: "max", width: 428, height: 926 },
+];
+for (const d of DEVICES) {
+  const dctx = await browser.newContext({ viewport: { width: d.width, height: d.height }, deviceScaleFactor: 3, colorScheme: "dark" });
+  await dctx.addInitScript(() => localStorage.clear());
+  const dp = await dctx.newPage();
+  await dp.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await dp.waitForTimeout(1400);
+  await (await dp.waitForSelector("button:has-text('Found')", { timeout: 15000 })).click();
+  await dp.waitForTimeout(600);
+  const s = await dp.$(".onboard__scenario-link");
+  if (s) { await s.click(); await dp.waitForTimeout(900); }
+  await dp.waitForSelector(".pwl__card", { timeout: 15000 });
+  await dp.waitForTimeout(500);
+  await dp.screenshot({ path: resolve(outDir, `paywall-${d.name}.png`) });
+  console.log("captured", `paywall-${d.name}`);
+  await dctx.close();
+}
+
 const ctx = await browser.newContext({ viewport: { width: 428, height: 926 }, deviceScaleFactor: 3, colorScheme: "dark" });
 await ctx.addInitScript(() => localStorage.clear());
 const p = await ctx.newPage();

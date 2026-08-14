@@ -33,9 +33,9 @@ import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { onPaywall, markOnboardingPaywallSeen, type PaywallRequest } from "../state/paywall.ts";
-import { paywallCopy, PRO_BENEFITS, RETURNING_COPY } from "../state/proGates.ts";
-import { getFounderIntent, INTENT_HEADLINE, orderBenefits } from "../state/founderIntent.ts";
-import { FREE_TRIAL_DAYS, PRO_PRODUCTS, hasEverSubscribed, isPro, onProChanged } from "../state/pro.ts";
+import { paywallCopy, PRO_BENEFITS, REASON_BENEFIT_ORDER, RETURNING_COPY } from "../state/proGates.ts";
+import { getFounderIntent, INTENT_HEADLINE, leadWith, orderBenefits } from "../state/founderIntent.ts";
+import { FREE_TRIAL_DAYS, PRO_PRODUCTS, hasEverSubscribed, isPro, onProChanged, yearlySavingsPercent } from "../state/pro.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES } from "../engine/catalogs.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
@@ -105,9 +105,16 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
     return paywallCopy("onboarding");
   }, [req.reason, intent]);
 
-  // Same eight promises either way — the stated ambition changes the ORDER of the argument, never
-  // its content.
-  const benefits = useMemo(() => orderBenefits(PRO_BENEFITS, intent), [intent]);
+  // Same eight promises either way — what changes is which one leads, and the precedence matches
+  // the headline's exactly: a specific gate answers the question that was just asked, and only an
+  // `onboarding` impression (where there is no question yet) falls back to the stated ambition.
+  // Both paths are pure reorders of PRO_BENEFITS; a test asserts nothing is added, dropped or
+  // edited on any of them.
+  const benefits = useMemo(() => {
+    const forReason = REASON_BENEFIT_ORDER[req.reason];
+    if (forReason) return leadWith(PRO_BENEFITS, forReason);
+    return orderBenefits(PRO_BENEFITS, intent);
+  }, [req.reason, intent]);
 
   const [selected, setSelected] = useState<string>(DEFAULT_PLAN);
   const [catalog, setCatalog] = useState<ProCatalog | null>(null);
@@ -151,6 +158,20 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
     if (rows.length === 0) return;
     if (!rows.some((r) => r.product.id === selected)) setSelected(rows[0].product.id);
   }, [rows, selected]);
+
+  /**
+   * How much cheaper a year is than twelve months of monthly, from the store's own amounts.
+   *
+   * This is the strongest single line on the card — a plan's value is the thing a player is
+   * actually deciding — and it replaces a hardcoded "About $1.67 a month" that was true in exactly
+   * one storefront. Null whenever it can't be computed honestly (one of the rows didn't come back,
+   * an older native build with no numeric amounts, mismatched currencies), and every use below
+   * falls back to the static badge, so the row simply reads as it always did.
+   */
+  const savingsPct = useMemo(() => {
+    const find = (tier: string) => rows.find((r) => r.product.tier === tier)?.offer;
+    return yearlySavingsPercent(find("yearly"), find("monthly"));
+  }, [rows]);
 
   const current = rows.find((r) => r.product.id === selected);
   const trialOnSelected = current?.offer.trialEligible === true && current.product.hasTrial;
@@ -318,6 +339,14 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
               {rows.map(({ product, offer }) => {
                 const on = selected === product.id;
                 const showsTrial = offer.trialEligible && product.hasTrial;
+                // A measured claim outranks an adjective: when the store's numbers let us say how
+                // much yearly actually saves, that replaces "BEST VALUE" on the badge and the
+                // arithmetic gets spelled out on the row the player is deciding on.
+                const savingsOnRow = product.tier === "yearly" ? savingsPct : null;
+                const badge = savingsOnRow != null ? `SAVE ${savingsOnRow}%` : product.badge;
+                const note = savingsOnRow != null
+                  ? `${savingsOnRow}% less than 12 months of monthly.`
+                  : product.note;
                 return (
                   <button
                     key={product.id}
@@ -332,7 +361,7 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
                     <span className="pwl__plan-main">
                       <span className="pwl__plan-head">
                         <span className="pwl__plan-title">{product.title}</span>
-                        {product.badge && <span className="pwl__plan-badge">{product.badge}</span>}
+                        {badge && <span className="pwl__plan-badge">{badge}</span>}
                         {offer.owned && <span className="pwl__plan-badge pwl__plan-badge--owned">OWNED</span>}
                       </span>
                       {/* Length of subscription — required next to the price. */}
@@ -346,7 +375,7 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
                       )}
                       {/* The value framing rides on the SELECTED row only — useful where the player
                           is deciding, noise on the two rows they aren't looking at. */}
-                      {on && product.note && <span className="pwl__plan-note">{product.note}</span>}
+                      {on && note && <span className="pwl__plan-note">{note}</span>}
                     </span>
                     {/* The BILLED amount — what the card is actually charged. Stacked so the
                         numeral stays the largest, heaviest thing on the row (3.1.2(c)) without a
@@ -413,6 +442,23 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
                   </>
                 )}
               </Button>
+
+              {/* The three objections that actually stop a thumb on a subscription paywall: am I
+                  trapped, is this going to turn into an ad-farm, and am I buying an advantage over
+                  people who didn't pay. Each line is a fact about this product — the same three
+                  promises MONETIZATION.md is built on — so the honest answer and the converting
+                  answer are the same sentence.
+
+                  Deliberately the quietest text in the pinned bar: 3.1.2(c) wants the billed amount
+                  to be the loudest thing here, and reassurance that out-shouts the price is exactly
+                  the "confusing design" rejection. */}
+              <ul className="pwl__trust" aria-label="Silicon Pro promises">
+                {/* Written so the DEFAULT is the subscription phrasing: before the store has named
+                    a selected row there is nothing to justify calling it a one-time purchase. */}
+                <li>{current?.product.recurring === false ? "One-time purchase" : "Cancel any time"}</li>
+                <li>No ads, ever</li>
+                <li>No pay-to-win</li>
+              </ul>
             </>
           )}
 
