@@ -76,7 +76,7 @@ import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useGame } from "../state/useGame.tsx";
-import { useSettings, getSettings, setSettings } from "../state/settings.ts";
+import { getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { BuildProgress } from "../components/BuildProgress.tsx";
@@ -111,14 +111,23 @@ const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(po
 
 export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
   const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk, buyFrontierTier } = useGame();
-  const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
   const launchProduct = useLaunchProduct();
   const onLaunch = (id: string) => { launchProduct(id); };
   const reducedMotion = useReducedMotionLive();
   const pro = useIsPro();
-  const use3d = settings.garage3d && webglSupported() && !reducedMotion;
+  // The 3D office is THE office — there is no 2D alternative view any more, and no preference that
+  // turns it off. `webglSupported()` is the only gate left, and it is a capability check, not a
+  // choice: on a device with no WebGL2 there is no 3D to render, so the SVG scene stays as the
+  // fallback for that (and for a lost GPU context, and for a crash inside the 3D scene) purely so
+  // those players get an office instead of a black rectangle.
+  //
+  // Reduce Motion no longer routes anyone here. It used to, which silently hid every piece of
+  // furniture the player had bought — the SVG scene draws an authored garage and knows nothing about
+  // the layout. It is honoured inside the 3D scene instead, by stilling the idle camera drift (the
+  // viewport-level motion the setting actually exists for); see Garage3D's `still` prop.
+  const use3d = webglSupported();
   const ipoReady = canIPO(state);
   const hasProduction =
     state.building.length > 0 || state.launched.some((l) => l.weeksElapsed < l.weeklyUnits.length);
@@ -442,27 +451,25 @@ function HqGroup({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** The one-line explanation under the 2D office.
+/** The one-line explanation under the fallback office.
  *
- *  The simplified scene is an authored garage — it renders the team and the facility, and knows
- *  nothing about placed furniture. Left unexplained that reads as "my purchases did nothing", which
- *  is both wrong and the kind of doubt that stops people spending in the office shop at all. The
- *  layout bonuses (comfort, focus, inspiration, desk zoning) are computed in the engine from
- *  `state.layout` and never touch the renderer, so the fix is to say so.
+ *  This now appears in exactly one situation: the device has no WebGL2, so there is no 3D office to
+ *  draw. It is not a preference and not a mode — nobody can reach it by choice any more.
  *
- *  Naming the CAUSE matters as much as the reassurance: a player who turned on iOS Reduce Motion
- *  months ago has no way to connect that to their office looking generic, and would never think to
- *  look in Settings. */
-function SimplifiedSceneNote({ reducedMotion, glLost }: { reducedMotion: boolean; glLost: boolean }) {
+ *  It still needs saying, because the fallback is an AUTHORED garage: it renders the team and the
+ *  facility and knows nothing about placed furniture, so a player who has furnished an office sees
+ *  none of it. Unexplained that reads as "my purchases did nothing", which is both wrong and the kind
+ *  of doubt that stops people spending in the office shop at all. The layout bonuses (comfort, focus,
+ *  inspiration, desk zoning) are computed in the engine from `state.layout` and never touch the
+ *  renderer, so the honest thing is to say so. */
+function SimplifiedSceneNote({ glLost }: { glLost: boolean }) {
   // Context loss already shows its own "Try 3D again" button right here — don't stack two
   // explanations of the same missing picture.
   if (glLost) return null;
   return (
     <p className="hq__scene-note">
       <Info size={11} aria-hidden />
-      <span>
-        Simplified view{reducedMotion ? " (Reduce Motion)" : ""} — your office bonuses still apply.
-      </span>
+      <span>This device can't run the 3D office — your office bonuses still apply.</span>
     </p>
   );
 }
@@ -748,6 +755,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
                 upgrades={state.upgrades}
                 companyName={state.companyName}
                 dark={dark}
+                still={reducedMotion}
                 onContextLost={onGlLost}
                 builder={builder}
                 roomStyle={state.roomStyle}
@@ -769,7 +777,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
                 (a very common accessibility setting) silently routes them here, as does an old GPU.
                 Say so, and say the office still works — the bonuses are computed from the layout in
                 the engine and are entirely unaffected by which renderer drew the picture. */}
-            {!build && <SimplifiedSceneNote reducedMotion={reducedMotion} glLost={glLost} />}
+            {!build && <SimplifiedSceneNote glLost={glLost} />}
             {/* Context loss is recoverable — let the player re-attempt the 3D view without
                 relaunching the app (a fresh Canvas mount usually gets a new GPU context). */}
             {glLost && (

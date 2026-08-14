@@ -9,7 +9,6 @@ export interface Settings {
   theme: ThemePref;
   sound: boolean;
   haptics: boolean;
-  garage3d: boolean;
   /** Accessibility: high-contrast mode — stronger borders, muted text, and focus rings on top of the
    *  current theme (a preference, so it survives a new company — not in the game save). */
   highContrast: boolean;
@@ -31,7 +30,7 @@ export interface Settings {
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, garage3d: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard" };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard" };
 
 function read(): Settings {
   try {

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
-  Boxes,
   Check,
   Contrast,
   Download,
@@ -38,7 +37,6 @@ import { manageProSubscription, proPurchasesAvailable, restorePro } from "../sta
 import { openPaywall } from "../state/paywall.ts";
 import { useIsPro, useProStatus } from "../state/usePro.ts";
 import { useGame } from "../state/useGame.tsx";
-import { useReducedMotionLive, webglSupported } from "../garage3d/support.ts";
 import "./settings.css";
 
 const THEMES: { id: ThemePref; label: string; Icon: typeof Sun }[] = [
@@ -58,7 +56,6 @@ const PACES: { id: InterruptPace; label: string; sub: string }[] = [
 
 export function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettings();
-  const reducedMotion = useReducedMotionLive();
   const { state, restart, unlockPlatform, setInterruptPace } = useGame();
   const [confirmReset, setConfirmReset] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -113,28 +110,6 @@ export function Settings({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="set__group">
-        {/* Two OS-level conditions override this switch — Reduce Motion (the 3D office animates
-            constantly: the team fidget, lights flicker, the camera drifts) and a GPU with no WebGL2.
-            Left unsaid, the control just sat there doing nothing when flipped, which reads as a
-            broken switch rather than a respected preference. Say which one is in force. */}
-        <Row
-          icon={<Boxes size={18} />}
-          label="3D headquarters"
-          sub={
-            !webglSupported()
-              ? "This device can't run the 3D office — the 2D scene is always used."
-              : reducedMotion
-                ? "Reduce Motion is on, so the calmer 2D scene is used."
-                : "Real-time 3D office. Off uses the lighter 2D scene."
-          }
-        >
-          <Switch
-            label="3D headquarters"
-            on={settings.garage3d && !reducedMotion && webglSupported()}
-            disabled={reducedMotion || !webglSupported()}
-            onChange={(v) => { setSettings({ garage3d: v }); sfx("toggle"); }}
-          />
-        </Row>
         <Row icon={<Volume2 size={18} />} label="Sound effects">
           <Switch label="Sound effects" on={settings.sound} onChange={(v) => { setSettings({ sound: v }); if (v) sfx("toggle"); }} />
         </Row>
